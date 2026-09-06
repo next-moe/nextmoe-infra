@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"testing"
 
 	"api/internal/platform/apiv2/problem"
+	"api/internal/platform/apiv2/repr"
 	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 
@@ -343,6 +345,20 @@ func TestLiveG11SameBytesAcrossKeys(t *testing.T) {
 // bare decimal id on the list, RFC3339Nano|work_id on items — against the
 // ^cur_ pattern repr.List publishes, and no fixture overflowed a page, so
 // nothing saw the emitted form until a limit=1 crawl.
+// The prefix alone does not separate a correct cursor from one wrapped twice:
+// a double-wrapped cursor round-trips and crawls green, and 2.12.0 shipped one
+// on both folder lanes. The payload has to be opened to see it.
+func requireOpaqueCursor(t *testing.T, where, cursor string) {
+	t.Helper()
+	payload, ok := repr.ParseCursor(cursor)
+	require.True(t, ok, "raw cursor leaked on %s: %s", where, cursor)
+	key, err := base64.RawURLEncoding.DecodeString(payload)
+	require.NoError(t, err, "cursor payload is not base64 on %s: %s", where, cursor)
+	require.NotEmpty(t, key, "empty cursor payload on %s", where)
+	_, nested := repr.ParseCursor(string(key))
+	require.False(t, nested, "double-wrapped cursor on %s: %s", where, string(key))
+}
+
 func TestFolderCursorsAreOpaque(t *testing.T) {
 	env := liveCatalog(t)
 	fx := env.fx
@@ -380,8 +396,7 @@ func TestFolderCursorsAreOpaque(t *testing.T) {
 			if page.NextCursor == nil {
 				return total
 			}
-			require.True(t, strings.HasPrefix(*page.NextCursor, "cur_"),
-				"raw cursor leaked on %s: %s", base, *page.NextCursor)
+			requireOpaqueCursor(t, base, *page.NextCursor)
 			cursor = *page.NextCursor
 		}
 		t.Fatalf("crawl of %s did not terminate", base)

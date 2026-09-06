@@ -86,6 +86,7 @@ func TestLiveMyPlaytimesIncludeTotal(t *testing.T) {
 		pages++
 		require.LessOrEqual(t, pages, 50,
 			"the second-truncated cursor used to re-serve the boundary row forever on same-second rows")
+		requireOpaqueCursor(t, "/v2/me/playtimes", *next)
 		path = "/v2/me/playtimes?limit=1&cursor=" + *next
 	}
 	require.GreaterOrEqual(t, crawled, 2)

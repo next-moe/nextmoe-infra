@@ -7301,7 +7301,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.12.0
+  version: 2.13.0
   x-stability: stable
 openapi: 3.1.0
 paths:
