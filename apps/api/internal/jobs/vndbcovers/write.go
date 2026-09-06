@@ -60,9 +60,20 @@ func (r *runner) fill(ctx context.Context, row planRow) {
 		}
 		return
 	}
+	// The first full run ended uploaded=1,725 dedup=46,630: the image service
+	// dedups uploads by content, and for most candidates the legacy wiki row
+	// (source curated/upscale, kind '') already carried the byte-identical
+	// official image. DO NOTHING left those rows curated-sourced — the works
+	// stayed candidates, and the planned curated purge would have deleted the
+	// official bytes with them. A conflict therefore re-sources the identical
+	// row to vndb and normalizes the legacy '' kind; the WHERE keeps re-runs
+	// idempotent (rows already vndb-sourced count as dedup, not uploads).
 	tx := r.db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "work_id"}, {Name: "image_hash"}},
-		DoNothing: true,
+		DoUpdates: clause.AssignmentColumns([]string{"source_id", "kind", "portrait_pinned", "sexual", "violence", "updated_at"}),
+		Where: clause.Where{Exprs: []clause.Expression{
+			clause.Expr{SQL: "catalog_work_cover.source_id <> excluded.source_id"},
+		}},
 	}).Create(&model.CatalogWorkCover{
 		WorkID: row.WorkID, ImageHash: res.Hash, SortOrder: 0, Kind: coverKind,
 		PortraitPinned: portrait(row.Img.Dims),
