@@ -614,6 +614,11 @@ export const vocabularies = [
         "value": "howlongtobeat",
         "display_name": "HowLongToBeat",
         "description": "HowLongToBeat playtime and rating aggregates."
+      },
+      {
+        "value": "censored",
+        "display_name": "Censored",
+        "description": "First-party blurred stand-in derived from explicit official art."
       }
     ]
   },

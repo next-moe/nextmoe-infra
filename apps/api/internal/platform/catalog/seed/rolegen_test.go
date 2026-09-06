@@ -81,7 +81,7 @@ func findMapping(mappings []RoleMapSeed, sourceRole string) (RoleMapSeed, bool) 
 
 func TestHandSeedsIntegrity(t *testing.T) {
 	assert.Len(t, media(), 7)
-	assert.Len(t, sources(), 20)
+	assert.Len(t, sources(), 21)
 	assert.Len(t, relationTypes(), 16)
 	assert.Len(t, platforms(), 48)
 	seenPlat := map[string]struct{}{}

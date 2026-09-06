@@ -501,7 +501,7 @@ type PublicCoverSlot struct {
 	Sexual    int16  `json:"sexual"`
 	Violence  int16  `json:"violence"`
 	Source    string `json:"source"`
-	Origin    string `json:"origin" enum:"cover,screenshot" doc:"Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover"`
+	Origin    string `json:"origin" enum:"cover,screenshot,censored" doc:"Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover. censored is a first-party blurred stand-in derived from explicit official art — served when a work has no safe cover art (and, without the R18 opt-in, nothing else could fill the slot)"`
 }
 
 type PublicWorkCoverSlots struct {

@@ -196,6 +196,7 @@ var registry = []Vocabulary{
 		v("derived", "Derived", "First-party machine inference over catalog facts."),
 		v("nextmoe", "NextMoe", "First-party measurements aggregated from our users."),
 		v("howlongtobeat", "HowLongToBeat", "HowLongToBeat playtime and rating aggregates."),
+		v("censored", "Censored", "First-party blurred stand-in derived from explicit official art."),
 	}),
 	closed("intro_lang", []Value{
 		v("en", "English", ""),

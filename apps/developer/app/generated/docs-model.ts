@@ -3179,10 +3179,11 @@ export const docsModel: DocsModel = {
                                 {
                                   "name": "origin",
                                   "required": true,
-                                  "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover.",
+                                  "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover. censored is a first-party blurred stand-in derived from explicit official art, served on the portrait slot when nothing else may fill it.",
                                   "enum": [
                                     "cover",
-                                    "screenshot"
+                                    "screenshot",
+                                    "censored"
                                   ],
                                   "type": "string"
                                 },
@@ -4013,10 +4014,11 @@ export const docsModel: DocsModel = {
                                 {
                                   "name": "origin",
                                   "required": true,
-                                  "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover.",
+                                  "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover. censored is a first-party blurred stand-in derived from explicit official art, served on the portrait slot when nothing else may fill it.",
                                   "enum": [
                                     "cover",
-                                    "screenshot"
+                                    "screenshot",
+                                    "censored"
                                   ],
                                   "type": "string"
                                 },
@@ -10659,10 +10661,11 @@ export const docsModel: DocsModel = {
                                     {
                                       "name": "origin",
                                       "required": true,
-                                      "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover.",
+                                      "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover. censored is a first-party blurred stand-in derived from explicit official art, served on the portrait slot when nothing else may fill it.",
                                       "enum": [
                                         "cover",
-                                        "screenshot"
+                                        "screenshot",
+                                        "censored"
                                       ],
                                       "type": "string"
                                     },
@@ -11493,10 +11496,11 @@ export const docsModel: DocsModel = {
                                     {
                                       "name": "origin",
                                       "required": true,
-                                      "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover.",
+                                      "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover. censored is a first-party blurred stand-in derived from explicit official art, served on the portrait slot when nothing else may fill it.",
                                       "enum": [
                                         "cover",
-                                        "screenshot"
+                                        "screenshot",
+                                        "censored"
                                       ],
                                       "type": "string"
                                     },
@@ -21389,10 +21393,11 @@ export const docsModel: DocsModel = {
                                     {
                                       "name": "origin",
                                       "required": true,
-                                      "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover.",
+                                      "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover. censored is a first-party blurred stand-in derived from explicit official art, served on the portrait slot when nothing else may fill it.",
                                       "enum": [
                                         "cover",
-                                        "screenshot"
+                                        "screenshot",
+                                        "censored"
                                       ],
                                       "type": "string"
                                     },
@@ -22223,10 +22228,11 @@ export const docsModel: DocsModel = {
                                     {
                                       "name": "origin",
                                       "required": true,
-                                      "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover.",
+                                      "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover. censored is a first-party blurred stand-in derived from explicit official art, served on the portrait slot when nothing else may fill it.",
                                       "enum": [
                                         "cover",
-                                        "screenshot"
+                                        "screenshot",
+                                        "censored"
                                       ],
                                       "type": "string"
                                     },
@@ -50188,10 +50194,11 @@ export const docsModel: DocsModel = {
                                 {
                                   "name": "origin",
                                   "required": true,
-                                  "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover.",
+                                  "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover. censored is a first-party blurred stand-in derived from explicit official art, served on the portrait slot when nothing else may fill it.",
                                   "enum": [
                                     "cover",
-                                    "screenshot"
+                                    "screenshot",
+                                    "censored"
                                   ],
                                   "type": "string"
                                 },
@@ -51022,10 +51029,11 @@ export const docsModel: DocsModel = {
                                 {
                                   "name": "origin",
                                   "required": true,
-                                  "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover.",
+                                  "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover. censored is a first-party blurred stand-in derived from explicit official art, served on the portrait slot when nothing else may fill it.",
                                   "enum": [
                                     "cover",
-                                    "screenshot"
+                                    "screenshot",
+                                    "censored"
                                   ],
                                   "type": "string"
                                 },
@@ -53114,10 +53122,11 @@ export const docsModel: DocsModel = {
                           {
                             "name": "origin",
                             "required": true,
-                            "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover.",
+                            "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover. censored is a first-party blurred stand-in derived from explicit official art, served on the portrait slot when nothing else may fill it.",
                             "enum": [
                               "cover",
-                              "screenshot"
+                              "screenshot",
+                              "censored"
                             ],
                             "type": "string"
                           },
@@ -53948,10 +53957,11 @@ export const docsModel: DocsModel = {
                           {
                             "name": "origin",
                             "required": true,
-                            "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover.",
+                            "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover. censored is a first-party blurred stand-in derived from explicit official art, served on the portrait slot when nothing else may fill it.",
                             "enum": [
                               "cover",
-                              "screenshot"
+                              "screenshot",
+                              "censored"
                             ],
                             "type": "string"
                           },
@@ -64809,10 +64819,11 @@ export const docsModel: DocsModel = {
                                     {
                                       "name": "origin",
                                       "required": true,
-                                      "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover.",
+                                      "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover. censored is a first-party blurred stand-in derived from explicit official art, served on the portrait slot when nothing else may fill it.",
                                       "enum": [
                                         "cover",
-                                        "screenshot"
+                                        "screenshot",
+                                        "censored"
                                       ],
                                       "type": "string"
                                     },
@@ -65643,10 +65654,11 @@ export const docsModel: DocsModel = {
                                     {
                                       "name": "origin",
                                       "required": true,
-                                      "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover.",
+                                      "doc": "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover. censored is a first-party blurred stand-in derived from explicit official art, served on the portrait slot when nothing else may fill it.",
                                       "enum": [
                                         "cover",
-                                        "screenshot"
+                                        "screenshot",
+                                        "censored"
                                       ],
                                       "type": "string"
                                     },

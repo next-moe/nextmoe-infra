@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-Open 词表，20 个成员。
+Open 词表，21 个成员。
 
 | value | display_name | description |
 | --- | --- | --- |
@@ -33,6 +33,7 @@ Open 词表，20 个成员。
 | `derived` | Derived | First-party machine inference over catalog facts. |
 | `nextmoe` | NextMoe | First-party measurements aggregated from our users. |
 | `howlongtobeat` | HowLongToBeat | HowLongToBeat playtime and rating aggregates. |
+| `censored` | Censored | First-party blurred stand-in derived from explicit official art. |
 
 全部词表见 https://developer.nextmoe.dev/docs/vocabularies.md，运行时以 https://api.nextmoe.dev/v2/vocabularies 为准。
 

@@ -1723,7 +1723,7 @@ Closed · 6 tokens
 
 ### `sources`
 
-Open · 20 tokens
+Open · 21 tokens
 
 | value | display_name | description |
 | --- | --- | --- |
@@ -1747,6 +1747,7 @@ Open · 20 tokens
 | `derived` | Derived | First-party machine inference over catalog facts. |
 | `nextmoe` | NextMoe | First-party measurements aggregated from our users. |
 | `howlongtobeat` | HowLongToBeat | HowLongToBeat playtime and rating aggregates. |
+| `censored` | Censored | First-party blurred stand-in derived from explicit official art. |
 
 ### `intro_lang`
 

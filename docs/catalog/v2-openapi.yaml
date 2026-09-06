@@ -1139,10 +1139,11 @@ components:
             - integer
             - "null"
         origin:
-          description: Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover.
+          description: Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover. censored is a first-party blurred stand-in derived from explicit official art, served on the portrait slot when nothing else may fill it.
           enum:
             - cover
             - screenshot
+            - censored
           type: string
           x-vocabulary-closed: true
         sexual:
@@ -6923,7 +6924,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.9.0
+  version: 2.10.0
   x-stability: stable
 openapi: 3.1.0
 paths:

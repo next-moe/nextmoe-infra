@@ -24,7 +24,7 @@ type CoverSlot struct {
 	Sexual    *string  `json:"sexual" enum:"safe,suggestive,explicit" doc:"Sexual depiction. null means not assessed."`
 	Violence  *string  `json:"violence" enum:"tame,violent,brutal" doc:"Violent depiction. null means not assessed. Currently no catalog row has an assessment; the value is always null."`
 	Source    string   `json:"source" maxLength:"64" doc:"Open vocabulary sources. Must not be used as a discriminant."`
-	Origin    string   `json:"origin" enum:"cover,screenshot" doc:"Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover."`
+	Origin    string   `json:"origin" enum:"cover,screenshot,censored" doc:"Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover. censored is a first-party blurred stand-in derived from explicit official art, served on the portrait slot when nothing else may fill it."`
 }
 
 type Cover struct {

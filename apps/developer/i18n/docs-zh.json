@@ -678,7 +678,7 @@
   "Which editor slot these bytes were sized for.": "这些字节是按哪个编辑槽缩放的。",
   "Which half of the range this total covers. null on the grand total.": "该总计覆盖区间的哪一半。总计行上为 null。",
   "Which of the source's two sections this item belongs to.": "该条目属于来源的两个分区中的哪一个。",
-  "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover.": "该图选自哪个池。screenshot 只会出现在 banner 上，是作品没有任何横版封面时的截图回落。",
+  "Which pool the image was elected from. screenshot only ever appears on banner, as the fallback for a work with no landscape cover. censored is a first-party blurred stand-in derived from explicit official art, served on the portrait slot when nothing else may fill it.": "该图选自哪个池。screenshot 只会出现在 banner 上，是作品没有任何横版封面时的截图回落。censored 是从官方 R18 原图派生的一方重模糊替身图，仅在竖版槽位没有任何其他可用图时提供。",
   "While pending, edits title/summary/source_url/banner_hash/work_ids and sends the item back for machine scoring. Once published the only legal transition is {\"status\":\"withdrawn\"} with If-Match. rejected is terminal.": "处于 pending 时，可编辑 title/summary/source_url/banner_hash/work_ids 并把条目送回机器打分。一旦 published，唯一合法迁移是带 If-Match 的 {\"status\":\"withdrawn\"}。rejected 为终态。",
   "Wire code of the vocabulary's first token on an int member. 0 unless the model reserves 0 for null.": "int 成员上词表首个 token 的线上码。除非模型将 0 保留给 null，否则为 0。",
   "Wire code of the vocabulary's first token on an integer-coded field. 0 unless the model reserves 0 for null.": "整数编码字段上词表首个 token 的线上码。除非模型将 0 保留给 null，否则为 0。",

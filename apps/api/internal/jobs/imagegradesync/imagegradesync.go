@@ -11,14 +11,18 @@ import (
 	"gorm.io/gorm"
 )
 
-// The only three sources whose sexual value is authored by a human: vndb rows
-// carry per-image community votes, curated rows are operator-entered, user rows
-// are user-declared. EVERY other key in catalog_source — bangumi, dlsite,
+// The only sources whose sexual value must never be refined from image grades:
+// vndb rows carry per-image community votes, curated rows are operator-entered,
+// user rows are user-declared — all human-authored. censored rows are the
+// first-party blurred stand-ins derived FROM explicit art: their sexual=0 is
+// true by construction (the bytes are a color-field ghost), and a grader that
+// sees through the blur and stamps them explicit would blank the SFW face the
+// stand-in exists to fill. EVERY other key in catalog_source — bangumi, dlsite,
 // getchu, upscale, steam, and any source added later — is a machine importer
 // that stamps one work-level rating on every image it inserts, so it is refined
 // from the per-image grade automatically and needs no edit here. Adding a
 // machine source to this list silently freezes its rows at the work-level stamp.
-var humanAuthoredSources = []string{"vndb", "curated", "user"}
+var humanAuthoredSources = []string{"vndb", "curated", "user", "censored"}
 
 var mediaTables = []string{"catalog_work_screenshot", "catalog_work_cover"}
 
