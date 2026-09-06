@@ -149,6 +149,7 @@ type stubUploader struct {
 	mu    sync.Mutex
 	calls int
 	limit int
+	fixed string
 }
 
 func (s *stubUploader) UploadWithSub(_ context.Context, _ io.Reader, filename, _, _ string) (*imageclient.UploadResult, error) {
@@ -158,6 +159,9 @@ func (s *stubUploader) UploadWithSub(_ context.Context, _ io.Reader, filename, _
 	s.mu.Unlock()
 	if s.limit > 0 && n > s.limit {
 		return nil, imageclient.ErrQuotaExceeded
+	}
+	if s.fixed != "" {
+		return &imageclient.UploadResult{Hash: s.fixed}, nil
 	}
 	return &imageclient.UploadResult{Hash: fmt.Sprintf("stub-%03d-%s", n, filename)}, nil
 }
@@ -204,4 +208,50 @@ func TestDrainPoolWritesRowsAndStopsOnQuota(t *testing.T) {
 	require.NoError(t, testDB.Model(&model.CatalogWorkCover{}).Count(&n).Error)
 	assert.EqualValues(t, 6, n)
 	assert.Len(t, r.touched, 6)
+}
+
+func TestFillRelabelsTheByteIdenticalLegacyRow(t *testing.T) {
+	clean(t)
+	reg, err := resolveRegistry(context.Background(), testDB)
+	require.NoError(t, err)
+	curated := sourceID(t, "curated")
+
+	var jpg bytes.Buffer
+	require.NoError(t, jpeg.Encode(&jpg, image.NewRGBA(image.Rect(0, 0, 12, 16)), nil))
+	mirror := t.TempDir()
+	rel := filepath.Join("cv", "06", "12306.jpg")
+	require.NoError(t, os.MkdirAll(filepath.Join(mirror, filepath.Dir(rel)), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(mirror, rel), jpg.Bytes(), 0o644))
+
+	id := mkWork(t, reg, "wiki-clone")
+	mkCover(t, id, curated, "", "official-hash")
+
+	row := planRow{
+		WorkID: id, VNDBID: "v12306",
+		Img: &vnImage{URL: "https://t.vndb.org/cv/06/12306.jpg", Dims: []int{12, 16}, Sexual: 2, Violence: 0},
+	}
+	stats := &Stats{}
+	r := &runner{db: testDB, cli: &stubUploader{fixed: "official-hash"}, sourceID: reg.vndbSource,
+		imageDir: mirror, stats: stats}
+	r.fill(context.Background(), row)
+
+	var n int64
+	require.NoError(t, testDB.Model(&model.CatalogWorkCover{}).Where("work_id = ?", id).Count(&n).Error)
+	assert.EqualValues(t, 1, n, "relabel must not add a second row")
+	var got model.CatalogWorkCover
+	require.NoError(t, testDB.Where("work_id = ?", id).First(&got).Error)
+	assert.Equal(t, reg.vndbSource, got.SourceID, "byte-identical legacy row is re-sourced to vndb")
+	assert.Equal(t, "main", got.Kind, "legacy '' kind is normalized")
+	assert.Equal(t, ratingLevel(2), got.Sexual)
+	assert.True(t, got.PortraitPinned)
+	assert.Equal(t, 1, stats.Uploaded)
+	assert.Zero(t, stats.Dedup)
+	assert.Equal(t, []int64{id}, r.touched, "relabeled work must reach TouchWorks")
+
+	rerun := &runner{db: testDB, cli: &stubUploader{fixed: "official-hash"}, sourceID: reg.vndbSource,
+		imageDir: mirror, stats: &Stats{}}
+	rerun.fill(context.Background(), row)
+	assert.Equal(t, 1, rerun.stats.Dedup, "an already-vndb row must count as dedup on re-run")
+	assert.Zero(t, rerun.stats.Uploaded)
+	assert.Empty(t, rerun.touched)
 }
