@@ -22,6 +22,9 @@ func main() {
 	imageBaseURL := flag.String("image-base-url", "", "image_service base override (point at the LOCAL dev service, e.g. http://127.0.0.1:9278)")
 	uploadGap := flag.Duration("upload-gap", 0, "min delay between uploads (0 = none; raise for a gentle production sweep)")
 	apiBase := flag.String("vndb-api-base", "", "VNDB API base override (default https://api.vndb.org/kana)")
+	manifest := flag.String("manifest", "", "CSV built from the daily VNDB DB dump (vndb_id,url,width,height,sexual,violence); replaces the rate-limited Kana API metadata phase")
+	imageDir := flag.String("image-dir", "", "local mirror of rsync://dl.vndb.org/vndb-img — cover bytes are read from here first, HTTP only for files the mirror lacks")
+	workers := flag.Int("workers", 1, "concurrent shrink+upload workers; --upload-gap stays a single shared pace across all of them")
 	flag.Parse()
 
 	_ = godotenv.Load("apps/api/.env")
@@ -48,6 +51,9 @@ func main() {
 		ImageBaseURL: *imageBaseURL,
 		UploadGap:    *uploadGap,
 		APIBase:      *apiBase,
+		Manifest:     *manifest,
+		ImageDir:     *imageDir,
+		Workers:      *workers,
 	})
 	if stats != nil {
 		slog.Info("backfill-vndb-covers summary", "result", stats.String())

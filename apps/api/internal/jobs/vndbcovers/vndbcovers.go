@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"sync"
 	"time"
 
 	"api/internal/infrastructure/database"
@@ -26,6 +27,9 @@ type Opts struct {
 	ImageBaseURL string
 	UploadGap    time.Duration
 	APIBase      string
+	Manifest     string
+	ImageDir     string
+	Workers      int
 }
 
 type Stats struct {
@@ -38,12 +42,13 @@ type Stats struct {
 	Dedup      int
 	Rejected   int
 	Errors     int
+	Local      int
 	Quota      bool
 }
 
 func (s Stats) String() string {
-	return fmt.Sprintf("candidates=%d no_image=%d portrait=%d landscape=%d planned=%d uploaded=%d dedup=%d rejected=%d errors=%d quota=%t",
-		s.Candidates, s.NoImage, s.Portrait, s.Landscape, s.Planned, s.Uploaded, s.Dedup, s.Rejected, s.Errors, s.Quota)
+	return fmt.Sprintf("candidates=%d no_image=%d portrait=%d landscape=%d planned=%d uploaded=%d dedup=%d rejected=%d errors=%d local=%d quota=%t",
+		s.Candidates, s.NoImage, s.Portrait, s.Landscape, s.Planned, s.Uploaded, s.Dedup, s.Rejected, s.Errors, s.Local, s.Quota)
 }
 
 type imageUploader interface {
@@ -57,9 +62,59 @@ type runner struct {
 	cli        imageUploader
 	sourceID   int16
 	gap        time.Duration
+	imageDir   string
 	stats      *Stats
 	touched    []int64
 	pingHashes []string
+
+	mu       sync.Mutex
+	paceLast time.Time
+}
+
+func (r *runner) bump(f func(*Stats)) {
+	r.mu.Lock()
+	f(r.stats)
+	r.mu.Unlock()
+}
+
+func (r *runner) stopped() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.stats.Quota
+}
+
+func (r *runner) drain(ctx context.Context, rows []planRow, workers int) {
+	if workers < 1 {
+		workers = 1
+	}
+	jobs := make(chan planRow)
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for row := range jobs {
+				if ctx.Err() != nil || r.stopped() {
+					continue
+				}
+				r.fill(ctx, row)
+			}
+		}()
+	}
+	for i, row := range rows {
+		if ctx.Err() != nil || r.stopped() {
+			break
+		}
+		jobs <- row
+		if (i+1)%1000 == 0 {
+			r.mu.Lock()
+			slog.Info("vndb-covers progress", "queued", i+1, "of", len(rows),
+				"uploaded", r.stats.Uploaded, "dedup", r.stats.Dedup, "errors", r.stats.Errors, "local", r.stats.Local)
+			r.mu.Unlock()
+		}
+	}
+	close(jobs)
+	wg.Wait()
 }
 
 func Run(ctx context.Context, cfg *config.Config, opts Opts) (*Stats, error) {
@@ -92,10 +147,17 @@ func Run(ctx context.Context, cfg *config.Config, opts Opts) (*Stats, error) {
 	slog.Info("vndb-covers candidates", "works", len(cands), "apply", opts.Apply,
 		"offset", opts.Offset, "limit", opts.Limit, "explicit_ids", len(opts.IDs))
 
-	api := newVNDBAPI(opts.APIBase)
-	images, err := api.fetchImages(ctx, anchorIDs(cands))
-	if err != nil {
-		return stats, fmt.Errorf("query vndb api: %w", err)
+	var images map[string]*vnImage
+	if opts.Manifest != "" {
+		if images, err = loadManifest(opts.Manifest); err != nil {
+			return stats, fmt.Errorf("load manifest: %w", err)
+		}
+		slog.Info("vndb image manifest", "entries", len(images), "path", opts.Manifest)
+	} else {
+		api := newVNDBAPI(opts.APIBase)
+		if images, err = api.fetchImages(ctx, anchorIDs(cands)); err != nil {
+			return stats, fmt.Errorf("query vndb api: %w", err)
+		}
 	}
 	plan := buildPlan(cands, images, stats)
 	printForecast(plan, opts)
@@ -105,7 +167,7 @@ func Run(ctx context.Context, cfg *config.Config, opts Opts) (*Stats, error) {
 		return stats, nil
 	}
 
-	r := &runner{db: db, sourceID: reg.vndbSource, gap: opts.UploadGap, stats: stats}
+	r := &runner{db: db, sourceID: reg.vndbSource, gap: opts.UploadGap, imageDir: opts.ImageDir, stats: stats}
 	r.cli = imageclient.New(imageclient.Config{
 		BaseURL:      resolveBaseURL(cfg, clientCfg, opts.ImageBaseURL),
 		CDNBase:      cfg.ImageService.CDNBase,
@@ -119,12 +181,7 @@ func Run(ctx context.Context, cfg *config.Config, opts Opts) (*Stats, error) {
 		return stats, fmt.Errorf("image_service unreachable at %s: %w", resolveBaseURL(cfg, clientCfg, opts.ImageBaseURL), err)
 	}
 
-	for _, row := range actionable(plan, opts.Limit) {
-		if ctx.Err() != nil || stats.Quota {
-			break
-		}
-		r.fill(ctx, row)
-	}
+	r.drain(ctx, actionable(plan, opts.Limit), opts.Workers)
 	if err := repository.TouchWorks(ctx, db, r.touched); err != nil {
 		return stats, fmt.Errorf("touch works: %w", err)
 	}
