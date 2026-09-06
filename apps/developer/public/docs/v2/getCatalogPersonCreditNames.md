@@ -13,7 +13,7 @@
 
 Credit names of one person
 
-Every credited name linked to this person. Requires an application key.
+Every credited name linked to this person. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…

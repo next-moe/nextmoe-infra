@@ -13,7 +13,7 @@
 
 List intros of one work
 
-Intros. Same items as include=intros. Requires an application key.
+Intros. Same items as include=intros. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…

@@ -13,7 +13,7 @@
 
 List screenshots of one work
 
-Work screenshots. Same items as include=screenshots. Requires an application key.
+Work screenshots. Same items as include=screenshots. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…

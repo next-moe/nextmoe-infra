@@ -445,7 +445,7 @@ func selfServiceBadRequest(err error) (string, bool) {
 	case goerrors.Is(err, ErrRedirectURIInvalid):
 		return "redirect URI must be https://, or http:// on the 127.0.0.1 / [::1] loopback for a native app (no wildcards, no fragments)", true
 	case goerrors.Is(err, ErrUserScopeNotAllowed):
-		return "scope not permitted for a self-service app (want openid / profile / email / playtime:read / playtime:write / catalog:edit)", true
+		return "scope not permitted for a self-service app (want openid / profile / email / playtime:read / playtime:write / catalog:edit / catalog:read)", true
 	case goerrors.Is(err, ErrAppNameReserved):
 		return "application name may not claim to be NextMoe or an official application", true
 	default:

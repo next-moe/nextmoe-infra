@@ -54,6 +54,7 @@ const highlighter = await createHighlighter({
     'sql',
     'yaml',
     'go',
+    'rust',
     'text'
   ]
 })

@@ -61,6 +61,7 @@ export const SCOPE_LABELS: Record<string, string> = {
   'playtime:read': '读取你的游戏时长记录',
   'playtime:write': '记录你的游戏时长',
   'catalog:edit': '以你的名义提交目录条目的编辑提案',
+  'catalog:read': '以你的名义读取公开目录数据 (计入你的每日配额)',
   'image:upload': '以你的名义上传图片',
   'artifact:upload': '以你的名义上传文件',
 }

@@ -34,7 +34,7 @@ export const GUIDE_SECTIONS = [
   {
     key: 'guides',
     label: '集成指南',
-    slugs: ['example', 'mirror', 'user-data', 'best-practices']
+    slugs: ['example', 'mirror', 'user-data', 'native-app', 'best-practices']
   }
 ]
 

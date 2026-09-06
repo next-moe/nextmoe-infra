@@ -117,7 +117,7 @@ Date: 2026-08-24, GA declared 2026-08-25 (stage 9); news write face added 2026-0
 
 47. **User-token traffic is rate-limited per user, not per IP** (2026-08-28). Deviation 29 moved keyed traffic onto per-key tier limits and left "any request that never authenticates" on the per-IP default — but a user access token *does* authenticate and still resolved no limiter identity, so the whole `/v2/me` and `/v2/moderation` plane fell into the anonymous bucket. A first-party backend relays every logged-in user's call from one egress IP: the forum's entire user plane shared a single `100/min + 10k/day` bucket and answered 429 `QUOTA_EXCEEDED` from 2026-08-27T22:46Z, re-tripping after each UTC-midnight reset (`v2:quota:<forum egress IP>` measured 17,848 by 07:35Z the next day). Now `credentialLimitIdentity` falls through to the authenticated uid — key `u<uid>`, the default `100/min + 10,000/day` per user. Anonymous keyless paths (problems, vocabularies, stats, schemas, openapi.json) keep the per-IP default; an application key still wins over a uid when both are present.
 
-48. **`claim_state=pending|declined|hidden` is readable on `/v2/catalog/works`, behind moderation authority** (2026-08-28). Wave R1 narrowed the closed set to `{none, live, draft}` and pointed the queue at `/v2/moderation/claims`, but the forum's live admin submission queue reads it from here (`claim_state=pending&claimed=true&site=kungal&sort=updated`) with an **application key**, and the moderation face demands a user token carrying `catalog.claim.review`. The queue answered 400 `UNKNOWN_ENUM_VALUE` in production and rendered as "no pending submissions" — the review POST on the same page still worked, so nothing looked broken. R1's intent is kept and only its instrument replaced: the three moderation states are admitted **only** to a credential holding the operator-granted `claim_events:read` scope, and then `site=` is **mandatory** and fenced to the caller's own catalog site (resolved from the key's oauth client, `oauth_clients.catalog_site`) — 403 `PERMISSION_REQUIRED` on another tenant's queue, 403 `SITE_NOT_BOUND` when the key's application has no site. Without the scope the request gets the **identical** 400 `UNKNOWN_ENUM_VALUE` with `allowed values: none, live, draft` it got before, byte for byte: the wider set must not be discoverable by the shape of the refusal, and no unauthorized caller sees any change at all. The adjudicated user-token half of the rule (`catalog.claim.review`) is **not reachable on this face** and is not implemented — `catalogAuth` rejects anything that is not an `nmk_` application key on `/v2/catalog/*` before a user token could be looked at. Zero migrations; the service layer already supported the states (`WorksListFilter.ClaimStates`).
+48. **`claim_state=pending|declined|hidden` is readable on `/v2/catalog/works`, behind moderation authority** (2026-08-28). Wave R1 narrowed the closed set to `{none, live, draft}` and pointed the queue at `/v2/moderation/claims`, but the forum's live admin submission queue reads it from here (`claim_state=pending&claimed=true&site=kungal&sort=updated`) with an **application key**, and the moderation face demands a user token carrying `catalog.claim.review`. The queue answered 400 `UNKNOWN_ENUM_VALUE` in production and rendered as "no pending submissions" — the review POST on the same page still worked, so nothing looked broken. R1's intent is kept and only its instrument replaced: the three moderation states are admitted **only** to a credential holding the operator-granted `claim_events:read` scope, and then `site=` is **mandatory** and fenced to the caller's own catalog site (resolved from the key's oauth client, `oauth_clients.catalog_site`) — 403 `PERMISSION_REQUIRED` on another tenant's queue, 403 `SITE_NOT_BOUND` when the key's application has no site. Without the scope the request gets the **identical** 400 `UNKNOWN_ENUM_VALUE` with `allowed values: none, live, draft` it got before, byte for byte: the wider set must not be discoverable by the shape of the refusal, and no unauthorized caller sees any change at all. The adjudicated user-token half of the rule (`catalog.claim.review`) is **not reachable on this face** and is not implemented. **Amended 2026-09-06:** `catalogAuth` now does accept a user token on `/v2/catalog/*`, but the user lane sets no `catalogAuthz` at all — so the three moderation states stay out of the vocabulary for a person's token exactly as before, and for the same reason: the queue is an application's own per-site queue, and a person's token names no site to fence it against. Zero migrations; the service layer already supported the states (`WorksListFilter.ClaimStates`).
 
 49. **Auth rejections get their own IP-keyed bucket** (2026-08-28). Deviations 29 and 47 moved the quota limiter behind the auth stack deliberately, and that left one hole nothing counted at all: a request the auth stack refuses never reaches `protocol.RateLimit`, so 401/403 volume was unbounded — a credential brute-force cost the attacker nothing and cost us one uncached `ResolveByHash` per distinct garbage token. A second, cheap bucket now counts **only the answers the quota limiter never saw** (`localsPastAuth` is set at the top of `RateLimit`, so reaching it at all is the proof auth let the request through) and blocks a source that crosses **120 failures in a rolling minute** for 60s, answering 429 `RATE_LIMITED` with `Retry-After`. It is keyed by IP because a request that failed to authenticate has no other identity, which is also its cost: a first-party backend sustaining more than 120 auth failures a minute from one egress IP blocks its own traffic for the rest of the window. The quota limiter stays behind auth — moving it back in front would reintroduce both regressions at once. A scanner-shaped test hits this: `route_gate_walk_test.go` opts out of the block marker, and says so.
 
@@ -945,3 +945,50 @@ fill.
 
 **Zero migrations** (the new source row seeds through the ordinary catalog
 migrate).
+
+## Wave — the catalog read surface takes either credential (2026-09-06)
+
+A desktop manager (Tauri / Wails) that ships to users has nowhere to keep an
+`nmk_` key: the binary is on the user's machine, `strings` reads it out, and a
+leak is the developer's key with the developer's quota being spent by someone
+else. Until now that was the only credential `/v2/catalog` took, so the advice
+was "put a backend of your own in front" — which is not advice a client-only
+application can follow.
+
+`/v2/catalog/**` now accepts **an application key or a user access token**, and
+the token must carry `catalog:read`, which joins `selfServiceUserScopes` so a
+self-service login app can ask for it at consent. `/v2/store`, `/v2/me` and
+`/v2/moderation` are untouched.
+
+**One request, one credential** (refs/api-v2 D1) survives intact. The gate
+dispatches on the single `Authorization: Bearer` value's own prefix: `nmk_` is
+an application key, anything else is a user token. There is no second header,
+and no fall-through — a key that fails its lane is refused, never re-read as a
+token, or a revoked key would get a second reading it should not have.
+
+Two catalog paths deliberately stay key-only, in the document as well as in the
+gate: `GET /v2/catalog/claim-events`, whose extra `claim_events:read` is
+operator-granted and has no consent form a person could tick, and everything
+under `/v2/store`.
+
+**Rate limiting** reuses the `u<uid>` bucket deviation 47 built: a user token on
+the catalog face counts against that person's own `100/min + 10,000/day`
+default, **pooled across every application they have authorised**. Per-`(client,
+uid)` buckets were considered and rejected — that would make "register three
+applications" a way to triple a person's quota. An application key still wins
+over a uid when both are somehow present.
+
+`UserIdentity` grows `Scopes`, read from the access token's own `scope` claim;
+nothing else about token lookup changed, and there is no second validator. The
+catalog lane and `userAuth` set the same Locals through one `applyUserIdentity`,
+because the limiter reads `user_id` and would otherwise see a user bucket on one
+face and the anonymous per-IP one on the other.
+
+Tokens issued before this wave do not carry `catalog:read`, and nothing
+grandfathers them: the user re-consents once.
+
+**Spec is 2.11.0.** Additive: no new operations (92); 46 catalog operations gain
+`userToken` as a second, alternative security requirement (an OR, never an AND)
+and say so in their descriptions. oasdiff reports no breaking change.
+
+**Zero migrations.**

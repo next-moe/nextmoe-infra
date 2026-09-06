@@ -13,7 +13,7 @@
 
 Get one credit name
 
-A credited name, not a person — this is the staff and voice-actor read surface. person_id is null when unlinked; gender and the fuzzy birth parts are person-level facts reached through that link. include=aliases,photo,siblings,intros,links,refs adds the corresponding blocks. Works this name is credited on live at /v2/catalog/credit-names/{id}/credits. Requires an application key.
+A credited name, not a person — this is the staff and voice-actor read surface. person_id is null when unlinked; gender and the fuzzy birth parts are person-level facts reached through that link. include=aliases,photo,siblings,intros,links,refs adds the corresponding blocks. Works this name is credited on live at /v2/catalog/credit-names/{id}/credits. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…

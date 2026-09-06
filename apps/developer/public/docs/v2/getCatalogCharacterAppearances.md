@@ -13,7 +13,7 @@
 
 Appearances of one character
 
-Works this character appears in, with roster_role, spoiler, and voice credits. Offset cursor. Requires an application key.
+Works this character appears in, with roster_role, spoiler, and voice credits. Offset cursor. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…

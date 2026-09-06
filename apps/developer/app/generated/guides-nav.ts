@@ -84,6 +84,10 @@ export const guideNav: GuideNavSection[] = [
         "label": "接入用户数据"
       },
       {
+        "to": "/docs/native-app",
+        "label": "原生桌面应用接入"
+      },
+      {
         "to": "/docs/best-practices",
         "label": "生产最佳实践"
       }
@@ -175,6 +179,12 @@ export const guideMeta: Record<string, GuideMeta> = {
     "title": "接入用户数据",
     "eyebrow": "集成指南",
     "description": "用 OAuth 用户访问令牌接入 NextMoe 的用户面：游玩时长、认领、编辑提案、封面投票、资讯投稿，以及审核队列。"
+  },
+  "/docs/native-app": {
+    "slug": "native-app",
+    "title": "原生桌面应用接入",
+    "eyebrow": "集成指南",
+    "description": "Tauri / Wails 写的游戏管理器怎么读 /v2/catalog：用用户访问令牌而不是塞进二进制的应用密钥，环回回调 + PKCE 的完整流程与两份代码骨架。"
   },
   "/docs/best-practices": {
     "slug": "best-practices",

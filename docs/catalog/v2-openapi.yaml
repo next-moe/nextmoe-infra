@@ -6918,19 +6918,19 @@ components:
       scheme: bearer
       type: http
     userToken:
-      description: "An OAuth user access token. An application key sent here is refused: /v2/me and /v2/moderation act as a person, not as an app."
+      description: "An OAuth user access token, obtained with the authorization code grant plus PKCE. An application key sent to /v2/me or /v2/moderation is refused: those faces act as a person, not as an app. On the /v2/catalog read surface it is an alternative to an application key — send one or the other, never both — and the token must carry the catalog:read scope; requests are counted against the user's own quota, pooled across every application that person has authorised."
       scheme: bearer
       type: http
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.10.0
+  version: 2.11.0
   x-stability: stable
 openapi: 3.1.0
 paths:
   /v2/catalog/calendar:
     get:
-      description: One collection. month=/year= pick a window; precision= and status= select among the dated month, year-only, and undated views that were three v1 routes. content_limit= gates on the editorial display axis and olang= on the original language (absent = ja plus zh). meta carries today plus, on the dated month window, min_month/max_month/has_prev/has_next for month navigation. Requires an application key. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.
+      description: One collection. month=/year= pick a window; precision= and status= select among the dated month, year-only, and undated views that were three v1 routes. content_limit= gates on the editorial display axis and olang= on the original language (absent = ja plus zh). meta carries today plus, on the dated month window, min_month/max_month/has_prev/has_next for month navigation. Requires an application key or a user access token with catalog:read. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.
       operationId: listCatalogCalendar
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -7122,13 +7122,14 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: Release calendar
       tags:
         - catalog
   /v2/catalog/changes:
     get:
       description: |-
-        Works updated recently, oldest first. Keyset-paginated. Requires an application key. ids= is not accepted.
+        Works updated recently, oldest first. Keyset-paginated. Requires an application key or a user access token with catalog:read. ids= is not accepted.
 
         **This is the mirror channel.** If you cache any catalog-owned fact per work — above all the editorial display axis `content_limit`, whose verdict is `claimed_by.content_limit` when the claim block is present and otherwise `nsfw` when `content_rating` is `r18`, `sfw` otherwise — poll this feed instead of sweeping the catalog. Every write that changes a work's claim state, its display axis (the editorial NSFW flag or its content rating), or its existence bumps `updated_at` and surfaces the id here.
 
@@ -7280,12 +7281,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: Catalog changes feed
       tags:
         - catalog
   /v2/catalog/characters:
     get:
-      description: Keyset-paginated characters. Requires an application key. ids=/refs= is a batch lane and does not paginate. include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs fills on every lane, and view=full is all of them; traits are cut at the default spoiler ceiling and follow the nsfw gate, exactly as on the detail face.
+      description: Keyset-paginated characters. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs fills on every lane, and view=full is all of them; traits are cut at the default spoiler ceiling and follow the nsfw gate, exactly as on the detail face.
       operationId: listCatalogCharacters
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -7429,12 +7431,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: List characters
       tags:
         - catalog
   /v2/catalog/characters/{id}:
     get:
-      description: Character detail. view=full adds gender, birthday, measurements, blood_type, instance_of_id. include=image,figure,traits,aliases,intros,refs adds art, trait, name, description and anchor blocks. spoiler=none|minor|major is the ceiling of the traits block and defaults to none. Merged ids are 404 ENTITY_MERGED. Requires an application key.
+      description: Character detail. view=full adds gender, birthday, measurements, blood_type, instance_of_id. include=image,figure,traits,aliases,intros,refs adds art, trait, name, description and anchor blocks. spoiler=none|minor|major is the ceiling of the traits block and defaults to none. Merged ids are 404 ENTITY_MERGED. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogCharacter
       parameters:
         - description: Decimal catalog id.
@@ -7546,12 +7549,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: Get one character
       tags:
         - catalog
   /v2/catalog/characters/{id}/appearances:
     get:
-      description: Works this character appears in, with roster_role, spoiler, and voice credits. Offset cursor. Requires an application key.
+      description: Works this character appears in, with roster_role, spoiler, and voice credits. Offset cursor. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogCharacterAppearances
       parameters:
         - description: Decimal catalog work id.
@@ -7647,6 +7651,7 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: Appearances of one character
       tags:
         - catalog
@@ -7793,7 +7798,7 @@ paths:
         - catalog
   /v2/catalog/companies:
     get:
-      description: Keyset-paginated company registry (v1 labels). Requires an application key. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only companies with works visible under the same nsfw gate. include=aliases,logo fills on every lane; include=intros,links fills on the batch lane only (and on the detail face).
+      description: Keyset-paginated company registry (v1 labels). Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only companies with works visible under the same nsfw gate. include=aliases,logo fills on every lane; include=intros,links fills on the batch lane only (and on the detail face).
       operationId: listCatalogCompanies
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -7945,12 +7950,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: List companies
       tags:
         - catalog
   /v2/catalog/companies/{id}:
     get:
-      description: Company registry row (v1 labels). include=aliases,logo,intros,links adds the corresponding blocks. Merged ids are 404 ENTITY_MERGED. Requires an application key.
+      description: Company registry row (v1 labels). include=aliases,logo,intros,links adds the corresponding blocks. Merged ids are 404 ENTITY_MERGED. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogCompany
       parameters:
         - description: Decimal catalog id.
@@ -8054,12 +8060,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: Get one company
       tags:
         - catalog
   /v2/catalog/companies/{id}/graph:
     get:
-      description: Corporate-family nodes and directed edges around one company. Inverse relations are not emitted. include= is validated against the company token set, so aliases, intros and links are accepted and answered without; only include=logo changes a node, adding the brand mark to the nodes that have one. Merged ids are 404 ENTITY_MERGED. Requires an application key.
+      description: Corporate-family nodes and directed edges around one company. Inverse relations are not emitted. include= is validated against the company token set, so aliases, intros and links are accepted and answered without; only include=logo changes a node, adding the brand mark to the nodes that have one. Merged ids are 404 ENTITY_MERGED. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogCompanyGraph
       parameters:
         - description: Decimal catalog id.
@@ -8163,12 +8170,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: Company family graph
       tags:
         - catalog
   /v2/catalog/credit-names:
     get:
-      description: Keyset-paginated credited names. q= filters by name. Requires an application key. ids=/refs= is a batch lane and does not paginate.
+      description: Keyset-paginated credited names. q= filters by name. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate.
       operationId: listCatalogCreditNames
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -8320,12 +8328,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: List credit names
       tags:
         - catalog
   /v2/catalog/credit-names/{id}:
     get:
-      description: A credited name, not a person — this is the staff and voice-actor read surface. person_id is null when unlinked; gender and the fuzzy birth parts are person-level facts reached through that link. include=aliases,photo,siblings,intros,links,refs adds the corresponding blocks. Works this name is credited on live at /v2/catalog/credit-names/{id}/credits. Requires an application key.
+      description: A credited name, not a person — this is the staff and voice-actor read surface. person_id is null when unlinked; gender and the fuzzy birth parts are person-level facts reached through that link. include=aliases,photo,siblings,intros,links,refs adds the corresponding blocks. Works this name is credited on live at /v2/catalog/credit-names/{id}/credits. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogCreditName
       parameters:
         - description: Decimal catalog id.
@@ -8429,12 +8438,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: Get one credit name
       tags:
         - catalog
   /v2/catalog/credit-names/{id}/credits:
     get:
-      description: Works this name is credited on. Offset cursor. Requires an application key.
+      description: Works this name is credited on. Offset cursor. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogCreditNameCredits
       parameters:
         - description: Decimal catalog work id.
@@ -8530,12 +8540,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: Credits of one credit name
       tags:
         - catalog
   /v2/catalog/engines:
     get:
-      description: Keyset-paginated engines. Requires an application key. ids=/refs= is a batch lane and does not paginate.
+      description: Keyset-paginated engines. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate.
       operationId: listCatalogEngines
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -8679,12 +8690,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: List engines
       tags:
         - catalog
   /v2/catalog/engines/{id}:
     get:
-      description: Engine detail. Requires an application key.
+      description: Engine detail. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogEngine
       parameters:
         - description: Decimal catalog id.
@@ -8788,12 +8800,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: Get one engine
       tags:
         - catalog
   /v2/catalog/persons:
     get:
-      description: Keyset-paginated persons. Requires an application key. ids=/refs= is a batch lane and does not paginate.
+      description: Keyset-paginated persons. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate.
       operationId: listCatalogPersons
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -8937,12 +8950,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: List persons
       tags:
         - catalog
   /v2/catalog/persons/{id}:
     get:
-      description: A person identity that groups credit names. Merged ids are 404 ENTITY_MERGED. Requires an application key.
+      description: A person identity that groups credit names. Merged ids are 404 ENTITY_MERGED. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogPerson
       parameters:
         - description: Decimal catalog id.
@@ -9046,12 +9060,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: Get one person
       tags:
         - catalog
   /v2/catalog/persons/{id}/credit-names:
     get:
-      description: Every credited name linked to this person. Requires an application key.
+      description: Every credited name linked to this person. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogPersonCreditNames
       parameters:
         - description: Decimal catalog id.
@@ -9155,12 +9170,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: Credit names of one person
       tags:
         - catalog
   /v2/catalog/proposals:
     get:
-      description: Filed proposals, newest first. proposer_uid=+state=merged with include_total=true is the per-contributor tally. This face publishes no patch and no decision note. Requires an application key.
+      description: Filed proposals, newest first. proposer_uid=+state=merged with include_total=true is the per-contributor tally. This face publishes no patch and no decision note. Requires an application key or a user access token with catalog:read.
       operationId: listCatalogProposals
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -9320,12 +9336,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: Edit proposal history
       tags:
         - catalog
   /v2/catalog/proposals/{id}:
     get:
-      description: "Public transparency view: proposer, state, target entity and timestamps. include=amendments adds the amendment chain. Requires an application key."
+      description: "Public transparency view: proposer, state, target entity and timestamps. include=amendments adds the amendment chain. Requires an application key or a user access token with catalog:read."
       operationId: getCatalogProposal
       parameters:
         - description: Proposal id.
@@ -9421,12 +9438,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: One proposal
       tags:
         - catalog
   /v2/catalog/redirects:
     get:
-      description: Redirects from merged-away ids, oldest first. Keyset-paginated. object= restricts to one family. Requires an application key. ids= is not accepted.
+      description: Redirects from merged-away ids, oldest first. Keyset-paginated. object= restricts to one family. Requires an application key or a user access token with catalog:read. ids= is not accepted.
       operationId: listCatalogRedirects
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -9578,12 +9596,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: Entity merge feed
       tags:
         - catalog
   /v2/catalog/releases:
     get:
-      description: Keyset-paginated dated releases, sorted by date_desc by default. Requires an application key. ids= is a batch lane and does not paginate.
+      description: Keyset-paginated dated releases, sorted by date_desc by default. Requires an application key or a user access token with catalog:read. ids= is a batch lane and does not paginate.
       operationId: listCatalogReleases
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -9727,12 +9746,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: List releases
       tags:
         - catalog
   /v2/catalog/releases/{id}:
     get:
-      description: A catalog release. Merged ids are 404 ENTITY_MERGED. r18 parent works are 404 without nsfw=true. Requires an application key.
+      description: A catalog release. Merged ids are 404 ENTITY_MERGED. r18 parent works are 404 without nsfw=true. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogRelease
       parameters:
         - description: Decimal catalog id.
@@ -9836,12 +9856,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: Get one release
       tags:
         - catalog
   /v2/catalog/revisions:
     get:
-      description: Every merged edit, newest first by default. sort=recorded_asc walks the same collection oldest-first by id, which is the shape a mirror or a contributor tally reads with a watermark. object=+entity_id= narrows to one entity's history. Requires an application key.
+      description: Every merged edit, newest first by default. sort=recorded_asc walks the same collection oldest-first by id, which is the shape a mirror or a contributor tally reads with a watermark. object=+entity_id= narrows to one entity's history. Requires an application key or a user access token with catalog:read.
       operationId: listCatalogRevisions
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -9993,12 +10014,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: Entity revision history
       tags:
         - catalog
   /v2/catalog/revisions/{id}:
     get:
-      description: include=diff adds the field-level change set against diff_base, or against the preceding revision when diff_base is absent. This id is what POST /v2/moderation/reverts takes. Requires an application key.
+      description: include=diff adds the field-level change set against diff_base, or against the preceding revision when diff_base is absent. This id is what POST /v2/moderation/reverts takes. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogRevision
       parameters:
         - description: Revision id.
@@ -10102,12 +10124,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: One revision
       tags:
         - catalog
   /v2/catalog/roles:
     get:
-      description: "Keyset-paginated credit-role registry. The full registry is ~231 rows, so a client building a picker can fetch it whole in three pages. key joins the role_key on credit groups; ids= is a batch lane and does not paginate. refs= is not resolved: role has no catalog_external_ref entity_type. Requires an application key."
+      description: "Keyset-paginated credit-role registry. The full registry is ~231 rows, so a client building a picker can fetch it whole in three pages. key joins the role_key on credit groups; ids= is a batch lane and does not paginate. refs= is not resolved: role has no catalog_external_ref entity_type. Requires an application key or a user access token with catalog:read."
       operationId: listCatalogRoles
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -10251,12 +10274,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: List roles
       tags:
         - catalog
   /v2/catalog/roles/{id}:
     get:
-      description: A credit-role registry row. Unknown id is 404 NOT_FOUND. Requires an application key.
+      description: A credit-role registry row. Unknown id is 404 NOT_FOUND. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogRole
       parameters:
         - description: Decimal catalog id.
@@ -10360,6 +10384,7 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: Get one role
       tags:
         - catalog
@@ -10435,7 +10460,7 @@ paths:
         - catalog
   /v2/catalog/search:
     get:
-      description: Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Requires an application key. cursor= pages the hits. ids= is not accepted.
+      description: Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Requires an application key or a user access token with catalog:read. cursor= pages the hits. ids= is not accepted.
       operationId: searchCatalog
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -10603,12 +10628,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: Search catalog entities
       tags:
         - catalog
   /v2/catalog/series:
     get:
-      description: "Keyset-paginated series. Requires an application key. ids= is a batch lane and does not paginate. refs= is not resolved: series has no catalog_external_ref entity_type."
+      description: "Keyset-paginated series. Requires an application key or a user access token with catalog:read. ids= is a batch lane and does not paginate. refs= is not resolved: series has no catalog_external_ref entity_type."
       operationId: listCatalogSeries
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -10752,12 +10778,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: List series
       tags:
         - catalog
   /v2/catalog/series/{id}:
     get:
-      description: Series detail. has_nsfw reports whether any member work sits behind the r18 display gate. include=intros,refs adds the corresponding blocks. Requires an application key.
+      description: Series detail. has_nsfw reports whether any member work sits behind the r18 display gate. include=intros,refs adds the corresponding blocks. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogSeries
       parameters:
         - description: Decimal catalog id.
@@ -10861,6 +10888,7 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: Get one series
       tags:
         - catalog
@@ -10906,7 +10934,7 @@ paths:
         - catalog
   /v2/catalog/tags:
     get:
-      description: Keyset-paginated canonical tags. Requires an application key. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate.
+      description: Keyset-paginated canonical tags. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate.
       operationId: listCatalogTags
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -11058,12 +11086,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: List tags
       tags:
         - catalog
   /v2/catalog/tags/{id}:
     get:
-      description: Canonical tag. include=intros adds the per-language tag descriptions. Requires an application key.
+      description: Canonical tag. include=intros adds the per-language tag descriptions. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogTag
       parameters:
         - description: Decimal catalog id.
@@ -11167,12 +11196,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: Get one tag
       tags:
         - catalog
   /v2/catalog/traits:
     get:
-      description: "Keyset-paginated character traits. Requires an application key. ids= is a batch lane. refs= is not resolved: traits have no catalog_external_ref entity_type."
+      description: "Keyset-paginated character traits. Requires an application key or a user access token with catalog:read. ids= is a batch lane. refs= is not resolved: traits have no catalog_external_ref entity_type."
       operationId: listCatalogTraits
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -11316,12 +11346,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: List traits
       tags:
         - catalog
   /v2/catalog/traits/{id}:
     get:
-      description: A character-trait vocabulary row. Requires an application key.
+      description: A character-trait vocabulary row. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogTrait
       parameters:
         - description: Decimal catalog id.
@@ -11425,12 +11456,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: Get one trait
       tags:
         - catalog
   /v2/catalog/works:
     get:
-      description: Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. Requires an application key. view/include/fields/ids/refs/facets follow the v2 collection contract. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on every lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.
+      description: Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. Requires an application key or a user access token with catalog:read. view/include/fields/ids/refs/facets follow the v2 collection contract. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on every lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.
       operationId: listCatalogWorks
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -11702,12 +11734,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: List catalog works
       tags:
         - catalog
   /v2/catalog/works/{id}:
     get:
-      description: Work detail. spoiler=none|minor|major is the ceiling of the tags block and defaults to none. Merged ids are 404 ENTITY_MERGED with Link rel=canonical. r18 is 404 without nsfw=true. Requires an application key.
+      description: Work detail. spoiler=none|minor|major is the ceiling of the tags block and defaults to none. Merged ids are 404 ENTITY_MERGED with Link rel=canonical. r18 is 404 without nsfw=true. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogWork
       parameters:
         - description: Decimal catalog id.
@@ -11819,12 +11852,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: Get one catalog work
       tags:
         - catalog
   /v2/catalog/works/{id}/characters:
     get:
-      description: Roster characters. Same items as include=characters. Requires an application key.
+      description: Roster characters. Same items as include=characters. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogWorkCharacters
       parameters:
         - description: Decimal catalog work id.
@@ -11920,12 +11954,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: List characters of one work
       tags:
         - catalog
   /v2/catalog/works/{id}/covers:
     get:
-      description: Work cover rows. Same items as include=covers. Requires an application key.
+      description: Work cover rows. Same items as include=covers. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogWorkCovers
       parameters:
         - description: Decimal catalog work id.
@@ -12021,12 +12056,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: List covers of one work
       tags:
         - catalog
   /v2/catalog/works/{id}/credits:
     get:
-      description: Credits grouped by role. Same items as include=credits. Requires an application key.
+      description: Credits grouped by role. Same items as include=credits. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogWorkCredits
       parameters:
         - description: Decimal catalog work id.
@@ -12122,12 +12158,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: List credits of one work
       tags:
         - catalog
   /v2/catalog/works/{id}/engines:
     get:
-      description: Engines. Same items as include=engines. Requires an application key.
+      description: Engines. Same items as include=engines. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogWorkEngines
       parameters:
         - description: Decimal catalog work id.
@@ -12223,12 +12260,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: List engines of one work
       tags:
         - catalog
   /v2/catalog/works/{id}/intros:
     get:
-      description: Intros. Same items as include=intros. Requires an application key.
+      description: Intros. Same items as include=intros. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogWorkIntros
       parameters:
         - description: Decimal catalog work id.
@@ -12324,12 +12362,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: List intros of one work
       tags:
         - catalog
   /v2/catalog/works/{id}/links:
     get:
-      description: Outbound links. Same items as include=links. Requires an application key.
+      description: Outbound links. Same items as include=links. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogWorkLinks
       parameters:
         - description: Decimal catalog work id.
@@ -12425,12 +12464,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: List links of one work
       tags:
         - catalog
   /v2/catalog/works/{id}/ratings:
     get:
-      description: Source ratings. Same items as include=ratings. Requires an application key.
+      description: Source ratings. Same items as include=ratings. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogWorkRatings
       parameters:
         - description: Decimal catalog work id.
@@ -12526,12 +12566,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: List ratings of one work
       tags:
         - catalog
   /v2/catalog/works/{id}/relations:
     get:
-      description: Related works. Same items as include=relations. Requires an application key.
+      description: Related works. Same items as include=relations. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogWorkRelations
       parameters:
         - description: Decimal catalog work id.
@@ -12627,12 +12668,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: List relations of one work
       tags:
         - catalog
   /v2/catalog/works/{id}/releases:
     get:
-      description: Releases of this work. Same items as include=releases. Requires an application key.
+      description: Releases of this work. Same items as include=releases. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogWorkReleases
       parameters:
         - description: Decimal catalog work id.
@@ -12728,12 +12770,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: List releases of one work
       tags:
         - catalog
   /v2/catalog/works/{id}/screenshots:
     get:
-      description: Work screenshots. Same items as include=screenshots. Requires an application key.
+      description: Work screenshots. Same items as include=screenshots. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogWorkScreenshots
       parameters:
         - description: Decimal catalog work id.
@@ -12829,12 +12872,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: List screenshots of one work
       tags:
         - catalog
   /v2/catalog/works/{id}/series:
     get:
-      description: Series memberships. Same items as include=series. Requires an application key.
+      description: Series memberships. Same items as include=series. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogWorkSeries
       parameters:
         - description: Decimal catalog work id.
@@ -12930,12 +12974,13 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: List series of one work
       tags:
         - catalog
   /v2/catalog/works/{id}/tags:
     get:
-      description: Tags attached to this work. Same items as include=tags. spoiler=none|minor|major is the ceiling of this page and defaults to none, exactly as on the work detail face. Requires an application key.
+      description: Tags attached to this work. Same items as include=tags. spoiler=none|minor|major is the ceiling of this page and defaults to none, exactly as on the work detail face. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogWorkTags
       parameters:
         - description: Decimal catalog work id.
@@ -13039,6 +13084,7 @@ paths:
           description: Service Unavailable
       security:
         - applicationKey: []
+        - userToken: []
       summary: List tags of one work
       tags:
         - catalog

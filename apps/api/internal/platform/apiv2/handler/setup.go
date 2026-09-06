@@ -52,12 +52,12 @@ func SetupWith(app *fiber.App, opt Options) huma.API {
 	declaredFields := map[string]bool{}
 	app.Use(protocol.Middleware(opt.Store))
 	app.Use(fieldsProjection(declaredFields))
-	app.Use(catalogAuth(opt.LookupCredential))
+	app.Use(catalogAuth(opt.LookupCredential, opt.LookupUser))
 	app.Use(userAuth(opt.LookupUser, opt.LookupSite))
 	app.Use(protocol.RateLimit(opt.Store, credentialLimitIdentity))
 	app.Use(protocol.Idempotency(opt.Store, credentialLimitIdentity))
 
-	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.10.0")
+	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.11.0")
 	cfg.OpenAPIPath = ""
 	cfg.DocsPath = ""
 	cfg.SchemasPath = ""
@@ -172,8 +172,12 @@ func annotateSpec(doc *huma.OpenAPI) {
 	for path, item := range doc.Paths {
 		for _, op := range pathOps(item) {
 			rewriteErrorResponses(path, op, problemRef)
-			if scheme, _ := v2Security(path); scheme != "" {
-				op.Security = []map[string][]string{{scheme: {}}}
+			if schemes, _ := v2Security(path); len(schemes) > 0 {
+				req := make([]map[string][]string, 0, len(schemes))
+				for _, scheme := range schemes {
+					req = append(req, map[string][]string{scheme: {}})
+				}
+				op.Security = req
 			}
 			for _, p := range op.Parameters {
 				if p != nil && p.Schema != nil {
@@ -201,7 +205,7 @@ func declareSecuritySchemes(doc *huma.OpenAPI) {
 	}
 	doc.Components.SecuritySchemes[securityUserToken] = &huma.SecurityScheme{
 		Type: "http", Scheme: "bearer",
-		Description: "An OAuth user access token. An application key sent here is refused: /v2/me and /v2/moderation act as a person, not as an app.",
+		Description: "An OAuth user access token, obtained with the authorization code grant plus PKCE. An application key sent to /v2/me or /v2/moderation is refused: those faces act as a person, not as an app. On the /v2/catalog read surface it is an alternative to an application key — send one or the other, never both — and the token must carry the catalog:read scope; requests are counted against the user's own quota, pooled across every application that person has authorised.",
 	}
 }
 

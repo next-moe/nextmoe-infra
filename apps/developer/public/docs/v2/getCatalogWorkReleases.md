@@ -13,7 +13,7 @@
 
 List releases of one work
 
-Releases of this work. Same items as include=releases. Requires an application key.
+Releases of this work. Same items as include=releases. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…

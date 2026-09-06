@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"api/internal/app"
@@ -340,7 +341,10 @@ func setupPublicCatalog(
 			if err != nil {
 				return v2handler.UserIdentity{}, err
 			}
-			return v2handler.UserIdentity{UID: int64(claims.ID), ClientID: claims.ClientID, Roles: claims.Roles}, nil
+			return v2handler.UserIdentity{
+				UID: int64(claims.ID), ClientID: claims.ClientID, Roles: claims.Roles,
+				Scopes: strings.Fields(claims.Scope),
+			}, nil
 		},
 		LookupSite: bindingOfClient,
 		Catalog: &v2handler.Catalog{

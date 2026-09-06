@@ -286,7 +286,7 @@ catalog 的**第三张脸**,也是「用户写面」的起点。教义一句话:
 
 第 4 步即「**一等登录令牌(`/auth/login`)被拒**」的原因:它没有 `client_id`(RFC 9068 §2.2 对它是可选),因而没有可归属的站点;若允许它自报 site,就等于把本面存在的意义(消灭断言)重新打开。用户令牌须经 OAuth 授权码流从某个 client 取得。
 
-- **scope**:`catalog:edit` 是**用户 scope**(经 OP 同意页授予),与开发者平台的 **API key scope**(`internal/platform/devapi`,如 `catalog:read`)是两套凭据、两个命名空间,不可混用。常量落在 catalog handler 包内,与 image 服务把 `image:upload` 写在自己鉴权中间件旁的先例一致。
+- **scope**:`catalog:edit` 是**用户 scope**(经 OP 同意页授予),与开发者平台的 **API key scope**(`internal/platform/devapi`)分属两套凭据、两条授予路径,不可混用。常量落在 catalog handler 包内,与 image 服务把 `image:upload` 写在自己鉴权中间件旁的先例一致。**唯一同名的是 `catalog:read`**(2026-09-06 起):`/v2/catalog` 只读面接受密钥**或**带该 scope 的用户令牌,所以同一个词在两条授予路径上都成立——仍然是一条请求一个凭据,不是把两套凭据合并。见 §5 的 public v2 face 条与 [developer-platform/10 §18](../developer-platform/10-native-app-integration.md)。
 
 **第三方应用准入(wave R3,2026-08-17 起)**:自助注册的 user_login 应用**可以申请 `catalog:edit`**(此前 `selfServiceUserScopes` 按名拒绝)。第三方令牌走的就是本节这同一个面——**没有单独的 /v1 编辑路由**(E4 的裁定原文:「同一引擎 op 的 Bearer 投影,不是新写面」)。三条第三方专属规则:
 
@@ -503,6 +503,7 @@ wave 176-179 把人类的**写**搬完了;本波搬的是搬完写之后还留�
 - **编辑引擎提案桥面已死**(曾为 09-open-api-phase2 06b 的过渡参考):`/internal/edit/*`(scope `galgame:propose`、计量 face `galgame_internal_propose`)随 galgame 面退役**整体移除**——今天这些路径连 410 都不是,就是 404。编辑引擎的 S2S 面(`/api/v1/catalog/edit/*`)在 wave 181/185 两轮收缩后只剩 list(第三人称统计读)/revisions/diff **三条只读**,写与裁决全在用户面。「第三方实际开放」已于 **wave R3(2026-08-17)裁定并落地**:不复活桥面、不开 /v1 编辑路由,第三方经自助 user_login 申请 `catalog:edit` 用户 scope 后走用户面(见 §4 的第三方准入段)。
 - **playtime face(`/v1/playtime/*`)**:Bearer 用户访问令牌 + **client 绑定**,**无 API key**,**不要求** `playtime:read` / `playtime:write`(任何已开通用户登录的应用都可以调),**不要求** `catalog_site`。详见 §4.6。
 - **public face(`/v1/catalog/*`)**:开发者平台 API key(`Authorization: Bearer nm_live_…`)+ `catalog:read`,过 `internal/platform/devapi` 的中间件链(凭据解析 → 用量记账 → 限流 → 日配额 → scope)。**唯一例外 `GET /v1/catalog/stats` 无鉴权**:它只发布「目录有多大」的聚合数(LIVE works × medium + 身份族存量,无 `nsfw` 参数、人人同一份 payload),是公开站与开发者门户在任何人持 key 之前就要渲染的那几个数字;不计量、不限流,由 `Cache-Control: s-maxage=3600` 兜住。**该路由裸挂在 app 上且必须排在 `/v1/catalog` 分组之前**——Fiber 按注册序匹配、分组的 handler 即前缀 `Use`,挪到分组之后路由仍然通,只是悄悄退回 key 闸后面(钉子:`cmd/catalog/public_stats_route_test.go`,带反序对照)。
+- **public v2 face(`/v2/catalog/*`,2026-09-06 起双凭证)**:`Authorization: Bearer` 收**应用密钥 `nmk_live_…`**(带 `catalog:read`)**或**带 `catalog:read` 的**用户访问令牌**,二选一,一条请求只带一个(refs/api-v2 D1)。闸按那一个值的前缀分道:`nmk_` 走密钥链,其余走用户令牌链;失败不互相兜底。用户令牌按 `u<uid>` 计量(该用户跨所有已授权应用共池,默认 100/分钟 + 10000/UTC 日),密钥仍按 tier 计量。**两条例外仍只收密钥**:`GET /v2/catalog/claim-events`(额外要运营授予的 `claim_events:read`)与整个 `/v2/store`。原生桌面应用的完整接入见 [developer-platform/10 §18](../developer-platform/10-native-app-integration.md)。
 - `GET /openapi.json`(S2S spec)、`GET /healthz` 无鉴权。
 
 ## 6. 生成 spec

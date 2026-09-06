@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -59,4 +60,29 @@ func TestLimitIdentityKeyWinsOverUser(t *testing.T) {
 func TestLimitIdentityAnonymousStaysDefault(t *testing.T) {
 	_, ok := limitIdentityFor(t, func(fiber.Ctx) {})
 	require.False(t, ok, "no credential and no user: fall to the per-IP default")
+}
+
+// The catalog gate has its own path to the user_id Local, so the pooled per-user
+// bucket has to be asserted through it and not only through a hand-set Local: an
+// app that could mint its own bucket per client would multiply the quota its
+// users are supposed to share.
+func TestLimitIdentityUserTokenBucketOnACatalogPath(t *testing.T) {
+	app := fiber.New()
+	app.Use(catalogAuth(nil, func(context.Context, string) (UserIdentity, error) {
+		return UserIdentity{UID: 42, ClientID: "manager", Scopes: []string{devapi.ScopeCatalogRead}}, nil
+	}))
+	var got protocol.LimitIdentity
+	var ok bool
+	app.Get("/v2/catalog/works", func(c fiber.Ctx) error {
+		got, ok = credentialLimitIdentity(c)
+		return c.SendString("done")
+	})
+	req := httptest.NewRequest(http.MethodGet, "/v2/catalog/works", nil)
+	req.Header.Set("Authorization", "Bearer a.user.token")
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.True(t, ok)
+	require.Equal(t, "u42", got.Key, "pooled per user, not per (client, user)")
+	require.Equal(t, int(keys.APIV2DefaultQuotaPerDay.Get()), got.Quota)
 }

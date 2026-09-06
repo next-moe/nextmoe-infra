@@ -13,7 +13,7 @@
 
 Get one tag
 
-Canonical tag. include=intros adds the per-language tag descriptions. Requires an application key.
+Canonical tag. include=intros adds the per-language tag descriptions. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
