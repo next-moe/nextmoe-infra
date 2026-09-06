@@ -30,6 +30,7 @@ const MaxRedirectURIsPerApp = 5
 var selfServiceUserScopes = []string{
 	"openid", "profile", "email",
 	ScopePlaytimeRead, ScopePlaytimeWrite,
+	ScopeFolderRead, ScopeFolderWrite,
 	"catalog:edit",
 	ScopeCatalogRead,
 }
@@ -37,13 +38,18 @@ var selfServiceUserScopes = []string{
 const (
 	ScopePlaytimeRead  = "playtime:read"
 	ScopePlaytimeWrite = "playtime:write"
+	// Unlike the playtime pair these two are enforced: folders hold private
+	// collections, so /v2/me/folders breaks the "any app may call /v2/me"
+	// convention and demands an explicit consent.
+	ScopeFolderRead  = "folder:read"
+	ScopeFolderWrite = "folder:write"
 )
 
 var (
 	ErrRedirectURIRequired = errors.New("devapi: user login needs at least one redirect URI")
 	ErrTooManyRedirectURIs = errors.New("devapi: too many redirect URIs (max 5)")
 	ErrRedirectURIInvalid  = errors.New("devapi: redirect URI must be https://, or http:// on the 127.0.0.1 / [::1] loopback for a native app")
-	ErrUserScopeNotAllowed = errors.New("devapi: scope not permitted for a self-service app (want openid/profile/email/playtime:read/playtime:write/catalog:edit/catalog:read)")
+	ErrUserScopeNotAllowed = errors.New("devapi: scope not permitted for a self-service app (want openid/profile/email/playtime:read/playtime:write/folder:read/folder:write/catalog:edit/catalog:read)")
 	ErrAppNameReserved     = errors.New("devapi: application name may not claim to be NextMoe or an official application")
 )
 

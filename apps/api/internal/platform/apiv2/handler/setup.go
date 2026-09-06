@@ -57,7 +57,7 @@ func SetupWith(app *fiber.App, opt Options) huma.API {
 	app.Use(protocol.RateLimit(opt.Store, credentialLimitIdentity))
 	app.Use(protocol.Idempotency(opt.Store, credentialLimitIdentity))
 
-	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.11.0")
+	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.12.0")
 	cfg.OpenAPIPath = ""
 	cfg.DocsPath = ""
 	cfg.SchemasPath = ""
@@ -106,6 +106,7 @@ func SetupWith(app *fiber.App, opt Options) huma.API {
 	registerCatalog(api, opt.Catalog)
 	registerMe(api, opt.Catalog)
 	registerMeWrite(api, opt.Catalog)
+	registerMeFolders(api, opt.Catalog)
 	registerMeNews(api, opt.Catalog)
 	registerStore(api, opt.Catalog)
 	huma.NewError = prevErr
@@ -148,6 +149,7 @@ func annotateSpec(doc *huma.OpenAPI) {
 			repr.Person{}, repr.Trait{}, repr.Measurements{}, repr.NameCredit{}, repr.NameCreditRole{}, repr.Appearance{},
 			repr.CharacterTrait{}, repr.WorkEngineRef{},
 			repr.UserPlaytime{}, repr.CoverVote{}, repr.ClaimRecord{},
+			repr.UserFolder{}, repr.UserFolderItem{}, repr.FolderItemBatchItem{},
 			repr.PlaytimeBatchItem{}, repr.ProposalRecord{}, repr.ClaimDecisionRecord{}, repr.ProposalDecisionRecord{}, repr.SnapshotRecord{},
 			repr.Revision{}, repr.FieldDiff{}, repr.Amendment{}, repr.EditImage{},
 			repr.NewsSubmission{}, repr.ClaimEventRef{}, repr.ClaimEvent{},

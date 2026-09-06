@@ -63,7 +63,8 @@ func bindingApp(t *testing.T) (*fiber.App, huma.API, string, string) {
 			if raw != userToken {
 				return UserIdentity{}, os.ErrPermission
 			}
-			return UserIdentity{UID: 7, ClientID: "kungal-client"}, nil
+			return UserIdentity{UID: 7, ClientID: "kungal-client",
+				Scopes: []string{devapi.ScopeFolderRead}}, nil
 		},
 		LookupSite: func(context.Context, string) (SiteBinding, error) { return SiteBinding{Site: "kungal"}, nil },
 	})
@@ -190,16 +191,18 @@ func TestEmbeddedCollectionParamsBind(t *testing.T) {
 // declares it, parses it and ignores it answers 200 to a hydration request with
 // items it did not ask for — which is what /v2/news did until this test.
 var batchRefusingFaces = map[string]string{
-	"/v2/catalog/calendar":     "feedNoBatch: the calendar is a window, not a set of ids",
-	"/v2/catalog/changes":      "feedNoBatch: mirror feed, cursor only",
-	"/v2/catalog/redirects":    "feedNoBatch: mirror feed, cursor only",
-	"/v2/me/claims":            "collect.ClaimSpec is NoBatch",
-	"/v2/me/news":              "collect.NewsSubmissionSpec is NoBatch",
-	"/v2/me/playtimes":         "collect.PlaytimeSpec is NoBatch; work_ids= is this lane's batch",
-	"/v2/me/proposals":         "collect.ProposalListSpec is NoBatch; the list lane has no hydration",
-	"/v2/moderation/claims":    "collect.ClaimSpec is NoBatch",
-	"/v2/moderation/proposals": "collect.ProposalListSpec is NoBatch; the list lane has no hydration",
-	"/v2/news":                 "collect.NewsSpec is NoBatch: the public feed has no hydration lane either",
+	"/v2/catalog/calendar":      "feedNoBatch: the calendar is a window, not a set of ids",
+	"/v2/catalog/changes":       "feedNoBatch: mirror feed, cursor only",
+	"/v2/catalog/redirects":     "feedNoBatch: mirror feed, cursor only",
+	"/v2/me/claims":             "collect.ClaimSpec is NoBatch",
+	"/v2/me/folders":            "collect.FolderSpec is NoBatch",
+	"/v2/me/folders/{id}/items": "collect.FolderItemSpec is NoBatch; POST items is this lane's batch",
+	"/v2/me/news":               "collect.NewsSubmissionSpec is NoBatch",
+	"/v2/me/playtimes":          "collect.PlaytimeSpec is NoBatch; work_ids= is this lane's batch",
+	"/v2/me/proposals":          "collect.ProposalListSpec is NoBatch; the list lane has no hydration",
+	"/v2/moderation/claims":     "collect.ClaimSpec is NoBatch",
+	"/v2/moderation/proposals":  "collect.ProposalListSpec is NoBatch; the list lane has no hydration",
+	"/v2/news":                  "collect.NewsSpec is NoBatch: the public feed has no hydration lane either",
 }
 
 // The sibling of the ids= guard, and it caught the same face: /v2/news built

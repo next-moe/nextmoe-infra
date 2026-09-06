@@ -203,6 +203,26 @@ func PlaytimeSpec() Spec {
 	}
 }
 
+func FolderSpec() Spec {
+	return Spec{
+		Sort:    []string{"id"},
+		Include: []string{},
+		FullSet: []string{},
+		Fields:  []string{"object", "id", "name", "description", "visibility", "is_default", "item_count", "created_at", "updated_at"},
+		NoBatch: true,
+	}
+}
+
+func FolderItemSpec() Spec {
+	return Spec{
+		Sort:    []string{"updated"},
+		Include: []string{},
+		FullSet: []string{},
+		Fields:  []string{"object", "folder_id", "work_id", "created_at", "updated_at"},
+		NoBatch: true,
+	}
+}
+
 func CoverVoteSpec() Spec {
 	return Spec{
 		Include: []string{},

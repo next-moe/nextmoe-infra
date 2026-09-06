@@ -34,8 +34,13 @@ export const FACES = [
     file: V2_SPEC,
     prefix: '/v2',
     specUrl: `${API_HOST}/v2/catalog/openapi.json`,
-    scope: (_method, path) => {
+    scope: (method, path) => {
       if (!path) return 'catalog:read'
+      // The one scoped family on /v2/me: reads take either folder scope, every
+      // other method takes folder:write.
+      if (path.startsWith('/v2/me/folders')) {
+        return method === 'get' ? 'folder:read 或 folder:write' : 'folder:write'
+      }
       if (path.startsWith('/v2/me/') || path.startsWith('/v2/moderation/')) return ''
       if (
         path.startsWith('/v2/problems') ||
@@ -68,6 +73,7 @@ export const FACES = [
     notes: [
       '正式公开：形状按 additive-only 演进，删除与改名由 CI 的 oasdiff 门拦下。第三方在门户自助铸 nmk_ 密钥即可调用，不需要申请。',
       '/v2/me/playtimes 只要用户令牌，不需要 playtime:read / playtime:write。任何已开通用户登录的应用都可以调用。',
+      '/v2/me/folders 是例外：收藏夹是私人清单，读要 folder:read（folder:write 也算），写要 folder:write，缺了是 403 SCOPE_REQUIRED。',
       '错误体是 RFC 9457 application/problem+json。type URI 解析到本站 /problems/{domain}/{kebab-code}。',
       '客户端必须忽略未知字段、容忍开放词表中未见过的取值，并为未知错误 code 准备一个按 HTTP status 的兜底分支。'
     ]
@@ -89,5 +95,5 @@ export const USER_TOKEN_AUTH = {
 }
 
 export const EXPECTED_OPERATION_COUNTS = {
-  v2: 92
+  v2: 101
 }

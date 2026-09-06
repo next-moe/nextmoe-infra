@@ -278,7 +278,54 @@ resp, err := http.PostForm(oauthBase+"/oauth/token", url.Values{
 |------|------|
 | `15006` | 请求的 scope 不在应用的 `allowed_scopes` 内。到门户把 `catalog:read` 加进 `user_login.scopes`。 |
 | 授权码换取 `invalid_grant` | `redirect_uri` 与第 3 步不是逐字节相同,或 `code_verifier` 对不上 challenge,或码已用过(授权码一次性)。 |
-| `/v2/catalog` 返回 `403 SCOPE_REQUIRED` | 令牌不带 `catalog:read`。旧令牌不追认,重新走一次授权。 |
+| `403 SCOPE_REQUIRED` | 打 `/v2/catalog` 而令牌不带 `catalog:read`,或打 `/v2/me/folders` 而不带 `folder:read` / `folder:write`(§18.7)。响应点名缺的是哪一个;旧令牌不追认,重新走一次授权。 |
 | `/v2/catalog` 返回 `401 INVALID_CREDENTIAL` | 令牌过期、签发方不是本 OP,或者你把令牌打到了 `claim-events` / `/v2/store`——那两处只收应用密钥。 |
 | 刷新返回 401 而令牌确实没过期 | 用了第一方 `/api/v1/auth/refresh`。OAuth session 只能经 `/oauth/token` 刷新。 |
 | 注册时回调被拒 | `localhost`、自定义 scheme、带 fragment、或非环回的明文 http。见 [05 §9.2](./05-developer-portal.md) 护栏 1。 |
+
+### 18.7 收藏夹同步
+
+管理器的另一半工作是**用户自己的库**。`/v2/me/folders` 是这份库在平台侧的规范存放处：收藏夹本身九个操作,加上夹内条目的读、增、删。它和论坛、moyu 各自的收藏表不是一回事——把规范副本放在这里,是为了同一个 work id 在三处指同一部作品。
+
+**两个 scope,而且是真的强制的。** `/v2/me` 的其余各面只认「这个人的令牌」,不看应用被授了什么;收藏夹是唯一的例外,因为一份收藏是私人清单,「凡是被授权过的应用都能读 `/v2/me`」等于把整份清单交给用户登录过的每一个应用。
+
+| scope | 覆盖 |
+|-------|------|
+| `folder:read` | 所有 GET / HEAD |
+| `folder:write` | 其余全部方法,并且**同时**满足读 |
+
+只要在应用的 `user_login.scopes` 里加上它们,并在授权 URL 的 `scope` 里一并请求即可。缺了就是 `403 SCOPE_REQUIRED`,响应里点名缺的是哪一个。只申请了写权限的管理器仍然读得回自己写的东西——这是有意的,不必为了读回一次自己的写而多要一个勾。
+
+**冷启动:全量拉一次。**
+
+```
+GET /v2/me/folders?limit=100
+GET /v2/me/folders/<id>/items?limit=100
+```
+
+前者按 id 升序翻页,后者按 `updated_at` 升序翻页,两者都用 `next_cursor` 续页,`next_cursor` 为 `null` 即到底。
+
+**稳态:条目游标就是水位线。** 夹内条目按 `updated_at` 升序做 keyset 翻页(`work_id` 做同刻并列的破平);对外游标是不透明的 `cur_` 前缀字符串,客户端不要解析、不要自己构造。把最后一页的 `next_cursor` **存下来**,下次原样回放,拿到的就是这之后变过的条目:
+
+```
+GET /v2/me/folders/<id>/items?cursor=<上次存的 next_cursor>&limit=100
+```
+
+两件事必须清楚:
+
+- **重复添加不动水位线。** `PUT` 一条已经在夹里的条目是完全的空操作,`updated_at` 不变。所以管理器每次启动整库上传一遍是安全的——如果这一下会刷新时间戳,这个用户其他设备上的客户端每次都要把整个收藏夹重新拉一遍。
+- **删除不会在增量里回放。** 游标只走存在的行。要检测删除,需要重新全量拉一次该夹后与本地取差集;`item_count` 与夹自身的 `updated_at` 可以用来判断值不值得拉。
+
+**写:逐条幂等,或者一次一百条。**
+
+```
+PUT    /v2/me/folders/<id>/items/<work_id>      → 200,已存在则原样返回
+DELETE /v2/me/folders/<id>/items/<work_id>      → 204,本来就不在也是 204
+POST   /v2/me/folders/<id>/items                → 207,body 为 {"items":[{"work_id":"..."}]}
+```
+
+批量一次最多 **100** 条,响应是 `207 Multi-Status`:`items[]` 与请求逐位对应,每项要么是 `{status:200, object:"folder_item", work_id}`,要么带一个完整的 problem 对象。整体不是事务——部分成功是正常结果,按项读状态,不要看 HTTP 状态码。
+
+**边界。** 每人最多 **200** 个收藏夹,每夹最多 **10,000** 条,超出是 422。加入的作品必须是 `live`,隔离或不存在的 id 是 404。`is_default` 全用户单持有:设到另一个夹上会自动摘掉原持有者,传 `false` 是 422,默认夹在把标记移走之前删不掉。`visibility: public` 目前只是存下来的意向,没有公开浏览面。
+
+**合并会移动条目。** 目录侧把两部作品判为同一部时,指向被退役 id 的条目会改指幸存者,并且**故意**刷新 `updated_at`——这是唯一一次条目在没人动它的情况下出现在增量里,因为你手上那个 id 已经不解析了。同一个夹里两边都收藏过的情况会合成一条,`item_count` 随之重算。

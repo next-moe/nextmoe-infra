@@ -113,6 +113,7 @@ type liveFix struct {
 	VAOnlyCharacter                     int64
 	ENWork, ENRelease                   int64
 	RedirectOld, RedirectDatedOld       int64
+	Folder, FolderSpare                 int64
 	AnchorExt                           string
 }
 
@@ -194,6 +195,7 @@ func liveCatalog(t *testing.T) *liveEnv {
 			StatsSvc:   catsvc.NewStatsService(db),
 			EditTypes:  reg,
 			Playtime:   catsvc.NewUserPlaytimeService(db),
+			Folders:    catsvc.NewUserFolderService(db),
 			CoverVotes: catsvc.NewCoverVoteService(db),
 			Claims:     catsvc.NewClaimLifecycleService(db),
 			Engine:     editing.NewEngine(db, reg),
@@ -227,7 +229,8 @@ func liveCatalog(t *testing.T) *liveEnv {
 			LookupUser: func(_ context.Context, raw string) (UserIdentity, error) {
 				switch raw {
 				case liveUserToken:
-					return UserIdentity{UID: liveUID, ClientID: liveClient, Roles: []string{"admin"}}, nil
+					return UserIdentity{UID: liveUID, ClientID: liveClient, Roles: []string{"admin"},
+						Scopes: []string{devapi.ScopeFolderRead, devapi.ScopeFolderWrite}}, nil
 				case livePlainToken:
 					return UserIdentity{UID: livePlainUID, ClientID: liveClient, Roles: []string{"user"}}, nil
 				case liveSecondPlainToken:
@@ -279,6 +282,7 @@ func seedLiveFixtures(db *gorm.DB, claims *catsvc.ClaimLifecycleService) (liveFi
 		catalog_name_alias, catalog_credit, catalog_work_tag, catalog_label_relation,
 		catalog_character_alias, catalog_character_intro,
 		catalog_work_character, catalog_tag_source_map, catalog_redirect,
+		catalog_user_folder_item, catalog_user_folder,
 		edit_revision, edit_proposal, edit_proposal_amendment
 		RESTART IDENTITY CASCADE`).Error; err != nil {
 		return liveFix{}, err
@@ -744,6 +748,9 @@ func seedLiveFixtures(db *gorm.DB, claims *catsvc.ClaimLifecycleService) (liveFi
 	if err := seedLiveRedirects(db, &fx); err != nil {
 		return fx, err
 	}
+	if err := seedLiveFolders(db, &fx); err != nil {
+		return fx, err
+	}
 	if err := seedLiveBulkBlocks(db, &fx, empty); err != nil {
 		return fx, err
 	}
@@ -788,6 +795,34 @@ func seedLiveOLangEN(db *gorm.DB, fx *liveFix, empty datatypes.JSON) error {
 		return err
 	}
 	fx.ENRelease = rel.ID
+	return nil
+}
+
+// Two folders, each holding fx.Work. The second is the spec walk's: that walk
+// sends DELETE at whatever liveSubstitute hands it, and deleting the read
+// fixture would empty /v2/me/folders/{id} for every test that runs after it.
+func seedLiveFolders(db *gorm.DB, fx *liveFix) error {
+	for _, f := range []struct {
+		name string
+		dst  *int64
+	}{
+		{"Live Folder", &fx.Folder},
+		{"Spec Walk Folder", &fx.FolderSpare},
+	} {
+		row := &model.CatalogUserFolder{
+			OwnerUID: liveUID, Name: f.name,
+			Visibility: model.FolderVisibilityPrivate, ItemCount: 1,
+		}
+		if err := db.Create(row).Error; err != nil {
+			return err
+		}
+		*f.dst = row.ID
+		if err := db.Create(&model.CatalogUserFolderItem{
+			FolderID: row.ID, WorkID: fx.Work, OwnerUID: liveUID,
+		}).Error; err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -1024,6 +1059,8 @@ func liveSubstitute(path string, fx liveFix) string {
 		id = fx.Cover
 	case strings.Contains(path, "/playtimes"):
 		id = fx.Work
+	case strings.Contains(path, "/folders"):
+		id = fx.FolderSpare
 	case strings.Contains(path, "/snapshots/"):
 		id = fx.Work
 	case strings.Contains(path, "/news"):

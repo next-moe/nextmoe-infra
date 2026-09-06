@@ -289,6 +289,22 @@ func workFacetStmts(src, dst int64) []mergeStmt {
 		// Kept-verdict cache, not data: rows are re-derivable, so a merge drops
 		// them instead of repointing (the pair is re-judged once if it recurs).
 		{`DELETE FROM catalog_character_intro_panel_verdict WHERE work_id = ?`, []any{src}, false},
+		// Folder memberships take a custom move instead of the generic rehang:
+		// managers mirror these rows incrementally off updated_at, so the
+		// repointed row must surface on the sync cursor or every synced client
+		// keeps a membership addressed to the retired id.
+		{`UPDATE catalog_user_folder_item f SET work_id = ?, updated_at = now()
+		    WHERE f.work_id = ?
+		    AND NOT EXISTS (SELECT 1 FROM catalog_user_folder_item x
+		                     WHERE x.work_id = ? AND x.folder_id = f.folder_id)`, []any{dst, src, dst}, false},
+		{`DELETE FROM catalog_user_folder_item WHERE work_id = ?`, []any{src}, false},
+		// Every folder the merge touched holds dst afterwards (a src-only row
+		// was repointed to dst; a duplicate was deleted because dst was already
+		// there), so recounting the dst holders repairs every drifted count.
+		{`UPDATE catalog_user_folder f
+		    SET item_count = (SELECT count(*) FROM catalog_user_folder_item i WHERE i.folder_id = f.id),
+		        updated_at = now()
+		    WHERE f.id IN (SELECT folder_id FROM catalog_user_folder_item WHERE work_id = ?)`, []any{dst}, false},
 	}
 	for _, f := range []struct {
 		table string
