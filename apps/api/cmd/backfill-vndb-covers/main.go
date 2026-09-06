@@ -16,7 +16,7 @@ import (
 func main() {
 	apply := flag.Bool("apply", false, "write changes (default: dry-run forecast only)")
 	dsn := flag.String("dsn", "", "catalog DSN — REQUIRED; the rehearsal copy locally (kun_catalog_rehearsal), the live catalog only in the production run")
-	ids := flag.String("ids", "", "restrict to these catalog_work ids (comma separated); the anchor / no-cover predicates still apply")
+	ids := flag.String("ids", "", "restrict to these catalog_work ids (comma separated); the anchor / no-official-cover predicates still apply")
 	limit := flag.Int("limit", 0, "max covers to upload in --apply (0 = all); the dry-run forecast always covers the whole population")
 	offset := flag.Int("offset", 0, "skip this many candidate works (for chunking)")
 	imageBaseURL := flag.String("image-base-url", "", "image_service base override (point at the LOCAL dev service, e.g. http://127.0.0.1:9278)")
