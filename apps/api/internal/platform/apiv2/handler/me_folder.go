@@ -58,11 +58,7 @@ func (c *Catalog) ListFolders(ctx context.Context, q collect.Query) (repr.List[r
 	}
 	sinceID := int64(0)
 	if q.Cursor != "" {
-		payload, perr := collect.DecodeCursor(q.Cursor)
-		if perr != nil {
-			return repr.List[repr.UserFolder]{}, perr
-		}
-		id, ok := repr.ParseID(payload)
+		id, ok := repr.ParseID(q.Cursor)
 		if !ok {
 			return repr.List[repr.UserFolder]{}, collectInvalidCursor()
 		}
@@ -79,7 +75,7 @@ func (c *Catalog) ListFolders(ctx context.Context, q collect.Query) (repr.List[r
 	var next *string
 	if len(rows) > limit {
 		rows = rows[:limit]
-		s := collect.EncodeCursor(repr.ID(rows[len(rows)-1].ID))
+		s := repr.ID(rows[len(rows)-1].ID)
 		next = &s
 	}
 	items := make([]repr.UserFolder, 0, len(rows))
@@ -178,14 +174,12 @@ func (c *Catalog) ListFolderItems(ctx context.Context, folderID int64, q collect
 	}
 	since, sinceWorkID := time.Time{}, int64(0)
 	if q.Cursor != "" {
-		// The playtime lane this family was cloned from emits its raw
-		// RFC3339Nano|work_id key as next_cursor, violating repr.List's
-		// published ^cur_ pattern — that raw form was copied here and caught
-		// in review. Folder cursors wrap the same key via EncodeCursor.
-		ts, perr := collect.DecodeCursor(q.Cursor)
-		if perr != nil {
-			return repr.List[repr.UserFolderItem]{}, perr
-		}
+		// collect.Parse has already stripped the cur_ envelope and finishList
+		// puts it back, so q.Cursor is the bare key and next must be bare too.
+		// Wrapping it a second time here shipped a double-encoded cursor in
+		// 2.12.0: it round-trips, so the limit=1 crawl stayed green and only
+		// the emitted bytes were wrong.
+		ts := q.Cursor
 		if i := strings.LastIndexByte(ts, '|'); i >= 0 {
 			id, ok := repr.ParseID(ts[i+1:])
 			if !ok {
@@ -211,7 +205,7 @@ func (c *Catalog) ListFolderItems(ctx context.Context, folderID int64, q collect
 	if len(rows) > limit {
 		rows = rows[:limit]
 		last := rows[len(rows)-1]
-		s := collect.EncodeCursor(last.UpdatedAt.UTC().Format(time.RFC3339Nano) + "|" + repr.ID(last.WorkID))
+		s := last.UpdatedAt.UTC().Format(time.RFC3339Nano) + "|" + repr.ID(last.WorkID)
 		next = &s
 	}
 	items := make([]repr.UserFolderItem, 0, len(rows))
