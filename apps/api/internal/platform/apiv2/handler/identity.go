@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"api/internal/platform/apiv2/problem"
@@ -101,6 +102,28 @@ func requireIfMatch(header, etag string) error {
 	return nil
 }
 
+// Reads accept folder:write too, so a manager that only asked for write
+// consent can still pull what it wrote. Unlike the rest of /v2/me these
+// operations demand a scope: folders hold private collections, and "any app
+// may call this" would hand every consented app the whole list.
+func folderScopeProblem(c fiber.Ctx, scopes []string) *problem.Problem {
+	write := slices.Contains(scopes, devapi.ScopeFolderWrite)
+	switch c.Method() {
+	case fiber.MethodGet, fiber.MethodHead:
+		if write || slices.Contains(scopes, devapi.ScopeFolderRead) {
+			return nil
+		}
+		return problem.New(problem.CodeScopeRequired, problem.RequestID(c), problem.Instance(c),
+			"this operation requires the folder:read scope.")
+	default:
+		if write {
+			return nil
+		}
+		return problem.New(problem.CodeScopeRequired, problem.RequestID(c), problem.Instance(c),
+			"this operation requires the folder:write scope.")
+	}
+}
+
 type UserIdentity struct {
 	UID      int64
 	ClientID string
@@ -158,6 +181,11 @@ func userAuth(lookup func(context.Context, string) (UserIdentity, error), lookup
 			if ident.UID <= 0 {
 				return problem.WriteFiberError(c, problem.New(problem.CodeUserIdentityRequired, problem.RequestID(c), problem.Instance(c),
 					"this operation requires a user access token."))
+			}
+			if path == "/v2/me/folders" || strings.HasPrefix(path, "/v2/me/folders/") {
+				if p := folderScopeProblem(c, ident.Scopes); p != nil {
+					return problem.WriteFiberError(c, p)
+				}
 			}
 			applyUserIdentity(c, ident)
 			if lookupSite != nil && ident.ClientID != "" {

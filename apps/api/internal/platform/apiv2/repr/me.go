@@ -136,3 +136,33 @@ type CoverVote struct {
 	WorkID  string   `json:"work_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Work the ballot is on."`
 	Vote    string   `json:"vote" enum:"up" doc:"Only up is stored. down is not a catalog ballot."`
 }
+
+type UserFolder struct {
+	_           struct{} `json:"-" additionalProperties:"true"`
+	Object      string   `json:"object" enum:"folder" doc:"Type discriminant. Always folder."`
+	ID          string   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Folder id."`
+	Name        string   `json:"name" maxLength:"100" doc:"Display name. Must not be used as a discriminant."`
+	Description string   `json:"description" maxLength:"500" doc:"Owner's own note. Empty string when none. Must not be used as a discriminant."`
+	Visibility  string   `json:"visibility" enum:"private,public" doc:"private folders are visible only to their owner. No public browsing face exists yet; public is a stored intent."`
+	IsDefault   bool     `json:"is_default" doc:"At most one folder per user carries this. Setting it on a folder clears it on the previous holder."`
+	ItemCount   int      `json:"item_count" minimum:"0" doc:"Number of works in this folder."`
+	CreatedAt   string   `json:"created_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
+	UpdatedAt   string   `json:"updated_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
+}
+
+type UserFolderItem struct {
+	_         struct{} `json:"-" additionalProperties:"true"`
+	Object    string   `json:"object" enum:"folder_item" doc:"Type discriminant. Always folder_item."`
+	FolderID  string   `json:"folder_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Folder this membership belongs to."`
+	WorkID    string   `json:"work_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog work id."`
+	CreatedAt string   `json:"created_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC when the work was added."`
+	UpdatedAt string   `json:"updated_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC. The incremental-sync watermark; re-adding an existing membership does not touch it."`
+}
+
+type FolderItemBatchItem struct {
+	_       struct{}         `json:"-" additionalProperties:"true"`
+	Status  int              `json:"status" minimum:"0" maximum:"599" doc:"HTTP status for this item."`
+	Object  *string          `json:"object,omitempty" enum:"folder_item" doc:"Present on 200 items. Always folder_item."`
+	WorkID  *string          `json:"work_id,omitempty" pattern:"^[0-9]+$" maxLength:"20" doc:"Catalog work id. Present on 200 items."`
+	Problem *problem.Problem `json:"problem,omitempty" doc:"Present on failed items. A full problem object."`
+}

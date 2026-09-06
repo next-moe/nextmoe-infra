@@ -27,6 +27,7 @@ type Catalog struct {
 	Searcher    *catsearch.Indexer
 	EditTypes   *editing.Registry
 	Playtime    *catsvc.UserPlaytimeService
+	Folders     *catsvc.UserFolderService
 	CoverVotes  *catsvc.CoverVoteService
 	Claims      *catsvc.ClaimLifecycleService
 	Engine      *editing.Engine

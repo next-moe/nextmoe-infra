@@ -60,6 +60,8 @@ export const SCOPE_LABELS: Record<string, string> = {
   email: '邮箱地址',
   'playtime:read': '读取你的游戏时长记录',
   'playtime:write': '记录你的游戏时长',
+  'folder:read': '读取你的收藏夹 (含私密收藏夹)',
+  'folder:write': '管理你的收藏夹 (创建、修改、增删收藏)',
   'catalog:edit': '以你的名义提交目录条目的编辑提案',
   'catalog:read': '以你的名义读取公开目录数据 (计入你的每日配额)',
   'image:upload': '以你的名义上传图片',

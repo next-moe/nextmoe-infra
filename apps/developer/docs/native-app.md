@@ -244,13 +244,51 @@ func (a *App) SignIn(ctx context.Context) (string, error) {
 }
 ```
 
+## 6 · 收藏夹同步 {#folders}
+
+管理器还有一半工作在**用户自己的库**上。`/v2/me/folders` 是这份库在平台侧的规范存放处：收藏夹本身九个操作，加上夹内条目的读、增、删。
+
+> [!IMPORTANT]
+> 这是 `/v2/me` 上**唯一**真的看 scope 的一族。其余各面只认「这个人的令牌」，不问应用被授了什么；收藏夹是私人清单，那条规矩在这里等于把整份清单交给用户登录过的每一个应用。`folder:read` 覆盖 GET / HEAD，`folder:write` 覆盖其余方法**并且同时满足读**——只申请了写的管理器仍读得回自己写的东西。两个都要加进应用的 `user_login.scopes`，并在授权 URL 的 `scope` 里一并请求；缺了是 `403 SCOPE_REQUIRED`，响应里点名缺哪一个。
+
+**冷启动**：全量各拉一次。前者按 id 升序，后者按 `updated_at` 升序，都用 `next_cursor` 续页，`null` 即到底。
+
+```http
+GET /v2/me/folders?limit=100
+GET /v2/me/folders/<id>/items?limit=100
+Authorization: Bearer <access token>
+```
+
+**稳态**：条目游标就是水位线。夹内条目按 `updated_at` 升序做 keyset 翻页，游标是不透明的 `cur_` 前缀字符串——不要解析、不要自己构造。把最后一页的 `next_cursor` 存下来，下次原样回放，拿到的就是这之后变过的条目。
+
+```http
+GET /v2/me/folders/<id>/items?cursor=<上次存的 next_cursor>&limit=100
+```
+
+- **重复添加不动水位线。** `PUT` 一条已经在夹里的条目是完全的空操作，`updated_at` 不变。所以每次启动整库上传一遍是安全的——若这一下会刷新时间戳，该用户其他设备上的客户端每次都得把整个收藏夹重拉一遍。
+- **删除不会在增量里回放。** 游标只走还存在的行。要检测删除得重新全量拉一次该夹再与本地取差集；夹自身的 `item_count` 与 `updated_at` 可以用来判断值不值得拉。
+
+**写**：逐条幂等，或者一次一百条。
+
+```http
+PUT    /v2/me/folders/<id>/items/<work_id>   → 200，已存在则原样返回
+DELETE /v2/me/folders/<id>/items/<work_id>   → 204，本来就不在也是 204
+POST   /v2/me/folders/<id>/items             → 207，{"items":[{"work_id":"..."}]}
+```
+
+批量一次最多 **100** 条，响应是 `207 Multi-Status`：`items[]` 与请求逐位对应，每项要么是 `{status:200, object:"folder_item", work_id}`，要么带一个完整的 problem 对象。整体不是事务，部分成功是正常结果——按项读 `status`，不要看 HTTP 状态码。
+
+**边界**：每人最多 **200** 个收藏夹，每夹最多 **10,000** 条，超出 422。加入的作品必须是 `live`，隔离或不存在的 id 是 404。`is_default` 全用户单持有——设到另一个夹上会自动摘掉原持有者，传 `false` 是 422，默认夹在标记移走之前删不掉。`visibility: public` 目前只是存下来的意向，还没有公开浏览面。
+
+**合并会移动条目**：目录把两部作品判为同一部时，指向被退役 id 的条目改指幸存者，并且**故意**刷新 `updated_at`。这是条目唯一一次在没人动它的情况下出现在增量里，因为你手上那个 id 已经不解析了。同一个夹里两边都收藏过的会合成一条，`item_count` 随之重算。
+
 ## 常见错误 {#pitfalls}
 
 | 症状 | 原因 |
 |------|------|
 | 授权时 `15006` | 请求的 scope 不在应用的 `allowed_scopes` 内。到控制台把 `catalog:read` 加进用户登录的 scope。 |
 | 换码 `invalid_grant` | `redirect_uri` 与授权那步不是逐字节相同，或 `code_verifier` 对不上 challenge，或码已用过（授权码一次性）。 |
-| `403 SCOPE_REQUIRED` | 令牌不带 `catalog:read`。旧令牌不追认，重新走一次授权。 |
+| `403 SCOPE_REQUIRED` | 打 `/v2/catalog` 而令牌不带 `catalog:read`，或打 `/v2/me/folders` 而不带 `folder:read` / `folder:write`。响应会点名缺哪一个；旧令牌不追认，重新走一次授权。 |
 | `401 INVALID_CREDENTIAL` | 令牌过期，或者你把它打到了 `claim-events` / `/v2/store`——那两处只收应用密钥。 |
 | 刷新 401 而令牌确实没过期 | 用了第一方 `/api/v1/auth/refresh`。OAuth session 只能经 `/oauth/token` 刷新。 |
 | 注册时回调被拒 | `localhost`、自定义 scheme、带 fragment、或非环回的明文 http。 |

@@ -97,6 +97,9 @@ var liveReadPaths = []string{
 	"/v2/news/sources",
 	"/v2/news/{id}",
 	"/v2/me/playtimes",
+	"/v2/me/folders",
+	"/v2/me/folders/{id}",
+	"/v2/me/folders/{id}/items",
 	"/v2/me/cover-votes",
 	"/v2/me/claims",
 	"/v2/me/claims/{id}",
@@ -148,6 +151,7 @@ func liveReadURL(t *testing.T, tmpl string, fx liveFix) string {
 		{"/v2/catalog/credit-names/", fx.Credit},
 		{"/v2/catalog/persons/", fx.Person},
 		{"/v2/catalog/traits/", fx.Trait},
+		{"/v2/me/folders/", fx.Folder},
 		{"/v2/me/claims/", fx.Pending},
 		{"/v2/moderation/claims/", fx.Pending},
 		{"/v2/moderation/snapshots/work/", fx.Work},
@@ -333,4 +337,61 @@ func TestLiveG11SameBytesAcrossKeys(t *testing.T) {
 	require.Equal(t, 200, statusA, string(a))
 	require.Equal(t, 200, statusB, string(b))
 	require.Equal(t, a, b)
+}
+
+// Both folder lanes first shipped their raw keyset keys as next_cursor — a
+// bare decimal id on the list, RFC3339Nano|work_id on items — against the
+// ^cur_ pattern repr.List publishes, and no fixture overflowed a page, so
+// nothing saw the emitted form until a limit=1 crawl.
+func TestFolderCursorsAreOpaque(t *testing.T) {
+	env := liveCatalog(t)
+	fx := env.fx
+
+	// Own rows: the shared fixtures don't survive this package intact (the
+	// spec walk deletes fx.FolderSpare), so the crawl seeds what it counts.
+	f := &model.CatalogUserFolder{OwnerUID: liveUID, Name: "Cursor Crawl",
+		Visibility: model.FolderVisibilityPrivate, ItemCount: 2}
+	require.NoError(t, env.db.Create(f).Error)
+	require.NoError(t, env.db.Create(&model.CatalogUserFolderItem{
+		FolderID: f.ID, WorkID: fx.Work, OwnerUID: liveUID}).Error)
+	require.NoError(t, env.db.Create(&model.CatalogUserFolderItem{
+		FolderID: f.ID, WorkID: fx.ENWork, OwnerUID: liveUID}).Error)
+	t.Cleanup(func() {
+		env.db.Where("folder_id = ?", f.ID).Delete(&model.CatalogUserFolderItem{})
+		env.db.Delete(f)
+	})
+
+	crawl := func(base string) int {
+		t.Helper()
+		total, cursor := 0, ""
+		for i := 0; i < 25; i++ {
+			url := base
+			if cursor != "" {
+				url += "&cursor=" + cursor
+			}
+			status, _, body := liveDo(t, env, http.MethodGet, url, liveUserToken, "")
+			require.Equal(t, 200, status, string(body))
+			var page struct {
+				Items      []json.RawMessage `json:"items"`
+				NextCursor *string           `json:"next_cursor"`
+			}
+			require.NoError(t, json.Unmarshal(body, &page))
+			total += len(page.Items)
+			if page.NextCursor == nil {
+				return total
+			}
+			require.True(t, strings.HasPrefix(*page.NextCursor, "cur_"),
+				"raw cursor leaked on %s: %s", base, *page.NextCursor)
+			cursor = *page.NextCursor
+		}
+		t.Fatalf("crawl of %s did not terminate", base)
+		return total
+	}
+
+	require.GreaterOrEqual(t, crawl("/v2/me/folders?limit=1"), 2)
+	require.Equal(t, 2, crawl("/v2/me/folders/"+idstr(f.ID)+"/items?limit=1"))
+
+	status, _, body := liveDo(t, env, http.MethodGet,
+		"/v2/me/folders?limit=1&cursor="+idstr(f.ID), liveUserToken, "")
+	require.Equal(t, 400, status, string(body))
 }
