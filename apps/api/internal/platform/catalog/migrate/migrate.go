@@ -76,6 +76,7 @@ func Run(db *gorm.DB) error {
 		&model.CatalogUserPlaytime{},       // per-user/per-client playtime reports; aggregates INTO the row above as source nextmoe
 		&model.CatalogUserFolder{},         // per-user favorite folders (favorites unification wave); canonical store for forum+moyu favorites
 		&model.CatalogUserFolderItem{},     // folder memberships; (owner_uid, updated_at) is the manager-sync cursor
+		&model.CatalogUserFolderImport{},   // source-collection provenance for cmd/import-favorites; makes the backfill re-runnable
 		&model.CatalogSeries{},             // work series entity (step 94, dlsite lane first)
 		&model.CatalogSeriesMember{},       // series membership (step 94)
 		&model.CatalogSeriesIntro{},        // multilingual series intros (refs/plans/10 W0 ruling 3)
