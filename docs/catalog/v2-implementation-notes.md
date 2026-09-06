@@ -911,3 +911,37 @@ allowed to depend on.
 property on the schema field.
 
 **Zero migrations.**
+
+## Wave — the SFW face stops serving vandalized art (2026-09-05)
+
+The default cover face used to show whatever legacy-wiki upload happened to be
+graded safe — for pure R18 titles that was a hand-censored derivative (black
+bars, white-block erasure, sticker overlays), because every official cover is
+explicit and the round-1 scan skips `sexual >= 2`. The remediation replaces
+those rows with first-party **blurred stand-ins**: a new `censored` source
+(registry id 21, open `sources` vocabulary) whose bytes are derived from the
+work's best explicit official art by collapsing it through a 24px intermediate
+— a color-field ghost with no recoverable detail, safe for crawlers and
+content raters.
+
+**The election ladder, in order:** real safe art → (R18 opt-in only) real
+explicit art → the censored ghost. The ghost fills **only the portrait slot**
+and only when nothing else may: it never competes inside the main scans, so it
+cannot shadow the explicit cover an R18 viewer should get, and it cannot
+outrank real safe art. The banner keeps the real-art → screenshot ladder and
+may stay null. `origin` on a slot gains the third value `censored` (WARN-level
+per oasdiff, not ERR — additive on an already-open reading).
+
+Stand-ins are pre-staged by `cmd/backfill-censored-covers`, whose candidate
+gate judges the world as if the wiki-lineage rows (`curated`, `upscale`) were
+already deleted — so ghosts land while the curated covers still serve, and the
+face flips with no blank window when the deletion runs. `imagegradesync` lists
+`censored` as never-refined: its `sexual=0` is true by construction, and a
+grader that saw through the blur would blank the face the stand-in exists to
+fill.
+
+**Spec is 2.10.0.** Additive: no new operations (92), one enum value on
+`origin`, one `sources` vocabulary value.
+
+**Zero migrations** (the new source row seeds through the ordinary catalog
+migrate).

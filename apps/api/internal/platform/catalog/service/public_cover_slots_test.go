@@ -455,3 +455,103 @@ func TestListCoverSkipsPackageArt(t *testing.T) {
 		t.Fatalf("cover = %q, want the digital art", got)
 	}
 }
+
+const censoredTestSourceID = int16(21)
+
+func censoredSvc() *PublicService {
+	return &PublicService{cdnBase: testCDNBase,
+		sources: map[int16]string{2: "vndb", 12: "curated", censoredTestSourceID: "censored"}}
+}
+
+func TestCensoredGhostFillsOnlyTheEmptySFWPortrait(t *testing.T) {
+	svc := censoredSvc()
+	explicit, ghost := slotRow("ec57", "main", false), slotRow("9057", "main", false)
+	explicit.Sexual, explicit.SourceID = 2, 2
+	ghost.SourceID = censoredTestSourceID
+	meta := map[string]ImageMeta{
+		explicit.ImageHash: {Width: 700, Height: 1000},
+		ghost.ImageHash:    {Width: 600, Height: 900},
+	}
+	rows := []WorkCoverRow{ghost, explicit}
+
+	slots := svc.pickCoverSlots(rows, meta, false)
+	if portraitOf(slots) == nil || slots.Portrait.URL != svc.imageURL(ghost.ImageHash) {
+		t.Fatalf("SFW portrait = %+v, want the censored ghost", portraitOf(slots))
+	}
+	if slots.Portrait.Origin != "censored" || slots.Portrait.Source != "censored" {
+		t.Fatalf("SFW portrait origin/source = %q/%q, want censored/censored",
+			slots.Portrait.Origin, slots.Portrait.Source)
+	}
+	if bannerOf(slots) != nil {
+		t.Fatalf("banner = %+v, want null: a ghost never takes the banner", slots.Banner)
+	}
+
+	slots = svc.pickCoverSlots(rows, meta, true)
+	if portraitOf(slots) == nil || slots.Portrait.URL != svc.imageURL(explicit.ImageHash) {
+		t.Fatalf("R18 portrait = %+v, want the real explicit cover over the ghost", portraitOf(slots))
+	}
+	if slots.Portrait.Origin != "cover" {
+		t.Fatalf("R18 portrait origin = %q, want cover", slots.Portrait.Origin)
+	}
+}
+
+func TestCensoredGhostNeverDisplacesRealSafeArt(t *testing.T) {
+	svc := censoredSvc()
+	safe, ghost := slotRow("5afe", "main", false), slotRow("9058", "main", false)
+	safe.SourceID = 12
+	ghost.SourceID = censoredTestSourceID
+	meta := map[string]ImageMeta{
+		safe.ImageHash:  {Width: 300, Height: 450},
+		ghost.ImageHash: {Width: 900, Height: 1350},
+	}
+
+	slots := svc.pickCoverSlots([]WorkCoverRow{ghost, safe}, meta, false)
+	if portraitOf(slots) == nil || slots.Portrait.URL != svc.imageURL(safe.ImageHash) {
+		t.Fatalf("portrait = %+v, want the smaller REAL safe cover over the sharper ghost", portraitOf(slots))
+	}
+}
+
+func TestCensoredGhostBehindScreenshotBannerLadder(t *testing.T) {
+	svc := censoredSvc()
+	explicit, ghost := slotRow("ec58", "main", false), slotRow("9059", "main", false)
+	explicit.Sexual, explicit.SourceID = 2, 2
+	ghost.SourceID = censoredTestSourceID
+	shot := shotRow("50f7", 0)
+	meta := map[string]ImageMeta{
+		explicit.ImageHash: {Width: 700, Height: 1000},
+		ghost.ImageHash:    {Width: 600, Height: 900},
+		shot.ImageHash:     {Width: 1280, Height: 720},
+	}
+
+	slots := slotsWith(svc, []WorkCoverRow{explicit, ghost}, []WorkScreenshotRow{shot}, meta, false)
+	if portraitOf(slots) == nil || slots.Portrait.URL != svc.imageURL(ghost.ImageHash) {
+		t.Fatalf("portrait = %+v, want the ghost", portraitOf(slots))
+	}
+	if bannerOf(slots) == nil || slots.Banner.URL != svc.imageURL(shot.ImageHash) {
+		t.Fatalf("banner = %+v, want the safe screenshot", bannerOf(slots))
+	}
+	if slots.Banner.Origin != "screenshot" {
+		t.Fatalf("banner origin = %q, want screenshot", slots.Banner.Origin)
+	}
+}
+
+func TestListCoverGhostLadder(t *testing.T) {
+	svc := censoredSvc()
+	explicit, ghost := slotRow("ec59", "main", false), slotRow("905a", "main", false)
+	explicit.Sexual, explicit.SourceID = 2, 2
+	ghost.SourceID = censoredTestSourceID
+	rows := []WorkCoverRow{ghost, explicit}
+
+	if got := svc.pickListCover(rows, false); got != svc.imageURL(ghost.ImageHash) {
+		t.Fatalf("SFW list cover = %q, want the ghost", got)
+	}
+	if got := svc.pickListCover(rows, true); got != svc.imageURL(explicit.ImageHash) {
+		t.Fatalf("R18 list cover = %q, want the real explicit cover", got)
+	}
+
+	safe := slotRow("5aff", "main", false)
+	safe.SourceID = 12
+	if got := svc.pickListCover([]WorkCoverRow{ghost, safe}, false); got != svc.imageURL(safe.ImageHash) {
+		t.Fatalf("list cover = %q, want the real safe cover over the ghost", got)
+	}
+}

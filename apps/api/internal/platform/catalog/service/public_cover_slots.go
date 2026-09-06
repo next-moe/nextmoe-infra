@@ -23,16 +23,43 @@ func isCoverArt(kind string) bool {
 	}
 }
 
+const censoredSourceKey = "censored"
+
+// Stand-in ladder: real safe art first, real explicit art second (R18 opt-in
+// only), the blurred 'censored' ghost last — and only for the portrait slot,
+// the card face lists render. Ghosts must never compete inside scanCovers:
+// they are sexual=0 by construction, so a ghost in the main scan would win the
+// SFW portrait over nothing but ALSO shadow the real explicit cover an R18
+// viewer should get, because the sexual pass only fills slots the safe pass
+// left empty. The banner keeps the real-art + screenshot ladder and may stay
+// nil — a ghost hero adds nothing a nil banner does not already handle.
 func (s *PublicService) pickCoverSlots(rows []WorkCoverRow, meta map[string]ImageMeta, allowSexual bool) *dto.PublicWorkCoverSlots {
-	cand := s.scanCovers(rows, meta, false)
+	real, ghosts := s.splitCensored(rows)
+	cand := s.scanCovers(real, meta, false)
 	if allowSexual && !cand.complete() {
-		cand.fillFrom(s.scanCovers(rows, meta, true))
+		cand.fillFrom(s.scanCovers(real, meta, true))
 	}
-	portrait, banner := s.coverSlot(cand.portrait(), meta), s.coverSlot(cand.banner(), meta)
+	portraitRow := cand.portrait()
+	if portraitRow == nil && len(ghosts) > 0 {
+		ghost := s.scanCovers(ghosts, meta, false)
+		portraitRow = ghost.portrait()
+	}
+	portrait, banner := s.coverSlot(portraitRow, meta), s.coverSlot(cand.banner(), meta)
 	if portrait == nil && banner == nil {
 		return nil
 	}
 	return &dto.PublicWorkCoverSlots{Portrait: portrait, Banner: banner}
+}
+
+func (s *PublicService) splitCensored(rows []WorkCoverRow) (real, ghosts []WorkCoverRow) {
+	for _, c := range rows {
+		if s.sourceKey(c.SourceID) == censoredSourceKey {
+			ghosts = append(ghosts, c)
+		} else {
+			real = append(real, c)
+		}
+	}
+	return real, ghosts
 }
 
 type coverCandidates struct {
@@ -146,9 +173,13 @@ func (s *PublicService) coverSlot(c *WorkCoverRow, meta map[string]ImageMeta) *d
 	if c == nil {
 		return nil
 	}
+	origin := "cover"
+	if s.sourceKey(c.SourceID) == censoredSourceKey {
+		origin = censoredSourceKey
+	}
 	slot := &dto.PublicCoverSlot{
 		URL: s.imageURL(c.ImageHash), Sexual: c.Sexual, Violence: c.Violence,
-		Source: s.sourceKey(c.SourceID), Origin: "cover",
+		Source: s.sourceKey(c.SourceID), Origin: origin,
 	}
 	if m, ok := meta[c.ImageHash]; ok {
 		slot.Width, slot.Height, slot.Thumbhash = m.Width, m.Height, m.Thumbhash

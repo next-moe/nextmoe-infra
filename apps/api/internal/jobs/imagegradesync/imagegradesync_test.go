@@ -36,6 +36,7 @@ func registry() []sourceRow {
 		{ID: 12, Key: "curated"},
 		{ID: 13, Key: "upscale"},
 		{ID: 17, Key: "getchu"},
+		{ID: 21, Key: "censored"},
 		{ID: 99, Key: "some_future_source"},
 	}
 }
@@ -45,7 +46,7 @@ func TestBuildScopeExcludesHumanAuthoredAndKeepsFutureSources(t *testing.T) {
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []int16{3, 4, 13, 17, 99}, sc.ids)
 	assert.Equal(t, "some_future_source", sc.names[99])
-	for _, id := range []int16{1, 2, 12} {
+	for _, id := range []int16{1, 2, 12, 21} {
 		assert.NotContains(t, sc.names, id)
 	}
 }

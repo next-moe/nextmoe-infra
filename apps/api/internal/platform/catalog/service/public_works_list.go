@@ -413,7 +413,19 @@ func partialISOFromOrdinal(ord int64) string {
 	return out
 }
 
+// Same stand-in ladder as pickCoverSlots: censored ghosts serve only when no
+// real row could. Ghosts are sexual=0, so left in the main scan one would
+// shadow the real explicit cover an R18 viewer should get — and, row order
+// permitting, even a real safe cover.
 func (s *PublicService) pickListCover(rows []WorkCoverRow, allowSexual bool) string {
+	real, ghosts := s.splitCensored(rows)
+	if url := s.listCoverFrom(real, allowSexual); url != "" {
+		return url
+	}
+	return s.listCoverFrom(ghosts, false)
+}
+
+func (s *PublicService) listCoverFrom(rows []WorkCoverRow, allowSexual bool) string {
 	var fallback string
 	for _, c := range rows {
 		if !isCoverArt(c.Kind) {

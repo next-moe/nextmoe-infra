@@ -559,6 +559,10 @@ export const vocabularyValuesZh: Record<
     "howlongtobeat": {
       "displayName": "HowLongToBeat",
       "description": "HowLongToBeat 的时长与评分聚合。"
+    },
+    "censored": {
+      "displayName": "打码替身",
+      "description": "一方从官方 R18 原图派生的重模糊替身图。"
     }
   },
   "intro_lang": {
