@@ -9,7 +9,10 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"api/internal/platform/catalog/model"
@@ -40,20 +43,20 @@ const (
 func (r *runner) fill(ctx context.Context, row planRow) {
 	body, filename, err := r.download(ctx, row.Img.URL)
 	if err != nil {
-		r.stats.Errors++
+		r.bump(func(s *Stats) { s.Errors++ })
 		slog.Warn("download vndb cover", "work", row.WorkID, "vn", row.VNDBID, "url", row.Img.URL, "err", err)
 		return
 	}
 	body, filename, err = imageshrink.Shrink(body, filename)
 	if err != nil {
-		r.stats.Errors++
+		r.bump(func(s *Stats) { s.Errors++ })
 		slog.Warn("shrink vndb cover", "work", row.WorkID, "vn", row.VNDBID, "err", err)
 		return
 	}
 	res, err := r.upload(ctx, body, filename)
 	if err != nil {
 		if r.classify(err, row) {
-			r.stats.Quota = true
+			r.bump(func(s *Stats) { s.Quota = true })
 		}
 		return
 	}
@@ -68,10 +71,12 @@ func (r *runner) fill(ctx context.Context, row planRow) {
 		SourceID:       r.sourceID,
 	})
 	if tx.Error != nil {
-		r.stats.Errors++
+		r.bump(func(s *Stats) { s.Errors++ })
 		slog.Warn("write vndb cover row", "work", row.WorkID, "vn", row.VNDBID, "err", tx.Error)
 		return
 	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.pingHashes = append(r.pingHashes, res.Hash)
 	if tx.RowsAffected == 0 {
 		r.stats.Dedup++
@@ -82,6 +87,10 @@ func (r *runner) fill(ctx context.Context, row planRow) {
 }
 
 func (r *runner) download(ctx context.Context, src string) ([]byte, string, error) {
+	if body, ok := r.readMirror(src); ok {
+		r.bump(func(s *Stats) { s.Local++ })
+		return body, coverFilename(src), nil
+	}
 	client := &http.Client{Timeout: downloadTimeout}
 	var lastErr error
 	for attempt := 0; attempt < downloadRetries; attempt++ {
@@ -127,6 +136,25 @@ func fetch(ctx context.Context, client *http.Client, src string) ([]byte, error)
 	return body, nil
 }
 
+func (r *runner) readMirror(src string) ([]byte, bool) {
+	if r.imageDir == "" {
+		return nil, false
+	}
+	u, err := url.Parse(src)
+	if err != nil {
+		return nil, false
+	}
+	rel := strings.TrimPrefix(path.Clean(u.Path), "/")
+	if rel == "" || rel == "." {
+		return nil, false
+	}
+	body, err := os.ReadFile(filepath.Join(r.imageDir, filepath.FromSlash(rel)))
+	if err != nil || len(body) == 0 || len(body) > maxImageBytes {
+		return nil, false
+	}
+	return body, true
+}
+
 func coverFilename(raw string) string {
 	u, err := url.Parse(raw)
 	if err != nil {
@@ -142,7 +170,7 @@ func coverFilename(raw string) string {
 func (r *runner) upload(ctx context.Context, body []byte, filename string) (*imageclient.UploadResult, error) {
 	var lastErr error
 	for attempt := 0; attempt < uploadRetries; attempt++ {
-		if r.gap > 0 && !sleepCtx(ctx, r.gap) {
+		if !r.pace(ctx) {
 			return nil, ctx.Err()
 		}
 		res, err := r.cli.UploadWithSub(ctx, bytes.NewReader(body), filename, coverPreset, uploaderSub)
@@ -161,6 +189,26 @@ func (r *runner) upload(ctx context.Context, body []byte, filename string) (*ima
 		}
 	}
 	return nil, lastErr
+}
+
+// The gap is a single global spacing shared by every worker, so raising
+// --workers never raises the request rate against the image service beyond
+// 1/gap; workers only overlap download+shrink time.
+func (r *runner) pace(ctx context.Context) bool {
+	if r.gap <= 0 {
+		return ctx.Err() == nil
+	}
+	r.mu.Lock()
+	next := r.paceLast.Add(r.gap)
+	if now := time.Now(); next.Before(now) {
+		next = now
+	}
+	r.paceLast = next
+	r.mu.Unlock()
+	if wait := time.Until(next); wait > 0 {
+		return sleepCtx(ctx, wait)
+	}
+	return ctx.Err() == nil
 }
 
 func (r *runner) classify(err error, row planRow) (quota bool) {

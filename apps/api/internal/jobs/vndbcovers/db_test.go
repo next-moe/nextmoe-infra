@@ -1,15 +1,22 @@
 package vndbcovers
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"image"
+	"image/jpeg"
+	"io"
 	"os"
+	"path/filepath"
+	"sync"
 	"testing"
 
 	"api/internal/platform/catalog/migrate"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/seed"
 	"api/internal/testsupport/dbtest"
+	"api/pkg/imageclient"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -136,4 +143,65 @@ func TestLoadCandidatesOfficialGap(t *testing.T) {
 	assert.ElementsMatch(t, []int64{curatedOnly},
 		candidateIDs(t, reg, []int64{curatedOnly, hasVNDB}),
 		"--ids must not bypass the official-cover gate")
+}
+
+type stubUploader struct {
+	mu    sync.Mutex
+	calls int
+	limit int
+}
+
+func (s *stubUploader) UploadWithSub(_ context.Context, _ io.Reader, filename, _, _ string) (*imageclient.UploadResult, error) {
+	s.mu.Lock()
+	s.calls++
+	n := s.calls
+	s.mu.Unlock()
+	if s.limit > 0 && n > s.limit {
+		return nil, imageclient.ErrQuotaExceeded
+	}
+	return &imageclient.UploadResult{Hash: fmt.Sprintf("stub-%03d-%s", n, filename)}, nil
+}
+
+func (s *stubUploader) ReferencePing(context.Context, []string) (*imageclient.ReferencePingResult, error) {
+	return &imageclient.ReferencePingResult{}, nil
+}
+
+func (s *stubUploader) Health(context.Context) error { return nil }
+
+func TestDrainPoolWritesRowsAndStopsOnQuota(t *testing.T) {
+	clean(t)
+	reg, err := resolveRegistry(context.Background(), testDB)
+	require.NoError(t, err)
+
+	var jpg bytes.Buffer
+	require.NoError(t, jpeg.Encode(&jpg, image.NewRGBA(image.Rect(0, 0, 12, 16)), nil))
+	mirror := t.TempDir()
+
+	rows := make([]planRow, 0, 12)
+	for i := 0; i < 12; i++ {
+		id := mkWork(t, reg, fmt.Sprintf("pool-%02d", i))
+		rel := filepath.Join("cv", fmt.Sprintf("%02d", i), fmt.Sprintf("%d.jpg", 1000+i))
+		require.NoError(t, os.MkdirAll(filepath.Join(mirror, filepath.Dir(rel)), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(mirror, rel), jpg.Bytes(), 0o644))
+		rows = append(rows, planRow{
+			WorkID: id,
+			VNDBID: fmt.Sprintf("v%d", 1000+i),
+			Img:    &vnImage{URL: "https://t.vndb.org/" + filepath.ToSlash(rel), Dims: []int{12, 16}},
+		})
+	}
+
+	stats := &Stats{}
+	r := &runner{db: testDB, cli: &stubUploader{limit: 6}, sourceID: reg.vndbSource,
+		imageDir: mirror, stats: stats}
+	r.drain(context.Background(), rows, 4)
+
+	assert.Equal(t, 6, stats.Uploaded)
+	assert.True(t, stats.Quota, "quota abort must be recorded")
+	assert.Zero(t, stats.Errors)
+	assert.GreaterOrEqual(t, stats.Local, 6, "every processed row must come from the mirror")
+
+	var n int64
+	require.NoError(t, testDB.Model(&model.CatalogWorkCover{}).Count(&n).Error)
+	assert.EqualValues(t, 6, n)
+	assert.Len(t, r.touched, 6)
 }
