@@ -59,6 +59,7 @@
 - [全链走查](https://developer.nextmoe.dev/docs/example.md) — 用两个真实系列走通 NextMoe 公开 API v2 全链：标题搜索 → 详情按 include 取块 → 系列/厂牌深链 → 外部 id 反查。
 - [增量镜像目录](https://developer.nextmoe.dev/docs/mirror.md) — 用 /v2/catalog/changes 把 NextMoe 目录镜像进本地库的完整配方：冷启动、稳态轮询、gone 的处理、合并重指与本地谓词写法。
 - [接入用户数据](https://developer.nextmoe.dev/docs/user-data.md) — 用 OAuth 用户访问令牌接入 NextMoe 的用户面：游玩时长、认领、编辑提案、封面投票、资讯投稿，以及审核队列。
+- [原生桌面应用接入](https://developer.nextmoe.dev/docs/native-app.md) — Tauri / Wails 写的游戏管理器怎么读 /v2/catalog：用用户访问令牌而不是塞进二进制的应用密钥，环回回调 + PKCE 的完整流程与两份代码骨架。
 - [生产最佳实践](https://developer.nextmoe.dev/docs/best-practices.md) — 把 NextMoe API 接进生产环境前该检查的事：密钥保管、客户端契约、请求数、错误处理、缓存与监控。
 
 ## 页面 Markdown 索引
@@ -83,6 +84,7 @@
 - https://developer.nextmoe.dev/docs/example.md — 全链走查
 - https://developer.nextmoe.dev/docs/mirror.md — 增量镜像目录
 - https://developer.nextmoe.dev/docs/user-data.md — 接入用户数据
+- https://developer.nextmoe.dev/docs/native-app.md — 原生桌面应用接入
 - https://developer.nextmoe.dev/docs/best-practices.md — 生产最佳实践
 - https://developer.nextmoe.dev/docs/<face>/<operationId>.md — 单个端点
 - https://developer.nextmoe.dev/problems.md — 全部 42 个错误码（RFC 9457 problem types）

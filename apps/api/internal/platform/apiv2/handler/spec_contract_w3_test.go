@@ -89,23 +89,33 @@ func TestEveryOperationDeclaresTheCredentialItsGateDemands(t *testing.T) {
 	require.Contains(t, doc.Components.SecuritySchemes, securityAppKey)
 	require.Contains(t, doc.Components.SecuritySchemes, securityUserToken)
 
-	gated, keyless := 0, 0
+	gated, keyless, dual := 0, 0, 0
 	for path, item := range doc.Paths {
-		scheme, _ := v2Security(path)
+		schemes, _ := v2Security(path)
 		for _, op := range pathOps(item) {
-			if scheme == "" {
+			if len(schemes) == 0 {
 				require.Emptyf(t, op.Security, "%s takes no credential and must declare none", op.OperationID)
 				keyless++
 				continue
 			}
-			require.Lenf(t, op.Security, 1, "%s", op.OperationID)
-			_, ok := op.Security[0][scheme]
-			require.Truef(t, ok, "%s must declare %s", op.OperationID, scheme)
+			require.Lenf(t, op.Security, len(schemes), "%s", op.OperationID)
+			// One requirement object per alternative, never two schemes inside
+			// one object: the second shape means "both at once", which is not
+			// what any face here does and which generators handle badly.
+			for i, scheme := range schemes {
+				require.Lenf(t, op.Security[i], 1, "%s requirement %d", op.OperationID, i)
+				_, ok := op.Security[i][scheme]
+				require.Truef(t, ok, "%s must declare %s", op.OperationID, scheme)
+			}
+			if len(schemes) > 1 {
+				dual++
+			}
 			gated++
 		}
 	}
 	require.Greater(t, gated, 0)
 	require.Greater(t, keyless, 0, "no keyless operation was seen; the control is vacuous")
+	require.Greater(t, dual, 40, "the catalog read surface takes either credential; too few operations said so")
 }
 
 // The gate keys on what fiber matched, and the document is generated from the

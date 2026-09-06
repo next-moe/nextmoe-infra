@@ -85,25 +85,25 @@ func registerCatalogEditHistory(api huma.API, cat *Catalog) {
 	huma.Register(api, huma.Operation{
 		OperationID: "listCatalogRevisions", Method: http.MethodGet, Path: "/v2/catalog/revisions",
 		Summary:     "Entity revision history",
-		Description: "Every merged edit, newest first by default. sort=recorded_asc walks the same collection oldest-first by id, which is the shape a mirror or a contributor tally reads with a watermark. object=+entity_id= narrows to one entity's history. Requires an application key.",
+		Description: "Every merged edit, newest first by default. sort=recorded_asc walks the same collection oldest-first by id, which is the shape a mirror or a contributor tally reads with a watermark. object=+entity_id= narrows to one entity's history. Requires an application key or a user access token with catalog:read.",
 		Tags:        catalog, Errors: errs, SkipValidateParams: true,
 	}, listCatalogRevisions(cat))
 	huma.Register(api, huma.Operation{
 		OperationID: "getCatalogRevision", Method: http.MethodGet, Path: "/v2/catalog/revisions/{id}",
 		Summary:     "One revision",
-		Description: "include=diff adds the field-level change set against diff_base, or against the preceding revision when diff_base is absent. This id is what POST /v2/moderation/reverts takes. Requires an application key.",
+		Description: "include=diff adds the field-level change set against diff_base, or against the preceding revision when diff_base is absent. This id is what POST /v2/moderation/reverts takes. Requires an application key or a user access token with catalog:read.",
 		Tags:        catalog, Errors: detailErrs, SkipValidateParams: true,
 	}, getCatalogRevision(cat))
 	huma.Register(api, huma.Operation{
 		OperationID: "listCatalogProposals", Method: http.MethodGet, Path: "/v2/catalog/proposals",
 		Summary:     "Edit proposal history",
-		Description: "Filed proposals, newest first. proposer_uid=+state=merged with include_total=true is the per-contributor tally. This face publishes no patch and no decision note. Requires an application key.",
+		Description: "Filed proposals, newest first. proposer_uid=+state=merged with include_total=true is the per-contributor tally. This face publishes no patch and no decision note. Requires an application key or a user access token with catalog:read.",
 		Tags:        catalog, Errors: errs, SkipValidateParams: true,
 	}, listCatalogProposals(cat))
 	huma.Register(api, huma.Operation{
 		OperationID: "getCatalogProposal", Method: http.MethodGet, Path: "/v2/catalog/proposals/{id}",
 		Summary:     "One proposal",
-		Description: "Public transparency view: proposer, state, target entity and timestamps. include=amendments adds the amendment chain. Requires an application key.",
+		Description: "Public transparency view: proposer, state, target entity and timestamps. include=amendments adds the amendment chain. Requires an application key or a user access token with catalog:read.",
 		Tags:        catalog, Errors: detailErrs, SkipValidateParams: true,
 	}, getCatalogProposal(cat))
 }

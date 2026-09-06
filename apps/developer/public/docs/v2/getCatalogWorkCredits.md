@@ -13,7 +13,7 @@
 
 List credits of one work
 
-Credits grouped by role. Same items as include=credits. Requires an application key.
+Credits grouped by role. Same items as include=credits. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…

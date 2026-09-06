@@ -105,6 +105,21 @@ type UserIdentity struct {
 	UID      int64
 	ClientID string
 	Roles    []string
+	// The token's granted OAuth scopes. /v2/me and /v2/moderation gate on the
+	// person, not on what the app was consented for, so nothing read this until
+	// the catalog read surface began accepting user tokens.
+	Scopes []string
+}
+
+// The catalog gate and this one must leave a request in the same state, or the
+// rate limiter reads a user bucket on one face and the anonymous per-IP one on
+// the other.
+func applyUserIdentity(c fiber.Ctx, ident UserIdentity) {
+	c.Locals("user_id", ident.UID)
+	c.Locals("token_client_id", ident.ClientID)
+	if len(ident.Roles) > 0 {
+		c.Locals("user_roles", ident.Roles)
+	}
 }
 
 func userAuth(lookup func(context.Context, string) (UserIdentity, error), lookupSite func(context.Context, string) (SiteBinding, error)) fiber.Handler {
@@ -144,11 +159,7 @@ func userAuth(lookup func(context.Context, string) (UserIdentity, error), lookup
 				return problem.WriteFiberError(c, problem.New(problem.CodeUserIdentityRequired, problem.RequestID(c), problem.Instance(c),
 					"this operation requires a user access token."))
 			}
-			c.Locals("user_id", ident.UID)
-			c.Locals("token_client_id", ident.ClientID)
-			if len(ident.Roles) > 0 {
-				c.Locals("user_roles", ident.Roles)
-			}
+			applyUserIdentity(c, ident)
 			if lookupSite != nil && ident.ClientID != "" {
 				if bind, serr := lookupSite(c.Context(), ident.ClientID); serr == nil {
 					if bind.Site != "" {

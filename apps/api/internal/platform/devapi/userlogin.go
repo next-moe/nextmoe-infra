@@ -13,7 +13,11 @@ import (
 
 func appAllowedScopes(userScopes string) []byte {
 	all := []string{ScopeCatalogRead}
-	all = append(all, strings.Fields(userScopes)...)
+	for _, s := range strings.Fields(userScopes) {
+		if !slices.Contains(all, s) {
+			all = append(all, s)
+		}
+	}
 	encoded, err := json.Marshal(all)
 	if err != nil {
 		return []byte(`["catalog:read"]`)
@@ -27,6 +31,7 @@ var selfServiceUserScopes = []string{
 	"openid", "profile", "email",
 	ScopePlaytimeRead, ScopePlaytimeWrite,
 	"catalog:edit",
+	ScopeCatalogRead,
 }
 
 const (
@@ -38,7 +43,7 @@ var (
 	ErrRedirectURIRequired = errors.New("devapi: user login needs at least one redirect URI")
 	ErrTooManyRedirectURIs = errors.New("devapi: too many redirect URIs (max 5)")
 	ErrRedirectURIInvalid  = errors.New("devapi: redirect URI must be https://, or http:// on the 127.0.0.1 / [::1] loopback for a native app")
-	ErrUserScopeNotAllowed = errors.New("devapi: scope not permitted for a self-service app (want openid/profile/email/playtime:read/playtime:write/catalog:edit)")
+	ErrUserScopeNotAllowed = errors.New("devapi: scope not permitted for a self-service app (want openid/profile/email/playtime:read/playtime:write/catalog:edit/catalog:read)")
 	ErrAppNameReserved     = errors.New("devapi: application name may not claim to be NextMoe or an official application")
 )
 
@@ -121,6 +126,12 @@ func toUserLoginView(app *siteModel.OAuthClient) *userLoginView {
 		// writing it on 2026-08-18: every app registered before that date has it
 		// in allowed_scopes, and dropping the filter would make the consent page
 		// suddenly list a retired machine scope as something the app asks a user for.
+		//
+		// catalog:read stays filtered for the same reason after it became a
+		// user-requestable scope: appAllowedScopes injects it into every app, so
+		// allowed_scopes cannot say whether this app asked for it. Nothing is lost
+		// — the injection means every self-service app may request it at
+		// /oauth/authorize whether or not it registered it.
 		if s != ScopeCatalogRead && s != ScopeGalgameRead {
 			consent = append(consent, s)
 		}

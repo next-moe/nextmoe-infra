@@ -66,6 +66,14 @@ func TestValidateUserLogin(t *testing.T) {
 		assert.Contains(t, scopes, "catalog:edit")
 	})
 
+	t.Run("catalog:read is accepted as a user scope", func(t *testing.T) {
+		scopes, err := validateUserLogin(UserLoginRequest{
+			RedirectURIs: good, Scopes: []string{ScopeCatalogRead},
+		})
+		require.NoError(t, err)
+		assert.Contains(t, scopes, ScopeCatalogRead)
+	})
+
 	t.Run("a scope off the allow-list is refused", func(t *testing.T) {
 		for _, scope := range []string{"image:upload", "artifact:upload", "galgame:nsfw"} {
 			_, err := validateUserLogin(UserLoginRequest{RedirectURIs: good, Scopes: []string{scope}})
@@ -140,4 +148,14 @@ func TestAppAllowedScopesWithConsent(t *testing.T) {
 	assert.JSONEq(t,
 		`["catalog:read","openid","playtime:write"]`,
 		string(appAllowedScopes("openid playtime:write")))
+}
+
+// catalog:read is both the machine scope this function injects and, since it
+// became user-requestable, something the app may also list. Two copies in
+// allowed_scopes would be harmless to CheckScope and confusing to every reader
+// of the row.
+func TestAppAllowedScopesDoesNotRepeatCatalogRead(t *testing.T) {
+	assert.JSONEq(t,
+		`["catalog:read","openid"]`,
+		string(appAllowedScopes("openid catalog:read")))
 }

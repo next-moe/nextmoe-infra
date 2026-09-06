@@ -13,7 +13,7 @@
 
 List series
 
-Keyset-paginated series. Requires an application key. ids= is a batch lane and does not paginate. refs= is not resolved: series has no catalog_external_ref entity_type.
+Keyset-paginated series. Requires an application key or a user access token with catalog:read. ids= is a batch lane and does not paginate. refs= is not resolved: series has no catalog_external_ref entity_type.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…

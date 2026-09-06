@@ -44,7 +44,7 @@ func registerCatalogFeeds(api huma.API, cat *Catalog) {
 		Method:      http.MethodGet,
 		Path:        "/v2/catalog/changes",
 		Summary:     "Catalog changes feed",
-		Description: "Works updated recently, oldest first. Keyset-paginated. Requires an application key. ids= is not accepted.\n\n" +
+		Description: "Works updated recently, oldest first. Keyset-paginated. Requires an application key or a user access token with catalog:read. ids= is not accepted.\n\n" +
 			"**This is the mirror channel.** If you cache any catalog-owned fact per work — above all the editorial display axis `content_limit`, whose verdict is `claimed_by.content_limit` when the claim block is present and otherwise `nsfw` when `content_rating` is `r18`, `sfw` otherwise — poll this feed instead of sweeping the catalog. Every write that changes a work's claim state, its display axis (the editorial NSFW flag or its content rating), or its existence bumps `updated_at` and surfaces the id here.\n\n" +
 			"Bootstrap from an empty cursor: the feed enumerates the whole population oldest-updated-first, so the first drain IS the full inventory. Hydrate each page against /v2/catalog/works with ids= in batches of at most 100, with both gates open (nsfw=true and no content_limit), then keep the cursor and poll it at your own cadence.\n\n" +
 			"gone: an entry carrying `gone: true` has left the public population — drop the mirrored row. Merged-away ids appear here as gone AND in /v2/catalog/redirects, which names the id that replaced them; repoint rather than delete when the redirect exists.\n\n" +
@@ -58,7 +58,7 @@ func registerCatalogFeeds(api huma.API, cat *Catalog) {
 		Method:             http.MethodGet,
 		Path:               "/v2/catalog/redirects",
 		Summary:            "Entity merge feed",
-		Description:        "Redirects from merged-away ids, oldest first. Keyset-paginated. object= restricts to one family. Requires an application key. ids= is not accepted.",
+		Description:        "Redirects from merged-away ids, oldest first. Keyset-paginated. object= restricts to one family. Requires an application key or a user access token with catalog:read. ids= is not accepted.",
 		Tags:               catalog,
 		Errors:             errs,
 		SkipValidateParams: true,
@@ -68,7 +68,7 @@ func registerCatalogFeeds(api huma.API, cat *Catalog) {
 		Method:             http.MethodGet,
 		Path:               "/v2/catalog/calendar",
 		Summary:            "Release calendar",
-		Description:        "One collection. month=/year= pick a window; precision= and status= select among the dated month, year-only, and undated views that were three v1 routes. content_limit= gates on the editorial display axis and olang= on the original language (absent = ja plus zh). meta carries today plus, on the dated month window, min_month/max_month/has_prev/has_next for month navigation. Requires an application key. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.",
+		Description:        "One collection. month=/year= pick a window; precision= and status= select among the dated month, year-only, and undated views that were three v1 routes. content_limit= gates on the editorial display axis and olang= on the original language (absent = ja plus zh). meta carries today plus, on the dated month window, min_month/max_month/has_prev/has_next for month navigation. Requires an application key or a user access token with catalog:read. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.",
 		Tags:               catalog,
 		Errors:             errs,
 		SkipValidateParams: true,

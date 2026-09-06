@@ -56,7 +56,7 @@
 
 ## 2 · 铸一把密钥
 
-密钥形如 `nmk_live_…`，尾部带 CRC32 校验位，**只在铸造时显示一次**。它是机密：只放服务端，不要写进前端包、移动端二进制或公开仓库。开发联调可以铸 `nmk_test_` 前缀的测试密钥。
+密钥形如 `nmk_live_…`，尾部带 CRC32 校验位，**只在铸造时显示一次**。它是机密：只放服务端，不要写进前端包、移动端二进制或公开仓库。开发联调可以铸 `nmk_test_` 前缀的测试密钥。分发出去的桌面客户端没有服务端可放，读目录数据请改用用户访问令牌——见[原生桌面应用接入](/docs/native-app)。
 
 自助可勾选的 scope 有两个——`catalog:read`（读目录数据）与 `store:read`（商店联盟链接）。`claim_events:read` 由运营方按需授予，不能自助勾选。
 
@@ -152,24 +152,24 @@ curl "https://api.nextmoe.dev/v2/catalog/works?refs=vndb:v19658,bangumi:302835" 
 | 身份         | 请求头                                 | 代表谁             | 用在哪些前缀                                                                                        |
 | ------------ | -------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------- |
 | 应用密钥     | `Authorization: Bearer nmk_live_…`     | 你的应用           | `/v2/catalog`、`/v2/store`                                                                          |
-| 用户访问令牌 | `Authorization: Bearer <access_token>` | 授权给你的那个用户 | `/v2/me`、`/v2/moderation`                                                                          |
+| 用户访问令牌 | `Authorization: Bearer <access_token>` | 授权给你的那个用户 | `/v2/me`、`/v2/moderation`；带 `catalog:read` 时也可用于 `/v2/catalog`                             |
 | 匿名         | 不带                                   | 任何人             | `/v2/news`、`/v2/vocabularies`、`/v2/problems`、`/v2/catalog/stats`、`/v2/catalog/schemas/{object}` |
 
 > [!NOTE]
-> 一条请求只带一个凭据。如果某个操作看起来需要两种身份同时在场，那它是被放错了面——请告诉我们，而不是想办法同时塞两个。
+> 一条请求只带一个凭据。`/v2/catalog` 收两种凭据，意思是**二选一**，不是两个都带。服务端按 `Authorization` 里那一个值的前缀分道：`nmk_` 是应用密钥，其余按用户令牌解析；一种失败了不会再当另一种试一次。
 
 ## 应用密钥
 
 - 前缀 `nmk_live_`（生产）或 `nmk_test_`（开发联调），尾部带 CRC32 校验位——手抖改错一个字符能在到达服务端前就被认出来。
 - **只在铸造时显示一次**。丢了就吊销重铸，没有找回。
-- 它是机密：只放服务端。浏览器、移动端二进制、公开仓库、CI 日志都不行。前端要用数据，请让自己的后端代理。
+- 它是机密：只放服务端。浏览器、移动端二进制、公开仓库、CI 日志都不行。前端要用数据，请让自己的后端代理；**分发出去的桌面客户端没有后端可代理，改用用户访问令牌**（见下）。
 - 每个应用最多 5 把在用密钥——轮换时先铸新的、灰度切流、再吊销旧的，不必停机。
 
 ### scope
 
 | scope               | 开什么                                                                          | 怎么拿                   |
 | ------------------- | ------------------------------------------------------------------------------- | ------------------------ |
-| `catalog:read`      | 整个 `/v2/catalog` 只读面                                                       | 控制台自助勾选           |
+| `catalog:read`      | 整个 `/v2/catalog` 只读面                                                       | 控制台自助勾选；也可作为用户 scope 向人索取 |
 | `store:read`        | `/v2/store` 商店联盟链接与统计                                                  | 控制台自助勾选           |
 | `claim_events:read` | 认领事件 feed 与自家站点的审核队列状态（`claim_state=pending,declined,hidden`） | 运营方按需授予，不能自助 |
 
@@ -178,6 +178,8 @@ curl "https://api.nextmoe.dev/v2/catalog/works?refs=vndb:v19658,bangumi:302835" 
 ## 用户访问令牌
 
 `/v2/me` 与 `/v2/moderation` 读写的是**某个用户自己的东西**——他的游玩时长、他提交的编辑提案、他的认领、他投的封面票。应用密钥在这两个前缀下一律无效，因为它证明不了「哪个用户」。
+
+自 2026-09-06 起用户令牌还能读 `/v2/catalog`：令牌只要带 `catalog:read`（在 `user_login.scopes` 里申请，用户在同意页勾）就行。这条路是给**分发出去的原生客户端**准备的——Tauri / Wails 写的游戏管理器把二进制交到用户手里，里面放不下任何机密，而用户令牌本来就是用户自己的。请求按**用户**计配额（该用户跨所有已授权应用共池），不按应用；`/v2/catalog/claim-events` 与 `/v2/store` 仍只收应用密钥。完整走查见[原生桌面应用接入](/docs/native-app)。
 
 拿令牌走标准的 OAuth 2.0 授权码 + PKCE：
 
@@ -197,7 +199,7 @@ OAuth 端点的线格式是裸 RFC 6749（`{access_token, token_type, expires_in
 | ---- | ------------------------ | ---------------------------------- | ----------------------------- |
 | 401  | `MISSING_CREDENTIAL`     | 没有 `Authorization` 头            | 带上密钥                      |
 | 401  | `INVALID_CREDENTIAL`     | 凭据存在，但无效、过期或已被吊销   | 换一把密钥；用户令牌则去刷新  |
-| 403  | `SCOPE_REQUIRED`         | 凭据有效，但缺这个操作要的 scope   | 在控制台补勾 scope 并重铸密钥 |
+| 403  | `SCOPE_REQUIRED`         | 凭据有效，但缺这个操作要的 scope   | 在控制台补勾 scope 并重铸密钥；用户令牌则带上该 scope 重新授权 |
 | 403  | `USER_IDENTITY_REQUIRED` | 这个面要用户身份，你带的是应用密钥 | 改用用户访问令牌              |
 
 错误体是 RFC 9457 `application/problem+json`，字段与分支写法见 [错误处理](/docs/errors)。
@@ -1350,6 +1352,262 @@ const write = await fetch(url, {
 
 ---
 
+# 原生桌面应用接入
+
+分发出去的桌面客户端**没有机密可言**。应用密钥躺在用户机器上的可执行文件里，`strings` 一遍就出来，抓一次 HTTPS 也出来——而泄漏的是**你的**密钥：配额、限流、封禁都算在你的应用头上，吊销一次所有用户一起断。
+
+所以 `/v2/catalog` 只读面**同时接受两种凭据**，二选一：
+
+| 凭据 | 代表谁 | 按什么计配额 | 适合谁 |
+|------|--------|-------------|--------|
+| 应用密钥 `nmk_live_…` | 你的应用 | 按密钥（tier 决定速率与日配额） | 服务端、你自己控制的后端 |
+| 用户访问令牌 | 授权给你的那个用户 | 按**用户**，跨该用户授权过的所有应用共池 | 分发出去的原生客户端 |
+
+> [!NOTE]
+> 一条请求只带一个凭据。服务端按 `Authorization` 里那**一个**值的前缀分道：`nmk_` 是应用密钥，其余按用户令牌解析；一种失败了不会再当另一种试一次。
+
+`GET /v2/catalog/claim-events` 与整个 `/v2/store` 是例外，仍然只收应用密钥。
+
+## 1 · 注册应用
+
+在[控制台](/dashboard)建应用时开启用户登录（`user_login`），三件事随之定死：
+
+```json
+{
+  "name": "Kurumi",
+  "user_login": {
+    "redirect_uris": ["http://127.0.0.1/callback"],
+    "scopes": ["openid", "profile", "catalog:read"]
+  }
+}
+```
+
+- **强制 PKCE**。开了用户登录的应用一律是 public client，OAuth 服务在缺 `code_challenge` 时拒签授权码。你**不需要**、也**不应该**在客户端里放 `client_secret`。
+- **回调只收环回**。`http://127.0.0.1/callback` 与 `http://[::1]/callback` 是仅有的明文形状。`localhost` 按名拒——它过主机名解析，可以被指向别处，`127.0.0.1` 不能。自定义 scheme（`myapp://callback`）**不支持**，注册时就被拒。
+- **端口无关匹配**（RFC 8252 §7.3）。注册时写不写端口都行，服务端比对环回回调时忽略端口，scheme / host / path / query 仍精确匹配。运行时监听哪个临时端口由你决定，不必回控制台改注册。
+
+## 2 · 起监听、开浏览器
+
+先绑 `127.0.0.1:0` 让内核分配临时端口，拿到端口再拼 `redirect_uri`；`code_verifier` 取 43–128 字符的高熵随机串，`code_challenge = BASE64URL(SHA256(verifier))`；`state` 另取一个，回调里逐字比对。
+
+```http
+GET https://oauth.kungal.com/api/v1/oauth/authorize
+  ?client_id=<your-client-id>
+  &redirect_uri=http%3A%2F%2F127.0.0.1%3A53682%2Fcallback
+  &response_type=code
+  &scope=openid%20profile%20catalog%3Aread
+  &state=<random>
+  &code_challenge=<S256>
+  &code_challenge_method=S256
+```
+
+该端点 302 到登录/同意页，用户同意后浏览器跳回你的环回地址，带 `code` 与 `state`。
+
+> [!WARNING]
+> 用**系统浏览器**，绝不用内嵌 WebView（RFC 8252 §8.12）。内嵌视图里应用能读到用户输入的口令和 OP 的 cookie，用户也无从判断自己是不是在真的 OP 上——同意页上那个「第三方应用」标记会因此失去全部意义。Tauri 用 opener / shell 插件，Wails 用 `runtime.BrowserOpenURL`。
+
+## 3 · 换码
+
+POST 到 `https://oauth.kungal.com/api/v1/oauth/token`，`application/x-www-form-urlencoded` 或 JSON 皆可，**不带 `client_secret`**，带 `code_verifier`：
+
+```http
+POST /api/v1/oauth/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code
+&code=<授权码>
+&redirect_uri=<与第 2 步逐字节相同>
+&client_id=<your-client-id>
+&code_verifier=<第 2 步的 verifier>
+```
+
+响应是裸 RFC 6749（没有 `{code,message,data}` 外壳）：`access_token`（JWT，15 分钟）、`refresh_token`（不透明串）、`expires_in`、`scope`。失败是 `{"error": "...", "error_description": "..."}`。
+
+**把令牌交给操作系统钥匙串**，不要写明文文件或应用配置目录。Tauri 用 keyring / stronghold 插件，Wails（Go）用 `github.com/zalando/go-keyring`。access token 短命，留在内存里就行；refresh token 必须落钥匙串。
+
+## 4 · 刷新与调用
+
+刷新只走同一个端点：`grant_type=refresh_token` + `client_id`，同样不带 secret。**每次刷新都会轮换**——旧的立即失效，拿到新的必须原地覆盖钥匙串里那一条。
+
+> [!WARNING]
+> 第一方 `/api/v1/auth/refresh` 会**拒绝** client-bound 的 OAuth session。已经有集成方在这里撞过：它不是一条可替代的路径。
+
+```http
+GET https://api.nextmoe.dev/v2/catalog/works?limit=20
+Authorization: Bearer <access token>
+```
+
+令牌**必须持有 `catalog:read`**，否则是 `403 SCOPE_REQUIRED`。2026-09-06 之前签发的令牌不带这个 scope，也不做追认——让用户重新授权一次即可。
+
+配额按**用户**算：同一个人授权了三个管理器，三个共用一个桶（默认 100 次/分钟、10000 次/UTC 日）。这是有意的——否则「多注册几个应用」就是一条绕开配额的路。要更高吞吐就该用应用密钥，而那意味着你需要一个自己的服务端。
+
+## 5 · 代码骨架
+
+两份都省去了错误处理与日志，只留形状。
+
+**Tauri（Rust）**：
+
+```rust
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+use serde::Deserialize;
+use sha2::{Digest, Sha256};
+use std::collections::HashMap;
+use tiny_http::Server;
+
+const OAUTH: &str = "https://oauth.kungal.com/api/v1";
+const CLIENT_ID: &str = "your-client-id";
+
+#[derive(Deserialize)]
+struct TokenResponse {
+    access_token: String,
+    refresh_token: String,
+}
+
+#[tauri::command]
+async fn sign_in(app: tauri::AppHandle) -> Result<String, String> {
+    let verifier = URL_SAFE_NO_PAD.encode(rand::random::<[u8; 32]>());
+    let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
+    let state = URL_SAFE_NO_PAD.encode(rand::random::<[u8; 16]>());
+
+    // 端口 0：内核挑端口，注册的环回回调按 RFC 8252 §7.3 忽略端口
+    let server = Server::http("127.0.0.1:0").map_err(|e| e.to_string())?;
+    let port = server.server_addr().to_ip().unwrap().port();
+    let redirect = format!("http://127.0.0.1:{port}/callback");
+
+    let url = format!(
+        "{OAUTH}/oauth/authorize?client_id={CLIENT_ID}&redirect_uri={}\
+         &response_type=code&scope={}&state={state}\
+         &code_challenge={challenge}&code_challenge_method=S256",
+        urlencoding::encode(&redirect),
+        urlencoding::encode("openid profile catalog:read"),
+    );
+    // 系统浏览器，永远不用内嵌 webview
+    tauri_plugin_opener::open_url(&url, None::<&str>).map_err(|e| e.to_string())?;
+
+    let req = server.recv().map_err(|e| e.to_string())?;
+    let q: HashMap<String, String> = form_urlencoded::parse(
+        req.url().split_once('?').map(|(_, q)| q).unwrap_or("").as_bytes(),
+    )
+    .into_owned()
+    .collect();
+    req.respond(tiny_http::Response::from_string("可以关闭此页面。")).ok();
+    if q.get("state") != Some(&state) {
+        return Err("state mismatch".into());
+    }
+
+    let tokens: TokenResponse = reqwest::Client::new()
+        .post(format!("{OAUTH}/oauth/token"))
+        .form(&[
+            ("grant_type", "authorization_code"),
+            ("code", q.get("code").ok_or("no code")?),
+            ("redirect_uri", &redirect),
+            ("client_id", CLIENT_ID),
+            ("code_verifier", &verifier),
+        ])
+        .send()
+        .await
+        .map_err(|e| e.to_string())?
+        .json()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // refresh token 每次用都轮换：覆盖，不是追加
+    app.keyring()
+        .set_password("nextmoe", "refresh_token", &tokens.refresh_token)
+        .map_err(|e| e.to_string())?;
+    Ok(tokens.access_token)
+}
+```
+
+**Wails（Go）**：
+
+```go
+const (
+	oauthBase = "https://oauth.kungal.com/api/v1"
+	clientID  = "your-client-id"
+	scopes    = "openid profile catalog:read"
+)
+
+func (a *App) SignIn(ctx context.Context) (string, error) {
+	verifier := randomURLSafe(32)
+	sum := sha256.Sum256([]byte(verifier))
+	challenge := base64.RawURLEncoding.EncodeToString(sum[:])
+	state := randomURLSafe(16)
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return "", err
+	}
+	defer ln.Close()
+	redirect := fmt.Sprintf("http://127.0.0.1:%d/callback", ln.Addr().(*net.TCPAddr).Port)
+
+	q := url.Values{
+		"client_id": {clientID}, "redirect_uri": {redirect},
+		"response_type": {"code"}, "scope": {scopes}, "state": {state},
+		"code_challenge": {challenge}, "code_challenge_method": {"S256"},
+	}
+	runtime.BrowserOpenURL(ctx, oauthBase+"/oauth/authorize?"+q.Encode())
+
+	codeCh := make(chan string, 1)
+	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("state") != state {
+			http.Error(w, "state mismatch", http.StatusBadRequest)
+			return
+		}
+		fmt.Fprint(w, "可以关闭此页面。")
+		codeCh <- r.URL.Query().Get("code")
+	})}
+	go srv.Serve(ln)
+	defer srv.Close()
+
+	var code string
+	select {
+	case code = <-codeCh:
+	case <-time.After(5 * time.Minute):
+		return "", errors.New("authorization timed out")
+	}
+
+	// public client：用 code_verifier，没有 client secret
+	resp, err := http.PostForm(oauthBase+"/oauth/token", url.Values{
+		"grant_type": {"authorization_code"}, "code": {code},
+		"redirect_uri": {redirect}, "client_id": {clientID},
+		"code_verifier": {verifier},
+	})
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	var tok struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&tok); err != nil {
+		return "", err
+	}
+	// 轮换：这是覆盖，不是新增
+	if err := keyring.Set("nextmoe", "refresh_token", tok.RefreshToken); err != nil {
+		return "", err
+	}
+	return tok.AccessToken, nil
+}
+```
+
+## 常见错误
+
+| 症状 | 原因 |
+|------|------|
+| 授权时 `15006` | 请求的 scope 不在应用的 `allowed_scopes` 内。到控制台把 `catalog:read` 加进用户登录的 scope。 |
+| 换码 `invalid_grant` | `redirect_uri` 与授权那步不是逐字节相同，或 `code_verifier` 对不上 challenge，或码已用过（授权码一次性）。 |
+| `403 SCOPE_REQUIRED` | 令牌不带 `catalog:read`。旧令牌不追认，重新走一次授权。 |
+| `401 INVALID_CREDENTIAL` | 令牌过期，或者你把它打到了 `claim-events` / `/v2/store`——那两处只收应用密钥。 |
+| 刷新 401 而令牌确实没过期 | 用了第一方 `/api/v1/auth/refresh`。OAuth session 只能经 `/oauth/token` 刷新。 |
+| 注册时回调被拒 | `localhost`、自定义 scheme、带 fragment、或非环回的明文 http。 |
+
+- [鉴权与凭据](/docs/authentication) — 两种凭据各自能开哪些面，失败长什么样。
+- [接入用户数据](/docs/user-data) — 同一把用户令牌还能读写 `/v2/me`：时长、认领、编辑提案。
+
+---
+
 # 生产最佳实践
 
 一份上线前的清单。每一条后面都有一次真实踩过的坑——不是凭空想出来的谨慎。
@@ -2087,7 +2345,7 @@ curl "https://api.nextmoe.dev/v2/vocabularies/value"
 
 Release calendar
 
-One collection. month=/year= pick a window; precision= and status= select among the dated month, year-only, and undated views that were three v1 routes. content_limit= gates on the editorial display axis and olang= on the original language (absent = ja plus zh). meta carries today plus, on the dated month window, min_month/max_month/has_prev/has_next for month navigation. Requires an application key. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.
+One collection. month=/year= pick a window; precision= and status= select among the dated month, year-only, and undated views that were three v1 routes. content_limit= gates on the editorial display axis and olang= on the original language (absent = ja plus zh). meta carries today plus, on the dated month window, min_month/max_month/has_prev/has_next for month navigation. Requires an application key or a user access token with catalog:read. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2122,7 +2380,7 @@ curl "https://api.nextmoe.dev/v2/catalog/calendar" \
 
 Catalog changes feed
 
-Works updated recently, oldest first. Keyset-paginated. Requires an application key. ids= is not accepted.
+Works updated recently, oldest first. Keyset-paginated. Requires an application key or a user access token with catalog:read. ids= is not accepted.
 
 **This is the mirror channel.** If you cache any catalog-owned fact per work — above all the editorial display axis `content_limit`, whose verdict is `claimed_by.content_limit` when the claim block is present and otherwise `nsfw` when `content_rating` is `r18`, `sfw` otherwise — poll this feed instead of sweeping the catalog. Every write that changes a work's claim state, its display axis (the editorial NSFW flag or its content rating), or its existence bumps `updated_at` and surfaces the id here.
 
@@ -2159,7 +2417,7 @@ curl "https://api.nextmoe.dev/v2/catalog/changes" \
 
 List characters
 
-Keyset-paginated characters. Requires an application key. ids=/refs= is a batch lane and does not paginate. include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs fills on every lane, and view=full is all of them; traits are cut at the default spoiler ceiling and follow the nsfw gate, exactly as on the detail face.
+Keyset-paginated characters. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs fills on every lane, and view=full is all of them; traits are cut at the default spoiler ceiling and follow the nsfw gate, exactly as on the detail face.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2188,7 +2446,7 @@ curl "https://api.nextmoe.dev/v2/catalog/characters" \
 
 Get one character
 
-Character detail. view=full adds gender, birthday, measurements, blood_type, instance_of_id. include=image,figure,traits,aliases,intros,refs adds art, trait, name, description and anchor blocks. spoiler=none|minor|major is the ceiling of the traits block and defaults to none. Merged ids are 404 ENTITY_MERGED. Requires an application key.
+Character detail. view=full adds gender, birthday, measurements, blood_type, instance_of_id. include=image,figure,traits,aliases,intros,refs adds art, trait, name, description and anchor blocks. spoiler=none|minor|major is the ceiling of the traits block and defaults to none. Merged ids are 404 ENTITY_MERGED. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2212,7 +2470,7 @@ curl "https://api.nextmoe.dev/v2/catalog/characters/value" \
 
 Appearances of one character
 
-Works this character appears in, with roster_role, spoiler, and voice credits. Offset cursor. Requires an application key.
+Works this character appears in, with roster_role, spoiler, and voice credits. Offset cursor. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2262,7 +2520,7 @@ curl "https://api.nextmoe.dev/v2/catalog/claim-events" \
 
 List companies
 
-Keyset-paginated company registry (v1 labels). Requires an application key. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only companies with works visible under the same nsfw gate. include=aliases,logo fills on every lane; include=intros,links fills on the batch lane only (and on the detail face).
+Keyset-paginated company registry (v1 labels). Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only companies with works visible under the same nsfw gate. include=aliases,logo fills on every lane; include=intros,links fills on the batch lane only (and on the detail face).
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2292,7 +2550,7 @@ curl "https://api.nextmoe.dev/v2/catalog/companies" \
 
 Get one company
 
-Company registry row (v1 labels). include=aliases,logo,intros,links adds the corresponding blocks. Merged ids are 404 ENTITY_MERGED. Requires an application key.
+Company registry row (v1 labels). include=aliases,logo,intros,links adds the corresponding blocks. Merged ids are 404 ENTITY_MERGED. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2315,7 +2573,7 @@ curl "https://api.nextmoe.dev/v2/catalog/companies/value" \
 
 Company family graph
 
-Corporate-family nodes and directed edges around one company. Inverse relations are not emitted. include= is validated against the company token set, so aliases, intros and links are accepted and answered without; only include=logo changes a node, adding the brand mark to the nodes that have one. Merged ids are 404 ENTITY_MERGED. Requires an application key.
+Corporate-family nodes and directed edges around one company. Inverse relations are not emitted. include= is validated against the company token set, so aliases, intros and links are accepted and answered without; only include=logo changes a node, adding the brand mark to the nodes that have one. Merged ids are 404 ENTITY_MERGED. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2338,7 +2596,7 @@ curl "https://api.nextmoe.dev/v2/catalog/companies/value/graph" \
 
 List credit names
 
-Keyset-paginated credited names. q= filters by name. Requires an application key. ids=/refs= is a batch lane and does not paginate.
+Keyset-paginated credited names. q= filters by name. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2368,7 +2626,7 @@ curl "https://api.nextmoe.dev/v2/catalog/credit-names" \
 
 Get one credit name
 
-A credited name, not a person — this is the staff and voice-actor read surface. person_id is null when unlinked; gender and the fuzzy birth parts are person-level facts reached through that link. include=aliases,photo,siblings,intros,links,refs adds the corresponding blocks. Works this name is credited on live at /v2/catalog/credit-names/{id}/credits. Requires an application key.
+A credited name, not a person — this is the staff and voice-actor read surface. person_id is null when unlinked; gender and the fuzzy birth parts are person-level facts reached through that link. include=aliases,photo,siblings,intros,links,refs adds the corresponding blocks. Works this name is credited on live at /v2/catalog/credit-names/{id}/credits. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2391,7 +2649,7 @@ curl "https://api.nextmoe.dev/v2/catalog/credit-names/value" \
 
 Credits of one credit name
 
-Works this name is credited on. Offset cursor. Requires an application key.
+Works this name is credited on. Offset cursor. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2413,7 +2671,7 @@ curl "https://api.nextmoe.dev/v2/catalog/credit-names/value/credits" \
 
 List engines
 
-Keyset-paginated engines. Requires an application key. ids=/refs= is a batch lane and does not paginate.
+Keyset-paginated engines. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2442,7 +2700,7 @@ curl "https://api.nextmoe.dev/v2/catalog/engines" \
 
 Get one engine
 
-Engine detail. Requires an application key.
+Engine detail. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2465,7 +2723,7 @@ curl "https://api.nextmoe.dev/v2/catalog/engines/value" \
 
 List persons
 
-Keyset-paginated persons. Requires an application key. ids=/refs= is a batch lane and does not paginate.
+Keyset-paginated persons. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2494,7 +2752,7 @@ curl "https://api.nextmoe.dev/v2/catalog/persons" \
 
 Get one person
 
-A person identity that groups credit names. Merged ids are 404 ENTITY_MERGED. Requires an application key.
+A person identity that groups credit names. Merged ids are 404 ENTITY_MERGED. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2517,7 +2775,7 @@ curl "https://api.nextmoe.dev/v2/catalog/persons/value" \
 
 Credit names of one person
 
-Every credited name linked to this person. Requires an application key.
+Every credited name linked to this person. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2540,7 +2798,7 @@ curl "https://api.nextmoe.dev/v2/catalog/persons/value/credit-names" \
 
 Edit proposal history
 
-Filed proposals, newest first. proposer_uid=+state=merged with include_total=true is the per-contributor tally. This face publishes no patch and no decision note. Requires an application key.
+Filed proposals, newest first. proposer_uid=+state=merged with include_total=true is the per-contributor tally. This face publishes no patch and no decision note. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2571,7 +2829,7 @@ curl "https://api.nextmoe.dev/v2/catalog/proposals" \
 
 One proposal
 
-Public transparency view: proposer, state, target entity and timestamps. include=amendments adds the amendment chain. Requires an application key.
+Public transparency view: proposer, state, target entity and timestamps. include=amendments adds the amendment chain. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2593,7 +2851,7 @@ curl "https://api.nextmoe.dev/v2/catalog/proposals/value" \
 
 Entity merge feed
 
-Redirects from merged-away ids, oldest first. Keyset-paginated. object= restricts to one family. Requires an application key. ids= is not accepted.
+Redirects from merged-away ids, oldest first. Keyset-paginated. object= restricts to one family. Requires an application key or a user access token with catalog:read. ids= is not accepted.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2623,7 +2881,7 @@ curl "https://api.nextmoe.dev/v2/catalog/redirects" \
 
 List releases
 
-Keyset-paginated dated releases, sorted by date_desc by default. Requires an application key. ids= is a batch lane and does not paginate.
+Keyset-paginated dated releases, sorted by date_desc by default. Requires an application key or a user access token with catalog:read. ids= is a batch lane and does not paginate.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2652,7 +2910,7 @@ curl "https://api.nextmoe.dev/v2/catalog/releases" \
 
 Get one release
 
-A catalog release. Merged ids are 404 ENTITY_MERGED. r18 parent works are 404 without nsfw=true. Requires an application key.
+A catalog release. Merged ids are 404 ENTITY_MERGED. r18 parent works are 404 without nsfw=true. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2675,7 +2933,7 @@ curl "https://api.nextmoe.dev/v2/catalog/releases/value" \
 
 Entity revision history
 
-Every merged edit, newest first by default. sort=recorded_asc walks the same collection oldest-first by id, which is the shape a mirror or a contributor tally reads with a watermark. object=+entity_id= narrows to one entity's history. Requires an application key.
+Every merged edit, newest first by default. sort=recorded_asc walks the same collection oldest-first by id, which is the shape a mirror or a contributor tally reads with a watermark. object=+entity_id= narrows to one entity's history. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2705,7 +2963,7 @@ curl "https://api.nextmoe.dev/v2/catalog/revisions" \
 
 One revision
 
-include=diff adds the field-level change set against diff_base, or against the preceding revision when diff_base is absent. This id is what POST /v2/moderation/reverts takes. Requires an application key.
+include=diff adds the field-level change set against diff_base, or against the preceding revision when diff_base is absent. This id is what POST /v2/moderation/reverts takes. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2728,7 +2986,7 @@ curl "https://api.nextmoe.dev/v2/catalog/revisions/value" \
 
 List roles
 
-Keyset-paginated credit-role registry. The full registry is ~231 rows, so a client building a picker can fetch it whole in three pages. key joins the role_key on credit groups; ids= is a batch lane and does not paginate. refs= is not resolved: role has no catalog_external_ref entity_type. Requires an application key.
+Keyset-paginated credit-role registry. The full registry is ~231 rows, so a client building a picker can fetch it whole in three pages. key joins the role_key on credit groups; ids= is a batch lane and does not paginate. refs= is not resolved: role has no catalog_external_ref entity_type. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2757,7 +3015,7 @@ curl "https://api.nextmoe.dev/v2/catalog/roles" \
 
 Get one role
 
-A credit-role registry row. Unknown id is 404 NOT_FOUND. Requires an application key.
+A credit-role registry row. Unknown id is 404 NOT_FOUND. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2798,7 +3056,7 @@ curl "https://api.nextmoe.dev/v2/catalog/schemas/work"
 
 Search catalog entities
 
-Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Requires an application key. cursor= pages the hits. ids= is not accepted.
+Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Requires an application key or a user access token with catalog:read. cursor= pages the hits. ids= is not accepted.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2830,7 +3088,7 @@ curl "https://api.nextmoe.dev/v2/catalog/search" \
 
 List series
 
-Keyset-paginated series. Requires an application key. ids= is a batch lane and does not paginate. refs= is not resolved: series has no catalog_external_ref entity_type.
+Keyset-paginated series. Requires an application key or a user access token with catalog:read. ids= is a batch lane and does not paginate. refs= is not resolved: series has no catalog_external_ref entity_type.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2859,7 +3117,7 @@ curl "https://api.nextmoe.dev/v2/catalog/series" \
 
 Get one series
 
-Series detail. has_nsfw reports whether any member work sits behind the r18 display gate. include=intros,refs adds the corresponding blocks. Requires an application key.
+Series detail. has_nsfw reports whether any member work sits behind the r18 display gate. include=intros,refs adds the corresponding blocks. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2898,7 +3156,7 @@ curl "https://api.nextmoe.dev/v2/catalog/stats"
 
 List tags
 
-Keyset-paginated canonical tags. Requires an application key. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate.
+Keyset-paginated canonical tags. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2928,7 +3186,7 @@ curl "https://api.nextmoe.dev/v2/catalog/tags" \
 
 Get one tag
 
-Canonical tag. include=intros adds the per-language tag descriptions. Requires an application key.
+Canonical tag. include=intros adds the per-language tag descriptions. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2951,7 +3209,7 @@ curl "https://api.nextmoe.dev/v2/catalog/tags/value" \
 
 List traits
 
-Keyset-paginated character traits. Requires an application key. ids= is a batch lane. refs= is not resolved: traits have no catalog_external_ref entity_type.
+Keyset-paginated character traits. Requires an application key or a user access token with catalog:read. ids= is a batch lane. refs= is not resolved: traits have no catalog_external_ref entity_type.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -2980,7 +3238,7 @@ curl "https://api.nextmoe.dev/v2/catalog/traits" \
 
 Get one trait
 
-A character-trait vocabulary row. Requires an application key.
+A character-trait vocabulary row. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -3003,7 +3261,7 @@ curl "https://api.nextmoe.dev/v2/catalog/traits/value" \
 
 List catalog works
 
-Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. Requires an application key. view/include/fields/ids/refs/facets follow the v2 collection contract. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on every lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.
+Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. Requires an application key or a user access token with catalog:read. view/include/fields/ids/refs/facets follow the v2 collection contract. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on every lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -3048,7 +3306,7 @@ curl "https://api.nextmoe.dev/v2/catalog/works" \
 
 Get one catalog work
 
-Work detail. spoiler=none|minor|major is the ceiling of the tags block and defaults to none. Merged ids are 404 ENTITY_MERGED with Link rel=canonical. r18 is 404 without nsfw=true. Requires an application key.
+Work detail. spoiler=none|minor|major is the ceiling of the tags block and defaults to none. Merged ids are 404 ENTITY_MERGED with Link rel=canonical. r18 is 404 without nsfw=true. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -3072,7 +3330,7 @@ curl "https://api.nextmoe.dev/v2/catalog/works/value" \
 
 List characters of one work
 
-Roster characters. Same items as include=characters. Requires an application key.
+Roster characters. Same items as include=characters. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -3094,7 +3352,7 @@ curl "https://api.nextmoe.dev/v2/catalog/works/value/characters" \
 
 List covers of one work
 
-Work cover rows. Same items as include=covers. Requires an application key.
+Work cover rows. Same items as include=covers. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -3116,7 +3374,7 @@ curl "https://api.nextmoe.dev/v2/catalog/works/value/covers" \
 
 List credits of one work
 
-Credits grouped by role. Same items as include=credits. Requires an application key.
+Credits grouped by role. Same items as include=credits. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -3138,7 +3396,7 @@ curl "https://api.nextmoe.dev/v2/catalog/works/value/credits" \
 
 List engines of one work
 
-Engines. Same items as include=engines. Requires an application key.
+Engines. Same items as include=engines. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -3160,7 +3418,7 @@ curl "https://api.nextmoe.dev/v2/catalog/works/value/engines" \
 
 List intros of one work
 
-Intros. Same items as include=intros. Requires an application key.
+Intros. Same items as include=intros. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -3182,7 +3440,7 @@ curl "https://api.nextmoe.dev/v2/catalog/works/value/intros" \
 
 List links of one work
 
-Outbound links. Same items as include=links. Requires an application key.
+Outbound links. Same items as include=links. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -3204,7 +3462,7 @@ curl "https://api.nextmoe.dev/v2/catalog/works/value/links" \
 
 List ratings of one work
 
-Source ratings. Same items as include=ratings. Requires an application key.
+Source ratings. Same items as include=ratings. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -3226,7 +3484,7 @@ curl "https://api.nextmoe.dev/v2/catalog/works/value/ratings" \
 
 List relations of one work
 
-Related works. Same items as include=relations. Requires an application key.
+Related works. Same items as include=relations. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -3248,7 +3506,7 @@ curl "https://api.nextmoe.dev/v2/catalog/works/value/relations" \
 
 List releases of one work
 
-Releases of this work. Same items as include=releases. Requires an application key.
+Releases of this work. Same items as include=releases. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -3270,7 +3528,7 @@ curl "https://api.nextmoe.dev/v2/catalog/works/value/releases" \
 
 List screenshots of one work
 
-Work screenshots. Same items as include=screenshots. Requires an application key.
+Work screenshots. Same items as include=screenshots. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -3292,7 +3550,7 @@ curl "https://api.nextmoe.dev/v2/catalog/works/value/screenshots" \
 
 List series of one work
 
-Series memberships. Same items as include=series. Requires an application key.
+Series memberships. Same items as include=series. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -3314,7 +3572,7 @@ curl "https://api.nextmoe.dev/v2/catalog/works/value/series" \
 
 List tags of one work
 
-Tags attached to this work. Same items as include=tags. spoiler=none|minor|major is the ceiling of this page and defaults to none, exactly as on the work detail face. Requires an application key.
+Tags attached to this work. Same items as include=tags. spoiler=none|minor|major is the ceiling of this page and defaults to none, exactly as on the work detail face. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…

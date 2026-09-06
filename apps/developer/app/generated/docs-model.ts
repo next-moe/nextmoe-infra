@@ -2986,7 +2986,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/calendar",
               "summary": "Release calendar",
-              "description": "One collection. month=/year= pick a window; precision= and status= select among the dated month, year-only, and undated views that were three v1 routes. content_limit= gates on the editorial display axis and olang= on the original language (absent = ja plus zh). meta carries today plus, on the dated month window, min_month/max_month/has_prev/has_next for month navigation. Requires an application key. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.",
+              "description": "One collection. month=/year= pick a window; precision= and status= select among the dated month, year-only, and undated views that were three v1 routes. content_limit= gates on the editorial display axis and olang= on the original language (absent = ja plus zh). meta carries today plus, on the dated month window, min_month/max_month/has_prev/has_next for month navigation. Requires an application key or a user access token with catalog:read. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -6074,7 +6074,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/changes",
               "summary": "Catalog changes feed",
-              "description": "Works updated recently, oldest first. Keyset-paginated. Requires an application key. ids= is not accepted.\n\n**This is the mirror channel.** If you cache any catalog-owned fact per work — above all the editorial display axis `content_limit`, whose verdict is `claimed_by.content_limit` when the claim block is present and otherwise `nsfw` when `content_rating` is `r18`, `sfw` otherwise — poll this feed instead of sweeping the catalog. Every write that changes a work's claim state, its display axis (the editorial NSFW flag or its content rating), or its existence bumps `updated_at` and surfaces the id here.\n\nBootstrap from an empty cursor: the feed enumerates the whole population oldest-updated-first, so the first drain IS the full inventory. Hydrate each page against /v2/catalog/works with ids= in batches of at most 100, with both gates open (nsfw=true and no content_limit), then keep the cursor and poll it at your own cadence.\n\ngone: an entry carrying `gone: true` has left the public population — drop the mirrored row. Merged-away ids appear here as gone AND in /v2/catalog/redirects, which names the id that replaced them; repoint rather than delete when the redirect exists.\n\nEverything else a work serves — covers, tags, titles, intros, ratings — surfaces best-effort: most of those writers touch the work too, but only claim state, the display axis and existence are promised.",
+              "description": "Works updated recently, oldest first. Keyset-paginated. Requires an application key or a user access token with catalog:read. ids= is not accepted.\n\n**This is the mirror channel.** If you cache any catalog-owned fact per work — above all the editorial display axis `content_limit`, whose verdict is `claimed_by.content_limit` when the claim block is present and otherwise `nsfw` when `content_rating` is `r18`, `sfw` otherwise — poll this feed instead of sweeping the catalog. Every write that changes a work's claim state, its display axis (the editorial NSFW flag or its content rating), or its existence bumps `updated_at` and surfaces the id here.\n\nBootstrap from an empty cursor: the feed enumerates the whole population oldest-updated-first, so the first drain IS the full inventory. Hydrate each page against /v2/catalog/works with ids= in batches of at most 100, with both gates open (nsfw=true and no content_limit), then keep the cursor and poll it at your own cadence.\n\ngone: an entry carrying `gone: true` has left the public population — drop the mirrored row. Merged-away ids appear here as gone AND in /v2/catalog/redirects, which names the id that replaced them; repoint rather than delete when the redirect exists.\n\nEverything else a work serves — covers, tags, titles, intros, ratings — surfaces best-effort: most of those writers touch the work too, but only claim state, the display axis and existence are promised.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -7153,7 +7153,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/characters",
               "summary": "List characters",
-              "description": "Keyset-paginated characters. Requires an application key. ids=/refs= is a batch lane and does not paginate. include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs fills on every lane, and view=full is all of them; traits are cut at the default spoiler ceiling and follow the nsfw gate, exactly as on the detail face.",
+              "description": "Keyset-paginated characters. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs fills on every lane, and view=full is all of them; traits are cut at the default spoiler ceiling and follow the nsfw gate, exactly as on the detail face.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -8675,7 +8675,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/characters/{id}",
               "summary": "Get one character",
-              "description": "Character detail. view=full adds gender, birthday, measurements, blood_type, instance_of_id. include=image,figure,traits,aliases,intros,refs adds art, trait, name, description and anchor blocks. spoiler=none|minor|major is the ceiling of the traits block and defaults to none. Merged ids are 404 ENTITY_MERGED. Requires an application key.",
+              "description": "Character detail. view=full adds gender, birthday, measurements, blood_type, instance_of_id. include=image,figure,traits,aliases,intros,refs adds art, trait, name, description and anchor blocks. spoiler=none|minor|major is the ceiling of the traits block and defaults to none. Merged ids are 404 ENTITY_MERGED. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -10213,7 +10213,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/characters/{id}/appearances",
               "summary": "Appearances of one character",
-              "description": "Works this character appears in, with roster_role, spoiler, and voice credits. Offset cursor. Requires an application key.",
+              "description": "Works this character appears in, with roster_role, spoiler, and voice credits. Offset cursor. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -14751,7 +14751,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/companies",
               "summary": "List companies",
-              "description": "Keyset-paginated company registry (v1 labels). Requires an application key. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only companies with works visible under the same nsfw gate. include=aliases,logo fills on every lane; include=intros,links fills on the batch lane only (and on the detail face).",
+              "description": "Keyset-paginated company registry (v1 labels). Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only companies with works visible under the same nsfw gate. include=aliases,logo fills on every lane; include=intros,links fills on the batch lane only (and on the detail face).",
               "scope": "catalog:read",
               "params": [
                 {
@@ -16043,7 +16043,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/companies/{id}",
               "summary": "Get one company",
-              "description": "Company registry row (v1 labels). include=aliases,logo,intros,links adds the corresponding blocks. Merged ids are 404 ENTITY_MERGED. Requires an application key.",
+              "description": "Company registry row (v1 labels). include=aliases,logo,intros,links adds the corresponding blocks. Merged ids are 404 ENTITY_MERGED. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -17337,7 +17337,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/companies/{id}/graph",
               "summary": "Company family graph",
-              "description": "Corporate-family nodes and directed edges around one company. Inverse relations are not emitted. include= is validated against the company token set, so aliases, intros and links are accepted and answered without; only include=logo changes a node, adding the brand mark to the nodes that have one. Merged ids are 404 ENTITY_MERGED. Requires an application key.",
+              "description": "Corporate-family nodes and directed edges around one company. Inverse relations are not emitted. include= is validated against the company token set, so aliases, intros and links are accepted and answered without; only include=logo changes a node, adding the brand mark to the nodes that have one. Merged ids are 404 ENTITY_MERGED. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -18566,7 +18566,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/credit-names",
               "summary": "List credit names",
-              "description": "Keyset-paginated credited names. q= filters by name. Requires an application key. ids=/refs= is a batch lane and does not paginate.",
+              "description": "Keyset-paginated credited names. q= filters by name. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -19902,7 +19902,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/credit-names/{id}",
               "summary": "Get one credit name",
-              "description": "A credited name, not a person — this is the staff and voice-actor read surface. person_id is null when unlinked; gender and the fuzzy birth parts are person-level facts reached through that link. include=aliases,photo,siblings,intros,links,refs adds the corresponding blocks. Works this name is credited on live at /v2/catalog/credit-names/{id}/credits. Requires an application key.",
+              "description": "A credited name, not a person — this is the staff and voice-actor read surface. person_id is null when unlinked; gender and the fuzzy birth parts are person-level facts reached through that link. include=aliases,photo,siblings,intros,links,refs adds the corresponding blocks. Works this name is credited on live at /v2/catalog/credit-names/{id}/credits. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -21240,7 +21240,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/credit-names/{id}/credits",
               "summary": "Credits of one credit name",
-              "description": "Works this name is credited on. Offset cursor. Requires an application key.",
+              "description": "Works this name is credited on. Offset cursor. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -24371,7 +24371,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/engines",
               "summary": "List engines",
-              "description": "Keyset-paginated engines. Requires an application key. ids=/refs= is a batch lane and does not paginate.",
+              "description": "Keyset-paginated engines. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -25450,7 +25450,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/engines/{id}",
               "summary": "Get one engine",
-              "description": "Engine detail. Requires an application key.",
+              "description": "Engine detail. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -26538,7 +26538,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/persons",
               "summary": "List persons",
-              "description": "Keyset-paginated persons. Requires an application key. ids=/refs= is a batch lane and does not paginate.",
+              "description": "Keyset-paginated persons. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -27614,7 +27614,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/persons/{id}",
               "summary": "Get one person",
-              "description": "A person identity that groups credit names. Merged ids are 404 ENTITY_MERGED. Requires an application key.",
+              "description": "A person identity that groups credit names. Merged ids are 404 ENTITY_MERGED. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -28699,7 +28699,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/persons/{id}/credit-names",
               "summary": "Credit names of one person",
-              "description": "Every credited name linked to this person. Requires an application key.",
+              "description": "Every credited name linked to this person. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -30109,7 +30109,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/proposals",
               "summary": "Edit proposal history",
-              "description": "Filed proposals, newest first. proposer_uid=+state=merged with include_total=true is the per-contributor tally. This face publishes no patch and no decision note. Requires an application key.",
+              "description": "Filed proposals, newest first. proposer_uid=+state=merged with include_total=true is the per-contributor tally. This face publishes no patch and no decision note. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -31334,7 +31334,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/proposals/{id}",
               "summary": "One proposal",
-              "description": "Public transparency view: proposer, state, target entity and timestamps. include=amendments adds the amendment chain. Requires an application key.",
+              "description": "Public transparency view: proposer, state, target entity and timestamps. include=amendments adds the amendment chain. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -32547,7 +32547,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/redirects",
               "summary": "Entity merge feed",
-              "description": "Redirects from merged-away ids, oldest first. Keyset-paginated. object= restricts to one family. Requires an application key. ids= is not accepted.",
+              "description": "Redirects from merged-away ids, oldest first. Keyset-paginated. object= restricts to one family. Requires an application key or a user access token with catalog:read. ids= is not accepted.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -33634,7 +33634,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/releases",
               "summary": "List releases",
-              "description": "Keyset-paginated dated releases, sorted by date_desc by default. Requires an application key. ids= is a batch lane and does not paginate.",
+              "description": "Keyset-paginated dated releases, sorted by date_desc by default. Requires an application key or a user access token with catalog:read. ids= is a batch lane and does not paginate.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -34765,7 +34765,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/releases/{id}",
               "summary": "Get one release",
-              "description": "A catalog release. Merged ids are 404 ENTITY_MERGED. r18 parent works are 404 without nsfw=true. Requires an application key.",
+              "description": "A catalog release. Merged ids are 404 ENTITY_MERGED. r18 parent works are 404 without nsfw=true. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -35905,7 +35905,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/revisions",
               "summary": "Entity revision history",
-              "description": "Every merged edit, newest first by default. sort=recorded_asc walks the same collection oldest-first by id, which is the shape a mirror or a contributor tally reads with a watermark. object=+entity_id= narrows to one entity's history. Requires an application key.",
+              "description": "Every merged edit, newest first by default. sort=recorded_asc walks the same collection oldest-first by id, which is the shape a mirror or a contributor tally reads with a watermark. object=+entity_id= narrows to one entity's history. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -37085,7 +37085,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/revisions/{id}",
               "summary": "One revision",
-              "description": "include=diff adds the field-level change set against diff_base, or against the preceding revision when diff_base is absent. This id is what POST /v2/moderation/reverts takes. Requires an application key.",
+              "description": "include=diff adds the field-level change set against diff_base, or against the preceding revision when diff_base is absent. This id is what POST /v2/moderation/reverts takes. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -38267,7 +38267,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/roles",
               "summary": "List roles",
-              "description": "Keyset-paginated credit-role registry. The full registry is ~231 rows, so a client building a picker can fetch it whole in three pages. key joins the role_key on credit groups; ids= is a batch lane and does not paginate. refs= is not resolved: role has no catalog_external_ref entity_type. Requires an application key.",
+              "description": "Keyset-paginated credit-role registry. The full registry is ~231 rows, so a client building a picker can fetch it whole in three pages. key joins the role_key on credit groups; ids= is a batch lane and does not paginate. refs= is not resolved: role has no catalog_external_ref entity_type. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -39365,7 +39365,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/roles/{id}",
               "summary": "Get one role",
-              "description": "A credit-role registry row. Unknown id is 404 NOT_FOUND. Requires an application key.",
+              "description": "A credit-role registry row. Unknown id is 404 NOT_FOUND. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -41499,7 +41499,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/search",
               "summary": "Search catalog entities",
-              "description": "Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Requires an application key. cursor= pages the hits. ids= is not accepted.",
+              "description": "Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Requires an application key or a user access token with catalog:read. cursor= pages the hits. ids= is not accepted.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -42674,7 +42674,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/series",
               "summary": "List series",
-              "description": "Keyset-paginated series. Requires an application key. ids= is a batch lane and does not paginate. refs= is not resolved: series has no catalog_external_ref entity_type.",
+              "description": "Keyset-paginated series. Requires an application key or a user access token with catalog:read. ids= is a batch lane and does not paginate. refs= is not resolved: series has no catalog_external_ref entity_type.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -43801,7 +43801,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/series/{id}",
               "summary": "Get one series",
-              "description": "Series detail. has_nsfw reports whether any member work sits behind the r18 display gate. include=intros,refs adds the corresponding blocks. Requires an application key.",
+              "description": "Series detail. has_nsfw reports whether any member work sits behind the r18 display gate. include=intros,refs adds the corresponding blocks. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -45504,7 +45504,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/tags",
               "summary": "List tags",
-              "description": "Keyset-paginated canonical tags. Requires an application key. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate.",
+              "description": "Keyset-paginated canonical tags. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -46637,7 +46637,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/tags/{id}",
               "summary": "Get one tag",
-              "description": "Canonical tag. include=intros adds the per-language tag descriptions. Requires an application key.",
+              "description": "Canonical tag. include=intros adds the per-language tag descriptions. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -47772,7 +47772,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/traits",
               "summary": "List traits",
-              "description": "Keyset-paginated character traits. Requires an application key. ids= is a batch lane. refs= is not resolved: traits have no catalog_external_ref entity_type.",
+              "description": "Keyset-paginated character traits. Requires an application key or a user access token with catalog:read. ids= is a batch lane. refs= is not resolved: traits have no catalog_external_ref entity_type.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -48847,7 +48847,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/traits/{id}",
               "summary": "Get one trait",
-              "description": "A character-trait vocabulary row. Requires an application key.",
+              "description": "A character-trait vocabulary row. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -49931,7 +49931,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/works",
               "summary": "List catalog works",
-              "description": "Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. Requires an application key. view/include/fields/ids/refs/facets follow the v2 collection contract. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on every lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.",
+              "description": "Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. Requires an application key or a user access token with catalog:read. view/include/fields/ids/refs/facets follow the v2 collection contract. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on every lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -53047,7 +53047,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/works/{id}",
               "summary": "Get one catalog work",
-              "description": "Work detail. spoiler=none|minor|major is the ceiling of the tags block and defaults to none. Merged ids are 404 ENTITY_MERGED with Link rel=canonical. r18 is 404 without nsfw=true. Requires an application key.",
+              "description": "Work detail. spoiler=none|minor|major is the ceiling of the tags block and defaults to none. Merged ids are 404 ENTITY_MERGED with Link rel=canonical. r18 is 404 without nsfw=true. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -56067,7 +56067,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/works/{id}/characters",
               "summary": "List characters of one work",
-              "description": "Roster characters. Same items as include=characters. Requires an application key.",
+              "description": "Roster characters. Same items as include=characters. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -57706,7 +57706,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/works/{id}/covers",
               "summary": "List covers of one work",
-              "description": "Work cover rows. Same items as include=covers. Requires an application key.",
+              "description": "Work cover rows. Same items as include=covers. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -58907,7 +58907,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/works/{id}/credits",
               "summary": "List credits of one work",
-              "description": "Credits grouped by role. Same items as include=credits. Requires an application key.",
+              "description": "Credits grouped by role. Same items as include=credits. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -60104,7 +60104,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/works/{id}/engines",
               "summary": "List engines of one work",
-              "description": "Engines. Same items as include=engines. Requires an application key.",
+              "description": "Engines. Same items as include=engines. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -61242,7 +61242,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/works/{id}/intros",
               "summary": "List intros of one work",
-              "description": "Intros. Same items as include=intros. Requires an application key.",
+              "description": "Intros. Same items as include=intros. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -62377,7 +62377,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/works/{id}/links",
               "summary": "List links of one work",
-              "description": "Outbound links. Same items as include=links. Requires an application key.",
+              "description": "Outbound links. Same items as include=links. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -63500,7 +63500,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/works/{id}/ratings",
               "summary": "List ratings of one work",
-              "description": "Source ratings. Same items as include=ratings. Requires an application key.",
+              "description": "Source ratings. Same items as include=ratings. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -64700,7 +64700,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/works/{id}/relations",
               "summary": "List relations of one work",
-              "description": "Related works. Same items as include=relations. Requires an application key.",
+              "description": "Related works. Same items as include=relations. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -67778,7 +67778,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/works/{id}/releases",
               "summary": "List releases of one work",
-              "description": "Releases of this work. Same items as include=releases. Requires an application key.",
+              "description": "Releases of this work. Same items as include=releases. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -68983,7 +68983,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/works/{id}/screenshots",
               "summary": "List screenshots of one work",
-              "description": "Work screenshots. Same items as include=screenshots. Requires an application key.",
+              "description": "Work screenshots. Same items as include=screenshots. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -70165,7 +70165,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/works/{id}/series",
               "summary": "List series of one work",
-              "description": "Series memberships. Same items as include=series. Requires an application key.",
+              "description": "Series memberships. Same items as include=series. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -71309,7 +71309,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/works/{id}/tags",
               "summary": "List tags of one work",
-              "description": "Tags attached to this work. Same items as include=tags. spoiler=none|minor|major is the ceiling of this page and defaults to none, exactly as on the work detail face. Requires an application key.",
+              "description": "Tags attached to this work. Same items as include=tags. spoiler=none|minor|major is the ceiling of this page and defaults to none, exactly as on the work detail face. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {

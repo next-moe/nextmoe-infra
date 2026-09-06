@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"api/internal/platform/apiv2/problem"
@@ -117,4 +118,94 @@ func TestCatalogAuthStubServesNSFWWithoutACapability(t *testing.T) {
 	status, p := authGET(t, app, "/v2/catalog/works?nsfw=true", testAPIKey)
 	require.Equal(t, 503, status)
 	require.Equal(t, problem.CodeServiceUnavailable, p.Code)
+}
+
+const catalogUserToken = "eyJ.user.access.token"
+
+func testAppDualCredential(t *testing.T, ident UserIdentity) *fiber.App {
+	t.Helper()
+	app := fiber.New(fiber.Config{ErrorHandler: problem.WriteFiberError})
+	SetupWith(app, Options{
+		LookupCredential: func(context.Context, string) (*devapi.Credential, error) { return nil, nil },
+		LookupUser: func(_ context.Context, raw string) (UserIdentity, error) {
+			if raw != catalogUserToken {
+				return UserIdentity{}, os.ErrPermission
+			}
+			return ident, nil
+		},
+	})
+	return app
+}
+
+// Passing the gate reads as 503 here, not 200: every face is unbound in a unit
+// test, so the only safe signal is that the answer stopped being the gate's own
+// — the same control the application-key cases above rely on.
+func TestCatalogAuthTakesAUserTokenHoldingCatalogRead(t *testing.T) {
+	app := testAppDualCredential(t, UserIdentity{
+		UID: 42, ClientID: "manager", Scopes: []string{"openid", devapi.ScopeCatalogRead},
+	})
+
+	status, p := authGET(t, app, "/v2/catalog/works", catalogUserToken)
+	require.Equal(t, 503, status)
+	require.Equal(t, problem.CodeServiceUnavailable, p.Code)
+
+	status, p = authGET(t, app, "/v2/catalog/works/1", catalogUserToken)
+	require.Equal(t, 503, status)
+	require.Equal(t, problem.CodeServiceUnavailable, p.Code)
+
+	status, p = authGET(t, app, "/v2/catalog/works", "some.other.token")
+	require.Equal(t, 401, status)
+	require.Equal(t, problem.CodeInvalidCredential, p.Code)
+}
+
+func TestCatalogAuthRefusesAUserTokenWithoutCatalogRead(t *testing.T) {
+	app := testAppDualCredential(t, UserIdentity{
+		UID: 42, ClientID: "manager", Scopes: []string{"openid", "profile", "playtime:read"},
+	})
+	status, p := authGET(t, app, "/v2/catalog/works", catalogUserToken)
+	require.Equal(t, 403, status)
+	require.Equal(t, problem.CodeScopeRequired, p.Code)
+	require.Contains(t, p.Detail, devapi.ScopeCatalogRead)
+}
+
+// claim_events:read is operator-granted to an application, so the one catalog
+// read that demands it takes no user token at all — not even one that somehow
+// carries the string.
+func TestCatalogAuthKeepsClaimEventsOnApplicationKeys(t *testing.T) {
+	app := testAppDualCredential(t, UserIdentity{
+		UID: 42, ClientID: "manager",
+		Scopes: []string{devapi.ScopeCatalogRead, devapi.ScopeClaimEventsRead},
+	})
+	status, p := authGET(t, app, "/v2/catalog/claim-events", catalogUserToken)
+	require.Equal(t, 401, status)
+	require.Equal(t, problem.CodeInvalidCredential, p.Code)
+
+	// Positive control: the same token still reads the ordinary catalog faces,
+	// so the refusal above is about that one path and not about user tokens.
+	status, _ = authGET(t, app, "/v2/catalog/works", catalogUserToken)
+	require.Equal(t, 503, status)
+}
+
+// The moderation claim states are an application's own per-site queue, resolved
+// from catalogAuthz, which the user lane never sets — so they stay out of the
+// vocabulary for a person's token rather than silently widening to every site.
+func TestCatalogAuthUserTokenGetsNoModerationClaimStates(t *testing.T) {
+	app := testAppDualCredential(t, UserIdentity{
+		UID: 42, ClientID: "manager", Scopes: []string{devapi.ScopeCatalogRead},
+	})
+	status, p := authGET(t, app, "/v2/catalog/works?claim_state=pending&site=kungal", catalogUserToken)
+	require.Equal(t, 400, status)
+	require.Equal(t, problem.CodeUnknownEnumValue, p.Code)
+}
+
+// /v2/store keeps the application key: nothing in the consent vocabulary grants
+// store:read, so a user token there is not a credential at all.
+func TestCatalogAuthStoreStaysApplicationKeyOnly(t *testing.T) {
+	app := testAppDualCredential(t, UserIdentity{
+		UID: 42, ClientID: "manager",
+		Scopes: []string{devapi.ScopeCatalogRead, devapi.ScopeStoreRead},
+	})
+	status, p := authGET(t, app, "/v2/store/stats", catalogUserToken)
+	require.Equal(t, 401, status)
+	require.Equal(t, problem.CodeInvalidCredential, p.Code)
 }

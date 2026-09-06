@@ -13,7 +13,7 @@
 
 Get one person
 
-A person identity that groups credit names. Merged ids are 404 ENTITY_MERGED. Requires an application key.
+A person identity that groups credit names. Merged ids are 404 ENTITY_MERGED. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…

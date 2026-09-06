@@ -76,7 +76,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "快速上手",
     "s": "指南 · 开始",
     "d": "五分钟接入 NextMoe 开放 API v2：创建应用、铸造密钥、发出第一个请求、读懂响应。",
-    "b": "五分钟接入 NextMoe 开放 API v2：创建应用、铸造密钥、发出第一个请求、读懂响应。 快速上手 从零到第一次成功调用，大约五分钟。不需要申请，不需要审核。 匿名就能先试一把： /v2/news 、 /v2/vocabularies 、 /v2/problems 、 /v2/catalog/stats 与 /v2/catalog/schemas/{object} 不要任何凭据。想读目录数据再回来铸密钥。 1 · 创建应用 用生态账号（NextMoe / 鲲 Galgame）登录 控制台，不必另外注册开发者身份。每个账号最多 5 个应用，每个应用最多 5 把在用密钥。应用是配额、用量与 scope 的边界——一个产品一个应用，出事时可以单独吊销。 2 · 铸一把密钥 密钥形如 nmk_live_… ，尾部带 CRC32 校验位， 只在铸造时显示一次 。它是机密：只放服务端，不要写进前端包、移动端二进制或公开仓库。开发联调可以铸 nmk_test_ 前缀的测试密钥。 自助可勾选的 scope 有两个—— catalog:read （读目录数据）与 store:read （商店联盟链接）。 claim_events:read 由运营方按需授予，不能自助勾选。 3 · 发出第一个请求 curl \"https://api.nextmoe.dev/v2/catalog/works?limit=3\" \\ -H \"Authorization: Bearer nmk_live_<YOUR_KEY \" 响应体 就是 那个集合，没有 {code,message,data} 外壳： { \"object\": \"list\", \"items\": [ { \"object\": \"work\", \"id\": \"207379\", \"medium\": \"galgame\", \"display_name\": \"…\", \"latin\": \"…\", \"localized\": { \"zh-Hans\": { \"value\": \"…\", \"is_machine\": false } }, \"olang\": \"ja\", \"content_rating\": \"all_ages\", \"release_date\": \"2021-08-27\", \"release_date_precision\": \"day\", \"release_status\": \"released\", \"cover\": { \"url\": \"https://…\", \"hash\": \"…\", \"width\": 560, \"height\": 420, \"thumbhash\": \"…\", \"sexual\": \"safe\", \"violence\": null, \"source\": \"dlsite\" }, \"banner\": null, \"claim\": null, \"created_at\": \"2025-11-02T09:14:33Z\", \"updated_at\": \"2026-08-29T02:51:07Z\" } ], \"next_cursor\": \"cur_…\" } - object 是类型判别符，每个资源都带，值就是它的族名。 - id 是 十进制字符串 。它在库里是 int64，超出 JavaScript Number 的安全整数范围，发成 JSON number 会静默失真。 - 翻页只有 next_cursor 一种：把它原样回传即可。 末页直接不出现这个键 ，没有 has_more ，也不要用 items.length === limit 判断还有没有下一页。 - 默认瘦身：作品的标签、角色、评分、封面列表这些块都要在 include= 里点名才会出现。 4 · 按需取块 详情面同理——默认只有身份内核， include= 决定要哪些块，写错 token 是 400 UNKNOWN_INCLUDE 而不是静默少块： curl \"https://api.nextmoe.dev/v2/catalog/works/207379?include=tags,ratings,companies\" \\ -H \"Authorization: Bearer nmk_live_<YOUR_KEY \" 每个族有哪些 include token、哪些 sort 键、哪些顶层字段，都能从发现面自己问出来，不必翻文档： curl \"https://api.nextmoe.dev/v2/catalog/schemas/work\" 5 · 手里已经有外部 id？ 不用先搜再猜。反查是集合上的一个参数，一次最多 100 个 source:external_id ，没锚到的原样回在 missing[] 里，而不是让整个请求 404： curl \"https://api.nextmoe.dev/v2/catalog/works?refs=vndb:v19658,bangumi:302835\" \\ -H \"Authorization: Bearer nmk_live_<YOUR_KEY \" 接下来 - 鉴权与凭据 — 应用密钥 vs 用户访问令牌，以及各自能开哪些面。 - 数据模型 — 六源如何对齐成一条记录，实体族之间怎么连。 - 全链走查 — 用两个真实系列走通搜索 → 详情 → 厂牌 → 反查。 - 端点参考 — 88 个端点的参数、响应与 curl 示例。",
+    "b": "五分钟接入 NextMoe 开放 API v2：创建应用、铸造密钥、发出第一个请求、读懂响应。 快速上手 从零到第一次成功调用，大约五分钟。不需要申请，不需要审核。 匿名就能先试一把： /v2/news 、 /v2/vocabularies 、 /v2/problems 、 /v2/catalog/stats 与 /v2/catalog/schemas/{object} 不要任何凭据。想读目录数据再回来铸密钥。 1 · 创建应用 用生态账号（NextMoe / 鲲 Galgame）登录 控制台，不必另外注册开发者身份。每个账号最多 5 个应用，每个应用最多 5 把在用密钥。应用是配额、用量与 scope 的边界——一个产品一个应用，出事时可以单独吊销。 2 · 铸一把密钥 密钥形如 nmk_live_… ，尾部带 CRC32 校验位， 只在铸造时显示一次 。它是机密：只放服务端，不要写进前端包、移动端二进制或公开仓库。开发联调可以铸 nmk_test_ 前缀的测试密钥。分发出去的桌面客户端没有服务端可放，读目录数据请改用用户访问令牌——见原生桌面应用接入。 自助可勾选的 scope 有两个—— catalog:read （读目录数据）与 store:read （商店联盟链接）。 claim_events:read 由运营方按需授予，不能自助勾选。 3 · 发出第一个请求 curl \"https://api.nextmoe.dev/v2/catalog/works?limit=3\" \\ -H \"Authorization: Bearer nmk_live_<YOUR_KEY \" 响应体 就是 那个集合，没有 {code,message,data} 外壳： { \"object\": \"list\", \"items\": [ { \"object\": \"work\", \"id\": \"207379\", \"medium\": \"galgame\", \"display_name\": \"…\", \"latin\": \"…\", \"localized\": { \"zh-Hans\": { \"value\": \"…\", \"is_machine\": false } }, \"olang\": \"ja\", \"content_rating\": \"all_ages\", \"release_date\": \"2021-08-27\", \"release_date_precision\": \"day\", \"release_status\": \"released\", \"cover\": { \"url\": \"https://…\", \"hash\": \"…\", \"width\": 560, \"height\": 420, \"thumbhash\": \"…\", \"sexual\": \"safe\", \"violence\": null, \"source\": \"dlsite\" }, \"banner\": null, \"claim\": null, \"created_at\": \"2025-11-02T09:14:33Z\", \"updated_at\": \"2026-08-29T02:51:07Z\" } ], \"next_cursor\": \"cur_…\" } - object 是类型判别符，每个资源都带，值就是它的族名。 - id 是 十进制字符串 。它在库里是 int64，超出 JavaScript Number 的安全整数范围，发成 JSON number 会静默失真。 - 翻页只有 next_cursor 一种：把它原样回传即可。 末页直接不出现这个键 ，没有 has_more ，也不要用 items.length === limit 判断还有没有下一页。 - 默认瘦身：作品的标签、角色、评分、封面列表这些块都要在 include= 里点名才会出现。 4 · 按需取块 详情面同理——默认只有身份内核， include= 决定要哪些块，写错 token 是 400 UNKNOWN_INCLUDE 而不是静默少块： curl \"https://api.nextmoe.dev/v2/catalog/works/207379?include=tags,ratings,companies\" \\ -H \"Authorization: Bearer nmk_live_<YOUR_KEY \" 每个族有哪些 include token、哪些 sort 键、哪些顶层字段，都能从发现面自己问出来，不必翻文档： curl \"https://api.nextmoe.dev/v2/catalog/schemas/work\" 5 · 手里已经有外部 id？ 不用先搜再猜。反查是集合上的一个参数，一次最多 100 个 source:external_id ，没锚到的原样回在 missing[] 里，而不是让整个请求 404： curl \"https://api.nextmoe.dev/v2/catalog/works?refs=vndb:v19658,bangumi:302835\" \\ -H \"Authorization: Bearer nmk_live_<YOUR_KEY \" 接下来 - 鉴权与凭据 — 应用密钥 vs 用户访问令牌，以及各自能开哪些面。 - 数据模型 — 六源如何对齐成一条记录，实体族之间怎么连。 - 全链走查 — 用两个真实系列走通搜索 → 详情 → 厂牌 → 反查。 - 端点参考 — 88 个端点的参数、响应与 curl 示例。",
     "h": [
       {
         "i": "app",
@@ -109,7 +109,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "鉴权与凭据",
     "s": "指南 · 开始",
     "d": "NextMoe API v2 的两种凭据：应用密钥 nmk_ 与用户 OAuth 访问令牌，各自覆盖哪些路径前缀、怎么获取、失败时返回什么。",
-    "b": "NextMoe API v2 的两种凭据：应用密钥 nmk_ 与用户 OAuth 访问令牌，各自覆盖哪些路径前缀、怎么获取、失败时返回什么。 鉴权与凭据 一条请求只带一个凭据。带哪一个，由你读的是「目录里的公共事实」还是「某个用户自己的东西」决定。 三种身份 身份 请求头 代表谁 用在哪些前缀 ------------ -------------------------------------- ------------------ --------------------------------------------------------------------------------------------------- 应用密钥 Authorization: Bearer nmk_live_… 你的应用 /v2/catalog 、 /v2/store 用户访问令牌 Authorization: Bearer <access_token 授权给你的那个用户 /v2/me 、 /v2/moderation 匿名 不带 任何人 /v2/news 、 /v2/vocabularies 、 /v2/problems 、 /v2/catalog/stats 、 /v2/catalog/schemas/{object} 一条请求只带一个凭据。如果某个操作看起来需要两种身份同时在场，那它是被放错了面——请告诉我们，而不是想办法同时塞两个。 应用密钥 - 前缀 nmk_live_ （生产）或 nmk_test_ （开发联调），尾部带 CRC32 校验位——手抖改错一个字符能在到达服务端前就被认出来。 - 只在铸造时显示一次 。丢了就吊销重铸，没有找回。 - 它是机密：只放服务端。浏览器、移动端二进制、公开仓库、CI 日志都不行。前端要用数据，请让自己的后端代理。 - 每个应用最多 5 把在用密钥——轮换时先铸新的、灰度切流、再吊销旧的，不必停机。 scope scope 开什么 怎么拿 ------------------- ------------------------------------------------------------------------------- ------------------------ catalog:read 整个 /v2/catalog 只读面 控制台自助勾选 store:read /v2/store 商店联盟链接与统计 控制台自助勾选 claim_events:read 认领事件 feed 与自家站点的审核队列状态（ claim_state=pending,declined,hidden ） 运营方按需授予，不能自助 claim_events:read 不开放自助是有原因的：那条 feed 里带着每次拒绝的理由和做出决定的审核员 uid。 用户访问令牌 /v2/me 与 /v2/moderation 读写的是 某个用户自己的东西 ——他的游玩时长、他提交的编辑提案、他的认领、他投的封面票。应用密钥在这两个前缀下一律无效，因为它证明不了「哪个用户」。 拿令牌走标准的 OAuth 2.0 授权码 + PKCE： 1. 把用户跳到 https://oauth.kungal.com/api/v1/oauth/authorize ，带上 response_type=code 、 client_id 、 redirect_uri 、 scope 、 state 与 code_challenge / code_challenge_method=S256 。 2. 用户同意后回调你的 redirect_uri ，带回 code 。校验 state 。 3. POST https://oauth.kungal.com/api/v1/oauth/token ，用 code + code_verifier 换 access_token （JWT，15 分钟）与 refresh_token 。 4. 带 access_token 调 /v2/me/ ；过期后用 refresh_token 刷新，每次刷新都会轮换。 refresh_token 是 不透明随机串 ，不是 JWT。不要解析它、不要从里面读过期时间——过期的唯一信号是刷新失败。 OAuth 端点的线格式是裸 RFC 6749（ {access_token, token_type, expires_in, …} ），同样没有信封；失败是 {\"error\": \"...\", \"error_description\": \"...\"} 。完整契约见统一文档门户 docs-kungal.nextmoe.dev 。 认证失败长什么样 状态 code 含义 怎么办 ---- ------------------------ ---------------------------------- ----------------------------- 401 MISSING_CREDENTIAL 没有 Authorization 头 带上密钥 401 INVALID_CREDENTIAL 凭据存在，但无效、过期或已被吊销 换一把密钥；用户令牌则去刷新 403 SCOPE_REQUIRED 凭据有效，但缺这个操作要的 scope 在控制台补勾 scope 并重铸密钥 403 USER_IDENTITY_REQUIRED 这个面要用户身份，你带的是应用密钥 改用用户访问令牌 错误体是 RFC 9457 application/problem+json ，字段与分支写法见 错误处理。 限流身份跟着凭据走 密钥按 密钥所属应用 计数，用户令牌按 用户 计数，匿名按 IP 计数。也就是说，把整个用户群从一个服务端出口代理出去时，请用用户令牌调用用户面——否则所有人会挤进同一个匿名 IP 桶。详见 限流与配额。",
+    "b": "NextMoe API v2 的两种凭据：应用密钥 nmk_ 与用户 OAuth 访问令牌，各自覆盖哪些路径前缀、怎么获取、失败时返回什么。 鉴权与凭据 一条请求只带一个凭据。带哪一个，由你读的是「目录里的公共事实」还是「某个用户自己的东西」决定。 三种身份 身份 请求头 代表谁 用在哪些前缀 ------------ -------------------------------------- ------------------ --------------------------------------------------------------------------------------------------- 应用密钥 Authorization: Bearer nmk_live_… 你的应用 /v2/catalog 、 /v2/store 用户访问令牌 Authorization: Bearer <access_token 授权给你的那个用户 /v2/me 、 /v2/moderation ；带 catalog:read 时也可用于 /v2/catalog 匿名 不带 任何人 /v2/news 、 /v2/vocabularies 、 /v2/problems 、 /v2/catalog/stats 、 /v2/catalog/schemas/{object} 一条请求只带一个凭据。 /v2/catalog 收两种凭据，意思是 二选一 ，不是两个都带。服务端按 Authorization 里那一个值的前缀分道： nmk_ 是应用密钥，其余按用户令牌解析；一种失败了不会再当另一种试一次。 应用密钥 - 前缀 nmk_live_ （生产）或 nmk_test_ （开发联调），尾部带 CRC32 校验位——手抖改错一个字符能在到达服务端前就被认出来。 - 只在铸造时显示一次 。丢了就吊销重铸，没有找回。 - 它是机密：只放服务端。浏览器、移动端二进制、公开仓库、CI 日志都不行。前端要用数据，请让自己的后端代理； 分发出去的桌面客户端没有后端可代理，改用用户访问令牌 （见下）。 - 每个应用最多 5 把在用密钥——轮换时先铸新的、灰度切流、再吊销旧的，不必停机。 scope scope 开什么 怎么拿 ------------------- ------------------------------------------------------------------------------- ------------------------ catalog:read 整个 /v2/catalog 只读面 控制台自助勾选；也可作为用户 scope 向人索取 store:read /v2/store 商店联盟链接与统计 控制台自助勾选 claim_events:read 认领事件 feed 与自家站点的审核队列状态（ claim_state=pending,declined,hidden ） 运营方按需授予，不能自助 claim_events:read 不开放自助是有原因的：那条 feed 里带着每次拒绝的理由和做出决定的审核员 uid。 用户访问令牌 /v2/me 与 /v2/moderation 读写的是 某个用户自己的东西 ——他的游玩时长、他提交的编辑提案、他的认领、他投的封面票。应用密钥在这两个前缀下一律无效，因为它证明不了「哪个用户」。 自 2026-09-06 起用户令牌还能读 /v2/catalog ：令牌只要带 catalog:read （在 user_login.scopes 里申请，用户在同意页勾）就行。这条路是给 分发出去的原生客户端 准备的——Tauri / Wails 写的游戏管理器把二进制交到用户手里，里面放不下任何机密，而用户令牌本来就是用户自己的。请求按 用户 计配额（该用户跨所有已授权应用共池），不按应用； /v2/catalog/claim-events 与 /v2/store 仍只收应用密钥。完整走查见原生桌面应用接入。 拿令牌走标准的 OAuth 2.0 授权码 + PKCE： 1. 把用户跳到 https://oauth.kungal.com/api/v1/oauth/authorize ，带上 response_type=code 、 client_id 、 redirect_uri 、 scope 、 state 与 code_challenge / code_challenge_method=S256 。 2. 用户同意后回调你的 redirect_uri ，带回 code 。校验 state 。 3. POST https://oauth.kungal.com/api/v1/oauth/token ，用 code + code_verifier 换 access_token （JWT，15 分钟）与 refresh_token 。 4. 带 access_token 调 /v2/me/ ；过期后用 refresh_token 刷新，每次刷新都会轮换。 refresh_token 是 不透明随机串 ，不是 JWT。不要解析它、不要从里面读过期时间——过期的唯一信号是刷新失败。 OAuth 端点的线格式是裸 RFC 6749（ {access_token, token_type, expires_in, …} ），同样没有信封；失败是 {\"error\": \"...\", \"error_description\": \"...\"} 。完整契约见统一文档门户 docs-kungal.nextmoe.dev 。 认证失败长什么样 状态 code 含义 怎么办 ---- ------------------------ ---------------------------------- ----------------------------- 401 MISSING_CREDENTIAL 没有 Authorization 头 带上密钥 401 INVALID_CREDENTIAL 凭据存在，但无效、过期或已被吊销 换一把密钥；用户令牌则去刷新 403 SCOPE_REQUIRED 凭据有效，但缺这个操作要的 scope 在控制台补勾 scope 并重铸密钥；用户令牌则带上该 scope 重新授权 403 USER_IDENTITY_REQUIRED 这个面要用户身份，你带的是应用密钥 改用用户访问令牌 错误体是 RFC 9457 application/problem+json ，字段与分支写法见 错误处理。 限流身份跟着凭据走 密钥按 密钥所属应用 计数，用户令牌按 用户 计数，匿名按 IP 计数。也就是说，把整个用户群从一个服务端出口代理出去时，请用用户令牌调用用户面——否则所有人会挤进同一个匿名 IP 桶。详见 限流与配额。",
     "h": [
       {
         "i": "identities",
@@ -582,6 +582,39 @@ export const searchIndex: SearchEntry[] = [
     ]
   },
   {
+    "r": "/docs/native-app",
+    "t": "原生桌面应用接入",
+    "s": "指南 · 集成指南",
+    "d": "Tauri / Wails 写的游戏管理器怎么读 /v2/catalog：用用户访问令牌而不是塞进二进制的应用密钥，环回回调 + PKCE 的完整流程与两份代码骨架。",
+    "b": "Tauri / Wails 写的游戏管理器怎么读 /v2/catalog：用用户访问令牌而不是塞进二进制的应用密钥，环回回调 + PKCE 的完整流程与两份代码骨架。 原生桌面应用接入 分发出去的桌面客户端 没有机密可言 。应用密钥躺在用户机器上的可执行文件里， strings 一遍就出来，抓一次 HTTPS 也出来——而泄漏的是 你的 密钥：配额、限流、封禁都算在你的应用头上，吊销一次所有用户一起断。 所以 /v2/catalog 只读面 同时接受两种凭据 ，二选一： 凭据 代表谁 按什么计配额 适合谁 ------ -------- ------------- -------- 应用密钥 nmk_live_… 你的应用 按密钥（tier 决定速率与日配额） 服务端、你自己控制的后端 用户访问令牌 授权给你的那个用户 按 用户 ，跨该用户授权过的所有应用共池 分发出去的原生客户端 一条请求只带一个凭据。服务端按 Authorization 里那 一个 值的前缀分道： nmk_ 是应用密钥，其余按用户令牌解析；一种失败了不会再当另一种试一次。 GET /v2/catalog/claim-events 与整个 /v2/store 是例外，仍然只收应用密钥。 1 · 注册应用 在控制台建应用时开启用户登录（ user_login ），三件事随之定死： { \"name\": \"Kurumi\", \"user_login\": { \"redirect_uris\": [\"http://127.0.0.1/callback\"], \"scopes\": [\"openid\", \"profile\", \"catalog:read\"] } } - 强制 PKCE 。开了用户登录的应用一律是 public client，OAuth 服务在缺 code_challenge 时拒签授权码。你 不需要 、也 不应该 在客户端里放 client_secret 。 - 回调只收环回 。 http://127.0.0.1/callback 与 http://[::1]/callback 是仅有的明文形状。 localhost 按名拒——它过主机名解析，可以被指向别处， 127.0.0.1 不能。自定义 scheme（ myapp://callback ） 不支持 ，注册时就被拒。 - 端口无关匹配 （RFC 8252 §7.3）。注册时写不写端口都行，服务端比对环回回调时忽略端口，scheme / host / path / query 仍精确匹配。运行时监听哪个临时端口由你决定，不必回控制台改注册。 2 · 起监听、开浏览器 先绑 127.0.0.1:0 让内核分配临时端口，拿到端口再拼 redirect_uri ； code_verifier 取 43–128 字符的高熵随机串， code_challenge = BASE64URL(SHA256(verifier)) ； state 另取一个，回调里逐字比对。 GET https://oauth.kungal.com/api/v1/oauth/authorize ?client_id=<your-client-id &redirect_uri=http%3A%2F%2F127.0.0.1%3A53682%2Fcallback &response_type=code &scope=openid%20profile%20catalog%3Aread &state=<random &code_challenge=<S256 &code_challenge_method=S256 该端点 302 到登录/同意页，用户同意后浏览器跳回你的环回地址，带 code 与 state 。 用 系统浏览器 ，绝不用内嵌 WebView（RFC 8252 §8.12）。内嵌视图里应用能读到用户输入的口令和 OP 的 cookie，用户也无从判断自己是不是在真的 OP 上——同意页上那个「第三方应用」标记会因此失去全部意义。Tauri 用 opener / shell 插件，Wails 用 runtime.BrowserOpenURL 。 3 · 换码 POST 到 https://oauth.kungal.com/api/v1/oauth/token ， application/x-www-form-urlencoded 或 JSON 皆可， 不带 client_secret ，带 code_verifier ： POST /api/v1/oauth/token Content-Type: application/x-www-form-urlencoded grant_type=authorization_code &code=<授权码 &redirect_uri=<与第 2 步逐字节相同 &client_id=<your-client-id &code_verifier=<第 2 步的 verifier 响应是裸 RFC 6749（没有 {code,message,data} 外壳）： access_token （JWT，15 分钟）、 refresh_token （不透明串）、 expires_in 、 scope 。失败是 {\"error\": \"...\", \"error_description\": \"...\"} 。 把令牌交给操作系统钥匙串 ，不要写明文文件或应用配置目录。Tauri 用 keyring / stronghold 插件，Wails（Go）用 github.com/zalando/go-keyring 。access token 短命，留在内存里就行；refresh token 必须落钥匙串。 4 · 刷新与调用 刷新只走同一个端点： grant_type=refresh_token + client_id ，同样不带 secret。 每次刷新都会轮换 ——旧的立即失效，拿到新的必须原地覆盖钥匙串里那一条。 第一方 /api/v1/auth/refresh 会 拒绝 client-bound 的 OAuth session。已经有集成方在这里撞过：它不是一条可替代的路径。 GET https://api.nextmoe.dev/v2/catalog/works?limit=20 Authorization: Bearer <access token 令牌 必须持有 catalog:read ，否则是 403 SCOPE_REQUIRED 。2026-09-06 之前签发的令牌不带这个 scope，也不做追认——让用户重新授权一次即可。 配额按 用户 算：同一个人授权了三个管理器，三个共用一个桶（默认 100 次/分钟、10000 次/UTC 日）。这是有意的——否则「多注册几个应用」就是一条绕开配额的路。要更高吞吐就该用应用密钥，而那意味着你需要一个自己的服务端。 5 · 代码骨架 两份都省去了错误处理与日志，只留形状。 Tauri（Rust） ： use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine}; use serde::Deserialize; use sha2::{Digest, Sha256}; use std::collections::HashMap; use tiny_http::Server; const OAUTH: &str = \"https://oauth.kungal.com/api/v1\"; const CLIENT_ID: &str = \"your-client-id\"; #[derive(Deserialize)] struct TokenResponse { access_token: String, refresh_token: String, } #[tauri::command] async fn sign_in(app: tauri::AppHandle) - Result<String, String { let verifier = URL_SAFE_NO_PAD.encode(rand::random::<[u8; 32] ()); let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes())); let state = URL_SAFE_NO_PAD.encode(rand::random::<[u8; 16] ()); // 端口 0：内核挑端口，注册的环回回调按 RFC 8252 §7.3 忽略端口 let server = Server::http(\"127.0.0.1:0\").map_err( e e.to_string())?; let port = server.server_addr().to_ip().unwrap().port(); let redirect = format!(\"http://127.0.0.1:{port}/callback\"); let url = format!( \"{OAUTH}/oauth/authorize?client_id={CLIENT_ID}&redirect_uri={}\\ &response_type=code&scope={}&state={state}\\ &code_challenge={challenge}&code_challenge_method=S256\", urlencoding::encode(&redirect), urlencoding::encode(\"openid profile catalog:read\"), ); // 系统浏览器，永远不用内嵌 webview tauri_plugin_opener::open_url(&url, None::<&str ).map_err( e e.to_string())?; let req = server.recv().map_err( e e.to_string())?; let q: HashMap<String, String = form_urlencoded::parse( req.url().split_once('?').map( (_, q) q).unwrap_or(\"\").as_bytes(), ) .into_owned() .collect(); req.respond(tiny_http::Response::from_string(\"可以关闭此页面。\")).ok(); if q.get(\"state\") != Some(&state) { return Err(\"state mismatch\".into()); } let tokens: TokenResponse = reqwest::Client::new() .post(format!(\"{OAUTH}/oauth/token\")) .form(&[ (\"grant_type\", \"authorization_code\"), (\"code\", q.get(\"code\").ok_or(\"no code\")?), (\"redirect_uri\", &redirect), (\"client_id\", CLIENT_ID), (\"code_verifier\", &verifier), ]) .send() .await .map_err( e e.to_string())? .json() .await .map_err( e e.to_string())?; // refresh token 每次用都轮换：覆盖，不是追加 app.keyring() .set_password(\"nextmoe\", \"refresh_token\", &tokens.refresh_token) .map_err( e e.to_string())?; Ok(tokens.access_token) } Wails（Go） ： const ( oauthBase = \"https://oauth.kungal.com/api/v1\" clientID = \"your-client-id\" scopes = \"openid profile catalog:read\" ) func (a App) SignIn(ctx context.Context) (string, error) { verifier := randomURLSafe(32) sum := sha256.Sum256([]byte(verifier)) challenge := base64.RawURLEncoding.EncodeToString(sum[:]) state := randomURLSafe(16) ln, err := net.Listen(\"tcp\", \"127.0.0.1:0\") if err != nil { return \"\", err } defer ln.Close() redirect := fmt.Sprintf(\"http://127.0.0.1:%d/callback\", ln.Addr().( net.TCPAddr).Port) q := url.Values{ \"client_id\": {clientID}, \"redirect_uri\": {redirect}, \"response_type\": {\"code\"}, \"scope\": {scopes}, \"state\": {state}, \"code_challenge\": {challenge}, \"code_challenge_method\": {\"S256\"}, } runtime.BrowserOpenURL(ctx, oauthBase+\"/oauth/authorize?\"+q.Encode()) codeCh := make(chan string, 1) srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r http.Request) { if r.URL.Query().Get(\"state\") != state { http.Error(w, \"state mismatch\", http.StatusBadRequest) return } fmt.Fprint(w, \"可以关闭此页面。\") codeCh <- r.URL.Query().Get(\"code\") })} go srv.Serve(ln) defer srv.Close() var code string select { case code = <-codeCh: case <-time.After(5 time.Minute): return \"\", errors.New(\"authorization timed out\") } // public client：用 code_verifier，没有 client secret resp, err := http.PostForm(oauthBase+\"/oauth/token\", url.Values{ \"grant_type\": {\"authorization_code\"}, \"code\": {code}, \"redirect_uri\": {redirect}, \"client_id\": {clientID}, \"code_verifier\": {verifier}, }) if err != nil { return \"\", err } defer resp.Body.Close() var tok struct { AccessToken string json:\"access_token\" RefreshToken string json:\"refresh_token\" } if err := json.NewDecoder(resp.Body).Decode(&tok); err != nil { return \"\", err } // 轮换：这是覆盖，不是新增 if err := keyring.Set(\"nextmoe\", \"refresh_token\", tok.RefreshToken); err != nil { return \"\", err } return tok.AccessToken, nil } 常见错误 症状 原因 ------ ------ 授权时 15006 请求的 scope 不在应用的 allowed_scopes 内。到控制台把 catalog:read 加进用户登录的 scope。 换码 invalid_grant redirect_uri 与授权那步不是逐字节相同，或 code_verifier 对不上 challenge，或码已用过（授权码一次性）。 403 SCOPE_REQUIRED 令牌不带 catalog:read 。旧令牌不追认，重新走一次授权。 401 INVALID_CREDENTIAL 令牌过期，或者你把它打到了 claim-events / /v2/store ——那两处只收应用密钥。 刷新 401 而令牌确实没过期 用了第一方 /api/v1/auth/refresh 。OAuth session 只能经 /oauth/token 刷新。 注册时回调被拒 localhost 、自定义 scheme、带 fragment、或非环回的明文 http。 - 鉴权与凭据 — 两种凭据各自能开哪些面，失败长什么样。 - 接入用户数据 — 同一把用户令牌还能读写 /v2/me ：时长、认领、编辑提案。",
+    "h": [
+      {
+        "i": "register",
+        "t": "1 · 注册应用"
+      },
+      {
+        "i": "authorize",
+        "t": "2 · 起监听、开浏览器"
+      },
+      {
+        "i": "exchange",
+        "t": "3 · 换码"
+      },
+      {
+        "i": "call",
+        "t": "4 · 刷新与调用"
+      },
+      {
+        "i": "sketches",
+        "t": "5 · 代码骨架"
+      },
+      {
+        "i": "pitfalls",
+        "t": "常见错误"
+      }
+    ]
+  },
+  {
     "r": "/docs/best-practices",
     "t": "生产最佳实践",
     "s": "指南 · 集成指南",
@@ -669,35 +702,35 @@ export const searchIndex: SearchEntry[] = [
     "t": "发售月历",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/calendar",
-    "b": "listCatalogCalendar /v2/catalog/calendar get Release calendar One collection. month=/year= pick a window; precision= and status= select among the dated month, year-only, and undated views that were three v1 routes. content_limit= gates on the editorial display axis and olang= on the original language (absent = ja plus zh). meta carries today plus, on the dated month window, min_month/max_month/has_prev/has_next for month navigation. Requires an application key. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE. 一个集合。month=/year= 选取窗口；precision= 与 status= 在已定档到月、只知年、无日期三个视图间切换——它们曾是三条 v1 路径。content_limit= 按编辑展示轴设门，olang= 按原语言设门（缺席 = ja 加 zh）。meta 携带 today，并在带日期的月份窗口上另带 min_month/max_month/has_prev/has_next 供月份导航。需要应用密钥。不接受 ids=。include=titles,refs,intros,covers,companies,ratings,tags,credits 在此车道填充；view=full 即它们全部，credits 除外，须显式请求。在集合车道上，titles 选出 latin/localized，covers 选出给基础 cover 分级的两个封面槽——完整的 titles[] 与 covers[] 数组，以及 relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links，是单条记录块，位于 /v2/catalog/works/{id} 及其子资源；在此请求其中之一为 400 UNKNOWN_INCLUDE。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw month year precision status content_limit olang"
+    "b": "listCatalogCalendar /v2/catalog/calendar get Release calendar One collection. month=/year= pick a window; precision= and status= select among the dated month, year-only, and undated views that were three v1 routes. content_limit= gates on the editorial display axis and olang= on the original language (absent = ja plus zh). meta carries today plus, on the dated month window, min_month/max_month/has_prev/has_next for month navigation. Requires an application key or a user access token with catalog:read. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE. 一个集合。month=/year= 选取窗口；precision= 与 status= 在已定档到月、只知年、无日期三个视图间切换——它们曾是三条 v1 路径。content_limit= 按编辑展示轴设门，olang= 按原语言设门（缺席 = ja 加 zh）。meta 携带 today，并在带日期的月份窗口上另带 min_month/max_month/has_prev/has_next 供月份导航。需要应用密钥或带 catalog:read 的用户访问令牌。不接受 ids=。include=titles,refs,intros,covers,companies,ratings,tags,credits 在此车道填充；view=full 即它们全部，credits 除外，须显式请求。在集合车道上，titles 选出 latin/localized，covers 选出给基础 cover 分级的两个封面槽——完整的 titles[] 与 covers[] 数组，以及 relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links，是单条记录块，位于 /v2/catalog/works/{id} 及其子资源；在此请求其中之一为 400 UNKNOWN_INCLUDE。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw month year precision status content_limit olang"
   },
   {
     "r": "/docs/v2/listCatalogChanges",
     "t": "catalog 变更 feed",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/changes",
-    "b": "listCatalogChanges /v2/catalog/changes get Catalog changes feed Works updated recently, oldest first. Keyset-paginated. Requires an application key. ids= is not accepted.\n\n**This is the mirror channel.** If you cache any catalog-owned fact per work — above all the editorial display axis `content_limit`, whose verdict is `claimed_by.content_limit` when the claim block is present and otherwise `nsfw` when `content_rating` is `r18`, `sfw` otherwise — poll this feed instead of sweeping the catalog. Every write that changes a work's claim state, its display axis (the editorial NSFW flag or its content rating), or its existence bumps `updated_at` and surfaces the id here.\n\nBootstrap from an empty cursor: the feed enumerates the whole population oldest-updated-first, so the first drain IS the full inventory. Hydrate each page against /v2/catalog/works with ids= in batches of at most 100, with both gates open (nsfw=true and no content_limit), then keep the cursor and poll it at your own cadence.\n\ngone: an entry carrying `gone: true` has left the public population — drop the mirrored row. Merged-away ids appear here as gone AND in /v2/catalog/redirects, which names the id that replaced them; repoint rather than delete when the redirect exists.\n\nEverything else a work serves — covers, tags, titles, intros, ratings — surfaces best-effort: most of those writers touch the work too, but only claim state, the display axis and existence are promised. 最近更新过的作品，最旧在前。keyset 分页。需要应用密钥。不接受 ids=。\n\n**这是镜像信道。** 若你按作品缓存任何 catalog 持有的事实——尤其是编辑展示轴 `content_limit`，其判定在认领块存在时为 `claimed_by.content_limit`，否则当 `content_rating` 为 `r18` 时为 `nsfw`、其余为 `sfw`——请轮询本 feed，不要扫全量 catalog。凡改动作品认领状态、展示轴（编辑 NSFW 旗或其内容分级）或存在性的写入，都会 bump `updated_at` 并在此现身该 id。\n\n从空 cursor 冷启动：本 feed 按最旧更新优先枚举整个人口，因此第一次抽干就是全量清单。每页用 ids= 以最多 100 一批打 /v2/catalog/works 做水合，两道闸都打开（nsfw=true 且不传 content_limit），然后保存 cursor，按自己的节奏轮询。\n\ngone：带 `gone: true` 的条目已离开公开人口——丢掉镜像行。被合并走的 id 在此以 gone 出现，同时也出现在 /v2/catalog/redirects，后者给出接替它的 id；存在 redirect 时请改指向而不是删除。\n\n作品提供的其余内容——covers、tags、titles、intros、ratings——尽力而为：这些写入多数也会 touch 作品，但只有认领状态、展示轴和存在性是承诺。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw"
+    "b": "listCatalogChanges /v2/catalog/changes get Catalog changes feed Works updated recently, oldest first. Keyset-paginated. Requires an application key or a user access token with catalog:read. ids= is not accepted.\n\n**This is the mirror channel.** If you cache any catalog-owned fact per work — above all the editorial display axis `content_limit`, whose verdict is `claimed_by.content_limit` when the claim block is present and otherwise `nsfw` when `content_rating` is `r18`, `sfw` otherwise — poll this feed instead of sweeping the catalog. Every write that changes a work's claim state, its display axis (the editorial NSFW flag or its content rating), or its existence bumps `updated_at` and surfaces the id here.\n\nBootstrap from an empty cursor: the feed enumerates the whole population oldest-updated-first, so the first drain IS the full inventory. Hydrate each page against /v2/catalog/works with ids= in batches of at most 100, with both gates open (nsfw=true and no content_limit), then keep the cursor and poll it at your own cadence.\n\ngone: an entry carrying `gone: true` has left the public population — drop the mirrored row. Merged-away ids appear here as gone AND in /v2/catalog/redirects, which names the id that replaced them; repoint rather than delete when the redirect exists.\n\nEverything else a work serves — covers, tags, titles, intros, ratings — surfaces best-effort: most of those writers touch the work too, but only claim state, the display axis and existence are promised. 最近更新过的作品，最旧在前。keyset 分页。需要应用密钥或带 catalog:read 的用户访问令牌。不接受 ids=。\n\n**这是镜像信道。** 若你按作品缓存任何 catalog 持有的事实——尤其是编辑展示轴 `content_limit`，其判定在认领块存在时为 `claimed_by.content_limit`，否则当 `content_rating` 为 `r18` 时为 `nsfw`、其余为 `sfw`——请轮询本 feed，不要扫全量 catalog。凡改动作品认领状态、展示轴（编辑 NSFW 旗或其内容分级）或存在性的写入，都会 bump `updated_at` 并在此现身该 id。\n\n从空 cursor 冷启动：本 feed 按最旧更新优先枚举整个人口，因此第一次抽干就是全量清单。每页用 ids= 以最多 100 一批打 /v2/catalog/works 做水合，两道闸都打开（nsfw=true 且不传 content_limit），然后保存 cursor，按自己的节奏轮询。\n\ngone：带 `gone: true` 的条目已离开公开人口——丢掉镜像行。被合并走的 id 在此以 gone 出现，同时也出现在 /v2/catalog/redirects，后者给出接替它的 id；存在 redirect 时请改指向而不是删除。\n\n作品提供的其余内容——covers、tags、titles、intros、ratings——尽力而为：这些写入多数也会 touch 作品，但只有认领状态、展示轴和存在性是承诺。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw"
   },
   {
     "r": "/docs/v2/listCatalogCharacters",
     "t": "列出角色",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/characters",
-    "b": "listCatalogCharacters /v2/catalog/characters get List characters Keyset-paginated characters. Requires an application key. ids=/refs= is a batch lane and does not paginate. include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs fills on every lane, and view=full is all of them; traits are cut at the default spoiler ceiling and follow the nsfw gate, exactly as on the detail face. keyset 分页的角色。需要应用密钥。ids=/refs= 是批量车道，不分页。include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs 在每条车道都填充，view=full 即它们全部；traits 按默认 spoiler 上限截断并遵循 nsfw 门，与详情面完全一致。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw"
+    "b": "listCatalogCharacters /v2/catalog/characters get List characters Keyset-paginated characters. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs fills on every lane, and view=full is all of them; traits are cut at the default spoiler ceiling and follow the nsfw gate, exactly as on the detail face. keyset 分页的角色。需要应用密钥或带 catalog:read 的用户访问令牌。ids=/refs= 是批量车道，不分页。include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs 在每条车道都填充，view=full 即它们全部；traits 按默认 spoiler 上限截断并遵循 nsfw 门，与详情面完全一致。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw"
   },
   {
     "r": "/docs/v2/getCatalogCharacter",
     "t": "获取一个角色",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/characters/{id}",
-    "b": "getCatalogCharacter /v2/catalog/characters/{id} get Get one character Character detail. view=full adds gender, birthday, measurements, blood_type, instance_of_id. include=image,figure,traits,aliases,intros,refs adds art, trait, name, description and anchor blocks. spoiler=none|minor|major is the ceiling of the traits block and defaults to none. Merged ids are 404 ENTITY_MERGED. Requires an application key. 角色详情。view=full 会加入 gender、birthday、measurements、blood_type、instance_of_id。include=image,figure,traits,aliases,intros,refs 会加入立绘、特征、名称、描述与锚点块。spoiler=none|minor|major 是 traits 块的上限，默认为 none。合并后的 id 返回 404 ENTITY_MERGED。需要应用密钥。 catalog:read id nsfw view include fields spoiler"
+    "b": "getCatalogCharacter /v2/catalog/characters/{id} get Get one character Character detail. view=full adds gender, birthday, measurements, blood_type, instance_of_id. include=image,figure,traits,aliases,intros,refs adds art, trait, name, description and anchor blocks. spoiler=none|minor|major is the ceiling of the traits block and defaults to none. Merged ids are 404 ENTITY_MERGED. Requires an application key or a user access token with catalog:read. 角色详情。view=full 会加入 gender、birthday、measurements、blood_type、instance_of_id。include=image,figure,traits,aliases,intros,refs 会加入立绘、特征、名称、描述与锚点块。spoiler=none|minor|major 是 traits 块的上限，默认为 none。合并后的 id 返回 404 ENTITY_MERGED。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id nsfw view include fields spoiler"
   },
   {
     "r": "/docs/v2/getCatalogCharacterAppearances",
     "t": "某一角色的出场",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/characters/{id}/appearances",
-    "b": "getCatalogCharacterAppearances /v2/catalog/characters/{id}/appearances get Appearances of one character Works this character appears in, with roster_role, spoiler, and voice credits. Offset cursor. Requires an application key. 该角色出场的作品，带 roster_role、spoiler 和配音署名。offset cursor。需要应用密钥。 catalog:read id nsfw cursor limit"
+    "b": "getCatalogCharacterAppearances /v2/catalog/characters/{id}/appearances get Appearances of one character Works this character appears in, with roster_role, spoiler, and voice credits. Offset cursor. Requires an application key or a user access token with catalog:read. 该角色出场的作品，带 roster_role、spoiler 和配音署名。offset cursor。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id nsfw cursor limit"
   },
   {
     "r": "/docs/v2/listCatalogClaimEvents",
@@ -711,140 +744,140 @@ export const searchIndex: SearchEntry[] = [
     "t": "列出公司",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/companies",
-    "b": "listCatalogCompanies /v2/catalog/companies get List companies Keyset-paginated company registry (v1 labels). Requires an application key. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only companies with works visible under the same nsfw gate. include=aliases,logo fills on every lane; include=intros,links fills on the batch lane only (and on the detail face). keyset 分页的公司注册表（v1 labels）。需要应用密钥。ids=/refs= 是批量车道，不分页。has_works=true 只保留在同一 nsfw 门下有可见作品的公司。include=aliases,logo 在每条车道都填充；include=intros,links 仅在批量车道填充（以及详情面）。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw has_works"
+    "b": "listCatalogCompanies /v2/catalog/companies get List companies Keyset-paginated company registry (v1 labels). Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only companies with works visible under the same nsfw gate. include=aliases,logo fills on every lane; include=intros,links fills on the batch lane only (and on the detail face). keyset 分页的公司注册表（v1 labels）。需要应用密钥或带 catalog:read 的用户访问令牌。ids=/refs= 是批量车道，不分页。has_works=true 只保留在同一 nsfw 门下有可见作品的公司。include=aliases,logo 在每条车道都填充；include=intros,links 仅在批量车道填充（以及详情面）。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw has_works"
   },
   {
     "r": "/docs/v2/getCatalogCompany",
     "t": "获取一家公司",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/companies/{id}",
-    "b": "getCatalogCompany /v2/catalog/companies/{id} get Get one company Company registry row (v1 labels). include=aliases,logo,intros,links adds the corresponding blocks. Merged ids are 404 ENTITY_MERGED. Requires an application key. 公司注册表行（v1 的 labels）。include=aliases,logo,intros,links 追加对应块。已合并的 id 返回 404 ENTITY_MERGED。需要应用密钥。 catalog:read id nsfw view include fields"
+    "b": "getCatalogCompany /v2/catalog/companies/{id} get Get one company Company registry row (v1 labels). include=aliases,logo,intros,links adds the corresponding blocks. Merged ids are 404 ENTITY_MERGED. Requires an application key or a user access token with catalog:read. 公司注册表行（v1 的 labels）。include=aliases,logo,intros,links 追加对应块。已合并的 id 返回 404 ENTITY_MERGED。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id nsfw view include fields"
   },
   {
     "r": "/docs/v2/getCatalogCompanyGraph",
     "t": "公司家族图",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/companies/{id}/graph",
-    "b": "getCatalogCompanyGraph /v2/catalog/companies/{id}/graph get Company family graph Corporate-family nodes and directed edges around one company. Inverse relations are not emitted. include= is validated against the company token set, so aliases, intros and links are accepted and answered without; only include=logo changes a node, adding the brand mark to the nodes that have one. Merged ids are 404 ENTITY_MERGED. Requires an application key. 围绕一家公司的企业家族节点与有向边。不发出反向关系。include= 按公司 token 集校验，因此 aliases、intros 与 links 会被接受，但响应中不带这些块；只有 include=logo 会改变节点，给有品牌标识的节点加上品牌标识。已合并的 id 返回 404 ENTITY_MERGED。需要应用密钥。 catalog:read id nsfw view include fields"
+    "b": "getCatalogCompanyGraph /v2/catalog/companies/{id}/graph get Company family graph Corporate-family nodes and directed edges around one company. Inverse relations are not emitted. include= is validated against the company token set, so aliases, intros and links are accepted and answered without; only include=logo changes a node, adding the brand mark to the nodes that have one. Merged ids are 404 ENTITY_MERGED. Requires an application key or a user access token with catalog:read. 围绕一家公司的企业家族节点与有向边。不发出反向关系。include= 按公司 token 集校验，因此 aliases、intros 与 links 会被接受，但响应中不带这些块；只有 include=logo 会改变节点，给有品牌标识的节点加上品牌标识。已合并的 id 返回 404 ENTITY_MERGED。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id nsfw view include fields"
   },
   {
     "r": "/docs/v2/listCatalogCreditNames",
     "t": "列出署名",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/credit-names",
-    "b": "listCatalogCreditNames /v2/catalog/credit-names get List credit names Keyset-paginated credited names. q= filters by name. Requires an application key. ids=/refs= is a batch lane and does not paginate. keyset 分页的署名。q= 按名字过滤。需要应用密钥。ids=/refs= 是批量车道，不分页。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw q"
+    "b": "listCatalogCreditNames /v2/catalog/credit-names get List credit names Keyset-paginated credited names. q= filters by name. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. keyset 分页的署名。q= 按名字过滤。需要应用密钥或带 catalog:read 的用户访问令牌。ids=/refs= 是批量车道，不分页。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw q"
   },
   {
     "r": "/docs/v2/getCatalogCreditName",
     "t": "获取一个署名名义",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/credit-names/{id}",
-    "b": "getCatalogCreditName /v2/catalog/credit-names/{id} get Get one credit name A credited name, not a person — this is the staff and voice-actor read surface. person_id is null when unlinked; gender and the fuzzy birth parts are person-level facts reached through that link. include=aliases,photo,siblings,intros,links,refs adds the corresponding blocks. Works this name is credited on live at /v2/catalog/credit-names/{id}/credits. Requires an application key. 一条署名名，不是人物——这是职员与声优的读取面。未关联时 person_id 为 null；gender 与模糊出生部分是经由该关联到达的人物级事实。include=aliases,photo,siblings,intros,links,refs 会加入对应块。该名被署名的作品位于 /v2/catalog/credit-names/{id}/credits。需要应用密钥。 catalog:read id nsfw view include fields"
+    "b": "getCatalogCreditName /v2/catalog/credit-names/{id} get Get one credit name A credited name, not a person — this is the staff and voice-actor read surface. person_id is null when unlinked; gender and the fuzzy birth parts are person-level facts reached through that link. include=aliases,photo,siblings,intros,links,refs adds the corresponding blocks. Works this name is credited on live at /v2/catalog/credit-names/{id}/credits. Requires an application key or a user access token with catalog:read. 一条署名名，不是人物——这是职员与声优的读取面。未关联时 person_id 为 null；gender 与模糊出生部分是经由该关联到达的人物级事实。include=aliases,photo,siblings,intros,links,refs 会加入对应块。该名被署名的作品位于 /v2/catalog/credit-names/{id}/credits。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id nsfw view include fields"
   },
   {
     "r": "/docs/v2/getCatalogCreditNameCredits",
     "t": "某署名名义的署名",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/credit-names/{id}/credits",
-    "b": "getCatalogCreditNameCredits /v2/catalog/credit-names/{id}/credits get Credits of one credit name Works this name is credited on. Offset cursor. Requires an application key. 该署名出现过的作品。offset cursor。需要应用密钥。 catalog:read id nsfw cursor limit"
+    "b": "getCatalogCreditNameCredits /v2/catalog/credit-names/{id}/credits get Credits of one credit name Works this name is credited on. Offset cursor. Requires an application key or a user access token with catalog:read. 该署名出现过的作品。offset cursor。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id nsfw cursor limit"
   },
   {
     "r": "/docs/v2/listCatalogEngines",
     "t": "列出引擎",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/engines",
-    "b": "listCatalogEngines /v2/catalog/engines get List engines Keyset-paginated engines. Requires an application key. ids=/refs= is a batch lane and does not paginate. keyset 分页的引擎。需要应用密钥。ids=/refs= 是批量车道，不分页。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw"
+    "b": "listCatalogEngines /v2/catalog/engines get List engines Keyset-paginated engines. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. keyset 分页的引擎。需要应用密钥或带 catalog:read 的用户访问令牌。ids=/refs= 是批量车道，不分页。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw"
   },
   {
     "r": "/docs/v2/getCatalogEngine",
     "t": "获取一个引擎",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/engines/{id}",
-    "b": "getCatalogEngine /v2/catalog/engines/{id} get Get one engine Engine detail. Requires an application key. 引擎详情。需要应用密钥。 catalog:read id nsfw view include fields"
+    "b": "getCatalogEngine /v2/catalog/engines/{id} get Get one engine Engine detail. Requires an application key or a user access token with catalog:read. 引擎详情。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id nsfw view include fields"
   },
   {
     "r": "/docs/v2/listCatalogPersons",
     "t": "列出人物",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/persons",
-    "b": "listCatalogPersons /v2/catalog/persons get List persons Keyset-paginated persons. Requires an application key. ids=/refs= is a batch lane and does not paginate. keyset 分页的人物。需要应用密钥。ids=/refs= 是批量车道，不分页。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw"
+    "b": "listCatalogPersons /v2/catalog/persons get List persons Keyset-paginated persons. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. keyset 分页的人物。需要应用密钥或带 catalog:read 的用户访问令牌。ids=/refs= 是批量车道，不分页。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw"
   },
   {
     "r": "/docs/v2/getCatalogPerson",
     "t": "获取一个人物",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/persons/{id}",
-    "b": "getCatalogPerson /v2/catalog/persons/{id} get Get one person A person identity that groups credit names. Merged ids are 404 ENTITY_MERGED. Requires an application key. 将署名名归组的人物身份。合并后的 id 返回 404 ENTITY_MERGED。需要应用密钥。 catalog:read id nsfw view include fields"
+    "b": "getCatalogPerson /v2/catalog/persons/{id} get Get one person A person identity that groups credit names. Merged ids are 404 ENTITY_MERGED. Requires an application key or a user access token with catalog:read. 将署名名归组的人物身份。合并后的 id 返回 404 ENTITY_MERGED。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id nsfw view include fields"
   },
   {
     "r": "/docs/v2/getCatalogPersonCreditNames",
     "t": "某人物的署名名义",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/persons/{id}/credit-names",
-    "b": "getCatalogPersonCreditNames /v2/catalog/persons/{id}/credit-names get Credit names of one person Every credited name linked to this person. Requires an application key. 链接到此人物的全部署名名义。需要应用密钥。 catalog:read id nsfw view include fields"
+    "b": "getCatalogPersonCreditNames /v2/catalog/persons/{id}/credit-names get Credit names of one person Every credited name linked to this person. Requires an application key or a user access token with catalog:read. 链接到此人物的全部署名名义。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id nsfw view include fields"
   },
   {
     "r": "/docs/v2/listCatalogProposals",
     "t": "编辑提案历史",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/proposals",
-    "b": "listCatalogProposals /v2/catalog/proposals get Edit proposal history Filed proposals, newest first. proposer_uid=+state=merged with include_total=true is the per-contributor tally. This face publishes no patch and no decision note. Requires an application key. 已提交的提案，最新在前。proposer_uid=+state=merged 且 include_total=true 即按贡献者的计数。本面不下发 patch 与裁决备注。需要应用密钥。 catalog:read cursor limit view include fields ids include_total sort object entity_id site proposer_uid state"
+    "b": "listCatalogProposals /v2/catalog/proposals get Edit proposal history Filed proposals, newest first. proposer_uid=+state=merged with include_total=true is the per-contributor tally. This face publishes no patch and no decision note. Requires an application key or a user access token with catalog:read. 已提交的提案，最新在前。proposer_uid=+state=merged 且 include_total=true 即按贡献者的计数。本面不下发 patch 与裁决备注。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read cursor limit view include fields ids include_total sort object entity_id site proposer_uid state"
   },
   {
     "r": "/docs/v2/getCatalogProposal",
     "t": "单条提案",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/proposals/{id}",
-    "b": "getCatalogProposal /v2/catalog/proposals/{id} get One proposal Public transparency view: proposer, state, target entity and timestamps. include=amendments adds the amendment chain. Requires an application key. 公开透明视图：提案人、状态、目标实体与时间戳。include=amendments 追加修正链。需要应用密钥。 catalog:read id include view fields"
+    "b": "getCatalogProposal /v2/catalog/proposals/{id} get One proposal Public transparency view: proposer, state, target entity and timestamps. include=amendments adds the amendment chain. Requires an application key or a user access token with catalog:read. 公开透明视图：提案人、状态、目标实体与时间戳。include=amendments 追加修正链。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id include view fields"
   },
   {
     "r": "/docs/v2/listCatalogRedirects",
     "t": "实体合并 feed",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/redirects",
-    "b": "listCatalogRedirects /v2/catalog/redirects get Entity merge feed Redirects from merged-away ids, oldest first. Keyset-paginated. object= restricts to one family. Requires an application key. ids= is not accepted. 被合并走的 id 的重定向，最旧在前。keyset 分页。object= 限制到一个家族。需要应用密钥。不接受 ids=。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw object"
+    "b": "listCatalogRedirects /v2/catalog/redirects get Entity merge feed Redirects from merged-away ids, oldest first. Keyset-paginated. object= restricts to one family. Requires an application key or a user access token with catalog:read. ids= is not accepted. 被合并走的 id 的重定向，最旧在前。keyset 分页。object= 限制到一个家族。需要应用密钥或带 catalog:read 的用户访问令牌。不接受 ids=。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw object"
   },
   {
     "r": "/docs/v2/listCatalogReleases",
     "t": "列出发售",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/releases",
-    "b": "listCatalogReleases /v2/catalog/releases get List releases Keyset-paginated dated releases, sorted by date_desc by default. Requires an application key. ids= is a batch lane and does not paginate. keyset 分页的带日期发售行，默认按 date_desc 排序。需要应用密钥。ids= 是批量车道，不分页。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw"
+    "b": "listCatalogReleases /v2/catalog/releases get List releases Keyset-paginated dated releases, sorted by date_desc by default. Requires an application key or a user access token with catalog:read. ids= is a batch lane and does not paginate. keyset 分页的带日期发售行，默认按 date_desc 排序。需要应用密钥或带 catalog:read 的用户访问令牌。ids= 是批量车道，不分页。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw"
   },
   {
     "r": "/docs/v2/getCatalogRelease",
     "t": "获取一个发行",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/releases/{id}",
-    "b": "getCatalogRelease /v2/catalog/releases/{id} get Get one release A catalog release. Merged ids are 404 ENTITY_MERGED. r18 parent works are 404 without nsfw=true. Requires an application key. 一条 catalog 发行。合并后的 id 返回 404 ENTITY_MERGED。r18 父作品在未带 nsfw=true 时返回 404。需要应用密钥。 catalog:read id nsfw view include fields"
+    "b": "getCatalogRelease /v2/catalog/releases/{id} get Get one release A catalog release. Merged ids are 404 ENTITY_MERGED. r18 parent works are 404 without nsfw=true. Requires an application key or a user access token with catalog:read. 一条 catalog 发行。合并后的 id 返回 404 ENTITY_MERGED。r18 父作品在未带 nsfw=true 时返回 404。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id nsfw view include fields"
   },
   {
     "r": "/docs/v2/listCatalogRevisions",
     "t": "实体修订历史",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/revisions",
-    "b": "listCatalogRevisions /v2/catalog/revisions get Entity revision history Every merged edit, newest first by default. sort=recorded_asc walks the same collection oldest-first by id, which is the shape a mirror or a contributor tally reads with a watermark. object=+entity_id= narrows to one entity's history. Requires an application key. 全部已合并编辑，缺省最新在前。sort=recorded_asc 按 id 从最旧走同一集合，这是镜像或贡献者计数用水位读取的形状。object=+entity_id= 收窄到某一实体的历史。需要应用密钥。 catalog:read cursor limit view include fields ids include_total sort object entity_id site actor_uid"
+    "b": "listCatalogRevisions /v2/catalog/revisions get Entity revision history Every merged edit, newest first by default. sort=recorded_asc walks the same collection oldest-first by id, which is the shape a mirror or a contributor tally reads with a watermark. object=+entity_id= narrows to one entity's history. Requires an application key or a user access token with catalog:read. 全部已合并编辑，缺省最新在前。sort=recorded_asc 按 id 从最旧走同一集合，这是镜像或贡献者计数用水位读取的形状。object=+entity_id= 收窄到某一实体的历史。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read cursor limit view include fields ids include_total sort object entity_id site actor_uid"
   },
   {
     "r": "/docs/v2/getCatalogRevision",
     "t": "单条修订",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/revisions/{id}",
-    "b": "getCatalogRevision /v2/catalog/revisions/{id} get One revision include=diff adds the field-level change set against diff_base, or against the preceding revision when diff_base is absent. This id is what POST /v2/moderation/reverts takes. Requires an application key. include=diff 追加相对 diff_base 的字段级变更集；diff_base 缺席时相对前一条修订。此 id 即 POST /v2/moderation/reverts 所取。需要应用密钥。 catalog:read id include view fields diff_base"
+    "b": "getCatalogRevision /v2/catalog/revisions/{id} get One revision include=diff adds the field-level change set against diff_base, or against the preceding revision when diff_base is absent. This id is what POST /v2/moderation/reverts takes. Requires an application key or a user access token with catalog:read. include=diff 追加相对 diff_base 的字段级变更集；diff_base 缺席时相对前一条修订。此 id 即 POST /v2/moderation/reverts 所取。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id include view fields diff_base"
   },
   {
     "r": "/docs/v2/listCatalogRoles",
     "t": "列出署名职务",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/roles",
-    "b": "listCatalogRoles /v2/catalog/roles get List roles Keyset-paginated credit-role registry. The full registry is ~231 rows, so a client building a picker can fetch it whole in three pages. key joins the role_key on credit groups; ids= is a batch lane and does not paginate. refs= is not resolved: role has no catalog_external_ref entity_type. Requires an application key. keyset 分页的署名职务注册表。全表约 231 行，构建选择器的客户端三页即可取完。key 与署名组的 role_key 相接；ids= 是批量车道，不分页。refs= 不解析：职务没有 catalog_external_ref 实体类型。需要应用密钥。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw"
+    "b": "listCatalogRoles /v2/catalog/roles get List roles Keyset-paginated credit-role registry. The full registry is ~231 rows, so a client building a picker can fetch it whole in three pages. key joins the role_key on credit groups; ids= is a batch lane and does not paginate. refs= is not resolved: role has no catalog_external_ref entity_type. Requires an application key or a user access token with catalog:read. keyset 分页的署名职务注册表。全表约 231 行，构建选择器的客户端三页即可取完。key 与署名组的 role_key 相接；ids= 是批量车道，不分页。refs= 不解析：职务没有 catalog_external_ref 实体类型。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw"
   },
   {
     "r": "/docs/v2/getCatalogRole",
     "t": "获取一个署名职务",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/roles/{id}",
-    "b": "getCatalogRole /v2/catalog/roles/{id} get Get one role A credit-role registry row. Unknown id is 404 NOT_FOUND. Requires an application key. 一行署名职务注册表记录。未知 id 为 404 NOT_FOUND。需要应用密钥。 catalog:read id nsfw view include fields"
+    "b": "getCatalogRole /v2/catalog/roles/{id} get Get one role A credit-role registry row. Unknown id is 404 NOT_FOUND. Requires an application key or a user access token with catalog:read. 一行署名职务注册表记录。未知 id 为 404 NOT_FOUND。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id nsfw view include fields"
   },
   {
     "r": "/docs/v2/getCatalogSchema",
@@ -858,21 +891,21 @@ export const searchIndex: SearchEntry[] = [
     "t": "搜索 catalog 实体",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/search",
-    "b": "searchCatalog /v2/catalog/search get Search catalog entities Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Requires an application key. cursor= pages the hits. ids= is not accepted. 跨实体搜索。object= 选择族。命中为带 target_object 的 search_result 行。需要应用密钥。cursor= 翻页。不接受 ids=。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw q object locale"
+    "b": "searchCatalog /v2/catalog/search get Search catalog entities Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Requires an application key or a user access token with catalog:read. cursor= pages the hits. ids= is not accepted. 跨实体搜索。object= 选择族。命中为带 target_object 的 search_result 行。需要应用密钥或带 catalog:read 的用户访问令牌。cursor= 翻页。不接受 ids=。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw q object locale"
   },
   {
     "r": "/docs/v2/listCatalogSeries",
     "t": "列出系列",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/series",
-    "b": "listCatalogSeries /v2/catalog/series get List series Keyset-paginated series. Requires an application key. ids= is a batch lane and does not paginate. refs= is not resolved: series has no catalog_external_ref entity_type. keyset 分页的系列。需要应用密钥。ids= 是批量车道，不分页。refs= 不解析：系列没有 catalog_external_ref entity_type。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw"
+    "b": "listCatalogSeries /v2/catalog/series get List series Keyset-paginated series. Requires an application key or a user access token with catalog:read. ids= is a batch lane and does not paginate. refs= is not resolved: series has no catalog_external_ref entity_type. keyset 分页的系列。需要应用密钥或带 catalog:read 的用户访问令牌。ids= 是批量车道，不分页。refs= 不解析：系列没有 catalog_external_ref entity_type。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw"
   },
   {
     "r": "/docs/v2/getCatalogSeries",
     "t": "获取一个系列",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/series/{id}",
-    "b": "getCatalogSeries /v2/catalog/series/{id} get Get one series Series detail. has_nsfw reports whether any member work sits behind the r18 display gate. include=intros,refs adds the corresponding blocks. Requires an application key. 系列详情。has_nsfw 报告是否有成员作品落在 r18 展示闸之后。include=intros,refs 追加对应块。需要应用密钥。 catalog:read id nsfw view include fields"
+    "b": "getCatalogSeries /v2/catalog/series/{id} get Get one series Series detail. has_nsfw reports whether any member work sits behind the r18 display gate. include=intros,refs adds the corresponding blocks. Requires an application key or a user access token with catalog:read. 系列详情。has_nsfw 报告是否有成员作品落在 r18 展示闸之后。include=intros,refs 追加对应块。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id nsfw view include fields"
   },
   {
     "r": "/docs/v2/getCatalogStats",
@@ -886,126 +919,126 @@ export const searchIndex: SearchEntry[] = [
     "t": "列出标签",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/tags",
-    "b": "listCatalogTags /v2/catalog/tags get List tags Keyset-paginated canonical tags. Requires an application key. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate. keyset 分页的正典标签。需要应用密钥。ids=/refs= 是批量车道，不分页。has_works=true 只保留在同一 nsfw 门下有可见作品的标签。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw has_works"
+    "b": "listCatalogTags /v2/catalog/tags get List tags Keyset-paginated canonical tags. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate. keyset 分页的正典标签。需要应用密钥或带 catalog:read 的用户访问令牌。ids=/refs= 是批量车道，不分页。has_works=true 只保留在同一 nsfw 门下有可见作品的标签。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw has_works"
   },
   {
     "r": "/docs/v2/getCatalogTag",
     "t": "获取一个标签",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/tags/{id}",
-    "b": "getCatalogTag /v2/catalog/tags/{id} get Get one tag Canonical tag. include=intros adds the per-language tag descriptions. Requires an application key. 规范 tag。include=intros 会加入各语言的 tag 描述。需要应用密钥。 catalog:read id nsfw view include fields"
+    "b": "getCatalogTag /v2/catalog/tags/{id} get Get one tag Canonical tag. include=intros adds the per-language tag descriptions. Requires an application key or a user access token with catalog:read. 规范 tag。include=intros 会加入各语言的 tag 描述。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id nsfw view include fields"
   },
   {
     "r": "/docs/v2/listCatalogTraits",
     "t": "列出特征",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/traits",
-    "b": "listCatalogTraits /v2/catalog/traits get List traits Keyset-paginated character traits. Requires an application key. ids= is a batch lane. refs= is not resolved: traits have no catalog_external_ref entity_type. keyset 分页的角色特征。需要应用密钥。ids= 是批量车道。refs= 不解析：特征没有 catalog_external_ref entity_type。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw"
+    "b": "listCatalogTraits /v2/catalog/traits get List traits Keyset-paginated character traits. Requires an application key or a user access token with catalog:read. ids= is a batch lane. refs= is not resolved: traits have no catalog_external_ref entity_type. keyset 分页的角色特征。需要应用密钥或带 catalog:read 的用户访问令牌。ids= 是批量车道。refs= 不解析：特征没有 catalog_external_ref entity_type。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw"
   },
   {
     "r": "/docs/v2/getCatalogTrait",
     "t": "获取一条特征",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/traits/{id}",
-    "b": "getCatalogTrait /v2/catalog/traits/{id} get Get one trait A character-trait vocabulary row. Requires an application key. 一条角色特征词表行。需要应用密钥。 catalog:read id nsfw view include fields"
+    "b": "getCatalogTrait /v2/catalog/traits/{id} get Get one trait A character-trait vocabulary row. Requires an application key or a user access token with catalog:read. 一条角色特征词表行。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id nsfw view include fields"
   },
   {
     "r": "/docs/v2/listCatalogWorks",
     "t": "列出作品",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/works",
-    "b": "listCatalogWorks /v2/catalog/works get List catalog works Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. Requires an application key. view/include/fields/ids/refs/facets follow the v2 collection contract. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on every lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE. keyset 分页的作品集合。q= 切换为检索（sort 缺省为 relevance）。q= 缺席时，company_id=/tag_id=/series_id= 过滤 live 注册表。需要应用密钥。view/include/fields/ids/refs/facets 遵循 v2 集合契约。include=titles,refs,intros,covers,companies,ratings,tags,credits 在每条车道都填充；view=full 即它们全部，credits 除外，须显式请求。在集合车道上，titles 选出 latin/localized，covers 选出给基础 cover 分级的两个封面槽——完整的 titles[] 与 covers[] 数组，以及 relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links，是单条记录块，位于 /v2/catalog/works/{id} 及其子资源；在此请求其中之一为 400 UNKNOWN_INCLUDE。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw q content_rating claimed claim_state content_limit site owner_uid company_id company_rollup tag_id series_id engine_id platform released_after released_before olang"
+    "b": "listCatalogWorks /v2/catalog/works get List catalog works Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. Requires an application key or a user access token with catalog:read. view/include/fields/ids/refs/facets follow the v2 collection contract. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on every lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE. keyset 分页的作品集合。q= 切换为检索（sort 缺省为 relevance）。q= 缺席时，company_id=/tag_id=/series_id= 过滤 live 注册表。需要应用密钥或带 catalog:read 的用户访问令牌。view/include/fields/ids/refs/facets 遵循 v2 集合契约。include=titles,refs,intros,covers,companies,ratings,tags,credits 在每条车道都填充；view=full 即它们全部，credits 除外，须显式请求。在集合车道上，titles 选出 latin/localized，covers 选出给基础 cover 分级的两个封面槽——完整的 titles[] 与 covers[] 数组，以及 relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links，是单条记录块，位于 /v2/catalog/works/{id} 及其子资源；在此请求其中之一为 400 UNKNOWN_INCLUDE。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw q content_rating claimed claim_state content_limit site owner_uid company_id company_rollup tag_id series_id engine_id platform released_after released_before olang"
   },
   {
     "r": "/docs/v2/getCatalogWork",
     "t": "获取一部作品",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/works/{id}",
-    "b": "getCatalogWork /v2/catalog/works/{id} get Get one catalog work Work detail. spoiler=none|minor|major is the ceiling of the tags block and defaults to none. Merged ids are 404 ENTITY_MERGED with Link rel=canonical. r18 is 404 without nsfw=true. Requires an application key. 作品详情。spoiler=none|minor|major 是 tags 块的上限，缺省为 none。已合并 ids 返回 404 ENTITY_MERGED，并带 Link rel=canonical。r18 在没有 nsfw=true 时为 404。需要应用密钥。 catalog:read id nsfw view include fields spoiler"
+    "b": "getCatalogWork /v2/catalog/works/{id} get Get one catalog work Work detail. spoiler=none|minor|major is the ceiling of the tags block and defaults to none. Merged ids are 404 ENTITY_MERGED with Link rel=canonical. r18 is 404 without nsfw=true. Requires an application key or a user access token with catalog:read. 作品详情。spoiler=none|minor|major 是 tags 块的上限，缺省为 none。已合并 ids 返回 404 ENTITY_MERGED，并带 Link rel=canonical。r18 在没有 nsfw=true 时为 404。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id nsfw view include fields spoiler"
   },
   {
     "r": "/docs/v2/getCatalogWorkCharacters",
     "t": "列出一部作品的角色",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/works/{id}/characters",
-    "b": "getCatalogWorkCharacters /v2/catalog/works/{id}/characters get List characters of one work Roster characters. Same items as include=characters. Requires an application key. 花名册角色。与 include=characters 同一批条目。需要应用密钥。 catalog:read id nsfw cursor limit"
+    "b": "getCatalogWorkCharacters /v2/catalog/works/{id}/characters get List characters of one work Roster characters. Same items as include=characters. Requires an application key or a user access token with catalog:read. 花名册角色。与 include=characters 同一批条目。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id nsfw cursor limit"
   },
   {
     "r": "/docs/v2/getCatalogWorkCovers",
     "t": "列出一部作品的封面",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/works/{id}/covers",
-    "b": "getCatalogWorkCovers /v2/catalog/works/{id}/covers get List covers of one work Work cover rows. Same items as include=covers. Requires an application key. 作品封面行。与 include=covers 的条目相同。需要应用密钥。 catalog:read id nsfw cursor limit"
+    "b": "getCatalogWorkCovers /v2/catalog/works/{id}/covers get List covers of one work Work cover rows. Same items as include=covers. Requires an application key or a user access token with catalog:read. 作品封面行。与 include=covers 的条目相同。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id nsfw cursor limit"
   },
   {
     "r": "/docs/v2/getCatalogWorkCredits",
     "t": "列出一部作品的职员署名",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/works/{id}/credits",
-    "b": "getCatalogWorkCredits /v2/catalog/works/{id}/credits get List credits of one work Credits grouped by role. Same items as include=credits. Requires an application key. 按职务分组的署名。与 include=credits 的条目相同。需要应用密钥。 catalog:read id nsfw cursor limit"
+    "b": "getCatalogWorkCredits /v2/catalog/works/{id}/credits get List credits of one work Credits grouped by role. Same items as include=credits. Requires an application key or a user access token with catalog:read. 按职务分组的署名。与 include=credits 的条目相同。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id nsfw cursor limit"
   },
   {
     "r": "/docs/v2/getCatalogWorkEngines",
     "t": "列出一部作品的引擎",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/works/{id}/engines",
-    "b": "getCatalogWorkEngines /v2/catalog/works/{id}/engines get List engines of one work Engines. Same items as include=engines. Requires an application key. 引擎。与 include=engines 的条目相同。需要应用密钥。 catalog:read id nsfw cursor limit"
+    "b": "getCatalogWorkEngines /v2/catalog/works/{id}/engines get List engines of one work Engines. Same items as include=engines. Requires an application key or a user access token with catalog:read. 引擎。与 include=engines 的条目相同。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id nsfw cursor limit"
   },
   {
     "r": "/docs/v2/getCatalogWorkIntros",
     "t": "列出一部作品的简介",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/works/{id}/intros",
-    "b": "getCatalogWorkIntros /v2/catalog/works/{id}/intros get List intros of one work Intros. Same items as include=intros. Requires an application key. 简介。与 include=intros 同一批条目。需要应用密钥。 catalog:read id nsfw cursor limit"
+    "b": "getCatalogWorkIntros /v2/catalog/works/{id}/intros get List intros of one work Intros. Same items as include=intros. Requires an application key or a user access token with catalog:read. 简介。与 include=intros 同一批条目。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id nsfw cursor limit"
   },
   {
     "r": "/docs/v2/getCatalogWorkLinks",
     "t": "列出一部作品的外链",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/works/{id}/links",
-    "b": "getCatalogWorkLinks /v2/catalog/works/{id}/links get List links of one work Outbound links. Same items as include=links. Requires an application key. 外链。与 include=links 同一批条目。需要应用密钥。 catalog:read id nsfw cursor limit"
+    "b": "getCatalogWorkLinks /v2/catalog/works/{id}/links get List links of one work Outbound links. Same items as include=links. Requires an application key or a user access token with catalog:read. 外链。与 include=links 同一批条目。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id nsfw cursor limit"
   },
   {
     "r": "/docs/v2/getCatalogWorkRatings",
     "t": "列出一部作品的评分",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/works/{id}/ratings",
-    "b": "getCatalogWorkRatings /v2/catalog/works/{id}/ratings get List ratings of one work Source ratings. Same items as include=ratings. Requires an application key. 分源评分。与 include=ratings 同一批条目。需要应用密钥。 catalog:read id nsfw cursor limit"
+    "b": "getCatalogWorkRatings /v2/catalog/works/{id}/ratings get List ratings of one work Source ratings. Same items as include=ratings. Requires an application key or a user access token with catalog:read. 分源评分。与 include=ratings 同一批条目。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id nsfw cursor limit"
   },
   {
     "r": "/docs/v2/getCatalogWorkRelations",
     "t": "列出一部作品的关联",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/works/{id}/relations",
-    "b": "getCatalogWorkRelations /v2/catalog/works/{id}/relations get List relations of one work Related works. Same items as include=relations. Requires an application key. 关联作品。与 include=relations 同一批条目。需要应用密钥。 catalog:read id nsfw cursor limit"
+    "b": "getCatalogWorkRelations /v2/catalog/works/{id}/relations get List relations of one work Related works. Same items as include=relations. Requires an application key or a user access token with catalog:read. 关联作品。与 include=relations 同一批条目。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id nsfw cursor limit"
   },
   {
     "r": "/docs/v2/getCatalogWorkReleases",
     "t": "列出一部作品的发售",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/works/{id}/releases",
-    "b": "getCatalogWorkReleases /v2/catalog/works/{id}/releases get List releases of one work Releases of this work. Same items as include=releases. Requires an application key. 本作品的发售行。与 include=releases 同一批条目。需要应用密钥。 catalog:read id nsfw cursor limit"
+    "b": "getCatalogWorkReleases /v2/catalog/works/{id}/releases get List releases of one work Releases of this work. Same items as include=releases. Requires an application key or a user access token with catalog:read. 本作品的发售行。与 include=releases 同一批条目。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id nsfw cursor limit"
   },
   {
     "r": "/docs/v2/getCatalogWorkScreenshots",
     "t": "列出一部作品的截图",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/works/{id}/screenshots",
-    "b": "getCatalogWorkScreenshots /v2/catalog/works/{id}/screenshots get List screenshots of one work Work screenshots. Same items as include=screenshots. Requires an application key. 作品截图。与 include=screenshots 的条目相同。需要应用密钥。 catalog:read id nsfw cursor limit"
+    "b": "getCatalogWorkScreenshots /v2/catalog/works/{id}/screenshots get List screenshots of one work Work screenshots. Same items as include=screenshots. Requires an application key or a user access token with catalog:read. 作品截图。与 include=screenshots 的条目相同。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id nsfw cursor limit"
   },
   {
     "r": "/docs/v2/getCatalogWorkSeries",
     "t": "列出一部作品的系列",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/works/{id}/series",
-    "b": "getCatalogWorkSeries /v2/catalog/works/{id}/series get List series of one work Series memberships. Same items as include=series. Requires an application key. 所属系列。与 include=series 同一批条目。需要应用密钥。 catalog:read id nsfw cursor limit"
+    "b": "getCatalogWorkSeries /v2/catalog/works/{id}/series get List series of one work Series memberships. Same items as include=series. Requires an application key or a user access token with catalog:read. 所属系列。与 include=series 同一批条目。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id nsfw cursor limit"
   },
   {
     "r": "/docs/v2/getCatalogWorkTags",
     "t": "列出一部作品的标签",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/works/{id}/tags",
-    "b": "getCatalogWorkTags /v2/catalog/works/{id}/tags get List tags of one work Tags attached to this work. Same items as include=tags. spoiler=none|minor|major is the ceiling of this page and defaults to none, exactly as on the work detail face. Requires an application key. 挂到本作品上的标签。与 include=tags 同一批条目。spoiler=none|minor|major 是本页上限，缺省 none，与作品详情面完全一致。需要应用密钥。 catalog:read id nsfw cursor limit spoiler"
+    "b": "getCatalogWorkTags /v2/catalog/works/{id}/tags get List tags of one work Tags attached to this work. Same items as include=tags. spoiler=none|minor|major is the ceiling of this page and defaults to none, exactly as on the work detail face. Requires an application key or a user access token with catalog:read. 挂到本作品上的标签。与 include=tags 同一批条目。spoiler=none|minor|major 是本页上限，缺省 none，与作品详情面完全一致。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id nsfw cursor limit spoiler"
   },
   {
     "r": "/docs/v2/listNews",

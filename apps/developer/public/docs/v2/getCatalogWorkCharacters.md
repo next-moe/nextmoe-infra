@@ -13,7 +13,7 @@
 
 List characters of one work
 
-Roster characters. Same items as include=characters. Requires an application key.
+Roster characters. Same items as include=characters. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…

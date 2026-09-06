@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -119,7 +120,7 @@ func registerCollections(api huma.API, works WorksFunc, cat *Catalog) {
 		Method:             http.MethodGet,
 		Path:               "/v2/catalog/works",
 		Summary:            "List catalog works",
-		Description:        "Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. Requires an application key. view/include/fields/ids/refs/facets follow the v2 collection contract. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on every lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.",
+		Description:        "Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. Requires an application key or a user access token with catalog:read. view/include/fields/ids/refs/facets follow the v2 collection contract. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on every lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.",
 		Tags:               []string{"catalog"},
 		Errors:             collectionErrors(http.StatusUnauthorized, http.StatusForbidden, http.StatusServiceUnavailable),
 		SkipValidateParams: true,
@@ -265,22 +266,32 @@ const (
 // so every generated client and the MCP surface had no auth parameter to fill
 // in; a second hand-maintained list next to the gate would have drifted from it
 // the first time a prefix moved.
-func v2Security(path string) (scheme, scope string) {
+//
+// A path with two schemes takes either one, never both at once: the OpenAPI
+// requirement list is an OR, and the gate below dispatches on the single Bearer
+// value (refs/api-v2 D1, one request one credential).
+func v2Security(path string) (schemes []string, scope string) {
 	switch {
 	case strings.HasPrefix(path, "/v2/me/") || strings.HasPrefix(path, "/v2/moderation/"):
-		return securityUserToken, ""
+		return []string{securityUserToken}, ""
 	case strings.HasPrefix(path, "/v2/catalog/"):
 		if path == "/v2/catalog/openapi.json" || path == "/v2/catalog/stats" ||
 			strings.HasPrefix(path, "/v2/catalog/schemas/") {
-			return "", ""
+			return nil, ""
 		}
-		return securityAppKey, devapi.ScopeCatalogRead
+		// claim_events:read is operator-granted and has no consent form a person
+		// could tick, so the one catalog read that demands a scope beyond
+		// catalog:read stays key-only on the wire as well as in the gate.
+		if path == claimEventsPath {
+			return []string{securityAppKey}, devapi.ScopeCatalogRead
+		}
+		return []string{securityAppKey, securityUserToken}, devapi.ScopeCatalogRead
 	case strings.HasPrefix(path, "/v2/store/prices"):
-		return "", ""
+		return nil, ""
 	case strings.HasPrefix(path, "/v2/store/"):
-		return securityAppKey, devapi.ScopeStoreRead
+		return []string{securityAppKey}, devapi.ScopeStoreRead
 	}
-	return "", ""
+	return nil, ""
 }
 
 // The keyless lanes (stats, schemas, openapi.json, news, problems,
@@ -322,11 +333,21 @@ func catalogAuthzFrom(ctx context.Context) catalogAuthz {
 	return v
 }
 
-func catalogAuth(lookup func(context.Context, string) (*devapi.Credential, error)) fiber.Handler {
+const claimEventsPath = "/v2/catalog/claim-events"
+
+// The dispatch key is the token's own prefix, not a second header and not a
+// try-one-then-the-other: an application key that fails its lane must never get
+// a second reading as a user token, or a revoked key would fall through to
+// whatever the user lane makes of it. nmk_ is the only marker that separates
+// the two credentials on a surface that accepts either (refs/api-v2 D1).
+func catalogAuth(
+	lookup func(context.Context, string) (*devapi.Credential, error),
+	lookupUser func(context.Context, string) (UserIdentity, error),
+) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		path := routepath.Normalize(c.Path())
-		scheme, scope := v2Security(path)
-		if scheme != securityAppKey {
+		schemes, scope := v2Security(path)
+		if !slices.Contains(schemes, securityAppKey) {
 			attachOptionalCredential(c, lookup)
 			return c.Next()
 		}
@@ -345,43 +366,70 @@ func catalogAuth(lookup func(context.Context, string) (*devapi.Credential, error
 			return problem.WriteFiberError(c, problem.New(problem.CodeInvalidCredential, problem.RequestID(c), problem.Instance(c),
 				"Authorization Bearer token is invalid."))
 		}
-		// This arm used to `return c.Next()`: with no credential store wired,
-		// every gated /v2 face answered anonymously. A missing dependency is a
-		// server fault, never a grant.
-		if lookup == nil {
-			return problem.WriteFiberError(c, problem.New(problem.CodeServiceUnavailable, problem.RequestID(c), problem.Instance(c),
-				"credential store is unavailable."))
-		}
 		if devapi.HasV1KeyPrefix(token) {
 			return problem.WriteFiberError(c, problem.New(problem.CodeInvalidCredential, problem.RequestID(c), problem.Instance(c),
 				"v1 application keys are not accepted on /v2; mint a v2 key (nmk_) in the developer portal."))
 		}
-		if !devapi.IsV2KeyPrefix(token) || !devapi.ValidV2Key(token) {
-			return problem.WriteFiberError(c, problem.New(problem.CodeInvalidCredential, problem.RequestID(c), problem.Instance(c),
-				"Authorization Bearer token is invalid."))
+		if devapi.IsV2KeyPrefix(token) {
+			return catalogAppKeyAuth(c, path, scope, token, lookup)
 		}
-		cred, err := lookup(c.Context(), token)
-		if err != nil {
-			return problem.WriteFiberError(c, problem.New(problem.CodeServiceUnavailable, problem.RequestID(c), problem.Instance(c),
-				"credential store is unavailable."))
+		if lookupUser != nil && slices.Contains(schemes, securityUserToken) {
+			return catalogUserTokenAuth(c, scope, token, lookupUser)
 		}
-		if cred == nil {
-			return problem.WriteFiberError(c, problem.New(problem.CodeInvalidCredential, problem.RequestID(c), problem.Instance(c),
-				"Authorization Bearer token is invalid."))
-		}
-		if !cred.HasScope(scope) {
-			return problem.WriteFiberError(c, problem.New(problem.CodeScopeRequired, problem.RequestID(c), problem.Instance(c),
-				"this operation requires the "+scope+" scope."))
-		}
-		if path == "/v2/catalog/claim-events" && !cred.HasScope(devapi.ScopeClaimEventsRead) {
-			return problem.WriteFiberError(c, problem.New(problem.CodeScopeRequired, problem.RequestID(c), problem.Instance(c),
-				"this operation additionally requires the claim_events:read scope."))
-		}
-		devapi.WithCredential(c, cred)
-		c.Locals(ctxCatalogAuthz, catalogAuthz{
-			ClientID:       cred.ClientID,
-			ModerationRead: cred.HasScope(devapi.ScopeClaimEventsRead),
-		})
-		return c.Next()
+		return problem.WriteFiberError(c, problem.New(problem.CodeInvalidCredential, problem.RequestID(c), problem.Instance(c),
+			"Authorization Bearer token is invalid."))
 	}
+}
+
+func catalogAppKeyAuth(c fiber.Ctx, path, scope, token string, lookup func(context.Context, string) (*devapi.Credential, error)) error {
+	// This arm used to `return c.Next()`: with no credential store wired,
+	// every gated /v2 face answered anonymously. A missing dependency is a
+	// server fault, never a grant.
+	if lookup == nil {
+		return problem.WriteFiberError(c, problem.New(problem.CodeServiceUnavailable, problem.RequestID(c), problem.Instance(c),
+			"credential store is unavailable."))
+	}
+	if !devapi.ValidV2Key(token) {
+		return problem.WriteFiberError(c, problem.New(problem.CodeInvalidCredential, problem.RequestID(c), problem.Instance(c),
+			"Authorization Bearer token is invalid."))
+	}
+	cred, err := lookup(c.Context(), token)
+	if err != nil {
+		return problem.WriteFiberError(c, problem.New(problem.CodeServiceUnavailable, problem.RequestID(c), problem.Instance(c),
+			"credential store is unavailable."))
+	}
+	if cred == nil {
+		return problem.WriteFiberError(c, problem.New(problem.CodeInvalidCredential, problem.RequestID(c), problem.Instance(c),
+			"Authorization Bearer token is invalid."))
+	}
+	if !cred.HasScope(scope) {
+		return problem.WriteFiberError(c, problem.New(problem.CodeScopeRequired, problem.RequestID(c), problem.Instance(c),
+			"this operation requires the "+scope+" scope."))
+	}
+	if path == claimEventsPath && !cred.HasScope(devapi.ScopeClaimEventsRead) {
+		return problem.WriteFiberError(c, problem.New(problem.CodeScopeRequired, problem.RequestID(c), problem.Instance(c),
+			"this operation additionally requires the claim_events:read scope."))
+	}
+	devapi.WithCredential(c, cred)
+	c.Locals(ctxCatalogAuthz, catalogAuthz{
+		ClientID:       cred.ClientID,
+		ModerationRead: cred.HasScope(devapi.ScopeClaimEventsRead),
+	})
+	return c.Next()
+}
+
+// No catalogAuthz is set: the moderation claim states are an application's own
+// per-site queue, and a person's token carries no site to fence them against.
+func catalogUserTokenAuth(c fiber.Ctx, scope, token string, lookupUser func(context.Context, string) (UserIdentity, error)) error {
+	ident, err := lookupUser(c.Context(), token)
+	if err != nil || ident.UID <= 0 {
+		return problem.WriteFiberError(c, problem.New(problem.CodeInvalidCredential, problem.RequestID(c), problem.Instance(c),
+			"Authorization Bearer token is invalid."))
+	}
+	if !slices.Contains(ident.Scopes, scope) {
+		return problem.WriteFiberError(c, problem.New(problem.CodeScopeRequired, problem.RequestID(c), problem.Instance(c),
+			"this operation requires the "+scope+" scope."))
+	}
+	applyUserIdentity(c, ident)
+	return c.Next()
 }

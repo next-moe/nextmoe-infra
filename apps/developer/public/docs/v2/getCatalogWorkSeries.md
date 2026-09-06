@@ -13,7 +13,7 @@
 
 List series of one work
 
-Series memberships. Same items as include=series. Requires an application key.
+Series memberships. Same items as include=series. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
