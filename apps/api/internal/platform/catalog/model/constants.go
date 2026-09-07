@@ -261,6 +261,8 @@ const (
 	PopularityMetricBgmDoing   int16 = 12
 	PopularityMetricBgmOnHold  int16 = 13
 	PopularityMetricBgmDropped int16 = 14
+
+	PopularityMetricFavorites int16 = 20
 )
 
 const (

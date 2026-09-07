@@ -124,8 +124,8 @@ type RatingStats struct {
 type Popularity struct {
 	_      struct{} `json:"-" additionalProperties:"true"`
 	Source string   `json:"source" maxLength:"64" doc:"Open vocabulary sources. Must not be used as a discriminant."`
-	Metric string   `json:"metric" maxLength:"64" pattern:"^[a-z][a-z0-9_]*$" doc:"Source-native metric token."`
-	Value  int64    `json:"value" minimum:"0" doc:"Metric value."`
+	Metric string   `json:"metric" maxLength:"64" pattern:"^[a-z][a-z0-9_]*$" doc:"Source-native metric token. The one exception is nextmoe/favorites, which is ours: the number of distinct users holding this work in a folder. Unlike every other row it is always present, so 0 means nobody rather than unknown."`
+	Value  int64    `json:"value" minimum:"0" doc:"Metric value. Never sum across sources — a DLsite sale and a Bangumi wish are different units."`
 }
 
 type Playtime struct {

@@ -514,6 +514,8 @@ func popularityMetricKey(m int16) string {
 		return "bgm_on_hold"
 	case model.PopularityMetricBgmDropped:
 		return "bgm_dropped"
+	case model.PopularityMetricFavorites:
+		return "favorites"
 	default:
 		return fmt.Sprintf("metric_%d", m)
 	}
