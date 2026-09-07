@@ -23,12 +23,16 @@
 #   # full data cutover (16-data-cutover.md): docker compose ... --profile jobs run --rm tools <job> ...
 name: kun-galgame-infra
 
-# A steady-state check is a container exec, and dockerd pays for it: at 10s
-# across ~30 containers (plus postgres/redis at 5s) the box ran 279 exec/min and
-# dockerd itself burned 1.16 cores — more than any single service. start_interval
-# keeps the deploy path fast (2s granularity until the first success) while the
-# steady-state cadence drops 6x; nothing here restarts on unhealthy, so a slower
-# steady interval costs observability lag only.
+# A steady-state check is a container exec; at 10s across ~30 containers the
+# box ran 279 exec/min. start_interval keeps the deploy path fast (2s
+# granularity until the first success) while the steady cadence drops 6x, and
+# nothing here restarts on unhealthy, so a slower steady interval costs
+# observability lag only.
+# Do NOT attribute dockerd CPU to this block. The 1.16 -> 2.85 cores it was
+# first blamed for were leaked `docker logs` readers spinning in tailfile;
+# killing the hung clients on 2026-09-07 took dockerd to 0.03 cores at an
+# unchanged 226 exec/min. At this scale the exec rate is not a measurable
+# dockerd cost, so tune these for observability, never for CPU.
 x-svc-health: &svc-health
   interval: 60s
   timeout: 5s
@@ -175,12 +179,12 @@ services:
       - ./docker/initdb.d:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d kun_galgame_infra"]
-      # Deliberately still 5s: retuning this recreates the postgres container
-      # (brief DB outage), so it rides a quiet-window deploy of its own rather
-      # than the next merge. 72 of the box's 279 execs/min live here and in redis.
-      interval: 5s
-      timeout: 5s
-      retries: 20
+      <<: *svc-health
+      # Three services gate on this with `condition: service_healthy`, so the
+      # start period has to outlast a crash-recovery boot. Failures inside it do
+      # not count against `retries` and start_interval holds 2s granularity, so
+      # this is strictly more tolerant than the 5s x 20 it replaces.
+      start_period: 120s
     restart: unless-stopped
 
   redis:
@@ -191,9 +195,10 @@ services:
     volumes: ["redis:/data"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
+      <<: *svc-health
+      # redis-cli ping answers LOADING while a large appendonly file replays,
+      # so redis takes the same widened start period as postgres.
+      start_period: 120s
     restart: unless-stopped
 
   minio:
