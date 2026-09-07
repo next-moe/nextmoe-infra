@@ -171,9 +171,48 @@ func (s *UserFolderService) ModerationDelete(ctx context.Context, folderID int64
 			}
 			return err
 		}
-		if err := tx.Where("folder_id = ?", folderID).Delete(&model.CatalogUserFolderItem{}).Error; err != nil {
+		return deleteFolderRows(tx, folderID)
+	})
+}
+
+// PurgeOwner is what an account deletion reaches for: every folder the account
+// holds, their memberships, and the import provenance that names them.
+func (s *UserFolderService) PurgeOwner(ctx context.Context, uid int64) (folders, items int64, err error) {
+	if uid <= 0 {
+		return 0, 0, ErrFolderActorRequired
+	}
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var ids []int64
+		if err := tx.Model(&model.CatalogUserFolder{}).
+			Where("owner_uid = ?", uid).Pluck("id", &ids).Error; err != nil {
 			return err
 		}
-		return tx.Delete(&model.CatalogUserFolder{}, folderID).Error
+		// Memberships are deleted by owner, not by folder id: a row whose
+		// owner_uid is this account but whose folder is somebody else's cannot
+		// exist through the API, and if one ever did, leaving it behind would
+		// keep the purged account in a stranger's folder.
+		res := tx.Where("owner_uid = ?", uid).Delete(&model.CatalogUserFolderItem{})
+		if res.Error != nil {
+			return res.Error
+		}
+		items = res.RowsAffected
+		if len(ids) == 0 {
+			return nil
+		}
+		res = tx.Where("folder_id IN ?", ids).Delete(&model.CatalogUserFolderItem{})
+		if res.Error != nil {
+			return res.Error
+		}
+		items += res.RowsAffected
+		if err := tx.Where("folder_id IN ?", ids).Delete(&model.CatalogUserFolderImport{}).Error; err != nil {
+			return err
+		}
+		res = tx.Where("owner_uid = ?", uid).Delete(&model.CatalogUserFolder{})
+		if res.Error != nil {
+			return res.Error
+		}
+		folders = res.RowsAffected
+		return nil
 	})
+	return folders, items, err
 }

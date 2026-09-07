@@ -663,7 +663,7 @@ export const searchIndex: SearchEntry[] = [
     "r": "/docs/v2",
     "t": "Public API v2",
     "s": "端点参考",
-    "d": "/v2 · 106 个端点",
+    "d": "/v2 · 107 个端点",
     "b": "v2 /v2 API v2 Public API v2"
   },
   {
@@ -1379,6 +1379,13 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 审核",
     "d": "GET /v2/moderation/snapshots/{object}/{id}",
     "b": "getModerationSnapshot /v2/moderation/snapshots/{object}/{id} get Current edit snapshot Registered field values. Requires a user access token. 已登记字段的当前值。需要用户访问令牌。 object id"
+  },
+  {
+    "r": "/docs/v2/purgeUserFolders",
+    "t": "清空某个账号的全部收藏夹",
+    "s": "端点 · 审核",
+    "d": "DELETE /v2/moderation/users/{uid}/folders",
+    "b": "purgeUserFolders /v2/moderation/users/{uid}/folders delete Remove every folder an account holds What an account deletion reaches for: all of one account's folders, their memberships and the import provenance naming them, in one transaction. Answers a receipt with the counts; an account holding none is 200 with zeros, not 404. Requires a user access token whose holder moderates. 注销账号时调用的就是它：在一个事务里删掉该账号的全部收藏夹、其中的条目，以及指向它们的导入台账。返回一张带数量的回执；账号一个收藏夹都没有时返回 200 和两个 0，不是 404。需要持有审核权限的用户访问令牌。 uid"
   },
   {
     "r": "/docs/v2/listStorePrices",

@@ -1943,6 +1943,44 @@ components:
       required:
         - status
       type: object
+    FolderPurgeReceipt:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/FolderPurgeReceipt.json
+          format: uri
+          readOnly: true
+          type: string
+        folders_deleted:
+          description: Folders removed. 0 when the account held none, which is not an error.
+          format: int64
+          minimum: 0
+          type: integer
+        items_deleted:
+          description: Memberships removed with them.
+          format: int64
+          minimum: 0
+          type: integer
+        object:
+          description: Type discriminant. Always folder_purge.
+          enum:
+            - folder_purge
+          type: string
+          x-vocabulary-closed: true
+        owner_uid:
+          description: The account whose folders were removed.
+          maxLength: 20
+          minLength: 1
+          pattern: ^[0-9]+$
+          type: string
+      required:
+        - object
+        - owner_uid
+        - folders_deleted
+        - items_deleted
+      type: object
     Image:
       additionalProperties: true
       properties:
@@ -18225,6 +18263,81 @@ paths:
       security:
         - userToken: []
       summary: Current edit snapshot
+      tags:
+        - moderation
+  /v2/moderation/users/{uid}/folders:
+    delete:
+      description: "What an account deletion reaches for: all of one account's folders, their memberships and the import provenance naming them, in one transaction. Answers a receipt with the counts; an account holding none is 200 with zeros, not 404. Requires a user access token whose holder moderates."
+      operationId: purgeUserFolders
+      parameters:
+        - description: The account whose folders to remove.
+          in: path
+          name: uid
+          required: true
+          schema:
+            description: The account whose folders to remove.
+            maxLength: 20
+            minLength: 1
+            pattern: ^[0-9]+$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FolderPurgeReceipt"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Remove every folder an account holds
       tags:
         - moderation
   /v2/news:

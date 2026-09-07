@@ -157,3 +157,87 @@ func TestModerationPatchBlanksTextAndHidesButKeepsItems(t *testing.T) {
 	_, err = svc.ModerationPatch(ctx, f.ID, FolderPatch{})
 	require.ErrorIs(t, err, ErrFolderNothingToUpdate)
 }
+
+// The importer trusts catalog_user_folder_import to say which folder a source
+// collection already became, and does not check that the folder still exists.
+// A row that outlives its folder therefore makes the next re-run write
+// memberships into an id nothing owns, so every delete path clears it.
+func TestDeletingAFolderClearsItsImportProvenance(t *testing.T) {
+	svc := newFolderSvc(t)
+	ctx := context.Background()
+	require.NoError(t, testDB.Exec("TRUNCATE catalog_user_folder_import").Error)
+
+	mine, err := svc.Create(ctx, FolderCreate{OwnerUID: 1, Name: "imported"})
+	require.NoError(t, err)
+	moderated, err := svc.Create(ctx, FolderCreate{OwnerUID: 1, Name: "imported too"})
+	require.NoError(t, err)
+	purged, err := svc.Create(ctx, FolderCreate{OwnerUID: 2, Name: "imported elsewhere"})
+	require.NoError(t, err)
+	kept, err := svc.Create(ctx, FolderCreate{OwnerUID: 3, Name: "untouched"})
+	require.NoError(t, err)
+
+	for i, f := range []*model.CatalogUserFolder{mine, moderated, purged, kept} {
+		require.NoError(t, testDB.Create(&model.CatalogUserFolderImport{
+			Site: model.FolderImportSiteForum, SourceID: int64(9000 + i),
+			FolderID: f.ID, OwnerUID: f.OwnerUID,
+		}).Error)
+	}
+
+	require.NoError(t, svc.Delete(ctx, 1, mine.ID))
+	require.NoError(t, svc.ModerationDelete(ctx, moderated.ID))
+	_, _, err = svc.PurgeOwner(ctx, 2)
+	require.NoError(t, err)
+
+	var orphans int64
+	require.NoError(t, testDB.Raw(`SELECT count(*) FROM catalog_user_folder_import p
+		WHERE NOT EXISTS (SELECT 1 FROM catalog_user_folder f WHERE f.id = p.folder_id)`).
+		Scan(&orphans).Error)
+	require.Zero(t, orphans, "all three delete paths must take the provenance row with them")
+
+	// Control: the surviving folder keeps its row, so the assertion above is
+	// not just an empty table.
+	var left int64
+	require.NoError(t, testDB.Model(&model.CatalogUserFolderImport{}).
+		Where("folder_id = ?", kept.ID).Count(&left).Error)
+	require.Equal(t, int64(1), left)
+}
+
+func TestPurgeOwnerRemovesEverythingTheAccountHolds(t *testing.T) {
+	svc := newFolderSvc(t)
+	ctx := context.Background()
+	w := createWorkX(t, galgameMediumID, model.ContentRatingAllAges, model.WorkStatusLive, "退会する人の作品")
+
+	a, err := svc.Create(ctx, FolderCreate{OwnerUID: 1, Name: "one", IsDefault: true})
+	require.NoError(t, err)
+	b, err := svc.Create(ctx, FolderCreate{OwnerUID: 1, Name: "two", Visibility: 1})
+	require.NoError(t, err)
+	other, err := svc.Create(ctx, FolderCreate{OwnerUID: 2, Name: "a bystander"})
+	require.NoError(t, err)
+	for _, f := range []*model.CatalogUserFolder{a, b, other} {
+		_, err = svc.PutItem(ctx, f.OwnerUID, f.ID, w.ID)
+		require.NoError(t, err)
+	}
+
+	folders, items, err := svc.PurgeOwner(ctx, 1)
+	require.NoError(t, err)
+	require.Equal(t, int64(2), folders, "the default folder goes too — nobody is left to keep it for")
+	require.Equal(t, int64(2), items)
+
+	rows, err := svc.ListMine(ctx, 1, 0, 50)
+	require.NoError(t, err)
+	require.Empty(t, rows)
+
+	// Control: the bystander is untouched, so the purge was scoped by owner.
+	left, err := svc.ListMine(ctx, 2, 0, 50)
+	require.NoError(t, err)
+	require.Len(t, left, 1)
+	require.Equal(t, other.ID, left[0].ID)
+	n, err := svc.CountItems(ctx, 2, other.ID)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), n)
+
+	folders, items, err = svc.PurgeOwner(ctx, 1)
+	require.NoError(t, err)
+	require.Zero(t, folders, "an account holding nothing purges to zeros, not an error")
+	require.Zero(t, items)
+}

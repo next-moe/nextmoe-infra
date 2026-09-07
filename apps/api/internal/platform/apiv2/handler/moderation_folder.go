@@ -16,6 +16,14 @@ type moderationFolderInput struct {
 	ID string `path:"id" minLength:"1" maxLength:"20" pattern:"^[0-9]+$" doc:"Folder id."`
 }
 
+type purgeFoldersInput struct {
+	UID string `path:"uid" minLength:"1" maxLength:"20" pattern:"^[0-9]+$" doc:"The account whose folders to remove."`
+}
+
+type purgeFoldersOutput struct {
+	Body repr.FolderPurgeReceipt
+}
+
 type patchModerationFolderInput struct {
 	ID   string `path:"id" minLength:"1" maxLength:"20" pattern:"^[0-9]+$" doc:"Folder id."`
 	Body struct {
@@ -47,6 +55,42 @@ func registerModerationFolders(api huma.API, cat *Catalog) {
 		Description: "Deletes the folder and its items. Unlike the owner's own delete this accepts the default folder: is_default is set by the folder's owner, so honouring it here would let anyone make a folder undeletable. 204 with no body. Requires a user access token whose holder moderates.",
 		Tags:        tags, Errors: errs, DefaultStatus: http.StatusNoContent, SkipValidateParams: true,
 	}, deleteModerationFolder(cat))
+
+	huma.Register(api, huma.Operation{
+		OperationID: "purgeUserFolders", Method: http.MethodDelete, Path: "/v2/moderation/users/{uid}/folders",
+		Summary:     "Remove every folder an account holds",
+		Description: "What an account deletion reaches for: all of one account's folders, their memberships and the import provenance naming them, in one transaction. Answers a receipt with the counts; an account holding none is 200 with zeros, not 404. Requires a user access token whose holder moderates.",
+		Tags:        tags, Errors: errs, SkipValidateParams: true,
+	}, purgeUserFolders(cat))
+}
+
+// The account-deletion path on a product site has to reach the canonical store
+// or the purge leaves the person's collections behind on a face they no longer
+// have any way to open.
+func purgeUserFolders(cat *Catalog) func(context.Context, *purgeFoldersInput) (*purgeFoldersOutput, error) {
+	return func(ctx context.Context, in *purgeFoldersInput) (*purgeFoldersOutput, error) {
+		if in == nil {
+			in = &purgeFoldersInput{}
+		}
+		if err := requireFolderModerator(ctx); err != nil {
+			return nil, catalogErr(ctx, err)
+		}
+		if cat == nil || cat.Folders == nil {
+			return nil, catalogErr(ctx, problem.New(problem.CodeServiceUnavailable, "", "", "folders are not bound."))
+		}
+		uid, ok := repr.ParseID(in.UID)
+		if !ok {
+			return nil, catalogErr(ctx, problemInvalidID(in.UID))
+		}
+		folders, items, err := cat.Folders.PurgeOwner(ctx, uid)
+		if err != nil {
+			return nil, catalogErr(ctx, folderErr(err))
+		}
+		return &purgeFoldersOutput{Body: repr.FolderPurgeReceipt{
+			Object: "folder_purge", OwnerUID: repr.ID(uid),
+			FoldersDeleted: folders, ItemsDeleted: items,
+		}}, nil
+	}
 }
 
 func requireFolderModerator(ctx context.Context) error {

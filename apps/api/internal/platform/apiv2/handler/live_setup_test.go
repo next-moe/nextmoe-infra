@@ -46,9 +46,15 @@ var (
 	// non-reviewer there was nothing to prove the permission gate with.
 	livePlainToken = "user-live-plain-token"
 	liveUID        = int64(7)
-	livePlainUID   = int64(8)
-	liveClient     = "kungal-client"
-	liveSite       = "kungal"
+	// The spec walk calls every operation it can substitute a path into,
+	// and one of them purges an account's folders. Pointed at liveUID it
+	// emptied the fixture mid-package and the cursor crawl found one folder
+	// where it seeded two. {uid} therefore resolves to an account that owns
+	// nothing: the walk still exercises the route, its gate and its shape.
+	liveEmptyUID = int64(7007)
+	livePlainUID = int64(8)
+	liveClient   = "kungal-client"
+	liveSite     = "kungal"
 
 	// Same person, same roles, three different surfaces: a peer tenant, a
 	// developer-owned app, and a second reviewer on the caller's own tenant.
@@ -1077,6 +1083,7 @@ func liveSubstitute(path string, fx liveFix) string {
 	path = strings.ReplaceAll(path, "{work_id}", idstr(fx.Work))
 	path = strings.ReplaceAll(path, "{cover_id}", idstr(fx.Cover))
 	path = strings.ReplaceAll(path, "{product_id}", "RJ01000000")
+	path = strings.ReplaceAll(path, "{uid}", idstr(liveEmptyUID))
 	path = strings.ReplaceAll(path, "{id}", idstr(id))
 	if path == "/v2/catalog/search" {
 		path += "?object=work"

@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-本文件内联全部 106 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
+本文件内联全部 107 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
 
 ## 给 AI 助手的指引
 
@@ -2257,7 +2257,7 @@ Open · 16 tokens
 
 - 路径前缀：`/v2`
 - 凭据：Authorization: Bearer nmk_live_…（v2 应用密钥,门户自助铸造,无需申请）
-- 端点数：106
+- 端点数：107
 
 > 正式公开：形状按 additive-only 演进，删除与改名由 CI 的 oasdiff 门拦下。第三方在门户自助铸 nmk_ 密钥即可调用，不需要申请。
 
@@ -4706,6 +4706,25 @@ Registered field values. Requires a user access token.
 
 ```bash
 curl "https://api.nextmoe.dev/v2/moderation/snapshots/value/value" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### DELETE /v2/moderation/users/{uid}/folders
+
+Remove every folder an account holds
+
+What an account deletion reaches for: all of one account's folders, their memberships and the import provenance naming them, in one transaction. Answers a receipt with the counts; an account holding none is 200 with zeros, not 404. Requires a user access token whose holder moderates.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `uid` | path | 是 | string | The account whose folders to remove. |
+
+```bash
+curl -X DELETE "https://api.nextmoe.dev/v2/moderation/users/value/folders" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 

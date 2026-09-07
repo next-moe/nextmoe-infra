@@ -144,6 +144,7 @@ func liveReadURL(t *testing.T, tmpl string, fx liveFix) string {
 	t.Helper()
 	url := strings.NewReplacer(
 		"{code}", problem.CodeRateLimited, "{name}", "medium", "{object}", "work",
+		"{uid}", idstr(liveEmptyUID),
 	).Replace(tmpl)
 	// Longest-prefix, not liveSubstitute's substring switch: that one matches
 	// "/tags" inside /v2/catalog/works/{id}/tags and addresses a tag id as if it

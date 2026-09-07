@@ -147,11 +147,24 @@ func (s *UserFolderService) Delete(ctx context.Context, uid, folderID int64) err
 		if row.IsDefault {
 			return ErrFolderDefaultDeletion
 		}
-		if err := tx.Where("folder_id = ?", folderID).Delete(&model.CatalogUserFolderItem{}).Error; err != nil {
-			return err
-		}
-		return tx.Delete(&model.CatalogUserFolder{}, folderID).Error
+		return deleteFolderRows(tx, folderID)
 	})
+}
+
+// The provenance row goes with the folder. cmd/import-favorites trusts
+// catalog_user_folder_import to say which folder a source collection already
+// became, and it does not check that the folder is still there: a row left
+// behind by a delete makes the next re-run count the collection as reused and
+// write its memberships into a folder id nothing owns — invisible on every
+// face and still counted by the favorites popularity row.
+func deleteFolderRows(tx *gorm.DB, folderID int64) error {
+	if err := tx.Where("folder_id = ?", folderID).Delete(&model.CatalogUserFolderItem{}).Error; err != nil {
+		return err
+	}
+	if err := tx.Where("folder_id = ?", folderID).Delete(&model.CatalogUserFolderImport{}).Error; err != nil {
+		return err
+	}
+	return tx.Delete(&model.CatalogUserFolder{}, folderID).Error
 }
 
 func (s *UserFolderService) Get(ctx context.Context, uid, folderID int64) (*model.CatalogUserFolder, error) {

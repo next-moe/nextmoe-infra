@@ -151,6 +151,14 @@ type UserFolder struct {
 	UpdatedAt   string   `json:"updated_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
 }
 
+type FolderPurgeReceipt struct {
+	_              struct{} `json:"-" additionalProperties:"true"`
+	Object         string   `json:"object" enum:"folder_purge" doc:"Type discriminant. Always folder_purge."`
+	OwnerUID       string   `json:"owner_uid" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"The account whose folders were removed."`
+	FoldersDeleted int64    `json:"folders_deleted" minimum:"0" doc:"Folders removed. 0 when the account held none, which is not an error."`
+	ItemsDeleted   int64    `json:"items_deleted" minimum:"0" doc:"Memberships removed with them."`
+}
+
 type UserFolderItem struct {
 	_         struct{} `json:"-" additionalProperties:"true"`
 	Object    string   `json:"object" enum:"folder_item" doc:"Type discriminant. Always folder_item."`
