@@ -55,3 +55,18 @@ func TestPoolBoundsAreOverridable(t *testing.T) {
 		t.Fatalf("durations ignored: %+v", got)
 	}
 }
+
+// MaxIdle below MaxOpen makes database/sql destroy a connection on release and
+// reopen it on the next checkout; catalog did ~1 reconnect/second in production
+// on the old 10/5 default. Both halves matter: the bare default, and the default
+// after someone widens MaxOpen alone.
+func TestIdleSlotsCoverTheWholePool(t *testing.T) {
+	if got := loadPoolConfig(); got.MaxIdle != got.MaxOpen {
+		t.Fatalf("default pool churns: MaxOpen=%d MaxIdle=%d", got.MaxOpen, got.MaxIdle)
+	}
+	t.Setenv("KUN_PG_MAX_OPEN_CONNS", "40")
+	got := loadPoolConfig()
+	if got.MaxOpen != 40 || got.MaxIdle != 40 {
+		t.Fatalf("widening MaxOpen alone reopened the gap: %+v", got)
+	}
+}

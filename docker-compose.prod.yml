@@ -23,11 +23,18 @@
 #   # full data cutover (16-data-cutover.md): docker compose ... --profile jobs run --rm tools <job> ...
 name: kun-galgame-infra
 
+# A steady-state check is a container exec, and dockerd pays for it: at 10s
+# across ~30 containers (plus postgres/redis at 5s) the box ran 279 exec/min and
+# dockerd itself burned 1.16 cores — more than any single service. start_interval
+# keeps the deploy path fast (2s granularity until the first success) while the
+# steady-state cadence drops 6x; nothing here restarts on unhealthy, so a slower
+# steady interval costs observability lag only.
 x-svc-health: &svc-health
-  interval: 10s
+  interval: 60s
   timeout: 5s
-  retries: 5
-  start_period: 15s
+  retries: 3
+  start_period: 30s
+  start_interval: 2s
 
 # ── shared backend env (union; services ignore keys they don't read) ──────────
 # Literal = non-secret/structural. ${VAR:?} = required secret (set in Dokploy).
@@ -168,6 +175,9 @@ services:
       - ./docker/initdb.d:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d kun_galgame_infra"]
+      # Deliberately still 5s: retuning this recreates the postgres container
+      # (brief DB outage), so it rides a quiet-window deploy of its own rather
+      # than the next merge. 72 of the box's 279 execs/min live here and in redis.
       interval: 5s
       timeout: 5s
       retries: 20
