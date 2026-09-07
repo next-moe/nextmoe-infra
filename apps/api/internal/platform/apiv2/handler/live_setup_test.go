@@ -46,9 +46,15 @@ var (
 	// non-reviewer there was nothing to prove the permission gate with.
 	livePlainToken = "user-live-plain-token"
 	liveUID        = int64(7)
-	livePlainUID   = int64(8)
-	liveClient     = "kungal-client"
-	liveSite       = "kungal"
+	// The spec walk calls every operation it can substitute a path into,
+	// and one of them purges an account's folders. Pointed at liveUID it
+	// emptied the fixture mid-package and the cursor crawl found one folder
+	// where it seeded two. {uid} therefore resolves to an account that owns
+	// nothing: the walk still exercises the route, its gate and its shape.
+	liveEmptyUID = int64(7007)
+	livePlainUID = int64(8)
+	liveClient   = "kungal-client"
+	liveSite     = "kungal"
 
 	// Same person, same roles, three different surfaces: a peer tenant, a
 	// developer-owned app, and a second reviewer on the caller's own tenant.
@@ -113,7 +119,7 @@ type liveFix struct {
 	VAOnlyCharacter                     int64
 	ENWork, ENRelease                   int64
 	RedirectOld, RedirectDatedOld       int64
-	Folder, FolderSpare                 int64
+	Folder, FolderSpare, FolderPublic   int64
 	AnchorExt                           string
 }
 
@@ -804,14 +810,16 @@ func seedLiveOLangEN(db *gorm.DB, fx *liveFix, empty datatypes.JSON) error {
 func seedLiveFolders(db *gorm.DB, fx *liveFix) error {
 	for _, f := range []struct {
 		name string
+		vis  int16
 		dst  *int64
 	}{
-		{"Live Folder", &fx.Folder},
-		{"Spec Walk Folder", &fx.FolderSpare},
+		{"Live Folder", model.FolderVisibilityPrivate, &fx.Folder},
+		{"Spec Walk Folder", model.FolderVisibilityPrivate, &fx.FolderSpare},
+		{"Live Public Folder", model.FolderVisibilityPublic, &fx.FolderPublic},
 	} {
 		row := &model.CatalogUserFolder{
 			OwnerUID: liveUID, Name: f.name,
-			Visibility: model.FolderVisibilityPrivate, ItemCount: 1,
+			Visibility: f.vis, ItemCount: 1,
 		}
 		if err := db.Create(row).Error; err != nil {
 			return err
@@ -1024,6 +1032,9 @@ func liveAuthPath(path string) string {
 	if path == "/v2/catalog/claim-events" {
 		return liveAppKeyEvent
 	}
+	if path == "/v2/folders" || strings.HasPrefix(path, "/v2/folders/") {
+		return liveAppKey
+	}
 	if strings.HasPrefix(path, "/v2/catalog/") && path != "/v2/catalog/stats" && !strings.HasPrefix(path, "/v2/catalog/schemas/") {
 		return liveAppKey
 	}
@@ -1072,6 +1083,7 @@ func liveSubstitute(path string, fx liveFix) string {
 	path = strings.ReplaceAll(path, "{work_id}", idstr(fx.Work))
 	path = strings.ReplaceAll(path, "{cover_id}", idstr(fx.Cover))
 	path = strings.ReplaceAll(path, "{product_id}", "RJ01000000")
+	path = strings.ReplaceAll(path, "{uid}", idstr(liveEmptyUID))
 	path = strings.ReplaceAll(path, "{id}", idstr(id))
 	if path == "/v2/catalog/search" {
 		path += "?object=work"

@@ -230,6 +230,30 @@ func (i *importer) loadState() error {
 			i.owned[[2]int64{m.OwnerUID, m.WorkID}] = m.FolderID
 		}
 	}
+	// A folder deleted after it was imported used to leave its
+	// catalog_user_folder_import row behind, and importForumCollections trusts
+	// that row as "this collection is already folder N" without checking that N
+	// still exists — so a re-run would count the collection as reused and write
+	// its memberships into a folder id nothing owns. The delete paths now clear
+	// the row; this clears anything orphaned before they did, so a re-run
+	// re-imports the collection instead of writing into a hole.
+	var stale []model.CatalogUserFolderImport
+	if err := i.cat.Raw(`SELECT p.site, p.source_id FROM catalog_user_folder_import p
+		LEFT JOIN catalog_user_folder f ON f.id = p.folder_id WHERE f.id IS NULL`).
+		Scan(&stale).Error; err != nil {
+		return err
+	}
+	if len(stale) > 0 {
+		slog.Warn("import provenance outlived its folder", "rows", len(stale), "apply", i.apply)
+		if i.apply {
+			if err := i.cat.Exec(`DELETE FROM catalog_user_folder_import p
+				WHERE NOT EXISTS (SELECT 1 FROM catalog_user_folder f WHERE f.id = p.folder_id)`).
+				Error; err != nil {
+				return err
+			}
+		}
+	}
+
 	w, err := newWorkResolver(i.cat)
 	if err != nil {
 		return err

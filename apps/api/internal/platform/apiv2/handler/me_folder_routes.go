@@ -12,6 +12,7 @@ import (
 
 type listFoldersInput struct {
 	CollectionInput
+	ContainsWorkID string `query:"contains_work_id" maxLength:"20" doc:"Keep only the folders that already hold this catalog work. This is the add-to-folder picker's question; without it a client had to read every folder it owns and probe each one."`
 }
 type listFoldersOutput struct {
 	Body repr.List[repr.UserFolder]
@@ -133,7 +134,11 @@ func listMyFolders(cat *Catalog) func(context.Context, *listFoldersInput) (*list
 		if err != nil {
 			return nil, err
 		}
-		page, lerr := cat.ListFolders(ctx, q)
+		containsWorkID, err := optionalIDParam("contains_work_id", in.ContainsWorkID)
+		if err != nil {
+			return nil, catalogErr(ctx, err)
+		}
+		page, lerr := cat.ListFolders(ctx, q, containsWorkID)
 		if lerr != nil {
 			return nil, catalogErr(ctx, lerr)
 		}

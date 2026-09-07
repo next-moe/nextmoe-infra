@@ -208,7 +208,7 @@ func FolderSpec() Spec {
 		Sort:    []string{"id"},
 		Include: []string{},
 		FullSet: []string{},
-		Fields:  []string{"object", "id", "name", "description", "visibility", "is_default", "item_count", "created_at", "updated_at"},
+		Fields:  []string{"object", "id", "owner_uid", "name", "description", "visibility", "is_default", "item_count", "created_at", "updated_at"},
 		NoBatch: true,
 	}
 }

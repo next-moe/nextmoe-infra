@@ -98,6 +98,9 @@ var liveReadPaths = []string{
 	"/v2/news",
 	"/v2/news/sources",
 	"/v2/news/{id}",
+	"/v2/folders",
+	"/v2/folders/{id}",
+	"/v2/folders/{id}/items",
 	"/v2/me/playtimes",
 	"/v2/me/folders",
 	"/v2/me/folders/{id}",
@@ -130,10 +133,18 @@ var liveReadsNotSwept = map[string]string{
 	"/v2/store/prices":                      "the live env binds no price service; live_wave_prices_test.go mounts one over fake fetchers",
 }
 
+// A face whose contract makes a filter mandatory would answer the bare sweep
+// with 400. Carrying the filter here keeps it swept; the alternative is a
+// liveReadsNotSwept entry, which would exclude a route the fixture can reach.
+var liveReadRequiredQuery = map[string]func(fx liveFix) string{
+	"/v2/folders": func(liveFix) string { return "?owner_uid=" + idstr(liveUID) },
+}
+
 func liveReadURL(t *testing.T, tmpl string, fx liveFix) string {
 	t.Helper()
 	url := strings.NewReplacer(
 		"{code}", problem.CodeRateLimited, "{name}", "medium", "{object}", "work",
+		"{uid}", idstr(liveEmptyUID),
 	).Replace(tmpl)
 	// Longest-prefix, not liveSubstitute's substring switch: that one matches
 	// "/tags" inside /v2/catalog/works/{id}/tags and addresses a tag id as if it
@@ -153,6 +164,7 @@ func liveReadURL(t *testing.T, tmpl string, fx liveFix) string {
 		{"/v2/catalog/credit-names/", fx.Credit},
 		{"/v2/catalog/persons/", fx.Person},
 		{"/v2/catalog/traits/", fx.Trait},
+		{"/v2/folders/", fx.FolderPublic},
 		{"/v2/me/folders/", fx.Folder},
 		{"/v2/me/claims/", fx.Pending},
 		{"/v2/moderation/claims/", fx.Pending},
@@ -166,6 +178,9 @@ func liveReadURL(t *testing.T, tmpl string, fx liveFix) string {
 		}
 	}
 	require.NotContainsf(t, url, "{", "unsubstituted path param in %s", tmpl)
+	if q, ok := liveReadRequiredQuery[tmpl]; ok {
+		url += q(fx)
+	}
 	return url
 }
 

@@ -663,7 +663,7 @@ export const searchIndex: SearchEntry[] = [
     "r": "/docs/v2",
     "t": "Public API v2",
     "s": "端点参考",
-    "d": "/v2 · 101 个端点",
+    "d": "/v2 · 107 个端点",
     "b": "v2 /v2 API v2 Public API v2"
   },
   {
@@ -1066,6 +1066,27 @@ export const searchIndex: SearchEntry[] = [
     "b": "getNewsItem /v2/news/{id} get Get one news item A published news item. Withdrawn items are 404. Unauthenticated. source and source_url are always present. 一条已发布的新闻。已撤回项返回 404。无需认证。source 与 source_url 始终存在。 id"
   },
   {
+    "r": "/docs/v2/listPublicFolders",
+    "t": "列出某人的公开收藏夹",
+    "s": "端点 · 公开收藏夹",
+    "d": "GET /v2/folders",
+    "b": "listPublicFolders /v2/folders get List a user's public folders The public favorite folders of one account, id-ascending. owner_uid is required: there is no platform-wide folder directory. Private folders never appear here, not even for their own owner — /v2/me/folders is that face. Requires an application key or a user access token with catalog:read. 某个账号的公开收藏夹，按 id 升序。owner_uid 必填：本站没有全站收藏夹名录。私密收藏夹在这里永远不出现，对夹主本人也一样——那是 /v2/me/folders 的职责。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw owner_uid"
+  },
+  {
+    "r": "/docs/v2/getPublicFolder",
+    "t": "读取一个公开收藏夹",
+    "s": "端点 · 公开收藏夹",
+    "d": "GET /v2/folders/{id}",
+    "b": "getPublicFolder /v2/folders/{id} get Get one public folder 404 when no folder with this id is public, whether it does not exist or its owner keeps it private. owner_uid names the account it belongs to. Requires an application key or a user access token with catalog:read. 这个 id 没有对应的公开收藏夹时返回 404——不管是它不存在，还是夹主把它设成了私密。owner_uid 指出它属于哪个账号。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id"
+  },
+  {
+    "r": "/docs/v2/listPublicFolderItems",
+    "t": "列出公开收藏夹里的条目",
+    "s": "端点 · 公开收藏夹",
+    "d": "GET /v2/folders/{id}/items",
+    "b": "listPublicFolderItems /v2/folders/{id}/items get List a public folder's items Keyset-paginated by updated_at, the same shape /v2/me/folders/{id}/items answers. The list carries every work the folder holds and applies no editorial gate, so item_count matches what is returned; a caller that hides r18 applies its own gate when it hydrates the works. Requires an application key or a user access token with catalog:read. 按 updated_at 做 keyset 分页，与 /v2/me/folders/{id}/items 的形状相同。列表返回收藏夹里的全部作品、不做分级过滤，因此 item_count 与返回内容一致；要屏蔽 r18 的调用方在补全作品详情时按自己的口径过滤。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id cursor limit view include fields ids refs include_total facets sort nsfw"
+  },
+  {
     "r": "/docs/v2/listMyClaims",
     "t": "列出我的认领",
     "s": "端点 · 我的",
@@ -1133,7 +1154,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "列出我的收藏夹",
     "s": "端点 · 我的",
     "d": "GET /v2/me/folders",
-    "b": "listMyFolders /v2/me/folders get List my folders The bearer user's favorite folders, id-ascending. Requires a user access token with folder:read (folder:write also grants reads). 持有者用户的收藏夹，按 id 升序。需要带 folder:read 的用户访问令牌（folder:write 同样满足读取）。 folder:read 或 folder:write cursor limit view include fields ids refs include_total facets sort nsfw"
+    "b": "listMyFolders /v2/me/folders get List my folders The bearer user's favorite folders, id-ascending. Requires a user access token with folder:read (folder:write also grants reads). 持有者用户的收藏夹，按 id 升序。需要带 folder:read 的用户访问令牌（folder:write 同样满足读取）。 folder:read 或 folder:write cursor limit view include fields ids refs include_total facets sort nsfw contains_work_id"
   },
   {
     "r": "/docs/v2/createMyFolder",
@@ -1311,6 +1332,20 @@ export const searchIndex: SearchEntry[] = [
     "b": "decideModerationClaim /v2/moderation/claims/{id}/decisions post Decide a claim decision=approve|decline|ban|unban. unban restores the state the claim was hidden from. If-Match required, and the ETag comes from GET /v2/moderation/claims/{id}. Requires the catalog.claim.review permission. decision=approve|decline|ban|unban。unban 恢复该认领被隐藏前所处的状态。需要 If-Match，ETag 来自 GET /v2/moderation/claims/{id}。需要 catalog.claim.review 权限。 id If-Match"
   },
   {
+    "r": "/docs/v2/patchModerationFolder",
+    "t": "处置收藏夹的文本",
+    "s": "端点 · 审核",
+    "d": "PATCH /v2/moderation/folders/{id}",
+    "b": "patchModerationFolder /v2/moderation/folders/{id} patch Moderate a folder's text Rewrite or blank the name and description of any user's folder, or force it private. Does not touch the folder's items. Requires a user access token whose holder moderates. 改写或清空任意用户收藏夹的名称与简介，或强制设为私密。不动收藏夹里的条目。需要持有审核权限的用户访问令牌。 id"
+  },
+  {
+    "r": "/docs/v2/deleteModerationFolder",
+    "t": "删除任意收藏夹",
+    "s": "端点 · 审核",
+    "d": "DELETE /v2/moderation/folders/{id}",
+    "b": "deleteModerationFolder /v2/moderation/folders/{id} delete Delete any folder Deletes the folder and its items. Unlike the owner's own delete this accepts the default folder: is_default is set by the folder's owner, so honouring it here would let anyone make a folder undeletable. 204 with no body. Requires a user access token whose holder moderates. 删除该收藏夹及其条目。与夹主自己的删除不同，这里接受默认收藏夹：is_default 是夹主自己设的，如果这里也照办，任何人都能靠标成默认让收藏夹删不掉。返回 204 空响应。需要持有审核权限的用户访问令牌。 id"
+  },
+  {
     "r": "/docs/v2/listModerationProposals",
     "t": "审核提案队列",
     "s": "端点 · 审核",
@@ -1344,6 +1379,13 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 审核",
     "d": "GET /v2/moderation/snapshots/{object}/{id}",
     "b": "getModerationSnapshot /v2/moderation/snapshots/{object}/{id} get Current edit snapshot Registered field values. Requires a user access token. 已登记字段的当前值。需要用户访问令牌。 object id"
+  },
+  {
+    "r": "/docs/v2/purgeUserFolders",
+    "t": "清空某个账号的全部收藏夹",
+    "s": "端点 · 审核",
+    "d": "DELETE /v2/moderation/users/{uid}/folders",
+    "b": "purgeUserFolders /v2/moderation/users/{uid}/folders delete Remove every folder an account holds What an account deletion reaches for: all of one account's folders, their memberships and the import provenance naming them, in one transaction. Answers a receipt with the counts; an account holding none is 200 with zeros, not 404. Requires a user access token whose holder moderates. 注销账号时调用的就是它：在一个事务里删掉该账号的全部收藏夹、其中的条目，以及指向它们的导入台账。返回一张带数量的回执；账号一个收藏夹都没有时返回 200 和两个 0，不是 404。需要持有审核权限的用户访问令牌。 uid"
   },
   {
     "r": "/docs/v2/listStorePrices",
