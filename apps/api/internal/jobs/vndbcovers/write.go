@@ -68,11 +68,19 @@ func (r *runner) fill(ctx context.Context, row planRow) {
 	// official bytes with them. A conflict therefore re-sources the identical
 	// row to vndb and normalizes the legacy '' kind; the WHERE keeps re-runs
 	// idempotent (rows already vndb-sourced count as dedup, not uploads).
+	//
+	// The re-run then ended dedup=26, and those 26 works were the same story a
+	// second time with a different row: vndb's own main cover is byte-identical
+	// to a vndb *package* row we already held, so the source matched, the WHERE
+	// held the update back, and the work kept only pkg* rows — which the cover
+	// picker vetoes as a family. Matching on kind as well relabels that row to
+	// what vndb actually serves it as, and stays idempotent because the second
+	// pass then agrees on both columns.
 	tx := r.db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "work_id"}, {Name: "image_hash"}},
 		DoUpdates: clause.AssignmentColumns([]string{"source_id", "kind", "portrait_pinned", "sexual", "violence", "updated_at"}),
 		Where: clause.Where{Exprs: []clause.Expression{
-			clause.Expr{SQL: "catalog_work_cover.source_id <> excluded.source_id"},
+			clause.Expr{SQL: "catalog_work_cover.source_id <> excluded.source_id OR catalog_work_cover.kind <> excluded.kind"},
 		}},
 	}).Create(&model.CatalogWorkCover{
 		WorkID: row.WorkID, ImageHash: res.Hash, SortOrder: 0, Kind: coverKind,

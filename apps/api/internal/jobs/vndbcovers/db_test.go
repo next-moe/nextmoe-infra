@@ -255,3 +255,48 @@ func TestFillRelabelsTheByteIdenticalLegacyRow(t *testing.T) {
 	assert.Zero(t, rerun.stats.Uploaded)
 	assert.Empty(t, rerun.touched)
 }
+
+// The relabel re-run ended dedup=26: for those works vndb's main cover is
+// byte-identical to a vndb *package* row already held, so the source matched
+// and the conflict clause held the update back. The work then owned nothing
+// but pkg* rows, which the cover picker vetoes as a family, and it stayed a
+// residual the guarded wiki purge could not clear.
+func TestFillRelabelsAByteIdenticalPackageRowOfItsOwnSource(t *testing.T) {
+	clean(t)
+	reg, err := resolveRegistry(context.Background(), testDB)
+	require.NoError(t, err)
+
+	var jpg bytes.Buffer
+	require.NoError(t, jpeg.Encode(&jpg, image.NewRGBA(image.Rect(0, 0, 12, 16)), nil))
+	mirror := t.TempDir()
+	rel := filepath.Join("cv", "07", "12307.jpg")
+	require.NoError(t, os.MkdirAll(filepath.Join(mirror, filepath.Dir(rel)), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(mirror, rel), jpg.Bytes(), 0o644))
+
+	id := mkWork(t, reg, "pkg-clone")
+	mkCover(t, id, reg.vndbSource, "pkgfront", "official-hash")
+
+	row := planRow{
+		WorkID: id, VNDBID: "v12307",
+		Img: &vnImage{URL: "https://t.vndb.org/cv/07/12307.jpg", Dims: []int{12, 16}, Sexual: 0, Violence: 0},
+	}
+	r := &runner{db: testDB, cli: &stubUploader{fixed: "official-hash"}, sourceID: reg.vndbSource,
+		imageDir: mirror, stats: &Stats{}}
+	r.fill(context.Background(), row)
+
+	var n int64
+	require.NoError(t, testDB.Model(&model.CatalogWorkCover{}).Where("work_id = ?", id).Count(&n).Error)
+	assert.EqualValues(t, 1, n, "relabel must not add a second row")
+	var got model.CatalogWorkCover
+	require.NoError(t, testDB.Where("work_id = ?", id).First(&got).Error)
+	assert.Equal(t, "main", got.Kind, "a package row carrying the main cover bytes is what vndb serves as the cover")
+	assert.Equal(t, reg.vndbSource, got.SourceID)
+	assert.Equal(t, 1, r.stats.Uploaded)
+	assert.Equal(t, []int64{id}, r.touched)
+
+	rerun := &runner{db: testDB, cli: &stubUploader{fixed: "official-hash"}, sourceID: reg.vndbSource,
+		imageDir: mirror, stats: &Stats{}}
+	rerun.fill(context.Background(), row)
+	assert.Equal(t, 1, rerun.stats.Dedup, "source and kind now both agree, so a re-run must not write")
+	assert.Zero(t, rerun.stats.Uploaded)
+}
