@@ -99,6 +99,38 @@ func TestFolderScopeGateLeavesPlaytimesAlone(t *testing.T) {
 	require.Equal(t, problem.CodeServiceUnavailable, p.Code)
 }
 
+// The folder gate keys on the request path, the same shape that let one
+// trailing slash walk past the operator-scope check on /v2/catalog/claim-events.
+// It is a second copy of that pattern and what it guards is private
+// collections, so each variant is checked against a scoped token on the same
+// path: the scoped one must reach the handler (503, unbound here) and the
+// scopeless one must not get there.
+func TestFolderScopeGateSurvivesPathVariants(t *testing.T) {
+	scopeless := testAppDualCredential(t, UserIdentity{
+		UID: 42, ClientID: "manager", Scopes: []string{"openid", devapi.ScopeCatalogRead},
+	})
+	scoped := testAppDualCredential(t, UserIdentity{
+		UID: 42, ClientID: "manager", Scopes: []string{devapi.ScopeFolderRead},
+	})
+
+	routed := 0
+	for _, path := range []string{
+		"/v2/me/folders", "/v2/me/folders/", "/v2/me/folders//",
+		"/v2/Me/folders", "/v2/me/Folders",
+		"/v2/me/folders/7/items", "/v2/me/folders/7/items/",
+	} {
+		okStatus, _ := authGET(t, scoped, path, catalogUserToken)
+		if okStatus != 503 {
+			continue // fiber never routed this variant; nothing to bypass
+		}
+		routed++
+		status, p := authGET(t, scopeless, path, catalogUserToken)
+		require.Equalf(t, 403, status, "GET %s reached the folder handler with catalog:read alone", path)
+		require.Equal(t, problem.CodeScopeRequired, p.Code, path)
+	}
+	require.Greater(t, routed, 2, "too few variants actually routed for this walk to mean anything")
+}
+
 func TestFolderRoutesRequireAUserToken(t *testing.T) {
 	app := testApp(t)
 	status, _, body := do(t, app, http.MethodGet, "/v2/me/folders")
