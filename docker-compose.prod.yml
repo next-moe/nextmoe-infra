@@ -175,11 +175,12 @@ services:
       - ./docker/initdb.d:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d kun_galgame_infra"]
-      interval: 30s
+      # Deliberately still 5s: retuning this recreates the postgres container
+      # (brief DB outage), so it rides a quiet-window deploy of its own rather
+      # than the next merge. 72 of the box's 279 execs/min live here and in redis.
+      interval: 5s
       timeout: 5s
-      retries: 5
-      start_period: 60s
-      start_interval: 2s
+      retries: 20
     restart: unless-stopped
 
   redis:
@@ -190,11 +191,9 @@ services:
     volumes: ["redis:/data"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
+      interval: 5s
       timeout: 5s
-      retries: 5
-      start_period: 60s
-      start_interval: 2s
+      retries: 20
     restart: unless-stopped
 
   minio:
