@@ -24,20 +24,34 @@ the image is the fix, not a preference.
 
 ## Jobs
 
-| job | schedule (UTC) | deadman limit |
-|---|---|---|
-| bgm-refresh | Wed 11:00 | 192h |
-| vndb-refresh | Sun 17:30 | 192h |
-| reindex-catalog | daily 06:10 | 48h |
-| intromt-nightly | daily 13:00 | 48h |
-| image-grade-nightly | daily 15:00 | 48h |
-| playtime-aggregate | daily 05:20 | 48h |
-| refresh-tag-counts | hourly :40 | 6h |
-| tag-vocab-backlog | 1st 12:30 | 768h |
-| work-dedup-nightly | daily 18:30 | 48h |
-| work-dedup-watch | Mon 04:20 | 192h |
+Root's crontab fires in the box's own zone, **Asia/Shanghai (CST, +0800)** —
+not UTC, which this table used to claim. The two columns below are the same
+schedule twice. It matters: the daily reindex reads as an early-morning job and
+actually runs at 22:10 UTC, so on 2026-09-07 the "already ran today" reindex had
+in fact run *before* the cover deletion it was supposed to follow, and the index
+had to be rebuilt by hand.
 
-`metrics-sampler/` is the one non-job entry: a host-level resource sampler
+| job | schedule (CST, as written in crontab) | = UTC | deadman limit |
+|---|---|---|---|
+| bgm-refresh | Wed 11:00 | Wed 03:00 | 192h |
+| vndb-refresh | Sun 17:30 | Sun 09:30 | 192h |
+| reindex-catalog | daily 06:10 | daily 22:10 (prev. day) | 48h |
+| intromt-nightly | daily 13:00 | daily 05:00 | 48h |
+| image-grade-nightly | daily 15:00 | daily 07:00 | 48h |
+| playtime-aggregate | daily 05:20 | daily 21:20 (prev. day) | 48h |
+| refresh-tag-counts | hourly :40 | hourly :40 | 6h |
+| tag-vocab-backlog | 1st 12:30 | 1st 04:30 | 768h |
+| work-dedup-nightly | daily 18:30 | daily 10:30 | 48h |
+| work-dedup-watch | Mon 04:20 | Sun 20:20 | 192h |
+| ymgal-pending-watch | daily 09:30 | daily 01:30 | 48h |
+
+`logrotate/docker-containers` is host config, not a job: it is deployed as
+`/etc/logrotate.d/docker-containers`. Dokploy's containers are created with an
+empty `HostConfig.LogConfig.Config`, so `daemon.json`'s 100m x 3 default never
+applies to them — traefik's access log had grown to 25 GB by 2026-09-07, five
+days from filling the disk. The file's own header carries the detail.
+
+`metrics-sampler/` is the other non-job entry: a host-level resource sampler
 (docker stats + loadavg + MemAvailable/SwapFree to daily CSVs under
 `/root/metrics/`, 14-day retention) installed as `/etc/cron.d/kun-metrics-sampler`
 (`*/5 * * * *`, flock-guarded), deployed as `/root/metrics/sample.sh`. It has no
