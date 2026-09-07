@@ -1,0 +1,21 @@
+# Deployed as /etc/logrotate.d/docker-containers on kungal-neo.
+#
+# Docker's json-file driver only honours max-size/max-file at container
+# creation time, and the containers dokploy created carry no log opts at all
+# (`HostConfig.LogConfig.Config` is empty), so the daemon.json defaults
+# — 100m x 3 — never reached them. Traefik's access log, switched on
+# 2026-09-02 to investigate the crawler storm, had reached **25 GB** by
+# 2026-09-07 on a root filesystem at 71%: about five days from full.
+#
+# copytruncate is required, not a preference: the writer is dockerd and it
+# holds the file open, so a rename would leave it writing to an unlinked inode
+# and the visible log would stay empty forever.
+/var/lib/docker/containers/*/*-json.log {
+    size 100M
+    rotate 3
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}
