@@ -32,7 +32,8 @@ func folderVisibilityValue(token string) (int16, bool) {
 
 func folderView(row model.CatalogUserFolder) repr.UserFolder {
 	return repr.UserFolder{
-		Object: "folder", ID: repr.ID(row.ID), Name: row.Name, Description: row.Description,
+		Object: "folder", ID: repr.ID(row.ID), OwnerUID: repr.ID(row.OwnerUID),
+		Name: row.Name, Description: row.Description,
 		Visibility: folderVisibilityToken(row.Visibility), IsDefault: row.IsDefault,
 		ItemCount: row.ItemCount,
 		CreatedAt: row.CreatedAt.UTC().Format(time.RFC3339),
@@ -48,7 +49,36 @@ func folderItemView(row model.CatalogUserFolderItem) repr.UserFolderItem {
 	}
 }
 
-func (c *Catalog) ListFolders(ctx context.Context, q collect.Query) (repr.List[repr.UserFolder], error) {
+// One reader and one writer for the folder-item keyset, shared by the owner
+// lane and the public one. collect.Parse has already stripped the cur_
+// envelope and finishList puts it back, so what travels here is the bare key;
+// encoding it a second time shipped a double-wrapped cursor in 2.12.0 that
+// round-tripped, so the limit=1 crawl stayed green and only the bytes were wrong.
+func parseFolderItemCursor(cursor string) (time.Time, int64, error) {
+	if cursor == "" {
+		return time.Time{}, 0, nil
+	}
+	ts, workID := cursor, int64(0)
+	if i := strings.LastIndexByte(ts, '|'); i >= 0 {
+		id, ok := repr.ParseID(ts[i+1:])
+		if !ok {
+			return time.Time{}, 0, collectInvalidCursor()
+		}
+		ts, workID = ts[:i], id
+	}
+	t, err := time.Parse(time.RFC3339, ts)
+	if err != nil {
+		return time.Time{}, 0, collectInvalidCursor()
+	}
+	return t, workID, nil
+}
+
+func folderItemNextCursor(last model.CatalogUserFolderItem) *string {
+	s := last.UpdatedAt.UTC().Format(time.RFC3339Nano) + "|" + repr.ID(last.WorkID)
+	return &s
+}
+
+func (c *Catalog) ListFolders(ctx context.Context, q collect.Query, containsWorkID int64) (repr.List[repr.UserFolder], error) {
 	if c == nil || c.Folders == nil {
 		return repr.List[repr.UserFolder]{}, problem.New(problem.CodeServiceUnavailable, "", "", "folders are not bound.")
 	}
@@ -68,7 +98,16 @@ func (c *Catalog) ListFolders(ctx context.Context, q collect.Query) (repr.List[r
 	if limit <= 0 {
 		limit = collect.DefaultLimit
 	}
-	rows, lerr := c.Folders.ListMine(ctx, uid, sinceID, limit+1)
+	list, count := c.Folders.ListMine, c.Folders.CountMine
+	if containsWorkID > 0 {
+		list = func(ctx context.Context, uid, since int64, n int) ([]model.CatalogUserFolder, error) {
+			return c.Folders.ListMineContaining(ctx, uid, containsWorkID, since, n)
+		}
+		count = func(ctx context.Context, uid int64) (int64, error) {
+			return c.Folders.CountMineContaining(ctx, uid, containsWorkID)
+		}
+	}
+	rows, lerr := list(ctx, uid, sinceID, limit+1)
 	if lerr != nil {
 		return repr.List[repr.UserFolder]{}, lerr
 	}
@@ -84,7 +123,7 @@ func (c *Catalog) ListFolders(ctx context.Context, q collect.Query) (repr.List[r
 	}
 	var total int64
 	if q.IncludeTotal {
-		if total, lerr = c.Folders.CountMine(ctx, uid); lerr != nil {
+		if total, lerr = count(ctx, uid); lerr != nil {
 			return repr.List[repr.UserFolder]{}, lerr
 		}
 	}
@@ -172,26 +211,9 @@ func (c *Catalog) ListFolderItems(ctx context.Context, folderID int64, q collect
 	if err != nil {
 		return repr.List[repr.UserFolderItem]{}, err
 	}
-	since, sinceWorkID := time.Time{}, int64(0)
-	if q.Cursor != "" {
-		// collect.Parse has already stripped the cur_ envelope and finishList
-		// puts it back, so q.Cursor is the bare key and next must be bare too.
-		// Wrapping it a second time here shipped a double-encoded cursor in
-		// 2.12.0: it round-trips, so the limit=1 crawl stayed green and only
-		// the emitted bytes were wrong.
-		ts := q.Cursor
-		if i := strings.LastIndexByte(ts, '|'); i >= 0 {
-			id, ok := repr.ParseID(ts[i+1:])
-			if !ok {
-				return repr.List[repr.UserFolderItem]{}, collectInvalidCursor()
-			}
-			ts, sinceWorkID = ts[:i], id
-		}
-		t, terr := time.Parse(time.RFC3339, ts)
-		if terr != nil {
-			return repr.List[repr.UserFolderItem]{}, collectInvalidCursor()
-		}
-		since = t
+	since, sinceWorkID, cerr := parseFolderItemCursor(q.Cursor)
+	if cerr != nil {
+		return repr.List[repr.UserFolderItem]{}, cerr
 	}
 	limit := q.Limit
 	if limit <= 0 {
@@ -204,9 +226,7 @@ func (c *Catalog) ListFolderItems(ctx context.Context, folderID int64, q collect
 	var next *string
 	if len(rows) > limit {
 		rows = rows[:limit]
-		last := rows[len(rows)-1]
-		s := last.UpdatedAt.UTC().Format(time.RFC3339Nano) + "|" + repr.ID(last.WorkID)
-		next = &s
+		next = folderItemNextCursor(rows[len(rows)-1])
 	}
 	items := make([]repr.UserFolderItem, 0, len(rows))
 	for _, r := range rows {

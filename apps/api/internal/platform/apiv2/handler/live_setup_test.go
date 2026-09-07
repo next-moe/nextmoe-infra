@@ -113,7 +113,7 @@ type liveFix struct {
 	VAOnlyCharacter                     int64
 	ENWork, ENRelease                   int64
 	RedirectOld, RedirectDatedOld       int64
-	Folder, FolderSpare                 int64
+	Folder, FolderSpare, FolderPublic   int64
 	AnchorExt                           string
 }
 
@@ -804,14 +804,16 @@ func seedLiveOLangEN(db *gorm.DB, fx *liveFix, empty datatypes.JSON) error {
 func seedLiveFolders(db *gorm.DB, fx *liveFix) error {
 	for _, f := range []struct {
 		name string
+		vis  int16
 		dst  *int64
 	}{
-		{"Live Folder", &fx.Folder},
-		{"Spec Walk Folder", &fx.FolderSpare},
+		{"Live Folder", model.FolderVisibilityPrivate, &fx.Folder},
+		{"Spec Walk Folder", model.FolderVisibilityPrivate, &fx.FolderSpare},
+		{"Live Public Folder", model.FolderVisibilityPublic, &fx.FolderPublic},
 	} {
 		row := &model.CatalogUserFolder{
 			OwnerUID: liveUID, Name: f.name,
-			Visibility: model.FolderVisibilityPrivate, ItemCount: 1,
+			Visibility: f.vis, ItemCount: 1,
 		}
 		if err := db.Create(row).Error; err != nil {
 			return err
@@ -1023,6 +1025,9 @@ func liveAuthPath(path string) string {
 	}
 	if path == "/v2/catalog/claim-events" {
 		return liveAppKeyEvent
+	}
+	if path == "/v2/folders" || strings.HasPrefix(path, "/v2/folders/") {
+		return liveAppKey
 	}
 	if strings.HasPrefix(path, "/v2/catalog/") && path != "/v2/catalog/stats" && !strings.HasPrefix(path, "/v2/catalog/schemas/") {
 		return liveAppKey

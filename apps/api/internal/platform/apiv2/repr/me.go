@@ -141,9 +141,10 @@ type UserFolder struct {
 	_           struct{} `json:"-" additionalProperties:"true"`
 	Object      string   `json:"object" enum:"folder" doc:"Type discriminant. Always folder."`
 	ID          string   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Folder id."`
+	OwnerUID    string   `json:"owner_uid" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"The account that owns this folder. This is the central sign-in user id shared by every NextMoe site, not one site's own user id."`
 	Name        string   `json:"name" maxLength:"100" doc:"Display name. Must not be used as a discriminant."`
 	Description string   `json:"description" maxLength:"500" doc:"Owner's own note. Empty string when none. Must not be used as a discriminant."`
-	Visibility  string   `json:"visibility" enum:"private,public" doc:"private folders are visible only to their owner. No public browsing face exists yet; public is a stored intent."`
+	Visibility  string   `json:"visibility" enum:"private,public" doc:"public folders are readable by anyone through /v2/folders; private ones are visible only to their owner, through /v2/me/folders."`
 	IsDefault   bool     `json:"is_default" doc:"At most one folder per user carries this. Setting it on a folder clears it on the previous holder."`
 	ItemCount   int      `json:"item_count" minimum:"0" doc:"Number of works in this folder."`
 	CreatedAt   string   `json:"created_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
