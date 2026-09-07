@@ -895,6 +895,36 @@ func TestPublicNameIntros(t *testing.T) {
 	}
 }
 
+// The bridged intro joins src_bangumi.person on external_id::bigint, so a
+// bangumi ref whose external_id is not a number would be a 500 on a read face
+// rather than a missing intro. Production holds 22,991 such refs and every one
+// is numeric, which is exactly why nothing would notice the first one that is
+// not.
+func TestPublicNameIntrosSurviveANonNumericBangumiRef(t *testing.T) {
+	cleanTables(t)
+	if err := srcb.EnsureSchema(testDB); err != nil {
+		t.Fatalf("src_bangumi schema: %v", err)
+	}
+	if err := testDB.Exec(`TRUNCATE src_bangumi.person RESTART IDENTITY CASCADE`).Error; err != nil {
+		t.Fatalf("truncate person: %v", err)
+	}
+	svc := newPublicSvc()
+
+	n := &model.CatalogCreditName{Name: "壊れた参照", Lang: "ja"}
+	if err := testDB.Create(n).Error; err != nil {
+		t.Fatalf("create name: %v", err)
+	}
+	addExternalRef(t, model.EntityTypeCreditName, n.ID, int16(3), "p999001", model.LinkKindExact)
+
+	rec, found, err := svc.Name(t.Context(), n.ID, false, false, 50, 0)
+	if err != nil || !found {
+		t.Fatalf("name: found=%v err=%v", found, err)
+	}
+	if len(rec.Intros) != 0 {
+		t.Fatalf("intros = %+v, want none", rec.Intros)
+	}
+}
+
 func TestPublicNamePersonIntros(t *testing.T) {
 	cleanTables(t)
 	if err := srcb.EnsureSchema(testDB); err != nil {

@@ -599,10 +599,18 @@ func (c *Config) ArtifactCleanupS3() S3Config {
 	return s3
 }
 
+// MaxIdle defaults to MaxOpen, and derives from it so that raising MaxOpen
+// cannot silently re-open the gap. database/sql destroys a returned connection
+// the moment the idle count is already at MaxIdle, so a pool of 10 with 5 idle
+// slots reconnects on every release above the fifth: catalog opened ~1 new
+// backend per second in production (pg_stat_database.sessions 352k over 17h,
+// every backend younger than 25s) purely to throw it away again. There is no
+// deployment that wants half its own pool discarded on release.
 func loadPoolConfig() PoolConfig {
+	maxOpen := int(getEnvInt64("KUN_PG_MAX_OPEN_CONNS", 10))
 	return PoolConfig{
-		MaxOpen:     int(getEnvInt64("KUN_PG_MAX_OPEN_CONNS", 10)),
-		MaxIdle:     int(getEnvInt64("KUN_PG_MAX_IDLE_CONNS", 5)),
+		MaxOpen:     maxOpen,
+		MaxIdle:     int(getEnvInt64("KUN_PG_MAX_IDLE_CONNS", int64(maxOpen))),
 		MaxLifetime: time.Duration(getEnvInt64("KUN_PG_CONN_MAX_LIFETIME_SECONDS", 1800)) * time.Second,
 		MaxIdleTime: time.Duration(getEnvInt64("KUN_PG_CONN_MAX_IDLE_SECONDS", 300)) * time.Second,
 	}
