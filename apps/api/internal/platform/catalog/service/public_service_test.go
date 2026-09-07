@@ -736,7 +736,7 @@ func TestPublicNSFWGate(t *testing.T) {
 	if rec.ContentRating != "r18" {
 		t.Fatalf("content_rating = %q, want r18", rec.ContentRating)
 	}
-	if len(rec.Popularity) != 1 || rec.Popularity[0].Metric != "bgm_wish" || rec.Popularity[0].Value != 42 || rec.Popularity[0].Source != "bangumi" {
+	if len(rec.Popularity) != 2 || rec.Popularity[0].Metric != "bgm_wish" || rec.Popularity[0].Value != 42 || rec.Popularity[0].Source != "bangumi" {
 		t.Fatalf("popularity facet = %+v", rec.Popularity)
 	}
 	if len(rec.Tags) != 1 || rec.Tags[0].Name != "泣きゲー" || rec.Tags[0].Source != "bangumi" {

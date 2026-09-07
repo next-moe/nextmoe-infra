@@ -4513,7 +4513,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "metric",
                                     "required": true,
-                                    "doc": "Source-native metric token.",
+                                    "doc": "Source-native metric token. The one exception is nextmoe/favorites, which is ours: the number of distinct users holding this work in a folder. Unlike every other row it is always present, so 0 means nobody rather than unknown.",
                                     "type": "string"
                                   },
                                   {
@@ -4525,7 +4525,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "value",
                                     "required": true,
-                                    "doc": "Metric value.",
+                                    "doc": "Metric value. Never sum across sources — a DLsite sale and a Bangumi wish are different units.",
                                     "format": "int64",
                                     "type": "integer"
                                   }
@@ -11995,7 +11995,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "metric",
                                         "required": true,
-                                        "doc": "Source-native metric token.",
+                                        "doc": "Source-native metric token. The one exception is nextmoe/favorites, which is ours: the number of distinct users holding this work in a folder. Unlike every other row it is always present, so 0 means nobody rather than unknown.",
                                         "type": "string"
                                       },
                                       {
@@ -12007,7 +12007,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "value",
                                         "required": true,
-                                        "doc": "Metric value.",
+                                        "doc": "Metric value. Never sum across sources — a DLsite sale and a Bangumi wish are different units.",
                                         "format": "int64",
                                         "type": "integer"
                                       }
@@ -22727,7 +22727,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "metric",
                                         "required": true,
-                                        "doc": "Source-native metric token.",
+                                        "doc": "Source-native metric token. The one exception is nextmoe/favorites, which is ours: the number of distinct users holding this work in a folder. Unlike every other row it is always present, so 0 means nobody rather than unknown.",
                                         "type": "string"
                                       },
                                       {
@@ -22739,7 +22739,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "value",
                                         "required": true,
-                                        "doc": "Metric value.",
+                                        "doc": "Metric value. Never sum across sources — a DLsite sale and a Bangumi wish are different units.",
                                         "format": "int64",
                                         "type": "integer"
                                       }
@@ -51528,7 +51528,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "metric",
                                     "required": true,
-                                    "doc": "Source-native metric token.",
+                                    "doc": "Source-native metric token. The one exception is nextmoe/favorites, which is ours: the number of distinct users holding this work in a folder. Unlike every other row it is always present, so 0 means nobody rather than unknown.",
                                     "type": "string"
                                   },
                                   {
@@ -51540,7 +51540,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "value",
                                     "required": true,
-                                    "doc": "Metric value.",
+                                    "doc": "Metric value. Never sum across sources — a DLsite sale and a Bangumi wish are different units.",
                                     "format": "int64",
                                     "type": "integer"
                                   }
@@ -54456,7 +54456,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "metric",
                               "required": true,
-                              "doc": "Source-native metric token.",
+                              "doc": "Source-native metric token. The one exception is nextmoe/favorites, which is ours: the number of distinct users holding this work in a folder. Unlike every other row it is always present, so 0 means nobody rather than unknown.",
                               "type": "string"
                             },
                             {
@@ -54468,7 +54468,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "value",
                               "required": true,
-                              "doc": "Metric value.",
+                              "doc": "Metric value. Never sum across sources — a DLsite sale and a Bangumi wish are different units.",
                               "format": "int64",
                               "type": "integer"
                             }
@@ -66153,7 +66153,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "metric",
                                         "required": true,
-                                        "doc": "Source-native metric token.",
+                                        "doc": "Source-native metric token. The one exception is nextmoe/favorites, which is ours: the number of distinct users holding this work in a folder. Unlike every other row it is always present, so 0 means nobody rather than unknown.",
                                         "type": "string"
                                       },
                                       {
@@ -66165,7 +66165,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "value",
                                         "required": true,
-                                        "doc": "Metric value.",
+                                        "doc": "Metric value. Never sum across sources — a DLsite sale and a Bangumi wish are different units.",
                                         "format": "int64",
                                         "type": "integer"
                                       }
