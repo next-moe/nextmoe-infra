@@ -8,6 +8,7 @@ import (
 
 	"api/internal/platform/catalog/migrate"
 	"api/internal/platform/catalog/model"
+	"api/internal/platform/catalog/seed"
 	"api/internal/testsupport/dbtest"
 
 	"github.com/stretchr/testify/require"
@@ -33,6 +34,12 @@ func TestMain(m *testing.M) {
 	}
 	if err := migrate.Run(db); err != nil {
 		dbtest.SkipMainf("cmd/import-favorites", "catalog migration failed: %v", err)
+	}
+	// The fixture needs catalog_medium and the vndb catalog_source row, neither
+	// of which migrate.Run writes. Without this the suite only passed against a
+	// database that already held real catalog data.
+	if err := seed.Run(db); err != nil {
+		dbtest.SkipMainf("cmd/import-favorites", "catalog seed failed: %v", err)
 	}
 	testDB = db
 	os.Exit(m.Run())
@@ -281,4 +288,29 @@ func TestDryRunWritesNothing(t *testing.T) {
 	require.Zero(t, n)
 	require.NoError(t, testDB.Model(&model.CatalogUserFolderItem{}).Count(&n).Error)
 	require.Zero(t, n)
+}
+
+// Two moyu patches carrying one vndb id resolve to one work, so the lane emits
+// the same (folder, work) pair twice; with both in one batch Postgres aborts the
+// statement with "ON CONFLICT DO UPDATE command cannot affect row a second
+// time". That is how the 2026-09-07 production run died on its first moyu
+// flush, after both forum lanes had already been written.
+func TestOneBatchNeverCarriesAPairTwice(t *testing.T) {
+	fx := seedFixture(t)
+	require.NoError(t, testDB.Exec(`INSERT INTO patch (id, vndb_id) VALUES (1, 'vtest1'), (2, 'vtest1')`).Error)
+	require.NoError(t, testDB.Exec(`
+		INSERT INTO user_patch_favorite_relation (id, user_id, galgame_id, created, updated)
+		VALUES (1, 11, 1, ?, ?), (2, 11, 2, ?, ?)`, at(5), at(6), at(2), at(9)).Error)
+
+	imp := loadedImporter(t, true)
+	c, err := imp.importMoyu()
+	require.NoError(t, err)
+	require.Equal(t, 1, c.ItemsInserted)
+	require.Equal(t, 1, c.ItemsMerged)
+
+	var items []model.CatalogUserFolderItem
+	require.NoError(t, testDB.Where("work_id = ?", fx.live).Find(&items).Error)
+	require.Len(t, items, 1)
+	require.Equal(t, at(2).UTC(), items[0].CreatedAt.UTC(), "folding keeps the earliest created")
+	require.Equal(t, at(9).UTC(), items[0].UpdatedAt.UTC(), "folding keeps the latest updated")
 }

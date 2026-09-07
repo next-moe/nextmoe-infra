@@ -26,9 +26,31 @@ type itemRow struct {
 type itemBatch struct {
 	imp  *importer
 	rows []itemRow
+	at   map[[2]int64]int
 }
 
+// add folds a pair the batch already carries instead of appending it twice.
+// Postgres refuses a statement whose ON CONFLICT target matches one row more
+// than once ("cannot affect row a second time"), and both flat lanes re-emit a
+// pair they have already placed precisely so the conflict clause can reconcile
+// the two timestamps. Two moyu patches sharing one vndb anchor put such a pair
+// in a single batch and killed the 2026-09-07 production run on its first moyu
+// flush; folding here applies the same LEAST/GREATEST the clause would.
 func (b *itemBatch) add(r itemRow) error {
+	key := [2]int64{r.FolderID, r.WorkID}
+	if n, held := b.at[key]; held {
+		if r.Created.Before(b.rows[n].Created) {
+			b.rows[n].Created = r.Created
+		}
+		if r.Updated.After(b.rows[n].Updated) {
+			b.rows[n].Updated = r.Updated
+		}
+		return nil
+	}
+	if b.at == nil {
+		b.at = make(map[[2]int64]int, b.imp.batch)
+	}
+	b.at[key] = len(b.rows)
 	b.rows = append(b.rows, r)
 	if len(b.rows) >= b.imp.batch {
 		return b.flush()
@@ -36,9 +58,14 @@ func (b *itemBatch) add(r itemRow) error {
 	return nil
 }
 
+func (b *itemBatch) reset() {
+	b.rows = b.rows[:0]
+	clear(b.at)
+}
+
 func (b *itemBatch) flush() error {
 	if len(b.rows) == 0 || !b.imp.apply {
-		b.rows = b.rows[:0]
+		b.reset()
 		return nil
 	}
 	var sb strings.Builder
@@ -57,7 +84,7 @@ func (b *itemBatch) flush() error {
 	if err := b.imp.cat.Exec(sb.String(), args...).Error; err != nil {
 		return err
 	}
-	b.rows = b.rows[:0]
+	b.reset()
 	return nil
 }
 
