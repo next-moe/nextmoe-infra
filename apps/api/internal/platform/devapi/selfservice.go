@@ -29,13 +29,15 @@ const (
 // takes any valid key, so there is nothing left to tick. store:read joined on
 // 2026-08-26 as part of the same retirement: /v1/store still checks the scope
 // on every request, and with the application queue gone, ticking it here is the
-// only way anyone can hold it.
-var selfServiceScopes = []string{ScopeCatalogRead, ScopeStoreRead}
+// only way anyone can hold it. moyu:read and sticker:read joined on 2026-09-08
+// with the first two federated downstream faces (B-tier gateway termination,
+// docs/developer-platform/08 §16.5) — read-only faces stay self-service per §16.2.
+var selfServiceScopes = []string{ScopeCatalogRead, ScopeStoreRead, ScopeMoyuRead, ScopeStickerRead}
 
 var (
 	ErrAppLimitReached = errors.New("devapi: application limit reached")
 	ErrKeyLimitReached = errors.New("devapi: active key limit reached")
-	ErrScopeNotAllowed = errors.New("devapi: scope not permitted (want catalog:read or store:read)")
+	ErrScopeNotAllowed = errors.New("devapi: scope not permitted (want catalog:read, store:read, moyu:read or sticker:read)")
 	ErrNameRequired    = errors.New("devapi: name is required")
 	ErrNameTooLong     = errors.New("devapi: name too long (max 100)")
 	ErrDescTooLong     = errors.New("devapi: description too long (max 100)")

@@ -30,7 +30,7 @@
 
 ## 鉴权模型
 
-- 应用密钥（`Authorization: Bearer nmk_live_…`）——在 https://developer.nextmoe.dev 控制台自助创建应用与密钥，无需申请；自助可勾选的 scope 有 catalog:read 与 store:read。/v2 只收 nmk_ 前缀的密钥。
+- 应用密钥（`Authorization: Bearer nmk_live_…`）——在 https://developer.nextmoe.dev 控制台自助创建应用与密钥，无需申请；自助可勾选的 scope 有 catalog:read、store:read、moyu:read 与 sticker:read。/v2 只收 nmk_ 前缀的密钥。
 - 用户访问令牌（`Authorization: Bearer <access token>`）——/v2/me 与 /v2/moderation 读写的是某个用户自己的东西，用该用户经 OAuth 授权码 + PKCE 授权后的令牌，不是应用密钥。
 - v1 已于 2026-08-27 全面退役：/v1/catalog、/v1/news、/v1/store、/v1/playtime、/api/v1/catalog 与 /api/v1/user/catalog 一律返回 410，Link 指向 /v2。
 - `/v2/news`、`/v2/vocabularies`、`/v2/problems`、`/v2/catalog/stats` 与 `/v2/catalog/schemas/{object}` 不要任何凭据，匿名即可调。
@@ -58,7 +58,7 @@
 
 密钥形如 `nmk_live_…`，尾部带 CRC32 校验位，**只在铸造时显示一次**。它是机密：只放服务端，不要写进前端包、移动端二进制或公开仓库。开发联调可以铸 `nmk_test_` 前缀的测试密钥。分发出去的桌面客户端没有服务端可放，读目录数据请改用用户访问令牌——见[原生桌面应用接入](/docs/native-app)。
 
-自助可勾选的 scope 有两个——`catalog:read`（读目录数据）与 `store:read`（商店联盟链接）。`claim_events:read` 由运营方按需授予，不能自助勾选。
+自助可勾选的 scope 有四个——`catalog:read`（读目录数据）、`store:read`（商店联盟链接）、`moyu:read`（moyu 补丁资源面）与 `sticker:read`（表情包面）。`claim_events:read` 由运营方按需授予，不能自助勾选。
 
 ## 3 · 发出第一个请求
 
@@ -151,7 +151,7 @@ curl "https://api.nextmoe.dev/v2/catalog/works?refs=vndb:v19658,bangumi:302835" 
 
 | 身份         | 请求头                                 | 代表谁             | 用在哪些前缀                                                                                        |
 | ------------ | -------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------- |
-| 应用密钥     | `Authorization: Bearer nmk_live_…`     | 你的应用           | `/v2/catalog`、`/v2/store`                                                                          |
+| 应用密钥     | `Authorization: Bearer nmk_live_…`     | 你的应用           | `/v2/catalog`、`/v2/store`、`/v1/moyu/*`、`/v1/sticker/*`                                           |
 | 用户访问令牌 | `Authorization: Bearer <access_token>` | 授权给你的那个用户 | `/v2/me`、`/v2/moderation`；带 `catalog:read` 时也可用于 `/v2/catalog`                             |
 | 匿名         | 不带                                   | 任何人             | `/v2/news`、`/v2/vocabularies`、`/v2/problems`、`/v2/catalog/stats`、`/v2/catalog/schemas/{object}` |
 
@@ -171,6 +171,8 @@ curl "https://api.nextmoe.dev/v2/catalog/works?refs=vndb:v19658,bangumi:302835" 
 | ------------------- | ------------------------------------------------------------------------------- | ------------------------ |
 | `catalog:read`      | 整个 `/v2/catalog` 只读面                                                       | 控制台自助勾选；也可作为用户 scope 向人索取 |
 | `store:read`        | `/v2/store` 商店联盟链接与统计                                                  | 控制台自助勾选           |
+| `moyu:read`         | `/v1/moyu/*` 补丁资源只读面（面联邦下游面，gateway-terminated）                    | 控制台自助勾选           |
+| `sticker:read`      | `/v1/sticker/*` 表情包只读面（面联邦下游面，gateway-terminated）                  | 控制台自助勾选           |
 | `claim_events:read` | 认领事件 feed 与自家站点的审核队列状态（`claim_state=pending,declined,hidden`） | 运营方按需授予，不能自助 |
 
 `claim_events:read` 不开放自助是有原因的：那条 feed 里带着每次拒绝的理由和做出决定的审核员 uid。

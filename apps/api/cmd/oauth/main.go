@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
+	"time"
 
 	"api/internal/app"
 	"api/internal/infrastructure/database"
@@ -174,6 +175,38 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 		a.Fiber.Get("/.well-known/oauth-authorization-server", oidcH.Discovery)
 	}
 
+	devStore := devapi.NewRedisStore(a.Cache)
+	devMW := devapi.NewMiddleware(devRepo, devStore)
+	usageRec := devapi.NewUsageRecorder(devRepo, devStore)
+	fwdAuth := devapi.NewForwardAuth(devMW, usageRec)
+	// Before CORS and the house IP limiter: this handler never calls Next, so
+	// Traefik's single egress identity would otherwise share one rate bucket
+	// across every downstream face. Same placement as /healthz and /oauth/jwks.
+	a.Fiber.Get("/internal/devapi/forward-auth", fwdAuth.Handle)
+
+	flushDone := make(chan struct{})
+	go func() {
+		t := time.NewTicker(60 * time.Second)
+		defer t.Stop()
+		for {
+			select {
+			case <-flushDone:
+				return
+			case <-t.C:
+				if err := usageRec.Flush(context.Background()); err != nil {
+					slog.Warn("devapi usage flush failed", "err", err)
+				}
+			}
+		}
+	}()
+	a.Fiber.Hooks().OnPreShutdown(func() error {
+		close(flushDone)
+		if err := usageRec.Flush(context.Background()); err != nil {
+			slog.Warn("devapi final usage flush failed", "err", err)
+		}
+		return nil
+	})
+
 	a.Fiber.Use(middleware.CORS(cfg.Server.CORSOrigin))
 	a.Fiber.Use(middleware.RateLimit(a.Cache))
 
@@ -297,7 +330,6 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 		siteH.UpdateClientStorage)
 	oauthClients.Delete("/:id", middleware.RequirePermission(sitePerm.Resolver, sitePerm.ClientsDelete), siteH.DeleteClient)
 
-	devStore := devapi.NewRedisStore(a.Cache)
 	devAdminSvc := devapi.NewAdminService(devRepo, devStore)
 	devAdminH := devapi.NewAdminHandler(devAdminSvc)
 	devGroup := admin.Group("/devapi", middleware.RequirePermission(devapiPerm.Resolver, devapiPerm.Manage))

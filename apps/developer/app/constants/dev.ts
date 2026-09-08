@@ -13,7 +13,12 @@ export const DEV_TIER_LABELS: Record<string, string> = {
   internal: 'Internal（内部）'
 }
 
-export const DEV_MINTABLE_SCOPES = ['catalog:read', 'store:read'] as const
+export const DEV_MINTABLE_SCOPES = [
+  'catalog:read',
+  'store:read',
+  'moyu:read',
+  'sticker:read'
+] as const
 
 // What a fresh mint dialog pre-ticks. store:read is mintable but deliberately
 // not defaulted: it opens per-site link minting with a per-app product cap, so
