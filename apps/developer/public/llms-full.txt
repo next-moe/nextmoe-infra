@@ -3691,7 +3691,7 @@ curl "https://api.nextmoe.dev/v2/news/sources"
 
 Get one news item
 
-A published news item. Withdrawn items are 404. Unauthenticated. source and source_url are always present.
+A published news item. A withdrawn item is 410 GONE, not 404: a mirror that only sees the item leave the list never learns the copy it took was pulled. An item that never existed, or is still pending, is 404. Unauthenticated. source and source_url are always present.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：无需凭据

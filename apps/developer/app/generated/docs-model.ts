@@ -72744,6 +72744,16 @@ export const docsModel: DocsModel = {
                               "type": "string"
                             },
                             {
+                              "name": "lane",
+                              "required": true,
+                              "doc": "The section the source itself filed this under. 月幕 serves the two from separate endpoints with an identical payload, so this is the only thing that tells them apart.",
+                              "enum": [
+                                "news",
+                                "column"
+                              ],
+                              "type": "string"
+                            },
+                            {
                               "name": "object",
                               "required": true,
                               "doc": "Type discriminant. Always news_item.",
@@ -72764,6 +72774,19 @@ export const docsModel: DocsModel = {
                               "required": true,
                               "type": "object",
                               "children": [
+                                {
+                                  "name": "attribution",
+                                  "required": true,
+                                  "doc": "The reprint notice, in the source's own words. Display it with the item; do not compose your own. Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "column_url",
+                                  "required": true,
+                                  "doc": "The source's column index. Empty string when the source publishes no column.",
+                                  "format": "uri",
+                                  "type": "string"
+                                },
                                 {
                                   "name": "display_name",
                                   "required": true,
@@ -73532,6 +73555,19 @@ export const docsModel: DocsModel = {
                           "type": "object",
                           "children": [
                             {
+                              "name": "attribution",
+                              "required": true,
+                              "doc": "The reprint notice, in the source's own words. Display it with the item; do not compose your own. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "column_url",
+                              "required": true,
+                              "doc": "The source's column index. Empty string when the source publishes no column.",
+                              "format": "uri",
+                              "type": "string"
+                            },
+                            {
                               "name": "display_name",
                               "required": true,
                               "doc": "Must not be used as a discriminant.",
@@ -74097,7 +74133,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/news/{id}",
               "summary": "Get one news item",
-              "description": "A published news item. Withdrawn items are 404. Unauthenticated. source and source_url are always present.",
+              "description": "A published news item. A withdrawn item is 410 GONE, not 404: a mirror that only sees the item leave the list never learns the copy it took was pulled. An item that never existed, or is still pending, is 404. Unauthenticated. source and source_url are always present.",
               "scope": "",
               "auth": {
                 "kind": "none",
@@ -74201,6 +74237,16 @@ export const docsModel: DocsModel = {
                         "type": "string"
                       },
                       {
+                        "name": "lane",
+                        "required": true,
+                        "doc": "The section the source itself filed this under. 月幕 serves the two from separate endpoints with an identical payload, so this is the only thing that tells them apart.",
+                        "enum": [
+                          "news",
+                          "column"
+                        ],
+                        "type": "string"
+                      },
+                      {
                         "name": "object",
                         "required": true,
                         "doc": "Type discriminant. Always news_item.",
@@ -74221,6 +74267,19 @@ export const docsModel: DocsModel = {
                         "required": true,
                         "type": "object",
                         "children": [
+                          {
+                            "name": "attribution",
+                            "required": true,
+                            "doc": "The reprint notice, in the source's own words. Display it with the item; do not compose your own. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "column_url",
+                            "required": true,
+                            "doc": "The source's column index. Empty string when the source publishes no column.",
+                            "format": "uri",
+                            "type": "string"
+                          },
                           {
                             "name": "display_name",
                             "required": true,
@@ -74403,6 +74462,129 @@ export const docsModel: DocsModel = {
                 {
                   "status": "404",
                   "description": "Not Found",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live works sharing a submitted title when code is DUPLICATE_SUSPECTS.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The live work's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog work id.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "410",
+                  "description": "Gone",
                   "schema": {
                     "type": "object",
                     "children": [
@@ -101554,6 +101736,19 @@ export const docsModel: DocsModel = {
                               "type": "object",
                               "children": [
                                 {
+                                  "name": "attribution",
+                                  "required": true,
+                                  "doc": "The reprint notice, in the source's own words. Display it with the item; do not compose your own. Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "column_url",
+                                  "required": true,
+                                  "doc": "The source's column index. Empty string when the source publishes no column.",
+                                  "format": "uri",
+                                  "type": "string"
+                                },
+                                {
                                   "name": "display_name",
                                   "required": true,
                                   "doc": "Must not be used as a discriminant.",
@@ -102837,6 +103032,19 @@ export const docsModel: DocsModel = {
                         "required": true,
                         "type": "object",
                         "children": [
+                          {
+                            "name": "attribution",
+                            "required": true,
+                            "doc": "The reprint notice, in the source's own words. Display it with the item; do not compose your own. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "column_url",
+                            "required": true,
+                            "doc": "The source's column index. Empty string when the source publishes no column.",
+                            "format": "uri",
+                            "type": "string"
+                          },
                           {
                             "name": "display_name",
                             "required": true,
@@ -104406,6 +104614,19 @@ export const docsModel: DocsModel = {
                         "type": "object",
                         "children": [
                           {
+                            "name": "attribution",
+                            "required": true,
+                            "doc": "The reprint notice, in the source's own words. Display it with the item; do not compose your own. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "column_url",
+                            "required": true,
+                            "doc": "The source's column index. Empty string when the source publishes no column.",
+                            "format": "uri",
+                            "type": "string"
+                          },
+                          {
                             "name": "display_name",
                             "required": true,
                             "doc": "Must not be used as a discriminant.",
@@ -105657,6 +105878,19 @@ export const docsModel: DocsModel = {
                         "required": true,
                         "type": "object",
                         "children": [
+                          {
+                            "name": "attribution",
+                            "required": true,
+                            "doc": "The reprint notice, in the source's own words. Display it with the item; do not compose your own. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "column_url",
+                            "required": true,
+                            "doc": "The source's column index. Empty string when the source publishes no column.",
+                            "format": "uri",
+                            "type": "string"
+                          },
                           {
                             "name": "display_name",
                             "required": true,

@@ -4479,6 +4479,13 @@ components:
           minLength: 1
           pattern: ^[0-9]+$
           type: string
+        lane:
+          description: The section the source itself filed this under. 月幕 serves the two from separate endpoints with an identical payload, so this is the only thing that tells them apart.
+          enum:
+            - news
+            - column
+          type: string
+          x-vocabulary-closed: true
         object:
           description: Type discriminant. Always news_item.
           enum:
@@ -4513,12 +4520,22 @@ components:
         - summary
         - source
         - source_url
+        - lane
         - banner
         - published_at
       type: object
     NewsSource:
       additionalProperties: true
       properties:
+        attribution:
+          description: The reprint notice, in the source's own words. Display it with the item; do not compose your own. Must not be used as a discriminant.
+          maxLength: 512
+          type: string
+        column_url:
+          description: The source's column index. Empty string when the source publishes no column.
+          format: uri
+          maxLength: 512
+          type: string
         display_name:
           description: Must not be used as a discriminant.
           maxLength: 512
@@ -4544,6 +4561,8 @@ components:
         - name
         - display_name
         - homepage_url
+        - attribution
+        - column_url
       type: object
     NewsSubmission:
       additionalProperties: true
@@ -7466,7 +7485,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.18.0
+  version: 2.19.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -18736,7 +18755,7 @@ paths:
         - news
   /v2/news/{id}:
     get:
-      description: A published news item. Withdrawn items are 404. Unauthenticated. source and source_url are always present.
+      description: "A published news item. A withdrawn item is 410 GONE, not 404: a mirror that only sees the item leave the list never learns the copy it took was pulled. An item that never existed, or is still pending, is 404. Unauthenticated. source and source_url are always present."
       operationId: getNewsItem
       parameters:
         - description: Decimal news item id.
@@ -18770,6 +18789,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
           description: Not Found
+        "410":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Gone
         "422":
           content:
             application/problem+json:
