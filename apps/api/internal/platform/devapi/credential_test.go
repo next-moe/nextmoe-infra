@@ -2,6 +2,7 @@ package devapi
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -31,7 +32,7 @@ func TestScopeGalgameReadRetired(t *testing.T) {
 	if err := checkMintScopes([]string{ScopeGalgameRead}); err != ErrScopeNotAllowed {
 		t.Errorf("minting galgame:read = %v, want ErrScopeNotAllowed", err)
 	}
-	if want := []string{ScopeCatalogRead, ScopeStoreRead}; !slices.Equal(selfServiceScopes, want) {
+	if want := []string{ScopeCatalogRead, ScopeStoreRead, ScopeMoyuRead, ScopeStickerRead}; !slices.Equal(selfServiceScopes, want) {
 		t.Errorf("selfServiceScopes = %v, want %v", selfServiceScopes, want)
 	}
 }
@@ -46,6 +47,30 @@ func TestScopeStoreReadSelfService(t *testing.T) {
 	}
 	if err := checkMintScopes([]string{ScopeStoreRead}); err != nil {
 		t.Errorf("minting store:read = %v, want it accepted", err)
+	}
+}
+
+func TestScopeMoyuAndStickerReadSelfService(t *testing.T) {
+	if ScopeMoyuRead != "moyu:read" {
+		t.Errorf("ScopeMoyuRead = %q, want %q", ScopeMoyuRead, "moyu:read")
+	}
+	if ScopeStickerRead != "sticker:read" {
+		t.Errorf("ScopeStickerRead = %q, want %q", ScopeStickerRead, "sticker:read")
+	}
+	if err := checkMintScopes([]string{ScopeMoyuRead}); err != nil {
+		t.Errorf("minting moyu:read = %v, want it accepted", err)
+	}
+	if err := checkMintScopes([]string{ScopeStickerRead}); err != nil {
+		t.Errorf("minting sticker:read = %v, want it accepted", err)
+	}
+	if err := checkMintScopes([]string{ScopeCatalogRead, ScopeStoreRead, ScopeMoyuRead, ScopeStickerRead}); err != nil {
+		t.Errorf("minting all four self-service scopes = %v, want it accepted", err)
+	}
+	msg := ErrScopeNotAllowed.Error()
+	for _, sc := range []string{ScopeCatalogRead, ScopeStoreRead, ScopeMoyuRead, ScopeStickerRead} {
+		if !strings.Contains(msg, sc) {
+			t.Errorf("ErrScopeNotAllowed message %q does not name %q", msg, sc)
+		}
 	}
 }
 

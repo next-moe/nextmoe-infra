@@ -14,6 +14,8 @@ const (
 	ScopeGalgameNSFW  = "galgame:nsfw"
 	ScopeGalgameWrite = "galgame:write"
 	ScopeStoreRead    = "store:read"
+	ScopeMoyuRead     = "moyu:read"
+	ScopeStickerRead  = "sticker:read"
 	// Operator-granted, never self-service: claim events carry decline reasons
 	// and the moderator uid behind every decision.
 	ScopeClaimEventsRead = "claim_events:read"

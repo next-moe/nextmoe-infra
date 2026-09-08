@@ -7,7 +7,7 @@
 ### 16.1 裁定
 
 - kungal / moyu / letmoe 等下游站点若开放自己的公开 API(话题列表、资源列表等 GET 小面),一律**并入 NextMoe 开发者平台,作为新 face**;**绝不**由各下游另建/另维护一套开发者平台。
-- 不变量:**凭证 / 门户 / 计量 / 契约门,全生态只有一个平面**。第三方开发者一把 `nm_` key、一个门户账号、一处用量与文档,横跨全部产品面。
+- 不变量:**凭证 / 门户 / 计量 / 契约门,全生态只有一个平面**。第三方开发者一把 `nmk_` key、一个门户账号、一处用量与文档,横跨全部产品面。
 - 业界对标:Google / Stripe / GitHub 全产品共用一个 developer console 与凭证体系,产品只是命名空间。本平台的 face / scope 抽象(02 §3.1;演进条款「新媒介加面」)从第一天就是为此设计的——下游面与未来的 manga / novel / anime 面走同一条路。
 
 ### 16.2 形态
@@ -30,7 +30,45 @@
 
 - 下游面进平台 **≠** 下游数据进 catalog:face 联邦的是鉴权/计量/契约,数据与实现仍归下游仓。
 - staff / 站内管理端点永不入面(与 03 §4、06 §11 同则)。
-- **本节为预备拍板,触发式执行**:首个下游面立项时按此办,勿提前建设。
+- **本节为预备拍板,触发式执行**:首个下游面立项时按此办,勿提前建设。(触发器已于 2026-09-08 点燃,见 §16.5。)
+
+### 16.5 B 档校验端点(2026-09-08 立项交付)
+
+首个下游面立项,触发 §16.4:**moyu**(www.moyu.moe 补丁资源)与 **sticker**(sticker.kungal.com 表情包)。B 档校验端点随本次交付;网关标签另接线,不在本变更落地。
+
+**端点**:oauth 服务 `GET /internal/devapi/forward-auth?face=<name>`。生产 oauth 的 Traefik router 只覆盖 `/api/v1`、两条 OIDC 元数据路径与面板 web,`/internal/*` 靠路由隔离,不是靠保密。2xx 放行,其余状态原样回给调用方。401 无/坏密钥,403 缺对应 scope,429 超限;未注册或缺失 `face` 为 500(Traefik 接线错误,不是客户端错误)。
+
+成功时写三个响应头,始终全写,好让 Traefik `authResponseHeaders` 覆盖客户端原值:
+
+- `X-NextMoe-Client-Id`
+- `X-NextMoe-Key-Id`
+- `X-NextMoe-Tier`
+
+下游只可通过 Traefik `authResponseHeaders` 信任这三个头,不可信客户端原请求。
+
+**计量**:B 档数的是闸门放行的请求,不是下游业务结果(与 A 档不对称,接受)。`UsageRecorder.Record` 的 face 为注册表名(`moyu` / `sticker`),path 为该面静态 `pathLabel`(`/v1/moyu/*` / `/v1/sticker/*`),永不写具体 URI。注册表手维护于 `apps/api/internal/platform/devapi/forwardauth.go`;未注册 face 不得入计量(超长 face 会毒化后续整批 flush,见 model.go Face 列宽教训)。加一张脸 = 注册表一行 + 一个 `<site>:read` scope。
+
+**Traefik 标签配方**(占位符随下游服务别名与端口替换;http 孪生只做跳 https,forwardAuth 挂在 websecure):
+
+```yaml
+traefik.enable: "true"
+traefik.http.routers.<svc>-pub.rule: Host(`api.nextmoe.dev`) && PathPrefix(`/v1/moyu`)
+traefik.http.routers.<svc>-pub.entrypoints: websecure
+traefik.http.routers.<svc>-pub.tls.certresolver: letsencrypt
+traefik.http.routers.<svc>-pub.middlewares: <svc>-forwardauth
+traefik.http.routers.<svc>-pub.service: <svc>-pub
+traefik.http.routers.<svc>-pub-http.rule: Host(`api.nextmoe.dev`) && PathPrefix(`/v1/moyu`)
+traefik.http.routers.<svc>-pub-http.entrypoints: web
+traefik.http.routers.<svc>-pub-http.middlewares: redirect-to-https@file
+traefik.http.routers.<svc>-pub-http.service: <svc>-pub
+traefik.http.middlewares.<svc>-forwardauth.forwardauth.address: http://<oauth-alias>:9277/internal/devapi/forward-auth?face=moyu
+traefik.http.middlewares.<svc>-forwardauth.forwardauth.authResponseHeaders: X-NextMoe-Client-Id,X-NextMoe-Key-Id,X-NextMoe-Tier
+traefik.http.services.<svc>-pub.loadbalancer.server.port: "<port>"
+```
+
+sticker 面同一套,`PathPrefix(/v1/sticker)` + `face=sticker`。
+
+`moyu:read` / `sticker:read` 自本次交付起为自助 scope,控制台可勾。
 
 ## 17. OpenAPI 契约与客户端 SDK(含 Flutter)
 

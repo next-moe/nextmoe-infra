@@ -19,7 +19,7 @@ description: 五分钟接入 NextMoe 开放 API v2：创建应用、铸造密钥
 
 密钥形如 `nmk_live_…`，尾部带 CRC32 校验位，**只在铸造时显示一次**。它是机密：只放服务端，不要写进前端包、移动端二进制或公开仓库。开发联调可以铸 `nmk_test_` 前缀的测试密钥。分发出去的桌面客户端没有服务端可放，读目录数据请改用用户访问令牌——见[原生桌面应用接入](/docs/native-app)。
 
-自助可勾选的 scope 有两个——`catalog:read`（读目录数据）与 `store:read`（商店联盟链接）。`claim_events:read` 由运营方按需授予，不能自助勾选。
+自助可勾选的 scope 有四个——`catalog:read`（读目录数据）、`store:read`（商店联盟链接）、`moyu:read`（moyu 补丁资源面）与 `sticker:read`（表情包面）。`claim_events:read` 由运营方按需授予，不能自助勾选。
 
 ## 3 · 发出第一个请求 {#first-call}
 

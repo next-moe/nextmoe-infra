@@ -12,7 +12,7 @@ description: NextMoe API v2 的两种凭据：应用密钥 nmk_ 与用户 OAuth 
 
 | 身份         | 请求头                                 | 代表谁             | 用在哪些前缀                                                                                        |
 | ------------ | -------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------- |
-| 应用密钥     | `Authorization: Bearer nmk_live_…`     | 你的应用           | `/v2/catalog`、`/v2/store`                                                                          |
+| 应用密钥     | `Authorization: Bearer nmk_live_…`     | 你的应用           | `/v2/catalog`、`/v2/store`、`/v1/moyu/*`、`/v1/sticker/*`                                           |
 | 用户访问令牌 | `Authorization: Bearer <access_token>` | 授权给你的那个用户 | `/v2/me`、`/v2/moderation`；带 `catalog:read` 时也可用于 `/v2/catalog`                             |
 | 匿名         | 不带                                   | 任何人             | `/v2/news`、`/v2/vocabularies`、`/v2/problems`、`/v2/catalog/stats`、`/v2/catalog/schemas/{object}` |
 
@@ -32,6 +32,8 @@ description: NextMoe API v2 的两种凭据：应用密钥 nmk_ 与用户 OAuth 
 | ------------------- | ------------------------------------------------------------------------------- | ------------------------ |
 | `catalog:read`      | 整个 `/v2/catalog` 只读面                                                       | 控制台自助勾选；也可作为用户 scope 向人索取 |
 | `store:read`        | `/v2/store` 商店联盟链接与统计                                                  | 控制台自助勾选           |
+| `moyu:read`         | `/v1/moyu/*` 补丁资源只读面（面联邦下游面，gateway-terminated）                    | 控制台自助勾选           |
+| `sticker:read`      | `/v1/sticker/*` 表情包只读面（面联邦下游面，gateway-terminated）                  | 控制台自助勾选           |
 | `claim_events:read` | 认领事件 feed 与自家站点的审核队列状态（`claim_state=pending,declined,hidden`） | 运营方按需授予，不能自助 |
 
 `claim_events:read` 不开放自助是有原因的：那条 feed 里带着每次拒绝的理由和做出决定的审核员 uid。
