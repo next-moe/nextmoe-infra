@@ -58,14 +58,17 @@ func JWTAuth(verifier *oidctoken.Verifier) fiber.Handler {
 func setIdentityLocals(c fiber.Ctx, claims *utils.TokenClaims) {
 	c.Locals("user_uuid", claims.UserUUID)
 	c.Locals("user_id", claims.ID)
-	c.Locals("user_roles", unionRoles(claims.Roles, claims.SiteRoles))
+	c.Locals("user_roles", UnionRoles(claims.Roles, claims.SiteRoles))
 	c.Locals("user_scope", claims.Scope)
 	c.Locals("user_site", claims.SiteID)
 	c.Locals("user_global_roles", claims.Roles)
 	c.Locals("token_client_id", claims.ClientID)
 }
 
-func unionRoles(global, site []string) []string {
+// UnionRoles is what "the roles this token carries" means everywhere. A site
+// grant is a role like any other, and a face that reads claims.Roles alone
+// cannot see one.
+func UnionRoles(global, site []string) []string {
 	if len(site) == 0 {
 		return global
 	}

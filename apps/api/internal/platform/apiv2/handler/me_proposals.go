@@ -26,10 +26,29 @@ func (c *Catalog) policyActor(ctx context.Context) (editing.PolicyContext, error
 	return editing.PolicyContext{
 		UserID: uid, Site: site,
 		ModerationCapped: thirdPartyFrom(ctx),
+		TrustTier:        trustTier(ctx),
 		HasPerm: func(key string) bool {
 			return catalogPerm.Resolver.Can(roles, authz.Permission(key))
 		},
 	}, nil
+}
+
+// v1's userEditActor set the trusted tier from exactly this pair, and wave R3
+// carried neither half to v2. PolicyContext.TrustTier ended up set by nothing,
+// so every ProposeTrusted field was proposable by nobody -- which is the whole
+// of letmoe's edit surface (editspec/work.go:57). The mint lane lost the other
+// half: it read the permission without the third-party test, so a
+// developer-owned app could publish a claim straight to live.
+func actsAsTrusted(ctx context.Context) bool {
+	return !thirdPartyFrom(ctx) &&
+		catalogPerm.Resolver.Can(rolesFrom(ctx), catalogPerm.EditTrusted)
+}
+
+func trustTier(ctx context.Context) int16 {
+	if actsAsTrusted(ctx) {
+		return editing.TrustedTier
+	}
+	return 0
 }
 
 // Standing to review ONE item is the engine's own per-field rule, never a
