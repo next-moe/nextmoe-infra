@@ -72665,6 +72665,79 @@ export const docsModel: DocsModel = {
                           "type": "object",
                           "children": [
                             {
+                              "name": "banner",
+                              "required": true,
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "hash",
+                                  "required": true,
+                                  "doc": "Image-service content hash.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "height",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Pixel height. null if unknown.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "sexual",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Sexual depiction. null means not assessed.",
+                                  "enum": [
+                                    "safe",
+                                    "suggestive",
+                                    "explicit"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "source",
+                                  "required": true,
+                                  "doc": "Open vocabulary sources. Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "thumbhash",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Thumbhash. null if unknown.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "url",
+                                  "required": true,
+                                  "doc": "Absolute image URL. Never a bare hash.",
+                                  "format": "uri",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "violence",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Violent depiction. null means not assessed. Currently no catalog row has an assessment; the value is always null.",
+                                  "enum": [
+                                    "tame",
+                                    "violent",
+                                    "brutal"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "width",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Pixel width. null if unknown.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                }
+                              ]
+                            },
+                            {
                               "name": "id",
                               "required": true,
                               "doc": "News item id.",
@@ -72695,6 +72768,13 @@ export const docsModel: DocsModel = {
                                   "name": "display_name",
                                   "required": true,
                                   "doc": "Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "homepage_url",
+                                  "required": true,
+                                  "doc": "The source's own site. Empty string when the source has none.",
+                                  "format": "uri",
                                   "type": "string"
                                 },
                                 {
@@ -73458,6 +73538,13 @@ export const docsModel: DocsModel = {
                               "type": "string"
                             },
                             {
+                              "name": "homepage_url",
+                              "required": true,
+                              "doc": "The source's own site. Empty string when the source has none.",
+                              "format": "uri",
+                              "type": "string"
+                            },
+                            {
                               "name": "name",
                               "required": true,
                               "doc": "Source key.",
@@ -74035,6 +74122,79 @@ export const docsModel: DocsModel = {
                     "type": "object",
                     "children": [
                       {
+                        "name": "banner",
+                        "required": true,
+                        "type": "object",
+                        "children": [
+                          {
+                            "name": "hash",
+                            "required": true,
+                            "doc": "Image-service content hash.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "height",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Pixel height. null if unknown.",
+                            "format": "int64",
+                            "type": "integer"
+                          },
+                          {
+                            "name": "sexual",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Sexual depiction. null means not assessed.",
+                            "enum": [
+                              "safe",
+                              "suggestive",
+                              "explicit"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "name": "source",
+                            "required": true,
+                            "doc": "Open vocabulary sources. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "thumbhash",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Thumbhash. null if unknown.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "url",
+                            "required": true,
+                            "doc": "Absolute image URL. Never a bare hash.",
+                            "format": "uri",
+                            "type": "string"
+                          },
+                          {
+                            "name": "violence",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Violent depiction. null means not assessed. Currently no catalog row has an assessment; the value is always null.",
+                            "enum": [
+                              "tame",
+                              "violent",
+                              "brutal"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "name": "width",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Pixel width. null if unknown.",
+                            "format": "int64",
+                            "type": "integer"
+                          }
+                        ]
+                      },
+                      {
                         "name": "id",
                         "required": true,
                         "doc": "News item id.",
@@ -74065,6 +74225,13 @@ export const docsModel: DocsModel = {
                             "name": "display_name",
                             "required": true,
                             "doc": "Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "homepage_url",
+                            "required": true,
+                            "doc": "The source's own site. Empty string when the source has none.",
+                            "format": "uri",
                             "type": "string"
                           },
                           {
@@ -100150,10 +100317,77 @@ export const docsModel: DocsModel = {
                           "type": "object",
                           "children": [
                             {
-                              "name": "banner_hash",
+                              "name": "banner",
                               "required": true,
-                              "doc": "Image-service content hash of the banner. Empty string when there is none.",
-                              "type": "string"
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "hash",
+                                  "required": true,
+                                  "doc": "Image-service content hash.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "height",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Pixel height. null if unknown.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "sexual",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Sexual depiction. null means not assessed.",
+                                  "enum": [
+                                    "safe",
+                                    "suggestive",
+                                    "explicit"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "source",
+                                  "required": true,
+                                  "doc": "Open vocabulary sources. Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "thumbhash",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Thumbhash. null if unknown.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "url",
+                                  "required": true,
+                                  "doc": "Absolute image URL. Never a bare hash.",
+                                  "format": "uri",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "violence",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Violent depiction. null means not assessed. Currently no catalog row has an assessment; the value is always null.",
+                                  "enum": [
+                                    "tame",
+                                    "violent",
+                                    "brutal"
+                                  ],
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "width",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Pixel width. null if unknown.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                }
+                              ]
                             },
                             {
                               "name": "id",
@@ -100196,6 +100430,13 @@ export const docsModel: DocsModel = {
                                   "name": "display_name",
                                   "required": true,
                                   "doc": "Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "homepage_url",
+                                  "required": true,
+                                  "doc": "The source's own site. Empty string when the source has none.",
+                                  "format": "uri",
                                   "type": "string"
                                 },
                                 {
@@ -101360,10 +101601,77 @@ export const docsModel: DocsModel = {
                     "type": "object",
                     "children": [
                       {
-                        "name": "banner_hash",
+                        "name": "banner",
                         "required": true,
-                        "doc": "Image-service content hash of the banner. Empty string when there is none.",
-                        "type": "string"
+                        "type": "object",
+                        "children": [
+                          {
+                            "name": "hash",
+                            "required": true,
+                            "doc": "Image-service content hash.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "height",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Pixel height. null if unknown.",
+                            "format": "int64",
+                            "type": "integer"
+                          },
+                          {
+                            "name": "sexual",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Sexual depiction. null means not assessed.",
+                            "enum": [
+                              "safe",
+                              "suggestive",
+                              "explicit"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "name": "source",
+                            "required": true,
+                            "doc": "Open vocabulary sources. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "thumbhash",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Thumbhash. null if unknown.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "url",
+                            "required": true,
+                            "doc": "Absolute image URL. Never a bare hash.",
+                            "format": "uri",
+                            "type": "string"
+                          },
+                          {
+                            "name": "violence",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Violent depiction. null means not assessed. Currently no catalog row has an assessment; the value is always null.",
+                            "enum": [
+                              "tame",
+                              "violent",
+                              "brutal"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "name": "width",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Pixel width. null if unknown.",
+                            "format": "int64",
+                            "type": "integer"
+                          }
+                        ]
                       },
                       {
                         "name": "id",
@@ -101406,6 +101714,13 @@ export const docsModel: DocsModel = {
                             "name": "display_name",
                             "required": true,
                             "doc": "Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "homepage_url",
+                            "required": true,
+                            "doc": "The source's own site. Empty string when the source has none.",
+                            "format": "uri",
                             "type": "string"
                           },
                           {
@@ -102854,10 +103169,77 @@ export const docsModel: DocsModel = {
                     "type": "object",
                     "children": [
                       {
-                        "name": "banner_hash",
+                        "name": "banner",
                         "required": true,
-                        "doc": "Image-service content hash of the banner. Empty string when there is none.",
-                        "type": "string"
+                        "type": "object",
+                        "children": [
+                          {
+                            "name": "hash",
+                            "required": true,
+                            "doc": "Image-service content hash.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "height",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Pixel height. null if unknown.",
+                            "format": "int64",
+                            "type": "integer"
+                          },
+                          {
+                            "name": "sexual",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Sexual depiction. null means not assessed.",
+                            "enum": [
+                              "safe",
+                              "suggestive",
+                              "explicit"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "name": "source",
+                            "required": true,
+                            "doc": "Open vocabulary sources. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "thumbhash",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Thumbhash. null if unknown.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "url",
+                            "required": true,
+                            "doc": "Absolute image URL. Never a bare hash.",
+                            "format": "uri",
+                            "type": "string"
+                          },
+                          {
+                            "name": "violence",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Violent depiction. null means not assessed. Currently no catalog row has an assessment; the value is always null.",
+                            "enum": [
+                              "tame",
+                              "violent",
+                              "brutal"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "name": "width",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Pixel width. null if unknown.",
+                            "format": "int64",
+                            "type": "integer"
+                          }
+                        ]
                       },
                       {
                         "name": "id",
@@ -102900,6 +103282,13 @@ export const docsModel: DocsModel = {
                             "name": "display_name",
                             "required": true,
                             "doc": "Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "homepage_url",
+                            "required": true,
+                            "doc": "The source's own site. Empty string when the source has none.",
+                            "format": "uri",
                             "type": "string"
                           },
                           {
@@ -104032,10 +104421,77 @@ export const docsModel: DocsModel = {
                     "type": "object",
                     "children": [
                       {
-                        "name": "banner_hash",
+                        "name": "banner",
                         "required": true,
-                        "doc": "Image-service content hash of the banner. Empty string when there is none.",
-                        "type": "string"
+                        "type": "object",
+                        "children": [
+                          {
+                            "name": "hash",
+                            "required": true,
+                            "doc": "Image-service content hash.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "height",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Pixel height. null if unknown.",
+                            "format": "int64",
+                            "type": "integer"
+                          },
+                          {
+                            "name": "sexual",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Sexual depiction. null means not assessed.",
+                            "enum": [
+                              "safe",
+                              "suggestive",
+                              "explicit"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "name": "source",
+                            "required": true,
+                            "doc": "Open vocabulary sources. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "thumbhash",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Thumbhash. null if unknown.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "url",
+                            "required": true,
+                            "doc": "Absolute image URL. Never a bare hash.",
+                            "format": "uri",
+                            "type": "string"
+                          },
+                          {
+                            "name": "violence",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Violent depiction. null means not assessed. Currently no catalog row has an assessment; the value is always null.",
+                            "enum": [
+                              "tame",
+                              "violent",
+                              "brutal"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "name": "width",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Pixel width. null if unknown.",
+                            "format": "int64",
+                            "type": "integer"
+                          }
+                        ]
                       },
                       {
                         "name": "id",
@@ -104078,6 +104534,13 @@ export const docsModel: DocsModel = {
                             "name": "display_name",
                             "required": true,
                             "doc": "Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "homepage_url",
+                            "required": true,
+                            "doc": "The source's own site. Empty string when the source has none.",
+                            "format": "uri",
                             "type": "string"
                           },
                           {

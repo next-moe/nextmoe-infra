@@ -24,6 +24,7 @@ type PublicNewsItem struct {
 	Title       string           `json:"title"`
 	Preview     string           `json:"preview"`
 	BannerURL   string           `json:"banner_url,omitempty"`
+	BannerHash  string           `json:"banner_hash,omitempty"`
 	Images      []string         `json:"images,omitempty"`
 	PublishedAt time.Time        `json:"published_at"`
 	WorkIDs     []int64          `json:"work_ids,omitempty"`

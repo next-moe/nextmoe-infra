@@ -174,6 +174,7 @@ type NewsSource struct {
 	Object      string   `json:"object" enum:"news_source" doc:"Type discriminant. Always news_source."`
 	Name        string   `json:"name" maxLength:"64" pattern:"^[a-z][a-z0-9_]*$" doc:"Source key."`
 	DisplayName string   `json:"display_name" maxLength:"512" doc:"Must not be used as a discriminant."`
+	HomepageURL string   `json:"homepage_url" format:"uri" maxLength:"512" doc:"The source's own site. Empty string when the source has none."`
 }
 
 type NewsItem struct {
@@ -184,6 +185,7 @@ type NewsItem struct {
 	Summary     string     `json:"summary" maxLength:"8000" doc:"Source-provided lede. Must not be used as a discriminant."`
 	Source      NewsSource `json:"source" doc:"Attribution. Required on view=basic."`
 	SourceURL   string     `json:"source_url" format:"uri" maxLength:"1024" doc:"Canonical link to the original item."`
+	Banner      *Image     `json:"banner" doc:"Lead image. null when the item has none."`
 	PublishedAt string     `json:"published_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
 }
 

@@ -20,6 +20,11 @@ import (
 var (
 	ErrBadCursor = stderrors.New("news: malformed or mismatched cursor")
 	ErrNotFound  = stderrors.New("news: item not found")
+	// A withdrawn item is not a 404. Public and credential-less means mirrors
+	// exist, and a mirror that only sees the item leave the list never learns
+	// the copy it already took was pulled -- which is why the detail face owes
+	// a 410 (03-resources.md:142, obligation 3 of D16).
+	ErrGone = stderrors.New("news: item withdrawn")
 )
 
 // cursorSort names the ordering a cursor was minted under, so a cursor from a
@@ -129,6 +134,8 @@ type itemRow struct {
 	SourceURL   string `gorm:"column:source_url"`
 	BannerHash  string `gorm:"column:banner_hash"`
 	PublishedAt time.Time
+	// Only Item() selects this; Feed already filters on status in SQL.
+	Status int16
 }
 
 func (s *PublicService) Feed(ctx context.Context, f FeedFilter, cursor string, limit int) (dto.PublicNewsFeedData, error) {
@@ -170,12 +177,18 @@ func (s *PublicService) Feed(ctx context.Context, f FeedFilter, cursor string, l
 
 func (s *PublicService) Item(ctx context.Context, id int64) (dto.PublicNewsItem, error) {
 	var rows []itemRow
-	q := `SELECT i.id, i.source_key, i.lane, i.title, i.preview, i.source_url, i.banner_hash, i.published_at
-		FROM news_item i WHERE i.id = ? AND i.status = ? AND i.dead_at IS NULL`
-	if err := s.db.WithContext(ctx).Raw(q, id, model.StatusPublished).Scan(&rows).Error; err != nil {
+	q := `SELECT i.id, i.source_key, i.lane, i.title, i.preview, i.source_url, i.banner_hash, i.published_at, i.status
+		FROM news_item i WHERE i.id = ? AND i.dead_at IS NULL`
+	if err := s.db.WithContext(ctx).Raw(q, id).Scan(&rows).Error; err != nil {
 		return dto.PublicNewsItem{}, err
 	}
 	if len(rows) == 0 {
+		return dto.PublicNewsItem{}, ErrNotFound
+	}
+	if rows[0].Status == model.StatusWithdrawn {
+		return dto.PublicNewsItem{}, ErrGone
+	}
+	if rows[0].Status != model.StatusPublished {
 		return dto.PublicNewsItem{}, ErrNotFound
 	}
 	items, err := s.buildItems(ctx, rows)
@@ -234,6 +247,7 @@ func (s *PublicService) buildItems(ctx context.Context, rows []itemRow) ([]dto.P
 			Title:       r.Title,
 			Preview:     r.Preview,
 			BannerURL:   s.imageURL(r.BannerHash),
+			BannerHash:  r.BannerHash,
 			Images:      images[r.ID],
 			PublishedAt: r.PublishedAt.UTC(),
 			WorkIDs:     works[r.ID],

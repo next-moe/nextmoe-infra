@@ -151,7 +151,7 @@ func main() {
 		}()
 		newsSvc = newsService.NewPublicService(newsDB.DB(), cfg.ImageService.CDNBase)
 		newsAdminSvc = newsService.NewAdminService(newsDB.DB(), cfg.ImageService.CDNBase)
-		newsWriteSvc = newsService.NewSubmissionService(newsDB.DB())
+		newsWriteSvc = newsService.NewSubmissionService(newsDB.DB(), cfg.ImageService.CDNBase)
 	}
 
 	// The moderation face is the human half of the gate 月幕 asked for. It is a
