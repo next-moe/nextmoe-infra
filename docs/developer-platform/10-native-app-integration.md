@@ -45,6 +45,8 @@
 2. **回调只收环回**。`http://127.0.0.1/callback` 与 `http://[::1]/callback` 是仅有的明文形状;`localhost` 按名拒(它过主机名解析,可以被指向别处),自定义 scheme(`myapp://callback`)**不支持**——注册时就被拒。
 3. **端口无关匹配**(RFC 8252 §7.3)。注册时写不写端口都行,服务端比对环回回调时**忽略端口**,scheme / host / path / query 仍精确匹配。运行时监听哪个临时端口由你决定,不必回门户改注册。
 
+移动端(Android / iOS)走同样的两条路:环回监听在手机上同样成立,规则与桌面一致;自定义 scheme 不开是刻意的(scheme 在移动系统上不可认领,任何应用都能抢注同一个 scheme 拦走授权码,PKCE 防不住拦截方自己发起的流程)。有域名的应用推荐注册 `https://` 回调并配成 App Links / Universal Links(RFC 8252 §7.2),域名归属由操作系统验证。2026-09 一个 Android 下游读到「自定义 scheme 注册即拒」后判定平台必须放开 scheme 才能接入——两条已支持的路都在文档里,但当时没有点名移动端,这段就是为此写的。
+
 ### 18.3 完整流程
 
 以下每一步都是必需的,顺序不可换。
@@ -281,7 +283,7 @@ resp, err := http.PostForm(oauthBase+"/oauth/token", url.Values{
 | `403 SCOPE_REQUIRED` | 打 `/v2/catalog` 而令牌不带 `catalog:read`,或打 `/v2/me/folders` 而不带 `folder:read` / `folder:write`(§18.7)。响应点名缺的是哪一个;旧令牌不追认,重新走一次授权。 |
 | `/v2/catalog` 返回 `401 INVALID_CREDENTIAL` | 令牌过期、签发方不是本 OP,或者你把令牌打到了 `claim-events` / `/v2/store`——那两处只收应用密钥。 |
 | 刷新返回 401 而令牌确实没过期 | 用了第一方 `/api/v1/auth/refresh`。OAuth session 只能经 `/oauth/token` 刷新。 |
-| 注册时回调被拒 | `localhost`、自定义 scheme、带 fragment、或非环回的明文 http。见 [05 §9.2](./05-developer-portal.md) 护栏 1。 |
+| 注册时回调被拒 | `localhost`、自定义 scheme、带 fragment、或非环回的明文 http。见 [05 §9.2](./05-developer-portal.md) 护栏 1。移动端用环回或 App Links,见 §18.2。 |
 
 ### 18.7 收藏夹同步
 

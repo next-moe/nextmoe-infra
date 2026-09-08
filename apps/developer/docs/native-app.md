@@ -38,6 +38,10 @@ description: Tauri / Wails 写的游戏管理器怎么读 /v2/catalog：用用�
 - **回调只收环回**。`http://127.0.0.1/callback` 与 `http://[::1]/callback` 是仅有的明文形状。`localhost` 按名拒——它过主机名解析，可以被指向别处，`127.0.0.1` 不能。自定义 scheme（`myapp://callback`）**不支持**，注册时就被拒。
 - **端口无关匹配**（RFC 8252 §7.3）。注册时写不写端口都行，服务端比对环回回调时忽略端口，scheme / host / path / query 仍精确匹配。运行时监听哪个临时端口由你决定，不必回控制台改注册。
 
+> [!NOTE]
+> **移动端（Android / iOS）走同样的两条路，不需要自定义 scheme。**
+> 环回监听在手机上同样成立——绑 `127.0.0.1:0`，端口无关匹配的规则与桌面完全一致。自定义 scheme 不开是刻意的：scheme 在移动系统上不可认领，任何应用都能抢注同一个 scheme 拦走授权码，而 PKCE 防不住由拦截方自己发起的流程。有自己域名的应用推荐第二条路：注册 `https://` 回调（本来就收），在系统侧配成 App Links / Universal Links（RFC 8252 §7.2）——域名归属由操作系统验证，授权完成后直接跳回应用，安全性与体验都优于环回。
+
 ## 2 · 起监听、开浏览器 {#authorize}
 
 先绑 `127.0.0.1:0` 让内核分配临时端口，拿到端口再拼 `redirect_uri`；`code_verifier` 取 43–128 字符的高熵随机串，`code_challenge = BASE64URL(SHA256(verifier))`；`state` 另取一个，回调里逐字比对。
@@ -291,7 +295,7 @@ POST   /v2/me/folders/<id>/items             → 207，{"items":[{"work_id":"...
 | `403 SCOPE_REQUIRED` | 打 `/v2/catalog` 而令牌不带 `catalog:read`，或打 `/v2/me/folders` 而不带 `folder:read` / `folder:write`。响应会点名缺哪一个；旧令牌不追认，重新走一次授权。 |
 | `401 INVALID_CREDENTIAL` | 令牌过期，或者你把它打到了 `claim-events` / `/v2/store`——那两处只收应用密钥。 |
 | 刷新 401 而令牌确实没过期 | 用了第一方 `/api/v1/auth/refresh`。OAuth session 只能经 `/oauth/token` 刷新。 |
-| 注册时回调被拒 | `localhost`、自定义 scheme、带 fragment、或非环回的明文 http。 |
+| 注册时回调被拒 | `localhost`、自定义 scheme、带 fragment、或非环回的明文 http。移动端不必等 scheme 放开：环回照用，或注册 `https://` 回调配 App Links / Universal Links，见 [§1](#register)。 |
 
 - [鉴权与凭据](/docs/authentication) — 两种凭据各自能开哪些面，失败长什么样。
 - [接入用户数据](/docs/user-data) — 同一把用户令牌还能读写 `/v2/me`：时长、认领、编辑提案。
