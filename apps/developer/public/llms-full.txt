@@ -151,7 +151,7 @@ curl "https://api.nextmoe.dev/v2/catalog/works?refs=vndb:v19658,bangumi:302835" 
 
 | 身份         | 请求头                                 | 代表谁             | 用在哪些前缀                                                                                        |
 | ------------ | -------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------- |
-| 应用密钥     | `Authorization: Bearer nmk_live_…`     | 你的应用           | `/v2/catalog`、`/v2/store`、`/v1/moyu/*`、`/v1/sticker/*`                                           |
+| 应用密钥     | `Authorization: Bearer nmk_live_…`     | 你的应用           | `/v2/catalog`、`/v2/store`、`/v2/moyu/*`、`/v2/sticker/*`                                           |
 | 用户访问令牌 | `Authorization: Bearer <access_token>` | 授权给你的那个用户 | `/v2/me`、`/v2/moderation`；带 `catalog:read` 时也可用于 `/v2/catalog`                             |
 | 匿名         | 不带                                   | 任何人             | `/v2/news`、`/v2/vocabularies`、`/v2/problems`、`/v2/catalog/stats`、`/v2/catalog/schemas/{object}` |
 
@@ -171,11 +171,14 @@ curl "https://api.nextmoe.dev/v2/catalog/works?refs=vndb:v19658,bangumi:302835" 
 | ------------------- | ------------------------------------------------------------------------------- | ------------------------ |
 | `catalog:read`      | 整个 `/v2/catalog` 只读面                                                       | 控制台自助勾选；也可作为用户 scope 向人索取 |
 | `store:read`        | `/v2/store` 商店联盟链接与统计                                                  | 控制台自助勾选           |
-| `moyu:read`         | `/v1/moyu/*` 补丁资源只读面（面联邦下游面，gateway-terminated）                    | 控制台自助勾选           |
-| `sticker:read`      | `/v1/sticker/*` 表情包只读面（面联邦下游面，gateway-terminated）                  | 控制台自助勾选           |
+| `moyu:read`         | `/v2/moyu/*` 补丁资源只读面（面联邦下游面，gateway-terminated）                    | 控制台自助勾选           |
+| `sticker:read`      | `/v2/sticker/*` 表情包只读面（面联邦下游面，gateway-terminated）                  | 控制台自助勾选           |
 | `claim_events:read` | 认领事件 feed 与自家站点的审核队列状态（`claim_state=pending,declined,hidden`） | 运营方按需授予，不能自助 |
 
 `claim_events:read` 不开放自助是有原因的：那条 feed 里带着每次拒绝的理由和做出决定的审核员 uid。
+
+> [!NOTE]
+> `/v2/moyu/*` 与 `/v2/sticker/*` 两个下游面在网关处鉴权，**不支持浏览器直接 `fetch`**：预检 `OPTIONS` 不带认证头，会被网关 401。这不是你的 CORS 配置问题——密钥本就不该出现在浏览器里，请从你自己的后端调用。
 
 ## 用户访问令牌
 

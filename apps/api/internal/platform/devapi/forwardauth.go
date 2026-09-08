@@ -20,8 +20,8 @@ type forwardAuthFace struct {
 // Unregistered faces must not reach Record: a string longer than varchar(40)
 // poisons every later flush batch (model.go Face comment, 06a→06b W1).
 var forwardAuthFaces = map[string]forwardAuthFace{
-	"moyu":    {scope: ScopeMoyuRead, pathLabel: "/v1/moyu/*"},
-	"sticker": {scope: ScopeStickerRead, pathLabel: "/v1/sticker/*"},
+	"moyu":    {scope: ScopeMoyuRead, pathLabel: "/v2/moyu/*"},
+	"sticker": {scope: ScopeStickerRead, pathLabel: "/v2/sticker/*"},
 }
 
 type ForwardAuth struct {
