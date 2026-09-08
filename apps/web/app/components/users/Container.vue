@@ -145,6 +145,13 @@ const handleDetail = (user: { uuid: string; name: string }) => {
   detailTarget.value = user
   detailOpen.value = true
 }
+
+const editOpen = ref(false)
+const editTarget = ref<{ uuid: string; name: string } | null>(null)
+const handleEdit = (user: { uuid: string; name: string }) => {
+  editTarget.value = user
+  editOpen.value = true
+}
 </script>
 
 <template>
@@ -189,6 +196,7 @@ const handleDetail = (user: { uuid: string; name: string }) => {
         @roles="handleRoles"
         @site-roles="handleSiteRoles"
         @detail="handleDetail"
+        @edit="handleEdit"
       />
 
       <div v-if="totalPages > 1" class="flex justify-center">
@@ -225,6 +233,12 @@ const handleDetail = (user: { uuid: string; name: string }) => {
     />
 
     <UsersDetailDrawer v-model:open="detailOpen" :user="detailTarget" />
+
+    <UsersEditModal
+      v-model:open="editOpen"
+      :user="editTarget"
+      @success="refresh"
+    />
 
     <KunModal v-model="banOpen" aria-label="封禁用户">
       <div class="space-y-4">

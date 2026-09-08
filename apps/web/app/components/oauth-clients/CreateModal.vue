@@ -28,13 +28,17 @@ const displayOrder = ref<number | null>(0)
 const error = ref('')
 const isLoading = ref(false)
 
-const { uploading: logoUploading, error: logoError, upload: uploadLogo } = useClientLogoUpload()
+const { uploading: logoUploading, error: logoError, upload: uploadLogo } = useImageUpload()
 const logoUploadKey = ref(0)
 
 const onLogoPicked = async (blob: Blob) => {
-  const url = await uploadLogo(blob)
-  if (url) {
-    logoUrl.value = url
+  const res = await uploadLogo<{ url: string }>(
+    '/oauth/clients/logo',
+    blob,
+    'logo.webp'
+  )
+  if (res) {
+    logoUrl.value = res.url
     logoUploadKey.value++
   }
 }

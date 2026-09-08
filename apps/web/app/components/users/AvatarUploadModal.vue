@@ -13,58 +13,36 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const file = ref<Blob | null>(null)
-const uploading = ref(false)
-const errorMsg = ref('')
-const uploadKey = ref(0)
+const cropKey = ref(0)
+const { uploading, error, upload } = useImageUpload()
 
-const onCropped = (blob: Blob) => {
-  errorMsg.value = ''
+const onCrop = (blob: Blob) => {
+  error.value = ''
   file.value = blob
+}
+
+const reset = () => {
+  file.value = null
+  error.value = ''
+  cropKey.value++
 }
 
 const close = () => {
   if (uploading.value) return
   emit('update:open', false)
-  setTimeout(() => {
-    file.value = null
-    errorMsg.value = ''
-    uploadKey.value++
-  }, 200)
+  setTimeout(reset, 200)
 }
 
 const submit = async () => {
   if (!file.value || !props.user || uploading.value) return
-  uploading.value = true
-  errorMsg.value = ''
-
-  try {
-    const fd = new FormData()
-    fd.append('file', file.value, 'avatar.webp')
-
-    const cfg = useRuntimeConfig()
-    const cookie = useCookie('access_token')
-    const res = await $fetch<{
-      code: number
-      message: string
-      data?: { hash: string }
-    }>(`${cfg.public.apiBase}/admin/users/${props.user.uuid}/avatar`, {
-      method: 'POST',
-      body: fd,
-      headers: cookie.value ? { Authorization: `Bearer ${cookie.value}` } : {},
-      credentials: 'include'
-    })
-
-    if (res.code === 0 && res.data?.hash) {
-      emit('success', res.data.hash)
-      close()
-    } else {
-      errorMsg.value = res.message || '上传失败'
-    }
-  } catch (err) {
-    const e = err as { data?: { message?: string }; statusMessage?: string; message?: string }
-    errorMsg.value = e?.data?.message || e?.statusMessage || e?.message || '网络错误'
-  } finally {
-    uploading.value = false
+  const res = await upload<{ hash: string }>(
+    `/admin/users/${props.user.uuid}/avatar`,
+    file.value,
+    'avatar.webp'
+  )
+  if (res) {
+    emit('success', res.hash)
+    close()
   }
 }
 </script>
@@ -83,17 +61,10 @@ const submit = async () => {
           保留作回退（老用户头像不会被覆盖）。
         </p>
 
-        <KunUpload
-          :key="uploadKey"
-          :size="512"
-          :aspect="1"
-          description="点击或拖拽选择图片，可裁剪为正方形"
-          class-name="mx-auto w-48"
-          @set-image="onCropped"
-        />
+        <CommonAvatarCrop :key="cropKey" :disabled="uploading" @crop="onCrop" />
 
-        <div v-if="errorMsg" class="text-danger-600 text-sm">
-          {{ errorMsg }}
+        <div v-if="error" class="text-danger-600 text-sm">
+          {{ error }}
         </div>
       </div>
 
