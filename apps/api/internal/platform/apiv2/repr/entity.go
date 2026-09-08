@@ -169,12 +169,21 @@ type Role struct {
 	Deprecated  bool                     `json:"deprecated" doc:"true when the registry has retired this role for new credits."`
 }
 
+// All four attribution fields are required, and none is omitempty. Galgame
+// 批评's only condition was 注明出处, and what we promised them was the reprint
+// notice at the top of every item plus a link to the column index -- so the
+// notice is the partner's own text (`attribution`) and the index is
+// `column_url`, both carried by the source object rather than assembled
+// downstream. v1 shipped all four; v2's first cut shipped only the first two,
+// and the promise quietly stopped being kept on the live face.
 type NewsSource struct {
 	_           struct{} `json:"-" additionalProperties:"true"`
 	Object      string   `json:"object" enum:"news_source" doc:"Type discriminant. Always news_source."`
 	Name        string   `json:"name" maxLength:"64" pattern:"^[a-z][a-z0-9_]*$" doc:"Source key."`
 	DisplayName string   `json:"display_name" maxLength:"512" doc:"Must not be used as a discriminant."`
 	HomepageURL string   `json:"homepage_url" format:"uri" maxLength:"512" doc:"The source's own site. Empty string when the source has none."`
+	Attribution string   `json:"attribution" maxLength:"512" doc:"The reprint notice, in the source's own words. Display it with the item; do not compose your own. Must not be used as a discriminant."`
+	ColumnURL   string   `json:"column_url" format:"uri" maxLength:"512" doc:"The source's column index. Empty string when the source publishes no column."`
 }
 
 type NewsItem struct {
@@ -185,6 +194,7 @@ type NewsItem struct {
 	Summary     string     `json:"summary" maxLength:"8000" doc:"Source-provided lede. Must not be used as a discriminant."`
 	Source      NewsSource `json:"source" doc:"Attribution. Required on view=basic."`
 	SourceURL   string     `json:"source_url" format:"uri" maxLength:"1024" doc:"Canonical link to the original item."`
+	Lane        string     `json:"lane" enum:"news,column" doc:"The section the source itself filed this under. 月幕 serves the two from separate endpoints with an identical payload, so this is the only thing that tells them apart."`
 	Banner      *Image     `json:"banner" doc:"Lead image. null when the item has none."`
 	PublishedAt string     `json:"published_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
 }

@@ -45,6 +45,8 @@ type Submission struct {
 	SourceKey         string
 	SourceDisplayName string
 	SourceHomepageURL string
+	SourceAttribution string
+	SourceColumnURL   string
 	Lane              string
 	Title             string
 	Preview           string
@@ -303,11 +305,9 @@ func (s *SubmissionService) decorate(ctx context.Context, rows []model.NewsItem)
 	if err := s.db.WithContext(ctx).Where("key IN ?", keys).Find(&sources).Error; err != nil {
 		return nil, err
 	}
-	names := make(map[string]string, len(sources))
-	homes := make(map[string]string, len(sources))
+	byKey := make(map[string]model.NewsSource, len(sources))
 	for _, src := range sources {
-		names[src.Key] = src.DisplayName
-		homes[src.Key] = src.HomepageURL
+		byKey[src.Key] = src
 	}
 	var links []model.NewsItemWork
 	if err := s.db.WithContext(ctx).Where("item_id IN ?", ids).
@@ -319,10 +319,12 @@ func (s *SubmissionService) decorate(ctx context.Context, rows []model.NewsItem)
 		works[l.ItemID] = append(works[l.ItemID], l.WorkID)
 	}
 	for _, r := range rows {
+		src := byKey[r.SourceKey]
 		out = append(out, Submission{
-			ID: r.ID, SourceKey: r.SourceKey, SourceDisplayName: names[r.SourceKey],
-			SourceHomepageURL: homes[r.SourceKey],
-			Lane:              r.Lane, Title: r.Title, Preview: r.Preview, SourceURL: r.SourceURL,
+			ID: r.ID, SourceKey: r.SourceKey, SourceDisplayName: src.DisplayName,
+			SourceHomepageURL: src.HomepageURL, SourceAttribution: src.Attribution,
+			SourceColumnURL: src.ColumnURL,
+			Lane:            r.Lane, Title: r.Title, Preview: r.Preview, SourceURL: r.SourceURL,
 			BannerHash: r.BannerHash, BannerURL: s.imageURL(r.BannerHash),
 			PublishedAt: r.PublishedAt.UTC(), Status: r.Status,
 			UpdatedAt: r.UpdatedAt.UTC(), WorkIDs: works[r.ID],

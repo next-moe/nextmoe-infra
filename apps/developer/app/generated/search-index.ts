@@ -1063,7 +1063,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "获取一条资讯",
     "s": "端点 · 资讯",
     "d": "GET /v2/news/{id}",
-    "b": "getNewsItem /v2/news/{id} get Get one news item A published news item. Withdrawn items are 404. Unauthenticated. source and source_url are always present. 一条已发布的新闻。已撤回项返回 404。无需认证。source 与 source_url 始终存在。 id"
+    "b": "getNewsItem /v2/news/{id} get Get one news item A published news item. A withdrawn item is 410 GONE, not 404: a mirror that only sees the item leave the list never learns the copy it took was pulled. An item that never existed, or is still pending, is 404. Unauthenticated. source and source_url are always present. 一条已发布的情报。已撤回的条目返回 410 GONE 而非 404：只看到条目从列表里消失的镜像，永远不会知道它已经取走的副本被撤下了。从不存在的 id、以及仍在待审的条目，返回 404。无需凭证。source 与 source_url 永远存在。 id"
   },
   {
     "r": "/docs/v2/listPublicFolders",

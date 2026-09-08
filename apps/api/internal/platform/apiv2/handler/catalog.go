@@ -216,6 +216,7 @@ func newsFromDTO(rec newsdto.PublicNewsItem) repr.NewsItem {
 	return repr.NewsItem{
 		Object: "news_item", ID: repr.ID(rec.ID), Title: rec.Title, Summary: rec.Preview,
 		Source: newsSourceFromDTO(rec.Source), SourceURL: rec.SourceURL,
+		Lane:        rec.Lane,
 		Banner:      newsBanner(rec.BannerHash, rec.BannerURL),
 		PublishedAt: rec.PublishedAt.UTC().Format("2006-01-02T15:04:05Z"),
 	}
@@ -235,6 +236,6 @@ func newsBanner(hash, url string) *repr.Image {
 func newsSourceFromDTO(s newsdto.PublicNewsSource) repr.NewsSource {
 	return repr.NewsSource{
 		Object: "news_source", Name: s.Key, DisplayName: s.DisplayName,
-		HomepageURL: s.HomepageURL,
+		HomepageURL: s.HomepageURL, Attribution: s.Attribution, ColumnURL: s.ColumnURL,
 	}
 }
