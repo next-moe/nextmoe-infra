@@ -504,6 +504,11 @@ wave 176-179 把人类的**写**搬完了;本波搬的是搬完写之后还留�
 - **playtime face(`/v1/playtime/*`)**:Bearer 用户访问令牌 + **client 绑定**,**无 API key**,**不要求** `playtime:read` / `playtime:write`(任何已开通用户登录的应用都可以调),**不要求** `catalog_site`。详见 §4.6。
 - **public face(`/v1/catalog/*`)**:开发者平台 API key(`Authorization: Bearer nm_live_…`)+ `catalog:read`,过 `internal/platform/devapi` 的中间件链(凭据解析 → 用量记账 → 限流 → 日配额 → scope)。**唯一例外 `GET /v1/catalog/stats` 无鉴权**:它只发布「目录有多大」的聚合数(LIVE works × medium + 身份族存量,无 `nsfw` 参数、人人同一份 payload),是公开站与开发者门户在任何人持 key 之前就要渲染的那几个数字;不计量、不限流,由 `Cache-Control: s-maxage=3600` 兜住。**该路由裸挂在 app 上且必须排在 `/v1/catalog` 分组之前**——Fiber 按注册序匹配、分组的 handler 即前缀 `Use`,挪到分组之后路由仍然通,只是悄悄退回 key 闸后面(钉子:`cmd/catalog/public_stats_route_test.go`,带反序对照)。
 - **public v2 face(`/v2/catalog/*`,2026-09-06 起双凭证)**:`Authorization: Bearer` 收**应用密钥 `nmk_live_…`**(带 `catalog:read`)**或**带 `catalog:read` 的**用户访问令牌**,二选一,一条请求只带一个(refs/api-v2 D1)。闸按那一个值的前缀分道:`nmk_` 走密钥链,其余走用户令牌链;失败不互相兜底。用户令牌按 `u<uid>` 计量(该用户跨所有已授权应用共池,默认 100/分钟 + 10000/UTC 日),密钥仍按 tier 计量。**两条例外仍只收密钥**:`GET /v2/catalog/claim-events`(额外要运营授予的 `claim_events:read`)与整个 `/v2/store`。原生桌面应用的完整接入见 [developer-platform/10 §18](../developer-platform/10-native-app-integration.md)。
+- **v2 用户面(`/v2/me/*`、`/v2/moderation/*`)**:Bearer 用户访问令牌。这两族**默认按人判权**,不按「应用被同意了什么」判权;两组例外各有自己的 scope,因为它们动的都不是这个人独占的东西:
+  - **编辑面**——`/v2/me/proposals`、`/v2/me/claims`、`/v2/me/cover-votes`、`/v2/me/edit-images`、`/v2/moderation/{proposals,claims,snapshots,reverts}`——要 **`catalog:edit`**,缺则 `403 SCOPE_REQUIRED`。名单落在 `apiv2/handler/identity.go` 的 `editingPlanePrefixes`,**OpenAPI 里那句 scope 说明由同一张表生成**,所以闸与文档不会各说各话;`TestEveryMeAndModerationPathDeclaresItsScope` 会在新路径未归类时红。
+  - **收藏夹**——`/v2/me/folders`——要 `folder:read` / `folder:write`(写 scope 同时给读)。
+  - `/v2/moderation/folders`、`/v2/moderation/users/{uid}/folders` **不要** `catalog:edit`:它们属收藏夹域,按权限判;拿目录编辑的同意去开收藏夹审核的门是错配。
+  - **历史与迁移**:v1 的 `UserGate` 在整个 `/api/v1/user/catalog` 前缀上要这条 scope,wave R3 删 v1 时没搬到 v2,`/v2/me/proposals` 因此接受只带 `openid profile` 的令牌并把编辑合入,直到 2026-09-08 补回。**补闸之前必须先补存量会话**——grant 在 `/authorize` 当场定死,refresh 永远加不宽 scope:当时 109,320 条存活会话里 61,502 条(69%)没有 `catalog:edit`,直接上闸就是全站编辑 403 且 90 天不自愈。补法是对**首方 auto_consent 且已 `catalog_site` 绑定、`allowed_scopes` 已含该 scope**的 client 的会话 `UPDATE sessions.scope`,第三方会话一律不动。
 - `GET /openapi.json`(S2S spec)、`GET /healthz` 无鉴权。
 
 ## 6. 生成 spec

@@ -87,9 +87,19 @@ func TestVisibilityContract(t *testing.T) {
 	if len(feed.Items) != 1 || feed.Items[0].ID != live {
 		t.Fatalf("feed must contain only the live item, got %d items", len(feed.Items))
 	}
+	// Withdrawn is the one state that owes a distinguishable answer: the face is
+	// public and credential-less, so mirrors exist, and a mirror that only sees
+	// the item leave the list never learns its copy was pulled. 03-resources.md
+	// obligation 3 makes that a 410, which needs an error 404 cannot carry.
+	// dead_at is not a withdrawal -- it means the upstream item vanished on us --
+	// so it stays a 404.
+	want := map[string]error{
+		"pending": ErrNotFound, "rejected": ErrNotFound,
+		"withdrawn": ErrGone, "dead": ErrNotFound,
+	}
 	for name, id := range hidden {
-		if _, err := svc.Item(context.Background(), id); err != ErrNotFound {
-			t.Errorf("detail of a %s item returned %v, want ErrNotFound", name, err)
+		if _, err := svc.Item(context.Background(), id); err != want[name] {
+			t.Errorf("detail of a %s item returned %v, want %v", name, err, want[name])
 		}
 	}
 	if _, err := svc.Item(context.Background(), live); err != nil {

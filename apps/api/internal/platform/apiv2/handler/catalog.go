@@ -165,6 +165,9 @@ func (c *Catalog) NewsItem(ctx context.Context, id int64) (repr.NewsItem, error)
 	}
 	rec, err := c.News.Item(ctx, id)
 	if err != nil {
+		if errors.Is(err, newssvc.ErrGone) {
+			return repr.NewsItem{}, problem.New(problem.CodeGone, "", "", "this news item was withdrawn by its source.")
+		}
 		if errors.Is(err, newssvc.ErrNotFound) {
 			return repr.NewsItem{}, problem.New(problem.CodeNotFound, "", "", "news item not found.")
 		}
@@ -213,10 +216,25 @@ func newsFromDTO(rec newsdto.PublicNewsItem) repr.NewsItem {
 	return repr.NewsItem{
 		Object: "news_item", ID: repr.ID(rec.ID), Title: rec.Title, Summary: rec.Preview,
 		Source: newsSourceFromDTO(rec.Source), SourceURL: rec.SourceURL,
+		Banner:      newsBanner(rec.BannerHash, rec.BannerURL),
 		PublishedAt: rec.PublishedAt.UTC().Format("2006-01-02T15:04:05Z"),
 	}
 }
 
+// The news service already built the URL off the same cdnBase, so this reuses
+// it rather than threading the base in a second time. source stays empty: it
+// is the `sources` vocabulary, which names catalog anchors, and a partner's
+// banner belongs to none of them.
+func newsBanner(hash, url string) *repr.Image {
+	if hash == "" || url == "" {
+		return nil
+	}
+	return &repr.Image{URL: url, Hash: hash}
+}
+
 func newsSourceFromDTO(s newsdto.PublicNewsSource) repr.NewsSource {
-	return repr.NewsSource{Object: "news_source", Name: s.Key, DisplayName: s.DisplayName}
+	return repr.NewsSource{
+		Object: "news_source", Name: s.Key, DisplayName: s.DisplayName,
+		HomepageURL: s.HomepageURL,
+	}
 }

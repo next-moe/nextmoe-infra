@@ -57,7 +57,7 @@ func SetupWith(app *fiber.App, opt Options) huma.API {
 	app.Use(protocol.RateLimit(opt.Store, credentialLimitIdentity))
 	app.Use(protocol.Idempotency(opt.Store, credentialLimitIdentity))
 
-	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.15.0")
+	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.17.0")
 	cfg.OpenAPIPath = ""
 	cfg.DocsPath = ""
 	cfg.SchemasPath = ""
@@ -176,6 +176,7 @@ func annotateSpec(doc *huma.OpenAPI) {
 	for path, item := range doc.Paths {
 		for _, op := range pathOps(item) {
 			rewriteErrorResponses(path, op, problemRef)
+			noteEditingPlaneScope(path, op)
 			if schemes, _ := v2Security(path); len(schemes) > 0 {
 				req := make([]map[string][]string, 0, len(schemes))
 				for _, scheme := range schemes {
@@ -190,6 +191,31 @@ func annotateSpec(doc *huma.OpenAPI) {
 			}
 		}
 	}
+}
+
+// The editing plane's scope requirement is generated from the same table the
+// gate reads, so the two cannot drift. /v2/me/folders is deliberately excluded:
+// its requirement is method-dependent ("folder:write also grants reads"), which
+// a path-keyed note cannot say, so that one stays hand-written on the route.
+func noteEditingPlaneScope(path string, op *huma.Operation) {
+	if op == nil {
+		return
+	}
+	matched := false
+	for _, prefix := range editingPlanePrefixes {
+		if underPrefix(path, prefix) {
+			matched = true
+			break
+		}
+	}
+	if !matched {
+		return
+	}
+	note := "The token must carry the " + devapi.ScopeCatalogEdit + " scope."
+	if strings.Contains(op.Description, note) {
+		return
+	}
+	op.Description = strings.TrimSpace(strings.TrimSpace(op.Description) + " " + note)
 }
 
 // Both are `type: http`, for which OpenAPI requires the per-operation scope

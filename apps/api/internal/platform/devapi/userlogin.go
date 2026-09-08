@@ -31,7 +31,7 @@ var selfServiceUserScopes = []string{
 	"openid", "profile", "email",
 	ScopePlaytimeRead, ScopePlaytimeWrite,
 	ScopeFolderRead, ScopeFolderWrite,
-	"catalog:edit",
+	ScopeCatalogEdit,
 	ScopeCatalogRead,
 }
 
@@ -43,6 +43,11 @@ const (
 	// convention and demands an explicit consent.
 	ScopeFolderRead  = "folder:read"
 	ScopeFolderWrite = "folder:write"
+	// Enforced too, over the whole editing plane. v1's UserGate demanded it
+	// across /api/v1/user/catalog; wave R3 deleted that surface and carried
+	// nothing over, so from that day /v2/me/proposals accepted an
+	// `openid profile` token and merged the edit.
+	ScopeCatalogEdit = "catalog:edit"
 )
 
 var (

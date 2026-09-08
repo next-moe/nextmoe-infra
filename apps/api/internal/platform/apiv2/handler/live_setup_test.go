@@ -137,9 +137,12 @@ const liveBulkRows = 105
 const (
 	liveNewsSource = "moyu"
 	liveCDNBase    = "https://img.example.test/image"
-	liveLogoHash   = "1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809"
-	livePhotoHash  = "9f8e7d6c5b4a39281706f5e4d3c2b1a09f8e7d6c5b4a39281706f5e4d3c2b1a0"
-	liveCoverHash  = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	// The news services have always used their own base; naming it keeps the two
+	// news constructors from drifting apart.
+	liveNewsCDNBase = "https://image.example.test/image"
+	liveLogoHash    = "1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809"
+	livePhotoHash   = "9f8e7d6c5b4a39281706f5e4d3c2b1a09f8e7d6c5b4a39281706f5e4d3c2b1a0"
+	liveCoverHash   = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 )
 
 type liveEnv struct {
@@ -205,8 +208,8 @@ func liveCatalog(t *testing.T) *liveEnv {
 			CoverVotes: catsvc.NewCoverVoteService(db),
 			Claims:     catsvc.NewClaimLifecycleService(db),
 			Engine:     editing.NewEngine(db, reg),
-			News:       newssvc.NewPublicService(db, "https://image.example.test/image"),
-			NewsWrite:  newssvc.NewSubmissionService(db),
+			News:       newssvc.NewPublicService(db, liveNewsCDNBase),
+			NewsWrite:  newssvc.NewSubmissionService(db, liveNewsCDNBase),
 		}
 		cat.EditHistory = catsvc.NewEditHistoryService(db)
 		app := fiber.New(fiber.Config{ErrorHandler: problem.WriteFiberError})
@@ -232,19 +235,26 @@ func liveCatalog(t *testing.T) *liveEnv {
 					return nil, nil
 				}
 			},
+			// Every persona carries catalog:edit: the live suite exercises the
+			// editing engine's own policy, so a token that cannot clear the
+			// scope gate would test the gate instead of the thing under test.
 			LookupUser: func(_ context.Context, raw string) (UserIdentity, error) {
 				switch raw {
 				case liveUserToken:
 					return UserIdentity{UID: liveUID, ClientID: liveClient, Roles: []string{"admin"},
-						Scopes: []string{devapi.ScopeFolderRead, devapi.ScopeFolderWrite}}, nil
+						Scopes: []string{devapi.ScopeFolderRead, devapi.ScopeFolderWrite, devapi.ScopeCatalogEdit}}, nil
 				case livePlainToken:
-					return UserIdentity{UID: livePlainUID, ClientID: liveClient, Roles: []string{"user"}}, nil
+					return UserIdentity{UID: livePlainUID, ClientID: liveClient, Roles: []string{"user"},
+						Scopes: []string{devapi.ScopeCatalogEdit}}, nil
 				case liveSecondPlainToken:
-					return UserIdentity{UID: liveSecondPlainUID, ClientID: liveClient, Roles: []string{"user"}}, nil
+					return UserIdentity{UID: liveSecondPlainUID, ClientID: liveClient, Roles: []string{"user"},
+						Scopes: []string{devapi.ScopeCatalogEdit}}, nil
 				case liveOtherSiteToken:
-					return UserIdentity{UID: liveOtherSiteUID, ClientID: liveOtherClient, Roles: []string{"admin"}}, nil
+					return UserIdentity{UID: liveOtherSiteUID, ClientID: liveOtherClient, Roles: []string{"admin"},
+						Scopes: []string{devapi.ScopeCatalogEdit}}, nil
 				case liveThirdPartyToken:
-					return UserIdentity{UID: liveUID, ClientID: liveThirdPartyClient, Roles: []string{"admin"}}, nil
+					return UserIdentity{UID: liveUID, ClientID: liveThirdPartyClient, Roles: []string{"admin"},
+						Scopes: []string{devapi.ScopeCatalogEdit}}, nil
 				default:
 					return UserIdentity{}, os.ErrPermission
 				}

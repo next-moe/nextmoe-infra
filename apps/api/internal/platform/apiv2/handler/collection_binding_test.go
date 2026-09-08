@@ -63,8 +63,10 @@ func bindingApp(t *testing.T) (*fiber.App, huma.API, string, string) {
 			if raw != userToken {
 				return UserIdentity{}, os.ErrPermission
 			}
+			// This walk covers every collection face, so the token has to clear
+			// both scope gates on /v2/me: folders and the editing plane.
 			return UserIdentity{UID: 7, ClientID: "kungal-client",
-				Scopes: []string{devapi.ScopeFolderRead}}, nil
+				Scopes: []string{devapi.ScopeFolderRead, devapi.ScopeCatalogEdit}}, nil
 		},
 		LookupSite: func(context.Context, string) (SiteBinding, error) { return SiteBinding{Site: "kungal"}, nil },
 	})

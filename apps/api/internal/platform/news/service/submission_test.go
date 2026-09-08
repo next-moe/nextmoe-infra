@@ -22,7 +22,7 @@ func newSubmissionFixture(t *testing.T) *SubmissionService {
 	seedSource(t, "moyu", minePublisher, true)
 	seedSource(t, "sleeping", minePublisher, false)
 	seedSource(t, "someone_else", otherPublisher, true)
-	return NewSubmissionService(testDB)
+	return NewSubmissionService(testDB, "https://img.example.test")
 }
 
 func seedSource(t *testing.T, key string, uid int64, active bool) {

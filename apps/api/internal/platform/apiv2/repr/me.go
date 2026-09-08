@@ -124,7 +124,7 @@ type NewsSubmission struct {
 	Title       string     `json:"title" maxLength:"512" doc:"Must not be used as a discriminant."`
 	Summary     string     `json:"summary" maxLength:"200" doc:"Lede, at most 200 runes. Must not be used as a discriminant."`
 	SourceURL   string     `json:"source_url" format:"uri" maxLength:"1024" doc:"Canonical link to the original item."`
-	BannerHash  string     `json:"banner_hash" maxLength:"64" pattern:"^([0-9a-f]{64})?$" doc:"Image-service content hash of the banner. Empty string when there is none."`
+	Banner      *Image     `json:"banner" doc:"Lead image. null when there is none. B10: never a bare hash."`
 	PublishedAt string     `json:"published_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
 	WorkIDs     []string   `json:"work_ids" doc:"Catalog work ids linked by hand. Empty array, never null."`
 }

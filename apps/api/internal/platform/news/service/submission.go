@@ -13,6 +13,8 @@ import (
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+
+	"api/pkg/imageclient"
 )
 
 var (
@@ -30,22 +32,25 @@ var (
 const nativeExternalIDPrefix = "api_"
 
 type SubmissionService struct {
-	db *gorm.DB
+	db      *gorm.DB
+	cdnBase string
 }
 
-func NewSubmissionService(db *gorm.DB) *SubmissionService {
-	return &SubmissionService{db: db}
+func NewSubmissionService(db *gorm.DB, cdnBase string) *SubmissionService {
+	return &SubmissionService{db: db, cdnBase: cdnBase}
 }
 
 type Submission struct {
 	ID                int64
 	SourceKey         string
 	SourceDisplayName string
+	SourceHomepageURL string
 	Lane              string
 	Title             string
 	Preview           string
 	SourceURL         string
 	BannerHash        string
+	BannerURL         string
 	PublishedAt       time.Time
 	Status            int16
 	UpdatedAt         time.Time
@@ -299,8 +304,10 @@ func (s *SubmissionService) decorate(ctx context.Context, rows []model.NewsItem)
 		return nil, err
 	}
 	names := make(map[string]string, len(sources))
+	homes := make(map[string]string, len(sources))
 	for _, src := range sources {
 		names[src.Key] = src.DisplayName
+		homes[src.Key] = src.HomepageURL
 	}
 	var links []model.NewsItemWork
 	if err := s.db.WithContext(ctx).Where("item_id IN ?", ids).
@@ -314,8 +321,10 @@ func (s *SubmissionService) decorate(ctx context.Context, rows []model.NewsItem)
 	for _, r := range rows {
 		out = append(out, Submission{
 			ID: r.ID, SourceKey: r.SourceKey, SourceDisplayName: names[r.SourceKey],
-			Lane: r.Lane, Title: r.Title, Preview: r.Preview, SourceURL: r.SourceURL,
-			BannerHash: r.BannerHash, PublishedAt: r.PublishedAt.UTC(), Status: r.Status,
+			SourceHomepageURL: homes[r.SourceKey],
+			Lane:              r.Lane, Title: r.Title, Preview: r.Preview, SourceURL: r.SourceURL,
+			BannerHash: r.BannerHash, BannerURL: s.imageURL(r.BannerHash),
+			PublishedAt: r.PublishedAt.UTC(), Status: r.Status,
 			UpdatedAt: r.UpdatedAt.UTC(), WorkIDs: works[r.ID],
 		})
 	}
@@ -326,4 +335,11 @@ func mintExternalID() string {
 	var raw [16]byte
 	_, _ = rand.Read(raw[:])
 	return nativeExternalIDPrefix + hex.EncodeToString(raw[:])
+}
+
+func (s *SubmissionService) imageURL(hash string) string {
+	if hash == "" || s.cdnBase == "" {
+		return ""
+	}
+	return imageclient.MainURL(s.cdnBase, hash, "webp")
 }
