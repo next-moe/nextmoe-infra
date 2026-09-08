@@ -143,8 +143,8 @@ func TestForwardAuthMissingScope(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatalf("usage deltas = %d, want 1", len(got))
 	}
-	if got[0].face != "moyu" || got[0].path != "/v1/moyu/*" || got[0].count != 1 || got[0].s4xx != 1 || got[0].s5xx != 0 {
-		t.Errorf("delta = %+v, want face=moyu path=/v1/moyu/* count=1 s4xx=1 s5xx=0", got[0])
+	if got[0].face != "moyu" || got[0].path != "/v2/moyu/*" || got[0].count != 1 || got[0].s4xx != 1 || got[0].s5xx != 0 {
+		t.Errorf("delta = %+v, want face=moyu path=/v2/moyu/* count=1 s4xx=1 s5xx=0", got[0])
 	}
 }
 
@@ -156,9 +156,9 @@ func TestForwardAuthSuccess(t *testing.T) {
 
 	app := fiber.New()
 	app.Get("/internal/devapi/forward-auth", fwd.Handle)
-	app.Get("/v1/moyu/resources/:id", fwd.Handle)
+	app.Get("/v2/moyu/resources/:id", fwd.Handle)
 
-	req := httptest.NewRequest("GET", "/v1/moyu/resources/123?face=moyu", nil)
+	req := httptest.NewRequest("GET", "/v2/moyu/resources/123?face=moyu", nil)
 	req.Header.Set("Authorization", "Bearer "+raw)
 	resp, err := app.Test(req)
 	if err != nil {
@@ -186,8 +186,8 @@ func TestForwardAuthSuccess(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatalf("usage deltas = %d, want 1", len(got))
 	}
-	if got[0].face != "moyu" || got[0].path != "/v1/moyu/*" {
-		t.Errorf("recorded face/path = %q %q, want moyu /v1/moyu/* (request URI was /v1/moyu/resources/123)", got[0].face, got[0].path)
+	if got[0].face != "moyu" || got[0].path != "/v2/moyu/*" {
+		t.Errorf("recorded face/path = %q %q, want moyu /v2/moyu/* (request URI was /v2/moyu/resources/123)", got[0].face, got[0].path)
 	}
 	if got[0].count != 1 || got[0].s4xx != 0 || got[0].s5xx != 0 {
 		t.Errorf("delta = %+v, want count=1 zero error buckets", got[0])

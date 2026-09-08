@@ -14,7 +14,7 @@
 
 - **scope**:每个下游面新增 `<site>:read`(如 `kungal:read`),命名沿用 §4 词表规则;敏感能力走审批 scope,不入自助集(旧稿在此援引 `galgame:nsfw` 为前例——它与 NSFW 能力位均已退役,不再是可照抄的形状)。
 - **计量**:face 字符串以 `<site>` / `<site>_<sub>` 命名,落 `developer_api_usage`(04 §12;face 列宽教训见 07 §14)。
-- **域名**:默认统一 `api.nextmoe.dev/v1/<site>/*`(Traefik 路径分面,现有孪生 router 模式);品牌确需独立域时允许 per-site 域名,但凭证/计量平面**不分裂**——这是唯一不变量,域名只是表皮。
+- **域名**:默认统一 `api.nextmoe.dev/v2/<site>/*`(Traefik 路径分面,现有孪生 router 模式);品牌确需独立域时允许 per-site 域名,但凭证/计量平面**不分裂**——这是唯一不变量,域名只是表皮。(本条原稿写 `/v1/<site>`——写于 wave R3 之前,当时平台在产前缀就是 /v1;R3 整面退役 /v1 后每个 /v1 邻居都回 410 并 Link 指向 /v2,新公开面若钉回 /v1 会被第三方按门户「v1 已整面退役」的说法当成死面。2026-09-08 随首批下游面改判 `/v2/<site>`,见 §16.5。)
 - **契约**:每个下游面提供合法 OpenAPI 文档,注册进门户构建(docs-model)+ oasdiff 破坏门 + operation-count 守卫,与 /v1 两面同一套纪律(02 §10)。
 
 ### 16.3 接入实现,两档
@@ -46,18 +46,20 @@
 
 下游只可通过 Traefik `authResponseHeaders` 信任这三个头,不可信客户端原请求。
 
-**计量**:B 档数的是闸门放行的请求,不是下游业务结果(与 A 档不对称,接受)。`UsageRecorder.Record` 的 face 为注册表名(`moyu` / `sticker`),path 为该面静态 `pathLabel`(`/v1/moyu/*` / `/v1/sticker/*`),永不写具体 URI。注册表手维护于 `apps/api/internal/platform/devapi/forwardauth.go`;未注册 face 不得入计量(超长 face 会毒化后续整批 flush,见 model.go Face 列宽教训)。加一张脸 = 注册表一行 + 一个 `<site>:read` scope。
+**路径前缀**:`/v2/<site>/*`(`/v2/moyu`、`/v2/sticker`)。首批接线时(2026-09-08)裁定跟随 §16.2 的修订:/v2 早已不是 catalog 专属(spec 内已有 catalog/store/news/folders/me/moderation/vocabularies 七个命名空间),`<face>` 并列其下是现成形状;门户 docs-model 与 oasdiff 门按 **spec 文档**切分而非按前缀,两份 spec 同描述 `/v2/...` 无冲突。
+
+**计量**:B 档数的是闸门放行的请求,不是下游业务结果(与 A 档不对称,接受)。CDN 命中(`s-maxage` 生效时)不经 Traefik、不入计量——免费只读面接受少计,要严计量的面须自己去掉 `s-maxage`。`UsageRecorder.Record` 的 face 为注册表名(`moyu` / `sticker`),path 为该面静态 `pathLabel`(`/v2/moyu/*` / `/v2/sticker/*`),永不写具体 URI。注册表手维护于 `apps/api/internal/platform/devapi/forwardauth.go`;未注册 face 不得入计量(超长 face 会毒化后续整批 flush,见 model.go Face 列宽教训)。加一张脸 = 注册表一行 + 一个 `<site>:read` scope。
 
 **Traefik 标签配方**(占位符随下游服务别名与端口替换;http 孪生只做跳 https,forwardAuth 挂在 websecure):
 
 ```yaml
 traefik.enable: "true"
-traefik.http.routers.<svc>-pub.rule: Host(`api.nextmoe.dev`) && PathPrefix(`/v1/moyu`)
+traefik.http.routers.<svc>-pub.rule: Host(`api.nextmoe.dev`) && PathPrefix(`/v2/moyu`)
 traefik.http.routers.<svc>-pub.entrypoints: websecure
 traefik.http.routers.<svc>-pub.tls.certresolver: letsencrypt
 traefik.http.routers.<svc>-pub.middlewares: <svc>-forwardauth
 traefik.http.routers.<svc>-pub.service: <svc>-pub
-traefik.http.routers.<svc>-pub-http.rule: Host(`api.nextmoe.dev`) && PathPrefix(`/v1/moyu`)
+traefik.http.routers.<svc>-pub-http.rule: Host(`api.nextmoe.dev`) && PathPrefix(`/v2/moyu`)
 traefik.http.routers.<svc>-pub-http.entrypoints: web
 traefik.http.routers.<svc>-pub-http.middlewares: redirect-to-https@file
 traefik.http.routers.<svc>-pub-http.service: <svc>-pub
@@ -66,7 +68,9 @@ traefik.http.middlewares.<svc>-forwardauth.forwardauth.authResponseHeaders: X-Ne
 traefik.http.services.<svc>-pub.loadbalancer.server.port: "<port>"
 ```
 
-sticker 面同一套,`PathPrefix(/v1/sticker)` + `face=sticker`。
+sticker 面同一套,`PathPrefix(/v2/sticker)` + `face=sticker`(实测别名/端口:sticker-api:9421、moyu-api:5214、oauth:9277)。
+
+ForwardAuth 对所有方法生效,浏览器 `OPTIONS` 预检不带认证头 → 会被 401。**下游面不支持浏览器直连 fetch**——这是想要的(nmk_ key 不该出现在浏览器),门户文档须写明,免得第三方去查自己的 CORS。
 
 `moyu:read` / `sticker:read` 自本次交付起为自助 scope,控制台可勾。
 
