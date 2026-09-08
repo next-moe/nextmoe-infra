@@ -663,7 +663,7 @@ export const searchIndex: SearchEntry[] = [
     "r": "/docs/v2",
     "t": "Public API v2",
     "s": "端点参考",
-    "d": "/v2 · 107 个端点",
+    "d": "/v2 · 108 个端点",
     "b": "v2 /v2 API v2 Public API v2"
   },
   {
@@ -1141,6 +1141,13 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 我的",
     "d": "DELETE /v2/me/cover-votes/{cover_id}",
     "b": "deleteMyCoverVote /v2/me/cover-votes/{cover_id} delete Withdraw a cover vote 204 with no body. Requires a user access token. The token must carry the catalog:edit scope. 204 无响应体。需要用户访问令牌。令牌须带 catalog:edit scope。 cover_id"
+  },
+  {
+    "r": "/docs/v2/getMyEditCapabilities",
+    "t": "我在某个族上能编辑什么",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/edit-capabilities/{object}",
+    "b": "getMyEditCapabilities /v2/me/edit-capabilities/{object} get What I may edit on one family Per-field can_propose / can_review / would_automerge for the bearer, evaluated by the editing engine. The capability axis cannot ride on /v2/catalog/schemas/{object}: that face is credential-less and B34 forbids varying one URL's field set by credential, so the two are separate URLs and join on fields[].key. Pass entity_id= wherever the site grants the owner channel, or would_automerge answers the type-level question instead. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 由编辑引擎实算的、针对本次调用者的逐字段 can_propose / can_review / would_automerge。能力轴不能挂在 /v2/catalog/schemas/{object} 上:那个面免凭证,而 B34 禁止同一个 URL 按凭证返回不同字段集,所以两者是两个 URL,按 fields[].key 关联。站点开放 owner 通道时请带上 entity_id=,否则 would_automerge 回答的是类型级问题。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 object entity_id"
   },
   {
     "r": "/docs/v2/uploadMyEditImage",

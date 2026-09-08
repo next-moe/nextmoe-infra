@@ -8,7 +8,6 @@ import (
 	"api/internal/platform/apiv2/problem"
 	"api/internal/platform/apiv2/repr"
 	"api/internal/platform/catalog/editspec"
-	catalogPerm "api/internal/platform/catalog/perm"
 	catsvc "api/internal/platform/catalog/service"
 )
 
@@ -63,7 +62,7 @@ func (c *Catalog) mintClaim(ctx context.Context, site string, uid, product int64
 	res, err := c.Claims.SubmitWork(ctx, catsvc.SubmitWorkParams{
 		Site: site, ProductWorkID: product, ActorUID: uid,
 		ContentRating: rating, Fields: fields,
-		Trusted:           catalogPerm.Resolver.Can(rolesFrom(ctx), catalogPerm.EditTrusted),
+		Trusted:           actsAsTrusted(ctx),
 		ConfirmDuplicates: confirmDuplicates,
 	})
 	if err != nil {

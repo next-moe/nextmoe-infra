@@ -117,6 +117,7 @@ func requireIfMatch(header, etag string) error {
 var editingPlanePrefixes = []string{
 	"/v2/me/claims",
 	"/v2/me/cover-votes",
+	"/v2/me/edit-capabilities",
 	"/v2/me/edit-images",
 	"/v2/me/proposals",
 	"/v2/moderation/claims",

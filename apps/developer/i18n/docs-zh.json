@@ -776,5 +776,18 @@
   "Folders removed. 0 when the account held none, which is not an error.": "被删除的收藏夹数。账号本来就没有时是 0，这不是错误。",
   "Memberships removed with them.": "随之删除的收藏条目数。",
   "Type discriminant. Always folder_purge.": "类型判别字段，恒为 folder_purge。",
-  "The account whose folders were removed.": "被清空收藏夹的账号。"
+  "The account whose folders were removed.": "被清空收藏夹的账号。",
+  "What I may edit on one family": "我在某个族上能编辑什么",
+  "Per-field can_propose / can_review / would_automerge for the bearer, evaluated by the editing engine. The capability axis cannot ride on /v2/catalog/schemas/{object}: that face is credential-less and B34 forbids varying one URL's field set by credential, so the two are separate URLs and join on fields[].key. Pass entity_id= wherever the site grants the owner channel, or would_automerge answers the type-level question instead. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.": "由编辑引擎实算的、针对本次调用者的逐字段 can_propose / can_review / would_automerge。能力轴不能挂在 /v2/catalog/schemas/{object} 上:那个面免凭证,而 B34 禁止同一个 URL 按凭证返回不同字段集,所以两者是两个 URL,按 fields[].key 关联。站点开放 owner 通道时请带上 entity_id=,否则 would_automerge 回答的是类型级问题。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。",
+  "Family these capabilities describe. Unknown family is 404 NOT_FOUND.": "这组能力所描述的族。未知族返回 404 NOT_FOUND。",
+  "Evaluate against one entity. Omit for the type-level answer, which cannot express the owner channel: a site that grants owner-review or owner-automerge answers would_automerge=false without it.": "针对某一个实体求值。省略则给类型级答案,而类型级答案表达不了 owner 通道:开放了 owner-review 或 owner-automerge 的站点,在不带它时 would_automerge 一律为 false。",
+  "The entity these capabilities were evaluated against. null when the answer is type-level, which cannot express the owner channel.": "这组能力是针对哪个实体求值的。类型级答案时为 null,而类型级表达不了 owner 通道。",
+  "One entry per editable field, in the schema's order. Empty array, never null.": "每个可编辑字段一条,顺序与 schema 一致。没有时为空数组,绝不为 null。",
+  "true when the bearer may file a proposal touching this field.": "调用者可以提交涉及该字段的提案时为 true。",
+  "true when the bearer may decide a proposal touching this field. Always false for a developer-owned app, whatever roles the user carries.": "调用者可以裁决涉及该字段的提案时为 true。开发者自有应用一律为 false,无论该用户持有什么角色。",
+  "Editing-engine field key. Joins /v2/catalog/schemas/{object} fields[].key. Must not be used as a discriminant.": "编辑引擎字段键,与 /v2/catalog/schemas/{object} 的 fields[].key 关联。不得用作判别条件。",
+  "true when this site's overlay accepts no proposal of this field from anyone.": "本站点的 overlay 对该字段不接受任何人的提案时为 true。",
+  "true when a proposal of this field by this bearer would apply immediately rather than queue. Requires entity_id wherever the site grants the owner channel.": "该调用者提交的这个字段的提案会立即生效而不进队列时为 true。站点开放 owner 通道时需要带 entity_id。",
+  "Type discriminant. Always edit_capabilities.": "类型判别符,恒为 edit_capabilities。",
+  "Family these capabilities describe.": "这组能力所描述的族。"
 }

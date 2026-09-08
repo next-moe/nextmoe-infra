@@ -22,14 +22,14 @@ func TestUnionRoles(t *testing.T) {
 		{"only site roles", nil, []string{"event_organizer"}, []string{"event_organizer"}},
 	}
 	for _, tc := range cases {
-		if got := unionRoles(tc.global, tc.site); !slices.Equal(got, tc.want) {
-			t.Errorf("%s: unionRoles(%v, %v) = %v, want %v", tc.name, tc.global, tc.site, got, tc.want)
+		if got := UnionRoles(tc.global, tc.site); !slices.Equal(got, tc.want) {
+			t.Errorf("%s: UnionRoles(%v, %v) = %v, want %v", tc.name, tc.global, tc.site, got, tc.want)
 		}
 	}
 }
 
 func TestSiteRolesCannotReachAdminBundles(t *testing.T) {
-	roles := unionRoles(nil, []string{"moderator", "event_organizer"})
+	roles := UnionRoles(nil, []string{"moderator", "event_organizer"})
 
 	if catalogperm.Resolver.Can(roles, catalogperm.Review) {
 		t.Error("site roles must not grant catalog.review (ren-only)")

@@ -1662,6 +1662,65 @@ components:
       required:
         - decision
       type: object
+    EditCapabilities:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EditCapabilities.json
+          format: uri
+          readOnly: true
+          type: string
+        entity_id:
+          description: The entity these capabilities were evaluated against. null when the answer is type-level, which cannot express the owner channel.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type:
+            - string
+            - "null"
+        entity_type:
+          description: Editing-engine type this family writes as.
+          enum:
+            - catalog.work
+            - catalog.label
+            - catalog.character
+            - catalog.release
+            - catalog.tag
+            - catalog.engine
+            - catalog.series
+          type: string
+          x-vocabulary-closed: true
+        fields:
+          description: One entry per editable field, in the schema's order. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/FieldCapability"
+          type: array
+        object:
+          description: Type discriminant. Always edit_capabilities.
+          enum:
+            - edit_capabilities
+          type: string
+          x-vocabulary-closed: true
+        target_object:
+          description: Family these capabilities describe.
+          enum:
+            - work
+            - company
+            - character
+            - release
+            - tag
+            - engine
+            - series
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - target_object
+        - entity_type
+        - entity_id
+        - fields
+      type: object
     EditImage:
       additionalProperties: true
       properties:
@@ -1856,6 +1915,33 @@ components:
         - value
         - display_name
         - count
+      type: object
+    FieldCapability:
+      additionalProperties: true
+      properties:
+        can_propose:
+          description: true when the bearer may file a proposal touching this field.
+          type: boolean
+        can_review:
+          description: true when the bearer may decide a proposal touching this field. Always false for a developer-owned app, whatever roles the user carries.
+          type: boolean
+        key:
+          description: Editing-engine field key. Joins /v2/catalog/schemas/{object} fields[].key. Must not be used as a discriminant.
+          maxLength: 128
+          pattern: ^[a-z0-9_]+(\.[a-z0-9_]+)+$
+          type: string
+        locked:
+          description: true when this site's overlay accepts no proposal of this field from anyone.
+          type: boolean
+        would_automerge:
+          description: true when a proposal of this field by this bearer would apply immediately rather than queue. Requires entity_id wherever the site grants the owner channel.
+          type: boolean
+      required:
+        - key
+        - locked
+        - can_propose
+        - can_review
+        - would_automerge
       type: object
     FieldDiff:
       additionalProperties: true
@@ -7380,7 +7466,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.17.0
+  version: 2.18.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -14713,6 +14799,99 @@ paths:
       security:
         - userToken: []
       summary: Cast a cover vote
+      tags:
+        - me
+  /v2/me/edit-capabilities/{object}:
+    get:
+      description: "Per-field can_propose / can_review / would_automerge for the bearer, evaluated by the editing engine. The capability axis cannot ride on /v2/catalog/schemas/{object}: that face is credential-less and B34 forbids varying one URL's field set by credential, so the two are separate URLs and join on fields[].key. Pass entity_id= wherever the site grants the owner channel, or would_automerge answers the type-level question instead. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope."
+      operationId: getMyEditCapabilities
+      parameters:
+        - description: Family these capabilities describe. Unknown family is 404 NOT_FOUND.
+          in: path
+          name: object
+          required: true
+          schema:
+            description: Family these capabilities describe. Unknown family is 404 NOT_FOUND.
+            enum:
+              - work
+              - company
+              - character
+              - release
+              - tag
+              - engine
+              - series
+            maxLength: 32
+            type: string
+            x-vocabulary-closed: true
+        - description: "Evaluate against one entity. Omit for the type-level answer, which cannot express the owner channel: a site that grants owner-review or owner-automerge answers would_automerge=false without it."
+          explode: false
+          in: query
+          name: entity_id
+          schema:
+            description: "Evaluate against one entity. Omit for the type-level answer, which cannot express the owner channel: a site that grants owner-review or owner-automerge answers would_automerge=false without it."
+            format: int64
+            minimum: 0
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EditCapabilities"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: What I may edit on one family
       tags:
         - me
   /v2/me/edit-images:

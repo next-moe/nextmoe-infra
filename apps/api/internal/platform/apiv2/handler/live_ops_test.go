@@ -51,6 +51,7 @@ var liveReadPaths = []string{
 	"/v2/vocabularies/{name}",
 	"/v2/catalog/stats",
 	"/v2/catalog/schemas/{object}",
+	"/v2/me/edit-capabilities/{object}",
 	"/v2/catalog/works",
 	"/v2/catalog/works/{id}",
 	"/v2/catalog/works/{id}/covers",
