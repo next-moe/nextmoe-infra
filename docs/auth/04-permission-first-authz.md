@@ -117,7 +117,7 @@ type NonDelegable map[Permission]bool      // 叠加层永不可授予的键(§7
 | `trust.term_manage` | admin, ren | Tier0 词表增改/退役(站域封禁权,比 queue_access 敏感;**不含 moderator**) |
 | `ai.usage_view` | admin, ren | AI 网关用量/成本/预算看板(**不含 moderator**——运营面) |
 | `oauth.admin_access` | admin, ren | 控制台四组门(/admin、/sites、/oauth/clients、/admin/artifact) |
-| `oauth.users.pii_view` | ren | 看用户 PII(邮箱/IP) |
+| `oauth.users.pii_view` | ren | 看用户 PII(邮箱/IP);**也是改邮箱的键**——`PATCH /admin/users/:uuid` 的 `email` 字段只对持键者开放(不许写自己读不到的字段),响应里的 email 同样按此键脱敏 |
 | `oauth.roles.grant_basic` | admin, ren | 授予/撤销 moderator、creator |
 | `oauth.roles.grant_site` | admin, ren | 授予/撤销站点作用域角色(契约 12-site-roles;站点角色恒低于全局 moderator,故 admin 可授) |
 | `oauth.roles.grant_admin` | ren | 授予/撤销 admin(及隐式 user 基座);**不可委派** |

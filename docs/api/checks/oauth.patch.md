@@ -23,4 +23,4 @@
 
 | 路径 | 鉴权 | Handler | 状态 | 备注 |
 |---|---|---|---|---|
-| `PATCH /api/v1/admin/users/:uuid` | admin | `adminH.UpdateUser` | 已修 | 改 name/email/avatar/bio/status；#31 not-found→404；#15 avatar_image_hash；#11 转封禁时撤销会话 |
+| `PATCH /api/v1/admin/users/:uuid` | admin | `adminH.UpdateUser` | 已修 | 改 name/email/avatar/bio/status；#31 not-found→404；#15 avatar_image_hash；#11 转封禁时撤销会话；2026-09-08 补 F001 残留：目标为受保护账号(admin/**ren**)时非 `roles.grant_admin` 持有者一律 403，`email` 读写同归 `users.pii_view`(响应也脱敏)，写入前 `NormalizeEmail` |

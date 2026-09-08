@@ -4,19 +4,22 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"slices"
 	"time"
 
 	"api/internal/platform/auth/dto"
 	"api/internal/platform/auth/model"
 	"api/internal/platform/auth/repository"
+	sitePerm "api/internal/platform/site/perm"
 	siterepo "api/internal/platform/site/repository"
 	"api/pkg/errors"
 	"api/pkg/imageclient"
 )
 
+// ren is granted in the DB only (11-roles) and carries no "admin" role row, so a
+// role-name check leaves the one account above admin unprotected from admins.
+// Ask the permission bundle instead.
 func adminProtected(u *model.User) bool {
-	return slices.Contains(u.RoleNames(), "admin")
+	return sitePerm.Resolver.Can(u.RoleNames(), sitePerm.AdminAccess)
 }
 
 func piiOrRedacted(canSeePII bool, value string) string {
@@ -165,15 +168,40 @@ func (s *AdminService) userRoleNames(ctx context.Context, uuid string) ([]string
 	return u.RoleNames(), nil
 }
 
-func (s *AdminService) UpdateUser(ctx context.Context, uuid string, req *dto.UpdateUserRequest) (*model.User, error) {
+// UserUpdateActor is what the caller of PATCH /admin/users/:uuid is allowed to
+// do, resolved from their roles by the handler.
+type UserUpdateActor struct {
+	CanSeePII       bool
+	CanManageAdmins bool
+}
+
+// authorizeUserUpdate shuts the two escalation paths this endpoint used to leave
+// open: writing an email you are not allowed to read (change it to your own
+// address, then "forgot password"), and editing an account that outranks you.
+// The status rule is the older one and applies to everyone — banning staff goes
+// through BanUser, which refuses it.
+func authorizeUserUpdate(target *model.User, req *dto.UpdateUserRequest, actor UserUpdateActor) error {
+	if adminProtected(target) && !actor.CanManageAdmins {
+		return errors.New(errors.ErrForbidden, "无权编辑管理员账号")
+	}
+	if req.Email != nil && !actor.CanSeePII {
+		return errors.New(errors.ErrForbidden, "无权修改邮箱（需要查看用户 PII 的权限）")
+	}
+	if req.Status != nil && *req.Status == 1 && !target.IsBanned() && adminProtected(target) {
+		return errors.New(errors.ErrForbidden, "不能封禁管理员账号")
+	}
+	return nil
+}
+
+func (s *AdminService) UpdateUser(ctx context.Context, uuid string, req *dto.UpdateUserRequest, actor UserUpdateActor) (*dto.UserResponse, error) {
 	user, err := s.userRepo.FindByUUIDWithRoles(ctx, uuid)
 	if err != nil {
 		return nil, errors.NewWithCode(errors.ErrAuthUserNotFound)
 	}
 	wasBanned := user.IsBanned()
 
-	if req.Status != nil && *req.Status == 1 && !wasBanned && adminProtected(user) {
-		return nil, errors.NewWithCode(errors.ErrForbidden)
+	if err := authorizeUserUpdate(user, req, actor); err != nil {
+		return nil, err
 	}
 
 	if req.Name != nil {
@@ -184,11 +212,12 @@ func (s *AdminService) UpdateUser(ctx context.Context, uuid string, req *dto.Upd
 		user.Name = *req.Name
 	}
 	if req.Email != nil {
-		exists, _ := s.userRepo.ExistsByEmailExcluding(ctx, *req.Email, uuid)
+		email := model.NormalizeEmail(*req.Email)
+		exists, _ := s.userRepo.ExistsByEmailExcluding(ctx, email, uuid)
 		if exists {
 			return nil, errors.NewWithCode(errors.ErrAuthEmailExists)
 		}
-		user.Email = *req.Email
+		user.Email = email
 	}
 	if req.Avatar != nil {
 		user.Avatar = *req.Avatar
@@ -210,7 +239,19 @@ func (s *AdminService) UpdateUser(ctx context.Context, uuid string, req *dto.Upd
 		}
 	}
 
-	return user, nil
+	return &dto.UserResponse{
+		UUID:            user.UUID,
+		Name:            user.Name,
+		Email:           piiOrRedacted(actor.CanSeePII, user.Email),
+		Avatar:          user.Avatar,
+		AvatarImageHash: user.AvatarImageHash,
+		Bio:             user.Bio,
+		Moemoepoint:     user.Moemoepoint,
+		Status:          user.Status,
+		IsAnonymized:    user.IsAnonymized(),
+		Roles:           user.RoleNames(),
+		CreatedAt:       user.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+	}, nil
 }
 
 func (s *AdminService) BanUser(ctx context.Context, uuid string) error {

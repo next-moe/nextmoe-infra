@@ -180,11 +180,15 @@ func (h *AdminHandler) UpdateUser(c fiber.Ctx) error {
 		return response.BadRequestMsg(c, errors.ErrValidationFailed, err.Error())
 	}
 
-	user, err := h.adminService.UpdateUser(c.Context(), uuid, &req)
+	roles := callerRoles(c)
+	user, err := h.adminService.UpdateUser(c.Context(), uuid, &req, service.UserUpdateActor{
+		CanSeePII:       sitePerm.Resolver.Can(roles, sitePerm.UsersPIIView),
+		CanManageAdmins: sitePerm.Resolver.Can(roles, sitePerm.RolesGrantAdmin),
+	})
 	if err != nil {
 		if appErr, ok := err.(*errors.AppError); ok {
 			if appErr.Code == errors.ErrForbidden {
-				return response.Forbidden(c, appErr.Code)
+				return response.ForbiddenMsg(c, appErr.Code, appErr.Message)
 			}
 			if appErr.Code == errors.ErrAuthUserNotFound {
 				return response.NotFound(c, appErr.Code)
@@ -194,19 +198,7 @@ func (h *AdminHandler) UpdateUser(c fiber.Ctx) error {
 		return response.InternalError(c, errors.ErrOperationFailed)
 	}
 
-	return response.Success(c, dto.UserResponse{
-		UUID:            user.UUID,
-		Name:            user.Name,
-		Email:           user.Email,
-		Avatar:          user.Avatar,
-		AvatarImageHash: user.AvatarImageHash,
-		Bio:             user.Bio,
-		Moemoepoint:     user.Moemoepoint,
-		Status:          user.Status,
-		IsAnonymized:    user.IsAnonymized(),
-		Roles:           user.RoleNames(),
-		CreatedAt:       user.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
-	})
+	return response.Success(c, user)
 }
 
 func (h *AdminHandler) BanUser(c fiber.Ctx) error {

@@ -116,7 +116,7 @@ var live = NewRegistry(
 		NonDelegable: sitePerm.NonDelegable,
 		Keys: []Key{
 			{sitePerm.AdminAccess, "Reach the admin console at all (the page/list gate).", "进入管理控制台(页面与列表门)"},
-			{sitePerm.UsersPIIView, "See user PII — email in the list, email and IP in the detail.", "查看用户 PII(列表邮箱、详情邮箱与 IP)"},
+			{sitePerm.UsersPIIView, "See user PII — email in the list, email and IP in the detail — and change a user's email.", "查看用户 PII(列表邮箱、详情邮箱与 IP),并修改用户邮箱"},
 			{sitePerm.RolesGrantBasic, "Grant and revoke the below-admin roles (moderator, creator).", "授予/撤销 admin 以下角色(moderator、creator)"},
 			{sitePerm.RolesGrantSite, "Grant and revoke site-scoped roles.", "授予/撤销站点作用域角色"},
 			{sitePerm.RolesGrantAdmin, "Grant and revoke admin.", "授予/撤销 admin 角色"},

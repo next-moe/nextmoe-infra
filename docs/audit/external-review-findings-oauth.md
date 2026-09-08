@@ -30,6 +30,11 @@
 **二轮核查补修(2026-05-30,据 `kungal-docs/audit/claude.1.md` 指出的残留):**
 - **F001 残留**:`AdminService.UpdateUser` 之前用 `FindByUUID` 且直接写 `req.Status`,admin 可借这个通用编辑接口给同级 admin 设 `Status=1`,**绕过** Ban/Anonymize/DeleteSessions 上的 `adminProtected` 闸(可逆封禁)。已改:载入角色(`FindByUUIDWithRoles`)+ 当 `req.Status==1 && 目标为 admin && 原本未封` 时返回 `ErrForbidden`,handler 映射 403(与 BanUser 一致);非封禁编辑与解封不受影响。
 - **F037 残留**:`ResetPassword` 已挡 banned(安全边界在),但 `ForgotPassword` 仍会给 banned/匿名账号签发重置 token 并发邮件。已改:`ForgotPassword` 对 `IsBanned()` 静默返回(邮件无意义 + 不泄露"该账号存在但被封"的 oracle)。
+
+**三轮补修(2026-09-08,管理台补上「编辑用户资料」入口时把这条路径重新读了一遍):**
+
+- **F001 二次残留**:上一轮只给 `UpdateUser` 的 `Status` 加了门,`Name`/`Email`/`Avatar`/`Bio` 仍无 actor↔target 等级比较;且 `adminProtected` 按角色名匹配 `"admin"`,而 `ren` 只有 `ren` 角色行(12-site-roles:ren 仅可直接配 DB 授予)→ **admin 之上的账号在 ban/anonymize/force-logout 里也从未被保护过**。已改:`adminProtected` 改问权限包(`Can(roles, oauth.admin_access)`,覆盖 admin 与 ren),`UpdateUser` 对受保护目标要求 `oauth.roles.grant_admin`。
+- **PII 键的写侧缺口**:`GET /admin/users/:uuid` 按 `oauth.users.pii_view` 把 email 脱敏成空串,但 `PATCH` 既不校验该键就允许改 email,**响应还回明文 email**——普通 admin 可把任意账号(含 ren)的邮箱改成自己的,再走「忘记密码」接管;不改也能拿 PATCH 当 PII 读取器。已改:改 email 需持该键,PATCH 响应同 GET 一样脱敏,写入前 `NormalizeEmail`(与注册/自助改邮箱一致)。
 - 仍按取舍/缓解保留(均 LOW):**F045**(MergePR/Revert 重放快照 tag/official/engine/series id 未校验存在性,NO_CLAIM——与"已删除 #ID"渲染、无 FK 的现有设计一致,id 来自先前已校验快照)、**F046 残留**(运行期 PR/revision status 无对账)、**F076**、**F087**。
 
 > 下方逐条保留原始核实记录与最小修法;每条的修复状态见上方汇总(按 finding ID 对照)。
