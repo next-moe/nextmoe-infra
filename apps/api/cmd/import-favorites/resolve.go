@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"strconv"
 	"strings"
 
@@ -121,4 +122,29 @@ func (w *workResolver) resolveVNDB(raw string) (int64, bool, vndbOutcome) {
 		return 0, redirected, vndbNoAnchor
 	}
 	return work, redirected, vndbResolved
+}
+
+// resolveMoyuPatch prefers the vndb route and falls back to the patch row's own
+// catalog_work_id.
+//
+// That column normally adds nothing: it is derived from vndb_id by moyu's own
+// backfill, so wherever it is set the vndb route already resolved. It earns its
+// place on the rows the vndb route cannot see at all. Catalog identifies only
+// 29% of its live works by a vndb anchor (65,058 of 225,238), and on 2026-09-08
+// four moyu pages were mapped by hand from bangumi / erogamescape / dlsite
+// anchors instead — 34 favourites that would otherwise stay stranded with the
+// answer sitting in a column nothing read.
+//
+// The fallback still goes through resolve(), so a hand-written id that names a
+// merged or retired work is followed or refused rather than trusted.
+func (w *workResolver) resolveMoyuPatch(raw string, mirror sql.NullInt64) (int64, bool, vndbOutcome) {
+	work, redirected, outcome := w.resolveVNDB(raw)
+	if outcome == vndbResolved || !mirror.Valid {
+		return work, redirected, outcome
+	}
+	fallback, ok, viaRedirect := w.resolve(mirror.Int64)
+	if !ok {
+		return 0, redirected, outcome
+	}
+	return fallback, viaRedirect, vndbResolved
 }

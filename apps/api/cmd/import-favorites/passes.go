@@ -242,10 +242,10 @@ func (i *importer) importForumFlat() (counters, error) {
 }
 
 func (i *importer) importMoyu() (counters, error) {
-	return i.importFlat(i.moyu, `SELECT r.user_id, p.vndb_id, r.created, r.updated
+	return i.importFlat(i.moyu, `SELECT r.user_id, p.vndb_id, p.catalog_work_id, r.created, r.updated
 		FROM user_patch_favorite_relation r
 		JOIN patch p ON p.id = r.galgame_id
-		ORDER BY r.user_id, r.id`, i.works.resolveVNDB)
+		ORDER BY r.user_id, r.id`, i.works.resolveMoyuPatch)
 }
 
 // importFlat is the shared body of the two flat lanes. A flat favorite lands
@@ -256,7 +256,7 @@ func (i *importer) importMoyu() (counters, error) {
 // first. That is the rule the forum used for its own July fold, and doing it
 // here too keeps the two flat lanes from disagreeing. resolveKey is nil when
 // the source already stores catalog work ids, and the vndb resolver for moyu.
-func (i *importer) importFlat(src *gorm.DB, query string, resolveKey func(string) (int64, bool, vndbOutcome)) (counters, error) {
+func (i *importer) importFlat(src *gorm.DB, query string, resolveKey func(string, sql.NullInt64) (int64, bool, vndbOutcome)) (counters, error) {
 	var c counters
 	rows, err := src.Raw(query).Rows()
 	if err != nil {
@@ -280,11 +280,12 @@ func (i *importer) importFlat(src *gorm.DB, query string, resolveKey func(string
 			work, live, redirects = i.works.resolve(id)
 		} else {
 			var raw sql.NullString
-			if err := rows.Scan(&uid, &raw, &created, &updated); err != nil {
+			var mirror sql.NullInt64
+			if err := rows.Scan(&uid, &raw, &mirror, &created, &updated); err != nil {
 				return c, err
 			}
 			var outcome vndbOutcome
-			work, redirects, outcome = resolveKey(raw.String)
+			work, redirects, outcome = resolveKey(raw.String, mirror)
 			switch outcome {
 			case vndbPending:
 				c.SkippedPending++
