@@ -31,13 +31,16 @@ const (
 // on every request, and with the application queue gone, ticking it here is the
 // only way anyone can hold it. moyu:read and sticker:read joined on 2026-09-08
 // with the first two federated downstream faces (B-tier gateway termination,
-// docs/developer-platform/08 §16.5) — read-only faces stay self-service per §16.2.
-var selfServiceScopes = []string{ScopeCatalogRead, ScopeStoreRead, ScopeMoyuRead, ScopeStickerRead}
+// docs/developer-platform/08 §16.5) and left the same day, the news:read way:
+// the first smoke call was 403'd by the scope its own owner had not ticked,
+// and the ruling followed — a free read-only face takes any valid key, so
+// there is nothing left to tick. No key was ever minted with either string.
+var selfServiceScopes = []string{ScopeCatalogRead, ScopeStoreRead}
 
 var (
 	ErrAppLimitReached = errors.New("devapi: application limit reached")
 	ErrKeyLimitReached = errors.New("devapi: active key limit reached")
-	ErrScopeNotAllowed = errors.New("devapi: scope not permitted (want catalog:read, store:read, moyu:read or sticker:read)")
+	ErrScopeNotAllowed = errors.New("devapi: scope not permitted (want catalog:read or store:read)")
 	ErrNameRequired    = errors.New("devapi: name is required")
 	ErrNameTooLong     = errors.New("devapi: name too long (max 100)")
 	ErrDescTooLong     = errors.New("devapi: description too long (max 100)")

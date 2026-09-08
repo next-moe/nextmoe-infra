@@ -32,7 +32,7 @@ func TestScopeGalgameReadRetired(t *testing.T) {
 	if err := checkMintScopes([]string{ScopeGalgameRead}); err != ErrScopeNotAllowed {
 		t.Errorf("minting galgame:read = %v, want ErrScopeNotAllowed", err)
 	}
-	if want := []string{ScopeCatalogRead, ScopeStoreRead, ScopeMoyuRead, ScopeStickerRead}; !slices.Equal(selfServiceScopes, want) {
+	if want := []string{ScopeCatalogRead, ScopeStoreRead}; !slices.Equal(selfServiceScopes, want) {
 		t.Errorf("selfServiceScopes = %v, want %v", selfServiceScopes, want)
 	}
 }
@@ -50,24 +50,25 @@ func TestScopeStoreReadSelfService(t *testing.T) {
 	}
 }
 
-func TestScopeMoyuAndStickerReadSelfService(t *testing.T) {
-	if ScopeMoyuRead != "moyu:read" {
-		t.Errorf("ScopeMoyuRead = %q, want %q", ScopeMoyuRead, "moyu:read")
-	}
-	if ScopeStickerRead != "sticker:read" {
-		t.Errorf("ScopeStickerRead = %q, want %q", ScopeStickerRead, "sticker:read")
-	}
-	if err := checkMintScopes([]string{ScopeMoyuRead}); err != nil {
-		t.Errorf("minting moyu:read = %v, want it accepted", err)
-	}
-	if err := checkMintScopes([]string{ScopeStickerRead}); err != nil {
-		t.Errorf("minting sticker:read = %v, want it accepted", err)
-	}
-	if err := checkMintScopes([]string{ScopeCatalogRead, ScopeStoreRead, ScopeMoyuRead, ScopeStickerRead}); err != nil {
-		t.Errorf("minting all four self-service scopes = %v, want it accepted", err)
+// moyu:read and sticker:read were mintable for less than a day (2026-09-08):
+// the sticker face's first smoke call was 403'd by the scope its own owner had
+// not ticked, and the ruling followed — a free read-only downstream face takes
+// any valid key. Unlike news:read the constants are deleted outright, because
+// no key was ever minted carrying either string (verified against production
+// before the removal). The literals below are deliberate: a stale portal build
+// still offering the tick-boxes must get a clean refusal, not a minted scope
+// nothing reads.
+func TestScopeMoyuAndStickerReadRetired(t *testing.T) {
+	for _, sc := range []string{"moyu:read", "sticker:read"} {
+		if slices.Contains(selfServiceScopes, sc) {
+			t.Errorf("selfServiceScopes must NOT contain %q — the downstream faces take any valid key", sc)
+		}
+		if err := checkMintScopes([]string{sc}); err != ErrScopeNotAllowed {
+			t.Errorf("minting %s = %v, want ErrScopeNotAllowed", sc, err)
+		}
 	}
 	msg := ErrScopeNotAllowed.Error()
-	for _, sc := range []string{ScopeCatalogRead, ScopeStoreRead, ScopeMoyuRead, ScopeStickerRead} {
+	for _, sc := range []string{ScopeCatalogRead, ScopeStoreRead} {
 		if !strings.Contains(msg, sc) {
 			t.Errorf("ErrScopeNotAllowed message %q does not name %q", msg, sc)
 		}

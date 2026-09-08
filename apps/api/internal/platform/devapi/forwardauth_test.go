@@ -71,7 +71,7 @@ func recorded(u *UsageRecorder) []recordedDelta {
 func TestForwardAuthUnknownFace(t *testing.T) {
 	store, fwd, usage := newFwdHarness()
 	raw := mustV2Key(t)
-	seedCachedCred(store, raw, &Credential{KeyID: 1, ClientID: "c1", Tier: TierFree, Scopes: []string{ScopeMoyuRead}})
+	seedCachedCred(store, raw, &Credential{KeyID: 1, ClientID: "c1", Tier: TierFree})
 
 	app := fwdApp(fwd.Handle)
 	req := httptest.NewRequest("GET", "/internal/devapi/forward-auth?face=not-a-face", nil)
@@ -123,35 +123,38 @@ func TestForwardAuthUnresolvableKey(t *testing.T) {
 	}
 }
 
-func TestForwardAuthMissingScope(t *testing.T) {
+// The faces check no scope: this credential — valid key, empty scopes — is
+// exactly the one the first wiring 403'd on its own owner's smoke run
+// (2026-09-08), which is why the check is gone.
+func TestForwardAuthNoScopeRequired(t *testing.T) {
 	store, fwd, usage := newFwdHarness()
 	raw := mustV2Key(t)
-	cred := &Credential{KeyID: 9, ClientID: "c-scope", Tier: TierFree, Scopes: []string{ScopeCatalogRead}}
+	cred := &Credential{KeyID: 9, ClientID: "c-noscope", Tier: TierFree}
 	seedCachedCred(store, raw, cred)
 
 	app := fwdApp(fwd.Handle)
-	req := httptest.NewRequest("GET", "/internal/devapi/forward-auth?face=moyu", nil)
+	req := httptest.NewRequest("GET", "/internal/devapi/forward-auth?face=sticker", nil)
 	req.Header.Set("Authorization", "Bearer "+raw)
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("app.Test: %v", err)
 	}
-	if resp.StatusCode != fiber.StatusForbidden {
-		t.Errorf("status = %d, want 403", resp.StatusCode)
+	if resp.StatusCode != fiber.StatusNoContent {
+		t.Errorf("status = %d, want 204", resp.StatusCode)
 	}
 	got := recorded(usage)
 	if len(got) != 1 {
 		t.Fatalf("usage deltas = %d, want 1", len(got))
 	}
-	if got[0].face != "moyu" || got[0].path != "/v2/moyu/*" || got[0].count != 1 || got[0].s4xx != 1 || got[0].s5xx != 0 {
-		t.Errorf("delta = %+v, want face=moyu path=/v2/moyu/* count=1 s4xx=1 s5xx=0", got[0])
+	if got[0].face != "sticker" || got[0].path != "/v2/sticker/*" || got[0].count != 1 || got[0].s4xx != 0 || got[0].s5xx != 0 {
+		t.Errorf("delta = %+v, want face=sticker path=/v2/sticker/* count=1 s4xx=0 s5xx=0", got[0])
 	}
 }
 
 func TestForwardAuthSuccess(t *testing.T) {
 	store, fwd, usage := newFwdHarness()
 	raw := mustV2Key(t)
-	cred := &Credential{KeyID: 11, ClientID: "c-ok", Tier: TierFree, Scopes: []string{ScopeMoyuRead}}
+	cred := &Credential{KeyID: 11, ClientID: "c-ok", Tier: TierFree, Scopes: []string{ScopeCatalogRead}}
 	seedCachedCred(store, raw, cred)
 
 	app := fiber.New()
@@ -197,7 +200,7 @@ func TestForwardAuthSuccess(t *testing.T) {
 func TestForwardAuthRateLimited(t *testing.T) {
 	store, fwd, usage := newFwdHarness()
 	raw := mustV2Key(t)
-	cred := &Credential{KeyID: 13, ClientID: "c-rate", Tier: TierFree, Scopes: []string{ScopeMoyuRead}, RateOverride: 1}
+	cred := &Credential{KeyID: 13, ClientID: "c-rate", Tier: TierFree, RateOverride: 1}
 	seedCachedCred(store, raw, cred)
 
 	app := fwdApp(fwd.Handle)
@@ -235,7 +238,7 @@ func TestForwardAuthRateLimited(t *testing.T) {
 func TestForwardAuthQuotaExceeded(t *testing.T) {
 	store, fwd, usage := newFwdHarness()
 	raw := mustV2Key(t)
-	cred := &Credential{KeyID: 14, ClientID: "c-quota", Tier: TierFree, Scopes: []string{ScopeMoyuRead}, QuotaOverride: 1}
+	cred := &Credential{KeyID: 14, ClientID: "c-quota", Tier: TierFree, QuotaOverride: 1}
 	seedCachedCred(store, raw, cred)
 
 	app := fwdApp(fwd.Handle)
