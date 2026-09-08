@@ -97,5 +97,5 @@ export const USER_TOKEN_AUTH = {
 }
 
 export const EXPECTED_OPERATION_COUNTS = {
-  v2: 107
+  v2: 108
 }
