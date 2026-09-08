@@ -40,3 +40,25 @@ in API PATCH /v2/me/proposals/{id} the `header` request parameter `if-match` bec
 in API POST /v2/me/proposals/{id}/amendments the `header` request parameter `if-match` became required
 in API POST /v2/moderation/claims/{id}/decisions the `header` request parameter `if-match` became required
 in API POST /v2/moderation/proposals/{id}/decisions the `header` request parameter `if-match` became required
+
+# News partner obligations (2026-09-08): repr.NewsSubmission shipped `banner_hash`,
+# a bare image content hash, which B10 (01-axioms.md) forbids and 04 §7 replaces
+# with the one Image type -- "永远发完整 url". The four /v2/me/news responses now
+# carry `banner` (url + hash) instead, so the four entries below declare the
+# removal of the bare hash.
+#
+# No working client stops working, and that is measured rather than assumed: the
+# write face has never been used. Of 4,608 rows in news_item, 0 carry the `api_`
+# external_id prefix that marks a native submission -- every item came from the
+# hihyou (4,573) or ymgal (35) ingest job. Keeping the field alongside `banner`
+# was the alternative and it is the worse one: it would leave a standing axiom
+# violation on the wire forever to protect a consumer that does not exist.
+#
+# The public face /v2/news gained `banner` and `source.homepage_url` in the same
+# wave and needs no entry -- both are additive, and 07 §3.2 makes additions safe
+# under GA.
+
+in API GET /v2/me/news removed the required property `items/items/banner_hash` from the response with the `200` status
+in API POST /v2/me/news removed the required property `banner_hash` from the response with the `201` status
+in API GET /v2/me/news/{id} removed the required property `banner_hash` from the response with the `200` status
+in API PATCH /v2/me/news/{id} removed the required property `banner_hash` from the response with the `200` status

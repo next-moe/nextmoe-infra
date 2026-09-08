@@ -138,15 +138,16 @@ func newsSubmissionRecord(s newssvc.Submission) repr.NewsSubmission {
 		works = append(works, repr.ID(id))
 	}
 	return repr.NewsSubmission{
-		Object:      "news_submission",
-		ID:          repr.ID(s.ID),
-		Source:      repr.NewsSource{Object: "news_source", Name: s.SourceKey, DisplayName: s.SourceDisplayName},
+		Object: "news_submission",
+		ID:     repr.ID(s.ID),
+		Source: repr.NewsSource{Object: "news_source", Name: s.SourceKey,
+			DisplayName: s.SourceDisplayName, HomepageURL: s.SourceHomepageURL},
 		Lane:        s.Lane,
 		Status:      newsStatusToken(s.Status),
 		Title:       s.Title,
 		Summary:     s.Preview,
 		SourceURL:   s.SourceURL,
-		BannerHash:  s.BannerHash,
+		Banner:      newsBanner(s.BannerHash, s.BannerURL),
 		PublishedAt: repr.TimeUTC(s.PublishedAt),
 		WorkIDs:     works,
 	}

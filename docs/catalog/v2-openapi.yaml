@@ -4384,6 +4384,9 @@ components:
           format: uri
           readOnly: true
           type: string
+        banner:
+          $ref: "#/components/schemas/Image"
+          description: Lead image. null when the item has none.
         id:
           description: News item id.
           maxLength: 20
@@ -4424,6 +4427,7 @@ components:
         - summary
         - source
         - source_url
+        - banner
         - published_at
       type: object
     NewsSource:
@@ -4431,6 +4435,11 @@ components:
       properties:
         display_name:
           description: Must not be used as a discriminant.
+          maxLength: 512
+          type: string
+        homepage_url:
+          description: The source's own site. Empty string when the source has none.
+          format: uri
           maxLength: 512
           type: string
         name:
@@ -4448,6 +4457,7 @@ components:
         - object
         - name
         - display_name
+        - homepage_url
       type: object
     NewsSubmission:
       additionalProperties: true
@@ -4459,11 +4469,9 @@ components:
           format: uri
           readOnly: true
           type: string
-        banner_hash:
-          description: Image-service content hash of the banner. Empty string when there is none.
-          maxLength: 64
-          pattern: ^([0-9a-f]{64})?$
-          type: string
+        banner:
+          $ref: "#/components/schemas/Image"
+          description: "Lead image. null when there is none. B10: never a bare hash."
         id:
           description: News item id. Same id space as /v2/news.
           maxLength: 20
@@ -4527,7 +4535,7 @@ components:
         - title
         - summary
         - source_url
-        - banner_hash
+        - banner
         - published_at
         - work_ids
       type: object
@@ -7372,7 +7380,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.16.0
+  version: 2.17.0
   x-stability: stable
 openapi: 3.1.0
 paths:

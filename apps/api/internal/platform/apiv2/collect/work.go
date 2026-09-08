@@ -112,7 +112,7 @@ func NewsSpec() Spec {
 		Sort:    []string{"published"},
 		Include: []string{},
 		FullSet: []string{},
-		Fields:  []string{"object", "id", "title", "summary", "source", "source_url", "published_at"},
+		Fields:  []string{"object", "id", "title", "summary", "source", "source_url", "banner", "published_at"},
 		Facets:  []string{},
 		NoBatch: true,
 	}

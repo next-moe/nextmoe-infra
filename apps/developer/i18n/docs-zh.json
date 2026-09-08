@@ -316,7 +316,7 @@
   "id is the catalog work id. Site-fenced. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.": "id 为 catalog 作品 id。按站点隔离。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。",
   "ids requested but not visible. Present only on the ids=/refs= batch lane.": "已请求但不可见的 ids。仅出现在 ids=/refs= 批量车道。",
   "If-Match required. Requires a user access token. The token must carry the catalog:edit scope.": "需要 If-Match。需要用户访问令牌。令牌须带 catalog:edit scope。",
-  "Image-service content hash of the banner. Empty string when there is none.": "横幅的图床内容哈希。没有时为空字符串。",
+  "The source's own site. Empty string when the source has none.": "来源自己的站点主页。该来源没有时为空字符串。",
   "Image-service content hash of the banner. The format is checked; existence is not.": "横幅的图床内容哈希。校验格式，不校验是否存在。",
   "Image-service content hash.": "图床内容哈希。",
   "Image-service content hash. The empty string clears the banner.": "图床内容哈希。空字符串清除横幅。",
