@@ -102,6 +102,50 @@ func requireIfMatch(header, etag string) error {
 	return nil
 }
 
+// The editing plane. /v2/me and /v2/moderation otherwise gate on the person
+// rather than on what the app was consented for; these prefixes and the folder
+// one are the exceptions, because both act on something the person does not
+// solely own -- folders hold private collections, and an edit changes shared
+// public data on the user's behalf, which is the whole reason catalog:edit is
+// a scope at all.
+//
+// Folder moderation is deliberately absent: /v2/moderation/folders and
+// /v2/moderation/users/{uid}/folders belong to the folder domain, not to the
+// catalog editing plane, and gating them on catalog:edit would demand an
+// unrelated consent. TestEveryMeAndModerationPathDeclaresItsScope fails when a
+// new path joins the surface without being classified here.
+var editingPlanePrefixes = []string{
+	"/v2/me/claims",
+	"/v2/me/cover-votes",
+	"/v2/me/edit-images",
+	"/v2/me/proposals",
+	"/v2/moderation/claims",
+	"/v2/moderation/proposals",
+	"/v2/moderation/reverts",
+	"/v2/moderation/snapshots",
+}
+
+func underPrefix(path, prefix string) bool {
+	return path == prefix || strings.HasPrefix(path, prefix+"/")
+}
+
+func scopeProblem(c fiber.Ctx, path string, scopes []string) *problem.Problem {
+	if underPrefix(path, "/v2/me/folders") {
+		return folderScopeProblem(c, scopes)
+	}
+	for _, prefix := range editingPlanePrefixes {
+		if !underPrefix(path, prefix) {
+			continue
+		}
+		if slices.Contains(scopes, devapi.ScopeCatalogEdit) {
+			return nil
+		}
+		return problem.New(problem.CodeScopeRequired, problem.RequestID(c), problem.Instance(c),
+			"this operation requires the "+devapi.ScopeCatalogEdit+" scope.")
+	}
+	return nil
+}
+
 // Reads accept folder:write too, so a manager that only asked for write
 // consent can still pull what it wrote. Unlike the rest of /v2/me these
 // operations demand a scope: folders hold private collections, and "any app
@@ -182,10 +226,8 @@ func userAuth(lookup func(context.Context, string) (UserIdentity, error), lookup
 				return problem.WriteFiberError(c, problem.New(problem.CodeUserIdentityRequired, problem.RequestID(c), problem.Instance(c),
 					"this operation requires a user access token."))
 			}
-			if path == "/v2/me/folders" || strings.HasPrefix(path, "/v2/me/folders/") {
-				if p := folderScopeProblem(c, ident.Scopes); p != nil {
-					return problem.WriteFiberError(c, p)
-				}
+			if p := scopeProblem(c, path, ident.Scopes); p != nil {
+				return problem.WriteFiberError(c, p)
 			}
 			applyUserIdentity(c, ident)
 			if lookupSite != nil && ident.ClientID != "" {

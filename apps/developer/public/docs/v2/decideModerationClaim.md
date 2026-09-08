@@ -13,7 +13,7 @@
 
 Decide a claim
 
-decision=approve|decline|ban|unban. unban restores the state the claim was hidden from. If-Match required, and the ETag comes from GET /v2/moderation/claims/{id}. Requires the catalog.claim.review permission.
+decision=approve|decline|ban|unban. unban restores the state the claim was hidden from. If-Match required, and the ETag comes from GET /v2/moderation/claims/{id}. Requires the catalog.claim.review permission. The token must carry the catalog:edit scope.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>

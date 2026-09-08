@@ -13,7 +13,7 @@
 
 Move a claim the caller owns
 
-PATCH {state: live|pending|withdrawn}. live publishes a draft without review, pending submits it for review, withdrawn returns it to draft. The owner may act, and an unowned claim is adopted by its first claimant. If-Match required. Requires a user access token bound to a catalog site.
+PATCH {state: live|pending|withdrawn}. live publishes a draft without review, pending submits it for review, withdrawn returns it to draft. The owner may act, and an unowned claim is adopted by its first claimant. If-Match required. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>

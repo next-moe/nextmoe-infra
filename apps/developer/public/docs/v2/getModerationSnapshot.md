@@ -13,7 +13,7 @@
 
 Current edit snapshot
 
-Registered field values. Requires a user access token.
+Registered field values. Requires a user access token. The token must carry the catalog:edit scope.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>

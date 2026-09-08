@@ -1091,63 +1091,63 @@ export const searchIndex: SearchEntry[] = [
     "t": "列出我的认领",
     "s": "端点 · 我的",
     "d": "GET /v2/me/claims",
-    "b": "listMyClaims /v2/me/claims get List my claims Claims the bearer acted on. kind=submitted (the default) keeps the ones the bearer owns, kind=audited the ones the bearer only reviewed, kind=all everything they touched. claim_state= and site= narrow further, and site= also scopes first_acted_at/acted_count. Requires a user access token. 持有者曾操作过的认领。kind=submitted（默认）保留持有者所拥有的，kind=audited 为持有者仅审核过的，kind=all 为其所触及的全部。claim_state= 与 site= 可进一步收窄，且 site= 同时限定 first_acted_at/acted_count。需要用户访问令牌。 cursor limit view include fields ids refs include_total facets sort nsfw claim_state kind site"
+    "b": "listMyClaims /v2/me/claims get List my claims Claims the bearer acted on. kind=submitted (the default) keeps the ones the bearer owns, kind=audited the ones the bearer only reviewed, kind=all everything they touched. claim_state= and site= narrow further, and site= also scopes first_acted_at/acted_count. Requires a user access token. The token must carry the catalog:edit scope. 持有者曾操作过的认领。kind=submitted（默认）保留持有者所拥有的，kind=audited 为持有者仅审核过的，kind=all 为其所触及的全部。claim_state= 与 site= 可进一步收窄，且 site= 同时限定 first_acted_at/acted_count。需要用户访问令牌。令牌须带 catalog:edit scope。 cursor limit view include fields ids refs include_total facets sort nsfw claim_state kind site"
   },
   {
     "r": "/docs/v2/createMyClaim",
     "t": "提交认领",
     "s": "端点 · 我的",
     "d": "POST /v2/me/claims",
-    "b": "createMyClaim /v2/me/claims post Submit a claim Mint or claim a work. work_id claims an existing catalog work. refs= claims the work they resolve to, or mints one from display_name when none match. site_work_id with display_name and neither work_id nor refs mints a work anchored to the site's own id. field_values carries an editing-engine work field map onto any mint lane and may be sent alone, without work_id, refs or site_work_id; it is refused with work_id, and refs that already resolve to a work answer 409 instead of dropping it. A caller holding catalog.edit.trusted mints straight to live rather than pending. A mint whose display_name or catalog.work.titles match live works of the same medium is refused with 409 DUPLICATE_SUSPECTS naming them in suspects[] and nothing is written; re-send with confirm_duplicates=true to mint anyway. The claiming lanes — work_id, and refs that resolve — never hit this gate. Requires a user access token bound to a catalog site. 铸造或认领一部作品。work_id 认领已有作品。refs= 认领它们解析到的作品；无一匹配时按 display_name 铸造一部。site_work_id 配 display_name、且既无 work_id 也无 refs 时，铸造一部锚定到站点自身 id 的作品。field_values 把编辑引擎的作品字段映射带到任意铸造车道，也可单独发送、不带 work_id、refs 或 site_work_id；与 work_id 同发会被拒绝；refs 已解析到作品时返回 409 而非丢弃它。持有 catalog.edit.trusted 的调用方直接铸造为 live 而非 pending。若铸造的 display_name 或 catalog.work.titles 与同一 medium 的在用作品同名，则返回 409 DUPLICATE_SUSPECTS，在 suspects[] 中列出它们，且一行不写；带 confirm_duplicates=true 重发即照旧铸造。认领车道——work_id、以及能解析的 refs——永不走这道闸。需要绑定到 catalog 站点的用户访问令牌。"
+    "b": "createMyClaim /v2/me/claims post Submit a claim Mint or claim a work. work_id claims an existing catalog work. refs= claims the work they resolve to, or mints one from display_name when none match. site_work_id with display_name and neither work_id nor refs mints a work anchored to the site's own id. field_values carries an editing-engine work field map onto any mint lane and may be sent alone, without work_id, refs or site_work_id; it is refused with work_id, and refs that already resolve to a work answer 409 instead of dropping it. A caller holding catalog.edit.trusted mints straight to live rather than pending. A mint whose display_name or catalog.work.titles match live works of the same medium is refused with 409 DUPLICATE_SUSPECTS naming them in suspects[] and nothing is written; re-send with confirm_duplicates=true to mint anyway. The claiming lanes — work_id, and refs that resolve — never hit this gate. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 铸造或认领一部作品。work_id 认领已有作品。refs= 认领它们解析到的作品；无一匹配时按 display_name 铸造一部。site_work_id 配 display_name、且既无 work_id 也无 refs 时，铸造一部锚定到站点自身 id 的作品。field_values 把编辑引擎的作品字段映射带到任意铸造车道，也可单独发送、不带 work_id、refs 或 site_work_id；与 work_id 同发会被拒绝；refs 已解析到作品时返回 409 而非丢弃它。持有 catalog.edit.trusted 的调用方直接铸造为 live 而非 pending。若铸造的 display_name 或 catalog.work.titles 与同一 medium 的在用作品同名，则返回 409 DUPLICATE_SUSPECTS，在 suspects[] 中列出它们，且一行不写；带 confirm_duplicates=true 重发即照旧铸造。认领车道——work_id、以及能解析的 refs——永不走这道闸。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。"
   },
   {
     "r": "/docs/v2/getMyClaim",
     "t": "获取我的一条认领",
     "s": "端点 · 我的",
     "d": "GET /v2/me/claims/{id}",
-    "b": "getMyClaim /v2/me/claims/{id} get Get one of my claims id is the catalog work id. Requires a user access token. id 为 catalog 作品 id。需要用户访问令牌。 id"
+    "b": "getMyClaim /v2/me/claims/{id} get Get one of my claims id is the catalog work id. Requires a user access token. The token must carry the catalog:edit scope. id 为 catalog 作品 id。需要用户访问令牌。令牌须带 catalog:edit scope。 id"
   },
   {
     "r": "/docs/v2/patchMyClaim",
     "t": "转移调用方拥有的认领",
     "s": "端点 · 我的",
     "d": "PATCH /v2/me/claims/{id}",
-    "b": "patchMyClaim /v2/me/claims/{id} patch Move a claim the caller owns PATCH {state: live|pending|withdrawn}. live publishes a draft without review, pending submits it for review, withdrawn returns it to draft. The owner may act, and an unowned claim is adopted by its first claimant. If-Match required. Requires a user access token bound to a catalog site. PATCH {state: live|pending|withdrawn}。live 不经审核发布草稿，pending 提交审核，withdrawn 退回草稿。所有者可操作；无主认领由首位认领人收养。需要 If-Match。需要绑定到 catalog 站点的用户访问令牌。 id If-Match"
+    "b": "patchMyClaim /v2/me/claims/{id} patch Move a claim the caller owns PATCH {state: live|pending|withdrawn}. live publishes a draft without review, pending submits it for review, withdrawn returns it to draft. The owner may act, and an unowned claim is adopted by its first claimant. If-Match required. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. PATCH {state: live|pending|withdrawn}。live 不经审核发布草稿，pending 提交审核，withdrawn 退回草稿。所有者可操作；无主认领由首位认领人收养。需要 If-Match。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 id If-Match"
   },
   {
     "r": "/docs/v2/deleteMyClaim",
     "t": "删除草稿认领",
     "s": "端点 · 我的",
     "d": "DELETE /v2/me/claims/{id}",
-    "b": "deleteMyClaim /v2/me/claims/{id} delete Delete a draft claim Deletes a draft the caller owns; a live or pending claim must be withdrawn to draft first (PATCH state=withdrawn). This soft-deletes the catalog work row and writes no claim event. 204 with no body. Requires a user access token. 删除调用方自己的草稿；live 或 pending 认领须先撤回为 draft（PATCH state=withdrawn）。这会软删除 catalog 作品行，且不写认领事件。204 无响应体。需要用户访问令牌。 id"
+    "b": "deleteMyClaim /v2/me/claims/{id} delete Delete a draft claim Deletes a draft the caller owns; a live or pending claim must be withdrawn to draft first (PATCH state=withdrawn). This soft-deletes the catalog work row and writes no claim event. 204 with no body. Requires a user access token. The token must carry the catalog:edit scope. 删除调用方自己的草稿；live 或 pending 认领须先撤回为 draft（PATCH state=withdrawn）。这会软删除 catalog 作品行，且不写认领事件。204 无响应体。需要用户访问令牌。令牌须带 catalog:edit scope。 id"
   },
   {
     "r": "/docs/v2/listMyCoverVotes",
     "t": "列出我的封面投票",
     "s": "端点 · 我的",
     "d": "GET /v2/me/cover-votes",
-    "b": "listMyCoverVotes /v2/me/cover-votes get List my cover votes Every cover the bearer has voted up. Requires a user access token. 持令牌者投过赞成票的全部封面。需要用户访问令牌。"
+    "b": "listMyCoverVotes /v2/me/cover-votes get List my cover votes Every cover the bearer has voted up. Requires a user access token. The token must carry the catalog:edit scope. 持令牌者投过赞成票的全部封面。需要用户访问令牌。令牌须带 catalog:edit scope。"
   },
   {
     "r": "/docs/v2/putMyCoverVote",
     "t": "投封面票",
     "s": "端点 · 我的",
     "d": "PUT /v2/me/cover-votes/{cover_id}",
-    "b": "putMyCoverVote /v2/me/cover-votes/{cover_id} put Cast a cover vote Only vote=up is stored. One ballot per work. Requires a user access token. 只存储 vote=up。每部作品一张选票。需要用户访问令牌。 cover_id"
+    "b": "putMyCoverVote /v2/me/cover-votes/{cover_id} put Cast a cover vote Only vote=up is stored. One ballot per work. Requires a user access token. The token must carry the catalog:edit scope. 只存储 vote=up。每部作品一张选票。需要用户访问令牌。令牌须带 catalog:edit scope。 cover_id"
   },
   {
     "r": "/docs/v2/deleteMyCoverVote",
     "t": "撤回封面投票",
     "s": "端点 · 我的",
     "d": "DELETE /v2/me/cover-votes/{cover_id}",
-    "b": "deleteMyCoverVote /v2/me/cover-votes/{cover_id} delete Withdraw a cover vote 204 with no body. Requires a user access token. 204 无响应体。需要用户访问令牌。 cover_id"
+    "b": "deleteMyCoverVote /v2/me/cover-votes/{cover_id} delete Withdraw a cover vote 204 with no body. Requires a user access token. The token must carry the catalog:edit scope. 204 无响应体。需要用户访问令牌。令牌须带 catalog:edit scope。 cover_id"
   },
   {
     "r": "/docs/v2/uploadMyEditImage",
     "t": "为编辑提案上传图片",
     "s": "端点 · 我的",
     "d": "POST /v2/me/edit-images",
-    "b": "uploadMyEditImage /v2/me/edit-images post Upload an image for an edit proposal multipart/form-data with preset and file. Returns the hash an edit proposal carries in a cover or screenshot row. Requires a user access token bound to a catalog site. multipart/form-data，含 preset 与 file。返回编辑提案在封面或截图行中携带的 hash。需要绑定到 catalog 站点的用户访问令牌。"
+    "b": "uploadMyEditImage /v2/me/edit-images post Upload an image for an edit proposal multipart/form-data with preset and file. Returns the hash an edit proposal carries in a cover or screenshot row. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. multipart/form-data，含 preset 与 file。返回编辑提案在封面或截图行中携带的 hash。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。"
   },
   {
     "r": "/docs/v2/listMyFolders",
@@ -1280,56 +1280,56 @@ export const searchIndex: SearchEntry[] = [
     "t": "列出我的提案",
     "s": "端点 · 我的",
     "d": "GET /v2/me/proposals",
-    "b": "listMyProposals /v2/me/proposals get List my proposals The bearer's own proposals. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. Requires a user access token. 持有者自己的提案。state= 是封闭词表，未知值返回 400。object= 或 entity_type= 收窄到一族，entity_id= 收窄到一个实体——本车道在不带族的情况下也接受 entity_id=，因为每一行已属于调用方。需要用户访问令牌。 cursor limit view include fields ids refs include_total facets sort nsfw state object entity_type entity_id"
+    "b": "listMyProposals /v2/me/proposals get List my proposals The bearer's own proposals. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. Requires a user access token. The token must carry the catalog:edit scope. 持有者自己的提案。state= 是封闭词表，未知值返回 400。object= 或 entity_type= 收窄到一族，entity_id= 收窄到一个实体——本车道在不带族的情况下也接受 entity_id=，因为每一行已属于调用方。需要用户访问令牌。令牌须带 catalog:edit scope。 cursor limit view include fields ids refs include_total facets sort nsfw state object entity_type entity_id"
   },
   {
     "r": "/docs/v2/createMyProposal",
     "t": "提交提案",
     "s": "端点 · 我的",
     "d": "POST /v2/me/proposals",
-    "b": "createMyProposal /v2/me/proposals post File a proposal Requires a user access token bound to a catalog site. 需要绑定到 catalog 站点的用户访问令牌。"
+    "b": "createMyProposal /v2/me/proposals post File a proposal Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。"
   },
   {
     "r": "/docs/v2/getMyProposal",
     "t": "获取我的一条提案",
     "s": "端点 · 我的",
     "d": "GET /v2/me/proposals/{id}",
-    "b": "getMyProposal /v2/me/proposals/{id} get Get one of my proposals Requires a user access token. 需要用户访问令牌。 id include view"
+    "b": "getMyProposal /v2/me/proposals/{id} get Get one of my proposals Requires a user access token. The token must carry the catalog:edit scope. 需要用户访问令牌。令牌须带 catalog:edit scope。 id include view"
   },
   {
     "r": "/docs/v2/patchMyProposal",
     "t": "修改或撤回提案",
     "s": "端点 · 我的",
     "d": "PATCH /v2/me/proposals/{id}",
-    "b": "patchMyProposal /v2/me/proposals/{id} patch Amend or withdraw a proposal If-Match required. Requires a user access token. 需要 If-Match。需要用户访问令牌。 id If-Match"
+    "b": "patchMyProposal /v2/me/proposals/{id} patch Amend or withdraw a proposal If-Match required. Requires a user access token. The token must carry the catalog:edit scope. 需要 If-Match。需要用户访问令牌。令牌须带 catalog:edit scope。 id If-Match"
   },
   {
     "r": "/docs/v2/amendMyProposal",
     "t": "追加一条修订",
     "s": "端点 · 我的",
     "d": "POST /v2/me/proposals/{id}/amendments",
-    "b": "amendMyProposal /v2/me/proposals/{id}/amendments post Append an amendment If-Match required. Requires a user access token. 需要 If-Match。需要用户访问令牌。 id If-Match"
+    "b": "amendMyProposal /v2/me/proposals/{id}/amendments post Append an amendment If-Match required. Requires a user access token. The token must carry the catalog:edit scope. 需要 If-Match。需要用户访问令牌。令牌须带 catalog:edit scope。 id If-Match"
   },
   {
     "r": "/docs/v2/listModerationClaims",
     "t": "审核认领队列",
     "s": "端点 · 审核",
     "d": "GET /v2/moderation/claims",
-    "b": "listModerationClaims /v2/moderation/claims get Moderation claim queue Claims on the token site awaiting a decision. claim_state= selects which states the queue lists and defaults to pending; the decision face also acts on live, draft and declined (ban) and on hidden (unban), so those are listable here too. Oldest submission first. ids= and refs= are not accepted. Requires a user access token with review authority. 令牌所属站点上等待决定的认领。claim_state= 选择队列列出的状态，默认为 pending；决定面也会作用于 live、draft 与 declined（ban）以及 hidden（unban），因此这些状态也可在此列出。最早提交优先。不接受 ids= 与 refs=。需要具有审核权限的用户访问令牌。 cursor limit view include fields ids refs include_total facets sort nsfw claim_state"
+    "b": "listModerationClaims /v2/moderation/claims get Moderation claim queue Claims on the token site awaiting a decision. claim_state= selects which states the queue lists and defaults to pending; the decision face also acts on live, draft and declined (ban) and on hidden (unban), so those are listable here too. Oldest submission first. ids= and refs= are not accepted. Requires a user access token with review authority. The token must carry the catalog:edit scope. 令牌所属站点上等待决定的认领。claim_state= 选择队列列出的状态，默认为 pending；决定面也会作用于 live、draft 与 declined（ban）以及 hidden（unban），因此这些状态也可在此列出。最早提交优先。不接受 ids= 与 refs=。需要具有审核权限的用户访问令牌。令牌须带 catalog:edit scope。 cursor limit view include fields ids refs include_total facets sort nsfw claim_state"
   },
   {
     "r": "/docs/v2/getModerationClaim",
     "t": "获取一条审核认领",
     "s": "端点 · 审核",
     "d": "GET /v2/moderation/claims/{id}",
-    "b": "getModerationClaim /v2/moderation/claims/{id} get Get one moderation claim id is the catalog work id. Site-fenced. Requires a user access token bound to a catalog site. id 为 catalog 作品 id。按站点隔离。需要绑定到 catalog 站点的用户访问令牌。 id"
+    "b": "getModerationClaim /v2/moderation/claims/{id} get Get one moderation claim id is the catalog work id. Site-fenced. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. id 为 catalog 作品 id。按站点隔离。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 id"
   },
   {
     "r": "/docs/v2/decideModerationClaim",
     "t": "裁决一条认领",
     "s": "端点 · 审核",
     "d": "POST /v2/moderation/claims/{id}/decisions",
-    "b": "decideModerationClaim /v2/moderation/claims/{id}/decisions post Decide a claim decision=approve|decline|ban|unban. unban restores the state the claim was hidden from. If-Match required, and the ETag comes from GET /v2/moderation/claims/{id}. Requires the catalog.claim.review permission. decision=approve|decline|ban|unban。unban 恢复该认领被隐藏前所处的状态。需要 If-Match，ETag 来自 GET /v2/moderation/claims/{id}。需要 catalog.claim.review 权限。 id If-Match"
+    "b": "decideModerationClaim /v2/moderation/claims/{id}/decisions post Decide a claim decision=approve|decline|ban|unban. unban restores the state the claim was hidden from. If-Match required, and the ETag comes from GET /v2/moderation/claims/{id}. Requires the catalog.claim.review permission. The token must carry the catalog:edit scope. decision=approve|decline|ban|unban。unban 恢复该认领被隐藏前所处的状态。需要 If-Match，ETag 来自 GET /v2/moderation/claims/{id}。需要 catalog.claim.review 权限。令牌须带 catalog:edit scope。 id If-Match"
   },
   {
     "r": "/docs/v2/patchModerationFolder",
@@ -1350,35 +1350,35 @@ export const searchIndex: SearchEntry[] = [
     "t": "审核提案队列",
     "s": "端点 · 审核",
     "d": "GET /v2/moderation/proposals",
-    "b": "listModerationProposals /v2/moderation/proposals get Moderation proposal queue Open proposals on the token site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. 令牌站点上未关闭的提案。整条队列需要 catalog 审核权限。object=（或 entity_type=）配 entity_id= 收敛到单个实体，该实体的所有者无需该权限即可读取——即编辑引擎按字段解析的同一条所有者审核通道。不带家族的 entity_id= 为 422。 cursor limit view include fields ids refs include_total facets sort nsfw object entity_type entity_id"
+    "b": "listModerationProposals /v2/moderation/proposals get Moderation proposal queue Open proposals on the token site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. The token must carry the catalog:edit scope. 令牌站点上未关闭的提案。整条队列需要 catalog 审核权限。object=（或 entity_type=）配 entity_id= 收敛到单个实体，该实体的所有者无需该权限即可读取——即编辑引擎按字段解析的同一条所有者审核通道。不带家族的 entity_id= 为 422。令牌须带 catalog:edit scope。 cursor limit view include fields ids refs include_total facets sort nsfw object entity_type entity_id"
   },
   {
     "r": "/docs/v2/getModerationProposal",
     "t": "获取一条审核提案",
     "s": "端点 · 审核",
     "d": "GET /v2/moderation/proposals/{id}",
-    "b": "getModerationProposal /v2/moderation/proposals/{id} get Get one moderation proposal Site-fenced. include=patch adds the proposed and effective patches a decision is taken on. The ETag is the validator POST /v2/moderation/proposals/{id}/decisions takes as If-Match. 按站点隔离。include=patch 追加决定所依据的拟议 patch 与生效 patch。ETag 是 POST /v2/moderation/proposals/{id}/decisions 作为 If-Match 接收的校验子。 id include view"
+    "b": "getModerationProposal /v2/moderation/proposals/{id} get Get one moderation proposal Site-fenced. include=patch adds the proposed and effective patches a decision is taken on. The ETag is the validator POST /v2/moderation/proposals/{id}/decisions takes as If-Match. The token must carry the catalog:edit scope. 按站点隔离。include=patch 追加决定所依据的拟议 patch 与生效 patch。ETag 是 POST /v2/moderation/proposals/{id}/decisions 作为 If-Match 接收的校验子。令牌须带 catalog:edit scope。 id include view"
   },
   {
     "r": "/docs/v2/decideModerationProposal",
     "t": "裁决一条提案",
     "s": "端点 · 审核",
     "d": "POST /v2/moderation/proposals/{id}/decisions",
-    "b": "decideModerationProposal /v2/moderation/proposals/{id}/decisions post Decide a proposal decision=merge|decline. If-Match required. decision=merge|decline。需要 If-Match。 id If-Match"
+    "b": "decideModerationProposal /v2/moderation/proposals/{id}/decisions post Decide a proposal decision=merge|decline. If-Match required. The token must carry the catalog:edit scope. decision=merge|decline。需要 If-Match。令牌须带 catalog:edit scope。 id If-Match"
   },
   {
     "r": "/docs/v2/revertModeration",
     "t": "回退到一条修订",
     "s": "端点 · 审核",
     "d": "POST /v2/moderation/reverts",
-    "b": "revertModeration /v2/moderation/reverts post Revert to a revision Body names revision_id. Requires a user access token bound to a catalog site. 请求体给出 revision_id。需要绑定到 catalog 站点的用户访问令牌。"
+    "b": "revertModeration /v2/moderation/reverts post Revert to a revision Body names revision_id. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 请求体给出 revision_id。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。"
   },
   {
     "r": "/docs/v2/getModerationSnapshot",
     "t": "当前编辑快照",
     "s": "端点 · 审核",
     "d": "GET /v2/moderation/snapshots/{object}/{id}",
-    "b": "getModerationSnapshot /v2/moderation/snapshots/{object}/{id} get Current edit snapshot Registered field values. Requires a user access token. 已登记字段的当前值。需要用户访问令牌。 object id"
+    "b": "getModerationSnapshot /v2/moderation/snapshots/{object}/{id} get Current edit snapshot Registered field values. Requires a user access token. The token must carry the catalog:edit scope. 已登记字段的当前值。需要用户访问令牌。令牌须带 catalog:edit scope。 object id"
   },
   {
     "r": "/docs/v2/purgeUserFolders",

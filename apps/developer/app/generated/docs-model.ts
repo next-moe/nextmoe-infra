@@ -78392,7 +78392,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/me/claims",
               "summary": "List my claims",
-              "description": "Claims the bearer acted on. kind=submitted (the default) keeps the ones the bearer owns, kind=audited the ones the bearer only reviewed, kind=all everything they touched. claim_state= and site= narrow further, and site= also scopes first_acted_at/acted_count. Requires a user access token.",
+              "description": "Claims the bearer acted on. kind=submitted (the default) keeps the ones the bearer owns, kind=audited the ones the bearer only reviewed, kind=all everything they touched. claim_state= and site= narrow further, and site= also scopes first_acted_at/acted_count. Requires a user access token. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -79708,7 +79708,7 @@ export const docsModel: DocsModel = {
               "method": "post",
               "path": "/v2/me/claims",
               "summary": "Submit a claim",
-              "description": "Mint or claim a work. work_id claims an existing catalog work. refs= claims the work they resolve to, or mints one from display_name when none match. site_work_id with display_name and neither work_id nor refs mints a work anchored to the site's own id. field_values carries an editing-engine work field map onto any mint lane and may be sent alone, without work_id, refs or site_work_id; it is refused with work_id, and refs that already resolve to a work answer 409 instead of dropping it. A caller holding catalog.edit.trusted mints straight to live rather than pending. A mint whose display_name or catalog.work.titles match live works of the same medium is refused with 409 DUPLICATE_SUSPECTS naming them in suspects[] and nothing is written; re-send with confirm_duplicates=true to mint anyway. The claiming lanes — work_id, and refs that resolve — never hit this gate. Requires a user access token bound to a catalog site.",
+              "description": "Mint or claim a work. work_id claims an existing catalog work. refs= claims the work they resolve to, or mints one from display_name when none match. site_work_id with display_name and neither work_id nor refs mints a work anchored to the site's own id. field_values carries an editing-engine work field map onto any mint lane and may be sent alone, without work_id, refs or site_work_id; it is refused with work_id, and refs that already resolve to a work answer 409 instead of dropping it. A caller holding catalog.edit.trusted mints straight to live rather than pending. A mint whose display_name or catalog.work.titles match live works of the same medium is refused with 409 DUPLICATE_SUSPECTS naming them in suspects[] and nothing is written; re-send with confirm_duplicates=true to mint anyway. The claiming lanes — work_id, and refs that resolve — never hit this gate. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -81273,7 +81273,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/me/claims/{id}",
               "summary": "Get one of my claims",
-              "description": "id is the catalog work id. Requires a user access token.",
+              "description": "id is the catalog work id. Requires a user access token. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -82426,7 +82426,7 @@ export const docsModel: DocsModel = {
               "method": "patch",
               "path": "/v2/me/claims/{id}",
               "summary": "Move a claim the caller owns",
-              "description": "PATCH {state: live|pending|withdrawn}. live publishes a draft without review, pending submits it for review, withdrawn returns it to draft. The owner may act, and an unowned claim is adopted by its first claimant. If-Match required. Requires a user access token bound to a catalog site.",
+              "description": "PATCH {state: live|pending|withdrawn}. live publishes a draft without review, pending submits it for review, withdrawn returns it to draft. The owner may act, and an unowned claim is adopted by its first claimant. If-Match required. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -83968,7 +83968,7 @@ export const docsModel: DocsModel = {
               "method": "delete",
               "path": "/v2/me/claims/{id}",
               "summary": "Delete a draft claim",
-              "description": "Deletes a draft the caller owns; a live or pending claim must be withdrawn to draft first (PATCH state=withdrawn). This soft-deletes the catalog work row and writes no claim event. 204 with no body. Requires a user access token.",
+              "description": "Deletes a draft the caller owns; a live or pending claim must be withdrawn to draft first (PATCH state=withdrawn). This soft-deletes the catalog work row and writes no claim event. 204 with no body. Requires a user access token. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -85351,7 +85351,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/me/cover-votes",
               "summary": "List my cover votes",
-              "description": "Every cover the bearer has voted up. Requires a user access token.",
+              "description": "Every cover the bearer has voted up. Requires a user access token. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -86345,7 +86345,7 @@ export const docsModel: DocsModel = {
               "method": "put",
               "path": "/v2/me/cover-votes/{cover_id}",
               "summary": "Cast a cover vote",
-              "description": "Only vote=up is stored. One ballot per work. Requires a user access token.",
+              "description": "Only vote=up is stored. One ballot per work. Requires a user access token. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -87408,7 +87408,7 @@ export const docsModel: DocsModel = {
               "method": "delete",
               "path": "/v2/me/cover-votes/{cover_id}",
               "summary": "Withdraw a cover vote",
-              "description": "204 with no body. Requires a user access token.",
+              "description": "204 with no body. Requires a user access token. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -88422,7 +88422,7 @@ export const docsModel: DocsModel = {
               "method": "post",
               "path": "/v2/me/edit-images",
               "summary": "Upload an image for an edit proposal",
-              "description": "multipart/form-data with preset and file. Returns the hash an edit proposal carries in a cover or screenshot row. Requires a user access token bound to a catalog site.",
+              "description": "multipart/form-data with preset and file. Returns the hash an edit proposal carries in a cover or screenshot row. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -111434,7 +111434,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/me/proposals",
               "summary": "List my proposals",
-              "description": "The bearer's own proposals. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. Requires a user access token.",
+              "description": "The bearer's own proposals. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. Requires a user access token. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -112802,7 +112802,7 @@ export const docsModel: DocsModel = {
               "method": "post",
               "path": "/v2/me/proposals",
               "summary": "File a proposal",
-              "description": "Requires a user access token bound to a catalog site.",
+              "description": "Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -114388,7 +114388,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/me/proposals/{id}",
               "summary": "Get one of my proposals",
-              "description": "Requires a user access token.",
+              "description": "Requires a user access token. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -115600,7 +115600,7 @@ export const docsModel: DocsModel = {
               "method": "patch",
               "path": "/v2/me/proposals/{id}",
               "summary": "Amend or withdraw a proposal",
-              "description": "If-Match required. Requires a user access token.",
+              "description": "If-Match required. Requires a user access token. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -117191,7 +117191,7 @@ export const docsModel: DocsModel = {
               "method": "post",
               "path": "/v2/me/proposals/{id}/amendments",
               "summary": "Append an amendment",
-              "description": "If-Match required. Requires a user access token.",
+              "description": "If-Match required. Requires a user access token. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -118793,7 +118793,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/moderation/claims",
               "summary": "Moderation claim queue",
-              "description": "Claims on the token site awaiting a decision. claim_state= selects which states the queue lists and defaults to pending; the decision face also acts on live, draft and declined (ban) and on hidden (unban), so those are listable here too. Oldest submission first. ids= and refs= are not accepted. Requires a user access token with review authority.",
+              "description": "Claims on the token site awaiting a decision. claim_state= selects which states the queue lists and defaults to pending; the decision face also acts on live, draft and declined (ban) and on hidden (unban), so those are listable here too. Oldest submission first. ids= and refs= are not accepted. Requires a user access token with review authority. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -120095,7 +120095,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/moderation/claims/{id}",
               "summary": "Get one moderation claim",
-              "description": "id is the catalog work id. Site-fenced. Requires a user access token bound to a catalog site.",
+              "description": "id is the catalog work id. Site-fenced. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -121248,7 +121248,7 @@ export const docsModel: DocsModel = {
               "method": "post",
               "path": "/v2/moderation/claims/{id}/decisions",
               "summary": "Decide a claim",
-              "description": "decision=approve|decline|ban|unban. unban restores the state the claim was hidden from. If-Match required, and the ETag comes from GET /v2/moderation/claims/{id}. Requires the catalog.claim.review permission.",
+              "description": "decision=approve|decline|ban|unban. unban restores the state the claim was hidden from. If-Match required, and the ETag comes from GET /v2/moderation/claims/{id}. Requires the catalog.claim.review permission. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -124854,7 +124854,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/moderation/proposals",
               "summary": "Moderation proposal queue",
-              "description": "Open proposals on the token site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422.",
+              "description": "Open proposals on the token site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -126215,7 +126215,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/moderation/proposals/{id}",
               "summary": "Get one moderation proposal",
-              "description": "Site-fenced. include=patch adds the proposed and effective patches a decision is taken on. The ETag is the validator POST /v2/moderation/proposals/{id}/decisions takes as If-Match.",
+              "description": "Site-fenced. include=patch adds the proposed and effective patches a decision is taken on. The ETag is the validator POST /v2/moderation/proposals/{id}/decisions takes as If-Match. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -127427,7 +127427,7 @@ export const docsModel: DocsModel = {
               "method": "post",
               "path": "/v2/moderation/proposals/{id}/decisions",
               "summary": "Decide a proposal",
-              "description": "decision=merge|decline. If-Match required.",
+              "description": "decision=merge|decline. If-Match required. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -128898,7 +128898,7 @@ export const docsModel: DocsModel = {
               "method": "post",
               "path": "/v2/moderation/reverts",
               "summary": "Revert to a revision",
-              "description": "Body names revision_id. Requires a user access token bound to a catalog site.",
+              "description": "Body names revision_id. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -130469,7 +130469,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/moderation/snapshots/{object}/{id}",
               "summary": "Current edit snapshot",
-              "description": "Registered field values. Requires a user access token.",
+              "description": "Registered field values. Requires a user access token. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",

@@ -232,19 +232,26 @@ func liveCatalog(t *testing.T) *liveEnv {
 					return nil, nil
 				}
 			},
+			// Every persona carries catalog:edit: the live suite exercises the
+			// editing engine's own policy, so a token that cannot clear the
+			// scope gate would test the gate instead of the thing under test.
 			LookupUser: func(_ context.Context, raw string) (UserIdentity, error) {
 				switch raw {
 				case liveUserToken:
 					return UserIdentity{UID: liveUID, ClientID: liveClient, Roles: []string{"admin"},
-						Scopes: []string{devapi.ScopeFolderRead, devapi.ScopeFolderWrite}}, nil
+						Scopes: []string{devapi.ScopeFolderRead, devapi.ScopeFolderWrite, devapi.ScopeCatalogEdit}}, nil
 				case livePlainToken:
-					return UserIdentity{UID: livePlainUID, ClientID: liveClient, Roles: []string{"user"}}, nil
+					return UserIdentity{UID: livePlainUID, ClientID: liveClient, Roles: []string{"user"},
+						Scopes: []string{devapi.ScopeCatalogEdit}}, nil
 				case liveSecondPlainToken:
-					return UserIdentity{UID: liveSecondPlainUID, ClientID: liveClient, Roles: []string{"user"}}, nil
+					return UserIdentity{UID: liveSecondPlainUID, ClientID: liveClient, Roles: []string{"user"},
+						Scopes: []string{devapi.ScopeCatalogEdit}}, nil
 				case liveOtherSiteToken:
-					return UserIdentity{UID: liveOtherSiteUID, ClientID: liveOtherClient, Roles: []string{"admin"}}, nil
+					return UserIdentity{UID: liveOtherSiteUID, ClientID: liveOtherClient, Roles: []string{"admin"},
+						Scopes: []string{devapi.ScopeCatalogEdit}}, nil
 				case liveThirdPartyToken:
-					return UserIdentity{UID: liveUID, ClientID: liveThirdPartyClient, Roles: []string{"admin"}}, nil
+					return UserIdentity{UID: liveUID, ClientID: liveThirdPartyClient, Roles: []string{"admin"},
+						Scopes: []string{devapi.ScopeCatalogEdit}}, nil
 				default:
 					return UserIdentity{}, os.ErrPermission
 				}

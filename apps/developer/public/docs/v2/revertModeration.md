@@ -13,7 +13,7 @@
 
 Revert to a revision
 
-Body names revision_id. Requires a user access token bound to a catalog site.
+Body names revision_id. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
