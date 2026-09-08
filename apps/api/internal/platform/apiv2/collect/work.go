@@ -203,6 +203,16 @@ func PlaytimeSpec() Spec {
 	}
 }
 
+func WorkStateSpec() Spec {
+	return Spec{
+		Sort:    []string{"updated"},
+		Include: []string{},
+		FullSet: []string{},
+		Fields:  []string{"object", "work_id", "state", "completion", "created_at", "updated_at"},
+		NoBatch: true,
+	}
+}
+
 func FolderSpec() Spec {
 	return Spec{
 		Sort:    []string{"id"},

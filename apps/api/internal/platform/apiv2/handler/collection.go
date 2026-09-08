@@ -52,11 +52,11 @@ type listWorksOutput struct {
 
 // The 500 here is redundant, not authoritative: huma.Register appends
 // http.StatusInternalServerError to op.Errors for every operation that declares
-// any error at all (huma.go:736-741), so all 88 v2 operations publish a 500
+// any error at all (huma.go:736-741), so every v2 operation publishes a 500
 // whatever this list says. Dropping it from the two compiled-in lanes
 // (/v2/problems, /v2/vocabularies) was tried and changed nothing in the
 // generated document; removing it there would mean deleting a response huma
-// injects, from two operations out of 88, in annotateSpec — a hand-maintained
+// injects, from just those two operations, in annotateSpec — a hand-maintained
 // exception list, which is the shape this file exists to avoid.
 func collectionErrors(extra ...int) []int {
 	out := []int{http.StatusBadRequest, http.StatusTooManyRequests, http.StatusInternalServerError}

@@ -11,7 +11,7 @@ Date: 2026-08-24, GA declared 2026-08-25 (stage 9); news write face added 2026-0
 - `GET /v2/catalog/works` binds 05 §6.1 filters (`q=`, `company_id=`, `tag_id=`, `series_id=`, `engine_id=`, `olang=`, dates, claim/content axes). `q=` / search sorts / `facets=` use the search engine (`WorksSearch`; OpenSearch is the search engine since 2026-09-01, Meilisearch retired 2026-09-02); other filter combinations use the live registry (`WorksList`). `sort=relevance` requires `q=`.
 - `GET /v2/catalog/characters/{id}/appearances` is the character reverse-lookup collection (roster_role, spoiler, voices). Company reverse lookup is `works?company_id=`. Staff reverse lookup stays `credit-names/{id}/credits`.
 - Character `view=full` carries D30 attributes (`gender`, `birthday` as `MM-DD`, measurements, `blood_type` as `a|b|ab|o`, `instance_of_id`). `description` / `extra` / `field_provenance` stay out, as D30.
-- `/v2/me/playtimes` GET/PUT/DELETE and POST 207 batch; `/v2/me/cover-votes` GET/PUT/DELETE.
+- `/v2/me/playtimes` and `/v2/me/work-states` GET/PUT/DELETE and POST 207 batch; `/v2/me/cover-votes` GET/PUT/DELETE.
 - `/v2/me/claims` list (keyset on last claim-event id)/create/get/withdraw; `/v2/me/proposals` list/create/get/patch/amend.
 - `/v2/moderation/claims` queue + GET by id + decisions; `/v2/moderation/proposals` queue + decisions; reverts; snapshots. Queue and GET are site-fenced (`SITE_NOT_BOUND` when the token client has no catalog site).
 - User token on `/v2/me` and `/v2/moderation`, not an application key; `private, no-store`. JWT `roles` are copied into the handler context so `HasPerm` matches v1.
@@ -356,11 +356,14 @@ The first two are the same defect shape in a different env var. They are deliber
 
     **Spec is 2.19.0**, additive: three response properties and one declared status, `oasdiff` reports no breaking change. **Zero migrations** — every column already exists and is populated.
 
+120. **Per-work play state is its own resource, not a playtime field** (2026-09-08, spec 2.20.0, decision D38). `/v2/me/work-states` list/get/put/delete plus a 207 batch, backed by `catalog_user_work_state` — (actor_uid, work_id) unique, no client dimension. Two closed enums: `state` (`wish/doing/done/on_hold/dropped`, one-to-one onto Bangumi collection types) and a nullable `completion` (`one_route/main/all`), refused with `wish`. No scope, per the playtime precedent and the frozen-grant hazard behind deviation 107. PUT is whole-row replace: an absent `completion` clears it — the service writes SQL NULL through an untyped nil in `clause.Assignments`, because a typed `(*int16)(nil)` in a `map[string]any` is a non-nil interface and does not emit NULL. The batch input element is the named type `workStateBatchEntry` (deviation 110: another anonymous `Items []struct{…}` on `/v2/me` panics huma at startup). **Migration required**: `cmd/migrate catalog` creates the table (work FK ON DELETE CASCADE, like playtime's) and backfills only the deliberate v1 statuses — any finished→done, else dropped→dropped, else on_hold; playing(0) carries no intent (the v2 PUT has hardcoded it since the v1 retirement, and before that it was the form default) and does not migrate; `ON CONFLICT DO NOTHING` keeps re-runs from clobbering later explicit writes. The nightly aggregate joins `state = done` instead of reading the dead `catalog_user_playtime.status`; the 10–60000 minutes window and ≥3 reporters are unchanged. Work merges move state rows with the folder-item style custom move (`updated_at = now()` so incremental mirrors see the repoint); where a user holds state on both sides, the later-updated row survives.
+
 ## Stage 6 write
 
 | Route | Bind |
 |---|---|
 | `POST /v2/me/playtimes` | 207 list of playtime-or-problem items |
+| `POST /v2/me/work-states` | 207 list of work_state-or-problem items |
 | `POST /v2/me/claims` | `work_id` → `Act(claim)`; else `refs` → `LookupEntityID` then claim or mint; else `site_work_id` and/or `field_values` → mint. Every mint is one `SubmitWork` call, `Trusted` from `catalog.edit.trusted` (wave R4). A mint whose titles collide with live same-medium works is refused 409 `DUPLICATE_SUSPECTS` unless `confirm_duplicates` is set; the claiming lanes never reach that gate |
 | `GET/PATCH /v2/me/claims/{id}` | `{id}` is catalog work id. PATCH `{state: live\|pending\|withdrawn}` + If-Match, one `Act` call each (publish / submit / withdraw) |
 | `POST /v2/me/edit-images` | multipart `preset` + `file`; `cover`/`screenshot` map to the image service's `catalog_cover`/`catalog_screenshot` |

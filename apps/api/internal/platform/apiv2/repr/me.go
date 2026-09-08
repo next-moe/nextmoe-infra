@@ -175,3 +175,23 @@ type FolderItemBatchItem struct {
 	WorkID  *string          `json:"work_id,omitempty" pattern:"^[0-9]+$" maxLength:"20" doc:"Catalog work id. Present on 200 items."`
 	Problem *problem.Problem `json:"problem,omitempty" doc:"Present on failed items. A full problem object."`
 }
+
+type UserWorkState struct {
+	_          struct{} `json:"-" additionalProperties:"true"`
+	Object     string   `json:"object" enum:"work_state" doc:"Type discriminant. Always work_state."`
+	WorkID     string   `json:"work_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog work id this state is on."`
+	State      string   `json:"state" enum:"wish,doing,done,on_hold,dropped" doc:"Closed vocabulary. wish wants to play, doing is playing, done finished at least one route, on_hold paused, dropped abandoned. Maps one-to-one onto Bangumi collection types."`
+	Completion *string  `json:"completion" enum:"one_route,main,all" doc:"How much is finished: one route, the main route, or every route. null when unstated. Never accompanies wish."`
+	CreatedAt  string   `json:"created_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
+	UpdatedAt  string   `json:"updated_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC. The incremental-sync watermark."`
+}
+
+type WorkStateBatchItem struct {
+	_          struct{}         `json:"-" additionalProperties:"true"`
+	Status     int              `json:"status" minimum:"0" maximum:"599" doc:"HTTP status for this item."`
+	Object     *string          `json:"object,omitempty" enum:"work_state" doc:"Present on 200 items. Always work_state."`
+	WorkID     *string          `json:"work_id,omitempty" pattern:"^[0-9]+$" maxLength:"20" doc:"Catalog work id. Present on 200 items."`
+	State      *string          `json:"state,omitempty" enum:"wish,doing,done,on_hold,dropped" doc:"Present on 200 items."`
+	Completion *string          `json:"completion,omitempty" enum:"one_route,main,all" doc:"Present on 200 items when set."`
+	Problem    *problem.Problem `json:"problem,omitempty" doc:"Present on failed items. A full problem object."`
+}

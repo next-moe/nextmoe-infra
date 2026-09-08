@@ -204,6 +204,7 @@ func liveCatalog(t *testing.T) *liveEnv {
 			StatsSvc:   catsvc.NewStatsService(db),
 			EditTypes:  reg,
 			Playtime:   catsvc.NewUserPlaytimeService(db),
+			WorkStates: catsvc.NewUserWorkStateService(db),
 			Folders:    catsvc.NewUserFolderService(db),
 			CoverVotes: catsvc.NewCoverVoteService(db),
 			Claims:     catsvc.NewClaimLifecycleService(db),

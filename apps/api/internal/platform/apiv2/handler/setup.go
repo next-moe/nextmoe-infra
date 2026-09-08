@@ -57,7 +57,7 @@ func SetupWith(app *fiber.App, opt Options) huma.API {
 	app.Use(protocol.RateLimit(opt.Store, credentialLimitIdentity))
 	app.Use(protocol.Idempotency(opt.Store, credentialLimitIdentity))
 
-	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.19.0")
+	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.20.0")
 	cfg.OpenAPIPath = ""
 	cfg.DocsPath = ""
 	cfg.SchemasPath = ""
@@ -151,9 +151,9 @@ func annotateSpec(doc *huma.OpenAPI) {
 			repr.ObjectSchema{}, repr.SchemaField{},
 			repr.Person{}, repr.Trait{}, repr.Measurements{}, repr.NameCredit{}, repr.NameCreditRole{}, repr.Appearance{},
 			repr.CharacterTrait{}, repr.WorkEngineRef{},
-			repr.UserPlaytime{}, repr.CoverVote{}, repr.ClaimRecord{},
+			repr.UserPlaytime{}, repr.UserWorkState{}, repr.CoverVote{}, repr.ClaimRecord{},
 			repr.UserFolder{}, repr.UserFolderItem{}, repr.FolderItemBatchItem{},
-			repr.PlaytimeBatchItem{}, repr.ProposalRecord{}, repr.ClaimDecisionRecord{}, repr.ProposalDecisionRecord{}, repr.SnapshotRecord{},
+			repr.PlaytimeBatchItem{}, repr.WorkStateBatchItem{}, repr.ProposalRecord{}, repr.ClaimDecisionRecord{}, repr.ProposalDecisionRecord{}, repr.SnapshotRecord{},
 			repr.Revision{}, repr.FieldDiff{}, repr.Amendment{}, repr.EditImage{},
 			repr.NewsSubmission{}, repr.ClaimEventRef{}, repr.ClaimEvent{},
 			repr.StorePurchaseLinks{}, repr.StoreCampaign{},

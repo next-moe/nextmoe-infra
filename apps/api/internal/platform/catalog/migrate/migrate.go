@@ -74,6 +74,7 @@ func Run(db *gorm.DB) error {
 		&model.CatalogWorkPopularity{},     // bodyless per-metric popularity counters (step 62 popularity facet)
 		&model.CatalogWorkPlaytime{},       // per-source playtime estimates (step 91 playtime facet — no claimed bridge)
 		&model.CatalogUserPlaytime{},       // per-user/per-client playtime reports; aggregates INTO the row above as source nextmoe
+		&model.CatalogUserWorkState{},      // per-user per-work play state (state/rating track P1); backfilled below from playtime statuses
 		&model.CatalogUserFolder{},         // per-user favorite folders (favorites unification wave); canonical store for forum+moyu favorites
 		&model.CatalogUserFolderItem{},     // folder memberships; (owner_uid, updated_at) is the manager-sync cursor
 		&model.CatalogUserFolderImport{},   // source-collection provenance for cmd/import-favorites; makes the backfill re-runnable
@@ -568,6 +569,42 @@ func rawSQL(db *gorm.DB) error {
 		`).Error; err != nil {
 			return fmt.Errorf("add user playtime FK: %w", err)
 		}
+	}
+
+	// (7c) user work state → work FK, same reasoning and same CASCADE as 7b.
+	workStateFK, err := constraintExists(db, "catalog_user_work_state", "fk_catalog_user_work_state_work")
+	if err != nil {
+		return err
+	}
+	if !workStateFK {
+		if err := db.Exec(`
+			ALTER TABLE catalog_user_work_state
+			    ADD CONSTRAINT fk_catalog_user_work_state_work
+			    FOREIGN KEY (work_id) REFERENCES catalog_work(id) ON DELETE CASCADE
+		`).Error; err != nil {
+			return fmt.Errorf("add user work state FK: %w", err)
+		}
+	}
+
+	// State/rating track P1 (2026-09): fold the v1-era playtime statuses into
+	// catalog_user_work_state. Only deliberate statuses migrate — finished(1),
+	// dropped(2), on_hold(3). playing(0) rows carry no intent: the v2 PUT has
+	// hardcoded 0 since the v1 retirement (2026-08-27), and before that it was
+	// the form default. Any finished beats dropped beats on_hold across a
+	// user's clients. DO NOTHING keeps re-runs from clobbering later explicit
+	// writes.
+	if err := db.Exec(`
+		INSERT INTO catalog_user_work_state (actor_uid, work_id, state, created_at, updated_at)
+		SELECT actor_uid, work_id,
+		       CASE WHEN bool_or(status = 1) THEN 3
+		            WHEN bool_or(status = 2) THEN 5
+		            ELSE 4 END,
+		       MIN(created_at), MAX(updated_at)
+		  FROM catalog_user_playtime
+		 WHERE status IN (1, 2, 3)
+		 GROUP BY actor_uid, work_id
+		ON CONFLICT (actor_uid, work_id) DO NOTHING`).Error; err != nil {
+		return fmt.Errorf("backfill catalog_user_work_state: %w", err)
 	}
 
 	// (8) lang tags that are not language tags (wave 195). Four rows hold a

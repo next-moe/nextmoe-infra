@@ -106,7 +106,7 @@ func TestLiveLanesWithoutABatchReadRefuseIt(t *testing.T) {
 	for _, path := range []string{
 		"/v2/me/proposals?ids=1", "/v2/moderation/proposals?ids=1",
 		"/v2/moderation/claims?ids=1", "/v2/me/claims?ids=1",
-		"/v2/me/playtimes?ids=1", "/v2/me/news?ids=1",
+		"/v2/me/playtimes?ids=1", "/v2/me/work-states?ids=1", "/v2/me/news?ids=1",
 		"/v2/me/claims?refs=vndb:v1",
 	} {
 		status, _, body := liveDo(t, env, http.MethodGet, path, liveUserToken, "")
