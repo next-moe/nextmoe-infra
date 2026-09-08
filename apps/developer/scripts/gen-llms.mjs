@@ -24,7 +24,7 @@ import { MCP_TOOLS } from '../shared/mcp-tools.mjs'
 
 const AUTH_MODEL = [
   '应用密钥（`Authorization: Bearer nmk_live_…`）——在 ' +
-    `${SITE_URL} 控制台自助创建应用与密钥，无需申请；自助可勾选的 scope 有 catalog:read、store:read、moyu:read 与 sticker:read。` +
+    `${SITE_URL} 控制台自助创建应用与密钥，无需申请；自助可勾选的 scope 有 catalog:read 与 store:read，/v2/moyu/* 与 /v2/sticker/* 两个下游面不需要 scope、任意有效密钥可调。` +
     '/v2 只收 nmk_ 前缀的密钥。',
   '用户访问令牌（`Authorization: Bearer <access token>`）——/v2/me 与 /v2/moderation ' +
     '读写的是某个用户自己的东西，用该用户经 OAuth 授权码 + PKCE 授权后的令牌，不是应用密钥。',

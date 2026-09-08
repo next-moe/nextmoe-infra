@@ -13,12 +13,10 @@ export const DEV_TIER_LABELS: Record<string, string> = {
   internal: 'Internal（内部）'
 }
 
-export const DEV_MINTABLE_SCOPES = [
-  'catalog:read',
-  'store:read',
-  'moyu:read',
-  'sticker:read'
-] as const
+// moyu:read and sticker:read were listed here for less than a day (2026-09-08)
+// and are gone on purpose, not forgotten: the downstream faces take any valid
+// key, and the API refuses both strings at mint time (ErrScopeNotAllowed).
+export const DEV_MINTABLE_SCOPES = ['catalog:read', 'store:read'] as const
 
 // What a fresh mint dialog pre-ticks. store:read is mintable but deliberately
 // not defaulted: it opens per-site link minting with a per-app product cap, so

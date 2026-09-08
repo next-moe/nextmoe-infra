@@ -12,16 +12,16 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-type forwardAuthFace struct {
-	scope     string
-	pathLabel string
-}
-
 // Unregistered faces must not reach Record: a string longer than varchar(40)
 // poisons every later flush batch (model.go Face comment, 06a→06b W1).
-var forwardAuthFaces = map[string]forwardAuthFace{
-	"moyu":    {scope: ScopeMoyuRead, pathLabel: "/v2/moyu/*"},
-	"sticker": {scope: ScopeStickerRead, pathLabel: "/v2/sticker/*"},
+//
+// Face → static pathLabel. No scope: these free read-only faces take any valid
+// key — the first wiring shipped with a per-face scope and the 2026-09-08
+// smoke run was 403'd by it, which is when the ruling landed that the gate's
+// job here is identity and metering, not authorization (08 §16.5).
+var forwardAuthFaces = map[string]string{
+	"moyu":    "/v2/moyu/*",
+	"sticker": "/v2/sticker/*",
 }
 
 type ForwardAuth struct {
@@ -35,7 +35,7 @@ func NewForwardAuth(mw *Middleware, usage *UsageRecorder) *ForwardAuth {
 
 func (f *ForwardAuth) Handle(c fiber.Ctx) error {
 	name := c.Query("face")
-	face, ok := forwardAuthFaces[name]
+	pathLabel, ok := forwardAuthFaces[name]
 	if !ok {
 		slog.Error("unregistered forward-auth face", "face", name)
 		return response.Error(c, fiber.StatusInternalServerError, errors.ErrInternalServer, "unregistered forward-auth face")
@@ -59,11 +59,6 @@ func (f *ForwardAuth) Handle(c fiber.Ctx) error {
 		return resp401(c)
 	}
 
-	if !cred.HasScope(face.scope) {
-		f.usage.Record(cred, name, face.pathLabel, fiber.StatusForbidden)
-		return response.ForbiddenMsg(c, errors.ErrForbidden, "missing required scope: "+face.scope)
-	}
-
 	limit, remaining, reset, allowed, failOpen := f.mw.rateResult(c.Context(), cred, time.Now())
 	if failOpen {
 		slog.Warn("devapi rate-limit store unavailable; failing open", "key_id", cred.KeyID)
@@ -79,7 +74,7 @@ func (f *ForwardAuth) Handle(c fiber.Ctx) error {
 				retry = 1
 			}
 			c.Set("Retry-After", strconv.FormatInt(retry, 10))
-			f.usage.Record(cred, name, face.pathLabel, fiber.StatusTooManyRequests)
+			f.usage.Record(cred, name, pathLabel, fiber.StatusTooManyRequests)
 			return resp429(c)
 		}
 	}
@@ -93,7 +88,7 @@ func (f *ForwardAuth) Handle(c fiber.Ctx) error {
 			c.Set("X-Quota-Remaining", strconv.Itoa(qRemaining))
 		}
 		if !qAllowed {
-			f.usage.Record(cred, name, face.pathLabel, fiber.StatusTooManyRequests)
+			f.usage.Record(cred, name, pathLabel, fiber.StatusTooManyRequests)
 			return resp429(c)
 		}
 	}
@@ -101,7 +96,7 @@ func (f *ForwardAuth) Handle(c fiber.Ctx) error {
 	c.Set("X-NextMoe-Client-Id", cred.ClientID)
 	c.Set("X-NextMoe-Key-Id", strconv.FormatUint(uint64(cred.KeyID), 10))
 	c.Set("X-NextMoe-Tier", cred.Tier)
-	f.usage.Record(cred, name, face.pathLabel, fiber.StatusNoContent)
+	f.usage.Record(cred, name, pathLabel, fiber.StatusNoContent)
 	go f.usage.TouchLastUsed(context.Background(), cred)
 	return c.SendStatus(fiber.StatusNoContent)
 }
