@@ -305,6 +305,19 @@ func workFacetStmts(src, dst int64) []mergeStmt {
 		    SET item_count = (SELECT count(*) FROM catalog_user_folder_item i WHERE i.folder_id = f.id),
 		        updated_at = now()
 		    WHERE f.id IN (SELECT folder_id FROM catalog_user_folder_item WHERE work_id = ?)`, []any{dst}, false},
+		// Work states sync incrementally off updated_at like folder items, so
+		// the same custom move applies. Where a user holds state on both sides,
+		// the later-updated row is the intent that survives.
+		{`UPDATE catalog_user_work_state d
+		    SET state = s.state, completion = s.completion, updated_at = now()
+		    FROM catalog_user_work_state s
+		    WHERE d.work_id = ? AND s.work_id = ?
+		      AND s.actor_uid = d.actor_uid AND s.updated_at > d.updated_at`, []any{dst, src}, false},
+		{`UPDATE catalog_user_work_state f SET work_id = ?, updated_at = now()
+		    WHERE f.work_id = ?
+		    AND NOT EXISTS (SELECT 1 FROM catalog_user_work_state x
+		                     WHERE x.work_id = ? AND x.actor_uid = f.actor_uid)`, []any{dst, src, dst}, false},
+		{`DELETE FROM catalog_user_work_state WHERE work_id = ?`, []any{src}, false},
 	}
 	for _, f := range []struct {
 		table string

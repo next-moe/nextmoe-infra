@@ -35,7 +35,7 @@
 
 ## 1 个 API
 
-- [Public API v2](https://developer.nextmoe.dev/docs/v2.md)：`/v2`，108 个端点，凭据 Authorization: Bearer nmk_live_…。
+- [Public API v2](https://developer.nextmoe.dev/docs/v2.md)：`/v2`，113 个端点，凭据 Authorization: Bearer nmk_live_…。
 
 ## OpenAPI 原文（机器可读）
 

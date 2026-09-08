@@ -15,7 +15,7 @@ description: 用 OAuth 用户访问令牌接入 NextMoe 的用户面：游玩时
 > [!WARNING]
 > 用户面的限流按**用户**计数，不是按 IP。所以一定要带用户令牌调用；用别的方式代理会让你的全体用户挤进同一个桶。
 
-## 五类用户数据 {#surfaces}
+## 六类用户数据 {#surfaces}
 
 ### 游玩时长
 
@@ -28,6 +28,18 @@ DELETE /v2/me/playtimes/{work_id}
 ```
 
 这一组**只要用户令牌**，不需要任何额外 scope——任何已开通用户登录的应用都可以调用。批量写用 `POST /v2/me/playtimes`，导入历史记录时别用 `PUT` 逐条打。
+
+### 游玩状态
+
+```http
+GET    /v2/me/work-states             # 我的全部状态
+GET    /v2/me/work-states/{work_id}   # 单部作品
+PUT    /v2/me/work-states/{work_id}   # 覆盖写
+POST   /v2/me/work-states             # 批量写
+DELETE /v2/me/work-states/{work_id}
+```
+
+状态是两个轴：`state` 是封闭词表 `wish / doing / done / on_hold / dropped`，与 Bangumi 收藏类型一一对应；`completion` 表示通了多少（`one_route / main / all`），可以不填，`wish` 不允许携带它。`PUT` 是整体替换——不带 `completion` 就等于清掉它。这一组和游玩时长一样**只要用户令牌**，不需要任何额外 scope。
 
 ### 认领
 

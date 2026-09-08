@@ -33,6 +33,29 @@ type putPlaytimeInput struct {
 type deletePlaytimeInput struct {
 	WorkID string `path:"work_id" minLength:"1" maxLength:"20" pattern:"^[0-9]+$" doc:"Catalog work id."`
 }
+type listWorkStatesInput struct {
+	CollectionInput
+	WorkIDs string `query:"work_ids" maxLength:"4096" doc:"Comma-separated work ids, max 100. Batch read, no pagination."`
+}
+type listWorkStatesOutput struct {
+	Body repr.List[repr.UserWorkState]
+}
+type getWorkStateInput struct {
+	WorkID string `path:"work_id" minLength:"1" maxLength:"20" pattern:"^[0-9]+$" doc:"Catalog work id."`
+}
+type getWorkStateOutput struct {
+	Body repr.UserWorkState
+}
+type putWorkStateInput struct {
+	WorkID string `path:"work_id" minLength:"1" maxLength:"20" pattern:"^[0-9]+$" doc:"Catalog work id."`
+	Body   struct {
+		State      string `json:"state" enum:"wish,doing,done,on_hold,dropped" doc:"Closed vocabulary."`
+		Completion string `json:"completion,omitempty" enum:"one_route,main,all" doc:"How much is finished. Absent clears it. Refused with wish."`
+	}
+}
+type deleteWorkStateInput struct {
+	WorkID string `path:"work_id" minLength:"1" maxLength:"20" pattern:"^[0-9]+$" doc:"Catalog work id."`
+}
 type listCoverVotesOutput struct {
 	Body repr.List[repr.CoverVote]
 }
@@ -72,6 +95,26 @@ func registerMe(api huma.API, cat *Catalog) {
 		Summary: "Delete my playtime on one work", Description: "204 with no body. Requires a user access token. Any app may call this; playtime:write is not required.",
 		Tags: me, Errors: errs, DefaultStatus: http.StatusNoContent, SkipValidateParams: true,
 	}, deleteMyPlaytime(cat))
+	huma.Register(api, huma.Operation{
+		OperationID: "listMyWorkStates", Method: http.MethodGet, Path: "/v2/me/work-states",
+		Summary: "List my work states", Description: "The bearer user's per-work states. work_ids= is a batch read. Requires a user access token. Any app may call this; no scope is required.",
+		Tags: me, Errors: errs, SkipValidateParams: true,
+	}, listMyWorkStates(cat))
+	huma.Register(api, huma.Operation{
+		OperationID: "getMyWorkState", Method: http.MethodGet, Path: "/v2/me/work-states/{work_id}",
+		Summary: "Get my state on one work", Description: "404 when the user has never set one. Requires a user access token. Any app may call this; no scope is required.",
+		Tags: me, Errors: errs, SkipValidateParams: true,
+	}, getMyWorkState(cat))
+	huma.Register(api, huma.Operation{
+		OperationID: "putMyWorkState", Method: http.MethodPut, Path: "/v2/me/work-states/{work_id}",
+		Summary: "Replace my state on one work", Description: "Body carries state and optionally completion; an absent completion clears it. Naturally idempotent. Requires a user access token. Any app may call this; no scope is required.",
+		Tags: me, Errors: errs, SkipValidateParams: true,
+	}, putMyWorkState(cat))
+	huma.Register(api, huma.Operation{
+		OperationID: "deleteMyWorkState", Method: http.MethodDelete, Path: "/v2/me/work-states/{work_id}",
+		Summary: "Delete my state on one work", Description: "204 with no body. Requires a user access token. Any app may call this; no scope is required.",
+		Tags: me, Errors: errs, DefaultStatus: http.StatusNoContent, SkipValidateParams: true,
+	}, deleteMyWorkState(cat))
 	huma.Register(api, huma.Operation{
 		OperationID: "listMyCoverVotes", Method: http.MethodGet, Path: "/v2/me/cover-votes",
 		Summary: "List my cover votes", Description: "Every cover the bearer has voted up. Requires a user access token.",
@@ -162,6 +205,73 @@ func deleteMyPlaytime(cat *Catalog) func(context.Context, *deletePlaytimeInput) 
 			return nil, catalogErr(ctx, problemInvalidID(in.WorkID))
 		}
 		if err := cat.DeletePlaytime(ctx, id); err != nil {
+			return nil, catalogErr(ctx, err)
+		}
+		return &struct{}{}, nil
+	}
+}
+
+func listMyWorkStates(cat *Catalog) func(context.Context, *listWorkStatesInput) (*listWorkStatesOutput, error) {
+	return func(ctx context.Context, in *listWorkStatesInput) (*listWorkStatesOutput, error) {
+		if in == nil {
+			in = &listWorkStatesInput{}
+		}
+		q, err := parseCatalogList(ctx, &in.CollectionInput, collect.WorkStateSpec())
+		if err != nil {
+			return nil, err
+		}
+		page, lerr := cat.ListWorkStates(ctx, q, splitWorkIDs(in.WorkIDs))
+		if lerr != nil {
+			return nil, catalogErr(ctx, lerr)
+		}
+		return &listWorkStatesOutput{Body: page}, nil
+	}
+}
+
+func getMyWorkState(cat *Catalog) func(context.Context, *getWorkStateInput) (*getWorkStateOutput, error) {
+	return func(ctx context.Context, in *getWorkStateInput) (*getWorkStateOutput, error) {
+		if in == nil {
+			in = &getWorkStateInput{}
+		}
+		id, ok := repr.ParseID(in.WorkID)
+		if !ok {
+			return nil, catalogErr(ctx, problemInvalidID(in.WorkID))
+		}
+		rec, err := cat.GetWorkState(ctx, id)
+		if err != nil {
+			return nil, catalogErr(ctx, err)
+		}
+		return &getWorkStateOutput{Body: rec}, nil
+	}
+}
+
+func putMyWorkState(cat *Catalog) func(context.Context, *putWorkStateInput) (*getWorkStateOutput, error) {
+	return func(ctx context.Context, in *putWorkStateInput) (*getWorkStateOutput, error) {
+		if in == nil {
+			in = &putWorkStateInput{}
+		}
+		id, ok := repr.ParseID(in.WorkID)
+		if !ok {
+			return nil, catalogErr(ctx, problemInvalidID(in.WorkID))
+		}
+		rec, err := cat.PutWorkState(ctx, id, in.Body.State, in.Body.Completion)
+		if err != nil {
+			return nil, catalogErr(ctx, err)
+		}
+		return &getWorkStateOutput{Body: rec}, nil
+	}
+}
+
+func deleteMyWorkState(cat *Catalog) func(context.Context, *deleteWorkStateInput) (*struct{}, error) {
+	return func(ctx context.Context, in *deleteWorkStateInput) (*struct{}, error) {
+		if in == nil {
+			in = &deleteWorkStateInput{}
+		}
+		id, ok := repr.ParseID(in.WorkID)
+		if !ok {
+			return nil, catalogErr(ctx, problemInvalidID(in.WorkID))
+		}
+		if err := cat.DeleteWorkState(ctx, id); err != nil {
 			return nil, catalogErr(ctx, err)
 		}
 		return &struct{}{}, nil

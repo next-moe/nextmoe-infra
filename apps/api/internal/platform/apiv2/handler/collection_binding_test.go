@@ -203,6 +203,7 @@ var batchRefusingFaces = map[string]string{
 	"/v2/me/folders/{id}/items": "collect.FolderItemSpec is NoBatch; POST items is this lane's batch",
 	"/v2/me/news":               "collect.NewsSubmissionSpec is NoBatch",
 	"/v2/me/playtimes":          "collect.PlaytimeSpec is NoBatch; work_ids= is this lane's batch",
+	"/v2/me/work-states":        "collect.WorkStateSpec is NoBatch; work_ids= is this lane's batch",
 	"/v2/me/proposals":          "collect.ProposalListSpec is NoBatch; the list lane has no hydration",
 	"/v2/moderation/claims":     "collect.ClaimSpec is NoBatch",
 	"/v2/moderation/proposals":  "collect.ProposalListSpec is NoBatch; the list lane has no hydration",

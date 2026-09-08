@@ -23,6 +23,11 @@ func registerMeWrite(api huma.API, cat *Catalog) {
 		Tags: me, Errors: writeErrs, DefaultStatus: 207, SkipValidateParams: true,
 	}, batchMyPlaytimes(cat))
 	huma.Register(api, huma.Operation{
+		OperationID: "batchMyWorkStates", Method: http.MethodPost, Path: "/v2/me/work-states",
+		Summary: "Batch write work states", Description: "207 Multi-Status. Each item is a work_state or a problem. Requires a user access token. Any app may call this; no scope is required.",
+		Tags: me, Errors: writeErrs, DefaultStatus: 207, SkipValidateParams: true,
+	}, batchMyWorkStates(cat))
+	huma.Register(api, huma.Operation{
 		OperationID: "createMyClaim", Method: http.MethodPost, Path: "/v2/me/claims",
 		Summary:     "Submit a claim",
 		Description: "Mint or claim a work. work_id claims an existing catalog work. refs= claims the work they resolve to, or mints one from display_name when none match. site_work_id with display_name and neither work_id nor refs mints a work anchored to the site's own id. field_values carries an editing-engine work field map onto any mint lane and may be sent alone, without work_id, refs or site_work_id; it is refused with work_id, and refs that already resolve to a work answer 409 instead of dropping it. A caller holding catalog.edit.trusted mints straight to live rather than pending. A mint whose display_name or catalog.work.titles match live works of the same medium is refused with 409 DUPLICATE_SUSPECTS naming them in suspects[] and nothing is written; re-send with confirm_duplicates=true to mint anyway. The claiming lanes — work_id, and refs that resolve — never hit this gate. Requires a user access token bound to a catalog site.",
@@ -128,6 +133,24 @@ type batchPlaytimesInput struct {
 type batchPlaytimesOutput struct {
 	Status int
 	Body   repr.List[repr.PlaytimeBatchItem]
+}
+
+// Named, not anonymous — a second anonymous `Items []struct{…}` on /v2/me
+// panics huma's schema registry at startup (deviation 110, "duplicate name:
+// Item"); folderBatchEntry exists for the same reason.
+type workStateBatchEntry struct {
+	WorkID     string `json:"work_id" minLength:"1" maxLength:"20" pattern:"^[0-9]+$" doc:"Catalog work id."`
+	State      string `json:"state" enum:"wish,doing,done,on_hold,dropped" doc:"Closed vocabulary."`
+	Completion string `json:"completion,omitempty" enum:"one_route,main,all" doc:"How much is finished. Absent clears it. Refused with wish."`
+}
+type batchWorkStatesInput struct {
+	Body struct {
+		Items []workStateBatchEntry `json:"items" maxItems:"100" doc:"At most 100 items."`
+	}
+}
+type batchWorkStatesOutput struct {
+	Status int
+	Body   repr.List[repr.WorkStateBatchItem]
 }
 type claimRefBody struct {
 	Source     string `json:"source" minLength:"1" maxLength:"64" doc:"Open vocabulary source key such as vndb. Must not be used as a discriminant."`
@@ -258,6 +281,19 @@ func batchMyPlaytimes(cat *Catalog) func(context.Context, *batchPlaytimesInput) 
 			return nil, catalogErr(ctx, err)
 		}
 		return &batchPlaytimesOutput{Status: 207, Body: page}, nil
+	}
+}
+
+func batchMyWorkStates(cat *Catalog) func(context.Context, *batchWorkStatesInput) (*batchWorkStatesOutput, error) {
+	return func(ctx context.Context, in *batchWorkStatesInput) (*batchWorkStatesOutput, error) {
+		if in == nil {
+			in = &batchWorkStatesInput{}
+		}
+		page, err := cat.BatchWorkStates(ctx, in.Body.Items)
+		if err != nil {
+			return nil, catalogErr(ctx, err)
+		}
+		return &batchWorkStatesOutput{Status: 207, Body: page}, nil
 	}
 }
 

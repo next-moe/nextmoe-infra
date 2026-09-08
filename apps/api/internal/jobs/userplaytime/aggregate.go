@@ -115,12 +115,13 @@ func aggregate(ctx context.Context, db *gorm.DB, min int, excludeClients []strin
 	var out []candidate
 	err := db.WithContext(ctx).Raw(`
 		WITH per_user AS (
-		    SELECT work_id, actor_uid, MAX(minutes) AS minutes
-		      FROM catalog_user_playtime
-		     WHERE status = ?
-		       AND minutes >= ? AND minutes <= ?
-		       AND client_id NOT IN ?
-		     GROUP BY work_id, actor_uid
+		    SELECT p.work_id, p.actor_uid, MAX(p.minutes) AS minutes
+		      FROM catalog_user_playtime p
+		      JOIN catalog_user_work_state s
+		        ON s.actor_uid = p.actor_uid AND s.work_id = p.work_id AND s.state = ?
+		     WHERE p.minutes >= ? AND p.minutes <= ?
+		       AND p.client_id NOT IN ?
+		     GROUP BY p.work_id, p.actor_uid
 		)
 		SELECT work_id,
 		       percentile_disc(0.5) WITHIN GROUP (ORDER BY minutes)::int AS median,
@@ -129,7 +130,7 @@ func aggregate(ctx context.Context, db *gorm.DB, min int, excludeClients []strin
 		 GROUP BY work_id
 		HAVING COUNT(*) >= ?
 		 ORDER BY work_id`,
-		model.PlaytimeStatusFinished,
+		model.WorkStateDone,
 		model.PlaytimeMinutesMin, model.PlaytimeMinutesMax,
 		excludeClients, min).Scan(&out).Error
 	if err != nil {

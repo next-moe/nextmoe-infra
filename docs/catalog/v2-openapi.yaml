@@ -151,6 +151,25 @@ components:
       required:
         - items
       type: object
+    BatchWorkStatesInputBody:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/BatchWorkStatesInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        items:
+          description: At most 100 items.
+          items:
+            $ref: "#/components/schemas/WorkStateBatchEntry"
+          maxItems: 100
+          type: array
+      required:
+        - items
+      type: object
     CalendarList:
       additionalProperties: true
       properties:
@@ -3926,6 +3945,55 @@ components:
         - object
         - items
       type: object
+    ListUserWorkState:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ListUserWorkState.json
+          format: uri
+          readOnly: true
+          type: string
+        facets:
+          additionalProperties:
+            items:
+              $ref: "#/components/schemas/FacetValue"
+            type:
+              - array
+              - "null"
+          description: Named facet buckets. Present only when facets= is requested.
+          type: object
+        items:
+          description: Members of this page. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/UserWorkState"
+          type: array
+        missing:
+          description: ids requested but not visible. Present only on the ids=/refs= batch lane.
+          items:
+            type: string
+          type: array
+        next_cursor:
+          description: Opaque keyset cursor. Omitted on the last page.
+          maxLength: 512
+          pattern: ^cur_[A-Za-z0-9._~-]+$
+          type: string
+        object:
+          description: Type discriminant. Always list.
+          enum:
+            - list
+          type: string
+          x-vocabulary-closed: true
+        total:
+          description: Present only when include_total=true. Same visibility gate as items.
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - object
+        - items
+      type: object
     ListVocabulary:
       additionalProperties: true
       properties:
@@ -4243,6 +4311,55 @@ components:
           description: Members of this page. Empty array, never null.
           items:
             $ref: "#/components/schemas/WorkSeriesRef"
+          type: array
+        missing:
+          description: ids requested but not visible. Present only on the ids=/refs= batch lane.
+          items:
+            type: string
+          type: array
+        next_cursor:
+          description: Opaque keyset cursor. Omitted on the last page.
+          maxLength: 512
+          pattern: ^cur_[A-Za-z0-9._~-]+$
+          type: string
+        object:
+          description: Type discriminant. Always list.
+          enum:
+            - list
+          type: string
+          x-vocabulary-closed: true
+        total:
+          description: Present only when include_total=true. Same visibility gate as items.
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - object
+        - items
+      type: object
+    ListWorkStateBatchItem:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ListWorkStateBatchItem.json
+          format: uri
+          readOnly: true
+          type: string
+        facets:
+          additionalProperties:
+            items:
+              $ref: "#/components/schemas/FacetValue"
+            type:
+              - array
+              - "null"
+          description: Named facet buckets. Present only when facets= is requested.
+          type: object
+        items:
+          description: Members of this page. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/WorkStateBatchItem"
           type: array
         missing:
           description: ids requested but not visible. Present only on the ids=/refs= batch lane.
@@ -5478,6 +5595,37 @@ components:
           type: integer
       required:
         - minutes
+      type: object
+    PutWorkStateInputBody:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/PutWorkStateInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        completion:
+          description: How much is finished. Absent clears it. Refused with wish.
+          enum:
+            - one_route
+            - main
+            - all
+          type: string
+          x-vocabulary-closed: true
+        state:
+          description: Closed vocabulary.
+          enum:
+            - wish
+            - doing
+            - done
+            - on_hold
+            - dropped
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - state
       type: object
     Rating:
       additionalProperties: true
@@ -6797,6 +6945,66 @@ components:
         - work_id
         - minutes
       type: object
+    UserWorkState:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/UserWorkState.json
+          format: uri
+          readOnly: true
+          type: string
+        completion:
+          description: "How much is finished: one route, the main route, or every route. null when unstated. Never accompanies wish."
+          enum:
+            - one_route
+            - main
+            - all
+          type:
+            - string
+            - "null"
+          x-vocabulary-closed: true
+        created_at:
+          description: RFC 3339 UTC.
+          format: date-time
+          maxLength: 32
+          type: string
+        object:
+          description: Type discriminant. Always work_state.
+          enum:
+            - work_state
+          type: string
+          x-vocabulary-closed: true
+        state:
+          description: Closed vocabulary. wish wants to play, doing is playing, done finished at least one route, on_hold paused, dropped abandoned. Maps one-to-one onto Bangumi collection types.
+          enum:
+            - wish
+            - doing
+            - done
+            - on_hold
+            - dropped
+          type: string
+          x-vocabulary-closed: true
+        updated_at:
+          description: RFC 3339 UTC. The incremental-sync watermark.
+          format: date-time
+          maxLength: 32
+          type: string
+        work_id:
+          description: Catalog work id this state is on.
+          maxLength: 20
+          minLength: 1
+          pattern: ^[0-9]+$
+          type: string
+      required:
+        - object
+        - work_id
+        - state
+        - completion
+        - created_at
+        - updated_at
+      type: object
     Value:
       additionalProperties: true
       properties:
@@ -7370,6 +7578,81 @@ components:
         - source
         - member_count
       type: object
+    WorkStateBatchEntry:
+      additionalProperties: true
+      properties:
+        completion:
+          description: How much is finished. Absent clears it. Refused with wish.
+          enum:
+            - one_route
+            - main
+            - all
+          type: string
+          x-vocabulary-closed: true
+        state:
+          description: Closed vocabulary.
+          enum:
+            - wish
+            - doing
+            - done
+            - on_hold
+            - dropped
+          type: string
+          x-vocabulary-closed: true
+        work_id:
+          description: Catalog work id.
+          maxLength: 20
+          minLength: 1
+          pattern: ^[0-9]+$
+          type: string
+      required:
+        - work_id
+        - state
+      type: object
+    WorkStateBatchItem:
+      additionalProperties: true
+      properties:
+        completion:
+          description: Present on 200 items when set.
+          enum:
+            - one_route
+            - main
+            - all
+          type: string
+          x-vocabulary-closed: true
+        object:
+          description: Present on 200 items. Always work_state.
+          enum:
+            - work_state
+          type: string
+          x-vocabulary-closed: true
+        problem:
+          $ref: "#/components/schemas/Problem"
+          description: Present on failed items. A full problem object.
+        state:
+          description: Present on 200 items.
+          enum:
+            - wish
+            - doing
+            - done
+            - on_hold
+            - dropped
+          type: string
+          x-vocabulary-closed: true
+        status:
+          description: HTTP status for this item.
+          format: int64
+          maximum: 599
+          minimum: 0
+          type: integer
+        work_id:
+          description: Catalog work id. Present on 200 items.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+      required:
+        - status
+      type: object
     WorkTag:
       additionalProperties: true
       properties:
@@ -7485,7 +7768,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.19.0
+  version: 2.20.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -17406,6 +17689,483 @@ paths:
       security:
         - userToken: []
       summary: Append an amendment
+      tags:
+        - me
+  /v2/me/work-states:
+    get:
+      description: The bearer user's per-work states. work_ids= is a batch read. Requires a user access token. Any app may call this; no scope is required.
+      operationId: listMyWorkStates
+      parameters:
+        - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
+          explode: false
+          in: query
+          name: cursor
+          schema:
+            description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
+            maxLength: 512
+            type: string
+        - description: Page size 1-100, default 20. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped.
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: Page size 1-100, default 20. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped.
+            maxLength: 8
+            type: string
+        - description: basic (default) or full. Closed vocabulary.
+          explode: false
+          in: query
+          name: view
+          schema:
+            description: basic (default) or full. Closed vocabulary.
+            maxLength: 16
+            type: string
+        - description: Comma-separated blocks. Unknown token is 400 UNKNOWN_INCLUDE.
+          explode: false
+          in: query
+          name: include
+          schema:
+            description: Comma-separated blocks. Unknown token is 400 UNKNOWN_INCLUDE.
+            maxLength: 1024
+            type: string
+        - description: Comma-separated top-level keys after view/include. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept.
+          explode: false
+          in: query
+          name: fields
+          schema:
+            description: Comma-separated top-level keys after view/include. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept.
+            maxLength: 1024
+            type: string
+        - description: "Comma-separated ids, max 100. Batch lane: no pagination."
+          explode: false
+          in: query
+          name: ids
+          schema:
+            description: "Comma-separated ids, max 100. Batch lane: no pagination."
+            maxLength: 4096
+            type: string
+        - description: "Comma-separated source:external_id, max 100. Batch lane: no pagination."
+          explode: false
+          in: query
+          name: refs
+          schema:
+            description: "Comma-separated source:external_id, max 100. Batch lane: no pagination."
+            maxLength: 4096
+            type: string
+        - description: true to include total. Only true or false.
+          explode: false
+          in: query
+          name: include_total
+          schema:
+            description: true to include total. Only true or false.
+            maxLength: 8
+            type: string
+        - description: Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET.
+          explode: false
+          in: query
+          name: facets
+          schema:
+            description: Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET.
+            maxLength: 512
+            type: string
+        - description: Closed per-collection sort key.
+          explode: false
+          in: query
+          name: sort
+          schema:
+            description: Closed per-collection sort key.
+            maxLength: 32
+            type: string
+        - description: true includes r18. false or absent hides r18. Only true or false.
+          explode: false
+          in: query
+          name: nsfw
+          schema:
+            description: true includes r18. false or absent hides r18. Only true or false.
+            maxLength: 8
+            type: string
+        - description: Comma-separated work ids, max 100. Batch read, no pagination.
+          explode: false
+          in: query
+          name: work_ids
+          schema:
+            description: Comma-separated work ids, max 100. Batch read, no pagination.
+            maxLength: 4096
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListUserWorkState"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: List my work states
+      tags:
+        - me
+    post:
+      description: 207 Multi-Status. Each item is a work_state or a problem. Requires a user access token. Any app may call this; no scope is required.
+      operationId: batchMyWorkStates
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatchWorkStatesInputBody"
+        required: true
+      responses:
+        "207":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListWorkStateBatchItem"
+          description: Multi-Status
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "412":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Precondition Failed
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "428":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Precondition Required
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Batch write work states
+      tags:
+        - me
+  /v2/me/work-states/{work_id}:
+    delete:
+      description: 204 with no body. Requires a user access token. Any app may call this; no scope is required.
+      operationId: deleteMyWorkState
+      parameters:
+        - description: Catalog work id.
+          in: path
+          name: work_id
+          required: true
+          schema:
+            description: Catalog work id.
+            maxLength: 20
+            minLength: 1
+            pattern: ^[0-9]+$
+            type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Delete my state on one work
+      tags:
+        - me
+    get:
+      description: 404 when the user has never set one. Requires a user access token. Any app may call this; no scope is required.
+      operationId: getMyWorkState
+      parameters:
+        - description: Catalog work id.
+          in: path
+          name: work_id
+          required: true
+          schema:
+            description: Catalog work id.
+            maxLength: 20
+            minLength: 1
+            pattern: ^[0-9]+$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserWorkState"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Get my state on one work
+      tags:
+        - me
+    put:
+      description: Body carries state and optionally completion; an absent completion clears it. Naturally idempotent. Requires a user access token. Any app may call this; no scope is required.
+      operationId: putMyWorkState
+      parameters:
+        - description: Catalog work id.
+          in: path
+          name: work_id
+          required: true
+          schema:
+            description: Catalog work id.
+            maxLength: 20
+            minLength: 1
+            pattern: ^[0-9]+$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PutWorkStateInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserWorkState"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Replace my state on one work
       tags:
         - me
   /v2/moderation/claims:

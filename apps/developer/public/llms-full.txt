@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-本文件内联全部 108 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
+本文件内联全部 113 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
 
 ## 给 AI 助手的指引
 
@@ -1249,7 +1249,7 @@ for (;;) {
 > [!WARNING]
 > 用户面的限流按**用户**计数，不是按 IP。所以一定要带用户令牌调用；用别的方式代理会让你的全体用户挤进同一个桶。
 
-## 五类用户数据
+## 六类用户数据
 
 ### 游玩时长
 
@@ -1262,6 +1262,18 @@ DELETE /v2/me/playtimes/{work_id}
 ```
 
 这一组**只要用户令牌**，不需要任何额外 scope——任何已开通用户登录的应用都可以调用。批量写用 `POST /v2/me/playtimes`，导入历史记录时别用 `PUT` 逐条打。
+
+### 游玩状态
+
+```http
+GET    /v2/me/work-states             # 我的全部状态
+GET    /v2/me/work-states/{work_id}   # 单部作品
+PUT    /v2/me/work-states/{work_id}   # 覆盖写
+POST   /v2/me/work-states             # 批量写
+DELETE /v2/me/work-states/{work_id}
+```
+
+状态是两个轴：`state` 是封闭词表 `wish / doing / done / on_hold / dropped`，与 Bangumi 收藏类型一一对应；`completion` 表示通了多少（`one_route / main / all`），可以不填，`wish` 不允许携带它。`PUT` 是整体替换——不带 `completion` 就等于清掉它。这一组和游玩时长一样**只要用户令牌**，不需要任何额外 scope。
 
 ### 认领
 
@@ -2264,11 +2276,13 @@ Open · 16 tokens
 
 - 路径前缀：`/v2`
 - 凭据：Authorization: Bearer nmk_live_…（v2 应用密钥,门户自助铸造,无需申请）
-- 端点数：108
+- 端点数：113
 
 > 正式公开：形状按 additive-only 演进，删除与改名由 CI 的 oasdiff 门拦下。第三方在门户自助铸 nmk_ 密钥即可调用，不需要申请。
 
 > /v2/me/playtimes 只要用户令牌，不需要 playtime:read / playtime:write。任何已开通用户登录的应用都可以调用。
+
+> /v2/me/work-states 与 playtimes 同款：只要用户令牌，不需要任何 scope。state 五值与 Bangumi 收藏类型一一对应，completion 表示通了多少，wish 不允许携带。
 
 > /v2/me/folders 是例外：收藏夹是私人清单，读要 folder:read（folder:write 也算），写要 folder:write，缺了是 403 SCOPE_REQUIRED。
 
@@ -4507,6 +4521,114 @@ curl -X POST "https://api.nextmoe.dev/v2/me/proposals/value/amendments" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{}'
+```
+
+### GET /v2/me/work-states
+
+List my work states
+
+The bearer user's per-work states. work_ids= is a batch read. Requires a user access token. Any app may call this; no scope is required.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `cursor` | query | 否 | string | Opaque keyset cursor from a prior next_cursor. Must start with cur_. |
+| `limit` | query | 否 | string | Page size 1-100, default 20. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped. |
+| `view` | query | 否 | string | basic (default) or full. Closed vocabulary. |
+| `include` | query | 否 | string | Comma-separated blocks. Unknown token is 400 UNKNOWN_INCLUDE. |
+| `fields` | query | 否 | string | Comma-separated top-level keys after view/include. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
+| `ids` | query | 否 | string | Comma-separated ids, max 100. Batch lane: no pagination. |
+| `refs` | query | 否 | string | Comma-separated source:external_id, max 100. Batch lane: no pagination. |
+| `include_total` | query | 否 | string | true to include total. Only true or false. |
+| `facets` | query | 否 | string | Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. |
+| `sort` | query | 否 | string | Closed per-collection sort key. |
+| `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
+| `work_ids` | query | 否 | string | Comma-separated work ids, max 100. Batch read, no pagination. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/me/work-states" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### POST /v2/me/work-states
+
+Batch write work states
+
+207 Multi-Status. Each item is a work_state or a problem. Requires a user access token. Any app may call this; no scope is required.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+无参数。
+
+```bash
+curl -X POST "https://api.nextmoe.dev/v2/me/work-states" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"items":[{"state":"wish","work_id":"string"}]}'
+```
+
+### GET /v2/me/work-states/{work_id}
+
+Get my state on one work
+
+404 when the user has never set one. Requires a user access token. Any app may call this; no scope is required.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `work_id` | path | 是 | string | Catalog work id. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/me/work-states/value" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### PUT /v2/me/work-states/{work_id}
+
+Replace my state on one work
+
+Body carries state and optionally completion; an absent completion clears it. Naturally idempotent. Requires a user access token. Any app may call this; no scope is required.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `work_id` | path | 是 | string | Catalog work id. |
+
+```bash
+curl -X PUT "https://api.nextmoe.dev/v2/me/work-states/value" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"state":"wish"}'
+```
+
+### DELETE /v2/me/work-states/{work_id}
+
+Delete my state on one work
+
+204 with no body. Requires a user access token. Any app may call this; no scope is required.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `work_id` | path | 是 | string | Catalog work id. |
+
+```bash
+curl -X DELETE "https://api.nextmoe.dev/v2/me/work-states/value" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
 ## 审核

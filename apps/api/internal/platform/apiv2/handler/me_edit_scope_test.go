@@ -76,6 +76,7 @@ func TestEditingPlaneScopeLeavesItsNeighboursAlone(t *testing.T) {
 	})
 	for _, path := range []string{
 		"/v2/me/playtimes",
+		"/v2/me/work-states",
 		"/v2/me/news",
 		"/v2/moderation/folders/7",
 		"/v2/moderation/users/7/folders",
@@ -93,6 +94,7 @@ func TestEditingPlaneScopeLeavesItsNeighboursAlone(t *testing.T) {
 var personGatedMePrefixes = []string{
 	"/v2/me/news",
 	"/v2/me/playtimes",
+	"/v2/me/work-states",
 	"/v2/moderation/folders",
 	"/v2/moderation/users",
 }

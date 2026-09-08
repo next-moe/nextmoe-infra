@@ -131,6 +131,7 @@ func main() {
 	editEngine := editing.NewEngine(catalogDB.DB(), editRegistry)
 	coverVoteSvc := service.NewCoverVoteService(catalogDB.DB())
 	playtimeSvc := service.NewUserPlaytimeService(catalogDB.DB())
+	workStateSvc := service.NewUserWorkStateService(catalogDB.DB())
 	folderSvc := service.NewUserFolderService(catalogDB.DB())
 
 	// kun_news is a SECOND database on a process whose primary job is catalog.
@@ -168,7 +169,7 @@ func main() {
 	adminNews.Post("/items/:id/decision", newsAdminH.Decide)
 
 	setupPublicCatalog(application, cfg, catalogDB, readSvc, resolveSvc, searcher, statsSvc,
-		clientRepo, tokenVerifier, devStore, devCache, newsSvc, newsWriteSvc, editRegistry, playtimeSvc, folderSvc, coverVoteSvc, claimSvc, editEngine)
+		clientRepo, tokenVerifier, devStore, devCache, newsSvc, newsWriteSvc, editRegistry, playtimeSvc, workStateSvc, folderSvc, coverVoteSvc, claimSvc, editEngine)
 
 	galgameapp.MountRetiredPublic(application)
 	// Wave R3 (2026-08-27): every v1 face this binary served is gone, so the
@@ -213,6 +214,7 @@ func setupPublicCatalog(
 	newsWriteSvc *newsService.SubmissionService,
 	editRegistry *editing.Registry,
 	playtimeSvc *service.UserPlaytimeService,
+	workStateSvc *service.UserWorkStateService,
 	folderSvc *service.UserFolderService,
 	coverVoteSvc *service.CoverVoteService,
 	claimSvc *service.ClaimLifecycleService,
@@ -355,6 +357,7 @@ func setupPublicCatalog(
 			Searcher:    searcher,
 			EditTypes:   editRegistry,
 			Playtime:    playtimeSvc,
+			WorkStates:  workStateSvc,
 			Folders:     folderSvc,
 			CoverVotes:  coverVoteSvc,
 			Claims:      claimSvc,
