@@ -13,6 +13,7 @@ const emit = defineEmits<{
   roles: [user: { uuid: string; name: string; roles: string[] }]
   siteRoles: [user: { uuid: string; name: string }]
   detail: [user: { uuid: string; name: string }]
+  edit: [user: { uuid: string; name: string }]
 }>()
 
 const cdnBase = useRuntimeConfig().public.imageCdnBase as string
@@ -20,7 +21,11 @@ const cdnBase = useRuntimeConfig().public.imageCdnBase as string
 const avatarSrc = (user: User) =>
   resolveAvatarUrl(user, { cdnBase, variant: '256' }, '')
 
-const isAdmin = (user: User) => !!user.roles?.includes('admin')
+// Mirrors the backend's adminProtected: ren is granted in the DB and carries no
+// "admin" role row, so a bare 'admin' check offers the one account above admin
+// none of the protection.
+const isProtected = (user: User) =>
+  !!user.roles?.some((r) => r === 'admin' || r === 'ren')
 </script>
 
 <template>
@@ -123,7 +128,15 @@ const isAdmin = (user: User) => !!user.roles?.includes('admin')
                   查看详情
                 </button>
                 <button
-                  v-if="user.status === 0 && !user.is_anonymized && !isAdmin(user)"
+                  v-if="!user.is_anonymized && !isProtected(user)"
+                  class="flex w-full items-center gap-2 px-3 py-2 text-sm text-default-500 hover:bg-default-100 hover:text-foreground"
+                  @click="emit('edit', { uuid: user.uuid, name: user.name })"
+                >
+                  <KunIcon name="lucide:user-pen" class="size-4" />
+                  编辑资料
+                </button>
+                <button
+                  v-if="user.status === 0 && !user.is_anonymized && !isProtected(user)"
                   class="flex w-full items-center gap-2 px-3 py-2 text-sm text-danger hover:bg-danger-50"
                   @click="emit('ban', user.uuid)"
                 >
@@ -140,7 +153,7 @@ const isAdmin = (user: User) => !!user.roles?.includes('admin')
                 </button>
 
                 <button
-                  v-if="!user.is_anonymized && !isAdmin(user)"
+                  v-if="!user.is_anonymized && !isProtected(user)"
                   class="flex w-full items-center gap-2 px-3 py-2 text-sm text-danger hover:bg-danger-50"
                   @click="emit('anonymize', { uuid: user.uuid, name: user.name })"
                 >
@@ -181,7 +194,7 @@ const isAdmin = (user: User) => !!user.roles?.includes('admin')
                   站点角色
                 </button>
                 <button
-                  v-if="!isAdmin(user)"
+                  v-if="!isProtected(user)"
                   class="flex w-full items-center gap-2 px-3 py-2 text-sm text-default-500 hover:bg-default-100 hover:text-foreground"
                   @click="emit('deleteSessions', user.uuid)"
                 >
@@ -196,7 +209,7 @@ const isAdmin = (user: User) => !!user.roles?.includes('admin')
                   已注销 · 不可恢复
                 </p>
                 <p
-                  v-else-if="isAdmin(user)"
+                  v-else-if="isProtected(user)"
                   class="text-default-400 px-3 py-2 text-xs"
                 >
                   管理员 · 受保护操作已禁用

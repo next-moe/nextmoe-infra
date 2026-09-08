@@ -76,6 +76,7 @@ const formatEvidence = (e: Record<string, unknown> | null): string => {
 
 const approvingId = ref<number | null>(null)
 const handleApprove = async (id: number) => {
+  if (approvingId.value !== null) return
   approvingId.value = id
   try {
     const res = await api.post(`/admin/creator/applications/${id}/approve`)
@@ -100,7 +101,7 @@ const openDecline = (id: number) => {
   declineOpen.value = true
 }
 const confirmDecline = async () => {
-  if (declineTarget.value === null) {
+  if (declineTarget.value === null || declineLoading.value) {
     return
   }
   declineLoading.value = true
@@ -112,12 +113,14 @@ const confirmDecline = async () => {
     if (res.code === 0) {
       useKunMessage('已拒绝', 'success')
       refresh()
+      // Only on success: closing in `finally` threw away a typed reason every
+      // time the request failed, and the modal reopens with an empty textarea.
+      declineOpen.value = false
     } else {
       useKunMessage(res.message || '操作失败', 'error')
     }
   } finally {
     declineLoading.value = false
-    declineOpen.value = false
   }
 }
 </script>
@@ -195,6 +198,7 @@ const confirmDecline = async () => {
           color="danger"
           variant="flat"
           size="sm"
+          :disabled="approvingId !== null"
           @click="openDecline(app.id)"
         >
           拒绝
@@ -202,9 +206,14 @@ const confirmDecline = async () => {
         <KunButton
           color="success"
           size="sm"
-          :disabled="approvingId === app.id"
+          :disabled="approvingId !== null"
           @click="handleApprove(app.id)"
         >
+          <KunIcon
+            v-if="approvingId === app.id"
+            name="lucide:loader-circle"
+            class="mr-1 size-4 animate-spin"
+          />
           通过
         </KunButton>
       </div>
@@ -231,7 +240,12 @@ const confirmDecline = async () => {
           :rows="3"
         />
         <div class="flex justify-end gap-2">
-          <KunButton color="default" variant="flat" @click="declineOpen = false">
+          <KunButton
+            color="default"
+            variant="flat"
+            :disabled="declineLoading"
+            @click="declineOpen = false"
+          >
             取消
           </KunButton>
           <KunButton
@@ -239,6 +253,11 @@ const confirmDecline = async () => {
             :disabled="declineLoading"
             @click="confirmDecline"
           >
+            <KunIcon
+              v-if="declineLoading"
+              name="lucide:loader-circle"
+              class="mr-1 size-4 animate-spin"
+            />
             确认拒绝
           </KunButton>
         </div>

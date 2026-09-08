@@ -1,31 +1,59 @@
 <script setup lang="ts">
+import { resolveAvatarUrl } from '~~/shared/utils/resolveImage'
 
 const auth = useAuth()
 const user = auth.user
+const userStore = useUserStore()
 
 const name = ref('')
 const bio = ref('')
-const avatar = ref('')
 const error = ref('')
 const success = ref('')
 const isLoading = ref(false)
+
+const cdnBase = useRuntimeConfig().public.imageCdnBase as string
+const avatarSrc = computed(() =>
+  resolveAvatarUrl(user.value, { cdnBase, variant: '256' }, '')
+)
+
+const cropKey = ref(0)
+const {
+  uploading: avatarUploading,
+  error: avatarError,
+  upload: uploadAvatar,
+} = useImageUpload()
+
+// Both writes land in the user store, so never let them overlap: a profile PATCH
+// that started before the upload answers with the old hash and would undo it.
+const handleAvatarCropped = async (blob: Blob) => {
+  if (isLoading.value) return
+  const res = await uploadAvatar<{ hash: string }>(
+    '/auth/me/avatar',
+    blob,
+    'avatar.webp'
+  )
+  if (res && userStore.user) {
+    userStore.setUser({ ...userStore.user, avatar_image_hash: res.hash })
+    useKunMessage('头像已更新', 'success')
+    cropKey.value++
+  }
+}
 
 watchEffect(() => {
   if (!user.value) return
   name.value = user.value.name ?? ''
   bio.value = user.value.bio ?? ''
-  avatar.value = user.value.avatar ?? ''
 })
 
 const dirty = computed(
   () =>
     !!user.value &&
     (name.value !== (user.value.name ?? '') ||
-      bio.value !== (user.value.bio ?? '') ||
-      avatar.value !== (user.value.avatar ?? ''))
+      bio.value !== (user.value.bio ?? ''))
 )
 
 const handleSubmit = async () => {
+  if (isLoading.value || avatarUploading.value) return
   error.value = ''
   success.value = ''
 
@@ -37,19 +65,14 @@ const handleSubmit = async () => {
     error.value = '个人简介不能超过 107 个字符'
     return
   }
-  if (avatar.value.length > 255) {
-    error.value = '头像链接过长（≤255）'
-    return
-  }
   if (!dirty.value) {
     error.value = '没有任何改动'
     return
   }
 
-  const payload: { name?: string; bio?: string; avatar?: string } = {}
+  const payload: { name?: string; bio?: string } = {}
   if (name.value !== (user.value?.name ?? '')) payload.name = name.value.trim()
   if (bio.value !== (user.value?.bio ?? '')) payload.bio = bio.value
-  if (avatar.value !== (user.value?.avatar ?? '')) payload.avatar = avatar.value
 
   isLoading.value = true
   try {
@@ -74,23 +97,38 @@ const handleSubmit = async () => {
       编辑资料
     </h3>
 
-    <form class="space-y-4" @submit.prevent="handleSubmit">
+    <div class="mb-4 space-y-2">
       <div class="flex items-center gap-4">
         <KunAvatar
-          :user="{ id: 0, name: name || '用户', avatar }"
+          :user="{ id: 0, name: name || '用户', avatar: avatarSrc }"
           size="lg"
           :is-navigation="false"
         />
         <div class="flex-1">
-          <KunInput
-            v-model="avatar"
-            label="头像链接"
-            placeholder="https://example.com/avatar.webp"
-            autocomplete="off"
-          />
+          <p class="text-sm font-medium text-default-500">头像</p>
+          <p class="text-xs text-default-400">
+            裁剪确认后立即上传并生效，无需保存。
+          </p>
         </div>
       </div>
+      <CommonAvatarCrop
+        :key="cropKey"
+        :disabled="avatarUploading"
+        @crop="handleAvatarCropped"
+      />
+      <p
+        v-if="avatarUploading"
+        class="flex items-center justify-center gap-1 text-xs text-default-400"
+      >
+        <KunIcon name="lucide:loader-circle" class="size-3 animate-spin" />
+        上传中…
+      </p>
+      <p v-if="avatarError" class="text-center text-sm text-danger">
+        {{ avatarError }}
+      </p>
+    </div>
 
+    <form class="space-y-4" @submit.prevent="handleSubmit">
       <KunInput
         v-model="name"
         label="用户名"
@@ -118,7 +156,7 @@ const handleSubmit = async () => {
         type="submit"
         color="primary"
         class="w-full"
-        :disabled="isLoading || !dirty"
+        :disabled="isLoading || !dirty || avatarUploading"
       >
         <KunIcon
           v-if="isLoading"
