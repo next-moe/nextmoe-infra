@@ -314,16 +314,12 @@ func setupPublicCatalog(
 		return err
 	})
 
-	// owner_user_id is set only on a developer-owned app; every client bound to
-	// a catalog site in production has it NULL. Wave R3 deleted the v1 surface
-	// that read it, and PolicyContext.ModerationCapped has been set by nothing
-	// since.
 	bindingOfClient := func(ctx context.Context, clientID string) (v2handler.SiteBinding, error) {
 		cl, err := clientRepo.FindByClientID(ctx, clientID)
 		if err != nil || cl == nil {
 			return v2handler.SiteBinding{}, err
 		}
-		return v2handler.SiteBinding{Site: cl.CatalogSite, ThirdParty: cl.OwnerUserID != nil}, nil
+		return v2handler.SiteBinding{Site: cl.CatalogSite, ThirdParty: isThirdPartyEditClient(cl)}, nil
 	}
 	siteOfClient := func(ctx context.Context, clientID string) (string, error) {
 		bind, err := bindingOfClient(ctx, clientID)
