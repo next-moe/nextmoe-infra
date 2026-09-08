@@ -60,7 +60,8 @@ CREATE TABLE galgame_collection_item (
 CREATE TABLE galgame_favorite (
   id serial PRIMARY KEY, galgame_id integer NOT NULL, user_id integer NOT NULL,
   created timestamptz NOT NULL DEFAULT now(), updated timestamptz NOT NULL DEFAULT now());
-CREATE TABLE patch (id serial PRIMARY KEY, vndb_id varchar(107) NOT NULL);
+CREATE TABLE patch (id serial PRIMARY KEY, vndb_id varchar(107) NOT NULL,
+  catalog_work_id bigint);
 CREATE TABLE user_patch_favorite_relation (
   id serial PRIMARY KEY, user_id integer NOT NULL, galgame_id integer NOT NULL,
   created timestamptz NOT NULL DEFAULT now(), updated timestamptz NOT NULL DEFAULT now());
