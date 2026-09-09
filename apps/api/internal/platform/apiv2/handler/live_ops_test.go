@@ -100,11 +100,13 @@ var liveReadPaths = []string{
 	"/v2/news/sources",
 	"/v2/news/{id}",
 	"/v2/folders",
+	"/v2/folders/holders",
 	"/v2/folders/{id}",
 	"/v2/folders/{id}/items",
 	"/v2/me/playtimes",
 	"/v2/me/work-states",
 	"/v2/me/folders",
+	"/v2/me/folders/holdings",
 	"/v2/me/folders/{id}",
 	"/v2/me/folders/{id}/items",
 	"/v2/me/cover-votes",
@@ -117,6 +119,7 @@ var liveReadPaths = []string{
 	"/v2/moderation/claims/{id}",
 	"/v2/moderation/proposals",
 	"/v2/moderation/snapshots/{object}/{id}",
+	"/v2/moderation/users/{uid}/folders",
 }
 
 // The GET operations the fixture cannot bring to 200, each with the reason it
@@ -140,7 +143,9 @@ var liveReadsNotSwept = map[string]string{
 // with 400. Carrying the filter here keeps it swept; the alternative is a
 // liveReadsNotSwept entry, which would exclude a route the fixture can reach.
 var liveReadRequiredQuery = map[string]func(fx liveFix) string{
-	"/v2/folders": func(liveFix) string { return "?owner_uid=" + idstr(liveUID) },
+	"/v2/folders":             func(liveFix) string { return "?owner_uid=" + idstr(liveUID) },
+	"/v2/folders/holders":     func(fx liveFix) string { return "?work_id=" + idstr(fx.Work) },
+	"/v2/me/folders/holdings": func(fx liveFix) string { return "?work_ids=" + idstr(fx.Work) },
 }
 
 func liveReadURL(t *testing.T, tmpl string, fx liveFix) string {

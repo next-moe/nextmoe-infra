@@ -223,6 +223,15 @@ func FolderSpec() Spec {
 	}
 }
 
+func FolderHolderSpec() Spec {
+	return Spec{
+		Include: []string{},
+		FullSet: []string{},
+		Fields:  []string{"object", "owner_uid"},
+		NoBatch: true,
+	}
+}
+
 func FolderItemSpec() Spec {
 	return Spec{
 		Sort:    []string{"updated"},
