@@ -11,6 +11,7 @@ const (
 	MoemoepointReasonDailyCheckin    = "daily_checkin"
 	MoemoepointReasonLiked           = "liked"
 	MoemoepointReasonRegisterGift    = "register_gift"
+	MoemoepointReasonNameChange      = "name_change"
 )
 
 func IsValidMoemoepointReason(r string) bool {
@@ -18,7 +19,8 @@ func IsValidMoemoepointReason(r string) bool {
 	case MoemoepointReasonAdminGrant, MoemoepointReasonAdminDeduct,
 		MoemoepointReasonMigration, MoemoepointReasonContentApproved,
 		MoemoepointReasonContentRemoved, MoemoepointReasonDailyCheckin,
-		MoemoepointReasonLiked, MoemoepointReasonRegisterGift:
+		MoemoepointReasonLiked, MoemoepointReasonRegisterGift,
+		MoemoepointReasonNameChange:
 		return true
 	}
 	return false
