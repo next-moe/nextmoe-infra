@@ -25,7 +25,7 @@
 
 ## 1 · 注册应用
 
-在[控制台](/dashboard)建应用时开启用户登录（`user_login`），三件事随之定死：
+在[控制台](/dashboard)建应用后，进入应用详情页的「用户登录」卡片开启并配置（`user_login`）——回调地址与 scope 随时可改，全程自助，无需联系平台管理员。落下来的配置形如下面这份，三件事随之定死：
 
 ```json
 {
@@ -40,6 +40,8 @@
 - **强制 PKCE**。开了用户登录的应用一律是 public client，OAuth 服务在缺 `code_challenge` 时拒签授权码。你**不需要**、也**不应该**在客户端里放 `client_secret`。
 - **回调只收环回**。`http://127.0.0.1/callback` 与 `http://[::1]/callback` 是仅有的明文形状。`localhost` 按名拒——它过主机名解析，可以被指向别处，`127.0.0.1` 不能。自定义 scheme（`myapp://callback`）**不支持**，注册时就被拒。
 - **端口无关匹配**（RFC 8252 §7.3）。注册时写不写端口都行，服务端比对环回回调时忽略端口，scheme / host / path / query 仍精确匹配。运行时监听哪个临时端口由你决定，不必回控制台改注册。
+
+2026-09 有下游读到这一节后在控制台里找不到对应的表单，据此判定回调地址只能由平台管理员代注册——那时门户确实没有这张表单，「用户登录」卡片就是为补上这个缺口而加的。
 
 > [!NOTE]
 > **移动端（Android / iOS）走同样的两条路，不需要自定义 scheme。**
@@ -293,7 +295,7 @@ POST   /v2/me/folders/<id>/items             → 207，{"items":[{"work_id":"...
 
 | 症状 | 原因 |
 |------|------|
-| 授权时 `15006` | 请求的 scope 不在应用的 `allowed_scopes` 内。到控制台把 `catalog:read` 加进用户登录的 scope。 |
+| 授权时 `15006` | 请求的 scope 没在应用注册的 scope 里。到应用详情页「用户登录」卡片勾上缺的那个，重新授权。`catalog:read` 不会触发它——每个应用无需注册即可请求。 |
 | 换码 `invalid_grant` | `redirect_uri` 与授权那步不是逐字节相同，或 `code_verifier` 对不上 challenge，或码已用过（授权码一次性）。 |
 | `403 SCOPE_REQUIRED` | 打 `/v2/catalog` 而令牌不带 `catalog:read`，或打 `/v2/me/folders` 而不带 `folder:read` / `folder:write`。响应会点名缺哪一个；旧令牌不追认，重新走一次授权。 |
 | `401 INVALID_CREDENTIAL` | 令牌过期，或者你把它打到了 `claim-events` / `/v2/store`——那两处只收应用密钥。 |

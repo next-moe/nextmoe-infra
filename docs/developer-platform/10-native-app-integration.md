@@ -27,7 +27,7 @@
 
 ### 18.2 注册应用
 
-在开发者门户按 [05 §9.2](./05-developer-portal.md) 建一个带 `user_login` 的应用:
+在开发者门户建应用,再到**应用详情页的「用户登录」卡片**开启并配置——建应用的弹窗里没有这一项,表单打的是 `PATCH /api/v1/dev/apps/:client_id`(见 [05 §9.2](./05-developer-portal.md)),开启后回调地址与 scope 随时可改,全程自助:
 
 ```json
 {
@@ -278,7 +278,7 @@ resp, err := http.PostForm(oauthBase+"/oauth/token", url.Values{
 
 | 症状 | 原因 |
 |------|------|
-| `15006` | 请求的 scope 不在应用的 `allowed_scopes` 内。到门户把 `catalog:read` 加进 `user_login.scopes`。 |
+| `15006` | 请求的 scope 不在应用的 `allowed_scopes` 内。到应用详情页「用户登录」卡片补勾后重新授权。`catalog:read` 由 `appAllowedScopes` 无条件注入，永远不会触发这条。 |
 | 授权码换取 `invalid_grant` | `redirect_uri` 与第 3 步不是逐字节相同,或 `code_verifier` 对不上 challenge,或码已用过(授权码一次性)。 |
 | `403 SCOPE_REQUIRED` | 打 `/v2/catalog` 而令牌不带 `catalog:read`,或打 `/v2/me/folders` 而不带 `folder:read` / `folder:write`(§18.7)。响应点名缺的是哪一个;旧令牌不追认,重新走一次授权。 |
 | `/v2/catalog` 返回 `401 INVALID_CREDENTIAL` | 令牌过期、签发方不是本 OP,或者你把令牌打到了 `claim-events` / `/v2/store`——那两处只收应用密钥。 |
