@@ -137,18 +137,34 @@ func TestWorkStateBackfillFromPlaytimeStatus(t *testing.T) {
 	require.NoError(t, testDB.Exec("TRUNCATE catalog_user_work_state, catalog_user_playtime RESTART IDENTITY").Error)
 	w := createWork(t, "state-backfill")
 	now := time.Now().UTC()
-	rows := []model.CatalogUserPlaytime{
-		{ActorUID: 101, WorkID: w.ID, ClientID: "a", Minutes: 10, Status: model.PlaytimeStatusFinished, CreatedAt: now, UpdatedAt: now},
-		{ActorUID: 101, WorkID: w.ID, ClientID: "b", Minutes: 10, Status: model.PlaytimeStatusDropped, CreatedAt: now, UpdatedAt: now},
-		{ActorUID: 102, WorkID: w.ID, ClientID: "a", Minutes: 10, Status: model.PlaytimeStatusOnHold, CreatedAt: now, UpdatedAt: now},
-		{ActorUID: 103, WorkID: w.ID, ClientID: "a", Minutes: 10, Status: model.PlaytimeStatusDropped, CreatedAt: now, UpdatedAt: now},
-		{ActorUID: 104, WorkID: w.ID, ClientID: "a", Minutes: 10, Status: model.PlaytimeStatusPlaying, CreatedAt: now, UpdatedAt: now},
-	}
-	for i := range rows {
-		require.NoError(t, testDB.Create(&rows[i]).Error)
+
+	require.NoError(t, testDB.Exec(
+		`ALTER TABLE catalog_user_playtime ADD COLUMN IF NOT EXISTS status smallint NOT NULL DEFAULT 0`).Error)
+	for _, row := range []struct {
+		uid    int64
+		client string
+		status int16
+	}{
+		{101, "a", 1},
+		{101, "b", 2},
+		{102, "a", 3},
+		{103, "a", 2},
+		{104, "a", 0},
+	} {
+		require.NoError(t, testDB.Exec(
+			`INSERT INTO catalog_user_playtime (actor_uid, work_id, client_id, minutes, status, created_at, updated_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			row.uid, w.ID, row.client, 10, row.status, now, now,
+		).Error)
 	}
 
 	require.NoError(t, migrate.Run(testDB))
+
+	var statusCols int64
+	require.NoError(t, testDB.Raw(
+		`SELECT count(*) FROM information_schema.columns WHERE table_name = 'catalog_user_playtime' AND column_name = 'status'`,
+	).Scan(&statusCols).Error)
+	require.Equal(t, int64(0), statusCols)
 
 	stateOf := func(uid int64) (int16, bool) {
 		t.Helper()

@@ -9,7 +9,6 @@ import (
 	"api/internal/platform/apiv2/collect"
 	"api/internal/platform/apiv2/problem"
 	"api/internal/platform/apiv2/repr"
-	"api/internal/platform/catalog/model"
 	catsvc "api/internal/platform/catalog/service"
 )
 
@@ -123,7 +122,6 @@ func (c *Catalog) PutPlaytime(ctx context.Context, workID int64, minutes int) (r
 	}
 	rec, gerr := c.Playtime.Report(ctx, catsvc.PlaytimeReport{
 		ActorUID: uid, WorkID: workID, ClientID: client, Minutes: minutes,
-		Status: model.PlaytimeStatusPlaying,
 	})
 	if gerr != nil {
 		return repr.UserPlaytime{}, playtimeErr(gerr)
