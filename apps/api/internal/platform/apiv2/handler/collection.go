@@ -286,6 +286,8 @@ func v2Security(path string) (schemes []string, scope string) {
 			return []string{securityAppKey}, devapi.ScopeCatalogRead
 		}
 		return []string{securityAppKey, securityUserToken}, devapi.ScopeCatalogRead
+	case path == folderHoldersPath:
+		return []string{securityAppKey}, devapi.ScopeCatalogRead
 	case path == "/v2/folders" || strings.HasPrefix(path, "/v2/folders/"):
 		return []string{securityAppKey, securityUserToken}, devapi.ScopeCatalogRead
 	case strings.HasPrefix(path, "/v2/store/prices"):
@@ -337,6 +339,8 @@ func catalogAuthzFrom(ctx context.Context) catalogAuthz {
 
 const claimEventsPath = "/v2/catalog/claim-events"
 
+const folderHoldersPath = "/v2/folders/holders"
+
 // The dispatch key is the token's own prefix, not a second header and not a
 // try-one-then-the-other: an application key that fails its lane must never get
 // a second reading as a user token, or a revoked key would fall through to
@@ -378,6 +382,15 @@ func catalogAuth(
 		if lookupUser != nil && slices.Contains(schemes, securityUserToken) {
 			return catalogUserTokenAuth(c, scope, token, lookupUser)
 		}
+		// 403, where the other key-only faces answer 401: folder_holders:read is
+		// a property of an application, so "you sent the wrong kind of credential"
+		// is the same refusal as "your credential lacks the scope", and a caller
+		// holding a perfectly valid user token must not read it as "my token
+		// expired" and go round the refresh loop forever.
+		if path == folderHoldersPath {
+			return problem.WriteFiberError(c, problem.New(problem.CodeScopeRequired, problem.RequestID(c), problem.Instance(c),
+				"this operation requires an application key holding "+devapi.ScopeFolderHoldersRead+"; a user access token is not a credential here."))
+		}
 		return problem.WriteFiberError(c, problem.New(problem.CodeInvalidCredential, problem.RequestID(c), problem.Instance(c),
 			"Authorization Bearer token is invalid."))
 	}
@@ -411,6 +424,10 @@ func catalogAppKeyAuth(c fiber.Ctx, path, scope, token string, lookup func(conte
 	if path == claimEventsPath && !cred.HasScope(devapi.ScopeClaimEventsRead) {
 		return problem.WriteFiberError(c, problem.New(problem.CodeScopeRequired, problem.RequestID(c), problem.Instance(c),
 			"this operation additionally requires the claim_events:read scope."))
+	}
+	if path == folderHoldersPath && !cred.HasScope(devapi.ScopeFolderHoldersRead) {
+		return problem.WriteFiberError(c, problem.New(problem.CodeScopeRequired, problem.RequestID(c), problem.Instance(c),
+			"this operation additionally requires the folder_holders:read scope."))
 	}
 	devapi.WithCredential(c, cred)
 	c.Locals(ctxCatalogAuthz, catalogAuthz{

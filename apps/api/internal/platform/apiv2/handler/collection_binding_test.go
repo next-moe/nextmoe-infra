@@ -39,6 +39,7 @@ var customCollectionFaces = map[string]string{
 	"/v2/catalog/claim-events": "operator feed: ids= but no refs=, and no nsfw/facets/include",
 	"/v2/catalog/proposals":    "edit-history feed: no refs=, nsfw or facets",
 	"/v2/catalog/revisions":    "edit-history feed: no refs=, nsfw or facets",
+	"/v2/folders/holders":      "s2s fan-out lane: work_id=, cursor= and limit= and nothing else — every other parameter would widen what the uid list discloses",
 }
 
 func bindingApp(t *testing.T) (*fiber.App, huma.API, string, string) {
@@ -54,6 +55,7 @@ func bindingApp(t *testing.T) (*fiber.App, huma.API, string, string) {
 					KeyID: 1,
 					Scopes: []string{
 						devapi.ScopeCatalogRead, devapi.ScopeStoreRead, devapi.ScopeClaimEventsRead,
+						devapi.ScopeFolderHoldersRead,
 					},
 				}, nil
 			}
@@ -208,6 +210,8 @@ var batchRefusingFaces = map[string]string{
 	"/v2/moderation/claims":     "collect.ClaimSpec is NoBatch",
 	"/v2/moderation/proposals":  "collect.ProposalListSpec is NoBatch; the list lane has no hydration",
 	"/v2/news":                  "collect.NewsSpec is NoBatch: the public feed has no hydration lane either",
+
+	"/v2/moderation/users/{uid}/folders": "collect.FolderSpec is NoBatch, the same spec the owner lane uses",
 }
 
 // The sibling of the ids= guard, and it caught the same face: /v2/news built

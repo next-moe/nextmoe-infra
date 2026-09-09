@@ -151,6 +151,19 @@ type UserFolder struct {
 	UpdatedAt   string   `json:"updated_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
 }
 
+type FolderHolding struct {
+	_         struct{} `json:"-" additionalProperties:"true"`
+	Object    string   `json:"object" enum:"folder_holding" doc:"Type discriminant. Always folder_holding."`
+	WorkID    string   `json:"work_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog work id that was asked about."`
+	FolderIDs []string `json:"folder_ids" doc:"The caller's own folders holding this work, id-ascending. Never empty: a work no folder holds is left out of the list instead."`
+}
+
+type FolderHolder struct {
+	_        struct{} `json:"-" additionalProperties:"true"`
+	Object   string   `json:"object" enum:"folder_holder" doc:"Type discriminant. Always folder_holder."`
+	OwnerUID string   `json:"owner_uid" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"An account holding the work in at least one of its folders. This is the central sign-in user id shared by every NextMoe site, not one site's own user id."`
+}
+
 type FolderPurgeReceipt struct {
 	_              struct{} `json:"-" additionalProperties:"true"`
 	Object         string   `json:"object" enum:"folder_purge" doc:"Type discriminant. Always folder_purge."`

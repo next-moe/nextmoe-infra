@@ -23,7 +23,7 @@
 
 **一条请求只带一个凭证**(refs/api-v2 D1)。网关按 `Authorization: Bearer` 里那一个值的前缀分道:`nmk_` 走应用密钥,其余走用户令牌。不存在「两个都带」的形状,也不存在「key 失败了再当令牌试一次」的兜底。
 
-**唯一例外**:`GET /v2/catalog/claim-events` 仍然只收应用密钥。它额外要 `claim_events:read`,而那是运营方按需授予应用的 scope,同意页上没有对应的条目可勾。
+**两处例外**仍然只收应用密钥,理由相同——它们额外要一个运营方按需授予的 scope,同意页上没有对应的条目可勾:`GET /v2/catalog/claim-events`(要 `claim_events:read`)与 `GET /v2/folders/holders`(要 `folder_holders:read`)。前者拿用户令牌来会得到 401,后者得到 403 `SCOPE_REQUIRED`:那是一把合法的令牌,缺的是这个面要的 scope,报 401 会让客户端一遍遍去刷新一把根本没过期的令牌。
 
 ### 18.2 注册应用
 

@@ -37,10 +37,11 @@ import (
 )
 
 var (
-	liveAppKey      = mustLiveV2Key()
-	liveAppKeyB     = mustLiveV2Key()
-	liveAppKeyEvent = mustLiveV2Key()
-	liveUserToken   = "user-live-token"
+	liveAppKey       = mustLiveV2Key()
+	liveAppKeyB      = mustLiveV2Key()
+	liveAppKeyEvent  = mustLiveV2Key()
+	liveAppKeyHolder = mustLiveV2Key()
+	liveUserToken    = "user-live-token"
 	// A second user on the same site holding only the "user" role: the
 	// moderation claim reads used to take any site-bound token, so without a
 	// non-reviewer there was nothing to prove the permission gate with.
@@ -231,6 +232,11 @@ func liveCatalog(t *testing.T) *liveEnv {
 					return &devapi.Credential{
 						KeyID: 3, ClientID: liveClient,
 						Scopes: []string{devapi.ScopeCatalogRead, devapi.ScopeClaimEventsRead},
+					}, nil
+				case liveAppKeyHolder:
+					return &devapi.Credential{
+						KeyID: 4, ClientID: liveClient,
+						Scopes: []string{devapi.ScopeCatalogRead, devapi.ScopeFolderHoldersRead},
 					}, nil
 				default:
 					return nil, nil
@@ -1042,6 +1048,9 @@ func liveAuthPath(path string) string {
 	}
 	if path == "/v2/catalog/claim-events" {
 		return liveAppKeyEvent
+	}
+	if path == folderHoldersPath {
+		return liveAppKeyHolder
 	}
 	if path == "/v2/folders" || strings.HasPrefix(path, "/v2/folders/") {
 		return liveAppKey

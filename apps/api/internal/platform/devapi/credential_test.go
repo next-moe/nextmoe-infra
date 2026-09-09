@@ -91,6 +91,22 @@ func TestScopeClaimEventsReadIsNotSelfService(t *testing.T) {
 	}
 }
 
+// folder_holders:read answers who keeps a work in a favorite folder, private
+// folders included. That is somebody else's collection rather than a catalog
+// row, so it is granted the claim_events:read way — by an operator, with no
+// tick-box in the portal.
+func TestScopeFolderHoldersReadIsNotSelfService(t *testing.T) {
+	if ScopeFolderHoldersRead != "folder_holders:read" {
+		t.Errorf("ScopeFolderHoldersRead = %q, want %q", ScopeFolderHoldersRead, "folder_holders:read")
+	}
+	if slices.Contains(selfServiceScopes, ScopeFolderHoldersRead) {
+		t.Errorf("selfServiceScopes must NOT contain %q — it is granted by an operator", ScopeFolderHoldersRead)
+	}
+	if err := checkMintScopes([]string{ScopeFolderHoldersRead}); err != ErrScopeNotAllowed {
+		t.Errorf("minting folder_holders:read = %v, want ErrScopeNotAllowed", err)
+	}
+}
+
 func TestScopeGalgameWriteSelfServiceExcluded(t *testing.T) {
 	if ScopeGalgameWrite != "galgame:write" {
 		t.Errorf("ScopeGalgameWrite = %q, want %q", ScopeGalgameWrite, "galgame:write")

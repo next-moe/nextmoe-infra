@@ -1042,3 +1042,57 @@ grandfathers them: the user re-consents once.
 and say so in their descriptions. oasdiff reports no breaking change.
 
 **Zero migrations.**
+
+## Wave — the folder domain gets its three missing reads (2026-09-09)
+
+The patch site (moyu) filed three gaps against the folder domain, all of the
+same shape: the canonical store holds the answer and no face publishes it.
+
+| Operation | The gap it closes |
+| --- | --- |
+| `GET /v2/me/folders/holdings` | **Batch membership.** A calendar page shows ~24 works and the only membership question available was `GET /v2/me/folders?contains_work_id=`, one work per request: the page's p99 was four round trips deep and the client cached a shape it could not invalidate. `work_ids=` takes up to 100 and answers `{work_id, folder_ids[]}` per held work |
+| `GET /v2/folders/holders` | **Notification fan-out.** "Who follows this work" had no face at all, so the downstream job was running off a hand-exported list dated 2026-09-06 and every folder created after it was invisible. Answers distinct `owner_uid`s, cursor-paginated |
+| `GET /v2/moderation/users/{uid}/folders` | **The purge had no preview.** `DELETE /v2/moderation/users/{uid}/folders` reported its counts only after it had run, so a moderator confirmed a deletion whose size they could not see |
+
+**`folder_holders:read` is a new operator-granted scope**, registered exactly the
+way `claim_events:read` is: a constant in `devapi`, absent from
+`selfServiceScopes` (which stays `[catalog:read, store:read]`), a two-stage check
+in `catalogAppKeyAuth`, and `[]string{securityAppKey}` from `v2Security` so the
+published document says key-only as well as the gate. Nothing in the portal may
+offer it as a tick-box — the answer is somebody else's private collection, not a
+catalog row, and there is no consent form on which a person could grant it.
+
+**Holders answers uids and nothing else.** No folder ids, names, visibility or
+counts: any of those turns a fan-out lane into a walkable "who favourited what"
+index. Private folders are deliberately *in* the answer — the whole point is to
+reach the person who is waiting to hear about the work, and a holders list built
+from public folders alone would look healthy on every display face while
+silently dropping most of its audience. That is also why the s2s credential is
+the fence rather than the visibility flag.
+
+**A user token on `/v2/folders/holders` is 403 `SCOPE_REQUIRED`, not the 401
+`INVALID_CREDENTIAL` `/v2/catalog/claim-events` answers.** The token is valid;
+what it lacks is a scope only an application can hold. A 401 tells a client its
+token expired, and a client that believes that refreshes — forever, against a
+token that was never the problem.
+
+Ownership on the reverse lookup is read from `catalog_user_folder.owner_uid`
+through a join, not from the denormalised `catalog_user_folder_item.owner_uid`:
+the folder row is the only authority on who owns a membership, and this lane's
+callers page people rather than render a list.
+
+The two new paths sit in front of their parameterised siblings in `Setup`
+(`registerFolderHoldings` before `registerMeFolders`, `registerFolderHolders`
+before `registerPublicFolders`) — fiber matches routes in registration order, so
+the other way round `/v2/folders/{id}` swallows `holders` and answers 400 for a
+folder id that was never an id.
+
+`/v2/me/folders/holdings` declares only `work_ids`: no `cursor`, `limit`, `ids`
+or `refs`. A batch-only lane that declared a pagination vocabulary it never reads
+is the same defect `Spec.NoBatch` exists to prevent, one parameter family over.
+
+**Spec is 2.22.0.** Additive: three new operations (113 → 116), two new schemas
+(`folder_holding`, `folder_holder`). oasdiff reports no breaking change.
+
+**Zero migrations.** Both tables and the `work_id` index the reverse lookup needs
+(`idx_catalog_user_folder_item_work_id`) already exist.

@@ -773,7 +773,7 @@ export const searchIndex: SearchEntry[] = [
     "r": "/docs/v2",
     "t": "Public API v2",
     "s": "端点参考",
-    "d": "/v2 · 113 个端点",
+    "d": "/v2 · 116 个端点",
     "b": "v2 /v2 API v2 Public API v2"
   },
   {
@@ -1183,6 +1183,13 @@ export const searchIndex: SearchEntry[] = [
     "b": "listPublicFolders /v2/folders get List a user's public folders The public favorite folders of one account, id-ascending. owner_uid is required: there is no platform-wide folder directory. Private folders never appear here, not even for their own owner — /v2/me/folders is that face. Requires an application key or a user access token with catalog:read. 某个账号的公开收藏夹，按 id 升序。owner_uid 必填：本站没有全站收藏夹名录。私密收藏夹在这里永远不出现，对夹主本人也一样——那是 /v2/me/folders 的职责。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw owner_uid"
   },
   {
+    "r": "/docs/v2/listFolderHolders",
+    "t": "谁把这部作品放进了收藏夹",
+    "s": "端点 · 公开收藏夹",
+    "d": "GET /v2/folders/holders",
+    "b": "listFolderHolders /v2/folders/holders get Who holds this work in a folder The accounts that keep one work in a favorite folder, owner_uid-ascending, one page at a time. Folders of every visibility count: this face exists so a service can fan a notification out to the people who follow a work, and a private folder is still a person waiting to hear about it. It answers uids and nothing else — no folder ids, names, visibility or counts — so it cannot be walked into a \"who favourited what\" index. A work nobody holds is an empty list, not a 404. Requires an application key with the folder_holders:read scope on top of catalog:read; a user access token is refused. The scope is granted by an operator, not self-service, because the answer is somebody else's private collection. 把某部作品收进收藏夹的那些账号，按 owner_uid 升序，一页一页给。**每种可见性的夹子都算**：这个面存在的理由是让服务把通知发给关注这部作品的人，私密夹里坐着的也是一个正等着被通知的人。它只回 uid，别的什么都不回——没有夹子 id、名字、可见性或计数——所以它没法被爬成一张「谁收藏了什么」的索引。没人收藏的作品是空列表，不是 404。要**应用密钥**，在 catalog:read 之上还要 folder_holders:read；用户访问令牌一律拒绝。这个 scope 由运营方授予、不能自助勾选，因为它答的是别人的私人收藏。 catalog:read + folder_holders:read work_id cursor limit"
+  },
+  {
     "r": "/docs/v2/getPublicFolder",
     "t": "读取一个公开收藏夹",
     "s": "端点 · 公开收藏夹",
@@ -1279,6 +1286,13 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 我的",
     "d": "POST /v2/me/folders",
     "b": "createMyFolder /v2/me/folders post Create a folder Requires a user access token with folder:write. 需要带 folder:write 的用户访问令牌。 folder:write"
+  },
+  {
+    "r": "/docs/v2/listMyFolderHoldings",
+    "t": "我的哪些收藏夹收着这些作品",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/folders/holdings",
+    "b": "listMyFolderHoldings /v2/me/folders/holdings get Which of my folders hold these works Membership for up to 100 works in one request: for each work the bearer keeps in at least one folder, the ids of those folders. A work the bearer holds nowhere is left out rather than answered with an empty array, and an id that names no work is simply held nowhere. Folders of every visibility are searched — the bearer owns them all. work_ids is required; this is a batch read with no pagination. Requires a user access token with folder:read (folder:write also grants reads). 一次问最多 100 部作品的成员关系：对持令牌者至少收进一个夹子的每部作品，给出那些夹子的 id。一个哪儿都没收的作品会被**略去**，而不是回一个空数组；指不到任何作品的 id 同样只是「哪儿都没收」。每种可见性的夹子都在搜索范围内——它们都是持令牌者自己的。work_ids 必填；这是批量读，没有翻页。要带 folder:read 的用户访问令牌（folder:write 同时给读）。 folder:read 或 folder:write work_ids"
   },
   {
     "r": "/docs/v2/getMyFolder",
@@ -1531,6 +1545,13 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 审核",
     "d": "GET /v2/moderation/snapshots/{object}/{id}",
     "b": "getModerationSnapshot /v2/moderation/snapshots/{object}/{id} get Current edit snapshot Registered field values. Requires a user access token. The token must carry the catalog:edit scope. 已登记字段的当前值。需要用户访问令牌。令牌须带 catalog:edit scope。 object id"
+  },
+  {
+    "r": "/docs/v2/listUserFolders",
+    "t": "列出一个账号名下的全部收藏夹",
+    "s": "端点 · 审核",
+    "d": "GET /v2/moderation/users/{uid}/folders",
+    "b": "listUserFolders /v2/moderation/users/{uid}/folders get List every folder an account holds The read preview of the purge on this same path: what the DELETE would remove. Every folder the account owns, private ones included, id-ascending and keyset-paginated like /v2/me/folders. Items are not listed — the folder's item_count is what a confirmation needs. An account holding none is 200 with an empty list, not 404. Requires a user access token whose holder moderates. 同一条路径上那个清空操作的**只读预览**：DELETE 会删掉什么。该账号名下的全部夹子，含私密夹，按 id 升序、与 /v2/me/folders 同款 keyset 翻页。**不列夹内条目**——确认一次删除需要的是夹子的 item_count。名下一个夹子都没有的账号回 200 空列表，不是 404。要用户访问令牌，且持令牌者有审核权。 uid cursor limit view include fields ids refs include_total facets sort nsfw"
   },
   {
     "r": "/docs/v2/purgeUserFolders",

@@ -17,6 +17,10 @@ const (
 	// Operator-granted, never self-service: claim events carry decline reasons
 	// and the moderator uid behind every decision.
 	ScopeClaimEventsRead = "claim_events:read"
+	// Operator-granted for the same reason, one step further: the reverse holder
+	// lookup answers who keeps a work in a folder, private folders included, so
+	// it discloses a person's own collection rather than the catalog's rows.
+	ScopeFolderHoldersRead = "folder_holders:read"
 	// Retired 2026-08-25 with the grant-only application machinery: no route
 	// checks it any more. Kept because live keys still carry the string in
 	// their scopes jsonb and readers of that history need the name.
