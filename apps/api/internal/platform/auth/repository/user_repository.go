@@ -2,13 +2,18 @@ package repository
 
 import (
 	"context"
+	"errors"
+	"strconv"
 	"strings"
+	"time"
 
 	"api/internal/platform/auth/model"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
+
+var ErrMoemoepointInsufficient = errors.New("moemoepoint balance insufficient")
 
 var userSortColumns = map[string]string{
 	"created_at":  "created_at",
@@ -175,6 +180,37 @@ func (r *UserRepository) UpdateProfile(ctx context.Context, uuid string, fields 
 		Model(&model.User{}).
 		Where("uuid = ?", uuid).
 		Updates(fields).Error
+}
+
+// RenameWithCharge renames the user and charges `cost` moemoepoints in one
+// transaction. Returns ErrMoemoepointInsufficient when the balance cannot cover
+// the cost; a no-op (nil) when the name is unchanged.
+func (r *UserRepository) RenameWithCharge(ctx context.Context, uuid, newName string, cost int) error {
+	var user model.User
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("uuid = ?", uuid).First(&user).Error; err != nil {
+			return err
+		}
+		if user.Name == newName {
+			return nil
+		}
+		if user.Moemoepoint < cost {
+			return ErrMoemoepointInsufficient
+		}
+		if err := tx.Model(&model.User{}).Where("id = ?", user.ID).
+			Updates(map[string]any{"name": newName, "moemoepoint": user.Moemoepoint - cost}).Error; err != nil {
+			return err
+		}
+		return tx.Create(&model.MoemoepointLog{
+			UserID:         user.ID,
+			Delta:          -cost,
+			Reason:         model.MoemoepointReasonNameChange,
+			SourceApp:      "oauth",
+			ActorUserID:    user.ID,
+			IdempotencyKey: "name_change:" + uuid + ":" + strconv.FormatInt(time.Now().UnixNano(), 10),
+		}).Error
+	})
 }
 
 func (r *UserRepository) Delete(ctx context.Context, id uint) error {

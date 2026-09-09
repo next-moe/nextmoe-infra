@@ -730,6 +730,10 @@ func (s *AuthService) SendEmailChangeCode(ctx context.Context, userUUID, newEmai
 	return nil
 }
 
+// nameChangeCost matches the forum's CostChangeUsername (17); charging lives
+// here because a username is an OAuth-global attribute and the balance is too.
+const nameChangeCost = 17
+
 func (s *AuthService) UpdateProfile(ctx context.Context, userUUID string, req *dto.UpdateProfileRequest) (*model.User, error) {
 	fields := map[string]any{}
 
@@ -741,7 +745,12 @@ func (s *AuthService) UpdateProfile(ctx context.Context, userUUID string, req *d
 		if exists {
 			return nil, errors.NewWithCode(errors.ErrAuthNameExists)
 		}
-		fields["name"] = *req.Name
+		if err := s.userRepo.RenameWithCharge(ctx, userUUID, *req.Name, nameChangeCost); err != nil {
+			if err == repository.ErrMoemoepointInsufficient {
+				return nil, errors.NewWithCode(errors.ErrMoemoepointInsufficient)
+			}
+			return nil, err
+		}
 	}
 	if req.Avatar != nil {
 		fields["avatar"] = *req.Avatar
