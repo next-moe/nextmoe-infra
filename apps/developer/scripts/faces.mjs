@@ -73,6 +73,7 @@ export const FACES = [
       }
       if (path.startsWith('/v2/store/')) return 'store:read'
       if (path === '/v2/catalog/claim-events') return 'catalog:read + claim_events:read'
+      if (path === '/v2/folders/holders') return 'catalog:read + folder_holders:read'
       return 'catalog:read'
     },
     auth: {
@@ -167,7 +168,7 @@ export const USER_TOKEN_AUTH = {
 }
 
 export const EXPECTED_OPERATION_COUNTS = {
-  v2: 113,
+  v2: 116,
   moyu: 4,
   sticker: 9
 }
