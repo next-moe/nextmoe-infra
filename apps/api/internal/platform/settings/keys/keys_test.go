@@ -16,6 +16,7 @@ var goldenNames = []string{
 	"auth.token_endpoint_rate_per_minute",
 	"auth.strict_rate_per_minute",
 	"auth.allowed_email_domains",
+	"auth.federation_providers",
 	"auth.verification_resend_cooldown_seconds",
 	"auth.register_gift_points",
 	"image.upload_enabled",

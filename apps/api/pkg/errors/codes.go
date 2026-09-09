@@ -30,6 +30,9 @@ const (
 	ErrAuthUserBanned             = 10014
 	ErrAuthEmailDomainNotAllowed  = 10015
 	ErrAuthStepUpRequired         = 10016
+	ErrAuthFederationDisabled     = 10017
+	ErrAuthFederationExpired      = 10018
+	ErrAuthFederationConflict     = 10019
 
 	ErrOAuthInvalidClient        = 15001
 	ErrOAuthInvalidRedirectURI   = 15002
@@ -140,6 +143,9 @@ var codeMessages = map[int]string{
 	ErrAuthUserBanned:             "账号已被封禁",
 	ErrAuthEmailDomainNotAllowed:  "该邮箱服务商暂不支持，请使用 QQ、网易、Gmail、Outlook、iCloud 等常见邮箱",
 	ErrAuthStepUpRequired:         "切换到该账号需要重新验证身份",
+	ErrAuthFederationDisabled:     "该第三方登录方式未启用",
+	ErrAuthFederationExpired:      "第三方登录已过期，请重新发起",
+	ErrAuthFederationConflict:     "该第三方账号的绑定关系存在冲突，请使用密码登录",
 
 	ErrCreatorAlreadyHas:    "你已经是创作者了",
 	ErrCreatorAppPending:    "已有一份待审核的创作者申请",

@@ -53,6 +53,30 @@ export const useAuth = () => {
     return response
   }
 
+  const completeFederation = async (payload: {
+    token: string
+    name: string
+    password: string
+    email?: string
+    code?: string
+  }) => {
+    const response = await api.post<LoginResponse>(
+      '/auth/federation/complete',
+      {
+        token: payload.token,
+        name: payload.name,
+        password: payload.password,
+        email: payload.email,
+        code: payload.code,
+      }
+    )
+    if (response.code === 0) {
+      setAccessToken(response.data.access_token)
+      userStore.setUser(response.data.user)
+    }
+    return response
+  }
+
   const logout = async () => {
     try {
       await api.post('/auth/logout')
@@ -140,6 +164,7 @@ export const useAuth = () => {
     login,
     sendRegisterCode,
     register,
+    completeFederation,
     logout,
     logoutSilent,
     fetchUser,

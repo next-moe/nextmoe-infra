@@ -3,9 +3,24 @@ const auth = useAuth()
 const router = useRouter()
 const route = useRoute()
 
+const FEDERATION_ERROR_MESSAGES: Record<string, string> = {
+  federation_denied: '已取消第三方授权',
+  federation_state: '第三方登录已过期，请重新尝试',
+  federation_failed: '第三方登录失败，请稍后重试或使用密码登录',
+  federation_banned: '账号已被封禁',
+  federation_stepup: '管理员账号请使用密码登录',
+  federation_conflict:
+    '该邮箱对应的账号已绑定其他同类第三方账号，请使用密码登录',
+  federation_disabled: '该第三方登录方式未启用'
+}
+
 const account = ref((route.query.account as string) || '')
 const password = ref('')
-const error = ref('')
+const error = ref(
+  typeof route.query.error === 'string'
+    ? (FEDERATION_ERROR_MESSAGES[route.query.error] ?? '')
+    : ''
+)
 const isLoading = ref(false)
 const sameAccountName = ref('')
 
@@ -67,6 +82,15 @@ const handleSubmit = async () => {
 const goBack = () => router.back()
 
 onMounted(async () => {
+  if (
+    typeof route.query.error === 'string' &&
+    FEDERATION_ERROR_MESSAGES[route.query.error]
+  ) {
+    const nextQuery = { ...route.query }
+    delete nextQuery.error
+    await router.replace({ query: nextQuery })
+  }
+
   if (auth.isLoggedIn.value && !forceLogin.value) {
     navigateAfterLogin()
   }
@@ -140,6 +164,8 @@ onMounted(async () => {
         </KunButton>
       </div>
     </form>
+
+    <AuthFederationButtons />
 
     <div class="border-default-200 mt-8 flex flex-col gap-3 border-t pt-6 text-sm">
       <NuxtLink to="/auth/forgot-password" class="text-primary hover:underline">
