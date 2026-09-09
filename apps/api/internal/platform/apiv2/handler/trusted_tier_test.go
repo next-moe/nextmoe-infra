@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"api/internal/middleware"
+	"api/internal/platform/authz"
+	catalogPerm "api/internal/platform/catalog/perm"
 	"api/internal/platform/editing"
 
 	"github.com/stretchr/testify/require"
@@ -34,7 +36,9 @@ func TestActsAsTrustedNeedsBothHalves(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			ctx := trustCtx(c.roles, c.thirdParty)
-			require.Equal(t, c.want, actsAsTrusted(ctx))
+			require.Equal(t, c.want, actsAsTrustedEditor(ctx))
+			require.Equal(t, c.want, actsAsTrustedClaimant(ctx),
+				"the code bundles grant admin/ren both keys, so the halves agree here")
 
 			want := int16(0)
 			if c.want {
@@ -43,6 +47,25 @@ func TestActsAsTrustedNeedsBothHalves(t *testing.T) {
 			require.Equal(t, want, trustTier(ctx))
 		})
 	}
+}
+
+// The two halves read different keys: a role granted only catalog.claim.trusted
+// (the forum's moderators, via the permission-console overlay) mints straight to
+// live while its edit proposals still queue — TrustTier stays 0.
+func TestClaimTrustedDoesNotImplyEditTrusted(t *testing.T) {
+	prev := catalogPerm.Resolver.Resolver()
+	t.Cleanup(func() { catalogPerm.Resolver.Swap(prev) })
+	catalogPerm.Resolver.Swap(authz.NewResolver(authz.Bundles{
+		"moderator": {catalogPerm.ClaimTrusted},
+	}))
+
+	ctx := trustCtx([]string{"moderator"}, false)
+	require.True(t, actsAsTrustedClaimant(ctx), "the mint fast lane follows catalog.claim.trusted")
+	require.False(t, actsAsTrustedEditor(ctx), "catalog.claim.trusted must not unlock edit automerge")
+	require.Zero(t, trustTier(ctx))
+
+	third := trustCtx([]string{"moderator"}, true)
+	require.False(t, actsAsTrustedClaimant(third), "the third-party cap still applies to the split key")
 }
 
 // A ProposeTrusted field is proposable by a trusted actor and by nobody else.

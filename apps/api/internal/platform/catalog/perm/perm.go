@@ -28,11 +28,17 @@ const (
 
 const EditTrusted authz.Permission = "catalog.edit.trusted"
 
+// ClaimTrusted is deliberately not implied by EditTrusted: the two were one key
+// until 2026-09, and the forum needed "submissions land live, edits still queue"
+// for its moderators — grantable only if the mint lane reads its own key.
+const ClaimTrusted authz.Permission = "catalog.claim.trusted"
+
 var moderatorPerms = []authz.Permission{ClaimReview}
 
 var adminPerms = append(append([]authz.Permission{}, moderatorPerms...),
 	EditWork, EditWorkReview, EditTaxonomy, EditTaxonomyReview,
-	EditCharacter, EditCharacterReview, EditRelease, EditReleaseReview, EditTrusted)
+	EditCharacter, EditCharacterReview, EditRelease, EditReleaseReview,
+	EditTrusted, ClaimTrusted)
 
 var renPerms = append(append([]authz.Permission{}, adminPerms...), Review)
 

@@ -39,10 +39,10 @@ type ReleaseDate struct {
 	D int16
 }
 
-func (d ReleaseDate) given() bool { return d.Y != 0 || d.M != 0 || d.D != 0 }
+func (d ReleaseDate) Given() bool { return d.Y != 0 || d.M != 0 || d.D != 0 }
 
 func (d ReleaseDate) validate() error {
-	if !d.given() {
+	if !d.Given() {
 		return nil
 	}
 	switch {
@@ -242,7 +242,7 @@ func (s *ClaimLifecycleService) SubmitWork(ctx context.Context, p SubmitWorkPara
 			return err
 		}
 
-		if p.Released.given() {
+		if p.Released.Given() {
 			fp, err := mintedReleaseDateProvenance()
 			if err != nil {
 				return err
