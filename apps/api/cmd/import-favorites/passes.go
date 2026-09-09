@@ -1,14 +1,11 @@
 package main
 
 import (
-	"database/sql"
 	"log/slog"
 	"strings"
 	"time"
 
 	"api/internal/platform/catalog/model"
-
-	"gorm.io/gorm"
 )
 
 type itemRow struct {
@@ -20,9 +17,9 @@ type itemRow struct {
 }
 
 // itemBatch buffers memberships and writes them with LEAST/GREATEST on
-// conflict: a work favourited on both sites keeps the earlier created_at (the
-// adjudicated earliest-wins) and the later updated_at, which is the sync
-// watermark and must not travel backwards.
+// conflict: a work that reaches the same folder twice keeps the earlier
+// created_at and the later updated_at, which is the sync watermark and must
+// not travel backwards.
 type itemBatch struct {
 	imp  *importer
 	rows []itemRow
@@ -31,11 +28,12 @@ type itemBatch struct {
 
 // add folds a pair the batch already carries instead of appending it twice.
 // Postgres refuses a statement whose ON CONFLICT target matches one row more
-// than once ("cannot affect row a second time"), and both flat lanes re-emit a
-// pair they have already placed precisely so the conflict clause can reconcile
-// the two timestamps. Two moyu patches sharing one vndb anchor put such a pair
-// in a single batch and killed the 2026-09-07 production run on its first moyu
-// flush; folding here applies the same LEAST/GREATEST the clause would.
+// than once ("cannot affect row a second time"), and the collection lane can
+// re-emit a pair it has already placed: two source items whose galgame ids
+// merged into one survivor resolve to the same (folder, work). The since-
+// removed moyu lane hit exactly this on its first 2026-09-07 production flush
+// (two patches sharing one vndb anchor); folding here applies the same
+// LEAST/GREATEST the conflict clause would.
 func (b *itemBatch) add(r itemRow) error {
 	key := [2]int64{r.FolderID, r.WorkID}
 	if n, held := b.at[key]; held {
@@ -126,9 +124,10 @@ func (i *importer) importForumCollections() (counters, error) {
 			continue
 		}
 		// Nothing in the database keeps a user to one default folder — the
-		// service alone enforces it — so a flat pass that ran first, and made
-		// this user an empty unnamed default, must be adopted here rather than
-		// left beside a second default nobody can clear through the API.
+		// service alone enforces it — so a user who already owns a default
+		// (the 2026-09-07 runs created unnamed ones for flat-lane users, and
+		// those folders persist) must have this collection adopt it rather
+		// than gain a second default nobody can clear through the API.
 		if src.IsDefault {
 			if existing, ok := i.defaults[src.UserID]; ok {
 				if err := i.adoptAsDefault(existing, src); err != nil {
@@ -231,103 +230,8 @@ func (i *importer) adoptAsDefault(folderID int64, src forumCollection) error {
 	}).Error
 }
 
-// importForumFlat carries the pre-collection favorites table. The forum folded
-// 98.8% of it into collections in July and the unfolded rows are the only copy
-// of those favorites, but the folded ones are read too rather than filtered out
-// in SQL: 2,572 of them carry a created date *earlier* than the collection item
-// they were folded into, and reading them is what pulls those dates back.
-func (i *importer) importForumFlat() (counters, error) {
-	return i.importFlat(i.forum, `SELECT user_id, galgame_id, created, updated
-		FROM galgame_favorite ORDER BY user_id, galgame_id`, nil)
-}
-
-func (i *importer) importMoyu() (counters, error) {
-	return i.importFlat(i.moyu, `SELECT r.user_id, p.vndb_id, p.catalog_work_id, r.created, r.updated
-		FROM user_patch_favorite_relation r
-		JOIN patch p ON p.id = r.galgame_id
-		ORDER BY r.user_id, r.id`, i.works.resolveMoyuPatch)
-}
-
-// importFlat is the shared body of the two flat lanes. A flat favorite lands
-// in its owner's default folder unless the owner has already filed that work
-// somewhere, in which case it is aimed at the folder that holds it: the row
-// then merges instead of appearing a second time in the default folder, and
-// the conflict clause still pulls created_at back if this site favourited it
-// first. That is the rule the forum used for its own July fold, and doing it
-// here too keeps the two flat lanes from disagreeing. resolveKey is nil when
-// the source already stores catalog work ids, and the vndb resolver for moyu.
-func (i *importer) importFlat(src *gorm.DB, query string, resolveKey func(string, sql.NullInt64) (int64, bool, vndbOutcome)) (counters, error) {
-	var c counters
-	rows, err := src.Raw(query).Rows()
-	if err != nil {
-		return c, err
-	}
-	defer rows.Close()
-	batch := i.newBatch()
-	for rows.Next() {
-		var uid int64
-		var created, updated time.Time
-		var (
-			work      int64
-			live      bool
-			redirects bool
-		)
-		if resolveKey == nil {
-			var id int64
-			if err := rows.Scan(&uid, &id, &created, &updated); err != nil {
-				return c, err
-			}
-			work, live, redirects = i.works.resolve(id)
-		} else {
-			var raw sql.NullString
-			var mirror sql.NullInt64
-			if err := rows.Scan(&uid, &raw, &mirror, &created, &updated); err != nil {
-				return c, err
-			}
-			var outcome vndbOutcome
-			work, redirects, outcome = resolveKey(raw.String, mirror)
-			switch outcome {
-			case vndbPending:
-				c.SkippedPending++
-				continue
-			case vndbNoAnchor:
-				c.SkippedNoAnchor++
-				continue
-			}
-			live = true
-		}
-		if redirects {
-			c.Redirected++
-		}
-		if !live {
-			c.SkippedNotLive++
-			continue
-		}
-		folderID, filed := i.owned[[2]int64{uid, work}]
-		if !filed {
-			fid, fc, err := i.defaultFolder(uid)
-			if err != nil {
-				return c, err
-			}
-			c.add(*fc)
-			if fid == 0 {
-				continue
-			}
-			folderID = fid
-		}
-		if err := i.place(batch, &c, folderID, work, uid, created, updated); err != nil {
-			return c, err
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return c, err
-	}
-	return c, batch.flush()
-}
-
-// recountItems restates item_count from the membership table. Both flat lanes
-// write into folders the collection lane already counted, so an incremented
-// counter would be wrong on any re-run; the stored counter is only ever a
+// recountItems restates item_count from the membership table: an incremented
+// counter would be wrong on any re-run, so the stored counter is only ever a
 // cache of this query.
 func (i *importer) recountItems() error {
 	res := i.cat.Exec(`UPDATE catalog_user_folder f
