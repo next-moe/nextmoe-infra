@@ -19,7 +19,7 @@ Header 携带 `typ: at+jwt`（RFC 9068 access token 类型标记）；claims：
   "scope": "openid profile email",
   "site_id": 2,
   "client_id": "签发给的 OAuth client",
-  "iss": "https://oauth.kungal.com",
+  "iss": "https://account.nextmoe.com",
   "aud": ["www.moyu.moe"],
   "jti": "随机 token id",
   "exp": 1700000000,

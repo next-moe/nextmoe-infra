@@ -31,24 +31,45 @@ gzip_types text/plain text/css application/json application/javascript applicati
 
 ## 10.2 站点(以两个为例,其余照此模式)
 
-`edge-nginx/conf.d/oauth.conf`:
+`edge-nginx/conf.d/account.conf`:
 ```nginx
 # HTTP → HTTPS(并放行 ACME 验证)
 server {
     listen 80;
-    server_name oauth.kungal.com;
+    server_name account.nextmoe.com;
     location /.well-known/acme-challenge/ { root /var/www/certbot; }
     location / { return 301 https://$host$request_uri; }
 }
 server {
     listen 443 ssl;
     http2 on;
-    server_name oauth.kungal.com;
-    ssl_certificate     /etc/letsencrypt/live/oauth.kungal.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/oauth.kungal.com/privkey.pem;
+    server_name account.nextmoe.com;
+    ssl_certificate     /etc/letsencrypt/live/account.nextmoe.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/account.nextmoe.com/privkey.pem;
 
     location /api/v1/ { proxy_pass http://kun-galgame-infra-oauth-1:9277; }
-    location /       { proxy_pass http://kun-galgame-infra-web-1:3000; }
+    location /oauth/jwks { proxy_pass http://kun-galgame-infra-oauth-1:9277; }
+    location /.well-known/ { proxy_pass http://kun-galgame-infra-oauth-1:9277; }
+    location /       { proxy_pass http://kun-galgame-infra-account-1:3000; }
+}
+```
+`edge-nginx/conf.d/admin.conf`:
+```nginx
+server {
+    listen 80;
+    server_name admin.nextmoe.dev;
+    location /.well-known/acme-challenge/ { root /var/www/certbot; }
+    location / { return 301 https://$host$request_uri; }
+}
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name admin.nextmoe.dev;
+    ssl_certificate     /etc/letsencrypt/live/admin.nextmoe.dev/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/admin.nextmoe.dev/privkey.pem;
+
+    location /api/v1/ { proxy_pass http://kun-galgame-infra-oauth-1:9277; }
+    location /       { proxy_pass http://kun-galgame-infra-admin-1:3000; }
 }
 ```
 `edge-nginx/conf.d/moyu.conf`:
@@ -71,7 +92,7 @@ server {
 > Docker DNS 是动态的,`proxy_pass` 直接写容器名有时需用变量 + resolver 才能在目标重启后自动重解析:
 > ```nginx
 > resolver 127.0.0.11 valid=30s;
-> set $up http://kun-galgame-infra-web-1:3000; proxy_pass $up;
+> set $up http://kun-galgame-infra-account-1:3000; proxy_pass $up;
 > ```
 
 ## 10.3 部署(Nginx + certbot 自动续期)
@@ -104,7 +125,7 @@ networks:
 ```bash
 cd edge-nginx
 docker compose up -d nginx
-for d in oauth.kungal.com www.kungal.com www.moyu.moe image.kungal.com; do   # wiki.kungal.com 已于 W5 退役
+for d in account.nextmoe.com admin.nextmoe.dev www.kungal.com www.moyu.moe image.kungal.com; do   # wiki.kungal.com 已于 W5 退役
   docker compose run --rm certbot certonly --webroot -w /var/www/certbot \
     -d "$d" --email admin@kungal.com --agree-tos --no-eff-email
 done
@@ -115,7 +136,7 @@ docker compose exec nginx nginx -s reload
 ## 10.4 验证
 ```bash
 docker compose exec nginx nginx -t           # 配置语法
-curl -I https://oauth.kungal.com             # 200/302 + 证书有效
+curl -I https://account.nextmoe.com             # 200/302 + 证书有效
 curl -I https://www.moyu.moe                 # 首页经反代(/healthz 仅容器内部探活)
 ```
 

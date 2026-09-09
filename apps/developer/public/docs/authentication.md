@@ -50,9 +50,9 @@
 
 拿令牌走标准的 OAuth 2.0 授权码 + PKCE：
 
-1. 把用户跳到 `https://oauth.kungal.com/api/v1/oauth/authorize`，带上 `response_type=code`、`client_id`、`redirect_uri`、`scope`、`state` 与 `code_challenge` / `code_challenge_method=S256`。
+1. 把用户跳到 `https://account.nextmoe.com/api/v1/oauth/authorize`，带上 `response_type=code`、`client_id`、`redirect_uri`、`scope`、`state` 与 `code_challenge` / `code_challenge_method=S256`。
 2. 用户同意后回调你的 `redirect_uri`，带回 `code`。校验 `state`。
-3. `POST https://oauth.kungal.com/api/v1/oauth/token`，用 `code` + `code_verifier` 换 `access_token`（JWT，15 分钟）与 `refresh_token`。
+3. `POST https://account.nextmoe.com/api/v1/oauth/token`，用 `code` + `code_verifier` 换 `access_token`（JWT，15 分钟）与 `refresh_token`。
 4. 带 `access_token` 调 `/v2/me/*`；过期后用 `refresh_token` 刷新，每次刷新都会轮换。
 
 > [!WARNING]

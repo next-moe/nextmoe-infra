@@ -1,19 +1,19 @@
 # 全新 Debian 服务器 · 一键部署三站(精简版 · Dokploy)
 
-> 从一台空 Debian 到 **kungal / moyu / wiki / oauth** 全部上线的步骤,每步带一句说明。
+> 从一台空 Debian 到 **kungal / moyu / NextMoe 平台栈** 全部上线的步骤,每步带一句说明。
 > 用 **Dokploy**(自托管 PaaS):它**内置 Traefik 反代 + 自动 Let's Encrypt SSL + 编排**,所以**不需要 Caddy/Nginx**,也别再叠加。
 > 深入原理见 [12-dokploy.md](./12-dokploy.md)(部署/路由)+ [13-registry-ci.md](./13-registry-ci.md)(镜像从哪来)。
 >
 > **服务器还是全新裸机**?先做 [SERVER-SETUP.md](./SERVER-SETUP.md)(登录 / 系统更新 / 建用户 `kun` / SSH 加固 / 防火墙 / 克隆仓库),再回这里。**本篇假设你已用 `kun` 登录、仓库已 clone 到 `~/app`**。
 
-**线上域名**:`kungal.com`/`www.kungal.com`、`moyu.moe`/`www.moyu.moe`、`oauth.kungal.com`、`image.kungal.iloveren.link`(走 Cloudflare R2,**不经本机**)。(`wiki.kungal.com` 已于开放 API Phase 2 · W5 退役。)
+**线上域名**:`kungal.com`/`www.kungal.com`、`moyu.moe`/`www.moyu.moe`、`account.nextmoe.com`、`admin.nextmoe.dev`、`image.kungal.iloveren.link`(走 Cloudflare R2,**不经本机**)。(`wiki.kungal.com` 已于开放 API Phase 2 · W5 退役。)
 
 ---
 
 ## 1. DNS
 
 把下列域名的 **A 记录指向服务器公网 IP**(`image.*` 指向 Cloudflare,不指本机):
-`kungal.com`、`www.kungal.com`、`moyu.moe`、`www.moyu.moe`、`oauth.kungal.com`
+`kungal.com`、`www.kungal.com`、`moyu.moe`、`www.moyu.moe`、`account.nextmoe.com`、`admin.nextmoe.dev`
 
 > **要隐藏源站 IP**(强烈建议)见 [§10](#10-隐藏源站-ip--防泄漏强烈建议):**本项目**给这些记录开 **Proxy(橙云 / CDN)** 并把防火墙锁到 Cloudflare 段(方案 A);仅当服务器无公网 IP / 在 NAT 后才考虑 Tunnel(方案 B,高并发易 1033)。下面 §1–§9 是"公网直连"基线,§10 在其上加固。
 
@@ -86,8 +86,10 @@ git push        # → GitHub Actions 自动 build 并推 ghcr.io/next-moe/*(:lat
 
 | 公网域名 | 路径 | 应用 | 目标服务:端口 |
 |---|---|---|---|
-| `oauth.kungal.com` | `/api/v1` | infra | `oauth:9277` |
-| `oauth.kungal.com` | `/` | infra | `web:3000`(管理端) |
+| `account.nextmoe.com` | `/api/v1` | infra | `oauth:9277` |
+| `account.nextmoe.com` | `/` | infra | `account:3000`(账户中心) |
+| `admin.nextmoe.dev` | `/api/v1` | infra | `oauth:9277` |
+| `admin.nextmoe.dev` | `/` | infra | `admin:3000`(管理台) |
 | ~~`wiki.kungal.com`~~ | — | infra | **已退役(W5,2026-07)**:compose labels 已删、域 404,DNS 待删;galgame 富读走 catalog internal 面(s2s) |
 | `kungal.com` + `www.kungal.com` | `/api` | kungal | `kungal-api:2334` |
 | `kungal.com` + `www.kungal.com` | `/` | kungal | `web:7777` |
@@ -99,7 +101,7 @@ git push        # → GitHub Actions 自动 build 并推 ghcr.io/next-moe/*(:lat
 ## 8. 验证上线
 
 ```bash
-curl -I https://oauth.kungal.com     # 302→登录 + 有效证书
+curl -I https://account.nextmoe.com     # 302→登录 + 有效证书
 curl -I https://www.kungal.com
 curl -I https://www.moyu.moe
 ```
