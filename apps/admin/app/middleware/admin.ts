@@ -1,15 +1,22 @@
-export default defineNuxtRouteMiddleware(async () => {
+import { useOAuthLogin } from '../composables/useOAuthLogin'
+
+export default defineNuxtRouteMiddleware(async (to) => {
   const auth = useAuth()
+  const { startLogin, accountProfileUrl } = useOAuthLogin()
 
   if (!auth.user.value) {
     await auth.fetchUser()
   }
 
   if (!auth.user.value) {
-    return navigateTo('/auth/login')
+    if (import.meta.server) {
+      return
+    }
+    await startLogin(to.fullPath)
+    return abortNavigation()
   }
 
   if (!auth.isAdmin.value) {
-    return navigateTo('/profile')
+    return navigateTo(accountProfileUrl(), { external: true })
   }
 })

@@ -844,6 +844,10 @@ services:
       NUXT_CATALOG_API_BASE_SSR: http://catalog:9281/api/v1
       NUXT_TRUST_API_BASE_SSR: http://trust:9283/api/v1
       NUXT_AI_API_BASE_SSR: http://ai:9284/api/v1
+      # Dokploy panel vars only reach the container when compose lists them
+      # (developer.nextmoe.dev shipped with an empty secret 2026-07-23 this
+      # way). :? fails the deploy loudly if the secret was not pre-staged.
+      NUXT_OAUTH_CLIENT_SECRET: ${NUXT_OAUTH_CLIENT_SECRET:?}
     expose: ["3000"]
     depends_on:
       oauth: { condition: service_started }

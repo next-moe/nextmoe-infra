@@ -1,18 +1,15 @@
+import {
+  REFRESH_TRANSIENT,
+  requestTokenRefresh
+} from '../composables/useTokenRefresh'
+import { useOAuthLogin } from '../composables/useOAuthLogin'
+
 export default defineNuxtRouteMiddleware(async (to) => {
-  const accessToken = useCookie('access_token')
-
-  const publicRoutes = ['/auth/login', '/auth/register', '/auth/forgot-password', '/auth/reset-password', '/oauth/authorize']
-
-  if (publicRoutes.includes(to.path)) {
-    if (accessToken.value && !to.query.redirect) {
-      const auth = useAuth()
-      if (!auth.user.value) {
-        await auth.fetchUser()
-      }
-      return navigateTo(auth.isAdmin.value ? '/' : '/profile')
-    }
+  if (to.path === '/auth/callback') {
     return
   }
+
+  const accessToken = useCookie('access_token')
 
   if (accessToken.value) {
     return
@@ -23,8 +20,17 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
 
   const auth = useAuth()
-  const refreshed = await auth.refreshAccessToken()
-  if (!refreshed) {
-    return navigateTo('/auth/login')
+  const { startLogin } = useOAuthLogin()
+  const result = await requestTokenRefresh()
+  if (typeof result === 'string') {
+    auth.setAccessToken(result)
+    return
   }
+
+  if (result === REFRESH_TRANSIENT) {
+    return
+  }
+
+  await startLogin(to.fullPath)
+  return abortNavigation()
 })

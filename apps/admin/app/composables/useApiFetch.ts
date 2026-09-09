@@ -32,7 +32,7 @@ export const useApiFetch = <T>(
     async onResponseError({ response }) {
       if (import.meta.client && response.status === 401) {
         const token = await requestTokenRefresh()
-        if (token) accessToken.value = token
+        if (typeof token === 'string') accessToken.value = token
       }
     },
     transform: (resp: ApiResponse<T>) =>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-useKunDisableSeo('鲲 Galgame 管理后台')
+useKunDisableSeo('NextMoe·未萌 管理台')
 </script>
 
 <template>

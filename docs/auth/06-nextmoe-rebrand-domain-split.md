@@ -92,8 +92,12 @@ infra 栈是 push→CI→自动 redeploy,**合并本 PR 的那一刻就是切换
 
 1. **合并前预置**:Cloudflare 加 `account.nextmoe.com`、`admin.nextmoe.dev` DNS
    (提前指向 Traefik,404 无害);Dokploy 预改 env(`KUN_SITE_URL`/`KUN_FRONTEND_URL`
-   → account 域、CORS 列表、`KUN_FEDERATION_*` 四个、admin 应用的 client secret env);
-   在旧控制台创建 `nextmoe-admin` client 行;Google/GitHub 控制台按
+   → account 域、CORS 列表、`KUN_FEDERATION_*` 四个、admin 应用的
+   `NUXT_OAUTH_CLIENT_SECRET`——compose 用 `:?` 声明,不预置则部署直接失败,
+   这是故意的:面板变量不经 compose 列出根本进不了容器,空 secret 会让登录
+   换码静默失败);在旧控制台创建 `nextmoe-admin` client 行(confidential,
+   redirect URI = `https://admin.nextmoe.dev/auth/callback`,scope
+   `openid profile email`);Google/GitHub 控制台按
    `https://account.nextmoe.com/api/v1/auth/federation/{provider}/callback` 建应用;
    nextmoe.com 邮件 DNS(SPF/DKIM)+ 在邮件服务商(MXroute)创建 `auth@nextmoe.com`
    邮箱(compose 已切到该发件账号,SMTP host 不变;邮箱不存在则注册/找回邮件全断)。

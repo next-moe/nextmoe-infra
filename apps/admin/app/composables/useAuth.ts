@@ -1,6 +1,9 @@
+import { useOAuthLogin } from './useOAuthLogin'
+
 export const useAuth = () => {
   const api = useApi()
   const userStore = useUserStore()
+  const { startLogin } = useOAuthLogin()
 
   const accessToken = useCookie('access_token', {
     maxAge: 60 * 15, // 15 minutes
@@ -8,6 +11,11 @@ export const useAuth = () => {
     secure: !import.meta.dev
   })
 
+  const authMode = useCookie('auth_mode', {
+    maxAge: 60 * 60 * 24 * 90,
+    sameSite: 'lax',
+    secure: !import.meta.dev
+  })
 
   const setAccessToken = (token: string) => {
     accessToken.value = token
@@ -15,91 +23,24 @@ export const useAuth = () => {
 
   const clearAuth = () => {
     accessToken.value = null
+    authMode.value = null
     userStore.clearUser()
-  }
-
-  const login = async (account: string, password: string) => {
-    const response = await api.post<LoginResponse>('/auth/login', {
-      account,
-      password,
-    })
-    if (response.code === 0) {
-      setAccessToken(response.data.access_token)
-      userStore.setUser(response.data.user)
-    }
-    return response
-  }
-
-  const sendRegisterCode = async (name: string, email: string) => {
-    return api.post('/auth/register/send-code', { name, email })
-  }
-
-  const register = async (
-    name: string,
-    email: string,
-    password: string,
-    code: string
-  ) => {
-    const response = await api.post<LoginResponse>('/auth/register', {
-      name,
-      email,
-      password,
-      code,
-    })
-    if (response.code === 0) {
-      setAccessToken(response.data.access_token)
-      userStore.setUser(response.data.user)
-    }
-    return response
-  }
-
-  const completeFederation = async (payload: {
-    token: string
-    name: string
-    password: string
-    email?: string
-    code?: string
-  }) => {
-    const response = await api.post<LoginResponse>(
-      '/auth/federation/complete',
-      {
-        token: payload.token,
-        name: payload.name,
-        password: payload.password,
-        email: payload.email,
-        code: payload.code,
-      }
-    )
-    if (response.code === 0) {
-      setAccessToken(response.data.access_token)
-      userStore.setUser(response.data.user)
-    }
-    return response
   }
 
   const logout = async () => {
     try {
-      await api.post('/auth/logout')
+      await $fetch('/auth/logout', { method: 'POST', credentials: 'include' })
     } finally {
       clearAuth()
-      navigateTo('/auth/login')
-    }
-  }
-
-  const logoutSilent = async () => {
-    try {
-      await refreshAccessToken()
-      await api.post('/auth/logout')
-    } catch {
-      // ignore — clearAuth below still runs
-    } finally {
-      clearAuth()
+      if (import.meta.client) {
+        await startLogin('/')
+      }
     }
   }
 
   const refreshAccessToken = async () => {
     const token = await requestTokenRefresh()
-    if (token) {
+    if (typeof token === 'string') {
       setAccessToken(token)
       return true
     }
@@ -120,60 +61,14 @@ export const useAuth = () => {
     return null
   }
 
-  const forgotPassword = async (email: string) => {
-    return api.post('/auth/password/forgot', { email })
-  }
-
-  const resetPassword = async (token: string, password: string) => {
-    return api.post('/auth/password/reset', { token, password })
-  }
-
-  const changePassword = async (oldPassword: string, newPassword: string) => {
-    return api.put('/auth/password', {
-      old_password: oldPassword,
-      new_password: newPassword,
-    })
-  }
-
-  const sendEmailChangeCode = async (newEmail: string) => {
-    return api.post('/auth/email/send-code', { new_email: newEmail })
-  }
-
-  const changeEmail = async (code: string, newEmail: string) => {
-    return api.put('/auth/email', { code, new_email: newEmail })
-  }
-
-  const updateProfile = async (payload: {
-    name?: string
-    bio?: string
-    avatar?: string
-    avatar_image_hash?: string
-  }) => {
-    const response = await api.patch<User>('/auth/me', payload)
-    if (response.code === 0 && response.data) {
-      userStore.setUser(response.data)
-    }
-    return response
-  }
-
   return {
     user: computed(() => userStore.user),
     isLoggedIn: computed(() => userStore.isLoggedIn),
     isAdmin: computed(() => userStore.isAdmin),
     isRen: computed(() => userStore.isRen),
-    login,
-    sendRegisterCode,
-    register,
-    completeFederation,
+    setAccessToken,
     logout,
-    logoutSilent,
     fetchUser,
-    refreshAccessToken,
-    forgotPassword,
-    resetPassword,
-    changePassword,
-    sendEmailChangeCode,
-    changeEmail,
-    updateProfile,
+    refreshAccessToken
   }
 }

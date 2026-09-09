@@ -6,6 +6,8 @@ import { roleColor, roleLabel, primaryRole, needsStepUp } from '~/constants/role
 
 
 const auth = useAuth()
+const route = useRoute()
+const { startLogin } = useOAuthLogin()
 const { listBagSessions, switchAccount, logoutAccount, logoutAllAccounts } =
   useAccountSwitch()
 
@@ -48,7 +50,7 @@ const sessionAvatar = (session: BagSession) =>
   resolveAvatarUrl(session, { cdnBase, variant: '100' }, '')
 
 const goStepUp = (session: BagSession) =>
-  navigateTo(`/auth/login?force=1&account=${encodeURIComponent(session.email)}`)
+  startLogin(route.fullPath, { prompt: 'login', loginHint: session.email })
 
 const handleSwitch = async (session: BagSession) => {
   if (session.active || switchingSub.value) return
@@ -76,7 +78,7 @@ const handleSwitch = async (session: BagSession) => {
 
 const handleAddAccount = async () => {
   popoverRef.value?.close()
-  await navigateTo('/auth/login?force=1')
+  await startLogin(route.fullPath, { prompt: 'login' })
 }
 
 const handleLogoutCurrent = async () => {

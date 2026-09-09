@@ -4,8 +4,8 @@ import { useBodyScrollLock } from '@kungal/ui-vue'
 
 const auth = useAuth()
 const route = useRoute()
-const router = useRouter()
 const colorMode = useColorMode()
+const { accountProfileUrl } = useOAuthLogin()
 
 const isSidebarCollapsed = ref(false)
 const isMobileMenuOpen = ref(false)
@@ -13,11 +13,20 @@ const isMobileMenuOpen = ref(false)
 const canSee = (item: SidebarItem) =>
   (!item.adminOnly || auth.isAdmin.value) && (!item.renOnly || auth.isRen.value)
 
+const resolveNavItem = (item: SidebarItem): SidebarItem => ({
+  ...item,
+  to: item.to === '/profile' ? accountProfileUrl() : item.to,
+  children: item.children?.map(resolveNavItem)
+})
+
 const visibleMenu = computed(() =>
-  SIDEBAR_MENU.filter(canSee).map((item) => ({
-    ...item,
-    children: item.children?.filter(canSee)
-  }))
+  SIDEBAR_MENU.filter(canSee).map((item) => {
+    const resolved = resolveNavItem(item)
+    return {
+      ...resolved,
+      children: resolved.children?.filter(canSee)
+    }
+  })
 )
 
 const expandedGroups = ref<Record<string, boolean>>({})
@@ -68,12 +77,6 @@ onUnmounted(() => {
   }
 })
 
-onMounted(() => {
-  if (!auth.user.value) {
-    router.push('/auth/login')
-  }
-})
-
 await callOnce('auth:user', async () => {
   if (!auth.user.value) {
     await auth.fetchUser()
@@ -112,14 +115,14 @@ await callOnce('auth:user', async () => {
         <NuxtLink to="/" class="flex min-w-0 items-center gap-2">
           <img
             src="/favicon.webp"
-            alt="鲲 Galgame OAuth"
+            alt="NextMoe·未萌 管理台"
             class="size-8 shrink-0 rounded-lg"
           />
           <span
             class="text-primary truncate text-lg font-bold"
             :class="isSidebarCollapsed && 'md:hidden'"
           >
-            鲲 Galgame OAuth
+            NextMoe·未萌 管理台
           </span>
         </NuxtLink>
         <KunButton
@@ -139,6 +142,7 @@ await callOnce('auth:user', async () => {
           <NuxtLink
             v-if="!item.children"
             :to="item.to"
+            :external="item.to?.startsWith('http')"
             class="text-default-600 hover:bg-primary-50 hover:text-primary flex items-center gap-3 rounded-lg px-3 py-2 transition-colors"
             active-class="bg-primary-50 text-primary"
           >
@@ -224,7 +228,7 @@ await callOnce('auth:user', async () => {
           >
             <KunIcon name="lucide:menu" class="size-5" />
           </KunButton>
-          <h2 class="text-foreground truncate text-lg font-semibold">管理后台</h2>
+          <h2 class="text-foreground truncate text-lg font-semibold">管理台</h2>
         </div>
 
         <div class="flex shrink-0 items-center gap-2 md:gap-4">

@@ -1,3 +1,6 @@
+import { REFRESH_TRANSIENT } from './useTokenRefresh'
+import { useOAuthLogin } from './useOAuthLogin'
+
 interface ApiOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
   body?: Record<string, unknown>
@@ -41,6 +44,7 @@ export const resolveApiBase = (service: ApiService = 'oauth'): string => {
 export const useApi = (service: ApiService = 'oauth') => {
   const baseUrl = resolveApiBase(service)
   const accessToken = useCookie('access_token')
+  const { startLogin } = useOAuthLogin()
 
   const getAuthHeaders = (): Record<string, string> => {
     const token = accessToken.value
@@ -48,18 +52,22 @@ export const useApi = (service: ApiService = 'oauth') => {
   }
 
   const handleUnauthorized = async () => {
-    const token = await requestTokenRefresh()
-    if (token) {
-      accessToken.value = token
+    const result = await requestTokenRefresh()
+    if (typeof result === 'string') {
+      accessToken.value = result
       return true
+    }
+
+    if (result === REFRESH_TRANSIENT) {
+      return false
     }
 
     accessToken.value = null
     useUserStore().clearUser()
     if (import.meta.client) {
       const here = window.location.pathname + window.location.search
-      if (!here.startsWith('/auth/login')) {
-        navigateTo(`/auth/login?redirect=${encodeURIComponent(here)}`)
+      if (!here.startsWith('/auth/callback')) {
+        await startLogin(here)
       }
     }
     return false

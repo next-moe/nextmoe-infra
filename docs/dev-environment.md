@@ -330,7 +330,7 @@ mutated.
 | `kungal_password` / `moyu_password` | **bcrypt** of `kungal-dev`(legacy 列走 bcrypt 校验,算法与主列不同) |
 | `users.ip`, `kungalgame_patch."user".ip`, `images.first_uploader_ip` | emptied |
 | `oauth_clients.secret` | `sha256:` + hex(sha256(**`dev-secret-<client_id>`**)) — a client presenting the plaintext `dev-secret-<client_id>` authenticates |
-| `oauth_clients.redirect_uris` | first-party localhost dev callbacks ensured present (forum :2333, patch :6969, wiki :9421) |
+| `oauth_clients.redirect_uris` | first-party localhost dev callbacks ensured present (forum :2333, patch :6969) |
 | `sessions`, `authorization_codes`, `password_resets`, `signing_keys`, `oauth_accounts` tokens | emptied (signing_keys: dev runs HS256 / self-bootstraps a fresh KEK) |
 | private chat + DM content (`chat_message`, `message`, `user_message`, edit history) | `[dev-scrubbed] …` synthetic text |
 | `kun_community` **held** posts (`status=1`) body + `community_flag.note` | `[dev-scrubbed] …` synthetic text |

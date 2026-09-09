@@ -1,4 +1,4 @@
-import { kungal } from '~/config/kungal'
+import { admin } from '~/config/admin'
 import type {
   ActiveHeadEntry,
   UseHeadOptions,
@@ -28,33 +28,36 @@ export const useKunSeoMeta = (
   options?: NuxtUseHeadOptions
   // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
 ): ActiveHeadEntry<UseSeoMetaInput> | void => {
-  const title = `${input.title?.toString()} - ${kungal.title}`
-  const description = input.description?.toString()
+  const pageTitle = input.title?.toString() ?? ''
+  const fullTitle = pageTitle
+    ? `${pageTitle} - ${admin.title}`
+    : admin.title
+  const description = input.description?.toString() ?? admin.description
   const route = useRoute()
 
-  const pageUrl = `${kungal.domain.main}${route.path}`
+  const pageUrl = `${admin.domain.main}${route.path}`
   const image = input.ogImage
     ? input.ogImage
-    : kungal.images[0]
-      ? kungal.images[0].fullUrl
-      : '/kungalgame.webp'
+    : admin.images[0]
+      ? admin.images[0].fullUrl
+      : '/favicon.webp'
 
   useSeoMeta(
     {
-      title,
+      title: pageTitle,
       description,
-      keywords: kungal.keywords.toString(),
+      keywords: admin.keywords.toString(),
       ogUrl: pageUrl,
       ogType: input.ogType || 'website',
-      ogTitle: title,
+      ogTitle: fullTitle,
       ogDescription: description,
       ogImage: image,
-      ogImageAlt: title,
+      ogImageAlt: fullTitle,
       twitterCard: 'summary_large_image',
-      twitterTitle: title,
+      twitterTitle: fullTitle,
       twitterDescription: description,
       twitterImage: image,
-      twitterImageAlt: title,
+      twitterImageAlt: fullTitle,
       ...input
     },
     options

@@ -1,5 +1,5 @@
 {
-  "name": "web",
+  "name": "admin",
   "type": "module",
   "private": true,
   "scripts": {
