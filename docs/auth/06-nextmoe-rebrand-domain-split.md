@@ -105,7 +105,11 @@ infra 栈是 push→CI→自动 redeploy,**合并本 PR 的那一刻就是切换
    account/admin 服务的 catch-all 已改为 compose labels 所有。切换时把面板上
    oauth.kungal.com 的域名条目删掉,且**永远不要**在面板上给 account/admin 添加
    域名——compose labels 会整体顶掉面板注入的 labels(2026-07 oauth 404 事故同族)。
-2. **合并 PR** → CI 构建 `infra-account`/`infra-admin` → 自动部署新路由与新应用。
+2. **合并 PR** → CI 构建 `infra-account`/`infra-admin` → 自动部署新路由与新应用
+   (deploy job 在镜像推完后才触发 Dokploy,无论坛 09-08 那种 webhook 抢跑竞态)。
+   重部后旧 `web` 容器可能成为孤儿继续空转(compose 已无此服务,`up -d` 不带
+   `--remove-orphans` 不会清):面板域名条目删掉后它无路由,手动
+   `docker rm -f` 收掉即可。
 3. **立即执行**:`go run ./cmd/migrate`(sites 行 UPDATE + admin site + 联邦
    `oauth_accounts` 两个复合唯一索引——#180 的迁移仍未跑,一并落);
    `DELETE FROM sessions;`(全员登出,含下游)。
