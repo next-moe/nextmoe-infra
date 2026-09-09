@@ -92,6 +92,20 @@ export const guideNav: GuideNavSection[] = [
         "label": "生产最佳实践"
       }
     ]
+  },
+  {
+    "key": "downstream",
+    "label": "下游站点面",
+    "links": [
+      {
+        "to": "/docs/moyu-patches",
+        "label": "moyu 补丁面接入"
+      },
+      {
+        "to": "/docs/sticker-packs",
+        "label": "sticker 表情包面接入"
+      }
+    ]
   }
 ]
 
@@ -191,5 +205,17 @@ export const guideMeta: Record<string, GuideMeta> = {
     "title": "生产最佳实践",
     "eyebrow": "集成指南",
     "description": "把 NextMoe API 接进生产环境前该检查的事：密钥保管、客户端契约、请求数、错误处理、缓存与监控。"
+  },
+  "/docs/moyu-patches": {
+    "slug": "moyu-patches",
+    "title": "moyu 补丁面接入",
+    "eyebrow": "下游站点面",
+    "description": "接入 /v2/moyu 只读面：一部游戏在 鲲 Galgame 补丁（www.moyu.moe）上有哪些补丁资源。任意有效应用密钥即可调用，无需 scope；refs= 批量反查、catalog_work_id 回填游戏信息、两种错误方言与缓存约定。"
+  },
+  "/docs/sticker-packs": {
+    "slug": "sticker-packs",
+    "title": "sticker 表情包面接入",
+    "eyebrow": "下游站点面",
+    "description": "接入 /v2/sticker 只读面：按 catalog 作品与角色身份索引的 Galgame 表情包素材。任意有效应用密钥即可调用，无需 scope；多语言标题、page/limit 翻页、与 catalog 的连接方式、两种错误方言。"
   }
 }

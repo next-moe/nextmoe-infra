@@ -76,7 +76,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "快速上手",
     "s": "指南 · 开始",
     "d": "五分钟接入 NextMoe 开放 API v2：创建应用、铸造密钥、发出第一个请求、读懂响应。",
-    "b": "五分钟接入 NextMoe 开放 API v2：创建应用、铸造密钥、发出第一个请求、读懂响应。 快速上手 从零到第一次成功调用，大约五分钟。不需要申请，不需要审核。 匿名就能先试一把： /v2/news 、 /v2/vocabularies 、 /v2/problems 、 /v2/catalog/stats 与 /v2/catalog/schemas/{object} 不要任何凭据。想读目录数据再回来铸密钥。 1 · 创建应用 用生态账号（NextMoe / 鲲 Galgame）登录 控制台，不必另外注册开发者身份。每个账号最多 5 个应用，每个应用最多 5 把在用密钥。应用是配额、用量与 scope 的边界——一个产品一个应用，出事时可以单独吊销。 2 · 铸一把密钥 密钥形如 nmk_live_… ，尾部带 CRC32 校验位， 只在铸造时显示一次 。它是机密：只放服务端，不要写进前端包、移动端二进制或公开仓库。开发联调可以铸 nmk_test_ 前缀的测试密钥。分发出去的桌面客户端没有服务端可放，读目录数据请改用用户访问令牌——见原生桌面应用接入。 自助可勾选的 scope 有两个—— catalog:read （读目录数据）与 store:read （商店联盟链接）。 /v2/moyu/ 与 /v2/sticker/ 两个下游面不需要任何 scope，任意有效密钥都能调。 claim_events:read 由运营方按需授予，不能自助勾选。 3 · 发出第一个请求 curl \"https://api.nextmoe.dev/v2/catalog/works?limit=3\" \\ -H \"Authorization: Bearer nmk_live_<YOUR_KEY \" 响应体 就是 那个集合，没有 {code,message,data} 外壳： { \"object\": \"list\", \"items\": [ { \"object\": \"work\", \"id\": \"207379\", \"medium\": \"galgame\", \"display_name\": \"…\", \"latin\": \"…\", \"localized\": { \"zh-Hans\": { \"value\": \"…\", \"is_machine\": false } }, \"olang\": \"ja\", \"content_rating\": \"all_ages\", \"release_date\": \"2021-08-27\", \"release_date_precision\": \"day\", \"release_status\": \"released\", \"cover\": { \"url\": \"https://…\", \"hash\": \"…\", \"width\": 560, \"height\": 420, \"thumbhash\": \"…\", \"sexual\": \"safe\", \"violence\": null, \"source\": \"dlsite\" }, \"banner\": null, \"claim\": null, \"created_at\": \"2025-11-02T09:14:33Z\", \"updated_at\": \"2026-08-29T02:51:07Z\" } ], \"next_cursor\": \"cur_…\" } - object 是类型判别符，每个资源都带，值就是它的族名。 - id 是 十进制字符串 。它在库里是 int64，超出 JavaScript Number 的安全整数范围，发成 JSON number 会静默失真。 - 翻页只有 next_cursor 一种：把它原样回传即可。 末页直接不出现这个键 ，没有 has_more ，也不要用 items.length === limit 判断还有没有下一页。 - 默认瘦身：作品的标签、角色、评分、封面列表这些块都要在 include= 里点名才会出现。 4 · 按需取块 详情面同理——默认只有身份内核， include= 决定要哪些块，写错 token 是 400 UNKNOWN_INCLUDE 而不是静默少块： curl \"https://api.nextmoe.dev/v2/catalog/works/207379?include=tags,ratings,companies\" \\ -H \"Authorization: Bearer nmk_live_<YOUR_KEY \" 每个族有哪些 include token、哪些 sort 键、哪些顶层字段，都能从发现面自己问出来，不必翻文档： curl \"https://api.nextmoe.dev/v2/catalog/schemas/work\" 5 · 手里已经有外部 id？ 不用先搜再猜。反查是集合上的一个参数，一次最多 100 个 source:external_id ，没锚到的原样回在 missing[] 里，而不是让整个请求 404： curl \"https://api.nextmoe.dev/v2/catalog/works?refs=vndb:v19658,bangumi:302835\" \\ -H \"Authorization: Bearer nmk_live_<YOUR_KEY \" 接下来 - 鉴权与凭据 — 应用密钥 vs 用户访问令牌，以及各自能开哪些面。 - 数据模型 — 六源如何对齐成一条记录，实体族之间怎么连。 - 全链走查 — 用两个真实系列走通搜索 → 详情 → 厂牌 → 反查。 - 端点参考 — 88 个端点的参数、响应与 curl 示例。",
+    "b": "五分钟接入 NextMoe 开放 API v2：创建应用、铸造密钥、发出第一个请求、读懂响应。 快速上手 从零到第一次成功调用，大约五分钟。不需要申请，不需要审核。 匿名就能先试一把： /v2/news 、 /v2/vocabularies 、 /v2/problems 、 /v2/catalog/stats 与 /v2/catalog/schemas/{object} 不要任何凭据。想读目录数据再回来铸密钥。 1 · 创建应用 用生态账号（NextMoe / 鲲 Galgame）登录 控制台，不必另外注册开发者身份。每个账号最多 5 个应用，每个应用最多 5 把在用密钥。应用是配额、用量与 scope 的边界——一个产品一个应用，出事时可以单独吊销。 2 · 铸一把密钥 密钥形如 nmk_live_… ，尾部带 CRC32 校验位， 只在铸造时显示一次 。它是机密：只放服务端，不要写进前端包、移动端二进制或公开仓库。开发联调可以铸 nmk_test_ 前缀的测试密钥。分发出去的桌面客户端没有服务端可放，读目录数据请改用用户访问令牌——见原生桌面应用接入。 自助可勾选的 scope 有两个—— catalog:read （读目录数据）与 store:read （商店联盟链接）。 /v2/moyu/ 与 /v2/sticker/ 两个下游面不需要任何 scope，任意有效密钥都能调。 claim_events:read 由运营方按需授予，不能自助勾选。 3 · 发出第一个请求 curl \"https://api.nextmoe.dev/v2/catalog/works?limit=3\" \\ -H \"Authorization: Bearer nmk_live_<YOUR_KEY \" 响应体 就是 那个集合，没有 {code,message,data} 外壳： { \"object\": \"list\", \"items\": [ { \"object\": \"work\", \"id\": \"207379\", \"medium\": \"galgame\", \"display_name\": \"…\", \"latin\": \"…\", \"localized\": { \"zh-Hans\": { \"value\": \"…\", \"is_machine\": false } }, \"olang\": \"ja\", \"content_rating\": \"all_ages\", \"release_date\": \"2021-08-27\", \"release_date_precision\": \"day\", \"release_status\": \"released\", \"cover\": { \"url\": \"https://…\", \"hash\": \"…\", \"width\": 560, \"height\": 420, \"thumbhash\": \"…\", \"sexual\": \"safe\", \"violence\": null, \"source\": \"dlsite\" }, \"banner\": null, \"claim\": null, \"created_at\": \"2025-11-02T09:14:33Z\", \"updated_at\": \"2026-08-29T02:51:07Z\" } ], \"next_cursor\": \"cur_…\" } - object 是类型判别符，每个资源都带，值就是它的族名。 - id 是 十进制字符串 。它在库里是 int64，超出 JavaScript Number 的安全整数范围，发成 JSON number 会静默失真。 - 翻页只有 next_cursor 一种：把它原样回传即可。 末页直接不出现这个键 ，没有 has_more ，也不要用 items.length === limit 判断还有没有下一页。 - 默认瘦身：作品的标签、角色、评分、封面列表这些块都要在 include= 里点名才会出现。 4 · 按需取块 详情面同理——默认只有身份内核， include= 决定要哪些块，写错 token 是 400 UNKNOWN_INCLUDE 而不是静默少块： curl \"https://api.nextmoe.dev/v2/catalog/works/207379?include=tags,ratings,companies\" \\ -H \"Authorization: Bearer nmk_live_<YOUR_KEY \" 每个族有哪些 include token、哪些 sort 键、哪些顶层字段，都能从发现面自己问出来，不必翻文档： curl \"https://api.nextmoe.dev/v2/catalog/schemas/work\" 5 · 手里已经有外部 id？ 不用先搜再猜。反查是集合上的一个参数，一次最多 100 个 source:external_id ，没锚到的原样回在 missing[] 里，而不是让整个请求 404： curl \"https://api.nextmoe.dev/v2/catalog/works?refs=vndb:v19658,bangumi:302835\" \\ -H \"Authorization: Bearer nmk_live_<YOUR_KEY \" 接下来 - 鉴权与凭据 — 应用密钥 vs 用户访问令牌，以及各自能开哪些面。 - 数据模型 — 六源如何对齐成一条记录，实体族之间怎么连。 - 全链走查 — 用两个真实系列走通搜索 → 详情 → 厂牌 → 反查。 - 端点参考 — 113 个端点的参数、响应与 curl 示例。 - 下游站点面 — 补丁与表情包两个联邦面：同一把密钥，不需要任何 scope。",
     "h": [
       {
         "i": "app",
@@ -438,7 +438,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "版本与演进",
     "s": "指南 · API 基础",
     "d": "NextMoe API v2 的稳定性承诺：什么算破坏性变更、加法演进如何被 CI 守住、退役怎么通知，以及 v1 的退役现状。",
-    "b": "NextMoe API v2 的稳定性承诺：什么算破坏性变更、加法演进如何被 CI 守住、退役怎么通知，以及 v1 的退役现状。 版本与演进 /v2 是唯一的公开面，此后只做加法。删除与改名过不去 CI 的破坏性变更门——真要破坏，只能升主版本。 当前状态 面 状态 ------------------------------------------------------------------------------------------------- ------------------------------------------------------------ /v2 正式公开 （2026-08-25 GA），88 个端点，spec 2.3.0 /v1/catalog 、 /v1/news 、 /v1/store 、 /v1/playtime 、 /api/v1/catalog 、 /api/v1/user/catalog 已退役 （2026-08-27）。一律 410 Gone ， Link 指向 /v2 v1 是连同它的代码一起退役的，不是留一个转发层——这样就不会有人「暂时还能用」着用到明年。 什么算破坏性变更 算破坏 不算破坏 ------------------------------------------ ------------------------------- 删除一个字段、端点或参数 新增一个字段 给字段或参数改名 新增一个端点 收紧类型（可空变不可空、放宽的枚举变封闭） 放宽约束（必填变可选） 给 封闭 词表加一个成员 给 开放 词表加一个取值 改变一个已有取值的含义 往错误码注册表里加一个新 code 改变默认值 新增一个可选参数 「给封闭词表加成员」算破坏，是因为封闭意味着我们承诺过成员集合就这些——你的 switch 可以没有 default 。开放词表则相反： x-vocabulary-closed: false 就是在提前告诉你会有新值。所以客户端契约要求你容忍开放词表里没见过的取值。 这条线怎么守住 - /v2/catalog/openapi.json 由运行中的路由生成，不是手写的。 - 每次改动都会拿改动前后的两份 spec 跑 oasdiff 的破坏性变更检查；命中就不许合并。 - 一批契约门跟着跑：错误码注册表互斥、词表封闭标注齐全、每个字段 description 非空、声明过的状态码完整、没有无约束的 type: string 。 - 门户这份文档、 llms.txt 与每页的 Markdown 孪生，都从同一份 spec 生成——文档和契约不会各说各话。 退役怎么通知 端点要退役时会先进入退役期，响应头带上 Deprecation 与 Sunset （两个头都在 CORS 的 expose 列表里，浏览器侧也读得到）。把它们接进监控——它们出现的那天，就是你还有时间从容迁移的那天。 退役生效后，那个路径返回 410 Gone ，并指出接替它的面： HTTP/1.1 410 Gone Link: <https://api.nextmoe.dev/v2 ; rel=\"successor-version\" Content-Type: application/problem+json { \"code\": \"GONE\", \"status\": 410, … } 这就是 v1 六个前缀现在的样子。等到 410 才发现问题就只剩加急了，所以请让 Deprecation 触发告警，而不是等 410 触发工单。 跟住变化 - GET /v2/catalog/openapi.json 免密钥， info.version 是当前 spec 版本。把它拉进 CI，diff 一下就知道这次动了什么。 - 本站每个文档页都有 Markdown 孪生（路由后加 .md ），全部端点内联在 /llms-full.txt ——适合让 agent 定期通读一遍。 - /v2/vocabularies 与 /v2/catalog/schemas/{object} 是运行时的词表与形状发现面，比任何文档都新。 设计层面的承诺与「我们不会做的事」，见 API 设计原则。",
+    "b": "NextMoe API v2 的稳定性承诺：什么算破坏性变更、加法演进如何被 CI 守住、退役怎么通知，以及 v1 的退役现状。 版本与演进 /v2 是唯一的第一方公开面，此后只做加法。删除与改名过不去 CI 的破坏性变更门——真要破坏，只能升主版本。 当前状态 面 状态 ------------------------------------------------------------------------------------------------- ---------------------------------------------------------------------------- /v2 正式公开 （2026-08-25 GA），113 个端点，spec 2.20.0 /v2/moyu 、 /v2/sticker 下游站点面 ，由各自站点的仓库拥有契约，见下游站点面 /v1/catalog 、 /v1/news 、 /v1/store 、 /v1/playtime 、 /api/v1/catalog 、 /api/v1/user/catalog 已退役 （2026-08-27）。一律 410 Gone ， Link 指向 /v2 v1 是连同它的代码一起退役的，不是留一个转发层——这样就不会有人「暂时还能用」着用到明年。 什么算破坏性变更 算破坏 不算破坏 ------------------------------------------ ------------------------------- 删除一个字段、端点或参数 新增一个字段 给字段或参数改名 新增一个端点 收紧类型（可空变不可空、放宽的枚举变封闭） 放宽约束（必填变可选） 给 封闭 词表加一个成员 给 开放 词表加一个取值 改变一个已有取值的含义 往错误码注册表里加一个新 code 改变默认值 新增一个可选参数 「给封闭词表加成员」算破坏，是因为封闭意味着我们承诺过成员集合就这些——你的 switch 可以没有 default 。开放词表则相反： x-vocabulary-closed: false 就是在提前告诉你会有新值。所以客户端契约要求你容忍开放词表里没见过的取值。 这条线怎么守住 - /v2/catalog/openapi.json 由运行中的路由生成，不是手写的。 - 每次改动都会拿改动前后的两份 spec 跑 oasdiff 的破坏性变更检查；命中就不许合并。 - 一批契约门跟着跑：错误码注册表互斥、词表封闭标注齐全、每个字段 description 非空、声明过的状态码完整、没有无约束的 type: string 。 - 门户这份文档、 llms.txt 与每页的 Markdown 孪生，都从同一份 spec 生成——文档和契约不会各说各话。 退役怎么通知 端点要退役时会先进入退役期，响应头带上 Deprecation 与 Sunset （两个头都在 CORS 的 expose 列表里，浏览器侧也读得到）。把它们接进监控——它们出现的那天，就是你还有时间从容迁移的那天。 退役生效后，那个路径返回 410 Gone ，并指出接替它的面： HTTP/1.1 410 Gone Link: <https://api.nextmoe.dev/v2 ; rel=\"successor-version\" Content-Type: application/problem+json { \"code\": \"GONE\", \"status\": 410, … } 这就是 v1 六个前缀现在的样子。等到 410 才发现问题就只剩加急了，所以请让 Deprecation 触发告警，而不是等 410 触发工单。 跟住变化 - GET /v2/catalog/openapi.json 免密钥， info.version 是当前 spec 版本。把它拉进 CI，diff 一下就知道这次动了什么。 - 本站每个文档页都有 Markdown 孪生（路由后加 .md ），全部端点内联在 /llms-full.txt ——适合让 agent 定期通读一遍。 - /v2/vocabularies 与 /v2/catalog/schemas/{object} 是运行时的词表与形状发现面，比任何文档都新。 设计层面的承诺与「我们不会做的事」，见 API 设计原则。",
     "h": [
       {
         "i": "status",
@@ -660,6 +660,112 @@ export const searchIndex: SearchEntry[] = [
       {
         "i": "attribution",
         "t": "署名"
+      }
+    ]
+  },
+  {
+    "r": "/docs/moyu-patches",
+    "t": "moyu 补丁面接入",
+    "s": "指南 · 下游站点面",
+    "d": "接入 /v2/moyu 只读面：一部游戏在 鲲 Galgame 补丁（www.moyu.moe）上有哪些补丁资源。任意有效应用密钥即可调用，无需 scope；refs= 批量反查、catalog_work_id 回填游戏信息、两种错误方言与缓存约定。",
+    "b": "接入 /v2/moyu 只读面：一部游戏在 鲲 Galgame 补丁（www.moyu.moe）上有哪些补丁资源。任意有效应用密钥即可调用，无需 scope；refs= 批量反查、catalog_work_id 回填游戏信息、两种错误方言与缓存约定。 moyu 补丁面接入 /v2/moyu 是 鲲 Galgame 补丁 （www.moyu.moe）联邦进平台的只读面。它只回答一个问题： 这部游戏在 moyu 上有哪些补丁资源？ 游戏由你手里已有的锚指名——一个 VNDB 号，或一个 NextMoe catalog 作品 id——答案是站上对应的那个页，以及挂在这个页下面的资源。 契约由补丁站自己的仓库拥有，本站只镜像它的 OpenAPI 原文；端点清单见端点参考 · moyu 补丁面。 它不给什么 两处删减都是契约里写死的取舍，不是遗漏。先读完再动手，能省掉一整轮返工。 没有下载直链、提取码与解压密码。 在 moyu 上「显示链接」是一次单独的、按资源限速的请求，它存在的全部意义就是链接不能被批量抓走。这个面每一行都带 web_url ——把读者送到 www.moyu.moe 的那个页面上去下载，这是唯一的路径。 没有游戏名、封面、标签、角色与制作人员。 那些归 catalog，moyu 一份副本都不存。每一行都带 catalog_work_id ，拿它去 /v2/catalog/works/{id} 解析——同一把密钥就能读，一次请求问的是权威，而不是从我们这里拿一份更旧的答案。 patch.id 、 vndb_id 与 catalog_work_id 是同一部游戏的 三个互不相等、互不可替换 的 id 空间。把 catalog_work_id 当补丁 id 去打 /v2/moyu/patches/{id} 有时也能返回 200——那是另一个页，不是你要的那个。 拿密钥 Base URL 是 https://api.nextmoe.dev ，与 v2 同一个。凭据也是同一把：在控制台铸一把 nmk_live_ 应用密钥即可，流程见快速上手。 不需要任何 scope。 这个面是免费只读面，网关只做身份、计量与限流，不做授权——任意有效密钥都放行，永远不会 403。铸密钥时不要去找 moyu:read ，这个 scope 字符串不存在，勾了会被拒。 curl \"https://api.nextmoe.dev/v2/moyu/patches?limit=3\" \\ -H \"Authorization: Bearer nmk_live_<YOUR_KEY \" X-API-Key: nmk_live_<YOUR_KEY 是等价写法，两种任选其一。 只能从你自己的服务端调用。 网关对包括 OPTIONS 在内的每个方法都验密钥，而 CORS 预检不带认证头，所以浏览器直连必然 401——这不是你的 CORS 配置写错了。 nmk_ 密钥本来也不该出现在浏览器里，详见鉴权与凭据。 四个端点 方法与路径 做什么 ------------------------------------- ------------------------------------------ GET /v2/moyu/patches 列出补丁页，或按 ids= / refs= 批量反查 GET /v2/moyu/patches/{id} 单个补丁页 GET /v2/moyu/patches/{id}/resources 该页上的资源，翻页 GET /v2/moyu/resources/{id} 单个资源 约定与 catalog /v2 共享，一套客户端同时覆盖两边：id 一律是 字符串 ；集合按不透明 cursor 翻页， total 要花一次 count 所以默认不算， include_total=true 才给；关系按 include= 点名附加；时间是 RFC 3339 UTC，日期是 YYYY-MM-DD 。 limit 取 1 到 100，超过 100 是 400 LIMIT_TOO_LARGE —— 不会被夹到 100 。 nsfw 缺省为 false ，与 catalog 同一个约定；catalog 还没有给出分级的页两种情况下都会出现，并报 content_limit: null 。 例一：列一页，并带上资源 curl \"https://api.nextmoe.dev/v2/moyu/patches?limit=2&sort=updated&has_resources=true&include=resources\" \\ -H \"Authorization: Bearer nmk_live_<YOUR_KEY \" { \"object\": \"list\", \"items\": [ { \"object\": \"patch\", \"id\": \"11617\", \"vndb_id\": \"v4145\", \"catalog_work_id\": \"61311\", \"content_limit\": \"nsfw\", \"release_date\": \"2007-09-28\", \"type\": [\"manual\"], \"language\": [\"zh-Hans\"], \"platform\": [\"windows\"], \"resource_count\": 3, \"download_count\": 0, \"view_count\": 0, \"favorite_count\": 0, \"comment_count\": 0, \"web_url\": \"https://www.moyu.moe/…\", \"created_at\": \"2025-11-02T09:14:33Z\", \"updated_at\": \"2026-08-29T02:51:07Z\", \"resource_updated_at\": \"2026-08-29T02:51:07Z\", \"resources\": [ { \"object\": \"patch_resource\", \"id\": \"10463\", \"patch_id\": \"11617\", \"name\": \"…\", \"storage\": \"s3\", \"size\": \"0.571 MB\", \"hash\": \"…\", \"model_name\": \"\", \"localization_group_name\": \"…\", \"note\": \"…\", \"type\": [\"manual\"], \"language\": [\"zh-Hans\"], \"platform\": [\"windows\"], \"download_count\": 0, \"like_count\": 0, \"web_url\": \"https://www.moyu.moe/…\", \"created_at\": \"2025-11-02T09:14:33Z\", \"updated_at\": \"2026-08-29T02:51:07Z\" } ] } ], \"next_cursor\": \"cur_…\", \"total\": null } 几处值得先知道： - sort 一律降序，可取 updated （默认）、 created 、 downloads 、 views 。 updated 排的是 资源 最近一次新增或改动的时间（也就是 resource_updated_at ），这与补丁页本身被编辑的时间不是一回事。 - has_resources 不传时返回全部页。一个页可以还没有任何资源， true 就是「确实有东西可下」的那道过滤。 - type 、 language 、 platform 都是逗号分隔的多值，命中其中任意一个即可（例如 type=ai,manual ）。 - include= 只认 resources 、 publisher 、 resources,publisher 三种写法；写别的是 400 UNKNOWN_INCLUDE 。 - 单页详情 GET /v2/moyu/patches/{id} 默认什么都不附加 ，资源也不例外：先看 resource_count 有没有东西可要，数量多时用 /v2/moyu/patches/{id}/resources 翻页。 例二：refs= 批量反查 这是这个面最值钱的一条车道： 「我手上这 100 部作品，你们有哪些的补丁？」一次往返问完。 curl \"https://api.nextmoe.dev/v2/moyu/patches?refs=vndb:v65869,catalog:61311&include=resources\" \\ -H \"Authorization: Bearer nmk_live_<YOUR_KEY \" { \"object\": \"list\", \"items\": [ { \"object\": \"patch\", \"id\": \"11617\", \"vndb_id\": \"v4145\", \"catalog_work_id\": \"61311\", \"…\": \"…\" } ], \"next_cursor\": null, \"total\": null, \"missing\": [\"vndb:v65869\"] } - 一次最多 100 个锚，source 只有 vndb （如 v65869 ）与 catalog （NextMoe catalog 作品 id）两种。超过 100 是 400 TOO_MANY_IDS 。 - 没有命中的锚不会让整个请求 404 ，它们按你发来的写法原样回在 missing[] 里。这个数组只在 ids= / refs= 车道出现。 - ids= 是同一条车道的另一种写法，收的是 moyu 自己的补丁 id（如 223309,11617 ）。 ids 与 refs 互斥 。 - 批量回答的是一个集合而不是一页，所以此时 cursor 与 sort 会被拒。 - 一个 catalog:<id 可能回不止一项 ：moyu 按 VNDB 字符串去重，一部以两种写法进来的游戏就有两个页。它们的顺序保证读者该落地的那个页排在最前——要选一个就取 items[0] 。 例三：单个资源 curl \"https://api.nextmoe.dev/v2/moyu/resources/10463?include=publisher\" \\ -H \"Authorization: Bearer nmk_live_<YOUR_KEY \" 资源行里几个容易读错的字段： - storage 为 s3 表示文件在 moyu 自己的对象存储里， user 表示是发布者放在别处的链接。两种都不给直链。 - size 是 给人看的字符串 （如 \"0.571 MB\" ），不是字节数。 - hash 是文件的 BLAKE3，是字节本身唯一稳定的身份；在开始记录它之前上传的行为空字符串。 - model_name 只对 AI 翻译补丁有意义，由发布者手填——自由文本，不是词表，不要拿它做枚举。 - note 是 Markdown 源码，其中的图片 token 已经解析成绝对 URL。 - 只有仍然存活的资源会被列出：被发布者停用或被审核隐藏的资源不出现在列表里，在它自己的 URL 上也是 404 ，与站上表现一致。 和 catalog 拼起来 这个面给身份，catalog 给内容。一次完整的展示流程是两步： 1 · 我关心的这几部作品，哪些有补丁 curl \"https://api.nextmoe.dev/v2/moyu/patches?refs=catalog:61311,catalog:207379\" \\ -H \"Authorization: Bearer nmk_live_<YOUR_KEY \" # 2 · 用回来的 catalog_work_id 批量取游戏名与封面 curl \"https://api.nextmoe.dev/v2/catalog/works?ids=61311&include=covers\" \\ -H \"Authorization: Bearer nmk_live_<YOUR_KEY \" 第二步的 ids= 一次同样收最多 100 个，所以第一步的一页正好喂给第二步的一次调用。反过来，如果你手里只有 VNDB 号， refs=vndb:v65869 直接问 moyu 就行，不必先去 catalog 换 id。 catalog_work_id 在占位页上是 null （页建得比游戏进 catalog 还早）。这种行只能显示 moyu 那边的信息，把它当成「有补丁但还没对上作品」处理，不要丢弃。 content_limit 是 catalog 展示轴判定的镜像， null 表示 moyu 还没镜像过来。 无论如何以 catalog 为准 ——要严格的分级判定，请按镜像到自己的库里的写法从 catalog 取。 错误：两种方言 这个面上有 两套错误体 ，按 HTTP status 分支，不要按 body 形状猜。 网关写的（401、429） ——请求还没到补丁站就被拦下，body 是平台自己的信封： HTTP/1.1 401 Unauthorized Content-Type: application/json {\"code\":10001,\"message\":\"未授权，请先登录\"} 401 是缺密钥或密钥无效/已吊销；429 是这把密钥的速率或配额用尽，带 Retry-After 与 X-RateLimit- 。 补丁站写的（其余全部） ——RFC 9457 application/problem+json ，与 catalog /v2 同一个形状： HTTP/1.1 400 Bad Request Content-Type: application/problem+json { \"type\": \"https://developer.nextmoe.dev/problems/platform/limit-too-large\", \"title\": \"Limit too large\", \"status\": 400, \"detail\": \"limit must be between 1 and 100\", \"instance\": \"/v2/moyu/patches?limit=500\", \"code\": \"LIMIT_TOO_LARGE\", \"request_id\": \"req_01JBQ7X4M2K9P3W5T8ZVN6HRDC\", \"errors\": [{ \"parameter\": \"limit\", \"reason\": \"OUT_OF_RANGE\", \"detail\": \"…\" }] } type URI 解析到本站的错误码注册表， code 取自平台那份封闭注册表，因此一套解码逻辑同时覆盖这个面与 catalog。这个面会出现的 code ： INVALID_PARAMETER 、 UNKNOWN_ENUM_VALUE 、 UNKNOWN_SORT 、 UNKNOWN_INCLUDE 、 INVALID_CURSOR 、 LIMIT_TOO_LARGE 、 TOO_MANY_IDS 、 NOT_FOUND 、 METHOD_NOT_ALLOWED 、 INTERNAL_ERROR 、 SERVICE_UNAVAILABLE 。 400 时 errors[0] 指出是哪个参数。 一个能同时吃下两种方言的分支写法： const res = await fetch(url, { headers: { Authorization: Bearer ${key} } }) if (res.status === 401) throw new Error('key missing or revoked') if (res.status === 429) { await sleep(Number(res.headers.get('Retry-After') ?? 60) 1000) return retry() } if (!res.ok) { const problem = await res.json() // application/problem+json throw new Error( ${problem.code}: ${problem.detail} ) } 字段含义与字段级 reason 的完整两层注册表见错误处理。 限流 限流在网关按 密钥所属应用 计数，与 v2 共池：free 档 60 次/分、50,000 次/日。超限是 429 加 Retry-After ，并带 X-RateLimit- 与 X-Quota- 响应头。分档、计数身份与退避写法见限流与配额。 批量反查在这里同时是省钱手段：100 部作品一次请求，比 100 次单查省两个数量级的配额。 缓存 每个 200 的 GET 都带 ETag 。把它原样放进下一次请求的 If-None-Match ，没变就是 304 ，不计入响应体传输： curl -i \"https://api.nextmoe.dev/v2/moyu/patches/11617\" \\ -H \"Authorization: Bearer nmk_live_<YOUR_KEY \" \\ -H 'If-None-Match: \"9f2a1c…\"' 这个面声明的是 Cache-Control: public, max-age=300, s-maxage=1800, stale-while-revalidate=3600 —— 可共享缓存 ，与 v2 大多数按凭据能力位变化、只能 private, no-store 的面不同。放一层自己的 CDN 或反向代理是安全的。完整契约见缓存与条件请求。 接下来 - 端点参考 · moyu 补丁面 —— 四个端点的全部参数、响应 schema 与可直接运行的 curl 示例。 - sticker 表情包面接入 —— 另一个下游站点面，同一把密钥、同一套错误方言。 - 鉴权与凭据 —— 为什么这个面不能从浏览器直接调。",
+    "h": [
+      {
+        "i": "not",
+        "t": "它不给什么"
+      },
+      {
+        "i": "auth",
+        "t": "拿密钥"
+      },
+      {
+        "i": "endpoints",
+        "t": "四个端点"
+      },
+      {
+        "i": "example-list",
+        "t": "例一：列一页，并带上资源"
+      },
+      {
+        "i": "example-refs",
+        "t": "例二：refs= 批量反查"
+      },
+      {
+        "i": "example-resource",
+        "t": "例三：单个资源"
+      },
+      {
+        "i": "catalog",
+        "t": "和 catalog 拼起来"
+      },
+      {
+        "i": "errors",
+        "t": "错误：两种方言"
+      },
+      {
+        "i": "rate-limits",
+        "t": "限流"
+      },
+      {
+        "i": "caching",
+        "t": "缓存"
+      },
+      {
+        "i": "next",
+        "t": "接下来"
+      }
+    ]
+  },
+  {
+    "r": "/docs/sticker-packs",
+    "t": "sticker 表情包面接入",
+    "s": "指南 · 下游站点面",
+    "d": "接入 /v2/sticker 只读面：按 catalog 作品与角色身份索引的 Galgame 表情包素材。任意有效应用密钥即可调用，无需 scope；多语言标题、page/limit 翻页、与 catalog 的连接方式、两种错误方言。",
+    "b": "接入 /v2/sticker 只读面：按 catalog 作品与角色身份索引的 Galgame 表情包素材。任意有效应用密钥即可调用，无需 scope；多语言标题、page/limit 翻页、与 catalog 的连接方式、两种错误方言。 sticker 表情包面接入 /v2/sticker 是 sticker.kungal.com 联邦进平台的只读面。 它不是第二份内容列表。 站上每一张表情都打了 infra catalog 的作品 id 与角色 id，所以这个面回答的是： 这个 catalog 身份有哪些表情素材？ 手里已经握着 catalog id 的调用方可以直接 join—— /v2/sticker/characters/{character_id}/stickers 与 /v2/sticker/works/{work_id}/packs 是主车道，其余端点都是围着它们的脚手架。 契约由表情包站自己的仓库拥有，本站只镜像它的 OpenAPI 原文；端点清单见端点参考 · sticker 表情包面。 数据边界 只暴露已发布的表情包。 草稿、隐藏、已删除的包，评论正文，审核状态，以及全部创作端点都不在这个面里，将来也不会有。 名字是多语言映射，不是字符串。 键为 zh-cn 、 zh-tw 、 ja-jp 、 en-us 、 und ，每一个都是可选的，任何一个都可能缺席； und 放的是 catalog 里没有语言标记的显示名。 { \"zh-cn\": \"夏日口袋\", \"ja-jp\": \"サマーポケッツ\", \"en-us\": \"Summer Pockets\" } 回退链由你自己定—— 这个面永远不替你挑一个 。 title 、 description 、 Work.name 、 Character.name 、 Tag.name 全部是这个形状。 拿密钥 Base URL 是 https://api.nextmoe.dev ，与 v2 同一个。凭据也是同一把：在控制台铸一把 nmk_live_ 应用密钥即可，流程见快速上手。 不需要任何 scope。 网关在请求到达表情包站之前跑 ForwardAuth，只查身份、速率与配额，不做授权——任意有效密钥都放行，永远不会 403。铸密钥时 不要去找 sticker:read ：这个 scope 字符串不存在，勾了会被拒。 curl \"https://api.nextmoe.dev/v2/sticker/packs?limit=3\" \\ -H \"Authorization: Bearer nmk_live_<YOUR_KEY \" X-API-Key: nmk_live_<YOUR_KEY 是等价写法。 只能从你自己的服务端调用。 网关对包括 OPTIONS 在内的每个方法都验密钥，而 CORS 预检不带认证头，所以浏览器直连必然 401——不是你的 CORS 配置写错了。详见鉴权与凭据。 九个端点 方法与路径 做什么 ---------------------------------------------------- -------------------------------- GET /v2/sticker/packs 列出已发布的表情包 GET /v2/sticker/packs/{pack_id} 单个包，含其中的表情、作品与角色 GET /v2/sticker/stickers/{sticker_id} 单张表情 GET /v2/sticker/characters 该站有素材的 catalog 角色索引 GET /v2/sticker/characters/{character_id} 单个 catalog 角色在该站的样子 GET /v2/sticker/characters/{character_id}/stickers 主车道 ：某个角色的全部表情 GET /v2/sticker/works 该站有素材的 catalog 作品索引 GET /v2/sticker/works/{work_id}/packs 主车道 ：关于某部作品的表情包 GET /v2/sticker/tags 标签，用得最多的在前 这个面的翻页与 catalog /v2 不同 ：它用 page （1 起，最大 1000）加 limit （1–50，默认 20）的偏移翻页，列表信封是 {object, items, total, page, limit} —— 没有 next_cursor ， total 一直都在。 limit 超过 50 是 400 LIMIT_TOO_LARGE 。 其余参数： sort 取 new （默认，按发布时间）或 hot （按下载数再按浏览数），两者都以 UUIDv7 的 id 收尾，所以是稳定的 tiebreaker； q 是不分大小写的子串匹配， 同时跨全部语言 ——一个日文查询能命中只有日文标题匹配的包，超过 100 字符会被截断。 nsfw 、 official 、 linked 声明为 字符串枚举 'true' / 'false' ，不是 JSON 布尔；照字面写 nsfw=true 即可。 nsfw 说的是 表情包自己的分级 ，不是它所属游戏的。从一部 r18 游戏里剪出来的日常反应表情包是 all_ages ，而它的 work.content_rating 仍然是 r18 。这里关联的 95 部游戏里有 89 部是 r18，按游戏分级过滤会几乎清空结果。 例一：某个角色的全部表情 主车道。手里有 catalog 角色 id 就直接问： curl \"https://api.nextmoe.dev/v2/sticker/characters/12345/stickers?limit=2\" \\ -H \"Authorization: Bearer nmk_live_<YOUR_KEY \" { \"object\": \"list\", \"items\": [ { \"object\": \"sticker\", \"id\": \"0193f2a1-…\", \"pack_id\": \"0193f29c-…\", \"position\": 1, \"image\": { \"hash\": \"3f7a…\", \"url\": \"https://…/full.webp\", \"thumb_url\": \"https://…/320.webp\", \"width\": 512, \"height\": 512 }, \"note\": \"…\", \"work\": { \"object\": \"work\", \"id\": 61311, \"name\": { \"zh-cn\": \"…\" } }, \"character\": { \"object\": \"character\", \"id\": 12345, \"name\": { \"ja-jp\": \"…\" } } } ], \"total\": 24, \"page\": 1, \"limit\": 2 } - 最新在前，只含已发布的包。 - 空页与 404 含义不同 ：角色没有素材时这里返回 空列表 ，绝不会仅因为这个 id 就 404。会 404 的是 GET /v2/sticker/characters/{character_id} ——那表示该站没有任何已发布的表情打了这个角色，它 不说明 catalog 认不认识这个 id 。 - image.hash 是 infra 图床服务的内容寻址，也是这里唯一稳定的标识符：同样的字节由生态内另一个站点存下来，hash 相同。表情包封面上没有这个字段，要稳定身份用 cover_sticker_id 。 - position 从 1 开始，在同一个包内唯一。 例二：关于某部作品的表情包 curl \"https://api.nextmoe.dev/v2/sticker/works/61311/packs?sort=hot&nsfw=true\" \\ -H \"Authorization: Bearer nmk_live_<YOUR_KEY \" { \"object\": \"list\", \"items\": [ { \"object\": \"pack\", \"id\": \"0193f29c-…\", \"title\": { \"zh-cn\": \"…\", \"ja-jp\": \"…\" }, \"description\": { \"zh-cn\": \"…\" }, \"official\": true, \"content_rating\": \"all_ages\", \"sticker_count\": 24, \"view_count\": 0, \"download_count\": 0, \"cover\": { \"url\": \"https://…/full.webp\", \"thumb_url\": \"https://…/320.webp\" }, \"cover_sticker_id\": \"0193f2a1-…\", \"work\": { \"object\": \"work\", \"id\": 61311, \"name\": { \"zh-cn\": \"…\" }, \"content_rating\": \"r18\" }, \"tags\": [ { \"object\": \"tag\", \"slug\": \"…\", \"name\": { \"zh-cn\": \"…\" }, \"pack_count\": 0 } ], \"author\": { \"object\": \"author\", \"id\": 1, \"name\": \"…\", \"avatar_url\": \"https://…\" }, \"created_at\": \"2026-08-29T02:51:07Z\", \"updated_at\": \"2026-08-29T02:51:07Z\", \"published_at\": \"2026-08-29T02:51:07Z\" } ], \"total\": 3, \"page\": 1, \"limit\": 20 } 「关于」是宽口径：一个包只要 声明 了某部游戏， 或含有该游戏的表情 ，就算是关于它。站方预置的官方包一个游戏都不声明，却各自取材自几十部游戏——按窄口径读，它们什么都答不出来。 /v2/sticker/packs?work=61311 用的是同一条关系。 pack.work 只在作者声明过时出现；混合包不声明任何游戏，但每一张表情上仍带各自的 work 与 character 。 author.id 是 NextMoe 账号 id，与生态内每个站点用的是同一个。 例三：单个包，含全部表情 curl \"https://api.nextmoe.dev/v2/sticker/packs/0193f29c-…\" \\ -H \"Authorization: Bearer nmk_live_<YOUR_KEY \" 详情比列表多三个数组： stickers （按展示顺序）、 works （这些表情覆盖到的去重后游戏）、 characters （去重后角色）。 works 与 characters 就是这个包能 join 回 catalog 的全部身份，用它们做一次批量水合最省事。 pack_id 与 sticker_id 是 UUIDv7 字符串 ； work.id 、 character.id 、 author.id 是 JSON 数字 （int64）。这与 catalog /v2 的「id 一律是字符串」不同，跨面拼接时记得转换。 和 catalog 拼起来 这个面给素材，catalog 给身份内容。两种方向： 从 catalog 往这边：我这部作品有没有表情素材 curl \"https://api.nextmoe.dev/v2/sticker/works/61311/packs\" \\ -H \"Authorization: Bearer nmk_live_<YOUR_KEY \" # 从这边往 catalog：拿角色 id 取 catalog 的权威资料 curl \"https://api.nextmoe.dev/v2/catalog/characters/12345\" \\ -H \"Authorization: Bearer nmk_live_<YOUR_KEY \" Work.id 拿去 /v2/catalog/works/{id} 解析， Character.id 拿去 /v2/catalog/characters/{id} 解析——同一把密钥就能读。 要 同步一份索引 而不是逐个查，用 GET /v2/sticker/characters ：它列出每个在已发布包中至少有一张表情的 catalog 角色 id，按数量排序。catalog 认识但该站没有素材的角色按设计不会出现在这里，所以这个索引就是「有素材的全集」。 GET /v2/sticker/works 同理，并在作品索引上额外下发 sticker_count 。 Work.content_rating 与 Character.image_url 都是 catalog 的值原样透传；catalog 标记角色立绘为限制级时 image_url 不下发。要严格的分级判定仍以 catalog 为准，见镜像到自己的库。 错误：两种方言 这个面上有 两套错误体 ，按 HTTP status 分支，不要按 body 形状猜。 网关写的（401、429） ——请求还没到表情包站就被拦下，body 是平台自己的信封： HTTP/1.1 401 Unauthorized Content-Type: application/json {\"code\":10001,\"message\":\"未授权，请先登录\"} 401 是缺密钥或密钥无效/已吊销；429 是这把密钥的速率或配额用尽，带 Retry-After 与 X-RateLimit- 。 表情包站写的（其余全部） ——RFC 9457 application/problem+json ，字段名与平台 /v2 的 problem 文档一致： HTTP/1.1 400 Bad Request Content-Type: application/problem+json { \"type\": \"https://developer.nextmoe.dev/problems/platform/limit-too-large\", \"title\": \"Limit too large\", \"status\": 400, \"detail\": \"limit must be between 1 and 50\", \"instance\": \"/v2/sticker/packs?limit=500\", \"code\": \"LIMIT_TOO_LARGE\" } type URI 解析到本站的错误码注册表。 code 取自平台那份封闭注册表，原样照搬，因此一套客户端解码逻辑同时覆盖这个面与 catalog；这个面会出现的是 INVALID_PARAMETER 、 LIMIT_TOO_LARGE 、 NOT_FOUND 、 INTERNAL_ERROR 、 SERVICE_UNAVAILABLE 五个。 instance 是失败的那条请求的路径与查询串。 未知 slug 是个例外： tag= 传一个不存在的 slug 匹配不到任何东西 ，返回空列表，而不是报错。 一个能同时吃下两种方言的分支写法： const res = await fetch(url, { headers: { Authorization: Bearer ${key} } }) if (res.status === 401) throw new Error('key missing or revoked') if (res.status === 429) { await sleep(Number(res.headers.get('Retry-After') ?? 60) 1000) return retry() } if (!res.ok) { const problem = await res.json() // application/problem+json throw new Error( ${problem.code}: ${problem.detail ?? problem.title} ) } 字段含义与分支顺序见错误处理。 限流 限流在网关按 密钥所属应用 计数，与 v2 共池：free 档 60 次/分、50,000 次/日。超限是 429 加 Retry-After ，并带 X-RateLimit- 与 X-Quota- 响应头。分档与退避写法见限流与配额。 同步索引时用满 limit=50 而不是默认 20，请求数直接降到四成之一。 缓存 与 moyu 补丁面不同，这个面的契约里 没有声明 ETag 、 304 与 Cache-Control 。不要按条件请求去写客户端： If-None-Match 命中与否都不在承诺范围内。请按自己的 TTL 缓存响应体——素材是只增不改的，几分钟到几小时都安全。平台整体的条件请求约定见缓存与条件请求。 真正该缓存的是图片： image.url 与 image.thumb_url 指向图床 CDN，直接引用即可，既不经过这个面也不消耗 API 配额。 thumb_url 是 320px 变体，列表页用它。 image.hash 是内容寻址，可以直接当本地缓存键。 接下来 - 端点参考 · sticker 表情包面 —— 九个端点的全部参数、响应 schema 与可直接运行的 curl 示例。 - moyu 补丁面接入 —— 另一个下游站点面，同一把密钥、同一套错误方言。 - 鉴权与凭据 —— 为什么这个面不能从浏览器直接调。",
+    "h": [
+      {
+        "i": "scope",
+        "t": "数据边界"
+      },
+      {
+        "i": "auth",
+        "t": "拿密钥"
+      },
+      {
+        "i": "endpoints",
+        "t": "九个端点"
+      },
+      {
+        "i": "example-character",
+        "t": "例一：某个角色的全部表情"
+      },
+      {
+        "i": "example-work",
+        "t": "例二：关于某部作品的表情包"
+      },
+      {
+        "i": "example-pack",
+        "t": "例三：单个包，含全部表情"
+      },
+      {
+        "i": "catalog",
+        "t": "和 catalog 拼起来"
+      },
+      {
+        "i": "errors",
+        "t": "错误：两种方言"
+      },
+      {
+        "i": "rate-limits",
+        "t": "限流"
+      },
+      {
+        "i": "caching",
+        "t": "缓存"
+      },
+      {
+        "i": "next",
+        "t": "接下来"
       }
     ]
   },
@@ -1460,6 +1566,111 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 商店",
     "d": "GET /v2/store/stats",
     "b": "getStoreStats /v2/store/stats get Click statistics for my links Daily clicks on the links this application minted, over a JST-day range of at most 92 days. The bearer application is the subject — this replaces v1's /v1/store/me/stats. Requires an application key with the store:read scope. 本应用铸造的链接在至多 92 个 JST 日范围内的每日点击。主体是持钥应用——此接口取代 v1 的 /v1/store/me/stats。需要带 store:read scope 的应用密钥。 store:read from to"
+  },
+  {
+    "r": "/docs/moyu",
+    "t": "moyu 补丁面",
+    "s": "端点参考",
+    "d": "/v2/moyu · 4 个端点",
+    "b": "moyu /v2/moyu moyu 补丁 moyu 补丁面"
+  },
+  {
+    "r": "/docs/moyu/listPatches",
+    "t": "列出或反查补丁页",
+    "s": "端点 · 补丁页",
+    "d": "GET /v2/moyu/patches",
+    "b": "listPatches /v2/moyu/patches get List or look up patch pages Without `ids` or `refs` this is the whole collection, paged and sorted.\n\nWith either, it is a **batch lookup**: up to 100 anchors in one request,\nwith every anchor that matched nothing echoed back in `missing`. This is\nhow you ask \"which of these 100 games do you have patches for\" in one\nround trip.\n\nA batch answers a set, not a page, so `cursor` and `sort` are refused\nalongside it. Note that two pages can name one catalog work — moyu\ndedupes on the VNDB string and a game that arrived under two spellings\nhas two pages — so `refs=catalog:<id>` may answer more than one item.\nThey are ordered so that the page a reader should land on comes first.\n Without `ids` or `refs` this is the whole collection, paged and sorted.\n\nWith either, it is a **batch lookup**: up to 100 anchors in one request,\nwith every anchor that matched nothing echoed back in `missing`. This is\nhow you ask \"which of these 100 games do you have patches for\" in one\nround trip.\n\nA batch answers a set, not a page, so `cursor` and `sort` are refused\nalongside it. Note that two pages can name one catalog work — moyu\ndedupes on the VNDB string and a game that arrived under two spellings\nhas two pages — so `refs=catalog:<id>` may answer more than one item.\nThey are ordered so that the page a reader should land on comes first.\n limit cursor include_total nsfw include ids refs sort type language platform has_resources"
+  },
+  {
+    "r": "/docs/moyu/getPatch",
+    "t": "单个补丁页",
+    "s": "端点 · 补丁页",
+    "d": "GET /v2/moyu/patches/{id}",
+    "b": "getPatch /v2/moyu/patches/{id} get One patch page id include"
+  },
+  {
+    "r": "/docs/moyu/listPatchResources",
+    "t": "单个补丁页上的资源",
+    "s": "端点 · 补丁页",
+    "d": "GET /v2/moyu/patches/{id}/resources",
+    "b": "listPatchResources /v2/moyu/patches/{id}/resources get The resources on one patch page Newest change first. Only live resources are ever listed: one its\npublisher disabled or moderation hid is absent here and `404` at its own\nURL, exactly as on the site.\n Newest change first. Only live resources are ever listed: one its\npublisher disabled or moderation hid is absent here and `404` at its own\nURL, exactly as on the site.\n id limit cursor include_total include"
+  },
+  {
+    "r": "/docs/moyu/getResource",
+    "t": "单个资源",
+    "s": "端点 · 资源",
+    "d": "GET /v2/moyu/resources/{id}",
+    "b": "getResource /v2/moyu/resources/{id} get One resource id include"
+  },
+  {
+    "r": "/docs/sticker",
+    "t": "sticker 表情包面",
+    "s": "端点参考",
+    "d": "/v2/sticker · 9 个端点",
+    "b": "sticker /v2/sticker sticker 表情包 sticker 表情包面"
+  },
+  {
+    "r": "/docs/sticker/listPacks",
+    "t": "列出已发布的表情包",
+    "s": "端点 · 表情包",
+    "d": "GET /v2/sticker/packs",
+    "b": "listPacks /v2/sticker/packs get List published sticker packs limit page sort q nsfw tag work official linked"
+  },
+  {
+    "r": "/docs/sticker/getPack",
+    "t": "单个表情包，含其中的表情",
+    "s": "端点 · 表情包",
+    "d": "GET /v2/sticker/packs/{pack_id}",
+    "b": "getPack /v2/sticker/packs/{pack_id} get One pack, with its stickers pack_id"
+  },
+  {
+    "r": "/docs/sticker/getSticker",
+    "t": "单张表情",
+    "s": "端点 · 表情",
+    "d": "GET /v2/sticker/stickers/{sticker_id}",
+    "b": "getSticker /v2/sticker/stickers/{sticker_id} get One sticker sticker_id"
+  },
+  {
+    "r": "/docs/sticker/listCharacters",
+    "t": "该站有表情素材的 catalog 角色",
+    "s": "端点 · 角色",
+    "d": "GET /v2/sticker/characters",
+    "b": "listCharacters /v2/sticker/characters get Catalog characters this site has stickers of The index a caller syncs against: every catalog character id that has at least one sticker in a published pack, ordered by how many. Characters catalog knows but this site has no material for are absent by design. 供调用方同步的索引：每个在已发布表情包中至少有一张表情的 catalog 角色 id，按数量排序。catalog 认识但该站没有素材的角色，按设计不会出现。 limit page q work"
+  },
+  {
+    "r": "/docs/sticker/getCharacter",
+    "t": "单个 catalog 角色在该站的样子",
+    "s": "端点 · 角色",
+    "d": "GET /v2/sticker/characters/{character_id}",
+    "b": "getCharacter /v2/sticker/characters/{character_id} get One catalog character, as this site holds it character_id"
+  },
+  {
+    "r": "/docs/sticker/listCharacterStickers",
+    "t": "某个 catalog 角色的全部表情",
+    "s": "端点 · 角色",
+    "d": "GET /v2/sticker/characters/{character_id}/stickers",
+    "b": "listCharacterStickers /v2/sticker/characters/{character_id}/stickers get Every sticker of one catalog character The primary lane. Newest first, published packs only. An empty page and a 404 mean different things: this returns an empty list for a character with no material, and never 404s on the id alone. 主车道。最新在前，只含已发布的表情包。空页与 404 含义不同：角色没有素材时这里返回空列表，绝不会仅因为这个 id 就 404。 character_id limit page"
+  },
+  {
+    "r": "/docs/sticker/listWorks",
+    "t": "该站有素材的 catalog 作品",
+    "s": "端点 · 作品",
+    "d": "GET /v2/sticker/works",
+    "b": "listWorks /v2/sticker/works get Catalog works this site has material for limit page q"
+  },
+  {
+    "r": "/docs/sticker/listWorkPacks",
+    "t": "关于某一部 catalog 作品的表情包",
+    "s": "端点 · 作品",
+    "d": "GET /v2/sticker/works/{work_id}/packs",
+    "b": "listWorkPacks /v2/sticker/works/{work_id}/packs get Packs about one catalog work A pack counts as being about a game if it declares it or holds a sticker of it. The seeded official packs declare nothing and draw on dozens of games each, so the narrow reading would answer nothing for them. 一个表情包只要声明了某部游戏、或含有该游戏的表情，就算是「关于」它。站方预置的官方包一个游戏都不声明，却各自取材自几十部游戏，按窄口径读它们什么都答不出来。 work_id limit page sort nsfw"
+  },
+  {
+    "r": "/docs/sticker/listTags",
+    "t": "标签，用得最多的在前",
+    "s": "端点 · 标签",
+    "d": "GET /v2/sticker/tags",
+    "b": "listTags /v2/sticker/tags get Tags, most used first limit"
   },
   {
     "r": "/problems/platform/malformed-body",

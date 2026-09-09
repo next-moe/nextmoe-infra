@@ -2,7 +2,7 @@
 import { cn } from '@kungal/ui-core'
 import { guideNav } from '~/generated/guides-nav'
 import { DOCS_REFERENCE_NAV } from '~/constants/docs'
-import type { DocsOperation } from '~~/shared/types/docs'
+import type { DocsFace, DocsOperation } from '~~/shared/types/docs'
 
 const route = useRoute()
 const { faces, faceOperationCount } = useDocs()
@@ -10,11 +10,7 @@ const { t } = useDocsI18n()
 
 const query = ref('')
 
-const referenceFace = faces[0]!
-const referenceCount = faceOperationCount(referenceFace)
-const onReference = computed(() =>
-  route.path.startsWith(`/docs/${referenceFace.key}`)
-)
+const onFace = (face: DocsFace) => route.path.startsWith(`/docs/${face.key}`)
 
 const matches = (op: DocsOperation): boolean => {
   const q = query.value.trim().toLowerCase()
@@ -27,11 +23,10 @@ const matches = (op: DocsOperation): boolean => {
   )
 }
 
-const visibleGroups = computed(() =>
-  referenceFace.groups
+const visibleGroups = (face: DocsFace) =>
+  face.groups
     .map((g) => ({ ...g, operations: g.operations.filter(matches) }))
     .filter((g) => g.operations.length > 0)
-)
 const activeOpId = computed(
   () => route.params.operationId as string | undefined
 )
@@ -74,68 +69,73 @@ const linkClass = (to: string) =>
       <p class="text-default-400 px-2 text-xs font-semibold tracking-wide">
         参考
       </p>
-      <NuxtLink
-        :to="`/docs/${referenceFace.key}`"
-        :class="
-          cn(
-            'flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors',
-            onReference
-              ? 'bg-primary-50 text-primary font-medium'
-              : 'text-default-500 hover:bg-default-100 hover:text-foreground'
-          )
-        "
-      >
-        <span>端点参考</span>
-        <span
-          class="bg-default-100 text-default-500 rounded-full px-1.5 text-xs"
+      <template v-for="face in faces" :key="face.key">
+        <NuxtLink
+          :to="`/docs/${face.key}`"
+          :class="
+            cn(
+              'flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors',
+              onFace(face)
+                ? 'bg-primary-50 text-primary font-medium'
+                : 'text-default-500 hover:bg-default-100 hover:text-foreground'
+            )
+          "
         >
-          {{ referenceCount }}
-        </span>
-      </NuxtLink>
-
-      <div v-if="onReference" class="space-y-3 pt-1 pl-2">
-        <div class="relative">
-          <KunIcon
-            name="lucide:search"
-            class="text-default-300 pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2"
-          />
-          <input
-            v-model="query"
-            type="text"
-            aria-label="过滤端点"
-            placeholder="过滤端点…"
-            class="border-default-200 bg-content1 text-foreground placeholder:text-default-300 focus:border-primary w-full rounded-lg border py-1.5 pr-2 pl-8 text-xs focus:outline-none"
-          />
-        </div>
-
-        <div
-          v-for="group in visibleGroups"
-          :key="group.key"
-          class="space-y-0.5"
-        >
-          <p class="text-default-400 px-1 text-xs">{{ group.label }}</p>
-          <NuxtLink
-            v-for="op in group.operations"
-            :key="op.id"
-            :to="`/docs/${referenceFace.key}/${op.id}`"
-            :class="
-              cn(
-                'flex items-center gap-2 rounded-lg px-1.5 py-1 transition-colors',
-                activeOpId === op.id
-                  ? 'bg-primary-50 text-primary'
-                  : 'text-default-500 hover:bg-default-100 hover:text-foreground'
-              )
-            "
+          <span>{{ face.label }}</span>
+          <span
+            class="bg-default-100 text-default-500 rounded-full px-1.5 text-xs"
           >
-            <DocsMethodBadge :method="op.method" size="sm" />
-            <code class="truncate font-mono text-xs">{{ op.path }}</code>
-          </NuxtLink>
-        </div>
+            {{ faceOperationCount(face) }}
+          </span>
+        </NuxtLink>
 
-        <p v-if="!visibleGroups.length" class="text-default-400 px-1 text-xs">
-          没有匹配「{{ query }}」的端点
-        </p>
-      </div>
+        <div v-if="onFace(face)" class="space-y-3 pt-1 pl-2">
+          <div class="relative">
+            <KunIcon
+              name="lucide:search"
+              class="text-default-300 pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2"
+            />
+            <input
+              v-model="query"
+              type="text"
+              aria-label="过滤端点"
+              placeholder="过滤端点…"
+              class="border-default-200 bg-content1 text-foreground placeholder:text-default-300 focus:border-primary w-full rounded-lg border py-1.5 pr-2 pl-8 text-xs focus:outline-none"
+            />
+          </div>
+
+          <div
+            v-for="group in visibleGroups(face)"
+            :key="group.key"
+            class="space-y-0.5"
+          >
+            <p class="text-default-400 px-1 text-xs">{{ group.label }}</p>
+            <NuxtLink
+              v-for="op in group.operations"
+              :key="op.id"
+              :to="`/docs/${face.key}/${op.id}`"
+              :class="
+                cn(
+                  'flex items-center gap-2 rounded-lg px-1.5 py-1 transition-colors',
+                  activeOpId === op.id
+                    ? 'bg-primary-50 text-primary'
+                    : 'text-default-500 hover:bg-default-100 hover:text-foreground'
+                )
+              "
+            >
+              <DocsMethodBadge :method="op.method" size="sm" />
+              <code class="truncate font-mono text-xs">{{ op.path }}</code>
+            </NuxtLink>
+          </div>
+
+          <p
+            v-if="!visibleGroups(face).length"
+            class="text-default-400 px-1 text-xs"
+          >
+            没有匹配「{{ query }}」的端点
+          </p>
+        </div>
+      </template>
 
       <NuxtLink
         v-for="link in DOCS_REFERENCE_NAV"

@@ -26,16 +26,23 @@
  * The galgame face was dropped at wave 146 (2026-07-30): its /v1/galgame
  * projection was delisted and its spec deleted. Wave R3 (2026-08-27) did the
  * same to the whole v1 surface — the catalog public projection, playtime, the
- * user-edit subset, news and store — so one spec file carries the one remaining
- * face, /v2.
+ * user-edit subset, news and store — leaving /v2 as the only first-party face.
+ * The vendored downstream specs in docs/downstream/ carry the federated moyu
+ * and sticker faces alongside it.
  *
  * Operation GROUPING is derived here, not in the specs: the OpenAPI tags put
  * every operation of a face in one bucket, which is no navigation at all for an
  * 90-operation face. The spec YAML is a frozen contract and must not be edited
  * to carry portal IA.
  */
-import { readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import {
+  copyFileSync,
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+  rmSync
+} from 'node:fs'
+import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parse as parseYaml } from 'yaml'
 import {
@@ -61,6 +68,7 @@ const SEARCH_OUT = join(__dirname, '..', 'app/generated/search-index.ts')
 const GUIDES_OUT = join(__dirname, '..', 'app/generated/guides')
 const GUIDES_NAV_OUT = join(__dirname, '..', 'app/generated/guides-nav.ts')
 const PUBLIC_DIR = join(__dirname, '..', 'public')
+const SPECS_DIR = join(PUBLIC_DIR, 'specs')
 
 const refName = (ref) => ref.split('/').pop()
 
@@ -72,7 +80,51 @@ const splitType = (rawType) => {
   }
 }
 
+// The v2 spec has no allOf, so for a long time the builder had no branch for
+// one. The sticker face is written entirely in it — every list response is
+// `allOf: [List, {items}]` — and an unmerged allOf falls through to a bare
+// `object` with no children, which rendered seven of its nine operations with an
+// empty response schema and hid Pack's fields from the overlay entirely.
+const flattenAllOf = (schema, { schemas, seen }) => {
+  const merged = { ...schema }
+  delete merged.allOf
+  const properties = { ...schema.properties }
+  const required = new Set(schema.required)
+  for (const member of schema.allOf) {
+    let sub = member
+    while (sub?.$ref) {
+      const rn = refName(sub.$ref)
+      if (seen.has(rn)) {
+        sub = undefined
+        break
+      }
+      seen.add(rn)
+      sub = schemas[rn]
+      if (!sub) throw new Error(`unresolved $ref: ${member.$ref}`)
+    }
+    if (!sub) continue
+    if (sub.allOf) sub = flattenAllOf(sub, { schemas, seen })
+    Object.assign(properties, sub.properties)
+    for (const key of sub.required || []) required.add(key)
+    merged.type ??= sub.type
+    merged.description ??= sub.description
+  }
+  if (Object.keys(properties).length) merged.properties = properties
+  if (required.size) merged.required = [...required]
+  merged.type ??= 'object'
+  return merged
+}
+
 const buildNode = (schema, { name, required, schemas, seen }) => {
+  if (schema.allOf) {
+    const next = new Set(seen)
+    return buildNode(flattenAllOf(schema, { schemas, seen: next }), {
+      name,
+      required,
+      schemas,
+      seen: next
+    })
+  }
   if (schema.$ref) {
     const rn = refName(schema.$ref)
     if (seen.has(rn)) {
@@ -96,7 +148,7 @@ const buildNode = (schema, { name, required, schemas, seen }) => {
   if (nullable) node.nullable = true
   if (schema.description) node.doc = schema.description
   if (schema.format) node.format = schema.format
-  if (schema.enum) node.enum = schema.enum
+  if (schema.enum) node.enum = stringEnum(schema.enum)
 
   if (primary === 'object' && schema.properties) {
     node.type = 'object'
@@ -192,8 +244,31 @@ const buildCurl = (method, path, params, bodyExample, authHeader) => {
   return lines.join(' \\\n')
 }
 
-const buildParams = (rawParams = []) => {
-  const mapped = rawParams.map((p) => {
+// A JSON Schema enum may list null next to its string members; the model says
+// nullable separately and DocsSchemaNode.enum is string[], so the null member is
+// dropped rather than typed around. moyu's content_limit is the only one today.
+const stringEnum = (values) => values.filter((v) => v !== null)
+
+// Same story as derefResponse: v2 inlines every parameter, both downstream specs
+// share theirs through components/parameters, and an unresolved one produced a
+// param row with no name and no `in` at all.
+const derefParam = (param, paramDefs) => {
+  const seen = new Set()
+  let cur = param
+  while (cur?.$ref) {
+    const rn = refName(cur.$ref)
+    if (seen.has(rn)) break
+    seen.add(rn)
+    const next = paramDefs[rn]
+    if (!next) throw new Error(`unresolved $ref: ${cur.$ref}`)
+    cur = next
+  }
+  return cur
+}
+
+const buildParams = (rawParams = [], paramDefs = {}) => {
+  const mapped = rawParams.map((raw) => {
+    const p = derefParam(raw, paramDefs)
     const s = p.schema || {}
     const { primary } = splitType(s.type)
     const param = {
@@ -205,7 +280,7 @@ const buildParams = (rawParams = []) => {
     if (s.format) param.format = s.format
     if (p.description || s.description)
       param.doc = p.description || s.description
-    if (s.enum) param.enum = s.enum
+    if (s.enum) param.enum = stringEnum(s.enum)
     return param
   })
   return mapped.sort((a, b) => {
@@ -216,6 +291,24 @@ const buildParams = (rawParams = []) => {
 
 const jsonContent = (content) =>
   content?.['application/json'] || content?.['application/problem+json']
+
+// v2 spells every response inline, so a $ref pointing at components/responses
+// used to read as a response with neither description nor schema and rendered as
+// a bare status line. Both downstream specs write their shared 304/400/404/503
+// that way, and sticker writes its 200 that way too.
+const derefResponse = (res, responses) => {
+  const seen = new Set()
+  let cur = res
+  while (cur?.$ref) {
+    const rn = refName(cur.$ref)
+    if (seen.has(rn)) break
+    seen.add(rn)
+    const next = responses[rn]
+    if (!next) throw new Error(`unresolved $ref: ${cur.$ref}`)
+    cur = next
+  }
+  return cur
+}
 
 const authForPath = (faceDef, path) => {
   if (faceDef.key !== 'v2') return faceDef.auth
@@ -237,9 +330,9 @@ const buildOperation = (
   method,
   path,
   op,
-  { schemas, scope, auth, faceAuth }
+  { schemas, responseDefs, paramDefs, scope, auth, faceAuth }
 ) => {
-  const params = buildParams(op.parameters)
+  const params = buildParams(op.parameters, paramDefs)
 
   let requestBody
   let bodyExample
@@ -249,7 +342,8 @@ const buildOperation = (
     bodyExample = sampleValue(bodySchema, { schemas, seen: new Set() })
   }
 
-  const responses = Object.entries(op.responses || {}).map(([status, res]) => {
+  const responses = Object.entries(op.responses || {}).map(([status, raw]) => {
+    const res = derefResponse(raw, responseDefs)
     const schema = jsonContent(res.content)?.schema
     return {
       status,
@@ -311,6 +405,8 @@ const autoGroupDefs = (faceDef, spec) => {
 const buildFace = (faceDef, specs) => {
   const spec = specs.get(faceDef.file)
   const schemas = spec.components?.schemas || {}
+  const responseDefs = spec.components?.responses || {}
+  const paramDefs = spec.components?.parameters || {}
 
   const groupDefs = autoGroupDefs(faceDef, spec)
   const buckets = new Map(groupDefs.map((g) => [g.key, []]))
@@ -337,6 +433,8 @@ const buildFace = (faceDef, specs) => {
       buckets.get(group.key).push(
         buildOperation(method, path, op, {
           schemas,
+          responseDefs,
+          paramDefs,
           scope: scopeFn,
           auth,
           faceAuth: faceDef.auth
@@ -402,7 +500,7 @@ for (const face of model.faces) {
 // A path the prefixes do not claim would vanish from the reference with every
 // other guard still green, which is how five playtime operations shipped
 // documented as catalog ones.
-for (const file of [V2_SPEC]) {
+for (const file of new Set(FACES.map((f) => f.file))) {
   const claimed = new Set(
     model.faces
       .filter((f) => FACES.find((d) => d.key === f.key)?.file === file)
@@ -427,8 +525,9 @@ const out = `/**
  * Auto-generated by scripts/sync-specs.mjs — do not edit by hand.
  * Run \`pnpm --filter developer sync:specs\` after the public specs change.
  *
- * The Tier-A v2 spec projected into the render-friendly DocsModel the
- * /docs/** reference pages consume, one entry per public face.
+ * The Tier-A v2 spec plus the vendored downstream specs, projected into the
+ * render-friendly DocsModel the /docs/** reference pages consume, one entry
+ * per public face.
  */
 import type { DocsModel } from '~~/shared/types/docs'
 
@@ -590,6 +689,18 @@ export const searchIndex: SearchEntry[] = ${JSON.stringify(searchIndex, null, 2)
 )
 console.log(
   `Wrote search index → app/generated/search-index.ts (${searchIndex.length} pages)`
+)
+
+// v2 publishes its own OpenAPI from the running routes, so its specUrl is live
+// and nothing is copied. A downstream face is served by another repo and has no
+// public spec endpoint of its own — the portal serves the vendored mirror.
+const vendoredSpecs = FACES.filter((f) => f.file !== V2_SPEC)
+mkdirSync(SPECS_DIR, { recursive: true })
+for (const faceDef of vendoredSpecs) {
+  copyFileSync(faceDef.file, join(SPECS_DIR, basename(faceDef.file)))
+}
+console.log(
+  `Wrote face specs → public/specs/ (${vendoredSpecs.length} vendored: ${vendoredSpecs.map((f) => basename(f.file)).join(', ')})`
 )
 
 const llmFiles = writeLlmArtifacts(

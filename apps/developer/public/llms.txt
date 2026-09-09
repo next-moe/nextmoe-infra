@@ -33,13 +33,17 @@
 - v1 已于 2026-08-27 全面退役：/v1/catalog、/v1/news、/v1/store、/v1/playtime、/api/v1/catalog 与 /api/v1/user/catalog 一律返回 410，Link 指向 /v2。
 - `/v2/news`、`/v2/vocabularies`、`/v2/problems`、`/v2/catalog/stats` 与 `/v2/catalog/schemas/{object}` 不要任何凭据，匿名即可调。
 
-## 1 个 API
+## 3 个 API
 
 - [Public API v2](https://developer.nextmoe.dev/docs/v2.md)：`/v2`，113 个端点，凭据 Authorization: Bearer nmk_live_…。
+- [moyu 补丁面](https://developer.nextmoe.dev/docs/moyu.md)：`/v2/moyu`，4 个端点，凭据 Authorization: Bearer nmk_live_…。
+- [sticker 表情包面](https://developer.nextmoe.dev/docs/sticker.md)：`/v2/sticker`，9 个端点，凭据 Authorization: Bearer nmk_live_…。
 
 ## OpenAPI 原文（机器可读）
 
 - Public API v2：https://api.nextmoe.dev/v2/catalog/openapi.json
+- moyu 补丁面：https://developer.nextmoe.dev/specs/moyu-openapi.yaml
+- sticker 表情包面：https://developer.nextmoe.dev/specs/sticker-openapi.yaml
 
 游玩时长与编辑提案两个用户面不提供公开 spec 文件，以本站 Markdown 参考为准。
 
@@ -61,6 +65,8 @@
 - [接入用户数据](https://developer.nextmoe.dev/docs/user-data.md) — 用 OAuth 用户访问令牌接入 NextMoe 的用户面：游玩时长、认领、编辑提案、封面投票、资讯投稿，以及审核队列。
 - [原生桌面应用接入](https://developer.nextmoe.dev/docs/native-app.md) — Tauri / Wails 写的游戏管理器怎么读 /v2/catalog：用用户访问令牌而不是塞进二进制的应用密钥，环回回调 + PKCE 的完整流程与两份代码骨架。
 - [生产最佳实践](https://developer.nextmoe.dev/docs/best-practices.md) — 把 NextMoe API 接进生产环境前该检查的事：密钥保管、客户端契约、请求数、错误处理、缓存与监控。
+- [moyu 补丁面接入](https://developer.nextmoe.dev/docs/moyu-patches.md) — 接入 /v2/moyu 只读面：一部游戏在 鲲 Galgame 补丁（www.moyu.moe）上有哪些补丁资源。任意有效应用密钥即可调用，无需 scope；refs= 批量反查、catalog_work_id 回填游戏信息、两种错误方言与缓存约定。
+- [sticker 表情包面接入](https://developer.nextmoe.dev/docs/sticker-packs.md) — 接入 /v2/sticker 只读面：按 catalog 作品与角色身份索引的 Galgame 表情包素材。任意有效应用密钥即可调用，无需 scope；多语言标题、page/limit 翻页、与 catalog 的连接方式、两种错误方言。
 
 ## 页面 Markdown 索引
 
@@ -69,6 +75,8 @@
 - https://developer.nextmoe.dev/index.md — 平台总览
 - https://developer.nextmoe.dev/docs.md — 文档首页（别名 https://developer.nextmoe.dev/docs/index.md）
 - https://developer.nextmoe.dev/docs/v2.md — Public API v2
+- https://developer.nextmoe.dev/docs/moyu.md — moyu 补丁面
+- https://developer.nextmoe.dev/docs/sticker.md — sticker 表情包面
 - https://developer.nextmoe.dev/docs/mcp.md — AI / MCP 接入
 - https://developer.nextmoe.dev/docs/quickstart.md — 快速上手
 - https://developer.nextmoe.dev/docs/authentication.md — 鉴权与凭据
@@ -86,6 +94,8 @@
 - https://developer.nextmoe.dev/docs/user-data.md — 接入用户数据
 - https://developer.nextmoe.dev/docs/native-app.md — 原生桌面应用接入
 - https://developer.nextmoe.dev/docs/best-practices.md — 生产最佳实践
+- https://developer.nextmoe.dev/docs/moyu-patches.md — moyu 补丁面接入
+- https://developer.nextmoe.dev/docs/sticker-packs.md — sticker 表情包面接入
 - https://developer.nextmoe.dev/docs/<face>/<operationId>.md — 单个端点
 - https://developer.nextmoe.dev/problems.md — 全部 42 个错误码（RFC 9457 problem types）
 - https://developer.nextmoe.dev/problems/<domain>/<kebab-code>.md — 单个错误码
