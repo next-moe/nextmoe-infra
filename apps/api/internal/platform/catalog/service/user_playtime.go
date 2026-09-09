@@ -16,7 +16,6 @@ var (
 	ErrPlaytimeClientRequired  = stderrors.New("catalog: a playtime report requires a client id")
 	ErrPlaytimeWorkUnavailable = stderrors.New("catalog: work not available for playtime reporting")
 	ErrPlaytimeMinutesRange    = stderrors.New("catalog: minutes must be between 0 and 60000")
-	ErrPlaytimeBadStatus       = stderrors.New("catalog: unknown playtime status")
 	ErrPlaytimeUnknownSource   = stderrors.New("catalog: unknown external source key")
 	ErrPlaytimeRefUnresolved   = stderrors.New("catalog: no work is anchored to that external id")
 )
@@ -32,14 +31,12 @@ type PlaytimeReport struct {
 	WorkID       int64
 	ClientID     string
 	Minutes      int
-	Status       int16
 	LastPlayedAt *time.Time
 }
 
 type PlaytimeRecord struct {
 	WorkID       int64
 	Minutes      int
-	Status       int16
 	LastPlayedAt *time.Time
 	ClientID     string
 	UpdatedAt    time.Time
@@ -51,7 +48,7 @@ func (s *UserPlaytimeService) Report(ctx context.Context, r PlaytimeReport) (*Pl
 	}
 	row := model.CatalogUserPlaytime{
 		ActorUID: r.ActorUID, WorkID: r.WorkID, ClientID: r.ClientID,
-		Minutes: r.Minutes, Status: r.Status, LastPlayedAt: r.LastPlayedAt,
+		Minutes: r.Minutes, LastPlayedAt: r.LastPlayedAt,
 	}
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := assertReportableWork(tx, r.WorkID); err != nil {
@@ -61,7 +58,6 @@ func (s *UserPlaytimeService) Report(ctx context.Context, r PlaytimeReport) (*Pl
 			Columns: []clause.Column{{Name: "actor_uid"}, {Name: "work_id"}, {Name: "client_id"}},
 			DoUpdates: clause.Assignments(map[string]any{
 				"minutes":        r.Minutes,
-				"status":         r.Status,
 				"last_played_at": r.LastPlayedAt,
 				"updated_at":     time.Now(),
 			}),
@@ -71,7 +67,7 @@ func (s *UserPlaytimeService) Report(ctx context.Context, r PlaytimeReport) (*Pl
 		return nil, err
 	}
 	return &PlaytimeRecord{
-		WorkID: row.WorkID, Minutes: row.Minutes, Status: row.Status,
+		WorkID: row.WorkID, Minutes: row.Minutes,
 		LastPlayedAt: row.LastPlayedAt, ClientID: row.ClientID, UpdatedAt: row.UpdatedAt,
 	}, nil
 }
@@ -123,7 +119,7 @@ func (s *UserPlaytimeService) ListMine(ctx context.Context, uid int64, since tim
 	out := make([]PlaytimeRecord, 0, len(rows))
 	for _, r := range rows {
 		out = append(out, PlaytimeRecord{
-			WorkID: r.WorkID, Minutes: r.Minutes, Status: r.Status,
+			WorkID: r.WorkID, Minutes: r.Minutes,
 			LastPlayedAt: r.LastPlayedAt, ClientID: r.ClientID, UpdatedAt: r.UpdatedAt,
 		})
 	}
@@ -143,7 +139,6 @@ func (s *UserPlaytimeService) CountMine(ctx context.Context, uid int64) (int64, 
 type UserWorkPlaytime struct {
 	WorkID       int64
 	Minutes      int
-	Status       int16
 	LastPlayedAt *time.Time
 	Clients      int
 }
@@ -174,23 +169,15 @@ func (s *UserPlaytimeService) GetMine(ctx context.Context, uid, workID int64) (*
 	}
 	out := UserWorkPlaytime{WorkID: workID, Clients: len(rows)}
 	best := 0
-	finished := false
 	for i, r := range rows {
 		if r.Minutes > rows[best].Minutes {
 			best = i
-		}
-		if r.Status == model.PlaytimeStatusFinished {
-			finished = true
 		}
 		if r.LastPlayedAt != nil && (out.LastPlayedAt == nil || r.LastPlayedAt.After(*out.LastPlayedAt)) {
 			out.LastPlayedAt = r.LastPlayedAt
 		}
 	}
 	out.Minutes = rows[best].Minutes
-	out.Status = rows[best].Status
-	if finished {
-		out.Status = model.PlaytimeStatusFinished
-	}
 	return &out, nil
 }
 
@@ -203,12 +190,6 @@ func validateReport(r PlaytimeReport) error {
 	}
 	if r.Minutes < 0 || r.Minutes > model.PlaytimeMinutesMax {
 		return ErrPlaytimeMinutesRange
-	}
-	switch r.Status {
-	case model.PlaytimeStatusPlaying, model.PlaytimeStatusFinished,
-		model.PlaytimeStatusDropped, model.PlaytimeStatusOnHold:
-	default:
-		return ErrPlaytimeBadStatus
 	}
 	return nil
 }

@@ -2,7 +2,6 @@ package service
 
 import (
 	"testing"
-	"time"
 
 	"api/internal/platform/catalog/model"
 
@@ -11,8 +10,7 @@ import (
 )
 
 func TestValidateReport(t *testing.T) {
-	base := PlaytimeReport{ActorUID: 7, WorkID: 1, ClientID: "kurumi", Minutes: 600,
-		Status: model.PlaytimeStatusFinished}
+	base := PlaytimeReport{ActorUID: 7, WorkID: 1, ClientID: "kurumi", Minutes: 600}
 
 	cases := []struct {
 		name string
@@ -26,7 +24,6 @@ func TestValidateReport(t *testing.T) {
 		{"negative minutes", func(r *PlaytimeReport) { r.Minutes = -1 }, ErrPlaytimeMinutesRange},
 		{"no user", func(r *PlaytimeReport) { r.ActorUID = 0 }, ErrPlaytimeActorRequired},
 		{"no client", func(r *PlaytimeReport) { r.ClientID = "" }, ErrPlaytimeClientRequired},
-		{"a status outside the vocabulary", func(r *PlaytimeReport) { r.Status = 9 }, ErrPlaytimeBadStatus},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -39,18 +36,5 @@ func TestValidateReport(t *testing.T) {
 			}
 			assert.ErrorIs(t, err, c.want)
 		})
-	}
-}
-
-func TestValidateReportAcceptsEveryStatus(t *testing.T) {
-	now := time.Now()
-	for _, st := range []int16{
-		model.PlaytimeStatusPlaying, model.PlaytimeStatusFinished,
-		model.PlaytimeStatusDropped, model.PlaytimeStatusOnHold,
-	} {
-		require.NoError(t, validateReport(PlaytimeReport{
-			ActorUID: 1, WorkID: 1, ClientID: "c", Minutes: 10,
-			Status: st, LastPlayedAt: &now,
-		}), "status %d", st)
 	}
 }

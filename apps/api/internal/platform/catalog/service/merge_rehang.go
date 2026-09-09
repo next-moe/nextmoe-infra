@@ -280,7 +280,6 @@ func workFacetStmts(src, dst int64) []mergeStmt {
 		    WHERE d.work_id = ? AND s.work_id = ? AND s.character_id = d.character_id`, []any{dst, src}, false},
 		{`UPDATE catalog_user_playtime d
 		    SET minutes = GREATEST(d.minutes, s.minutes),
-		        status = CASE WHEN s.status = 1 THEN 1 ELSE d.status END,
 		        last_played_at = GREATEST(d.last_played_at, s.last_played_at),
 		        updated_at = now()
 		    FROM catalog_user_playtime s

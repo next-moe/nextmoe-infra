@@ -53,7 +53,7 @@ func seedPlaytime(t *testing.T, uid, workID int64, minutes int, client string) {
 	now := time.Now().UTC()
 	require.NoError(t, testDB.Create(&model.CatalogUserPlaytime{
 		ActorUID: uid, WorkID: workID, ClientID: client, Minutes: minutes,
-		Status: model.PlaytimeStatusPlaying, CreatedAt: now, UpdatedAt: now,
+		CreatedAt: now, UpdatedAt: now,
 	}).Error)
 }
 

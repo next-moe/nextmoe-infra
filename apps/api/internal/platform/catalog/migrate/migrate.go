@@ -74,7 +74,7 @@ func Run(db *gorm.DB) error {
 		&model.CatalogWorkPopularity{},     // bodyless per-metric popularity counters (step 62 popularity facet)
 		&model.CatalogWorkPlaytime{},       // per-source playtime estimates (step 91 playtime facet — no claimed bridge)
 		&model.CatalogUserPlaytime{},       // per-user/per-client playtime reports; aggregates INTO the row above as source nextmoe
-		&model.CatalogUserWorkState{},      // per-user per-work play state (state/rating track P1); backfilled below from playtime statuses
+		&model.CatalogUserWorkState{},      // per-user per-work play state (state/rating track P1); backfilled below from playtime statuses only while that column still exists
 		&model.CatalogUserFolder{},         // per-user favorite folders (favorites unification wave); canonical store for forum+moyu favorites
 		&model.CatalogUserFolderItem{},     // folder memberships; (owner_uid, updated_at) is the manager-sync cursor
 		&model.CatalogUserFolderImport{},   // source-collection provenance for cmd/import-favorites; makes the backfill re-runnable
@@ -593,18 +593,33 @@ func rawSQL(db *gorm.DB) error {
 	// the form default. Any finished beats dropped beats on_hold across a
 	// user's clients. DO NOTHING keeps re-runs from clobbering later explicit
 	// writes.
-	if err := db.Exec(`
-		INSERT INTO catalog_user_work_state (actor_uid, work_id, state, created_at, updated_at)
-		SELECT actor_uid, work_id,
-		       CASE WHEN bool_or(status = 1) THEN 3
-		            WHEN bool_or(status = 2) THEN 5
-		            ELSE 4 END,
-		       MIN(created_at), MAX(updated_at)
-		  FROM catalog_user_playtime
-		 WHERE status IN (1, 2, 3)
-		 GROUP BY actor_uid, work_id
-		ON CONFLICT (actor_uid, work_id) DO NOTHING`).Error; err != nil {
-		return fmt.Errorf("backfill catalog_user_work_state: %w", err)
+	//
+	// catalog_user_playtime.status is retired. The fold runs only while the
+	// column still exists; the DROP COLUMN immediately below is why. A re-run
+	// after the drop must not error: a fresh database never had the column
+	// (the model no longer declares it), production already folded, and a
+	// straggler still holding the column still needs the fold.
+	hasStatusCol, err := columnExists(db, "catalog_user_playtime", "status")
+	if err != nil {
+		return err
+	}
+	if hasStatusCol {
+		if err := db.Exec(`
+			INSERT INTO catalog_user_work_state (actor_uid, work_id, state, created_at, updated_at)
+			SELECT actor_uid, work_id,
+			       CASE WHEN bool_or(status = 1) THEN 3
+			            WHEN bool_or(status = 2) THEN 5
+			            ELSE 4 END,
+			       MIN(created_at), MAX(updated_at)
+			  FROM catalog_user_playtime
+			 WHERE status IN (1, 2, 3)
+			 GROUP BY actor_uid, work_id
+			ON CONFLICT (actor_uid, work_id) DO NOTHING`).Error; err != nil {
+			return fmt.Errorf("backfill catalog_user_work_state: %w", err)
+		}
+	}
+	if err := db.Exec(`ALTER TABLE catalog_user_playtime DROP COLUMN IF EXISTS status`).Error; err != nil {
+		return fmt.Errorf("drop catalog_user_playtime.status: %w", err)
 	}
 
 	// (8) lang tags that are not language tags (wave 195). Four rows hold a
@@ -649,4 +664,15 @@ func constraintExists(db *gorm.DB, table, name string) (bool, error) {
 		return false, fmt.Errorf("check constraint %s on %s: %w", name, table, err)
 	}
 	return exists, nil
+}
+
+func columnExists(db *gorm.DB, table, column string) (bool, error) {
+	var n int64
+	if err := db.Raw(
+		`SELECT count(*) FROM information_schema.columns WHERE table_name = ? AND column_name = ?`,
+		table, column,
+	).Scan(&n).Error; err != nil {
+		return false, fmt.Errorf("check column %s on %s: %w", column, table, err)
+	}
+	return n > 0, nil
 }

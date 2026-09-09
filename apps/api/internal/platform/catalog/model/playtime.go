@@ -2,13 +2,6 @@ package model
 
 import "time"
 
-const (
-	PlaytimeStatusPlaying  int16 = 0
-	PlaytimeStatusFinished int16 = 1
-	PlaytimeStatusDropped  int16 = 2
-	PlaytimeStatusOnHold   int16 = 3
-)
-
 const PlaytimeMinutesMax = 60_000
 
 const PlaytimeMinutesMin = 10
@@ -21,7 +14,6 @@ type CatalogUserPlaytime struct {
 	WorkID       int64      `gorm:"not null;uniqueIndex:uq_catalog_user_playtime,priority:2;index" json:"work_id"`
 	ClientID     string     `gorm:"not null;uniqueIndex:uq_catalog_user_playtime,priority:3" json:"client_id"`
 	Minutes      int        `gorm:"not null" json:"minutes"`
-	Status       int16      `gorm:"not null" json:"status"`
 	LastPlayedAt *time.Time `json:"last_played_at"`
 	CreatedAt    time.Time  `json:"created_at"`
 	UpdatedAt    time.Time  `gorm:"index:idx_catalog_user_playtime_sync,priority:2" json:"updated_at"`
