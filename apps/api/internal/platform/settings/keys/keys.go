@@ -190,6 +190,7 @@ var live = settings.NewRegistry(
 			AuthTokenEndpointRatePerMinute,
 			AuthStrictRatePerMinute,
 			AuthAllowedEmailDomains,
+			AuthFederationProviders,
 			AuthVerificationResendCooldownSeconds,
 			AuthRegisterGiftPoints,
 		},

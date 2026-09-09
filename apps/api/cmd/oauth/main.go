@@ -20,6 +20,7 @@ import (
 	"api/pkg/oidctoken"
 	"api/pkg/response"
 
+	"api/internal/platform/auth/federation"
 	authHandler "api/internal/platform/auth/handler"
 	authRepo "api/internal/platform/auth/repository"
 	authService "api/internal/platform/auth/service"
@@ -119,10 +120,17 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	creatorAppSvc := authService.NewCreatorApplicationService(authRepo.NewCreatorApplicationRepository(db), userRepo, userBatchSvc)
 	moemoepointSvc := authService.NewMoemoepointService(a.DB.DB(), userRepo)
 	authSvc.WithMoemoepoint(moemoepointSvc)
+
+	fedReg := federation.NewRegistry(cfg)
+	oauthAccountRepo := authRepo.NewOAuthAccountRepository(db)
+	fedSvc := authService.NewFederationService(authSvc, userRepo, oauthAccountRepo, sessionRepo, a.Cache, cfg, fedReg)
+	slog.Info("federation providers configured", "count", fedReg.ConfiguredCount())
+
 	devRepo := devapi.NewRepository(db)
 	siteSvc := siteService.NewSiteService(siteRepository, oauthClientRepo, devRepo)
 
 	authH := authHandler.NewAuthHandler(authSvc, cfg)
+	fedH := authHandler.NewFederationHandler(fedSvc, cfg)
 	oauthH := authHandler.NewOAuthHandler(oauthSvc, cfg)
 	adminH := authHandler.NewAdminHandler(adminSvc)
 	moemoepointH := authHandler.NewMoemoepointHandler(moemoepointSvc)
@@ -224,6 +232,13 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	auth.Post("/refresh", authH.Refresh)
 	auth.Post("/password/forgot", strict, authH.ForgotPassword)
 	auth.Post("/password/reset", strict, authH.ResetPassword)
+
+	fed := auth.Group("/federation")
+	fed.Get("/providers", fedH.Providers)
+	fed.Get("/:provider/start", strict, fedH.Start)
+	fed.Get("/:provider/callback", strict, fedH.Callback)
+	fed.Get("/pending", strict, fedH.Pending)
+	fed.Post("/complete", strict, fedH.Complete)
 
 	authProtected := auth.Group("", middleware.Auth(authSvc))
 	authProtected.Post("/logout", authH.Logout)

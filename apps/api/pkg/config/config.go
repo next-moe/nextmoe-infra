@@ -23,6 +23,7 @@ type Config struct {
 	Redis                   RedisConfig
 	JWT                     JWTConfig
 	OIDC                    OIDCConfig
+	Federation              FederationConfig
 	Mail                    MailConfig
 	OpenSearch              OpenSearchConfig
 	ImageService            ImageServiceConfig
@@ -143,6 +144,16 @@ type ImageClientConfig struct {
 	BaseURL      string
 	ClientID     string
 	ClientSecret string
+}
+
+type FederationProviderConfig struct {
+	ClientID     string
+	ClientSecret string
+}
+
+type FederationConfig struct {
+	Google FederationProviderConfig
+	GitHub FederationProviderConfig
 }
 
 // YmgalConfig is 月幕 Galgame's OpenAPI client. Use the dedicated client 苍麟
@@ -416,6 +427,17 @@ func Load() (*Config, error) {
 		BaseURL:      getEnv("KUN_IMAGE_CLIENT_BASE_URL", defaultBase),
 		ClientID:     getEnv("KUN_IMAGE_CLIENT_ID", ""),
 		ClientSecret: getEnv("KUN_IMAGE_CLIENT_SECRET", ""),
+	}
+
+	cfg.Federation = FederationConfig{
+		Google: FederationProviderConfig{
+			ClientID:     getEnv("KUN_FEDERATION_GOOGLE_CLIENT_ID", ""),
+			ClientSecret: getEnv("KUN_FEDERATION_GOOGLE_CLIENT_SECRET", ""),
+		},
+		GitHub: FederationProviderConfig{
+			ClientID:     getEnv("KUN_FEDERATION_GITHUB_CLIENT_ID", ""),
+			ClientSecret: getEnv("KUN_FEDERATION_GITHUB_CLIENT_SECRET", ""),
+		},
 	}
 
 	cfg.CatalogClient = CatalogClientConfig{

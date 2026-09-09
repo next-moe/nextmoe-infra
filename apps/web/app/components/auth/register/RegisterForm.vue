@@ -251,6 +251,8 @@ const handleRegister = async () => {
       </div>
     </form>
 
+    <AuthFederationButtons />
+
     <div class="border-default-200 mt-8 border-t pt-6 text-sm">
       <p class="text-default-500">
         已有账号？

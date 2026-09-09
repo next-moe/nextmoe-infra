@@ -41,6 +41,17 @@ export interface LoginResponse {
   access_token: string
 }
 
+export interface FederationProvidersResponse {
+  providers: { name: string }[]
+}
+
+export interface FederationPendingResponse {
+  provider: string
+  suggested_name: string
+  email: string
+  email_locked: boolean
+}
+
 export interface RefreshResponse {
   access_token: string
 }

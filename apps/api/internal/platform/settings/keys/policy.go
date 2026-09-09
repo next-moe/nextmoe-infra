@@ -91,6 +91,13 @@ var AuthAllowedEmailDomains = settings.StringList(settings.Meta{
 	"pm.me",
 })
 
+var AuthFederationProviders = settings.StringList(settings.Meta{
+	Name:    "auth.federation_providers",
+	DescEN:  "Third-party login providers shown on the login page, in display order. A provider also needs its client credentials configured via env to actually appear.",
+	DescZH:  "登录页展示的第三方登录方式（按显示顺序）。还需要通过环境变量配置对应的客户端凭据才会实际生效。",
+	Pattern: `^[a-z][a-z0-9_]*$`,
+}, []string{})
+
 var AuthVerificationResendCooldownSeconds = settings.Int(settings.Meta{
 	Name:   "auth.verification_resend_cooldown_seconds",
 	DescEN: "How long a user must wait before requesting another verification code.",
