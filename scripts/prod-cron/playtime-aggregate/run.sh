@@ -1,18 +1,19 @@
 #!/bin/sh
-# Daily playtime aggregation (catalog). Folds the per-user reports that
-# downstream Galgame managers write to /v2/me/playtimes (catalog_user_playtime;
-# /v1/playtime was retired 2026-08-27) into the public per-source estimate
-# (catalog_work_playtime, source `nextmoe`), which the read face already
-# renders alongside vndb and erogamescape without knowing where the number
-# came from.
+# Nightly nextmoe-source aggregates (catalog). Two projections from first-party
+# data onto catalog faces the read path already renders by source_id:
+#   1. playtime median — folds the per-user reports that downstream Galgame
+#      managers write to /v2/me/playtimes (catalog_user_playtime; /v1/playtime
+#      was retired 2026-08-27) into catalog_work_playtime, source `nextmoe`.
+#   2. forum rating mean — folds kungalgame.galgame_rating into
+#      catalog_work_rating, source `nextmoe` (≥3 voters, live kungal claim).
 #
-# Why this must be a job and not a write-time trigger: the published number is
-# a MEDIAN over distinct finishers, so it changes when the POPULATION changes,
-# not only when one person reports. A work sitting at two finishers publishes
-# nothing; the third report makes it eligible, and a report withdrawn below the
-# threshold makes it ineligible again — the tool DELETES in that direction too.
-# Recomputing the whole eligible set daily is the only cheap way to keep those
-# two directions symmetric.
+# Why these must be jobs and not write-time triggers: the published number is
+# an aggregate over a population, so it changes when the POPULATION changes,
+# not only when one person reports. A work sitting at two finishers/raters
+# publishes nothing; the third makes it eligible, and a report withdrawn below
+# the threshold makes it ineligible again — both tools DELETE in that
+# direction too. Recomputing the whole eligible set daily is the only cheap
+# way to keep those two directions symmetric.
 #
 # Safe to re-run at any time: writes are change-detected upserts, so a second
 # pass on an unchanged corpus writes nothing (unchanged=N, written=0).
@@ -64,7 +65,7 @@ run() {
 }
 # The DSN is assembled INSIDE the container from the env snapshot, so the
 # password exists only in that process — never in argv on this host.
-DSNSH='U="${KUN_CATALOG_PG_USER:-$KUN_PG_USER}"; P="${KUN_CATALOG_PG_PASSWORD:-$KUN_PG_PASSWORD}"; CAT="host=127.0.0.1 port=5432 user=$U password=$P dbname=kun_catalog sslmode=disable"'
+DSNSH='U="${KUN_CATALOG_PG_USER:-$KUN_PG_USER}"; P="${KUN_CATALOG_PG_PASSWORD:-$KUN_PG_PASSWORD}"; CAT="host=127.0.0.1 port=5432 user=$U password=$P dbname=kun_catalog sslmode=disable"; FORUM="host=127.0.0.1 port=5432 user=$U password=$P dbname=kungalgame sslmode=disable"'
 
 # A dry pass first, and a ceiling on it. The threshold means a work can only
 # appear once at least three different people have finished it, so organic
@@ -87,6 +88,23 @@ ELIGIBLE=$(sed -n 's/.*eligible=\([0-9]*\).*/\1/p' state/dry.log | tail -1)
 # Apply. Deletions are part of the contract here: a work that fell back under
 # the reporter threshold loses its nextmoe row rather than keeping a stale one.
 run sh -c "$DSNSH"'; aggregate-user-playtime --dsn "$CAT" --apply'
+
+# Forum rating mean onto catalog_work_rating / source nextmoe. Same dry-then-
+# ceiling-then-apply shape: organic daily movement is small, and a four-digit
+# eligible set on a routine day means something other than people rating games
+# moved the numbers.
+run sh -c "$DSNSH"'; aggregate-forum-ratings --dsn "$CAT" --forum-dsn "$FORUM"' > state/ratings-dry.log 2>&1 || {
+  echo "FATAL: ratings dry run failed"; cat state/ratings-dry.log; exit 1; }
+cat state/ratings-dry.log
+RATINGS_ELIGIBLE=$(sed -n 's/.*eligible=\([0-9]*\).*/\1/p' state/ratings-dry.log | tail -1)
+[ -n "$RATINGS_ELIGIBLE" ] || { echo "FATAL: could not read eligible= from the ratings dry run"; exit 1; }
+[ "$RATINGS_ELIGIBLE" -le "$CEILING" ] || {
+  echo "FATAL: $RATINGS_ELIGIBLE works eligible exceeds the ceiling $CEILING — inspect"
+  echo "       kungalgame.galgame_rating for a bulk import before"
+  echo "       letting this publish."
+  exit 1; }
+
+run sh -c "$DSNSH"'; aggregate-forum-ratings --dsn "$CAT" --forum-dsn "$FORUM" --apply'
 
 find logs -name 'run-*.log' ! -name "run-$(date -u +%F).log" -exec gzip -qf {} \;
 find logs -name 'run-*.log.gz' -mtime +90 -delete
