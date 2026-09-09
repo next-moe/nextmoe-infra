@@ -23,6 +23,50 @@ export const DEV_MINTABLE_SCOPES = ['catalog:read', 'store:read'] as const
 // holding it should be the caller's explicit choice.
 export const DEV_DEFAULT_SCOPES = ['catalog:read'] as const
 
+// openid is absent on purpose: the API seeds it into every user_login and
+// returns it in the view, so a checkbox for it could only be a lie. catalog:read
+// is absent for the mirror reason — appAllowedScopes injects it into every app,
+// so it is requestable at /oauth/authorize whether or not it was registered.
+export const DEV_USER_LOGIN_SCOPES: {
+  value: string
+  label: string
+  description: string
+}[] = [
+  {
+    value: 'profile',
+    label: '基本资料',
+    description: '读取用户名、头像等公开资料'
+  },
+  { value: 'email', label: '邮箱', description: '读取用户邮箱地址' },
+  {
+    value: 'playtime:read',
+    label: '游玩时长（读）',
+    description: '读取该用户的游玩时长记录'
+  },
+  {
+    value: 'playtime:write',
+    label: '游玩时长（写）',
+    description: '代该用户上报游玩时长'
+  },
+  {
+    value: 'folder:read',
+    label: '收藏夹（读）',
+    description: '敏感：读取用户的私人收藏夹，需用户明确同意'
+  },
+  {
+    value: 'folder:write',
+    label: '收藏夹（写）',
+    description: '敏感：增删收藏夹与夹内条目，并同时满足读权限'
+  },
+  {
+    value: 'catalog:edit',
+    label: '资料编辑',
+    description: '以用户身份提交条目编辑提案'
+  }
+]
+
+export const MAX_REDIRECT_URIS_PER_APP = 5
+
 export const DEV_CAP_APP_CREATE = 'app.create'
 export const DEV_CAP_APP_MANAGE = 'app.manage'
 export const DEV_CAP_KEY_MINT = 'key.mint'

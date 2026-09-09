@@ -1,5 +1,11 @@
 export type DevAppReviewStatus = '' | 'approved' | 'pending' | 'declined'
 
+export interface DevUserLogin {
+  redirect_uris: string[]
+  scopes: string[]
+  pkce_required: boolean
+}
+
 export interface DevApp {
   client_id: string
   name: string
@@ -12,6 +18,7 @@ export interface DevApp {
   created_at: string
   review_status: DevAppReviewStatus
   review_note?: string
+  user_login?: DevUserLogin | null
 }
 
 export type DevPolicyMode = 'self_service' | 'approval' | 'disabled'

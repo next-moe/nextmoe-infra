@@ -27,7 +27,7 @@
 
 ### 18.2 注册应用
 
-在开发者门户按 [05 §9.2](./05-developer-portal.md) 建一个带 `user_login` 的应用:
+在开发者门户建应用,再到**应用详情页的「用户登录」卡片**开启并配置——建应用的弹窗里没有这一项,表单打的是 `PATCH /api/v1/dev/apps/:client_id`(见 [05 §9.2](./05-developer-portal.md)),开启后回调地址与 scope 随时可改,全程自助:
 
 ```json
 {

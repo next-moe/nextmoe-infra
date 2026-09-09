@@ -185,7 +185,7 @@ curl "https://api.nextmoe.dev/v2/catalog/works?refs=vndb:v19658,bangumi:302835" 
 
 `/v2/me` 与 `/v2/moderation` 读写的是**某个用户自己的东西**——他的游玩时长、他提交的编辑提案、他的认领、他投的封面票。应用密钥在这两个前缀下一律无效，因为它证明不了「哪个用户」。
 
-自 2026-09-06 起用户令牌还能读 `/v2/catalog`：令牌只要带 `catalog:read`（在 `user_login.scopes` 里申请，用户在同意页勾）就行。这条路是给**分发出去的原生客户端**准备的——Tauri / Wails 写的游戏管理器把二进制交到用户手里，里面放不下任何机密，而用户令牌本来就是用户自己的。请求按**用户**计配额（该用户跨所有已授权应用共池），不按应用；`/v2/catalog/claim-events` 与 `/v2/store` 仍只收应用密钥。完整走查见[原生桌面应用接入](/docs/native-app)。
+自 2026-09-06 起用户令牌还能读 `/v2/catalog`：令牌只要带 `catalog:read`（在 `user_login.scopes` 里申请，用户在同意页勾）就行——这份 `user_login` 就在[控制台](/dashboard)应用详情页的「用户登录」卡片上自助配置，回调地址与 scope 都在那里改。这条路是给**分发出去的原生客户端**准备的——Tauri / Wails 写的游戏管理器把二进制交到用户手里，里面放不下任何机密，而用户令牌本来就是用户自己的。请求按**用户**计配额（该用户跨所有已授权应用共池），不按应用；`/v2/catalog/claim-events` 与 `/v2/store` 仍只收应用密钥。完整走查见[原生桌面应用接入](/docs/native-app)。
 
 拿令牌走标准的 OAuth 2.0 授权码 + PKCE：
 
@@ -1389,7 +1389,7 @@ const write = await fetch(url, {
 
 ## 1 · 注册应用
 
-在[控制台](/dashboard)建应用时开启用户登录（`user_login`），三件事随之定死：
+在[控制台](/dashboard)建应用后，进入应用详情页的「用户登录」卡片开启并配置（`user_login`）——回调地址与 scope 随时可改，全程自助，无需联系平台管理员。落下来的配置形如下面这份，三件事随之定死：
 
 ```json
 {
@@ -1404,6 +1404,8 @@ const write = await fetch(url, {
 - **强制 PKCE**。开了用户登录的应用一律是 public client，OAuth 服务在缺 `code_challenge` 时拒签授权码。你**不需要**、也**不应该**在客户端里放 `client_secret`。
 - **回调只收环回**。`http://127.0.0.1/callback` 与 `http://[::1]/callback` 是仅有的明文形状。`localhost` 按名拒——它过主机名解析，可以被指向别处，`127.0.0.1` 不能。自定义 scheme（`myapp://callback`）**不支持**，注册时就被拒。
 - **端口无关匹配**（RFC 8252 §7.3）。注册时写不写端口都行，服务端比对环回回调时忽略端口，scheme / host / path / query 仍精确匹配。运行时监听哪个临时端口由你决定，不必回控制台改注册。
+
+2026-09 有下游读到这一节后在控制台里找不到对应的表单，据此判定回调地址只能由平台管理员代注册——那时门户确实没有这张表单，「用户登录」卡片就是为补上这个缺口而加的。
 
 > [!NOTE]
 > **移动端（Android / iOS）走同样的两条路，不需要自定义 scheme。**
