@@ -1,0 +1,56 @@
+@import 'tailwindcss';
+@import '@kungal/ui-tokens'; /* design tokens (colors, rounded-kun-*, dark variant) + base layer */
+@import '@kungal/ui-vue/style.css'; /* scoped component styles (modal/drawer/lightbox transitions, spoiler, toasts) */
+
+/*
+ * Tailwind v4 ignores node_modules by default, so it must be told to scan the
+ * compiled KunUI packages or the components render unstyled. Paths are relative
+ * to THIS file (app/assets/css/main.css → 3 levels up = the app's node_modules,
+ * where pnpm symlinks this app's direct deps).
+ */
+@source '../../../node_modules/@kungal/ui-vue';
+@source '../../../node_modules/@kungal/ui-core';
+
+/*
+ * Reserve the scrollbar gutter globally so the document width is constant across
+ * routes — otherwise navigating from a scrolling page (profile) to a height-
+ * locked one (login) removes the classic scrollbar's ~15px and the centered
+ * layout shifts sideways. Single-edge `stable` (both-edges is buggy in Chrome);
+ * harmless no-op under overlay scrollbars.
+ */
+html {
+  scrollbar-gutter: stable;
+}
+@supports not (scrollbar-gutter: stable) {
+  html {
+    overflow-y: scroll;
+  }
+}
+
+/*
+ * ── Global corner-radius knob: --kun-radius-scale ───────────────────────────
+ * A single multiplier on ALL corner rounding (default 1 = unchanged), matching
+ * @kungal/ui-tokens ≥0.5.1 and the forum's variable of the same name. KunUI's
+ * own tokens are `calc(<base> * var(--kun-radius-scale, 1))` as of 0.5.1, so
+ * just SETTING this variable scales every KunUI component — we deliberately do
+ * NOT override --radius-kun-* directly (the lib's :root can win that cascade;
+ * --kun-radius-scale is the robust, consumer-owned path). Below we make our own
+ * Tailwind `rounded-*` follow the SAME multiplier, so one value drives both.
+ *
+ *   :root { --kun-radius-scale: 0 }    → square corners everywhere
+ *   :root { --kun-radius-scale: 1.5 }  → 50% rounder everywhere
+ *
+ * rounded-none/full (pills / avatars / switches) are intentionally unscaled.
+ */
+:root {
+  --kun-radius-scale: 1; /* ◀── the one knob (multiplier, base 1) */
+
+  /* Our own Tailwind scale (rounded-sm/md/lg/xl/2xl) follows the same knob.
+   * Bases are the Tailwind v4 defaults, so scale 1 is a no-op. rounded-full
+   * stays 9999px. KunUI's rounded-kun-* already read the knob (0.5.1 tokens). */
+  --radius-sm: calc(0.25rem * var(--kun-radius-scale, 1));
+  --radius-md: calc(0.375rem * var(--kun-radius-scale, 1));
+  --radius-lg: calc(0.5rem * var(--kun-radius-scale, 1));
+  --radius-xl: calc(0.75rem * var(--kun-radius-scale, 1));
+  --radius-2xl: calc(1rem * var(--kun-radius-scale, 1));
+}
