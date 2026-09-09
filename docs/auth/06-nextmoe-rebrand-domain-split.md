@@ -95,7 +95,12 @@ infra 栈是 push→CI→自动 redeploy,**合并本 PR 的那一刻就是切换
    → account 域、CORS 列表、`KUN_FEDERATION_*` 四个、admin 应用的 client secret env);
    在旧控制台创建 `nextmoe-admin` client 行;Google/GitHub 控制台按
    `https://account.nextmoe.com/api/v1/auth/federation/{provider}/callback` 建应用;
-   nextmoe.com 邮件 DNS(SPF/DKIM)。
+   nextmoe.com 邮件 DNS(SPF/DKIM)+ 在邮件服务商(MXroute)创建 `auth@nextmoe.com`
+   邮箱(compose 已切到该发件账号,SMTP host 不变;邮箱不存在则注册/找回邮件全断)。
+   **Traefik 路由注意**:旧 web 服务的 host catch-all 在 Dokploy 域名面板;新
+   account/admin 服务的 catch-all 已改为 compose labels 所有。切换时把面板上
+   oauth.kungal.com 的域名条目删掉,且**永远不要**在面板上给 account/admin 添加
+   域名——compose labels 会整体顶掉面板注入的 labels(2026-07 oauth 404 事故同族)。
 2. **合并 PR** → CI 构建 `infra-account`/`infra-admin` → 自动部署新路由与新应用。
 3. **立即执行**:`go run ./cmd/migrate`(sites 行 UPDATE + admin site + 联邦
    `oauth_accounts` 两个复合唯一索引——#180 的迁移仍未跑,一并落);

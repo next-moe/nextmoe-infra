@@ -78,7 +78,7 @@ func FiberConfig(name string) fiber.Config {
 		//
 		// StrictRouting stays off: cmd/oauth registers `sites.Get("/")` and
 		// `oauthClients.Get("/")`, i.e. /api/v1/sites/ and /api/v1/oauth/clients/,
-		// while apps/web calls them without the trailing slash. Turning it on
+		// while apps/admin calls them without the trailing slash. Turning it on
 		// 404s the admin console's site and OAuth-client pages. The /v2 gate
 		// trims trailing slashes itself instead.
 		CaseSensitive: true,

@@ -36,7 +36,7 @@ name: docs-model
 # into a Chinese page.
 #
 # Sibling gate: openapi-types.yml does the same for the spec -> TS arm in
-# apps/web. This one is the spec -> portal-docs-model arm.
+# apps/admin. This one is the spec -> portal-docs-model arm.
 #
 # No step consumes event-supplied text (titles, branch names, commit messages),
 # so there is no injection surface in the run: blocks below.

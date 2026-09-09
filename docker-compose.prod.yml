@@ -78,10 +78,10 @@ x-infra-env: &infra-env
   # unconditionally. oauth itself ignores it (verifies from its local key set).
   KUN_OIDC_JWKS_URL: http://oauth:9277/oauth/jwks
   # CORS — real https web origins
-  KUN_FRONTEND_CORS_ORIGIN: https://oauth.kungal.com,https://www.kungal.com,https://kungal.com,https://www.moyu.moe,https://moyu.moe
+  KUN_FRONTEND_CORS_ORIGIN: https://account.nextmoe.com,https://admin.nextmoe.dev,https://www.kungal.com,https://kungal.com,https://www.moyu.moe,https://moyu.moe
   # oauth identity URLs
-  KUN_SITE_URL: https://oauth.kungal.com
-  KUN_FRONTEND_URL: https://oauth.kungal.com
+  KUN_SITE_URL: https://account.nextmoe.com
+  KUN_FRONTEND_URL: https://account.nextmoe.com
   # image_service S3 — Cloudflare R2 in prod (keys/endpoint from Dokploy). For
   # self-hosted MinIO set ENDPOINT=http://minio:9000 / FORCE_PATH_STYLE=true.
   # image 服务空 key/secret/bucket 会 os.Exit(1) → 崩溃重启,所以这三个 fail-fast。
@@ -112,10 +112,10 @@ x-infra-env: &infra-env
   KUN_ARTIFACT_S3_CLEANUP_ACCESS_KEY: ${KUN_ARTIFACT_S3_CLEANUP_ACCESS_KEY:-}
   KUN_ARTIFACT_S3_CLEANUP_SECRET_KEY: ${KUN_ARTIFACT_S3_CLEANUP_SECRET_KEY:-}
   # Mail — oauth uses; PASSWORD is the only secret
-  KUN_VISUAL_NOVEL_EMAIL_FROM: 鲲 Galgame OAuth
+  KUN_VISUAL_NOVEL_EMAIL_FROM: NextMoe·未萌
   KUN_VISUAL_NOVEL_EMAIL_HOST: tuesday.mxrouting.net
   KUN_VISUAL_NOVEL_EMAIL_PORT: "587"
-  KUN_VISUAL_NOVEL_EMAIL_ACCOUNT: auth@kungal.com
+  KUN_VISUAL_NOVEL_EMAIL_ACCOUNT: auth@nextmoe.com
   KUN_VISUAL_NOVEL_EMAIL_PASSWORD: ${KUN_VISUAL_NOVEL_EMAIL_PASSWORD:-}
 
 services:
@@ -333,29 +333,40 @@ services:
       KUN_DEV_PORTAL_CLIENT_IDS: ${KUN_DEV_PORTAL_CLIENT_IDS:-}
     expose: ["9277"]
     labels:
-      # Traefik routing for this service on oauth.kungal.com — OWNED HERE, not
-      # in the Dokploy domain panel. Compose-level labels REPLACE Dokploy's
-      # injected domain labels on a service (learned the hard way: adding only
-      # the OIDC metadata router silently dropped the panel's /api/v1 routing
-      # and 404'd the public oauth API). Every route of this service must live
-      # in this block; the host catch-all (account-center web) stays in the
-      # panel — its service carries no compose labels.
+      # Traefik routing for this service on account.nextmoe.com (API + OIDC
+      # metadata) and admin.nextmoe.dev (API) — OWNED HERE, not in the Dokploy
+      # domain panel. Compose-level labels REPLACE Dokploy's injected domain
+      # labels on a service (learned the hard way: adding only the OIDC
+      # metadata router silently dropped the panel's /api/v1 routing and 404'd
+      # the public oauth API). Every route of this service must live in this
+      # block. Host catch-alls for the Nuxt apps live on the account / admin
+      # services, at lower priority than these PathPrefix / OIDC-meta rules.
       traefik.enable: "true"
       # /api/v1 — the public oauth API (replaces the old panel domain rule),
       # with the same http→https redirect parity the panel generated.
-      traefik.http.routers.infra-oauth-api.rule: Host(`oauth.kungal.com`) && PathPrefix(`/api/v1`)
+      traefik.http.routers.infra-oauth-api.rule: Host(`account.nextmoe.com`) && PathPrefix(`/api/v1`)
       traefik.http.routers.infra-oauth-api.entrypoints: websecure
       traefik.http.routers.infra-oauth-api.tls.certresolver: letsencrypt
       traefik.http.routers.infra-oauth-api.service: infra-oauth
-      traefik.http.routers.infra-oauth-api-http.rule: Host(`oauth.kungal.com`) && PathPrefix(`/api/v1`)
+      traefik.http.routers.infra-oauth-api-http.rule: Host(`account.nextmoe.com`) && PathPrefix(`/api/v1`)
       traefik.http.routers.infra-oauth-api-http.entrypoints: web
       traefik.http.routers.infra-oauth-api-http.middlewares: redirect-to-https@file
       traefik.http.routers.infra-oauth-api-http.service: infra-oauth
-      # Public OIDC metadata at the HOST ROOT (iss = https://oauth.kungal.com —
+      # Same /api/v1 pair for the admin console origin so its browser calls stay
+      # same-origin (admin.nextmoe.dev/api/v1 → this service).
+      traefik.http.routers.infra-oauth-admin-api.rule: Host(`admin.nextmoe.dev`) && PathPrefix(`/api/v1`)
+      traefik.http.routers.infra-oauth-admin-api.entrypoints: websecure
+      traefik.http.routers.infra-oauth-admin-api.tls.certresolver: letsencrypt
+      traefik.http.routers.infra-oauth-admin-api.service: infra-oauth
+      traefik.http.routers.infra-oauth-admin-api-http.rule: Host(`admin.nextmoe.dev`) && PathPrefix(`/api/v1`)
+      traefik.http.routers.infra-oauth-admin-api-http.entrypoints: web
+      traefik.http.routers.infra-oauth-admin-api-http.middlewares: redirect-to-https@file
+      traefik.http.routers.infra-oauth-admin-api-http.service: infra-oauth
+      # Public OIDC metadata at the HOST ROOT (iss = https://account.nextmoe.com —
       # issuer, discovery URL, and jwks_uri must share that base). Exposes
       # exactly the two world-readable metadata paths — nothing else at the
-      # root leaves the account-center web.
-      traefik.http.routers.infra-oauth-oidc-meta.rule: Host(`oauth.kungal.com`) && (Path(`/oauth/jwks`) || Path(`/.well-known/openid-configuration`))
+      # root leaves the account-center Nuxt app.
+      traefik.http.routers.infra-oauth-oidc-meta.rule: Host(`account.nextmoe.com`) && (Path(`/oauth/jwks`) || Path(`/.well-known/openid-configuration`))
       traefik.http.routers.infra-oauth-oidc-meta.priority: "30"
       traefik.http.routers.infra-oauth-oidc-meta.entrypoints: websecure
       traefik.http.routers.infra-oauth-oidc-meta.tls.certresolver: letsencrypt
@@ -776,8 +787,57 @@ services:
   # ───────────────────────────── Nuxt frontends ──────────────────────────────
   # Public (browser) config is BAKED into the image at CI build time (build-args in
   # .github/workflows/build.yml). Only the SSR base (service name) is injected here.
-  web:
-    image: ghcr.io/next-moe/infra-web:latest
+  #
+  # web (apps/web on oauth.kungal.com, image ghcr.io/next-moe/infra-web) RETIRED
+  # at the NextMoe rebrand. The image stays in GHCR (retired, never republished
+  # under a new name). Replaced by account + admin below.
+
+  account:
+    image: ghcr.io/next-moe/infra-account:latest
+    pull_policy: always
+    environment:
+      NUXT_API_BASE_SSR: http://oauth:9277/api/v1
+    expose: ["3000"]
+    depends_on:
+      oauth: { condition: service_started }
+    labels:
+      # Catch-all for account.nextmoe.com. Priority 1 loses to oauth's /api/v1
+      # (rule-length default) and OIDC-meta (priority 30) on the same host.
+      # The previous web catch-all lived in the Dokploy domain panel because
+      # that service carried no compose labels; these labels own the route.
+      traefik.enable: "true"
+      traefik.http.routers.infra-account.rule: Host(`account.nextmoe.com`)
+      traefik.http.routers.infra-account.priority: "1"
+      traefik.http.routers.infra-account.entrypoints: websecure
+      traefik.http.routers.infra-account.tls.certresolver: letsencrypt
+      traefik.http.routers.infra-account.service: infra-account
+      traefik.http.routers.infra-account-http.rule: Host(`account.nextmoe.com`)
+      traefik.http.routers.infra-account-http.priority: "1"
+      traefik.http.routers.infra-account-http.entrypoints: web
+      traefik.http.routers.infra-account-http.middlewares: redirect-to-https@file
+      traefik.http.routers.infra-account-http.service: infra-account
+      traefik.http.services.infra-account.loadbalancer.server.port: "3000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('net').connect(3000,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))",
+        ]
+      <<: *svc-health
+    restart: unless-stopped
+    # Safety cap for the upstream Nuxt 4.2.2 SSR leak (nuxt#34071). infra-web
+    # (oauth frontend) is low-traffic (~75 MiB working set), so 1g is generous
+    # headroom; it just prevents an unbounded leak from starving the box, OOM-
+    # recycling via restart: unless-stopped if it ever grows that far.
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  admin:
+    image: ghcr.io/next-moe/infra-admin:latest
     pull_policy: always
     environment:
       NUXT_API_BASE_SSR: http://oauth:9277/api/v1
@@ -787,6 +847,21 @@ services:
     expose: ["3000"]
     depends_on:
       oauth: { condition: service_started }
+    labels:
+      # Catch-all for admin.nextmoe.dev. Priority 1 loses to oauth's
+      # infra-oauth-admin-api PathPrefix(`/api/v1`) on the same host.
+      traefik.enable: "true"
+      traefik.http.routers.infra-admin.rule: Host(`admin.nextmoe.dev`)
+      traefik.http.routers.infra-admin.priority: "1"
+      traefik.http.routers.infra-admin.entrypoints: websecure
+      traefik.http.routers.infra-admin.tls.certresolver: letsencrypt
+      traefik.http.routers.infra-admin.service: infra-admin
+      traefik.http.routers.infra-admin-http.rule: Host(`admin.nextmoe.dev`)
+      traefik.http.routers.infra-admin-http.priority: "1"
+      traefik.http.routers.infra-admin-http.entrypoints: web
+      traefik.http.routers.infra-admin-http.middlewares: redirect-to-https@file
+      traefik.http.routers.infra-admin-http.service: infra-admin
+      traefik.http.services.infra-admin.loadbalancer.server.port: "3000"
     healthcheck:
       test:
         [

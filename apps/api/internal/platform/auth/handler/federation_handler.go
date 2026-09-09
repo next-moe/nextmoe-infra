@@ -16,7 +16,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const federationStateCookieName = "kg_fed_state"
+const federationStateCookieName = "nm_fed_state"
 
 type FederationHandler struct {
 	fedService *service.FederationService
