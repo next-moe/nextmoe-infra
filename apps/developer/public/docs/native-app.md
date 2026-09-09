@@ -295,7 +295,7 @@ POST   /v2/me/folders/<id>/items             → 207，{"items":[{"work_id":"...
 
 | 症状 | 原因 |
 |------|------|
-| 授权时 `15006` | 请求的 scope 不在应用的 `allowed_scopes` 内。到控制台把 `catalog:read` 加进用户登录的 scope。 |
+| 授权时 `15006` | 请求的 scope 没在应用注册的 scope 里。到应用详情页「用户登录」卡片勾上缺的那个，重新授权。`catalog:read` 不会触发它——每个应用无需注册即可请求。 |
 | 换码 `invalid_grant` | `redirect_uri` 与授权那步不是逐字节相同，或 `code_verifier` 对不上 challenge，或码已用过（授权码一次性）。 |
 | `403 SCOPE_REQUIRED` | 打 `/v2/catalog` 而令牌不带 `catalog:read`，或打 `/v2/me/folders` 而不带 `folder:read` / `folder:write`。响应会点名缺哪一个；旧令牌不追认，重新走一次授权。 |
 | `401 INVALID_CREDENTIAL` | 令牌过期，或者你把它打到了 `claim-events` / `/v2/store`——那两处只收应用密钥。 |
