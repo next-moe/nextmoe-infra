@@ -364,7 +364,7 @@ The first two are the same defect shape in a different env var. They are deliber
 |---|---|
 | `POST /v2/me/playtimes` | 207 list of playtime-or-problem items |
 | `POST /v2/me/work-states` | 207 list of work_state-or-problem items |
-| `POST /v2/me/claims` | `work_id` → `Act(claim)`; else `refs` → `LookupEntityID` then claim or mint; else `site_work_id` and/or `field_values` → mint. Every mint is one `SubmitWork` call, `Trusted` from `catalog.edit.trusted` (wave R4). A mint whose titles collide with live same-medium works is refused 409 `DUPLICATE_SUSPECTS` unless `confirm_duplicates` is set; the claiming lanes never reach that gate |
+| `POST /v2/me/claims` | `work_id` → `Act(claim)`; else `refs` → `LookupEntityID` then claim or mint; else `site_work_id`, `field_values` and/or `released` → mint. Every mint is one `SubmitWork` call, `Trusted` from `catalog.claim.trusted` (wave R4 read `catalog.edit.trusted`; split 2026-09-09 so a site can grant "submissions land live" without edit automerge). `released` becomes one curated `catalog_release` row and rides the mint lanes only: with `work_id` it is 422, refs that resolve answer 409 — the same two refusals as `field_values`. A mint whose titles collide with live same-medium works is refused 409 `DUPLICATE_SUSPECTS` unless `confirm_duplicates` is set; the claiming lanes never reach that gate |
 | `GET/PATCH /v2/me/claims/{id}` | `{id}` is catalog work id. PATCH `{state: live\|pending\|withdrawn}` + If-Match, one `Act` call each (publish / submit / withdraw) |
 | `POST /v2/me/edit-images` | multipart `preset` + `file`; `cover`/`screenshot` map to the image service's `catalog_cover`/`catalog_screenshot` |
 | `GET/POST /v2/me/proposals` | `editing.Engine` |
@@ -657,9 +657,18 @@ Decisions behind that table:
   `CreateClaim` never set it, so an editor holding `catalog.edit.trusted` lost
   the privilege by moving to /v2. It is now set on every mint lane. v1 also
   required `!isThirdPartyClient`; that half is **not** reproduced — see below.
-- **`released` is deliberately still absent.** `SubmitWorkParams.Released` stays
-  zero from /v2, so `ErrSubmitInvalidDate` is unreachable here and is not mapped.
-  No caller ever sent it.
+  Since 2026-09-09 the lane reads its own key, **`catalog.claim.trusted`**:
+  on the single `catalog.edit.trusted` key the forum could not grant its
+  moderators "submissions land live, edits still queue" — the same key also
+  switches edit automerge (`AutomergeTrusted`) and `ProposeTrusted` reachability
+  across every site. The code bundles grant admin/ren both keys, so nothing
+  changed for them; the editing engine's `TrustTier` still reads only
+  `catalog.edit.trusted`.
+- **`released` is accepted since 2.21.0** (it was deliberately absent through
+  2.20.x — no caller had ever sent it). The v1 shape returned: `{y, m?, d?}`
+  becomes ONE curated `catalog_release` row on the minted work, because a fresh
+  work has no release row for a `catalog.release` proposal to edit.
+  `ErrSubmitInvalidDate` maps to 422 with pointer `/released`.
 
 On the third-party half of v1's trusted condition: v2 has no notion of a
 third-party client anywhere in `apiv2`, and site binding is **not** structurally

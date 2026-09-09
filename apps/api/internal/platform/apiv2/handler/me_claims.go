@@ -277,7 +277,7 @@ func (c *Catalog) GetMyClaim(ctx context.Context, workID int64) (repr.ClaimRecor
 	return claimRecordFrom(rows[0]), nil
 }
 
-func (c *Catalog) CreateClaim(ctx context.Context, workID, siteWorkID, displayName string, refs []repr.Ref, fields map[string]any, confirmDuplicates bool) (repr.ClaimRecord, error) {
+func (c *Catalog) CreateClaim(ctx context.Context, workID, siteWorkID, displayName string, refs []repr.Ref, fields map[string]any, released catsvc.ReleaseDate, confirmDuplicates bool) (repr.ClaimRecord, error) {
 	if c == nil || c.Claims == nil {
 		return repr.ClaimRecord{}, problem.New(problem.CodeServiceUnavailable, "", "", "claims are not bound.")
 	}
@@ -303,6 +303,13 @@ func (c *Catalog) CreateClaim(ctx context.Context, workID, siteWorkID, displayNa
 				Detail: "work_id and field_values cannot be sent together"}}
 			return repr.ClaimRecord{}, p
 		}
+		if released.Given() {
+			p := problem.New(problem.CodeValidationFailed, "", "",
+				"released applies to a mint; dating an existing work is a catalog.release proposal (POST /v2/me/proposals).")
+			p.Errors = []problem.FieldError{{Pointer: "/released", Reason: problem.ReasonNotAllowedValue,
+				Detail: "work_id and released cannot be sent together"}}
+			return repr.ClaimRecord{}, p
+		}
 		return c.actClaim(ctx, uid, site, wid, siteWorkID)
 	}
 	if len(refs) > 0 {
@@ -322,11 +329,13 @@ func (c *Catalog) CreateClaim(ctx context.Context, workID, siteWorkID, displayNa
 			if id != 0 {
 				// Claiming the match is the behaviour without field_values. With
 				// them the caller asserted content for a work they believe is
-				// new, and claiming would drop the whole map with a 201.
-				if len(fields) > 0 {
+				// new, and claiming would drop the whole map with a 201. released
+				// rides the same rule: it mints a release row, and a claim would
+				// silently drop the date.
+				if len(fields) > 0 || released.Given() {
 					return repr.ClaimRecord{}, problem.New(problem.CodeAlreadyExists, "", "",
 						r.Source+":"+r.ExternalID+" already belongs to work "+repr.ID(id)+
-							"; claim it without field_values, or propose an edit against it.")
+							"; claim it without field_values or released, or propose an edit against it.")
 				}
 				return c.actClaim(ctx, uid, site, id, siteWorkID)
 			}
@@ -356,10 +365,13 @@ func (c *Catalog) CreateClaim(ctx context.Context, workID, siteWorkID, displayNa
 				product = n
 			}
 		}
-		return c.mintClaim(ctx, site, uid, product, crefs, mint, confirmDuplicates)
+		return c.mintClaim(ctx, site, uid, product, crefs, mint, released, confirmDuplicates)
 	}
-	if siteWorkID != "" || len(fields) > 0 {
+	if siteWorkID != "" || len(fields) > 0 || released.Given() {
 		detail := "display_name is required to mint a work from field_values alone."
+		if len(fields) == 0 && siteWorkID == "" {
+			detail = "display_name is required to mint a work from released alone."
+		}
 		product := int64(0)
 		if siteWorkID != "" {
 			detail = "display_name is required to mint a work from site_work_id alone."
@@ -375,7 +387,7 @@ func (c *Catalog) CreateClaim(ctx context.Context, workID, siteWorkID, displayNa
 		if perr != nil {
 			return repr.ClaimRecord{}, perr
 		}
-		return c.mintClaim(ctx, site, uid, product, nil, mint, confirmDuplicates)
+		return c.mintClaim(ctx, site, uid, product, nil, mint, released, confirmDuplicates)
 	}
 	p := problem.New(problem.CodeValidationFailed, "", "", "work_id, refs, site_work_id, or field_values is required.")
 	p.Errors = []problem.FieldError{{Pointer: "/work_id", Reason: problem.ReasonRequired, Detail: "provide work_id, refs, site_work_id, or field_values"}}
@@ -650,6 +662,11 @@ func claimWriteErr(err error) error {
 		}
 		p := problem.New(problem.CodeValidationFailed, "", "", field.Error())
 		p.Errors = []problem.FieldError{{Pointer: "/field_values/" + field.Field, Reason: reason, Detail: field.Error()}}
+		return p
+	}
+	if errors.Is(err, catsvc.ErrSubmitInvalidDate) {
+		p := problem.New(problem.CodeValidationFailed, "", "", err.Error())
+		p.Errors = []problem.FieldError{{Pointer: "/released", Reason: problem.ReasonInvalidFormat, Detail: err.Error()}}
 		return p
 	}
 	switch {

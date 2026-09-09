@@ -18,6 +18,7 @@ var notModeration = map[authz.Permission]string{
 	EditCharacter: "propose side",
 	EditRelease:   "propose side",
 	EditTrusted:   "lands the holder's OWN edit without review; it judges nobody else",
+	ClaimTrusted:  "lands the holder's OWN mint live without review; it judges nobody else",
 }
 
 func TestModerationPermsCoversEveryBundledPermission(t *testing.T) {

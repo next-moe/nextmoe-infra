@@ -39,13 +39,22 @@ func (c *Catalog) policyActor(ctx context.Context) (editing.PolicyContext, error
 // of letmoe's edit surface (editspec/work.go:57). The mint lane lost the other
 // half: it read the permission without the third-party test, so a
 // developer-owned app could publish a claim straight to live.
-func actsAsTrusted(ctx context.Context) bool {
+//
+// Editor and claimant read different keys since 2026-09: on the single key a
+// site could not grant "submissions land live" without also granting edit
+// automerge across every ProposeTrusted lane.
+func actsAsTrustedEditor(ctx context.Context) bool {
 	return !thirdPartyFrom(ctx) &&
 		catalogPerm.Resolver.Can(rolesFrom(ctx), catalogPerm.EditTrusted)
 }
 
+func actsAsTrustedClaimant(ctx context.Context) bool {
+	return !thirdPartyFrom(ctx) &&
+		catalogPerm.Resolver.Can(rolesFrom(ctx), catalogPerm.ClaimTrusted)
+}
+
 func trustTier(ctx context.Context) int16 {
-	if actsAsTrusted(ctx) {
+	if actsAsTrustedEditor(ctx) {
 		return editing.TrustedTier
 	}
 	return 0

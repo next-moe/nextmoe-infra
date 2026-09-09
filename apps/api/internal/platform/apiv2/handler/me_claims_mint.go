@@ -54,15 +54,15 @@ func unionWorkLinks(fields map[string]any, refLinks []any) {
 	fields[editspec.FieldWorkLinks] = out
 }
 
-func (c *Catalog) mintClaim(ctx context.Context, site string, uid, product int64, refs []catsvc.ClaimRef, fields map[string]any, confirmDuplicates bool) (repr.ClaimRecord, error) {
+func (c *Catalog) mintClaim(ctx context.Context, site string, uid, product int64, refs []catsvc.ClaimRef, fields map[string]any, released catsvc.ReleaseDate, confirmDuplicates bool) (repr.ClaimRecord, error) {
 	rating := int16(0)
 	if _, given := fields[editspec.FieldWorkContentRating]; !given {
 		rating = c.Claims.DeriveContentRating(ctx, refs)
 	}
 	res, err := c.Claims.SubmitWork(ctx, catsvc.SubmitWorkParams{
 		Site: site, ProductWorkID: product, ActorUID: uid,
-		ContentRating: rating, Fields: fields,
-		Trusted:           actsAsTrusted(ctx),
+		ContentRating: rating, Fields: fields, Released: released,
+		Trusted:           actsAsTrustedClaimant(ctx),
 		ConfirmDuplicates: confirmDuplicates,
 	})
 	if err != nil {

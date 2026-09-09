@@ -92,19 +92,24 @@ func TestCreateClaimRequiresWorkIDOrRefs(t *testing.T) {
 	ctx := contextWithUser(t.Context(), 7, "client-a")
 	ctx = context.WithValue(ctx, ctxSite, "kungal")
 	cat := &Catalog{Claims: &catsvc.ClaimLifecycleService{}}
-	_, err := cat.CreateClaim(ctx, "", "", "", nil, nil, false)
+	_, err := cat.CreateClaim(ctx, "", "", "", nil, nil, catsvc.ReleaseDate{}, false)
 	p, ok := err.(*problem.Problem)
 	if !ok || p.Code != problem.CodeValidationFailed {
 		t.Fatalf("%v", err)
 	}
-	_, err = cat.CreateClaim(ctx, "", "", "", []repr.Ref{{Source: "vndb", ExternalID: "v1"}}, nil, false)
+	_, err = cat.CreateClaim(ctx, "", "", "", []repr.Ref{{Source: "vndb", ExternalID: "v1"}}, nil, catsvc.ReleaseDate{}, false)
 	if p, ok = err.(*problem.Problem); !ok || p.Code != problem.CodeValidationFailed {
 		t.Fatalf("refs without display_name %v", err)
 	}
-	_, err = cat.CreateClaim(ctx, "12", "", "", nil, map[string]any{editspec.FieldWorkOLang: "ja"}, false)
+	_, err = cat.CreateClaim(ctx, "12", "", "", nil, map[string]any{editspec.FieldWorkOLang: "ja"}, catsvc.ReleaseDate{}, false)
 	if p, ok = err.(*problem.Problem); !ok || p.Code != problem.CodeValidationFailed ||
 		len(p.Errors) != 1 || p.Errors[0].Pointer != "/field_values" {
 		t.Fatalf("work_id with fields %v", err)
+	}
+	_, err = cat.CreateClaim(ctx, "12", "", "", nil, nil, catsvc.ReleaseDate{Y: 2020}, false)
+	if p, ok = err.(*problem.Problem); !ok || p.Code != problem.CodeValidationFailed ||
+		len(p.Errors) != 1 || p.Errors[0].Pointer != "/released" {
+		t.Fatalf("work_id with released %v", err)
 	}
 	_, err = cat.ListMyClaims(ctx, collect.Query{Cursor: "not-an-event-id"}, myClaimFilter{})
 	if p, ok = err.(*problem.Problem); !ok || p.Code != problem.CodeInvalidCursor {

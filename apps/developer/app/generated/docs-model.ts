@@ -80059,7 +80059,7 @@ export const docsModel: DocsModel = {
               "method": "post",
               "path": "/v2/me/claims",
               "summary": "Submit a claim",
-              "description": "Mint or claim a work. work_id claims an existing catalog work. refs= claims the work they resolve to, or mints one from display_name when none match. site_work_id with display_name and neither work_id nor refs mints a work anchored to the site's own id. field_values carries an editing-engine work field map onto any mint lane and may be sent alone, without work_id, refs or site_work_id; it is refused with work_id, and refs that already resolve to a work answer 409 instead of dropping it. A caller holding catalog.edit.trusted mints straight to live rather than pending. A mint whose display_name or catalog.work.titles match live works of the same medium is refused with 409 DUPLICATE_SUSPECTS naming them in suspects[] and nothing is written; re-send with confirm_duplicates=true to mint anyway. The claiming lanes — work_id, and refs that resolve — never hit this gate. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.",
+              "description": "Mint or claim a work. work_id claims an existing catalog work. refs= claims the work they resolve to, or mints one from display_name when none match. site_work_id with display_name and neither work_id nor refs mints a work anchored to the site's own id. field_values carries an editing-engine work field map onto any mint lane and may be sent alone, without work_id, refs or site_work_id; it is refused with work_id, and refs that already resolve to a work answer 409 instead of dropping it. released rides the same mint lanes under the same two refusals and becomes one curated catalog_release row on the minted work. A caller holding catalog.claim.trusted mints straight to live rather than pending. A mint whose display_name or catalog.work.titles match live works of the same medium is refused with 409 DUPLICATE_SUSPECTS naming them in suspects[] and nothing is written; re-send with confirm_duplicates=true to mint anyway. The claiming lanes — work_id, and refs that resolve — never hit this gate. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -80110,6 +80110,31 @@ export const docsModel: DocsModel = {
                         }
                       ]
                     }
+                  },
+                  {
+                    "name": "released",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "d",
+                        "doc": "Release day; 0 or absent means unknown. Requires m.",
+                        "format": "int32",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "m",
+                        "doc": "Release month; 0 or absent means unknown.",
+                        "format": "int32",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "y",
+                        "required": true,
+                        "doc": "Release year.",
+                        "format": "int32",
+                        "type": "integer"
+                      }
+                    ]
                   },
                   {
                     "name": "site_work_id",

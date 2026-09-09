@@ -149,6 +149,7 @@ var live = NewRegistry(
 			{catalogPerm.EditRelease, "Propose an edit on catalog.release through the editing engine (edit existing rows, hide/unhide; no create).", "对 catalog.release 提交编辑提案(只编既有行、隐藏/解除隐藏,不可新建)"},
 			{catalogPerm.EditReleaseReview, "Adjudicate a catalog.release proposal (amend / merge / decline / revert).", "裁决 catalog.release 提案(修订/合入/驳回/回滚)"},
 			{catalogPerm.EditTrusted, "Write at the trusted tier through the editing engine (site ProposeTrusted lanes accept filings directly).", "以受信任层级走编辑引擎写入(站点 trusted 通道直接接受其提交)"},
+			{catalogPerm.ClaimTrusted, "Mint a work submission straight to live, skipping claim review. Does not touch the editing engine.", "建档投稿直接上线、免认领审核(不影响编辑提案走不走审)"},
 		},
 	},
 	Domain{
