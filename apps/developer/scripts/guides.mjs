@@ -35,6 +35,14 @@ export const GUIDE_SECTIONS = [
     key: 'guides',
     label: '集成指南',
     slugs: ['example', 'mirror', 'user-data', 'native-app', 'best-practices']
+  },
+  // Not slugs `moyu` / `sticker`: a guide route is /docs/<slug> and a face
+  // reference is /docs/<faceKey>, so those would have collided with the two
+  // downstream faces — caught by the search index's duplicate-route guard.
+  {
+    key: 'downstream',
+    label: '下游站点面',
+    slugs: ['moyu-patches', 'sticker-packs']
   }
 ]
 

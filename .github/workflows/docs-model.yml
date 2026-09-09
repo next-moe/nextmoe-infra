@@ -48,6 +48,11 @@ on:
       # portal model from it, so a commit touching only the v2 spec skipped
       # this gate and the drift landed on whoever next touched a listed path.
       - "docs/catalog/v2-openapi.yaml"
+      # Same failure shape for the vendored downstream specs: a re-copy that
+      # forgets sync:specs would skip this gate, and public/specs/ is the
+      # served copy of the same files.
+      - "docs/downstream/*.yaml"
+      - "apps/developer/public/specs/**"
       - "apps/developer/scripts/sync-specs.mjs"
       - "apps/developer/scripts/docs-i18n.mjs"
       - "apps/developer/scripts/faces.mjs"

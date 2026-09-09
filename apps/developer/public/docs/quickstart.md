@@ -22,7 +22,7 @@
 
 密钥形如 `nmk_live_…`，尾部带 CRC32 校验位，**只在铸造时显示一次**。它是机密：只放服务端，不要写进前端包、移动端二进制或公开仓库。开发联调可以铸 `nmk_test_` 前缀的测试密钥。分发出去的桌面客户端没有服务端可放，读目录数据请改用用户访问令牌——见[原生桌面应用接入](/docs/native-app)。
 
-自助可勾选的 scope 有两个——`catalog:read`（读目录数据）与 `store:read`（商店联盟链接）。`/v2/moyu/*` 与 `/v2/sticker/*` 两个下游面不需要任何 scope，任意有效密钥都能调。`claim_events:read` 由运营方按需授予，不能自助勾选。
+自助可勾选的 scope 有两个——`catalog:read`（读目录数据）与 `store:read`（商店联盟链接）。[`/v2/moyu/*`](/docs/moyu-patches) 与 [`/v2/sticker/*`](/docs/sticker-packs) 两个下游面不需要任何 scope，任意有效密钥都能调。`claim_events:read` 由运营方按需授予，不能自助勾选。
 
 ## 3 · 发出第一个请求
 
@@ -103,7 +103,8 @@ curl "https://api.nextmoe.dev/v2/catalog/works?refs=vndb:v19658,bangumi:302835" 
 - [鉴权与凭据](/docs/authentication) — 应用密钥 vs 用户访问令牌，以及各自能开哪些面。
 - [数据模型](/docs/concepts) — 六源如何对齐成一条记录，实体族之间怎么连。
 - [全链走查](/docs/example) — 用两个真实系列走通搜索 → 详情 → 厂牌 → 反查。
-- [端点参考](/docs/v2) — 88 个端点的参数、响应与 curl 示例。
+- [端点参考](/docs/v2) — 113 个端点的参数、响应与 curl 示例。
+- [下游站点面](/docs/moyu-patches) — 补丁与表情包两个联邦面：同一把密钥，不需要任何 scope。
 
 ---
 本页来源 · NextMoe 开发者平台 · https://developer.nextmoe.dev/docs/quickstart

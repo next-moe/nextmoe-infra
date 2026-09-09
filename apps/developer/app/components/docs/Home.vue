@@ -16,7 +16,8 @@ useSeoMeta({
     'NextMoe 开放 API v2 文档：快速上手、鉴权、数据模型、协议约定、集成指南与全部端点参考。'
 })
 
-const referenceFace = faces[0]!
+const v2Face = faces.find((f) => f.key === 'v2')!
+const v2Operations = faceOperationCount(v2Face)
 const totalOperations = computed(() =>
   faces.reduce((n, f) => n + faceOperationCount(f), 0)
 )
@@ -39,12 +40,13 @@ const firstCall = `curl "https://api.nextmoe.dev/v2/catalog/works?limit=3" \\
       <p class="text-default-500 mt-3 max-w-2xl leading-relaxed">
         同一部作品在 VNDB、Bangumi、DLsite、ErogameScape、Ci-en、Getchu
         六个源各有一个页面。我们把它们对齐成一条记录，逐字段给出裁定后的标准答案，并附上这个答案取自哪个源——
-        <strong class="text-foreground">{{ totalOperations }} 个端点</strong
-        >，全部在
+        <strong class="text-foreground">{{ v2Operations }} 个端点</strong>，都在
         <NuxtLink to="/docs/v2" class="text-primary hover:underline"
           >v2</NuxtLink
         >
-        这一个公开面上。调用与编辑完全免费，自助铸密钥，无需申请。
+        这一个公开面上。另有 moyu 补丁与 sticker
+        表情包两个下游站点面接在同一把密钥后面，合计
+        {{ totalOperations }} 个端点。调用与编辑完全免费，自助铸密钥，无需申请。
       </p>
       <div class="mt-6 flex flex-wrap items-center gap-3">
         <KunButton color="primary" @click="navigateTo('/docs/quickstart')">
@@ -224,26 +226,33 @@ const firstCall = `curl "https://api.nextmoe.dev/v2/catalog/works?limit=3" \\
       <h2 class="text-foreground text-lg font-semibold">参考</h2>
       <div class="mt-4 grid gap-4 md:grid-cols-2">
         <NuxtLink
-          :to="`/docs/${referenceFace.key}`"
+          v-for="face in faces"
+          :key="face.key"
+          :to="`/docs/${face.key}`"
           class="group border-default-200 bg-content1 hover:border-primary rounded-xl border p-5 transition-colors"
         >
           <div class="flex items-center justify-between">
             <div
               class="bg-default-100 text-foreground flex size-10 items-center justify-center rounded-lg"
             >
-              <KunIcon
-                :name="DOCS_FACE_META[referenceFace.key].icon"
-                class="size-5"
-              />
+              <KunIcon :name="DOCS_FACE_META[face.key].icon" class="size-5" />
             </div>
-            <span
-              class="bg-default-100 text-default-500 rounded-full px-2.5 py-1 text-xs font-medium"
-            >
-              {{ faceOperationCount(referenceFace) }} 端点
-            </span>
+            <div class="flex items-center gap-2">
+              <span
+                v-if="DOCS_FACE_META[face.key].badge"
+                class="bg-warning-50 text-warning-600 rounded-full px-2.5 py-1 text-xs font-medium"
+              >
+                {{ DOCS_FACE_META[face.key].badge }}
+              </span>
+              <span
+                class="bg-default-100 text-default-500 rounded-full px-2.5 py-1 text-xs font-medium"
+              >
+                {{ faceOperationCount(face) }} 端点
+              </span>
+            </div>
           </div>
           <h3 class="text-foreground mt-4 text-base font-semibold">
-            端点参考 · {{ referenceFace.name }}
+            端点参考 · {{ face.name }}
           </h3>
           <p class="text-default-500 mt-1 text-sm leading-relaxed">
             每个端点的参数、响应 schema 与可直接运行的 curl 示例。
@@ -273,8 +282,8 @@ const firstCall = `curl "https://api.nextmoe.dev/v2/catalog/works?limit=3" \\
             </li>
             <li>
               <a
-                v-if="referenceFace.specUrl"
-                :href="referenceFace.specUrl"
+                v-if="v2Face.specUrl"
+                :href="v2Face.specUrl"
                 class="text-primary hover:underline"
               >
                 OpenAPI 原文

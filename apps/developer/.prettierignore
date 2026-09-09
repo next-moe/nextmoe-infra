@@ -26,3 +26,4 @@ logs
 # Auto-generated (icons + bundled public specs) — never hand-edit
 app/assets/kun-icons.ts
 app/generated
+public/specs
