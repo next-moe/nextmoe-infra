@@ -259,6 +259,14 @@ services:
       <<: *infra-env
       KUN_FIBER_SERVER_HOST: 0.0.0.0
       KUN_FIBER_SERVER_PORT: "9277"
+      # Google/GitHub federation (docs/auth/05). PR #180 shipped the Go readers
+      # but never listed these here, and panel vars that compose doesn't list
+      # never reach the container — empty creds silently register no providers,
+      # so flipping auth.federation_providers would only render dead buttons.
+      KUN_FEDERATION_GOOGLE_CLIENT_ID: ${KUN_FEDERATION_GOOGLE_CLIENT_ID:-}
+      KUN_FEDERATION_GOOGLE_CLIENT_SECRET: ${KUN_FEDERATION_GOOGLE_CLIENT_SECRET:-}
+      KUN_FEDERATION_GITHUB_CLIENT_ID: ${KUN_FEDERATION_GITHUB_CLIENT_ID:-}
+      KUN_FEDERATION_GITHUB_CLIENT_SECRET: ${KUN_FEDERATION_GITHUB_CLIENT_SECRET:-}
       # Image-service client for AVATAR uploads (POST /auth/me/avatar,
       # /admin/users/:uuid/avatar). Without these the oauth process builds no
       # imgClient, so the avatar route isn't even registered → 404 "无法更改头像".
