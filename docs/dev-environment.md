@@ -330,7 +330,7 @@ mutated.
 | `kungal_password` / `moyu_password` | **bcrypt** of `kungal-dev`(legacy 列走 bcrypt 校验,算法与主列不同) |
 | `users.ip`, `kungalgame_patch."user".ip`, `images.first_uploader_ip` | emptied |
 | `oauth_clients.secret` | `sha256:` + hex(sha256(**`dev-secret-<client_id>`**)) — a client presenting the plaintext `dev-secret-<client_id>` authenticates |
-| `oauth_clients.redirect_uris` | first-party localhost dev callbacks ensured present (forum :2333, patch :6969, wiki :9421) |
+| `oauth_clients.redirect_uris` | first-party localhost dev callbacks ensured present (forum :2333, patch :6969) |
 | `sessions`, `authorization_codes`, `password_resets`, `signing_keys`, `oauth_accounts` tokens | emptied (signing_keys: dev runs HS256 / self-bootstraps a fresh KEK) |
 | private chat + DM content (`chat_message`, `message`, `user_message`, edit history) | `[dev-scrubbed] …` synthetic text |
 | `kun_community` **held** posts (`status=1`) body + `community_flag.note` | `[dev-scrubbed] …` synthetic text |
@@ -419,7 +419,7 @@ universal three steps:
 | --- | --- | --- | --- | --- |
 | kun-galgame-forum (kungal) | 2334 / 2333 | `apps/api`, `apps/web` | `4ed9bc99ec0a789a4796b83e22bd84c5` | `http://127.0.0.1:2333/auth/callback` |
 | kun-galgame-patch (moyu) | 5214 / 6969 | `apps/api`, `apps/web` | `df3ff6008d740bfacbe46aa8cf483cf2` | `http://127.0.0.1:6969/auth/callback` |
-| infra `apps/web` (account center) | — / 9420 | `apps/web` | session-based (n/a) | — |
+| infra `apps/account` (account center) | — / 9420 | `apps/account` | session-based (n/a) | — |
 | kun-letmoe-community | 7001 / 5364 | `apps/api`, `apps/web` | `letmoe-dev` (seed once, below) | `http://127.0.0.1:5364/auth/callback` |
 
 Confidential clients (forum / moyu) present the plaintext `dev-secret-<client_id>`;

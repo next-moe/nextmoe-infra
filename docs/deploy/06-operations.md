@@ -108,7 +108,8 @@ docker image prune          # 清悬空镜像
 
 各 web/api 前面套 Caddy/Traefik,按域名分流并终止 TLS。示例(Caddy):
 ```
-oauth.kungal.com   → infra web:3000     ;  /api/* → oauth:9277
+account.nextmoe.com → infra account:3000 ;  /api/v1/* + /oauth/jwks + /.well-known/* → oauth:9277
+admin.nextmoe.dev    → infra admin:3000   ;  /api/v1/* → oauth:9277
 www.kungal.com     → kungal web:7777
 www.moyu.moe       → moyu web:3000    ;  /api/* → moyu moyu-api:5214
 image.kungal.com   → minio:9000/kun-images   (或 CDN 回源 MinIO)

@@ -389,7 +389,7 @@ Within each, the order is load-bearing.
 - [ ] Set a strong random **`KUN_OIDC_KEY_ENC_KEY`** on the **oauth** service (the KEK that encrypts
   signing keys). **Immutable once set** — changing it makes existing encrypted keys undecryptable.
 - [ ] Redeploy oauth → verify `{issuer}/.well-known/openid-configuration` and `{issuer}/oauth/jwks`
-  return 200 with the two published keys. (`issuer` = `KUN_SITE_URL`, e.g. `https://oauth.kungal.com`.)
+  return 200 with the two published keys. (`issuer` = `KUN_SITE_URL`, e.g. `https://account.nextmoe.com`.)
 
 ### 12.1 Asymmetric signing — flip `KUN_OIDC_SIGN_ASYMMETRIC`
 Makes access tokens ES256 (JWKS-verifiable) instead of HS256. Verifiers are already accept-both

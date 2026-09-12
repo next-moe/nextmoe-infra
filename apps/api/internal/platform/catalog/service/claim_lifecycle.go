@@ -451,7 +451,7 @@ type PendingClaimItem struct {
 	// Scan target for the v2 moderation queue, which lists several states at
 	// once; json:"-" because the admin face this struct also serves lists only
 	// pending claims, so publishing the column there would add a constant to a
-	// first-party contract and drag apps/web's generated types with it.
+	// first-party contract and drag apps/admin's generated types with it.
 	ClaimState       *int16 `json:"-"`
 	SubmittedEventID *int64 `json:"submitted_event_id"`
 }

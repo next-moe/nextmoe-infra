@@ -6,7 +6,7 @@
 # This workflow builds ONLY the images whose inputs changed (path-filtered
 # dynamic matrix):
 #   - go images (oauth/image/artifact/catalog/community/trust/ai + migrate)  ← apps/api/** + Dockerfiles
-#   - web                                          ← apps/web/** + root manifests + nuxt.Dockerfile
+#   - account / admin                              ← apps/account/** / apps/admin/** + root manifests + nuxt.Dockerfile
 #   - tools (infra-tools)                          ← apps/api/** + docker/tools.Dockerfile
 # A docs-only push therefore builds nothing and costs ~1 min (the `changes` job).
 #
@@ -26,7 +26,7 @@
 # stayed behind after the git transfer (unlinked) and are not the pull path
 # any more. compose / cron / doctor must use the same owner namespace.
 #
-# web BAKEs its browser-facing public config from build-args here.
+# account and admin BAKE their browser-facing public config from build-args here.
 name: build-and-push
 
 on:
@@ -69,8 +69,15 @@ jobs:
               - 'docker/go.Dockerfile'
               - 'docker/cgo.Dockerfile'
               - '.github/workflows/build.yml'
-            web:
-              - 'apps/web/**'
+            account:
+              - 'apps/account/**'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'package.json'
+              - 'docker/nuxt.Dockerfile'
+              - '.github/workflows/build.yml'
+            admin:
+              - 'apps/admin/**'
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
               - 'package.json'
@@ -91,12 +98,13 @@ jobs:
           EVENT: ${{ github.event_name }}
           SCOPE: ${{ github.event.inputs.scope }}
           GO: ${{ steps.filter.outputs.go }}
-          WEB: ${{ steps.filter.outputs.web }}
+          ACCOUNT: ${{ steps.filter.outputs.account }}
+          ADMIN: ${{ steps.filter.outputs.admin }}
           DEV: ${{ steps.filter.outputs.developer }}
           TOOLS: ${{ steps.filter.outputs.tools }}
         run: |
           set -euo pipefail
-          # Auto-built on push (path-filtered). web args are baked at build.
+          # Auto-built on push (path-filtered). account/admin args are baked at build.
           push_catalog='[
             {"name":"infra-oauth","file":"docker/cgo.Dockerfile","args":"CMD=oauth","group":"go"},
             {"name":"infra-image","file":"docker/cgo.Dockerfile","args":"CMD=image","group":"go"},
@@ -107,7 +115,8 @@ jobs:
             {"name":"infra-trust","file":"docker/go.Dockerfile","args":"CMD=trust","group":"go"},
             {"name":"infra-ai","file":"docker/go.Dockerfile","args":"CMD=ai","group":"go"},
             {"name":"infra-mcp","file":"docker/go.Dockerfile","args":"CMD=mcp","group":"go"},
-            {"name":"infra-web","file":"docker/nuxt.Dockerfile","args":"APP=web\nPUBLIC_API_BASE=https://oauth.kungal.com/api/v1\nPUBLIC_IMAGE_CDN_BASE=https://image.kungal.iloveren.link","group":"web"},
+            {"name":"infra-account","file":"docker/nuxt.Dockerfile","args":"APP=account\nPUBLIC_API_BASE=https://account.nextmoe.com/api/v1\nPUBLIC_IMAGE_CDN_BASE=https://image.kungal.iloveren.link","group":"account"},
+            {"name":"infra-admin","file":"docker/nuxt.Dockerfile","args":"APP=admin\nPUBLIC_API_BASE=https://admin.nextmoe.dev/api/v1\nPUBLIC_IMAGE_CDN_BASE=https://image.kungal.iloveren.link","group":"admin"},
             {"name":"infra-developer","file":"apps/developer/Dockerfile","args":"","group":"developer"},
             {"name":"infra-tools","file":"docker/tools.Dockerfile","args":"","group":"tools"}
           ]'
@@ -118,8 +127,8 @@ jobs:
               sel=$(jq -cn --argjson c "$push_catalog" '$c')
             fi
           else
-            sel=$(jq -cn --argjson c "$push_catalog" --arg go "$GO" --arg web "$WEB" --arg dev "$DEV" --arg tools "$TOOLS" \
-              '([{g:"go",v:$go},{g:"web",v:$web},{g:"developer",v:$dev},{g:"tools",v:$tools}] | map(select(.v=="true") | .g)) as $grp
+            sel=$(jq -cn --argjson c "$push_catalog" --arg go "$GO" --arg account "$ACCOUNT" --arg admin "$ADMIN" --arg dev "$DEV" --arg tools "$TOOLS" \
+              '([{g:"go",v:$go},{g:"account",v:$account},{g:"admin",v:$admin},{g:"developer",v:$dev},{g:"tools",v:$tools}] | map(select(.v=="true") | .g)) as $grp
                | $c | map(select(.group as $x | $grp | index($x)))')
           fi
           n=$(jq -n --argjson s "$sel" '$s | length')

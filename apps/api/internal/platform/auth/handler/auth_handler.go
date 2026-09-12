@@ -63,7 +63,7 @@ func (h *AuthHandler) clearBrowserCookie(c fiber.Ctx) {
 	})
 }
 
-const browserCookieName = "kg_browser"
+const browserCookieName = "nm_browser"
 
 func (h *AuthHandler) browserID(c fiber.Ctx) string {
 	id := c.Cookies(browserCookieName)

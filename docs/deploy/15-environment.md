@@ -112,8 +112,8 @@
 | `KUN_ENV` | `production` | | 运行模式 |
 | `KUN_FIBER_SERVER_HOST` | `0.0.0.0` | | **容器内必须 0.0.0.0** |
 | `KUN_FIBER_SERVER_PORT` | `9277` | | 监听端口 |
-| `KUN_SITE_URL` | `http://localhost:15005` | | oauth 自身公网地址(邮件/跳转用)→ 生产 `https://oauth.kungal.com` |
-| `KUN_FRONTEND_URL` | `http://localhost:15008` | | admin 前端地址 → 生产 `https://oauth.kungal.com` |
+| `KUN_SITE_URL` | `http://localhost:15005` | | oauth 自身公网地址(邮件/跳转用)→ 生产 `https://account.nextmoe.com` |
+| `KUN_FRONTEND_URL` | `http://localhost:15008` | | 账户前端地址 → 生产 `https://account.nextmoe.com` |
 | `KUN_FRONTEND_CORS_ORIGIN` | `http://localhost:15008,...` | | CORS 白名单(逗号分隔,含 localhost+127.0.0.1) |
 | `KUN_PG_HOST/PORT/USER` | `postgres`/`5432`/`postgres` | | 连库 |
 | `KUN_PG_PASSWORD` | `191007` | 是 | **`config.validate` 要求非空**;= postgres 密码 |
@@ -200,8 +200,8 @@
 | `NODE_ENV` | `production` | |
 | `NUXT_API_BASE_URL` | `http://kungal-api:2334` | **SSR** 内部 base(服务名)——kungal 的 SSR 名是 `..._URL` |
 | `NUXT_PUBLIC_API_BASE_URL` | `http://localhost:15012` | **浏览器** API 地址 → 生产 `https://www.kungal.com` |
-| `NUXT_PUBLIC_OAUTH_SERVER_URL` | `http://localhost:15005/api/v1` | OAuth API(浏览器)→ `https://oauth.kungal.com/api/v1` |
-| `NUXT_PUBLIC_OAUTH_FRONTEND_URL` | `http://localhost:15008` | OAuth 账户中心跳转 → `https://oauth.kungal.com` |
+| `NUXT_PUBLIC_OAUTH_SERVER_URL` | `http://localhost:15005/api/v1` | OAuth API(浏览器)→ `https://account.nextmoe.com/api/v1` |
+| `NUXT_PUBLIC_OAUTH_FRONTEND_URL` | `http://localhost:15008` | OAuth 账户中心跳转 → `https://account.nextmoe.com` |
 | `NUXT_PUBLIC_OAUTH_CLIENT_ID` | (论坛 client) | OAuth 客户端(浏览器) |
 | `NUXT_PUBLIC_OAUTH_REDIRECT_URI` | `http://localhost:15013/auth/callback` | 回调 → `https://www.kungal.com/auth/callback` |
 | `NUXT_PUBLIC_KUN_GALGAME_URL` | `http://localhost:15013` | 站点根 URL(SEO/sitemap)→ `https://www.kungal.com` |
@@ -238,8 +238,8 @@
 |---|---|---|
 | `NUXT_API_BASE_SSR` | `http://moyu-api:5214/api/v1` | **SSR** 内部 base(moyu 的 SSR 名是 `..._SSR`) |
 | `NUXT_PUBLIC_API_BASE` | `http://localhost:15010/api/v1` | **浏览器** API → 生产 `https://www.moyu.moe/api/v1` |
-| `NUXT_PUBLIC_OAUTH_SERVER_URL` | `http://localhost:15005/api/v1` | OAuth API → `https://oauth.kungal.com/api/v1` |
-| `NUXT_PUBLIC_OAUTH_WEB_URL` | `http://localhost:15008` | OAuth 前端跳转 → `https://oauth.kungal.com` |
+| `NUXT_PUBLIC_OAUTH_SERVER_URL` | `http://localhost:15005/api/v1` | OAuth API → `https://account.nextmoe.com/api/v1` |
+| `NUXT_PUBLIC_OAUTH_WEB_URL` | `http://localhost:15008` | OAuth 前端跳转 → `https://account.nextmoe.com` |
 | `NUXT_PUBLIC_OAUTH_CLIENT_ID` | `df3ff6008d740bfacbe46aa8cf483cf2` | OAuth 客户端 |
 | `NUXT_PUBLIC_OAUTH_REDIRECT_URI` | `http://localhost:15011/auth/callback` | 回调 → `https://www.moyu.moe/auth/callback` |
 
@@ -249,7 +249,7 @@
 
 **两套机制,务必分清**(否则改了域名不生效):
 
-| | **infra web / wiki** | **kungal / moyu web** |
+| | **infra account / admin** | **kungal / moyu web** |
 |---|---|---|
 | public 值从哪来 | **构建期烤进镜像**(`PUBLIC_*` build args → `nuxt build`) | **运行期** `NUXT_PUBLIC_*`(Nitro 覆盖 runtimeConfig);prod 在 `docker-compose.prod.yml` 的 `environment:`,dev 在 `docker/web.env` |
 | 为什么 | `oauthClientID`/`oauthRedirectURI` 的运行期 env 名映射别扭,索性 build 时定死 | 标准 Nitro 覆盖,**一次构建到处部署** |
@@ -301,7 +301,8 @@
 |---|---|
 | `infra-oauth` / `infra-image` | `CMD=oauth` / `CMD=image` |
 | `infra-catalog` / `infra-migrate` | `CMD=catalog` / `migrate`(**唯一迁移镜像**:目标由运行参数给,不再有 `infra-migrate-<域>`) |
-| **`infra-web`** | `APP=web`、`PUBLIC_API_BASE=https://oauth.kungal.com/api/v1`、`PUBLIC_IMAGE_CDN_BASE=https://image.kungal.iloveren.link` |
+| **`infra-account`** | `APP=account`、`PUBLIC_API_BASE=https://account.nextmoe.com/api/v1`、`PUBLIC_IMAGE_CDN_BASE=https://image.kungal.iloveren.link` |
+| **`infra-admin`** | `APP=admin`、`PUBLIC_API_BASE=https://admin.nextmoe.dev/api/v1`、`PUBLIC_IMAGE_CDN_BASE=https://image.kungal.iloveren.link` |
 | ~~`infra-wiki`~~ | **已退役(开放 API Phase 2 · W5,2026-07)**:wiki 前端(`apps/wiki`)与 `wiki.kungal.com` 域已退役,`infra-wiki` 镜像不再构建。galgame 富读现由 catalog internal 面(s2s,`nm_` key)承载,无独立 wiki 前端。 |
 | `kungal-api` / `kungal-migrate` / `kungal-web` | `CMD=server` / `CMD=migrate` / (web 无,public 走运行期) |
 | `moyu-api` / `moyu-migrate` / `moyu-web` | `CMD=server` / `CMD=migrate` / `APP=web`(public 走运行期) |

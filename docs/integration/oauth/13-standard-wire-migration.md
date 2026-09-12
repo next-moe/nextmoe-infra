@@ -199,7 +199,7 @@ _ = json.Unmarshal(payload, &tok)
 换成标准配置指向：
 
 ```
-https://oauth.kungal.com/.well-known/openid-configuration
+https://account.nextmoe.com/.well-known/openid-configuration
 ```
 
 但删除动作请放到**第 3 步**（我们切换之后），否则会提前断。
@@ -238,8 +238,8 @@ https://oauth.kungal.com/.well-known/openid-configuration
 另外，**今天就可以**直接对生产验证 discovery 和 JWKS（这两个端点一直是标准格式，不受本次影响）：
 
 ```bash
-curl -s https://oauth.kungal.com/.well-known/openid-configuration | jq .
-curl -s https://oauth.kungal.com/oauth/jwks | jq .
+curl -s https://account.nextmoe.com/.well-known/openid-configuration | jq .
+curl -s https://account.nextmoe.com/oauth/jwks | jq .
 ```
 
 ## 6. 我们需要你回复什么
@@ -262,7 +262,7 @@ curl -s https://oauth.kungal.com/oauth/jwks | jq .
 Auth0 的 **Enterprise → OpenID Connect** 连接类型只需要填 discovery 地址，**不需要任何脚本**：
 
 ```
-https://oauth.kungal.com/.well-known/openid-configuration
+https://account.nextmoe.com/.well-known/openid-configuration
 ```
 
 这是推荐做法 —— 没有自定义代码就没有会过期的自定义代码。
@@ -273,8 +273,8 @@ https://oauth.kungal.com/.well-known/openid-configuration
 
 | 字段 | 值 |
 |------|-----|
-| Authorization URL | `https://oauth.kungal.com/api/v1/oauth/authorize` |
-| Token URL | `https://oauth.kungal.com/api/v1/oauth/token` |
+| Authorization URL | `https://account.nextmoe.com/api/v1/oauth/authorize` |
+| Token URL | `https://account.nextmoe.com/api/v1/oauth/token` |
 | Scope | `openid profile email` |
 
 Fetch User Profile Script：
@@ -283,7 +283,7 @@ Fetch User Profile Script：
 function fetchUserProfile(accessToken, context, callback) {
   request.get(
     {
-      url: 'https://oauth.kungal.com/api/v1/oauth/userinfo',
+      url: 'https://account.nextmoe.com/api/v1/oauth/userinfo',
       headers: {
         Authorization: 'Bearer ' + accessToken,
         Accept: 'application/json'

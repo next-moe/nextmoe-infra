@@ -50,31 +50,31 @@ All multi-session state lives **server-side** in the IdP DB, keyed by an opaque 
 
 | Cookie | Purpose | Attrs |
 |--------|---------|-------|
-| `kg_browser` | Opaque **browser/bag id** — groups all sessions signed in on this browser. The single long-lived anchor. | httpOnly, Secure, SameSite=Lax, IdP host, long-lived, rotated on privilege change |
-| `kg_active` | The **active** account pointer (session id) for this browser. | httpOnly, Secure, SameSite=Lax, IdP host |
+| `nm_browser` | Opaque **browser/bag id** — groups all sessions signed in on this browser. The single long-lived anchor. | httpOnly, Secure, SameSite=Lax, IdP host, long-lived, rotated on privilege change |
+| `nm_active` | The **active** account pointer (session id) for this browser. | httpOnly, Secure, SameSite=Lax, IdP host |
 
 **`sessions` table (extend the existing client-bound session row):**
 
 - `id` (session id = OIDC `sid`)
-- `browser_id` → `kg_browser` (the bag key; **this is the new column** that turns N independent sessions into one switchable bag)
+- `browser_id` → `nm_browser` (the bag key; **this is the new column** that turns N independent sessions into one switchable bag)
 - `user_id`, `client_id` (already client-bound — keep)
 - `refresh_token_hash` (stored server-side — **do not** ship N refresh cookies; the bag holds them)
 - `created_at`, `last_used_at`, `revoked_at` (revocation = set `revoked_at`; powers decision #2)
 - `auth_time`, `acr` (for the admin step-up / `max_age`)
 
-**Why server-side bag (not N cookies):** one opaque `kg_browser` cookie + DB rows avoids cookie bloat, keeps refresh tokens off the client, and makes revocation a single `UPDATE`. (Connect2id's per-session-cookie schema is *one* valid pattern, not a mandate — server-side is cleaner for us.)
+**Why server-side bag (not N cookies):** one opaque `nm_browser` cookie + DB rows avoids cookie bloat, keeps refresh tokens off the client, and makes revocation a single `UPDATE`. (Connect2id's per-session-cookie schema is *one* valid pattern, not a mandate — server-side is cleaner for us.)
 
 ## 4. Flows
 
 ### 4.1 Add an account
 1. App → IdP `/authorize?prompt=login&state=…&code_challenge=…` (or the chooser's "use another account").
-2. IdP authenticates (email/pw or social), creates a new `sessions` row with the **same `browser_id`** (append to the bag), sets it active (`kg_active`).
+2. IdP authenticates (email/pw or social), creates a new `sessions` row with the **same `browser_id`** (append to the bag), sets it active (`nm_active`).
 3. Auth-code → app → exchange for tokens.
 
 ### 4.2 Switch (cross-TLD — the crux)
 1. App "switch account" → redirect to IdP `/authorize?prompt=select_account&state=…&code_challenge=…`.
-2. IdP reads `kg_browser` → loads the bag → renders the **chooser** (name/avatar/email per session). *(If the app passes a target via `login_hint`, the IdP may skip the UI when unambiguous.)*
-3. User picks account B → IdP sets `kg_active`=B → **if B is admin, force re-auth first (§6)** → issues auth-code for B.
+2. IdP reads `nm_browser` → loads the bag → renders the **chooser** (name/avatar/email per session). *(If the app passes a target via `login_hint`, the IdP may skip the UI when unambiguous.)*
+3. User picks account B → IdP sets `nm_active`=B → **if B is admin, force re-auth first (§6)** → issues auth-code for B.
 4. App exchanges the code → swaps to B's tokens. No credential entry (unless step-up).
 
 ### 4.3 Reconcile to global (decision #1, cross-TLD)
@@ -85,12 +85,12 @@ Because the active pointer lives on the IdP domain and apps are cross-TLD, an ap
 
 ### 4.4 Logout (decision #2)
 - **Log out this account**: IdP sets `revoked_at` on that session, removes it from the bag, picks a new active (or none). The app whose tokens are for that account fails its next refresh → logs out. Other apps unaffected.
-- **Log out all**: revoke every session for the `browser_id`, clear `kg_browser`/`kg_active`.
+- **Log out all**: revoke every session for the `browser_id`, clear `nm_browser`/`nm_active`.
 - **Propagation = revocation + short access TTL** (no iframes/back-channel): set the **access-token TTL to ~10–15 min**; every app refreshes via the IdP, and a revoked session makes refresh fail → the app logs out within one TTL. Tighten the TTL if you want faster cross-app logout; that's the only knob.
 
 ## 5. The "global active account" reality (decision #1)
 
-- **Source of truth:** `kg_active` on the IdP. There is no instant cross-TLD push.
+- **Source of truth:** `nm_active` on the IdP. There is no instant cross-TLD push.
 - **Convergence:** each app reconciles via `prompt=none` on load/focus (§4.3).
 - Set expectations in code review: "global" here = *eventually consistent on focus*, not *instant in every background tab*. Make the **active account unmistakable in every app's UI** (avatar + name in the header) so a stale background tab can't cause confusion.
 
