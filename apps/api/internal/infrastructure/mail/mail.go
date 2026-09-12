@@ -39,7 +39,14 @@ func (m *Mailer) SendEmail(to, subject, htmlBody string) error {
 		return fmt.Errorf("mail host not configured")
 	}
 
-	auth := smtp.PlainAuth("", m.cfg.Account, m.cfg.Password, m.cfg.Host)
+	// net/smtp attempts AUTH whenever auth is non-nil and fails with
+	// "smtp: server doesn't support AUTH" when the server does not advertise
+	// it — the dev-stack mailpit doesn't, so an unconditional PlainAuth made
+	// local delivery impossible. Authenticate only when a password is set.
+	var auth smtp.Auth
+	if m.cfg.Password != "" {
+		auth = smtp.PlainAuth("", m.cfg.Account, m.cfg.Password, m.cfg.Host)
+	}
 
 	headers := make(map[string]string)
 	headers["From"] = fmt.Sprintf("%s <%s>", m.cfg.From, m.cfg.Account)
@@ -83,8 +90,10 @@ func (m *Mailer) sendWithTLS(addr string, auth smtp.Auth, to string, msg []byte)
 		return fmt.Errorf("failed to start TLS: %w", err)
 	}
 
-	if err := client.Auth(auth); err != nil {
-		return fmt.Errorf("failed to authenticate: %w", err)
+	if auth != nil {
+		if err := client.Auth(auth); err != nil {
+			return fmt.Errorf("failed to authenticate: %w", err)
+		}
 	}
 
 	if err := client.Mail(m.cfg.Account); err != nil {

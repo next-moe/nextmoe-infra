@@ -207,8 +207,11 @@ const handleChooserAdd = () => {
 }
 
 const goLogin = () => {
+  // force/reauth only on step-up re-entry (authorize reloaded with force=1);
+  // a first-time anonymous login must not get the "switch account" copy.
+  const stepUp = forceLogin.value ? 'force=1&reauth=1&' : ''
   router.push(
-    `/auth/login?force=1&reauth=1&redirect=${encodeURIComponent(currentUrl.value)}`
+    `/auth/login?${stepUp}redirect=${encodeURIComponent(currentUrl.value)}`
   )
 }
 

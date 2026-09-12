@@ -316,7 +316,7 @@ OP 作为上游 Google（OIDC）/ GitHub（OAuth2）的客户端。浏览器在 
 | 方法 | 路径 | 形态 | 说明 |
 |------|------|------|------|
 | GET | `/auth/federation/providers` | JSON | `{providers: [{name}]}`，按设置项 `auth.federation_providers` 的顺序，且仅包含已配置 env 凭据的提供方。默认空数组 = 未开启 |
-| GET | `/auth/federation/:provider/start?redirect=` | 浏览器 302 | 写 `kg_fed_state` cookie 后跳向上游授权页。未启用 → 见下方 error 回跳 |
+| GET | `/auth/federation/:provider/start?redirect=` | 浏览器 302 | 写 `nm_fed_state` cookie 后跳向上游授权页。未启用 → 见下方 error 回跳 |
 | GET | `/auth/federation/:provider/callback` | 浏览器 302 | 上游回跳。成功登录：写 refresh cookie，跳到校验后的 `redirect`；需补全资料：跳 `/auth/federation/complete?token=&redirect=`；失败：跳登录页并带 `error` |
 | GET | `/auth/federation/pending?token=` | JSON | 补全页读取 `{provider, suggested_name, email, email_locked}`。token 过期 → `10018` |
 | POST | `/auth/federation/complete` | JSON | 设用户名+密码（及必要时邮箱验证码）后建号并登录。成功体与 `POST /auth/register` 相同（`LoginResponse` + refresh cookie） |

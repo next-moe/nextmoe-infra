@@ -14,23 +14,32 @@ import (
 )
 
 func TestRotateRefreshToken_CAS_Integration(t *testing.T) {
-	dsn := os.Getenv("TEST_PG_DSN")
+	dsn := os.Getenv("TEST_DATABASE_DSN")
 	if dsn == "" {
-		t.Skip("set TEST_PG_DSN to run (e.g. postgres://postgres:pass@localhost:5432/kun_galgame_infra)")
+		t.Skip("set TEST_DATABASE_DSN to run (scripts/ephemeral-test-db.sh create <slug>)")
 	}
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
+	if err := db.AutoMigrate(&model.User{}, &model.Session{}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
 	repo := NewSessionRepository(db)
 	ctx := context.Background()
 
-	var uid uint
-	if err := db.Raw("SELECT id FROM users ORDER BY id LIMIT 1").Scan(&uid).Error; err != nil || uid == 0 {
-		t.Skip("no users in DB to anchor a test session")
-	}
-
+	// Anchor on a user we create ourselves — an ephemeral test DB has no
+	// ambient rows, and skipping here made the suite green without running.
 	tag := strconv.FormatInt(time.Now().UnixNano(), 10)
+	anchor := &model.User{
+		Name:  "cas-" + tag[len(tag)-10:],
+		Email: "cas-" + tag + "@test.local",
+	}
+	if err := db.Create(anchor).Error; err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+	defer db.Exec("DELETE FROM users WHERE id = ?", anchor.ID)
+	uid := anchor.ID
 	oldRT := "test-cas-rt-old-" + tag
 	s := &model.Session{
 		UserID:       uid,

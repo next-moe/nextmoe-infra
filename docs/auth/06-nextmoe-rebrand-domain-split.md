@@ -125,6 +125,8 @@ infra 栈是 push→CI→自动 redeploy,**合并本 PR 的那一刻就是切换
    联邦 E2E、每个下游站登录回归。
 
 回滚:revert 合并即恢复旧路由与镜像(旧 DNS 宽限期内仍在);会话清空不可逆(D2 已接受)。
+回滚期间旧栈 seed 会重新插入 `oauth.kungal.com` 站点行;再次切回时 migrate 自愈——
+存在 `account.nextmoe.com` 正典行时直接删除重播出来的旧域行(`cmd/migrate/rebrand.go`),无需手工清理。
 
 ## 5. 执行波次
 

@@ -33,7 +33,7 @@
 
 1. Provider not in `registry.Enabled()` (settings list ∩ env-configured adapters) → 302 `/auth/login?error=federation_disabled`.
 2. Generate `state` + `nonce` (`generateSecureToken(32)`), store Redis `federation_state:{state}` = `{provider, nonce, redirect}` for 10 minutes. The stored `redirect` is the raw query value; it is validated only when used.
-3. Set httpOnly cookie `kg_fed_state` (Path `/api/v1/auth/federation`, MaxAge 600, SameSite Lax, Secure in production).
+3. Set httpOnly cookie `nm_fed_state` (Path `/api/v1/auth/federation`, MaxAge 600, SameSite Lax, Secure in production).
 4. 302 to the provider AuthorizeURL. Our `redirect_uri` is always `{SiteURL}/api/v1/auth/federation/{provider}/callback`.
 
 ### 1.2 Callback
@@ -44,15 +44,15 @@ Browser navigation. Query `error` (user cancelled at the provider) → 302 `/aut
 
 | | Condition | Result |
 |---|-----------|--------|
-| A | `state` empty / ≠ `kg_fed_state` cookie, Redis state missing/expired, or stored provider ≠ path | `federation_state`. Redis state row is deleted once read. |
+| A | `state` empty / ≠ `nm_fed_state` cookie, Redis state missing/expired, or stored provider ≠ path | `federation_state`. Redis state row is deleted once read. |
 | B | Provider `Exchange` fails | `federation_failed` |
 | C | Link hit (`FindByProviderSubject`) | banned → `federation_banned`; roles contain `admin` or `ren` → `federation_stepup`; else mint session, outcome **login** |
 | D | No link, email non-empty **and** provider-verified, `FindByEmail` hits | banned / admin / ren as above; same provider already linked to that user under a different subject → `federation_conflict`; else create `oauth_accounts` (tokens NULL), mint session, outcome **login** |
 | E | Anything else (no email, unverified email, or verified email with no matching user) | write `federation_pending:{token}` (30 min), outcome **pending**. A verified email that matches nobody still goes here — new users must set a password. |
 
-Login outcome: set the same `refresh_token` cookie as password login, clear `kg_fed_state`, 302 to the **validated** redirect.
+Login outcome: set the same `refresh_token` cookie as password login, clear `nm_fed_state`, 302 to the **validated** redirect.
 
-Pending outcome: clear `kg_fed_state`, 302 to `{FrontendURL}/auth/federation/complete?token={pending}&redirect={url-escaped raw redirect}`.
+Pending outcome: clear `nm_fed_state`, 302 to `{FrontendURL}/auth/federation/complete?token={pending}&redirect={url-escaped raw redirect}`.
 
 Error outcomes: 302 `{FrontendURL}/auth/login?error={code}` plus `&redirect=` only when the raw redirect is non-empty. Codes: `federation_state`, `federation_failed`, `federation_denied`, `federation_banned`, `federation_stepup`, `federation_conflict`, `federation_disabled`.
 
@@ -101,14 +101,14 @@ Success body is `dto.LoginResponse` (refresh cookie set, no refresh token in JSO
 
 | Cookie | Purpose | Attrs |
 |--------|---------|-------|
-| `kg_fed_state` | CSRF binding for the provider round-trip | httpOnly, Secure in production, SameSite Lax, Path `/api/v1/auth/federation`, MaxAge 600 |
+| `nm_fed_state` | CSRF binding for the provider round-trip | httpOnly, Secure in production, SameSite Lax, Path `/api/v1/auth/federation`, MaxAge 600 |
 | `refresh_token` | Same as password login | httpOnly, Secure in production, SameSite Lax, Path `/api/v1/auth`, 7 days |
-| `kg_browser` | Existing browser/bag id; set on callback/complete the same way as login | httpOnly, Secure in production, SameSite Lax, Path `/` |
+| `nm_browser` | Existing browser/bag id; set on callback/complete the same way as login | httpOnly, Secure in production, SameSite Lax, Path `/` |
 
 ## 3. Security checklist
 
 - [x] **Verified-email gate** — auto-link only when the provider asserts verification; unverified matching email goes to pending and creates no row (account-takeover guard).
-- [x] **State cookie binding** — callback requires `state` == `kg_fed_state`; Redis state is one-time.
+- [x] **State cookie binding** — callback requires `state` == `nm_fed_state`; Redis state is one-time.
 - [x] **admin/ren refusal** — link-hit and verified-email auto-link both refuse `admin`/`ren` with `federation_stepup`.
 - [x] **No tokens in URLs** — access token stays off the query string; refresh is a cookie; pending token is an opaque Redis handle.
 - [x] **No upstream token storage** — Google `id_token` / GitHub `access_token` are used in memory during Exchange only.

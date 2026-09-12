@@ -34,19 +34,43 @@ const (
 // Sessions are not touched. The logout purge is a manual runbook step;
 // migrate is re-run on every deploy and must not DELETE FROM sessions.
 func rebrandNextMoeSites(db *gorm.DB) error {
-	res := db.Exec(`
-		UPDATE sites
-		SET domain = ?, name = ?, description = ?
-		WHERE domain = ?
-	`, opSiteDomain, opSiteName, opSiteName, legacyOPSiteDomain)
-	if res.Error != nil {
-		return res.Error
+	// Once the canonical row exists, a main-built seed (a rollback, or the
+	// stale GHCR migrate image the dev compose runs) re-creates the legacy
+	// oauth.kungal.com row, and the rename below then dies on idx_sites_domain
+	// (SQLSTATE 23505) on every subsequent run — before seedInitialData, so
+	// roles/backfills were silently skipped too. The re-seeded row is a fresh
+	// id carrying no tokens: delete it instead of renaming onto the conflict.
+	var canonical int64
+	if err := db.Model(&siteModel.Site{}).
+		Where("domain = ?", opSiteDomain).
+		Count(&canonical).Error; err != nil {
+		return err
 	}
-	if res.RowsAffected > 0 {
-		slog.Info("rebranded OP site row in place",
-			"from", legacyOPSiteDomain,
-			"to", opSiteDomain,
-			"rows", res.RowsAffected)
+	if canonical > 0 {
+		res := db.Exec(`DELETE FROM sites WHERE domain = ?`, legacyOPSiteDomain)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected > 0 {
+			slog.Info("deleted re-seeded legacy OP site row",
+				"domain", legacyOPSiteDomain,
+				"rows", res.RowsAffected)
+		}
+	} else {
+		res := db.Exec(`
+			UPDATE sites
+			SET domain = ?, name = ?, description = ?
+			WHERE domain = ?
+		`, opSiteDomain, opSiteName, opSiteName, legacyOPSiteDomain)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected > 0 {
+			slog.Info("rebranded OP site row in place",
+				"from", legacyOPSiteDomain,
+				"to", opSiteDomain,
+				"rows", res.RowsAffected)
+		}
 	}
 
 	var existing siteModel.Site

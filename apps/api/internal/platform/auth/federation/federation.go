@@ -82,10 +82,16 @@ func (r *Registry) Enabled() []string {
 	}
 	wanted := keys.AuthFederationProviders.Get()
 	out := make([]string, 0, len(wanted))
+	seen := make(map[string]struct{}, len(wanted))
 	for _, name := range wanted {
-		if _, ok := r.providers[name]; ok {
-			out = append(out, name)
+		if _, ok := r.providers[name]; !ok {
+			continue
 		}
+		if _, dup := seen[name]; dup {
+			continue
+		}
+		seen[name] = struct{}{}
+		out = append(out, name)
 	}
 	return out
 }

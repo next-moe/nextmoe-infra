@@ -14,9 +14,9 @@ import (
 )
 
 func TestUserSiteRole_Integration(t *testing.T) {
-	dsn := os.Getenv("TEST_PG_DSN")
+	dsn := os.Getenv("TEST_DATABASE_DSN")
 	if dsn == "" {
-		t.Skip("set TEST_PG_DSN to run (e.g. postgres://postgres:pass@localhost:5432/kun_galgame_infra)")
+		t.Skip("set TEST_DATABASE_DSN to run (scripts/ephemeral-test-db.sh create <slug>)")
 	}
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
