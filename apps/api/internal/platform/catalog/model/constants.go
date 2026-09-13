@@ -155,6 +155,28 @@ const (
 	SexualExplicit   int16 = 2
 )
 
+// PackagingCoverKinds are the cover rows that photograph the box rather than
+// show the art, and the slot election skips them entirely. The list is the
+// contract, and it is read from two places that must agree: the election, and
+// the shelf audit that decides whether a work could render a safe cover at all.
+// A new packaging kind added to one spelling and not the other splits them
+// silently — the audit would clear a work whose only "safe" row the election
+// refuses to elect.
+var PackagingCoverKinds = []string{"pkgfront", "pkgback", "pkgmed", "pkgcontent", "pkgside"}
+
+var packagingCoverKind = func() map[string]struct{} {
+	m := make(map[string]struct{}, len(PackagingCoverKinds))
+	for _, k := range PackagingCoverKinds {
+		m[k] = struct{}{}
+	}
+	return m
+}()
+
+func IsCoverArt(kind string) bool {
+	_, packaging := packagingCoverKind[kind]
+	return !packaging
+}
+
 const (
 	WorkStatusLive       int16 = 0
 	WorkStatusStub       int16 = 1
