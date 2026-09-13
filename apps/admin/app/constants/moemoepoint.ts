@@ -5,7 +5,8 @@ const STATIC_REASON_LABEL: Record<string, string> = {
   migration: '积分迁移',
   register_gift: '注册欢迎礼',
   daily_checkin: '每日签到',
-  content_removed: '内容被下架'
+  content_removed: '内容被下架',
+  name_change: '修改用户名'
 }
 
 const REF_TYPE_NOUN: Record<string, string> = {

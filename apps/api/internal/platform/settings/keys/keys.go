@@ -193,6 +193,7 @@ var live = settings.NewRegistry(
 			AuthFederationProviders,
 			AuthVerificationResendCooldownSeconds,
 			AuthRegisterGiftPoints,
+			AuthNameChangeCost,
 		},
 	},
 	settings.Domain{

@@ -114,6 +114,19 @@ var AuthRegisterGiftPoints = settings.Int(settings.Meta{
 	Max:    settings.F(10000),
 }, 7)
 
+// The default is the forum's historical price. Its old Nitro endpoint charged 17
+// for a username change; the Go rewrite turned that endpoint into a proxy to
+// PATCH /auth/me and the charge was not carried over, so renaming was free until
+// 2026-09. Keeping the number here rather than in the code is the other half of
+// the fix: a price that only a redeploy can change is a price nobody adjusts.
+var AuthNameChangeCost = settings.Int(settings.Meta{
+	Name:   "auth.name_change_cost",
+	DescEN: "Moemoepoints charged when a user changes their username; 0 makes renaming free.",
+	DescZH: "用户修改用户名时扣除的萌萌点数量;0 表示免费。",
+	Min:    settings.F(0),
+	Max:    settings.F(10000),
+}, 17)
+
 var TrustReportRateWindowMinutes = settings.Int(settings.Meta{
 	Name:   "trust.report_rate_window_minutes",
 	DescEN: "Sliding window over which a reporter's submissions are counted for rate limiting.",

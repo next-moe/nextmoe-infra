@@ -30,6 +30,15 @@ type AdjustParams struct {
 	ActorUserID    uint
 	IdempotencyKey string
 	Note           string
+
+	// RequireNonNegative rejects the adjustment when it would leave the balance
+	// below zero. It is off by default because the ledger deliberately permits a
+	// negative balance so that a reversal or a claw-back is never blocked
+	// (docs/integration/oauth/06-moemoepoint.md §3.1). Only a *paid action* opts
+	// in: "you may not spend what you do not have" is a different rule from
+	// "take back what was wrongly given", and conflating them would make every
+	// correction fail on the users who most need it.
+	RequireNonNegative bool
 }
 
 type AdjustResult struct {
@@ -41,6 +50,28 @@ type AdjustResult struct {
 const maxAbsDelta = 1_000_000
 
 func (s *MoemoepointService) Adjust(ctx context.Context, p AdjustParams) (*AdjustResult, error) {
+	var result *AdjustResult
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var err error
+		result, err = s.AdjustTx(ctx, tx, p)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// AdjustTx is Adjust on a transaction the caller owns, for an action that must
+// be atomic with the charge it makes. Adjust opening its own transaction was
+// once the only entry point, and a paid action written against it could only
+// charge in a *separate* transaction from the thing being paid for — which is
+// how a rename came to be able to commit without its charge, or charge without
+// renaming. Every grant and deduction still goes through this one body
+// (docs/integration/oauth/06-moemoepoint.md §3): a second writer would have to
+// re-derive the idempotency, the bounds and the reason whitelist, and the day
+// one of those rules changes is the day the two copies stop agreeing.
+func (s *MoemoepointService) AdjustTx(ctx context.Context, tx *gorm.DB, p AdjustParams) (*AdjustResult, error) {
 	if p.Delta == 0 || p.Delta > maxAbsDelta || p.Delta < -maxAbsDelta {
 		return nil, errors.NewWithCode(errors.ErrMoemoepointInvalidDelta)
 	}
@@ -50,70 +81,80 @@ func (s *MoemoepointService) Adjust(ctx context.Context, p AdjustParams) (*Adjus
 	if p.IdempotencyKey == "" {
 		return nil, errors.NewWithCode(errors.ErrMissingParam)
 	}
+	tx = tx.WithContext(ctx)
 
-	var result AdjustResult
-	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var existing model.MoemoepointLog
-		e := tx.Where("idempotency_key = ?", p.IdempotencyKey).First(&existing).Error
-		if e == nil {
-			if !sameAdjust(&existing, p) {
-				return errors.NewWithCode(errors.ErrMoemoepointIdemConflict)
-			}
-			var u model.User
-			if err := tx.Select("moemoepoint").First(&u, p.UserID).Error; err != nil {
-				return mapUserErr(err)
-			}
-			result = AdjustResult{Balance: u.Moemoepoint, Applied: false, LogID: existing.ID}
-			return nil
+	var existing model.MoemoepointLog
+	e := tx.Where("idempotency_key = ?", p.IdempotencyKey).First(&existing).Error
+	if e == nil {
+		if !sameAdjust(&existing, p) {
+			return nil, errors.NewWithCode(errors.ErrMoemoepointIdemConflict)
 		}
-		if !stderrors.Is(e, gorm.ErrRecordNotFound) {
-			return e
-		}
-
 		var u model.User
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&u, p.UserID).Error; err != nil {
-			return mapUserErr(err)
+		if err := tx.Select("moemoepoint").First(&u, p.UserID).Error; err != nil {
+			return nil, mapUserErr(err)
 		}
-		newBalance := u.Moemoepoint + p.Delta
+		return &AdjustResult{Balance: u.Moemoepoint, Applied: false, LogID: existing.ID}, nil
+	}
+	if !stderrors.Is(e, gorm.ErrRecordNotFound) {
+		return nil, e
+	}
 
-		log := model.MoemoepointLog{
-			UserID:         p.UserID,
-			Delta:          p.Delta,
-			Reason:         p.Reason,
-			SourceApp:      p.SourceApp,
-			Ref:            p.Ref,
-			ActorUserID:    p.ActorUserID,
-			IdempotencyKey: p.IdempotencyKey,
-			Note:           p.Note,
+	var u model.User
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&u, p.UserID).Error; err != nil {
+		return nil, mapUserErr(err)
+	}
+	newBalance := u.Moemoepoint + p.Delta
+	if p.RequireNonNegative && newBalance < 0 {
+		return nil, errors.NewWithCode(errors.ErrMoemoepointInsufficient)
+	}
+
+	log := model.MoemoepointLog{
+		UserID:         p.UserID,
+		Delta:          p.Delta,
+		Reason:         p.Reason,
+		SourceApp:      p.SourceApp,
+		Ref:            p.Ref,
+		ActorUserID:    p.ActorUserID,
+		IdempotencyKey: p.IdempotencyKey,
+		Note:           p.Note,
+	}
+	res := tx.Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "idempotency_key"}}, DoNothing: true,
+	}).Create(&log)
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	if res.RowsAffected == 0 {
+		var winner model.MoemoepointLog
+		if err := tx.Where("idempotency_key = ?", p.IdempotencyKey).First(&winner).Error; err != nil {
+			return nil, err
 		}
-		res := tx.Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "idempotency_key"}}, DoNothing: true,
-		}).Create(&log)
-		if res.Error != nil {
-			return res.Error
+		if !sameAdjust(&winner, p) {
+			return nil, errors.NewWithCode(errors.ErrMoemoepointIdemConflict)
 		}
-		if res.RowsAffected == 0 {
-			var winner model.MoemoepointLog
-			if err := tx.Where("idempotency_key = ?", p.IdempotencyKey).First(&winner).Error; err != nil {
-				return err
-			}
-			if !sameAdjust(&winner, p) {
-				return errors.NewWithCode(errors.ErrMoemoepointIdemConflict)
-			}
-			result = AdjustResult{Balance: u.Moemoepoint, Applied: false, LogID: winner.ID}
-			return nil
-		}
-		if err := tx.Model(&model.User{}).Where("id = ?", p.UserID).
-			Update("moemoepoint", newBalance).Error; err != nil {
-			return err
-		}
-		result = AdjustResult{Balance: newBalance, Applied: true, LogID: log.ID}
-		return nil
-	})
-	if err != nil {
+		return &AdjustResult{Balance: u.Moemoepoint, Applied: false, LogID: winner.ID}, nil
+	}
+	if err := tx.Model(&model.User{}).Where("id = ?", p.UserID).
+		Update("moemoepoint", newBalance).Error; err != nil {
 		return nil, err
 	}
-	return &result, nil
+	return &AdjustResult{Balance: newBalance, Applied: true, LogID: log.ID}, nil
+}
+
+// NextReasonSeqTx numbers a user's charges of one reason so a repeatable paid
+// action can build a stable idempotency key (§4 requires the caller to generate
+// one). Keying such a charge on its content instead — user plus target name —
+// looks stable and is a loophole: renaming A→B→A→B would find the first key
+// already present and hand out the fourth rename for free. The caller must
+// already hold the user row lock; the count is only stable underneath it.
+func (s *MoemoepointService) NextReasonSeqTx(ctx context.Context, tx *gorm.DB, userID uint, reason string) (int64, error) {
+	var n int64
+	if err := tx.WithContext(ctx).Model(&model.MoemoepointLog{}).
+		Where("user_id = ? AND reason = ?", userID, reason).
+		Count(&n).Error; err != nil {
+		return 0, err
+	}
+	return n + 1, nil
 }
 
 func (s *MoemoepointService) GetBalance(ctx context.Context, userID uint) (int, error) {

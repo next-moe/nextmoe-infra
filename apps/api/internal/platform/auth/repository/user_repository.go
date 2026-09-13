@@ -168,13 +168,45 @@ func (r *UserRepository) UpdateEmail(ctx context.Context, uuid string, email str
 }
 
 func (r *UserRepository) UpdateProfile(ctx context.Context, uuid string, fields map[string]any) error {
+	return r.UpdateProfileTx(ctx, r.db, uuid, fields)
+}
+
+// Transact runs fn inside one transaction on the user store's handle, so a
+// caller can make a user write atomic with another write that has to land or
+// fail together with it.
+func (r *UserRepository) Transact(ctx context.Context, fn func(tx *gorm.DB) error) error {
+	return r.db.WithContext(ctx).Transaction(fn)
+}
+
+// LockByUUID reads the user FOR UPDATE, so a read-decide-write sequence on one
+// user cannot interleave with another.
+func (r *UserRepository) LockByUUID(ctx context.Context, tx *gorm.DB, uuid string) (*model.User, error) {
+	var user model.User
+	if err := tx.WithContext(ctx).Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("uuid = ?", uuid).First(&user).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (r *UserRepository) UpdateProfileTx(ctx context.Context, tx *gorm.DB, uuid string, fields map[string]any) error {
 	if len(fields) == 0 {
 		return nil
 	}
-	return r.db.WithContext(ctx).
+	return tx.WithContext(ctx).
 		Model(&model.User{}).
 		Where("uuid = ?", uuid).
 		Updates(fields).Error
+}
+
+func (r *UserRepository) ExistsByNameExcludingTx(ctx context.Context, tx *gorm.DB, name, excludeUUID string) (bool, error) {
+	var count int64
+	if err := tx.WithContext(ctx).Model(&model.User{}).
+		Where("name = ? AND uuid != ?", name, excludeUUID).
+		Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
 
 func (r *UserRepository) Delete(ctx context.Context, id uint) error {
@@ -223,13 +255,7 @@ func (r *UserRepository) ExistsByEmailExcluding(ctx context.Context, email, excl
 }
 
 func (r *UserRepository) ExistsByNameExcluding(ctx context.Context, name, excludeUUID string) (bool, error) {
-	var count int64
-	if err := r.db.WithContext(ctx).Model(&model.User{}).
-		Where("name = ? AND uuid != ?", name, excludeUUID).
-		Count(&count).Error; err != nil {
-		return false, err
-	}
-	return count > 0, nil
+	return r.ExistsByNameExcludingTx(ctx, r.db, name, excludeUUID)
 }
 
 func (r *UserRepository) FindAllPaginated(
