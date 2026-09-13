@@ -284,6 +284,9 @@ func (c *Catalog) CreateProposal(ctx context.Context, entityType, entityID strin
 		p.Errors = []problem.FieldError{{Pointer: "/entity_id", Reason: problem.ReasonInvalidFormat, Detail: entityID}}
 		return repr.ProposalRecord{}, "", p
 	}
+	if qerr := c.checkProposalQuota(ctx, actor.UserID); qerr != nil {
+		return repr.ProposalRecord{}, "", qerr
+	}
 	prop, _, cerr := c.Engine.CreateProposal(ctx, editing.CreateProposalInput{
 		EntityType: entityType, EntityID: eid, Patch: patch, Note: note, Actor: actor,
 	})

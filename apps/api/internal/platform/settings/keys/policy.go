@@ -278,6 +278,61 @@ var CatalogMergeCoolingOffHours = settings.Int(settings.Meta{
 	Max:    settings.F(720),
 }, 48)
 
+var CatalogWriteQuotaWindowHours = settings.Int(settings.Meta{
+	Name:   "catalog.write_quota_window_hours",
+	DescEN: "Sliding window over which a contributor's claim writes and proposals are counted.",
+	DescZH: "统计一个贡献者建档写入与编辑提案次数所用的滑动窗口时长。",
+	Min:    settings.F(1),
+	Max:    settings.F(168),
+}, 24)
+
+// The four limits below are deliberately not gated on a permission. Minting a
+// work needs no permission at all — only a user token bound to a catalog site —
+// and a mint that lands `pending` is already in the default public works list
+// and search, which filter `hidden` and nothing else. catalog.claim.trusted
+// only chooses `live` over `pending`, and even without it the owner can reach
+// `live` in two more calls (withdraw to draft, then publish). A cap that asked
+// for the permission would therefore have capped nobody.
+//
+// Measured before choosing the defaults: over 323 contributor-days since
+// 2026-08-05, claim writes per contributor per day ran p50 1 / p90 6 / p99 17,
+// all-time max 31; proposals over 182 contributor-days ran p50 1 / p90 4 / p99
+// 17, max 17.
+//
+// 0 freezes the lane for everyone at that tier. That is an emergency stop, not
+// a disabled limit — there is no "unlimited" value, only a high one.
+var CatalogClaimWritesPerDay = settings.Int(settings.Meta{
+	Name:   "catalog.claim_writes_per_day",
+	DescEN: "Claim writes (mint, claim, publish, submit, withdraw) one contributor may make inside the window. 0 freezes the lane.",
+	DescZH: "一个贡献者在窗口内可做的建档类写入(建档、认领、上线、送审、撤回)次数;0 表示冻结该通道。",
+	Min:    settings.F(0),
+	Max:    settings.F(100000),
+}, 100)
+
+var CatalogClaimWritesPerDayTrusted = settings.Int(settings.Meta{
+	Name:   "catalog.claim_writes_per_day_trusted",
+	DescEN: "The same limit for a holder of catalog.claim.trusted. High enough never to be felt; it bounds a stolen token, not a person.",
+	DescZH: "持 catalog.claim.trusted 者的同一限额。设得足够高以致真人永远不会碰到;它限制的是被盗令牌的爆炸半径,不是对人的不信任。",
+	Min:    settings.F(0),
+	Max:    settings.F(100000),
+}, 500)
+
+var CatalogProposalsPerDay = settings.Int(settings.Meta{
+	Name:   "catalog.proposals_per_day",
+	DescEN: "Edit proposals one contributor may file inside the window. 0 freezes the lane.",
+	DescZH: "一个贡献者在窗口内可提交的编辑提案数;0 表示冻结该通道。",
+	Min:    settings.F(0),
+	Max:    settings.F(100000),
+}, 100)
+
+var CatalogProposalsPerDayTrusted = settings.Int(settings.Meta{
+	Name:   "catalog.proposals_per_day_trusted",
+	DescEN: "The same limit for a holder of catalog.edit.trusted, whose proposals merge without review.",
+	DescZH: "持 catalog.edit.trusted 者的同一限额——他们的提案免审直接合并。",
+	Min:    settings.F(0),
+	Max:    settings.F(100000),
+}, 500)
+
 var DeveloperCredentialCacheTTLSeconds = settings.Int(settings.Meta{
 	Name:   "developer.credential_cache_ttl_seconds",
 	DescEN: "How long a resolved developer API credential stays cached.",
@@ -311,6 +366,11 @@ var catalogDomain = settings.Domain{
 	Keys: []settings.Entry{
 		CatalogTotalsCacheTTLSeconds,
 		CatalogMergeCoolingOffHours,
+		CatalogWriteQuotaWindowHours,
+		CatalogClaimWritesPerDay,
+		CatalogClaimWritesPerDayTrusted,
+		CatalogProposalsPerDay,
+		CatalogProposalsPerDayTrusted,
 	},
 }
 

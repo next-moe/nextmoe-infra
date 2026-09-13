@@ -409,6 +409,9 @@ func (c *Catalog) DeleteClaim(ctx context.Context, workID int64) error {
 }
 
 func (c *Catalog) actClaim(ctx context.Context, uid int64, site string, workID int64, siteWorkID string) (repr.ClaimRecord, error) {
+	if qerr := c.checkClaimQuota(ctx, uid); qerr != nil {
+		return repr.ClaimRecord{}, qerr
+	}
 	var product *int64
 	if siteWorkID != "" {
 		n, ok := repr.ParseID(siteWorkID)
@@ -532,6 +535,9 @@ func (c *Catalog) PatchClaim(ctx context.Context, workID int64, state, ifMatch s
 	}
 	if from, ok := catsvc.TransitionRule(action); ok && !slices.Contains(from, cur.State) {
 		return repr.ClaimRecord{}, claimTransitionProblem(cur.State, state)
+	}
+	if qerr := c.checkClaimQuota(ctx, uid); qerr != nil {
+		return repr.ClaimRecord{}, qerr
 	}
 	if _, aerr := c.Claims.Act(ctx, catsvc.ClaimActionParams{
 		WorkID: workID, Action: action, Site: site, ActorUID: uid, RequireOwner: true,
