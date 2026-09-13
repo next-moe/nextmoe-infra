@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { AUTH_ART } from '~/constants/auth-art'
-import { needsStepUp } from '~/constants/roles'
+import { CONSENT_CLAIMS, IDENTITY_SCOPES } from '~/constants/consent'
+import { needsStepUp, roleLabel } from '~/constants/roles'
 import { SCOPE_LABELS } from '~~/shared/types/oauth-client'
+import { resolveAvatarUrl } from '~~/shared/utils/resolveImage'
 
 interface ClientPublicInfo {
   id: string
@@ -63,6 +65,32 @@ const scopeList = computed(() => {
   return scope.value.split(/[\s+]/).filter(Boolean)
 })
 
+// ScopeGrants in oauth_service.go reads an empty scope as "grants everything",
+// so an empty one must widen this list rather than empty it.
+const grantsScope = (name: string) =>
+  scopeList.value.length === 0 || scopeList.value.includes(name)
+
+const cdnBase = useRuntimeConfig().public.imageCdnBase as string
+
+const claimRows = computed(() => {
+  const user = auth.user.value
+  if (!user) return []
+  const values: Record<string, string> = {
+    picture: resolveAvatarUrl(user, { cdnBase, variant: '256' }, ''),
+    name: user.name,
+    email: user.email,
+    sub: user.uuid,
+    roles: (user.roles ?? []).map(roleLabel).join('、'),
+  }
+  return CONSENT_CLAIMS.filter((c) => !c.scope || grantsScope(c.scope)).map(
+    (c) => ({ ...c, value: values[c.key] ?? '' })
+  )
+})
+
+const actionScopes = computed(() =>
+  scopeList.value.filter((s) => !IDENTITY_SCOPES.includes(s))
+)
+
 const respondWithError = async (errCode: string): Promise<void> => {
   const res = await api.post<{ redirect_url: string }>(
     '/oauth/authorize/error',
@@ -93,6 +121,16 @@ onMounted(async () => {
   } else if (!auth.isLoggedIn.value) {
     const refreshed = await auth.refreshAccessToken()
     if (!refreshed) {
+      needsLogin.value = true
+    }
+  }
+
+  // A live refresh cookie with an empty user store is a real state — the
+  // persisted user is browser storage and can be cleared on its own. Without
+  // this the consent screen would name the fields it is about to hand over and
+  // have no values to put beside them.
+  if (!needsLogin.value && !auth.user.value) {
+    if (!(await auth.fetchUser())) {
       needsLogin.value = true
     }
   }
@@ -349,7 +387,7 @@ const handleDeny = async () => {
         :client-logo="clientInfo?.logo_url"
       />
 
-      <div class="mt-8 mb-8">
+      <div class="mt-7 mb-6">
         <h1
           class="text-foreground text-[1.75rem] leading-tight font-semibold tracking-tight"
         >
@@ -363,35 +401,78 @@ const handleDeny = async () => {
         </p>
       </div>
 
-      <AuthNotice v-if="clientInfo?.third_party" tone="warning" class="mb-6">
+      <AuthNotice v-if="clientInfo?.third_party" tone="warning" class="mb-5">
         这是<span class="font-medium">第三方应用</span>，由站外开发者注册，不隶属于
         NextMoe。应用名称与图标由开发者自行填写，请确认你信任它再继续。
       </AuthNotice>
 
-      <div class="border-default-200 mb-6 rounded-xl border">
+      <div
+        v-if="claimRows.length"
+        class="border-default-200 mb-4 overflow-hidden rounded-xl border"
+      >
         <p
-          class="border-default-200 text-default-500 border-b px-4 py-3 text-xs tracking-wide"
+          class="border-default-200 text-default-500 border-b px-4 py-2.5 text-xs tracking-wide"
         >
-          该应用将获得以下权限
+          将读取以下账号信息
         </p>
         <ul class="divide-default-100 divide-y">
           <li
-            v-for="s in scopeList"
+            v-for="c in claimRows"
+            :key="c.key"
+            class="flex items-center justify-between gap-4 px-4 py-2.5"
+          >
+            <span class="flex shrink-0 flex-col">
+              <span class="text-foreground text-sm">{{ c.label }}</span>
+              <span class="text-default-300 font-mono text-[0.7rem]">
+                {{ c.field }}
+              </span>
+            </span>
+            <img
+              v-if="c.key === 'picture' && c.value"
+              :src="c.value"
+              alt=""
+              width="32"
+              height="32"
+              class="border-default-200 size-8 shrink-0 rounded-lg border object-cover"
+            >
+            <span
+              v-else
+              class="min-w-0 truncate text-sm"
+              :class="[
+                c.value ? 'text-default-600' : 'text-default-300',
+                c.key === 'sub' && 'font-mono text-xs'
+              ]"
+            >
+              {{ c.value || '未设置' }}
+            </span>
+          </li>
+        </ul>
+      </div>
+
+      <div
+        v-if="actionScopes.length"
+        class="border-default-200 mb-4 overflow-hidden rounded-xl border"
+      >
+        <p
+          class="border-default-200 text-default-500 border-b px-4 py-2.5 text-xs tracking-wide"
+        >
+          将获得以下操作权限
+        </p>
+        <ul class="divide-default-100 divide-y">
+          <li
+            v-for="s in actionScopes"
             :key="s"
-            class="text-foreground flex items-center gap-3 px-4 py-3 text-sm"
+            class="text-foreground flex items-center gap-3 px-4 py-2.5 text-sm"
           >
             <KunIcon name="lucide:check" class="text-success size-4 shrink-0" />
             {{ SCOPE_LABELS[s] || s }}
           </li>
-          <li
-            v-if="scopeList.length === 0"
-            class="text-foreground flex items-center gap-3 px-4 py-3 text-sm"
-          >
-            <KunIcon name="lucide:check" class="text-success size-4 shrink-0" />
-            基本账户信息
-          </li>
         </ul>
       </div>
+
+      <p class="text-default-400 mb-5 text-xs leading-relaxed">
+        另附带资料的最后更新时间；你的密码与登录凭证不会共享。
+      </p>
 
       <AuthNotice v-if="error" class="mb-4">{{ error }}</AuthNotice>
 
