@@ -189,9 +189,9 @@ curl "https://api.nextmoe.dev/v2/catalog/works?refs=vndb:v19658,bangumi:302835" 
 
 拿令牌走标准的 OAuth 2.0 授权码 + PKCE：
 
-1. 把用户跳到 `https://oauth.kungal.com/api/v1/oauth/authorize`，带上 `response_type=code`、`client_id`、`redirect_uri`、`scope`、`state` 与 `code_challenge` / `code_challenge_method=S256`。
+1. 把用户跳到 `https://account.nextmoe.com/api/v1/oauth/authorize`，带上 `response_type=code`、`client_id`、`redirect_uri`、`scope`、`state` 与 `code_challenge` / `code_challenge_method=S256`。
 2. 用户同意后回调你的 `redirect_uri`，带回 `code`。校验 `state`。
-3. `POST https://oauth.kungal.com/api/v1/oauth/token`，用 `code` + `code_verifier` 换 `access_token`（JWT，15 分钟）与 `refresh_token`。
+3. `POST https://account.nextmoe.com/api/v1/oauth/token`，用 `code` + `code_verifier` 换 `access_token`（JWT，15 分钟）与 `refresh_token`。
 4. 带 `access_token` 调 `/v2/me/*`；过期后用 `refresh_token` 刷新，每次刷新都会轮换。
 
 > [!WARNING]
@@ -1248,7 +1248,7 @@ for (;;) {
 
 ## 先拿到用户令牌
 
-标准 OAuth 2.0 授权码 + PKCE，端点在 `https://oauth.kungal.com/api/v1`。完整步骤见 [鉴权与凭据](/docs/authentication#user-token)。拿到 `access_token` 后照常放进 `Authorization: Bearer`——和应用密钥同一个位置，但**不要同时带两个**。
+标准 OAuth 2.0 授权码 + PKCE，端点在 `https://account.nextmoe.com/api/v1`。完整步骤见 [鉴权与凭据](/docs/authentication#user-token)。拿到 `access_token` 后照常放进 `Authorization: Bearer`——和应用密钥同一个位置，但**不要同时带两个**。
 
 > [!WARNING]
 > 用户面的限流按**用户**计数，不是按 IP。所以一定要带用户令牌调用；用别的方式代理会让你的全体用户挤进同一个桶。
@@ -1416,7 +1416,7 @@ const write = await fetch(url, {
 先绑 `127.0.0.1:0` 让内核分配临时端口，拿到端口再拼 `redirect_uri`；`code_verifier` 取 43–128 字符的高熵随机串，`code_challenge = BASE64URL(SHA256(verifier))`；`state` 另取一个，回调里逐字比对。
 
 ```http
-GET https://oauth.kungal.com/api/v1/oauth/authorize
+GET https://account.nextmoe.com/api/v1/oauth/authorize
   ?client_id=<your-client-id>
   &redirect_uri=http%3A%2F%2F127.0.0.1%3A53682%2Fcallback
   &response_type=code
@@ -1433,7 +1433,7 @@ GET https://oauth.kungal.com/api/v1/oauth/authorize
 
 ## 3 · 换码
 
-POST 到 `https://oauth.kungal.com/api/v1/oauth/token`，`application/x-www-form-urlencoded` 或 JSON 皆可，**不带 `client_secret`**，带 `code_verifier`：
+POST 到 `https://account.nextmoe.com/api/v1/oauth/token`，`application/x-www-form-urlencoded` 或 JSON 皆可，**不带 `client_secret`**，带 `code_verifier`：
 
 ```http
 POST /api/v1/oauth/token
@@ -1479,7 +1479,7 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use tiny_http::Server;
 
-const OAUTH: &str = "https://oauth.kungal.com/api/v1";
+const OAUTH: &str = "https://account.nextmoe.com/api/v1";
 const CLIENT_ID: &str = "your-client-id";
 
 #[derive(Deserialize)]
@@ -1548,7 +1548,7 @@ async fn sign_in(app: tauri::AppHandle) -> Result<String, String> {
 
 ```go
 const (
-	oauthBase = "https://oauth.kungal.com/api/v1"
+	oauthBase = "https://account.nextmoe.com/api/v1"
 	clientID  = "your-client-id"
 	scopes    = "openid profile catalog:read"
 )

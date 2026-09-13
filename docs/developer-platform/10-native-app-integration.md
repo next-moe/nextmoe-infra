@@ -58,7 +58,7 @@
 **第 3 步:用系统浏览器打开授权 URL。**
 
 ```
-https://oauth.kungal.com/api/v1/oauth/authorize
+https://account.nextmoe.com/api/v1/oauth/authorize
   ?client_id=<你的 client_id>
   &redirect_uri=http%3A%2F%2F127.0.0.1%3A53682%2Fcallback
   &response_type=code
@@ -72,7 +72,7 @@ https://oauth.kungal.com/api/v1/oauth/authorize
 
 **绝不使用内嵌 WebView**(RFC 8252 §8.12)。内嵌视图里应用能读到用户输入的口令与 OP 的 cookie,用户也无从判断自己是在真的 OP 上——同意页上那个「第三方应用」标记因此失去全部意义。Tauri 用 opener / shell 插件,Wails 用 `runtime.BrowserOpenURL`,两者都会交给系统默认浏览器。
 
-**第 4 步:换码。** POST 到 `https://oauth.kungal.com/api/v1/oauth/token`,`application/x-www-form-urlencoded` 或 JSON 皆可,**不带 `client_secret`**,带 `code_verifier`:
+**第 4 步:换码。** POST 到 `https://account.nextmoe.com/api/v1/oauth/token`,`application/x-www-form-urlencoded` 或 JSON 皆可,**不带 `client_secret`**,带 `code_verifier`:
 
 ```
 grant_type=authorization_code
@@ -118,7 +118,7 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use tiny_http::Server;
 
-const OAUTH: &str = "https://oauth.kungal.com/api/v1";
+const OAUTH: &str = "https://account.nextmoe.com/api/v1";
 const CLIENT_ID: &str = "your-client-id";
 
 #[derive(Deserialize)]
@@ -194,7 +194,7 @@ async fn sign_in(app: tauri::AppHandle) -> Result<String, String> {
 
 ```go
 const (
-	oauthBase = "https://oauth.kungal.com/api/v1"
+	oauthBase = "https://account.nextmoe.com/api/v1"
 	clientID  = "your-client-id"
 	scopes    = "openid profile catalog:read"
 )

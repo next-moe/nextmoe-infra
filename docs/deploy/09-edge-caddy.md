@@ -6,11 +6,11 @@ Caddy 是这套自托管栈最优雅的默认选择([Caddy 官方](https://caddy
 
 1. **前端必须用真实域名重新构建**。当前镜像把 public 配置烘焙成了 `http://localhost:1xxxx`(见 [02-build.md](./02-build.md))——浏览器会去连 localhost。上线前用真实 https 域名重建各 web:
    ```bash
-   # 例:infra web(admin 前端)
-   docker build -f docker/nuxt.Dockerfile --build-arg APP=web \
-     --build-arg PUBLIC_API_BASE=https://oauth.kungal.com/api/v1 \
+   # 例:infra account 前端
+   docker build -f docker/nuxt.Dockerfile --build-arg APP=account \
+     --build-arg PUBLIC_API_BASE=https://account.nextmoe.com/api/v1 \
      --build-arg PUBLIC_IMAGE_CDN_BASE=https://image.kungal.iloveren.link \
-     -t nextmoe-infra/web .
+     -t nextmoe-infra/account .
    # (infra wiki 前端 + wiki.kungal.com 域已于开放 API Phase 2 · W5 退役,不再构建)
    ```
    moyu/kungal 同理(`PUBLIC_*` / `OAUTH_*` 改真实域名)。**OAuth client 的 redirect_uri 也要在枢纽里改成 https 域名**(见 [03-bootstrap.md](./03-bootstrap.md) A.5)。
@@ -22,8 +22,10 @@ Caddy 是这套自托管栈最优雅的默认选择([Caddy 官方](https://caddy
 
 | 公网域名 | 路径 | 后端容器:端口 |
 |---|---|---|
-| `oauth.kungal.com` | `/api/v1/*` | `kun-galgame-infra-oauth-1:9277` |
-| `oauth.kungal.com` | 其余 | `kun-galgame-infra-web-1:3000`(admin) |
+| `account.nextmoe.com` | `/api/v1/*`、`/oauth/jwks`、`/.well-known/*` | `kun-galgame-infra-oauth-1:9277` |
+| `account.nextmoe.com` | 其余 | `kun-galgame-infra-account-1:3000`(账户中心) |
+| `admin.nextmoe.dev` | `/api/v1/*` | `kun-galgame-infra-oauth-1:9277` |
+| `admin.nextmoe.dev` | 其余 | `kun-galgame-infra-admin-1:3000`(管理台) |
 | ~~`wiki.kungal.com`~~ | — | **已退役(开放 API Phase 2 · W5)**:域 + 独立 galgame(:9280)+ wiki 前端退役;galgame 富读走 catalog internal 面(s2s) |
 | `www.kungal.com` | `/api/*`(+ `/socket.io/*` 若启用) | `kungal-api-1:2334` |
 | `www.kungal.com` | 其余 | `kungal-web-1:7777` |
@@ -40,12 +42,26 @@ Caddy 是这套自托管栈最优雅的默认选择([Caddy 官方](https://caddy
 	email admin@kungal.com
 }
 
-# —— 枢纽 web(admin) ——
-oauth.kungal.com {
+# —— 枢纽 account(OP + 账户中心) ——
+account.nextmoe.com {
 	handle /api/v1/* {
 		reverse_proxy kun-galgame-infra-oauth-1:9277
 	}
-	reverse_proxy kun-galgame-infra-web-1:3000
+	handle /oauth/jwks {
+		reverse_proxy kun-galgame-infra-oauth-1:9277
+	}
+	handle /.well-known/* {
+		reverse_proxy kun-galgame-infra-oauth-1:9277
+	}
+	reverse_proxy kun-galgame-infra-account-1:3000
+}
+
+# —— 枢纽 admin(管理台) ——
+admin.nextmoe.dev {
+	handle /api/v1/* {
+		reverse_proxy kun-galgame-infra-oauth-1:9277
+	}
+	reverse_proxy kun-galgame-infra-admin-1:3000
 }
 
 # —— 枢纽:galgame-wiki:已退役(开放 API Phase 2 · W5,2026-07)——
@@ -110,12 +126,12 @@ cd edge && docker compose up -d
 
 ## 9.5 验证
 ```bash
-curl -I https://oauth.kungal.com            # 200/302 + 有效证书
+curl -I https://account.nextmoe.com            # 200/302 + 有效证书
 curl -I https://www.moyu.moe                # 首页经反代(/healthz 是容器内部探活,不公开路由)
 docker compose -f edge/docker-compose.yml logs caddy | grep -i "certificate obtained"
 ```
 
 ## 9.6 注意
 - DNS 要先把这些域名 A/AAAA 指到本机公网 IP,Caddy 才能完成 ACME HTTP/TLS 验证(80/443 必须公网可达;若在 NAT/dae 后无法开放入站,改用 [11-cloudflare-tunnel.md](./11-cloudflare-tunnel.md))。
-- 容器名 `kun-galgame-infra-web-1` 等带 `-1` 副本序号;若给服务 `--scale` 或改了项目名会变,届时更新 Caddyfile(或给各 web 加唯一网络别名后用别名)。
+- 容器名 `kun-galgame-infra-account-1` 等带 `-1` 副本序号;若给服务 `--scale` 或改了项目名会变,届时更新 Caddyfile(或给各 web 加唯一网络别名后用别名)。
 - `image.kungal.iloveren.link` 生产更推荐直接用 R2/B2 + Cloudflare CDN,不经本机反代回源 MinIO。

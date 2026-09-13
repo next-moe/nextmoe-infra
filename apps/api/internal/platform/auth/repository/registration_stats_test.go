@@ -2,33 +2,51 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
+
+	"api/internal/platform/auth/model"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 func TestRegistrationCounts_Integration(t *testing.T) {
-	dsn := os.Getenv("TEST_PG_DSN")
+	dsn := os.Getenv("TEST_DATABASE_DSN")
 	if dsn == "" {
-		t.Skip("set TEST_PG_DSN to run (e.g. postgres://postgres:pass@localhost:5432/kun_galgame_infra)")
+		t.Skip("set TEST_DATABASE_DSN to run (scripts/ephemeral-test-db.sh create <slug>)")
 	}
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
+	if err := db.AutoMigrate(&model.User{}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
 	repo := NewUserRepository(db)
 	ctx := context.Background()
 	const tz = "Asia/Shanghai"
+
+	// Seed our own row: the queries read users.created_at, and an ephemeral
+	// test DB has no ambient registrations to count.
+	tag := time.Now().UnixNano() % 1e8
+	seeded := &model.User{
+		Name:  fmt.Sprintf("fedstat-%08d", tag),
+		Email: fmt.Sprintf("fedstat-%d@test.local", tag),
+	}
+	if err := db.Create(seeded).Error; err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+	defer db.Exec("DELETE FROM users WHERE id = ?", seeded.ID)
 
 	byDay, err := repo.RegistrationCountsByDay(ctx, time.Now().AddDate(0, 0, -14), tz)
 	if err != nil {
 		t.Fatalf("RegistrationCountsByDay: %v", err)
 	}
 	if len(byDay) == 0 {
-		t.Fatal("RegistrationCountsByDay returned no days")
+		t.Fatal("RegistrationCountsByDay returned no days despite a user created now")
 	}
 	t.Logf("byDay: %d days, e.g. %v", len(byDay), byDay)
 
@@ -51,7 +69,7 @@ func TestRegistrationCounts_Integration(t *testing.T) {
 		t.Fatalf("CountAll: %v", err)
 	}
 	if total == 0 {
-		t.Fatal("CountAll returned 0")
+		t.Fatal("CountAll returned 0 despite a seeded user")
 	}
 	t.Logf("CountAll: %d", total)
 }

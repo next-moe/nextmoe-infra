@@ -28,7 +28,7 @@
 - 周期任务：靠**项目外**的 OS crontab / k8s CronJob 触发 `cmd/*` 二进制（`cmd/image-gc` 头注释就写"Run it as a cron"）。调度表不在 git 里。
 - 仅两处**进程内** ticker：`internal/app/cleanup.go`（1h）、`internal/platform/image/service/moderation_worker.go`（常驻 poll）。
 - **没有**：cron 库依赖、job 注册表、`job_run` 历史表、admin 触发入口。
-- **已具备**（任何方案都可复用）：admin 鉴权 `middleware.Auth + RequireRole("admin")`、`/admin/*` 路由组、apps/web 管理 UI、结构化日志、job 本身已按幂等设计（sync/ping/gc 重跑安全）。
+- **已具备**（任何方案都可复用）：admin 鉴权 `middleware.Auth + RequireRole("admin")`、`/admin/*` 路由组、apps/admin 管理 UI、结构化日志、job 本身已按幂等设计（sync/ping/gc 重跑安全）。
 
 ---
 
@@ -151,7 +151,7 @@ Docker 下"进程 = 容器"，宿主 crontab 脆弱（容器易失、扩缩容�
 - `cmd/*` 保留为 3 行薄壳（运维/break-glass/k8s CronJob 直接 CLI 跑，**单一真相源、零重复**）。
 - 进程内轻量调度器：注册各 job 的 cron 表达式，默认自动跑。
 - `job_run` 表 + Postgres advisory lock：历史可见性 + 多副本/多容器单飞。
-- `GET /admin/jobs`、`POST /admin/jobs/:name/run`、`GET /admin/jobs/:name/runs` + apps/web 一个面板。
+- `GET /admin/jobs`、`POST /admin/jobs/:name/run`、`GET /admin/jobs/:name/runs` + apps/admin 一个面板。
 
 **反对 A**：monorepo 下为小任务集拆独立 repo = 代码强耦合/重复 + 多一套运维，Docker 下容器更多，过度工程。
 **反对停在 C**：根因是"调度在代码库外、不可见、不可手动"，C 不解决；Docker 下还要么耦合宿主 cron、要么 sidecar/CronJob 一 job 一产物。

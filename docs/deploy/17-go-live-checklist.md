@@ -39,7 +39,7 @@
 - [ ] **镜像上 GHCR**:三仓 push 到 main → CI build+push `ghcr.io/next-moe/*`(含 `*-tools`)。→ [13-registry-ci](./13-registry-ci.md)
 - [ ] **GHCR 包设 Public**(或给 Dokploy 配 registry 凭证)。
 - [ ] **(可选)GitHub repo Secrets**:`DOKPLOY_WEBHOOK_INFRA` / `_KUNGAL` / `_MOYU`。
-- [ ] **DNS A 记录 → 服务器公网 IP**:`oauth.kungal.com`、`kungal.com`+`www`、`moyu.moe`+`www`。(`wiki.kungal.com` 已于开放 API Phase 2 · W5 退役,解析记录待删。)
+- [ ] **DNS A 记录 → 服务器公网 IP**:`account.nextmoe.com`、`admin.nextmoe.dev`、`kungal.com`+`www`、`moyu.moe`+`www`。(`wiki.kungal.com` 已于开放 API Phase 2 · W5 退役,解析记录待删。)
 - [ ] **DNS**:`image.kungal.iloveren.link` → **Cloudflare R2 自定义域**(不指服务器)。
 - [ ] **定方向**:空库验证(Phase 2A)/ 带生产数据(Phase 2B)。**建议先空库跑通,再做数据 cutover**。
 
@@ -134,7 +134,7 @@ KUN_VISUAL_NOVEL_S3_STORAGE_SECRET_ACCESS_KEY=<B2 secret> # 必填
 ## Phase 4 · 域名 + Cloudflare + 验收
 
 ### 4.1 Dokploy Domains(每个应用对外服务加「域名+路径→服务:端口」,`/api*` 与 `/` 各一条)→ [12-dokploy §12.1](./12-dokploy.md)
-- [ ] infra:`oauth.kungal.com` `/api/v1`→`oauth:9277`、`/`→`web:3000`
+- [ ] infra:`account.nextmoe.com` `/api/v1`→`oauth:9277`、`/`→`account:3000`；`admin.nextmoe.dev` `/api/v1`→`oauth:9277`、`/`→`admin:3000`
 - [ ] ~~infra:`wiki.kungal.com`~~ — **已退役(W5)**:两组 compose labels 已删、域 404,DNS 待删;galgame 富读走 catalog internal 面(s2s,`nm_` key)
 - [ ] kungal:`kungal.com`+`www` `/api`→`kungal-api:2334`、`/`→`web:7777`
 - [ ] moyu:`moyu.moe`+`www` `/api/v1`→`moyu-api:5214`、`/`→`web:3000`
@@ -147,7 +147,7 @@ KUN_VISUAL_NOVEL_S3_STORAGE_SECRET_ACCESS_KEY=<B2 secret> # 必填
 - [ ] **不开 Cloudflare Tunnel**(高并发 Error 1033)
 
 ### 4.3 验收
-- [ ] `curl -I https://oauth.kungal.com https://www.kungal.com https://www.moyu.moe`(有效证书 + 200/302;`wiki.kungal.com` 已退役,现返 404)
+- [ ] `curl -I https://account.nextmoe.com https://admin.nextmoe.dev https://www.kungal.com https://www.moyu.moe`(有效证书 + 200/302;`wiki.kungal.com` 已退役,现返 404)
 - [ ] 烟雾测试:注册/登录(OAuth 跳转回各站)、发帖/评论、传图(进 R2)、galgame 搜索出结果(forum/moyu)、补丁下载
 - [ ] `docker ps` 看各应用容器全 healthy
 

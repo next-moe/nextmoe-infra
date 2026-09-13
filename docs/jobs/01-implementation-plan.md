@@ -173,7 +173,7 @@ func (JobRun) TableName() string { return "job_run" }
 
 - 统一走 `pkg/response` 扁平信封（与全仓一致）。
 - 复用现有 admin 鉴权中间件，无需新角色。
-- apps/web：加一个"任务"页（`/jobs`）——列表 + 触发按钮 + 历史抽屉。
+- apps/admin：加一个"任务"页（`/jobs`）——列表 + 触发按钮 + 历史抽屉。
   用现有 KunUI（KunButton/KunBadge/KunModal/KunPagination）。
   **前端这一页作为最后一步，后端可独立验收。**
 
@@ -208,7 +208,7 @@ func (JobRun) TableName() string { return "job_run" }
 3. 重构 3 个 cmd（§4 顺序），每步验证。
 4. `all.go` 注册 3 个 + 调度表；`cmd/oauth` 启动 scheduler。
 5. admin 端点 + 验收（curl）。
-6. apps/web 任务页。
+6. apps/admin 任务页。
 7. docker-compose：确认 oauth 容器设 `TZ`，文档化（调度按本地时区）。
 
 每步可独立 build/验收；任何一步失败不影响已上线部分（scheduler 未启用前纯新增）。
@@ -250,7 +250,7 @@ OAuth 侧 `UserSiteData.DailyCheckIn/DailyImageCount` 死列：留待"下游签�
 - [ ] `POST /admin/jobs/galgame-image-refping/run` → 202 + run_id；`GET .../runs` 见结果
 - [ ] 并发触发同 job → 第二条是 `skipped:locked`，不双跑
 - [ ] kill -9 oauth 重启后 `running` 悬挂行有标注策略（启动时把超期 `running` 标 `failed:stale`，写进 runner 启动自检）
-- [ ] apps/web 任务页可列/触发/看历史
+- [ ] apps/admin 任务页可列/触发/看历史
 
 ---
 

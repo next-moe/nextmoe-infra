@@ -34,7 +34,8 @@ func seedInitialData(db *gorm.DB, env string) error {
 	//   3. Optionally add the domain to `firstPartyDomains` below so the
 	//      auto_consent backfill catches it (or admin toggles in the UI).
 	sites := []siteModel.Site{
-		{Name: "鲲 Galgame OAuth", Domain: "oauth.kungal.com", Description: "鲲 Galgame OAuth"},
+		{Name: opSiteName, Domain: opSiteDomain, Description: opSiteName},
+		{Name: adminSiteName, Domain: adminSiteDomain, Description: adminSiteName},
 		{Name: "鲲 Galgame 论坛", Domain: "www.kungal.com", Description: "鲲 Galgame 论坛"},
 		{Name: "鲲 Galgame 补丁", Domain: "www.moyu.moe", Description: "鲲 Galgame 补丁"},
 		{Name: "鲲 Galgame AI", Domain: "ai.kungal.com", Description: "鲲 Galgame AI"},
@@ -114,9 +115,9 @@ func seedInitialData(db *gorm.DB, env string) error {
 
 	// Backfill: flip auto_consent=true for first-party clients so the
 	// unified-registration redirect chain skips the consent UI on
-	// kungal / moyu / wiki / ai / sticker. The column itself is added
-	// by GORM AutoMigrate from siteModel.OAuthClient.AutoConsent; this
-	// step only seeds the values.
+	// kungal / moyu / wiki / ai / sticker / admin.nextmoe.dev. The column
+	// itself is added by GORM AutoMigrate from siteModel.OAuthClient.AutoConsent;
+	// this step only seeds the values.
 	//
 	// Targeted by the parent Site.Domain (resolved by JOIN), NOT by
 	// client_id, so freshly-created clients on these domains in any
@@ -134,6 +135,7 @@ func seedInitialData(db *gorm.DB, env string) error {
 		"www.moyu.moe",
 		"ai.kungal.com",
 		"sticker.kungal.com",
+		adminSiteDomain,
 	}
 	res = db.Exec(`
 		UPDATE oauth_clients

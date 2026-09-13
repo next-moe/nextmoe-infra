@@ -69,7 +69,7 @@
 - **现象**:`http://127.0.0.1:15008` 的页面 fetch `http://localhost:15005/api/v1/auth/refresh` 被 CORS 拦,预检无 ACAO。
 - **原因**:**`127.0.0.1` 与 `localhost` 是不同 origin**(尽管同 IP)。API 的 CORS 是精确匹配白名单 + `AllowCredentials:true`,白名单里只有 `localhost:15008`,页面 origin 是 `127.0.0.1:15008` → 不匹配 → 预检被拒。前端 `apiBase` 烘焙成 `localhost`,而你用 `127.0.0.1` 打开页面就会触发。
 - **本地解法(已配)**:让 CORS 白名单**同时含 `localhost` 和 `127.0.0.1`** 两套源。各 API 的 env:infra 用 `KUN_FRONTEND_CORS_ORIGIN`,moyu/kungal 用 `CORS_ALLOW_ORIGINS`,都已填两套。或简单点:**始终用 `localhost` 访问**(与烘焙的 apiBase 一致)。
-- **线上解法**:生产每个站点的 **web 与它的 API 同源**(反代把 `oauth.kungal.com/*`→admin web、`oauth.kungal.com/api/v1/*`→oauth api;`www.moyu.moe/*`→web、`/api/v1/*`→api,见 [09-edge-caddy.md](./09-edge-caddy.md))。**同源请求根本不触发 CORS**,`/auth/refresh` 直接通。仅当前端跨域调别的子域 API 时,才把那个 API 的 CORS 白名单设成真实 https 域名(`https://www.kungal.com` 等);同时确保反代转发 `X-Forwarded-Proto`,使 `Secure` cookie 生效。
+- **线上解法**:生产每个站点的 **web 与它的 API 同源**(反代把 `account.nextmoe.com/api/v1/*`+`/oauth/jwks`+`/.well-known/*`→oauth api、其余→账户前端;`admin.nextmoe.dev/api/v1/*`→oauth api、其余→管理台;`www.moyu.moe/*`→web、`/api/v1/*`→api,见 [09-edge-caddy.md](./09-edge-caddy.md))。**同源请求根本不触发 CORS**,`/auth/refresh` 直接通。仅当前端跨域调别的子域 API 时,才把那个 API 的 CORS 白名单设成真实 https 域名(`https://www.kungal.com` 等);同时确保反代转发 `X-Forwarded-Proto`,使 `Secure` cookie 生效。
 
 ## 一条命令快速体检
 

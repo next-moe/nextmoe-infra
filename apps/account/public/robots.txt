@@ -1,0 +1,9 @@
+User-Agent: *
+Allow: /
+Disallow: /profile
+Disallow: /auth/logout
+Disallow: /auth/reset-password
+Disallow: /auth/federation/
+Disallow: /oauth/authorize
+
+Sitemap: https://account.nextmoe.com/sitemap.xml

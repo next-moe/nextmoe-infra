@@ -31,7 +31,7 @@
 | 11 | [11-edge-cloudflare-tunnel.md](./11-edge-cloudflare-tunnel.md) | 手动边缘反代 · Cloudflare Tunnel:纯出站、零入站端口(NAT/dae 后首选) |
 | 附录 | [08-dae-dev-proxy.md](./08-dae-dev-proxy.md) | **仅开发机**:dae 透明代理下让容器走代理(生产纯净,勿叠加) |
 
-> **线上采用单服务器 + Dokploy**(见 [12-dokploy.md](./12-dokploy.md)):它内置 Traefik 已是反代,**与 09-11 三选一互斥,勿叠加**。线上域名:kungal=`kungal.com`/`www.kungal.com`、moyu=`moyu.moe`/`www.moyu.moe`、oauth=`oauth.kungal.com`、image=`image.kungal.iloveren.link`(`wiki.kungal.com` 已于开放 API Phase 2 · W5 退役)。
+> **线上采用单服务器 + Dokploy**(见 [12-dokploy.md](./12-dokploy.md)):它内置 Traefik 已是反代,**与 09-11 三选一互斥,勿叠加**。线上域名:kungal=`kungal.com`/`www.kungal.com`、moyu=`moyu.moe`/`www.moyu.moe`、OP=`account.nextmoe.com`、管理台=`admin.nextmoe.dev`、image=`image.kungal.iloveren.link`(`wiki.kungal.com` 已于开放 API Phase 2 · W5 退役)。
 
 ## 30 秒速览
 

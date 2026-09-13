@@ -50,8 +50,8 @@ services:
       # used by Nitro's /auth/{exchange,refresh} calls to /oauth/token.
       NUXT_PUBLIC_OAUTH_CLIENT_ID: ${NUXT_PUBLIC_OAUTH_CLIENT_ID:-}
       NUXT_OAUTH_CLIENT_SECRET: ${NUXT_OAUTH_CLIENT_SECRET:-}
-      NUXT_PUBLIC_OAUTH_AUTHORIZE_BASE: ${NUXT_PUBLIC_OAUTH_AUTHORIZE_BASE:-https://oauth.kungal.com/api/v1}
-      NUXT_PUBLIC_OAUTH_WEB_BASE: ${NUXT_PUBLIC_OAUTH_WEB_BASE:-https://oauth.kungal.com}
+      NUXT_PUBLIC_OAUTH_AUTHORIZE_BASE: ${NUXT_PUBLIC_OAUTH_AUTHORIZE_BASE:-https://account.nextmoe.com/api/v1}
+      NUXT_PUBLIC_OAUTH_WEB_BASE: ${NUXT_PUBLIC_OAUTH_WEB_BASE:-https://account.nextmoe.com}
       NUXT_PUBLIC_OAUTH_REDIRECT_URI: ${NUXT_PUBLIC_OAUTH_REDIRECT_URI:-https://developer.nextmoe.dev/auth/callback}
     expose: ["3000"]
     healthcheck:

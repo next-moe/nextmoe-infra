@@ -35,8 +35,8 @@ CI 按各仓**现有 Dockerfile**(参数化)构建以下镜像并推到 `ghcr.io
 | `infra-oauth` | infra | `docker/cgo.Dockerfile` | `CMD=oauth` | 9277 |
 | `infra-image` | infra | `docker/cgo.Dockerfile` | `CMD=image` | 9278 |
 | `infra-catalog` | infra | `docker/go.Dockerfile` | `CMD=catalog` | 9281(含 galgame-wiki 面;`infra-galgame`/9280 已随 wiki 退役 W3/W5 移除) |
-| `infra-web` | infra | `docker/nuxt.Dockerfile` | `APP=web` | 3000 |
-| `infra-wiki` | infra | `docker/nuxt.Dockerfile` | `APP=wiki` | 3000 |
+| `infra-account` | infra | `docker/nuxt.Dockerfile` | `APP=account` | 3000 |
+| `infra-admin` | infra | `docker/nuxt.Dockerfile` | `APP=admin` | 3000 |
 | `infra-migrate` | infra | `docker/go.Dockerfile` | `CMD=migrate` | —(一次性;**所有库的唯一迁移镜像**,目标由参数给:裸跑=主库,`catalog`/`community`/`trust`/`ai`/`news`=对应库。原先每域一个的 `infra-migrate-catalog`/`-community`/`-trust`/`-ai`/`-news` 已合并进来,不再构建) |
 | `infra-tools` | infra | `docker/tools.Dockerfile` | —(打包全部 `cmd/*`) | —(一次性) |
 | `kungal-api` | nuxt4 | `docker/go.Dockerfile` | `CMD=server` | 2334 |
@@ -71,7 +71,7 @@ CI 按各仓**现有 Dockerfile**(参数化)构建以下镜像并推到 `ghcr.io
 
 每仓放一个 `.github/workflows/build.yml`。下面是 **infra(最复杂,cgo + 2×Nuxt + Go)** 的完整示例;kungal/moyu **同构**,仅 `matrix` 列表不同。
 
-> **省额度:infra 的实际 workflow 已改为「路径过滤 + 动态 matrix」**(下面这段是说明结构的简化示例,不是逐字现状)。GitHub 按 job 数×分钟计费且每 job 向上取整到 1 分钟,全量 matrix 即使全缓存每次 push 也要 ~10 分钟。现状:`changes` job 用 `dorny/paths-filter` 算出哪些组变了,只构建变更的镜像 —— `go`(oauth/image/artifact/catalog/community/trust/ai + 单一 `migrate`,与服务同 sha 锁步 ← `apps/api/**`)、`web`(← `apps/web/**`+根 manifest)、`wiki`(← `apps/wiki/**`+根 manifest)、`developer`(← `apps/developer/**`)、`tools`(`infra-tools`,与 go 组同源锁步 ← `apps/api/**` + `docker/tools.Dockerfile`)。docs-only 的 push 不构建任何镜像(~1 分钟)。`tools` 是唯一不触发 Dokploy redeploy 的组;要单独重建它,Actions → Run workflow → `scope=tools`。
+> **省额度:infra 的实际 workflow 已改为「路径过滤 + 动态 matrix」**(下面这段是说明结构的简化示例,不是逐字现状)。GitHub 按 job 数×分钟计费且每 job 向上取整到 1 分钟,全量 matrix 即使全缓存每次 push 也要 ~10 分钟。现状:`changes` job 用 `dorny/paths-filter` 算出哪些组变了,只构建变更的镜像 —— `go`(oauth/image/artifact/catalog/community/trust/ai + 单一 `migrate`,与服务同 sha 锁步 ← `apps/api/**`)、`account`(← `apps/account/**`+根 manifest)、`admin`(← `apps/admin/**`+根 manifest)、`developer`(← `apps/developer/**`)、`tools`(`infra-tools`,与 go 组同源锁步 ← `apps/api/**` + `docker/tools.Dockerfile`)。docs-only 的 push 不构建任何镜像(~1 分钟)。`tools` 是唯一不触发 Dokploy redeploy 的组;要单独重建它,Actions → Run workflow → `scope=tools`。
 
 ```yaml
 # nextmoe-infra/.github/workflows/build.yml
@@ -97,8 +97,8 @@ jobs:
           - { name: infra-image,           file: docker/cgo.Dockerfile,  args: "CMD=image" }
           - { name: infra-catalog,         file: docker/go.Dockerfile,   args: "CMD=catalog" }
           - { name: infra-migrate,         file: docker/go.Dockerfile,   args: "CMD=migrate" }
-          - { name: infra-web,             file: docker/nuxt.Dockerfile, args: "APP=web" }
-          - { name: infra-wiki,            file: docker/nuxt.Dockerfile, args: "APP=wiki" }
+          - { name: infra-account,         file: docker/nuxt.Dockerfile, args: "APP=account" }
+          - { name: infra-admin,           file: docker/nuxt.Dockerfile, args: "APP=admin" }
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v4
@@ -134,7 +134,7 @@ jobs:
 - **cgo 镜像**(oauth/image)在 `ubuntu-latest` 上正常 build —— cgo 发生在 build 容器内(`docker/cgo.Dockerfile` 的 debian-slim + libwebp),runner 无需特殊配置。
 - **公开仓库 Actions 分钟免费**;`type=gha` 层缓存让二次构建快很多。
 - kungal/moyu 的 workflow:`matrix` 换成 `kungal-api`/`kungal-web`/`kungal-migrate`(及 moyu 同理),`deploy` 步骤用各自的 `DOKPLOY_WEBHOOK_*`。
-- **三仓 workflow 均已创建**:`<repo>/.github/workflows/build.yml`。触发分支:**infra=`main`,kungal/moyu=`master`**。注意 **kungal-web 无 `APP` build-arg**(单一 app);infra-web/wiki 在此烤入真实域名(见 13.5);`deploy` 步骤已做 webhook 未设置时**优雅跳过**。
+- **三仓 workflow 均已创建**:`<repo>/.github/workflows/build.yml`。触发分支:**infra=`main`,kungal/moyu=`master`**。注意 **kungal-web 无 `APP` build-arg**(单一 app);infra-account/admin 在此烤入真实域名(见 13.5);`deploy` 步骤已做 webhook 未设置时**优雅跳过**。
 
 > **关键:让"构建完成"成为唯一的部署触发,否则永远部署上一次的镜像**
 >
@@ -168,9 +168,9 @@ jobs:
 Nuxt 的 public 配置有两种注入方式,直接影响"镜像是否环境无关":
 
 - **运行时 `NUXT_PUBLIC_*` env(kungal / moyu 采用)** —— 二者的 web 读 `docker/web.env` 的 `NUXT_PUBLIC_*`(Nuxt 启动时读),**CI 构建通用镜像、不烤域名**,真实域名在 **Dokploy 环境变量 / web.env** 注入,一个镜像可用于任意环境(dev stack 即靠它切换域名,已实测)。
-- **构建期 build-arg `PUBLIC_*`(infra web/wiki 采用)** —— 域名在 **CI build 时**烤进镜像;`.github/workflows/build.yml` 里 infra-web / infra-wiki 的 `build-args` 已写入真实 https 域名。
+- **构建期 build-arg `PUBLIC_*`(infra account / admin 采用)** —— 域名在 **CI build 时**烤进镜像;`.github/workflows/build.yml` 里 infra-account / infra-admin 的 `build-args` 已写入真实 https 域名。
 
-**为什么 infra 烤而非运行时**:infra wiki 的 `runtimeConfig.public.oauthClientID` / `oauthRedirectURI` 用了 `ID`/`URI` 大写缩写,**运行时 `NUXT_PUBLIC_*` 反向映射别扭**(`docker/README.md` 有明确警告),所以 infra 按仓库默认在 build 期烤入(`nuxt.config` 读 `KUN_*_NUXT_PUBLIC_*` 自定义名)。换域名需重跑 infra 的 workflow(改 `build-args`,或挪到仓库 Variables);kungal/moyu 无此缩写问题,故走运行时。
+**为什么 infra 烤而非运行时**:约定源自已退役的 wiki 应用(其 `runtimeConfig.public.oauthClientID` / `oauthRedirectURI` 大写缩写使**运行时 `NUXT_PUBLIC_*` 反向映射别扭**,`docker/README.md` 有明确警告);account / admin 沿用 build 期烤入(`nuxt.config` 读 `KUN_*_NUXT_PUBLIC_*` 自定义名)。换域名需重跑 infra 的 workflow(改 `build-args`,或挪到仓库 Variables);kungal/moyu 无此缩写问题,故走运行时。
 
 > **SSR 双 base 不变**:`NUXT_API_BASE_SSR` / `NUXT_AUTH_API_BASE_SSR` / kungal `NUXT_API_BASE_URL` 仍是**运行时**容器内服务名(见 [12-dokploy §12.5](./12-dokploy.md));registry 化只影响"镜像怎么来",不影响 SSR/浏览器 base 的划分。
 
@@ -189,13 +189,18 @@ services:
     depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
     healthcheck: { test: ["CMD", "/app/app", "healthcheck"], <<: *svc-health }
     restart: unless-stopped
-  web:
-    image: ghcr.io/next-moe/infra-web:latest
+  account:
+    image: ghcr.io/next-moe/infra-account:latest
     environment:
       NUXT_API_BASE_SSR: http://oauth:9277/api/v1
       # 浏览器 public 域名已在 CI build 期烤入镜像(见 13.5),运行时只注 SSR base
     expose: ["3000"]
-  # galgame / image / wiki 同理 …
+  admin:
+    image: ghcr.io/next-moe/infra-admin:latest
+    environment:
+      NUXT_API_BASE_SSR: http://oauth:9277/api/v1
+    expose: ["3000"]
+  # admin / image / catalog 同理 …
   postgres: { image: postgres:18-alpine, ... }   # 基础设施仍用上游镜像
 networks:
   default: { name: dokploy-network, external: true }

@@ -30,12 +30,18 @@ tunnel: kungal-eco
 credentials-file: /etc/cloudflared/<TUNNEL_ID>.json
 
 ingress:
-  # —— 枢纽 web(admin)(同域 path 拆 api / web)——
-  - hostname: oauth.kungal.com
+  # —— 枢纽 account(OP + 账户中心)——
+  - hostname: account.nextmoe.com
+    path: ^/(api/v1/|oauth/jwks|.well-known/)
+    service: http://kun-galgame-infra-oauth-1:9277
+  - hostname: account.nextmoe.com
+    service: http://kun-galgame-infra-account-1:3000
+  # —— 枢纽 admin(管理台)——
+  - hostname: admin.nextmoe.dev
     path: ^/api/v1/
     service: http://kun-galgame-infra-oauth-1:9277
-  - hostname: oauth.kungal.com
-    service: http://kun-galgame-infra-web-1:3000
+  - hostname: admin.nextmoe.dev
+    service: http://kun-galgame-infra-admin-1:3000
 
   # —— 枢纽 galgame-wiki:已退役(开放 API Phase 2 · W5,2026-07)——
   #   wiki.kungal.com 域 + 独立 galgame(:9280)+ wiki 前端均退役;galgame 富读
@@ -91,7 +97,7 @@ docker compose logs -f cloudflared | grep -iE "registered tunnel connection|ERR"
 ## 11.5 DNS 路由
 让每个 hostname 指向隧道(给每个域名建一条 CNAME 到 `<TUNNEL_ID>.cfargotunnel.com`):
 ```bash
-for d in oauth.kungal.com www.kungal.com www.moyu.moe image.kungal.com; do   # wiki.kungal.com 已于 W5 退役
+for d in account.nextmoe.com admin.nextmoe.dev www.kungal.com www.moyu.moe image.kungal.com; do   # wiki.kungal.com 已于 W5 退役
   docker run --rm -v "$PWD/cf:/etc/cloudflared" cloudflare/cloudflared tunnel route dns kungal-eco "$d"
 done
 ```
@@ -99,7 +105,7 @@ done
 
 ## 11.6 验证
 ```bash
-curl -I https://oauth.kungal.com             # 200/302,证书是 Cloudflare 签的
+curl -I https://account.nextmoe.com             # 200/302,证书是 Cloudflare 签的
 curl -I https://www.moyu.moe                # 首页经隧道(/healthz 仅容器内部探活)
 # 隧道健康
 docker compose -f edge-cf/docker-compose.yml logs cloudflared | grep -i "Registered tunnel connection"

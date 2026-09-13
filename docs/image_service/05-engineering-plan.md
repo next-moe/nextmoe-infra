@@ -238,7 +238,7 @@ apps/api/
    - 调用云厂商审核 API（阿里/腾讯），回填 `review_status` + `review_labels`
 
 3. **Admin UI**
-   - 复用 `apps/web` 现有 admin 壳
+   - 复用 `apps/admin` 现有 admin 壳
    - 待审列表、已拒列表、手动放行/拒绝
    - 按站点 / 上传者 / 时间过滤
 

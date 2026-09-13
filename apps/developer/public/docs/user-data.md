@@ -13,7 +13,7 @@
 
 ## 先拿到用户令牌
 
-标准 OAuth 2.0 授权码 + PKCE，端点在 `https://oauth.kungal.com/api/v1`。完整步骤见 [鉴权与凭据](/docs/authentication#user-token)。拿到 `access_token` 后照常放进 `Authorization: Bearer`——和应用密钥同一个位置，但**不要同时带两个**。
+标准 OAuth 2.0 授权码 + PKCE，端点在 `https://account.nextmoe.com/api/v1`。完整步骤见 [鉴权与凭据](/docs/authentication#user-token)。拿到 `access_token` 后照常放进 `Authorization: Bearer`——和应用密钥同一个位置，但**不要同时带两个**。
 
 > [!WARNING]
 > 用户面的限流按**用户**计数，不是按 IP。所以一定要带用户令牌调用；用别的方式代理会让你的全体用户挤进同一个桶。

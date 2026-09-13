@@ -191,6 +191,14 @@ func runPlatform(cfg *config.Config, args []string) {
 		os.Exit(1)
 	}
 
+	// In-place OP domain rename + admin site insert. Must run before seed:
+	// seed insert-if-missing keys on domain, so renaming first is what stops
+	// a production cutover from inserting a duplicate OP row.
+	if err := rebrandNextMoeSites(gormDB); err != nil {
+		slog.Error("failed to rebrand NextMoe sites", "error", err)
+		os.Exit(1)
+	}
+
 	// Create initial data if needed
 	if err := seedInitialData(gormDB, cfg.Server.Env); err != nil {
 		slog.Error("failed to seed initial data", "error", err)

@@ -49,7 +49,7 @@ description: Tauri / Wails 写的游戏管理器怎么读 /v2/catalog：用用�
 先绑 `127.0.0.1:0` 让内核分配临时端口，拿到端口再拼 `redirect_uri`；`code_verifier` 取 43–128 字符的高熵随机串，`code_challenge = BASE64URL(SHA256(verifier))`；`state` 另取一个，回调里逐字比对。
 
 ```http
-GET https://oauth.kungal.com/api/v1/oauth/authorize
+GET https://account.nextmoe.com/api/v1/oauth/authorize
   ?client_id=<your-client-id>
   &redirect_uri=http%3A%2F%2F127.0.0.1%3A53682%2Fcallback
   &response_type=code
@@ -66,7 +66,7 @@ GET https://oauth.kungal.com/api/v1/oauth/authorize
 
 ## 3 · 换码 {#exchange}
 
-POST 到 `https://oauth.kungal.com/api/v1/oauth/token`，`application/x-www-form-urlencoded` 或 JSON 皆可，**不带 `client_secret`**，带 `code_verifier`：
+POST 到 `https://account.nextmoe.com/api/v1/oauth/token`，`application/x-www-form-urlencoded` 或 JSON 皆可，**不带 `client_secret`**，带 `code_verifier`：
 
 ```http
 POST /api/v1/oauth/token
@@ -112,7 +112,7 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use tiny_http::Server;
 
-const OAUTH: &str = "https://oauth.kungal.com/api/v1";
+const OAUTH: &str = "https://account.nextmoe.com/api/v1";
 const CLIENT_ID: &str = "your-client-id";
 
 #[derive(Deserialize)]
@@ -181,7 +181,7 @@ async fn sign_in(app: tauri::AppHandle) -> Result<String, String> {
 
 ```go
 const (
-	oauthBase = "https://oauth.kungal.com/api/v1"
+	oauthBase = "https://account.nextmoe.com/api/v1"
 	clientID  = "your-client-id"
 	scopes    = "openid profile catalog:read"
 )

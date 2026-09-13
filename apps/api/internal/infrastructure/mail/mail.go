@@ -39,7 +39,14 @@ func (m *Mailer) SendEmail(to, subject, htmlBody string) error {
 		return fmt.Errorf("mail host not configured")
 	}
 
-	auth := smtp.PlainAuth("", m.cfg.Account, m.cfg.Password, m.cfg.Host)
+	// net/smtp attempts AUTH whenever auth is non-nil and fails with
+	// "smtp: server doesn't support AUTH" when the server does not advertise
+	// it — the dev-stack mailpit doesn't, so an unconditional PlainAuth made
+	// local delivery impossible. Authenticate only when a password is set.
+	var auth smtp.Auth
+	if m.cfg.Password != "" {
+		auth = smtp.PlainAuth("", m.cfg.Account, m.cfg.Password, m.cfg.Host)
+	}
 
 	headers := make(map[string]string)
 	headers["From"] = fmt.Sprintf("%s <%s>", m.cfg.From, m.cfg.Account)
@@ -83,8 +90,10 @@ func (m *Mailer) sendWithTLS(addr string, auth smtp.Auth, to string, msg []byte)
 		return fmt.Errorf("failed to start TLS: %w", err)
 	}
 
-	if err := client.Auth(auth); err != nil {
-		return fmt.Errorf("failed to authenticate: %w", err)
+	if auth != nil {
+		if err := client.Auth(auth); err != nil {
+			return fmt.Errorf("failed to authenticate: %w", err)
+		}
 	}
 
 	if err := client.Mail(m.cfg.Account); err != nil {
@@ -126,14 +135,14 @@ func kunEmailShell(heading, inner string) string {
 </head>
 <body style="margin:0; padding:24px 12px; background-color:#f4f5f7; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',Helvetica,Arial,sans-serif; color:#1f2d3d;">
 <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="max-width:480px; margin:0 auto; background-color:#ffffff; border:1px solid #e6e8eb; border-radius:8px; overflow:hidden;">
-<tr><td style="background-color:%s; padding:20px 28px;"><span style="color:#ffffff; font-size:18px; font-weight:700; letter-spacing:0.5px;">鲲 Galgame</span></td></tr>
+<tr><td style="background-color:%s; padding:20px 28px;"><span style="color:#ffffff; font-size:18px; font-weight:700; letter-spacing:0.5px;">NextMoe·未萌</span></td></tr>
 <tr><td style="height:3px; line-height:0; font-size:0; background-color:%s;">&nbsp;</td></tr>
 <tr><td style="padding:28px;">
 <h2 style="margin:0 0 16px; font-size:18px; font-weight:600; color:#1f2d3d;">%s</h2>
 %s
 </td></tr>
 <tr><td style="padding:16px 28px; border-top:1px solid #eef0f2; background-color:#fafbfc;">
-<p style="margin:0; color:#9aa5b1; font-size:12px; text-align:center;">&copy; 鲲 Galgame · 本邮件由系统自动发送，请勿直接回复</p>
+<p style="margin:0; color:#9aa5b1; font-size:12px; text-align:center;">&copy; NextMoe·未萌 · 本邮件由系统自动发送，请勿直接回复</p>
 </td></tr>
 </table>
 </body>
@@ -158,7 +167,7 @@ const (
 )
 
 func (m *Mailer) SendPasswordResetEmail(to, name, resetLink string) error {
-	subject := "重置密码 - 鲲 Galgame"
+	subject := "重置密码 - NextMoe·未萌"
 	inner := fmt.Sprintf(emailTextPara, fmt.Sprintf("你好 <strong>%s</strong>，", name)) +
 		fmt.Sprintf(emailTextPara, "我们收到了重置你账号密码的请求。点击下方按钮设置新密码：") +
 		ctaButton(resetLink, "重置密码") +
@@ -168,18 +177,18 @@ func (m *Mailer) SendPasswordResetEmail(to, name, resetLink string) error {
 }
 
 func (m *Mailer) SendVerificationEmail(to, name, verifyLink string) error {
-	subject := "验证邮箱 - 鲲 Galgame"
+	subject := "验证邮箱 - NextMoe·未萌"
 	inner := fmt.Sprintf(emailTextPara, fmt.Sprintf("你好 <strong>%s</strong>，", name)) +
-		fmt.Sprintf(emailTextPara, "感谢注册 鲲 Galgame！请点击下方按钮验证你的邮箱地址：") +
+		fmt.Sprintf(emailTextPara, "感谢注册 NextMoe·未萌！请点击下方按钮验证你的邮箱地址：") +
 		ctaButton(verifyLink, "验证邮箱") +
 		fmt.Sprintf(emailHintPara, "该链接 24 小时内有效。")
 	return m.SendEmail(to, subject, kunEmailShell("验证邮箱", inner))
 }
 
 func (m *Mailer) SendRegisterCodeEmail(to, name, code string, ttlMinutes int) error {
-	subject := "注册验证码 - 鲲 Galgame"
+	subject := "注册验证码 - NextMoe·未萌"
 	inner := fmt.Sprintf(emailTextPara, fmt.Sprintf("你好 <strong>%s</strong>，", name)) +
-		fmt.Sprintf(emailTextPara, "欢迎注册 鲲 Galgame！请使用以下验证码完成注册：") +
+		fmt.Sprintf(emailTextPara, "欢迎注册 NextMoe·未萌！请使用以下验证码完成注册：") +
 		codeChip(code) +
 		fmt.Sprintf(`<p style="margin:0 0 6px; font-size:13px; color:#7b8794;">验证码 %d 分钟内有效。</p>`, ttlMinutes) +
 		fmt.Sprintf(emailHintPara, "如果你没有发起此操作，请忽略本邮件——你的邮箱不会被注册到任何账号。")
@@ -187,7 +196,7 @@ func (m *Mailer) SendRegisterCodeEmail(to, name, code string, ttlMinutes int) er
 }
 
 func (m *Mailer) SendEmailChangeCodeEmail(to, name, code string, ttlMinutes int) error {
-	subject := "邮箱变更验证码 - 鲲 Galgame"
+	subject := "邮箱变更验证码 - NextMoe·未萌"
 	inner := fmt.Sprintf(emailTextPara, fmt.Sprintf("你好 <strong>%s</strong>，", name)) +
 		fmt.Sprintf(emailTextPara, "你正在修改账号的邮箱地址，请使用以下验证码完成操作：") +
 		codeChip(code) +

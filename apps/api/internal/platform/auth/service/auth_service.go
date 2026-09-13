@@ -223,7 +223,7 @@ func (s *AuthService) Register(ctx context.Context, req *dto.RegisterRequest) (*
 			Reason:         model.MoemoepointReasonRegisterGift,
 			SourceApp:      "oauth",
 			IdempotencyKey: fmt.Sprintf("oauth:register_gift:%d", user.ID),
-			Note:           "鲲给予你的第一份礼物",
+			Note:           "NextMoe·未萌给予你的第一份礼物",
 		})
 		if gErr != nil {
 			slog.Warn("register welcome gift failed (best-effort)", "user_id", user.ID, "err", gErr)

@@ -125,8 +125,8 @@ moyu 和 infra 反过来：DTO 透传 `avatar_image_hash`，由前端 `resolveAv
 
 - moyu DTO：`auth/dto/dto.go:32`、`patch/model/model.go:159`、`user/model/model.go:65`、`pkg/userclient/client.go:34`
 - moyu 前端解析：[`kun-galgame-patch/apps/web/app/shared/utils/resolveAvatarUrl.ts:46`](../../../kun-galgame-patch/apps/web/app/shared/utils/resolveAvatarUrl.ts#L46)（hash→`{imageBed}/{ab}/{cd}/{hash}{variant}.webp`）
-- infra 前端解析（`resolveAvatarUrl` 现已是活代码，多处调用）：`apps/web/app/components/users/Table.vue:20`、`apps/web/app/components/profile/Info.vue:12`、`apps/wiki/app/layouts/default.vue:17`、`apps/wiki/app/components/galgame/ContributorsSection.vue:14`；banner 同理走 `resolveBannerUrl`（wiki `Detail.vue` / `EditModal.vue`）
-- 源：[`apps/web/shared/utils/resolveImage.ts`](../../apps/web/shared/utils/resolveImage.ts)
+- infra 前端解析（`resolveAvatarUrl` 现已是活代码，多处调用）：`apps/admin/app/components/users/Table.vue:20`、`apps/account/app/components/profile/Info.vue:12`、`apps/wiki/app/layouts/default.vue:17`、`apps/wiki/app/components/galgame/ContributorsSection.vue:14`；banner 同理走 `resolveBannerUrl`（wiki `Detail.vue` / `EditModal.vue`）
+- 源：[`apps/admin/shared/utils/resolveImage.ts`](../../apps/admin/shared/utils/resolveImage.ts)
 
 > 收口前（2026-05-26）这一节是"不完整"：当时 `KunAvatar` 走 legacy 后缀拼接、kungal DTO 不透传、`resolveAvatarUrl` 是死代码。现在三点都已解决。
 

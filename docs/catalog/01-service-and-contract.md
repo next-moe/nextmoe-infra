@@ -460,7 +460,7 @@ wave 176-179 把人类的**写**搬完了;本波搬的是搬完写之后还留�
 
 ### 开发者怎么拿到能登录的应用
 
-在**开发者门户自助注册**,不进 oauth.kungal.com。建 app 时带上 `user_login`:
+在**开发者门户自助注册**,不进 admin.nextmoe.dev。建 app 时带上 `user_login`:
 
 ```json
 { "name": "Kurumi", "user_login": {

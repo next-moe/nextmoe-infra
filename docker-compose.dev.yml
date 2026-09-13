@@ -23,7 +23,7 @@
 #   4. Postgres is NOT a service here: the dev box's own Postgres at 127.0.0.1:5432
 #      (default user postgres) is the source of truth (see MEMORY:
 #      local-dev-truth-5432). Create the databases with docker/initdb.d if fresh.
-#   5. Out-of-band jobs (image-gc / refping / cron / tools) and the web/wiki
+#   5. Out-of-band jobs (image-gc / refping / cron / tools) and the account/admin/wiki
 #      frontends are deliberately NOT included — frontends run their own pnpm dev.
 #
 #   docker compose -f docker-compose.dev.yml pull      # refresh GHCR images
@@ -84,10 +84,10 @@ x-dev-env: &dev-env
   # service stays HS256-only, so this is safe to wire unconditionally.
   KUN_OIDC_JWKS_URL: http://127.0.0.1:9277/oauth/jwks
   # CORS — local product frontends (their pnpm dev ports). Extend as repos join.
-  # Product web dev ports (forum 2333 / patch 6969 / oauth web 9420 /
-  # letmoe 5364) are included so browser flows from any repo's `pnpm dev` reach
+  # Product web dev ports (forum 2333 / patch 6969 / account 9420 /
+  # admin 9421 / letmoe 5364) are included so browser flows from any repo's `pnpm dev` reach
   # the platform cross-origin (step-03 wiring finding).
-  KUN_FRONTEND_CORS_ORIGIN: http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:2333,http://127.0.0.1:2333,http://localhost:6969,http://127.0.0.1:6969,http://localhost:9420,http://127.0.0.1:9420,http://localhost:5364,http://127.0.0.1:5364,http://localhost:15008,http://127.0.0.1:15008,http://localhost:15009,http://127.0.0.1:15009,http://localhost:15011,http://127.0.0.1:15011,http://localhost:15013,http://127.0.0.1:15013
+  KUN_FRONTEND_CORS_ORIGIN: http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:2333,http://127.0.0.1:2333,http://localhost:6969,http://127.0.0.1:6969,http://localhost:9420,http://127.0.0.1:9420,http://localhost:9421,http://127.0.0.1:9421,http://localhost:5364,http://127.0.0.1:5364,http://localhost:15008,http://127.0.0.1:15008,http://localhost:15009,http://127.0.0.1:15009,http://localhost:15011,http://127.0.0.1:15011,http://localhost:15013,http://127.0.0.1:15013
   # oauth identity URLs — the local oauth service
   KUN_SITE_URL: http://127.0.0.1:9277
   # image_service S3 → local MinIO (path-style). Dev key = the MinIO root user.
@@ -116,7 +116,7 @@ x-dev-env: &dev-env
   # OpenSearch — catalog search (the only engine since 2026-09-02).
   KUN_OPENSEARCH_HOST: http://127.0.0.1:9200
   # Mail → Mailpit (SMTP black hole + web UI on :8025). No auth, no password.
-  KUN_VISUAL_NOVEL_EMAIL_FROM: 鲲 Galgame OAuth (dev)
+  KUN_VISUAL_NOVEL_EMAIL_FROM: NextMoe·未萌 (dev)
   KUN_VISUAL_NOVEL_EMAIL_HOST: 127.0.0.1
   KUN_VISUAL_NOVEL_EMAIL_PORT: "1025"
   KUN_VISUAL_NOVEL_EMAIL_ACCOUNT: dev@dev.local
