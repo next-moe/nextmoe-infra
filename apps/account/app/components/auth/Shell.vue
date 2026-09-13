@@ -6,9 +6,16 @@ withDefaults(defineProps<{ art?: AuthArt }>(), { art: () => AUTH_ART.login })
 
 <template>
   <div
-    class="bg-background 3xl:grid-cols-[minmax(0,1fr)_1.4fr] grid min-h-svh lg:grid-cols-2"
+    class="bg-background 3xl:grid-cols-[minmax(0,1fr)_1.4fr] grid min-h-svh lg:h-svh lg:overflow-hidden lg:grid-cols-2"
   >
-    <div class="flex min-w-0 flex-col px-6 py-7 sm:px-10 lg:px-14 lg:py-9">
+    <!--
+      A tall slot (the consent screen) used to grow the document, which stretched
+      the art panel with it and pushed the figure below the fold. From lg up the
+      shell is exactly one viewport and this column takes the overflow instead.
+    -->
+    <div
+      class="flex min-w-0 flex-col px-6 py-7 sm:px-10 lg:overflow-y-auto lg:px-14 lg:py-9"
+    >
       <div
         class="3xl:my-auto 3xl:ml-auto 3xl:max-w-[38rem] 3xl:flex-none flex w-full flex-1 flex-col"
       >
