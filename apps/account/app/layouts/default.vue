@@ -21,7 +21,7 @@ await callOnce('auth:user', async () => {
       class="border-default-200 bg-content1/90 sticky top-0 z-30 border-b backdrop-blur"
     >
       <div
-        class="mx-auto flex h-16 max-w-5xl items-center justify-between gap-2 px-4 md:px-6"
+        class="3xl:max-w-6xl mx-auto flex h-16 max-w-5xl items-center justify-between gap-2 px-4 md:px-6"
       >
         <NuxtLink to="/profile" class="flex min-w-0 items-center gap-2.5">
           <img
@@ -46,7 +46,9 @@ await callOnce('auth:user', async () => {
       </div>
     </header>
 
-    <main class="mx-auto w-full max-w-5xl flex-1 p-4 md:p-6 md:py-10">
+    <main
+      class="3xl:max-w-6xl mx-auto w-full max-w-5xl flex-1 p-4 md:p-6 md:py-10"
+    >
       <slot />
     </main>
   </div>

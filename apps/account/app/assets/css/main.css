@@ -56,6 +56,18 @@ html {
 }
 
 /*
+ * ── One breakpoint above Tailwind's last one ────────────────────────────────
+ * `2xl` is 96rem, so a 1920-wide screen is already inside it and `2xl:` cannot
+ * be used to reach only the very large ones. 128rem clears 1920 with room to
+ * spare, which is the point: the 1920 composition is the approved one and must
+ * not move. Above this the auth columns stop filling the half and become
+ * bounded clusters instead.
+ */
+@theme {
+  --breakpoint-3xl: 128rem;
+}
+
+/*
  * ── The brand ink panel (auth split screen) ─────────────────────────────────
  * Koi, the mascot, is white hair + white cape + white dress + white socks: the
  * whole figure sits above L 0.9. Every KunUI semantic scale FLIPS between the
