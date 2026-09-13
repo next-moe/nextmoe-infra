@@ -21,6 +21,13 @@ const (
 	defaultPort = 9285
 	healthPath  = "/healthz"
 	mcpPath     = "/mcp"
+
+	// The spec only moves on a catalog deploy, so this is a cheap poll on a
+	// rare event. It exists because the alternative — "remember to restart mcp
+	// after a v2 deploy" — is not reachable from the deploy UI at all: a
+	// redeploy runs `docker compose up -d`, which leaves an unchanged image
+	// Running and reports success.
+	defaultRefreshSeconds = 300
 )
 
 func main() {
@@ -41,16 +48,22 @@ func main() {
 	}
 
 	up := mcpface.NewUpstream(upstreamBase)
-	spec, err := loadV2Spec(up)
+	fetch := func(ctx context.Context) ([]byte, error) { return loadV2Spec(ctx, up) }
+
+	ctx, stopRefresh := context.WithCancel(context.Background())
+	defer stopRefresh()
+
+	spec, err := fetch(ctx)
 	if err != nil {
 		slog.Error("load v2 openapi", "error", err)
 		os.Exit(1)
 	}
-	server, err := mcpface.NewServer(up, spec)
+	server, specs, err := mcpface.NewServer(up, spec)
 	if err != nil {
 		slog.Error("mcp server from spec", "error", err)
 		os.Exit(1)
 	}
+	go specs.Run(ctx, time.Duration(envInt("KUN_MCP_SPEC_REFRESH_SECONDS", defaultRefreshSeconds))*time.Second, fetch)
 
 	handler := mcp.NewStreamableHTTPHandler(
 		func(*http.Request) *mcp.Server { return server },
@@ -84,19 +97,20 @@ func main() {
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	<-stop
 	slog.Info("mcp server shutting down")
+	stopRefresh()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := srv.Shutdown(shutdown); err != nil {
 		slog.Error("mcp server shutdown", "error", err)
 	}
 }
 
-func loadV2Spec(up *mcpface.Upstream) ([]byte, error) {
+func loadV2Spec(ctx context.Context, up *mcpface.Upstream) ([]byte, error) {
 	if p := os.Getenv("KUN_MCP_OPENAPI_PATH"); p != "" {
 		return os.ReadFile(p)
 	}
-	status, body, err := up.Get(context.Background(), "/v2/catalog/openapi.json", nil, "")
+	status, body, err := up.Get(ctx, "/v2/catalog/openapi.json", nil, "")
 	if err != nil {
 		return nil, err
 	}

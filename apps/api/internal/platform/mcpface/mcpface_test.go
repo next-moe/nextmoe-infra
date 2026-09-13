@@ -33,7 +33,7 @@ var fixtureSpec = []byte(`{
 
 func TestToolRegistry(t *testing.T) {
 	ctx := context.Background()
-	server, err := NewServer(NewUpstream("http://127.0.0.1:0"), fixtureSpec)
+	server, _, err := NewServer(NewUpstream("http://127.0.0.1:0"), fixtureSpec)
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}

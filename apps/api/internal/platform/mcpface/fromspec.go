@@ -12,11 +12,12 @@ import (
 
 var readOnly = &mcp.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true}
 
-func registerSpecTools(s *mcp.Server, up *Upstream, raw []byte) error {
+func applySpecTools(s *mcp.Server, up *Upstream, raw []byte) ([]string, error) {
 	tools, err := ToolsFromSpec(raw)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	names := make([]string, 0, len(tools))
 	t := &toolsRunner{up: up}
 	for i := range tools {
 		td := tools[i]
@@ -38,8 +39,9 @@ func registerSpecTools(s *mcp.Server, up *Upstream, raw []byte) error {
 			InputSchema: schema,
 			Annotations: readOnly,
 		}, t.handler(td))
+		names = append(names, td.Name)
 	}
-	return nil
+	return names, nil
 }
 
 type toolsRunner struct {
