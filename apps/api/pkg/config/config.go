@@ -152,8 +152,9 @@ type FederationProviderConfig struct {
 }
 
 type FederationConfig struct {
-	Google FederationProviderConfig
-	GitHub FederationProviderConfig
+	Google     FederationProviderConfig
+	GitHub     FederationProviderConfig
+	Hikarinagi FederationProviderConfig
 }
 
 // YmgalConfig is 月幕 Galgame's OpenAPI client. Use the dedicated client 苍麟
@@ -437,6 +438,10 @@ func Load() (*Config, error) {
 		GitHub: FederationProviderConfig{
 			ClientID:     getEnv("KUN_FEDERATION_GITHUB_CLIENT_ID", ""),
 			ClientSecret: getEnv("KUN_FEDERATION_GITHUB_CLIENT_SECRET", ""),
+		},
+		Hikarinagi: FederationProviderConfig{
+			ClientID:     getEnv("KUN_FEDERATION_HIKARINAGI_CLIENT_ID", ""),
+			ClientSecret: getEnv("KUN_FEDERATION_HIKARINAGI_CLIENT_SECRET", ""),
 		},
 	}
 

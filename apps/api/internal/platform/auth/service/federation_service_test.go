@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -115,18 +116,22 @@ func (m *memKV) Delete(key string) error {
 }
 
 type fakeProvider struct {
-	name  string
-	ident *federation.Identity
-	err   error
+	name     string
+	ident    *federation.Identity
+	err      error
+	lastAuth federation.AuthRequest
+	lastExch federation.ExchangeRequest
 }
 
 func (f *fakeProvider) Name() string { return f.name }
 
-func (f *fakeProvider) AuthorizeURL(state, nonce, redirectURI string) string {
-	return "https://example.invalid/authorize?state=" + state + "&nonce=" + nonce
+func (f *fakeProvider) AuthorizeURL(req federation.AuthRequest) string {
+	f.lastAuth = req
+	return "https://example.invalid/authorize?state=" + req.State + "&nonce=" + req.Nonce
 }
 
-func (f *fakeProvider) Exchange(ctx context.Context, code, redirectURI, nonce string) (*federation.Identity, error) {
+func (f *fakeProvider) Exchange(ctx context.Context, req federation.ExchangeRequest) (*federation.Identity, error) {
+	f.lastExch = req
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -313,6 +318,57 @@ func TestFederationStart_setsStateAndAuthorizeURL(t *testing.T) {
 	raw, err := kv.Get(federationStateKeyPrefix + state)
 	if err != nil || len(raw) == 0 {
 		t.Fatal("expected federation_state in cache")
+	}
+}
+
+func TestFederationStart_bindsPKCEVerifierToChallenge(t *testing.T) {
+	settings.Override(t, keys.AuthFederationProviders, []string{"google"})
+	reg := federation.NewRegistry(&config.Config{})
+	p := &fakeProvider{name: "google", ident: &federation.Identity{Subject: "1"}}
+	reg.Register(p)
+	svc := NewFederationService(nil, nil, nil, nil, nil, &config.Config{
+		Server: config.ServerConfig{SiteURL: "http://127.0.0.1:9277", FrontendURL: "http://127.0.0.1:9420"},
+	}, reg)
+	kv := newMemKV()
+	svc.kv = kv
+
+	_, state, err := svc.Start(context.Background(), "google", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := kv.Get(federationStateKeyPrefix + state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var st federationState
+	if err := json.Unmarshal(raw, &st); err != nil {
+		t.Fatal(err)
+	}
+	if st.Verifier == "" {
+		t.Fatal("expected a code_verifier in the stored state")
+	}
+	if got, want := p.lastAuth.CodeChallenge, federation.S256Challenge(st.Verifier); got != want {
+		t.Fatalf("code_challenge = %q, want S256(verifier) = %q", got, want)
+	}
+}
+
+func TestCallback_spendsTheVerifierFromTheState(t *testing.T) {
+	h := newFedHarness(t)
+	p := &fakeProvider{name: "google", ident: &federation.Identity{Subject: uniq("s")}}
+	h.reg.Register(p)
+
+	_, state, err := h.svc.Start(context.Background(), "google", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.svc.Callback(context.Background(), "google", "code", state, state, SessionMeta{}); err != nil {
+		t.Fatal(err)
+	}
+	if p.lastExch.CodeVerifier == "" {
+		t.Fatal("Exchange got no code_verifier")
+	}
+	if got, want := federation.S256Challenge(p.lastExch.CodeVerifier), p.lastAuth.CodeChallenge; got != want {
+		t.Fatalf("verifier sent to Exchange does not match the challenge sent to authorize: %q vs %q", got, want)
 	}
 }
 

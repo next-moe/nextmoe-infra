@@ -27,24 +27,24 @@ func newGoogleProvider(cfg config.FederationProviderConfig) *googleProvider {
 
 func (p *googleProvider) Name() string { return "google" }
 
-func (p *googleProvider) AuthorizeURL(state, nonce, redirectURI string) string {
+func (p *googleProvider) AuthorizeURL(req AuthRequest) string {
 	q := url.Values{}
 	q.Set("client_id", p.clientID)
-	q.Set("redirect_uri", redirectURI)
+	q.Set("redirect_uri", req.RedirectURI)
 	q.Set("response_type", "code")
 	q.Set("scope", "openid email profile")
-	q.Set("state", state)
-	q.Set("nonce", nonce)
+	q.Set("state", req.State)
+	q.Set("nonce", req.Nonce)
 	q.Set("prompt", "select_account")
 	return googleAuthorizeURL + "?" + q.Encode()
 }
 
-func (p *googleProvider) Exchange(ctx context.Context, code, redirectURI, nonce string) (*Identity, error) {
+func (p *googleProvider) Exchange(ctx context.Context, req ExchangeRequest) (*Identity, error) {
 	form := url.Values{}
-	form.Set("code", code)
+	form.Set("code", req.Code)
 	form.Set("client_id", p.clientID)
 	form.Set("client_secret", p.clientSecret)
-	form.Set("redirect_uri", redirectURI)
+	form.Set("redirect_uri", req.RedirectURI)
 	form.Set("grant_type", "authorization_code")
 
 	var tok struct {
@@ -80,7 +80,7 @@ func (p *googleProvider) Exchange(ctx context.Context, code, redirectURI, nonce 
 		return nil, fmt.Errorf("federation: google id_token exp")
 	}
 	nonceClaim, _ := claims["nonce"].(string)
-	if nonceClaim != nonce {
+	if nonceClaim != req.Nonce {
 		return nil, fmt.Errorf("federation: google id_token nonce")
 	}
 	sub, err := claims.GetSubject()

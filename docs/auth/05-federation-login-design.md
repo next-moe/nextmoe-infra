@@ -1,7 +1,8 @@
-# 05 — Federated login (Google + GitHub) — Design
+# 05 — Federated login (Google + GitHub + Hikarinagi) — Design
 
 > Upstream federation for the self-built OIDC OP (`cmd/oauth`): the OP becomes an
-> OAuth/OIDC client of Google (full OIDC) and GitHub (plain OAuth2, no `id_token`).
+> OAuth/OIDC client of Google (full OIDC), GitHub (plain OAuth2, no `id_token`)
+> and Hikarinagi ID (full OIDC, PKCE mandatory).
 > Downstream sites are unchanged — a successful federation mints a normal OP
 > session (same refresh cookie as password login). A small provider registry plus
 > one adapter per provider is the extension point for later providers.
@@ -13,6 +14,11 @@
 > separate change. ⚠️ Prod needs `go run ./cmd/migrate` on `kun_galgame_infra`
 > so AutoMigrate can create the two composite unique indexes on `oauth_accounts`
 > (deploy does not run that migrate automatically).
+
+> **2026-09-13**: Hikarinagi ID added as a third adapter. It carried PKCE into the
+> shared flow — `Provider` now takes `AuthRequest`/`ExchangeRequest` and the Redis
+> state row carries a `verifier`. Google and GitHub ignore both fields; no new
+> migration (`oauth_accounts.provider` is a free string).
 
 ## 0. Locked decisions
 
@@ -94,7 +100,7 @@ Success body is `dto.LoginResponse` (refresh cookie set, no refresh token in JSO
 
 | Key | Value | TTL | Written | Consumed |
 |-----|-------|-----|---------|----------|
-| `federation_state:{state}` | `{provider, nonce, redirect}` | 10 min | Start | Callback (read + delete) |
+| `federation_state:{state}` | `{provider, nonce, redirect, verifier}` | 10 min | Start | Callback (read + delete) |
 | `federation_pending:{token}` | `{provider, subject, email, email_verified, name, avatar_url}` | 30 min | Callback outcome E | Pending (read); Complete (delete on success) |
 
 **Cookies (OP host)**
@@ -111,7 +117,8 @@ Success body is `dto.LoginResponse` (refresh cookie set, no refresh token in JSO
 - [x] **State cookie binding** — callback requires `state` == `nm_fed_state`; Redis state is one-time.
 - [x] **admin/ren refusal** — link-hit and verified-email auto-link both refuse `admin`/`ren` with `federation_stepup`.
 - [x] **No tokens in URLs** — access token stays off the query string; refresh is a cookie; pending token is an opaque Redis handle.
-- [x] **No upstream token storage** — Google `id_token` / GitHub `access_token` are used in memory during Exchange only.
+- [x] **No upstream token storage** — Google / Hikarinagi `id_token` and GitHub `access_token` are used in memory during Exchange only.
+- [x] **PKCE where the upstream offers it** — the `code_verifier` is generated at Start and lives only in the one-time Redis state row, so it never reaches the browser. Hikarinagi requires it (S256 only); Google and GitHub adapters drop it.
 - [x] **Open-redirect validation** — empty → `{FrontendURL}/profile`; path `/…` (not `//`) → FrontendURL + path; absolute URL only if origin equals FrontendURL or SiteURL; anything else uses the default. Pending/error query `redirect` is the raw value for the SPA to re-validate; the login 302 target is always a validated URL.
 
 ## 4. Config reference
@@ -122,8 +129,9 @@ Success body is `dto.LoginResponse` (refresh cookie set, no refresh token in JSO
 |----------|---------|
 | `KUN_FEDERATION_GOOGLE_CLIENT_ID` / `KUN_FEDERATION_GOOGLE_CLIENT_SECRET` | Google OIDC client |
 | `KUN_FEDERATION_GITHUB_CLIENT_ID` / `KUN_FEDERATION_GITHUB_CLIENT_SECRET` | GitHub OAuth2 client |
+| `KUN_FEDERATION_HIKARINAGI_CLIENT_ID` / `KUN_FEDERATION_HIKARINAGI_CLIENT_SECRET` | Hikarinagi ID OIDC client (confidential, `client_secret_basic`) |
 
-Empty credentials → that adapter is not registered. `SiteURL` / `FrontendURL` are the existing server env vars.
+Empty credentials → that adapter is not registered. `SiteURL` / `FrontendURL` are the existing server env vars. A new provider also needs its two lines in `docker-compose.prod.yml` — a panel var that compose does not list never reaches the container.
 
 **Settings key**
 
@@ -131,14 +139,28 @@ Empty credentials → that adapter is not registered. `SiteURL` / `FrontendURL` 
 |-----|------|---------|---------|
 | `auth.federation_providers` | `string_list` | `[]` | Display order of providers on the login page. A name also needs env credentials to appear in `GET /providers`. |
 
-Google / GitHub console redirect URI:
+Upstream console redirect URI:
 
 `{SiteURL}/api/v1/auth/federation/{provider}/callback`
 
-with `{provider}` = `google` or `github`.
+with `{provider}` = `google`, `github` or `hikarinagi`. Hikarinagi matches the
+registered URI verbatim — scheme, port, path and trailing slash, no prefix match.
+
+**Hikarinagi ID adapter** (`federation/hikarinagi.go`), from its discovery document
+`https://id.hikarinagi.org/oidc/.well-known/openid-configuration`:
+
+| | |
+|---|---|
+| issuer (verbatim `iss` check) | `https://id.hikarinagi.org/oidc` |
+| authorize / token | `/oidc/auth` · `/oidc/token` |
+| scope | `openid profile email` — login only, no `catalog:*`, no `offline_access` (so no `prompt=consent`, and no refresh token to store) |
+| PKCE | mandatory, `S256` only |
+| token endpoint auth | `client_secret_basic` — must match what the console has registered for the client |
+| identity claims | `sub`, `email` + `email_verified`, `picture`, and the username suggestion from `preferred_username` → `nickname` → `name` |
 
 ## 5. Migration & rollout
 
 - **DB**: `go run ./cmd/migrate` against `kun_galgame_infra`. `OAuthAccount` is already in the migrate model list; AutoMigrate creates `idx_oauth_accounts_provider_account` and `idx_oauth_accounts_user_provider` from the GORM tags. Deploy does not run this migrate. If production already has duplicate `(provider, provider_account_id)` rows, the unique index create will fail until those rows are cleaned.
-- **Rollout**: ship the OP with empty `auth.federation_providers` (feature off). Set Google/GitHub env on the oauth service, register the redirect URIs, then set the settings key to `["google","github"]` (or a subset). Downstream RPs need no change.
+- **Rollout**: ship the OP with empty `auth.federation_providers` (feature off). Set the provider env on the oauth service, register the redirect URIs, then set the settings key to `["google","github","hikarinagi"]` (or a subset). Downstream RPs need no change.
+- **Adding a provider** costs no migration: `oauth_accounts.provider` is a free string, and the two unique indexes already cover any new name.
 - **Not in v1**: profile bind/unbind, Apple/Microsoft, storing or encrypting upstream tokens, passwordless accounts.

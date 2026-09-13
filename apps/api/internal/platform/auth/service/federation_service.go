@@ -91,6 +91,7 @@ type federationState struct {
 	Provider string `json:"provider"`
 	Nonce    string `json:"nonce"`
 	Redirect string `json:"redirect"`
+	Verifier string `json:"verifier"`
 }
 
 type federationPending struct {
@@ -165,11 +166,16 @@ func (s *FederationService) Start(ctx context.Context, providerName, redirect st
 	if err != nil {
 		return "", "", err
 	}
+	verifier, err := generateSecureToken(32)
+	if err != nil {
+		return "", "", err
+	}
 
 	payload, err := json.Marshal(federationState{
 		Provider: providerName,
 		Nonce:    nonce,
 		Redirect: redirect,
+		Verifier: verifier,
 	})
 	if err != nil {
 		return "", "", err
@@ -178,8 +184,12 @@ func (s *FederationService) Start(ctx context.Context, providerName, redirect st
 		return "", "", err
 	}
 
-	redirectURI := s.callbackURI(providerName)
-	return provider.AuthorizeURL(state, nonce, redirectURI), state, nil
+	return provider.AuthorizeURL(federation.AuthRequest{
+		State:         state,
+		Nonce:         nonce,
+		RedirectURI:   s.callbackURI(providerName),
+		CodeChallenge: federation.S256Challenge(verifier),
+	}), state, nil
 }
 
 func (s *FederationService) Callback(ctx context.Context, providerName, code, state, cookieState string, meta SessionMeta) (*CallbackResult, error) {
@@ -206,7 +216,12 @@ func (s *FederationService) Callback(ctx context.Context, providerName, code, st
 		return nil, &callbackError{redirectCode: "federation_failed", rawRedirect: rawRedirect}
 	}
 
-	ident, err := provider.Exchange(ctx, code, s.callbackURI(providerName), st.Nonce)
+	ident, err := provider.Exchange(ctx, federation.ExchangeRequest{
+		Code:         code,
+		RedirectURI:  s.callbackURI(providerName),
+		Nonce:        st.Nonce,
+		CodeVerifier: st.Verifier,
+	})
 	if err != nil || ident == nil {
 		return nil, &callbackError{redirectCode: "federation_failed", rawRedirect: rawRedirect}
 	}
