@@ -14,13 +14,32 @@ import (
 
 const bearerRealm = "kungal"
 
+// logMissingCredential is the loudest of the three rejects because it used to
+// be the quietest: an absent Authorization header returned 401 and wrote
+// nothing at all, anywhere. Two third-party RPs failed every login for a day
+// behind that silence — their HTTP clients followed the legacy
+// oauth.kungal.com → account.nextmoe.com redirect, which strips Authorization
+// because the host changes, so the token POST (credentials in the body)
+// succeeded and the userinfo GET (credential in the header) arrived bare. From
+// our side the two are indistinguishable without this line.
+//
+// The user agent is what separates the bug from the noise: a browser or a
+// scanner reaching a protocol endpoint with no credential is routine, a
+// server-side HTTP client doing it never is. Only BearerAuth calls this —
+// middleware.Auth guards the first-party session faces, where every logged-out
+// browser arrives without a header and the line would be pure volume.
+func logMissingCredential(c fiber.Ctx, guard string) {
+	slog.Warn(guard+" reject", "stage", "no_credential", "path", c.Path(),
+		"client_ip", c.IP(), "user_agent", c.Get(fiber.HeaderUserAgent))
+}
+
 // logTokenReject separates "this token died of old age" from "the caller never
 // had a token". An expired one is the normal end of a 15-minute life and stays
 // at Debug. A malformed one is an integration bug on the far side and used to
-// be invisible: two third-party RPs spent a day sending `Bearer undefined` —
-// they read access_token off the {code,message,data} envelope the protocol
-// endpoints stopped sending in 2026-07 — and the only trace anywhere was an
-// unexplained 401 one millisecond after a 200 from /oauth/token.
+// be invisible: an RP that reads access_token off the {code,message,data}
+// envelope the protocol endpoints stopped sending in 2026-07 sends the literal
+// string `undefined`, and the only trace anywhere was an unexplained 401 one
+// millisecond after a 200 from /oauth/token.
 // Never log the token itself; the shape is what identifies the bug.
 func logTokenReject(c fiber.Ctx, guard, token string, err error) {
 	if !stderrors.Is(err, jwt.ErrTokenMalformed) {
@@ -77,6 +96,7 @@ func BearerAuth(authSvc *authService.AuthService) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		authHeader := c.Get(fiber.HeaderAuthorization)
 		if authHeader == "" {
+			logMissingCredential(c, "bearer")
 			return BearerError(c, fiber.StatusUnauthorized, "", "")
 		}
 
