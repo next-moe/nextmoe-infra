@@ -20,8 +20,7 @@ type Translator interface {
 // constants retranslates nothing on its own — every existing row still reads as
 // up to date. Rewriting a corpus after a prompt change needs the --force lane.
 // Putting the prompt in the hash instead would mark all 47k machine rows stale
-// and hand the nightly a 47-hour run on the shared Cloudflare quota the prod
-// moderation gate rides on.
+// and hand the nightly a 47-hour run against a rate-limited gateway.
 //
 // Rule 3 replaced a blanket "keep every proper noun in the original script".
 // 2026-08-23 measured what that produced across 18,168 machine rows: the model
@@ -280,7 +279,7 @@ func (t *HTTPTranslator) SetSourceLang(src SourceLang) { t.sourceLang = src }
 // as a problem to think about: 2026-08-23 grok-4.6 spent an average of 8,165
 // output tokens and 154 seconds on intros whose translation is ~800 tokens, and
 // long ones ran past the gateway's 100s ceiling into the retry ladder. Omitted
-// when empty, so the Cloudflare lane the nightly rides is unaffected.
+// when empty, so a lane that does not set it is unaffected.
 func (t *HTTPTranslator) SetEffort(effort string) { t.effort = effort }
 
 func (t *HTTPTranslator) systemPrompt() string {

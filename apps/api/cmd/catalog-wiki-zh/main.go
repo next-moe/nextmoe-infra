@@ -44,7 +44,7 @@ func main() {
 		mock        = fs.Bool("mock", false, "judge: offline deterministic stand-in")
 		llmBase     = fs.String("llm-base", os.Getenv("KUN_AI_UPSTREAM_BASE_URL"), "OpenAI-compatible base URL")
 		llmToken    = fs.String("llm-token", os.Getenv("KUN_AI_UPSTREAM_TOKEN"), "bearer token")
-		model       = fs.String("model", envOr("KUN_AI_UPSTREAM_MODEL", "@cf/zai-org/glm-5.2"), "model id")
+		model       = fs.String("model", envOr("KUN_AI_UPSTREAM_MODEL", "glm-5.2"), "model id")
 	)
 	_ = fs.Parse(os.Args[2:])
 
