@@ -80,7 +80,7 @@ func TestReasoningEffortReachesTheWireAndIsOmittedByDefault(t *testing.T) {
 	_, _, err := plain.Translate(context.Background(), "x", nil)
 	require.NoError(t, err)
 	_, present := raw["reasoning_effort"]
-	assert.False(t, present, "no effort set — the key must not appear, so the Cloudflare lane is unchanged")
+	assert.False(t, present, "no effort set — the key must not appear, so a lane that does not set it is unchanged")
 
 	low := NewHTTPTranslator(srv.URL, "t", "m", 64)
 	low.SetEffort("low")
