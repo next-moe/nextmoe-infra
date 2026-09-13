@@ -81054,7 +81054,7 @@ export const docsModel: DocsModel = {
               "method": "post",
               "path": "/v2/me/claims",
               "summary": "Submit a claim",
-              "description": "Mint or claim a work. work_id claims an existing catalog work. refs= claims the work they resolve to, or mints one from display_name when none match. site_work_id with display_name and neither work_id nor refs mints a work anchored to the site's own id. field_values carries an editing-engine work field map onto any mint lane and may be sent alone, without work_id, refs or site_work_id; it is refused with work_id, and refs that already resolve to a work answer 409 instead of dropping it. released rides the same mint lanes under the same two refusals and becomes one curated catalog_release row on the minted work. A caller holding catalog.claim.trusted mints straight to live rather than pending. A mint whose display_name or catalog.work.titles match live works of the same medium is refused with 409 DUPLICATE_SUSPECTS naming them in suspects[] and nothing is written; re-send with confirm_duplicates=true to mint anyway. The claiming lanes — work_id, and refs that resolve — never hit this gate. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.",
+              "description": "Mint or claim a work. work_id claims an existing catalog work. refs= claims the work they resolve to, or mints one from display_name when none match. site_work_id with display_name and neither work_id nor refs mints a work anchored to the site's own id. field_values carries an editing-engine work field map onto any mint lane and may be sent alone, without work_id, refs or site_work_id; it is refused with work_id, and refs that already resolve to a work answer 409 instead of dropping it. released rides the same mint lanes under the same two refusals and becomes one curated catalog_release row on the minted work. A caller holding catalog.claim.trusted mints straight to live rather than pending. A mint whose display_name or catalog.work.titles match live works of the same medium is refused with 409 DUPLICATE_SUSPECTS naming them in suspects[] and nothing is written; re-send with confirm_duplicates=true to mint anyway. The claiming lanes — work_id, and refs that resolve — never hit this gate. A contributor who has used up catalog.claim_writes_per_day inside the sliding window is refused 429 QUOTA_EXCEEDED; holders of catalog.claim.trusted get the higher catalog.claim_writes_per_day_trusted. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -83797,7 +83797,7 @@ export const docsModel: DocsModel = {
               "method": "patch",
               "path": "/v2/me/claims/{id}",
               "summary": "Move a claim the caller owns",
-              "description": "PATCH {state: live|pending|withdrawn}. live publishes a draft without review, pending submits it for review, withdrawn returns it to draft. The owner may act, and an unowned claim is adopted by its first claimant. If-Match required. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.",
+              "description": "PATCH {state: live|pending|withdrawn}. live publishes a draft without review, pending submits it for review, withdrawn returns it to draft. The owner may act, and an unowned claim is adopted by its first claimant. Counts against the same catalog.claim_writes_per_day window as a mint, and answers 429 QUOTA_EXCEEDED when it is exhausted. If-Match required. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -116644,7 +116644,7 @@ export const docsModel: DocsModel = {
               "method": "post",
               "path": "/v2/me/proposals",
               "summary": "File a proposal",
-              "description": "Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.",
+              "description": "A contributor who has used up catalog.proposals_per_day inside the sliding window is refused 429 QUOTA_EXCEEDED; holders of catalog.edit.trusted, whose proposals merge without review, get the higher catalog.proposals_per_day_trusted. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",

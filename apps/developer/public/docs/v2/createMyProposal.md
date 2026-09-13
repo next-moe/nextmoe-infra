@@ -13,7 +13,7 @@
 
 File a proposal
 
-Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+A contributor who has used up catalog.proposals_per_day inside the sliding window is refused 429 QUOTA_EXCEEDED; holders of catalog.edit.trusted, whose proposals merge without review, get the higher catalog.proposals_per_day_trusted. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
