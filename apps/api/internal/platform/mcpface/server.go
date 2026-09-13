@@ -18,11 +18,12 @@ const instructions = "NextMoe catalog v2: read-only tools generated from the pub
 	"R18 content is hidden by default: pass nsfw=true to include it. Any key may do so. " +
 	"This surface is preview: paths and fields may still change."
 
-func NewServer(up *Upstream, spec []byte) (*mcp.Server, error) {
+func NewServer(up *Upstream, spec []byte) (*mcp.Server, *SpecSync, error) {
 	s := mcp.NewServer(&mcp.Implementation{Name: serverName, Version: serverVersion},
 		&mcp.ServerOptions{Instructions: instructions})
-	if err := registerSpecTools(s, up, spec); err != nil {
-		return nil, err
+	sync := &SpecSync{srv: s, up: up}
+	if _, err := sync.Apply(spec); err != nil {
+		return nil, nil, err
 	}
-	return s, nil
+	return s, sync, nil
 }
