@@ -1096,3 +1096,60 @@ is the same defect `Spec.NoBatch` exists to prevent, one parameter family over.
 
 **Zero migrations.** Both tables and the `work_id` index the reverse lookup needs
 (`idx_catalog_user_folder_item_work_id`) already exist.
+
+## Wave — the blurred stand-in stops standing in for works that have real art (2026-09-13)
+
+The 2026-09-05 ladder promised the `censored` ghost fills the portrait slot
+"only when nothing else may". The code kept that promise. The data did not:
+**961 kungal claims sat on the SFW shelf with no safe cover art at all**, so
+the ghost was the only thing the election could return — to every viewer, in
+both modes. Readers saw a blurred stand-in where the work had a perfectly good
+official cover, and no reader setting could reach past it.
+
+The gate itself is not the defect. `allowSexual` is
+`nsfw && effectiveDisplayNSFW(...)`, and its second term is the claiming site's
+own shelf — the presentation contract, which is what a cover face should
+honour. What was missing is that the contract has a precondition nothing
+enforced: **a work can only be presented as SFW if something safe exists to
+present.** These 961 could not satisfy it.
+
+Opening the gate on the reader's axis instead was measured and rejected. Only
+481 SFW-shelf works carry both safe and explicit art, so the change would have
+reached few works — but for those it would have put explicit art in the banner
+of entries the site had deliberately shelved SFW, silently overriding an
+editorial decision to fix a data defect.
+
+The repair moved the 959 r18 members off the SFW shelf (`display_nsfw` true;
+kungal claims 13,759 → 14,718 on the NSFW shelf). They are the same population
+as the 9,590 explicit-only works already shelved NSFW, split by accident: same
+sources, 1.31 vs 1.11 real covers on average. The two non-r18 findings were
+left alone — an all-ages work whose only cover art is graded explicit is more
+likely mis-rated than mis-shelved, and moving it hides the wrong thing.
+
+**`cmd/audit-cover-shelf` keeps the invariant, as a cron and not a write-path
+guard.** `sexual` is written asynchronously by the nightly image grader, so a
+re-grade can turn a work's last safe cover explicit with nobody touching
+`display_nsfw` — there is no write to hang a check on. The job runs at 17:00
+CST, two hours behind the grader; `-fix` repairs the r18 findings, a non-r18
+finding raises exit 3 and alerts, and `-max-fix` refuses a runaway rather than
+emptying the SFW shelf when a grader breaks.
+
+The packaging kinds the election skips moved to `model.PackagingCoverKinds` /
+`model.IsCoverArt`. The audit has to classify covers exactly as the election
+does, and a second hand-maintained copy of that list would have let a future
+packaging kind clear a work whose only "safe" row the election refuses to
+elect.
+
+`content_limit` reaches OpenSearch only through `cmd/reindex-catalog`, so the
+repair was live on the SQL list faces at once and invisible to search until a
+reindex ran — by hand here, and nightly at 06:10 CST thereafter.
+
+The ghost keeps its place on the ladder. After the repair it can fire only for
+a work with no real cover art at all, which is the case it was built for; its
+16,334 rows stay, because they are the only thing standing between that case
+and a blank card.
+
+**Spec is unchanged.** No face, parameter or schema moved.
+
+**Zero migrations.** The repair is a data UPDATE against `kun_catalog`, not a
+schema change.

@@ -14,15 +14,6 @@ const (
 	portraitMinWidth = 500
 )
 
-func isCoverArt(kind string) bool {
-	switch kind {
-	case "pkgfront", "pkgback", "pkgmed", "pkgcontent", "pkgside":
-		return false
-	default:
-		return true
-	}
-}
-
 const censoredSourceKey = "censored"
 
 // Stand-in ladder: real safe art first, real explicit art second (R18 opt-in
@@ -110,7 +101,7 @@ func (s *PublicService) scanCovers(rows []WorkCoverRow, meta map[string]ImageMet
 	var out coverCandidates
 	for i := range rows {
 		c := &rows[i]
-		if !isCoverArt(c.Kind) {
+		if !model.IsCoverArt(c.Kind) {
 			continue
 		}
 		if !allowSexual && c.Sexual >= model.SexualExplicit {

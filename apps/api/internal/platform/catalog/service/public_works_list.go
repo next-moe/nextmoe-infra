@@ -428,7 +428,7 @@ func (s *PublicService) pickListCover(rows []WorkCoverRow, allowSexual bool) str
 func (s *PublicService) listCoverFrom(rows []WorkCoverRow, allowSexual bool) string {
 	var fallback string
 	for _, c := range rows {
-		if !isCoverArt(c.Kind) {
+		if !model.IsCoverArt(c.Kind) {
 			continue
 		}
 		if !allowSexual && c.Sexual >= model.SexualExplicit {
