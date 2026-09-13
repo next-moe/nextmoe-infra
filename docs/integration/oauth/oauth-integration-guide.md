@@ -286,7 +286,8 @@ const response = await $fetch('https://account.nextmoe.com/api/v1/oauth/token', 
   },
 })
 
-// 返回 { code: 0, data: { access_token, refresh_token, ... } }
+// 返回裸 RFC 6749 §5.1 顶层对象（无信封）：
+// { access_token, token_type, expires_in, refresh_token, scope, id_token? }
 // 必须用新的 refresh_token 替换旧的（令牌轮换）
 ```
 
@@ -680,10 +681,12 @@ export default defineEventHandler(async (event) => {
   })
 
   // 2. 获取用户信息
-  const userInfoResp = await $fetch(`${config.oauthServerUrl}/oauth/userinfo`, {
-    headers: { Authorization: `Bearer ${tokenResponse.data.access_token}` },
+  //    /oauth/token 与 /oauth/userinfo 是协议端点，响应没有 {code,message,data}
+  //    信封——直接读顶层字段。写成 `tokenResponse.data.access_token` 会拿到
+  //    undefined，请求头变成 `Bearer undefined`，userinfo 回 401 invalid_token。
+  const userInfo = await $fetch(`${config.oauthServerUrl}/oauth/userinfo`, {
+    headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
   })
-  const userInfo = userInfoResp.data
 
   // 3. 在本站创建/查找用户（根据你的数据库逻辑）
   // ...
