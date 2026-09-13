@@ -123,7 +123,8 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 
 	fedReg := federation.NewRegistry(cfg)
 	oauthAccountRepo := authRepo.NewOAuthAccountRepository(db)
-	fedSvc := authService.NewFederationService(authSvc, userRepo, oauthAccountRepo, sessionRepo, a.Cache, cfg, fedReg)
+	fedSvc := authService.NewFederationService(authSvc, userRepo, oauthAccountRepo, sessionRepo, a.Cache, cfg, fedReg).
+		WithImageClient(imgCli)
 	slog.Info("federation providers configured", "count", fedReg.ConfiguredCount())
 
 	devRepo := devapi.NewRepository(db)

@@ -20,6 +20,7 @@ import (
 	"api/internal/platform/settings/keys"
 	"api/pkg/config"
 	"api/pkg/errors"
+	"api/pkg/imageclient"
 	"api/pkg/utils"
 
 	"gorm.io/gorm"
@@ -112,6 +113,7 @@ type FederationService struct {
 	cfg              *config.Config
 	registry         *federation.Registry
 	kv               federationKV
+	imgClient        *imageclient.Client
 }
 
 func NewFederationService(
@@ -407,6 +409,8 @@ func (s *FederationService) Complete(ctx context.Context, req *dto.FederationCom
 	if err := s.createLink(ctx, user.ID, pending.Provider, pending.Subject); err != nil {
 		return nil, nil, err
 	}
+
+	s.adoptUpstreamAvatar(ctx, user, pending.Provider, pending.AvatarURL)
 
 	tokens, err := s.authSvc.generateTokens(user)
 	if err != nil {
