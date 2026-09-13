@@ -21,10 +21,14 @@ FROM node:${NODE_VERSION}-trixie-slim AS base
 RUN corepack enable
 WORKDIR /repo
 
-# ---- deps: copy every workspace manifest, install only the developer subgraph -
+# ---- deps: copy the needed workspace manifests, install the developer subgraph -
+# Copy only the manifests this install actually resolves (like nuxt.Dockerfile:
+# APP + api). A COPY of another app's manifest breaks the whole build-and-push
+# run the moment that app is removed — and only on push to main, because the
+# image workflow does not run on PRs (the 2026-09-13 cutover deploy died on a
+# stale apps/web line here).
 FROM base AS deps
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
-COPY apps/web/package.json        apps/web/package.json
 COPY apps/api/package.json        apps/api/package.json
 COPY apps/developer/package.json  apps/developer/package.json
 # --ignore-scripts: the app's `postinstall: nuxt prepare` can't run here (app
