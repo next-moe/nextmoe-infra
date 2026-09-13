@@ -1,13 +1,10 @@
 <script setup lang="ts">
+import { federationLabel } from '~/constants/federation'
+
 const auth = useAuth()
 const api = useApi()
 const router = useRouter()
 const route = useRoute()
-
-const PROVIDER_LABELS: Record<string, string> = {
-  google: 'Google',
-  github: 'GitHub'
-}
 
 const token = ref('')
 const pending = ref<FederationPendingResponse | null>(null)
@@ -58,10 +55,9 @@ const isSafeRedirect = (url: string): boolean => {
   }
 }
 
-const providerLabel = computed(() => {
-  const n = pending.value?.provider ?? ''
-  return PROVIDER_LABELS[n] ?? '第三方'
-})
+const providerLabel = computed(() =>
+  federationLabel(pending.value?.provider ?? '')
+)
 
 const emailLocked = computed(() => pending.value?.email_locked === true)
 

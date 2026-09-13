@@ -1,11 +1,8 @@
 <script setup lang="ts">
+import { FEDERATION_PROVIDER_LABEL } from '~/constants/federation'
+
 const api = useApi()
 const route = useRoute()
-
-const PROVIDER_LABELS: Record<string, string> = {
-  google: 'Google',
-  github: 'GitHub'
-}
 
 const providers = ref<{ name: string; label: string }[]>([])
 const isLoading = ref(false)
@@ -46,7 +43,7 @@ onMounted(async () => {
     return
   }
   providers.value = response.data.providers.flatMap((p) => {
-    const label = PROVIDER_LABELS[p.name]
+    const label = FEDERATION_PROVIDER_LABEL[p.name]
     return label ? [{ name: p.name, label }] : []
   })
 })

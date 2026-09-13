@@ -301,13 +301,13 @@ const handleOAuthRegister = async () => {
 
 ## 未来扩展（L2+）
 
-**L2（已实现）**：第三方登录在 OP 落地（Google + GitHub，后续可加更多），见下方「第三方登录（federation）」。**所有下游零代码自动支持**——这是 OAuth 集中架构最大的红利。
+**L2（已实现）**：第三方登录在 OP 落地（Google + GitHub + Hikarinagi ID，后续可加更多），见下方「第三方登录（federation）」。**所有下游零代码自动支持**——这是 OAuth 集中架构最大的红利。
 
 **L3+（待定）**：passkey / magic link / identifier-first flow 等，都在 OAuth 单点实现，下游不感知。
 
 ### 第三方登录（federation）
 
-OP 作为上游 Google（OIDC）/ GitHub（OAuth2）的客户端。浏览器在 account.nextmoe.com 完成第三方登录后，OP 签发与密码登录相同的 session / refresh cookie；下游站点无需改动，也不应自建 Google/GitHub 登录。
+OP 作为上游 Google（OIDC）/ GitHub（OAuth2）/ Hikarinagi ID（OIDC，强制 PKCE）的客户端。浏览器在 account.nextmoe.com 完成第三方登录后，OP 签发与密码登录相同的 session / refresh cookie；下游站点无需改动，也不应自建第三方登录。
 
 契约细节与决策见 infra [`docs/auth/05-federation-login-design.md`](../../auth/05-federation-login-design.md)。
 
@@ -335,7 +335,9 @@ OP 作为上游 Google（OIDC）/ GitHub（OAuth2）的客户端。浏览器在 
 
 JSON 错误码：`10017` 未启用、`10018` 流程过期、`10019` 绑定冲突。
 
-**下游接入**：不需要改。用户从下游「登录」跳到 OP 登录页后，点 Google/GitHub 即在 OP 完成 federation；回来时 OP session 已在，后续 `/oauth/authorize` 与密码登录后相同。不要在 kungal / moyu / wiki 自己接 Google/GitHub。
+**下游接入**：不需要改。用户从下游「登录」跳到 OP 登录页后，点 Google / GitHub / Hikarinagi ID 即在 OP 完成 federation；回来时 OP session 已在，后续 `/oauth/authorize` 与密码登录后相同。不要在 kungal / moyu / wiki 自己接第三方登录。
+
+展示 Hikarinagi 来源的条目数据时须按其品牌规范标注来源并指向该条目在 Hikarinagi 上的页面——本次只接登录（`openid profile email`），未申请 `catalog:*`，所以这条约束目前不适用于任何页面。
 
 ---
 

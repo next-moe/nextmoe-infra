@@ -2,6 +2,8 @@ package federation
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -32,10 +34,31 @@ type Identity struct {
 	AvatarURL     string
 }
 
+type AuthRequest struct {
+	State         string
+	Nonce         string
+	RedirectURI   string
+	CodeChallenge string
+}
+
+type ExchangeRequest struct {
+	Code         string
+	RedirectURI  string
+	Nonce        string
+	CodeVerifier string
+}
+
 type Provider interface {
 	Name() string
-	AuthorizeURL(state, nonce, redirectURI string) string
-	Exchange(ctx context.Context, code, redirectURI, nonce string) (*Identity, error)
+	AuthorizeURL(req AuthRequest) string
+	Exchange(ctx context.Context, req ExchangeRequest) (*Identity, error)
+}
+
+// S256Challenge is RFC 7636 §4.2. Callers pass the verifier they stored with the
+// federation state; a provider that does not do PKCE simply drops the challenge.
+func S256Challenge(verifier string) string {
+	sum := sha256.Sum256([]byte(verifier))
+	return base64.RawURLEncoding.EncodeToString(sum[:])
 }
 
 type Registry struct {
@@ -53,6 +76,9 @@ func NewRegistry(cfg *config.Config) *Registry {
 	}
 	if cfg.Federation.GitHub.ClientID != "" && cfg.Federation.GitHub.ClientSecret != "" {
 		r.Register(newGitHubProvider(cfg.Federation.GitHub))
+	}
+	if cfg.Federation.Hikarinagi.ClientID != "" && cfg.Federation.Hikarinagi.ClientSecret != "" {
+		r.Register(newHikarinagiProvider(cfg.Federation.Hikarinagi))
 	}
 	return r
 }

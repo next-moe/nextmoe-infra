@@ -27,21 +27,21 @@ func newGitHubProvider(cfg config.FederationProviderConfig) *githubProvider {
 
 func (p *githubProvider) Name() string { return "github" }
 
-func (p *githubProvider) AuthorizeURL(state, nonce, redirectURI string) string {
+func (p *githubProvider) AuthorizeURL(req AuthRequest) string {
 	q := url.Values{}
 	q.Set("client_id", p.clientID)
-	q.Set("redirect_uri", redirectURI)
+	q.Set("redirect_uri", req.RedirectURI)
 	q.Set("scope", "read:user user:email")
-	q.Set("state", state)
+	q.Set("state", req.State)
 	return githubAuthorizeURL + "?" + q.Encode()
 }
 
-func (p *githubProvider) Exchange(ctx context.Context, code, redirectURI, nonce string) (*Identity, error) {
+func (p *githubProvider) Exchange(ctx context.Context, req ExchangeRequest) (*Identity, error) {
 	form := url.Values{}
 	form.Set("client_id", p.clientID)
 	form.Set("client_secret", p.clientSecret)
-	form.Set("code", code)
-	form.Set("redirect_uri", redirectURI)
+	form.Set("code", req.Code)
+	form.Set("redirect_uri", req.RedirectURI)
 
 	var tok struct {
 		AccessToken string `json:"access_token"`
