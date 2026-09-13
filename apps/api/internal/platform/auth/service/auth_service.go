@@ -23,6 +23,8 @@ import (
 	"api/pkg/errors"
 	"api/pkg/oidctoken"
 	"api/pkg/utils"
+
+	"gorm.io/gorm"
 )
 
 type emailChangeData struct {
@@ -732,17 +734,6 @@ func (s *AuthService) SendEmailChangeCode(ctx context.Context, userUUID, newEmai
 
 func (s *AuthService) UpdateProfile(ctx context.Context, userUUID string, req *dto.UpdateProfileRequest) (*model.User, error) {
 	fields := map[string]any{}
-
-	if req.Name != nil {
-		exists, err := s.userRepo.ExistsByNameExcluding(ctx, *req.Name, userUUID)
-		if err != nil {
-			return nil, err
-		}
-		if exists {
-			return nil, errors.NewWithCode(errors.ErrAuthNameExists)
-		}
-		fields["name"] = *req.Name
-	}
 	if req.Avatar != nil {
 		fields["avatar"] = *req.Avatar
 	}
@@ -753,7 +744,69 @@ func (s *AuthService) UpdateProfile(ctx context.Context, userUUID string, req *d
 		fields["bio"] = *req.Bio
 	}
 
-	if err := s.userRepo.UpdateProfile(ctx, userUUID, fields); err != nil {
+	if req.Name == nil {
+		if err := s.userRepo.UpdateProfile(ctx, userUUID, fields); err != nil {
+			return nil, err
+		}
+		return s.userRepo.FindByUUIDWithRoles(ctx, userUUID)
+	}
+
+	// A rename costs moemoepoints, so the rename, the rest of the profile edit
+	// and the charge are one transaction. They were not always: the forum's old
+	// Nitro endpoint charged for a rename, its Go rewrite turned that route into
+	// a proxy to this method, and the charge simply stopped happening — for
+	// months, silently. Splitting them again would bring back the same class of
+	// bug in a smaller form (renamed but not charged, or charged but not
+	// renamed), so the charge is not something a later edit can drop by moving
+	// one call out of the block.
+	if s.moemoepointSvc == nil {
+		return nil, fmt.Errorf("moemoepoint service not configured: refusing to rename without charging")
+	}
+	cost := int(keys.AuthNameChangeCost.Get())
+
+	err := s.userRepo.Transact(ctx, func(tx *gorm.DB) error {
+		user, err := s.userRepo.LockByUUID(ctx, tx, userUUID)
+		if err != nil {
+			return mapUserErr(err)
+		}
+
+		renaming := user.Name != *req.Name
+		if renaming {
+			exists, err := s.userRepo.ExistsByNameExcludingTx(ctx, tx, *req.Name, userUUID)
+			if err != nil {
+				return err
+			}
+			if exists {
+				return errors.NewWithCode(errors.ErrAuthNameExists)
+			}
+			fields["name"] = *req.Name
+		}
+		if err := s.userRepo.UpdateProfileTx(ctx, tx, userUUID, fields); err != nil {
+			return err
+		}
+		// Renaming to the name you already have is not a rename, and charging
+		// for it would turn a retried request into a second charge.
+		if !renaming || cost == 0 {
+			return nil
+		}
+
+		seq, err := s.moemoepointSvc.NextReasonSeqTx(ctx, tx, user.ID, model.MoemoepointReasonNameChange)
+		if err != nil {
+			return err
+		}
+		_, err = s.moemoepointSvc.AdjustTx(ctx, tx, AdjustParams{
+			UserID:             user.ID,
+			Delta:              -cost,
+			Reason:             model.MoemoepointReasonNameChange,
+			SourceApp:          "oauth",
+			ActorUserID:        user.ID,
+			IdempotencyKey:     fmt.Sprintf("oauth:name_change:%d:%d", user.ID, seq),
+			Note:               user.Name + " → " + *req.Name,
+			RequireNonNegative: true,
+		})
+		return err
+	})
+	if err != nil {
 		return nil, err
 	}
 

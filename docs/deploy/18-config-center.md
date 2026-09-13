@@ -27,12 +27,12 @@ ERROR 日志。数据库里的一行若类型不符、越界或枚举外,会被�
 **边界**:配置中心只收运行期可调项(开关、阈值、TTL、配额)。密钥、host/port/dsn/bucket、S3
 path style、PG 连接池、OIDC 签名算法、aff URL 模板等启动期接线永远留在环境变量里。
 
-## 18.1 现有键(86 个)
+## 18.1 现有键(88 个)
 
 | 域 | 键数 | 来源 |
 |---|---|---|
 | `platform` | 2 | W2,站点契约 |
-| `auth` | 7 | W1 1 + W3-a 6 |
+| `auth` | 9 | W1 1 + W3-a 8 |
 | `image` | 5 | W1 1 + W3-b 4(GC) |
 | `artifact` | 9 | W1 8 + W3-b 1(GC) |
 | `trust` | 11 | W1 4 + W3-a 7 |
@@ -84,12 +84,12 @@ path style、PG 连接池、OIDC 签名算法、aff URL 模板等启动期接线
 
 单位写在键名里,环境变量的写法与迁入前完全一致。
 
-### 请求路径策略(W3-a,29 个)
+### 请求路径策略(W3-a,30 个)
 
 原代码常量收编,无环境变量地板、无公开/站点覆盖;改了 30 秒内在请求路径生效:
 
 - `apiv2.*`:`default_rate_per_minute` / `default_quota_per_day` / `auth_fail_per_minute` / `auth_fail_block_seconds`
-- `auth.*`:`ip_rate_per_minute` / `token_endpoint_rate_per_minute` / `strict_rate_per_minute` / `allowed_email_domains` / `verification_resend_cooldown_seconds` / `register_gift_points`
+- `auth.*`:`ip_rate_per_minute` / `token_endpoint_rate_per_minute` / `strict_rate_per_minute` / `allowed_email_domains` / `verification_resend_cooldown_seconds` / `register_gift_points` / `name_change_cost`
 - `trust.*`:`report_rate_window_minutes` / `report_rate_max_per_window` / `aggregate_threshold` / `new_account_age_days` / `new_account_reporter_weight` / `policy_cache_ttl_seconds` / `term_cache_ttl_seconds`
 - `ai.moderate_max_tokens`
 - `community.*`:`sandbox_max_links` / `sandbox_max_images` / `sandbox_max_mentions` / `sandbox_max_topics_per_day` / `sandbox_max_replies_per_day` / `sandbox_window_hours` / `flag_hide_threshold`

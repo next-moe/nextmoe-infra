@@ -50,6 +50,7 @@ const (
 	ErrMoemoepointInvalidReason = 16003
 	ErrMoemoepointIdemConflict  = 16004
 	ErrMoemoepointNotAwarder    = 16005
+	ErrMoemoepointInsufficient  = 16006
 
 	ErrCreatorAlreadyHas    = 17001
 	ErrCreatorAppPending    = 17002
@@ -169,6 +170,7 @@ var codeMessages = map[int]string{
 	ErrMoemoepointInvalidReason: "未知的萌萌点变动原因",
 	ErrMoemoepointIdemConflict:  "幂等键已存在但请求内容不一致",
 	ErrMoemoepointNotAwarder:    "该客户端无权发放萌萌点",
+	ErrMoemoepointInsufficient:  "萌萌点不足",
 
 	ErrGalgameNotFound:           "Galgame 不存在",
 	ErrGalgameAlreadyExists:      "Galgame 已存在",
