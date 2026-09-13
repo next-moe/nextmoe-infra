@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	stderrors "errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -8,9 +9,40 @@ import (
 	authService "api/internal/platform/auth/service"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 const bearerRealm = "kungal"
+
+// logTokenReject separates "this token died of old age" from "the caller never
+// had a token". An expired one is the normal end of a 15-minute life and stays
+// at Debug. A malformed one is an integration bug on the far side and used to
+// be invisible: two third-party RPs spent a day sending `Bearer undefined` —
+// they read access_token off the {code,message,data} envelope the protocol
+// endpoints stopped sending in 2026-07 — and the only trace anywhere was an
+// unexplained 401 one millisecond after a 200 from /oauth/token.
+// Never log the token itself; the shape is what identifies the bug.
+func logTokenReject(c fiber.Ctx, guard, token string, err error) {
+	if !stderrors.Is(err, jwt.ErrTokenMalformed) {
+		slog.Debug(guard+" reject", "stage", "token_invalid", "path", c.Path(), "err", err)
+		return
+	}
+	slog.Warn(guard+" reject", "stage", "token_malformed", "path", c.Path(),
+		"client_ip", c.IP(), "token_len", len(token),
+		"token_segments", strings.Count(token, ".")+1,
+		"token_literal", placeholderToken(token))
+}
+
+// placeholderToken echoes the token only when it is a language's own word for
+// "I had nothing here", which is the whole tell.
+func placeholderToken(token string) string {
+	switch token {
+	case "undefined", "null", "None", "nil", "false", "[object Object]":
+		return token
+	default:
+		return ""
+	}
+}
 
 func splitBearer(header string) (token string, ok bool) {
 	scheme, rest, found := strings.Cut(header, " ")
@@ -56,7 +88,7 @@ func BearerAuth(authSvc *authService.AuthService) fiber.Handler {
 
 		claims, err := authSvc.ValidateAccessToken(token)
 		if err != nil {
-			slog.Debug("bearer reject", "stage", "token_invalid", "path", c.Path(), "err", err)
+			logTokenReject(c, "bearer", token, err)
 			return BearerError(c, fiber.StatusUnauthorized, "invalid_token",
 				"The access token is expired, revoked or malformed")
 		}

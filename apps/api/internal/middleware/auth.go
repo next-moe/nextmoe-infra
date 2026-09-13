@@ -31,7 +31,7 @@ func Auth(authSvc *authService.AuthService) fiber.Handler {
 
 		claims, err := authSvc.ValidateAccessToken(token)
 		if err != nil {
-			slog.Debug("auth reject", "stage", "token_invalid", "path", c.Path(), "err", err)
+			logTokenReject(c, "auth", token, err)
 			bearerChallenge(c, "invalid_token", "The access token is expired, revoked or malformed")
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"code":    errors.ErrAuthTokenExpired,
