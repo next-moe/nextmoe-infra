@@ -116,6 +116,11 @@ infra 栈是 push→CI→自动 redeploy,**合并本 PR 的那一刻就是切换
 4. **边缘收尾**:Cloudflare 308:`oauth.kungal.com/*`、`oauth.kungal.org/*` →
    `account.nextmoe.com/$1`(宽限 6-12 个月,兼顾书签与在野 native app 的
    authorize 跳转;native app 的 token POST 需 308 保动词)。
+   > **2026-09-13 撤销**:该 308 已删除。跨主机重定向按 fetch 规范会剥掉
+   > `Authorization`,于是 token POST(凭证在 body)成功、userinfo GET(凭证在头)
+   > 401 —— 下游看到的是静默半失败而不是「端点没了」,hikarinagi 因此坏了一天。
+   > **常设结论:带认证的 API 路径永远不做跨主机重定向。** 浏览器面要兼容就只
+   > 重定向顶层导航路径;API 面要退役就用 410 + 指明新 issuer 的 JSON 正文。
 5. **配置中心**(admin.nextmoe.dev 重新登录后):`auth.federation_providers`
    → `["google","github"]`,联邦随切换上线。
 6. **下游波**(逐仓,各自会话/属主执行):论坛、补丁、AI、表情包更新 OP 基址 env
