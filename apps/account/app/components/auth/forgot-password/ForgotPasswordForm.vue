@@ -1,10 +1,14 @@
 <script setup lang="ts">
+import { AUTH_ART } from '~/constants/auth-art'
+
 const auth = useAuth()
 
 const email = ref('')
 const error = ref('')
 const success = ref(false)
 const isLoading = ref(false)
+
+const goLogin = () => navigateTo('/auth/login')
 
 const handleSubmit = async () => {
   error.value = ''
@@ -26,36 +30,54 @@ const handleSubmit = async () => {
 </script>
 
 <template>
-  <AuthShell>
-    <div class="mb-8">
-      <h1 class="text-foreground text-2xl font-bold">重置密码</h1>
-      <p class="text-default-500 mt-2 text-sm">输入您的邮箱以接收重置链接</p>
-    </div>
+  <AuthShell :art="AUTH_ART.forgot">
+    <template v-if="success">
+      <AuthOutcome
+        icon="lucide:mail-check"
+        title="请检查你的邮箱"
+        description="如果该邮箱已注册，我们已把密码重置链接寄了过去。链接有效期有限，请尽快使用。"
+      />
+      <KunButton color="primary" size="lg" full-width @click="goLogin">
+        返回登录
+      </KunButton>
+    </template>
 
-    <div v-if="success">
-      <div class="bg-success-50 mb-4 inline-flex size-14 items-center justify-center rounded-2xl">
-        <KunIcon name="lucide:check" class="text-success size-7" />
-      </div>
-      <h2 class="text-foreground mb-2 text-lg font-semibold">请检查您的邮箱</h2>
-      <p class="text-default-500 mb-6 text-sm">如果该邮箱已注册，我们已发送密码重置链接。</p>
-      <NuxtLink to="/auth/login" class="text-primary text-sm hover:underline">返回登录</NuxtLink>
-    </div>
+    <template v-else>
+      <AuthHeading title="重置密码" subtitle="输入账号绑定的邮箱，我们会寄出重置链接" />
 
-    <form v-else @submit.prevent="handleSubmit">
-      <div class="space-y-5">
-        <KunInput v-model="email" label="邮箱" type="email" placeholder="请输入邮箱" required autofocus />
+      <form @submit.prevent="handleSubmit">
+        <div class="space-y-5">
+          <KunInput
+            v-model="email"
+            label="邮箱"
+            type="email"
+            size="lg"
+            placeholder="请输入邮箱"
+            required
+            autofocus
+          />
 
-        <div v-if="error" class="bg-danger-50 text-danger rounded-xl p-3 text-sm">{{ error }}</div>
+          <AuthNotice v-if="error">{{ error }}</AuthNotice>
 
-        <KunButton type="submit" color="primary" size="lg" class="w-full" :disabled="isLoading">
-          <KunIcon v-if="isLoading" name="lucide:loader-circle" class="mr-2 size-4 animate-spin" />
-          {{ isLoading ? '发送中...' : '发送重置链接' }}
-        </KunButton>
-      </div>
-    </form>
+          <KunButton
+            type="submit"
+            color="primary"
+            size="lg"
+            full-width
+            :loading="isLoading"
+            :disabled="isLoading"
+          >
+            {{ isLoading ? '发送中...' : '发送重置链接' }}
+          </KunButton>
+        </div>
+      </form>
 
-    <div v-if="!success" class="border-default-200 mt-8 border-t pt-6 text-sm">
-      <NuxtLink to="/auth/login" class="text-primary hover:underline">返回登录</NuxtLink>
-    </div>
+      <p class="text-default-500 mt-8 text-center text-sm">
+        想起来了？
+        <NuxtLink to="/auth/login" class="text-primary font-medium hover:underline">
+          返回登录
+        </NuxtLink>
+      </p>
+    </template>
   </AuthShell>
 </template>

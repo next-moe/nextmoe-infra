@@ -54,3 +54,26 @@ html {
   --radius-xl: calc(0.75rem * var(--kun-radius-scale, 1));
   --radius-2xl: calc(1rem * var(--kun-radius-scale, 1));
 }
+
+/*
+ * ── The brand ink panel (auth split screen) ─────────────────────────────────
+ * Koi, the mascot, is white hair + white cape + white dress + white socks: the
+ * whole figure sits above L 0.9. Every KunUI semantic scale FLIPS between the
+ * modes (--primary-50 is L .972 light / L .215 dark), so any token-built panel
+ * is pale in one mode and the figure vanishes into it. These two stay ink in
+ * both modes — that is the entire point of not using the scales here.
+ */
+@theme inline {
+  --color-brand-ink: var(--kun-brand-ink);
+  --color-brand-line: var(--kun-brand-line);
+}
+
+:root {
+  --kun-brand-ink: oklch(0.208 0.036 264);
+  --kun-brand-line: oklch(0.32 0.042 264);
+}
+
+.kun-dark-mode {
+  --kun-brand-ink: oklch(0.168 0.026 264);
+  --kun-brand-line: oklch(0.28 0.032 264);
+}

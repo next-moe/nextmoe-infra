@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { AUTH_ART } from '~/constants/auth-art'
+
 const auth = useAuth()
 const router = useRouter()
 const route = useRoute()
@@ -8,7 +10,9 @@ const FEDERATION_ERROR_MESSAGES: Record<string, string> = {
   federation_state: '第三方登录已过期，请重新尝试',
   federation_failed: '第三方登录失败，请稍后重试或使用密码登录',
   federation_banned: '账号已被封禁',
-  federation_stepup: '管理员账号请使用密码登录',
+  // The gate that emits this is hasAdminOrRen in federation_service.go — it
+  // covers ren too, so the copy cannot name a single role.
+  federation_stepup: '该账号权限较高，请使用密码登录',
   federation_conflict:
     '该邮箱对应的账号已绑定其他同类第三方账号，请使用密码登录',
   federation_disabled: '该第三方登录方式未启用'
@@ -98,40 +102,30 @@ onMounted(async () => {
 </script>
 
 <template>
-  <AuthShell>
-    <div class="mb-8">
-      <h1 class="text-foreground text-2xl font-bold">
-        {{ forceLogin ? '登录其他账号' : '欢迎回来' }}
-      </h1>
-      <p class="text-default-500 mt-2 text-sm">
-        {{ forceLogin ? '登录另一个账号以添加或切换' : '登录 NextMoe·未萌 账号' }}
-      </p>
-    </div>
+  <AuthShell :art="AUTH_ART.login">
+    <AuthHeading
+      :title="forceLogin ? '登录其他账号' : '欢迎回来'"
+      :subtitle="
+        forceLogin ? '登录另一个账号以添加或切换' : '使用 NextMoe·未萌 账号继续'
+      "
+    />
 
-    <div v-if="sameAccountName" class="bg-primary-50 mb-6 rounded-xl p-4 text-sm">
+    <div
+      v-if="sameAccountName"
+      class="border-default-200 bg-default-50 mb-6 rounded-xl border p-4 text-sm"
+    >
       <p class="text-foreground">
         这已是你当前登录的账号「<span class="font-medium">{{ sameAccountName }}</span>」
       </p>
       <p class="text-default-500 mt-1">想换一个账号？在下方重新输入即可。</p>
       <KunButton
-        v-if="redirectUrl"
         color="primary"
         variant="flat"
         size="sm"
         class="mt-3"
-        @click="navigateAfterLogin"
+        @click="redirectUrl ? navigateAfterLogin() : goBack()"
       >
-        继续访问应用
-      </KunButton>
-      <KunButton
-        v-else
-        color="primary"
-        variant="flat"
-        size="sm"
-        class="mt-3"
-        @click="goBack"
-      >
-        返回
+        {{ redirectUrl ? '继续访问应用' : '返回' }}
       </KunButton>
     </div>
 
@@ -141,25 +135,42 @@ onMounted(async () => {
           v-model="account"
           label="账号"
           type="text"
-          placeholder="请输入邮箱或用户名"
+          size="lg"
+          placeholder="邮箱或用户名"
           required
           autofocus
         />
 
-        <KunInput
-          v-model="password"
-          label="密码"
-          type="password"
-          placeholder="请输入密码"
-          required
-        />
-
-        <div v-if="error" class="bg-danger-50 text-danger rounded-xl p-3 text-sm">
-          {{ error }}
+        <div>
+          <KunInput
+            v-model="password"
+            label="密码"
+            type="password"
+            size="lg"
+            placeholder="请输入密码"
+            required
+            reveal-password
+          />
+          <div class="mt-2 flex justify-end">
+            <NuxtLink
+              to="/auth/forgot-password"
+              class="text-default-400 hover:text-primary text-xs transition-colors"
+            >
+              忘记密码？
+            </NuxtLink>
+          </div>
         </div>
 
-        <KunButton type="submit" color="primary" size="lg" class="w-full" :disabled="isLoading">
-          <KunIcon v-if="isLoading" name="lucide:loader-circle" class="mr-2 size-4 animate-spin" />
+        <AuthNotice v-if="error">{{ error }}</AuthNotice>
+
+        <KunButton
+          type="submit"
+          color="primary"
+          size="lg"
+          full-width
+          :loading="isLoading"
+          :disabled="isLoading"
+        >
           {{ isLoading ? '登录中...' : '登录' }}
         </KunButton>
       </div>
@@ -167,17 +178,16 @@ onMounted(async () => {
 
     <AuthFederationButtons />
 
-    <div class="border-default-200 mt-8 flex flex-col gap-3 border-t pt-6 text-sm">
-      <NuxtLink to="/auth/forgot-password" class="text-primary hover:underline">
-        忘记密码？
-      </NuxtLink>
-      <p class="text-default-500">
-        还没有账号？
-        <NuxtLink
-          :to="redirectUrl ? `/auth/register?redirect=${encodeURIComponent(redirectUrl)}` : '/auth/register'"
-          class="text-primary hover:underline"
-        >立即注册</NuxtLink>
-      </p>
-    </div>
+    <p class="text-default-500 mt-8 text-center text-sm">
+      还没有账号？
+      <NuxtLink
+        :to="
+          redirectUrl
+            ? `/auth/register?redirect=${encodeURIComponent(redirectUrl)}`
+            : '/auth/register'
+        "
+        class="text-primary font-medium hover:underline"
+      >立即注册</NuxtLink>
+    </p>
   </AuthShell>
 </template>

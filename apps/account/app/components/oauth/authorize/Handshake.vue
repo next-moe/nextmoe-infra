@@ -10,7 +10,7 @@ const initial = computed(() =>
 </script>
 
 <template>
-  <div class="flex items-center justify-center gap-2">
+  <div class="flex items-center gap-2">
     <span
       class="border-default-200 bg-default-100 text-default-600 flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border text-xl font-bold"
       :aria-label="clientName || '应用'"

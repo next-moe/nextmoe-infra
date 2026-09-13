@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { AUTH_ART } from '~/constants/auth-art'
 import { federationLabel } from '~/constants/federation'
 
 const auth = useAuth()
@@ -192,39 +193,32 @@ onMounted(async () => {
 </script>
 
 <template>
-  <AuthShell>
+  <AuthShell :art="AUTH_ART.federation">
     <div
       v-if="phase === 'loading'"
-      class="text-default-500 flex items-center gap-2 text-sm"
+      class="text-default-500 flex items-center gap-2 py-10 text-sm"
     >
       <KunIcon name="lucide:loader-circle" class="size-4 animate-spin" />
       加载中...
     </div>
 
     <template v-else-if="phase === 'expired'">
-      <div class="mb-8">
-        <h1 class="text-foreground text-2xl font-bold">完成注册</h1>
-      </div>
-      <div class="bg-danger-50 text-danger rounded-xl p-3 text-sm">
-        第三方登录已过期，请重新发起
-      </div>
-      <KunButton
-        color="primary"
-        size="lg"
-        class="mt-6 w-full"
-        @click="goLogin"
-      >
+      <AuthOutcome
+        tone="danger"
+        icon="lucide:clock-alert"
+        title="链接已过期"
+        description="第三方登录的这一步有时效，请回到登录页重新发起一次。"
+      />
+      <KunButton color="primary" size="lg" full-width @click="goLogin">
         返回登录
       </KunButton>
     </template>
 
     <template v-else>
-      <div class="mb-8">
-        <h1 class="text-foreground text-2xl font-bold">完成注册</h1>
-        <p class="text-default-500 mt-2 text-sm">
-          通过 {{ providerLabel }} 登录还差一步
-        </p>
-      </div>
+      <AuthHeading
+        title="完成注册"
+        :subtitle="`通过 ${providerLabel} 登录还差一步`"
+      />
 
       <form @submit.prevent>
         <div class="space-y-4">
@@ -232,16 +226,23 @@ onMounted(async () => {
             v-model="name"
             label="用户名"
             type="text"
+            size="lg"
             placeholder="1 到 17 字符"
             required
             autofocus
             :disabled="codeSent"
           />
 
-          <div v-if="emailLocked" class="space-y-1">
-            <p class="text-default-500 text-sm">邮箱</p>
-            <p class="text-foreground text-sm">{{ pending?.email }}</p>
-            <p class="text-default-400 text-sm">
+          <div
+            v-if="emailLocked"
+            class="border-default-200 bg-default-50 rounded-xl border p-4"
+          >
+            <p class="text-default-400 text-xs">邮箱</p>
+            <p class="text-foreground mt-1 text-sm break-all">
+              {{ pending?.email }}
+            </p>
+            <p class="text-default-500 mt-2 flex items-center gap-1.5 text-xs">
+              <KunIcon name="lucide:badge-check" class="text-success size-3.5" />
               来自 {{ providerLabel }} 的已验证邮箱
             </p>
           </div>
@@ -250,6 +251,7 @@ onMounted(async () => {
             v-model="email"
             label="邮箱"
             type="email"
+            size="lg"
             placeholder="将寄送验证码到此邮箱"
             required
             :disabled="codeSent"
@@ -259,16 +261,20 @@ onMounted(async () => {
             v-model="password"
             label="密码"
             type="password"
+            size="lg"
             placeholder="至少 6 位"
             required
+            reveal-password
             :disabled="codeSent"
           />
           <KunInput
             v-model="confirmPassword"
             label="确认密码"
             type="password"
+            size="lg"
             placeholder="请再次输入密码"
             required
+            reveal-password
             :disabled="codeSent"
           />
 
@@ -277,38 +283,25 @@ onMounted(async () => {
             v-model="code"
             label="验证码"
             type="text"
+            size="lg"
             placeholder="请输入 6 位验证码"
             maxlength="6"
             autofocus
           />
 
-          <div
-            v-if="error"
-            class="bg-danger-50 text-danger rounded-xl p-3 text-sm"
-          >
-            {{ error }}
-          </div>
-          <div
-            v-if="success"
-            class="bg-success-50 text-success rounded-xl p-3 text-sm"
-          >
-            {{ success }}
-          </div>
+          <AuthNotice v-if="error">{{ error }}</AuthNotice>
+          <AuthNotice v-if="success" tone="success">{{ success }}</AuthNotice>
 
           <KunButton
             v-if="emailLocked"
             type="button"
             color="primary"
             size="lg"
-            class="w-full"
+            full-width
+            :loading="isLoading"
             :disabled="isLoading"
             @click="handleComplete"
           >
-            <KunIcon
-              v-if="isLoading"
-              name="lucide:loader-circle"
-              class="mr-2 size-4 animate-spin"
-            />
             {{ isLoading ? '注册中...' : '完成注册' }}
           </KunButton>
 
@@ -318,15 +311,11 @@ onMounted(async () => {
               type="button"
               color="primary"
               size="lg"
-              class="w-full"
+              full-width
+              :loading="isLoading"
               :disabled="isLoading"
               @click="handleSendCode"
             >
-              <KunIcon
-                v-if="isLoading"
-                name="lucide:loader-circle"
-                class="mr-2 size-4 animate-spin"
-              />
               {{ isLoading ? '发送中...' : '发送验证码' }}
             </KunButton>
 
@@ -334,7 +323,7 @@ onMounted(async () => {
               <KunButton
                 type="button"
                 color="default"
-                variant="flat"
+                variant="bordered"
                 size="lg"
                 :disabled="countdown > 0 || isLoading"
                 @click="handleSendCode"
@@ -346,14 +335,10 @@ onMounted(async () => {
                 color="primary"
                 size="lg"
                 class="flex-1"
+                :loading="isLoading"
                 :disabled="isLoading || !code"
                 @click="handleComplete"
               >
-                <KunIcon
-                  v-if="isLoading"
-                  name="lucide:loader-circle"
-                  class="mr-2 size-4 animate-spin"
-                />
                 {{ isLoading ? '注册中...' : '完成注册' }}
               </KunButton>
             </template>

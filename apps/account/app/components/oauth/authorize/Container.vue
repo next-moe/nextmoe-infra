@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { AUTH_ART } from '~/constants/auth-art'
 import { needsStepUp } from '~/constants/roles'
 import { SCOPE_LABELS } from '~~/shared/types/oauth-client'
 
@@ -262,60 +263,70 @@ const handleDeny = async () => {
 </script>
 
 <template>
-  <KunCard class="w-full max-w-md p-8">
-    <div v-if="error && !clientId" class="py-4 text-center">
-      <div class="bg-danger-50 mx-auto mb-4 inline-flex size-14 items-center justify-center rounded-2xl">
-        <KunIcon name="lucide:circle-alert" class="text-danger size-7" />
-      </div>
-      <h1 class="text-foreground text-lg font-semibold">无法完成授权</h1>
-      <p class="text-danger mt-2 text-sm">{{ error }}</p>
-    </div>
+  <AuthShell :art="AUTH_ART.authorize">
+    <template v-if="error && !clientId">
+      <AuthOutcome
+        tone="danger"
+        icon="lucide:circle-alert"
+        title="无法完成授权"
+        :description="error"
+      />
+    </template>
 
-    <div v-else-if="needsLogin" class="space-y-6">
+    <template v-else-if="needsLogin">
       <OauthAuthorizeHandshake
         :client-name="clientInfo?.name"
         :client-logo="clientInfo?.logo_url"
       />
 
-      <div class="text-center">
-        <h1 class="text-foreground text-xl font-bold">需要登录后授权</h1>
-        <p class="text-default-500 mt-2 text-sm">
-          <template v-if="clientInfo">
-            「<span class="text-foreground font-medium">{{ clientInfo.name }}</span>」请求访问你的账户
-          </template>
-          <template v-else>
-            一个应用请求访问你的账户
-          </template>
+      <div class="mt-8 mb-8">
+        <h1
+          class="text-foreground text-[1.75rem] leading-tight font-semibold tracking-tight"
+        >
+          需要登录后授权
+        </h1>
+        <p class="text-default-500 mt-3 text-sm leading-relaxed">
+          <template v-if="clientInfo">「<span class="text-foreground font-medium">{{ clientInfo.name }}</span>」请求访问你的账户</template>
+          <template v-else>一个应用请求访问你的账户</template>
         </p>
-        <p class="text-default-400 mt-1 text-xs">
+        <p class="text-default-400 mt-2 text-xs">
           登录后将自动完成授权，无需额外操作
         </p>
       </div>
 
-      <div class="space-y-2">
-        <KunButton color="primary" size="lg" class="w-full" @click="goLogin">
+      <div class="space-y-2.5">
+        <KunButton color="primary" size="lg" full-width @click="goLogin">
           登录后继续
         </KunButton>
-        <KunButton color="default" variant="light" class="w-full" @click="handleDeny">
+        <KunButton
+          color="default"
+          variant="light"
+          size="lg"
+          full-width
+          @click="handleDeny"
+        >
           取消
         </KunButton>
       </div>
 
-      <p class="text-default-500 text-center text-sm">
+      <p class="text-default-500 mt-8 text-center text-sm">
         还没有账号？
         <button
           type="button"
-          class="text-primary hover:underline"
+          class="text-primary font-medium hover:underline"
           @click="goRegister"
         >立即注册</button>
       </p>
-    </div>
+    </template>
 
     <div
       v-else-if="autoConsenting || clientInfo === undefined"
-      class="flex min-h-40 flex-col items-center justify-center py-8 text-center"
+      class="flex flex-col items-center py-14 text-center"
     >
-      <KunIcon name="lucide:loader-circle" class="text-primary mb-4 size-8 animate-spin" />
+      <KunIcon
+        name="lucide:loader-circle"
+        class="text-primary mb-5 size-8 animate-spin"
+      />
       <p class="text-default-500 text-sm">
         {{ autoConsenting ? '正在跳转回应用...' : '加载中...' }}
       </p>
@@ -329,9 +340,7 @@ const handleDeny = async () => {
         @pick="handleChooserPick"
         @add="handleChooserAdd"
       />
-      <div v-if="error" class="bg-danger-50 text-danger rounded-xl p-3 text-sm">
-        {{ error }}
-      </div>
+      <AuthNotice v-if="error">{{ error }}</AuthNotice>
     </div>
 
     <template v-else>
@@ -340,42 +349,43 @@ const handleDeny = async () => {
         :client-logo="clientInfo?.logo_url"
       />
 
-      <div class="mt-6 mb-6 text-center">
-        <h1 class="text-foreground text-xl font-bold">授权请求</h1>
-        <p class="text-default-500 mt-2 text-sm">
-          <span v-if="clientInfo">「{{ clientInfo.name }}」</span>
-          正在请求访问你的账户
+      <div class="mt-8 mb-8">
+        <h1
+          class="text-foreground text-[1.75rem] leading-tight font-semibold tracking-tight"
+        >
+          授权请求
+        </h1>
+        <p class="text-default-500 mt-3 text-sm">
+          <span
+            v-if="clientInfo"
+            class="text-foreground font-medium"
+          >「{{ clientInfo.name }}」</span>正在请求访问你的账户
         </p>
       </div>
 
-      <div
-        v-if="clientInfo?.third_party"
-        class="bg-warning-50 border-warning-200 mb-6 flex items-start gap-2 rounded-xl border p-3"
-      >
-        <KunIcon
-          name="lucide:triangle-alert"
-          class="text-warning mt-0.5 size-4 shrink-0"
-        />
-        <p class="text-default-600 text-xs">
-          这是<span class="text-foreground font-medium">第三方应用</span>，由站外开发者注册，不隶属于
-          NextMoe。应用名称与图标由开发者自行填写，请确认你信任它再继续。
-        </p>
-      </div>
+      <AuthNotice v-if="clientInfo?.third_party" tone="warning" class="mb-6">
+        这是<span class="font-medium">第三方应用</span>，由站外开发者注册，不隶属于
+        NextMoe。应用名称与图标由开发者自行填写，请确认你信任它再继续。
+      </AuthNotice>
 
-      <div class="bg-default-50 mb-6 space-y-3 rounded-xl p-4">
-        <p class="text-foreground text-sm font-medium">该应用将获得以下权限：</p>
-        <ul class="space-y-2">
+      <div class="border-default-200 mb-6 rounded-xl border">
+        <p
+          class="border-default-200 text-default-500 border-b px-4 py-3 text-xs tracking-wide"
+        >
+          该应用将获得以下权限
+        </p>
+        <ul class="divide-default-100 divide-y">
           <li
             v-for="s in scopeList"
             :key="s"
-            class="text-default-500 flex items-center gap-2 text-sm"
+            class="text-foreground flex items-center gap-3 px-4 py-3 text-sm"
           >
             <KunIcon name="lucide:check" class="text-success size-4 shrink-0" />
             {{ SCOPE_LABELS[s] || s }}
           </li>
           <li
             v-if="scopeList.length === 0"
-            class="text-default-500 flex items-center gap-2 text-sm"
+            class="text-foreground flex items-center gap-3 px-4 py-3 text-sm"
           >
             <KunIcon name="lucide:check" class="text-success size-4 shrink-0" />
             基本账户信息
@@ -383,29 +393,33 @@ const handleDeny = async () => {
         </ul>
       </div>
 
-      <div v-if="error" class="bg-danger-50 text-danger mb-4 rounded-xl p-3 text-sm">
-        {{ error }}
-      </div>
+      <AuthNotice v-if="error" class="mb-4">{{ error }}</AuthNotice>
 
-      <div class="space-y-2">
+      <div class="space-y-2.5">
         <KunButton
           color="primary"
           size="lg"
-          class="w-full"
+          full-width
+          :loading="isLoading"
           :disabled="isLoading"
           @click="handleApprove"
         >
-          <KunIcon v-if="isLoading" name="lucide:loader-circle" class="mr-2 size-4 animate-spin" />
           {{ isLoading ? '授权中...' : '同意授权' }}
         </KunButton>
-        <KunButton color="default" variant="light" class="w-full" @click="handleDeny">
+        <KunButton
+          color="default"
+          variant="light"
+          size="lg"
+          full-width
+          @click="handleDeny"
+        >
           拒绝
         </KunButton>
       </div>
 
-      <p class="text-default-400 mt-4 text-center text-xs break-all">
+      <p class="text-default-400 mt-6 text-center text-xs break-all">
         授权后将跳转回 {{ redirectUri }}
       </p>
     </template>
-  </KunCard>
+  </AuthShell>
 </template>

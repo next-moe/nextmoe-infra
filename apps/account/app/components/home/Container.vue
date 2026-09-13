@@ -17,10 +17,19 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="flex min-h-screen items-center justify-center">
+  <div
+    class="bg-background flex min-h-svh flex-col items-center justify-center gap-6"
+  >
+    <img
+      src="/favicon.webp"
+      alt=""
+      width="56"
+      height="56"
+      class="border-default-200 size-14 rounded-2xl border object-cover"
+    >
     <KunIcon
       name="lucide:loader-circle"
-      class="text-primary size-8 animate-spin"
+      class="text-primary size-6 animate-spin"
     />
   </div>
 </template>

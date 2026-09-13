@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { AUTH_ART } from '~/constants/auth-art'
+
 const auth = useAuth()
 const route = useRoute()
 const router = useRouter()
@@ -9,6 +11,8 @@ const confirmPassword = ref('')
 const error = ref('')
 const success = ref(false)
 const isLoading = ref(false)
+
+const goLogin = () => router.push('/auth/login')
 
 const handleSubmit = async () => {
   error.value = ''
@@ -50,37 +54,67 @@ onMounted(() => {
 </script>
 
 <template>
-  <AuthShell>
-    <div class="mb-8">
-      <h1 class="text-foreground text-2xl font-bold">设置新密码</h1>
-      <p class="text-default-500 mt-2 text-sm">请输入您的新密码</p>
-    </div>
+  <AuthShell :art="AUTH_ART.reset">
+    <template v-if="success">
+      <AuthOutcome
+        icon="lucide:shield-check"
+        title="密码已更新"
+        description="正在带你回到登录页面。其他设备上的登录状态需要用新密码重新建立。"
+      />
+      <KunButton color="primary" size="lg" full-width @click="goLogin">
+        立即登录
+      </KunButton>
+    </template>
 
-    <div v-if="success">
-      <div class="bg-success-50 mb-4 inline-flex size-14 items-center justify-center rounded-2xl">
-        <KunIcon name="lucide:check" class="text-success size-7" />
-      </div>
-      <h2 class="text-foreground mb-2 text-lg font-semibold">密码重置成功</h2>
-      <p class="text-default-500 mb-6 text-sm">您的密码已重置，正在跳转到登录页面...</p>
-      <NuxtLink to="/auth/login" class="text-primary text-sm hover:underline">立即登录</NuxtLink>
-    </div>
+    <template v-else>
+      <AuthHeading title="设置新密码" subtitle="设置完成后，其他设备需要重新登录" />
 
-    <form v-else @submit.prevent="handleSubmit">
-      <div class="space-y-5">
-        <KunInput v-model="password" label="新密码" type="password" placeholder="请输入新密码" required autofocus />
-        <KunInput v-model="confirmPassword" label="确认密码" type="password" placeholder="请再次输入新密码" required />
+      <form @submit.prevent="handleSubmit">
+        <div class="space-y-5">
+          <KunInput
+            v-model="password"
+            label="新密码"
+            type="password"
+            size="lg"
+            placeholder="至少 6 位"
+            required
+            autofocus
+            reveal-password
+          />
+          <KunInput
+            v-model="confirmPassword"
+            label="确认密码"
+            type="password"
+            size="lg"
+            placeholder="请再次输入新密码"
+            required
+            reveal-password
+          />
 
-        <div v-if="error" class="bg-danger-50 text-danger rounded-xl p-3 text-sm">{{ error }}</div>
+          <AuthNotice v-if="error">{{ error }}</AuthNotice>
 
-        <KunButton type="submit" color="primary" size="lg" class="w-full" :disabled="isLoading || !token">
-          <KunIcon v-if="isLoading" name="lucide:loader-circle" class="mr-2 size-4 animate-spin" />
-          {{ isLoading ? '重置中...' : '重置密码' }}
-        </KunButton>
-      </div>
-    </form>
+          <KunButton
+            type="submit"
+            color="primary"
+            size="lg"
+            full-width
+            :loading="isLoading"
+            :disabled="isLoading || !token"
+          >
+            {{ isLoading ? '重置中...' : '重置密码' }}
+          </KunButton>
+        </div>
+      </form>
 
-    <div v-if="!success" class="border-default-200 mt-8 border-t pt-6 text-sm">
-      <NuxtLink to="/auth/forgot-password" class="text-primary hover:underline">重新申请重置链接</NuxtLink>
-    </div>
+      <p class="text-default-500 mt-8 text-center text-sm">
+        链接失效了？
+        <NuxtLink
+          to="/auth/forgot-password"
+          class="text-primary font-medium hover:underline"
+        >
+          重新申请
+        </NuxtLink>
+      </p>
+    </template>
   </AuthShell>
 </template>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { AUTH_ART } from '~/constants/auth-art'
+
 const auth = useAuth()
 const router = useRouter()
 const route = useRoute()
@@ -155,11 +157,8 @@ const handleRegister = async () => {
 </script>
 
 <template>
-  <AuthShell>
-    <div class="mb-8">
-      <h1 class="text-foreground text-2xl font-bold">创建账号</h1>
-      <p class="text-default-500 mt-2 text-sm">加入 NextMoe·未萌</p>
-    </div>
+  <AuthShell :art="AUTH_ART.register">
+    <AuthHeading title="创建账号" subtitle="加入 NextMoe·未萌，只需要一个邮箱" />
 
     <form @submit.prevent>
       <div class="space-y-4">
@@ -167,6 +166,7 @@ const handleRegister = async () => {
           v-model="name"
           label="用户名"
           type="text"
+          size="lg"
           placeholder="1 到 17 字符"
           required
           autofocus
@@ -176,6 +176,7 @@ const handleRegister = async () => {
           v-model="email"
           label="邮箱"
           type="email"
+          size="lg"
           placeholder="将寄送验证码到此邮箱"
           required
           :disabled="codeSent"
@@ -184,16 +185,20 @@ const handleRegister = async () => {
           v-model="password"
           label="密码"
           type="password"
+          size="lg"
           placeholder="至少 6 位"
           required
+          reveal-password
           :disabled="codeSent"
         />
         <KunInput
           v-model="confirmPassword"
           label="确认密码"
           type="password"
+          size="lg"
           placeholder="请再次输入密码"
           required
+          reveal-password
           :disabled="codeSent"
         />
 
@@ -202,13 +207,14 @@ const handleRegister = async () => {
           v-model="code"
           label="验证码"
           type="text"
+          size="lg"
           placeholder="请输入 6 位验证码"
           maxlength="6"
           autofocus
         />
 
-        <div v-if="error" class="bg-danger-50 text-danger rounded-xl p-3 text-sm">{{ error }}</div>
-        <div v-if="success" class="bg-success-50 text-success rounded-xl p-3 text-sm">{{ success }}</div>
+        <AuthNotice v-if="error">{{ error }}</AuthNotice>
+        <AuthNotice v-if="success" tone="success">{{ success }}</AuthNotice>
 
         <div class="flex gap-3">
           <KunButton
@@ -216,11 +222,11 @@ const handleRegister = async () => {
             type="button"
             color="primary"
             size="lg"
-            class="w-full"
+            full-width
+            :loading="isLoading"
             :disabled="isLoading"
             @click="handleSendCode"
           >
-            <KunIcon v-if="isLoading" name="lucide:loader-circle" class="mr-2 size-4 animate-spin" />
             {{ isLoading ? '发送中...' : '发送验证码' }}
           </KunButton>
 
@@ -228,7 +234,7 @@ const handleRegister = async () => {
             <KunButton
               type="button"
               color="default"
-              variant="flat"
+              variant="bordered"
               size="lg"
               :disabled="countdown > 0 || isLoading"
               @click="handleSendCode"
@@ -240,10 +246,10 @@ const handleRegister = async () => {
               color="primary"
               size="lg"
               class="flex-1"
+              :loading="isLoading"
               :disabled="isLoading || !code"
               @click="handleRegister"
             >
-              <KunIcon v-if="isLoading" name="lucide:loader-circle" class="mr-2 size-4 animate-spin" />
               {{ isLoading ? '注册中...' : '确认注册' }}
             </KunButton>
           </template>
@@ -253,15 +259,16 @@ const handleRegister = async () => {
 
     <AuthFederationButtons />
 
-    <div class="border-default-200 mt-8 border-t pt-6 text-sm">
-      <p class="text-default-500">
-        已有账号？
-        <NuxtLink
-          :to="redirectUrl ? `/auth/login?redirect=${encodeURIComponent(redirectUrl)}` : '/auth/login'"
-          class="text-primary hover:underline"
-        >立即登录</NuxtLink>
-      </p>
-
-    </div>
+    <p class="text-default-500 mt-8 text-center text-sm">
+      已有账号？
+      <NuxtLink
+        :to="
+          redirectUrl
+            ? `/auth/login?redirect=${encodeURIComponent(redirectUrl)}`
+            : '/auth/login'
+        "
+        class="text-primary font-medium hover:underline"
+      >立即登录</NuxtLink>
+    </p>
   </AuthShell>
 </template>

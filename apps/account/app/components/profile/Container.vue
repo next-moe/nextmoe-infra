@@ -1,16 +1,27 @@
 <template>
-  <div class="mx-auto max-w-4xl space-y-6">
-    <h1 class="text-2xl font-bold text-foreground">个人信息</h1>
-
-    <ProfileInfo />
-
-    <ProfileEdit />
-
-    <div class="grid gap-6 md:grid-cols-2">
-      <ProfileEmailChange />
-      <ProfilePasswordChange />
+  <div class="space-y-8">
+    <div>
+      <h1
+        class="text-foreground text-[1.75rem] leading-tight font-semibold tracking-tight"
+      >
+        个人信息
+      </h1>
+      <p class="text-default-500 mt-2 text-sm">
+        管理 NextMoe·未萌 账号的资料与安全设置
+      </p>
     </div>
 
-    <ProfileMoemoepointLog />
+    <div class="grid gap-6 lg:grid-cols-[19rem_minmax(0,1fr)] lg:items-start">
+      <div class="lg:sticky lg:top-24">
+        <ProfileInfo />
+      </div>
+
+      <div class="space-y-6">
+        <ProfileEdit />
+        <ProfileEmailChange />
+        <ProfilePasswordChange />
+        <ProfileMoemoepointLog />
+      </div>
+    </div>
   </div>
 </template>
