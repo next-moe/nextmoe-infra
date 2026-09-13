@@ -2,35 +2,38 @@ import type { KunSiteConfig } from './config'
 
 const KUN_SITE_NAME = 'NextMoe·未萌 管理台'
 const KUN_SITE_SHORT = 'NextMoe·未萌 管理台'
-const KUN_SITE_MENTION = '@kungalgame'
+const KUN_SITE_MENTION = '@nextmoe'
 const KUN_SITE_TITLE = 'NextMoe·未萌 管理台'
 const KUN_SITE_DESCRIPTION = '统一 NextMoe 站点集群的管理控制台'
 const KUN_SITE_URL = 'https://admin.nextmoe.dev'
 
+const KUN_SITE_BRAND = 'https://www.nextmoe.com'
 const KUN_SITE_FORUM = 'https://www.kungal.com'
 const KUN_SITE_NAV = 'https://nav.kungal.org'
 const KUN_SITE_PATCH = 'https://www.moyu.moe'
 const KUN_SITE_STICKER = 'https://sticker.kungal.com'
 const KUN_SITE_OSS_DOMAIN = 'https://kun-galgame-forum.iloveren.link'
-const KUN_SITE_DEVELOPMENT_DOCUMENTATION = 'https://www.soft.moe/topic/kungal'
+const KUN_SITE_DEVELOPMENT_DOCUMENTATION = 'https://docs-kungal.nextmoe.dev'
 const KUN_SITE_TELEGRAM_GROUP = 'https://t.me/kungalgame'
 const KUN_SITE_GITHUB = 'https://github.com/next-moe'
 const KUN_SITE_AUTHOR_GITHUB = 'https://github.com/next-moe'
 const KUN_SITE_LIST = [
-  { name: '鲲 Galgame 导航', url: KUN_SITE_NAV },
-  { name: '鲲 Galgame 补丁', url: KUN_SITE_PATCH },
-  { name: '鲲 Galgame 表情包', url: KUN_SITE_STICKER },
-  { name: '鲲 Galgame 论坛 (备用)', url: KUN_SITE_FORUM },
-  { name: '鲲 Galgame 开发文档', url: KUN_SITE_DEVELOPMENT_DOCUMENTATION }
+  { name: 'NextMoe 主站', url: KUN_SITE_BRAND },
+  { name: 'Galgame 导航', url: KUN_SITE_NAV },
+  { name: 'Galgame 补丁', url: KUN_SITE_PATCH },
+  { name: 'Galgame 表情包', url: KUN_SITE_STICKER },
+  { name: 'Galgame 论坛', url: KUN_SITE_FORUM },
+  { name: 'NextMoe 开发者平台', url: KUN_SITE_DEVELOPMENT_DOCUMENTATION }
 ]
 const KUN_SITE_THEME_COLOR = '#006FEE'
 const KUN_SITE_VALID_DOMAIN_LIST = ['admin.nextmoe.dev']
 
 const KUN_SITE_KEYWORDS = [
-  'Galgame',
-  '鲲 Galgame 论坛',
-  '鲲 Galgame 补丁',
-  'NextMoe·未萌 管理台'
+  'NextMoe',
+  '未萌',
+  'NextMoe 管理台',
+  'ACGN',
+  'Galgame'
 ]
 
 export const admin: KunSiteConfig = {
@@ -79,20 +82,13 @@ export const admin: KunSiteConfig = {
     image: '/favicon.webp',
     url: KUN_SITE_URL
   },
-  ad: [
-    {
-      name: 'DZMM',
-      link: 'https://stats.kungal.org/q/9fCcXCYq5',
-      banner: '/a/kungal1.webp',
-      icon: '/a/icon1.webp'
-    }
-  ],
+  ad: [],
   images: [
     {
       url: '/favicon.webp',
       fullUrl: `${KUN_SITE_URL}/favicon.webp`,
-      width: 512,
-      height: 512,
+      width: 256,
+      height: 256,
       alt: KUN_SITE_TITLE
     }
   ]

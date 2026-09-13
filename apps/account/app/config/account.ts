@@ -87,8 +87,8 @@ export const account: KunSiteConfig = {
     {
       url: '/favicon.webp',
       fullUrl: `${KUN_SITE_URL}/favicon.webp`,
-      width: 512,
-      height: 512,
+      width: 256,
+      height: 256,
       alt: KUN_SITE_TITLE
     }
   ]

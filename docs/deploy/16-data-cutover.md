@@ -256,7 +256,7 @@ docker exec "$PG" psql -U postgres -d kungalgame_patch  -tAc 'select max(id) fro
 docker exec "$PG" psql -U postgres -tAc \
   "select datname from pg_database where datistemplate=false order by 1"
 # 各站点 healthz(端口见 12-dokploy 域名表 / 00-architecture)
-curl -I https://oauth.kungal.com https://www.kungal.com https://www.moyu.moe   # wiki.kungal.com 已于 W5 退役(404)
+curl -I https://account.nextmoe.com https://www.kungal.com https://www.moyu.moe   # wiki.kungal.com 已于 W5 退役(404)
 ```
 
 迁移正确性的深度校验(反查原始 ID、计数核对)见 [docs/migration/user/07-verification.md](../migration/user/07-verification.md)。
