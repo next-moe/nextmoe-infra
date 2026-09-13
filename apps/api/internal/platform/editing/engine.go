@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -19,6 +20,14 @@ func NewEngine(db *gorm.DB, reg *Registry) *Engine {
 }
 
 func (e *Engine) Registry() *Registry { return e.reg }
+
+func (e *Engine) CountProposalsSince(ctx context.Context, proposerUID int64, since time.Time) (int64, error) {
+	var n int64
+	err := e.db.WithContext(ctx).Model(&Proposal{}).
+		Where("proposer_uid = ? AND created_at > ?", proposerUID, since).
+		Count(&n).Error
+	return n, err
+}
 
 func (e *Engine) resolveSpec(entityType string) (*EntityTypeSpec, error) {
 	spec, ok := e.reg.Type(entityType)

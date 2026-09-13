@@ -55,6 +55,12 @@ func unionWorkLinks(fields map[string]any, refLinks []any) {
 }
 
 func (c *Catalog) mintClaim(ctx context.Context, site string, uid, product int64, refs []catsvc.ClaimRef, fields map[string]any, released catsvc.ReleaseDate, confirmDuplicates bool) (repr.ClaimRecord, error) {
+	// The quota is spent by a write, so it is checked at the write. Checking it
+	// on the way into CreateClaim answered a malformed body 429 — "wait a day"
+	// for a request whose body was the problem — and cost a count on every one.
+	if qerr := c.checkClaimQuota(ctx, uid); qerr != nil {
+		return repr.ClaimRecord{}, qerr
+	}
 	rating := int16(0)
 	if _, given := fields[editspec.FieldWorkContentRating]; !given {
 		rating = c.Claims.DeriveContentRating(ctx, refs)

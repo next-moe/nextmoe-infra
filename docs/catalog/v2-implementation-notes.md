@@ -664,6 +664,30 @@ Decisions behind that table:
   across every site. The code bundles grant admin/ren both keys, so nothing
   changed for them; the editing engine's `TrustTier` still reads only
   `catalog.edit.trusted`.
+- **A sliding-window write quota, since 2.23.0.** Every claim-shaped write —
+  the mint, `claim`, `submit`, `publish`, `withdraw` — is counted per actor over
+  `catalog.write_quota_window_hours` (default 24) and refused `429
+  QUOTA_EXCEEDED` past `catalog.claim_writes_per_day` (default 100), or past
+  `catalog.claim_writes_per_day_trusted` (default 500) for a holder of
+  `catalog.claim.trusted`. `POST /v2/me/proposals` has the same pair,
+  `catalog.proposals_per_day` / `_trusted`, keyed on `catalog.edit.trusted`.
+  **The cap is on the action, not on a role**, and that is the point: minting
+  needs no permission at all — only a user token bound to a catalog site — and a
+  mint that lands `pending` is already in the default public works list and
+  search, both of which filter `hidden` and nothing else. `catalog.claim.trusted`
+  only chooses `live` over `pending`; without it the owner still reaches `live`
+  in two more calls (`PATCH state=withdrawn`, then `PATCH state=live`, both owner
+  actions with no permission key). A quota gated on the permission would have
+  capped nobody. The counter is `catalog_claim_event.actor_uid`, which every lane
+  including the mint already appends to, so there is no new table and no new
+  write. A moderator's own decisions land in that same count, deliberately: a
+  runaway is a runaway whichever lane it came from, and measured decision volume
+  is about one a day against a limit of 500. `0` is an emergency stop for that
+  tier, not a disabled limit — there is no "unlimited" value, only a high one.
+  Defaults were chosen against the measured floor: over 323 contributor-days
+  since 2026-08-05, claim writes per contributor per day ran p50 1 / p90 6 / p99
+  17, all-time max 31; proposals over 182 contributor-days ran p50 1 / p90 4 /
+  p99 17, max 17.
 - **`released` is accepted since 2.21.0** (it was deliberately absent through
   2.20.x — no caller had ever sent it). The v1 shape returned: `{y, m?, d?}`
   becomes ONE curated `catalog_release` row on the minted work, because a fresh

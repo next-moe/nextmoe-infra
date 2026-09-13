@@ -27,7 +27,7 @@ ERROR 日志。数据库里的一行若类型不符、越界或枚举外,会被�
 **边界**:配置中心只收运行期可调项(开关、阈值、TTL、配额)。密钥、host/port/dsn/bucket、S3
 path style、PG 连接池、OIDC 签名算法、aff URL 模板等启动期接线永远留在环境变量里。
 
-## 18.1 现有键(88 个)
+## 18.1 现有键(93 个)
 
 | 域 | 键数 | 来源 |
 |---|---|---|
@@ -38,7 +38,7 @@ path style、PG 连接池、OIDC 签名算法、aff URL 模板等启动期接线
 | `trust` | 11 | W1 4 + W3-a 7 |
 | `ai` | 6 | W1 3 + W3-a 1 + W3-b 2(模型名) |
 | `store` | 7 | W1 1 + W3-b 6(价格面) |
-| `apiv2` / `catalog` / `community` / `developer` | 4 / 2 / 7 / 2 | W3-a 新域 |
+| `apiv2` / `catalog` / `community` / `developer` | 4 / 7 / 7 / 2 | W3-a 新域 |
 | `jobs` | 24 | W2,12 任务 × 2 |
 
 全目录以控制台 `/settings` 为准——**注册表即界面**,每个键的类型、范围与中英文说明都在
@@ -84,7 +84,7 @@ path style、PG 连接池、OIDC 签名算法、aff URL 模板等启动期接线
 
 单位写在键名里,环境变量的写法与迁入前完全一致。
 
-### 请求路径策略(W3-a,30 个)
+### 请求路径策略(W3-a,35 个)
 
 原代码常量收编,无环境变量地板、无公开/站点覆盖;改了 30 秒内在请求路径生效:
 
@@ -93,7 +93,7 @@ path style、PG 连接池、OIDC 签名算法、aff URL 模板等启动期接线
 - `trust.*`:`report_rate_window_minutes` / `report_rate_max_per_window` / `aggregate_threshold` / `new_account_age_days` / `new_account_reporter_weight` / `policy_cache_ttl_seconds` / `term_cache_ttl_seconds`
 - `ai.moderate_max_tokens`
 - `community.*`:`sandbox_max_links` / `sandbox_max_images` / `sandbox_max_mentions` / `sandbox_max_topics_per_day` / `sandbox_max_replies_per_day` / `sandbox_window_hours` / `flag_hide_threshold`
-- `catalog.*`:`totals_cache_ttl_seconds` / `merge_cooling_off_hours`
+- `catalog.*`:`totals_cache_ttl_seconds` / `merge_cooling_off_hours` / `write_quota_window_hours` / `claim_writes_per_day` / `claim_writes_per_day_trusted` / `proposals_per_day` / `proposals_per_day_trusted`
 - `developer.*`:`credential_cache_ttl_seconds` / `credential_cache_negative_ttl_seconds`
 
 ### 启动期旋钮收编(W3-b,13 个)
@@ -108,7 +108,7 @@ path style、PG 连接池、OIDC 签名算法、aff URL 模板等启动期接线
 - `ai.upstream_model` / `ai.omni_model`
 
 **例外:`store.price_steam_regions` 与 `store.price_dlsite_currencies` 在 catalog 启动时读一次**,
-改了要重启 catalog 才生效(fetcher 构造期定型);其余 84 个键都是使用时读。
+改了要重启 catalog 才生效(fetcher 构造期定型);其余 89 个键都是使用时读。
 
 ### 后台任务(`jobs`,W2,12 × 2)
 

@@ -557,3 +557,15 @@ func (s *ClaimLifecycleService) ClaimIdentities(ctx context.Context, workIDs []i
 	}
 	return out, nil
 }
+
+// CountActorWritesSince counts the claim-shaped writes one actor made inside a
+// window. Every lane appends here, the mint included (work_submit.go writes the
+// birth event), so this one count is the whole claim surface — including the
+// mint, withdraw, publish loop that reaches `live` with no permission at all.
+func (s *ClaimLifecycleService) CountActorWritesSince(ctx context.Context, actorUID int64, since time.Time) (int64, error) {
+	var n int64
+	err := s.db.WithContext(ctx).Model(&model.CatalogClaimEvent{}).
+		Where("actor_uid = ? AND created_at > ?", actorUID, since).
+		Count(&n).Error
+	return n, err
+}
