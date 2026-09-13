@@ -256,6 +256,7 @@ func (s *FederationService) callbackIdentity(ctx context.Context, providerName s
 		if hasAdminOrRen(user) {
 			return nil, fail("federation_stepup")
 		}
+		s.adoptUpstreamAvatar(ctx, user, providerName, ident.AvatarURL)
 		tokens, _, merr := s.mintSession(ctx, user, meta)
 		if merr != nil {
 			return nil, merr
@@ -292,6 +293,7 @@ func (s *FederationService) callbackIdentity(ctx context.Context, providerName s
 				}
 				return nil, lerr
 			}
+			s.adoptUpstreamAvatar(ctx, user, providerName, ident.AvatarURL)
 			tokens, _, merr := s.mintSession(ctx, user, meta)
 			if merr != nil {
 				return nil, merr

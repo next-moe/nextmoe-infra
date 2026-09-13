@@ -34,11 +34,18 @@ func (s *FederationService) WithImageClient(c *imageclient.Client) *FederationSe
 }
 
 // adoptUpstreamAvatar copies the provider's picture into our own image service
-// so the new account has one from its first page view. Every failure is
-// swallowed: an account is worth more than a picture, and the upstream URL is a
-// third party we do not control.
+// so the account has one from its first page view. Every failure is swallowed:
+// an account is worth more than a picture, and the upstream URL is a third
+// party we do not control.
+//
+// A user who already has an avatar keeps it — this runs on every federated
+// login, not just registration, which is the only way the accounts created
+// before it existed ever get one.
 func (s *FederationService) adoptUpstreamAvatar(ctx context.Context, user *model.User, provider, rawURL string) {
 	if s.imgClient == nil || user == nil || rawURL == "" {
+		return
+	}
+	if (user.AvatarImageHash != nil && *user.AvatarImageHash != "") || strings.TrimSpace(user.Avatar) != "" {
 		return
 	}
 
