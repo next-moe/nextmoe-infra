@@ -126,10 +126,19 @@ func loadWorkPairQueue(db *gorm.DB) ([]workPairItem, int, error) {
 		AMed int16 `gorm:"column:a_med"`
 		BMed int16 `gorm:"column:b_med"`
 	}
+	// Both endpoints must still exist. A merge soft-deletes the work it
+	// retires, and the candidate row outlives it whenever the pair that
+	// executed was a different one, so an undecided candidate can name a work
+	// that is gone. Judging those costs a model call and then fails at apply:
+	// on 2026-09-14, 22 of the 22 verdicts left to apply were this, 12 raising
+	// "candidate not found" and 10 "source and target resolve to the same
+	// entity". assertEntityAlive tests deleted_at and not status, so this
+	// matches it: a quarantined work is still mergeable, and merging it is how
+	// it gets released.
 	if err := db.Raw(`SELECT c.a_id, c.b_id, wa.medium_id AS a_med, wb.medium_id AS b_med
 		FROM catalog_match_candidate c
-		JOIN catalog_work wa ON wa.id = c.a_id
-		JOIN catalog_work wb ON wb.id = c.b_id
+		JOIN catalog_work wa ON wa.id = c.a_id AND wa.deleted_at IS NULL
+		JOIN catalog_work wb ON wb.id = c.b_id AND wb.deleted_at IS NULL
 		WHERE c.entity_type = ? AND c.status IN (?, ?)
 		ORDER BY c.a_id, c.b_id`,
 		model.EntityTypeWork, model.CandidateStatusPending, model.CandidateStatusNeedsManual).
