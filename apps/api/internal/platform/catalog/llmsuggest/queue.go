@@ -12,6 +12,7 @@ import (
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 const (
@@ -94,9 +95,34 @@ func applyNote(id int64, conf float64) string {
 }
 
 func persistQueueVerdict(db *gorm.DB, row *QueueVerdict) {
-	if err := db.Create(row).Error; err != nil {
+	err := upsertJudgement(db, row, "queue_verdict",
+		[]string{"queue", "input_hash", "model", "prompt_version"},
+		[]string{"lane", "entity_type", "a_id", "b_id", "entity_id", "source_id", "external_id",
+			"verdict", "reason", "confidence", "evidence", "error", "created_at"})
+	if err != nil {
 		slog.Error("persist queue verdict", "error", err, "queue", row.Queue, "hash", row.InputHash)
 	}
+}
+
+// upsertJudgement overwrites a stored FAILURE with the answer a retry produced.
+// A plain insert loses that retry to the unique key after the model call has
+// already been paid for, and the caller only logs it -- which is how the 429
+// storm of 2026-08/09 would have survived its own fix. The DO UPDATE is guarded
+// on the stored row still being a failure, so a verdict that has already been
+// judged is never re-written, and neither is one the apply step has stamped.
+func upsertJudgement(db *gorm.DB, row any, table string, conflict, update []string) error {
+	cols := make([]clause.Column, len(conflict))
+	for i, c := range conflict {
+		cols[i] = clause.Column{Name: c}
+	}
+	// The guard names the table: bare "error" in a DO UPDATE ... WHERE is
+	// ambiguous against excluded and Postgres rejects the statement outright.
+	stored := clause.Column{Table: table, Name: "error"}
+	return db.Clauses(clause.OnConflict{
+		Columns:   cols,
+		Where:     clause.Where{Exprs: []clause.Expression{clause.Neq{Column: stored, Value: ""}}},
+		DoUpdates: clause.AssignmentColumns(update),
+	}).Create(row).Error
 }
 
 func evidenceJSON(v any) datatypes.JSON {

@@ -124,7 +124,9 @@ func runGoldsetSingle(ctx context.Context, db *gorm.DB, c *Client, model string,
 			row.Verdict, row.Reason, row.Confidence = v.Verdict, v.Reason, v.Confidence
 			nJudged.Add(1)
 		}
-		if e := db.Create(&row).Error; e != nil {
+		if e := upsertJudgement(db, &row, "name_pair_judgment",
+			[]string{"task", "input_hash", "model", "prompt_version"},
+			[]string{"a", "b", "gold_label", "source_rule", "verdict", "reason", "confidence", "error", "created_at"}); e != nil {
 			slog.Error("persist goldset judgment", "error", e)
 		}
 	})
@@ -158,7 +160,9 @@ func runGoldsetBatch(ctx context.Context, db *gorm.DB, c *Client, model string, 
 				row.Error = truncate(msg, 500)
 				nErrs.Add(1)
 			}
-			if e := db.Create(&row).Error; e != nil {
+			if e := upsertJudgement(db, &row, "name_pair_judgment",
+				[]string{"task", "input_hash", "model", "prompt_version"},
+				[]string{"a", "b", "gold_label", "source_rule", "verdict", "reason", "confidence", "error", "created_at"}); e != nil {
 				slog.Error("persist goldset batch judgment", "error", e)
 			}
 		}
@@ -235,7 +239,9 @@ func RunResidue(ctx context.Context, db *gorm.DB, c *Client, opts Options) (done
 			row.Extracted = datatypes.JSON(content)
 			nDone.Add(1)
 		}
-		if e := db.Create(&row).Error; e != nil {
+		if e := upsertJudgement(db, &row, "infobox_extraction",
+			[]string{"input_hash", "model", "prompt_version"},
+			[]string{"src_table", "src_id", "extracted", "error", "created_at"}); e != nil {
 			slog.Error("persist residue extraction", "error", e, "table", r.Table, "id", r.ID)
 		}
 	})
