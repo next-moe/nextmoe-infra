@@ -14,16 +14,17 @@ import (
 )
 
 type Options struct {
-	Model         string
-	Concurrency   int
-	Limit         int
-	DryRun        bool
-	GoldSetPath   string
-	Batch         bool
-	Actor         int64
-	MinConfidence float64
-	Families      string
-	Queue         string
+	Model               string
+	Concurrency         int
+	Limit               int
+	DryRun              bool
+	GoldSetPath         string
+	Batch               bool
+	Actor               int64
+	MinConfidence       float64
+	MinConfidenceReject float64
+	Families            string
+	Queue               string
 }
 
 const goldsetBatchSize = 10

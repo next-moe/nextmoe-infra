@@ -442,6 +442,51 @@ func (s *AdminQueueService) ConfirmRef(ctx context.Context, key RefKey, verified
 	return err
 }
 
+// VerifyRefAsRelated records that a probable ref was judged correct without
+// promoting it to exact. ConfirmRef is the only other exit and it always
+// promotes, so a ref whose exact slot another entity legitimately holds had no
+// exit at all: a VNDB collection release fans out across up to 16 works and
+// only one catalog_release row can hold the slot. On 2026-09-14 that was 10,684
+// of the 16,654 rows in the queue, every one already judged chain-verified at
+// confidence >= 0.90 and retried, and refused, on every nightly pass.
+//
+// verified_at on a probable row is what ends the retry: ExactSlotFreeSQL keeps
+// those rows out of the reviewer's queue but not out of the apply set, and no
+// reader treats verified_at alone as a claim of exactness — every one pairs it
+// with an explicit link_kind.
+func (s *AdminQueueService) VerifyRefAsRelated(ctx context.Context, key RefKey, verifiedBy int64) error {
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var ref model.CatalogExternalRef
+		err := tx.Raw(`SELECT * FROM catalog_external_ref
+		                WHERE entity_type = ? AND entity_id = ? AND source_id = ? AND external_id = ? FOR UPDATE`,
+			key.EntityType, key.EntityID, key.SourceID, key.ExternalID).Scan(&ref).Error
+		if err != nil {
+			return err
+		}
+		if ref.ExternalID == "" {
+			return fmt.Errorf("%w: external ref", ErrNotFound)
+		}
+		if ref.LinkKind != model.LinkKindProbable {
+			return fmt.Errorf("%w: ref is not probable (kind %d)", ErrProposalState, ref.LinkKind)
+		}
+		if ref.VerifiedAt != nil {
+			return fmt.Errorf("%w: ref is already verified", ErrProposalState)
+		}
+		now := time.Now()
+		res := tx.Model(&model.CatalogExternalRef{}).
+			Where("entity_type = ? AND entity_id = ? AND source_id = ? AND external_id = ? AND verified_at IS NULL",
+				key.EntityType, key.EntityID, key.SourceID, key.ExternalID).
+			Updates(map[string]any{"verified_by": verifiedBy, "verified_at": now})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return fmt.Errorf("%w: ref verified concurrently", ErrProposalState)
+		}
+		return repository.TouchRefHosts(ctx, tx, key.EntityType, key.EntityID)
+	})
+}
+
 func (s *AdminQueueService) RejectRef(ctx context.Context, key RefKey, reason string, rejectedBy int64) error {
 	if reason == "" {
 		return fmt.Errorf("%w: rejection reason is required", ErrProposalState)

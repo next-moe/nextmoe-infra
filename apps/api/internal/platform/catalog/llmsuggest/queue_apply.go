@@ -27,6 +27,9 @@ func RunApply(ctx context.Context, db *gorm.DB, queues *service.AdminQueueServic
 	if opts.MinConfidence < 0 {
 		opts.MinConfidence = 0
 	}
+	if opts.MinConfidenceReject < 0 {
+		opts.MinConfidenceReject = 0
+	}
 	var rows []QueueVerdict
 	q := db.Where("queue = ? AND applied_action = '' AND error = '' AND confidence >= ? AND verdict IN ?",
 		opts.Queue, opts.MinConfidence, []string{VerdictSame, VerdictDifferent, VerdictChainVerified}).
@@ -57,12 +60,8 @@ func RunApply(ctx context.Context, db *gorm.DB, queues *service.AdminQueueServic
 
 	st := &tally{}
 	for _, row := range rows {
-		plan := planFor(opts.Queue, row, sides, opts.MinConfidence)
-		if plan.Action == applyConfirm {
-			if h, ok := holders[exactSlotKey(row.EntityType, row.SourceID, row.ExternalID)]; ok && h != row.EntityID {
-				plan = applyPlan{Skip: skipRefExactTaken}
-			}
-		}
+		h, held := holders[exactSlotKey(row.EntityType, row.SourceID, row.ExternalID)]
+		plan := planFor(opts.Queue, row, sides, opts, held && h != row.EntityID)
 		if plan.Skip != "" {
 			st.add(plan.Skip, 1)
 			if opts.DryRun {
@@ -72,27 +71,29 @@ func RunApply(ctx context.Context, db *gorm.DB, queues *service.AdminQueueServic
 			continue
 		}
 		if opts.DryRun {
-			fmt.Printf("[dry] apply %s queue=%s id=%d %s a=%d b=%d entity=%d src=%d ext=%s source=%d target=%d conf=%.2f\n",
-				plan.Action, row.Queue, row.ID, row.Verdict, row.AID, row.BID, row.EntityID, row.SourceID, row.ExternalID, plan.Source, plan.Target, row.Confidence)
-			st.add("would_"+plan.Action, 1)
+			fmt.Printf("[dry] apply %s queue=%s id=%d %s a=%d b=%d entity=%d src=%d ext=%s source=%d target=%d conf=%.2f %s\n",
+				plan.stamp(), row.Queue, row.ID, row.Verdict, row.AID, row.BID, row.EntityID, row.SourceID, row.ExternalID, plan.Source, plan.Target, row.Confidence, plan.Reason)
+			st.add("would_"+plan.stamp(), 1)
 			continue
 		}
-		if err := executeApply(ctx, queues, opts.Queue, row, plan, opts.Actor); err != nil {
-			class := classifyApplyErr(err)
-			st.add(class, 1)
-			fmt.Printf("  ! apply %s id=%d: %v\n", class, row.ID, err)
-			continue
+		if !plan.recordOnly() {
+			if err := executeApply(ctx, queues, opts.Queue, row, plan, opts.Actor); err != nil {
+				class := classifyApplyErr(err)
+				st.add(class, 1)
+				fmt.Printf("  ! apply %s id=%d: %v\n", class, row.ID, err)
+				continue
+			}
 		}
 		now := time.Now()
 		actor := opts.Actor
 		res := db.Model(&QueueVerdict{}).Where("id = ? AND applied_action = ''", row.ID).
-			Updates(map[string]any{"applied_action": plan.Action, "applied_at": now, "applied_by": actor})
+			Updates(map[string]any{"applied_action": plan.stamp(), "applied_at": now, "applied_by": actor})
 		if res.Error != nil {
 			st.add(errOther, 1)
 			fmt.Printf("  ! stamp id=%d: %v\n", row.ID, res.Error)
 			continue
 		}
-		st.add("applied_"+plan.Action, 1)
+		st.add("applied_"+plan.stamp(), 1)
 		st.add("applied", 1)
 	}
 	counts := st.snapshot()
@@ -101,10 +102,10 @@ func RunApply(ctx context.Context, db *gorm.DB, queues *service.AdminQueueServic
 	return ApplyStats{Applied: counts["applied"], Counts: counts}, nil
 }
 
-func planFor(queue string, row QueueVerdict, sides map[int64]workPairSides, min float64) applyPlan {
+func planFor(queue string, row QueueVerdict, sides map[int64]workPairSides, opts Options, slotTaken bool) applyPlan {
 	switch queue {
 	case QueueCreditName:
-		return planCreditName(row.Verdict, row.Confidence, min)
+		return planCreditName(row.Verdict, row.Confidence, opts.MinConfidence, opts.MinConfidenceReject)
 	case QueueWorkPair:
 		a := sides[row.AID]
 		b := sides[row.BID]
@@ -112,10 +113,12 @@ func planFor(queue string, row QueueVerdict, sides map[int64]workPairSides, min 
 			AID: row.AID, BID: row.BID,
 			ClaimedA: a.ClaimedA, ClaimedB: b.ClaimedA,
 			ExactA: a.ExactA, ExactB: b.ExactA,
+			DeletedA: a.DeletedA, DeletedB: b.DeletedA,
+			RefsA: a.RefsA, RefsB: b.RefsA,
 		}
-		return planWorkPair(row.Verdict, row.Confidence, min, s)
+		return planWorkPair(row.Verdict, row.Confidence, opts.MinConfidence, opts.MinConfidenceReject, s)
 	case QueueRef:
-		return planRef(row.Verdict, row.Confidence, min)
+		return planRef(row.Verdict, row.Confidence, opts.MinConfidence, slotTaken)
 	default:
 		return applyPlan{Skip: skipGoldQueue}
 	}
@@ -123,6 +126,9 @@ func planFor(queue string, row QueueVerdict, sides map[int64]workPairSides, min 
 
 func executeApply(ctx context.Context, queues *service.AdminQueueService, queue string, row QueueVerdict, plan applyPlan, actor int64) error {
 	note := applyNote(row.ID, row.Confidence)
+	if plan.Reason != "" {
+		note += " " + plan.Reason
+	}
 	switch queue {
 	case QueueCreditName:
 		_, err := queues.DecideCandidate(ctx, service.CandidateDecision{
@@ -138,10 +144,14 @@ func executeApply(ctx context.Context, queues *service.AdminQueueService, queue 
 		})
 		return err
 	case QueueRef:
-		return queues.ConfirmRef(ctx, service.RefKey{
+		key := service.RefKey{
 			EntityType: row.EntityType, EntityID: row.EntityID,
 			SourceID: row.SourceID, ExternalID: row.ExternalID,
-		}, actor)
+		}
+		if plan.Action == applyConfirmRelated {
+			return queues.VerifyRefAsRelated(ctx, key, actor)
+		}
+		return queues.ConfirmRef(ctx, key, actor)
 	default:
 		return fmt.Errorf("unknown queue %q", queue)
 	}
@@ -173,32 +183,52 @@ func loadApplySides(db *gorm.DB, rows []QueueVerdict) (map[int64]workPairSides, 
 			ids = append(ids, id)
 		}
 	}
+	// An id absent from catalog_work counts as deleted, not as a live work with
+	// no refs: a verdict outlives the work a merge retired, and the zero value
+	// would otherwise send it back to DecideCandidate for another ErrNotFound.
+	for _, id := range ids {
+		out[id] = workPairSides{AID: id, DeletedA: true}
+	}
 	for _, chunk := range chunkBy(ids, 500) {
 		var works []struct {
-			ID   int64   `gorm:"column:id"`
-			Site *string `gorm:"column:site"`
+			ID      int64      `gorm:"column:id"`
+			Site    *string    `gorm:"column:site"`
+			Deleted *time.Time `gorm:"column:deleted_at"`
 		}
-		if err := db.Raw(`SELECT id, site FROM catalog_work WHERE id IN ?`, chunk).Scan(&works).Error; err != nil {
+		if err := db.Raw(`SELECT id, site, deleted_at FROM catalog_work WHERE id IN ?`, chunk).Scan(&works).Error; err != nil {
 			return nil, err
 		}
 		for _, w := range works {
 			s := out[w.ID]
 			s.AID = w.ID
 			s.ClaimedA = siteClaimed(w.Site)
+			s.DeletedA = w.Deleted != nil
 			out[w.ID] = s
 		}
 		var refs []struct {
-			ID int64 `gorm:"column:entity_id"`
-			N  int   `gorm:"column:n"`
+			ID         int64  `gorm:"column:entity_id"`
+			SourceID   int16  `gorm:"column:source_id"`
+			SourceKey  string `gorm:"column:source_key"`
+			TrustTier  int16  `gorm:"column:trust_tier"`
+			ExternalID string `gorm:"column:external_id"`
 		}
-		if err := db.Raw(`SELECT entity_id, count(*) AS n FROM catalog_external_ref
-			WHERE entity_type = ? AND link_kind = ? AND dead_at IS NULL AND entity_id IN ?
-			GROUP BY entity_id`, model.EntityTypeWork, model.LinkKindExact, chunk).Scan(&refs).Error; err != nil {
+		if err := db.Raw(`SELECT r.entity_id, r.source_id, cs.key AS source_key, cs.trust_tier, r.external_id
+			FROM catalog_external_ref r
+			JOIN catalog_source cs ON cs.id = r.source_id
+			WHERE r.entity_type = ? AND r.link_kind = ? AND r.dead_at IS NULL AND r.entity_id IN ?`,
+			model.EntityTypeWork, model.LinkKindExact, chunk).Scan(&refs).Error; err != nil {
 			return nil, err
 		}
 		for _, r := range refs {
 			s := out[r.ID]
-			s.ExactA = r.N
+			// ExactA stays the full count, exempt sources included: it only
+			// picks which side survives a merge, and the side carrying more
+			// upstream identity is the right survivor whoever minted the id.
+			s.ExactA++
+			s.RefsA = append(s.RefsA, exactRef{
+				SourceID: r.SourceID, SourceKey: r.SourceKey,
+				TrustTier: r.TrustTier, ExternalID: r.ExternalID,
+			})
 			out[r.ID] = s
 		}
 	}
