@@ -622,6 +622,11 @@ func rawSQL(db *gorm.DB) error {
 		return fmt.Errorf("drop catalog_user_playtime.status: %w", err)
 	}
 
+	// (9) The editorial display axis's derived half — see cover_art_grade.go.
+	if err := coverArtGrade(db); err != nil {
+		return err
+	}
+
 	// (8) lang tags that are not language tags (wave 195). Four rows hold a
 	// language NAME where the column's declared vocabulary is BCP-47 — the
 	// author answered "which language" in prose instead of in codes:

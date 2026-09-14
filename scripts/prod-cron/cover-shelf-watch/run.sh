@@ -1,19 +1,30 @@
 #!/bin/sh
-# Daily cover-shelf audit. A claimed work on the SFW shelf whose every
-# cover-art row is graded explicit cannot render a safe cover: the slot
-# election has nothing safe to elect, so every viewer — in BOTH modes — gets
-# the blurred 'censored' stand-in instead of the real cover.
+# Daily cover-shelf audit. Until 2026-09-14 this job was the only thing keeping
+# a work off the SFW shelf when it owned no safe cover to elect: the election
+# fell through to the blurred 'censored' stand-in, so every viewer — in BOTH
+# modes — got the ghost instead of the real cover. Production carried 961 of
+# them on 2026-09-13 and four more had arrived by 2026-09-14, before this cron
+# had run once on schedule. The write that produced them was the CLAIM: an
+# unclaimed work takes its shelf from content_rating, and claiming it swaps that
+# for display_nsfw, which defaults to false. No revision, no cover write.
 #
-# Production carried 961 of these on 2026-09-13, repaired in one pass. They
-# accumulated two ways, and only the first has a fix upstream: the forum's
-# submit form defaults content_limit to 'sfw', and the nightly image grader can
-# turn a work's last safe cover explicit with nobody touching display_nsfw.
-# That second path is why this is a cron and not a write-path guard — `sexual`
-# is written asynchronously, so there is no write to hang a check on.
+# That state is now unreachable. catalog_work.cover_art_all_explicit is derived
+# from the cover rows by a database trigger and the display axis reads it, so a
+# work whose cover art is entirely explicit leaves the SFW shelf the moment its
+# last safe row goes — no cron latency, and no writer left to forget.
+#
+# What is left for a daily run is the pair of things a derived column cannot
+# answer for itself:
+#
+#   drift     the column disagrees with the cover rows, i.e. the trigger did not
+#             fire. Mechanical; -fix repairs it in both directions.
+#   misrated  every cover the work owns is explicit, yet it is not rated r18.
+#             Mis-rated or mis-graded, both editorial — reported, never written,
+#             and it is what raises exit 3.
 #
 # Runs at 17:00 CST, two hours after image-grade-nightly, so a re-grade is seen
-# the same day; the 06:10 CST reindex then carries the fix to the search face
-# (content_limit is computed only by reindex-catalog, so a fix is live on the
+# the same day; the 06:10 CST reindex then carries any repair to the search face
+# (content_limit is computed only by reindex-catalog, so a repair is live on the
 # SQL list faces at once and invisible to search until that runs).
 #
 # Exit-code contract of the tool, which this wrapper depends on:
@@ -23,12 +34,8 @@
 #      Suppressing the stamp would make the deadman report a working job dead.
 #   *  the audit broke                          -> [FAIL] alert, no stamp
 #
-# -fix repairs only the r18 findings, where the rating already says adult and
-# just the shelf is wrong. A finding that is NOT r18 is left alone and is what
-# raises exit 3: an all-ages work whose only cover art is explicit is more
-# likely mis-rated than mis-shelved, and moving it would hide the wrong thing.
-# -max-fix is the runaway guard: a jump past it is a broken grader, not
-# editorial drift, and the job refuses rather than emptying the SFW shelf.
+# -max-fix is the runaway guard: drift wider than that is a missing trigger, not
+# a missed statement, and repairing the column would hide that.
 #
 # crontab (root): 0 17 * * * /root/cover-shelf-watch/run.sh
 #

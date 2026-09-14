@@ -18,6 +18,7 @@
 package service
 
 import (
+	"fmt"
 	"testing"
 
 	"api/internal/platform/catalog/model"
@@ -46,46 +47,94 @@ func declareDisplayLimit(t *testing.T, productWorkID int64, contentLimit string)
 	}
 }
 
-type displayRow struct {
-	name    string
-	site    *string
-	pwid    *int64
-	display bool
-	rating  int16
+// coverArt is the third input to the axis, and the fixture realizes it the way
+// production does — by writing cover rows and letting the trigger derive the
+// column — rather than by setting the column, which GORM cannot do anyway.
+type coverArt int
+
+const (
+	noCoverArt coverArt = iota
+	someSafeCoverArt
+	allExplicitCoverArt
+)
+
+func (c coverArt) apply(t *testing.T, workID int64, seed string) {
+	t.Helper()
+	switch c {
+	case noCoverArt:
+	case someSafeCoverArt:
+		addWorkCover(t, workID, hash64(seed+"s"), 0, "main", false, model.SexualSafe, srcVNDB)
+		addWorkCover(t, workID, hash64(seed+"x"), 1, "main", false, model.SexualExplicit, srcVNDB)
+	case allExplicitCoverArt:
+		addWorkCover(t, workID, hash64(seed+"x"), 0, "main", false, model.SexualExplicit, srcVNDB)
+	}
 }
 
+func (c coverArt) allExplicit() bool { return c == allExplicitCoverArt }
+
+func (c coverArt) String() string {
+	return [...]string{"no cover art", "some safe cover art", "all cover art explicit"}[c]
+}
+
+// displayLimitFixture builds EVERY combination of the axis's inputs, because
+// the Go projection and its SQL twin are two hand-written copies of one rule
+// and a table of interesting cases only cross-checks the cases someone thought
+// of. 90 rows is the whole input space.
 func displayLimitFixture(t *testing.T) (byLimit map[string][]int64, all []int64) {
 	t.Helper()
 	wiki, empty, letmoe := "galgame_wiki", "", "letmoe"
 	pw := func(n int64) *int64 { return &n }
 
-	rows := []displayRow{
-		{"bodyless all_ages", nil, nil, false, model.ContentRatingAllAges},
-		{"bodyless sensitive", nil, nil, false, model.ContentRatingSensitive},
-		{"bodyless r18", nil, nil, false, model.ContentRatingR18},
-		{"empty site is bodyless", &empty, pw(9401), false, model.ContentRatingR18},
-		{"site without a product work id", &wiki, nil, false, model.ContentRatingR18},
-		{"claimed r18 game, editorially sfw", &wiki, pw(9405), false, model.ContentRatingR18},
-		{"claimed all_ages game, editorially nsfw", &wiki, pw(9406), true, model.ContentRatingAllAges},
-		{"claimed r18 game, editorially nsfw", &wiki, pw(9407), true, model.ContentRatingR18},
-		{"claimed, nothing declared", &wiki, pw(9408), false, model.ContentRatingR18},
-		{"non-wiki claim of an r18 game", &letmoe, pw(9410), false, model.ContentRatingR18},
+	claims := []struct {
+		name string
+		site *string
+		pwid func(int64) *int64
+	}{
+		{"bodyless", nil, func(int64) *int64 { return nil }},
+		{"empty site", &empty, pw},
+		{"site without a product work id", &wiki, func(int64) *int64 { return nil }},
+		{"claimed by the wiki", &wiki, pw},
+		{"claimed by another site", &letmoe, pw},
 	}
+	ratings := []int16{model.ContentRatingAllAges, model.ContentRatingSensitive, model.ContentRatingR18}
+	arts := []coverArt{noCoverArt, someSafeCoverArt, allExplicitCoverArt}
 
 	byLimit = map[string][]int64{}
-	for _, r := range rows {
-		w := createWorkX(t, galgameMediumID, r.rating, model.WorkStatusLive, r.name)
-		setClaimColumns(t, w.ID, r.site, r.pwid, nil)
-		if r.display {
-			setDisplayNSFW(t, w.ID, true)
+	var n int64
+	for _, cl := range claims {
+		for _, rating := range ratings {
+			for _, display := range []bool{false, true} {
+				for _, art := range arts {
+					n++
+					name := fmt.Sprintf("%s / rating %d / display_nsfw %v / %s", cl.name, rating, display, art)
+					w := createWorkX(t, galgameMediumID, rating, model.WorkStatusLive, name)
+					setClaimColumns(t, w.ID, cl.site, cl.pwid(9400+n), nil)
+					if display {
+						setDisplayNSFW(t, w.ID, true)
+					}
+					art.apply(t, w.ID, fmt.Sprintf("%04x", n))
+					key := model.DisplayLimitKey(model.WorkShelf{
+						Site: cl.site, ProductWorkID: cl.pwid(9400 + n), DisplayNSFW: display,
+						ContentRating: rating, CoverArtAllExplicit: art.allExplicit(),
+					})
+					byLimit[key] = append(byLimit[key], w.ID)
+					all = append(all, w.ID)
+				}
+			}
 		}
-		key := model.DisplayLimitKey(r.site, r.pwid, r.display, r.rating)
-		byLimit[key] = append(byLimit[key], w.ID)
-		all = append(all, w.ID)
 	}
 	return byLimit, all
 }
 
+// TestCoverArtAllExplicitReachesTheProjection is the fixture's own positive
+// control: without it a trigger that never fired would leave every work with
+// cover_art_all_explicit false, the Go side would agree with the SQL side on
+// all 72 rows, and the cross-check above would pass while testing two thirds
+// of nothing.
+// TestDisplayLimitWhereMatchesProjection is the anti-drift gate: the axis has
+// exactly two implementations — model.WorkShelf.NSFW and displayLimitNSFWSQL —
+// and this walks the whole input space through both, so a change to one that
+// is not made to the other cannot reach main.
 func TestDisplayLimitWhereMatchesProjection(t *testing.T) {
 	cleanTables(t)
 	cleanTagTables(t)
@@ -120,6 +169,36 @@ func TestDisplayLimitWhereMatchesProjection(t *testing.T) {
 		DisplayLimits: []string{model.DisplayLimitKeySFW, model.DisplayLimitKeyNSFW},
 	}))); n != len(all) {
 		t.Fatalf("both values selected %d rows, want the whole set of %d", n, len(all))
+	}
+}
+
+func TestCoverArtAllExplicitReachesTheProjection(t *testing.T) {
+	cleanTables(t)
+	cleanTagTables(t)
+
+	w := createWorkX(t, galgameMediumID, model.ContentRatingAllAges, model.WorkStatusLive, "全年齢・成人素材のみ")
+	claimWork(t, w.ID, "galgame_wiki", 9390)
+	declareDisplayLimit(t, 9390, "sfw")
+	if got := idSet(listIDs(t, WorksListFilter{
+		Sort: "id", NSFW: true, DisplayLimits: []string{model.DisplayLimitKeySFW},
+	})); !got[w.ID] {
+		t.Fatalf("an editorially sfw work with no cover art at all belongs on the sfw shelf")
+	}
+
+	addWorkCover(t, w.ID, hash64("ff01"), 0, "main", false, model.SexualExplicit, srcVNDB)
+	var stored bool
+	if err := testDB.Raw(`SELECT cover_art_all_explicit FROM catalog_work WHERE id = ?`, w.ID).
+		Scan(&stored).Error; err != nil {
+		t.Fatalf("read cover_art_all_explicit: %v", err)
+	}
+	if !stored {
+		t.Fatalf("the trigger did not derive cover_art_all_explicit — run the catalog migration")
+	}
+	if got := idSet(listIDs(t, WorksListFilter{
+		Sort: "id", NSFW: true, DisplayLimits: []string{model.DisplayLimitKeySFW},
+	})); got[w.ID] {
+		t.Fatalf("work %d promised safe display material and owns none, yet the sfw shelf still serves it "+
+			"— this is work 208100, where the election fell through to the blurred stand-in", w.ID)
 	}
 }
 
@@ -410,14 +489,16 @@ func TestWorksSearchDisplayLimitGate(t *testing.T) {
 		{bodylessR18.ID, "検索・無認領・成人"},
 	} {
 		var row struct {
-			Site          *string `gorm:"column:site"`
-			ProductWorkID *int64  `gorm:"column:product_work_id"`
-			ClaimState    *int16  `gorm:"column:claim_state"`
-			ContentRating int16   `gorm:"column:content_rating"`
-			DisplayNSFW   bool    `gorm:"column:display_nsfw"`
+			Site                *string `gorm:"column:site"`
+			ProductWorkID       *int64  `gorm:"column:product_work_id"`
+			ClaimState          *int16  `gorm:"column:claim_state"`
+			ContentRating       int16   `gorm:"column:content_rating"`
+			DisplayNSFW         bool    `gorm:"column:display_nsfw"`
+			CoverArtAllExplicit bool    `gorm:"column:cover_art_all_explicit"`
 		}
 		if err := testDB.Raw(`
-			SELECT w.site, w.product_work_id, w.claim_state, w.content_rating, w.display_nsfw
+			SELECT w.site, w.product_work_id, w.claim_state, w.content_rating, w.display_nsfw,
+			       w.cover_art_all_explicit
 			FROM catalog_work w WHERE w.id = ?`, w.id).Scan(&row).Error; err != nil {
 			t.Fatalf("read claim columns: %v", err)
 		}
@@ -426,8 +507,11 @@ func TestWorksSearchDisplayLimitGate(t *testing.T) {
 			ContentRating: row.ContentRating,
 			Claimed:       row.Site != nil && *row.Site != "",
 			ClaimState:    model.ClaimStateKey(row.Site, row.ProductWorkID, row.ClaimState),
-			ContentLimit:  model.DisplayLimitKey(row.Site, row.ProductWorkID, row.DisplayNSFW, row.ContentRating),
-			UpdatedTS:     1700000000,
+			ContentLimit: model.DisplayLimitKey(model.WorkShelf{
+				Site: row.Site, ProductWorkID: row.ProductWorkID, DisplayNSFW: row.DisplayNSFW,
+				ContentRating: row.ContentRating, CoverArtAllExplicit: row.CoverArtAllExplicit,
+			}),
+			UpdatedTS: 1700000000,
 		})
 	}
 	indexWorks(t, idx, docs)
@@ -463,5 +547,34 @@ func TestWorksSearchDisplayLimitGate(t *testing.T) {
 			t.Fatalf("content_limit=%v: total=%d but page carries %d rows — total and items must share one filter",
 				tc.limits, data.Total, len(data.Items))
 		}
+	}
+}
+
+// TestClaimingCannotDemoteAWorkWithNoSafeCover is the incident, verbatim. Five
+// works reached the SFW shelf this way in the fourteen hours before this
+// shipped — 211105, 217049, 222397, 208100, 229339 — and none left a revision
+// or a cover write to find them by. An unclaimed work takes its shelf from
+// content_rating, which an r18 game can never get wrong; the claim swaps that
+// for display_nsfw, which defaults to false.
+func TestClaimingCannotDemoteAWorkWithNoSafeCover(t *testing.T) {
+	cleanTables(t)
+	cleanTagTables(t)
+
+	w := createWorkX(t, galgameMediumID, model.ContentRatingR18, model.WorkStatusLive, "認領しても棚は下がらない")
+	addWorkCover(t, w.ID, hash64("cc01"), 0, "main", false, model.SexualExplicit, srcVNDB)
+
+	onSFW := func() bool {
+		return idSet(listIDs(t, WorksListFilter{
+			Sort: "id", NSFW: true, DisplayLimits: []string{model.DisplayLimitKeySFW},
+		}))[w.ID]
+	}
+	if onSFW() {
+		t.Fatalf("an unclaimed r18 work belongs on the nsfw shelf before anything else happens")
+	}
+
+	claimWork(t, w.ID, "kungal", 9310)
+	if onSFW() {
+		t.Fatalf("claiming work %d moved it onto the sfw shelf with no safe cover to elect — "+
+			"the claim is the write that produced all five 2026-09 findings", w.ID)
 	}
 }

@@ -14,8 +14,6 @@ const (
 	portraitMinWidth = 500
 )
 
-const censoredSourceKey = "censored"
-
 // Stand-in ladder: real safe art first, real explicit art second (R18 opt-in
 // only), the blurred 'censored' ghost last — and only for the portrait slot,
 // the card face lists render. Ghosts must never compete inside scanCovers:
@@ -44,7 +42,7 @@ func (s *PublicService) pickCoverSlots(rows []WorkCoverRow, meta map[string]Imag
 
 func (s *PublicService) splitCensored(rows []WorkCoverRow) (real, ghosts []WorkCoverRow) {
 	for _, c := range rows {
-		if s.sourceKey(c.SourceID) == censoredSourceKey {
+		if s.sourceKey(c.SourceID) == model.CensoredSourceKey {
 			ghosts = append(ghosts, c)
 		} else {
 			real = append(real, c)
@@ -165,8 +163,8 @@ func (s *PublicService) coverSlot(c *WorkCoverRow, meta map[string]ImageMeta) *d
 		return nil
 	}
 	origin := "cover"
-	if s.sourceKey(c.SourceID) == censoredSourceKey {
-		origin = censoredSourceKey
+	if s.sourceKey(c.SourceID) == model.CensoredSourceKey {
+		origin = model.CensoredSourceKey
 	}
 	slot := &dto.PublicCoverSlot{
 		URL: s.imageURL(c.ImageHash), Sexual: c.Sexual, Violence: c.Violence,

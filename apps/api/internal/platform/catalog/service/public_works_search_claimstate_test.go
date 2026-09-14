@@ -34,7 +34,7 @@ func TestClaimStateProjectionIsOneDefinition(t *testing.T) {
 		if got := model.ClaimStateKey(tc.site, tc.pwid, tc.state); got != tc.want {
 			t.Fatalf("%s: ClaimStateKey = %q, want %q", tc.name, got, tc.want)
 		}
-		cb := claimedBy(tc.site, tc.pwid, tc.state, false, model.ContentRatingAllAges)
+		cb := claimedBy(tc.site, tc.pwid, tc.state, shelfFacts{}, model.ContentRatingAllAges)
 		if tc.want == model.ClaimStateKeyNone {
 			if cb != nil {
 				t.Fatalf("%s: claimed_by = %+v, want null", tc.name, cb)

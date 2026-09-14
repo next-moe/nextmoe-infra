@@ -262,7 +262,7 @@ func (s *PublicService) WorkDetail(ctx context.Context, id int64, inc PublicIncl
 			}
 		}
 	}
-	limits, err := s.read.loadDisplayNSFW(ctx, subjects)
+	limits, err := s.read.loadShelfFacts(ctx, subjects)
 	if err != nil {
 		return dto.PublicCatalogWork{}, false, err
 	}
@@ -378,7 +378,7 @@ func (s *PublicService) enrichWorkNameBlocks(ctx context.Context, rec *dto.Publi
 	return s.fillWorkBriefNames(ctx, briefs...)
 }
 
-func (s *PublicService) publicRelations(rels []WorkRelationRow, nsfw bool, limits map[int64]bool) []dto.PublicRelation {
+func (s *PublicService) publicRelations(rels []WorkRelationRow, nsfw bool, limits map[int64]shelfFacts) []dto.PublicRelation {
 	out := make([]dto.PublicRelation, 0, len(rels))
 	for _, r := range rels {
 		if !nsfw && isR18(r.ContentRating) {
@@ -1088,15 +1088,16 @@ func relatedLinkURL(source, externalID string) (string, bool) {
 }
 
 type workBriefRow struct {
-	ID            int64
-	MediumID      int16
-	DisplayName   string
-	ContentRating int16
-	Status        int16
-	Site          *string
-	ProductWorkID *int64
-	ClaimState    *int16 `gorm:"column:claim_state"`
-	DisplayNSFW   bool   `gorm:"column:display_nsfw"`
+	ID                  int64
+	MediumID            int16
+	DisplayName         string
+	ContentRating       int16
+	Status              int16
+	Site                *string
+	ProductWorkID       *int64
+	ClaimState          *int16 `gorm:"column:claim_state"`
+	DisplayNSFW         bool   `gorm:"column:display_nsfw"`
+	CoverArtAllExplicit bool   `gorm:"column:cover_art_all_explicit"`
 }
 
 func (s *PublicService) loadWorkBriefs(ctx context.Context, ids []int64, nsfw bool) (map[int64]*dto.PublicWorkBrief, error) {
@@ -1106,7 +1107,7 @@ func (s *PublicService) loadWorkBriefs(ctx context.Context, ids []int64, nsfw bo
 	var rows []workBriefRow
 	if err := s.db.WithContext(ctx).Raw(`
 		SELECT w.id, w.medium_id, w.display_name, w.content_rating, w.status, w.site, w.product_work_id, w.claim_state,
-		       w.display_nsfw
+		       w.display_nsfw, w.cover_art_all_explicit
 		FROM catalog_work w
 		WHERE w.id IN ? AND w.deleted_at IS NULL AND w.status = ?`, ids, model.WorkStatusLive).Scan(&rows).Error; err != nil {
 		return nil, err
@@ -1120,7 +1121,8 @@ func (s *PublicService) loadWorkBriefs(ctx context.Context, ids []int64, nsfw bo
 		out[r.ID] = &dto.PublicWorkBrief{
 			ID: r.ID, Medium: s.mediumKey(r.MediumID), DisplayName: r.DisplayName,
 			ContentRating: contentRatingKey(r.ContentRating),
-			ClaimedBy:     claimedBy(r.Site, r.ProductWorkID, r.ClaimState, r.DisplayNSFW, r.ContentRating),
+			ClaimedBy: claimedBy(r.Site, r.ProductWorkID, r.ClaimState,
+				shelfFacts{DisplayNSFW: r.DisplayNSFW, CoverArtAllExplicit: r.CoverArtAllExplicit}, r.ContentRating),
 		}
 		briefs = append(briefs, out[r.ID])
 	}
@@ -1161,15 +1163,17 @@ func (s *PublicService) claimedByFor(ctx context.Context, ids []int64) (map[int6
 		return map[int64]*dto.PublicClaimedBy{}, nil
 	}
 	var rows []struct {
-		ID            int64
-		Site          string
-		ProductWorkID int64
-		ClaimState    *int16 `gorm:"column:claim_state"`
-		ContentRating int16  `gorm:"column:content_rating"`
-		DisplayNSFW   bool   `gorm:"column:display_nsfw"`
+		ID                  int64
+		Site                string
+		ProductWorkID       int64
+		ClaimState          *int16 `gorm:"column:claim_state"`
+		ContentRating       int16  `gorm:"column:content_rating"`
+		DisplayNSFW         bool   `gorm:"column:display_nsfw"`
+		CoverArtAllExplicit bool   `gorm:"column:cover_art_all_explicit"`
 	}
 	if err := s.db.WithContext(ctx).Raw(`
-		SELECT w.id, w.site, w.product_work_id, w.claim_state, w.content_rating, w.display_nsfw
+		SELECT w.id, w.site, w.product_work_id, w.claim_state, w.content_rating, w.display_nsfw,
+		       w.cover_art_all_explicit
 		FROM catalog_work w
 		WHERE w.id IN ? AND w.site IS NOT NULL AND w.product_work_id IS NOT NULL AND w.deleted_at IS NULL`,
 		ids).Scan(&rows).Error; err != nil {
@@ -1179,8 +1183,11 @@ func (s *PublicService) claimedByFor(ctx context.Context, ids []int64) (map[int6
 	for _, r := range rows {
 		out[r.ID] = &dto.PublicClaimedBy{
 			Site: r.Site, WorkID: r.ProductWorkID,
-			State:        model.ClaimStateKey(&r.Site, &r.ProductWorkID, r.ClaimState),
-			ContentLimit: model.DisplayLimitKey(&r.Site, &r.ProductWorkID, r.DisplayNSFW, r.ContentRating),
+			State: model.ClaimStateKey(&r.Site, &r.ProductWorkID, r.ClaimState),
+			ContentLimit: model.DisplayLimitKey(model.WorkShelf{
+				Site: &r.Site, ProductWorkID: &r.ProductWorkID, DisplayNSFW: r.DisplayNSFW,
+				ContentRating: r.ContentRating, CoverArtAllExplicit: r.CoverArtAllExplicit,
+			}),
 		}
 	}
 	return out, nil
@@ -1291,14 +1298,17 @@ func publicRefs(refs []RefDetail) []dto.PublicCatalogRef {
 	return out
 }
 
-func claimedBy(site *string, productWorkID *int64, claimState *int16, displayNSFW bool, contentRating int16) *dto.PublicClaimedBy {
+func claimedBy(site *string, productWorkID *int64, claimState *int16, f shelfFacts, contentRating int16) *dto.PublicClaimedBy {
 	state := model.ClaimStateKey(site, productWorkID, claimState)
 	if state == model.ClaimStateKeyNone {
 		return nil
 	}
 	return &dto.PublicClaimedBy{
 		Site: *site, WorkID: *productWorkID, State: state,
-		ContentLimit: model.DisplayLimitKey(site, productWorkID, displayNSFW, contentRating),
+		ContentLimit: model.DisplayLimitKey(model.WorkShelf{
+			Site: site, ProductWorkID: productWorkID, DisplayNSFW: f.DisplayNSFW,
+			ContentRating: contentRating, CoverArtAllExplicit: f.CoverArtAllExplicit,
+		}),
 	}
 }
 
@@ -1546,7 +1556,7 @@ func introLang(t string) string {
 	return "zh-Hans"
 }
 
-func (s *PublicService) publicSeriesSiblings(sibs []SeriesSiblingRow, nsfw bool, limits map[int64]bool) []dto.PublicWorkBrief {
+func (s *PublicService) publicSeriesSiblings(sibs []SeriesSiblingRow, nsfw bool, limits map[int64]shelfFacts) []dto.PublicWorkBrief {
 	out := make([]dto.PublicWorkBrief, 0, len(sibs))
 	for _, sb := range sibs {
 		if !nsfw && isR18(sb.ContentRating) {

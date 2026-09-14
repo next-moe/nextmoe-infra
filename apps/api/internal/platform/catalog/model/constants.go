@@ -155,13 +155,22 @@ const (
 	SexualExplicit   int16 = 2
 )
 
+// CensoredSourceKey names the first-party blurred stand-in. It is not cover art
+// the election can offer: it is what the election falls back to when there is
+// none, so anything asking "does this work own electable cover art" must
+// exclude it. Two readers have to agree on the spelling — the election, and the
+// trigger deriving catalog_work.cover_art_all_explicit — and a rename applied
+// to one and not the other reads the ghost as safe art and hands the work
+// straight back to the SFW shelf it cannot render. seed.Run creates the row.
+const CensoredSourceKey = "censored"
+
 // PackagingCoverKinds are the cover rows that photograph the box rather than
 // show the art, and the slot election skips them entirely. The list is the
 // contract, and it is read from two places that must agree: the election, and
-// the shelf audit that decides whether a work could render a safe cover at all.
-// A new packaging kind added to one spelling and not the other splits them
-// silently — the audit would clear a work whose only "safe" row the election
-// refuses to elect.
+// the derived cover grade that decides whether a work could render a safe cover
+// at all. A new packaging kind added to one spelling and not the other splits
+// them silently — the grade would clear a work whose only "safe" row the
+// election refuses to elect.
 var PackagingCoverKinds = []string{"pkgfront", "pkgback", "pkgmed", "pkgcontent", "pkgside"}
 
 var packagingCoverKind = func() map[string]struct{} {
@@ -234,14 +243,48 @@ const (
 
 const WikiContentLimitNSFW = "nsfw"
 
-func DisplayLimitKey(site *string, productWorkID *int64, displayNSFW bool, contentRating int16) string {
-	if site == nil || *site == "" || productWorkID == nil {
-		if contentRating == ContentRatingR18 {
-			return DisplayLimitKeyNSFW
-		}
-		return DisplayLimitKeySFW
+// WorkShelf carries every input to the editorial display axis. It is a struct
+// and not four positional arguments because the axis grew a third boolean in
+// 2026-09 and `DisplayLimitKey(site, pwid, a, rating, b)` is a swap waiting to
+// happen at a call site that cannot see which bool is which.
+type WorkShelf struct {
+	Site          *string
+	ProductWorkID *int64
+	DisplayNSFW   bool
+	ContentRating int16
+	// CoverArtAllExplicit is catalog_work.cover_art_all_explicit: the work has
+	// electable cover art and every row of it is graded explicit. Read-only in
+	// Go — a database trigger owns it, see the catalog migrate package.
+	CoverArtAllExplicit bool
+}
+
+func (w WorkShelf) claimed() bool {
+	return w.Site != nil && *w.Site != "" && w.ProductWorkID != nil
+}
+
+// NSFW is the editorial display axis, and this is its only implementation in
+// Go. Its SQL twin lives in the catalog service and the two are cross-checked
+// row-for-row over every combination of these inputs.
+//
+// The first clause is not the age axis wearing a disguise: an r18 game whose
+// covers are safe stays on the sfw shelf, which is the whole point of the axis
+// (doc 106 §38 — a downstream that gated on the rating instead collapsed its
+// indexable surface from 6,117 works to 599). What the clause refuses is the
+// unsatisfiable case: a work promising safe display material while owning none.
+// Work 208100 sat there — the sfw shelf elected the blurred 'censored' ghost,
+// so nobody in either mode could reach the real cover.
+func (w WorkShelf) NSFW() bool {
+	if w.CoverArtAllExplicit {
+		return true
 	}
-	if displayNSFW {
+	if w.claimed() {
+		return w.DisplayNSFW
+	}
+	return w.ContentRating == ContentRatingR18
+}
+
+func DisplayLimitKey(w WorkShelf) string {
+	if w.NSFW() {
 		return DisplayLimitKeyNSFW
 	}
 	return DisplayLimitKeySFW

@@ -252,7 +252,7 @@ func (s *PublicService) WorkRelations(ctx context.Context, id int64, nsfw bool, 
 	for _, r := range pageRows {
 		subjects = append(subjects, claimSubject{WorkID: r.OtherID})
 	}
-	limits, err := s.read.loadDisplayNSFW(ctx, subjects)
+	limits, err := s.read.loadShelfFacts(ctx, subjects)
 	if err != nil {
 		return dto.PublicWorkRelationsData{}, false, err
 	}
