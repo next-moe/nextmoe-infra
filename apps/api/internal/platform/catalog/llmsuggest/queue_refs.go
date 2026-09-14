@@ -20,7 +20,7 @@ type refItem struct {
 	Hash       string
 }
 
-func RunQueueRefs(ctx context.Context, db, eg *gorm.DB, c *Client, opts Options) (judged, errs int, err error) {
+func RunQueueRefs(ctx context.Context, db *gorm.DB, up StagingDBs, c *Client, opts Options) (judged, errs int, err error) {
 	reg, err := loadSourceReg(db)
 	if err != nil {
 		return 0, 0, err
@@ -39,11 +39,11 @@ func RunQueueRefs(ctx context.Context, db, eg *gorm.DB, c *Client, opts Options)
 				st.add("skipped_family_filter", 1)
 				continue
 			}
-			if it.MatchedBy == matchedByHLTBSteam {
-				st.add("skipped_hltb_unreachable", 1)
+			if it.MatchedBy == matchedByHLTBSteam && up.HLTB == nil {
+				st.add("skipped_hltb_unavailable", 1)
 				continue
 			}
-			if (it.MatchedBy == matchedByEGDMM || it.MatchedBy == matchedByEGSteam) && eg == nil {
+			if (it.MatchedBy == matchedByEGDMM || it.MatchedBy == matchedByEGSteam) && up.EG == nil {
 				st.add("skipped_eg_unavailable", 1)
 				continue
 			}
@@ -60,7 +60,7 @@ func RunQueueRefs(ctx context.Context, db, eg *gorm.DB, c *Client, opts Options)
 	}
 
 	if opts.DryRun {
-		return dryRunRefs(ctx, db, eg, c, reg, chainWork, llmWork, opts.Limit)
+		return dryRunRefs(ctx, db, up, c, reg, chainWork, llmWork, opts.Limit)
 	}
 
 	var nJudged, nErrs atomic.Int64
@@ -78,7 +78,7 @@ func RunQueueRefs(ctx context.Context, db, eg *gorm.DB, c *Client, opts Options)
 		if opts.Limit > 0 && len(work) > opts.Limit {
 			work = work[:opts.Limit]
 		}
-		j, e := runChainLane(ctx, db, eg, reg, work, QueueRef, opts.Concurrency, &nJudged, &nErrs)
+		j, e := runChainLane(ctx, db, up, reg, work, QueueRef, opts.Concurrency, &nJudged, &nErrs)
 		st.add("chain_written", j)
 		st.add("chain_errors", e)
 	}
@@ -108,7 +108,7 @@ func RunQueueRefs(ctx context.Context, db, eg *gorm.DB, c *Client, opts Options)
 				work = work[:remain]
 			}
 		}
-		j, e, skip := runRefLLMLane(ctx, db, eg, c, reg, work, QueueRef, opts, &nJudged, &nErrs)
+		j, e, skip := runRefLLMLane(ctx, db, up.EG, c, reg, work, QueueRef, opts, &nJudged, &nErrs)
 		st.add("llm_written", j)
 		st.add("llm_errors", e)
 		for k, v := range skip {
@@ -150,12 +150,12 @@ func loadProbableRefs(db *gorm.DB) ([]refItem, error) {
 	return out, nil
 }
 
-func dryRunRefs(ctx context.Context, db, eg *gorm.DB, c *Client, reg sourceReg, chain, llm []refItem, limit int) (int, int, error) {
+func dryRunRefs(ctx context.Context, db *gorm.DB, up StagingDBs, c *Client, reg sourceReg, chain, llm []refItem, limit int) (int, int, error) {
 	limit = dryLimit(limit)
 	shown := 0
 	if len(chain) > 0 {
 		n := min(limit, len(chain))
-		results, err := verifyChainBatch(db, eg, reg, chain[:n])
+		results, err := verifyChainBatch(db, up, reg, chain[:n])
 		if err != nil {
 			return 0, 0, err
 		}
@@ -173,7 +173,7 @@ func dryRunRefs(ctx context.Context, db, eg *gorm.DB, c *Client, reg sourceReg, 
 			return 0, 0, nil
 		}
 		n := min(remain, len(llm))
-		evs, skips, err := buildRefLLMEvidence(db, eg, reg, llm[:n])
+		evs, skips, err := buildRefLLMEvidence(db, up.EG, reg, llm[:n])
 		if err != nil {
 			return 0, 0, err
 		}

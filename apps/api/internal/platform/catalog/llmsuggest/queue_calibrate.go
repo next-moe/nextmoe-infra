@@ -12,12 +12,12 @@ import (
 	"gorm.io/gorm"
 )
 
-func RunCalibrateQueue(ctx context.Context, db, eg *gorm.DB, c *Client, opts Options) ([]LayerMetrics, error) {
+func RunCalibrateQueue(ctx context.Context, db *gorm.DB, up StagingDBs, c *Client, opts Options) ([]LayerMetrics, error) {
 	switch opts.Queue {
 	case QueueWorkPair:
 		return calibrateWorkPair(ctx, db, c, opts)
 	case QueueRef:
-		return calibrateRefs(ctx, db, eg, c, opts)
+		return calibrateRefs(ctx, db, up, c, opts)
 	default:
 		return nil, fmt.Errorf("calibrate --queue must be workpair or ref, got %q", opts.Queue)
 	}
@@ -145,7 +145,7 @@ func loadWorkPairGold(db *gorm.DB, status int16, limit int) ([]workPairItem, err
 	return out, nil
 }
 
-func calibrateRefs(ctx context.Context, db, eg *gorm.DB, c *Client, opts Options) ([]LayerMetrics, error) {
+func calibrateRefs(ctx context.Context, db *gorm.DB, up StagingDBs, c *Client, opts Options) ([]LayerMetrics, error) {
 	limit := opts.Limit
 	if limit <= 0 {
 		limit = 200
@@ -186,7 +186,7 @@ func calibrateRefs(ctx context.Context, db, eg *gorm.DB, c *Client, opts Options
 			sample = append(sample, all[i].it)
 			golds[all[i].it.Hash] = all[i].gold
 		}
-		rows, err := judgeRefGoldSample(ctx, db, eg, c, reg, sample, golds, qname, opts, true)
+		rows, err := judgeRefGoldSample(ctx, db, up, c, reg, sample, golds, qname, opts, true)
 		if err != nil {
 			return nil, err
 		}
@@ -217,7 +217,7 @@ func calibrateRefs(ctx context.Context, db, eg *gorm.DB, c *Client, opts Options
 		items[i] = it.it
 		golds[it.it.Hash] = it.gold
 	}
-	if _, err := judgeRefGoldSample(ctx, db, eg, c, reg, items, golds, qname, opts, false); err != nil {
+	if _, err := judgeRefGoldSample(ctx, db, up, c, reg, items, golds, qname, opts, false); err != nil {
 		return nil, err
 	}
 	return metricsFromQueueGold(db, qname, opts.Model, PromptRefV1)
@@ -300,12 +300,9 @@ func rowsToRefItems(rows []struct {
 	return out
 }
 
-func judgeRefGoldSample(ctx context.Context, db, eg *gorm.DB, c *Client, reg sourceReg, items []refItem, golds map[string]string, qname string, opts Options, dry bool) ([]NamePairJudgment, error) {
+func judgeRefGoldSample(ctx context.Context, db *gorm.DB, up StagingDBs, c *Client, reg sourceReg, items []refItem, golds map[string]string, qname string, opts Options, dry bool) ([]NamePairJudgment, error) {
 	var chain, llm []refItem
 	for _, it := range items {
-		if it.MatchedBy == matchedByHLTBSteam {
-			continue
-		}
 		if chainFamily(it.MatchedBy) {
 			chain = append(chain, it)
 		} else {
@@ -314,7 +311,7 @@ func judgeRefGoldSample(ctx context.Context, db, eg *gorm.DB, c *Client, reg sou
 	}
 	var metrics []NamePairJudgment
 	if len(chain) > 0 {
-		results, err := verifyChainBatch(db, eg, reg, chain)
+		results, err := verifyChainBatch(db, up, reg, chain)
 		if err != nil {
 			return nil, err
 		}
@@ -334,7 +331,7 @@ func judgeRefGoldSample(ctx context.Context, db, eg *gorm.DB, c *Client, reg sou
 		}
 	}
 	if len(llm) > 0 && c != nil {
-		evs, _, err := buildRefLLMEvidence(db, eg, reg, llm)
+		evs, _, err := buildRefLLMEvidence(db, up.EG, reg, llm)
 		if err != nil {
 			return nil, err
 		}

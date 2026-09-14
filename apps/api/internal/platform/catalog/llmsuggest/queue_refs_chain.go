@@ -12,6 +12,15 @@ import (
 	"gorm.io/gorm"
 )
 
+// StagingDBs are the upstream mirrors the chain verifier joins against. Each
+// is a database on the same postgres server as the catalog, reached by swapping
+// the dbname on the catalog credentials, so a nil field means the connection
+// failed — not that the family has no evidence.
+type StagingDBs struct {
+	EG   *gorm.DB
+	HLTB *gorm.DB
+}
+
 type chainStep struct {
 	Name   string `json:"name"`
 	OK     bool   `json:"ok"`
@@ -25,11 +34,11 @@ type chainResult struct {
 	Evidence   any
 }
 
-func runChainLane(ctx context.Context, db, eg *gorm.DB, reg sourceReg, work []refItem, queue string, conc int, nJudged, nErrs *atomic.Int64) (int, int) {
+func runChainLane(ctx context.Context, db *gorm.DB, up StagingDBs, reg sourceReg, work []refItem, queue string, conc int, nJudged, nErrs *atomic.Int64) (int, int) {
 	if len(work) == 0 {
 		return 0, 0
 	}
-	results, err := verifyChainBatch(db, eg, reg, work)
+	results, err := verifyChainBatch(db, up, reg, work)
 	startJudged, startErrs := nJudged.Load(), nErrs.Load()
 	if err != nil {
 		runPool(ctx, work, conc, func(_ context.Context, it refItem) {
@@ -68,9 +77,9 @@ func chainRow(it refItem, queue string) QueueVerdict {
 	}
 }
 
-func verifyChainBatch(db, eg *gorm.DB, reg sourceReg, items []refItem) (map[string]chainResult, error) {
+func verifyChainBatch(db *gorm.DB, up StagingDBs, reg sourceReg, items []refItem) (map[string]chainResult, error) {
 	out := map[string]chainResult{}
-	var vndbRel, egDMM, egSteam []refItem
+	var vndbRel, egDMM, egSteam, hltbSteam []refItem
 	for _, it := range items {
 		switch it.MatchedBy {
 		case matchedByVNDBReleaseBackfill:
@@ -79,6 +88,8 @@ func verifyChainBatch(db, eg *gorm.DB, reg sourceReg, items []refItem) (map[stri
 			egDMM = append(egDMM, it)
 		case matchedByEGSteam:
 			egSteam = append(egSteam, it)
+		case matchedByHLTBSteam:
+			hltbSteam = append(hltbSteam, it)
 		default:
 			out[it.Hash] = unproven("unknown_chain_family", "matched_by "+it.MatchedBy+" is not a chain family")
 		}
@@ -88,13 +99,18 @@ func verifyChainBatch(db, eg *gorm.DB, reg sourceReg, items []refItem) (map[stri
 			out[it.Hash] = chainResult{Reason: err.Error()}
 		}
 	}
-	if err := verifyEGStoreChain(db, eg, reg, egDMM, "dmm", out); err != nil {
+	if err := verifyEGStoreChain(db, up.EG, reg, egDMM, "dmm", out); err != nil {
 		for _, it := range egDMM {
 			out[it.Hash] = chainResult{Reason: err.Error()}
 		}
 	}
-	if err := verifyEGStoreChain(db, eg, reg, egSteam, "steam", out); err != nil {
+	if err := verifyEGStoreChain(db, up.EG, reg, egSteam, "steam", out); err != nil {
 		for _, it := range egSteam {
+			out[it.Hash] = chainResult{Reason: err.Error()}
+		}
+	}
+	if err := verifyHLTBSteamChain(db, up, reg, hltbSteam, out); err != nil {
+		for _, it := range hltbSteam {
 			out[it.Hash] = chainResult{Reason: err.Error()}
 		}
 	}

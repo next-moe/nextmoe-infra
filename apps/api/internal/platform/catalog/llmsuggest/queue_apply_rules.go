@@ -12,6 +12,7 @@ const (
 	skipChainUnproven     = "skipped_chain_unproven"
 	skipGoldQueue         = "skipped_gold_queue"
 	skipUnknownVerdict    = "skipped_unknown_verdict"
+	skipRefExactTaken     = "skipped_exact_slot_taken"
 
 	errExactTaken = "error_exact_taken"
 	errState      = "error_state"

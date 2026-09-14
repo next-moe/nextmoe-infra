@@ -71,7 +71,13 @@ echo "image: $IMG"
 docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$CATC" | grep -v '^$' > env.tmp
 chmod 600 env.tmp
 
-LLM='--llm-base http://ec2.ksm.moe:3000/v1 --model deepseek-v4-flash'
+# --concurrency 2, not the default 4. Measured 2026-09-14 on the ref lane at 4:
+# judged=1426 errors=852, every failure an upstream 429. The retry loop already
+# paces five attempts from 500ms to 8s with jitter, which cut the earlier wave's
+# failure rate from 52% to 37% but cannot outlast a gateway that stays saturated
+# longer than its ~15s window - the only lever left is asking for less at once.
+# A failure is stored on the verdict row and the next night's run retries it.
+LLM='--llm-base http://ec2.ksm.moe:3000/v1 --model deepseek-v4-flash --concurrency 2'
 
 # The log is per-day and appended to, so a second run on the same day would
 # otherwise read the FIRST run's counters. Everything past this offset is ours.
