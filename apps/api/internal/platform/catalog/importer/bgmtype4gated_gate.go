@@ -84,6 +84,9 @@ func foldedGateKey(norm string) (string, bool) {
 
 // foldSpace mirrors service.WorkTitleFoldSQL in Go; the two must strip the same
 // runes or the mint guard and the import gate disagree about what a duplicate is.
+// That includes the trailing wave-dash run: bangumi ships a subtitle without the
+// closing delimiter the other sources keep, and while only the SQL side stripped
+// it this gate happily minted a live twin of a work it was built to catch.
 func foldSpace(s string) string {
 	var b strings.Builder
 	b.Grow(len(s))
@@ -93,7 +96,7 @@ func foldSpace(s string) string {
 		}
 		b.WriteRune(r)
 	}
-	return b.String()
+	return strings.TrimRight(b.String(), "~～〜")
 }
 
 func dropIntraCollisions(cands []candidate, st *BgmGatedStats) []candidate {
