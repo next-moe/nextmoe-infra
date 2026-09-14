@@ -63,6 +63,20 @@ type chatResponse struct {
 	} `json:"error"`
 }
 
+// StatusError carries the upstream status code so the retry loop can tell a
+// rate limit from a request the gateway will never accept. The 2026-09 wave
+// lost 3,341 of 6,413 workpair judgements to "vllm http 429": the loop retried
+// three times with no pause, which against a concurrency-capped gateway is
+// three more 429s.
+type StatusError struct {
+	Status int
+	Body   string
+}
+
+func (e *StatusError) Error() string {
+	return fmt.Sprintf("vllm http %d: %s", e.Status, e.Body)
+}
+
 type ChatResult struct {
 	Content          string
 	CompletionTokens int
@@ -108,7 +122,7 @@ func (c *Client) ChatJSON(ctx context.Context, system, user, schemaName string, 
 		return ChatResult{}, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return ChatResult{}, fmt.Errorf("vllm http %d: %s", resp.StatusCode, truncate(string(data), 300))
+		return ChatResult{}, &StatusError{Status: resp.StatusCode, Body: truncate(string(data), 300)}
 	}
 	var cr chatResponse
 	if err := json.Unmarshal(data, &cr); err != nil {

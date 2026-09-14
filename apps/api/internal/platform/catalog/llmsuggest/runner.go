@@ -3,8 +3,12 @@ package llmsuggest
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"math/rand/v2"
+	"net/http"
 	"sync"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -27,13 +31,20 @@ var verdictSchema = map[string]any{
 }
 
 func judge(ctx context.Context, c *Client, system, user string, maxTokens int) (verdictResult, error) {
-	var lastErr error
-	for attempt := 0; attempt < 3; attempt++ {
+	var lastErr, lastCallErr error
+	for attempt := 0; attempt < judgeAttempts; attempt++ {
+		if err := waitBeforeRetry(ctx, attempt, lastCallErr); err != nil {
+			return verdictResult{}, err
+		}
 		res, err := c.ChatJSON(ctx, system, user, "verdict", verdictSchema, maxTokens)
 		if err != nil {
-			lastErr = err
+			lastErr, lastCallErr = err, err
+			if refused(err) {
+				break
+			}
 			continue
 		}
+		lastCallErr = nil
 		var v verdictResult
 		if err := json.Unmarshal([]byte(res.Content), &v); err != nil {
 			lastErr = fmt.Errorf("unmarshal verdict: %w (raw: %s)", err, truncate(res.Content, 200))
@@ -69,13 +80,20 @@ var batchSchema = map[string]any{
 }
 
 func judgeBatch(ctx context.Context, c *Client, system, user string, n int) (map[int]verdictResult, error) {
-	var lastErr error
-	for attempt := 0; attempt < 3; attempt++ {
+	var lastErr, lastCallErr error
+	for attempt := 0; attempt < judgeAttempts; attempt++ {
+		if err := waitBeforeRetry(ctx, attempt, lastCallErr); err != nil {
+			return nil, err
+		}
 		res, err := c.ChatJSON(ctx, system, user, "batch", batchSchema, 120+n*90)
 		if err != nil {
-			lastErr = err
+			lastErr, lastCallErr = err, err
+			if refused(err) {
+				break
+			}
 			continue
 		}
+		lastCallErr = nil
 		var parsed struct {
 			Results []struct {
 				Index int `json:"index"`
@@ -96,6 +114,56 @@ func judgeBatch(ctx context.Context, c *Client, system, user string, n int) (map
 		return out, nil
 	}
 	return nil, lastErr
+}
+
+const (
+	judgeAttempts   = 5
+	judgeBackoffMin = 500 * time.Millisecond
+	judgeBackoffMax = 8 * time.Second
+)
+
+// refused reports an upstream answer that a retry cannot change: any 4xx other
+// than the rate limit. Without this a wrong model id costs judgeAttempts calls
+// per item instead of one.
+func refused(err error) bool {
+	var se *StatusError
+	if !errors.As(err, &se) {
+		return false
+	}
+	return se.Status >= 400 && se.Status < 500 && se.Status != http.StatusTooManyRequests
+}
+
+// waitBeforeRetry paces the next attempt when the last call failed for a reason
+// that time fixes — a rate limit, a 5xx, a dead connection. A malformed
+// completion reaches here as a nil call error and is retried at once; only the
+// upstream needs the pause. The jitter matters because the pool runs several
+// judges in lockstep and an unjittered backoff just re-collides them.
+func waitBeforeRetry(ctx context.Context, attempt int, lastErr error) error {
+	if attempt == 0 || !transient(lastErr) {
+		return ctx.Err()
+	}
+	d := min(judgeBackoffMin<<(attempt-1), judgeBackoffMax)
+	d += rand.N(d / 2)
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return nil
+	}
+}
+
+func transient(err error) bool {
+	if err == nil {
+		return false
+	}
+	var se *StatusError
+	if errors.As(err, &se) {
+		return se.Status == http.StatusTooManyRequests || se.Status >= 500
+	}
+	// Anything that never reached a status line is a transport failure.
+	return true
 }
 
 func runPool[T any](ctx context.Context, items []T, concurrency int, fn func(context.Context, T)) {
