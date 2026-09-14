@@ -125,3 +125,37 @@ func TestSubmitWorkSkipsShortASCIICollision(t *testing.T) {
 	require.NoError(t, testDB.Model(&model.CatalogMatchCandidate{}).Count(&filed).Error)
 	assert.Zero(t, filed)
 }
+
+func TestSubmitWorkFilesTrailingWaveDashDupeCandidate(t *testing.T) {
+	s := newLifecycle(t)
+	existing := createWorkX(t, galgameMediumID, model.ContentRatingAllAges, model.WorkStatusLive,
+		"隣人妄想～団地族の昼下がり～")
+
+	res, err := s.SubmitWork(t.Context(), SubmitWorkParams{
+		Site: submitSite, ProductWorkID: 90506, ActorUID: 7,
+		Fields: submitFields("隣人妄想～団地族の昼下がり"), ConfirmDuplicates: true,
+	})
+	require.NoError(t, err)
+
+	var cands []model.CatalogMatchCandidate
+	require.NoError(t, testDB.Order("a_id, b_id").Find(&cands).Error)
+	require.Len(t, cands, 1, "a subtitle that lost its closing wave dash is the same title")
+	assert.Equal(t, min(existing.ID, res.WorkID), cands[0].AID)
+	assert.Equal(t, max(existing.ID, res.WorkID), cands[0].BID)
+	assert.Equal(t, model.CandidateReasonNameNormEqual, cands[0].Reason)
+}
+
+func TestSubmitWorkStillSkipsShortTitleBaredByTheWaveDashStrip(t *testing.T) {
+	s := newLifecycle(t)
+	createWorkX(t, galgameMediumID, model.ContentRatingAllAges, model.WorkStatusLive, "幽閉～")
+
+	_, err := s.SubmitWork(t.Context(), SubmitWorkParams{
+		Site: submitSite, ProductWorkID: 90507, ActorUID: 7,
+		Fields: submitFields("幽閉"),
+	})
+	require.NoError(t, err)
+
+	var filed int64
+	require.NoError(t, testDB.Model(&model.CatalogMatchCandidate{}).Count(&filed).Error)
+	assert.Zero(t, filed, "stripping the dash must not push a 2-rune norm past the eligibility floor")
+}

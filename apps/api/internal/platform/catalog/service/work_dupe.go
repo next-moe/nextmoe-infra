@@ -16,13 +16,20 @@ import (
 const WorkDupeMinRunes = 4
 
 // WorkTitleFoldSQL folds an already NFKC-lowered SQL text expression for
-// duplicate comparison by removing every whitespace rune. The 2026-07 bgm
-// import wave minted ~4.9k duplicate works past a gate that compared raw
-// title_norm equality; whitespace variants of the same title were one of the
-// two holes, so every dup detector and mint guard compares folded norms
-// through this one definition.
+// duplicate comparison by removing every whitespace rune and then any trailing
+// wave-dash run. The 2026-07 bgm import wave minted ~4.9k duplicate works past
+// a gate that compared raw title_norm equality; whitespace variants of the same
+// title were one of the two holes, so every dup detector and mint guard
+// compares folded norms through this one definition.
+//
+// The trailing wave dash is the other half of the same wound: sources disagree
+// about whether a subtitle keeps its closing delimiter, so work 16269
+// ("隣人妄想～団地族の昼下がり～") and bgm 222199 (the same title without the
+// final ～) were two live works that no lane could see: no shared external id,
+// and the norms differed by one rune so the equality gate never fired.
 func WorkTitleFoldSQL(expr string) string {
-	return `regexp_replace(` + expr + `, '[[:space:]　]', '', 'g')`
+	noSpace := `regexp_replace(` + expr + `, '[[:space:]　]', '', 'g')`
+	return `regexp_replace(` + noSpace + `, '[~～〜]+$', '')`
 }
 
 func WorkDupeNormEligibleSQL(expr string) string {

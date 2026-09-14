@@ -204,6 +204,23 @@ func TestBgmType4GatedFoldedCollisions(t *testing.T) {
 	assert.Equal(t, model.WorkStatusLive, workStatusOf(t, workIDByBgmExt(t, "3003")))
 }
 
+func TestBgmType4GatedTrailingWaveDashCollides(t *testing.T) {
+	clean(t)
+	require.NoError(t, testDB.Exec(`ALTER TABLE games ADD COLUMN IF NOT EXISTS gamename text`).Error)
+
+	// work 16269 and bgm 222199 were one game held as two live works for seven
+	// weeks: bangumi shipped the subtitle without its closing wave dash, so this
+	// gate saw a new title and minted a twin instead of quarantining it.
+	seedSubject(t, 3201, "隣人妄想～団地族の昼下がり", "", `["Galgame","PC","游戏"]`, "", false)
+	seedExistingWork(t, "隣人妄想～団地族の昼下がり～")
+
+	dry, err := New(testDB, testDB, Options{DryRun: true}).RunBgmType4Gated(testDB)
+	require.NoError(t, err)
+	assert.Equal(t, 1, dry.TitleCollisions, "a dropped closing wave dash is not a new title")
+	assert.Equal(t, 1, dry.ToQuarantine)
+	assert.Zero(t, dry.ToCreate)
+}
+
 func TestBgmType4GatedIntraCollisionFoldsSpace(t *testing.T) {
 	clean(t)
 	require.NoError(t, testDB.Exec(`ALTER TABLE games ADD COLUMN IF NOT EXISTS gamename text`).Error)
