@@ -11,29 +11,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// firstPartySourceIDs are the sources whose external_id this platform mints
-// itself rather than reading off an independent registry. Two works holding
-// different ids under one of these is evidence that OUR catalog carries a
-// duplicate — exactly what a merge exists to fix — so it must not veto one.
-// 2026-09-14: six proposals were flagged as contradicting purely because the
-// retired galgame wiki had listed the same game twice under two gids (source
-// 12, matched_by 'wiki:gid'); five of the six pairs had byte-identical titles.
-//
-// A source absent from this list is treated as an independent registry that
-// deduplicates its own catalog. That default is deliberate and asymmetric:
-// wrongly trusting a new first-party source over-rejects, and a surviving
-// duplicate can be merged later, while wrongly distrusting a new external
-// registry merges two provably different works — and MergeService.Unmerge has
-// no route and no CLI, so an executed merge cannot be undone in production.
-var firstPartySourceIDs = []int16{
-	1,  // user     — manual curation, not an import source
-	12, // curated  — first-party curated/human lane (was galgame_wiki until wave 161)
-	13, // upscale  — first-party AI-upscaled cover derivation
-	18, // derived  — first-party machine inference over catalog facts
-	19, // nextmoe  — first-party measurements aggregated from our own users
-	21, // censored — first-party blurred stand-in derived from official art
-}
-
 // runApprove moves open proposals carrying the note tag to approved, so that
 // -mode execute can pick them up. The judge that files them (llm-suggest
 // -mode apply) only ever creates them open, which is why an unattended lane
@@ -143,7 +120,7 @@ func contradictingExactRef(ctx context.Context, db *gorm.DB, entityType int16, a
 		  AND ea.dead_at IS NULL
 		  AND ea.source_id NOT IN ?
 		ORDER BY cs.trust_tier, cs.id
-		LIMIT 1`, b, entityType, a, firstPartySourceIDs).Scan(&row).Error
+		LIMIT 1`, b, entityType, a, model.IdentityVetoExemptSourceIDs).Scan(&row).Error
 	if err != nil || row.SourceKey == "" {
 		return "", err
 	}

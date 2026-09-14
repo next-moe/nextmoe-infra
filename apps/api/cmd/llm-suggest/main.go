@@ -25,7 +25,8 @@ func main() {
 	mode := flag.String("mode", "task", "task | apply | calibrate")
 	queue := flag.String("queue", "", "apply/calibrate: creditname | workpair | ref")
 	actor := flag.Int64("actor", 0, "apply: operator user id stamped on live writes")
-	minConf := flag.Float64("min-confidence", 0.9, "apply: minimum verdict confidence")
+	minConf := flag.Float64("min-confidence", 0.9, "apply: minimum confidence to accept a merge or confirm a ref")
+	minConfReject := flag.Float64("min-confidence-reject", 0.7, "apply: minimum confidence to reject a candidate")
 	families := flag.String("families", "all", "queue-refs: chain | llm | all")
 	apply := flag.Bool("apply", false, "write suggestions (default: dry run — sample + print)")
 	limit := flag.Int("limit", 0, "cap items processed (0 = all); dry-run sample size")
@@ -86,7 +87,8 @@ func main() {
 
 	opts := llmsuggest.Options{
 		Model: *model, Concurrency: *conc, Limit: *limit, DryRun: !*apply, GoldSetPath: *goldPath, Batch: *batch,
-		Actor: *actor, MinConfidence: *minConf, Families: *families, Queue: *queue,
+		Actor: *actor, MinConfidence: *minConf, MinConfidenceReject: *minConfReject,
+		Families: *families, Queue: *queue,
 	}
 
 	switch *families {

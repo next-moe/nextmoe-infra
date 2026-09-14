@@ -1,9 +1,21 @@
 package llmsuggest
 
+import (
+	"fmt"
+	"slices"
+	"sort"
+
+	"api/internal/platform/catalog/model"
+)
+
 const (
-	applyAccept  = "accept"
-	applyReject  = "reject"
-	applyConfirm = "confirm"
+	applyAccept         = "accept"
+	applyReject         = "reject"
+	applyConfirm        = "confirm"
+	applyConfirmRelated = "confirm-related"
+
+	stampRefConflict  = "reject_ref_conflict"
+	stampObsoletePair = "obsolete_endpoint_merged"
 
 	skipUnsure            = "skipped_unsure"
 	skipBelowConfidence   = "skipped_below_confidence"
@@ -12,7 +24,6 @@ const (
 	skipChainUnproven     = "skipped_chain_unproven"
 	skipGoldQueue         = "skipped_gold_queue"
 	skipUnknownVerdict    = "skipped_unknown_verdict"
-	skipRefExactTaken     = "skipped_exact_slot_taken"
 
 	errExactTaken = "error_exact_taken"
 	errState      = "error_state"
@@ -20,13 +31,74 @@ const (
 	errOther      = "error_other"
 )
 
+type exactRef struct {
+	SourceID   int16
+	SourceKey  string
+	TrustTier  int16
+	ExternalID string
+}
+
 type workPairSides struct {
 	AID, BID           int64
 	ClaimedA, ClaimedB bool
 	ExactA, ExactB     int
+	DeletedA, DeletedB bool
+	RefsA, RefsB       []exactRef
 }
 
 func bothClaimed(s workPairSides) bool { return s.ClaimedA && s.ClaimedB }
+
+// contradictingExactRef names one exact-tier disagreement between the two
+// sides, or "" when they do not contradict. Two entities can never corroborate
+// through exact refs — the partial unique uq_catalog_external_ref_exact makes
+// sharing one impossible — so disagreement is the only signal this tier
+// carries. IdentityVetoExemptSourceIDs says which sources carry no signal and
+// why; the screen drops them itself rather than trusting its caller to, because
+// a rule whose safety lives in a distant loader is one refactor from being a
+// rule that vetoes on a howlongtobeat id.
+//
+// This runs ahead of the verdict, and overrules it. On 2026-09-14 the model
+// judged works 8460 ⇔ 8501 ("Kill or Love" ⇔ "The Smoke Room") same at
+// confidence 1.00, giving as its reason "both records share the same vndb id
+// v26356" — the dossier it was handed lists v26356 against v28983 and an empty
+// shared_refs. The registries disagreeing is a fact; the verdict is an opinion.
+func contradictingExactRef(s workPairSides) string {
+	byKey := map[int16][]exactRef{}
+	for _, r := range s.RefsB {
+		if slices.Contains(model.IdentityVetoExemptSourceIDs, r.SourceID) {
+			continue
+		}
+		byKey[r.SourceID] = append(byKey[r.SourceID], r)
+	}
+	var hits []struct {
+		ref   exactRef
+		other string
+	}
+	for _, a := range s.RefsA {
+		for _, b := range byKey[a.SourceID] {
+			if a.ExternalID == b.ExternalID {
+				continue
+			}
+			hits = append(hits, struct {
+				ref   exactRef
+				other string
+			}{a, b.ExternalID})
+		}
+	}
+	if len(hits) == 0 {
+		return ""
+	}
+	sort.Slice(hits, func(i, j int) bool {
+		if hits[i].ref.TrustTier != hits[j].ref.TrustTier {
+			return hits[i].ref.TrustTier < hits[j].ref.TrustTier
+		}
+		if hits[i].ref.SourceID != hits[j].ref.SourceID {
+			return hits[i].ref.SourceID < hits[j].ref.SourceID
+		}
+		return hits[i].ref.ExternalID < hits[j].ref.ExternalID
+	})
+	return fmt.Sprintf("%s %s vs %s", hits[0].ref.SourceKey, hits[0].ref.ExternalID, hits[0].other)
+}
 
 func survivorTarget(s workPairSides) (source, target int64) {
 	switch {
@@ -47,20 +119,45 @@ func survivorTarget(s workPairSides) (source, target int64) {
 
 type applyPlan struct {
 	Action string
+	Stamp  string
 	Skip   string
 	Source int64
 	Target int64
+	Reason string
 }
 
-func planCreditName(verdict string, conf, min float64) applyPlan {
+// stamp is what lands in applied_action. It defaults to the action so the
+// existing counters keep their names, and differs only where the row has to
+// stay greppable after the fact: a mechanical reject, or a row retired without
+// calling the service at all.
+func (p applyPlan) stamp() string {
+	if p.Stamp != "" {
+		return p.Stamp
+	}
+	return p.Action
+}
+
+// recordOnly is a row whose decision needs no service call — nothing is left to
+// decide. Stamping it is the point: the apply loop does not stamp a row that
+// errored, so before this the 22 verdicts naming a work that a merge had
+// already retired failed and retried every single night.
+func (p applyPlan) recordOnly() bool { return p.Action == "" && p.Stamp != "" }
+
+// confidence thresholds are split by direction because the two directions are
+// not each other's mirror. An accept files a merge and MergeService.Unmerge has
+// no route and no CLI in production; a reject only parks a pair, and the pair
+// stays in catalog_match_candidate where it can be read back. Holding both to
+// the accept bar is what left 811 judged-different pairs sitting in
+// needs_manual on 2026-09-14, none of which the nightly lane could ever clear.
+func planCreditName(verdict string, conf, minAccept, minReject float64) applyPlan {
 	switch verdict {
 	case VerdictSame:
-		if conf < min {
+		if conf < minAccept {
 			return applyPlan{Skip: skipBelowConfidence}
 		}
 		return applyPlan{Action: applyAccept}
 	case VerdictDifferent:
-		if conf < min {
+		if conf < minReject {
 			return applyPlan{Skip: skipBelowConfidence}
 		}
 		return applyPlan{Action: applyReject}
@@ -71,15 +168,21 @@ func planCreditName(verdict string, conf, min float64) applyPlan {
 	}
 }
 
-func planWorkPair(verdict string, conf, min float64, s workPairSides) applyPlan {
+func planWorkPair(verdict string, conf, minAccept, minReject float64, s workPairSides) applyPlan {
+	if s.DeletedA || s.DeletedB {
+		return applyPlan{Stamp: stampObsoletePair}
+	}
+	if c := contradictingExactRef(s); c != "" {
+		return applyPlan{Action: applyReject, Stamp: stampRefConflict, Reason: "ref-conflict: " + c}
+	}
 	switch verdict {
 	case VerdictDifferent:
-		if conf < min {
+		if conf < minReject {
 			return applyPlan{Skip: skipBelowConfidence}
 		}
 		return applyPlan{Action: applyReject}
 	case VerdictSame:
-		if conf < min {
+		if conf < minAccept {
 			return applyPlan{Skip: skipBelowConfidence}
 		}
 		if bothClaimed(s) {
@@ -94,16 +197,20 @@ func planWorkPair(verdict string, conf, min float64, s workPairSides) applyPlan 
 	}
 }
 
-func planRef(verdict string, conf, min float64) applyPlan {
+// planRef splits confirm by whether another entity already holds the exact
+// slot. A bundle release legitimately spans up to 16 works and only one of them
+// can hold exact, so the other 15 are correct data with a correct verdict and
+// no exact action — 10,684 of the 16,654 rows in the queue on 2026-09-14, every
+// one chain-verified at confidence >= 0.90. Verifying them as related records
+// the judgement without claiming the slot.
+func planRef(verdict string, conf, min float64, slotTaken bool) applyPlan {
 	switch verdict {
-	case VerdictChainVerified:
+	case VerdictChainVerified, VerdictSame:
 		if conf < min {
 			return applyPlan{Skip: skipBelowConfidence}
 		}
-		return applyPlan{Action: applyConfirm}
-	case VerdictSame:
-		if conf < min {
-			return applyPlan{Skip: skipBelowConfidence}
+		if slotTaken {
+			return applyPlan{Action: applyConfirmRelated}
 		}
 		return applyPlan{Action: applyConfirm}
 	case VerdictDifferent:
