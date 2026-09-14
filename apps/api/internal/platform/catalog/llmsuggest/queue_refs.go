@@ -6,6 +6,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"api/internal/platform/catalog/service"
+
 	"gorm.io/gorm"
 )
 
@@ -133,6 +135,7 @@ func loadProbableRefs(db *gorm.DB) ([]refItem, error) {
 	if err := db.Raw(`SELECT entity_type, entity_id, source_id, external_id, matched_by
 		FROM catalog_external_ref
 		WHERE link_kind = 1 AND verified_at IS NULL AND dead_at IS NULL
+		  AND ` + service.ExactSlotFreeSQL + `
 		ORDER BY entity_type, entity_id, source_id, external_id`).Scan(&rows).Error; err != nil {
 		return nil, err
 	}

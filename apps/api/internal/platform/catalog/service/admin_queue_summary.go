@@ -40,7 +40,7 @@ func (s *AdminQueueService) QueueSummary(ctx context.Context) (QueueSummary, err
 	var refs []ProbableRefBucketCount
 	if err := db.Raw(`SELECT entity_type, count(*) AS count
 	                  FROM catalog_external_ref
-	                  WHERE link_kind = ? AND verified_at IS NULL
+	                  WHERE link_kind = ? AND verified_at IS NULL AND `+ExactSlotFreeSQL+`
 	                  GROUP BY entity_type
 	                  ORDER BY entity_type`, model.LinkKindProbable).Scan(&refs).Error; err != nil {
 		return QueueSummary{}, err

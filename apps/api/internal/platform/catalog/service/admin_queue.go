@@ -344,6 +344,27 @@ type RefFilters struct {
 	Limit      int
 }
 
+// ExactSlotFreeSQL separates a probable ref a reviewer can act on from one that
+// no action will ever resolve. ConfirmRef promotes probable to exact, and the
+// partial unique uq_catalog_external_ref_exact allows a single exact holder per
+// (source_id, external_id, entity_type) — so once another entity holds that
+// slot, confirming returns ErrExactTaken however often it is retried.
+//
+// Measured on prod 2026-09-14: the queue held 20,156 rows and only 9,263 of
+// them could ever be acted on. The 10,893 removed are overwhelmingly bundle
+// releases — entity_type 6 alone drops from 11,160 to 386 — because one VNDB
+// collection release legitimately spans up to 16 works, the importer fans it
+// into that many catalog_release rows, and only one of them can hold exact.
+// They are correct data that simply has no confirm action.
+const ExactSlotFreeSQL = `NOT EXISTS (
+	SELECT 1 FROM catalog_external_ref taken
+	WHERE taken.entity_type = catalog_external_ref.entity_type
+	  AND taken.source_id   = catalog_external_ref.source_id
+	  AND taken.external_id = catalog_external_ref.external_id
+	  AND taken.link_kind   = 0
+	  AND taken.entity_id  <> catalog_external_ref.entity_id
+)`
+
 type ProbableRefItem struct {
 	model.CatalogExternalRef
 	Entity EntitySummary `json:"entity"`
@@ -352,7 +373,8 @@ type ProbableRefItem struct {
 func (s *AdminQueueService) ListProbableRefs(ctx context.Context, f RefFilters) ([]ProbableRefItem, int64, error) {
 	page, limit := normalizePage(f.Page, f.Limit)
 	q := s.db.WithContext(ctx).Model(&model.CatalogExternalRef{}).
-		Where("link_kind = ? AND verified_at IS NULL", model.LinkKindProbable)
+		Where("link_kind = ? AND verified_at IS NULL", model.LinkKindProbable).
+		Where(ExactSlotFreeSQL)
 	if f.SourceID != nil {
 		q = q.Where("source_id = ?", *f.SourceID)
 	}

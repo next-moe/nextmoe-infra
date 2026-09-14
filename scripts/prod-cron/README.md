@@ -42,6 +42,7 @@ had to be rebuilt by hand.
 | refresh-tag-counts | hourly :40 | hourly :40 | 6h |
 | tag-vocab-backlog | 1st 12:30 | 1st 04:30 | 768h |
 | work-dedup-nightly | daily 18:30 | daily 10:30 | 48h |
+| llm-adjudicate-nightly | daily 21:00 | daily 13:00 | 48h |
 | work-dedup-watch | Mon 04:20 | Sun 20:20 | 192h |
 | ymgal-pending-watch | daily 09:30 | daily 01:30 | 48h |
 | cover-shelf-watch | daily 17:00 | daily 09:00 | 48h |
