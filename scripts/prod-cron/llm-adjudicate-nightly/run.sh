@@ -121,11 +121,16 @@ fi
 
 # Refs last: it is the long lane, and unlike the work-pair lane it can only ever
 # confirm (planRef has no reject path), so nothing downstream waits on it.
-# --families llm only: the chain family needs the erogamescape staging DSN.
+#
+# --families all, not llm: the chain family resolves its evidence with a join
+# against the erogamescape database, which lives on this same postgres server,
+# so llm-suggest reaches it by swapping the dbname on the catalog credentials
+# and it costs no model calls at all. Probed 2026-09-14: eg-steam and eg-dmm
+# both return chain-verified, over 3,728 rows that the llm-only lane skipped.
 echo "--- 6/6 judge and confirm probable refs ---"
 docker run --rm --name adj-judge-refs --network dokploy-network \
   --env-file "$BASE/env.tmp" --env-file /root/env-llm-key.env "$IMG" \
-  sh -c "exec llm-suggest $LLM --apply --task queue-refs --families llm"
+  sh -c "exec llm-suggest $LLM --apply --task queue-refs --families all"
 docker run --rm --name adj-apply-refs --network dokploy-network \
   --env-file "$BASE/env.tmp" "$IMG" \
   sh -c 'exec llm-suggest --mode apply --queue ref --actor 1 --min-confidence 0.9 --apply'
