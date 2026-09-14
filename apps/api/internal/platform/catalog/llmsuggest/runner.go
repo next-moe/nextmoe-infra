@@ -119,8 +119,14 @@ func runPool[T any](ctx context.Context, items []T, concurrency int, fn func(con
 	wg.Wait()
 }
 
+// loadDoneHashes lists the inputs that already carry an answer. A row whose
+// model call failed is not one of them. The 2026-08/09 gateway 429 storm wrote
+// 3,340 workpair and 2,263 ref failures as rows, and because this set ignored
+// error, every later run skipped exactly the inputs still waiting for a verdict:
+// the queue reported itself drained while 72% of the needs_manual duplicate
+// backlog had never actually been judged.
 func loadDoneHashes(db *gorm.DB, table, model, promptVersion, taskCol, task string) (map[string]bool, error) {
-	q := db.Table(table).Where("model = ? AND prompt_version = ?", model, promptVersion)
+	q := db.Table(table).Where("model = ? AND prompt_version = ? AND error = ''", model, promptVersion)
 	if taskCol != "" {
 		q = q.Where(taskCol+" = ?", task)
 	}
