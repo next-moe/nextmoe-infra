@@ -82,11 +82,16 @@ DSNSH='U="${KUN_CATALOG_PG_USER:-$KUN_PG_USER}"; P="${KUN_CATALOG_PG_PASSWORD:-$
 # migrate-catalog queued its ACCESS EXCLUSIVE behind it, and catalog-1
 # (compose depends_on the migrate) sat in Created — the public catalog face
 # was down until a human killed the census. ACCESS SHARE conflicts only with
-# ACCESS EXCLUSIVE, so any backend queued behind the census IS a migration:
-# cancel our own query and retry once after the migration clears. The RSS cap
-# backstops the OOM in case an image or planner drift ever un-pins the
-# disk-spill plan on an unattended night (no retry there — it would just blow
-# up again).
+# ACCESS EXCLUSIVE, so a backend queued behind the census wants a lock that,
+# normally, only a migration takes: cancel our own query and retry once after
+# it clears. "Normally" is why the blocked backends are now named in the log.
+# On 2026-09-14 both attempts yielded - the first to that evening's deploy, the
+# second 44 minutes later to something this line recorded as a bare count - and
+# a count cannot tell a deploy from an autovacuum truncate, which takes the
+# same lock and would mean the retry budget is aimed at the wrong thing.
+# The RSS cap backstops the OOM in case an image or planner drift ever un-pins
+# the disk-spill plan on an unattended night (no retry there — it would just
+# blow up again).
 #
 # 'WITH lw AS' is the first line of pairQuerySQL in cmd/work-dedup/census.go.
 # The guard can only see the census while that prefix holds.
@@ -101,7 +106,9 @@ DSNSH='U="${KUN_CATALOG_PG_USER:-$KUN_PG_USER}"; P="${KUN_CATALOG_PG_PASSWORD:-$
       "select count(*) from pg_stat_activity where $PID = any(pg_blocking_pids(pid))" 2>/dev/null)
     RSS=$(docker exec "$PG" sh -c "awk '/VmRSS/{print \$2}' /proc/$PID/status" 2>/dev/null)
     if [ -n "$BLOCKED" ] && [ "$BLOCKED" -gt 0 ] 2>/dev/null; then
-      echo "yield: $BLOCKED backend(s) queued behind census pid $PID - cancelling"
+      WHO=$(docker exec "$PG" psql -U postgres -Atc \
+        "select coalesce(nullif(application_name,''), backend_type)||' '||left(regexp_replace(query,'\\s+',' ','g'),100) from pg_stat_activity where $PID = any(pg_blocking_pids(pid))" 2>/dev/null | tr '\n' ';')
+      echo "yield: $BLOCKED backend(s) queued behind census pid $PID - cancelling; blocked=[$WHO]"
       : > state/yielded
       docker exec "$PG" psql -U postgres -Atc "select pg_cancel_backend($PID)" >/dev/null 2>&1
     elif [ -n "$RSS" ] && [ "$RSS" -gt 2500000 ] 2>/dev/null; then
