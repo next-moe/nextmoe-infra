@@ -83,11 +83,25 @@ func seedCover(t *testing.T, workID int64, source, kind, hash string, sexual int
 	}).Error)
 }
 
-func shelf(t *testing.T, id int64) bool {
+// withoutTheTrigger writes cover rows with the derived-column triggers off,
+// which is the only way to manufacture the drift this job exists to catch.
+func withoutTheTrigger(t *testing.T, write func()) {
 	t.Helper()
-	var nsfw bool
-	require.NoError(t, testDB.Raw(`SELECT display_nsfw FROM catalog_work WHERE id = ?`, id).Scan(&nsfw).Error)
-	return nsfw
+	for _, on := range []string{"DISABLE", "ENABLE"} {
+		if on == "ENABLE" {
+			write()
+		}
+		require.NoError(t, testDB.Exec(
+			`ALTER TABLE catalog_work_cover `+on+` TRIGGER USER`).Error)
+	}
+}
+
+func storedGrade(t *testing.T, id int64) bool {
+	t.Helper()
+	var got bool
+	require.NoError(t, testDB.Raw(
+		`SELECT cover_art_all_explicit FROM catalog_work WHERE id = ?`, id).Scan(&got).Error)
+	return got
 }
 
 func ids(f []finding) []int64 {
@@ -98,14 +112,48 @@ func ids(f []finding) []int64 {
 	return out
 }
 
+// The state this job used to repair — a claimed work on the SFW shelf with no
+// safe cover to elect — is now unreachable, and this is the pin that says so.
+// Restoring the old query would make it fail.
+func TestTheUnrenderableSFWShelfIsGoneByConstruction(t *testing.T) {
+	clean(t)
+	w := seedWork(t, work{name: "explicit only, r18, editorially sfw", rating: model.ContentRatingR18, claimed: true})
+	seedCover(t, w, "vndb", "", "honlyexplicit", model.SexualExplicit)
+
+	var row struct {
+		Site                *string `gorm:"column:site"`
+		ProductWorkID       *int64  `gorm:"column:product_work_id"`
+		ContentRating       int16   `gorm:"column:content_rating"`
+		DisplayNSFW         bool    `gorm:"column:display_nsfw"`
+		CoverArtAllExplicit bool    `gorm:"column:cover_art_all_explicit"`
+	}
+	require.NoError(t, testDB.Raw(`SELECT site, product_work_id, content_rating, display_nsfw,
+		cover_art_all_explicit FROM catalog_work WHERE id = ?`, w).Scan(&row).Error)
+	require.False(t, row.DisplayNSFW, "the editorial column is untouched — that is the point")
+	assert.Equal(t, model.DisplayLimitKeyNSFW, model.DisplayLimitKey(model.WorkShelf{
+		Site: row.Site, ProductWorkID: row.ProductWorkID, DisplayNSFW: row.DisplayNSFW,
+		ContentRating: row.ContentRating, CoverArtAllExplicit: row.CoverArtAllExplicit,
+	}), "a work owning only explicit cover art is off the sfw shelf without anyone editing it")
+
+	st, err := audit(context.Background(), testDB, false, defaultMaxFix)
+	require.NoError(t, err)
+	assert.Empty(t, st.Drift, "a work the trigger handled is not drift")
+}
+
 // The clean cases are the positive control for the finding cases: without them
 // a passing audit is indistinguishable from a predicate that matches nothing.
-func TestAuditSeparatesTheShelfErrorFromEverythingItMustNotTouch(t *testing.T) {
+func TestAuditSeparatesDriftFromTheRatingQuestion(t *testing.T) {
 	clean(t)
 	ctx := context.Background()
 
-	broken := seedWork(t, work{name: "explicit only, r18, sfw shelf", rating: model.ContentRatingR18, claimed: true})
-	seedCover(t, broken, "vndb", "", "hexplicit", model.SexualExplicit)
+	var drifted, healed int64
+	withoutTheTrigger(t, func() {
+		drifted = seedWork(t, work{name: "explicit only, column never derived", rating: model.ContentRatingR18, claimed: true})
+		seedCover(t, drifted, "vndb", "", "hdrift", model.SexualExplicit)
+	})
+
+	healed = seedWork(t, work{name: "explicit only, column derived", rating: model.ContentRatingR18, claimed: true})
+	seedCover(t, healed, "vndb", "", "hhealed", model.SexualExplicit)
 
 	misrated := seedWork(t, work{name: "explicit only but rated all ages", rating: model.ContentRatingAllAges, claimed: true})
 	seedCover(t, misrated, "bangumi", "", "hallages", model.SexualExplicit)
@@ -126,68 +174,72 @@ func TestAuditSeparatesTheShelfErrorFromEverythingItMustNotTouch(t *testing.T) {
 	seedCover(t, suggestive, "vndb", "", "hsuggestive", model.SexualSuggestive)
 
 	ghostOnly := seedWork(t, work{name: "no real cover art at all", rating: model.ContentRatingR18, claimed: true})
-	seedCover(t, ghostOnly, censoredSourceKey, "", "hghost", model.SexualSafe)
+	seedCover(t, ghostOnly, "censored", "", "hghost", model.SexualSafe)
 
-	unclaimed := seedWork(t, work{name: "explicit only but unclaimed", rating: model.ContentRatingR18})
-	seedCover(t, unclaimed, "vndb", "", "hunclaimed", model.SexualExplicit)
-
-	alreadyNSFW := seedWork(t, work{name: "explicit only, already nsfw shelf", rating: model.ContentRatingR18, claimed: true, shelf: true})
-	seedCover(t, alreadyNSFW, "vndb", "", "hnsfwshelf", model.SexualExplicit)
-
-	merged := seedWork(t, work{name: "explicit only but merged away", rating: model.ContentRatingR18, claimed: true, status: model.WorkStatusMerged})
-	seedCover(t, merged, "vndb", "", "hmerged", model.SexualExplicit)
+	bare := seedWork(t, work{name: "no cover rows at all", rating: model.ContentRatingAllAges, claimed: true})
 
 	st, err := audit(ctx, testDB, false, defaultMaxFix)
 	require.NoError(t, err)
-	assert.Equal(t, []int64{broken, packaging, unhashed}, ids(st.Mislabelled))
+	assert.Equal(t, []int64{drifted}, ids(st.Drift))
 	assert.Equal(t, []int64{misrated}, ids(st.Misrated))
 	assert.Zero(t, st.Fixed, "a report-only run must not write")
 
-	for _, id := range []int64{safe, suggestive, ghostOnly, unclaimed, merged} {
-		assert.False(t, shelf(t, id), "work %d must be left on the shelf it was on", id)
+	for _, id := range []int64{safe, suggestive, ghostOnly, bare} {
+		assert.False(t, storedGrade(t, id), "work %d owns electable safe art", id)
+	}
+	for _, id := range []int64{healed, packaging, unhashed, misrated} {
+		assert.True(t, storedGrade(t, id), "work %d owns no electable safe art", id)
 	}
 }
 
-func TestFixMovesOnlyTheR18FindingsAndIsIdempotent(t *testing.T) {
+func TestFixRepairsDriftInBothDirectionsAndIsIdempotent(t *testing.T) {
 	clean(t)
 	ctx := context.Background()
 
-	broken := seedWork(t, work{name: "explicit only, r18", rating: model.ContentRatingR18, claimed: true})
-	seedCover(t, broken, "vndb", "", "hfixme", model.SexualExplicit)
-	misrated := seedWork(t, work{name: "explicit only, all ages", rating: model.ContentRatingAllAges, claimed: true})
-	seedCover(t, misrated, "vndb", "", "hleaveme", model.SexualExplicit)
-	safe := seedWork(t, work{name: "healthy", rating: model.ContentRatingR18, claimed: true})
-	seedCover(t, safe, "vndb", "", "hhealthy", model.SexualSafe)
+	var stuckFalse, stuckTrue, healthy int64
+	withoutTheTrigger(t, func() {
+		stuckFalse = seedWork(t, work{name: "explicit only, column says false", rating: model.ContentRatingR18, claimed: true})
+		seedCover(t, stuckFalse, "vndb", "", "hstuckfalse", model.SexualExplicit)
+		stuckTrue = seedWork(t, work{name: "safe cover, column will say true", rating: model.ContentRatingR18, claimed: true})
+		seedCover(t, stuckTrue, "vndb", "", "hstucktrue", model.SexualSafe)
+	})
+	require.NoError(t, testDB.Exec(
+		`UPDATE catalog_work SET cover_art_all_explicit = true WHERE id = ?`, stuckTrue).Error)
+	healthy = seedWork(t, work{name: "healthy", rating: model.ContentRatingR18, claimed: true})
+	seedCover(t, healthy, "vndb", "", "hhealthy", model.SexualSafe)
 
 	st, err := audit(ctx, testDB, true, defaultMaxFix)
 	require.NoError(t, err)
-	assert.EqualValues(t, 1, st.Fixed)
-	assert.True(t, shelf(t, broken), "the r18 finding must move to the nsfw shelf")
-	assert.False(t, shelf(t, misrated), "an all-ages finding is a rating question and must never be moved")
-	assert.False(t, shelf(t, safe), "a work with a safe cover must not move")
+	assert.EqualValues(t, 2, st.Fixed)
+	assert.True(t, storedGrade(t, stuckFalse), "a column stuck false must be repaired up")
+	assert.False(t, storedGrade(t, stuckTrue), "a column stuck true must be repaired down")
+	assert.False(t, storedGrade(t, healthy))
 
 	st, err = audit(ctx, testDB, true, defaultMaxFix)
 	require.NoError(t, err)
 	assert.Zero(t, st.Fixed, "a second run has nothing left to fix")
-	assert.Len(t, st.Misrated, 1, "the all-ages finding stays outstanding until a human rules on it")
+	assert.Empty(t, st.Drift)
 }
 
 func TestFixRefusesARunawayBeforeWritingAnything(t *testing.T) {
 	clean(t)
 	ctx := context.Background()
 
-	first := seedWork(t, work{name: "runaway one", rating: model.ContentRatingR18, claimed: true})
-	seedCover(t, first, "vndb", "", "hrun1", model.SexualExplicit)
-	second := seedWork(t, work{name: "runaway two", rating: model.ContentRatingR18, claimed: true})
-	seedCover(t, second, "vndb", "", "hrun2", model.SexualExplicit)
+	var first, second int64
+	withoutTheTrigger(t, func() {
+		first = seedWork(t, work{name: "runaway one", rating: model.ContentRatingR18, claimed: true})
+		seedCover(t, first, "vndb", "", "hrun1", model.SexualExplicit)
+		second = seedWork(t, work{name: "runaway two", rating: model.ContentRatingR18, claimed: true})
+		seedCover(t, second, "vndb", "", "hrun2", model.SexualExplicit)
+	})
 
 	_, err := audit(ctx, testDB, true, 1)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "refusing to fix")
-	assert.False(t, shelf(t, first), "the refusal must happen before any write")
-	assert.False(t, shelf(t, second), "the refusal must happen before any write")
+	assert.False(t, storedGrade(t, first), "the refusal must happen before any write")
+	assert.False(t, storedGrade(t, second), "the refusal must happen before any write")
 
 	st, err := audit(ctx, testDB, false, 1)
 	require.NoError(t, err, "a report-only run is safe at any size")
-	assert.Len(t, st.Mislabelled, 2)
+	assert.Len(t, st.Drift, 2)
 }

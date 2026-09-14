@@ -234,14 +234,48 @@ const (
 
 const WikiContentLimitNSFW = "nsfw"
 
-func DisplayLimitKey(site *string, productWorkID *int64, displayNSFW bool, contentRating int16) string {
-	if site == nil || *site == "" || productWorkID == nil {
-		if contentRating == ContentRatingR18 {
-			return DisplayLimitKeyNSFW
-		}
-		return DisplayLimitKeySFW
+// WorkShelf carries every input to the editorial display axis. It is a struct
+// and not four positional arguments because the axis grew a third boolean in
+// 2026-09 and `DisplayLimitKey(site, pwid, a, rating, b)` is a swap waiting to
+// happen at a call site that cannot see which bool is which.
+type WorkShelf struct {
+	Site          *string
+	ProductWorkID *int64
+	DisplayNSFW   bool
+	ContentRating int16
+	// CoverArtAllExplicit is catalog_work.cover_art_all_explicit: the work has
+	// electable cover art and every row of it is graded explicit. Read-only in
+	// Go — a database trigger owns it, see the catalog migrate package.
+	CoverArtAllExplicit bool
+}
+
+func (w WorkShelf) claimed() bool {
+	return w.Site != nil && *w.Site != "" && w.ProductWorkID != nil
+}
+
+// NSFW is the editorial display axis, and this is its only implementation in
+// Go. Its SQL twin lives in the catalog service and the two are cross-checked
+// row-for-row over every combination of these inputs.
+//
+// The first clause is not the age axis wearing a disguise: an r18 game whose
+// covers are safe stays on the sfw shelf, which is the whole point of the axis
+// (doc 106 §38 — a downstream that gated on the rating instead collapsed its
+// indexable surface from 6,117 works to 599). What the clause refuses is the
+// unsatisfiable case: a work promising safe display material while owning none.
+// Work 208100 sat there — the sfw shelf elected the blurred 'censored' ghost,
+// so nobody in either mode could reach the real cover.
+func (w WorkShelf) NSFW() bool {
+	if w.CoverArtAllExplicit {
+		return true
 	}
-	if displayNSFW {
+	if w.claimed() {
+		return w.DisplayNSFW
+	}
+	return w.ContentRating == ContentRatingR18
+}
+
+func DisplayLimitKey(w WorkShelf) string {
+	if w.NSFW() {
 		return DisplayLimitKeyNSFW
 	}
 	return DisplayLimitKeySFW

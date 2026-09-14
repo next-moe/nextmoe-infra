@@ -1177,3 +1177,66 @@ and a blank card.
 
 **Zero migrations.** The repair is a data UPDATE against `kun_catalog`, not a
 schema change.
+
+## Wave — the SFW shelf stops being a promise nobody checks (2026-09-14)
+
+The 2026-09-13 repair emptied the class and the daily audit was supposed to
+keep it empty. It did not have to wait long: on 2026-09-14, before the cron
+had run even once on schedule, four more works had arrived, work 208100 among
+them — r18, claimed, `display_nsfw = false`, and owning exactly one real cover,
+graded explicit. The SFW shelf elected the blurred `censored` ghost, and
+because `allowSexual` is decided by the **shelf** and not by the viewer's mode,
+nobody in either mode could reach the real cover.
+
+**The shelf is now derived, not asserted.** `catalog_work.cover_art_all_explicit`
+answers "does this work own electable cover art, all of it explicit?", and
+`model.WorkShelf.NSFW` reads it first: a work in that state is on the nsfw
+shelf regardless of what its site declared. The column is maintained by a
+statement-level trigger on `catalog_work_cover` (insert / update / delete /
+truncate) and is read-only to GORM (`->;-:migration`), so neither a forgotten
+writer nor a stale `Save()` can put the work back.
+
+**A trigger, and not a guard in Go, because the writers cannot be enumerated.**
+Sixty-odd `cmd/` binaries write cover rows and the nightly grader rewrites
+`sexual` long after any request has ended; the 961 works found on 2026-09-13
+are what enumerating them produces. `ALTER ... AFTER UPDATE OF sexual` is not
+available — Postgres answers *transition tables cannot be specified for
+triggers with column lists* (SQLSTATE 0A000) — so the update trigger fires for
+every cover-row update and leans on an `IS DISTINCT FROM` guard to write
+nothing. A flip bumps `updated_at`, because the display axis is mirrored
+downstream through `GET /v2/catalog/changes` and a flip that does not bump
+leaves every mirror stale forever.
+
+**This is not the age axis returning through a side door.** `DisplayLimitKey`
+still answers `sfw` for a claimed r18 game with safe cover art — 47,336 of them
+on production the day this shipped — which is the whole reason the two axes are
+separate (deviation, doc 106 §38: a downstream that gated on the rating
+collapsed its indexable surface from 6,117 works to 599). What the new clause
+refuses is only the unsatisfiable case. Measured against production 2026-09-14,
+**no live work changes shelf**: every one of the 16,329 works the backfill
+flips already resolved to nsfw through the rating or through `display_nsfw`.
+
+**`cmd/audit-cover-shelf` changes job.** The state it used to repair is
+unreachable, so it now verifies the derived column instead — it recomputes the
+predicate from the cover rows and reports any row the trigger missed, which
+`-fix` repairs in both directions. Its second finding class is unchanged and is
+the one a derived column cannot answer: a work whose every cover is explicit
+yet is not rated r18 is either mis-rated or mis-graded, and both are editorial.
+The flags, exit codes and cron wrapper are untouched.
+
+The two implementations of the axis — `model.WorkShelf.NSFW` and
+`displayLimitNSFWSQL` — are cross-checked over the whole input space (five
+claim shapes × three ratings × two editorial values × three cover states, 90
+works) rather than over a table of interesting cases, and the sfw branch is
+written as the negation of the nsfw one rather than as a second expression.
+Deleting the new clause from the SQL copy turns that test red at 54 rows
+against 36.
+
+**Migration required**: `go run ./cmd/migrate catalog` against
+`KUN_CATALOG_PG_DATABASE`. It adds the column, the function and the four
+triggers, then backfills. **Run it before the deploy** — the read path selects
+`cover_art_all_explicit` and GORM would otherwise scan a missing column as a
+zero value, putting every work back on the shelf its site declared.
+
+**Reindex required after the deploy**: `content_limit` reaches OpenSearch only
+through `cmd/reindex-catalog`, which runs nightly at 06:10 CST.

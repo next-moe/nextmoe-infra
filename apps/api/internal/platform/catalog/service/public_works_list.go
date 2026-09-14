@@ -355,7 +355,7 @@ func (s *PublicService) enrichWorkListItems(ctx context.Context, rows []workList
 	if err != nil {
 		return nil, err
 	}
-	limits, err := s.read.loadDisplayNSFW(ctx, limitSubjects)
+	limits, err := s.read.loadShelfFacts(ctx, limitSubjects)
 	if err != nil {
 		return nil, err
 	}

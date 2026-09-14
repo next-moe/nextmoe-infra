@@ -79,33 +79,83 @@ func TestDisplayLimitKeyIsATwoValuePartition(t *testing.T) {
 	pwid := int64(42)
 
 	for _, tc := range []struct {
-		name    string
-		site    *string
-		pwid    *int64
-		display bool
-		rating  int16
-		want    string
+		name string
+		in   WorkShelf
+		want string
 	}{
-		{"bodyless all_ages", nil, nil, false, ContentRatingAllAges, DisplayLimitKeySFW},
-		{"bodyless sensitive", nil, nil, false, ContentRatingSensitive, DisplayLimitKeySFW},
-		{"bodyless r18", nil, nil, false, ContentRatingR18, DisplayLimitKeyNSFW},
-		{"empty site is bodyless", &empty, &pwid, true, ContentRatingR18, DisplayLimitKeyNSFW},
-		{"site without a product work id is bodyless", &wiki, nil, true, ContentRatingAllAges, DisplayLimitKeySFW},
-		{"claimed, editorially sfw, game r18", &wiki, &pwid, false, ContentRatingR18, DisplayLimitKeySFW},
-		{"claimed, editorially nsfw, game all_ages", &wiki, &pwid, true, ContentRatingAllAges, DisplayLimitKeyNSFW},
-		{"claimed, editorially nsfw, game r18", &wiki, &pwid, true, ContentRatingR18, DisplayLimitKeyNSFW},
-		{"claimed, nothing declared", &wiki, &pwid, false, ContentRatingR18, DisplayLimitKeySFW},
+		{"bodyless all_ages", WorkShelf{ContentRating: ContentRatingAllAges}, DisplayLimitKeySFW},
+		{"bodyless sensitive", WorkShelf{ContentRating: ContentRatingSensitive}, DisplayLimitKeySFW},
+		{"bodyless r18", WorkShelf{ContentRating: ContentRatingR18}, DisplayLimitKeyNSFW},
+		{"empty site is bodyless", WorkShelf{Site: &empty, ProductWorkID: &pwid, DisplayNSFW: true,
+			ContentRating: ContentRatingR18}, DisplayLimitKeyNSFW},
+		{"site without a product work id is bodyless", WorkShelf{Site: &wiki, DisplayNSFW: true,
+			ContentRating: ContentRatingAllAges}, DisplayLimitKeySFW},
+		{"claimed, editorially sfw, game r18", WorkShelf{Site: &wiki, ProductWorkID: &pwid,
+			ContentRating: ContentRatingR18}, DisplayLimitKeySFW},
+		{"claimed, editorially nsfw, game all_ages", WorkShelf{Site: &wiki, ProductWorkID: &pwid,
+			DisplayNSFW: true, ContentRating: ContentRatingAllAges}, DisplayLimitKeyNSFW},
+		{"claimed, editorially nsfw, game r18", WorkShelf{Site: &wiki, ProductWorkID: &pwid,
+			DisplayNSFW: true, ContentRating: ContentRatingR18}, DisplayLimitKeyNSFW},
+		{"claimed, nothing declared", WorkShelf{Site: &wiki, ProductWorkID: &pwid,
+			ContentRating: ContentRatingR18}, DisplayLimitKeySFW},
+		{"claimed, editorially sfw, but every cover is explicit", WorkShelf{Site: &wiki, ProductWorkID: &pwid,
+			ContentRating: ContentRatingR18, CoverArtAllExplicit: true}, DisplayLimitKeyNSFW},
+		{"bodyless all_ages whose only cover art is explicit", WorkShelf{ContentRating: ContentRatingAllAges,
+			CoverArtAllExplicit: true}, DisplayLimitKeyNSFW},
 	} {
-		got := DisplayLimitKey(tc.site, tc.pwid, tc.display, tc.rating)
+		got := DisplayLimitKey(tc.in)
 		assert.Equal(t, tc.want, got, "%s", tc.name)
 		assert.Contains(t, []string{DisplayLimitKeySFW, DisplayLimitKeyNSFW}, got,
 			"%s: the vocabulary is exactly two values", tc.name)
 	}
 
 	assert.NotEqual(t,
-		DisplayLimitKey(&wiki, &pwid, false, ContentRatingR18),
-		DisplayLimitKey(nil, nil, false, ContentRatingR18),
+		DisplayLimitKey(WorkShelf{Site: &wiki, ProductWorkID: &pwid, ContentRating: ContentRatingR18}),
+		DisplayLimitKey(WorkShelf{ContentRating: ContentRatingR18}),
 		"an r18 game reads sfw when claimed with safe material, nsfw when bodyless")
+}
+
+// TestDisplayLimitKeyGrewWithoutMovingAnything pins the 2026-09 change as
+// additive over the whole input space: with no cover art graded explicit,
+// every combination answers exactly what it answered before. The old rule is
+// spelled out here instead of called, because a regression pin that calls the
+// code it pins cannot fail.
+func TestDisplayLimitKeyGrewWithoutMovingAnything(t *testing.T) {
+	wiki, empty := "galgame_wiki", ""
+	pwid := int64(42)
+	before := func(site *string, productWorkID *int64, displayNSFW bool, contentRating int16) string {
+		if site == nil || *site == "" || productWorkID == nil {
+			if contentRating == ContentRatingR18 {
+				return DisplayLimitKeyNSFW
+			}
+			return DisplayLimitKeySFW
+		}
+		if displayNSFW {
+			return DisplayLimitKeyNSFW
+		}
+		return DisplayLimitKeySFW
+	}
+
+	sites := []*string{nil, &empty, &wiki}
+	pwids := []*int64{nil, &pwid}
+	ratings := []int16{ContentRatingAllAges, ContentRatingSensitive, ContentRatingR18}
+	cases := 0
+	for _, site := range sites {
+		for _, pw := range pwids {
+			for _, rating := range ratings {
+				for _, display := range []bool{false, true} {
+					in := WorkShelf{Site: site, ProductWorkID: pw, DisplayNSFW: display, ContentRating: rating}
+					assert.Equal(t, before(site, pw, display, rating), DisplayLimitKey(in),
+						"site=%v pwid=%v display=%v rating=%d moved without cover art doing so", site, pw, display, rating)
+					in.CoverArtAllExplicit = true
+					assert.Equal(t, DisplayLimitKeyNSFW, DisplayLimitKey(in),
+						"a work owning only explicit cover art can never be on the sfw shelf")
+					cases++
+				}
+			}
+		}
+	}
+	assert.Equal(t, len(sites)*len(pwids)*len(ratings)*2, cases)
 }
 
 func TestLabelRelationVocabularyPairsAndRenders(t *testing.T) {

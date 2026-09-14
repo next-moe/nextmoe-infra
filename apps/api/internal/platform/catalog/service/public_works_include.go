@@ -70,7 +70,7 @@ func ParseWorksListInclude(raw string) WorksListInclude {
 func (s *PublicService) attachWorkListBlocks(
 	ctx context.Context, items []dto.PublicWorkListItem, rows []workListSourceRow,
 	subjects []claimSubject, covers map[int64][]WorkCoverRow, inc WorksListInclude, nsfw bool,
-	displayNSFW map[int64]bool,
+	displayNSFW map[int64]shelfFacts,
 ) error {
 	if !inc.any() || len(items) == 0 {
 		return nil
@@ -161,7 +161,7 @@ func (s *PublicService) attachWorkListBlocks(
 
 func (s *PublicService) attachWorkListCoverSlots(
 	ctx context.Context, items []dto.PublicWorkListItem, rows []workListSourceRow, nsfw bool,
-	covers map[int64][]WorkCoverRow, displayNSFW map[int64]bool,
+	covers map[int64][]WorkCoverRow, displayNSFW map[int64]shelfFacts,
 ) error {
 	all := make([]WorkCoverRow, 0, len(rows))
 	for _, r := range rows {

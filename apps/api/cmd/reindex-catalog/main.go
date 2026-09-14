@@ -494,9 +494,13 @@ func reindexWorks(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, 
 			ClaimState    *int16    `gorm:"column:claim_state"`
 			UpdatedAt     time.Time `gorm:"column:updated_at"`
 			DisplayNSFW   bool      `gorm:"column:display_nsfw"`
+			// cover_art_all_explicit is trigger-maintained; content_limit reaches
+			// the index only through this job, so omitting it here would serve a
+			// stale shelf on the search face until the next daily run.
+			CoverArtAllExplicit bool `gorm:"column:cover_art_all_explicit"`
 		}
 		if err := db.Raw(`SELECT w.id, w.display_name, w.olang, w.content_rating, coalesce(w.site,'') AS site,
-				w.product_work_id, w.claim_state, w.updated_at, w.display_nsfw
+				w.product_work_id, w.claim_state, w.updated_at, w.display_nsfw, w.cover_art_all_explicit
 			FROM catalog_work w
 			WHERE w.id > ? AND w.deleted_at IS NULL AND w.status = 0
 				AND w.medium_id = (SELECT id FROM catalog_medium WHERE key = 'galgame')
@@ -513,8 +517,11 @@ func reindexWorks(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, 
 				ContentRating: r.ContentRating,
 				Claimed:       r.Site != "",
 				ClaimState:    model.ClaimStateKey(&r.Site, r.ProductWorkID, r.ClaimState),
-				ContentLimit:  model.DisplayLimitKey(&r.Site, r.ProductWorkID, r.DisplayNSFW, r.ContentRating),
-				ReleasedOrd:   facets.releasedOrd[r.ID], UpdatedTS: r.UpdatedAt.Unix(),
+				ContentLimit: model.DisplayLimitKey(model.WorkShelf{
+					Site: &r.Site, ProductWorkID: r.ProductWorkID, DisplayNSFW: r.DisplayNSFW,
+					ContentRating: r.ContentRating, CoverArtAllExplicit: r.CoverArtAllExplicit,
+				}),
+				ReleasedOrd: facets.releasedOrd[r.ID], UpdatedTS: r.UpdatedAt.Unix(),
 				Popularity: pop[r.ID], Sources: srcs[r.ID], SourceKeys: keys[r.ID],
 				TagIDs: facets.tagIDs[r.ID], LabelIDs: facets.labelIDs[r.ID],
 				EngineIDs: facets.engineIDs[r.ID], SeriesIDs: facets.seriesIDs[r.ID],
