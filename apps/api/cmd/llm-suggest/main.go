@@ -34,6 +34,7 @@ func main() {
 	model := flag.String("model", "qwen3-14b", "served model id")
 	goldPath := flag.String("goldset", defaultGoldSet, "gold set JSONL path")
 	egDSN := flag.String("eg-dsn", "", "erogamescape staging DSN (default: erogamescape on the catalog server)")
+	hltbDSN := flag.String("hltb-dsn", "", "howlongtobeat mirror DSN (default: howlongtobeat on the catalog server)")
 	buildGold := flag.Bool("build-goldset", false, "regenerate the gold set JSONL from local dumps, then exit")
 	calibrate := flag.Bool("calibrate", false, "print calibration metrics from persisted goldset verdicts, then exit")
 	batch := flag.Bool("batch", false, "goldset: judge in batches (throughput comparison; prompt_version v1-batch)")
@@ -115,11 +116,14 @@ func main() {
 			os.Exit(2)
 		}
 		client := mustLLM(ctx, *llmBase, *model)
-		var egDB *gorm.DB
+		var up llmsuggest.StagingDBs
 		if *queue == llmsuggest.QueueRef {
-			egDB = tryEG(cfg, *egDSN)
+			up = llmsuggest.StagingDBs{
+				EG:   tryEG(cfg, *egDSN),
+				HLTB: tryStaging(cfg, *hltbDSN, "howlongtobeat"),
+			}
 		}
-		metrics, err := llmsuggest.RunCalibrateQueue(ctx, catalogDB.DB(), egDB, client, opts)
+		metrics, err := llmsuggest.RunCalibrateQueue(ctx, catalogDB.DB(), up, client, opts)
 		fail(err)
 		printCalibration(metrics)
 		if opts.DryRun {
@@ -183,8 +187,8 @@ func main() {
 		failures = errs
 		slog.Info("queue-workpair done", "judged", judged, "errors", errs, "dry", opts.DryRun)
 	case "queue-refs":
-		egDB := tryEG(cfg, *egDSN)
-		judged, errs, err := llmsuggest.RunQueueRefs(ctx, catalogDB.DB(), egDB, client, opts)
+		up := llmsuggest.StagingDBs{EG: tryEG(cfg, *egDSN), HLTB: tryStaging(cfg, *hltbDSN, "howlongtobeat")}
+		judged, errs, err := llmsuggest.RunQueueRefs(ctx, catalogDB.DB(), up, client, opts)
 		fail(err)
 		failures = errs
 		slog.Info("queue-refs done", "judged", judged, "errors", errs, "families", *families, "dry", opts.DryRun)
@@ -232,14 +236,22 @@ func openEG(cfg *config.Config, dsn string) *gorm.DB {
 }
 
 func tryEG(cfg *config.Config, dsn string) *gorm.DB {
+	return tryStaging(cfg, dsn, "erogamescape")
+}
+
+// Every upstream mirror is a database on the catalog's own postgres server, so
+// the default is the catalog credentials with the dbname swapped. A mirror that
+// will not open is not fatal: the lane that needs it reports its rows as
+// unavailable and the others still run.
+func tryStaging(cfg *config.Config, dsn, dbName string) *gorm.DB {
 	if dsn == "" {
-		egCfg := cfg.CatalogDatabase
-		egCfg.DBName = "erogamescape"
-		dsn = egCfg.DSN()
+		c := cfg.CatalogDatabase
+		c.DBName = dbName
+		dsn = c.DSN()
 	}
 	db, err := database.OpenJob(dsn)
 	if err != nil {
-		slog.Warn("erogamescape connect", "error", err)
+		slog.Warn("staging mirror connect", "database", dbName, "error", err)
 		return nil
 	}
 	return db

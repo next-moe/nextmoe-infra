@@ -355,3 +355,48 @@ func TestDecideCandidateAcceptDoesNotReleaseQuarantine(t *testing.T) {
 	require.NoError(t, testDB.First(&got, q.ID).Error)
 	assert.Equal(t, model.WorkStatusQuarantine, got.Status)
 }
+
+// The reviewer queue and the machine lane must both hide a probable ref whose
+// exact slot another entity already holds: ConfirmRef is the only action the
+// queue offers and it can never succeed on such a row.
+func TestProbableBucketHidesRefsWhoseExactSlotIsTaken(t *testing.T) {
+	cleanTables(t)
+	ctx := t.Context()
+
+	holder := createPerson(t, "holder")
+	blocked := createPerson(t, "blocked")
+	free := createPerson(t, "free")
+
+	addExternalRef(t, model.EntityTypePerson, holder.ID, 3, "bgm-9", model.LinkKindExact)
+	addExternalRef(t, model.EntityTypePerson, blocked.ID, 3, "bgm-9", model.LinkKindProbable)
+	addExternalRef(t, model.EntityTypePerson, free.ID, 3, "bgm-8", model.LinkKindProbable)
+
+	items, total, err := testQueues.ListProbableRefs(ctx, RefFilters{})
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), total)
+	require.Len(t, items, 1)
+	assert.Equal(t, free.ID, items[0].EntityID)
+
+	summary, err := testQueues.QueueSummary(ctx)
+	require.NoError(t, err)
+	var counted int64
+	for _, bucket := range summary.ProbableRefs {
+		if bucket.EntityType == model.EntityTypePerson {
+			counted = bucket.Count
+		}
+	}
+	assert.Equal(t, int64(1), counted, "the chip total matches the page the reviewer sees")
+
+	// Why the row is hidden, asserted rather than assumed.
+	err = testQueues.ConfirmRef(ctx, RefKey{
+		EntityType: model.EntityTypePerson, EntityID: blocked.ID,
+		SourceID: 3, ExternalID: "bgm-9",
+	}, 7)
+	require.ErrorIs(t, err, ErrExactTaken)
+
+	// Positive control: the row that stayed visible does confirm.
+	require.NoError(t, testQueues.ConfirmRef(ctx, RefKey{
+		EntityType: model.EntityTypePerson, EntityID: free.ID,
+		SourceID: 3, ExternalID: "bgm-8",
+	}, 7))
+}

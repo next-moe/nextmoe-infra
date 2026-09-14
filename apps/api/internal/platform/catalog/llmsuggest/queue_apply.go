@@ -46,10 +46,23 @@ func RunApply(ctx context.Context, db *gorm.DB, queues *service.AdminQueueServic
 			return ApplyStats{}, err
 		}
 	}
+	holders := map[string]int64{}
+	if opts.Queue == QueueRef {
+		var err error
+		holders, err = exactSlotHolders(db, rows)
+		if err != nil {
+			return ApplyStats{}, err
+		}
+	}
 
 	st := &tally{}
 	for _, row := range rows {
 		plan := planFor(opts.Queue, row, sides, opts.MinConfidence)
+		if plan.Action == applyConfirm {
+			if h, ok := holders[exactSlotKey(row.EntityType, row.SourceID, row.ExternalID)]; ok && h != row.EntityID {
+				plan = applyPlan{Skip: skipRefExactTaken}
+			}
+		}
 		if plan.Skip != "" {
 			st.add(plan.Skip, 1)
 			if opts.DryRun {
@@ -187,6 +200,60 @@ func loadApplySides(db *gorm.DB, rows []QueueVerdict) (map[int64]workPairSides, 
 			s := out[r.ID]
 			s.ExactA = r.N
 			out[r.ID] = s
+		}
+	}
+	return out, nil
+}
+
+func exactSlotKey(entityType, sourceID int16, externalID string) string {
+	return fmt.Sprintf("%d|%d|%s", entityType, sourceID, externalID)
+}
+
+// exactSlotHolders maps each slot these rows want to the entity that already
+// holds it exactly, if any.
+//
+// A confirm whose slot another entity holds is refused by ConfirmRef with
+// ErrExactTaken, and the apply loop does not stamp a row that errored - so
+// before this, every run retried the same doomed confirms. 2026-09-14: 10,684
+// of the 11,829 rows waiting to apply were in that state, every one a
+// chain-verified vndb release backfill, which is a bundle release fanned out
+// across works where only one of them can hold exact.
+//
+// Those rows are skipped rather than stamped: the blocker is a fact about the
+// catalog and not about the verdict, so if the holder is ever merged away the
+// row becomes actionable again on its own.
+func exactSlotHolders(db *gorm.DB, rows []QueueVerdict) (map[string]int64, error) {
+	type group struct {
+		et  int16
+		src int16
+	}
+	wanted := map[group][]string{}
+	seen := map[string]struct{}{}
+	for _, r := range rows {
+		k := exactSlotKey(r.EntityType, r.SourceID, r.ExternalID)
+		if _, ok := seen[k]; ok {
+			continue
+		}
+		seen[k] = struct{}{}
+		g := group{r.EntityType, r.SourceID}
+		wanted[g] = append(wanted[g], r.ExternalID)
+	}
+
+	out := map[string]int64{}
+	for g, exts := range wanted {
+		for _, chunk := range chunkBy(exts, 500) {
+			var found []struct {
+				ExternalID string `gorm:"column:external_id"`
+				EntityID   int64  `gorm:"column:entity_id"`
+			}
+			if err := db.Raw(`SELECT external_id, entity_id FROM catalog_external_ref
+				WHERE entity_type = ? AND source_id = ? AND link_kind = 0 AND external_id IN ?`,
+				g.et, g.src, chunk).Scan(&found).Error; err != nil {
+				return nil, err
+			}
+			for _, f := range found {
+				out[exactSlotKey(g.et, g.src, f.ExternalID)] = f.EntityID
+			}
 		}
 	}
 	return out, nil
