@@ -110,8 +110,6 @@ func backfillCoverArtGrade(db *gorm.DB) error {
 	return nil
 }
 
-const censoredSourceKey = "censored"
-
 var contentRatingR18SQL = fmt.Sprint(model.ContentRatingR18)
 
 // coverArtRowSQL is the "this row is electable cover art" predicate, shared by
@@ -121,7 +119,7 @@ func coverArtRowSQL(cover, source string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return source + `.key <> '` + censoredSourceKey + `' AND ` + cover + `.image_hash <> ''
+	return source + `.key <> '` + model.CensoredSourceKey + `' AND ` + cover + `.image_hash <> ''
 		   AND ` + cover + `.kind <> ALL (` + kinds + `)`, nil
 }
 

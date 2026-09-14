@@ -142,7 +142,7 @@ func sources() []model.CatalogSource {
 		{ID: 18, Key: "derived", TrustTier: 1, Note: "first-party machine inference over catalog facts (wave 184 series builder)"},
 		{ID: 19, Key: "nextmoe", TrustTier: 0, Note: "first-party measurements aggregated from our own users (playtime medians from catalog_user_playtime, gated on catalog_user_work_state done)"},
 		{ID: 20, Key: "howlongtobeat", TrustTier: 1, Note: "HowLongToBeat playtime + rating aggregates (anchored via Steam appid, kun-howlongtobeat-api mirror)"},
-		{ID: 21, Key: "censored", TrustTier: 0, Note: "first-party blurred stand-in derived from explicit official art (SFW cover face)"},
+		{ID: 21, Key: model.CensoredSourceKey, TrustTier: 0, Note: "first-party blurred stand-in derived from explicit official art (SFW cover face)"},
 	}
 }
 

@@ -155,13 +155,22 @@ const (
 	SexualExplicit   int16 = 2
 )
 
+// CensoredSourceKey names the first-party blurred stand-in. It is not cover art
+// the election can offer: it is what the election falls back to when there is
+// none, so anything asking "does this work own electable cover art" must
+// exclude it. Two readers have to agree on the spelling — the election, and the
+// trigger deriving catalog_work.cover_art_all_explicit — and a rename applied
+// to one and not the other reads the ghost as safe art and hands the work
+// straight back to the SFW shelf it cannot render. seed.Run creates the row.
+const CensoredSourceKey = "censored"
+
 // PackagingCoverKinds are the cover rows that photograph the box rather than
 // show the art, and the slot election skips them entirely. The list is the
 // contract, and it is read from two places that must agree: the election, and
-// the shelf audit that decides whether a work could render a safe cover at all.
-// A new packaging kind added to one spelling and not the other splits them
-// silently — the audit would clear a work whose only "safe" row the election
-// refuses to elect.
+// the derived cover grade that decides whether a work could render a safe cover
+// at all. A new packaging kind added to one spelling and not the other splits
+// them silently — the grade would clear a work whose only "safe" row the
+// election refuses to elect.
 var PackagingCoverKinds = []string{"pkgfront", "pkgback", "pkgmed", "pkgcontent", "pkgside"}
 
 var packagingCoverKind = func() map[string]struct{} {
