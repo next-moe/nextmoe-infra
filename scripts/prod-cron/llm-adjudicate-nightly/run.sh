@@ -88,10 +88,15 @@ docker run --rm --name adj-judge-workpair --network dokploy-network \
   --env-file "$BASE/env.tmp" --env-file /root/env-llm-key.env "$IMG" \
   sh -c "exec llm-suggest $LLM --apply --task queue-workpair"
 
+# Both bars are spelled out because they are not the same bar. An accept files a
+# merge and MergeService.Unmerge has no route and no CLI in production; a reject
+# only parks a pair, and the pair stays readable in catalog_match_candidate.
+# Holding both to 0.9 is what left 811 judged-different pairs stuck in
+# needs_manual with no action that could ever clear them.
 echo "--- 2/6 apply work-pair verdicts (files open proposals) ---"
 docker run --rm --name adj-apply-workpair --network dokploy-network \
   --env-file "$BASE/env.tmp" "$IMG" \
-  sh -c 'exec llm-suggest --mode apply --queue workpair --actor 1 --min-confidence 0.9 --apply'
+  sh -c 'exec llm-suggest --mode apply --queue workpair --actor 1 --min-confidence 0.9 --min-confidence-reject 0.7 --apply'
 
 # Screens the RESOLVED endpoints for an exact-ref contradiction from an
 # independent registry before approving; a contradiction only from a
