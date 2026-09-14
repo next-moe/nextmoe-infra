@@ -203,3 +203,49 @@ func TestCoverArtGradeFollowsAMergeRehang(t *testing.T) {
 		`DELETE FROM catalog_work_cover WHERE work_id = ? AND sexual = ?`, dst, model.SexualSafe).Error)
 	assert.True(t, gradeOf(t, dst), "the target kept only the inherited explicit row")
 }
+
+func withoutTheTrigger(t *testing.T, write func()) {
+	t.Helper()
+	require.NoError(t, testDB.Exec(`ALTER TABLE catalog_work_cover DISABLE TRIGGER USER`).Error)
+	defer func() {
+		require.NoError(t, testDB.Exec(`ALTER TABLE catalog_work_cover ENABLE TRIGGER USER`).Error)
+	}()
+	write()
+}
+
+// The backfill bumps updated_at only for the rows whose published
+// content_limit moves with the column, because GET /v2/catalog/changes is how
+// downstream sites mirror the axis: bumping all 16,329 flipped rows would
+// replay works that did not move, and bumping none would hide the one that did.
+func TestBackfillBumpsOnlyTheWorksThatChangeShelf(t *testing.T) {
+	coverFixture(t)
+	moved := newWork(t, "claimed r18, editorially sfw")  // shelf was sfw -> moves
+	stays := newWork(t, "claimed r18, editorially nsfw") // shelf was nsfw -> does not move
+	bodyless := newWork(t, "unclaimed r18")              // shelf was nsfw by rating -> does not move
+	require.NoError(t, testDB.Exec(`UPDATE catalog_work SET content_rating = ?, site = 'kungal',
+		product_work_id = id WHERE id IN ?`, model.ContentRatingR18, []int64{moved, stays}).Error)
+	require.NoError(t, testDB.Exec(`UPDATE catalog_work SET display_nsfw = true WHERE id = ?`, stays).Error)
+	require.NoError(t, testDB.Exec(`UPDATE catalog_work SET content_rating = ? WHERE id = ?`,
+		model.ContentRatingR18, bodyless).Error)
+
+	withoutTheTrigger(t, func() {
+		for i, id := range []int64{moved, stays, bodyless} {
+			addCover(t, id, srcDLsite, "main", strings.Repeat("7", 60)+padHex(i), model.SexualExplicit)
+		}
+	})
+	before := map[int64]time.Time{}
+	for _, id := range []int64{moved, stays, bodyless} {
+		require.False(t, gradeOf(t, id), "the fixture needs the column stale to have anything to back-fill")
+		before[id] = updatedAt(t, id)
+	}
+
+	require.NoError(t, backfillCoverArtGrade(testDB))
+
+	for _, id := range []int64{moved, stays, bodyless} {
+		assert.True(t, gradeOf(t, id), "work %d was not back-filled", id)
+	}
+	assert.True(t, updatedAt(t, moved).After(before[moved]),
+		"this work's content_limit moved from sfw to nsfw and every mirror has to be told")
+	assert.Equal(t, before[stays], updatedAt(t, stays), "already on the nsfw shelf — nothing moved")
+	assert.Equal(t, before[bodyless], updatedAt(t, bodyless), "already nsfw through the rating — nothing moved")
+}

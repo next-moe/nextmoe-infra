@@ -1181,12 +1181,24 @@ schema change.
 ## Wave — the SFW shelf stops being a promise nobody checks (2026-09-14)
 
 The 2026-09-13 repair emptied the class and the daily audit was supposed to
-keep it empty. It did not have to wait long: on 2026-09-14, before the cron
-had run even once on schedule, four more works had arrived, work 208100 among
-them — r18, claimed, `display_nsfw = false`, and owning exactly one real cover,
-graded explicit. The SFW shelf elected the blurred `censored` ghost, and
-because `allowSexual` is decided by the **shelf** and not by the viewer's mode,
-nobody in either mode could reach the real cover.
+keep it empty. It did not have to wait long: on 2026-09-14, before the cron had
+run even once on schedule, four more works had arrived, work 208100 among them
+— r18, claimed, `display_nsfw = false`, and owning exactly one real cover,
+graded explicit. The SFW shelf elected the blurred `censored` ghost, and because
+`allowSexual` is decided by the **shelf** and not by the viewer's mode, nobody
+in either mode could reach the real cover.
+
+**The write that produces this is the claim, and that is why 2026-09-13 could
+not reconstruct it.** An unclaimed work takes its shelf from `content_rating`,
+which an r18 game cannot get wrong; claiming it swaps that for `display_nsfw`,
+whose default is `false`. `catalog_claim_event` dates all five: 211105 at
+09-13 17:13 and 217049 at 17:17 — both after that day's sweep ran at 14:42 —
+then 222397 at 09-14 02:54, 208100 at 05:30, and 229339 at 07:34, this last one
+while the fix was being written. Not one of them has a revision, a cover write
+or a re-grade to find it by: the covers of 208100 and 229339 have not been
+touched since July and 09-06 respectively. Roughly eight claims a day reach
+this state, and a daily audit leaves each of them up to twenty-four hours on
+the wrong shelf.
 
 **The shelf is now derived, not asserted.** `catalog_work.cover_art_all_explicit`
 answers "does this work own electable cover art, all of it explicit?", and
@@ -1213,8 +1225,12 @@ on production the day this shipped — which is the whole reason the two axes ar
 separate (deviation, doc 106 §38: a downstream that gated on the rating
 collapsed its indexable surface from 6,117 works to 599). What the new clause
 refuses is only the unsatisfiable case. Measured against production 2026-09-14,
-**no live work changes shelf**: every one of the 16,329 works the backfill
-flips already resolved to nsfw through the rating or through `display_nsfw`.
+the backfill flips 16,329 rows and **exactly one work changes shelf** — 229339,
+claimed twenty-five minutes before the measurement. The backfill bumps
+`updated_at` for that one and leaves the other 16,328 alone: they already
+resolved to nsfw through the rating or through `display_nsfw`, and replaying
+them through the changes feed would float works that did not move to the top of
+every recently-updated face.
 
 **`cmd/audit-cover-shelf` changes job.** The state it used to repair is
 unreachable, so it now verifies the derived column instead — it recomputes the

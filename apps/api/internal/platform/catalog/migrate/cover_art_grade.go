@@ -17,6 +17,13 @@ import (
 // stand-in, so in production work 208100 showed its real cover to nobody, not
 // even to a reader in NSFW mode.
 //
+// The write that produces this is the CLAIM, which is worth knowing because it
+// leaves no trace to find it by. An unclaimed work takes its shelf from
+// content_rating, which an r18 game cannot get wrong; claiming it swaps that
+// for display_nsfw, which defaults to false. Five works arrived this way in the
+// fourteen hours before this shipped — 211105, 217049, 222397, 208100, 229339 —
+// with no revision, no cover write and no re-grade among them.
+//
 // Three decisions are worth recording, because each one closes a way this was
 // going to rot:
 //
@@ -62,26 +69,38 @@ func coverArtGrade(db *gorm.DB) error {
 	return backfillCoverArtGrade(db)
 }
 
+// shelfBeforeSQL is the display axis as it stood before cover_art_all_explicit
+// existed, frozen. The backfill needs it to tell the rows whose stored value
+// changes from the rows whose published content_limit changes with it: only
+// the latter are worth a bump, and only a row that was sfw can move.
+var shelfBeforeSQL = `(CASE
+	WHEN (site IS NOT NULL AND site <> '' AND product_work_id IS NOT NULL) THEN display_nsfw
+	ELSE content_rating = ` + contentRatingR18SQL + `
+	END)`
+
 // backfillCoverArtGrade seeds the column for rows that predate the trigger.
 // Both statements are guarded on a real change, so every later run touches
 // nothing — the trigger has kept the column current since the first one.
 //
-// It deliberately does NOT bump updated_at, and that is a measurement, not an
-// assumption: on production 2026-09-14 all 16,329 works this first run flips
-// already resolved to the nsfw shelf through the rating or through
-// display_nsfw, so not one work's content_limit changes and there is nothing
-// for a mirror to re-fetch. A bump would have replayed 16,329 unchanged works
-// through the changes feed and floated them to the top of every
-// recently-updated face.
+// The bump is conditional because both unconditional answers are wrong.
+// Bumping every flipped row would replay 16,329 works through
+// GET /v2/catalog/changes and float them to the top of every recently-updated
+// face, for works whose shelf did not move. Bumping none would leave a work
+// whose content_limit really did move invisible to every downstream mirror
+// forever. On production 2026-09-14 the first run flipped 16,329 rows and
+// exactly one of them moved shelf: work 229339, claimed 25 minutes earlier.
 func backfillCoverArtGrade(db *gorm.DB) error {
 	allExplicit, err := CoverArtAllExplicitSQL()
 	if err != nil {
 		return err
 	}
+	// Either direction moves the shelf exactly when the row was sfw without the
+	// new clause, so both statements carry the same CASE.
+	bump := `updated_at = CASE WHEN ` + shelfBeforeSQL + ` THEN updated_at ELSE now() END`
 	for _, stmt := range []string{
-		`UPDATE catalog_work SET cover_art_all_explicit = true
+		`UPDATE catalog_work SET cover_art_all_explicit = true, ` + bump + `
 		  WHERE NOT cover_art_all_explicit AND id IN (` + allExplicit + `)`,
-		`UPDATE catalog_work SET cover_art_all_explicit = false
+		`UPDATE catalog_work SET cover_art_all_explicit = false, ` + bump + `
 		  WHERE cover_art_all_explicit AND id NOT IN (` + allExplicit + `)`,
 	} {
 		if err := db.Exec(stmt).Error; err != nil {
@@ -92,6 +111,8 @@ func backfillCoverArtGrade(db *gorm.DB) error {
 }
 
 const censoredSourceKey = "censored"
+
+var contentRatingR18SQL = fmt.Sprint(model.ContentRatingR18)
 
 // coverArtRowSQL is the "this row is electable cover art" predicate, shared by
 // the trigger and the backfill so they cannot disagree about what counts.

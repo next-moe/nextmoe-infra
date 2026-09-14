@@ -4,7 +4,9 @@
 # fell through to the blurred 'censored' stand-in, so every viewer — in BOTH
 # modes — got the ghost instead of the real cover. Production carried 961 of
 # them on 2026-09-13 and four more had arrived by 2026-09-14, before this cron
-# had run once on schedule.
+# had run once on schedule. The write that produced them was the CLAIM: an
+# unclaimed work takes its shelf from content_rating, and claiming it swaps that
+# for display_nsfw, which defaults to false. No revision, no cover write.
 #
 # That state is now unreachable. catalog_work.cover_art_all_explicit is derived
 # from the cover rows by a database trigger and the display axis reads it, so a

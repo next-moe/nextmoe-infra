@@ -549,3 +549,32 @@ func TestWorksSearchDisplayLimitGate(t *testing.T) {
 		}
 	}
 }
+
+// TestClaimingCannotDemoteAWorkWithNoSafeCover is the incident, verbatim. Five
+// works reached the SFW shelf this way in the fourteen hours before this
+// shipped — 211105, 217049, 222397, 208100, 229339 — and none left a revision
+// or a cover write to find them by. An unclaimed work takes its shelf from
+// content_rating, which an r18 game can never get wrong; the claim swaps that
+// for display_nsfw, which defaults to false.
+func TestClaimingCannotDemoteAWorkWithNoSafeCover(t *testing.T) {
+	cleanTables(t)
+	cleanTagTables(t)
+
+	w := createWorkX(t, galgameMediumID, model.ContentRatingR18, model.WorkStatusLive, "認領しても棚は下がらない")
+	addWorkCover(t, w.ID, hash64("cc01"), 0, "main", false, model.SexualExplicit, srcVNDB)
+
+	onSFW := func() bool {
+		return idSet(listIDs(t, WorksListFilter{
+			Sort: "id", NSFW: true, DisplayLimits: []string{model.DisplayLimitKeySFW},
+		}))[w.ID]
+	}
+	if onSFW() {
+		t.Fatalf("an unclaimed r18 work belongs on the nsfw shelf before anything else happens")
+	}
+
+	claimWork(t, w.ID, "kungal", 9310)
+	if onSFW() {
+		t.Fatalf("claiming work %d moved it onto the sfw shelf with no safe cover to elect — "+
+			"the claim is the write that produced all five 2026-09 findings", w.ID)
+	}
+}
