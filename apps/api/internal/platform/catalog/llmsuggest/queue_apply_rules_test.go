@@ -121,3 +121,22 @@ func TestRefWithTakenSlotIsVerifiedAsRelated(t *testing.T) {
 	assert.Equal(t, skipChainUnproven, planRef(VerdictChainUnproven, 1, 0.9, true).Skip)
 	assert.Equal(t, skipRefDifferent, planRef(VerdictDifferent, 1, 0.9, true).Skip)
 }
+
+func TestApplySelectionIsWiderThanEitherBar(t *testing.T) {
+	opts := Options{MinConfidence: 0.9, MinConfidenceReject: 0.7}
+
+	opts.Queue = QueueWorkPair
+	minConf, verdicts := applySelection(opts)
+	assert.Zero(t, minConf, "the contradiction screen does not read confidence")
+	assert.Contains(t, verdicts, VerdictUnsure)
+
+	opts.Queue = QueueCreditName
+	minConf, verdicts = applySelection(opts)
+	assert.Equal(t, 0.7, minConf)
+	assert.NotContains(t, verdicts, VerdictUnsure)
+
+	// planRef has no reject path, so the reject bar must not widen the ref lane
+	opts.Queue = QueueRef
+	minConf, _ = applySelection(opts)
+	assert.Equal(t, 0.9, minConf)
+}

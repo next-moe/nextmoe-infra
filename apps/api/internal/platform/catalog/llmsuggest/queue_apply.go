@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"api/internal/platform/catalog/model"
@@ -31,8 +32,9 @@ func RunApply(ctx context.Context, db *gorm.DB, queues *service.AdminQueueServic
 		opts.MinConfidenceReject = 0
 	}
 	var rows []QueueVerdict
+	minConf, verdicts := applySelection(opts)
 	q := db.Where("queue = ? AND applied_action = '' AND error = '' AND confidence >= ? AND verdict IN ?",
-		opts.Queue, opts.MinConfidence, []string{VerdictSame, VerdictDifferent, VerdictChainVerified}).
+		opts.Queue, minConf, verdicts).
 		Order("id")
 	if opts.Limit > 0 {
 		q = q.Limit(opts.Limit)
@@ -100,6 +102,26 @@ func RunApply(ctx context.Context, db *gorm.DB, queues *service.AdminQueueServic
 	_ = recordRun(db, "queue-apply-"+opts.Queue, opts.Model, "apply", counts, time.Now(),
 		fmt.Sprintf("actor=%d min_confidence=%.2f dry=%v", opts.Actor, opts.MinConfidence, opts.DryRun))
 	return ApplyStats{Applied: counts["applied"], Counts: counts}, nil
+}
+
+// applySelection is what the apply loop is allowed to look at, and it has to be
+// wider than any single confidence bar. planWorkPair can decide a pair on an
+// exact-ref contradiction or a retired endpoint alone - both facts about the
+// catalog, not about the verdict - so an unsure row at confidence 0 is still
+// actionable. Filtering on the accept bar here is what kept that screen away
+// from the 960 unsure and 811 below-bar rows it exists to decide: the rules
+// were right and never saw a row.
+func applySelection(opts Options) (minConf float64, verdicts []string) {
+	verdicts = []string{VerdictSame, VerdictDifferent, VerdictChainVerified}
+	switch opts.Queue {
+	case QueueWorkPair:
+		return 0, append(verdicts, VerdictUnsure)
+	case QueueCreditName:
+		return math.Min(opts.MinConfidence, opts.MinConfidenceReject), verdicts
+	default:
+		// planRef has no reject path, so the reject bar cannot widen it
+		return opts.MinConfidence, verdicts
+	}
 }
 
 func planFor(queue string, row QueueVerdict, sides map[int64]workPairSides, opts Options, slotTaken bool) applyPlan {
