@@ -48,10 +48,13 @@ func RunApply(ctx context.Context, db *gorm.DB, up StagingDBs, queues *service.A
 	}
 
 	sides := map[int64]workPairSides{}
+	names := map[int64]pairEvidence{}
 	if opts.Queue == QueueWorkPair {
 		var err error
-		sides, err = loadApplySides(db, rows)
-		if err != nil {
+		if sides, err = loadApplySides(db, rows); err != nil {
+			return ApplyStats{}, err
+		}
+		if names, err = workPairNameEvidence(db, rows); err != nil {
 			return ApplyStats{}, err
 		}
 	}
@@ -74,7 +77,8 @@ func RunApply(ctx context.Context, db *gorm.DB, up StagingDBs, queues *service.A
 	st := &tally{}
 	for _, row := range rows {
 		h, held := holders[exactSlotKey(row.EntityType, row.SourceID, row.ExternalID)]
-		plan := planFor(opts.Queue, row, sides, opts, held && h != row.EntityID, evidence[row.ID])
+		plan := planFor(opts.Queue, row, sides, opts, held && h != row.EntityID,
+			applyEvidence{Ref: evidence[row.ID], Pair: names[row.ID]})
 		if plan.Skip != "" {
 			st.add(plan.Skip, 1)
 			if opts.DryRun {
@@ -142,7 +146,15 @@ func applySelection(opts Options) (minConf float64, verdicts []string) {
 	}
 }
 
-func planFor(queue string, row QueueVerdict, sides map[int64]workPairSides, opts Options, slotTaken bool, ev refEvidence) applyPlan {
+// applyEvidence is the per-row evidence the rules need and the verdict row does
+// not carry: for a ref, what agrees with the name; for a work pair, who else
+// answers to the name.
+type applyEvidence struct {
+	Ref  refEvidence
+	Pair pairEvidence
+}
+
+func planFor(queue string, row QueueVerdict, sides map[int64]workPairSides, opts Options, slotTaken bool, ev applyEvidence) applyPlan {
 	switch queue {
 	case QueueCreditName:
 		return planCreditName(row.Verdict, row.Confidence, opts.MinConfidence, opts.MinConfidenceReject)
@@ -156,9 +168,9 @@ func planFor(queue string, row QueueVerdict, sides map[int64]workPairSides, opts
 			DeletedA: a.DeletedA, DeletedB: b.DeletedA,
 			RefsA: a.RefsA, RefsB: b.RefsA,
 		}
-		return planWorkPair(row.Verdict, row.Confidence, opts.MinConfidence, opts.MinConfidenceReject, s)
+		return planWorkPair(row.Verdict, row.Confidence, opts.MinConfidenceReject, s, ev.Pair)
 	case QueueRef:
-		return planRef(row.Verdict, row.Confidence, opts.MinConfidence, slotTaken, ev)
+		return planRef(row.Verdict, row.Confidence, opts.MinConfidence, slotTaken, ev.Ref)
 	default:
 		return applyPlan{Skip: skipGoldQueue}
 	}

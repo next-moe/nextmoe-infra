@@ -12,6 +12,8 @@ func ref(source int16, key string, tier int16, ext string) exactRef {
 	return exactRef{SourceID: source, SourceKey: key, TrustTier: tier, ExternalID: ext}
 }
 
+func soleName(s string) pairEvidence { return pairEvidence{Name: s, Holders: exclusiveNameHolders} }
+
 func TestRefConflictOverrulesTheVerdict(t *testing.T) {
 	// works 8460 and 8501, judged same at 1.00 on a fabricated shared vndb id
 	s := workPairSides{
@@ -20,7 +22,7 @@ func TestRefConflictOverrulesTheVerdict(t *testing.T) {
 		RefsA: []exactRef{ref(2, "vndb", 1, "v26356")},
 		RefsB: []exactRef{ref(2, "vndb", 1, "v28983")},
 	}
-	p := planWorkPair(VerdictSame, 1, 0.9, 0.7, s)
+	p := planWorkPair(VerdictSame, 1, 0.7, s, soleName("sole"))
 	assert.Equal(t, applyReject, p.Action)
 	assert.Equal(t, stampRefConflict, p.stamp())
 	assert.Equal(t, "ref-conflict: vndb v26356 vs v28983", p.Reason)
@@ -29,7 +31,7 @@ func TestRefConflictOverrulesTheVerdict(t *testing.T) {
 	assert.NotEqual(t, skipFrozenBothClaimed, p.Skip)
 
 	for _, v := range []string{VerdictUnsure, VerdictDifferent} {
-		p := planWorkPair(v, 0.1, 0.9, 0.7, s)
+		p := planWorkPair(v, 0.1, 0.7, s, soleName("sole"))
 		assert.Equal(t, applyReject, p.Action, v)
 	}
 }
@@ -50,7 +52,7 @@ func TestExemptSourcesDoNotVeto(t *testing.T) {
 				RefsB: []exactRef{ref(c.source, c.key, 1, "200")},
 			}
 			assert.Empty(t, contradictingExactRef(s))
-			assert.Equal(t, applyAccept, planWorkPair(VerdictSame, 1, 0.9, 0.7, s).Action)
+			assert.Equal(t, applyAccept, planWorkPair(VerdictSame, 1, 0.7, s, soleName("sole")).Action)
 		})
 	}
 
@@ -85,7 +87,7 @@ func TestAgreeingRefsAreNotAContradiction(t *testing.T) {
 
 func TestDeletedEndpointDefersTheCandidate(t *testing.T) {
 	s := workPairSides{AID: 1, BID: 2, DeletedB: true}
-	p := planWorkPair(VerdictSame, 1, 0.9, 0.7, s)
+	p := planWorkPair(VerdictSame, 1, 0.7, s, soleName("sole"))
 	assert.Equal(t, applyDefer, p.Action, "the candidate has to leave needs_manual")
 	assert.NotEqual(t, applyReject, p.Action, "a retired endpoint is no evidence the works differ")
 	assert.Equal(t, stampObsoletePair, p.stamp())
@@ -95,9 +97,9 @@ func TestDeletedEndpointDefersTheCandidate(t *testing.T) {
 	// rejected: the pair it names no longer exists to be judged
 	s.RefsA = []exactRef{ref(2, "vndb", 1, "v1")}
 	s.RefsB = []exactRef{ref(2, "vndb", 1, "v2")}
-	assert.Equal(t, applyDefer, planWorkPair(VerdictSame, 1, 0.9, 0.7, s).Action)
+	assert.Equal(t, applyDefer, planWorkPair(VerdictSame, 1, 0.7, s, soleName("sole")).Action)
 
-	assert.Equal(t, applyAccept, planWorkPair(VerdictSame, 1, 0.9, 0.7, workPairSides{AID: 1, BID: 2}).Action)
+	assert.Equal(t, applyAccept, planWorkPair(VerdictSame, 1, 0.7, workPairSides{AID: 1, BID: 2}, soleName("sole")).Action)
 }
 
 func TestEveryStampThisPackageWritesIsAKnownStamp(t *testing.T) {
@@ -111,14 +113,14 @@ func TestEveryStampThisPackageWritesIsAKnownStamp(t *testing.T) {
 		}
 	}
 	s := workPairSides{AID: 1, BID: 2}
-	record(planWorkPair(VerdictSame, 1, 0.9, 0.7, s))
-	record(planWorkPair(VerdictDifferent, 1, 0.9, 0.7, s))
-	record(planWorkPair(VerdictSame, 1, 0.9, 0.7, workPairSides{AID: 1, BID: 2, DeletedB: true}))
-	record(planWorkPair(VerdictSame, 1, 0.9, 0.7, workPairSides{
+	record(planWorkPair(VerdictSame, 1, 0.7, s, soleName("sole")))
+	record(planWorkPair(VerdictDifferent, 1, 0.7, s, soleName("sole")))
+	record(planWorkPair(VerdictSame, 1, 0.7, workPairSides{AID: 1, BID: 2, DeletedB: true}, soleName("sole")))
+	record(planWorkPair(VerdictSame, 1, 0.7, workPairSides{
 		AID: 1, BID: 2,
 		RefsA: []exactRef{ref(2, "vndb", 1, "v1")},
 		RefsB: []exactRef{ref(2, "vndb", 1, "v2")},
-	}))
+	}, soleName("sole")))
 	record(planCreditName(VerdictSame, 1, 0.9, 0.7))
 	record(planRef(VerdictChainVerified, 1, 0.9, false, refEvidence{}))
 	record(planRef(VerdictChainVerified, 1, 0.9, true, refEvidence{}))
@@ -134,11 +136,15 @@ func TestEveryStampThisPackageWritesIsAKnownStamp(t *testing.T) {
 
 func TestRejectThresholdIsIndependentOfAccept(t *testing.T) {
 	s := workPairSides{AID: 1, BID: 2}
-	assert.Equal(t, applyReject, planWorkPair(VerdictDifferent, 0.8, 0.9, 0.7, s).Action)
-	assert.Equal(t, skipBelowConfidence, planWorkPair(VerdictDifferent, 0.6, 0.9, 0.7, s).Skip)
+	assert.Equal(t, applyReject, planWorkPair(VerdictDifferent, 0.8, 0.7, s, soleName("sole")).Action)
+	assert.Equal(t, skipBelowConfidence, planWorkPair(VerdictDifferent, 0.6, 0.7, s, soleName("sole")).Skip)
 
-	// an accept at the same confidence is still held to the accept bar
-	assert.Equal(t, skipBelowConfidence, planWorkPair(VerdictSame, 0.8, 0.9, 0.7, s).Skip)
+	// The accept direction has no bar left to be independent of: confidence
+	// gates rejects only. An accept at 0.10 lands, and an accept at 1.00 whose
+	// name a third work also answers to does not.
+	assert.Equal(t, applyAccept, planWorkPair(VerdictSame, 0.1, 0.7, s, soleName("sole")).Action)
+	assert.Equal(t, skipUncorroborated,
+		planWorkPair(VerdictSame, 1, 0.7, s, pairEvidence{Name: "memoria", Holders: 3}).Skip)
 
 	assert.Equal(t, applyReject, planCreditName(VerdictDifferent, 0.8, 0.9, 0.7).Action)
 	assert.Equal(t, skipBelowConfidence, planCreditName(VerdictSame, 0.8, 0.9, 0.7).Skip)

@@ -78,7 +78,8 @@ func TestApplyRejectsAnUnsurePairOnARefContradiction(t *testing.T) {
 	mkPair(contraA, contraB, VerdictUnsure, 0, "hash-contradicted")
 
 	// positive control: same shape, contradiction only on a source that does not
-	// deduplicate itself, so the unsure verdict still governs and nothing happens
+	// deduplicate itself, so the screen lets the pair through to the name gate,
+	// which holds it because the two works lead with different names
 	hltbA, hltbB := mkWork("hltb A"), mkWork("hltb B")
 	mkRef(hltbA, hltb, "100")
 	mkRef(hltbB, hltb, "200")
@@ -92,7 +93,7 @@ func TestApplyRejectsAnUnsurePairOnARefContradiction(t *testing.T) {
 	assert.Equal(t, 1, st.Counts["applied_"+stampRefConflict], "counts: %v", st.Counts)
 	assert.Equal(t, model.CandidateStatusRejected, status(contraA, contraB))
 	assert.Equal(t, model.CandidateStatusNeedsManual, status(hltbA, hltbB))
-	assert.Equal(t, 1, st.Counts[skipUnsure])
+	assert.Equal(t, 1, st.Counts[skipUncorroborated], "counts: %v", st.Counts)
 
 	// catalog_match_candidate keeps no note, so applied_action is the whole
 	// audit trail for a pair the machine decided rather than the model
