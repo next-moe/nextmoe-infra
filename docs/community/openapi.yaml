@@ -1949,12 +1949,17 @@ paths:
           schema:
             description: "optional: narrow to a single anchor (e.g. a resource's feedback wall); empty = the whole site"
             type: string
-        - description: "activity (default: newest activity) | created (newest thread) | posts (most replies)"
+        - description: activity (newest activity) | created (newest thread) | posts (most replies; a mutable key, so a row can move between pages)
           explode: false
           in: query
           name: sort
           schema:
-            description: "activity (default: newest activity) | created (newest thread) | posts (most replies)"
+            default: activity
+            description: activity (newest activity) | created (newest thread) | posts (most replies; a mutable key, so a row can move between pages)
+            enum:
+              - activity
+              - created
+              - posts
             type: string
         - description: only threads that hold at least one post; a comments thread is created on first view, so most carry none
           explode: false

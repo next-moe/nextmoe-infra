@@ -167,7 +167,7 @@ type listThreadsInput struct {
 	Kind       int16  `query:"kind" doc:"0=topic 1=comments 2=feedback"`
 	AnchorKind int16  `query:"anchor_kind" doc:"anchor kind for the optional anchor filter (only used when anchor_id is set)"`
 	AnchorID   string `query:"anchor_id" doc:"optional: narrow to a single anchor (e.g. a resource's feedback wall); empty = the whole site"`
-	Sort       string `query:"sort" doc:"activity (default: newest activity) | created (newest thread) | posts (most replies)"`
+	Sort       string `query:"sort" default:"activity" enum:"activity,created,posts" doc:"activity (newest activity) | created (newest thread) | posts (most replies; a mutable key, so a row can move between pages)"`
 	HasPosts   bool   `query:"has_posts" doc:"only threads that hold at least one post; a comments thread is created on first view, so most carry none"`
 	Cursor     string `query:"cursor" doc:"opaque cursor from the previous page; it is bound to the sort that minted it"`
 	Limit      int    `query:"limit" doc:"page size (max 100, default 50)"`
