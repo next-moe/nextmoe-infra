@@ -83,20 +83,53 @@ func TestAgreeingRefsAreNotAContradiction(t *testing.T) {
 	assert.Empty(t, contradictingExactRef(workPairSides{AID: 1, BID: 2}))
 }
 
-func TestDeletedEndpointIsRecordedNotExecuted(t *testing.T) {
+func TestDeletedEndpointDefersTheCandidate(t *testing.T) {
 	s := workPairSides{AID: 1, BID: 2, DeletedB: true}
 	p := planWorkPair(VerdictSame, 1, 0.9, 0.7, s)
-	assert.True(t, p.recordOnly())
-	assert.Empty(t, p.Action)
+	assert.Equal(t, applyDefer, p.Action, "the candidate has to leave needs_manual")
+	assert.NotEqual(t, applyReject, p.Action, "a retired endpoint is no evidence the works differ")
 	assert.Equal(t, stampObsoletePair, p.stamp())
+	assert.False(t, p.recordOnly())
 
-	// a contradicting pair whose endpoint is gone is still only recorded: there
-	// is no candidate left to reject
+	// a contradicting pair whose endpoint is gone is still deferred, not
+	// rejected: the pair it names no longer exists to be judged
 	s.RefsA = []exactRef{ref(2, "vndb", 1, "v1")}
 	s.RefsB = []exactRef{ref(2, "vndb", 1, "v2")}
-	assert.True(t, planWorkPair(VerdictSame, 1, 0.9, 0.7, s).recordOnly())
+	assert.Equal(t, applyDefer, planWorkPair(VerdictSame, 1, 0.9, 0.7, s).Action)
 
-	assert.False(t, planWorkPair(VerdictSame, 1, 0.9, 0.7, workPairSides{AID: 1, BID: 2}).recordOnly())
+	assert.Equal(t, applyAccept, planWorkPair(VerdictSame, 1, 0.9, 0.7, workPairSides{AID: 1, BID: 2}).Action)
+}
+
+func TestEveryStampThisPackageWritesIsAKnownStamp(t *testing.T) {
+	// A stamp missing from currentStamps is a row the next run re-judges
+	// forever; one that is there but no rule writes is a row no later rule can
+	// ever reach. Both are the 2026-09-14 failure, in opposite directions.
+	written := map[string]bool{}
+	record := func(p applyPlan) {
+		if p.Skip == "" {
+			written[p.stamp()] = true
+		}
+	}
+	s := workPairSides{AID: 1, BID: 2}
+	record(planWorkPair(VerdictSame, 1, 0.9, 0.7, s))
+	record(planWorkPair(VerdictDifferent, 1, 0.9, 0.7, s))
+	record(planWorkPair(VerdictSame, 1, 0.9, 0.7, workPairSides{AID: 1, BID: 2, DeletedB: true}))
+	record(planWorkPair(VerdictSame, 1, 0.9, 0.7, workPairSides{
+		AID: 1, BID: 2,
+		RefsA: []exactRef{ref(2, "vndb", 1, "v1")},
+		RefsB: []exactRef{ref(2, "vndb", 1, "v2")},
+	}))
+	record(planCreditName(VerdictSame, 1, 0.9, 0.7))
+	record(planRef(VerdictChainVerified, 1, 0.9, false))
+	record(planRef(VerdictChainVerified, 1, 0.9, true))
+	written[stampTargetGone] = true // written by the apply loop, not by a plan
+
+	for stamp := range written {
+		assert.Contains(t, currentStamps, stamp)
+	}
+	for _, stamp := range currentStamps {
+		assert.True(t, written[stamp], "no rule writes %q", stamp)
+	}
 }
 
 func TestRejectThresholdIsIndependentOfAccept(t *testing.T) {

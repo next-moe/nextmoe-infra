@@ -17,8 +17,12 @@ const (
 	PromptQueueCreditNameV1 = "queue-creditname-v1"
 	PromptWorkPairV1        = "workpair-v1"
 	PromptRefV1             = "ref-v1"
-	PromptChainV1           = "chain-v1"
-	ChainModel              = "rule"
+	// PromptChainV2 dropped the vndb anchor as a precondition of the EG store
+	// chain. Bumping the version is the only way a re-judge reaches the stored
+	// rows: upsertJudgement overwrites a stored FAILURE, so re-running the lane
+	// against a chain-unproven row writes nothing at all.
+	PromptChainV2 = "chain-v2"
+	ChainModel    = "rule"
 )
 
 const (

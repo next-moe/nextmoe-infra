@@ -33,8 +33,8 @@ func RunApply(ctx context.Context, db *gorm.DB, queues *service.AdminQueueServic
 	}
 	var rows []QueueVerdict
 	minConf, verdicts := applySelection(opts)
-	q := db.Where("queue = ? AND applied_action = '' AND error = '' AND confidence >= ? AND verdict IN ?",
-		opts.Queue, minConf, verdicts).
+	q := db.Where("queue = ? AND applied_action NOT IN ? AND error = '' AND confidence >= ? AND verdict IN ?",
+		opts.Queue, currentStamps, minConf, verdicts).
 		Order("id")
 	if opts.Limit > 0 {
 		q = q.Limit(opts.Limit)
@@ -81,14 +81,21 @@ func RunApply(ctx context.Context, db *gorm.DB, queues *service.AdminQueueServic
 		if !plan.recordOnly() {
 			if err := executeApply(ctx, queues, opts.Queue, row, plan, opts.Actor); err != nil {
 				class := classifyApplyErr(err)
-				st.add(class, 1)
-				fmt.Printf("  ! apply %s id=%d: %v\n", class, row.ID, err)
-				continue
+				if class != errNotFound {
+					st.add(class, 1)
+					fmt.Printf("  ! apply %s id=%d: %v\n", class, row.ID, err)
+					continue
+				}
+				// The thing to act on is gone — a ref rehung onto a merge
+				// survivor, a candidate the executor deleted. Retrying cannot
+				// bring it back, and leaving the row unstamped is what made 15
+				// ref rows fail on every single nightly run.
+				plan = applyPlan{Stamp: stampTargetGone, Reason: err.Error()}
 			}
 		}
 		now := time.Now()
 		actor := opts.Actor
-		res := db.Model(&QueueVerdict{}).Where("id = ? AND applied_action = ''", row.ID).
+		res := db.Model(&QueueVerdict{}).Where("id = ? AND applied_action = ?", row.ID, row.AppliedAction).
 			Updates(map[string]any{"applied_action": plan.stamp(), "applied_at": now, "applied_by": actor})
 		if res.Error != nil {
 			st.add(errOther, 1)
@@ -150,6 +157,12 @@ func executeApply(ctx context.Context, queues *service.AdminQueueService, queue 
 	note := applyNote(row.ID, row.Confidence)
 	if plan.Reason != "" {
 		note += " " + plan.Reason
+	}
+	// The row is being re-judged out of a stamp no rule writes any more, and
+	// the new stamp overwrites the old one. Carrying it into the decision note
+	// keeps what the earlier pass did on the record somewhere.
+	if row.AppliedAction != "" {
+		note += " supersedes=" + row.AppliedAction
 	}
 	switch queue {
 	case QueueCreditName:

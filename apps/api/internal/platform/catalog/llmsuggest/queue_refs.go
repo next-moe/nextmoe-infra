@@ -65,7 +65,7 @@ func RunQueueRefs(ctx context.Context, db *gorm.DB, up StagingDBs, c *Client, op
 
 	var nJudged, nErrs atomic.Int64
 	if len(chainWork) > 0 {
-		done, err := loadDoneHashes(db, "src_llm.queue_verdict", ChainModel, PromptChainV1, "queue", QueueRef)
+		done, err := loadDoneHashes(db, "src_llm.queue_verdict", ChainModel, PromptChainV2, "queue", QueueRef)
 		if err != nil {
 			return 0, 0, err
 		}

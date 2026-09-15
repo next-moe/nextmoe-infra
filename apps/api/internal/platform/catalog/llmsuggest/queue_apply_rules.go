@@ -11,11 +11,20 @@ import (
 const (
 	applyAccept         = "accept"
 	applyReject         = "reject"
+	applyDefer          = "defer"
 	applyConfirm        = "confirm"
 	applyConfirmRelated = "confirm-related"
 
-	stampRefConflict  = "reject_ref_conflict"
-	stampObsoletePair = "obsolete_endpoint_merged"
+	stampRefConflict = "reject_ref_conflict"
+	stampTargetGone  = "obsolete_target_missing"
+
+	// The stamp is renamed because what it records changed: it used to mean
+	// "noted, candidate untouched", and it now means "candidate deferred".
+	// Renaming it is what reaches the 158 rows the old spelling already stamped
+	// — a stamp outside currentStamps is re-judged, so they pick up the
+	// disposition they should have had. Rename the stamp whenever the rule
+	// behind it starts doing something else.
+	stampObsoletePair = "obsolete_endpoint_deferred"
 
 	skipUnsure            = "skipped_unsure"
 	skipBelowConfidence   = "skipped_below_confidence"
@@ -30,6 +39,20 @@ const (
 	errNotFound   = "error_not_found"
 	errOther      = "error_other"
 )
+
+// currentStamps is every value this package can write to applied_action. It is
+// the idempotency key of the whole apply step, which is why it is a list and
+// not an empty-string test: on 2026-09-14 a hand-written SQL pass stamped 325
+// rows with excluded_conflicting_refs and held_ref_conflict, words that appear
+// nowhere in this repo, and selecting on an empty applied_action then hid those
+// rows from every rule written afterwards — including the ref-conflict screen
+// that would have decided 319 of them that same night. A stamp outside this
+// list means the row was parked by something that is no longer the rule, so
+// the row is judged again rather than treated as done.
+var currentStamps = []string{
+	applyAccept, applyReject, applyConfirm, applyConfirmRelated,
+	stampRefConflict, stampObsoletePair, stampTargetGone,
+}
 
 type exactRef struct {
 	SourceID   int16
@@ -168,9 +191,14 @@ func planCreditName(verdict string, conf, minAccept, minReject float64) applyPla
 	}
 }
 
+// A retired endpoint is deferred, not rejected: reject writes a
+// catalog_match_rejection saying the two works are not the same, and a pair
+// whose one side has been merged away supports no such claim. Stamping the
+// verdict row without touching the candidate is what left 158 of these sitting
+// in needs_manual after the 2026-09-14 sweep, counted as human work forever.
 func planWorkPair(verdict string, conf, minAccept, minReject float64, s workPairSides) applyPlan {
 	if s.DeletedA || s.DeletedB {
-		return applyPlan{Stamp: stampObsoletePair}
+		return applyPlan{Action: applyDefer, Stamp: stampObsoletePair}
 	}
 	if c := contradictingExactRef(s); c != "" {
 		return applyPlan{Action: applyReject, Stamp: stampRefConflict, Reason: "ref-conflict: " + c}
