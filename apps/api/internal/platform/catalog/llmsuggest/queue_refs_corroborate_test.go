@@ -6,6 +6,7 @@ import (
 	"api/internal/platform/catalog/migrate"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/seed"
+	"api/internal/platform/catalog/srcbangumi"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -33,11 +34,12 @@ func TestRefConfirmNeedsSomethingBesidesTheName(t *testing.T) {
 	require.NoError(t, seed.Run(db))
 	require.NoError(t, db.Exec(
 		"TRUNCATE catalog_external_ref, catalog_work, catalog_label RESTART IDENTITY CASCADE").Error)
-	require.NoError(t, db.Exec(`CREATE SCHEMA IF NOT EXISTS src_bangumi`).Error)
-	require.NoError(t, db.Exec(`CREATE TABLE IF NOT EXISTS src_bangumi.subject
-		(id bigint PRIMARY KEY, name text NOT NULL DEFAULT '', name_cn text NOT NULL DEFAULT '')`).Error)
-	require.NoError(t, db.Exec(`CREATE TABLE IF NOT EXISTS src_bangumi.subject_person
-		(subject_id bigint NOT NULL, person_id bigint NOT NULL)`).Error)
+	// The upstream tables come from srcbangumi, never from a stub here: the whole
+	// suite shares one database, so a CREATE TABLE IF NOT EXISTS is a no-op once
+	// srcbangumi's own tests have built the real thing, and the insert then hits
+	// a NOT NULL column this file never declared. It passed locally and went red
+	// in CI on subject.type for exactly that reason.
+	require.NoError(t, srcbangumi.EnsureSchema(db))
 	require.NoError(t, db.Exec(`TRUNCATE src_bangumi.subject, src_bangumi.subject_person`).Error)
 
 	var medium, bgm int16
@@ -45,9 +47,8 @@ func TestRefConfirmNeedsSomethingBesidesTheName(t *testing.T) {
 	require.NoError(t, db.Raw(`SELECT id FROM catalog_source WHERE key = 'bangumi'`).Scan(&bgm).Error)
 
 	upstream := func(subject int64, name string, person int64) {
-		require.NoError(t, db.Exec(`INSERT INTO src_bangumi.subject (id, name) VALUES (?, ?)`, subject, name).Error)
-		require.NoError(t, db.Exec(`INSERT INTO src_bangumi.subject_person (subject_id, person_id) VALUES (?, ?)`,
-			subject, person).Error)
+		require.NoError(t, db.Create(&srcbangumi.Subject{ID: subject, Name: name}).Error)
+		require.NoError(t, db.Create(&srcbangumi.SubjectPerson{SubjectID: subject, PersonID: person}).Error)
 	}
 	label := func(name, workTitle, workExternalID string) int64 {
 		l := &model.CatalogLabel{DisplayName: name}
