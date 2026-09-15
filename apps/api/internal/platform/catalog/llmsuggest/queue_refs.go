@@ -31,9 +31,15 @@ func RunQueueRefs(ctx context.Context, db *gorm.DB, up StagingDBs, c *Client, op
 	}
 	wantChain, wantLLM := familiesWant(opts.Families)
 	st := &tally{}
-	var chainWork, llmWork []refItem
+	members := fanoutMembers(items)
+	var fanWork, chainWork, llmWork []refItem
 	for _, it := range items {
 		switch {
+		// First, and ahead of matched_by: a fan-out is a fact about the group,
+		// and no per-row rule can resolve what the group makes unanswerable. 38
+		// of these also carry a chain rule and were sitting at chain-unproven.
+		case isFanout(members, it):
+			fanWork = append(fanWork, it)
 		case chainFamily(it.MatchedBy):
 			if !wantChain {
 				st.add("skipped_family_filter", 1)
@@ -60,10 +66,24 @@ func RunQueueRefs(ctx context.Context, db *gorm.DB, up StagingDBs, c *Client, op
 	}
 
 	if opts.DryRun {
+		dryRunFanout(fanWork, members, dryLimit(opts.Limit))
 		return dryRunRefs(ctx, db, up, c, reg, chainWork, llmWork, opts.Limit)
 	}
 
 	var nJudged, nErrs atomic.Int64
+	if len(fanWork) > 0 {
+		done, err := loadDoneHashes(db, "src_llm.queue_verdict", ChainModel, PromptFanout, "queue", QueueRef)
+		if err != nil {
+			return 0, 0, err
+		}
+		var work []refItem
+		for _, it := range fanWork {
+			if !done[it.Hash] {
+				work = append(work, it)
+			}
+		}
+		st.add("fanout_written", runFanoutLane(ctx, db, work, members, QueueRef, opts.Concurrency, &nJudged))
+	}
 	if len(chainWork) > 0 {
 		done, err := loadDoneHashes(db, "src_llm.queue_verdict", ChainModel, PromptChain, "queue", QueueRef)
 		if err != nil {
@@ -120,6 +140,7 @@ func RunQueueRefs(ctx context.Context, db *gorm.DB, up StagingDBs, c *Client, op
 	counts["judged"] = judged
 	counts["errors"] = errs
 	counts["total_probable"] = len(items)
+	counts["fanout_candidates"] = len(fanWork)
 	_ = recordRun(db, "queue-refs", opts.Model, PromptRef, counts, time.Now(), opts.Families)
 	return judged, errs, nil
 }
