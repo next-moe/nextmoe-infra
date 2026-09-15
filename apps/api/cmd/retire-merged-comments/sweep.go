@@ -13,6 +13,30 @@ const (
 	threadStatusDeleted int16 = 3
 )
 
+// anchorPlan says what an anchor id MEANS, which differs per anchor kind and
+// decides both of this sweep's queries.
+//
+// claimAware is the difference that matters. A site-local kind carries the
+// SITE's id, which for a claimed work is the claim's product_work_id -- a
+// number from the product keyspace that may collide with an unrelated catalog
+// id, so a live claim owning it means the anchor is alive. A catalog kind
+// carries the catalog id itself, where the same exclusion would instead skip a
+// genuinely dead anchor whose number some site happens to use as a gid.
+type anchorPlan struct {
+	entityType int16
+	claimAware bool
+}
+
+// Deliberately not exhaustive. anchor_kind 0 (board) and 2 (site_resource) name
+// nothing in the catalog, and 4 (catalog_person) has no unambiguous entity type
+// -- catalog splits a person (0) from the credit name (1) and community does
+// not say which one it means. Guessing retires the wrong conversations, so an
+// unmapped kind is an error rather than a default.
+var anchorPlans = map[int16]anchorPlan{
+	1: {entityType: entityTypeWork, claimAware: true},  // site_game
+	3: {entityType: entityTypeWork, claimAware: false}, // catalog_work
+}
+
 // stranded is one comments thread whose anchor names a catalog work that a
 // merge retired: the page it hangs under is gone and nothing reaches the
 // conversation any more.
@@ -69,7 +93,11 @@ func liveAnchors(db *gorm.DB, o sweepOpts) ([]stranded, error) {
 // support thread about 光翼戦姫エクスティアコンチェルト1, whose gid 2656 belongs to
 // work 2649, while catalog work 2656 is an unrelated merged-away work. Without
 // this clause the sweep deletes live conversations and the report looks right.
-func strandedAmong(db *gorm.DB, site string, rows []stranded) ([]stranded, error) {
+func strandedAmong(db *gorm.DB, site string, anchorKind int16, rows []stranded) ([]stranded, error) {
+	plan, ok := anchorPlans[anchorKind]
+	if !ok {
+		return nil, fmt.Errorf("anchor kind %d names no catalog entity", anchorKind)
+	}
 	out := make([]stranded, 0, len(rows))
 	byAnchor := make(map[string]stranded, len(rows))
 	ids := make([]string, 0, len(rows))
@@ -84,7 +112,7 @@ func strandedAmong(db *gorm.DB, site string, rows []stranded) ([]stranded, error
 			vals = append(vals, "(?::bigint)")
 			args = append(args, id)
 		}
-		args = append(args, site, entityTypeWork, site)
+		args = append(args, plan.claimAware, site, plan.entityType, site)
 		var found []struct {
 			Anchor      string `gorm:"column:anchor"`
 			Survivor    int64  `gorm:"column:survivor"`
@@ -95,7 +123,7 @@ func strandedAmong(db *gorm.DB, site string, rows []stranded) ([]stranded, error
 			WITH a(id) AS (VALUES `+strings.Join(vals, ", ")+`)
 			SELECT a.id::text AS anchor, r.current_id AS survivor,
 			       s.product_work_id AS survivor_gid,
-			       EXISTS (SELECT 1 FROM catalog_work c
+			       ? AND EXISTS (SELECT 1 FROM catalog_work c
 			                WHERE c.product_work_id = a.id AND c.site = ?
 			                  AND c.deleted_at IS NULL) AS claimed_gid
 			FROM a

@@ -197,7 +197,7 @@ func TestTheSurvivorIsNamedInTheSitesOwnIdSpace(t *testing.T) {
 
 	live, err := liveAnchors(testDB, sweepOpts{Site: site, AnchorKind: 1})
 	require.NoError(t, err)
-	rows, err := strandedAmong(testDB, site, live)
+	rows, err := strandedAmong(testDB, site, 1, live)
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	assert.Equal(t, int64(910002), rows[0].Survivor)
@@ -212,4 +212,55 @@ func assertStatus(t *testing.T, want map[int64]int16) {
 		require.NoError(t, testDB.Raw(`SELECT status FROM community_thread WHERE id = ?`, id).Scan(&got).Error)
 		assert.Equal(t, status, got, "thread %d", id)
 	}
+}
+
+// TestTheClaimExclusionIsOnlyForTheSitesOwnIdSpace is the inverse of the
+// coincidence case. At anchor_kind 3 the anchor IS the catalog id, so a live
+// claim carrying the same number says nothing about it -- applying the
+// exclusion there would keep a genuinely dead anchor alive forever.
+func TestTheClaimExclusionIsOnlyForTheSitesOwnIdSpace(t *testing.T) {
+	if testDB == nil {
+		t.Skip("no test DB")
+	}
+	for _, tbl := range []string{"community_post", "community_thread", "catalog_redirect", "catalog_work"} {
+		require.NoError(t, testDB.Exec("TRUNCATE "+tbl+" RESTART IDENTITY CASCADE").Error)
+	}
+	site := testSite
+	claimed := int64(920001)
+	mk := func(id int64, name string, gid *int64) {
+		w := catmodel.CatalogWork{ID: id, MediumID: 1, OLang: "ja", DisplayName: name,
+			Extra: []byte(`{}`), FieldProvenance: []byte(`{}`)}
+		if gid != nil {
+			w.Site, w.ProductWorkID = &site, gid
+		}
+		require.NoError(t, testDB.Create(&w).Error)
+	}
+	mk(920001, "merged away", nil)
+	require.NoError(t, testDB.Exec(`UPDATE catalog_work SET deleted_at = now() WHERE id = 920001`).Error)
+	mk(920002, "survivor", nil)
+	mk(920003, "an unrelated game whose gid is 920001", &claimed)
+	now := time.Now()
+	require.NoError(t, testDB.Create(&catmodel.CatalogRedirect{
+		EntityType: entityTypeWork, OldID: 920001, CurrentID: 920002, MergedAt: &now}).Error)
+
+	th := commodel.CommunityThread{Site: site, Kind: threadKindComments, AnchorKind: 3,
+		AnchorID: "920001", Status: 0, CreatedBy: 1}
+	require.NoError(t, testDB.Create(&th).Error)
+	require.NoError(t, testDB.Create(&commodel.CommunityPost{ThreadID: th.ID, PostNumber: 1,
+		AuthorID: 1, ContentRaw: "hi", ContentHTML: "<p>hi</p>", SanitizerVersion: 1}).Error)
+
+	live, err := liveAnchors(testDB, sweepOpts{Site: site, AnchorKind: 3})
+	require.NoError(t, err)
+	require.Len(t, live, 1)
+
+	atKind1, err := strandedAmong(testDB, site, 1, live)
+	require.NoError(t, err)
+	assert.Empty(t, atKind1, "a site-local anchor owned by a live claim is alive")
+
+	atKind3, err := strandedAmong(testDB, site, 3, live)
+	require.NoError(t, err)
+	assert.Len(t, atKind3, 1, "a catalog anchor is dead regardless of who claims the number")
+
+	_, err = strandedAmong(testDB, site, 2, live)
+	assert.Error(t, err, "an anchor kind naming no catalog entity must not be guessed at")
 }

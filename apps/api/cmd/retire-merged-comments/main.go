@@ -86,7 +86,7 @@ func run(cat, com *gorm.DB, sites []string, anchorKind int16, limit int, apply b
 		if err != nil {
 			return found, retired, fmt.Errorf("%s: read anchors: %w", site, err)
 		}
-		rows, err := strandedAmong(cat, site, live)
+		rows, err := strandedAmong(cat, site, anchorKind, live)
 		if err != nil {
 			return found, retired, fmt.Errorf("%s: classify: %w", site, err)
 		}
