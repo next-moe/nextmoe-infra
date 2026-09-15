@@ -196,7 +196,7 @@ func calibrateRefs(ctx context.Context, db *gorm.DB, up StagingDBs, c *Client, o
 	if err != nil {
 		return nil, err
 	}
-	chainDone, err := loadDoneHashes(db, "src_llm.queue_verdict", ChainModel, PromptChainV1, "queue", qname)
+	chainDone, err := loadDoneHashes(db, "src_llm.queue_verdict", ChainModel, PromptChainV2, "queue", qname)
 	if err != nil {
 		return nil, err
 	}

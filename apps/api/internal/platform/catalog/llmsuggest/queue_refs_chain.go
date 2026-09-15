@@ -73,7 +73,7 @@ func chainRow(it refItem, queue string) QueueVerdict {
 	return QueueVerdict{
 		Queue: queue, Lane: LaneChain,
 		EntityType: it.EntityType, EntityID: it.EntityID, SourceID: it.SourceID, ExternalID: it.ExternalID,
-		InputHash: it.Hash, Model: ChainModel, PromptVersion: PromptChainV1,
+		InputHash: it.Hash, Model: ChainModel, PromptVersion: PromptChainV2,
 	}
 }
 
@@ -395,10 +395,6 @@ func verifyEGStoreChain(db, eg *gorm.DB, reg sourceReg, items []refItem, store s
 	for _, it := range items {
 		vs := workVNDB[it.EntityID]
 		es := workEG[it.EntityID]
-		if len(vs) == 0 {
-			out[it.Hash] = unproven("work_exact_vndb", "work holds no exact vndb anchor")
-			continue
-		}
 		if len(es) == 0 {
 			out[it.Hash] = unproven("work_exact_eg", "work holds no exact erogamescape anchor")
 			continue
@@ -411,14 +407,7 @@ func verifyEGStoreChain(db, eg *gorm.DB, reg sourceReg, items []refItem, store s
 				detail = fmt.Sprintf("eg game %d missing from staging", e)
 				continue
 			}
-			gV := normVNDBID(g.VNDB)
-			vndbHit := false
-			for _, v := range vs {
-				if gV != "" && gV == normVNDBID(v) {
-					vndbHit = true
-					break
-				}
-			}
+			vndbConflict := vndbDisagrees(vs, g.VNDB)
 			storeHit := false
 			switch store {
 			case "dmm":
@@ -426,25 +415,48 @@ func verifyEGStoreChain(db, eg *gorm.DB, reg sourceReg, items []refItem, store s
 			case "steam":
 				storeHit = g.Steam != nil && strconv.FormatInt(*g.Steam, 10) == it.ExternalID
 			}
-			detail = fmt.Sprintf("eg=%d vndb=%s store_%s=%s catalog_ext=%s vndb_hit=%v store_hit=%v",
-				e, g.VNDB, store, egStoreID(g.Steam, g.DMM, store), it.ExternalID, vndbHit, storeHit)
-			if vndbHit && storeHit {
+			detail = fmt.Sprintf("eg=%d vndb=%s store_%s=%s catalog_ext=%s vndb_conflict=%v store_hit=%v",
+				e, g.VNDB, store, egStoreID(g.Steam, g.DMM, store), it.ExternalID, vndbConflict, storeHit)
+			if storeHit && !vndbConflict {
 				ok = true
 				break
 			}
 		}
 		steps := []chainStep{
-			{Name: "work_exact_vndb", OK: true, Detail: fmt.Sprintf("%v", vs)},
 			{Name: "work_exact_eg", OK: true, Detail: fmt.Sprintf("%v", es)},
-			{Name: "eg_row_vndb_and_store_id", OK: ok, Detail: detail},
+			{Name: "eg_row_store_id", OK: ok, Detail: detail},
 		}
 		if !ok {
-			out[it.Hash] = unproven("eg_row_vndb_and_store_id", detail)
+			out[it.Hash] = unproven("eg_row_store_id", detail)
 			continue
 		}
 		out[it.Hash] = verified(steps)
 	}
 	return nil
+}
+
+// vndbDisagrees reports the one case where the vndb leg carries information:
+// the work and the staged EG row both name a vndb id and they differ, which
+// says the exact erogamescape anchor is pointing at the wrong game.
+//
+// It used to be a precondition — a work with no vndb anchor could not prove any
+// chain — and on 2026-09-14 that left 2,921 dmm/steam refs stuck at
+// chain-unproven with the reason "work holds no exact vndb anchor", every one
+// of which the staged EG row confirmed once asked. An empty column on either
+// side is an absence, not a disagreement. Measured over the 16,030 works that
+// hold both anchors, EG's vndb column agrees with ours 16,010 times, so the
+// anchor alone carries the association and this only has to catch the other 20.
+func vndbDisagrees(workVNDB []string, egVNDB string) bool {
+	g := normVNDBID(egVNDB)
+	if g == "" || len(workVNDB) == 0 {
+		return false
+	}
+	for _, v := range workVNDB {
+		if n := normVNDBID(v); n == "" || n == g {
+			return false
+		}
+	}
+	return true
 }
 
 func egStoreID(steam *int64, dmm, store string) string {

@@ -149,11 +149,11 @@ func TestChainResumeIdempotent(t *testing.T) {
 	h := refInputHash(6, 9, 2, "r1")
 	row := QueueVerdict{
 		Queue: QueueRef, Lane: LaneChain, InputHash: h,
-		Model: ChainModel, PromptVersion: PromptChainV1,
+		Model: ChainModel, PromptVersion: PromptChainV2,
 		Verdict: VerdictChainVerified, Confidence: 1,
 	}
 	require.NoError(t, db.Create(&row).Error)
-	done, err := loadDoneHashes(db, "src_llm.queue_verdict", ChainModel, PromptChainV1, "queue", QueueRef)
+	done, err := loadDoneHashes(db, "src_llm.queue_verdict", ChainModel, PromptChainV2, "queue", QueueRef)
 	require.NoError(t, err)
 	assert.True(t, done[h])
 	dup := row
