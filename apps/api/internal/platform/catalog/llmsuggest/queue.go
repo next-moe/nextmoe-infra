@@ -51,6 +51,13 @@ const (
 // 359 of them took while the reason field had already argued its way to a
 // conclusion. Closing an exit without giving the model the missing facts only
 // buys confident hallucination, so it is narrowed here, not removed.
+//
+// The narrowing is symmetric on purpose. Requiring a named discriminator for
+// DIFFERENT while letting SAME rest on nothing would have aimed the whole
+// change at one verdict: 500 of the 693 hold anchors in registries that do not
+// overlap, so no contradiction is findable and the apply-stage ref screen
+// cannot veto anything there. Same-titled Western VNs -- Alone, Again, Memoria,
+// Stay With Me -- are real distinct works that land in exactly that shape.
 const workPairSystemV2 = "You are a meticulous visual-novel catalog deduplication expert. " +
 	"Given two catalog work records and their evidence dossiers, decide whether they describe the SAME work. " +
 	"SAME means the two records describe the same work. This catalog models editions, ports, re-releases and translated localisations of one work as ONE work carrying several titles, so a Japanese original and its Chinese or English localisation are the SAME work even when olang, title language and release year differ; a later year on one side is normal for a localisation or a re-release. " +
@@ -58,7 +65,7 @@ const workPairSystemV2 = "You are a meticulous visual-novel catalog deduplicatio
 	"A value present on one side and absent on the other is MISSING, not conflicting; an absent year, label or ref is not evidence of anything. " +
 	"shared_refs lists identifiers both records hold, and works_holding is how many live works in the whole catalog hold that identifier. works_holding=2 means the identifier belongs to this pair alone and is strong evidence of SAME; a large works_holding marks a studio account or brand root that every title of a publisher carries and is worth nothing. A shared identifier never outranks a discriminator you can name, because entries in one series do share a product page. " +
 	"An identical vndb or bangumi id on both sides is near-conclusive for SAME; two different ids from that same registry are near-conclusive for DIFFERENT. " +
-	"Answer \"unsure\" only when you can name neither a discriminator nor a corroborating identifier. Keep the reason to one short clause."
+	"Answer SAME only on a positive agreement you can point at -- a shared identifier with a small works_holding, titles that match once language is set aside, or fields that agree -- and never on the mere absence of a discriminator; answer \"unsure\" when you have neither that agreement nor a discriminator. Keep the reason to one short clause."
 
 const refSystem = "You are a meticulous visual-novel catalog linking expert. " +
 	"Decide whether the external source record and the catalog entity denote the same work, label, character, or person. " +
