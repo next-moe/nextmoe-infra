@@ -47,6 +47,7 @@ had to be rebuilt by hand.
 | work-dedup-watch | Mon 04:20 | Sun 20:20 | 192h |
 | ymgal-pending-watch | daily 09:30 | daily 01:30 | 48h |
 | cover-shelf-watch | daily 17:00 | daily 09:00 | 48h |
+| retire-merged-comments | daily 23:30 | daily 15:30 | 48h |
 
 `logrotate/docker-containers` is host config, not a job: it is deployed as
 `/etc/logrotate.d/docker-containers`. Dokploy's containers are created with an
