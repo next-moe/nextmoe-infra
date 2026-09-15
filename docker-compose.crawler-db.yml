@@ -1,0 +1,76 @@
+# Shared Postgres for the upstream crawlers, deployed as its own Dokploy Compose
+# app on nextmoe-crawler (43.230.161.212, Tokyo) — NOT on the prod host.
+#
+# One server, four databases (dlsite / erogamescape / getchu / howlongtobeat).
+# Four separate instances would not fit: the box has 2 vCPU and 3.8 GB, shared
+# with traefik, the DLsite relay and /opt/mengzhan.
+#
+# The crawler apps are four more Dokploy Compose apps, each from its own repo,
+# each reaching this server over dokploy-network as `crawler-postgres`.
+#
+# ⚠️ These databases are not a copy of anything — seed them from the existing
+# prod staging dumps before arming the daily chains, or the first dlsite `sync`
+# recomputes its frontier against an empty table and re-discovers all ~1.2M
+# worknos from zero. See docs/deploy/19-crawler-box.md.
+name: nextmoe-crawler-db
+services:
+  postgres:
+    image: postgres:18-alpine
+    # Sized for 3.8 GB shared with four crawlers, not for the 24 GB prod host:
+    #   shared_buffers 384MB       — ~10% of host RAM.
+    #   work_mem 8MB               — per sort/hash node, and max_connections of
+    #                                them in the worst case. The crawlers do
+    #                                keyset paging and upserts, not big joins.
+    #   effective_cache_size 1GB   — planner hint, no allocation.
+    #   max_connections 40         — four crawlers, one pool each.
+    command:
+      - postgres
+      - -c
+      - max_connections=40
+      - -c
+      - shared_buffers=384MB
+      - -c
+      - work_mem=8MB
+      - -c
+      - effective_cache_size=1GB
+      - -c
+      - maintenance_work_mem=192MB
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in the Dokploy Environment panel}
+      POSTGRES_DB: dlsite
+    volumes:
+      - pg:/var/lib/postgresql # pg18: VOLUME moved here (was /data on <=17)
+      - ./docker/crawler-initdb.d:/docker-entrypoint-initdb.d:ro
+    # The docker default 64MB /dev/shm makes parallel hash joins die with
+    # SQLSTATE 53100 on tables this size; prod's vndb-refresh works around the
+    # same thing by disabling parallel query per session.
+    shm_size: 256mb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d dlsite"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks:
+      # The alias hangs on the `dokploy-network` KEY, not `default`: at deploy
+      # time Dokploy rewrites this file and appends `dokploy-network: {}` to the
+      # service. With the alias on `default` the service lands on two keys for
+      # one physical network and the alias-less injected key wins the single
+      # connect, so the alias silently never registers (bitten in production,
+      # 2026-07-23). The four crawler apps are separate Dokploy projects, whose
+      # container-name prefixes change on every rebuild — the alias is the only
+      # stable address, and a bare `postgres` alias would round-robin against
+      # every other project's postgres on the shared network.
+      dokploy-network:
+        aliases: [crawler-postgres]
+    restart: unless-stopped
+    # No host port: nothing outside this box may reach it. Publishing one would
+    # also bypass ufw on this host (docker writes its own FORWARD rules).
+
+volumes:
+  pg:
+
+networks:
+  dokploy-network:
+    external: true
