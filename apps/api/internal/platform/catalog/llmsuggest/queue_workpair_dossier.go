@@ -3,6 +3,7 @@ package llmsuggest
 import (
 	"sort"
 	"strconv"
+	"strings"
 
 	"api/internal/platform/catalog/model"
 
@@ -143,6 +144,16 @@ func strconvWorkLabel(id int64, name string) string {
 	return strconv.FormatInt(id, 10) + "\x00" + name
 }
 
+// refKey is the identifier as the table stores it. Keeping source_id and
+// external_id apart rather than folding them into one "key:id" string is what
+// lets the fan-out count use idx_catalog_external_ref_source_ext; filtering on
+// the concatenation instead reads all 1,221,512 rows, every night, for nothing.
+type refKey struct {
+	SourceID   int16
+	ExternalID string
+	Display    string
+}
+
 // loadSharedRefFanOut answers, for every pair, which identifiers both sides
 // hold and how many live works hold each one.
 //
@@ -178,13 +189,15 @@ func loadSharedRefFanOut(db *gorm.DB, pairs [][2]int64) (map[[2]int64][]sharedRe
 		}
 	}
 
-	held := map[int64]map[string]struct{}{}
+	held := map[int64]map[string]refKey{}
 	for _, chunk := range chunkBy(ids, 500) {
 		var rows []struct {
-			EntityID int64  `gorm:"column:entity_id"`
-			Token    string `gorm:"column:token"`
+			EntityID   int64  `gorm:"column:entity_id"`
+			SourceID   int16  `gorm:"column:source_id"`
+			SourceKey  string `gorm:"column:source_key"`
+			ExternalID string `gorm:"column:external_id"`
 		}
-		if err := db.Raw(`SELECT r.entity_id, s.key || ':' || r.external_id AS token
+		if err := db.Raw(`SELECT r.entity_id, r.source_id, s.key AS source_key, r.external_id
 			FROM catalog_external_ref r JOIN catalog_source s ON s.id = r.source_id
 			WHERE r.entity_type = ? AND r.dead_at IS NULL AND r.entity_id IN ?`,
 			model.EntityTypeWork, chunk).Scan(&rows).Error; err != nil {
@@ -192,55 +205,65 @@ func loadSharedRefFanOut(db *gorm.DB, pairs [][2]int64) (map[[2]int64][]sharedRe
 		}
 		for _, r := range rows {
 			if held[r.EntityID] == nil {
-				held[r.EntityID] = map[string]struct{}{}
+				held[r.EntityID] = map[string]refKey{}
 			}
-			held[r.EntityID][r.Token] = struct{}{}
+			display := r.SourceKey + ":" + r.ExternalID
+			held[r.EntityID][display] = refKey{SourceID: r.SourceID, ExternalID: r.ExternalID, Display: display}
 		}
 	}
 
-	shared := map[[2]int64][]string{}
-	tokenSet := map[string]struct{}{}
+	shared := map[[2]int64][]refKey{}
+	keys := map[string]refKey{}
 	for _, p := range pairs {
-		for tok := range held[p[0]] {
-			if _, ok := held[p[1]][tok]; !ok {
+		for display, k := range held[p[0]] {
+			if _, ok := held[p[1]][display]; !ok {
 				continue
 			}
-			shared[p] = append(shared[p], tok)
-			tokenSet[tok] = struct{}{}
+			shared[p] = append(shared[p], k)
+			keys[display] = k
 		}
 	}
-	if len(tokenSet) == 0 {
+	if len(keys) == 0 {
 		return out, nil
 	}
-	tokens := make([]string, 0, len(tokenSet))
-	for tok := range tokenSet {
-		tokens = append(tokens, tok)
+	flat := make([]refKey, 0, len(keys))
+	for _, k := range keys {
+		flat = append(flat, k)
 	}
 
 	fan := map[string]int{}
-	for _, chunk := range chunkBy(tokens, 500) {
-		var rows []struct {
-			Token string `gorm:"column:token"`
-			N     int    `gorm:"column:n"`
+	for _, chunk := range chunkBy(flat, 500) {
+		ph := make([]string, 0, len(chunk))
+		args := []any{model.EntityTypeWork}
+		for _, k := range chunk {
+			ph = append(ph, "(?,?)")
+			args = append(args, k.SourceID, k.ExternalID)
 		}
-		if err := db.Raw(`SELECT s.key || ':' || r.external_id AS token, count(DISTINCT r.entity_id) AS n
+		var rows []struct {
+			SourceID   int16  `gorm:"column:source_id"`
+			ExternalID string `gorm:"column:external_id"`
+			N          int    `gorm:"column:n"`
+		}
+		if err := db.Raw(`SELECT r.source_id, r.external_id, count(DISTINCT r.entity_id) AS n
 			FROM catalog_external_ref r
-			JOIN catalog_source s ON s.id = r.source_id
 			JOIN catalog_work w ON w.id = r.entity_id AND w.deleted_at IS NULL
 			WHERE r.entity_type = ? AND r.dead_at IS NULL
-			  AND s.key || ':' || r.external_id IN ?
-			GROUP BY 1`, model.EntityTypeWork, chunk).Scan(&rows).Error; err != nil {
+			  AND (r.source_id, r.external_id) IN (`+strings.Join(ph, ",")+`)
+			GROUP BY 1, 2`, args...).Scan(&rows).Error; err != nil {
 			return nil, err
 		}
 		for _, r := range rows {
-			fan[r.Token] = r.N
+			fan[strconv.FormatInt(int64(r.SourceID), 10)+":"+r.ExternalID] = r.N
 		}
 	}
-	for p, toks := range shared {
-		sort.Strings(toks)
-		evs := make([]sharedRefEv, 0, len(toks))
-		for _, tok := range capN(toks, 8) {
-			evs = append(evs, sharedRefEv{Ref: tok, WorksHolding: fan[tok]})
+	for p, ks := range shared {
+		sort.Slice(ks, func(i, j int) bool { return ks[i].Display < ks[j].Display })
+		evs := make([]sharedRefEv, 0, len(ks))
+		for _, k := range capN(ks, 8) {
+			evs = append(evs, sharedRefEv{
+				Ref:          k.Display,
+				WorksHolding: fan[strconv.FormatInt(int64(k.SourceID), 10)+":"+k.ExternalID],
+			})
 		}
 		out[p] = evs
 	}
