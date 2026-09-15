@@ -66,7 +66,7 @@ func llmRefRow(it refItem, queue, model string) QueueVerdict {
 	return QueueVerdict{
 		Queue: queue, Lane: LaneLLM,
 		EntityType: it.EntityType, EntityID: it.EntityID, SourceID: it.SourceID, ExternalID: it.ExternalID,
-		InputHash: it.Hash, Model: model, PromptVersion: PromptRefV1,
+		InputHash: it.Hash, Model: model, PromptVersion: PromptRef,
 	}
 }
 

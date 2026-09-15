@@ -73,7 +73,7 @@ func chainRow(it refItem, queue string) QueueVerdict {
 	return QueueVerdict{
 		Queue: queue, Lane: LaneChain,
 		EntityType: it.EntityType, EntityID: it.EntityID, SourceID: it.SourceID, ExternalID: it.ExternalID,
-		InputHash: it.Hash, Model: ChainModel, PromptVersion: PromptChainV2,
+		InputHash: it.Hash, Model: ChainModel, PromptVersion: PromptChain,
 	}
 }
 

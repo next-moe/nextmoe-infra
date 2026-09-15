@@ -31,7 +31,7 @@ func RunQueueCreditName(ctx context.Context, db *gorm.DB, c *Client, opts Option
 	if opts.DryRun {
 		return dryRunCreditNames(ctx, c, items, opts.Limit)
 	}
-	done, err := loadDoneHashes(db, "src_llm.queue_verdict", opts.Model, PromptQueueCreditNameV1, "queue", QueueCreditName)
+	done, err := loadDoneHashes(db, "src_llm.queue_verdict", opts.Model, PromptCreditName, "queue", QueueCreditName)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -50,7 +50,7 @@ func RunQueueCreditName(ctx context.Context, db *gorm.DB, c *Client, opts Option
 		row := QueueVerdict{
 			Queue: QueueCreditName, Lane: LaneLLM,
 			EntityType: model.EntityTypeCreditName, AID: it.AID, BID: it.BID,
-			InputHash: it.Hash, Model: opts.Model, PromptVersion: PromptQueueCreditNameV1,
+			InputHash: it.Hash, Model: opts.Model, PromptVersion: PromptCreditName,
 			Evidence: evidenceJSON(map[string]any{
 				"a": map[string]any{"id": it.AID, "name": it.AName, "credits": it.ACredits, "min_exact_source": it.ASource},
 				"b": map[string]any{"id": it.BID, "name": it.BName, "credits": it.BCredits, "min_exact_source": it.BSource},
@@ -67,7 +67,7 @@ func RunQueueCreditName(ctx context.Context, db *gorm.DB, c *Client, opts Option
 		persistQueueVerdict(db, &row)
 	})
 	judged, errs = int(nJudged.Load()), int(nErrs.Load())
-	_ = recordRun(db, "queue-creditname", opts.Model, PromptQueueCreditNameV1,
+	_ = recordRun(db, "queue-creditname", opts.Model, PromptCreditName,
 		map[string]int{"judged": judged, "errors": errs, "total": len(items), "todo": len(work)}, time.Now(), "")
 	return judged, errs, nil
 }

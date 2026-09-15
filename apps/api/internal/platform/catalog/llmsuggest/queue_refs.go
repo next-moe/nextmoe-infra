@@ -65,7 +65,7 @@ func RunQueueRefs(ctx context.Context, db *gorm.DB, up StagingDBs, c *Client, op
 
 	var nJudged, nErrs atomic.Int64
 	if len(chainWork) > 0 {
-		done, err := loadDoneHashes(db, "src_llm.queue_verdict", ChainModel, PromptChainV2, "queue", QueueRef)
+		done, err := loadDoneHashes(db, "src_llm.queue_verdict", ChainModel, PromptChain, "queue", QueueRef)
 		if err != nil {
 			return 0, 0, err
 		}
@@ -86,7 +86,7 @@ func RunQueueRefs(ctx context.Context, db *gorm.DB, up StagingDBs, c *Client, op
 		if c == nil {
 			return 0, 0, fmt.Errorf("queue-refs llm lane requires an LLM client")
 		}
-		done, err := loadDoneHashes(db, "src_llm.queue_verdict", opts.Model, PromptRefV1, "queue", QueueRef)
+		done, err := loadDoneHashes(db, "src_llm.queue_verdict", opts.Model, PromptRef, "queue", QueueRef)
 		if err != nil {
 			return 0, 0, err
 		}
@@ -120,7 +120,7 @@ func RunQueueRefs(ctx context.Context, db *gorm.DB, up StagingDBs, c *Client, op
 	counts["judged"] = judged
 	counts["errors"] = errs
 	counts["total_probable"] = len(items)
-	_ = recordRun(db, "queue-refs", opts.Model, PromptRefV1, counts, time.Now(), opts.Families)
+	_ = recordRun(db, "queue-refs", opts.Model, PromptRef, counts, time.Now(), opts.Families)
 	return judged, errs, nil
 }
 

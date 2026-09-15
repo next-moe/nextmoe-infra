@@ -54,6 +54,23 @@ var currentStamps = []string{
 	stampRefConflict, stampObsoletePair, stampTargetGone,
 }
 
+// currentPrompts is to prompt_version what currentStamps is to applied_action,
+// and it was the missing half: the selection filtered on neither, so every
+// prompt version ever run pooled into one set of rows to act on. On 2026-09-15
+// the table held an unstamped workpair-v1 and an unstamped workpair-v2 verdict
+// for each of the same 693 pairs, contradicting each other on 8, and the loop
+// plans every row it selects. The lower id wins and executes; the other verdict
+// then fails "candidate already decided", goes unstamped, and comes back to
+// fail again every night. A verdict written by a prompt this build no longer
+// ships is a stale opinion, not a decision, and dropping it loses nothing: the
+// judge re-reads that input under the current version, because loadDoneHashes
+// keys on (model, prompt_version).
+var currentPrompts = map[string][]string{
+	QueueWorkPair:   {PromptWorkPair},
+	QueueRef:        {PromptRef, PromptChain},
+	QueueCreditName: {PromptCreditName},
+}
+
 type exactRef struct {
 	SourceID   int16
 	SourceKey  string

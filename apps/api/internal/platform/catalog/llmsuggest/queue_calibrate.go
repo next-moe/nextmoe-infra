@@ -59,7 +59,7 @@ func calibrateWorkPair(ctx context.Context, db *gorm.DB, c *Client, opts Options
 		for i := 0; i < limitN; i++ {
 			it := labeledItems[i]
 			raw, _ := json.Marshal(it.it.Dossier)
-			v, jerr := judge(ctx, c, workPairSystemV2, workPairUser(raw), 512)
+			v, jerr := judge(ctx, c, workPairSystem, workPairUser(raw), 512)
 			row := NamePairJudgment{GoldLabel: it.gold}
 			if jerr != nil {
 				row.Error = jerr.Error()
@@ -74,7 +74,7 @@ func calibrateWorkPair(ctx context.Context, db *gorm.DB, c *Client, opts Options
 		return []LayerMetrics{computeMetrics("overall", rows)}, nil
 	}
 
-	done, err := loadDoneHashes(db, "src_llm.queue_verdict", opts.Model, PromptWorkPairV2, "queue", qname)
+	done, err := loadDoneHashes(db, "src_llm.queue_verdict", opts.Model, PromptWorkPair, "queue", qname)
 	if err != nil {
 		return nil, err
 	}
@@ -92,10 +92,10 @@ func calibrateWorkPair(ctx context.Context, db *gorm.DB, c *Client, opts Options
 		row := QueueVerdict{
 			Queue: qname, Lane: LaneLLM,
 			EntityType: model.EntityTypeWork, AID: it.it.AID, BID: it.it.BID,
-			InputHash: it.it.Hash, Model: opts.Model, PromptVersion: PromptWorkPairV2,
+			InputHash: it.it.Hash, Model: opts.Model, PromptVersion: PromptWorkPair,
 			Evidence: evidenceJSON(ev),
 		}
-		v, jerr := judge(ctx, c, workPairSystemV2, workPairUser(raw), 512)
+		v, jerr := judge(ctx, c, workPairSystem, workPairUser(raw), 512)
 		if jerr != nil {
 			row.Error = truncate(jerr.Error(), 500)
 			nErrs.Add(1)
@@ -105,9 +105,9 @@ func calibrateWorkPair(ctx context.Context, db *gorm.DB, c *Client, opts Options
 		}
 		persistQueueVerdict(db, &row)
 	})
-	_ = recordRun(db, "queue-calibrate-workpair", opts.Model, PromptWorkPairV2,
+	_ = recordRun(db, "queue-calibrate-workpair", opts.Model, PromptWorkPair,
 		map[string]int{"judged": int(nJudged.Load()), "errors": int(nErrs.Load()), "gold_n": len(labeledItems)}, time.Now(), "")
-	return metricsFromQueueGold(db, qname, opts.Model, PromptWorkPairV2)
+	return metricsFromQueueGold(db, qname, opts.Model, PromptWorkPair)
 }
 
 func loadWorkPairGold(db *gorm.DB, status int16, limit int) ([]workPairItem, error) {
@@ -184,11 +184,11 @@ func calibrateRefs(ctx context.Context, db *gorm.DB, up StagingDBs, c *Client, o
 		}
 		return []LayerMetrics{computeMetrics("overall", rows)}, nil
 	}
-	done, err := loadDoneHashes(db, "src_llm.queue_verdict", opts.Model, PromptRefV1, "queue", qname)
+	done, err := loadDoneHashes(db, "src_llm.queue_verdict", opts.Model, PromptRef, "queue", qname)
 	if err != nil {
 		return nil, err
 	}
-	chainDone, err := loadDoneHashes(db, "src_llm.queue_verdict", ChainModel, PromptChainV2, "queue", qname)
+	chainDone, err := loadDoneHashes(db, "src_llm.queue_verdict", ChainModel, PromptChain, "queue", qname)
 	if err != nil {
 		return nil, err
 	}
@@ -212,7 +212,7 @@ func calibrateRefs(ctx context.Context, db *gorm.DB, up StagingDBs, c *Client, o
 	if _, err := judgeRefGoldSample(ctx, db, up, c, reg, items, golds, qname, opts, false); err != nil {
 		return nil, err
 	}
-	return metricsFromQueueGold(db, qname, opts.Model, PromptRefV1)
+	return metricsFromQueueGold(db, qname, opts.Model, PromptRef)
 }
 
 func loadRefGoldPositives(db *gorm.DB, limit int) ([]refItem, error) {
