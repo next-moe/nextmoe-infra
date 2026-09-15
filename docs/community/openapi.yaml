@@ -387,6 +387,48 @@ components:
         - code
         - message
       type: object
+    EnvelopeThreadStatesResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeThreadStatesResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/ThreadStatesResponse"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeThreadUserView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeThreadUserView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/ThreadUserView"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
     EnvelopeThreadWithPosts:
       additionalProperties: false
       properties:
@@ -423,6 +465,27 @@ components:
           type: integer
         data:
           $ref: "#/components/schemas/TrustView"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeUnreadListResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeUnreadListResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/UnreadListResponse"
         message:
           type: string
       required:
@@ -914,6 +977,48 @@ components:
       required:
         - threads
       type: object
+    ThreadNotificationRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ThreadNotificationRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        level:
+          description: 0=muted 1=normal 2=tracking 3=watching
+          format: int32
+          type: integer
+        user_id:
+          format: int64
+          type: integer
+      required:
+        - user_id
+        - level
+      type: object
+    ThreadReadRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ThreadReadRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        last_read_post_number:
+          description: how far the user has read; clamped to the thread's highest post number and never walked backwards
+          format: int32
+          type: integer
+        user_id:
+          format: int64
+          type: integer
+      required:
+        - user_id
+        - last_read_post_number
+      type: object
     ThreadResponse:
       additionalProperties: false
       properties:
@@ -924,6 +1029,74 @@ components:
           $ref: "#/components/schemas/ThreadView"
       required:
         - thread
+      type: object
+    ThreadStatesRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ThreadStatesRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        thread_ids:
+          description: threads to report on (max 100); a thread the user never touched carries no row and is simply absent from the response
+          items:
+            format: int64
+            type: integer
+          type:
+            - array
+            - "null"
+        user_id:
+          format: int64
+          type: integer
+      required:
+        - user_id
+        - thread_ids
+      type: object
+    ThreadStatesResponse:
+      additionalProperties: false
+      properties:
+        states:
+          items:
+            $ref: "#/components/schemas/ThreadUserView"
+          type:
+            - array
+            - "null"
+      required:
+        - states
+      type: object
+    ThreadUserView:
+      additionalProperties: false
+      properties:
+        highest_post_number:
+          format: int32
+          type: integer
+        last_read_post_number:
+          format: int32
+          type: integer
+        notification_level:
+          description: 0=muted 1=normal 2=tracking 3=watching
+          format: int32
+          type: integer
+        thread_id:
+          format: int64
+          type: integer
+        unread_count:
+          description: highest_post_number - last_read_post_number; a tombstone keeps its number, so a deleted post still counts as unread
+          format: int32
+          type: integer
+        user_id:
+          format: int64
+          type: integer
+      required:
+        - thread_id
+        - user_id
+        - last_read_post_number
+        - highest_post_number
+        - unread_count
+        - notification_level
       type: object
     ThreadView:
       additionalProperties: false
@@ -1066,6 +1239,36 @@ components:
         - user_id
         - level
         - first_posts_held_remaining
+      type: object
+    UnreadListResponse:
+      additionalProperties: false
+      properties:
+        next_cursor:
+          type: string
+        threads:
+          items:
+            $ref: "#/components/schemas/UnreadThreadView"
+          type:
+            - array
+            - "null"
+        total:
+          description: the user's threads carrying unread posts on this site, muted excluded — the red-dot number
+          format: int64
+          type: integer
+      required:
+        - threads
+        - total
+      type: object
+    UnreadThreadView:
+      additionalProperties: false
+      properties:
+        state:
+          $ref: "#/components/schemas/ThreadUserView"
+        thread:
+          $ref: "#/components/schemas/ThreadView"
+      required:
+        - thread
+        - state
       type: object
 info:
   title: KUN Community Service
@@ -1689,6 +1892,31 @@ paths:
       summary: List a site's threads of a kind (keyset, newest activity first)
       tags:
         - community-read
+  /api/v1/community/threads/states:
+    post:
+      operationId: threadStates
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ThreadStatesRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeThreadStatesResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Batch read/subscription state for a user over a set of threads
+      tags:
+        - community-engagement
   /api/v1/community/threads/{id}:
     get:
       operationId: getThread
@@ -1729,6 +1957,38 @@ paths:
       summary: Get a thread with a page of posts
       tags:
         - community-read
+  /api/v1/community/threads/{id}/notification:
+    post:
+      operationId: setThreadNotification
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ThreadNotificationRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeThreadUserView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Set a user's notification level for a thread (0=muted 1=normal 2=tracking 3=watching)
+      tags:
+        - community-engagement
   /api/v1/community/threads/{id}/posts:
     get:
       operationId: listPosts
@@ -1800,6 +2060,38 @@ paths:
       summary: Reply to a thread
       tags:
         - community-write
+  /api/v1/community/threads/{id}/read:
+    post:
+      operationId: markThreadRead
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ThreadReadRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeThreadUserView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Report how far a user has read a thread (monotonic; creates the sparse thread_user row)
+      tags:
+        - community-engagement
   /api/v1/community/topics:
     post:
       operationId: openTopic
@@ -1875,3 +2167,44 @@ paths:
       summary: Declare a starter boost (veteran/creator/staff) for a user
       tags:
         - community-trust
+  /api/v1/community/users/{id}/unread:
+    get:
+      operationId: listUnread
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+        - description: opaque cursor from the previous page
+          explode: false
+          in: query
+          name: cursor
+          schema:
+            description: opaque cursor from the previous page
+            type: string
+        - description: page size (max 100, default 50)
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: page size (max 100, default 50)
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeUnreadListResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: List a user's threads carrying unread posts (muted excluded), newest activity first
+      tags:
+        - community-engagement

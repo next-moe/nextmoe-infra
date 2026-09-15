@@ -145,7 +145,37 @@ and ≤10 replies per rolling 24h, and their first 2 posts are **held** (created
 hidden + enqueued for review). TL≥1 is exempt from the content and daily caps.
 Exceeding a cap returns `429`.
 
-## 5. Trust engine (doc 11 §6)
+## 5. Unread & subscription (the sparse thread_user row)
+
+A `(thread, user)` row exists only once that pair has interacted (Discourse's
+topic_users model): a thread the user never opened carries no row and reports no
+state at all — not "everything unread".
+
+- `POST /threads/{id}/read` — the site reports how far a user has read
+  (`last_read_post_number`). The mark is **monotonic** (a late receipt from a
+  slower tab cannot un-read what was already read) and clamped to the thread's
+  highest post number. Reading is never inferred from a GET: a read face with a
+  write side effect cannot be cached, retried or prefetched safely.
+- `POST /threads/{id}/notification` — set `0=muted 1=normal 2=tracking
+  3=watching`. Community stores the preference and emits events (§8); delivery
+  is the notification layer's job, so the level is a contract with that layer
+  rather than a switch inside this service.
+- **Posting subscribes you**: opening a thread or replying upserts the author's
+  own row at `watching` and marks their own post read. An existing row keeps its
+  level — someone who muted a thread and then replies stays muted, because the
+  mute was deliberate and a reply is not a request to undo it.
+- `POST /threads/states` — batch state for one user over ≤100 threads, so a list
+  screen gets every unread badge in one round trip. Threads with no row are
+  absent from the response rather than reported as unread.
+- `GET /users/{id}/unread` — the user's threads carrying unread posts (muted
+  excluded), newest-activity keyset, plus a `total`: the red-dot number.
+  `unread_count = highest_post_number − last_read_post_number`; a tombstone
+  keeps its number (invariant 13), so a thread whose only new post was then
+  deleted still reads as one unread. Scope follows the id-addressed guard, so a
+  catalog-anchored thread — one conversation network-wide — is listed for every
+  tenant the user reaches it from.
+
+## 6. Trust engine (doc 11 §6)
 
 - **Metering** — `POST /trust/activity` is the site BFF's batch receipt of a
   user's reading behavior (deltas: topics entered / posts read / read seconds /
@@ -170,7 +200,7 @@ Exceeding a cap returns `429`.
   floor alone would not clear it); veteran/creator boosts leave the budget
   untouched.
 
-## 6. Reputation-weighted reporting & the review queue (doc 11 §6 layers 4-5)
+## 7. Reputation-weighted reporting & the review queue (doc 11 §6 layers 4-5)
 
 - A report's **weight** = the reporter's per-TL base (TL0 1.0 … TL4 2.5) × their
   historical accuracy `agreed/(agreed+disagreed)` (1.0 with no history). A post
@@ -192,16 +222,17 @@ Exceeding a cap returns `429`.
 - **No automatic bans** (invariant 9): cross-site signals only soft-hold into the
   queue; hard bans come only from humans and IdP-level suspension.
 
-## 7. Events (doc 11 §7)
+## 8. Events (doc 11 §7)
 
 The service only EMITS domain events (`post.created`, `reply.to_you`, `mention`,
 `feedback.status_changed`, `flag.threshold`); delivery and aggregation belong to
 the notification layer. v0 delivery is a no-op sink.
 
-## 8. Not yet on the wire (deferred, with triggers)
+## 9. Not yet on the wire (deferred, with triggers)
 
 Pre-moderation switch (per-thread/site, opened on a malicious event), Akismet /
-external moderation callback (the `external` review source is reserved),
-unread/subscription reads and board management (read-surface deepening /
-letmoe cut-over), aggregate hot-ranking and materialized jobs (scale-trigger),
-and any web/TS type generation (no in-repo consumer — letmoe reaches over S2S).
+external moderation callback (the `external` review source is reserved), board
+management (`community_board` is still an empty table — every tenant anchors its
+topics on an id it mints itself), aggregate hot-ranking and materialized jobs
+(scale-trigger; `sort=posts` is a live count, not a ranking), and any web/TS type
+generation (no in-repo consumer — letmoe reaches over S2S).

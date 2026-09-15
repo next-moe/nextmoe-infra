@@ -78,6 +78,45 @@ func toThreadViewsWithOpening(threads []model.CommunityThread, metas map[int64]r
 	return out
 }
 
+func toThreadUserView(st *repository.ThreadUserState) dto.ThreadUserView {
+	return dto.ThreadUserView{
+		ThreadID: st.ThreadID, UserID: st.UserID,
+		LastReadPostNumber: st.LastReadPostNumber, HighestPostNumber: st.HighestPostNumber,
+		UnreadCount: st.UnreadCount, NotificationLevel: st.NotificationLevel,
+	}
+}
+
+func toThreadUserViews(states []repository.ThreadUserState) []dto.ThreadUserView {
+	out := make([]dto.ThreadUserView, len(states))
+	for i := range states {
+		out[i] = toThreadUserView(&states[i])
+	}
+	return out
+}
+
+func toUnreadThreadViews(rows []repository.UnreadThreadRow) []dto.UnreadThreadView {
+	out := make([]dto.UnreadThreadView, len(rows))
+	for i := range rows {
+		row := &rows[i]
+		out[i] = dto.UnreadThreadView{
+			Thread: toThreadView(&row.CommunityThread),
+			State: dto.ThreadUserView{
+				ThreadID: row.ID, UserID: 0,
+				LastReadPostNumber: row.LastReadPostNumber, HighestPostNumber: row.HighestPostNumber,
+				UnreadCount: row.UnreadCount, NotificationLevel: row.NotificationLevel,
+			},
+		}
+	}
+	return out
+}
+
+func unreadPageCursor(rows []repository.UnreadThreadRow, limit int) string {
+	if len(rows) < limit || len(rows) == 0 {
+		return ""
+	}
+	return encodeThreadCursor(&rows[len(rows)-1].CommunityThread, repository.ThreadSortActivity)
+}
+
 func toTrustView(t *model.CommunityTrust) dto.TrustView {
 	return dto.TrustView{
 		UserID: t.UserID, Level: t.Level,

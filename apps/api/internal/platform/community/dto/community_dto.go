@@ -144,6 +144,45 @@ type AuthorPostsResponse struct {
 	NextCursor string           `json:"next_cursor,omitempty" doc:"post id to pass as after for the next (older) page; empty = last page"`
 }
 
+type ThreadReadRequest struct {
+	UserID             int64 `json:"user_id"`
+	LastReadPostNumber int32 `json:"last_read_post_number" doc:"how far the user has read; clamped to the thread's highest post number and never walked backwards"`
+}
+
+type ThreadNotificationRequest struct {
+	UserID int64 `json:"user_id"`
+	Level  int16 `json:"level" doc:"0=muted 1=normal 2=tracking 3=watching"`
+}
+
+type ThreadStatesRequest struct {
+	UserID    int64   `json:"user_id"`
+	ThreadIDs []int64 `json:"thread_ids" doc:"threads to report on (max 100); a thread the user never touched carries no row and is simply absent from the response"`
+}
+
+type ThreadUserView struct {
+	ThreadID           int64 `json:"thread_id"`
+	UserID             int64 `json:"user_id"`
+	LastReadPostNumber int32 `json:"last_read_post_number"`
+	HighestPostNumber  int32 `json:"highest_post_number"`
+	UnreadCount        int32 `json:"unread_count" doc:"highest_post_number - last_read_post_number; a tombstone keeps its number, so a deleted post still counts as unread"`
+	NotificationLevel  int16 `json:"notification_level" doc:"0=muted 1=normal 2=tracking 3=watching"`
+}
+
+type ThreadStatesResponse struct {
+	States []ThreadUserView `json:"states"`
+}
+
+type UnreadThreadView struct {
+	Thread ThreadView     `json:"thread"`
+	State  ThreadUserView `json:"state"`
+}
+
+type UnreadListResponse struct {
+	Threads    []UnreadThreadView `json:"threads"`
+	NextCursor string             `json:"next_cursor,omitempty"`
+	Total      int64              `json:"total" doc:"the user's threads carrying unread posts on this site, muted excluded — the red-dot number"`
+}
+
 type PostFeedResponse struct {
 	Posts      []AuthorPostView `json:"posts"`
 	NextCursor string           `json:"next_cursor,omitempty" doc:"opaque cursor for the next (older) page; empty = last page"`

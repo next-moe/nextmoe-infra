@@ -129,6 +129,9 @@ func (s *ThreadService) openWithFirstPost(ctx context.Context, kind int16, p Ope
 		if err := repository.CreatePostTx(tx, &post); err != nil {
 			return err
 		}
+		if err := repository.EnsureSubscribedTx(tx, thread.ID, p.AuthorID, post.PostNumber); err != nil {
+			return err
+		}
 		if held {
 			itemID, created, err := repository.EnqueueReviewIfAbsentTx(tx, thread.Site, post.ID, model.ReviewSourceFirstPostHold)
 			if err != nil {

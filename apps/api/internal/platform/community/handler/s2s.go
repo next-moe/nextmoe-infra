@@ -22,16 +22,17 @@ import (
 const defaultPageLimit = 50
 
 type Server struct {
-	threads   *service.ThreadService
-	posts     *service.PostService
-	reactions *service.ReactionService
-	feedback  *service.FeedbackService
-	flags     *service.FlagService
-	trust     *service.TrustService
-	review    *service.ReviewService
+	threads    *service.ThreadService
+	posts      *service.PostService
+	reactions  *service.ReactionService
+	feedback   *service.FeedbackService
+	flags      *service.FlagService
+	trust      *service.TrustService
+	review     *service.ReviewService
+	engagement *service.EngagementService
 }
 
-func Setup(app *fiber.App, threads *service.ThreadService, posts *service.PostService, reactions *service.ReactionService, feedback *service.FeedbackService, flags *service.FlagService, trust *service.TrustService, review *service.ReviewService) huma.API {
+func Setup(app *fiber.App, threads *service.ThreadService, posts *service.PostService, reactions *service.ReactionService, feedback *service.FeedbackService, flags *service.FlagService, trust *service.TrustService, review *service.ReviewService, engagement *service.EngagementService) huma.API {
 	InstallErrorEnvelope()
 
 	cfg := huma.DefaultConfig("KUN Community Service", "1.0.0")
@@ -42,7 +43,8 @@ func Setup(app *fiber.App, threads *service.ThreadService, posts *service.PostSe
 	api := humafiber.New(app, cfg)
 	api.UseMiddleware(S2SBridge)
 
-	s := &Server{threads: threads, posts: posts, reactions: reactions, feedback: feedback, flags: flags, trust: trust, review: review}
+	s := &Server{threads: threads, posts: posts, reactions: reactions, feedback: feedback, flags: flags,
+		trust: trust, review: review, engagement: engagement}
 	s.register(api)
 	return api
 }
@@ -88,6 +90,16 @@ func (s *Server) register(api huma.API) {
 		Summary: "Merge a duplicate feedback thread into another (reversible)", Tags: write}, s.mergeFeedback)
 	huma.Register(api, huma.Operation{OperationID: "purgeAuthor", Method: http.MethodPost, Path: "/api/v1/community/authors/{id}/purge",
 		Summary: "Compliance purge: tombstone + scrub all of a site author's posts and delete their reactions (idempotent)", Tags: write}, s.purgeAuthor)
+
+	engagement := []string{"community-engagement"}
+	huma.Register(api, huma.Operation{OperationID: "markThreadRead", Method: http.MethodPost, Path: "/api/v1/community/threads/{id}/read",
+		Summary: "Report how far a user has read a thread (monotonic; creates the sparse thread_user row)", Tags: engagement}, s.markThreadRead)
+	huma.Register(api, huma.Operation{OperationID: "setThreadNotification", Method: http.MethodPost, Path: "/api/v1/community/threads/{id}/notification",
+		Summary: "Set a user's notification level for a thread (0=muted 1=normal 2=tracking 3=watching)", Tags: engagement}, s.setThreadNotification)
+	huma.Register(api, huma.Operation{OperationID: "threadStates", Method: http.MethodPost, Path: "/api/v1/community/threads/states",
+		Summary: "Batch read/subscription state for a user over a set of threads", Tags: engagement}, s.threadStates)
+	huma.Register(api, huma.Operation{OperationID: "listUnread", Method: http.MethodGet, Path: "/api/v1/community/users/{id}/unread",
+		Summary: "List a user's threads carrying unread posts (muted excluded), newest activity first", Tags: engagement}, s.listUnread)
 
 	trust := []string{"community-trust"}
 	review := []string{"community-review"}
@@ -523,6 +535,8 @@ func mapErr(op string, err error) *houseError {
 		return apiErr(http.StatusNotFound, errors.ErrNotFound)
 	case stderrors.Is(err, service.ErrThreadNotOpen):
 		return apiErrMsg(http.StatusConflict, errors.ErrOperationFailed, "thread is not open")
+	case stderrors.Is(err, service.ErrInvalidNotificationLevel):
+		return apiErrMsg(http.StatusBadRequest, errors.ErrInvalidParam, "notification level out of range")
 	case stderrors.Is(err, service.ErrNotFeedback):
 		return apiErrMsg(http.StatusBadRequest, errors.ErrInvalidParam, "thread is not a feedback thread")
 	case stderrors.Is(err, service.ErrNotAuthor):
