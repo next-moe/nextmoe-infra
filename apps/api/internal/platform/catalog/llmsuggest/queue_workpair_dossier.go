@@ -1,6 +1,7 @@
 package llmsuggest
 
 import (
+	"sort"
 	"strconv"
 
 	"api/internal/platform/catalog/model"
@@ -140,4 +141,108 @@ func loadWorkSides(db *gorm.DB, ids []int64) (map[int64]workSideDossier, error) 
 
 func strconvWorkLabel(id int64, name string) string {
 	return strconv.FormatInt(id, 10) + "\x00" + name
+}
+
+// loadSharedRefFanOut answers, for every pair, which identifiers both sides
+// hold and how many live works hold each one.
+//
+// It reads link_kind 2 as well, which the dossier's own ref list does not.
+// Related is where official_site lives - 60,543 rows - and the partial unique
+// uq_catalog_external_ref_exact only covers link_kind 0, so a shared identifier
+// is structurally expressible there and nowhere else. Leaving it out is why the
+// model kept writing "no shared refs" about pairs that share an exclusive
+// product page: it was never shown one.
+//
+// The fan-out is the whole point. Measured over the 693 undecided pairs on
+// 2026-09-15: 131 share an identifier no other live work holds, while
+// twitter:frontwingint and youtube.com/@frontwing_1999 are each held by 43
+// works. Both look identical in this table without the count.
+//
+// Intersecting here rather than over workSideDossier.Refs is deliberate: that
+// list is truncated to 8 for the token budget, and a shared identifier dropped
+// by the cap would silently read as no shared identifier at all.
+func loadSharedRefFanOut(db *gorm.DB, pairs [][2]int64) (map[[2]int64][]sharedRefEv, error) {
+	out := map[[2]int64][]sharedRefEv{}
+	if len(pairs) == 0 {
+		return out, nil
+	}
+	ids := make([]int64, 0, len(pairs)*2)
+	seen := map[int64]struct{}{}
+	for _, p := range pairs {
+		for _, id := range p {
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			seen[id] = struct{}{}
+			ids = append(ids, id)
+		}
+	}
+
+	held := map[int64]map[string]struct{}{}
+	for _, chunk := range chunkBy(ids, 500) {
+		var rows []struct {
+			EntityID int64  `gorm:"column:entity_id"`
+			Token    string `gorm:"column:token"`
+		}
+		if err := db.Raw(`SELECT r.entity_id, s.key || ':' || r.external_id AS token
+			FROM catalog_external_ref r JOIN catalog_source s ON s.id = r.source_id
+			WHERE r.entity_type = ? AND r.dead_at IS NULL AND r.entity_id IN ?`,
+			model.EntityTypeWork, chunk).Scan(&rows).Error; err != nil {
+			return nil, err
+		}
+		for _, r := range rows {
+			if held[r.EntityID] == nil {
+				held[r.EntityID] = map[string]struct{}{}
+			}
+			held[r.EntityID][r.Token] = struct{}{}
+		}
+	}
+
+	shared := map[[2]int64][]string{}
+	tokenSet := map[string]struct{}{}
+	for _, p := range pairs {
+		for tok := range held[p[0]] {
+			if _, ok := held[p[1]][tok]; !ok {
+				continue
+			}
+			shared[p] = append(shared[p], tok)
+			tokenSet[tok] = struct{}{}
+		}
+	}
+	if len(tokenSet) == 0 {
+		return out, nil
+	}
+	tokens := make([]string, 0, len(tokenSet))
+	for tok := range tokenSet {
+		tokens = append(tokens, tok)
+	}
+
+	fan := map[string]int{}
+	for _, chunk := range chunkBy(tokens, 500) {
+		var rows []struct {
+			Token string `gorm:"column:token"`
+			N     int    `gorm:"column:n"`
+		}
+		if err := db.Raw(`SELECT s.key || ':' || r.external_id AS token, count(DISTINCT r.entity_id) AS n
+			FROM catalog_external_ref r
+			JOIN catalog_source s ON s.id = r.source_id
+			JOIN catalog_work w ON w.id = r.entity_id AND w.deleted_at IS NULL
+			WHERE r.entity_type = ? AND r.dead_at IS NULL
+			  AND s.key || ':' || r.external_id IN ?
+			GROUP BY 1`, model.EntityTypeWork, chunk).Scan(&rows).Error; err != nil {
+			return nil, err
+		}
+		for _, r := range rows {
+			fan[r.Token] = r.N
+		}
+	}
+	for p, toks := range shared {
+		sort.Strings(toks)
+		evs := make([]sharedRefEv, 0, len(toks))
+		for _, tok := range capN(toks, 8) {
+			evs = append(evs, sharedRefEv{Ref: tok, WorksHolding: fan[tok]})
+		}
+		out[p] = evs
+	}
+	return out, nil
 }

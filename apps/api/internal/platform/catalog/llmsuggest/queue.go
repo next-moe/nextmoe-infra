@@ -32,11 +32,33 @@ const (
 	sourceKeyHLTB    = "howlongtobeat"
 )
 
-const workPairSystem = "You are a meticulous visual-novel catalog deduplication expert. " +
+// Every clause below answers something measured on the 693 pairs v1 left
+// undecided on 2026-09-15, and none of it is a guess about what might help.
+//
+//   - 579 of 693 have a release year on exactly one side and 570 a label on
+//     exactly one side, and v1's reasons read those as "conflicting year" and
+//     "different labels". An omission is not a disagreement.
+//   - 243 differ in olang. The catalog models a localisation as more titles on
+//     one work, not as a second work: 11,065 live works hold both a non-machine
+//     ja and zh title, and 605 of 5,426 executed merges joined two sides whose
+//     olang differed.
+//   - works_holding is new evidence, not a restatement. 131 of these pairs share
+//     an identifier no other live work holds, while twitter:frontwingint is held
+//     by 43 works. v1 was shown neither number and wrote "no shared refs" about
+//     pairs sharing an exclusive product page.
+//
+// The last clause of v1 -- answer "unsure" when evidence is thin -- was the exit
+// 359 of them took while the reason field had already argued its way to a
+// conclusion. Closing an exit without giving the model the missing facts only
+// buys confident hallucination, so it is narrowed here, not removed.
+const workPairSystemV2 = "You are a meticulous visual-novel catalog deduplication expert. " +
 	"Given two catalog work records and their evidence dossiers, decide whether they describe the SAME work. " +
-	"SAME means the two records describe the same work (possibly different editions, ports, or re-releases of one work when the catalog models them as one work; shared identity anchors such as an identical vndb or bangumi id are near-conclusive). " +
-	"DIFFERENT covers sequels, fandiscs, remakes years apart, different works sharing a title, and a work versus its spin-off. " +
-	"Answer \"unsure\" when evidence is thin. Keep the reason to one short clause."
+	"SAME means the two records describe the same work. This catalog models editions, ports, re-releases and translated localisations of one work as ONE work carrying several titles, so a Japanese original and its Chinese or English localisation are the SAME work even when olang, title language and release year differ; a later year on one side is normal for a localisation or a re-release. " +
+	"DIFFERENT covers sequels, prequels, fandiscs, remakes, spin-offs, and separate works that merely share a title. Say which discriminator you found: a DIFFERENT answer must rest on something both dossiers state, never on a field one of them simply omits. " +
+	"A value present on one side and absent on the other is MISSING, not conflicting; an absent year, label or ref is not evidence of anything. " +
+	"shared_refs lists identifiers both records hold, and works_holding is how many live works in the whole catalog hold that identifier. works_holding=2 means the identifier belongs to this pair alone and is strong evidence of SAME; a large works_holding marks a studio account or brand root that every title of a publisher carries and is worth nothing. A shared identifier never outranks a discriminator you can name, because entries in one series do share a product page. " +
+	"An identical vndb or bangumi id on both sides is near-conclusive for SAME; two different ids from that same registry are near-conclusive for DIFFERENT. " +
+	"Answer \"unsure\" only when you can name neither a discriminator nor a corroborating identifier. Keep the reason to one short clause."
 
 const refSystem = "You are a meticulous visual-novel catalog linking expert. " +
 	"Decide whether the external source record and the catalog entity denote the same work, label, character, or person. " +

@@ -16,6 +16,7 @@ const (
 	PromptBidVerdictV1      = "bid-verdict-v1"
 	PromptQueueCreditNameV1 = "queue-creditname-v1"
 	PromptWorkPairV1        = "workpair-v1"
+	PromptWorkPairV2        = "workpair-v2"
 	PromptRefV1             = "ref-v1"
 	// PromptChainV2 dropped the vndb anchor as a precondition of the EG store
 	// chain. Bumping the version is the only way a re-judge reaches the stored
