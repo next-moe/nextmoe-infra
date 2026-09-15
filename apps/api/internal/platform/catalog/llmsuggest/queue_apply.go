@@ -131,7 +131,7 @@ func applySelection(opts Options) (minConf float64, verdicts []string) {
 		return math.Min(opts.MinConfidence, opts.MinConfidenceReject), verdicts
 	default:
 		// planRef has no reject path, so the reject bar cannot widen it
-		return opts.MinConfidence, verdicts
+		return opts.MinConfidence, append(verdicts, VerdictRelated)
 	}
 }
 

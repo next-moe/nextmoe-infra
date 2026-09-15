@@ -67,7 +67,7 @@ var currentStamps = []string{
 // keys on (model, prompt_version).
 var currentPrompts = map[string][]string{
 	QueueWorkPair:   {PromptWorkPair},
-	QueueRef:        {PromptRef, PromptChain},
+	QueueRef:        {PromptRef, PromptChain, PromptFanout},
 	QueueCreditName: {PromptCreditName},
 }
 
@@ -258,6 +258,9 @@ func planRef(verdict string, conf, min float64, slotTaken bool) applyPlan {
 			return applyPlan{Action: applyConfirmRelated}
 		}
 		return applyPlan{Action: applyConfirm}
+	case VerdictRelated:
+		// No confidence gate: the fan-out lane counts rows, it does not estimate.
+		return applyPlan{Action: applyConfirmRelated}
 	case VerdictDifferent:
 		return applyPlan{Skip: skipRefDifferent}
 	case VerdictChainUnproven:

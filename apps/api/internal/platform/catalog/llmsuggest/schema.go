@@ -33,7 +33,10 @@ const (
 	// upsertJudgement overwrites a stored FAILURE, so re-running the lane
 	// against a chain-unproven row writes nothing at all.
 	PromptChain = "chain-v2"
-	ChainModel  = "rule"
+	// fanout-v1 is decided by counting rows, not by asking anything, so it rides
+	// ChainModel like the chain lane does.
+	PromptFanout = "fanout-v1"
+	ChainModel   = "rule"
 )
 
 const (
@@ -42,6 +45,10 @@ const (
 	VerdictUnsure        = "unsure"
 	VerdictChainVerified = "chain-verified"
 	VerdictChainUnproven = "chain-unproven"
+	// Related is not a weaker same. It is the answer when "which of these is it"
+	// has no answer, and it maps to the one action that links without claiming
+	// the exact slot.
+	VerdictRelated = "related"
 )
 
 const (
