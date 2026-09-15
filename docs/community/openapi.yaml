@@ -803,9 +803,14 @@ components:
           description: reaction rows the author left that were deleted this run
           format: int64
           type: integer
+        read_states_deleted:
+          description: read/subscription rows (which threads they opened, how far they read) deleted this run
+          format: int64
+          type: integer
       required:
         - posts_purged
         - reactions_deleted
+        - read_states_deleted
       type: object
     ReactionToggleRequest:
       additionalProperties: false

@@ -94,3 +94,18 @@ func DeleteAuthorReactionsTx(tx *gorm.DB, site string, authorID int64) (int64, e
 		site, authorID)
 	return res.RowsAffected, res.Error
 }
+
+// DeleteAuthorThreadUsersTx drops the author's read/subscription rows on this
+// site. They record which threads a person opened and how far they read, so a
+// compliance purge that left them behind would keep exactly the kind of trace
+// it exists to remove.
+func DeleteAuthorThreadUsersTx(tx *gorm.DB, site string, userID int64) (int64, error) {
+	res := tx.Exec(`
+		DELETE FROM community_thread_user AS tu
+		 USING community_thread AS t
+		 WHERE tu.thread_id = t.id
+		   AND t.site = ?
+		   AND tu.user_id = ?`,
+		site, userID)
+	return res.RowsAffected, res.Error
+}

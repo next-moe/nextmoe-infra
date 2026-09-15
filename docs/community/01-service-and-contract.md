@@ -179,6 +179,9 @@ state at all — not "everything unread".
   3=watching`. Community stores the preference and emits events (§8); delivery
   is the notification layer's job, so the level is a contract with that layer
   rather than a switch inside this service.
+- The **compliance purge** (`POST /authors/{id}/purge`) clears these rows too,
+  and reports `read_states_deleted`: a row records which threads a person opened
+  and how far they read, which is exactly the trace the purge exists to remove.
 - **Posting subscribes you**: opening a thread or replying upserts the author's
   own row at `watching` and marks their own post read. An existing row keeps its
   level — someone who muted a thread and then replies stays muted, because the
