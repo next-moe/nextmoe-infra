@@ -11,8 +11,12 @@
 #   *  the lane broke  -> [FAIL] alert, no stamp
 #
 # crontab (root): 30 18 * * * /root/work-dedup-nightly/run.sh
-# 18:30 UTC = 02:30 CST, the audience's quietest window, and clear of the Monday
-# 04:20 UTC weekly watch so the two never hold a census at the same time.
+# Cron on this box runs in Asia/Shanghai, so that line fires at 18:30 CST, not
+# 18:30 UTC: it was written believing it landed at 02:30 CST, the quiet window.
+# The Monday watch's `20 4 * * 1` reads the same way, so it is 04:20 CST and the
+# two still never hold a census together. Re-aiming this at the quiet window is
+# an operator call, not a cleanup: llm-adjudicate-nightly at 21:00 CST is
+# deliberately ordered after this one.
 #
 # The weekly watch is now the independent check on THIS job: after a healthy
 # nightly, watch should find fresh=0.
