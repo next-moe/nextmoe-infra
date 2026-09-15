@@ -6,6 +6,7 @@ import (
 	"api/internal/platform/community/model"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 func (r *ThreadRepository) CountOpenedByCreatorSince(creatorID int64, since time.Time) (int64, error) {
@@ -43,6 +44,10 @@ func GetThreadTx(tx *gorm.DB, id int64) (*model.CommunityThread, error) {
 
 func (r *ThreadRepository) GetLiveCommentsThread(site string, anchorKind int16, anchorID string) (*model.CommunityThread, error) {
 	return getLiveCommentsThread(r.db, site, anchorKind, anchorID)
+}
+
+func GetLiveCommentsThreadTx(tx *gorm.DB, site string, anchorKind int16, anchorID string) (*model.CommunityThread, error) {
+	return getLiveCommentsThread(tx, site, anchorKind, anchorID)
 }
 
 func getLiveCommentsThread(db *gorm.DB, site string, anchorKind int16, anchorID string) (*model.CommunityThread, error) {
@@ -179,11 +184,37 @@ func CreateThreadTx(tx *gorm.DB, t *model.CommunityThread, bornEmpty bool) error
 		return err
 	}
 	if bornEmpty {
-		if err := tx.Model(t).UpdateColumn("participants_count", 0).Error; err != nil {
-			return err
-		}
-		t.ParticipantsCount = 0
+		return zeroParticipantsTx(tx, t)
 	}
+	return nil
+}
+
+// CreateCommentsThreadIfAbsentTx mints an anchor's comments thread unless a
+// concurrent first comment beat this one to it, and reports whether this call
+// is the one that created it. The conflict is swallowed by Postgres rather than
+// raised: the caller is already inside the transaction that writes the first
+// post, and a duplicate-key error would abort that transaction instead of
+// letting it fall back to the row the winner inserted.
+func CreateCommentsThreadIfAbsentTx(tx *gorm.DB, t *model.CommunityThread) (bool, error) {
+	res := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(t)
+	if res.Error != nil {
+		return false, res.Error
+	}
+	if res.RowsAffected == 0 {
+		return false, nil
+	}
+	return true, zeroParticipantsTx(tx, t)
+}
+
+// participants_count carries `default:1`, and GORM sends the column default for
+// a zero-valued field — so a thread whose participant is counted later, by
+// AllocateReplyTx, has to be reset to 0 after the insert or it counts one
+// person twice.
+func zeroParticipantsTx(tx *gorm.DB, t *model.CommunityThread) error {
+	if err := tx.Model(t).UpdateColumn("participants_count", 0).Error; err != nil {
+		return err
+	}
+	t.ParticipantsCount = 0
 	return nil
 }
 

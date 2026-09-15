@@ -66,6 +66,8 @@ func TestSpecExport(t *testing.T) {
 	for _, want := range []string{
 		"/api/v1/community/comments/resolve",
 		"/api/v1/community/threads",
+		"operationId: getComments",
+		"operationId: comment\n",
 		"/api/v1/community/topics",
 		"/api/v1/community/trust/activity",
 		"/api/v1/community/review",
