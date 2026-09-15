@@ -79,12 +79,46 @@ chmod 600 env.tmp
 # A failure is stored on the verdict row and the next night's run retries it.
 LLM='--llm-base http://ec2.ksm.moe:3000/v1 --model deepseek-v4-flash --concurrency 2'
 
+# llm-suggest exits 1 when ANY judgement failed, and a handful of upstream 429s
+# is the steady state on that gateway. On 2026-09-14 the ref judge finished
+# "queue-refs done judged=836 errors=27" and `set -e` killed the lane on that
+# exit code, so step 6's apply -- the entire point of the ref half -- has never
+# run on any night, and state/last-success was never written either. A failure
+# is stored on the verdict row and retried tomorrow, so a partial judge is not
+# a lane failure. Exit 1 is ambiguous though (it is also "could not reach the
+# database"), so the tolerance is granted only to a step that printed its own
+# "<task> done" line.
+judge_step() {
+  _task=$1
+  shift
+  _mark=$(wc -c < "$LOG")
+  _rc=0
+  "$@" || _rc=$?
+  _counts=$(tail -c "+$((_mark + 1))" "$LOG" \
+    | sed -n "s/.*$_task done judged=\([0-9]*\) errors=\([0-9]*\).*/\1 \2/p" | tail -1)
+  if [ -z "$_counts" ]; then
+    echo "=== $_task did not reach its done line (exit $_rc) ==="
+    return "$_rc"
+  fi
+  _judged=${_counts% *}
+  _errs=${_counts#* }
+  [ "$_errs" -eq 0 ] || echo "note: $_task stored $_errs failed judgements; tomorrow retries them"
+  # A dead gateway otherwise looks exactly like a quiet night: every call fails,
+  # the lane finishes clean, stamps its success, and the deadman stays quiet.
+  if [ "$_errs" -gt "$_judged" ]; then
+    /root/lib/alert.sh "[ADJ] $_task: $_errs failures against $_judged judgements" "$BASE/$LOG" \
+      || echo "alert delivery failed"
+  fi
+  return 0
+}
+
 # The log is per-day and appended to, so a second run on the same day would
 # otherwise read the FIRST run's counters. Everything past this offset is ours.
 MARK=$(wc -c < "$LOG")
 
 echo "--- 1/6 judge work pairs ---"
-docker run --rm --name adj-judge-workpair --network dokploy-network \
+judge_step queue-workpair \
+  docker run --rm --name adj-judge-workpair --network dokploy-network \
   --env-file "$BASE/env.tmp" --env-file /root/env-llm-key.env "$IMG" \
   sh -c "exec llm-suggest $LLM --apply --task queue-workpair"
 
@@ -139,7 +173,8 @@ fi
 # and it costs no model calls at all. Probed 2026-09-14: eg-steam and eg-dmm
 # both return chain-verified, over 3,728 rows that the llm-only lane skipped.
 echo "--- 6/6 judge and confirm probable refs ---"
-docker run --rm --name adj-judge-refs --network dokploy-network \
+judge_step queue-refs \
+  docker run --rm --name adj-judge-refs --network dokploy-network \
   --env-file "$BASE/env.tmp" --env-file /root/env-llm-key.env "$IMG" \
   sh -c "exec llm-suggest $LLM --apply --task queue-refs --families all"
 docker run --rm --name adj-apply-refs --network dokploy-network \
