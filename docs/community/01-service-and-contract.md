@@ -36,9 +36,16 @@
 
 ## 3. Read faces (embed-first)
 
-- `POST /comments/resolve` — get-or-create the single comments thread for an
-  anchor and return its first page of posts (the embed read-first-screen; Coral
-  story model). Idempotent per anchor (invariant 4).
+- `GET /comments?anchor_kind=&anchor_id=` — an anchor's comment wall: its single
+  comments thread (invariant 4) with the first page of posts, keyset by
+  `post_number` like every other post page (the embed read-first-screen; Coral
+  story model). Until someone comments there is **no thread**, and the face says
+  so: `thread` is absent and `posts` is empty. It reads; it never writes.
+- `POST /comments/resolve` — **deprecated**, kept only until the consuming sites
+  move off it. Same first screen, but it *get-or-creates* the thread, so a page
+  view mints a row: 110,918 of kungal's 114,070 comments threads were minted by
+  a view and hold nothing at all. Read with `GET /comments`, write with
+  `POST /comments` (§4).
 - `GET /threads` — the site's threads of a `kind`, newest-activity first, keyset
   (`cursor` opaque). An **optional anchor filter** (`anchor_kind` + `anchor_id`)
   narrows the page to a single anchor within the tenant — the resource-detail
@@ -60,10 +67,11 @@
   original two-part shape, so cursors held by callers that predate `sort` still
   work; `posts` orders on a mutable key, so a row can move between pages while a
   caller pages through it. **`has_posts`** keeps only threads holding at least
-  one post — a comments thread is created by the first *view* of its anchor, so
-  on a busy tenant nearly all of them are empty (~110,000 of kungal's 113,000 at
-  the time of writing) and an unfiltered "latest threads" read is mostly anchors
-  nobody has spoken about. `GET /threads/{id}` and
+  one post. A comments thread is created by its first *comment*, but the
+  deprecated resolve face created one per anchor **view**, so a tenant that has
+  been serving pages carries a long tail of empty threads (110,918 of kungal's
+  114,070 when the write path changed) and an unfiltered "latest threads" read
+  is mostly anchors nobody has spoken about. `GET /threads/{id}` and
   `GET /threads/{id}/posts` — a thread with a page of posts, keyset by
   `post_number` (`after`). Cooked HTML is served for display; the raw markdown is
   included for the editor.
@@ -99,12 +107,27 @@
 ## 4. Write faces (embed capability set, invariant 11)
 
 `POST /topics`, `POST /feedback` (each opens a thread with its opening post),
-`POST /threads/{id}/posts` (reply), `PATCH /posts/{id}` (author edit),
+`POST /comments` (comment on an anchor), `POST /threads/{id}/posts` (reply),
+`PATCH /posts/{id}` (author edit),
 `DELETE /posts/{id}` (author self-delete), `POST /posts/{id}/reaction` (toggle),
 `POST /posts/{id}/flag` (report), `POST /feedback/{id}/status`,
 `POST /feedback/{id}/merge`. Capabilities are read/post/reply/edit/delete/react/
 report/feedback — NOT a shrunken forum (edit **history** / the version surface,
 advanced search, and mod tooling live on the full surface, not here).
+
+#### Comment on an anchor — `POST /comments`
+
+A comments thread is **born with its first comment**, in the transaction that
+writes that comment — the same rule topics and feedback already follow. The body
+therefore carries the anchor (`anchor_kind` + `anchor_id`) and the
+`content_rating` to stamp on a thread that may not exist yet, not a thread id;
+`anchor_kind` must be 1..4, since a board hosts topics rather than a comment
+wall. A concurrent first comment loses the insert and appends to the winner's
+thread instead (`ON CONFLICT DO NOTHING`, then re-read inside the same
+transaction), so an anchor never ends up with two conversations. Everything past
+the thread is the ordinary reply path — trust level, sandbox quota, content
+check, review enqueue, auto-subscribe — and the response carries the thread as
+it stands *after* the write, together with the new post.
 
 #### Post edit — `PATCH /posts/{id}`
 
@@ -258,3 +281,10 @@ management (`community_board` is still an empty table — every tenant anchors i
 topics on an id it mints itself), aggregate hot-ranking and materialized jobs
 (scale-trigger; `sort=posts` is a live count, not a ranking), and any web/TS type
 generation (no in-repo consumer — letmoe reaches over S2S).
+
+Two follow-ups wait on the consuming sites rather than on this service: the
+retirement of `POST /comments/resolve` (a declared breaking change), and the
+one-off sweep of the empty comments threads it minted. The sweep is safe —
+nothing but `community_post` and `community_thread_user` references a thread,
+and none of the empty rows carry either — but it has to run *after* the sites
+stop calling resolve, or the next page view mints them straight back.
