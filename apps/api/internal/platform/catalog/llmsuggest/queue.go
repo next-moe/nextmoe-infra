@@ -78,9 +78,19 @@ const workPairSystem = "You are a meticulous visual-novel catalog deduplication 
 	"An identical vndb or bangumi id on both sides is near-conclusive for SAME; two different ids from that same registry are near-conclusive for DIFFERENT. " +
 	"Answer SAME only on a positive agreement you can point at -- a shared identifier with a small works_holding, titles that match once language is set aside, or fields that agree -- and never on the mere absence of a discriminator; answer \"unsure\" when you have neither that agreement nor a discriminator. Keep the reason to one short clause."
 
+// The dossier used to carry bare enum codes and the judge decided on the
+// meanings it invented for them: "catalog entity is a work (type 3)" -- 3 is
+// Label -- and "external record is a character (type 2)" for a bangumi person
+// record, where 2 is company. Naming the categories in the prompt was not
+// enough, because nothing said which code was which.
 const refSystem = "You are a meticulous visual-novel catalog linking expert. " +
 	"Decide whether the external source record and the catalog entity denote the same work, label, character, or person. " +
 	"SAME means they are the same identity; DIFFERENT means they are distinct even if names or titles look similar. " +
+	"entity_type and every type field are spelled out in the dossier -- use those words and do not reinterpret them; " +
+	"a Label is a publisher, and a source record for a company is the right kind of record to match one. " +
+	"The rule named in matched_by already compared the two names, so a name match on its own is where you start, " +
+	"not the evidence: decide on what each side publishes -- works, sample_works, already_linked -- and answer SAME " +
+	"with high confidence when those agree. " +
 	"Answer \"unsure\" when evidence is thin. Keep the reason to one short clause."
 
 func goldQueue(q string) string { return q + "-gold" }
@@ -264,13 +274,19 @@ func chainFamily(matchedBy string) bool {
 	}
 }
 
-func llmWorkFamily(matchedBy string) bool {
-	return matchedBy == matchedByBgmTitleOnly || matchedBy == matchedByTitleYearStrict
-}
-
-func llmEntityFamily(entityType int16) bool {
+// A ref the LLM lane can judge is one whose entity has a dossier builder. This
+// used to be a whitelist of two matched_by rules for works, which refused 128
+// work refs the builders already covered -- bgm-type4-gated, wiki-bid-typed,
+// eg-vndb-rosetta and four more -- and reported them as skipped_unknown_family,
+// a counter that reads as "nothing here to judge". The rule that proposed a
+// link says nothing about whether the evidence for checking it exists.
+//
+// Release stays out on purpose: it has no dossier builder, so the 348 queued
+// vndb release imports would be judged on a work-level record that cannot
+// decide which release it is.
+func llmFamily(entityType int16) bool {
 	switch entityType {
-	case model.EntityTypeLabel, model.EntityTypeCharacter, model.EntityTypeCreditName:
+	case model.EntityTypeWork, model.EntityTypeLabel, model.EntityTypeCharacter, model.EntityTypeCreditName:
 		return true
 	default:
 		return false

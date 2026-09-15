@@ -20,8 +20,14 @@ const (
 	// on it, so a bump is one edit and the apply filter cannot be left behind
 	// pointing at the version the judge stopped writing.
 	PromptCreditName = "queue-creditname-v1"
-	PromptRef        = "ref-v1"
-	PromptWorkPair   = "workpair-v2"
+	// ref-v2 is a different question, not a reworded one: the dossier now names
+	// its own enums and carries what each side publishes. Bumping is what
+	// reaches the stored rows -- loadDoneHashes keys on (model, prompt_version)
+	// -- and currentPrompts then drops the v1 verdicts out of the apply pool,
+	// which is the point: they were decided on evidence this build no longer
+	// hands the judge.
+	PromptRef      = "ref-v2"
+	PromptWorkPair = "workpair-v2"
 	// chain-v2 dropped the vndb anchor as a precondition of the EG store chain.
 	// Bumping the version is the only way a re-judge reaches the stored rows:
 	// upsertJudgement overwrites a stored FAILURE, so re-running the lane

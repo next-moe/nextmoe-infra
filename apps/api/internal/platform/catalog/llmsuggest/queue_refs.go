@@ -48,7 +48,7 @@ func RunQueueRefs(ctx context.Context, db *gorm.DB, up StagingDBs, c *Client, op
 				continue
 			}
 			chainWork = append(chainWork, it)
-		case llmWorkFamily(it.MatchedBy) || llmEntityFamily(it.EntityType):
+		case llmFamily(it.EntityType):
 			if !wantLLM {
 				st.add("skipped_family_filter", 1)
 				continue
