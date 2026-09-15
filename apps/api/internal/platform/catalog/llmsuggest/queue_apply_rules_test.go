@@ -120,8 +120,8 @@ func TestEveryStampThisPackageWritesIsAKnownStamp(t *testing.T) {
 		RefsB: []exactRef{ref(2, "vndb", 1, "v2")},
 	}))
 	record(planCreditName(VerdictSame, 1, 0.9, 0.7))
-	record(planRef(VerdictChainVerified, 1, 0.9, false))
-	record(planRef(VerdictChainVerified, 1, 0.9, true))
+	record(planRef(VerdictChainVerified, 1, 0.9, false, refEvidence{}))
+	record(planRef(VerdictChainVerified, 1, 0.9, true, refEvidence{}))
 	written[stampTargetGone] = true // written by the apply loop, not by a plan
 
 	for stamp := range written {
@@ -145,14 +145,27 @@ func TestRejectThresholdIsIndependentOfAccept(t *testing.T) {
 }
 
 func TestRefWithTakenSlotIsVerifiedAsRelated(t *testing.T) {
+	ev := refEvidence{Corroborator: "vndb v1"}
 	for _, v := range []string{VerdictChainVerified, VerdictSame} {
-		assert.Equal(t, applyConfirmRelated, planRef(v, 1, 0.9, true).Action, v)
-		assert.Equal(t, applyConfirm, planRef(v, 1, 0.9, false).Action, v)
+		assert.Equal(t, applyConfirmRelated, planRef(v, 1, 0.9, true, ev).Action, v)
+		assert.Equal(t, applyConfirm, planRef(v, 1, 0.9, false, ev).Action, v)
 	}
 	// a taken slot does not lower the bar, and does not rescue a held verdict
-	assert.Equal(t, skipBelowConfidence, planRef(VerdictChainVerified, 0.5, 0.9, true).Skip)
-	assert.Equal(t, skipChainUnproven, planRef(VerdictChainUnproven, 1, 0.9, true).Skip)
-	assert.Equal(t, skipRefDifferent, planRef(VerdictDifferent, 1, 0.9, true).Skip)
+	assert.Equal(t, skipBelowConfidence, planRef(VerdictChainVerified, 0.5, 0.9, true, ev).Skip)
+	assert.Equal(t, skipChainUnproven, planRef(VerdictChainUnproven, 1, 0.9, true, ev).Skip)
+	assert.Equal(t, skipRefDifferent, planRef(VerdictDifferent, 1, 0.9, true, ev).Skip)
+}
+
+// The gate is structural on purpose: by ref-v2 the confidence number had
+// stopped separating anything, 650 of 796 same verdicts landing on exactly
+// 1.00. A confirm at 1.00 with nothing corroborating it is held; a chain
+// verdict carries its own upstream join and is not held.
+func TestSameRefNeedsACorroborator(t *testing.T) {
+	assert.Equal(t, skipUncorroborated, planRef(VerdictSame, 1, 0.9, false, refEvidence{}).Skip)
+	assert.Equal(t, skipNoCorroborator, planRef(VerdictSame, 1, 0.9, false, refEvidence{Unavailable: true}).Skip)
+	assert.Equal(t, applyConfirm, planRef(VerdictSame, 1, 0.9, false, refEvidence{Corroborator: "vndb v1"}).Action)
+	assert.Equal(t, applyConfirm, planRef(VerdictChainVerified, 1, 0.9, false, refEvidence{}).Action)
+	assert.Equal(t, applyConfirmRelated, planRef(VerdictRelated, 0, 0.9, false, refEvidence{}).Action)
 }
 
 func TestApplySelectionIsWiderThanEitherBar(t *testing.T) {

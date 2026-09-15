@@ -84,7 +84,7 @@ func TestApplyRejectsAnUnsurePairOnARefContradiction(t *testing.T) {
 	mkRef(hltbB, hltb, "200")
 	mkPair(hltbA, hltbB, VerdictUnsure, 0, "hash-hltb")
 
-	st, err := RunApply(t.Context(), db, testQueueService(db), Options{
+	st, err := RunApply(t.Context(), db, StagingDBs{}, testQueueService(db), Options{
 		Queue: QueueWorkPair, Actor: 1, MinConfidence: 0.9, MinConfidenceReject: 0.7,
 	})
 	require.NoError(t, err)
@@ -154,7 +154,7 @@ func TestApplyReJudgesARowStampedByAVanishedRule(t *testing.T) {
 		AppliedAction: "excluded_conflicting_refs",
 	}).Error)
 
-	st, err := RunApply(t.Context(), db, testQueueService(db), Options{
+	st, err := RunApply(t.Context(), db, StagingDBs{}, testQueueService(db), Options{
 		Queue: QueueWorkPair, Actor: 1, MinConfidence: 0.9, MinConfidenceReject: 0.7,
 	})
 	require.NoError(t, err)
@@ -173,7 +173,7 @@ func TestApplyReJudgesARowStampedByAVanishedRule(t *testing.T) {
 	assert.Equal(t, stampRefConflict, got.Action, "the stamp write must not still guard on emptiness")
 
 	// and a row carrying a stamp this package does write stays done
-	st, err = RunApply(t.Context(), db, testQueueService(db), Options{
+	st, err = RunApply(t.Context(), db, StagingDBs{}, testQueueService(db), Options{
 		Queue: QueueWorkPair, Actor: 1, MinConfidence: 0.9, MinConfidenceReject: 0.7,
 	})
 	require.NoError(t, err)
@@ -226,7 +226,7 @@ func TestApplyIgnoresAVerdictFromARetiredPrompt(t *testing.T) {
 	mkVerdict("workpair-v1", VerdictSame, "hash-retired")
 	mkVerdict(PromptWorkPair, VerdictDifferent, "hash-current")
 
-	st, err := RunApply(t.Context(), db, testQueueService(db), Options{
+	st, err := RunApply(t.Context(), db, StagingDBs{}, testQueueService(db), Options{
 		Queue: QueueWorkPair, Actor: 1, MinConfidence: 0.9, MinConfidenceReject: 0.7,
 	})
 	require.NoError(t, err)
