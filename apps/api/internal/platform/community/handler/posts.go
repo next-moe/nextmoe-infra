@@ -19,7 +19,7 @@ func (s *Server) resolvePosts(ctx context.Context, in *resolvePostsInput) (*reso
 	if he != nil {
 		return nil, he
 	}
-	ids, he := dedupePostIDs(in.Body.IDs)
+	ids, he := dedupeIDs(in.Body.IDs)
 	if he != nil {
 		return nil, he
 	}
@@ -32,7 +32,7 @@ func (s *Server) resolvePosts(ctx context.Context, in *resolvePostsInput) (*reso
 	})}, nil
 }
 
-func dedupePostIDs(ids []int64) ([]int64, *houseError) {
+func dedupeIDs(ids []int64) ([]int64, *houseError) {
 	if len(ids) > 100 {
 		return nil, apiErrMsg(http.StatusUnprocessableEntity, errors.ErrValidationFailed, "too many ids (max 100)")
 	}

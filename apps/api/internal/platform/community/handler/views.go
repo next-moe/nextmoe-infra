@@ -78,6 +78,45 @@ func toThreadViewsWithOpening(threads []model.CommunityThread, metas map[int64]r
 	return out
 }
 
+func toThreadUserView(st *repository.ThreadUserState) dto.ThreadUserView {
+	return dto.ThreadUserView{
+		ThreadID: st.ThreadID, UserID: st.UserID,
+		LastReadPostNumber: st.LastReadPostNumber, HighestPostNumber: st.HighestPostNumber,
+		UnreadCount: st.UnreadCount, NotificationLevel: st.NotificationLevel,
+	}
+}
+
+func toThreadUserViews(states []repository.ThreadUserState) []dto.ThreadUserView {
+	out := make([]dto.ThreadUserView, len(states))
+	for i := range states {
+		out[i] = toThreadUserView(&states[i])
+	}
+	return out
+}
+
+func toUnreadThreadViews(rows []repository.UnreadThreadRow, userID int64) []dto.UnreadThreadView {
+	out := make([]dto.UnreadThreadView, len(rows))
+	for i := range rows {
+		row := &rows[i]
+		out[i] = dto.UnreadThreadView{
+			Thread: toThreadView(&row.CommunityThread),
+			State: dto.ThreadUserView{
+				ThreadID: row.ID, UserID: userID,
+				LastReadPostNumber: row.LastReadPostNumber, HighestPostNumber: row.HighestPostNumber,
+				UnreadCount: row.UnreadCount, NotificationLevel: row.NotificationLevel,
+			},
+		}
+	}
+	return out
+}
+
+func unreadPageCursor(rows []repository.UnreadThreadRow, limit int) string {
+	if len(rows) < limit || len(rows) == 0 {
+		return ""
+	}
+	return encodeThreadCursor(&rows[len(rows)-1].CommunityThread, repository.ThreadSortActivity)
+}
+
 func toTrustView(t *model.CommunityTrust) dto.TrustView {
 	return dto.TrustView{
 		UserID: t.UserID, Level: t.Level,
@@ -107,10 +146,21 @@ func toReviewItemViews(items []repository.ReviewItemRow) []dto.ReviewItemView {
 	return out
 }
 
-func encodeThreadCursor(t *model.CommunityThread) string {
-	head := "n"
-	if t.LastPostedAt != nil {
-		head = strconv.FormatInt(t.LastPostedAt.UnixNano(), 10)
+// A thread cursor carries the sort key the page ended on. The activity shape is
+// two parts ("<nanos>|n:<id>") and predates the other sorts, so it stays
+// tagless — cursors minted before this face gained `sort` keep working.
+func encodeThreadCursor(t *model.CommunityThread, sort repository.ThreadSort) string {
+	var head string
+	switch sort {
+	case repository.ThreadSortCreated:
+		head = "c:" + strconv.FormatInt(t.CreatedAt.UnixNano(), 10)
+	case repository.ThreadSortPosts:
+		head = "p:" + strconv.FormatInt(int64(t.PostsCount), 10)
+	default:
+		head = "n"
+		if t.LastPostedAt != nil {
+			head = strconv.FormatInt(t.LastPostedAt.UnixNano(), 10)
+		}
 	}
 	return base64.RawURLEncoding.EncodeToString([]byte(head + ":" + strconv.FormatInt(t.ID, 10)))
 }
@@ -123,22 +173,99 @@ func decodeThreadCursor(s string) (repository.ThreadCursor, error) {
 	if err != nil {
 		return repository.ThreadCursor{}, err
 	}
-	head, idStr, ok := strings.Cut(string(raw), ":")
-	if !ok {
+	parts := strings.Split(string(raw), ":")
+	switch len(parts) {
+	case 2:
+		return decodeActivityCursor(parts[0], parts[1])
+	case 3:
+		return decodeSortedCursor(parts[0], parts[1], parts[2])
+	default:
 		return repository.ThreadCursor{}, stderrors.New("bad cursor arity")
 	}
+}
+
+func decodeActivityCursor(head, idStr string) (repository.ThreadCursor, error) {
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		return repository.ThreadCursor{}, err
 	}
 	if head == "n" {
-		return repository.ThreadCursor{LastPostedNull: true, ID: id}, nil
+		return repository.ThreadCursor{Sort: repository.ThreadSortActivity, LastPostedNull: true, ID: id}, nil
 	}
 	nano, err := strconv.ParseInt(head, 10, 64)
 	if err != nil {
 		return repository.ThreadCursor{}, err
 	}
-	return repository.ThreadCursor{LastPosted: time.Unix(0, nano), ID: id}, nil
+	return repository.ThreadCursor{Sort: repository.ThreadSortActivity, LastPosted: time.Unix(0, nano), ID: id}, nil
+}
+
+func decodeSortedCursor(tag, key, idStr string) (repository.ThreadCursor, error) {
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		return repository.ThreadCursor{}, err
+	}
+	n, err := strconv.ParseInt(key, 10, 64)
+	if err != nil {
+		return repository.ThreadCursor{}, err
+	}
+	switch tag {
+	case "c":
+		return repository.ThreadCursor{Sort: repository.ThreadSortCreated, Created: time.Unix(0, n), ID: id}, nil
+	case "p":
+		return repository.ThreadCursor{Sort: repository.ThreadSortPosts, PostsCount: int32(n), ID: id}, nil
+	default:
+		return repository.ThreadCursor{}, stderrors.New("unknown cursor sort")
+	}
+}
+
+func parseThreadSort(raw string) (repository.ThreadSort, bool) {
+	switch repository.ThreadSort(raw) {
+	case "":
+		return repository.ThreadSortActivity, true
+	case repository.ThreadSortActivity:
+		return repository.ThreadSortActivity, true
+	case repository.ThreadSortCreated:
+		return repository.ThreadSortCreated, true
+	case repository.ThreadSortPosts:
+		return repository.ThreadSortPosts, true
+	default:
+		return "", false
+	}
+}
+
+func encodePostCursor(row *repository.AuthorPostRow) string {
+	return base64.RawURLEncoding.EncodeToString([]byte(
+		strconv.FormatInt(row.CreatedAt.UnixNano(), 10) + ":" + strconv.FormatInt(row.ID, 10)))
+}
+
+func decodePostCursor(s string) (repository.TimeCursor, error) {
+	if s == "" {
+		return repository.TimeCursor{}, nil
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(s)
+	if err != nil {
+		return repository.TimeCursor{}, err
+	}
+	nanoStr, idStr, ok := strings.Cut(string(raw), ":")
+	if !ok {
+		return repository.TimeCursor{}, stderrors.New("bad cursor arity")
+	}
+	nano, err := strconv.ParseInt(nanoStr, 10, 64)
+	if err != nil {
+		return repository.TimeCursor{}, err
+	}
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		return repository.TimeCursor{}, err
+	}
+	return repository.TimeCursor{CreatedAt: time.Unix(0, nano), ID: id}, nil
+}
+
+func postFeedPageCursor(rows []repository.AuthorPostRow, limit int) string {
+	if len(rows) < limit || len(rows) == 0 {
+		return ""
+	}
+	return encodePostCursor(&rows[len(rows)-1])
 }
 
 func postsPageCursor(posts []dto.PostView, limit int) string {
@@ -148,9 +275,9 @@ func postsPageCursor(posts []dto.PostView, limit int) string {
 	return fmt.Sprintf("%d", posts[len(posts)-1].PostNumber)
 }
 
-func threadsPageCursor(threads []model.CommunityThread, limit int) string {
+func threadsPageCursor(threads []model.CommunityThread, sort repository.ThreadSort, limit int) string {
 	if len(threads) < limit || len(threads) == 0 {
 		return ""
 	}
-	return encodeThreadCursor(&threads[len(threads)-1])
+	return encodeThreadCursor(&threads[len(threads)-1], sort)
 }

@@ -64,30 +64,79 @@ func getLiveCommentsThread(db *gorm.DB, site string, anchorKind int16, anchorID 
 	return &t, nil
 }
 
+// ThreadSort names the orderings the site thread list can be read in. The key
+// is part of the cursor (see the handler's codec): a cursor minted under one
+// sort cannot be replayed under another.
+type ThreadSort string
+
+const (
+	ThreadSortActivity ThreadSort = "activity"
+	ThreadSortCreated  ThreadSort = "created"
+	ThreadSortPosts    ThreadSort = "posts"
+)
+
+// ThreadCursor carries whichever sort key the page ended on; ID == 0 means
+// "first page". Only the field matching Sort is populated.
 type ThreadCursor struct {
+	Sort           ThreadSort
 	LastPostedNull bool
 	LastPosted     time.Time
+	Created        time.Time
+	PostsCount     int32
 	ID             int64
 }
 
-func (r *ThreadRepository) ListBySite(site string, kind int16, anchorKind int16, anchorID string, cursor ThreadCursor, limit int) ([]model.CommunityThread, error) {
-	q := r.db.Where("site = ? AND kind = ?", site, kind)
-	if anchorID != "" {
-		q = q.Where("anchor_kind = ? AND anchor_id = ?", anchorKind, anchorID)
+type ThreadListQuery struct {
+	Site       string
+	Kind       int16
+	AnchorKind int16
+	AnchorID   string
+	Sort       ThreadSort
+	HasPosts   bool
+	Cursor     ThreadCursor
+	Limit      int
+}
+
+func (r *ThreadRepository) List(q ThreadListQuery) ([]model.CommunityThread, error) {
+	db := r.db.Where("site = ? AND kind = ?", q.Site, q.Kind)
+	if q.AnchorID != "" {
+		db = db.Where("anchor_kind = ? AND anchor_id = ?", q.AnchorKind, q.AnchorID)
 	}
-	if cursor != (ThreadCursor{}) {
-		if cursor.LastPostedNull {
-			q = q.Where("last_posted_at IS NULL AND id < ?", cursor.ID)
-		} else {
-			q = q.Where(
-				"last_posted_at IS NULL OR last_posted_at < ? OR (last_posted_at = ? AND id < ?)",
-				cursor.LastPosted, cursor.LastPosted, cursor.ID,
-			)
-		}
+	if q.HasPosts {
+		db = db.Where("posts_count > 0")
 	}
+	db = orderThreads(db, q.Sort, q.Cursor)
+
 	var rows []model.CommunityThread
-	err := q.Order("last_posted_at DESC NULLS LAST, id DESC").Limit(limit).Find(&rows).Error
+	err := db.Limit(q.Limit).Find(&rows).Error
 	return rows, err
+}
+
+func orderThreads(db *gorm.DB, sort ThreadSort, cursor ThreadCursor) *gorm.DB {
+	switch sort {
+	case ThreadSortCreated:
+		if cursor.ID != 0 {
+			db = db.Where("created_at < ? OR (created_at = ? AND id < ?)", cursor.Created, cursor.Created, cursor.ID)
+		}
+		return db.Order("created_at DESC, id DESC")
+	case ThreadSortPosts:
+		if cursor.ID != 0 {
+			db = db.Where("posts_count < ? OR (posts_count = ? AND id < ?)", cursor.PostsCount, cursor.PostsCount, cursor.ID)
+		}
+		return db.Order("posts_count DESC, id DESC")
+	default:
+		if cursor.ID != 0 {
+			if cursor.LastPostedNull {
+				db = db.Where("last_posted_at IS NULL AND id < ?", cursor.ID)
+			} else {
+				db = db.Where(
+					"last_posted_at IS NULL OR last_posted_at < ? OR (last_posted_at = ? AND id < ?)",
+					cursor.LastPosted, cursor.LastPosted, cursor.ID,
+				)
+			}
+		}
+		return db.Order("last_posted_at DESC NULLS LAST, id DESC")
+	}
 }
 
 type OpeningPostMeta struct {

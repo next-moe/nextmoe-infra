@@ -99,6 +99,8 @@ func main() {
 	trustSvc := service.NewTrustService(communityDB.DB())
 	reviewSvc := service.NewReviewService(communityDB.DB(), sink)
 	callbackSvc := service.NewCallbackService(communityDB.DB())
+	engagementSvc := service.NewEngagementService(communityDB.DB())
+	searchSvc := service.NewSearchService(communityDB.DB())
 
 	application.Fiber.Use(middleware.RequestID())
 	application.Fiber.Use(middleware.Logger())
@@ -112,7 +114,10 @@ func main() {
 	clientRepo := siteRepo.NewOAuthClientRepository(application.DB.DB())
 	application.Fiber.Use("/api/v1/community", commHandler.S2SAuth(clientRepo))
 
-	api := commHandler.Setup(application.Fiber, threadSvc, postSvc, reactionSvc, feedbackSvc, flagSvc, trustSvc, reviewSvc)
+	api := commHandler.Setup(application.Fiber, commHandler.Services{
+		Threads: threadSvc, Posts: postSvc, Reactions: reactionSvc, Feedback: feedbackSvc,
+		Flags: flagSvc, Trust: trustSvc, Review: reviewSvc, Engagement: engagementSvc, Search: searchSvc,
+	})
 
 	go runOutboxTicker(ctx, forwardSvc)
 

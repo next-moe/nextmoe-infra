@@ -9,6 +9,7 @@ import (
 
 	"api/internal/platform/community/dto"
 	"api/internal/platform/community/model"
+	"api/internal/platform/community/repository"
 	"api/internal/platform/community/service"
 	"api/pkg/errors"
 
@@ -21,16 +22,32 @@ import (
 const defaultPageLimit = 50
 
 type Server struct {
-	threads   *service.ThreadService
-	posts     *service.PostService
-	reactions *service.ReactionService
-	feedback  *service.FeedbackService
-	flags     *service.FlagService
-	trust     *service.TrustService
-	review    *service.ReviewService
+	threads    *service.ThreadService
+	posts      *service.PostService
+	reactions  *service.ReactionService
+	feedback   *service.FeedbackService
+	flags      *service.FlagService
+	trust      *service.TrustService
+	review     *service.ReviewService
+	engagement *service.EngagementService
+	search     *service.SearchService
 }
 
-func Setup(app *fiber.App, threads *service.ThreadService, posts *service.PostService, reactions *service.ReactionService, feedback *service.FeedbackService, flags *service.FlagService, trust *service.TrustService, review *service.ReviewService) huma.API {
+// Services is what the S2S face is wired from; the spec generator passes an
+// empty one, since registering the routes never touches a service.
+type Services struct {
+	Threads    *service.ThreadService
+	Posts      *service.PostService
+	Reactions  *service.ReactionService
+	Feedback   *service.FeedbackService
+	Flags      *service.FlagService
+	Trust      *service.TrustService
+	Review     *service.ReviewService
+	Engagement *service.EngagementService
+	Search     *service.SearchService
+}
+
+func Setup(app *fiber.App, svc Services) huma.API {
 	InstallErrorEnvelope()
 
 	cfg := huma.DefaultConfig("KUN Community Service", "1.0.0")
@@ -41,7 +58,10 @@ func Setup(app *fiber.App, threads *service.ThreadService, posts *service.PostSe
 	api := humafiber.New(app, cfg)
 	api.UseMiddleware(S2SBridge)
 
-	s := &Server{threads: threads, posts: posts, reactions: reactions, feedback: feedback, flags: flags, trust: trust, review: review}
+	s := &Server{
+		threads: svc.Threads, posts: svc.Posts, reactions: svc.Reactions, feedback: svc.Feedback,
+		flags: svc.Flags, trust: svc.Trust, review: svc.Review, engagement: svc.Engagement, search: svc.Search,
+	}
 	s.register(api)
 	return api
 }
@@ -58,10 +78,16 @@ func (s *Server) register(api huma.API) {
 		Summary: "Get a thread with a page of posts", Tags: read}, s.getThread)
 	huma.Register(api, huma.Operation{OperationID: "listPosts", Method: http.MethodGet, Path: "/api/v1/community/threads/{id}/posts",
 		Summary: "List a thread's posts (keyset by post_number)", Tags: read}, s.listPosts)
+	huma.Register(api, huma.Operation{OperationID: "listSitePosts", Method: http.MethodGet, Path: "/api/v1/community/posts",
+		Summary: "List the site's newest posts across every thread (keyset by post creation time)", Tags: read}, s.listSitePosts)
 	huma.Register(api, huma.Operation{OperationID: "listAuthorPosts", Method: http.MethodGet, Path: "/api/v1/community/authors/{id}/posts",
 		Summary: "List a site author's visible posts across threads (keyset by post id, newest first) with thread context", Tags: read}, s.listAuthorPosts)
 	huma.Register(api, huma.Operation{OperationID: "authorStats", Method: http.MethodGet, Path: "/api/v1/community/authors/stats",
 		Summary: "Batch visible-post counts for a site's authors", Tags: read}, s.authorStats)
+	huma.Register(api, huma.Operation{OperationID: "searchPosts", Method: http.MethodGet, Path: "/api/v1/community/search/posts",
+		Summary: "Search the site's visible posts by substring of their markdown source", Tags: read}, s.searchPosts)
+	huma.Register(api, huma.Operation{OperationID: "searchThreads", Method: http.MethodGet, Path: "/api/v1/community/search/threads",
+		Summary: "Search the site's threads by substring of their title", Tags: read}, s.searchThreads)
 	huma.Register(api, huma.Operation{OperationID: "resolvePosts", Method: http.MethodPost, Path: "/api/v1/community/posts/resolve",
 		Summary: "Resolve a batch of posts by id (visible only, request order, deduped) with thread context", Tags: read}, s.resolvePosts)
 
@@ -85,6 +111,16 @@ func (s *Server) register(api huma.API) {
 		Summary: "Merge a duplicate feedback thread into another (reversible)", Tags: write}, s.mergeFeedback)
 	huma.Register(api, huma.Operation{OperationID: "purgeAuthor", Method: http.MethodPost, Path: "/api/v1/community/authors/{id}/purge",
 		Summary: "Compliance purge: tombstone + scrub all of a site author's posts and delete their reactions (idempotent)", Tags: write}, s.purgeAuthor)
+
+	engagement := []string{"community-engagement"}
+	huma.Register(api, huma.Operation{OperationID: "markThreadRead", Method: http.MethodPost, Path: "/api/v1/community/threads/{id}/read",
+		Summary: "Report how far a user has read a thread (monotonic; creates the sparse thread_user row)", Tags: engagement}, s.markThreadRead)
+	huma.Register(api, huma.Operation{OperationID: "setThreadNotification", Method: http.MethodPost, Path: "/api/v1/community/threads/{id}/notification",
+		Summary: "Set a user's notification level for a thread (0=muted 1=normal 2=tracking 3=watching)", Tags: engagement}, s.setThreadNotification)
+	huma.Register(api, huma.Operation{OperationID: "threadStates", Method: http.MethodPost, Path: "/api/v1/community/threads/states",
+		Summary: "Batch read/subscription state for a user over a set of threads", Tags: engagement}, s.threadStates)
+	huma.Register(api, huma.Operation{OperationID: "listUnread", Method: http.MethodGet, Path: "/api/v1/community/users/{id}/unread",
+		Summary: "List a user's threads carrying unread posts (muted excluded), newest activity first", Tags: engagement}, s.listUnread)
 
 	trust := []string{"community-trust"}
 	review := []string{"community-review"}
@@ -131,7 +167,9 @@ type listThreadsInput struct {
 	Kind       int16  `query:"kind" doc:"0=topic 1=comments 2=feedback"`
 	AnchorKind int16  `query:"anchor_kind" doc:"anchor kind for the optional anchor filter (only used when anchor_id is set)"`
 	AnchorID   string `query:"anchor_id" doc:"optional: narrow to a single anchor (e.g. a resource's feedback wall); empty = the whole site"`
-	Cursor     string `query:"cursor" doc:"opaque cursor from the previous page"`
+	Sort       string `query:"sort" default:"activity" enum:"activity,created,posts" doc:"activity (newest activity) | created (newest thread) | posts (most replies; a mutable key, so a row can move between pages)"`
+	HasPosts   bool   `query:"has_posts" doc:"only threads that hold at least one post; a comments thread is created on first view, so most carry none"`
+	Cursor     string `query:"cursor" doc:"opaque cursor from the previous page; it is bound to the sort that minted it"`
 	Limit      int    `query:"limit" doc:"page size (max 100, default 50)"`
 }
 type threadListOutput struct {
@@ -143,12 +181,19 @@ func (s *Server) listThreads(ctx context.Context, in *listThreadsInput) (*thread
 	if he != nil {
 		return nil, he
 	}
+	sort, ok := parseThreadSort(in.Sort)
+	if !ok {
+		return nil, apiErrMsg(http.StatusBadRequest, errors.ErrInvalidParam, "unknown sort")
+	}
 	cursor, err := decodeThreadCursor(in.Cursor)
-	if err != nil {
+	if err != nil || (cursor.ID != 0 && cursor.Sort != sort) {
 		return nil, apiErrMsg(http.StatusBadRequest, errors.ErrInvalidParam, "malformed cursor")
 	}
 	limit := clampLimit(in.Limit)
-	threads, err := s.threads.ListBySite(site, in.Kind, in.AnchorKind, in.AnchorID, cursor, limit)
+	threads, err := s.threads.List(repository.ThreadListQuery{
+		Site: site, Kind: in.Kind, AnchorKind: in.AnchorKind, AnchorID: in.AnchorID,
+		Sort: sort, HasPosts: in.HasPosts, Cursor: cursor, Limit: limit,
+	})
 	if err != nil {
 		return nil, mapErr("list threads", err)
 	}
@@ -161,7 +206,7 @@ func (s *Server) listThreads(ctx context.Context, in *listThreadsInput) (*thread
 		return nil, mapErr("list threads openings", err)
 	}
 	return &threadListOutput{Body: okEnvelope(dto.ThreadListResponse{
-		Threads: toThreadViewsWithOpening(threads, metas), NextCursor: threadsPageCursor(threads, limit),
+		Threads: toThreadViewsWithOpening(threads, metas), NextCursor: threadsPageCursor(threads, sort, limit),
 	})}, nil
 }
 
@@ -511,6 +556,10 @@ func mapErr(op string, err error) *houseError {
 		return apiErr(http.StatusNotFound, errors.ErrNotFound)
 	case stderrors.Is(err, service.ErrThreadNotOpen):
 		return apiErrMsg(http.StatusConflict, errors.ErrOperationFailed, "thread is not open")
+	case stderrors.Is(err, service.ErrInvalidSearchQuery):
+		return apiErrMsg(http.StatusBadRequest, errors.ErrInvalidParam, "search query must be 2-100 characters")
+	case stderrors.Is(err, service.ErrInvalidNotificationLevel):
+		return apiErrMsg(http.StatusBadRequest, errors.ErrInvalidParam, "notification level out of range")
 	case stderrors.Is(err, service.ErrNotFeedback):
 		return apiErrMsg(http.StatusBadRequest, errors.ErrInvalidParam, "thread is not a feedback thread")
 	case stderrors.Is(err, service.ErrNotAuthor):

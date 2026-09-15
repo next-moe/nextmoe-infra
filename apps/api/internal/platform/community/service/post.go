@@ -139,6 +139,9 @@ func (s *PostService) Reply(ctx context.Context, p ReplyParams) (*model.Communit
 		if err := repository.CreatePostTx(tx, &post); err != nil {
 			return err
 		}
+		if err := repository.EnsureSubscribedTx(tx, p.ThreadID, p.AuthorID, post.PostNumber); err != nil {
+			return err
+		}
 		if held {
 			itemID, created, err := repository.EnqueueReviewIfAbsentTx(tx, thread.Site, post.ID, model.ReviewSourceFirstPostHold)
 			if err != nil {

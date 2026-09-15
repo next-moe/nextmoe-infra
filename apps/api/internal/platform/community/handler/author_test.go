@@ -229,6 +229,17 @@ func TestAuthorPurge(t *testing.T) {
 	if res.Body.Data.PostsPurged != 3 || res.Body.Data.ReactionsDeleted != 2 {
 		t.Fatalf("purge counts: want {3,2}, got {%d,%d}", res.Body.Data.PostsPurged, res.Body.Data.ReactionsDeleted)
 	}
+	// Posting subscribed 500 to the thread, so the purge has a read-state row to
+	// clear; leaving it would keep a record of which threads they opened.
+	if res.Body.Data.ReadStatesDeleted != 1 {
+		t.Fatalf("purge must clear the author's read state, got %d", res.Body.Data.ReadStatesDeleted)
+	}
+	if n := countReadStates(t, 500); n != 0 {
+		t.Fatalf("author 500 read states must be gone, got %d", n)
+	}
+	if n := countReadStates(t, 600); n != 1 {
+		t.Fatalf("another author's read state must survive, got %d", n)
+	}
 
 	for _, id := range posts {
 		p := getPostRow(t, id)
@@ -253,9 +264,20 @@ func TestAuthorPurge(t *testing.T) {
 	if err != nil {
 		t.Fatalf("purge again: %v", err)
 	}
-	if again.Body.Data.PostsPurged != 0 || again.Body.Data.ReactionsDeleted != 0 {
-		t.Fatalf("second purge must be 0/0, got {%d,%d}", again.Body.Data.PostsPurged, again.Body.Data.ReactionsDeleted)
+	if again.Body.Data.PostsPurged != 0 || again.Body.Data.ReactionsDeleted != 0 || again.Body.Data.ReadStatesDeleted != 0 {
+		t.Fatalf("second purge must be 0/0/0, got {%d,%d,%d}",
+			again.Body.Data.PostsPurged, again.Body.Data.ReactionsDeleted, again.Body.Data.ReadStatesDeleted)
 	}
+}
+
+func countReadStates(t *testing.T, userID int64) int64 {
+	t.Helper()
+	var n int64
+	if err := testDB.Raw(
+		`SELECT count(*) FROM community_thread_user WHERE user_id = ?`, userID).Scan(&n).Error; err != nil {
+		t.Fatalf("count read states: %v", err)
+	}
+	return n
 }
 
 func TestAuthorCrossTenant(t *testing.T) {
