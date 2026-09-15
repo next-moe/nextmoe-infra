@@ -34,6 +34,7 @@ had to be rebuilt by hand.
 | job | schedule (CST, as written in crontab) | = UTC | deadman limit |
 |---|---|---|---|
 | bgm-refresh | Wed 11:00 | Wed 03:00 | 192h |
+| crawler-restage | Sun 08:00 | Sun 00:00 | 192h |
 | vndb-refresh | Sun 17:30 | Sun 09:30 | 192h |
 | reindex-catalog | daily 06:10 | daily 22:10 (prev. day) | 48h |
 | intromt-nightly | daily 13:00 | daily 05:00 | 48h |
