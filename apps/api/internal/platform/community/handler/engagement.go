@@ -95,6 +95,6 @@ func (s *Server) listUnread(ctx context.Context, in *unreadListInput) (*unreadLi
 		return nil, mapErr("list unread", err)
 	}
 	return &unreadListOutput{Body: okEnvelope(dto.UnreadListResponse{
-		Threads: toUnreadThreadViews(rows), NextCursor: unreadPageCursor(rows, limit), Total: total,
+		Threads: toUnreadThreadViews(rows, in.ID), NextCursor: unreadPageCursor(rows, limit), Total: total,
 	})}, nil
 }

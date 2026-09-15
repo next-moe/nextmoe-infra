@@ -94,14 +94,14 @@ func toThreadUserViews(states []repository.ThreadUserState) []dto.ThreadUserView
 	return out
 }
 
-func toUnreadThreadViews(rows []repository.UnreadThreadRow) []dto.UnreadThreadView {
+func toUnreadThreadViews(rows []repository.UnreadThreadRow, userID int64) []dto.UnreadThreadView {
 	out := make([]dto.UnreadThreadView, len(rows))
 	for i := range rows {
 		row := &rows[i]
 		out[i] = dto.UnreadThreadView{
 			Thread: toThreadView(&row.CommunityThread),
 			State: dto.ThreadUserView{
-				ThreadID: row.ID, UserID: 0,
+				ThreadID: row.ID, UserID: userID,
 				LastReadPostNumber: row.LastReadPostNumber, HighestPostNumber: row.HighestPostNumber,
 				UnreadCount: row.UnreadCount, NotificationLevel: row.NotificationLevel,
 			},

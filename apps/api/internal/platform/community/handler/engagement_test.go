@@ -79,6 +79,9 @@ func TestEngagementHandlers_StampTheCallerSite(t *testing.T) {
 	if unread.Body.Data.Total != 1 || len(unread.Body.Data.Threads) != 1 {
 		t.Fatalf("the reader should have exactly one unread thread: %+v", unread.Body.Data)
 	}
+	if unread.Body.Data.Threads[0].State.UserID != 300 {
+		t.Fatalf("the listed state must name the reader it was asked about: %+v", unread.Body.Data.Threads[0].State)
+	}
 	if unread.Body.Data.Threads[0].State.UnreadCount != 1 {
 		t.Fatalf("unread count should be 1: %+v", unread.Body.Data.Threads[0].State)
 	}
