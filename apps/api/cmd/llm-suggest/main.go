@@ -103,7 +103,8 @@ func main() {
 			fmt.Fprintln(os.Stderr, "--actor <user-id> is required for --mode apply")
 			os.Exit(2)
 		}
-		st, err := llmsuggest.RunApply(ctx, catalogDB.DB(), adminQueue(catalogDB.DB()), opts)
+		up := llmsuggest.StagingDBs{EG: tryEG(cfg, *egDSN)}
+		st, err := llmsuggest.RunApply(ctx, catalogDB.DB(), up, adminQueue(catalogDB.DB()), opts)
 		fail(err)
 		fmt.Printf("apply queue=%s applied=%d counts=%v dry=%v\n", *queue, st.Applied, st.Counts, opts.DryRun)
 		if opts.DryRun {

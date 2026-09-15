@@ -33,8 +33,8 @@ func TestFanoutIsReleaseOnly(t *testing.T) {
 }
 
 func TestRelatedConfirmsWithoutAConfidenceBar(t *testing.T) {
-	assert.Equal(t, applyConfirmRelated, planRef(VerdictRelated, 1, 0.9, false).Action)
-	assert.Equal(t, applyConfirmRelated, planRef(VerdictRelated, 0, 0.9, false).Action,
+	assert.Equal(t, applyConfirmRelated, planRef(VerdictRelated, 1, 0.9, false, refEvidence{}).Action)
+	assert.Equal(t, applyConfirmRelated, planRef(VerdictRelated, 0, 0.9, false, refEvidence{}).Action,
 		"the fan-out lane counts rows, it does not estimate")
 	_, refVerdicts := applySelection(Options{Queue: QueueRef, MinConfidence: 0.9})
 	assert.Contains(t, refVerdicts, VerdictRelated)
@@ -101,13 +101,15 @@ func TestApplyLeavesNoMemberOfAFanoutGroupHoldingExact(t *testing.T) {
 		probable(id, "r900")
 		verdict(id, "r900", VerdictRelated, PromptFanout, 1)
 	}
-	// negative control: a singleton with an ordinary same verdict must still be
-	// promoted, or this change would simply have disabled ref confirmation
+	// negative control: a singleton must still be promoted, or this change would
+	// simply have disabled ref confirmation. chain-verified is what the chain
+	// lane writes for one: llmFamily excludes Release, so no release ref ever
+	// carries the same verdict that planRef now asks a corroborator about.
 	solo := mkRelease("standalone")
 	probable(solo, "r901")
-	verdict(solo, "r901", VerdictSame, PromptChain, 1)
+	verdict(solo, "r901", VerdictChainVerified, PromptChain, 1)
 
-	st, err := RunApply(t.Context(), db, testQueueService(db), Options{
+	st, err := RunApply(t.Context(), db, StagingDBs{}, testQueueService(db), Options{
 		Queue: QueueRef, Actor: 1, MinConfidence: 0.9,
 	})
 	require.NoError(t, err)

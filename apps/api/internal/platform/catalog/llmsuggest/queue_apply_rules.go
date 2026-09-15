@@ -31,6 +31,8 @@ const (
 	skipFrozenBothClaimed = "frozen_both_claimed"
 	skipRefDifferent      = "skipped_different_held_for_human"
 	skipChainUnproven     = "skipped_chain_unproven"
+	skipUncorroborated    = "skipped_uncorroborated"
+	skipNoCorroborator    = "skipped_corroborator_unavailable"
 	skipGoldQueue         = "skipped_gold_queue"
 	skipUnknownVerdict    = "skipped_unknown_verdict"
 
@@ -248,16 +250,26 @@ func planWorkPair(verdict string, conf, minAccept, minReject float64, s workPair
 // no exact action — 10,684 of the 16,654 rows in the queue on 2026-09-14, every
 // one chain-verified at confidence >= 0.90. Verifying them as related records
 // the judgement without claiming the slot.
-func planRef(verdict string, conf, min float64, slotTaken bool) applyPlan {
+func planRef(verdict string, conf, min float64, slotTaken bool, ev refEvidence) applyPlan {
 	switch verdict {
-	case VerdictChainVerified, VerdictSame:
+	case VerdictSame:
 		if conf < min {
 			return applyPlan{Skip: skipBelowConfidence}
 		}
-		if slotTaken {
-			return applyPlan{Action: applyConfirmRelated}
+		switch {
+		case ev.Unavailable:
+			return applyPlan{Skip: skipNoCorroborator}
+		case !ev.ok():
+			return applyPlan{Skip: skipUncorroborated}
 		}
-		return applyPlan{Action: applyConfirm}
+		return confirmPlan(slotTaken, "corroborated by "+ev.Corroborator)
+	case VerdictChainVerified:
+		// The chain lane proved this row against an upstream join before it
+		// ever wrote a verdict, so its evidence is the verdict.
+		if conf < min {
+			return applyPlan{Skip: skipBelowConfidence}
+		}
+		return confirmPlan(slotTaken, "")
 	case VerdictRelated:
 		// No confidence gate: the fan-out lane counts rows, it does not estimate.
 		return applyPlan{Action: applyConfirmRelated}
@@ -270,4 +282,11 @@ func planRef(verdict string, conf, min float64, slotTaken bool) applyPlan {
 	default:
 		return applyPlan{Skip: skipUnknownVerdict}
 	}
+}
+
+func confirmPlan(slotTaken bool, reason string) applyPlan {
+	if slotTaken {
+		return applyPlan{Action: applyConfirmRelated, Reason: reason}
+	}
+	return applyPlan{Action: applyConfirm, Reason: reason}
 }

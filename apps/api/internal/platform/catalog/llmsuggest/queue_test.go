@@ -72,18 +72,18 @@ func TestVerdictActionMapping(t *testing.T) {
 }
 
 func TestNeverRejectRef(t *testing.T) {
-	p := planRef(VerdictDifferent, 1, 0.9, false)
+	p := planRef(VerdictDifferent, 1, 0.9, false, refEvidence{})
 	assert.NotEqual(t, applyReject, p.Action)
 	assert.NotEqual(t, applyConfirm, p.Action)
 	assert.Equal(t, skipRefDifferent, p.Skip)
 
-	p = planRef(VerdictSame, 0.95, 0.9, false)
+	p = planRef(VerdictSame, 0.95, 0.9, false, refEvidence{Corroborator: "vndb v1"})
 	assert.Equal(t, applyConfirm, p.Action)
-	p = planRef(VerdictChainVerified, 1, 0.9, false)
+	p = planRef(VerdictChainVerified, 1, 0.9, false, refEvidence{})
 	assert.Equal(t, applyConfirm, p.Action)
-	p = planRef(VerdictChainUnproven, 0, 0.9, false)
+	p = planRef(VerdictChainUnproven, 0, 0.9, false, refEvidence{})
 	assert.Equal(t, skipChainUnproven, p.Skip)
-	p = planRef(VerdictUnsure, 1, 0.9, false)
+	p = planRef(VerdictUnsure, 1, 0.9, false, refEvidence{})
 	assert.Equal(t, skipUnsure, p.Skip)
 }
 
@@ -110,10 +110,10 @@ func TestGoldQueueSuffixIsolation(t *testing.T) {
 }
 
 func TestApplyRefusesGoldQueue(t *testing.T) {
-	_, err := RunApply(t.Context(), nil, nil, Options{Queue: goldQueue(QueueRef), Actor: 1})
+	_, err := RunApply(t.Context(), nil, StagingDBs{}, nil, Options{Queue: goldQueue(QueueRef), Actor: 1})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "refuses")
-	_, err = RunApply(t.Context(), nil, nil, Options{Queue: "nope", Actor: 1})
+	_, err = RunApply(t.Context(), nil, StagingDBs{}, nil, Options{Queue: "nope", Actor: 1})
 	require.Error(t, err)
 }
 

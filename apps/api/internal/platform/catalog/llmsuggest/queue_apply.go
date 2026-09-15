@@ -18,7 +18,7 @@ type ApplyStats struct {
 	Counts  map[string]int
 }
 
-func RunApply(ctx context.Context, db *gorm.DB, queues *service.AdminQueueService, opts Options) (ApplyStats, error) {
+func RunApply(ctx context.Context, db *gorm.DB, up StagingDBs, queues *service.AdminQueueService, opts Options) (ApplyStats, error) {
 	if !isLiveQueue(opts.Queue) || isGoldQueue(opts.Queue) {
 		return ApplyStats{}, fmt.Errorf("apply refuses queue %q", opts.Queue)
 	}
@@ -56,10 +56,17 @@ func RunApply(ctx context.Context, db *gorm.DB, queues *service.AdminQueueServic
 		}
 	}
 	holders := map[string]int64{}
+	evidence := map[int64]refEvidence{}
 	if opts.Queue == QueueRef {
 		var err error
-		holders, err = exactSlotHolders(db, rows)
+		if holders, err = exactSlotHolders(db, rows); err != nil {
+			return ApplyStats{}, err
+		}
+		reg, err := loadSourceReg(db)
 		if err != nil {
+			return ApplyStats{}, err
+		}
+		if evidence, err = refCorroboration(db, up.EG, reg, rows); err != nil {
 			return ApplyStats{}, err
 		}
 	}
@@ -67,7 +74,7 @@ func RunApply(ctx context.Context, db *gorm.DB, queues *service.AdminQueueServic
 	st := &tally{}
 	for _, row := range rows {
 		h, held := holders[exactSlotKey(row.EntityType, row.SourceID, row.ExternalID)]
-		plan := planFor(opts.Queue, row, sides, opts, held && h != row.EntityID)
+		plan := planFor(opts.Queue, row, sides, opts, held && h != row.EntityID, evidence[row.ID])
 		if plan.Skip != "" {
 			st.add(plan.Skip, 1)
 			if opts.DryRun {
@@ -135,7 +142,7 @@ func applySelection(opts Options) (minConf float64, verdicts []string) {
 	}
 }
 
-func planFor(queue string, row QueueVerdict, sides map[int64]workPairSides, opts Options, slotTaken bool) applyPlan {
+func planFor(queue string, row QueueVerdict, sides map[int64]workPairSides, opts Options, slotTaken bool, ev refEvidence) applyPlan {
 	switch queue {
 	case QueueCreditName:
 		return planCreditName(row.Verdict, row.Confidence, opts.MinConfidence, opts.MinConfidenceReject)
@@ -151,7 +158,7 @@ func planFor(queue string, row QueueVerdict, sides map[int64]workPairSides, opts
 		}
 		return planWorkPair(row.Verdict, row.Confidence, opts.MinConfidence, opts.MinConfidenceReject, s)
 	case QueueRef:
-		return planRef(row.Verdict, row.Confidence, opts.MinConfidence, slotTaken)
+		return planRef(row.Verdict, row.Confidence, opts.MinConfidence, slotTaken, ev)
 	default:
 		return applyPlan{Skip: skipGoldQueue}
 	}
