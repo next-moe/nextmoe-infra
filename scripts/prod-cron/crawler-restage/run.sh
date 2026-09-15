@@ -1,11 +1,16 @@
 #!/bin/sh
-# Weekly restage of the four upstream crawler databases from nextmoe-crawler.
+# Weekly restage of the Tokyo-hosted crawler databases from nextmoe-crawler.
 #
-# The crawlers moved to the Tokyo box (docs/deploy/19-crawler-box.md) because
-# DLsite only answers a Japanese egress. Their consumers did not move: the
-# catalog import family inside bgm-refresh and vndb-refresh reads `dlsite`,
+# Three of the four crawlers moved to the Tokyo box (docs/deploy/19-crawler-box.md)
+# because DLsite only answers a Japanese egress. Their consumers did not move:
+# the catalog import family inside bgm-refresh and vndb-refresh reads `dlsite`,
 # `erogamescape` and `howlongtobeat` as LOCAL databases (--dlsite-dsn / --eg-dsn
 # / --hltb-dsn) and does bulk joins against them. This job is that bridge.
+#
+# `erogamescape` is NOT one of the sources here and must not become one: that
+# crawler runs on this host (ErogameScape drops the Tokyo range at the IP
+# layer), writing straight into the local database the importers read. Adding it
+# would restore a stale weekly copy over a live daily one.
 #
 # WHY WEEKLY when the crawl is daily: both consumers are weekly (bgm Wed 11:00,
 # vndb Sun 17:30). Shipping ~17 GB every day to feed a job that reads it once a
@@ -67,7 +72,7 @@ on_exit() {
   # A run that died mid-source leaves a half-restored <db>_next behind. Next
   # week's run drops it before restoring, but dlsite's is 13 GB and this host
   # has ~70 GB free — a week is too long to hold that for nothing.
-  for d in dlsite erogamescape getchu howlongtobeat; do
+  for d in dlsite getchu howlongtobeat; do
     psql "DROP DATABASE IF EXISTS ${d}_next" >/dev/null 2>&1 || true
   done
   if [ "$rc" -eq 0 ] && [ "${LOCKED:-0}" = 1 ]; then
@@ -81,7 +86,7 @@ trap on_exit EXIT
 echo "=== crawler restage start $(date -u '+%F %T')Z ==="
 
 # Each entry is <database>:<table whose row count is the health of the copy>.
-SRCS="dlsite:works erogamescape:games getchu:items howlongtobeat:games"
+SRCS="dlsite:works getchu:items howlongtobeat:games"
 
 for src in $SRCS; do
   db=${src%%:*}
