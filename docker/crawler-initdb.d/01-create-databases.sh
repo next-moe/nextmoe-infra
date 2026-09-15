@@ -1,7 +1,11 @@
 #!/bin/sh
 # Runs once, on first Postgres init (empty data dir). The entrypoint already
-# created POSTGRES_DB (dlsite); create the other three staging databases.
+# created POSTGRES_DB (dlsite); create the other two staging databases.
 # Schema itself is built by each crawler's `migrate` phase, not here.
+#
+# `erogamescape` is deliberately absent: that crawler runs on the prod host,
+# because ErogameScape drops this hosting range at the IP layer. See
+# nextmoe-infra docs/deploy/19-crawler-box.md.
 #
 # A database added to this file later will NOT appear on a server that has
 # already initialised — initdb only runs against an empty data dir. Create it by
@@ -9,7 +13,6 @@
 set -e
 
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-'EOSQL'
-	CREATE DATABASE erogamescape;
 	CREATE DATABASE getchu;
 	CREATE DATABASE howlongtobeat;
 EOSQL

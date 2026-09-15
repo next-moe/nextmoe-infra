@@ -1,28 +1,33 @@
 # Shared Postgres for the upstream crawlers, deployed as its own Dokploy Compose
 # app on nextmoe-crawler (43.230.161.212, Tokyo) — NOT on the prod host.
 #
-# One server, four databases (dlsite / erogamescape / getchu / howlongtobeat).
-# Four separate instances would not fit: the box has 2 vCPU and 3.8 GB, shared
-# with traefik, the DLsite relay and /opt/mengzhan.
+# One server, three databases (dlsite / getchu / howlongtobeat). Separate
+# instances would not fit: the box has 2 vCPU and 3.8 GB, shared with traefik,
+# the DLsite relay and /opt/mengzhan.
 #
-# The crawler apps are four more Dokploy Compose apps, each from its own repo,
+# The fourth source, erogamescape, is not here and neither is its crawler:
+# ErogameScape drops this hosting range at the IP layer, so that one runs on the
+# prod host against the local staging database it already has. See
+# docs/deploy/19-crawler-box.md.
+#
+# The crawler apps are three more Dokploy Compose apps, each from its own repo,
 # each reaching this server over dokploy-network as `crawler-postgres`.
 #
 # ⚠️ These databases are not a copy of anything — seed them from the existing
 # prod staging dumps before arming the daily chains, or the first dlsite `sync`
 # recomputes its frontier against an empty table and re-discovers all ~1.2M
-# worknos from zero. See docs/deploy/19-crawler-box.md.
+# worknos from zero. See docs/deploy/19-crawler-box.md §19.4.
 name: nextmoe-crawler-db
 services:
   postgres:
     image: postgres:18-alpine
-    # Sized for 3.8 GB shared with four crawlers, not for the 24 GB prod host:
+    # Sized for 3.8 GB shared with three crawlers, not for the 24 GB prod host:
     #   shared_buffers 384MB       — ~10% of host RAM.
     #   work_mem 8MB               — per sort/hash node, and max_connections of
     #                                them in the worst case. The crawlers do
     #                                keyset paging and upserts, not big joins.
     #   effective_cache_size 1GB   — planner hint, no allocation.
-    #   max_connections 40         — four crawlers, one pool each.
+    #   max_connections 40         — three crawlers, one pool each.
     command:
       - postgres
       - -c
@@ -58,7 +63,7 @@ services:
       # service. With the alias on `default` the service lands on two keys for
       # one physical network and the alias-less injected key wins the single
       # connect, so the alias silently never registers (bitten in production,
-      # 2026-07-23). The four crawler apps are separate Dokploy projects, whose
+      # 2026-07-23). The crawler apps are separate Dokploy projects, whose
       # container-name prefixes change on every rebuild — the alias is the only
       # stable address, and a bare `postgres` alias would round-robin against
       # every other project's postgres on the shared network.
