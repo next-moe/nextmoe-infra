@@ -12,9 +12,8 @@ import (
 )
 
 type refLLMEvidence struct {
-	EntityType int16          `json:"entity_type"`
+	EntityType string         `json:"entity_type"`
 	EntityID   int64          `json:"entity_id"`
-	SourceID   int16          `json:"source_id"`
 	SourceKey  string         `json:"source_key"`
 	ExternalID string         `json:"external_id"`
 	MatchedBy  string         `json:"matched_by"`
@@ -91,6 +90,9 @@ func buildRefLLMEvidence(db, eg *gorm.DB, reg sourceReg, items []refItem) (map[s
 	for k, v := range srcSkip {
 		skips[k] += v
 	}
+	if err := attachRefContext(db, eg, reg, items, catalog, sourceRecs); err != nil {
+		return nil, skips, err
+	}
 	for _, it := range items {
 		cat := catalog[entityKey(it.EntityType, it.EntityID)]
 		src := sourceRecs[it.Hash]
@@ -102,7 +104,7 @@ func buildRefLLMEvidence(db, eg *gorm.DB, reg sourceReg, items []refItem) (map[s
 			continue
 		}
 		out[it.Hash] = refLLMEvidence{
-			EntityType: it.EntityType, EntityID: it.EntityID, SourceID: it.SourceID,
+			EntityType: entityTypeName(it.EntityType), EntityID: it.EntityID,
 			SourceKey: reg.key(it.SourceID), ExternalID: it.ExternalID, MatchedBy: it.MatchedBy,
 			Catalog: cat, Source: src,
 		}
