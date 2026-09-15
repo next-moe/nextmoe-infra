@@ -33,10 +33,18 @@ type workSideDossier struct {
 	Labels         []string      `json:"labels"`
 }
 
+// WorksHolding is how many live works hold this identifier, and it is what
+// separates an exclusive product page from a studio's twitter account. Without
+// it both arrive as one indistinguishable "shared ref" line.
+type sharedRefEv struct {
+	Ref          string `json:"ref"`
+	WorksHolding int    `json:"works_holding"`
+}
+
 type workPairDossier struct {
 	A                workSideDossier `json:"a"`
 	B                workSideDossier `json:"b"`
-	SharedRefs       []string        `json:"shared_refs"`
+	SharedRefs       []sharedRefEv   `json:"shared_refs"`
 	SharedTitleNorms int             `json:"shared_title_norms"`
 }
 
@@ -57,7 +65,7 @@ func RunQueueWorkPair(ctx context.Context, db *gorm.DB, c *Client, opts Options)
 		fmt.Printf("[dry] workpair candidates=%d skipped_cross_medium=%d\n", len(items), skippedCross)
 		return 0, 0, dryErr
 	}
-	done, err := loadDoneHashes(db, "src_llm.queue_verdict", opts.Model, PromptWorkPairV1, "queue", QueueWorkPair)
+	done, err := loadDoneHashes(db, "src_llm.queue_verdict", opts.Model, PromptWorkPairV2, "queue", QueueWorkPair)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -77,10 +85,10 @@ func RunQueueWorkPair(ctx context.Context, db *gorm.DB, c *Client, opts Options)
 		row := QueueVerdict{
 			Queue: QueueWorkPair, Lane: LaneLLM,
 			EntityType: model.EntityTypeWork, AID: it.AID, BID: it.BID,
-			InputHash: it.Hash, Model: opts.Model, PromptVersion: PromptWorkPairV1,
+			InputHash: it.Hash, Model: opts.Model, PromptVersion: PromptWorkPairV2,
 			Evidence: raw,
 		}
-		v, jerr := judge(ctx, c, workPairSystem, workPairUser(raw), 512)
+		v, jerr := judge(ctx, c, workPairSystemV2, workPairUser(raw), 512)
 		if jerr != nil {
 			row.Error = truncate(jerr.Error(), 500)
 			nErrs.Add(1)
@@ -91,7 +99,7 @@ func RunQueueWorkPair(ctx context.Context, db *gorm.DB, c *Client, opts Options)
 		persistQueueVerdict(db, &row)
 	})
 	judged, errs = int(nJudged.Load()), int(nErrs.Load())
-	_ = recordRun(db, "queue-workpair", opts.Model, PromptWorkPairV1,
+	_ = recordRun(db, "queue-workpair", opts.Model, PromptWorkPairV2,
 		map[string]int{"judged": judged, "errors": errs, "total_same_medium": len(items),
 			"skipped_cross_medium": skippedCross, "todo": len(work)}, time.Now(), "")
 	return judged, errs, nil
@@ -108,7 +116,7 @@ func dryRunWorkPairs(ctx context.Context, c *Client, items []workPairItem, limit
 			break
 		}
 		raw, _ := json.Marshal(it.Dossier)
-		v, err := judge(ctx, c, workPairSystem, workPairUser(raw), 512)
+		v, err := judge(ctx, c, workPairSystemV2, workPairUser(raw), 512)
 		if err != nil {
 			fmt.Printf("[dry] workpair %d⇔%d ERROR: %v\n", it.AID, it.BID, err)
 			continue
@@ -167,6 +175,18 @@ func loadWorkPairQueue(db *gorm.DB) ([]workPairItem, int, error) {
 	if err != nil {
 		return nil, cross, err
 	}
+	out, err := assembleWorkPairs(db, pairs, sides)
+	if err != nil {
+		return nil, cross, err
+	}
+	return out, cross, nil
+}
+
+func assembleWorkPairs(db *gorm.DB, pairs [][2]int64, sides map[int64]workSideDossier) ([]workPairItem, error) {
+	shared, err := loadSharedRefFanOut(db, pairs)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]workPairItem, 0, len(pairs))
 	for _, p := range pairs {
 		a, aok := sides[p[0]]
@@ -174,30 +194,16 @@ func loadWorkPairQueue(db *gorm.DB) ([]workPairItem, int, error) {
 		if !aok || !bok {
 			continue
 		}
-		d := workPairDossier{A: a, B: b, SharedRefs: intersectStrings(a.Refs, b.Refs), SharedTitleNorms: sharedNorms(a.Titles, b.Titles)}
-		out = append(out, workPairItem{AID: p[0], BID: p[1], Hash: workPairHash(p[0], p[1]), Dossier: d})
-	}
-	return out, cross, nil
-}
-
-func intersectStrings(a, b []string) []string {
-	set := map[string]struct{}{}
-	for _, s := range a {
-		set[s] = struct{}{}
-	}
-	var out []string
-	seen := map[string]struct{}{}
-	for _, s := range b {
-		if _, ok := set[s]; !ok {
-			continue
+		refs := shared[p]
+		if refs == nil {
+			refs = []sharedRefEv{}
 		}
-		if _, dup := seen[s]; dup {
-			continue
-		}
-		seen[s] = struct{}{}
-		out = append(out, s)
+		out = append(out, workPairItem{
+			AID: p[0], BID: p[1], Hash: workPairHash(p[0], p[1]),
+			Dossier: workPairDossier{A: a, B: b, SharedRefs: refs, SharedTitleNorms: sharedNorms(a.Titles, b.Titles)},
+		})
 	}
-	return out
+	return out, nil
 }
 
 func sharedNorms(a, b []workTitleEv) int {

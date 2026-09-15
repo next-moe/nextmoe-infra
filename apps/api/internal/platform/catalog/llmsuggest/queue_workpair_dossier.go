@@ -1,7 +1,9 @@
 package llmsuggest
 
 import (
+	"sort"
 	"strconv"
+	"strings"
 
 	"api/internal/platform/catalog/model"
 
@@ -140,4 +142,130 @@ func loadWorkSides(db *gorm.DB, ids []int64) (map[int64]workSideDossier, error) 
 
 func strconvWorkLabel(id int64, name string) string {
 	return strconv.FormatInt(id, 10) + "\x00" + name
+}
+
+// refKey is the identifier as the table stores it. Keeping source_id and
+// external_id apart rather than folding them into one "key:id" string is what
+// lets the fan-out count use idx_catalog_external_ref_source_ext; filtering on
+// the concatenation instead reads all 1,221,512 rows, every night, for nothing.
+type refKey struct {
+	SourceID   int16
+	ExternalID string
+	Display    string
+}
+
+// loadSharedRefFanOut answers, for every pair, which identifiers both sides
+// hold and how many live works hold each one.
+//
+// It reads link_kind 2 as well, which the dossier's own ref list does not.
+// Related is where official_site lives - 60,543 rows - and the partial unique
+// uq_catalog_external_ref_exact only covers link_kind 0, so a shared identifier
+// is structurally expressible there and nowhere else. Leaving it out is why the
+// model kept writing "no shared refs" about pairs that share an exclusive
+// product page: it was never shown one.
+//
+// The fan-out is the whole point. Measured over the 693 undecided pairs on
+// 2026-09-15: 131 share an identifier no other live work holds, while
+// twitter:frontwingint and youtube.com/@frontwing_1999 are each held by 43
+// works. Both look identical in this table without the count.
+//
+// Intersecting here rather than over workSideDossier.Refs is deliberate: that
+// list is truncated to 8 for the token budget, and a shared identifier dropped
+// by the cap would silently read as no shared identifier at all.
+func loadSharedRefFanOut(db *gorm.DB, pairs [][2]int64) (map[[2]int64][]sharedRefEv, error) {
+	out := map[[2]int64][]sharedRefEv{}
+	if len(pairs) == 0 {
+		return out, nil
+	}
+	ids := make([]int64, 0, len(pairs)*2)
+	seen := map[int64]struct{}{}
+	for _, p := range pairs {
+		for _, id := range p {
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			seen[id] = struct{}{}
+			ids = append(ids, id)
+		}
+	}
+
+	held := map[int64]map[string]refKey{}
+	for _, chunk := range chunkBy(ids, 500) {
+		var rows []struct {
+			EntityID   int64  `gorm:"column:entity_id"`
+			SourceID   int16  `gorm:"column:source_id"`
+			SourceKey  string `gorm:"column:source_key"`
+			ExternalID string `gorm:"column:external_id"`
+		}
+		if err := db.Raw(`SELECT r.entity_id, r.source_id, s.key AS source_key, r.external_id
+			FROM catalog_external_ref r JOIN catalog_source s ON s.id = r.source_id
+			WHERE r.entity_type = ? AND r.dead_at IS NULL AND r.entity_id IN ?`,
+			model.EntityTypeWork, chunk).Scan(&rows).Error; err != nil {
+			return nil, err
+		}
+		for _, r := range rows {
+			if held[r.EntityID] == nil {
+				held[r.EntityID] = map[string]refKey{}
+			}
+			display := r.SourceKey + ":" + r.ExternalID
+			held[r.EntityID][display] = refKey{SourceID: r.SourceID, ExternalID: r.ExternalID, Display: display}
+		}
+	}
+
+	shared := map[[2]int64][]refKey{}
+	keys := map[string]refKey{}
+	for _, p := range pairs {
+		for display, k := range held[p[0]] {
+			if _, ok := held[p[1]][display]; !ok {
+				continue
+			}
+			shared[p] = append(shared[p], k)
+			keys[display] = k
+		}
+	}
+	if len(keys) == 0 {
+		return out, nil
+	}
+	flat := make([]refKey, 0, len(keys))
+	for _, k := range keys {
+		flat = append(flat, k)
+	}
+
+	fan := map[string]int{}
+	for _, chunk := range chunkBy(flat, 500) {
+		ph := make([]string, 0, len(chunk))
+		args := []any{model.EntityTypeWork}
+		for _, k := range chunk {
+			ph = append(ph, "(?,?)")
+			args = append(args, k.SourceID, k.ExternalID)
+		}
+		var rows []struct {
+			SourceID   int16  `gorm:"column:source_id"`
+			ExternalID string `gorm:"column:external_id"`
+			N          int    `gorm:"column:n"`
+		}
+		if err := db.Raw(`SELECT r.source_id, r.external_id, count(DISTINCT r.entity_id) AS n
+			FROM catalog_external_ref r
+			JOIN catalog_work w ON w.id = r.entity_id AND w.deleted_at IS NULL
+			WHERE r.entity_type = ? AND r.dead_at IS NULL
+			  AND (r.source_id, r.external_id) IN (`+strings.Join(ph, ",")+`)
+			GROUP BY 1, 2`, args...).Scan(&rows).Error; err != nil {
+			return nil, err
+		}
+		for _, r := range rows {
+			fan[strconv.FormatInt(int64(r.SourceID), 10)+":"+r.ExternalID] = r.N
+		}
+	}
+	for p, ks := range shared {
+		sort.Slice(ks, func(i, j int) bool { return ks[i].Display < ks[j].Display })
+		evs := make([]sharedRefEv, 0, len(ks))
+		for _, k := range capN(ks, 8) {
+			evs = append(evs, sharedRefEv{
+				Ref:          k.Display,
+				WorksHolding: fan[strconv.FormatInt(int64(k.SourceID), 10)+":"+k.ExternalID],
+			})
+		}
+		out[p] = evs
+	}
+	return out, nil
 }
