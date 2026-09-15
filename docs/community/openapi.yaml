@@ -1820,6 +1820,108 @@ paths:
       summary: Reject a queue item (remove the content; tombstone the post)
       tags:
         - community-review
+  /api/v1/community/search/posts:
+    get:
+      operationId: searchPosts
+      parameters:
+        - description: substring to look for, 2-100 characters; matched case-insensitively against the markdown source (posts) or the title (threads)
+          explode: false
+          in: query
+          name: q
+          schema:
+            description: substring to look for, 2-100 characters; matched case-insensitively against the markdown source (posts) or the title (threads)
+            type: string
+        - description: thread kind filter (0=topic 1=comments 2=feedback); -1 = every kind
+          explode: false
+          in: query
+          name: kind
+          schema:
+            default: -1
+            description: thread kind filter (0=topic 1=comments 2=feedback); -1 = every kind
+            format: int32
+            type: integer
+        - description: opaque cursor from the previous page
+          explode: false
+          in: query
+          name: cursor
+          schema:
+            description: opaque cursor from the previous page
+            type: string
+        - description: page size (max 100, default 50)
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: page size (max 100, default 50)
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePostFeedResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Search the site's visible posts by substring of their markdown source
+      tags:
+        - community-read
+  /api/v1/community/search/threads:
+    get:
+      operationId: searchThreads
+      parameters:
+        - description: substring to look for, 2-100 characters; matched case-insensitively against the markdown source (posts) or the title (threads)
+          explode: false
+          in: query
+          name: q
+          schema:
+            description: substring to look for, 2-100 characters; matched case-insensitively against the markdown source (posts) or the title (threads)
+            type: string
+        - description: thread kind filter (0=topic 1=comments 2=feedback); -1 = every kind
+          explode: false
+          in: query
+          name: kind
+          schema:
+            default: -1
+            description: thread kind filter (0=topic 1=comments 2=feedback); -1 = every kind
+            format: int32
+            type: integer
+        - description: opaque cursor from the previous page
+          explode: false
+          in: query
+          name: cursor
+          schema:
+            description: opaque cursor from the previous page
+            type: string
+        - description: page size (max 100, default 50)
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: page size (max 100, default 50)
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeThreadListResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Search the site's threads by substring of their title
+      tags:
+        - community-read
   /api/v1/community/threads:
     get:
       operationId: listThreads

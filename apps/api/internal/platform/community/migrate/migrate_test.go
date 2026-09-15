@@ -292,6 +292,14 @@ func TestIndexColumnOrder(t *testing.T) {
 		// dropped, the column order here would silently reshuffle.
 		{"idx_community_post_thread_root", "(thread_id, root_post_id, post_number)"},
 		{"uq_community_post_thread_number", "(thread_id, post_number)"},
+		// The listing sorts and the site-wide post feed. Each keeps the
+		// (site, kind) prefix so switching sort changes only the trailing key;
+		// the feed's key is created_at, never id.
+		{"idx_community_thread_site_created", "(site, kind, created_at DESC)"},
+		{"idx_community_thread_site_posts", "(site, kind, posts_count DESC)"},
+		{"idx_community_post_created", "(created_at DESC, id DESC)"},
+		// The unread reads come in by user; the primary key leads with thread_id.
+		{"idx_community_thread_user_user", "(user_id)"},
 	}
 	for _, c := range cases {
 		def := indexDef(t, c.name)
@@ -458,6 +466,24 @@ func TestColumnTypes(t *testing.T) {
 		}
 		if got != c.want {
 			t.Errorf("%s.%s: want %s, got %s", c.table, c.column, c.want, got)
+		}
+	}
+}
+
+// --- search: the trigram extension and its two indexes ----------------------
+
+func TestTrigramSearchIndexes(t *testing.T) {
+	var installed string
+	if err := testDB.Raw(`SELECT extversion FROM pg_extension WHERE extname = 'pg_trgm'`).Scan(&installed).Error; err != nil {
+		t.Fatalf("read pg_trgm: %v", err)
+	}
+	if installed == "" {
+		t.Fatal("pg_trgm must be installed by the migration: ILIKE search has no other index on stock Postgres")
+	}
+	for _, name := range []string{"idx_community_post_content_trgm", "idx_community_thread_title_trgm"} {
+		def := indexDef(t, name)
+		if !strings.Contains(def, "USING gin") || !strings.Contains(def, "gin_trgm_ops") {
+			t.Errorf("index %s must be a trigram GIN index, got\n  %s", name, def)
 		}
 	}
 }

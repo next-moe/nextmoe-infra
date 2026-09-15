@@ -57,7 +57,7 @@ func cleanTables(t *testing.T) {
 }
 
 func TestSpecExport(t *testing.T) {
-	api := Setup(fiber.New(), nil, nil, nil, nil, nil, nil, nil, nil)
+	api := Setup(fiber.New(), Services{})
 	b, err := api.OpenAPI().YAML()
 	if err != nil {
 		t.Fatalf("marshal spec: %v", err)

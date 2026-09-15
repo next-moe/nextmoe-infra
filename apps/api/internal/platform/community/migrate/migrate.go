@@ -65,7 +65,25 @@ func rawSQL(db *gorm.DB) error {
 		 WHERE first_posts_held_remaining > 0`).Error; err != nil {
 		return fmt.Errorf("release outstanding newcomer holds: %w", err)
 	}
+	// Search is ILIKE '%q%' over the markdown source and thread titles, which no
+	// btree can serve. pg_trgm is the only CJK-capable option on a stock
+	// Postgres (zhparser/pg_jieba are not installed and to_tsvector has no
+	// Chinese tokenizer), and it is a trusted extension, so this needs no
+	// superuser. It accelerates patterns of three characters or more; a two
+	// character query — very common in Chinese — extracts no full trigram and
+	// falls back to a scan, which the corpus size still absorbs (11k posts /
+	// 4.5 MB at the time of writing). A real search engine is the scale
+	// trigger, not the starting point.
+	if err := db.Exec(`CREATE EXTENSION IF NOT EXISTS pg_trgm`).Error; err != nil {
+		return fmt.Errorf("create pg_trgm: %w", err)
+	}
 	for _, ix := range []struct{ name, stmt string }{
+		{"idx_community_post_content_trgm", `
+			CREATE INDEX IF NOT EXISTS idx_community_post_content_trgm
+			    ON community_post USING gin (content_raw gin_trgm_ops)`},
+		{"idx_community_thread_title_trgm", `
+			CREATE INDEX IF NOT EXISTS idx_community_thread_title_trgm
+			    ON community_thread USING gin (title gin_trgm_ops)`},
 		// Invariant 4 (site anchors): at most ONE live comments thread per
 		// (site, anchor). Site-local anchors (anchor_kind 1=site_game,
 		// 2=site_resource) carry a tenant-local id, so identity INCLUDES the site

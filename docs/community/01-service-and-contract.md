@@ -67,6 +67,25 @@
   `GET /threads/{id}/posts` — a thread with a page of posts, keyset by
   `post_number` (`after`). Cooked HTML is served for display; the raw markdown is
   included for the editor.
+- `GET /search/posts` and `GET /search/threads` — case-insensitive substring
+  search over a post's **markdown source** and over thread titles, 2-100
+  characters, optional `kind` filter, newest-first keyset (creation time for
+  posts, creation time for threads — a thread-search cursor is a `created`
+  cursor and an `activity` one is refused). Posts search the source, not the
+  cooked HTML, or `nofollow` would match every post carrying a link. Visible
+  posts and live threads only, and a title hit carries the same
+  `opening_status` the listing does, so a held opening post does not leak its
+  title through search either. `%` and `_` in a query are characters the user
+  typed, not wildcards.
+  **Why Postgres and not a search engine**: `pg_trgm` is the only CJK-capable
+  index on a stock Postgres here (`zhparser`/`pg_jieba` are not installed and
+  `to_tsvector` has no Chinese tokenizer). It accelerates queries of three
+  characters or more; a two-character query — very common in Chinese — extracts
+  no full trigram and falls back to a scan, which the corpus absorbs: measured
+  on production, `ILIKE '%汉化%'` over the live 11k posts / 4.5 MB of text is a
+  sequential scan returning 511 hits in **37 ms**, and the corpus grows by a few
+  hundred posts a month. An external engine is the scale trigger, not the
+  starting point.
 - `GET /posts` — the site's newest posts across every thread (the "latest
   replies" face), each carrying its thread context, keyset by **creation time**,
   not id. Filters: `kind`, `anchor_kind` + `anchor_id`, `replies_only` (drop

@@ -21,10 +21,11 @@ func scopeVisibleToSite(db *gorm.DB, site string) *gorm.DB {
 		site, model.SiteLocalAnchorKinds)
 }
 
-// PostFeedCursor keys on created_at, not id: the kungal import gave historical
+// TimeCursor keys on created_at, not id: the kungal import gave historical
 // comments new ids, so id order is import order, not time order (measured
-// corr(id, created_at) = 0.72 in production).
-type PostFeedCursor struct {
+// corr(id, created_at) = 0.72 in production). Shared by the post feed and by
+// both search faces.
+type TimeCursor struct {
 	CreatedAt time.Time
 	ID        int64
 }
@@ -35,7 +36,7 @@ type PostFeedQuery struct {
 	AnchorKind  int16 // -1 = every anchor kind
 	AnchorID    string
 	RepliesOnly bool
-	Cursor      PostFeedCursor
+	Cursor      TimeCursor
 	Limit       int
 }
 
@@ -43,7 +44,8 @@ func (r *PostRepository) ListSiteFeed(q PostFeedQuery) ([]AuthorPostRow, error) 
 	db := r.db.Model(&model.CommunityPost{}).
 		Select(threadContextSelect).
 		Joins("JOIN community_thread ON community_thread.id = community_post.thread_id").
-		Where("community_post.status = ?", model.PostStatusVisible)
+		Where("community_post.status = ?", model.PostStatusVisible).
+		Where("community_thread.status <> ?", model.ThreadStatusDeleted)
 	db = scopeVisibleToSite(db, q.Site)
 	if q.Kind >= 0 {
 		db = db.Where("community_thread.kind = ?", q.Kind)
@@ -64,7 +66,7 @@ func (r *PostRepository) ListSiteFeed(q PostFeedQuery) ([]AuthorPostRow, error) 
 	return rows, err
 }
 
-func scopePostKeyset(db *gorm.DB, cursor PostFeedCursor) *gorm.DB {
+func scopePostKeyset(db *gorm.DB, cursor TimeCursor) *gorm.DB {
 	if cursor.ID == 0 {
 		return db
 	}

@@ -238,27 +238,27 @@ func encodePostCursor(row *repository.AuthorPostRow) string {
 		strconv.FormatInt(row.CreatedAt.UnixNano(), 10) + ":" + strconv.FormatInt(row.ID, 10)))
 }
 
-func decodePostCursor(s string) (repository.PostFeedCursor, error) {
+func decodePostCursor(s string) (repository.TimeCursor, error) {
 	if s == "" {
-		return repository.PostFeedCursor{}, nil
+		return repository.TimeCursor{}, nil
 	}
 	raw, err := base64.RawURLEncoding.DecodeString(s)
 	if err != nil {
-		return repository.PostFeedCursor{}, err
+		return repository.TimeCursor{}, err
 	}
 	nanoStr, idStr, ok := strings.Cut(string(raw), ":")
 	if !ok {
-		return repository.PostFeedCursor{}, stderrors.New("bad cursor arity")
+		return repository.TimeCursor{}, stderrors.New("bad cursor arity")
 	}
 	nano, err := strconv.ParseInt(nanoStr, 10, 64)
 	if err != nil {
-		return repository.PostFeedCursor{}, err
+		return repository.TimeCursor{}, err
 	}
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		return repository.PostFeedCursor{}, err
+		return repository.TimeCursor{}, err
 	}
-	return repository.PostFeedCursor{CreatedAt: time.Unix(0, nano), ID: id}, nil
+	return repository.TimeCursor{CreatedAt: time.Unix(0, nano), ID: id}, nil
 }
 
 func postFeedPageCursor(rows []repository.AuthorPostRow, limit int) string {

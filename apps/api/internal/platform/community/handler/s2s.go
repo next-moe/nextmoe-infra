@@ -30,9 +30,24 @@ type Server struct {
 	trust      *service.TrustService
 	review     *service.ReviewService
 	engagement *service.EngagementService
+	search     *service.SearchService
 }
 
-func Setup(app *fiber.App, threads *service.ThreadService, posts *service.PostService, reactions *service.ReactionService, feedback *service.FeedbackService, flags *service.FlagService, trust *service.TrustService, review *service.ReviewService, engagement *service.EngagementService) huma.API {
+// Services is what the S2S face is wired from; the spec generator passes an
+// empty one, since registering the routes never touches a service.
+type Services struct {
+	Threads    *service.ThreadService
+	Posts      *service.PostService
+	Reactions  *service.ReactionService
+	Feedback   *service.FeedbackService
+	Flags      *service.FlagService
+	Trust      *service.TrustService
+	Review     *service.ReviewService
+	Engagement *service.EngagementService
+	Search     *service.SearchService
+}
+
+func Setup(app *fiber.App, svc Services) huma.API {
 	InstallErrorEnvelope()
 
 	cfg := huma.DefaultConfig("KUN Community Service", "1.0.0")
@@ -43,8 +58,10 @@ func Setup(app *fiber.App, threads *service.ThreadService, posts *service.PostSe
 	api := humafiber.New(app, cfg)
 	api.UseMiddleware(S2SBridge)
 
-	s := &Server{threads: threads, posts: posts, reactions: reactions, feedback: feedback, flags: flags,
-		trust: trust, review: review, engagement: engagement}
+	s := &Server{
+		threads: svc.Threads, posts: svc.Posts, reactions: svc.Reactions, feedback: svc.Feedback,
+		flags: svc.Flags, trust: svc.Trust, review: svc.Review, engagement: svc.Engagement, search: svc.Search,
+	}
 	s.register(api)
 	return api
 }
@@ -67,6 +84,10 @@ func (s *Server) register(api huma.API) {
 		Summary: "List a site author's visible posts across threads (keyset by post id, newest first) with thread context", Tags: read}, s.listAuthorPosts)
 	huma.Register(api, huma.Operation{OperationID: "authorStats", Method: http.MethodGet, Path: "/api/v1/community/authors/stats",
 		Summary: "Batch visible-post counts for a site's authors", Tags: read}, s.authorStats)
+	huma.Register(api, huma.Operation{OperationID: "searchPosts", Method: http.MethodGet, Path: "/api/v1/community/search/posts",
+		Summary: "Search the site's visible posts by substring of their markdown source", Tags: read}, s.searchPosts)
+	huma.Register(api, huma.Operation{OperationID: "searchThreads", Method: http.MethodGet, Path: "/api/v1/community/search/threads",
+		Summary: "Search the site's threads by substring of their title", Tags: read}, s.searchThreads)
 	huma.Register(api, huma.Operation{OperationID: "resolvePosts", Method: http.MethodPost, Path: "/api/v1/community/posts/resolve",
 		Summary: "Resolve a batch of posts by id (visible only, request order, deduped) with thread context", Tags: read}, s.resolvePosts)
 
@@ -535,6 +556,8 @@ func mapErr(op string, err error) *houseError {
 		return apiErr(http.StatusNotFound, errors.ErrNotFound)
 	case stderrors.Is(err, service.ErrThreadNotOpen):
 		return apiErrMsg(http.StatusConflict, errors.ErrOperationFailed, "thread is not open")
+	case stderrors.Is(err, service.ErrInvalidSearchQuery):
+		return apiErrMsg(http.StatusBadRequest, errors.ErrInvalidParam, "search query must be 2-100 characters")
 	case stderrors.Is(err, service.ErrInvalidNotificationLevel):
 		return apiErrMsg(http.StatusBadRequest, errors.ErrInvalidParam, "notification level out of range")
 	case stderrors.Is(err, service.ErrNotFeedback):

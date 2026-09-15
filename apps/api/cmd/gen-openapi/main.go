@@ -38,7 +38,7 @@ func main() {
 	case *catalogV2:
 		api = v2handler.Setup(app)
 	case *community:
-		api = commHandler.Setup(app, nil, nil, nil, nil, nil, nil, nil, nil)
+		api = commHandler.Setup(app, commHandler.Services{})
 	case *trust:
 		api = trustHandler.Setup(app, nil, nil, nil, nil, nil)
 	case *trustAdmin:
