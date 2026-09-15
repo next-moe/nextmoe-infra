@@ -31,10 +31,14 @@ func RunApply(ctx context.Context, db *gorm.DB, queues *service.AdminQueueServic
 	if opts.MinConfidenceReject < 0 {
 		opts.MinConfidenceReject = 0
 	}
+	prompts, ok := currentPrompts[opts.Queue]
+	if !ok {
+		return ApplyStats{}, fmt.Errorf("apply has no current prompt for queue %q", opts.Queue)
+	}
 	var rows []QueueVerdict
 	minConf, verdicts := applySelection(opts)
-	q := db.Where("queue = ? AND applied_action NOT IN ? AND error = '' AND confidence >= ? AND verdict IN ?",
-		opts.Queue, currentStamps, minConf, verdicts).
+	q := db.Where("queue = ? AND prompt_version IN ? AND applied_action NOT IN ? AND error = '' AND confidence >= ? AND verdict IN ?",
+		opts.Queue, prompts, currentStamps, minConf, verdicts).
 		Order("id")
 	if opts.Limit > 0 {
 		q = q.Limit(opts.Limit)

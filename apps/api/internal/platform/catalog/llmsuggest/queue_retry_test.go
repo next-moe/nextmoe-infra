@@ -16,16 +16,16 @@ func TestFailedJudgementIsNotDone(t *testing.T) {
 	answered := workPairHash(21, 22)
 	require.NoError(t, db.Create(&QueueVerdict{
 		Queue: QueueWorkPair, Lane: LaneLLM, EntityType: model.EntityTypeWork, AID: 11, BID: 12,
-		InputHash: failed, Model: "m", PromptVersion: PromptWorkPairV1,
+		InputHash: failed, Model: "m", PromptVersion: PromptWorkPair,
 		Error: `vllm http 429: {"error":{"message":"openai_error"}}`,
 	}).Error)
 	require.NoError(t, db.Create(&QueueVerdict{
 		Queue: QueueWorkPair, Lane: LaneLLM, EntityType: model.EntityTypeWork, AID: 21, BID: 22,
-		InputHash: answered, Model: "m", PromptVersion: PromptWorkPairV1,
+		InputHash: answered, Model: "m", PromptVersion: PromptWorkPair,
 		Verdict: VerdictSame, Confidence: 0.95,
 	}).Error)
 
-	done, err := loadDoneHashes(db, "src_llm.queue_verdict", "m", PromptWorkPairV1, "queue", QueueWorkPair)
+	done, err := loadDoneHashes(db, "src_llm.queue_verdict", "m", PromptWorkPair, "queue", QueueWorkPair)
 	require.NoError(t, err)
 	assert.False(t, done[failed], "a row whose model call failed must come back to the queue")
 	assert.True(t, done[answered], "a row that carries a verdict must stay out of the queue")
@@ -36,12 +36,12 @@ func TestRetryOverwritesTheStoredFailure(t *testing.T) {
 	h := workPairHash(31, 32)
 	require.NoError(t, db.Create(&QueueVerdict{
 		Queue: QueueWorkPair, Lane: LaneLLM, EntityType: model.EntityTypeWork, AID: 31, BID: 32,
-		InputHash: h, Model: "m", PromptVersion: PromptWorkPairV1, Error: "vllm http 429",
+		InputHash: h, Model: "m", PromptVersion: PromptWorkPair, Error: "vllm http 429",
 	}).Error)
 
 	persistQueueVerdict(db, &QueueVerdict{
 		Queue: QueueWorkPair, Lane: LaneLLM, EntityType: model.EntityTypeWork, AID: 31, BID: 32,
-		InputHash: h, Model: "m", PromptVersion: PromptWorkPairV1,
+		InputHash: h, Model: "m", PromptVersion: PromptWorkPair,
 		Verdict: VerdictSame, Reason: "same work", Confidence: 0.93,
 	})
 
@@ -60,14 +60,14 @@ func TestRetryLeavesAnAppliedVerdictAlone(t *testing.T) {
 	by := int64(7)
 	require.NoError(t, db.Create(&QueueVerdict{
 		Queue: QueueWorkPair, Lane: LaneLLM, EntityType: model.EntityTypeWork, AID: 41, BID: 42,
-		InputHash: h, Model: "m", PromptVersion: PromptWorkPairV1,
+		InputHash: h, Model: "m", PromptVersion: PromptWorkPair,
 		Verdict: VerdictDifferent, Confidence: 0.97,
 		AppliedAction: applyReject, AppliedAt: &at, AppliedBy: &by,
 	}).Error)
 
 	persistQueueVerdict(db, &QueueVerdict{
 		Queue: QueueWorkPair, Lane: LaneLLM, EntityType: model.EntityTypeWork, AID: 41, BID: 42,
-		InputHash: h, Model: "m", PromptVersion: PromptWorkPairV1,
+		InputHash: h, Model: "m", PromptVersion: PromptWorkPair,
 		Verdict: VerdictSame, Confidence: 0.10,
 	})
 

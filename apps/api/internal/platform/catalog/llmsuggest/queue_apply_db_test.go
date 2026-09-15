@@ -60,7 +60,7 @@ func TestApplyRejectsAnUnsurePairOnARefContradiction(t *testing.T) {
 		}).Error)
 		require.NoError(t, db.Create(&QueueVerdict{
 			Queue: QueueWorkPair, Lane: LaneLLM, EntityType: model.EntityTypeWork,
-			AID: lo, BID: hi, InputHash: hash, Model: "test", PromptVersion: PromptWorkPairV1,
+			AID: lo, BID: hi, InputHash: hash, Model: "test", PromptVersion: PromptWorkPair,
 			Verdict: verdict, Confidence: conf, Evidence: []byte(`{}`),
 		}).Error)
 	}
@@ -149,7 +149,7 @@ func TestApplyReJudgesARowStampedByAVanishedRule(t *testing.T) {
 	}).Error)
 	require.NoError(t, db.Create(&QueueVerdict{
 		Queue: QueueWorkPair, Lane: LaneLLM, EntityType: model.EntityTypeWork,
-		AID: lo, BID: hi, InputHash: "hash-parked", Model: "test", PromptVersion: PromptWorkPairV1,
+		AID: lo, BID: hi, InputHash: "hash-parked", Model: "test", PromptVersion: PromptWorkPair,
 		Verdict: VerdictSame, Confidence: 1, Evidence: []byte(`{}`),
 		AppliedAction: "excluded_conflicting_refs",
 	}).Error)
@@ -178,4 +178,80 @@ func TestApplyReJudgesARowStampedByAVanishedRule(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Zero(t, st.Applied, "counts: %v", st.Counts)
+}
+
+// Two prompt versions of one pair is not a hypothetical: on 2026-09-15 the
+// table held an unstamped workpair-v1 "different" and an unstamped workpair-v2
+// "same" for 7 of the same pairs, and the loop plans every row it selects, so
+// the pair got both a rejection and a merge proposal and row id decided which
+// one the catalog ended up with.
+func TestApplyIgnoresAVerdictFromARetiredPrompt(t *testing.T) {
+	db := testCatalogDB(t)
+	require.NoError(t, migrate.Run(db))
+	require.NoError(t, seed.Run(db))
+	// catalog_merge_proposal survives the work truncate, and a proposal another
+	// test left on this pair turns the accept into "an open proposal already
+	// exists" -- which is the failure this test is looking for, from the wrong
+	// cause.
+	require.NoError(t, db.Exec(
+		"TRUNCATE catalog_merge_proposal, catalog_match_candidate, catalog_external_ref, catalog_work RESTART IDENTITY CASCADE").Error)
+	require.NoError(t, db.Exec("TRUNCATE src_llm.queue_verdict RESTART IDENTITY").Error)
+
+	var medium int16
+	require.NoError(t, db.Raw(`SELECT id FROM catalog_medium WHERE key = 'galgame'`).Scan(&medium).Error)
+
+	mkWork := func(name string) int64 {
+		w := &model.CatalogWork{
+			MediumID: medium, OLang: "ja", DisplayName: name,
+			ContentRating: model.ContentRatingAllAges, Status: model.WorkStatusLive,
+		}
+		require.NoError(t, db.Create(w).Error)
+		return w.ID
+	}
+	a, b := mkWork("ZODIAC ～前編～"), mkWork("ZODIAC-後編-")
+	lo, hi := min(a, b), max(a, b)
+	require.NoError(t, db.Create(&model.CatalogMatchCandidate{
+		EntityType: model.EntityTypeWork, AID: lo, BID: hi,
+		Reason: model.CandidateReasonNameNormEqual, Status: model.CandidateStatusNeedsManual,
+	}).Error)
+	mkVerdict := func(version, verdict, hash string) {
+		require.NoError(t, db.Create(&QueueVerdict{
+			Queue: QueueWorkPair, Lane: LaneLLM, EntityType: model.EntityTypeWork,
+			AID: lo, BID: hi, InputHash: hash, Model: "test", PromptVersion: version,
+			Verdict: verdict, Confidence: 1, Evidence: []byte(`{}`),
+		}).Error)
+	}
+	// the retired row is written first, so with no version filter it is the one
+	// row id hands the pair to
+	mkVerdict("workpair-v1", VerdictSame, "hash-retired")
+	mkVerdict(PromptWorkPair, VerdictDifferent, "hash-current")
+
+	st, err := RunApply(t.Context(), db, testQueueService(db), Options{
+		Queue: QueueWorkPair, Actor: 1, MinConfidence: 0.9, MinConfidenceReject: 0.7,
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, 1, st.Applied, "counts: %v", st.Counts)
+	assert.Equal(t, 1, st.Counts["applied_"+applyReject], "counts: %v", st.Counts)
+	assert.Zero(t, st.Counts["applied_"+applyAccept], "the retired prompt's accept must not reach the catalog")
+
+	var proposals int64
+	require.NoError(t, db.Raw(`SELECT count(*) FROM catalog_merge_proposal`).Scan(&proposals).Error)
+	assert.Zero(t, proposals)
+
+	var stamps []string
+	require.NoError(t, db.Raw(`SELECT applied_action FROM src_llm.queue_verdict
+	        ORDER BY input_hash`).Scan(&stamps).Error)
+	assert.Equal(t, []string{applyReject, ""}, stamps, "the retired row is left alone, not stamped done")
+}
+
+func TestEveryLiveQueueHasACurrentPrompt(t *testing.T) {
+	// A queue missing here selects no rows at all, which reads as a quiet night
+	// rather than as a lane that cannot run.
+	live := []string{QueueWorkPair, QueueRef, QueueCreditName}
+	for _, q := range live {
+		assert.True(t, isLiveQueue(q))
+		assert.NotEmpty(t, currentPrompts[q], "queue %q would select nothing", q)
+	}
+	assert.Len(t, currentPrompts, len(live))
 }

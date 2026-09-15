@@ -65,7 +65,7 @@ func RunQueueWorkPair(ctx context.Context, db *gorm.DB, c *Client, opts Options)
 		fmt.Printf("[dry] workpair candidates=%d skipped_cross_medium=%d\n", len(items), skippedCross)
 		return 0, 0, dryErr
 	}
-	done, err := loadDoneHashes(db, "src_llm.queue_verdict", opts.Model, PromptWorkPairV2, "queue", QueueWorkPair)
+	done, err := loadDoneHashes(db, "src_llm.queue_verdict", opts.Model, PromptWorkPair, "queue", QueueWorkPair)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -85,10 +85,10 @@ func RunQueueWorkPair(ctx context.Context, db *gorm.DB, c *Client, opts Options)
 		row := QueueVerdict{
 			Queue: QueueWorkPair, Lane: LaneLLM,
 			EntityType: model.EntityTypeWork, AID: it.AID, BID: it.BID,
-			InputHash: it.Hash, Model: opts.Model, PromptVersion: PromptWorkPairV2,
+			InputHash: it.Hash, Model: opts.Model, PromptVersion: PromptWorkPair,
 			Evidence: raw,
 		}
-		v, jerr := judge(ctx, c, workPairSystemV2, workPairUser(raw), 512)
+		v, jerr := judge(ctx, c, workPairSystem, workPairUser(raw), 512)
 		if jerr != nil {
 			row.Error = truncate(jerr.Error(), 500)
 			nErrs.Add(1)
@@ -99,7 +99,7 @@ func RunQueueWorkPair(ctx context.Context, db *gorm.DB, c *Client, opts Options)
 		persistQueueVerdict(db, &row)
 	})
 	judged, errs = int(nJudged.Load()), int(nErrs.Load())
-	_ = recordRun(db, "queue-workpair", opts.Model, PromptWorkPairV2,
+	_ = recordRun(db, "queue-workpair", opts.Model, PromptWorkPair,
 		map[string]int{"judged": judged, "errors": errs, "total_same_medium": len(items),
 			"skipped_cross_medium": skippedCross, "todo": len(work)}, time.Now(), "")
 	return judged, errs, nil
@@ -116,7 +116,7 @@ func dryRunWorkPairs(ctx context.Context, c *Client, items []workPairItem, limit
 			break
 		}
 		raw, _ := json.Marshal(it.Dossier)
-		v, err := judge(ctx, c, workPairSystemV2, workPairUser(raw), 512)
+		v, err := judge(ctx, c, workPairSystem, workPairUser(raw), 512)
 		if err != nil {
 			fmt.Printf("[dry] workpair %d⇔%d ERROR: %v\n", it.AID, it.BID, err)
 			continue

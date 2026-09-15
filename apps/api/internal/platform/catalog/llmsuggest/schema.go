@@ -10,20 +10,24 @@ import (
 )
 
 const (
-	PromptNamePairV1        = "name-pair-v1"
-	PromptNamePairV1B       = "name-pair-v1-batch"
-	PromptResidueV1         = "residue-v1"
-	PromptBidVerdictV1      = "bid-verdict-v1"
-	PromptQueueCreditNameV1 = "queue-creditname-v1"
-	PromptWorkPairV1        = "workpair-v1"
-	PromptWorkPairV2        = "workpair-v2"
-	PromptRefV1             = "ref-v1"
-	// PromptChainV2 dropped the vndb anchor as a precondition of the EG store
-	// chain. Bumping the version is the only way a re-judge reaches the stored
-	// rows: upsertJudgement overwrites a stored FAILURE, so re-running the lane
+	PromptNamePairV1   = "name-pair-v1"
+	PromptNamePairV1B  = "name-pair-v1-batch"
+	PromptResidueV1    = "residue-v1"
+	PromptBidVerdictV1 = "bid-verdict-v1"
+
+	// The version of a live queue's prompt lives in the value, never in the
+	// name. currentPrompts holds these same four constants and RunApply selects
+	// on it, so a bump is one edit and the apply filter cannot be left behind
+	// pointing at the version the judge stopped writing.
+	PromptCreditName = "queue-creditname-v1"
+	PromptRef        = "ref-v1"
+	PromptWorkPair   = "workpair-v2"
+	// chain-v2 dropped the vndb anchor as a precondition of the EG store chain.
+	// Bumping the version is the only way a re-judge reaches the stored rows:
+	// upsertJudgement overwrites a stored FAILURE, so re-running the lane
 	// against a chain-unproven row writes nothing at all.
-	PromptChainV2 = "chain-v2"
-	ChainModel    = "rule"
+	PromptChain = "chain-v2"
+	ChainModel  = "rule"
 )
 
 const (

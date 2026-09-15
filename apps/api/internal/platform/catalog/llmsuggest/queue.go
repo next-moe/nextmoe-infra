@@ -58,7 +58,18 @@ const (
 // overlap, so no contradiction is findable and the apply-stage ref screen
 // cannot veto anything there. Same-titled Western VNs -- Alone, Again, Memoria,
 // Stay With Me -- are real distinct works that land in exactly that shape.
-const workPairSystemV2 = "You are a meticulous visual-novel catalog deduplication expert. " +
+//
+// A v3 that named the one missing category -- parts of a release -- was written,
+// measured and reverted. It added "one part of a multi-part release is
+// DIFFERENT" plus a rule that an extra title segment decides by its type.
+// Replayed over the 680 stored dossiers it caught 3 more series pairs and
+// promoted 314 of the 502 pairs v2 had refused into accepts at conf>=0.9:
+// "Blackish House" and "Blackish House ←sideZ" at 0.95, reasoned as a side-story
+// edition of one work. Naming the discriminators turned their absence into
+// corroboration -- 112 of those 314 reasons cite finding no part marker, and
+// pairs v2 left at unsure/0.60 came back same/1.00. Do not hand this judge a
+// checklist of discriminators unless the empty result also has a verdict.
+const workPairSystem = "You are a meticulous visual-novel catalog deduplication expert. " +
 	"Given two catalog work records and their evidence dossiers, decide whether they describe the SAME work. " +
 	"SAME means the two records describe the same work. This catalog models editions, ports, re-releases and translated localisations of one work as ONE work carrying several titles, so a Japanese original and its Chinese or English localisation are the SAME work even when olang, title language and release year differ; a later year on one side is normal for a localisation or a re-release. " +
 	"DIFFERENT covers sequels, prequels, fandiscs, remakes, spin-offs, and separate works that merely share a title. Say which discriminator you found: a DIFFERENT answer must rest on something both dossiers state, never on a field one of them simply omits. " +
