@@ -49,6 +49,17 @@ type CommentsResolveRequest struct {
 	ContentRating int16  `json:"content_rating" doc:"0=all 1=r15 2=r18 (inherited from the anchor)"`
 }
 
+type CommentRequest struct {
+	AnchorKind    int16  `json:"anchor_kind" doc:"1=site_game 2=site_resource 3=catalog_work 4=catalog_person"`
+	AnchorID      string `json:"anchor_id"`
+	ContentRating int16  `json:"content_rating" doc:"0=all 1=r15 2=r18 (inherited from the anchor); applied only when this comment is the one that creates the thread"`
+	AuthorID      int64  `json:"author_id"`
+	Body          string `json:"body" doc:"markdown source"`
+	RootPostID    *int64 `json:"root_post_id,omitempty"`
+	ReplyToPostID *int64 `json:"reply_to_post_id,omitempty"`
+	TargetUserID  *int64 `json:"target_user_id,omitempty"`
+}
+
 type PostsResolveRequest struct {
 	IDs []int64 `json:"ids" doc:"post ids to hydrate (max 100; deduped; only visible posts return)"`
 }
@@ -110,6 +121,12 @@ type ThreadWithPosts struct {
 	Thread     ThreadView `json:"thread"`
 	Posts      []PostView `json:"posts"`
 	NextCursor string     `json:"next_cursor,omitempty" doc:"post_number to pass as after for the next page; empty = last page"`
+}
+
+type CommentsPage struct {
+	Thread     *ThreadView `json:"thread,omitempty" doc:"absent until the anchor's first comment creates the thread; posts is then empty too"`
+	Posts      []PostView  `json:"posts"`
+	NextCursor string      `json:"next_cursor,omitempty" doc:"post_number to pass as after for the next page; empty = last page"`
 }
 
 type ThreadListResponse struct {

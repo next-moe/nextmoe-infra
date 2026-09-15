@@ -70,8 +70,11 @@ func (s *Server) register(api huma.API) {
 	read := []string{"community-read"}
 	write := []string{"community-write"}
 
+	huma.Register(api, huma.Operation{OperationID: "getComments", Method: http.MethodGet, Path: "/api/v1/community/comments",
+		Summary: "Read an anchor's comments and its thread (both absent until the first comment)", Tags: read}, s.getComments)
 	huma.Register(api, huma.Operation{OperationID: "resolveComments", Method: http.MethodPost, Path: "/api/v1/community/comments/resolve",
-		Summary: "Get-or-create the comments thread for an anchor and return its first page of posts", Tags: read}, s.resolveComments)
+		Summary: "Deprecated: get-or-create the comments thread for an anchor. Read with GET /comments and write with POST /comments — this face mints a thread on a read",
+		Tags:    read, Deprecated: true}, s.resolveComments)
 	huma.Register(api, huma.Operation{OperationID: "listThreads", Method: http.MethodGet, Path: "/api/v1/community/threads",
 		Summary: "List a site's threads of a kind (keyset, newest activity first)", Tags: read}, s.listThreads)
 	huma.Register(api, huma.Operation{OperationID: "getThread", Method: http.MethodGet, Path: "/api/v1/community/threads/{id}",
@@ -95,6 +98,8 @@ func (s *Server) register(api huma.API) {
 		Summary: "Open a board topic with its opening post", Tags: write}, s.openTopic)
 	huma.Register(api, huma.Operation{OperationID: "openFeedback", Method: http.MethodPost, Path: "/api/v1/community/feedback",
 		Summary: "Open a feedback thread with its opening post", Tags: write}, s.openFeedback)
+	huma.Register(api, huma.Operation{OperationID: "comment", Method: http.MethodPost, Path: "/api/v1/community/comments",
+		Summary: "Comment on an anchor; the first comment is what creates the comments thread", Tags: write}, s.comment)
 	huma.Register(api, huma.Operation{OperationID: "reply", Method: http.MethodPost, Path: "/api/v1/community/threads/{id}/posts",
 		Summary: "Reply to a thread", Tags: write}, s.reply)
 	huma.Register(api, huma.Operation{OperationID: "editPost", Method: http.MethodPatch, Path: "/api/v1/community/posts/{id}",

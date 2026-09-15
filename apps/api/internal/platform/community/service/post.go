@@ -50,130 +50,163 @@ type ReplyParams struct {
 }
 
 func (s *PostService) Reply(ctx context.Context, p ReplyParams) (*model.CommunityPost, error) {
-	cooked := sanitize.Cook(p.BodyRaw)
-	level, err := trustLevel(s.trusts, p.AuthorID)
+	draft, err := s.draftPost(ctx, callerSite(ctx), p.AuthorID, p.BodyRaw)
 	if err != nil {
 		return nil, err
 	}
-	if err := checkContentSandbox(level, cooked); err != nil {
-		return nil, err
-	}
-	if isSandboxed(level) {
-		n, err := s.posts.CountByAuthorSince(p.AuthorID, time.Now().Add(-time.Duration(keys.CommunitySandboxWindowHours.Get())*time.Hour))
-		if err != nil {
-			return nil, err
-		}
-		if n >= keys.CommunitySandboxMaxRepliesPerDay.Get() {
-			return nil, &SandboxError{Reason: "daily reply limit"}
-		}
-	}
+	draft.rootPostID, draft.replyToPostID, draft.targetUserID = p.RootPostID, p.ReplyToPostID, p.TargetUserID
 
-	suspectHold := false
-	switch s.check.Decision(ctx, callerSite(ctx), p.BodyRaw, &p.AuthorID) {
-	case checkDeny:
-		return nil, ErrContentBlocked
-	case checkHold:
-		suspectHold = true
-	}
-
-	now := time.Now()
-	var post model.CommunityPost
-	var enqueuedItemID int64
-	rootPostID, targetUserID := p.RootPostID, p.TargetUserID
+	var written writtenPost
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		thread, err := repository.GetThreadTx(tx, p.ThreadID)
 		if err != nil {
 			return err
 		}
-		if thread == nil {
+		if thread == nil || crossTenantCtx(ctx, thread.Site, thread.AnchorKind) {
 			return ErrThreadNotFound
 		}
-		if crossTenantCtx(ctx, thread.Site, thread.AnchorKind) {
-			return ErrThreadNotFound
-		}
-		if thread.Status != model.ThreadStatusOpen {
-			return ErrThreadNotOpen
-		}
-		trust, err := repository.GetOrCreateTrustTx(tx, p.AuthorID)
-		if err != nil {
-			return err
-		}
-		held := trust.FirstPostsHeldRemaining > 0
-
-		posted, err := repository.AuthorHasPostedTx(tx, p.ThreadID, p.AuthorID)
-		if err != nil {
-			return err
-		}
-		number, err := repository.AllocateReplyTx(tx, p.ThreadID, now, !posted)
-		if err != nil {
-			return err
-		}
-		if p.ReplyToPostID != nil && (rootPostID == nil || targetUserID == nil) {
-			parent, perr := repository.GetPostTx(tx, *p.ReplyToPostID)
-			if perr != nil {
-				return perr
-			}
-			if parent != nil && parent.ThreadID == p.ThreadID {
-				if targetUserID == nil {
-					author := parent.AuthorID
-					targetUserID = &author
-				}
-				if rootPostID == nil {
-					if parent.RootPostID != nil {
-						rootPostID = parent.RootPostID
-					} else {
-						top := parent.ID
-						rootPostID = &top
-					}
-				}
-			}
-		}
-		post = model.CommunityPost{
-			ThreadID: p.ThreadID, PostNumber: number,
-			RootPostID: rootPostID, ReplyToPostID: p.ReplyToPostID, TargetUserID: targetUserID,
-			AuthorID:   p.AuthorID,
-			ContentRaw: p.BodyRaw, ContentHTML: cooked.HTML, SanitizerVersion: int32(cooked.Version),
-			ContentRating: thread.ContentRating,
-			Status:        postStatus(held),
-		}
-		if err := repository.CreatePostTx(tx, &post); err != nil {
-			return err
-		}
-		if err := repository.EnsureSubscribedTx(tx, p.ThreadID, p.AuthorID, post.PostNumber); err != nil {
-			return err
-		}
-		if held {
-			itemID, created, err := repository.EnqueueReviewIfAbsentTx(tx, thread.Site, post.ID, model.ReviewSourceFirstPostHold)
-			if err != nil {
-				return err
-			}
-			if created {
-				enqueuedItemID = itemID
-			}
-			return repository.DecrementHoldTx(tx, p.AuthorID)
-		}
-		if suspectHold {
-			itemID, created, err := repository.EnqueueReviewIfAbsentTx(tx, thread.Site, post.ID, model.ReviewSourceSuspectWords)
-			if err != nil {
-				return err
-			}
-			if created {
-				enqueuedItemID = itemID
-			}
-		}
-		return nil
+		written, err = appendPostTx(tx, thread, draft)
+		return err
 	})
 	if err != nil {
 		return nil, err
 	}
-	s.sink.Emit(Event{Kind: EventPostCreated, ThreadID: p.ThreadID, PostID: post.ID, ActorID: p.AuthorID})
-	if enqueuedItemID != 0 {
-		s.sink.Emit(Event{Kind: EventReviewEnqueued, ThreadID: p.ThreadID, PostID: post.ID, ReviewItemID: enqueuedItemID})
+	s.emitWrite(p.ThreadID, p.AuthorID, written)
+	return &written.post, nil
+}
+
+// postDraft is what a write face settles BEFORE it opens a transaction: the
+// cooking, the author's trust level, the sandbox quota and the content check.
+type postDraft struct {
+	authorID      int64
+	bodyRaw       string
+	cooked        sanitize.Cooked
+	rootPostID    *int64
+	replyToPostID *int64
+	targetUserID  *int64
+	suspectHold   bool
+	now           time.Time
+}
+
+type writtenPost struct {
+	post           model.CommunityPost
+	enqueuedItemID int64
+	targetUserID   *int64
+}
+
+func (s *PostService) draftPost(ctx context.Context, site string, authorID int64, bodyRaw string) (postDraft, error) {
+	cooked := sanitize.Cook(bodyRaw)
+	level, err := trustLevel(s.trusts, authorID)
+	if err != nil {
+		return postDraft{}, err
 	}
-	if targetUserID != nil && *targetUserID != p.AuthorID {
-		s.sink.Emit(Event{Kind: EventReplyToYou, ThreadID: p.ThreadID, PostID: post.ID, ActorID: p.AuthorID, TargetID: *targetUserID})
+	if err := checkContentSandbox(level, cooked); err != nil {
+		return postDraft{}, err
 	}
-	return &post, nil
+	if isSandboxed(level) {
+		n, err := s.posts.CountByAuthorSince(authorID, time.Now().Add(-time.Duration(keys.CommunitySandboxWindowHours.Get())*time.Hour))
+		if err != nil {
+			return postDraft{}, err
+		}
+		if n >= keys.CommunitySandboxMaxRepliesPerDay.Get() {
+			return postDraft{}, &SandboxError{Reason: "daily reply limit"}
+		}
+	}
+	draft := postDraft{authorID: authorID, bodyRaw: bodyRaw, cooked: cooked, now: time.Now()}
+	switch s.check.Decision(ctx, site, bodyRaw, &authorID) {
+	case checkDeny:
+		return postDraft{}, ErrContentBlocked
+	case checkHold:
+		draft.suspectHold = true
+	}
+	return draft, nil
+}
+
+func appendPostTx(tx *gorm.DB, thread *model.CommunityThread, d postDraft) (writtenPost, error) {
+	var out writtenPost
+	if thread.Status != model.ThreadStatusOpen {
+		return out, ErrThreadNotOpen
+	}
+	trust, err := repository.GetOrCreateTrustTx(tx, d.authorID)
+	if err != nil {
+		return out, err
+	}
+	held := trust.FirstPostsHeldRemaining > 0
+
+	posted, err := repository.AuthorHasPostedTx(tx, thread.ID, d.authorID)
+	if err != nil {
+		return out, err
+	}
+	number, err := repository.AllocateReplyTx(tx, thread.ID, d.now, !posted)
+	if err != nil {
+		return out, err
+	}
+	rootPostID, targetUserID := d.rootPostID, d.targetUserID
+	if d.replyToPostID != nil && (rootPostID == nil || targetUserID == nil) {
+		parent, err := repository.GetPostTx(tx, *d.replyToPostID)
+		if err != nil {
+			return out, err
+		}
+		if parent != nil && parent.ThreadID == thread.ID {
+			if targetUserID == nil {
+				author := parent.AuthorID
+				targetUserID = &author
+			}
+			if rootPostID == nil {
+				if parent.RootPostID != nil {
+					rootPostID = parent.RootPostID
+				} else {
+					top := parent.ID
+					rootPostID = &top
+				}
+			}
+		}
+	}
+	out.targetUserID = targetUserID
+	out.post = model.CommunityPost{
+		ThreadID: thread.ID, PostNumber: number,
+		RootPostID: rootPostID, ReplyToPostID: d.replyToPostID, TargetUserID: targetUserID,
+		AuthorID:   d.authorID,
+		ContentRaw: d.bodyRaw, ContentHTML: d.cooked.HTML, SanitizerVersion: int32(d.cooked.Version),
+		ContentRating: thread.ContentRating,
+		Status:        postStatus(held),
+	}
+	if err := repository.CreatePostTx(tx, &out.post); err != nil {
+		return out, err
+	}
+	if err := repository.EnsureSubscribedTx(tx, thread.ID, d.authorID, out.post.PostNumber); err != nil {
+		return out, err
+	}
+	if held {
+		itemID, created, err := repository.EnqueueReviewIfAbsentTx(tx, thread.Site, out.post.ID, model.ReviewSourceFirstPostHold)
+		if err != nil {
+			return out, err
+		}
+		if created {
+			out.enqueuedItemID = itemID
+		}
+		return out, repository.DecrementHoldTx(tx, d.authorID)
+	}
+	if d.suspectHold {
+		itemID, created, err := repository.EnqueueReviewIfAbsentTx(tx, thread.Site, out.post.ID, model.ReviewSourceSuspectWords)
+		if err != nil {
+			return out, err
+		}
+		if created {
+			out.enqueuedItemID = itemID
+		}
+	}
+	return out, nil
+}
+
+func (s *PostService) emitWrite(threadID, authorID int64, w writtenPost) {
+	s.sink.Emit(Event{Kind: EventPostCreated, ThreadID: threadID, PostID: w.post.ID, ActorID: authorID})
+	if w.enqueuedItemID != 0 {
+		s.sink.Emit(Event{Kind: EventReviewEnqueued, ThreadID: threadID, PostID: w.post.ID, ReviewItemID: w.enqueuedItemID})
+	}
+	if w.targetUserID != nil && *w.targetUserID != authorID {
+		s.sink.Emit(Event{Kind: EventReplyToYou, ThreadID: threadID, PostID: w.post.ID, ActorID: authorID, TargetID: *w.targetUserID})
+	}
 }
 
 func (s *PostService) ListPosts(threadID int64, afterNumber int32, limit int) ([]model.CommunityPost, error) {

@@ -171,6 +171,13 @@ type CommentsThreadParams struct {
 	ActorID       int64
 }
 
+// FindCommentsThread is the read half of an anchor's comment wall: nil until
+// someone comments. Only the deprecated resolve face still mints a thread from
+// a read (see GetOrCreateCommentsThread).
+func (s *ThreadService) FindCommentsThread(site string, anchorKind int16, anchorID string) (*model.CommunityThread, error) {
+	return s.threads.GetLiveCommentsThread(site, anchorKind, anchorID)
+}
+
 func (s *ThreadService) GetOrCreateCommentsThread(ctx context.Context, p CommentsThreadParams) (*model.CommunityThread, error) {
 	if t, err := s.threads.GetLiveCommentsThread(p.Site, p.AnchorKind, p.AnchorID); err != nil {
 		return nil, err

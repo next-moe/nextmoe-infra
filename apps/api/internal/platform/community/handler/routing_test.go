@@ -36,6 +36,11 @@ func TestRouting_EveryNewPathResolves(t *testing.T) {
 		want               int
 	}{
 		{http.MethodGet, "/api/v1/community/posts", "", http.StatusOK},
+		{http.MethodGet, "/api/v1/community/comments?anchor_kind=1&anchor_id=g1", "", http.StatusOK},
+		{http.MethodPost, "/api/v1/community/comments", `{"anchor_kind":1,"anchor_id":"g1","content_rating":0,"author_id":1,"body":"hi"}`, http.StatusOK},
+		// The deprecated face keeps its own path; POST /comments must not swallow it.
+		{http.MethodPost, "/api/v1/community/comments/resolve", `{"anchor_kind":1,"anchor_id":"g2","content_rating":0}`, http.StatusOK},
+		{http.MethodGet, "/api/v1/community/comments?anchor_kind=0&anchor_id=b1", "", http.StatusUnprocessableEntity},
 		{http.MethodGet, "/api/v1/community/threads?kind=0&sort=created", "", http.StatusOK},
 		{http.MethodGet, "/api/v1/community/search/posts?q=%E6%B1%89%E5%8C%96", "", http.StatusOK},
 		{http.MethodGet, "/api/v1/community/search/threads?q=%E6%B1%89%E5%8C%96", "", http.StatusOK},
@@ -43,8 +48,8 @@ func TestRouting_EveryNewPathResolves(t *testing.T) {
 		{http.MethodPost, "/api/v1/community/threads/states", `{"user_id":1,"thread_ids":[]}`, http.StatusOK},
 		// The literal segment must win over /threads/{id}; a shadowed route would
 		// try to parse "states" as an id and answer 422 instead.
-		{http.MethodPost, "/api/v1/community/threads/1/read", `{"user_id":1,"last_read_post_number":1}`, http.StatusNotFound},
-		{http.MethodPost, "/api/v1/community/threads/1/notification", `{"user_id":1,"level":3}`, http.StatusNotFound},
+		{http.MethodPost, "/api/v1/community/threads/999999/read", `{"user_id":1,"last_read_post_number":1}`, http.StatusNotFound},
+		{http.MethodPost, "/api/v1/community/threads/999999/notification", `{"user_id":1,"level":3}`, http.StatusNotFound},
 		// Query validation declared in the spec is enforced by the router layer.
 		{http.MethodGet, "/api/v1/community/threads?kind=0&sort=hottest", "", http.StatusUnprocessableEntity},
 	}
