@@ -15,8 +15,7 @@ type AuthorPostRow struct {
 
 func (r *PostRepository) ListAuthorVisiblePosts(site string, authorID, after int64, anchorKind int16, limit int) ([]AuthorPostRow, error) {
 	q := r.db.Model(&model.CommunityPost{}).
-		Select("community_post.*, community_thread.title AS thread_title, "+
-			"community_thread.anchor_kind AS thread_anchor_kind, community_thread.anchor_id AS thread_anchor_id").
+		Select(threadContextSelect).
 		Joins("JOIN community_thread ON community_thread.id = community_post.thread_id").
 		Where("community_post.author_id = ? AND community_thread.site = ? AND community_post.status = ?",
 			authorID, site, model.PostStatusVisible)
@@ -37,8 +36,7 @@ func (r *PostRepository) ResolveVisiblePosts(site string, ids []int64) ([]Author
 	}
 	var rows []AuthorPostRow
 	err := r.db.Model(&model.CommunityPost{}).
-		Select("community_post.*, community_thread.title AS thread_title, "+
-			"community_thread.anchor_kind AS thread_anchor_kind, community_thread.anchor_id AS thread_anchor_id").
+		Select(threadContextSelect).
 		Joins("JOIN community_thread ON community_thread.id = community_post.thread_id").
 		Where("community_post.id IN ? AND community_thread.site = ? AND community_post.status = ?",
 			ids, site, model.PostStatusVisible).

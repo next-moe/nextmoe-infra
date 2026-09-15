@@ -9,6 +9,7 @@ import (
 
 	"api/internal/platform/community/dto"
 	"api/internal/platform/community/model"
+	"api/internal/platform/community/repository"
 	"api/internal/platform/community/service"
 	"api/pkg/errors"
 
@@ -58,6 +59,8 @@ func (s *Server) register(api huma.API) {
 		Summary: "Get a thread with a page of posts", Tags: read}, s.getThread)
 	huma.Register(api, huma.Operation{OperationID: "listPosts", Method: http.MethodGet, Path: "/api/v1/community/threads/{id}/posts",
 		Summary: "List a thread's posts (keyset by post_number)", Tags: read}, s.listPosts)
+	huma.Register(api, huma.Operation{OperationID: "listSitePosts", Method: http.MethodGet, Path: "/api/v1/community/posts",
+		Summary: "List the site's newest posts across every thread (keyset by post creation time)", Tags: read}, s.listSitePosts)
 	huma.Register(api, huma.Operation{OperationID: "listAuthorPosts", Method: http.MethodGet, Path: "/api/v1/community/authors/{id}/posts",
 		Summary: "List a site author's visible posts across threads (keyset by post id, newest first) with thread context", Tags: read}, s.listAuthorPosts)
 	huma.Register(api, huma.Operation{OperationID: "authorStats", Method: http.MethodGet, Path: "/api/v1/community/authors/stats",
@@ -131,7 +134,9 @@ type listThreadsInput struct {
 	Kind       int16  `query:"kind" doc:"0=topic 1=comments 2=feedback"`
 	AnchorKind int16  `query:"anchor_kind" doc:"anchor kind for the optional anchor filter (only used when anchor_id is set)"`
 	AnchorID   string `query:"anchor_id" doc:"optional: narrow to a single anchor (e.g. a resource's feedback wall); empty = the whole site"`
-	Cursor     string `query:"cursor" doc:"opaque cursor from the previous page"`
+	Sort       string `query:"sort" doc:"activity (default: newest activity) | created (newest thread) | posts (most replies)"`
+	HasPosts   bool   `query:"has_posts" doc:"only threads that hold at least one post; a comments thread is created on first view, so most carry none"`
+	Cursor     string `query:"cursor" doc:"opaque cursor from the previous page; it is bound to the sort that minted it"`
 	Limit      int    `query:"limit" doc:"page size (max 100, default 50)"`
 }
 type threadListOutput struct {
@@ -143,12 +148,19 @@ func (s *Server) listThreads(ctx context.Context, in *listThreadsInput) (*thread
 	if he != nil {
 		return nil, he
 	}
+	sort, ok := parseThreadSort(in.Sort)
+	if !ok {
+		return nil, apiErrMsg(http.StatusBadRequest, errors.ErrInvalidParam, "unknown sort")
+	}
 	cursor, err := decodeThreadCursor(in.Cursor)
-	if err != nil {
+	if err != nil || (cursor.ID != 0 && cursor.Sort != sort) {
 		return nil, apiErrMsg(http.StatusBadRequest, errors.ErrInvalidParam, "malformed cursor")
 	}
 	limit := clampLimit(in.Limit)
-	threads, err := s.threads.ListBySite(site, in.Kind, in.AnchorKind, in.AnchorID, cursor, limit)
+	threads, err := s.threads.List(repository.ThreadListQuery{
+		Site: site, Kind: in.Kind, AnchorKind: in.AnchorKind, AnchorID: in.AnchorID,
+		Sort: sort, HasPosts: in.HasPosts, Cursor: cursor, Limit: limit,
+	})
 	if err != nil {
 		return nil, mapErr("list threads", err)
 	}
@@ -161,7 +173,7 @@ func (s *Server) listThreads(ctx context.Context, in *listThreadsInput) (*thread
 		return nil, mapErr("list threads openings", err)
 	}
 	return &threadListOutput{Body: okEnvelope(dto.ThreadListResponse{
-		Threads: toThreadViewsWithOpening(threads, metas), NextCursor: threadsPageCursor(threads, limit),
+		Threads: toThreadViewsWithOpening(threads, metas), NextCursor: threadsPageCursor(threads, sort, limit),
 	})}, nil
 }
 

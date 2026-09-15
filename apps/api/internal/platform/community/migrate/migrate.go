@@ -97,6 +97,21 @@ func rawSQL(db *gorm.DB) error {
 		{"idx_community_thread_anchor", `
 			CREATE INDEX IF NOT EXISTS idx_community_thread_anchor
 			    ON community_thread(anchor_kind, anchor_id, kind)`},
+		// The two sorts the site thread list offers besides activity. Both carry
+		// the same (site, kind) prefix as the activity index so a sort switch
+		// changes only the trailing key.
+		{"idx_community_thread_site_created", `
+			CREATE INDEX IF NOT EXISTS idx_community_thread_site_created
+			    ON community_thread(site, kind, created_at DESC)`},
+		{"idx_community_thread_site_posts", `
+			CREATE INDEX IF NOT EXISTS idx_community_thread_site_posts
+			    ON community_thread(site, kind, posts_count DESC)`},
+		// The site-wide newest-posts feed. It orders by created_at, not id: the
+		// kungal import gave historical comments fresh ids, so id order is import
+		// order (measured corr(id, created_at) = 0.72 at the time of writing).
+		{"idx_community_post_created", `
+			CREATE INDEX IF NOT EXISTS idx_community_post_created
+			    ON community_post(created_at DESC, id DESC)`},
 		// User footprint (NextMoe profile): a user's posts newest-first. DESC
 		// sort, so it lives here rather than a struct tag.
 		{"idx_community_post_author", `

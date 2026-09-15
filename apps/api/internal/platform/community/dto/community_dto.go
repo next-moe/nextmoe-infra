@@ -144,6 +144,11 @@ type AuthorPostsResponse struct {
 	NextCursor string           `json:"next_cursor,omitempty" doc:"post id to pass as after for the next (older) page; empty = last page"`
 }
 
+type PostFeedResponse struct {
+	Posts      []AuthorPostView `json:"posts"`
+	NextCursor string           `json:"next_cursor,omitempty" doc:"opaque cursor for the next (older) page; empty = last page"`
+}
+
 type PostsResolveResponse struct {
 	Posts []AuthorPostView `json:"posts"`
 }

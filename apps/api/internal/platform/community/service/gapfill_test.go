@@ -280,7 +280,7 @@ func TestListThreads_AnchorFilter(t *testing.T) {
 	openFeedback(t, ts, "letmoe", 101, model.AnchorKindSiteResource, "r2", "b")
 	fb3 := openFeedback(t, ts, "letmoe", 102, model.AnchorKindSiteResource, "r1", "c")
 
-	got, err := ts.ListBySite("letmoe", model.ThreadKindFeedback, model.AnchorKindSiteResource, "r1", repository.ThreadCursor{}, 50)
+	got, err := ts.List(repository.ThreadListQuery{Site: "letmoe", Kind: model.ThreadKindFeedback, AnchorKind: model.AnchorKindSiteResource, AnchorID: "r1", Limit: 50})
 	if err != nil {
 		t.Fatalf("anchor list: %v", err)
 	}
@@ -292,7 +292,7 @@ func TestListThreads_AnchorFilter(t *testing.T) {
 		t.Fatalf("r1 filter should return exactly {%d,%d}, got %v", fb1.ID, fb3.ID, got)
 	}
 
-	empty, err := ts.ListBySite("letmoe", model.ThreadKindFeedback, model.AnchorKindSiteResource, "r404", repository.ThreadCursor{}, 50)
+	empty, err := ts.List(repository.ThreadListQuery{Site: "letmoe", Kind: model.ThreadKindFeedback, AnchorKind: model.AnchorKindSiteResource, AnchorID: "r404", Limit: 50})
 	if err != nil {
 		t.Fatalf("empty anchor list: %v", err)
 	}
@@ -300,7 +300,7 @@ func TestListThreads_AnchorFilter(t *testing.T) {
 		t.Fatalf("a non-existent anchor should be empty, got %d", len(empty))
 	}
 
-	all, err := ts.ListBySite("letmoe", model.ThreadKindFeedback, 0, "", repository.ThreadCursor{}, 50)
+	all, err := ts.List(repository.ThreadListQuery{Site: "letmoe", Kind: model.ThreadKindFeedback, Limit: 50})
 	if err != nil {
 		t.Fatalf("site list: %v", err)
 	}
@@ -313,7 +313,7 @@ func TestListThreads_AnchorFilter(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("resolve comments: %v", err)
 	}
-	comments, err := ts.ListBySite("letmoe", model.ThreadKindComments, model.AnchorKindSiteGame, "g5", repository.ThreadCursor{}, 50)
+	comments, err := ts.List(repository.ThreadListQuery{Site: "letmoe", Kind: model.ThreadKindComments, AnchorKind: model.AnchorKindSiteGame, AnchorID: "g5", Limit: 50})
 	if err != nil {
 		t.Fatalf("comments anchor list: %v", err)
 	}

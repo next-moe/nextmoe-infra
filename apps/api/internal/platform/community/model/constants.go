@@ -1,5 +1,7 @@
 package model
 
+import "slices"
+
 const (
 	ThreadKindTopic    int16 = 0
 	ThreadKindComments int16 = 1
@@ -14,10 +16,14 @@ const (
 	AnchorKindCatalogPerson int16 = 4
 )
 
+// SiteLocalAnchorKinds carry a tenant-local id: two sites can mint the same one,
+// so identity includes the site. Every other anchor kind is a network-global id
+// whose conversation is shared across sites (invariant 1). SQL that scopes a
+// read to a caller must mirror this list, not restate it.
+var SiteLocalAnchorKinds = []int16{AnchorKindBoard, AnchorKindSiteGame, AnchorKindSiteResource}
+
 func AnchorIsSiteLocal(anchorKind int16) bool {
-	return anchorKind == AnchorKindBoard ||
-		anchorKind == AnchorKindSiteGame ||
-		anchorKind == AnchorKindSiteResource
+	return slices.Contains(SiteLocalAnchorKinds, anchorKind)
 }
 
 const (

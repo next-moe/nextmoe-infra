@@ -53,10 +53,29 @@
   gone. The thread's own `status` stays `open` in both cases (the moderation
   state lives on the post), so the list cannot filter on `status` alone; the
   fields are populated only on this list read, not on a thread detail (which
-  already carries the opening post in its posts page). `GET /threads/{id}` and
+  already carries the opening post in its posts page). The listing takes a
+  **`sort`** — `activity` (default: last activity), `created` (newest thread) or
+  `posts` (most replies) — and a cursor is bound to the sort that minted it
+  (replaying one under another is a `400`). An `activity` cursor keeps its
+  original two-part shape, so cursors held by callers that predate `sort` still
+  work; `posts` orders on a mutable key, so a row can move between pages while a
+  caller pages through it. **`has_posts`** keeps only threads holding at least
+  one post — a comments thread is created by the first *view* of its anchor, so
+  on a busy tenant nearly all of them are empty (~110,000 of kungal's 113,000 at
+  the time of writing) and an unfiltered "latest threads" read is mostly anchors
+  nobody has spoken about. `GET /threads/{id}` and
   `GET /threads/{id}/posts` — a thread with a page of posts, keyset by
   `post_number` (`after`). Cooked HTML is served for display; the raw markdown is
   included for the editor.
+- `GET /posts` — the site's newest posts across every thread (the "latest
+  replies" face), each carrying its thread context, keyset by **creation time**,
+  not id. Filters: `kind`, `anchor_kind` + `anchor_id`, `replies_only` (drop
+  opening posts); visible posts only. The id would be the cheaper key and is the
+  wrong one — the kungal import gave historical comments fresh ids, so id order
+  is import order (measured `corr(id, created_at)` = 0.72). Its tenancy follows
+  the **id-addressed guard** rather than the thread listing: the caller's own
+  site plus catalog-anchored threads, which are one network-wide conversation by
+  design (invariant 1).
 
 ## 4. Write faces (embed capability set, invariant 11)
 

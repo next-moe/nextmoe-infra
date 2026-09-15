@@ -23,7 +23,9 @@ func TestKeyset_ThreadList(t *testing.T) {
 	seen := map[int64]bool{}
 	cursor := repository.ThreadCursor{}
 	for {
-		page, err := ts.ListBySite("letmoe", model.ThreadKindTopic, 0, "", cursor, 2)
+		page, err := ts.List(repository.ThreadListQuery{
+			Site: "letmoe", Kind: model.ThreadKindTopic, Cursor: cursor, Limit: 2,
+		})
 		if err != nil {
 			t.Fatalf("list: %v", err)
 		}
@@ -38,7 +40,7 @@ func TestKeyset_ThreadList(t *testing.T) {
 			got = append(got, th.ID)
 		}
 		last := page[len(page)-1]
-		cursor = repository.ThreadCursor{LastPosted: *last.LastPostedAt, ID: last.ID}
+		cursor = repository.ThreadCursor{Sort: repository.ThreadSortActivity, LastPosted: *last.LastPostedAt, ID: last.ID}
 		if len(page) < 2 {
 			break
 		}

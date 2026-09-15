@@ -198,8 +198,9 @@ func (s *ThreadService) Get(id int64) (*model.CommunityThread, error) {
 	return s.threads.GetByID(id)
 }
 
-func (s *ThreadService) ListBySite(site string, kind int16, anchorKind int16, anchorID string, cursor repository.ThreadCursor, limit int) ([]model.CommunityThread, error) {
-	return s.threads.ListBySite(site, kind, anchorKind, anchorID, cursor, clampLimit(limit))
+func (s *ThreadService) List(q repository.ThreadListQuery) ([]model.CommunityThread, error) {
+	q.Limit = clampLimit(q.Limit)
+	return s.threads.List(q)
 }
 
 func (s *ThreadService) ListByAnchor(site string, anchorKind int16, anchorID string, kind int16) ([]model.CommunityThread, error) {
