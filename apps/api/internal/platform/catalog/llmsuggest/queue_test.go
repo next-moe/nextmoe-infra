@@ -49,7 +49,7 @@ func TestSurvivorDirectionLowerID(t *testing.T) {
 func TestBothClaimedFreeze(t *testing.T) {
 	s := workPairSides{AID: 1, BID: 2, ClaimedA: true, ClaimedB: true}
 	assert.True(t, bothClaimed(s))
-	p := planWorkPair(VerdictSame, 1, 0.9, 0.7, s)
+	p := planWorkPair(VerdictSame, 1, 0.7, s, soleName("sole"))
 	assert.Equal(t, skipFrozenBothClaimed, p.Skip)
 	assert.Empty(t, p.Action)
 }
@@ -63,9 +63,9 @@ func TestVerdictActionMapping(t *testing.T) {
 	assert.Equal(t, skipUnsure, p.Skip)
 
 	s := workPairSides{AID: 1, BID: 2}
-	p = planWorkPair(VerdictDifferent, 0.95, 0.9, 0.7, s)
+	p = planWorkPair(VerdictDifferent, 0.95, 0.7, s, soleName("sole"))
 	assert.Equal(t, applyReject, p.Action)
-	p = planWorkPair(VerdictSame, 0.95, 0.9, 0.7, s)
+	p = planWorkPair(VerdictSame, 0.95, 0.7, s, soleName("sole"))
 	assert.Equal(t, applyAccept, p.Action)
 	assert.Equal(t, int64(2), p.Source)
 	assert.Equal(t, int64(1), p.Target)

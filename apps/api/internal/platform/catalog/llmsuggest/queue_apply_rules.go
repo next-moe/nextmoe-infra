@@ -215,7 +215,22 @@ func planCreditName(verdict string, conf, minAccept, minReject float64) applyPla
 // whose one side has been merged away supports no such claim. Stamping the
 // verdict row without touching the candidate is what left 158 of these sitting
 // in needs_manual after the 2026-09-14 sweep, counted as human work forever.
-func planWorkPair(verdict string, conf, minAccept, minReject float64, s workPairSides) applyPlan {
+//
+// There is no accept bar, and minAccept is gone rather than defaulted: on the
+// 693 pairs judged on 2026-09-15, 154 of the 175 accepts sat at confidence
+// exactly 0.90 and a replay of the same dossiers through the same model at
+// temperature 0 moved 28 of them across it. A bar standing on the mode decides
+// by the sampling, not by the judgement, and what it decides here is a merge
+// that production cannot undo. The name gate replaced it.
+//
+// same and unsure share a branch for the same reason. The prompt defines unsure
+// as neither an agreement nor a discriminator, and the pairs that get it are
+// the ones whose other side is a bangumi row with no year, no label and no ref
+// -- a thin dossier, not a doubt about identity. 172 of the 305 pairs that pass
+// the name gate are unsure, and they read as "How to Date an Entity (and stay
+// alive)" facing itself. A verdict of different still vetoes: that one the
+// model reached by naming something.
+func planWorkPair(verdict string, conf, minReject float64, s workPairSides, ev pairEvidence) applyPlan {
 	if s.DeletedA || s.DeletedB {
 		return applyPlan{Action: applyDefer, Stamp: stampObsoletePair}
 	}
@@ -228,17 +243,16 @@ func planWorkPair(verdict string, conf, minAccept, minReject float64, s workPair
 			return applyPlan{Skip: skipBelowConfidence}
 		}
 		return applyPlan{Action: applyReject}
-	case VerdictSame:
-		if conf < minAccept {
-			return applyPlan{Skip: skipBelowConfidence}
-		}
+	case VerdictSame, VerdictUnsure:
 		if bothClaimed(s) {
 			return applyPlan{Skip: skipFrozenBothClaimed}
 		}
+		if !ev.exclusive() {
+			return applyPlan{Skip: skipUncorroborated}
+		}
 		src, tgt := survivorTarget(s)
-		return applyPlan{Action: applyAccept, Source: src, Target: tgt}
-	case VerdictUnsure:
-		return applyPlan{Skip: skipUnsure}
+		return applyPlan{Action: applyAccept, Source: src, Target: tgt,
+			Reason: fmt.Sprintf("sole holders of %q", ev.Name)}
 	default:
 		return applyPlan{Skip: skipUnknownVerdict}
 	}

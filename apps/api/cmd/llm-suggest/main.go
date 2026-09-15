@@ -25,7 +25,7 @@ func main() {
 	mode := flag.String("mode", "task", "task | apply | calibrate")
 	queue := flag.String("queue", "", "apply/calibrate: creditname | workpair | ref")
 	actor := flag.Int64("actor", 0, "apply: operator user id stamped on live writes")
-	minConf := flag.Float64("min-confidence", 0.9, "apply: minimum confidence to accept a merge or confirm a ref")
+	minConf := flag.Float64("min-confidence", 0.9, "apply: minimum confidence to confirm a ref or accept a credit name (work merges are gated on evidence, not confidence)")
 	minConfReject := flag.Float64("min-confidence-reject", 0.7, "apply: minimum confidence to reject a candidate")
 	families := flag.String("families", "all", "queue-refs: chain | llm | all")
 	apply := flag.Bool("apply", false, "write suggestions (default: dry run — sample + print)")
