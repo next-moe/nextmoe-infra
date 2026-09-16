@@ -107,6 +107,46 @@ Two more faces landed with it:
 `patch_comment` and `user_patch_comment_like_relation` stay frozen, not dropped:
 they are the import's source and the rollback's evidence.
 
+### Undoing an import
+
+Everything the import writes is either tagged `site = 'moyu'` or in a table it
+created, so an undo is a delete, not a restore — as long as it runs **before**
+moyu's deploy, after which the rows are no longer only the import's. Run it in
+this order inside one transaction; the trust adjustment has to come first,
+because it reads the reactions it is reversing:
+
+```sql
+BEGIN;
+WITH mine AS (
+  SELECT p.id, p.author_id FROM community_post p
+    JOIN community_thread t ON t.id = p.thread_id WHERE t.site = 'moyu'
+), given AS (
+  SELECT r.user_id, count(*) n FROM community_reaction r
+    JOIN mine m ON m.id = r.post_id GROUP BY 1
+), received AS (
+  SELECT m.author_id user_id, count(*) n FROM community_reaction r
+    JOIN mine m ON m.id = r.post_id GROUP BY 1
+)
+UPDATE community_trust c SET
+  likes_given    = GREATEST(0, COALESCE(c.likes_given,0)    - COALESCE(g.n,0)),
+  likes_received = GREATEST(0, COALESCE(c.likes_received,0) - COALESCE(r.n,0))
+  FROM (SELECT user_id FROM given UNION SELECT user_id FROM received) u
+  LEFT JOIN given g USING (user_id) LEFT JOIN received r USING (user_id)
+ WHERE c.user_id = u.user_id;
+
+DELETE FROM community_reaction WHERE post_id IN
+  (SELECT p.id FROM community_post p JOIN community_thread t ON t.id = p.thread_id WHERE t.site='moyu');
+DELETE FROM community_thread_user WHERE thread_id IN (SELECT id FROM community_thread WHERE site='moyu');
+DELETE FROM community_post   WHERE thread_id IN (SELECT id FROM community_thread WHERE site='moyu');
+DELETE FROM community_thread WHERE site = 'moyu';
+COMMIT;
+```
+
+The 127 seeded `community_trust` rows are deliberately left behind: they are
+keyed on the user alone, carry no site, and cost nothing. `DROP TABLE
+patch_comment_community_map` in moyu's database finishes it — but only if
+moyu's migration 040 has not run, since after that the table is theirs.
+
 ## 3. What the moyu session changes
 
 - **Anchors lose their prefix.** `moyu:<patch.id>` → `<patch.id>` (anchor_kind
