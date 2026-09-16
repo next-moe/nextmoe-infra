@@ -17,11 +17,11 @@
 # faces (task: ">=2 since_id samples: 0 and a mid value").
 #
 # Usage:
-#   BASE=http://127.0.0.1:19281 \
+#   BASE=http://127.0.0.1:9281 \
 #   INTERNAL_KEY=nm_test_... BASIC_CLIENT=<client_id> BASIC_SECRET=<secret> \
 #     scripts/open-api-phase2/replay-feeds-a1.sh
 set -euo pipefail
-BASE="${BASE:-http://127.0.0.1:19281}"
+BASE="${BASE:-http://127.0.0.1:9281}"
 INTERNAL_KEY="${INTERNAL_KEY:?set INTERNAL_KEY (an internal-tier devapi key)}"
 BASIC_CLIENT="${BASIC_CLIENT:?set BASIC_CLIENT (OAuth client_id for legacy /api Basic auth)}"
 BASIC_SECRET="${BASIC_SECRET:?set BASIC_SECRET (the plaintext secret for that client)}"

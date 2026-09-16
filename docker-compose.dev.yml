@@ -263,18 +263,16 @@ services:
     environment: { <<: *dev-env }
     restart: "no"
 
-  # community / ai and their schemas are `full`-profile only: nothing a bare
-  # `pnpm dev` runs dials :9282 or :9284 (community's trust forwarding is off,
-  # and trust — itself `full`-only — has empty AI creds so it never dials).
-  # Their consumers are the PRODUCT repos, which is what `pnpm dev:full` is for.
   migrate-community:
     image: ghcr.io/next-moe/infra-migrate:${INFRA_IMAGE_TAG:-latest}
     command: ["community"]
-    profiles: ["full"]
     network_mode: host
     environment: { <<: *dev-env }
     restart: "no"
 
+  # ai's schema is `full`-profile only: nothing a bare `pnpm dev` runs dials
+  # :9284 (trust has empty AI creds so it never dials), and its consumers are
+  # the PRODUCT repos — which is what `pnpm dev:full` is for.
   migrate-ai:
     image: ghcr.io/next-moe/infra-migrate:${INFRA_IMAGE_TAG:-latest}
     command: ["ai"]
@@ -289,12 +287,13 @@ services:
   # box directly, so `go run ./cmd/<svc>` on the same port replaces a stopped one.
   oauth:
     image: ghcr.io/next-moe/infra-oauth:${INFRA_IMAGE_TAG:-latest}
-    # The five frequently-edited Go services (oauth/catalog/image/artifact/trust)
-    # sit behind the `full` profile so a bare `up` starts the platform WITHOUT
-    # them — leaving their host ports free for `air` to hot-reload from source
-    # (see scripts/dev.sh / `pnpm dev`). Product-repo developers who want the
-    # whole platform from prebuilt images run `--profile full` — which is also
-    # what carries community/ai, since nothing in a bare `up` consumes them.
+    # The six frequently-edited Go services (oauth/catalog/community/image/
+    # artifact/trust) sit behind the `full` profile so a bare `up` starts the
+    # platform WITHOUT them — leaving their host ports free for `air` to
+    # hot-reload from source (see scripts/dev.sh / `pnpm dev`). Product-repo
+    # developers who want the whole platform from prebuilt images run
+    # `--profile full` — which is also what carries ai, since nothing in a
+    # bare `up` consumes it.
     profiles: ["full"]
     network_mode: host
     environment:
@@ -407,6 +406,9 @@ services:
 
   community:
     image: ghcr.io/next-moe/infra-community:${INFRA_IMAGE_TAG:-latest}
+    # `full` for the same reason as oauth/catalog/…: air hot-reloads :9282 from
+    # source. Its SCHEMA (migrate-community above) is NOT full-profile — a bare
+    # `up` migrates kun_community so the air copy has a database to start on.
     profiles: ["full"]
     network_mode: host
     environment:

@@ -50,9 +50,9 @@ English, and short. When in doubt, delete it — a wrong comment costs more than
 `pnpm dev` starts **everything an infra session needs**: it brings up the
 platform base from `docker-compose.dev.yml` (redis / minio / opensearch / mailpit +
 the migrations, all from the single `infra-migrate` image — one binary, one
-target per invocation) and then runs `air` for the five frequently-edited Go services
-(**oauth / catalog / image / artifact / trust**, hot-reloaded from source)
-plus the Nuxt frontends. catalog (:9281) hosts the catalog faces and the
+target per invocation) and then runs `air` for the six frequently-edited Go services
+(**oauth / catalog / community / image / artifact / trust**, hot-reloaded from
+source) plus the Nuxt frontends. catalog (:9281) hosts the catalog faces and the
 `/v1/galgame` **410 tombstone only** (`galgameapp.MountRetiredPublic`); the
 standalone galgame service (:9280) and every live galgame face are retired,
 so do not reintroduce a galgame HTTP client or treat the retired galgame
@@ -64,11 +64,13 @@ first-party faces are `/api/v1/admin/catalog` and `/api/v1/admin/news`. Ctrl-C s
 stays up. Before assuming a base service isn't running, check — a past mistake
 was starting a second copy of one that was already up.
 
-- **community / ai are `full`-profile**, not part of a bare `pnpm dev`: nothing
-  the default stack runs dials :9282 or :9284, so starting them cost two image
-  pulls and two idle containers. Need them (product-repo work, or editing them)?
+- **ai is `full`-profile**, not part of a bare `pnpm dev`: nothing the default
+  stack runs dials :9284 (trust's AI creds are empty), so starting it cost an
+  image pull and an idle container. Need it (product-repo work, or editing it)?
   `pnpm dev:full`, or `docker compose -f docker-compose.dev.yml --profile full
-  up -d community ai`.
+  up -d ai`. community (:9282) is **not** in that group — it is hot-reloaded
+  from source like the other five, and a bare `up` migrates `kun_community` for
+  it.
 - `pnpm dev:full` = the whole platform from images with no source build (for
   developing a **product** repo, not infra). `pnpm dev:down` tears the base down.
 - Ports match prod (9277-9284); Postgres is the box's own `127.0.0.1:5432`, not
