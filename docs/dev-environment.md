@@ -19,7 +19,7 @@ repo needs on top of that sits behind the `full` profile.
 | image | 9278 | `ghcr.io/next-moe/infra-image` | — |
 | artifact | 9279 | `ghcr.io/next-moe/infra-artifact` | — |
 | catalog (hosts the galgame surface; :9280 retired) | 9281 | `ghcr.io/next-moe/infra-catalog` | — |
-| community *(`full`)* | 9282 | `ghcr.io/next-moe/infra-community` | — |
+| community | 9282 | `ghcr.io/next-moe/infra-community` | — |
 | trust | 9283 | `ghcr.io/next-moe/infra-trust` | — |
 | ai *(`full`)* | 9284 | `ghcr.io/next-moe/infra-ai` | — |
 | image-cdn-proxy (Caddy) | 9290 | `caddy:2-alpine` | — |
@@ -35,28 +35,27 @@ frontends run their own `pnpm dev`, jobs run on demand.
 
 ## Two ways to run it — hybrid vs all-from-images
 
-**oauth / catalog / image / artifact / trust** carry the compose `full` profile
-because `air` rebuilds them from source, and their host ports must stay free.
-**community / ai** carry it for a different reason: nothing the default stack
-runs dials :9282 or :9284 (community's trust forwarding is off, and trust itself
-has empty AI creds), so starting them cost every contributor two image pulls and
-two idle containers. A plain `docker compose … up` therefore starts neither
-group. This gives two modes:
+**oauth / catalog / community / image / artifact / trust** carry the compose
+`full` profile because `air` rebuilds them from source, and their host ports must
+stay free. **ai** carries it for a different reason: nothing the default stack
+runs dials :9284 (trust has empty AI creds), so starting it cost every
+contributor an image pull and an idle container. A plain `docker compose … up`
+therefore starts neither group. This gives two modes:
 
 - **Developing infra itself** → from the infra repo, `pnpm dev` (one command).
   It runs the default compose up (storage + migrations) and then `air`, which
-  rebuilds the five hot services from source on every save, plus the Nuxt
+  rebuilds the six hot services from source on every save, plus the Nuxt
   frontends. Ctrl-C stops the hot stack; the base keeps running. `pnpm dev:down`
-  stops the base. Need community or ai for what you're working on? Add them:
-  `docker compose -f docker-compose.dev.yml --profile full up -d community ai`
-  (or hot-reload one with `go run ./cmd/<svc>` — Replace mode, below).
+  stops the base. Need ai for what you're working on? Add it:
+  `docker compose -f docker-compose.dev.yml --profile full up -d ai`
+  (or hot-reload it with `go run ./cmd/ai` — Replace mode, below).
 - **Developing a product repo** (letmoe / forum / moyu / …) → you want the WHOLE
   platform from images, no source build. Use `--profile full`:
   `docker compose -f docker-compose.dev.yml --profile full up -d` (or, from the
   infra repo, `pnpm dev:full`). Then run the product repo's own `pnpm dev`.
 
 Everything below (`docker compose … up -d`) is written for the all-from-images
-mode; add `--profile full` to include the five hot services.
+mode; add `--profile full` to include the six hot services.
 
 ### Network mode: `host`
 
@@ -191,7 +190,7 @@ prints the fix.
 #    process that does; stop the matching compose service instead (see below).
 ss -tlnp | grep -E ':(9277|9278|9279|9281|9282|9283|9284|9000|9001|7700|1025|8025|9290|6379)\b'
 
-# 2. Pull + start the WHOLE platform (--profile full includes the five hot
+# 2. Pull + start the WHOLE platform (--profile full includes the six hot
 #    services; drop it for the hybrid `pnpm dev` mode). migrate-* run first and
 #    gate the services.
 docker compose -f docker-compose.dev.yml --profile full pull
@@ -212,7 +211,7 @@ INFRA_IMAGE_TAG=sha-abc1234 docker compose -f docker-compose.dev.yml up -d
 
 `docker compose up` does **not** skip a busy port — it fails to bind. If a port is
 held by *your own* native process (e.g. you already run `air` in `apps/api`, which
-binds 9277-9279 / 9281 / 9283), that is the intended Replace-mode situation: just don't start
+binds 9277-9279 / 9281-9283), that is the intended Replace-mode situation: just don't start
 that container. Start a subset explicitly, e.g. only the infra + the two services
 you need:
 
@@ -408,7 +407,7 @@ universal three steps:
 
 1. `docker compose -f docker-compose.dev.yml --profile full up -d` (this repo, or
    `pnpm dev:full`) — the **whole** platform from images. `--profile full` matters:
-   a bare `up` omits the five hot services (oauth/catalog/image/artifact/trust),
+   a bare `up` omits the six hot services (oauth/catalog/community/image/artifact/trust),
    which is what infra's own `pnpm dev` wants (it runs those from source via air).
    A product repo is NOT running air, so it needs them from images → `--profile full`.
 2. `./scripts/refresh-dev-db.sh` (optional) — real-shaped, desensitised data.
