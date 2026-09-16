@@ -216,7 +216,7 @@ func (s *ThreadService) openWithFirstPost(ctx context.Context, p openThread) (*m
 		if err := repository.CreatePostTx(tx, &post); err != nil {
 			return err
 		}
-		if err := repository.EnsureSubscribedTx(tx, thread.ID, p.authorID, post.PostNumber); err != nil {
+		if err := repository.EnsureSubscribedTx(tx, thread.ID, p.authorID, post.PostNumber, p.site); err != nil {
 			return err
 		}
 		if held {

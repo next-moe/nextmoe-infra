@@ -59,10 +59,11 @@ const (
 )
 
 const (
-	NotificationLevelMuted    int16 = 0
-	NotificationLevelNormal   int16 = 1
-	NotificationLevelTracking int16 = 2
-	NotificationLevelWatching int16 = 3
+	NotificationLevelMuted             int16 = 0
+	NotificationLevelNormal            int16 = 1
+	NotificationLevelTracking          int16 = 2
+	NotificationLevelWatching          int16 = 3
+	NotificationLevelWatchingFirstPost int16 = 4
 )
 
 const (

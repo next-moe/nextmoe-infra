@@ -9,6 +9,7 @@ import (
 
 	"api/internal/platform/community/dto"
 	"api/internal/platform/community/model"
+	"api/internal/platform/community/service"
 )
 
 func replyN(t *testing.T, s *Server, ctx context.Context, threadID, author int64, n int) []int64 {
@@ -222,6 +223,14 @@ func TestAuthorPurge(t *testing.T) {
 	addReaction(t, other[0], 500)
 	addReaction(t, visible, 700)
 
+	es := service.NewEngagementService(testDB)
+	if _, err := es.SetAnchorLevel(ctx, "letmoe", 500, model.AnchorKindSiteGame, "g1", model.NotificationLevelWatching); err != nil {
+		t.Fatalf("watch letmoe: %v", err)
+	}
+	if _, err := es.SetAnchorLevel(ctx, "kungal", 500, model.AnchorKindSiteGame, "g1", model.NotificationLevelWatching); err != nil {
+		t.Fatalf("watch kungal: %v", err)
+	}
+
 	res, err := s.purgeAuthor(ctx, &authorPurgeInput{ID: 500})
 	if err != nil {
 		t.Fatalf("purge: %v", err)
@@ -234,11 +243,20 @@ func TestAuthorPurge(t *testing.T) {
 	if res.Body.Data.ReadStatesDeleted != 1 {
 		t.Fatalf("purge must clear the author's read state, got %d", res.Body.Data.ReadStatesDeleted)
 	}
+	if res.Body.Data.AnchorSubscriptionsDeleted != 1 {
+		t.Fatalf("purge must clear only this site's anchor rows, got %d", res.Body.Data.AnchorSubscriptionsDeleted)
+	}
 	if n := countReadStates(t, 500); n != 0 {
 		t.Fatalf("author 500 read states must be gone, got %d", n)
 	}
 	if n := countReadStates(t, 600); n != 1 {
 		t.Fatalf("another author's read state must survive, got %d", n)
+	}
+	if n := countAnchorSubs(t, "letmoe", 500); n != 0 {
+		t.Fatalf("author 500 letmoe anchor rows must be gone, got %d", n)
+	}
+	if n := countAnchorSubs(t, "kungal", 500); n != 1 {
+		t.Fatalf("the other site's anchor row must survive, got %d", n)
 	}
 
 	for _, id := range posts {
@@ -264,9 +282,10 @@ func TestAuthorPurge(t *testing.T) {
 	if err != nil {
 		t.Fatalf("purge again: %v", err)
 	}
-	if again.Body.Data.PostsPurged != 0 || again.Body.Data.ReactionsDeleted != 0 || again.Body.Data.ReadStatesDeleted != 0 {
-		t.Fatalf("second purge must be 0/0/0, got {%d,%d,%d}",
-			again.Body.Data.PostsPurged, again.Body.Data.ReactionsDeleted, again.Body.Data.ReadStatesDeleted)
+	if again.Body.Data.PostsPurged != 0 || again.Body.Data.ReactionsDeleted != 0 || again.Body.Data.ReadStatesDeleted != 0 || again.Body.Data.AnchorSubscriptionsDeleted != 0 {
+		t.Fatalf("second purge must be 0/0/0/0, got {%d,%d,%d,%d}",
+			again.Body.Data.PostsPurged, again.Body.Data.ReactionsDeleted, again.Body.Data.ReadStatesDeleted,
+			again.Body.Data.AnchorSubscriptionsDeleted)
 	}
 }
 
@@ -276,6 +295,17 @@ func countReadStates(t *testing.T, userID int64) int64 {
 	if err := testDB.Raw(
 		`SELECT count(*) FROM community_thread_user WHERE user_id = ?`, userID).Scan(&n).Error; err != nil {
 		t.Fatalf("count read states: %v", err)
+	}
+	return n
+}
+
+func countAnchorSubs(t *testing.T, site string, userID int64) int64 {
+	t.Helper()
+	var n int64
+	if err := testDB.Raw(
+		`SELECT count(*) FROM community_anchor_user WHERE site = ? AND user_id = ?`, site, userID,
+	).Scan(&n).Error; err != nil {
+		t.Fatalf("count anchor subs: %v", err)
 	}
 	return n
 }

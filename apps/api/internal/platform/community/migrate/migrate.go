@@ -24,6 +24,7 @@ func Run(db *gorm.DB) error {
 		&model.CommunityPost{},
 		&model.CommunityReaction{},
 		&model.CommunityThreadUser{},
+		&model.CommunityAnchorUser{},
 		&model.CommunityBoard{},
 		&model.CommunityTrust{},
 		&model.CommunityFlag{},
@@ -151,10 +152,28 @@ func rawSQL(db *gorm.DB) error {
 			CREATE INDEX IF NOT EXISTS idx_community_thread_pinned
 			    ON community_thread(site, kind, pinned_at DESC)
 			    WHERE pin_scope > 0`},
+		// Who watches this anchor, per delivery site. The table is new, so the
+		// index is created over no rows.
+		{"idx_community_anchor_user_anchor", `
+			CREATE INDEX IF NOT EXISTS idx_community_anchor_user_anchor
+			    ON community_anchor_user(anchor_kind, anchor_id, site)`},
 	} {
 		if err := db.Exec(ix.stmt).Error; err != nil {
 			return fmt.Errorf("create index %s: %w", ix.name, err)
 		}
+	}
+	// community_thread_user.site is the site of the user's latest interaction.
+	// Production held 4,909 rows on 2026-09-16 (moyu 4,880, kungal 22, letmoe 7)
+	// and no catalog-anchored thread, so every existing row belongs to its
+	// thread's site. The column stays nullable because the one-off
+	// cmd/import-moyu-comments inserts rows without it, and a reader falls back to
+	// the thread's site when it is NULL.
+	if err := db.Exec(`
+		UPDATE community_thread_user AS tu
+		   SET site = t.site
+		  FROM community_thread AS t
+		 WHERE tu.thread_id = t.id AND tu.site IS NULL`).Error; err != nil {
+		return fmt.Errorf("backfill community_thread_user.site: %w", err)
 	}
 	return boardsSQL(db)
 }

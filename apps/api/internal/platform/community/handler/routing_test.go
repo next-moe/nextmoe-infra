@@ -46,7 +46,11 @@ func TestRouting_EveryNewPathResolves(t *testing.T) {
 		{http.MethodGet, "/api/v1/community/search/posts?q=%E6%B1%89%E5%8C%96", "", http.StatusOK},
 		{http.MethodGet, "/api/v1/community/search/threads?q=%E6%B1%89%E5%8C%96", "", http.StatusOK},
 		{http.MethodGet, "/api/v1/community/users/1/unread", "", http.StatusOK},
+		{http.MethodGet, "/api/v1/community/users/1/anchor-subscriptions", "", http.StatusOK},
 		{http.MethodPost, "/api/v1/community/threads/states", `{"user_id":1,"thread_ids":[]}`, http.StatusOK},
+		{http.MethodPost, "/api/v1/community/anchors/notification", `{"user_id":1,"anchor_kind":3,"anchor_id":"w1","level":3}`, http.StatusOK},
+		{http.MethodPost, "/api/v1/community/anchors/notification", `{"user_id":1,"anchor_kind":3,"anchor_id":"w1","level":2}`, http.StatusUnprocessableEntity},
+		{http.MethodPost, "/api/v1/community/anchors/states", `{"user_id":1,"anchors":[]}`, http.StatusOK},
 		// The literal segment must win over /threads/{id}; a shadowed route would
 		// try to parse "states" as an id and answer 422 instead.
 		{http.MethodPost, "/api/v1/community/threads/999999/read", `{"user_id":1,"last_read_post_number":1}`, http.StatusNotFound},

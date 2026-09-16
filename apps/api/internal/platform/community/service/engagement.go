@@ -33,7 +33,7 @@ func (s *EngagementService) MarkRead(ctx context.Context, threadID, userID int64
 		if lastRead < 0 {
 			lastRead = 0
 		}
-		return repository.MarkReadTx(tx, threadID, userID, lastRead)
+		return repository.MarkReadTx(tx, threadID, userID, lastRead, deliverySite(ctx, thread.Site))
 	})
 	if err != nil {
 		return nil, err
@@ -46,10 +46,11 @@ func (s *EngagementService) SetNotificationLevel(ctx context.Context, threadID, 
 		return nil, ErrInvalidNotificationLevel
 	}
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if _, err := s.reachableThread(ctx, tx, threadID); err != nil {
+		thread, err := s.reachableThread(ctx, tx, threadID)
+		if err != nil {
 			return err
 		}
-		return repository.SetNotificationLevelTx(tx, threadID, userID, level)
+		return repository.SetNotificationLevelTx(tx, threadID, userID, level, deliverySite(ctx, thread.Site))
 	})
 	if err != nil {
 		return nil, err

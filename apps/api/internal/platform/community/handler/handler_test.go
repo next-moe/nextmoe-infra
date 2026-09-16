@@ -47,7 +47,7 @@ func cleanTables(t *testing.T) {
 	t.Helper()
 	for _, table := range []string{
 		"community_review_item", "community_flag", "community_reaction",
-		"community_thread_user", "community_board", "community_trust",
+		"community_anchor_user", "community_thread_user", "community_board", "community_trust",
 		"community_post", "community_thread",
 	} {
 		if err := testDB.Exec("TRUNCATE " + table + " RESTART IDENTITY CASCADE").Error; err != nil {
@@ -88,6 +88,9 @@ func TestSpecExport(t *testing.T) {
 		"operationId: pinTopic",
 		"operationId: closeThread",
 		"operationId: markAnswer",
+		"operationId: setAnchorNotification",
+		"operationId: anchorStates",
+		"operationId: listAnchorSubscriptions",
 		"name: board_id",
 		"name: pinned",
 		"name: anchor_id",

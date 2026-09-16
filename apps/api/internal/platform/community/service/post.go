@@ -79,6 +79,7 @@ func (s *PostService) Reply(ctx context.Context, p ReplyParams) (*model.Communit
 // cooking, the author's trust level, the sandbox quota and the content check.
 type postDraft struct {
 	authorID      int64
+	site          string
 	bodyRaw       string
 	cooked        sanitize.Cooked
 	rootPostID    *int64
@@ -112,7 +113,7 @@ func (s *PostService) draftPost(ctx context.Context, site string, authorID int64
 			return postDraft{}, &SandboxError{Reason: "daily reply limit"}
 		}
 	}
-	draft := postDraft{authorID: authorID, bodyRaw: bodyRaw, cooked: cooked, now: time.Now()}
+	draft := postDraft{authorID: authorID, site: site, bodyRaw: bodyRaw, cooked: cooked, now: time.Now()}
 	switch s.check.Decision(ctx, site, bodyRaw, &authorID) {
 	case checkDeny:
 		return postDraft{}, ErrContentBlocked
@@ -186,7 +187,11 @@ func appendPostTx(tx *gorm.DB, thread *model.CommunityThread, d postDraft) (writ
 	if err := repository.CreatePostTx(tx, &out.post); err != nil {
 		return out, err
 	}
-	if err := repository.EnsureSubscribedTx(tx, thread.ID, d.authorID, out.post.PostNumber); err != nil {
+	site := d.site
+	if site == "" {
+		site = thread.Site
+	}
+	if err := repository.EnsureSubscribedTx(tx, thread.ID, d.authorID, out.post.PostNumber, site); err != nil {
 		return out, err
 	}
 	if held {

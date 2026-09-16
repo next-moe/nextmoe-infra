@@ -65,7 +65,7 @@ func cleanTables(t *testing.T) {
 	t.Helper()
 	for _, table := range []string{
 		"community_review_item", "community_flag", "community_trust",
-		"community_board", "community_thread_user", "community_reaction",
+		"community_board", "community_anchor_user", "community_thread_user", "community_reaction",
 		"community_post", "community_thread",
 	} {
 		if err := testDB.Exec("TRUNCATE " + table + " RESTART IDENTITY CASCADE").Error; err != nil {
@@ -303,6 +303,8 @@ func TestIndexColumnOrder(t *testing.T) {
 		{"idx_community_board_parent", "(parent_id)"},
 		{"idx_community_thread_board", "(site, anchor_id, last_posted_at DESC) WHERE ((kind = 0) AND (anchor_kind = 0))"},
 		{"idx_community_thread_pinned", "(site, kind, pinned_at DESC) WHERE (pin_scope > 0)"},
+		{"uq_community_anchor_user", "(site, user_id, anchor_kind, anchor_id)"},
+		{"idx_community_anchor_user_anchor", "(anchor_kind, anchor_id, site)"},
 	}
 	for _, c := range cases {
 		def := indexDef(t, c.name)
@@ -405,8 +407,12 @@ func TestColumnAudit(t *testing.T) {
 		},
 		"community_reaction": {"post_id", "user_id", "kind", "created_at"},
 		"community_thread_user": {
-			"thread_id", "user_id", "last_read_post_number", "notification_level",
+			"thread_id", "user_id", "site", "last_read_post_number", "notification_level",
 			"last_visited_at",
+		},
+		"community_anchor_user": {
+			"id", "site", "user_id", "anchor_kind", "anchor_id", "notification_level",
+			"created_at", "updated_at",
 		},
 		"community_board": {
 			"id", "site", "parent_id", "slug", "name", "description", "icon", "color",
@@ -563,5 +569,39 @@ func TestLegacyBoardAnchorsBecomeBoards(t *testing.T) {
 	}
 	if nullable != "NO" {
 		t.Fatalf("community_board.slug must be NOT NULL, is_nullable=%s", nullable)
+	}
+}
+
+func TestThreadUserSiteBackfill(t *testing.T) {
+	cleanTables(t)
+	th := mustThread(t, model.ThreadKindTopic, model.AnchorKindBoard, "1", model.ThreadStatusOpen)
+	if err := testDB.Exec(`
+		INSERT INTO community_thread_user (thread_id, user_id, last_read_post_number, notification_level)
+		VALUES (?, 1, 0, 1)`, th.ID).Error; err != nil {
+		t.Fatalf("insert null-site row: %v", err)
+	}
+	if err := testDB.Exec(`
+		INSERT INTO community_thread_user (thread_id, user_id, last_read_post_number, notification_level, site)
+		VALUES (?, 2, 0, 1, 'kungal')`, th.ID).Error; err != nil {
+		t.Fatalf("insert set-site row: %v", err)
+	}
+	for i := range 2 {
+		if err := Run(testDB); err != nil {
+			t.Fatalf("migrate run %d: %v", i, err)
+		}
+	}
+	got := map[int64]*string{}
+	var rows []model.CommunityThreadUser
+	if err := testDB.Order("user_id").Find(&rows).Error; err != nil {
+		t.Fatalf("read thread_user: %v", err)
+	}
+	for i := range rows {
+		got[rows[i].UserID] = rows[i].Site
+	}
+	if got[1] == nil || *got[1] != th.Site {
+		t.Fatalf("null site must backfill from the thread, got %v (thread %q)", got[1], th.Site)
+	}
+	if got[2] == nil || *got[2] != "kungal" {
+		t.Fatalf("an already-set site must be kept, got %v", got[2])
 	}
 }

@@ -10,9 +10,10 @@ import (
 )
 
 type PurgeResult struct {
-	PostsPurged       int64
-	ReactionsDeleted  int64
-	ReadStatesDeleted int64
+	PostsPurged                int64
+	ReactionsDeleted           int64
+	ReadStatesDeleted          int64
+	AnchorSubscriptionsDeleted int64
 }
 
 func (s *PostService) ListAuthorPosts(site string, authorID, after int64, anchorKind int16, limit int) ([]repository.AuthorPostRow, error) {
@@ -46,7 +47,14 @@ func (s *PostService) PurgeAuthor(ctx context.Context, site string, authorID int
 		if err != nil {
 			return err
 		}
-		res = PurgeResult{PostsPurged: posts, ReactionsDeleted: reactions, ReadStatesDeleted: readStates}
+		anchorSubs, err := repository.DeleteAuthorAnchorSubscriptionsTx(tx, site, authorID)
+		if err != nil {
+			return err
+		}
+		res = PurgeResult{
+			PostsPurged: posts, ReactionsDeleted: reactions, ReadStatesDeleted: readStates,
+			AnchorSubscriptionsDeleted: anchorSubs,
+		}
 		return nil
 	})
 	if err != nil {
@@ -54,6 +62,7 @@ func (s *PostService) PurgeAuthor(ctx context.Context, site string, authorID int
 	}
 	slog.Info("community author purge", "site", site, "author_id", authorID,
 		"posts_purged", res.PostsPurged, "reactions_deleted", res.ReactionsDeleted,
-		"read_states_deleted", res.ReadStatesDeleted)
+		"read_states_deleted", res.ReadStatesDeleted,
+		"anchor_subscriptions_deleted", res.AnchorSubscriptionsDeleted)
 	return res, nil
 }

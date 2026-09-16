@@ -10,32 +10,33 @@ import (
 // (thread, user) pair that has actually interacted, so a thread a user never
 // opened reports no state at all rather than "everything unread".
 const upsertThreadUser = `
-	INSERT INTO community_thread_user (thread_id, user_id, last_read_post_number, notification_level, last_visited_at)
-	VALUES (?, ?, ?, ?, now())
+	INSERT INTO community_thread_user (thread_id, user_id, last_read_post_number, notification_level, last_visited_at, site)
+	VALUES (?, ?, ?, ?, now(), ?)
 	ON CONFLICT (thread_id, user_id) DO UPDATE
 	   SET last_read_post_number = GREATEST(community_thread_user.last_read_post_number, EXCLUDED.last_read_post_number),
-	       last_visited_at = now()`
+	       last_visited_at = now(),
+	       site = EXCLUDED.site`
 
 // MarkReadTx advances a reader's high-water mark. It never walks backwards: a
 // late-arriving receipt from a slower tab cannot un-read what was already read.
-func MarkReadTx(tx *gorm.DB, threadID, userID int64, lastRead int32) error {
-	return tx.Exec(upsertThreadUser, threadID, userID, lastRead, model.NotificationLevelNormal).Error
+func MarkReadTx(tx *gorm.DB, threadID, userID int64, lastRead int32, site string) error {
+	return tx.Exec(upsertThreadUser, threadID, userID, lastRead, model.NotificationLevelNormal, site).Error
 }
 
 // EnsureSubscribedTx is the poster's own row: writing in a thread subscribes you
 // to it and marks your own post read. An existing row keeps its level — someone
 // who muted a thread and then replies stays muted, because the mute was a
 // deliberate choice and the reply is not a request to undo it.
-func EnsureSubscribedTx(tx *gorm.DB, threadID, userID int64, postNumber int32) error {
-	return tx.Exec(upsertThreadUser, threadID, userID, postNumber, model.NotificationLevelWatching).Error
+func EnsureSubscribedTx(tx *gorm.DB, threadID, userID int64, postNumber int32, site string) error {
+	return tx.Exec(upsertThreadUser, threadID, userID, postNumber, model.NotificationLevelWatching, site).Error
 }
 
-func SetNotificationLevelTx(tx *gorm.DB, threadID, userID int64, level int16) error {
+func SetNotificationLevelTx(tx *gorm.DB, threadID, userID int64, level int16, site string) error {
 	return tx.Exec(`
-		INSERT INTO community_thread_user (thread_id, user_id, last_read_post_number, notification_level, last_visited_at)
-		VALUES (?, ?, 0, ?, now())
-		ON CONFLICT (thread_id, user_id) DO UPDATE SET notification_level = EXCLUDED.notification_level`,
-		threadID, userID, level).Error
+		INSERT INTO community_thread_user (thread_id, user_id, last_read_post_number, notification_level, last_visited_at, site)
+		VALUES (?, ?, 0, ?, now(), ?)
+		ON CONFLICT (thread_id, user_id) DO UPDATE SET notification_level = EXCLUDED.notification_level, site = EXCLUDED.site`,
+		threadID, userID, level, site).Error
 }
 
 type ThreadUserState struct {

@@ -143,6 +143,7 @@ func (s *Server) register(api huma.API) {
 	huma.Register(api, huma.Operation{OperationID: "rejectReview", Method: http.MethodPost, Path: "/api/v1/community/review/{id}/reject",
 		Summary: "Reject a queue item (remove the content; tombstone the post)", Tags: review}, s.rejectReview)
 
+	s.registerAnchors(api)
 	s.registerBoards(api)
 	s.registerThreadModeration(api)
 }

@@ -230,9 +230,10 @@ type AuthorStatsResponse struct {
 }
 
 type PurgeResponse struct {
-	PostsPurged       int64 `json:"posts_purged" doc:"posts tombstoned + content-scrubbed this run"`
-	ReactionsDeleted  int64 `json:"reactions_deleted" doc:"reaction rows the author left that were deleted this run"`
-	ReadStatesDeleted int64 `json:"read_states_deleted" doc:"read/subscription rows (which threads they opened, how far they read) deleted this run"`
+	PostsPurged                int64 `json:"posts_purged" doc:"posts tombstoned + content-scrubbed this run"`
+	ReactionsDeleted           int64 `json:"reactions_deleted" doc:"reaction rows the author left that were deleted this run"`
+	ReadStatesDeleted          int64 `json:"read_states_deleted" doc:"read/subscription rows (which threads they opened, how far they read) deleted this run"`
+	AnchorSubscriptionsDeleted int64 `json:"anchor_subscriptions_deleted" doc:"anchor-subscription rows of this site deleted this run"`
 }
 
 type PostResponse struct {

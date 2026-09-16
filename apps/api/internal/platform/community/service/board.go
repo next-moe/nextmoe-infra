@@ -256,6 +256,7 @@ func reparentTx(tx *gorm.DB, cur, next *model.CommunityBoard, parentID int64) er
 
 func (s *BoardService) Delete(ctx context.Context, site string, id, actorID int64) error {
 	var slug string
+	var anchorSubs int64
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		b, err := repository.LockBoardTx(tx, site, id, repository.LockUpdate)
 		if err != nil {
@@ -279,12 +280,18 @@ func (s *BoardService) Delete(ctx context.Context, site string, id, actorID int6
 		if hasThreads {
 			return &ConflictError{Reason: "the board still holds topics; move them away or archive the board"}
 		}
+		n, err := repository.DeleteBoardAnchorUsersTx(tx, site, id)
+		if err != nil {
+			return err
+		}
+		anchorSubs = n
 		return repository.DeleteBoardTx(tx, id)
 	})
 	if err != nil {
 		return err
 	}
-	slog.Info("community board deleted", "site", site, "board_id", id, "slug", slug, "actor_id", actorID)
+	slog.Info("community board deleted", "site", site, "board_id", id, "slug", slug, "actor_id", actorID,
+		"anchor_subscriptions_deleted", anchorSubs)
 	return nil
 }
 

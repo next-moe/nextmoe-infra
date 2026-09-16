@@ -143,3 +143,8 @@ func DeleteAuthorThreadUsersTx(tx *gorm.DB, site string, userID int64) (int64, e
 		site, userID)
 	return res.RowsAffected, res.Error
 }
+
+func DeleteAuthorAnchorSubscriptionsTx(tx *gorm.DB, site string, userID int64) (int64, error) {
+	res := tx.Exec(`DELETE FROM community_anchor_user WHERE site = ? AND user_id = ?`, site, userID)
+	return res.RowsAffected, res.Error
+}

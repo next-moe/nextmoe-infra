@@ -300,11 +300,11 @@ top-level board followed by its sub-boards); `GET /boards/{id}` and
 to the top level, an empty text clears an optional field; a board with
 sub-boards cannot become a sub-board), `DELETE /boards/{id}?actor_id=` removes a
 board only when **no thread names it** — tombstoned topics included — and it has
-no sub-boards (`409` otherwise: move the topics, or archive the board), and
-`POST /boards/reorder` sets one parent's order from a list that must name every
-sibling exactly once (`422` otherwise), so the result never depends on positions
-the caller did not see. A duplicate slug is a `409`; another site's board is a
-`404` on every face.
+no sub-boards (`409` otherwise: move the topics, or archive the board). Deleting
+a board also removes its anchor subscriptions. `POST /boards/reorder` sets one
+parent's order from a list that must name every sibling exactly once (`422`
+otherwise), so the result never depends on positions the caller did not see. A
+duplicate slug is a `409`; another site's board is a `404` on every face.
 
 **Stats.** Every board read carries `stats`: `topics_count` counts the topics a
 reader sees in the listing — live threads whose opening post is visible, so a
@@ -370,8 +370,9 @@ state at all — not "everything unread".
   is the notification layer's job, so the level is a contract with that layer
   rather than a switch inside this service.
 - The **compliance purge** (`POST /authors/{id}/purge`) clears these rows too,
-  and reports `read_states_deleted`: a row records which threads a person opened
-  and how far they read, which is exactly the trace the purge exists to remove.
+  and reports `read_states_deleted` and `anchor_subscriptions_deleted`: a row
+  records which threads a person opened and how far they read, and which
+  anchors they watch, which is exactly the trace the purge exists to remove.
 - **Posting subscribes you**: opening a thread or replying upserts the author's
   own row at `watching` and marks their own post read. An existing row keeps its
   level — someone who muted a thread and then replies stays muted, because the
@@ -386,6 +387,38 @@ state at all — not "everything unread".
   deleted still reads as one unread. Scope follows the id-addressed guard, so a
   catalog-anchored thread — one conversation network-wide — is listed for every
   tenant the user reaches it from.
+
+### Anchor subscriptions
+
+A `(site, user, anchor)` row exists only when the user has set a non-normal
+level on that anchor. The faces are `POST /anchors/notification`,
+`POST /anchors/states`, and `GET /users/{id}/anchor-subscriptions`.
+
+An anchor row accepts `0=muted`, `3=watching`, `4=watching first post`. `1`
+normal is the absence of a row: setting it deletes the row and the face answers
+level 1. Tracking (`2`) is thread-only and refused here — an anchor-level
+"tracking" would have to count threads the user never opened, which the sparse
+thread row model does not have.
+
+`site` is the **delivery site**: the site the user subscribed through, not the
+anchor's tenant. A catalog work is one conversation for the whole network, and
+users of two sites subscribe to it separately and are notified on their own
+site. A site-local anchor (kinds 0–2) is interpreted in the caller's id space;
+a board anchor (kind 0) must name an existing board of the caller's site
+(`404` otherwise).
+
+Effective level for a user on a thread: the thread row's level if a thread row
+exists; otherwise the level of that user's anchor row for the thread's anchor,
+if one exists; otherwise normal. A site-local anchor only counts rows of the
+thread's own site; a catalog anchor counts each site's row separately, one
+delivery per site. Muted means nothing is sent. A poster's own thread row
+(watching) therefore outranks a muted board. Notifications that apply this are
+the next step.
+
+`community_thread_user` now records the site of the user's latest interaction.
+A catalog-anchored thread can be watched from several sites; the column says
+which site that interaction came through. A NULL (the one-off importers still
+insert without it) falls back to the thread's site.
 
 ## 7. Trust engine (doc 11 §6)
 
@@ -459,8 +492,6 @@ Boards leave these out on purpose, each with the condition that brings it in:
 - **Per-board moderators.** Roles live at the site, which already vouches with
   `as_moderator` and can read a topic's board from `board_id`. Trigger: a site
   that wants community to hold the assignment.
-- **Watching a board.** A board is an anchor, so "notify me of new topics here"
-  is the anchor-level subscription planned next, not a board feature.
 - Tags, polls, slow mode and auto-close timers.
 
 Two follow-ups wait on the consuming sites rather than on this service: the
