@@ -153,17 +153,31 @@ moyu's migration 040 has not run, since after that the table is theirs.
 
 - **Anchors lose their prefix.** `moyu:<patch.id>` → `<patch.id>` (anchor_kind
   1), `moyu-resource:<rid>` → `<rid>` (anchor_kind 2). `internal/community/anchor`
-  keeps minting and resolving; `IsMoyu` becomes trivially true, because every
-  thread in the tenant is moyu's now.
+  keeps minting and resolving. `IsMoyu` does **not** become trivially true — see
+  the feed bullet below.
 - **Delete the like mirror.** `patch_post_like` and its dual write go away; read
   `reaction_count` / `viewer_reacted` off the post, and pass the signed-in user
-  as `viewer_id`. Keep the moemoepoint award keyed on something stable — the
+  as `viewer_id`. `PATCH /posts/{id}` fills both too (its viewer is the acting
+  user); until the fix it answered 0, which moyu worked around by carrying the
+  count over from the resolve it did before the edit. Keep the moemoepoint award keyed on something stable — the
   post id is now a fine key, since it no longer shares a keyspace with anything
   of moyu's.
-- **Stop filtering feeds.** `GET /posts`, `GET /search/posts`,
-  `GET /authors/{id}/posts` and `GET /users/{id}/unread` now answer moyu's rows
-  only, so `renderFeed` drops nothing and a page of `limit` arrives full. The
-  unread `total` and the red dot finally agree with the list.
+- **Keep the feed filter; expect fewer dropped rows, not none.** An earlier
+  version of this page said the feeds now answer moyu's rows only. They do not:
+  `GET /posts`, `GET /search/posts`, `GET /search/threads` and the unread faces
+  follow the id-addressed guard — **the caller's site plus every
+  catalog-anchored thread** (anchor kinds 3/4), which is one network-wide
+  conversation by design and contract invariant 1. What the tenant removed is
+  the forum's *site-local* walls, which were all of the rows moyu was dropping.
+  Another site's catalog-anchored thread still arrives, so `renderFeed` and the
+  ref-ping's `IsMoyu` stay, and a page can still be shorter than `limit`. There
+  are no catalog-anchored threads in production yet (0 on 2026-09-16), so today
+  the pages arrive full; the filter is for the day there are.
+  **Strictly `site = ?`**: `GET /authors/{id}/posts`, `GET /authors/stats`,
+  `GET /authors/top` and `POST /posts/resolve`. Those need no filter.
+  The unread `total` counts the same rows as the unread list, so a catalog
+  thread moyu drops from the list would still light the badge — again, not
+  reachable until catalog-anchored threads exist.
 - **`GET /authors/top`** restores the user board's "sort by comment count".
 - **Keep resolving before acting anyway.** A post id is still global; the tenant
   guard refuses another site's post with a 404, but moyu's own resolve-first

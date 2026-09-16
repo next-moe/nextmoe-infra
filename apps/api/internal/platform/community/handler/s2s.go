@@ -346,6 +346,9 @@ func (s *Server) reply(ctx context.Context, in *replyInput) (*postOutput, error)
 	if err != nil {
 		return nil, mapErr("reply", err)
 	}
+	// No hydration: the post was inserted by this call, so nobody can have
+	// reacted to it and 0 is the true count. Every OTHER face returning a
+	// PostView has to fill it -- see editPost.
 	return &postOutput{Body: okEnvelope(dto.PostResponse{Post: toPostView(post)})}, nil
 }
 
@@ -366,7 +369,14 @@ func (s *Server) editPost(ctx context.Context, in *editPostInput) (*postOutput, 
 	if err != nil {
 		return nil, mapErr("edit post", err)
 	}
-	return &postOutput{Body: okEnvelope(dto.PostResponse{Post: toPostView(post)})}, nil
+	// An edit does not change the likes, but it returns the post, and a consumer
+	// that renders the response in place showed the count as 0 until moyu
+	// reported it. The acting user is the viewer: this response is for them.
+	views := []dto.PostView{toPostView(post)}
+	if err := s.hydratePostReactions(in.Body.AuthorID, views); err != nil {
+		return nil, mapErr("hydrate edited post reactions", err)
+	}
+	return &postOutput{Body: okEnvelope(dto.PostResponse{Post: views[0]})}, nil
 }
 
 type deletePostInput struct {
