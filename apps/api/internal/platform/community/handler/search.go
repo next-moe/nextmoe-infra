@@ -10,7 +10,16 @@ import (
 )
 
 type searchInput struct {
-	Q      string `query:"q" doc:"substring to look for, 2-100 characters; matched case-insensitively against the markdown source (posts) or the title (threads)"`
+	Q        string `query:"q" doc:"substring to look for, 2-100 characters; matched case-insensitively against the markdown source (posts) or the title (threads)"`
+	Kind     int16  `query:"kind" default:"-1" doc:"thread kind filter (0=topic 1=comments 2=feedback); -1 = every kind"`
+	Cursor   string `query:"cursor" doc:"opaque cursor from the previous page"`
+	Limit    int    `query:"limit" doc:"page size (max 100, default 50)"`
+	ViewerID int64  `query:"viewer_id" doc:"fill viewer_reacted for this user; 0 = no viewer"`
+}
+
+// Thread search returns titles, not posts, so it takes no viewer.
+type searchThreadsInput struct {
+	Q      string `query:"q" doc:"substring to look for, 2-100 characters; matched case-insensitively against the title"`
 	Kind   int16  `query:"kind" default:"-1" doc:"thread kind filter (0=topic 1=comments 2=feedback); -1 = every kind"`
 	Cursor string `query:"cursor" doc:"opaque cursor from the previous page"`
 	Limit  int    `query:"limit" doc:"page size (max 100, default 50)"`
@@ -32,12 +41,16 @@ func (s *Server) searchPosts(ctx context.Context, in *searchInput) (*sitePostsOu
 	if err != nil {
 		return nil, mapErr("search posts", err)
 	}
+	views := toAuthorPostViews(rows)
+	if err := s.hydrateAuthorPostReactions(in.ViewerID, views); err != nil {
+		return nil, mapErr("hydrate search reactions", err)
+	}
 	return &sitePostsOutput{Body: okEnvelope(dto.PostFeedResponse{
-		Posts: toAuthorPostViews(rows), NextCursor: postFeedPageCursor(rows, limit),
+		Posts: views, NextCursor: postFeedPageCursor(rows, limit),
 	})}, nil
 }
 
-func (s *Server) searchThreads(ctx context.Context, in *searchInput) (*threadListOutput, error) {
+func (s *Server) searchThreads(ctx context.Context, in *searchThreadsInput) (*threadListOutput, error) {
 	site, he := siteBinding(ctx)
 	if he != nil {
 		return nil, he

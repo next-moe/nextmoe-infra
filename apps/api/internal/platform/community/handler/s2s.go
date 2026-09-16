@@ -87,6 +87,8 @@ func (s *Server) register(api huma.API) {
 		Summary: "List a site author's visible posts across threads (keyset by post id, newest first) with thread context", Tags: read}, s.listAuthorPosts)
 	huma.Register(api, huma.Operation{OperationID: "authorStats", Method: http.MethodGet, Path: "/api/v1/community/authors/stats",
 		Summary: "Batch visible-post counts for a site's authors", Tags: read}, s.authorStats)
+	huma.Register(api, huma.Operation{OperationID: "topAuthors", Method: http.MethodGet, Path: "/api/v1/community/authors/top",
+		Summary: "The site's most-posted-in authors, most first", Tags: read}, s.topAuthors)
 	huma.Register(api, huma.Operation{OperationID: "searchPosts", Method: http.MethodGet, Path: "/api/v1/community/search/posts",
 		Summary: "Search the site's visible posts by substring of their markdown source", Tags: read}, s.searchPosts)
 	huma.Register(api, huma.Operation{OperationID: "searchThreads", Method: http.MethodGet, Path: "/api/v1/community/search/threads",
@@ -163,6 +165,11 @@ func (s *Server) resolveComments(ctx context.Context, in *resolveCommentsInput) 
 		return nil, mapErr("list posts", err)
 	}
 	views := toPostViews(posts)
+	// No viewer_reacted here: this face is the retiring get-or-create shape and
+	// takes no viewer. GET /comments is the one that renders a wall.
+	if err := s.hydratePostReactions(0, views); err != nil {
+		return nil, mapErr("hydrate resolved comment reactions", err)
+	}
 	return &threadWithPostsOutput{Body: okEnvelope(dto.ThreadWithPosts{
 		Thread: toThreadView(thread), Posts: views, NextCursor: postsPageCursor(views, defaultPageLimit),
 	})}, nil
@@ -216,9 +223,10 @@ func (s *Server) listThreads(ctx context.Context, in *listThreadsInput) (*thread
 }
 
 type threadPostsInput struct {
-	ID    int64 `path:"id"`
-	After int32 `query:"after" doc:"post_number to read after (0 = from the top)"`
-	Limit int   `query:"limit"`
+	ID       int64 `path:"id"`
+	After    int32 `query:"after" doc:"post_number to read after (0 = from the top)"`
+	Limit    int   `query:"limit"`
+	ViewerID int64 `query:"viewer_id" doc:"fill viewer_reacted for this user; 0 = no viewer"`
 }
 
 func (s *Server) getThread(ctx context.Context, in *threadPostsInput) (*threadWithPostsOutput, error) {
@@ -239,6 +247,9 @@ func (s *Server) getThread(ctx context.Context, in *threadPostsInput) (*threadWi
 		return nil, mapErr("list posts", err)
 	}
 	views := toPostViews(posts)
+	if err := s.hydratePostReactions(in.ViewerID, views); err != nil {
+		return nil, mapErr("hydrate thread reactions", err)
+	}
 	return &threadWithPostsOutput{Body: okEnvelope(dto.ThreadWithPosts{
 		Thread: toThreadView(thread), Posts: views, NextCursor: postsPageCursor(views, limit),
 	})}, nil
@@ -266,6 +277,9 @@ func (s *Server) listPosts(ctx context.Context, in *threadPostsInput) (*postList
 		return nil, mapErr("list posts", err)
 	}
 	views := toPostViews(posts)
+	if err := s.hydratePostReactions(in.ViewerID, views); err != nil {
+		return nil, mapErr("hydrate post reactions", err)
+	}
 	return &postListOutput{Body: okEnvelope(dto.PostListResponse{
 		Posts: views, NextCursor: postsPageCursor(views, limit),
 	})}, nil

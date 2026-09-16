@@ -16,6 +16,7 @@ func TestEngagementHandlers_StampTheCallerSite(t *testing.T) {
 	s := &Server{
 		threads:    service.NewThreadService(testDB, sink),
 		posts:      service.NewPostService(testDB, sink),
+		reactions:  service.NewReactionService(testDB),
 		trust:      service.NewTrustService(testDB),
 		engagement: service.NewEngagementService(testDB),
 	}

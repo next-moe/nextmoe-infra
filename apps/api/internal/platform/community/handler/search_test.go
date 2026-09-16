@@ -12,10 +12,11 @@ func TestSearch_HandlerFaces(t *testing.T) {
 	cleanTables(t)
 	sink := service.NoopSink{}
 	s := &Server{
-		threads: service.NewThreadService(testDB, sink),
-		posts:   service.NewPostService(testDB, sink),
-		trust:   service.NewTrustService(testDB),
-		search:  service.NewSearchService(testDB),
+		threads:   service.NewThreadService(testDB, sink),
+		posts:     service.NewPostService(testDB, sink),
+		reactions: service.NewReactionService(testDB),
+		trust:     service.NewTrustService(testDB),
+		search:    service.NewSearchService(testDB),
 	}
 	ctx := clientCtx("letmoe")
 
@@ -34,7 +35,7 @@ func TestSearch_HandlerFaces(t *testing.T) {
 		t.Fatalf("expected the post with its thread context: %+v", posts.Body.Data.Posts)
 	}
 
-	threads, err := s.searchThreads(ctx, &searchInput{Q: "夏日", Kind: -1})
+	threads, err := s.searchThreads(ctx, &searchThreadsInput{Q: "夏日", Kind: -1})
 	if err != nil {
 		t.Fatalf("searchThreads: %v", err)
 	}
@@ -49,11 +50,11 @@ func TestSearch_HandlerFaces(t *testing.T) {
 	if _, err := s.searchPosts(ctx, &searchInput{Q: "路", Kind: -1}); err == nil {
 		t.Fatal("a one-character query must be refused")
 	}
-	if _, err := s.searchThreads(ctx, &searchInput{Q: "夏", Kind: -1}); err == nil {
+	if _, err := s.searchThreads(ctx, &searchThreadsInput{Q: "夏", Kind: -1}); err == nil {
 		t.Fatal("a one-character thread query must be refused")
 	}
 
-	if _, err := s.searchThreads(ctx, &searchInput{Q: "夏日", Kind: -1, Cursor: "bogus~~"}); err == nil {
+	if _, err := s.searchThreads(ctx, &searchThreadsInput{Q: "夏日", Kind: -1, Cursor: "bogus~~"}); err == nil {
 		t.Fatal("a malformed cursor must be refused")
 	}
 	activity, err := s.listThreads(ctx, &listThreadsInput{Kind: model.ThreadKindTopic, Limit: 1})
@@ -61,7 +62,7 @@ func TestSearch_HandlerFaces(t *testing.T) {
 		t.Fatalf("listThreads: %v", err)
 	}
 	if cur := activity.Body.Data.NextCursor; cur != "" {
-		if _, err := s.searchThreads(ctx, &searchInput{Q: "夏日", Kind: -1, Cursor: cur}); err == nil {
+		if _, err := s.searchThreads(ctx, &searchThreadsInput{Q: "夏日", Kind: -1, Cursor: cur}); err == nil {
 			t.Fatal("an activity cursor must not be replayed against search, which orders by creation")
 		}
 	}

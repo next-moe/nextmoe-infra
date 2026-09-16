@@ -77,7 +77,10 @@ func TestSpecExport(t *testing.T) {
 		"operationId: submitFlag",
 		"operationId: recordActivity",
 		"operationId: approveReview",
+		"operationId: topAuthors",
 		"name: anchor_id",
+		"name: viewer_id",
+		"reaction_count",
 	} {
 		if !strings.Contains(spec, want) {
 			t.Errorf("spec missing %q", want)
@@ -154,10 +157,11 @@ func TestHandlerGapfill(t *testing.T) {
 	cleanTables(t)
 	sink := service.NoopSink{}
 	s := &Server{
-		threads:  service.NewThreadService(testDB, sink),
-		posts:    service.NewPostService(testDB, sink),
-		feedback: service.NewFeedbackService(testDB, sink),
-		trust:    service.NewTrustService(testDB),
+		threads:   service.NewThreadService(testDB, sink),
+		posts:     service.NewPostService(testDB, sink),
+		reactions: service.NewReactionService(testDB),
+		feedback:  service.NewFeedbackService(testDB, sink),
+		trust:     service.NewTrustService(testDB),
 	}
 	ctx := clientCtx("letmoe")
 
@@ -221,9 +225,10 @@ func TestListThreads_OpeningStatusProjected(t *testing.T) {
 	cleanTables(t)
 	sink := service.NoopSink{}
 	s := &Server{
-		threads: service.NewThreadService(testDB, sink),
-		posts:   service.NewPostService(testDB, sink),
-		trust:   service.NewTrustService(testDB),
+		threads:   service.NewThreadService(testDB, sink),
+		posts:     service.NewPostService(testDB, sink),
+		reactions: service.NewReactionService(testDB),
+		trust:     service.NewTrustService(testDB),
 	}
 	ctx := clientCtx("letmoe")
 

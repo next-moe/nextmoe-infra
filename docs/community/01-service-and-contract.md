@@ -24,10 +24,26 @@
   against the OAuth client registry. Any valid first-party client authenticates;
   the caller is a site BFF, not a browser.
 - **Tenant `site` is derived, never on the wire.** It comes from the
-  authenticated client's binding `oauth_clients.catalog_site` (the shared
-  per-client site key, reused as the community tenant). A client with no binding
-  is refused on every write and on the site-scoped reads (`403`). This makes a
-  client unable to act outside its own site.
+  authenticated client's binding: `oauth_clients.community_site` when it is set,
+  and `oauth_clients.catalog_site` otherwise. A client with neither is refused on
+  every write and on the site-scoped reads (`403`). This makes a client unable to
+  act outside its own site.
+- **Why community has its own binding.** `catalog_site` names the site a client
+  files CATALOG CLAIMS under, and two properties can share that identity while
+  being separate communities: moyu and the kungal forum are both
+  `catalog_site=kungal`, and moyu's binding is load-bearing for its claims. While
+  community read that column, the two sites shared one tenant, where the anchor
+  id was the only separation (1,992 of moyu's 2,040 commented page ids already
+  existed as a forum anchor, 490 of them carrying forum posts) — and every
+  tenant-wide face answered the other site's rows: the post feed, both searches,
+  the unread total behind a notification badge, per-author post counts, and
+  `POST /authors/{id}/purge`, which would have scrubbed a user's forum comments
+  when moyu deleted their account. `community_site` separates them at the
+  tenant, which is the only place a filter cannot be forgotten. Set it with SQL
+  (`UPDATE oauth_clients SET community_site = '<site>' WHERE id = '<client_id>'`)
+  — it has no admin face, like `catalog_site` — and set it **before** the site
+  writes its first thread: changing it later strands every row under the old
+  tenant.
 - **User context is BFF-supplied.** Per-user identities (`author_id`, `user_id`,
   `flagger_id`, `responder_id`, `decided_by`) travel in the request body: the BFF
   has already authenticated the user against the shared session (OIDC), and
@@ -103,6 +119,26 @@
   the **id-addressed guard** rather than the thread listing: the caller's own
   site plus catalog-anchored threads, which are one network-wide conversation by
   design (invariant 1).
+
+- `GET /authors/{id}/posts`, `POST /posts/resolve`, `GET /authors/stats` — one
+  author's visible posts with thread context (keyset by post id, `anchor_kind`
+  filter), a batch hydrate of <=100 post ids in request order, and visible-post
+  counts for <=100 named authors (`kind` / `anchor_kind` filters, `-1` = every).
+  All three are site-scoped.
+- `GET /authors/top` — the site's most-posted-in authors, most first, with
+  `kind` / `anchor_kind` filters and a `limit`. `GET /authors/stats` answers a
+  caller that already knows which authors it means; a leaderboard is the question
+  no batch of named ids can ask. Ties break on the lower author id, so a page is
+  stable between calls.
+- **Every post a read face returns carries `reaction_count`**, and
+  `viewer_reacted` when the request names a `viewer_id` (query parameter on the
+  GET faces, a body field on `POST /posts/resolve`; a request with no viewer gets
+  counts and `false`). Without it a site that wanted to render a like count had
+  to keep a mirror table of its own beside every post id and dual-write it on
+  each toggle — two writes that are not one transaction, drifting from
+  `community_reaction` the first time one fails and from
+  `community_trust.likes_given/received` (maintained from the same rows)
+  permanently.
 
 ## 4. Write faces (embed capability set, invariant 11)
 
