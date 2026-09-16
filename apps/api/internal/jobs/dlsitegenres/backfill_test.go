@@ -308,3 +308,31 @@ func TestBundleReleaseLendsNoGenres(t *testing.T) {
 	assert.EqualValues(t, 1, tagCount(t, "WHERE work_id = ? AND name = ?", both, "女教师"),
 		"the single-VN product testifies even though the bundle's workno sorts first")
 }
+
+func TestNewGenreRowInheritsTheSexualVerdictOfItsName(t *testing.T) {
+	clean(t)
+	ctx := context.Background()
+	reg, err := resolveRegistry(ctx, testDB)
+	require.NoError(t, err)
+	mkTaxonomy(t, 1, "zh_CN", "巨乳/爆乳")
+	mkTaxonomy(t, 2, "zh_CN", "学校/学园")
+
+	judged := mkWork(t, reg.galgameMedium, "judged", nil)
+	require.NoError(t, testDB.Create(&model.CatalogWorkTag{
+		WorkID: judged, Name: "巨乳/爆乳", SourceID: reg.dlsiteSource, Sexual: true,
+	}).Error)
+	fresh := mkWork(t, reg.galgameMedium, "fresh", nil)
+	mkReleaseAnchor(t, fresh, "RJ500001", reg.dlsiteSource, model.LinkKindExact)
+	mkMirrorWork(t, "RJ500001", `[{"id":1,"name":"巨乳/爆乳"},{"id":2,"name":"学校/学園"}]`)
+
+	dry, err := Run(ctx, runOpts(false))
+	require.NoError(t, err)
+	assert.Zero(t, dry.SexualInherited, "a dry run writes nothing, flags included")
+
+	st, err := Run(ctx, runOpts(true))
+	require.NoError(t, err)
+	assert.Equal(t, 2, st.Written)
+	assert.Equal(t, 1, st.SexualInherited)
+	assert.EqualValues(t, 1, tagCount(t, "WHERE work_id = ? AND name = ? AND sexual", fresh, "巨乳/爆乳"))
+	assert.EqualValues(t, 1, tagCount(t, "WHERE work_id = ? AND name = ? AND NOT sexual", fresh, "学校/学园"))
+}

@@ -264,3 +264,26 @@ func TestTagWriteTouchesHostWork(t *testing.T) {
 	require.Equal(t, 1, st.Conflict)
 	assert.True(t, workUpdatedAt(t, wTagged).Equal(touched), "a no-op re-run must not drift the watermark")
 }
+
+func TestNewRowInheritsTheSexualVerdictOfItsName(t *testing.T) {
+	clean(t)
+	ctx := context.Background()
+	reg, err := resolveRegistry(ctx, testDB)
+	require.NoError(t, err)
+
+	judged := mkWork(t, reg.galgameMedium, "judged", nil)
+	require.NoError(t, testDB.Create(&model.CatalogWorkTag{
+		WorkID: judged, Name: "巨乳", Count: 3, SourceID: reg.bangumiSource, Sexual: true,
+	}).Error)
+	fresh := mkWork(t, reg.galgameMedium, "fresh", nil)
+	mkSubject(t, 301, `[{"name":"巨乳","count":4},{"name":"百合","count":2}]`)
+	mkAnchor(t, fresh, "301", reg.bangumiSource, model.LinkKindExact, ruleTitleYear)
+
+	st, err := Run(ctx, Opts{DSN: testDSN, Apply: true})
+	require.NoError(t, err)
+	assert.Equal(t, 2, st.Written)
+	assert.Equal(t, 1, st.SexualInherited)
+	assert.EqualValues(t, 1, tagCount(t, "WHERE work_id = ? AND name = ? AND sexual", fresh, "巨乳"),
+		"classify-tag-safety judged 巨乳 once, per source and name")
+	assert.EqualValues(t, 1, tagCount(t, "WHERE work_id = ? AND name = ? AND NOT sexual", fresh, "百合"))
+}
