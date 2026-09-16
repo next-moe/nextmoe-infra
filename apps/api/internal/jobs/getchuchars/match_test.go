@@ -66,11 +66,27 @@ func TestUnanchoredAndUnknownAreCounted(t *testing.T) {
 		{GetchuID: "g1", Name: "知らない子"},
 		{GetchuID: "g9", Name: "誰か"},
 	}, idx)
-	if st.Matched+st.NoNameInWork+st.NoWork+st.Ambiguous+st.Collided != st.Input {
+	if st.Matched+st.NoNameInWork+st.NoWork+st.Bundle+st.Ambiguous+st.Collided != st.Input {
 		t.Errorf("buckets do not add up to the input: %+v", st)
 	}
 	if st.NoWork != 1 || st.NoNameInWork != 1 || st.Matched != 1 {
 		t.Errorf("stats = %+v", st)
+	}
+}
+
+func TestBundleProductMatchesNobody(t *testing.T) {
+	bundle := rr("g1", 1, 400, "美咲", "")
+	bundle.Bundle = true
+	idx := buildIndex([]rosterRow{bundle, rr("g2", 2, 401, "美咲", "")})
+	got, st := match([]getchuChar{
+		{GetchuID: "g1", Name: "美咲", Profile: "another game's 美咲"},
+		{GetchuID: "g2", Name: "美咲", Profile: "this game's 美咲"},
+	}, idx)
+	if st.Bundle != 1 || st.Matched != 1 || len(got) != 1 {
+		t.Fatalf("a bundle product must match nobody while a single-VN one still does: got %d, stats %+v", len(got), st)
+	}
+	if got[0].CharacterID != 401 {
+		t.Errorf("matched character = %d, want 401", got[0].CharacterID)
 	}
 }
 

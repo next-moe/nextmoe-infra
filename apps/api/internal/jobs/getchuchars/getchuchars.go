@@ -45,10 +45,10 @@ type Stats struct {
 
 func (s Stats) String() string {
 	return fmt.Sprintf(
-		"input=%d matched=%d (name=%d alias=%d reading=%d) no_work=%d no_name=%d ambiguous=%d collided=%d | "+
+		"input=%d matched=%d (name=%d alias=%d reading=%d) no_work=%d bundle=%d no_name=%d ambiguous=%d collided=%d | "+
 			"intro_written=%d intro_exists=%d intro_no_text=%d | attr_rows=%d attr_fields=%d attr_adopted=%d attr_skipped=%d | conflict=%d errors=%d",
 		s.Match.Input, s.Match.Matched, s.Match.ByName, s.Match.ByAlias, s.Match.ByReading,
-		s.Match.NoWork, s.Match.NoNameInWork, s.Match.Ambiguous, s.Match.Collided,
+		s.Match.NoWork, s.Match.Bundle, s.Match.NoNameInWork, s.Match.Ambiguous, s.Match.Collided,
 		s.IntroWritten, s.IntroExists, s.IntroNoText,
 		s.AttrsWritten, s.AttrFields, s.AttrAdopted, s.AttrSkipped, s.Conflict, s.Errors)
 }

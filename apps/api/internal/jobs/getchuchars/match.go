@@ -23,6 +23,7 @@ func normKey(s string) string {
 type rosterIndex struct {
 	byName  map[string][]int64
 	byAlias map[string][]int64
+	bundle  bool
 }
 
 func buildIndex(rows []rosterRow) map[string]*rosterIndex {
@@ -33,6 +34,7 @@ func buildIndex(rows []rosterRow) map[string]*rosterIndex {
 			idx = &rosterIndex{byName: map[string][]int64{}, byAlias: map[string][]int64{}}
 			out[r.GetchuID] = idx
 		}
+		idx.bundle = idx.bundle || r.Bundle
 		if r.KeyName != "" {
 			idx.byName[r.KeyName] = appendUnique(idx.byName[r.KeyName], r.CharacterID)
 		}
@@ -55,6 +57,7 @@ func appendUnique(xs []int64, v int64) []int64 {
 type MatchStats struct {
 	Input        int
 	NoWork       int
+	Bundle       int
 	Matched      int
 	ByName       int
 	ByAlias      int
@@ -78,6 +81,10 @@ func match(chars []getchuChar, idx map[string]*rosterIndex) ([]Candidate, MatchS
 		ri := idx[c.GetchuID]
 		if ri == nil {
 			st.NoWork++
+			continue
+		}
+		if ri.bundle {
+			st.Bundle++
 			continue
 		}
 		nk, rk := normKey(c.Name), normKey(c.Reading)
