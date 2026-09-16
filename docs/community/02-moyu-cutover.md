@@ -72,6 +72,13 @@ Two more faces landed with it:
    seed — 1,199 of these authors are kungal forum users whose level and
    held-post budget are theirs, earned on another site.
 
+   Every author of an imported wall also gets the `community_thread_user` row
+   the write path would have written for them — watching, and caught up to the
+   thread's last post. Without it a legacy commenter reads "not subscribed" on
+   a thread they started; caught up rather than at their own post because moyu
+   had no unread feature before the cutover, and a watermark at their own post
+   would have opened the new badge on replies they had already read.
+
    `patch_comment.edit` holds two formats: `Date.now()` milliseconds before
    2026-06-03 and RFC3339 from 2026-06-06 on. Both become `edited_at`; the
    dry run's `unparsable-edit` counter must read 0, and a non-zero one means

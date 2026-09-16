@@ -98,6 +98,11 @@ func resetE2E(t *testing.T) {
 	).Error; err != nil {
 		t.Fatalf("reset posts: %v", err)
 	}
+	if err := testDB.Exec(
+		"DELETE FROM community_thread_user WHERE thread_id IN (SELECT id FROM community_thread WHERE site = ?)", e2eSite,
+	).Error; err != nil {
+		t.Fatalf("reset subscriptions: %v", err)
+	}
 	for _, stmt := range []string{
 		"DELETE FROM community_thread WHERE site = ?",
 	} {
@@ -179,6 +184,9 @@ func TestImportMoyuComments(t *testing.T) {
 	if rep.LikesInserted != 2 {
 		t.Fatalf("apply: want 2 likes, got %d", rep.LikesInserted)
 	}
+	if rep.Subscriptions != 4 {
+		t.Fatalf("apply: want 4 (thread, author) subscriptions, got %d", rep.Subscriptions)
+	}
 
 	// The two walls of game 500 are separate threads, on the anchor kinds that
 	// name them, with moyu's own bare ids.
@@ -256,6 +264,42 @@ func TestImportMoyuComments(t *testing.T) {
 	}
 	if millisEdited == nil || !millisEdited.Equal(editedMillis) {
 		t.Fatalf("an epoch-millis `edit` must become edited_at %v, got %v", editedMillis, millisEdited)
+	}
+
+	// Both authors of the two-post wall are subscribed to it, caught up to its
+	// last post: the new badge must not light up for replies they already read
+	// on the old wall.
+	var subs []struct {
+		UserID   int64 `gorm:"column:user_id"`
+		LastRead int32 `gorm:"column:last_read_post_number"`
+		Level    int16 `gorm:"column:notification_level"`
+	}
+	if err := testDB.Raw(`
+		SELECT tu.user_id, tu.last_read_post_number, tu.notification_level
+		  FROM community_thread_user tu
+		  JOIN community_thread t ON t.id = tu.thread_id
+		 WHERE t.site = ? AND t.anchor_id = '500' AND t.anchor_kind = ?
+		 ORDER BY tu.user_id`, e2eSite, model.AnchorKindSiteGame).Scan(&subs).Error; err != nil {
+		t.Fatalf("read subscriptions: %v", err)
+	}
+	if len(subs) != 2 {
+		t.Fatalf("want both authors subscribed to the game wall, got %+v", subs)
+	}
+	for i, wantUser := range []int64{90001, 90002} {
+		if subs[i].UserID != wantUser || subs[i].LastRead != 2 || subs[i].Level != model.NotificationLevelWatching {
+			t.Fatalf("subscription[%d]: want user %d caught up to post 2 and watching, got %+v", i, wantUser, subs[i])
+		}
+	}
+	var unread int64
+	if err := testDB.Raw(`
+		SELECT count(*) FROM community_thread_user tu
+		  JOIN community_thread t ON t.id = tu.thread_id
+		 WHERE t.site = ? AND t.highest_post_number > tu.last_read_post_number`, e2eSite).
+		Scan(&unread).Error; err != nil {
+		t.Fatalf("count unread: %v", err)
+	}
+	if unread != 0 {
+		t.Fatalf("an import must leave nobody with unread threads, got %d", unread)
 	}
 
 	// Likes land as reactions on the root, and the trust counters that describe

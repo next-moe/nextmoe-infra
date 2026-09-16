@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"api/internal/platform/community/model"
+	"api/internal/platform/community/repository"
 	"api/internal/platform/community/sanitize"
 
 	"gorm.io/gorm"
@@ -184,7 +185,11 @@ func importWall(tgt, src *gorm.DB, site string, plan threadPlan,
 			rep.PostsInserted++
 		}
 
-		return recomputeThreadCounters(tx, th.ID)
+		highest, err := recomputeThreadCounters(tx, th.ID)
+		if err != nil {
+			return err
+		}
+		return subscribeAuthors(tx, th.ID, highest, plan.Posts, rep)
 	}
 
 	if err := tgt.Transaction(write); err != nil {
@@ -224,12 +229,17 @@ func dryRunWall(tgt *gorm.DB, site string, anchorKind int16, anchorID string,
 		return fmt.Errorf("dry-run find thread: %w", findErr)
 	}
 
+	seen := make(map[int64]bool, len(plan.Posts))
 	for i := range plan.Posts {
 		if _, imported := oldToNew[plan.Posts[i].OldID]; imported {
 			rep.PostsExisting++
 		} else {
 			rep.PostsInserted++
 			rep.LedgerRows++
+		}
+		if !seen[plan.Posts[i].AuthorID] {
+			seen[plan.Posts[i].AuthorID] = true
+			rep.Subscriptions++
 		}
 	}
 	return nil
@@ -328,7 +338,7 @@ func adjustTrustLikes(tx *gorm.DB, userID int64, given, received int32) error {
 		userID, model.TrustLevelBasic, given, received).Error
 }
 
-func recomputeThreadCounters(tx *gorm.DB, threadID int64) error {
+func recomputeThreadCounters(tx *gorm.DB, threadID int64) (int32, error) {
 	var agg struct {
 		Posts        int32
 		Participants int32
@@ -339,17 +349,44 @@ func recomputeThreadCounters(tx *gorm.DB, threadID int64) error {
 		Select("COUNT(*) AS posts, COUNT(DISTINCT author_id) AS participants, "+
 			"COALESCE(MAX(post_number),0) AS highest, MAX(created_at) AS last").
 		Where("thread_id = ?", threadID).Scan(&agg).Error; err != nil {
-		return fmt.Errorf("aggregate counters: %w", err)
+		return 0, fmt.Errorf("aggregate counters: %w", err)
 	}
 	participants := agg.Participants
 	if participants < 1 {
 		participants = 1
 	}
-	return tx.Exec(
+	err := tx.Exec(
 		"UPDATE community_thread SET posts_count = ?, participants_count = ?, "+
 			"highest_post_number = ?, last_posted_at = ?, updated_at = ? WHERE id = ?",
 		agg.Posts, participants, agg.Highest, agg.Last, agg.Last, threadID,
 	).Error
+	return agg.Highest, err
+}
+
+// subscribeAuthors writes the row the community write path would have written
+// for each of them: posting in a thread subscribes you to it (EnsureSubscribedTx).
+// Without it every legacy commenter lands on the new wall reading "not
+// subscribed" on a thread they started, and a reply to a two-year-old comment
+// reaches nobody.
+//
+// Caught up to the thread's last post, not to their own: moyu had no unread
+// feature before the cutover, so a watermark at their own post number would
+// have opened the new badge on threads whose replies they had already read on
+// the old wall. From here forward the badge means what it says.
+func subscribeAuthors(tx *gorm.DB, threadID int64, highest int32, posts []plannedPost, rep *Report) error {
+	seen := make(map[int64]bool, len(posts))
+	for i := range posts {
+		userID := posts[i].AuthorID
+		if seen[userID] {
+			continue
+		}
+		seen[userID] = true
+		if err := repository.EnsureSubscribedTx(tx, threadID, userID, highest); err != nil {
+			return fmt.Errorf("subscribe author %d: %w", userID, err)
+		}
+		rep.Subscriptions++
+	}
+	return nil
 }
 
 // seedTrust gives every imported author a row, and never touches one that is
