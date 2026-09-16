@@ -12,13 +12,17 @@ import (
 func newTenantServer() *Server {
 	sink := service.NoopSink{}
 	return &Server{
-		threads:   service.NewThreadService(testDB, sink),
-		posts:     service.NewPostService(testDB, sink),
-		reactions: service.NewReactionService(testDB),
-		feedback:  service.NewFeedbackService(testDB, sink),
-		flags:     service.NewFlagService(testDB, sink),
-		trust:     service.NewTrustService(testDB),
-		review:    service.NewReviewService(testDB, sink),
+		threads:    service.NewThreadService(testDB, sink),
+		posts:      service.NewPostService(testDB, sink),
+		reactions:  service.NewReactionService(testDB),
+		feedback:   service.NewFeedbackService(testDB, sink),
+		flags:      service.NewFlagService(testDB, sink),
+		trust:      service.NewTrustService(testDB),
+		review:     service.NewReviewService(testDB, sink),
+		engagement: service.NewEngagementService(testDB),
+		search:     service.NewSearchService(testDB),
+		boards:     service.NewBoardService(testDB),
+		notify:     service.NewNotificationService(testDB),
 	}
 }
 

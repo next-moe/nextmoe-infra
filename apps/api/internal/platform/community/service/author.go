@@ -14,6 +14,7 @@ type PurgeResult struct {
 	ReactionsDeleted           int64
 	ReadStatesDeleted          int64
 	AnchorSubscriptionsDeleted int64
+	NotificationsDeleted       int64
 }
 
 func (s *PostService) ListAuthorPosts(site string, authorID, after int64, anchorKind int16, limit int) ([]repository.AuthorPostRow, error) {
@@ -34,6 +35,7 @@ func (s *PostService) ResolvePosts(site string, ids []int64) ([]repository.Autho
 
 func (s *PostService) PurgeAuthor(ctx context.Context, site string, authorID int64) (PurgeResult, error) {
 	var res PurgeResult
+	var actorsCleared, eventsDeleted, eventsForgotten int64
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		posts, err := repository.PurgeAuthorPostsTx(tx, site, authorID)
 		if err != nil {
@@ -51,9 +53,25 @@ func (s *PostService) PurgeAuthor(ctx context.Context, site string, authorID int
 		if err != nil {
 			return err
 		}
+		notifs, err := repository.DeleteAuthorNotificationsTx(tx, site, authorID)
+		if err != nil {
+			return err
+		}
+		actorsCleared, err = repository.ClearAuthorNotificationActorsTx(tx, site, authorID)
+		if err != nil {
+			return err
+		}
+		eventsDeleted, err = repository.DeleteAuthorEventsTx(tx, site, authorID)
+		if err != nil {
+			return err
+		}
+		eventsForgotten, err = repository.ForgetUserInPendingEventsTx(tx, site, authorID)
+		if err != nil {
+			return err
+		}
 		res = PurgeResult{
 			PostsPurged: posts, ReactionsDeleted: reactions, ReadStatesDeleted: readStates,
-			AnchorSubscriptionsDeleted: anchorSubs,
+			AnchorSubscriptionsDeleted: anchorSubs, NotificationsDeleted: notifs,
 		}
 		return nil
 	})
@@ -63,6 +81,9 @@ func (s *PostService) PurgeAuthor(ctx context.Context, site string, authorID int
 	slog.Info("community author purge", "site", site, "author_id", authorID,
 		"posts_purged", res.PostsPurged, "reactions_deleted", res.ReactionsDeleted,
 		"read_states_deleted", res.ReadStatesDeleted,
-		"anchor_subscriptions_deleted", res.AnchorSubscriptionsDeleted)
+		"anchor_subscriptions_deleted", res.AnchorSubscriptionsDeleted,
+		"notifications_deleted", res.NotificationsDeleted,
+		"notification_actors_cleared", actorsCleared, "events_deleted", eventsDeleted,
+		"pending_events_forgotten", eventsForgotten)
 	return res, nil
 }

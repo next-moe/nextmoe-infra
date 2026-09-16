@@ -64,6 +64,7 @@ func TestMain(m *testing.M) {
 func cleanTables(t *testing.T) {
 	t.Helper()
 	for _, table := range []string{
+		"community_notification", "community_event",
 		"community_review_item", "community_flag", "community_trust",
 		"community_board", "community_anchor_user", "community_thread_user", "community_reaction",
 		"community_post", "community_thread",
@@ -305,12 +306,53 @@ func TestIndexColumnOrder(t *testing.T) {
 		{"idx_community_thread_pinned", "(site, kind, pinned_at DESC) WHERE (pin_scope > 0)"},
 		{"uq_community_anchor_user", "(site, user_id, anchor_kind, anchor_id)"},
 		{"idx_community_anchor_user_anchor", "(anchor_kind, anchor_id, site)"},
+		{"idx_community_notification_inbox", "(site, user_id, seq DESC)"},
+		{"idx_community_notification_feed", "(site, seq)"},
 	}
 	for _, c := range cases {
 		def := indexDef(t, c.name)
 		if !strings.Contains(def, c.wantCols) {
 			t.Errorf("index %s: want column list %q in\n  %s", c.name, c.wantCols, def)
 		}
+	}
+
+	fold := indexDef(t, "uq_community_notification_fold")
+	for _, frag := range []string{"(site, user_id, fold_key)", "read_at IS NULL", "fold_key IS NOT NULL"} {
+		if !strings.Contains(fold, frag) {
+			t.Errorf("fold unique missing %q in\n  %s", frag, fold)
+		}
+	}
+	if !strings.Contains(fold, "UNIQUE INDEX") {
+		t.Errorf("fold index is not unique:\n  %s", fold)
+	}
+	pending := indexDef(t, "idx_community_event_pending")
+	for _, frag := range []string{"(attempt_after, id)", "processed_at IS NULL"} {
+		if !strings.Contains(pending, frag) {
+			t.Errorf("pending-event index missing %q in\n  %s", frag, pending)
+		}
+	}
+	unread := indexDef(t, "idx_community_notification_unread")
+	if !strings.Contains(unread, "(site, user_id)") || !strings.Contains(unread, "read_at IS NULL") {
+		t.Errorf("unread index:\n  %s", unread)
+	}
+	threadUnread := indexDef(t, "idx_community_notification_thread_unread")
+	if !strings.Contains(threadUnread, "(thread_id, user_id)") || !strings.Contains(threadUnread, "read_at IS NULL") {
+		t.Errorf("thread unread index:\n  %s", threadUnread)
+	}
+	readIdx := indexDef(t, "idx_community_notification_read")
+	if !strings.Contains(readIdx, "(read_at)") || !strings.Contains(readIdx, "read_at IS NOT NULL") {
+		t.Errorf("read index:\n  %s", readIdx)
+	}
+	processed := indexDef(t, "idx_community_event_processed")
+	if !strings.Contains(processed, "(processed_at)") || !strings.Contains(processed, "processed_at IS NOT NULL") {
+		t.Errorf("processed-event index:\n  %s", processed)
+	}
+	var seq int
+	if err := testDB.Raw(`SELECT COUNT(*) FROM pg_class WHERE relkind = 'S' AND relname = 'community_notification_seq'`).Scan(&seq).Error; err != nil {
+		t.Fatalf("read sequence: %v", err)
+	}
+	if seq != 1 {
+		t.Fatalf("community_notification_seq must exist, count=%d", seq)
 	}
 
 	// The two comments partial uniques carry their columns AND predicate: the
@@ -432,6 +474,16 @@ func TestColumnAudit(t *testing.T) {
 		"community_review_item": {
 			"id", "site", "post_id", "source", "status", "decided_by",
 			"decided_at", "created_at", "trust_review_item_id", "forward_attempts",
+		},
+		"community_event": {
+			"id", "site", "kind", "thread_id", "post_id", "actor_id", "target_user_id",
+			"mention_user_ids", "attempts", "attempt_after", "processed_at", "created_at",
+		},
+		"community_notification": {
+			"id", "site", "user_id", "kind", "thread_id", "anchor_kind", "anchor_id",
+			"post_id", "post_number", "first_post_number", "since_at", "actor_id",
+			"actor_count", "item_count", "fold_key", "read_at", "seq", "created_at",
+			"updated_at",
 		},
 	}
 	for table, cols := range want {

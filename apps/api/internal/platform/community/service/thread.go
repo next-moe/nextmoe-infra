@@ -54,16 +54,18 @@ type OpenTopicParams struct {
 	ContentRating     int16
 	BodyRaw           string
 	HeaderImageHashes datatypes.JSON
+	MentionUserIDs    []int64
 }
 
 type OpenFeedbackParams struct {
-	Site          string
-	AuthorID      int64
-	AnchorKind    int16
-	AnchorID      string
-	Title         string
-	ContentRating int16
-	BodyRaw       string
+	Site           string
+	AuthorID       int64
+	AnchorKind     int16
+	AnchorID       string
+	Title          string
+	ContentRating  int16
+	BodyRaw        string
+	MentionUserIDs []int64
 }
 
 func (s *ThreadService) OpenTopic(ctx context.Context, p OpenTopicParams) (*model.CommunityThread, *model.CommunityPost, error) {
@@ -78,11 +80,15 @@ func (s *ThreadService) OpenTopic(ctx context.Context, p OpenTopicParams) (*mode
 	if err := topicGate(board, level, p.AsModerator); err != nil {
 		return nil, nil, err
 	}
+	mentions, err := normalizeMentionIDs(p.AuthorID, p.MentionUserIDs)
+	if err != nil {
+		return nil, nil, err
+	}
 	return s.openWithFirstPost(ctx, openThread{
 		kind: model.ThreadKindTopic, site: p.Site, authorID: p.AuthorID, level: level,
 		anchorKind: model.AnchorKindBoard, anchorID: model.BoardAnchorID(board.ID),
 		title: p.Title, contentRating: max(p.ContentRating, board.ContentRating),
-		bodyRaw: p.BodyRaw, headerImageHashes: p.HeaderImageHashes,
+		bodyRaw: p.BodyRaw, headerImageHashes: p.HeaderImageHashes, mentionUserIDs: mentions,
 		lockAnchorTx: func(tx *gorm.DB) error {
 			locked, err := repository.LockBoardTx(tx, p.Site, board.ID, repository.LockShare)
 			if err != nil {
@@ -101,10 +107,14 @@ func (s *ThreadService) OpenFeedback(ctx context.Context, p OpenFeedbackParams) 
 	if err != nil {
 		return nil, nil, err
 	}
+	mentions, err := normalizeMentionIDs(p.AuthorID, p.MentionUserIDs)
+	if err != nil {
+		return nil, nil, err
+	}
 	return s.openWithFirstPost(ctx, openThread{
 		kind: model.ThreadKindFeedback, site: p.Site, authorID: p.AuthorID, level: level,
 		anchorKind: p.AnchorKind, anchorID: p.AnchorID,
-		title: p.Title, contentRating: p.ContentRating, bodyRaw: p.BodyRaw,
+		title: p.Title, contentRating: p.ContentRating, bodyRaw: p.BodyRaw, mentionUserIDs: mentions,
 	})
 }
 
@@ -143,6 +153,7 @@ type openThread struct {
 	contentRating     int16
 	bodyRaw           string
 	headerImageHashes datatypes.JSON
+	mentionUserIDs    []int64
 	lockAnchorTx      func(tx *gorm.DB) error
 }
 
@@ -214,6 +225,9 @@ func (s *ThreadService) openWithFirstPost(ctx context.Context, p openThread) (*m
 			ContentRating: p.contentRating, Status: postStatus(held),
 		}
 		if err := repository.CreatePostTx(tx, &post); err != nil {
+			return err
+		}
+		if err := enqueuePostCreatedTx(tx, p.site, thread.ID, post.ID, p.authorID, nil, p.mentionUserIDs); err != nil {
 			return err
 		}
 		if err := repository.EnsureSubscribedTx(tx, thread.ID, p.authorID, post.PostNumber, p.site); err != nil {

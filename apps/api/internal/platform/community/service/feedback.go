@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"api/internal/platform/community/model"
+	"api/internal/platform/community/repository"
 
 	"gorm.io/gorm"
 )
@@ -29,12 +30,33 @@ func (s *FeedbackService) SetStatus(ctx context.Context, threadID int64, fbStatu
 	if response != nil {
 		updates["fb_response"] = *response
 	}
-	res := feedbackScope(s.db.WithContext(ctx), callerSite(ctx), threadID).Updates(updates)
-	if res.Error != nil {
-		return res.Error
-	}
-	if res.RowsAffected == 0 {
-		return ErrNotFeedback
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := feedbackScope(tx, callerSite(ctx), threadID).Updates(updates)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return ErrNotFeedback
+		}
+		thread, err := repository.GetThreadTx(tx, threadID)
+		if err != nil {
+			return err
+		}
+		if thread == nil {
+			return ErrNotFeedback
+		}
+		site := callerSite(ctx)
+		if site == "" {
+			site = thread.Site
+		}
+		return repository.EnqueueEventTx(tx, &model.CommunityEvent{
+			Site: site, Kind: model.EventKindFeedbackStatusChanged,
+			ThreadID: threadID, ActorID: responderID,
+			AttemptAfter: now,
+		})
+	})
+	if err != nil {
+		return err
 	}
 	s.sink.Emit(Event{Kind: EventFeedbackStatusChanged, ThreadID: threadID, ActorID: responderID})
 	return nil

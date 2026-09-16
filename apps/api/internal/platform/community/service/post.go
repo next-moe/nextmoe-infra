@@ -41,12 +41,13 @@ func NewPostService(db *gorm.DB, sink EventSink, opts ...PostOption) *PostServic
 }
 
 type ReplyParams struct {
-	ThreadID      int64
-	AuthorID      int64
-	BodyRaw       string
-	RootPostID    *int64
-	ReplyToPostID *int64
-	TargetUserID  *int64
+	ThreadID       int64
+	AuthorID       int64
+	BodyRaw        string
+	RootPostID     *int64
+	ReplyToPostID  *int64
+	TargetUserID   *int64
+	MentionUserIDs []int64
 }
 
 func (s *PostService) Reply(ctx context.Context, p ReplyParams) (*model.CommunityPost, error) {
@@ -54,7 +55,12 @@ func (s *PostService) Reply(ctx context.Context, p ReplyParams) (*model.Communit
 	if err != nil {
 		return nil, err
 	}
+	mentions, err := normalizeMentionIDs(p.AuthorID, p.MentionUserIDs)
+	if err != nil {
+		return nil, err
+	}
 	draft.rootPostID, draft.replyToPostID, draft.targetUserID = p.RootPostID, p.ReplyToPostID, p.TargetUserID
+	draft.mentionUserIDs = mentions
 
 	var written writtenPost
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -78,15 +84,16 @@ func (s *PostService) Reply(ctx context.Context, p ReplyParams) (*model.Communit
 // postDraft is what a write face settles BEFORE it opens a transaction: the
 // cooking, the author's trust level, the sandbox quota and the content check.
 type postDraft struct {
-	authorID      int64
-	site          string
-	bodyRaw       string
-	cooked        sanitize.Cooked
-	rootPostID    *int64
-	replyToPostID *int64
-	targetUserID  *int64
-	suspectHold   bool
-	now           time.Time
+	authorID       int64
+	site           string
+	bodyRaw        string
+	cooked         sanitize.Cooked
+	rootPostID     *int64
+	replyToPostID  *int64
+	targetUserID   *int64
+	mentionUserIDs []int64
+	suspectHold    bool
+	now            time.Time
 }
 
 type writtenPost struct {
@@ -191,7 +198,13 @@ func appendPostTx(tx *gorm.DB, thread *model.CommunityThread, d postDraft) (writ
 	if site == "" {
 		site = thread.Site
 	}
+	if err := enqueuePostCreatedTx(tx, site, thread.ID, out.post.ID, d.authorID, out.targetUserID, d.mentionUserIDs); err != nil {
+		return out, err
+	}
 	if err := repository.EnsureSubscribedTx(tx, thread.ID, d.authorID, out.post.PostNumber, site); err != nil {
+		return out, err
+	}
+	if err := repository.MarkThreadNotificationsReadTx(tx, d.authorID, thread.ID, out.post.PostNumber); err != nil {
 		return out, err
 	}
 	if held {

@@ -354,7 +354,7 @@ so only its own site moderates it, as with `POST /feedback/{id}/status`.
   not kept in step afterwards: a reply removed later stays named in
   `answer_post_id`, and a reader renders it as removed.
 
-## 6. Unread & subscription (the sparse thread_user row)
+## 6. Unread, subscriptions and notifications
 
 A `(thread, user)` row exists only once that pair has interacted (Discourse's
 topic_users model): a thread the user never opened carries no row and reports no
@@ -366,13 +366,13 @@ state at all — not "everything unread".
   highest post number. Reading is never inferred from a GET: a read face with a
   write side effect cannot be cached, retried or prefetched safely.
 - `POST /threads/{id}/notification` — set `0=muted 1=normal 2=tracking
-  3=watching`. Community stores the preference and emits events (§9); delivery
-  is the notification layer's job, so the level is a contract with that layer
-  rather than a switch inside this service.
+  3=watching`. Community stores the preference; the dispatcher in this service
+  applies it when it turns outbox events into inbox rows.
 - The **compliance purge** (`POST /authors/{id}/purge`) clears these rows too,
-  and reports `read_states_deleted` and `anchor_subscriptions_deleted`: a row
-  records which threads a person opened and how far they read, and which
-  anchors they watch, which is exactly the trace the purge exists to remove.
+  and reports `read_states_deleted`, `anchor_subscriptions_deleted` and
+  `notifications_deleted`: a row records which threads a person opened and how
+  far they read, which anchors they watch and what they were told, which is
+  exactly the trace the purge exists to remove.
 - **Posting subscribes you**: opening a thread or replying upserts the author's
   own row at `watching` and marks their own post read. An existing row keeps its
   level — someone who muted a thread and then replies stays muted, because the
@@ -412,8 +412,7 @@ exists; otherwise the level of that user's anchor row for the thread's anchor,
 if one exists; otherwise normal. A site-local anchor only counts rows of the
 thread's own site; a catalog anchor counts each site's row separately, one
 delivery per site. Muted means nothing is sent. A poster's own thread row
-(watching) therefore outranks a muted board. Notifications that apply this are
-the next step.
+(watching) therefore outranks a muted board.
 
 Because a thread row outranks the anchor, the first row a **read** writes takes
 `watching` when the user watches the thread's anchor through the reading site,
@@ -425,6 +424,93 @@ and unwatching the anchor later does not rewrite it.
 A catalog-anchored thread can be watched from several sites; the column says
 which site that interaction came through. A NULL (the one-off importers still
 insert without it) falls back to the thread's site.
+
+### Notifications
+
+Writes that should notify someone (`post_created`, `post_liked`,
+`feedback_status_changed`, `answer_accepted`) insert a `community_event` row
+**in the same transaction** as the write. A crash after commit cannot lose the
+event; the in-memory sink is not the notification path.
+
+A single dispatcher (`NotificationService.Run`) claims a transaction-level
+advisory lock, then processes up to 100 pending events with `FOR UPDATE SKIP
+LOCKED`. `seq` on `community_notification` comes from
+`community_notification_seq` and is assigned only by the dispatcher, on insert
+and on every fold update. One writer is what makes `seq` equal commit order, so
+a feed reader never skips a row. Marking a row read does **not** move `seq`.
+
+Recipients of one event are keyed by `(delivery site, user)` and keep the
+highest-priority kind per key: `replied` > `mentioned` > `thread_created` >
+`posted`. Delivery site is the anchor row's `site` when the source is an
+anchor subscription; otherwise `COALESCE(thread_row.site, thread.site)` when
+the user has a thread row, else the event's `site`. Then:
+
+1. Drop the event's actor.
+2. Drop anyone whose **effective level** on the thread (for that delivery
+   site) is muted.
+3. Drop an **anchor-sourced** candidate when the user has any thread row on
+   that thread — the thread row governs.
+
+A `post_created` event notifies the reply target (`replied`), each mentioned
+id (`mentioned`), watching thread rows (`posted` when the post is not the
+first), and matching anchor rows: `watching` is `thread_created` on the first
+post of a non-comments thread and `posted` otherwise; `watching first post` is
+`thread_created` only on that first non-comments post (a comment wall's first
+comment is not a new thread). A like notifies the post's author (`liked`). A
+feedback status change notifies the thread creator and watching thread rows
+(`feedback_status`). Marking an answer notifies the answer's author
+(`answer_accepted`); clearing it enqueues nothing.
+
+A held (hidden) post with a pending review item is **parked** and retried with
+backoff `min(2^attempts minutes, 60 minutes)`. Approve it and the next attempt
+delivers; reject it and the next attempt drops. A missing / hidden / deleted
+thread, a missing or deleted post, a hidden post with no pending review, or a
+like that has already been undone is dropped.
+
+The seven kinds and their folds:
+
+| kind | fold key | counts |
+|---|---|---|
+| `1` replied | none | one row per event |
+| `2` mentioned | none | one row per event |
+| `3` posted | `posted:<thread_id>` | `item_count` = visible posts in `[first_post_number, post_number]` not by the recipient; `actor_count` = distinct authors of those |
+| `4` thread_created | none | one row per event |
+| `5` liked | `like:<post_id>` | `item_count` = `actor_count` = like reactions on the post with `created_at >= since_at` not by the recipient |
+| `6` answer_accepted | none | one row per event |
+| `7` feedback_status | `fb:<thread_id>` | on conflict `item_count = item_count + 1` |
+
+A fold points at its latest post and actor. A parked post delivered after the
+posts that followed it widens the fold's range back to itself rather than
+moving that pointer.
+
+Reading a thread (`POST /threads/{id}/read`) marks that user's unread
+`replied` / `mentioned` / `posted` / `thread_created` rows for the thread
+(any site) whose `post_number` is at or before the clamped watermark. Posting
+in a thread does the same up to the new post, as it already moves the author's
+watermark there. That is what resets a fold: the next activity starts a new
+row. A fold's counts leave out the recipient's own posts.
+
+Two ways to consume:
+
+- **Inbox** (a site without its own inbox): `GET /users/{id}/notifications`
+  (newest `seq` first, optional `unread_only`, `unread_count`) and
+  `POST /users/{id}/notifications/read` (`ids` or `all` — exactly one).
+- **Feed** (a site that mirrors into its own inbox): `GET /notifications/feed`
+  (`seq > after`, ascending). Upsert by `id`, keep `next_after`, and forward
+  reads with `POST /users/{id}/notifications/read` so folds reset.
+
+`mention_user_ids` (max 20) rides `POST /topics`, `POST /feedback`,
+`POST /comments`, and `POST /threads/{id}/posts`. The site resolves `@name` to
+user ids; community only delivers. Ids `<= 0`, the author, and duplicates are
+dropped; more than 20 after that is a `422`.
+
+Retention: processed events older than 7 days, and notifications read more
+than 90 days ago, are pruned. The compliance purge additionally deletes that
+site's notifications whose recipient is the user (`notifications_deleted`),
+nulls `actor_id` on that site's rows whose actor is the user, deletes that
+site's events whose actor is the user, and removes the user as reply target and
+mention from that site's pending events (the last three are logged, not
+reported).
 
 ## 7. Trust engine (doc 11 §6)
 
@@ -475,9 +561,10 @@ insert without it) falls back to the thread's site.
 
 ## 9. Events (doc 11 §7)
 
-The service only EMITS domain events (`post.created`, `reply.to_you`, `mention`,
-`feedback.status_changed`, `flag.threshold`); delivery and aggregation belong to
-the notification layer. v0 delivery is a no-op sink.
+The in-memory sink remains for trust forwarding and scanning (`post.created`,
+`reply.to_you`, `feedback.status_changed`, `flag.threshold`, review enqueue /
+approve / reject). Notifications come from the transactional outbox
+(`community_event`) instead; the sink is not the fan-out path.
 
 ## 10. Not yet on the wire (deferred, with triggers)
 
@@ -503,6 +590,24 @@ Boards leave these out on purpose, each with the condition that brings it in:
 Two follow-ups wait on the consuming sites rather than on this service: the
 retirement of `POST /comments/resolve` (a declared breaking change), and the
 one-off sweep of the empty comments threads it minted. The sweep is safe —
-nothing but `community_post` and `community_thread_user` references a thread,
-and none of the empty rows carry either — but it has to run *after* the sites
+nothing but `community_post`, `community_thread_user` and the notification
+tables (`community_event`, `community_notification`, both written only for a
+post or a feedback thread) references a thread, and none of the empty rows
+carry any of them — but it has to run *after* the sites
 stop calling resolve, or the next page view mints them straight back.
+
+Notifications leave these out on purpose, each with the condition that brings
+it in:
+
+- **Push delivery** (webhook or SSE red dot). Trigger: a site needs lower
+  latency than polling the feed.
+- **Mentions added by an edit.** The outbox records mentions at write time of
+  a new post; an edit does not enqueue. Trigger: a site needs edit-time
+  mentions to notify.
+- **Anchor-level tracking.** Tracking (`2`) is thread-only. Trigger: a product
+  wants "new posts on this board" without watching every thread.
+- **A per-board default level.** New threads inherit nothing from the board
+  beyond the explicit anchor row. Trigger: a site wants a board-wide default
+  other than normal.
+- **Templates and App push** (doc 02 §6 tier 3). Trigger: a first-party app
+  that is not a site BFF needs rendered copy or a device push.

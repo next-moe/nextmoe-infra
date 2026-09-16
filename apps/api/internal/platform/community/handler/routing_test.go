@@ -30,6 +30,7 @@ func TestRouting_EveryNewPathResolves(t *testing.T) {
 		Engagement: service.NewEngagementService(testDB),
 		Search:     service.NewSearchService(testDB),
 		Boards:     service.NewBoardService(testDB),
+		Notify:     service.NewNotificationService(testDB),
 	})
 
 	cases := []struct {
@@ -47,6 +48,10 @@ func TestRouting_EveryNewPathResolves(t *testing.T) {
 		{http.MethodGet, "/api/v1/community/search/threads?q=%E6%B1%89%E5%8C%96", "", http.StatusOK},
 		{http.MethodGet, "/api/v1/community/users/1/unread", "", http.StatusOK},
 		{http.MethodGet, "/api/v1/community/users/1/anchor-subscriptions", "", http.StatusOK},
+		{http.MethodGet, "/api/v1/community/users/1/notifications", "", http.StatusOK},
+		{http.MethodPost, "/api/v1/community/users/1/notifications/read", `{"all":true}`, http.StatusOK},
+		{http.MethodGet, "/api/v1/community/notifications/feed", "", http.StatusOK},
+		{http.MethodPost, "/api/v1/community/comments", `{"anchor_kind":1,"anchor_id":"g1","content_rating":0,"author_id":1,"body":"hi","mention_user_ids":[2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22]}`, http.StatusUnprocessableEntity},
 		{http.MethodPost, "/api/v1/community/threads/states", `{"user_id":1,"thread_ids":[]}`, http.StatusOK},
 		{http.MethodPost, "/api/v1/community/anchors/notification", `{"user_id":1,"anchor_kind":3,"anchor_id":"w1","level":3}`, http.StatusOK},
 		{http.MethodPost, "/api/v1/community/anchors/notification", `{"user_id":1,"anchor_kind":3,"anchor_id":"w1","level":2}`, http.StatusUnprocessableEntity},

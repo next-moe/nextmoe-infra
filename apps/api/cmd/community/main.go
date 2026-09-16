@@ -102,6 +102,7 @@ func main() {
 	engagementSvc := service.NewEngagementService(communityDB.DB())
 	searchSvc := service.NewSearchService(communityDB.DB())
 	boardSvc := service.NewBoardService(communityDB.DB())
+	notifySvc := service.NewNotificationService(communityDB.DB())
 
 	application.Fiber.Use(middleware.RequestID())
 	application.Fiber.Use(middleware.Logger())
@@ -118,9 +119,11 @@ func main() {
 	api := commHandler.Setup(application.Fiber, commHandler.Services{
 		Threads: threadSvc, Posts: postSvc, Reactions: reactionSvc, Feedback: feedbackSvc,
 		Flags: flagSvc, Trust: trustSvc, Review: reviewSvc, Engagement: engagementSvc, Search: searchSvc,
-		Boards: boardSvc,
+		Boards: boardSvc, Notify: notifySvc,
 	})
 
+	go notifySvc.Run(ctx)
+	slog.Info("community notification dispatcher started")
 	go runOutboxTicker(ctx, forwardSvc)
 
 	application.Fiber.Get("/openapi.json", func(c fiber.Ctx) error {

@@ -30,6 +30,7 @@ type Server struct {
 	engagement *service.EngagementService
 	search     *service.SearchService
 	boards     *service.BoardService
+	notify     *service.NotificationService
 }
 
 // Services is what the S2S face is wired from; the spec generator passes an
@@ -45,6 +46,7 @@ type Services struct {
 	Engagement *service.EngagementService
 	Search     *service.SearchService
 	Boards     *service.BoardService
+	Notify     *service.NotificationService
 }
 
 func Setup(app *fiber.App, svc Services) huma.API {
@@ -61,7 +63,7 @@ func Setup(app *fiber.App, svc Services) huma.API {
 	s := &Server{
 		threads: svc.Threads, posts: svc.Posts, reactions: svc.Reactions, feedback: svc.Feedback,
 		flags: svc.Flags, trust: svc.Trust, review: svc.Review, engagement: svc.Engagement, search: svc.Search,
-		boards: svc.Boards,
+		boards: svc.Boards, notify: svc.Notify,
 	}
 	s.register(api)
 	return api
@@ -146,6 +148,7 @@ func (s *Server) register(api huma.API) {
 	s.registerAnchors(api)
 	s.registerBoards(api)
 	s.registerThreadModeration(api)
+	s.registerNotifications(api)
 }
 
 type resolveCommentsInput struct{ Body dto.CommentsResolveRequest }
@@ -343,6 +346,7 @@ func (s *Server) openTopic(ctx context.Context, in *openTopicInput) (*threadOutp
 		Site: site, AuthorID: in.Body.AuthorID, BoardID: in.Body.BoardID, LegacyBoardKey: in.Body.AnchorID,
 		AsModerator: in.Body.AsModerator, Title: in.Body.Title, ContentRating: in.Body.ContentRating,
 		BodyRaw: in.Body.Body, HeaderImageHashes: hashesJSON(in.Body.HeaderImageHashes),
+		MentionUserIDs: in.Body.MentionUserIDs,
 	})
 	if err != nil {
 		return nil, mapErr("open topic", err)
@@ -364,6 +368,7 @@ func (s *Server) openFeedback(ctx context.Context, in *openFeedbackInput) (*thre
 	thread, post, err := s.threads.OpenFeedback(ctx, service.OpenFeedbackParams{
 		Site: site, AuthorID: in.Body.AuthorID, AnchorKind: in.Body.AnchorKind, AnchorID: in.Body.AnchorID,
 		Title: in.Body.Title, ContentRating: in.Body.ContentRating, BodyRaw: in.Body.Body,
+		MentionUserIDs: in.Body.MentionUserIDs,
 	})
 	if err != nil {
 		return nil, mapErr("open feedback", err)
@@ -389,6 +394,7 @@ func (s *Server) reply(ctx context.Context, in *replyInput) (*postOutput, error)
 	post, err := s.posts.Reply(ctx, service.ReplyParams{
 		ThreadID: in.ID, AuthorID: in.Body.AuthorID, BodyRaw: in.Body.Body,
 		RootPostID: in.Body.RootPostID, ReplyToPostID: in.Body.ReplyToPostID, TargetUserID: in.Body.TargetUserID,
+		MentionUserIDs: in.Body.MentionUserIDs,
 	})
 	if err != nil {
 		return nil, mapErr("reply", err)

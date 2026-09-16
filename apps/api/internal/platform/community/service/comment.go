@@ -14,15 +14,16 @@ import (
 // used to be created by the first *view* (the resolve read face), which left
 // 110,918 of kungal's 114,070 comments threads holding nothing at all.
 type CommentParams struct {
-	Site          string
-	AnchorKind    int16
-	AnchorID      string
-	ContentRating int16
-	AuthorID      int64
-	BodyRaw       string
-	RootPostID    *int64
-	ReplyToPostID *int64
-	TargetUserID  *int64
+	Site           string
+	AnchorKind     int16
+	AnchorID       string
+	ContentRating  int16
+	AuthorID       int64
+	BodyRaw        string
+	RootPostID     *int64
+	ReplyToPostID  *int64
+	TargetUserID   *int64
+	MentionUserIDs []int64
 }
 
 func (s *PostService) Comment(ctx context.Context, p CommentParams) (*model.CommunityThread, *model.CommunityPost, error) {
@@ -30,7 +31,12 @@ func (s *PostService) Comment(ctx context.Context, p CommentParams) (*model.Comm
 	if err != nil {
 		return nil, nil, err
 	}
+	mentions, err := normalizeMentionIDs(p.AuthorID, p.MentionUserIDs)
+	if err != nil {
+		return nil, nil, err
+	}
 	draft.rootPostID, draft.replyToPostID, draft.targetUserID = p.RootPostID, p.ReplyToPostID, p.TargetUserID
+	draft.mentionUserIDs = mentions
 
 	var thread *model.CommunityThread
 	var written writtenPost

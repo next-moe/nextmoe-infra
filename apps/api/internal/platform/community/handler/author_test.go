@@ -231,6 +231,23 @@ func TestAuthorPurge(t *testing.T) {
 		t.Fatalf("watch kungal: %v", err)
 	}
 
+	actor500 := int64(500)
+	insertNotif := func(site string, userID int64, actor *int64, seq int64) int64 {
+		t.Helper()
+		n := model.CommunityNotification{
+			Site: site, UserID: userID, Kind: model.NotificationKindPosted, ThreadID: th,
+			AnchorKind: model.AnchorKindSiteGame, AnchorID: "g1",
+			ActorID: actor, ActorCount: 1, ItemCount: 1, Seq: seq,
+		}
+		if err := testDB.Create(&n).Error; err != nil {
+			t.Fatalf("insert notification: %v", err)
+		}
+		return n.ID
+	}
+	insertNotif("letmoe", 500, &actor500, 1)
+	otherSiteID := insertNotif("kungal", 500, &actor500, 2)
+	actorRowID := insertNotif("letmoe", 600, &actor500, 3)
+
 	res, err := s.purgeAuthor(ctx, &authorPurgeInput{ID: 500})
 	if err != nil {
 		t.Fatalf("purge: %v", err)
@@ -246,6 +263,9 @@ func TestAuthorPurge(t *testing.T) {
 	if res.Body.Data.AnchorSubscriptionsDeleted != 1 {
 		t.Fatalf("purge must clear only this site's anchor rows, got %d", res.Body.Data.AnchorSubscriptionsDeleted)
 	}
+	if res.Body.Data.NotificationsDeleted != 1 {
+		t.Fatalf("purge must clear only this site's notification rows, got %d", res.Body.Data.NotificationsDeleted)
+	}
 	if n := countReadStates(t, 500); n != 0 {
 		t.Fatalf("author 500 read states must be gone, got %d", n)
 	}
@@ -257,6 +277,17 @@ func TestAuthorPurge(t *testing.T) {
 	}
 	if n := countAnchorSubs(t, "kungal", 500); n != 1 {
 		t.Fatalf("the other site's anchor row must survive, got %d", n)
+	}
+	var otherSite model.CommunityNotification
+	if err := testDB.First(&otherSite, otherSiteID).Error; err != nil {
+		t.Fatalf("other site's notification must survive: %v", err)
+	}
+	var actorRow model.CommunityNotification
+	if err := testDB.First(&actorRow, actorRowID).Error; err != nil {
+		t.Fatalf("actor-only notification must survive: %v", err)
+	}
+	if actorRow.ActorID != nil {
+		t.Fatalf("purged user's actor_id must be NULL, got %v", actorRow.ActorID)
 	}
 
 	for _, id := range posts {
@@ -282,10 +313,11 @@ func TestAuthorPurge(t *testing.T) {
 	if err != nil {
 		t.Fatalf("purge again: %v", err)
 	}
-	if again.Body.Data.PostsPurged != 0 || again.Body.Data.ReactionsDeleted != 0 || again.Body.Data.ReadStatesDeleted != 0 || again.Body.Data.AnchorSubscriptionsDeleted != 0 {
-		t.Fatalf("second purge must be 0/0/0/0, got {%d,%d,%d,%d}",
+	if again.Body.Data.PostsPurged != 0 || again.Body.Data.ReactionsDeleted != 0 || again.Body.Data.ReadStatesDeleted != 0 ||
+		again.Body.Data.AnchorSubscriptionsDeleted != 0 || again.Body.Data.NotificationsDeleted != 0 {
+		t.Fatalf("second purge must be 0/0/0/0/0, got {%d,%d,%d,%d,%d}",
 			again.Body.Data.PostsPurged, again.Body.Data.ReactionsDeleted, again.Body.Data.ReadStatesDeleted,
-			again.Body.Data.AnchorSubscriptionsDeleted)
+			again.Body.Data.AnchorSubscriptionsDeleted, again.Body.Data.NotificationsDeleted)
 	}
 }
 

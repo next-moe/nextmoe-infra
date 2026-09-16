@@ -120,7 +120,17 @@ func (s *ThreadService) SetAnswer(ctx context.Context, threadID, postID, actorID
 			}
 			answer = &postID
 		}
-		return repository.UpdateThreadTx(tx, th.ID, map[string]any{"answer_post_id": answer})
+		if err := repository.UpdateThreadTx(tx, th.ID, map[string]any{"answer_post_id": answer}); err != nil {
+			return err
+		}
+		if postID == 0 || (th.AnswerPostID != nil && *th.AnswerPostID == postID) {
+			return nil
+		}
+		return repository.EnqueueEventTx(tx, &model.CommunityEvent{
+			Site: th.Site, Kind: model.EventKindAnswerAccepted,
+			ThreadID: th.ID, PostID: &postID, ActorID: actorID,
+			AttemptAfter: time.Now(),
+		})
 	})
 	if err != nil {
 		return nil, err

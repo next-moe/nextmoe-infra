@@ -67,6 +67,7 @@ func (s *Server) comment(ctx context.Context, in *commentInput) (*threadOutput, 
 		Site: site, AnchorKind: in.Body.AnchorKind, AnchorID: in.Body.AnchorID,
 		ContentRating: in.Body.ContentRating, AuthorID: in.Body.AuthorID, BodyRaw: in.Body.Body,
 		RootPostID: in.Body.RootPostID, ReplyToPostID: in.Body.ReplyToPostID, TargetUserID: in.Body.TargetUserID,
+		MentionUserIDs: in.Body.MentionUserIDs,
 	})
 	if err != nil {
 		return nil, mapErr("comment", err)

@@ -67,6 +67,23 @@ const (
 )
 
 const (
+	EventKindPostCreated           int16 = 1
+	EventKindPostLiked             int16 = 2
+	EventKindFeedbackStatusChanged int16 = 3
+	EventKindAnswerAccepted        int16 = 4
+)
+
+const (
+	NotificationKindReplied        int16 = 1
+	NotificationKindMentioned      int16 = 2
+	NotificationKindPosted         int16 = 3
+	NotificationKindThreadCreated  int16 = 4
+	NotificationKindLiked          int16 = 5
+	NotificationKindAnswerAccepted int16 = 6
+	NotificationKindFeedbackStatus int16 = 7
+)
+
+const (
 	BoardFormatDiscussion   int16 = 0
 	BoardFormatQA           int16 = 1
 	BoardFormatAnnouncement int16 = 2
