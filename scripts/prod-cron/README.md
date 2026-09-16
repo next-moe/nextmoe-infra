@@ -36,6 +36,7 @@ had to be rebuilt by hand.
 | bgm-refresh | Wed 11:00 | Wed 03:00 | 192h |
 | crawler-restage | Sun 08:00 | Sun 00:00 | 192h |
 | vndb-refresh | Sun 17:30 | Sun 09:30 | 192h |
+| source-import | Sun 18:00 | Sun 10:00 | 192h |
 | reindex-catalog | daily 06:10 | daily 22:10 (prev. day) | 48h |
 | intromt-nightly | daily 13:00 | daily 05:00 | 48h |
 | image-grade-nightly | daily 15:00 | daily 07:00 | 48h |
@@ -48,6 +49,11 @@ had to be rebuilt by hand.
 | ymgal-pending-watch | daily 09:30 | daily 01:30 | 48h |
 | cover-shelf-watch | daily 17:00 | daily 09:00 | 48h |
 | retire-merged-comments | daily 23:30 | daily 15:30 | 48h |
+
+`source-import/test.sh` is the one offline test in this directory: it runs
+`source-import/run.sh` against fake `docker` / `flock` / alert stand-ins and
+asserts the apply order, the ceilings and the lock/stamp rules. Run it before
+redeploying that script.
 
 `logrotate/docker-containers` is host config, not a job: it is deployed as
 `/etc/logrotate.d/docker-containers`. Dokploy's containers are created with an
