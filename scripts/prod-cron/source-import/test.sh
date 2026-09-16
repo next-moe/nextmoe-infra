@@ -54,7 +54,8 @@ import-character-roster --source bangumi --apply
 backfill-bgm-zh-names --lane character --apply
 backfill-bgm-zh-names --lane person --apply
 backfill-bgm-zh-names --lane label --apply
-import-entity-aliases --run
+import-entity-aliases --hints --run
+import-bangumi-xmedia --run
 backfill-dlsite-genres --apply
 import-work-aliases --source all --apply
 import-work-platforms --source all --apply
@@ -94,6 +95,7 @@ extract_tool_cmd() {
     backfill-work-playtime \
     backfill-bgm-zh-names \
     import-entity-aliases \
+    import-bangumi-xmedia \
     backfill-dlsite-genres \
     import-work-aliases \
     import-work-platforms \
@@ -140,14 +142,11 @@ emit_out() {
     import-character-roster+bangumi+dry|import-character-roster+bangumi+apply)
       echo '2026/09/16 13:28:27 INFO roster import summary source=bangumi characters_created=0 attached_existing=0 aliases_created=0 edges_written=101357 already=0 skipped_no_work_anchor=0 skipped_no_name=1 skipped_claimed_probable=0 skipped_retired_exact_squat=0 portrait_candidates=0 errors=0'
       ;;
-    import-entity-aliases+dry)
-      echo 'leg A DRY-RUN — hints written: bgm_names=28217 bgm_labels=2946 bgm_chars=48231 eg_names=78 | skipped_same=24171 skipped_role=283 already=32008'
-      echo 'leg B DRY-RUN — alias_declared candidates=50 (bidirectional=20) | ambiguous=2300 already_candidate=207 already_same_person=389'
-      echo 'DRY-RUN — nothing written; re-run with --run.'
-      ;;
     import-entity-aliases+apply)
-      echo 'leg A APPLIED — hints written: bgm_names=28217 bgm_labels=2946 bgm_chars=48231 eg_names=78 | skipped_same=24171 skipped_role=283 already=32008'
-      echo 'leg B APPLIED — alias_declared candidates=50 (bidirectional=20) | ambiguous=2300 already_candidate=207 already_same_person=389'
+      echo 'leg A APPLIED — hints written: bgm_names=0 bgm_labels=0 bgm_chars=0 eg_names=0 | skipped_same=24171 skipped_role=283 already=111488'
+      ;;
+    import-bangumi-xmedia+dry|import-bangumi-xmedia+apply)
+      echo '2026/09/16 16:30:46 INFO bangumi cross-media wave summary registered_anime=12 registered_manga=3 registered_novel=1 edges=20 edges_written=0 already_edge=2011 already_work=1958 skipped_platform=143 skipped_no_title=0 skipped_self=2 errors=0'
       ;;
     import-work-series+dry)
       echo '2026/09/16 13:28:23 INFO workseries done apply=false anchored_works=19709 series_eligible=887 members_wanted=3178 series_created=10 series_renamed=0 series_deleted=0 members_added=1100 members_stale=0 order_changed=288 errors=0'
@@ -246,6 +245,7 @@ case "$1" in
       backfill-work-playtime \
       backfill-bgm-zh-names \
       import-entity-aliases \
+      import-bangumi-xmedia \
       backfill-dlsite-genres \
       import-work-aliases \
       import-work-platforms \
@@ -260,7 +260,7 @@ case "$1" in
       exit 99
     fi
 
-    src=""; only=""; lane=""; pop=""
+    src=""; only=""; lane=""; pop=""; hints=""
     case "$toolcmd" in
       *"--source eg-music"*) src=eg-music ;;
       *"--source eg"*) src=eg ;;
@@ -280,6 +280,12 @@ case "$1" in
     case "$toolcmd" in
       *"--population all"*) pop=all ;;
     esac
+    case "$toolcmd" in
+      *"--hints"*) hints=1 ;;
+    esac
+    if [ "$tool" = "import-entity-aliases" ] && [ -z "$hints" ]; then
+      echo "import-entity-aliases without --hints" >> "$CTL/violations"
+    fi
     mode=dry
     case "$toolcmd" in
       *"--apply"*) mode=apply ;;
@@ -299,11 +305,11 @@ case "$1" in
       [ -n "$only" ] && line="$line --only $only"
       [ -n "$lane" ] && line="$line --lane $lane"
       [ -n "$pop" ] && line="$line --population $pop"
-      if [ "$tool" = "import-entity-aliases" ]; then
-        line="$line --run"
-      else
-        line="$line --apply"
-      fi
+      [ -n "$hints" ] && line="$line --hints"
+      case "$tool" in
+        import-entity-aliases|import-bangumi-xmedia) line="$line --run" ;;
+        *) line="$line --apply" ;;
+      esac
       printf '%s\n' "$line" >> "$CTL/apply.log"
     fi
 
@@ -615,21 +621,18 @@ expect_apply "$td" "$td/ctl/expected"
 tend
 rm -rf "$td"
 
-# --- T7 ---
+# --- T7: a cross-media backlog past its ceiling registers nothing ---
 tstart 7
 td=$(mktemp -d)
 install_fakes "$td"
-cat > "$td/ctl/out/import-entity-aliases+dry" <<'OUT'
-leg A DRY-RUN — hints written: bgm_names=28217 bgm_labels=2946 bgm_chars=48231 eg_names=78 | skipped_same=24171 skipped_role=283 already=32008
-leg B DRY-RUN — alias_declared candidates=301 (bidirectional=20) | ambiguous=2300 already_candidate=207 already_same_person=389
-DRY-RUN — nothing written; re-run with --run.
-OUT
+printf '%s\n' '2026/09/16 16:30:46 INFO bangumi cross-media wave summary registered_anime=450 registered_manga=247 registered_novel=278 edges=1157 edges_written=0 already_edge=2011 already_work=1958 skipped_platform=143 skipped_no_title=0 skipped_self=0 errors=0' \
+  > "$td/ctl/out/import-bangumi-xmedia+dry"
 run_job "$td"
 expect_exit_nonzero "$td"
 if has_stamp "$td"; then fail "stamp written"; fi
 if ! has_alert "$td"; then fail "no alert"; fi
 write_t1_expected "$td/ctl/t1"
-grep -v -F -e 'import-entity-aliases --run' "$td/ctl/t1" > "$td/ctl/expected"
+grep -v -F -e 'import-bangumi-xmedia --run' "$td/ctl/t1" > "$td/ctl/expected"
 expect_apply "$td" "$td/ctl/expected"
 tend
 rm -rf "$td"
@@ -678,6 +681,17 @@ echo 'KUN_PG_PASSWORD=held-by-the-running-instance' > "$td/base/env.tmp"
 FLOCK_WAIT_FAIL=1 run_job "$td"
 expect_exit_nonzero "$td"
 if [ ! -f "$td/base/env.tmp" ]; then fail "timed-out run deleted the running run's env.tmp"; fi
+tend
+rm -rf "$td"
+
+# --- T12: import-entity-aliases never runs its review-queue leg ---
+tstart 12
+td=$(mktemp -d)
+install_fakes "$td"
+run_job "$td"
+expect_exit "$td" 0
+if [ -s "$td/ctl/violations" ]; then fail "$(cat "$td/ctl/violations")"; fi
+if ! grep -q '^import-entity-aliases+apply$' "$td/ctl/tools.log"; then fail "entity-aliases never ran"; fi
 tend
 rm -rf "$td"
 
