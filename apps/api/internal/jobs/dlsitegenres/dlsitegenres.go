@@ -40,20 +40,21 @@ type NameFreq struct {
 }
 
 type Stats struct {
-	TaxonomyRows  int
-	Candidates    int
-	SkippedBundle int
-	MissingMirror int
-	NoGenres      int
-	NotArray      int
-	ZhHit         int
-	JaFallback    int
-	NameBlank     int
-	DupCollapsed  int
-	Planned       int
-	Written       int
-	Conflict      int
-	Errors        int
+	TaxonomyRows    int
+	Candidates      int
+	SkippedBundle   int
+	MissingMirror   int
+	NoGenres        int
+	NotArray        int
+	ZhHit           int
+	JaFallback      int
+	NameBlank       int
+	DupCollapsed    int
+	Planned         int
+	Written         int
+	SexualInherited int
+	Conflict        int
+	Errors          int
 
 	DistinctNames   int
 	TopNames        []NameFreq
@@ -103,7 +104,7 @@ func Run(ctx context.Context, opts Opts) (*Stats, error) {
 	}
 
 	st := &Stats{TaxonomyRows: len(taxonomy), Candidates: len(cands)}
-	w := &writer{db: db, stats: st}
+	w := &writer{db: db, source: reg.dlsiteSource, stats: st}
 	nameFreq := map[string]int{}
 
 	worknos := make([]string, 0, len(cands))
@@ -144,8 +145,8 @@ func Run(ctx context.Context, opts Opts) (*Stats, error) {
 		}
 	}
 
-	if err := w.touch(ctx); err != nil {
-		return nil, fmt.Errorf("touch works: %w", err)
+	if err := w.finish(ctx, opts.Apply); err != nil {
+		return nil, fmt.Errorf("finish writes: %w", err)
 	}
 
 	st.DistinctNames = len(nameFreq)
@@ -157,6 +158,7 @@ func Run(ctx context.Context, opts Opts) (*Stats, error) {
 		"zh_hit", st.ZhHit, "ja_fallback", st.JaFallback, "name_blank", st.NameBlank,
 		"dup_collapsed", st.DupCollapsed, "planned", st.Planned,
 		"distinct_names", st.DistinctNames, "written", st.Written, "conflict", st.Conflict,
+		"sexual_inherited", st.SexualInherited,
 		"errors", st.Errors)
 	for _, nf := range st.TopNames {
 		slog.Info("backfill-dlsite-genres top genre", "name", nf.Name, "works", nf.Works)

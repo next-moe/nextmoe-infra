@@ -13,6 +13,7 @@ import (
 
 type writer struct {
 	db      *gorm.DB
+	source  int16
 	stats   *Stats
 	touched []int64
 }
@@ -54,6 +55,13 @@ func (w *writer) noteError(err error) {
 	}
 }
 
-func (w *writer) touch(ctx context.Context) error {
+func (w *writer) finish(ctx context.Context, apply bool) error {
+	if apply {
+		n, err := repository.InheritTagSexual(ctx, w.db, w.source)
+		if err != nil {
+			return err
+		}
+		w.stats.SexualInherited = int(n)
+	}
 	return repository.TouchWorks(ctx, w.db, w.touched)
 }

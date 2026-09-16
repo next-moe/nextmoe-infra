@@ -58,6 +58,7 @@ func main() {
 		"planned", st.Planned,
 		"distinct_names", st.DistinctNames,
 		"written", st.Written,
+		"sexual_inherited", st.SexualInherited,
 		"conflict", st.Conflict,
 		"errors", st.Errors,
 	)

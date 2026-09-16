@@ -49,6 +49,8 @@ type Stats struct {
 	Errors       int
 	FirstError   string
 
+	SexualInherited int
+
 	DistinctNames int
 	TopNames      []NameFreq
 	Samples       []Sample
@@ -76,7 +78,7 @@ func Run(ctx context.Context, opts Opts) (*Stats, error) {
 	}
 
 	st := &Stats{Candidates: len(cands)}
-	w := &writer{db: db, stats: st}
+	w := &writer{db: db, source: reg.bangumiSource, stats: st}
 	nameFreq := map[string]int{}
 
 	for _, c := range cands {
@@ -98,8 +100,8 @@ func Run(ctx context.Context, opts Opts) (*Stats, error) {
 		}
 	}
 
-	if err := w.touch(ctx); err != nil {
-		return nil, fmt.Errorf("touch works: %w", err)
+	if err := w.finish(ctx, opts.Apply); err != nil {
+		return nil, fmt.Errorf("finish writes: %w", err)
 	}
 
 	st.DistinctNames = len(nameFreq)
@@ -109,7 +111,7 @@ func Run(ctx context.Context, opts Opts) (*Stats, error) {
 		"candidates", st.Candidates, "no_tags", st.NoTags, "not_array", st.NotArray,
 		"name_blank", st.NameBlank, "dup_collapsed", st.DupCollapsed,
 		"planned", st.Planned, "distinct_names", st.DistinctNames,
-		"written", st.Written, "conflict", st.Conflict,
+		"written", st.Written, "conflict", st.Conflict, "sexual_inherited", st.SexualInherited,
 		"errors", st.Errors)
 	for _, nf := range st.TopNames {
 		slog.Info("backfill-work-tags top tag", "name", nf.Name, "works", nf.Works)
