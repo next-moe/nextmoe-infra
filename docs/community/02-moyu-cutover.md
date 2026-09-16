@@ -159,7 +159,9 @@ moyu's migration 040 has not run, since after that the table is theirs.
   `reaction_count` / `viewer_reacted` off the post, and pass the signed-in user
   as `viewer_id`. `PATCH /posts/{id}` fills both too (its viewer is the acting
   user); until the fix it answered 0, which moyu worked around by carrying the
-  count over from the resolve it did before the edit. Keep the moemoepoint award keyed on something stable — the
+  count over from the resolve it did before the edit. `POST /posts/{id}/reaction`
+  answers `reaction_count` after the toggle, and its `added` is the clicker's
+  new `viewer_reacted` — render the click from the response, no re-read. Keep the moemoepoint award keyed on something stable — the
   post id is now a fine key, since it no longer shares a keyspace with anything
   of moyu's.
 - **Keep the feed filter; expect fewer dropped rows, not none.** An earlier

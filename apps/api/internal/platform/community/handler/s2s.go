@@ -411,12 +411,13 @@ func (s *Server) toggleReaction(ctx context.Context, in *toggleReactionInput) (*
 		return nil, he
 	}
 	ctx = service.WithCallerSite(ctx, site)
-	added, pc, err := s.reactions.Toggle(ctx, in.ID, in.Body.UserID, in.Body.Kind)
+	res, err := s.reactions.Toggle(ctx, in.ID, in.Body.UserID, in.Body.Kind)
 	if err != nil {
 		return nil, mapErr("toggle reaction", err)
 	}
+	pc := res.Post
 	return &reactionOutput{Body: okEnvelope(dto.ReactionToggleResponse{
-		Added: added, AuthorID: pc.AuthorID, ThreadID: pc.ThreadID,
+		Added: res.Added, ReactionCount: res.Count, AuthorID: pc.AuthorID, ThreadID: pc.ThreadID,
 		AnchorKind: pc.AnchorKind, AnchorID: pc.AnchorID,
 	})}, nil
 }

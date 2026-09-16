@@ -13,8 +13,18 @@ type ReactionService struct{ db *gorm.DB }
 
 func NewReactionService(db *gorm.DB) *ReactionService { return &ReactionService{db: db} }
 
-func (s *ReactionService) Toggle(ctx context.Context, postID, userID int64, kind int16) (bool, repository.PostContext, error) {
+type ToggleResult struct {
+	Added bool
+	// Count is the post's like count after this toggle, read in the same
+	// transaction. Without it a consumer that dropped its mirror table had to
+	// re-read the post after every click to show the number the click changed.
+	Count int32
+	Post  repository.PostContext
+}
+
+func (s *ReactionService) Toggle(ctx context.Context, postID, userID int64, kind int16) (ToggleResult, error) {
 	var added bool
+	var count int32
 	var pc repository.PostContext
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		loaded, found, err := repository.PostContextTx(tx, postID)
@@ -33,6 +43,13 @@ func (s *ReactionService) Toggle(ctx context.Context, postID, userID int64, kind
 			return err
 		}
 		added = a
+		var n int64
+		if err := tx.Model(&model.CommunityReaction{}).
+			Where("post_id = ? AND kind = ?", postID, model.ReactionKindLike).
+			Count(&n).Error; err != nil {
+			return err
+		}
+		count = int32(n)
 		if kind != model.ReactionKindLike {
 			return nil
 		}
@@ -53,7 +70,7 @@ func (s *ReactionService) Toggle(ctx context.Context, postID, userID int64, kind
 		}
 		return repository.AdjustLikesTx(tx, pc.AuthorID, 0, delta)
 	})
-	return added, pc, err
+	return ToggleResult{Added: added, Count: count, Post: pc}, err
 }
 
 // Counts answers how many like-reactions each post carries.
