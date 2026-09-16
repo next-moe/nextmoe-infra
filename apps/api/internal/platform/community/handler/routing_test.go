@@ -29,6 +29,7 @@ func TestRouting_EveryNewPathResolves(t *testing.T) {
 		Trust:      service.NewTrustService(testDB),
 		Engagement: service.NewEngagementService(testDB),
 		Search:     service.NewSearchService(testDB),
+		Boards:     service.NewBoardService(testDB),
 	})
 
 	cases := []struct {
@@ -52,6 +53,23 @@ func TestRouting_EveryNewPathResolves(t *testing.T) {
 		{http.MethodPost, "/api/v1/community/threads/999999/notification", `{"user_id":1,"level":3}`, http.StatusNotFound},
 		// Query validation declared in the spec is enforced by the router layer.
 		{http.MethodGet, "/api/v1/community/threads?kind=0&sort=hottest", "", http.StatusUnprocessableEntity},
+		{http.MethodGet, "/api/v1/community/threads?kind=0&pinned=sticky", "", http.StatusUnprocessableEntity},
+		{http.MethodPost, "/api/v1/community/boards", `{"actor_id":1,"slug":"general","name":"General"}`, http.StatusOK},
+		{http.MethodPost, "/api/v1/community/boards", `{"actor_id":1,"slug":"Bad Slug","name":"x"}`, http.StatusUnprocessableEntity},
+		{http.MethodPost, "/api/v1/community/boards", `{"actor_id":1,"slug":"x","name":"x","topic_min_trust_level":4}`, http.StatusUnprocessableEntity},
+		{http.MethodGet, "/api/v1/community/boards", "", http.StatusOK},
+		{http.MethodGet, "/api/v1/community/boards/1", "", http.StatusOK},
+		{http.MethodGet, "/api/v1/community/boards/by-slug/general", "", http.StatusOK},
+		{http.MethodPost, "/api/v1/community/boards/reorder", `{"actor_id":1,"board_ids":[1]}`, http.StatusOK},
+		{http.MethodPatch, "/api/v1/community/boards/1", `{"actor_id":1,"status":1}`, http.StatusOK},
+		{http.MethodPatch, "/api/v1/community/boards/1", `{"actor_id":1,"status":7}`, http.StatusUnprocessableEntity},
+		{http.MethodGet, "/api/v1/community/threads?kind=0&board_id=1&subboards=true&pinned=exclude", "", http.StatusOK},
+		{http.MethodPost, "/api/v1/community/threads/999999/move", `{"actor_id":1,"board_id":1}`, http.StatusNotFound},
+		{http.MethodPost, "/api/v1/community/threads/999999/pin", `{"actor_id":1,"scope":1}`, http.StatusNotFound},
+		{http.MethodPost, "/api/v1/community/threads/999999/close", `{"actor_id":1,"closed":true}`, http.StatusNotFound},
+		{http.MethodPost, "/api/v1/community/threads/999999/answer", `{"actor_id":1,"post_id":0}`, http.StatusNotFound},
+		{http.MethodDelete, "/api/v1/community/boards/1?actor_id=1", "", http.StatusOK},
+		{http.MethodGet, "/api/v1/community/boards/1", "", http.StatusNotFound},
 	}
 	for _, c := range cases {
 		var body *strings.Reader

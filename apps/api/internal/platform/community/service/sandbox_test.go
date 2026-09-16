@@ -64,15 +64,15 @@ func TestSandbox_DailyLimits(t *testing.T) {
 	author := int64(600)
 	seedTrust(t, author, model.TrustLevelNew, 0)
 	for i := range keys.CommunitySandboxMaxTopicsPerDay.Get() {
-		if _, _, err := ts.OpenTopic(context.Background(), OpenThreadParams{
-			Site: "letmoe", AuthorID: author, AnchorKind: model.AnchorKindBoard, AnchorID: fmt.Sprintf("b%d", i),
+		if _, _, err := ts.OpenTopic(context.Background(), OpenTopicParams{
+			Site: "letmoe", AuthorID: author, BoardID: testBoard(t, "letmoe", fmt.Sprintf("b%d", i)),
 			Title: "t", ContentRating: model.ContentRatingAll, BodyRaw: "x",
 		}); err != nil {
 			t.Fatalf("topic %d should pass: %v", i, err)
 		}
 	}
-	if _, _, err := ts.OpenTopic(context.Background(), OpenThreadParams{
-		Site: "letmoe", AuthorID: author, AnchorKind: model.AnchorKindBoard, AnchorID: "over",
+	if _, _, err := ts.OpenTopic(context.Background(), OpenTopicParams{
+		Site: "letmoe", AuthorID: author, BoardID: testBoard(t, "letmoe", "over"),
 		Title: "t", ContentRating: model.ContentRatingAll, BodyRaw: "x",
 	}); !isSandbox(err) {
 		t.Fatalf("4th topic should hit the daily cap, got %v", err)

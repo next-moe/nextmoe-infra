@@ -162,7 +162,7 @@ func TestReactionToggle(t *testing.T) {
 	if res.Count != 1 {
 		t.Fatalf("first toggle: want count 1, got %d", res.Count)
 	}
-	if pc.AuthorID != 200 || pc.ThreadID != th.ID || pc.AnchorKind != model.AnchorKindBoard || pc.AnchorID != "b1" {
+	if pc.AuthorID != 200 || pc.ThreadID != th.ID || pc.AnchorKind != model.AnchorKindBoard || pc.AnchorID != model.BoardAnchorID(testBoard(t, "letmoe", "b1")) {
 		t.Fatalf("post context: author=%d thread=%d anchor=%d/%q", pc.AuthorID, pc.ThreadID, pc.AnchorKind, pc.AnchorID)
 	}
 	var n int64
@@ -190,7 +190,7 @@ func TestFeedbackFlow(t *testing.T) {
 	fs := NewFeedbackService(testDB, sink)
 
 	seedTrust(t, 100, model.TrustLevelBasic, 0)
-	th, _, err := ts.OpenFeedback(context.Background(), OpenThreadParams{
+	th, _, err := ts.OpenFeedback(context.Background(), OpenFeedbackParams{
 		Site: "letmoe", AuthorID: 100, AnchorKind: model.AnchorKindSiteResource, AnchorID: "r1",
 		Title: "broken link", ContentRating: model.ContentRatingAll, BodyRaw: "the download 404s",
 	})
@@ -213,7 +213,7 @@ func TestFeedbackFlow(t *testing.T) {
 		t.Fatalf("expected 1 feedback.status_changed event, got %d", sink.count(EventFeedbackStatusChanged))
 	}
 
-	into, _, _ := ts.OpenFeedback(context.Background(), OpenThreadParams{Site: "letmoe", AuthorID: 100, AnchorKind: model.AnchorKindSiteResource, AnchorID: "r1", Title: "dup target", ContentRating: model.ContentRatingAll, BodyRaw: "x"})
+	into, _, _ := ts.OpenFeedback(context.Background(), OpenFeedbackParams{Site: "letmoe", AuthorID: 100, AnchorKind: model.AnchorKindSiteResource, AnchorID: "r1", Title: "dup target", ContentRating: model.ContentRatingAll, BodyRaw: "x"})
 	if err := fs.Merge(context.Background(), th.ID, into.ID); err != nil {
 		t.Fatalf("merge: %v", err)
 	}
@@ -227,13 +227,6 @@ func TestFeedbackFlow(t *testing.T) {
 	got = getThread(t, th.ID)
 	if got.MergedIntoID != nil || got.Status != model.ThreadStatusOpen {
 		t.Fatalf("unmerge should reverse: merged=%v status=%d", got.MergedIntoID, got.Status)
-	}
-
-	if err := fs.SetAnswer(context.Background(), th.ID, 42); err != nil {
-		t.Fatalf("set answer: %v", err)
-	}
-	if got = getThread(t, th.ID); got.AnswerPostID == nil || *got.AnswerPostID != 42 {
-		t.Fatalf("answer not set: %v", got.AnswerPostID)
 	}
 
 	topic := openTopic(t, ts, "letmoe", 100, "b1", "x")

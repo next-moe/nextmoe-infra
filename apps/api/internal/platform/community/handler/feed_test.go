@@ -24,7 +24,7 @@ func TestListThreads_SortValidation(t *testing.T) {
 
 	for range 3 {
 		if _, err := s.openTopic(ctx, &openTopicInput{Body: dto.OpenTopicRequest{
-			AuthorID: 100, AnchorID: "1", Title: "t", Body: "x",
+			AuthorID: 100, BoardID: testBoard(t, "letmoe", "b1"), Title: "t", Body: "x",
 		}}); err != nil {
 			t.Fatalf("openTopic: %v", err)
 		}
@@ -64,7 +64,7 @@ func TestListSitePosts_FeedAndFilters(t *testing.T) {
 	ctx := clientCtx("letmoe")
 
 	topicOut, err := s.openTopic(ctx, &openTopicInput{Body: dto.OpenTopicRequest{
-		AuthorID: 100, AnchorID: "1", Title: "t", Body: "opening",
+		AuthorID: 100, BoardID: testBoard(t, "letmoe", "b1"), Title: "t", Body: "opening",
 	}})
 	if err != nil {
 		t.Fatalf("openTopic: %v", err)

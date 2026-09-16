@@ -21,7 +21,7 @@ func TestSearch_HandlerFaces(t *testing.T) {
 	ctx := clientCtx("letmoe")
 
 	topic, err := s.openTopic(ctx, &openTopicInput{Body: dto.OpenTopicRequest{
-		AuthorID: 100, AnchorID: "1", Title: "夏日回忆 攻略", Body: "推荐这条路线",
+		AuthorID: 100, BoardID: testBoard(t, "letmoe", "b1"), Title: "夏日回忆 攻略", Body: "推荐这条路线",
 	}})
 	if err != nil {
 		t.Fatalf("openTopic: %v", err)

@@ -81,16 +81,3 @@ func (s *FeedbackService) Unmerge(ctx context.Context, threadID int64) error {
 	}
 	return nil
 }
-
-func (s *FeedbackService) SetAnswer(ctx context.Context, threadID, postID int64) error {
-	res := s.db.WithContext(ctx).Model(&model.CommunityThread{}).
-		Where("id = ? AND kind = ?", threadID, model.ThreadKindFeedback).
-		Updates(map[string]any{"answer_post_id": postID, "updated_at": time.Now()})
-	if res.Error != nil {
-		return res.Error
-	}
-	if res.RowsAffected == 0 {
-		return ErrNotFeedback
-	}
-	return nil
-}

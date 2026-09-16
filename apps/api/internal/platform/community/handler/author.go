@@ -139,6 +139,7 @@ func authorPostView(row *repository.AuthorPostRow) dto.AuthorPostView {
 			Title:      row.ThreadTitle,
 			AnchorKind: row.ThreadAnchorKind,
 			AnchorID:   row.ThreadAnchorID,
+			BoardID:    boardIDOf(row.ThreadAnchorKind, row.ThreadAnchorID),
 		},
 	}
 }

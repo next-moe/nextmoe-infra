@@ -246,7 +246,7 @@ func TestBoardSiteSlugUnique(t *testing.T) {
 	slug := "general"
 	board := func(site string) error {
 		return testDB.Create(&model.CommunityBoard{
-			Site: site, Name: "General", Slug: &slug, Format: model.BoardFormatDiscussion,
+			Site: site, Name: "General", Slug: slug, Format: model.BoardFormatDiscussion,
 		}).Error
 	}
 	if err := board("letmoe"); err != nil {
@@ -300,6 +300,9 @@ func TestIndexColumnOrder(t *testing.T) {
 		{"idx_community_post_created", "(created_at DESC, id DESC)"},
 		// The unread reads come in by user; the primary key leads with thread_id.
 		{"idx_community_thread_user_user", "(user_id)"},
+		{"idx_community_board_parent", "(parent_id)"},
+		{"idx_community_thread_board", "(site, anchor_id, last_posted_at DESC) WHERE ((kind = 0) AND (anchor_kind = 0))"},
+		{"idx_community_thread_pinned", "(site, kind, pinned_at DESC) WHERE (pin_scope > 0)"},
 	}
 	for _, c := range cases {
 		def := indexDef(t, c.name)
@@ -389,7 +392,8 @@ func TestColumnAudit(t *testing.T) {
 			"id", "site", "kind", "anchor_kind", "anchor_id", "title",
 			"header_image_hashes", "content_rating", "status", "fb_status",
 			"fb_response", "fb_responder_id", "fb_responded_at", "merged_into_id",
-			"answer_post_id", "posts_count", "participants_count",
+			"answer_post_id", "pin_scope", "pinned_at", "pinned_until",
+			"posts_count", "participants_count",
 			"highest_post_number", "last_posted_at", "created_by", "created_at",
 			"updated_at",
 		},
@@ -404,7 +408,11 @@ func TestColumnAudit(t *testing.T) {
 			"thread_id", "user_id", "last_read_post_number", "notification_level",
 			"last_visited_at",
 		},
-		"community_board": {"id", "site", "name", "slug", "position", "description", "format"},
+		"community_board": {
+			"id", "site", "parent_id", "slug", "name", "description", "icon", "color",
+			"position", "format", "status", "content_rating", "topic_min_trust_level",
+			"reply_min_trust_level", "topic_template", "created_at", "updated_at",
+		},
 		"community_trust": {
 			"user_id", "level", "topics_entered", "posts_read", "read_time_s",
 			"days_visited", "likes_given", "likes_received", "flags_agreed",
@@ -485,5 +493,75 @@ func TestTrigramSearchIndexes(t *testing.T) {
 		if !strings.Contains(def, "USING gin") || !strings.Contains(def, "gin_trgm_ops") {
 			t.Errorf("index %s must be a trigram GIN index, got\n  %s", name, def)
 		}
+	}
+}
+
+func TestLegacyBoardAnchorsBecomeBoards(t *testing.T) {
+	cleanTables(t)
+	topic := func(site, anchor string) *model.CommunityThread {
+		t.Helper()
+		th := &model.CommunityThread{
+			Site: site, Kind: model.ThreadKindTopic, AnchorKind: model.AnchorKindBoard, AnchorID: anchor,
+			ContentRating: model.ContentRatingAll, Status: model.ThreadStatusOpen, CreatedBy: 1,
+		}
+		if err := testDB.Create(th).Error; err != nil {
+			t.Fatalf("seed topic %s/%s: %v", site, anchor, err)
+		}
+		return th
+	}
+	a := topic("letmoe", "main")
+	b := topic("letmoe", "main")
+	staging := topic("letmoe-staging", "main")
+	numeric := topic("letmoe", "77")
+	wall := mustThread(t, model.ThreadKindComments, model.AnchorKindSiteGame, "main", model.ThreadStatusOpen)
+	feedback := mustThread(t, model.ThreadKindFeedback, model.AnchorKindBoard, "reports", model.ThreadStatusOpen)
+	feedbackOnMain := mustThread(t, model.ThreadKindFeedback, model.AnchorKindBoard, "main", model.ThreadStatusOpen)
+
+	for i := range 2 {
+		if err := Run(testDB); err != nil {
+			t.Fatalf("migrate run %d: %v", i, err)
+		}
+	}
+
+	var boards []model.CommunityBoard
+	if err := testDB.Order("site").Find(&boards).Error; err != nil {
+		t.Fatalf("read boards: %v", err)
+	}
+	if len(boards) != 2 || boards[0].Site != "letmoe" || boards[1].Site != "letmoe-staging" ||
+		boards[0].Slug != "main" || boards[0].Name != "main" {
+		t.Fatalf("want one main board per site, got %+v", boards)
+	}
+	anchorOf := func(id int64) string {
+		t.Helper()
+		var th model.CommunityThread
+		if err := testDB.First(&th, id).Error; err != nil {
+			t.Fatalf("reload %d: %v", id, err)
+		}
+		return th.AnchorID
+	}
+	for _, c := range []struct {
+		id   int64
+		want string
+	}{
+		{a.ID, model.BoardAnchorID(boards[0].ID)},
+		{b.ID, model.BoardAnchorID(boards[0].ID)},
+		{staging.ID, model.BoardAnchorID(boards[1].ID)},
+		{numeric.ID, "77"},
+		{wall.ID, "main"},
+		{feedback.ID, "reports"},
+		{feedbackOnMain.ID, "main"},
+	} {
+		if got := anchorOf(c.id); got != c.want {
+			t.Errorf("thread %d: want anchor %q, got %q", c.id, c.want, got)
+		}
+	}
+
+	var nullable string
+	if err := testDB.Raw(`SELECT is_nullable FROM information_schema.columns
+		WHERE table_name = 'community_board' AND column_name = 'slug'`).Scan(&nullable).Error; err != nil {
+		t.Fatalf("read slug nullability: %v", err)
+	}
+	if nullable != "NO" {
+		t.Fatalf("community_board.slug must be NOT NULL, is_nullable=%s", nullable)
 	}
 }

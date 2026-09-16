@@ -3,8 +3,6 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	stderrors "errors"
-	"log/slog"
 	"net/http"
 
 	"api/internal/platform/community/dto"
@@ -31,6 +29,7 @@ type Server struct {
 	review     *service.ReviewService
 	engagement *service.EngagementService
 	search     *service.SearchService
+	boards     *service.BoardService
 }
 
 // Services is what the S2S face is wired from; the spec generator passes an
@@ -45,6 +44,7 @@ type Services struct {
 	Review     *service.ReviewService
 	Engagement *service.EngagementService
 	Search     *service.SearchService
+	Boards     *service.BoardService
 }
 
 func Setup(app *fiber.App, svc Services) huma.API {
@@ -61,6 +61,7 @@ func Setup(app *fiber.App, svc Services) huma.API {
 	s := &Server{
 		threads: svc.Threads, posts: svc.Posts, reactions: svc.Reactions, feedback: svc.Feedback,
 		flags: svc.Flags, trust: svc.Trust, review: svc.Review, engagement: svc.Engagement, search: svc.Search,
+		boards: svc.Boards,
 	}
 	s.register(api)
 	return api
@@ -141,6 +142,9 @@ func (s *Server) register(api huma.API) {
 		Summary: "Approve a queue item (keep the content; restore the post)", Tags: review}, s.approveReview)
 	huma.Register(api, huma.Operation{OperationID: "rejectReview", Method: http.MethodPost, Path: "/api/v1/community/review/{id}/reject",
 		Summary: "Reject a queue item (remove the content; tombstone the post)", Tags: review}, s.rejectReview)
+
+	s.registerBoards(api)
+	s.registerThreadModeration(api)
 }
 
 type resolveCommentsInput struct{ Body dto.CommentsResolveRequest }
@@ -179,8 +183,11 @@ type listThreadsInput struct {
 	Kind       int16  `query:"kind" doc:"0=topic 1=comments 2=feedback"`
 	AnchorKind int16  `query:"anchor_kind" doc:"anchor kind for the optional anchor filter (only used when anchor_id is set)"`
 	AnchorID   string `query:"anchor_id" doc:"optional: narrow to a single anchor (e.g. a resource's feedback wall); empty = the whole site"`
+	BoardID    int64  `query:"board_id" doc:"optional: narrow to one board's topics (kind 0); use it instead of the anchor filter"`
+	Subboards  bool   `query:"subboards" doc:"with board_id: include the topics of its sub-boards"`
+	Pinned     string `query:"pinned" default:"any" enum:"any,only,exclude" doc:"only = the pinned topics, newest pin first, as one page with no cursor; exclude = everything else. On a board both board and site pins count; on the site listing only site pins do"`
 	Sort       string `query:"sort" default:"activity" enum:"activity,created,posts" doc:"activity (newest activity) | created (newest thread) | posts (most replies; a mutable key, so a row can move between pages)"`
-	HasPosts   bool   `query:"has_posts" doc:"only threads that hold at least one post; a comments thread is created on first view, so most carry none"`
+	HasPosts   bool   `query:"has_posts" doc:"only threads that hold at least one post"`
 	Cursor     string `query:"cursor" doc:"opaque cursor from the previous page; it is bound to the sort that minted it"`
 	Limit      int    `query:"limit" doc:"page size (max 100, default 50)"`
 }
@@ -201,10 +208,18 @@ func (s *Server) listThreads(ctx context.Context, in *listThreadsInput) (*thread
 	if err != nil || (cursor.ID != 0 && cursor.Sort != sort) {
 		return nil, apiErrMsg(http.StatusBadRequest, errors.ErrInvalidParam, "malformed cursor")
 	}
+	pinned := repository.PinFilter(in.Pinned)
+	if pinned == repository.PinFilterOnly && in.Cursor != "" {
+		return nil, apiErrMsg(http.StatusBadRequest, errors.ErrInvalidParam, "the pinned set is one page and takes no cursor")
+	}
+	boardIDs, he := s.listingBoards(site, in)
+	if he != nil {
+		return nil, he
+	}
 	limit := clampLimit(in.Limit)
 	threads, err := s.threads.List(repository.ThreadListQuery{
-		Site: site, Kind: in.Kind, AnchorKind: in.AnchorKind, AnchorID: in.AnchorID,
-		Sort: sort, HasPosts: in.HasPosts, Cursor: cursor, Limit: limit,
+		Site: site, Kind: in.Kind, AnchorKind: in.AnchorKind, AnchorID: in.AnchorID, BoardIDs: boardIDs,
+		Sort: sort, HasPosts: in.HasPosts, Pinned: pinned, Cursor: cursor, Limit: limit,
 	})
 	if err != nil {
 		return nil, mapErr("list threads", err)
@@ -217,9 +232,33 @@ func (s *Server) listThreads(ctx context.Context, in *listThreadsInput) (*thread
 	if err != nil {
 		return nil, mapErr("list threads openings", err)
 	}
+	next := ""
+	if pinned != repository.PinFilterOnly {
+		next = threadsPageCursor(threads, sort, limit)
+	}
 	return &threadListOutput{Body: okEnvelope(dto.ThreadListResponse{
-		Threads: toThreadViewsWithOpening(threads, metas), NextCursor: threadsPageCursor(threads, sort, limit),
+		Threads: toThreadViewsWithOpening(threads, metas), NextCursor: next,
 	})}, nil
+}
+
+func (s *Server) listingBoards(site string, in *listThreadsInput) ([]int64, *houseError) {
+	if in.BoardID <= 0 {
+		if in.Subboards {
+			return nil, apiErrMsg(http.StatusUnprocessableEntity, errors.ErrValidationFailed, "subboards needs board_id")
+		}
+		return nil, nil
+	}
+	switch {
+	case in.AnchorID != "":
+		return nil, apiErrMsg(http.StatusUnprocessableEntity, errors.ErrValidationFailed, "send board_id or the anchor filter, not both")
+	case in.Kind != model.ThreadKindTopic:
+		return nil, apiErrMsg(http.StatusUnprocessableEntity, errors.ErrValidationFailed, "board_id lists topics (kind 0)")
+	}
+	ids, err := s.boards.ListingIDs(site, in.BoardID, in.Subboards)
+	if err != nil {
+		return nil, mapErr("list board threads", err)
+	}
+	return ids, nil
 }
 
 type threadPostsInput struct {
@@ -295,10 +334,14 @@ func (s *Server) openTopic(ctx context.Context, in *openTopicInput) (*threadOutp
 	if he != nil {
 		return nil, he
 	}
-	thread, post, err := s.threads.OpenTopic(ctx, service.OpenThreadParams{
-		Site: site, AuthorID: in.Body.AuthorID, AnchorKind: model.AnchorKindBoard, AnchorID: in.Body.AnchorID,
-		Title: in.Body.Title, ContentRating: in.Body.ContentRating, BodyRaw: in.Body.Body,
-		HeaderImageHashes: hashesJSON(in.Body.HeaderImageHashes),
+	if in.Body.BoardID > 0 && in.Body.AnchorID != "" {
+		return nil, apiErrMsg(http.StatusUnprocessableEntity, errors.ErrValidationFailed,
+			"send board_id or the deprecated anchor_id, not both")
+	}
+	thread, post, err := s.threads.OpenTopic(ctx, service.OpenTopicParams{
+		Site: site, AuthorID: in.Body.AuthorID, BoardID: in.Body.BoardID, LegacyBoardKey: in.Body.AnchorID,
+		AsModerator: in.Body.AsModerator, Title: in.Body.Title, ContentRating: in.Body.ContentRating,
+		BodyRaw: in.Body.Body, HeaderImageHashes: hashesJSON(in.Body.HeaderImageHashes),
 	})
 	if err != nil {
 		return nil, mapErr("open topic", err)
@@ -314,7 +357,10 @@ func (s *Server) openFeedback(ctx context.Context, in *openFeedbackInput) (*thre
 	if he != nil {
 		return nil, he
 	}
-	thread, post, err := s.threads.OpenFeedback(ctx, service.OpenThreadParams{
+	if he := checkEntityAnchor(in.Body.AnchorKind, in.Body.AnchorID); he != nil {
+		return nil, he
+	}
+	thread, post, err := s.threads.OpenFeedback(ctx, service.OpenFeedbackParams{
 		Site: site, AuthorID: in.Body.AuthorID, AnchorKind: in.Body.AnchorKind, AnchorID: in.Body.AnchorID,
 		Title: in.Body.Title, ContentRating: in.Body.ContentRating, BodyRaw: in.Body.Body,
 	})
@@ -573,33 +619,4 @@ func hashesJSON(hashes []string) datatypes.JSON {
 		return nil
 	}
 	return datatypes.JSON(b)
-}
-
-func mapErr(op string, err error) *houseError {
-	var sandbox *service.SandboxError
-	switch {
-	case stderrors.As(err, &sandbox):
-		return apiErrMsg(http.StatusTooManyRequests, errors.ErrOperationFailed, "sandbox limit: "+sandbox.Reason)
-	case stderrors.Is(err, service.ErrThreadNotFound),
-		stderrors.Is(err, service.ErrPostNotFound),
-		stderrors.Is(err, service.ErrReviewNotFound):
-		return apiErr(http.StatusNotFound, errors.ErrNotFound)
-	case stderrors.Is(err, service.ErrThreadNotOpen):
-		return apiErrMsg(http.StatusConflict, errors.ErrOperationFailed, "thread is not open")
-	case stderrors.Is(err, service.ErrInvalidSearchQuery):
-		return apiErrMsg(http.StatusBadRequest, errors.ErrInvalidParam, "search query must be 2-100 characters")
-	case stderrors.Is(err, service.ErrInvalidNotificationLevel):
-		return apiErrMsg(http.StatusBadRequest, errors.ErrInvalidParam, "notification level out of range")
-	case stderrors.Is(err, service.ErrNotFeedback):
-		return apiErrMsg(http.StatusBadRequest, errors.ErrInvalidParam, "thread is not a feedback thread")
-	case stderrors.Is(err, service.ErrNotAuthor):
-		return apiErrMsg(http.StatusForbidden, errors.ErrForbidden, "not the post author")
-	case stderrors.Is(err, service.ErrPostNotEditable):
-		return apiErrMsg(http.StatusConflict, errors.ErrOperationFailed, "post is not editable")
-	case stderrors.Is(err, service.ErrContentBlocked):
-		return apiErrMsg(http.StatusUnprocessableEntity, errors.ErrValidationFailed, "content blocked by word list")
-	default:
-		slog.Error("community "+op, "err", err)
-		return apiErr(http.StatusInternalServerError, errors.ErrInternalServer)
-	}
 }

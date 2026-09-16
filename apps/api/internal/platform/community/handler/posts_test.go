@@ -83,14 +83,16 @@ func TestPostsResolve_CapEmptyProjection(t *testing.T) {
 		t.Fatalf("a comments thread has no title, got %q", *v.Thread.Title)
 	}
 
-	topicOut, err := s.openTopic(ctx, &openTopicInput{Body: dto.OpenTopicRequest{AuthorID: 500, AnchorID: "b1", Title: "hello", Body: "x"}})
+	boardID := testBoard(t, "letmoe", "b1")
+	topicOut, err := s.openTopic(ctx, &openTopicInput{Body: dto.OpenTopicRequest{AuthorID: 500, BoardID: boardID, Title: "hello", Body: "x"}})
 	if err != nil {
 		t.Fatalf("openTopic: %v", err)
 	}
 	openingID := topicOut.Body.Data.Post.ID
 	tv := resolvePosts(t, s, ctx, []int64{openingID})
 	if len(tv) != 1 || tv[0].Thread.Title == nil || *tv[0].Thread.Title != "hello" ||
-		tv[0].Thread.AnchorKind != model.AnchorKindBoard || tv[0].Thread.AnchorID != "b1" {
+		tv[0].Thread.AnchorKind != model.AnchorKindBoard || tv[0].Thread.AnchorID != model.BoardAnchorID(boardID) ||
+		tv[0].Thread.BoardID == nil || *tv[0].Thread.BoardID != boardID {
 		t.Fatalf("board topic context wrong: %+v", tv)
 	}
 

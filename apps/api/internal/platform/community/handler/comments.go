@@ -27,7 +27,7 @@ func (s *Server) getComments(ctx context.Context, in *commentsPageInput) (*comme
 	if he != nil {
 		return nil, he
 	}
-	if he := checkCommentAnchor(in.AnchorKind, in.AnchorID); he != nil {
+	if he := checkEntityAnchor(in.AnchorKind, in.AnchorID); he != nil {
 		return nil, he
 	}
 	thread, err := s.threads.FindCommentsThread(site, in.AnchorKind, in.AnchorID)
@@ -59,7 +59,7 @@ func (s *Server) comment(ctx context.Context, in *commentInput) (*threadOutput, 
 	if he != nil {
 		return nil, he
 	}
-	if he := checkCommentAnchor(in.Body.AnchorKind, in.Body.AnchorID); he != nil {
+	if he := checkEntityAnchor(in.Body.AnchorKind, in.Body.AnchorID); he != nil {
 		return nil, he
 	}
 	ctx = service.WithCallerSite(ctx, site)
@@ -75,7 +75,7 @@ func (s *Server) comment(ctx context.Context, in *commentInput) (*threadOutput, 
 	return &threadOutput{Body: okEnvelope(dto.ThreadResponse{Thread: toThreadView(thread), Post: &view})}, nil
 }
 
-func checkCommentAnchor(anchorKind int16, anchorID string) *houseError {
+func checkEntityAnchor(anchorKind int16, anchorID string) *houseError {
 	if anchorID == "" {
 		return apiErrMsg(http.StatusUnprocessableEntity, errors.ErrValidationFailed, "anchor_id is required")
 	}
@@ -84,5 +84,5 @@ func checkCommentAnchor(anchorKind int16, anchorID string) *houseError {
 		return nil
 	}
 	return apiErrMsg(http.StatusUnprocessableEntity, errors.ErrValidationFailed,
-		"anchor_kind must be 1..4 — a board hosts topics, not a comment wall")
+		"anchor_kind must be 1..4 — a board hosts topics only")
 }

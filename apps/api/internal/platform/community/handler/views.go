@@ -17,14 +17,27 @@ import (
 )
 
 func toThreadView(t *model.CommunityThread) dto.ThreadView {
-	return dto.ThreadView{
+	v := dto.ThreadView{
 		ID: t.ID, Site: t.Site, Kind: t.Kind, AnchorKind: t.AnchorKind, AnchorID: t.AnchorID,
 		Title: t.Title, HeaderImageHashes: headerImageHashes(t.HeaderImageHashes),
 		ContentRating: t.ContentRating, Status: t.Status,
 		FbStatus: t.FbStatus, FbResponse: t.FbResponse, AnswerPostID: t.AnswerPostID, MergedIntoID: t.MergedIntoID,
 		PostsCount: t.PostsCount, ParticipantsCount: t.ParticipantsCount, HighestPostNumber: t.HighestPostNumber,
 		LastPostedAt: t.LastPostedAt, CreatedBy: t.CreatedBy, CreatedAt: t.CreatedAt,
+		BoardID: boardIDOf(t.AnchorKind, t.AnchorID),
 	}
+	if t.PinActive(time.Now()) {
+		v.PinScope, v.PinnedAt, v.PinnedUntil = t.PinScope, t.PinnedAt, t.PinnedUntil
+	}
+	return v
+}
+
+func boardIDOf(anchorKind int16, anchorID string) *int64 {
+	id, ok := model.BoardIDFromAnchor(anchorKind, anchorID)
+	if !ok {
+		return nil
+	}
+	return &id
 }
 
 func headerImageHashes(raw datatypes.JSON) []string {

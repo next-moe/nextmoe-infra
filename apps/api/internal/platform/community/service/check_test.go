@@ -79,8 +79,8 @@ func TestCheckDisabledZeroDial(t *testing.T) {
 	ps := NewPostService(testDB, NoopSink{}, WithPostChecker(off))
 
 	seedTrust(t, 100, model.TrustLevelBasic, 0)
-	_, post, err := ts.OpenTopic(ctx, OpenThreadParams{
-		Site: "letmoe", AuthorID: 100, AnchorKind: model.AnchorKindBoard, AnchorID: "b1",
+	_, post, err := ts.OpenTopic(ctx, OpenTopicParams{
+		Site: "letmoe", AuthorID: 100, BoardID: testBoard(t, "letmoe", "b1"),
 		Title: "t", ContentRating: model.ContentRatingAll, BodyRaw: "opening",
 	})
 	if err != nil {
@@ -112,8 +112,8 @@ func TestCheckDenyBlocksAllWritePaths(t *testing.T) {
 	ts, ps := checkWiring(t, fake, NoopSink{})
 
 	seedTrust(t, 100, model.TrustLevelBasic, 0)
-	_, _, err := ts.OpenTopic(ctx, OpenThreadParams{
-		Site: "letmoe", AuthorID: 100, AnchorKind: model.AnchorKindBoard, AnchorID: "b1",
+	_, _, err := ts.OpenTopic(ctx, OpenTopicParams{
+		Site: "letmoe", AuthorID: 100, BoardID: testBoard(t, "letmoe", "b1"),
 		Title: "t", ContentRating: model.ContentRatingAll, BodyRaw: "banned opening",
 	})
 	if !errors.Is(err, ErrContentBlocked) {
@@ -247,8 +247,8 @@ func TestCheckFirstPostTitleComposition(t *testing.T) {
 	ts, ps := checkWiring(t, fake, NoopSink{})
 
 	seedTrust(t, 100, model.TrustLevelBasic, 0)
-	th, _, err := ts.OpenTopic(ctx, OpenThreadParams{
-		Site: "letmoe", AuthorID: 100, AnchorKind: model.AnchorKindBoard, AnchorID: "b1",
+	th, _, err := ts.OpenTopic(ctx, OpenTopicParams{
+		Site: "letmoe", AuthorID: 100, BoardID: testBoard(t, "letmoe", "b1"),
 		Title: "My Title", ContentRating: model.ContentRatingAll, BodyRaw: "opening body",
 	})
 	if err != nil {

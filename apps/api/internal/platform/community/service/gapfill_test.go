@@ -12,7 +12,7 @@ import (
 func openFeedback(t *testing.T, ts *ThreadService, site string, author int64, anchorKind int16, anchorID, body string) *model.CommunityThread {
 	t.Helper()
 	seedTrust(t, author, model.TrustLevelBasic, 0)
-	th, _, err := ts.OpenFeedback(context.Background(), OpenThreadParams{
+	th, _, err := ts.OpenFeedback(context.Background(), OpenFeedbackParams{
 		Site: site, AuthorID: author, AnchorKind: anchorKind, AnchorID: anchorID,
 		Title: "fb", ContentRating: model.ContentRatingAll, BodyRaw: body,
 	})
@@ -220,8 +220,8 @@ func TestOpeningPostMeta(t *testing.T) {
 	visible := openTopic(t, ts, "letmoe", 100, "b1", "visible opening")
 
 	seedTrust(t, 700, model.TrustLevelNew, 2)
-	heldThread, heldPost, err := ts.OpenTopic(ctx, OpenThreadParams{
-		Site: "letmoe", AuthorID: 700, AnchorKind: model.AnchorKindBoard, AnchorID: "b1",
+	heldThread, heldPost, err := ts.OpenTopic(ctx, OpenTopicParams{
+		Site: "letmoe", AuthorID: 700, BoardID: testBoard(t, "letmoe", "b1"),
 		Title: "held", ContentRating: model.ContentRatingAll, BodyRaw: "held opening",
 	})
 	if err != nil {
@@ -232,8 +232,8 @@ func TestOpeningPostMeta(t *testing.T) {
 	}
 
 	seedTrust(t, 300, model.TrustLevelBasic, 0)
-	delThread, delPost, err := ts.OpenTopic(ctx, OpenThreadParams{
-		Site: "letmoe", AuthorID: 300, AnchorKind: model.AnchorKindBoard, AnchorID: "b1",
+	delThread, delPost, err := ts.OpenTopic(ctx, OpenTopicParams{
+		Site: "letmoe", AuthorID: 300, BoardID: testBoard(t, "letmoe", "b1"),
 		Title: "to delete", ContentRating: model.ContentRatingAll, BodyRaw: "to delete",
 	})
 	if err != nil {

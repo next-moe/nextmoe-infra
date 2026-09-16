@@ -14,8 +14,8 @@ import (
 )
 
 // Run applies the full community schema (tables + raw SQL). Idempotent: safe to
-// run on every deploy and repeatedly against the same database. This step has
-// NO seeds — the per-site default board is planted at letmoe cut-over time.
+// run on every deploy and repeatedly against the same database. It seeds
+// nothing; the only rows it writes are the legacy-anchor boards of boardsSQL.
 func Run(db *gorm.DB) error {
 	if err := db.AutoMigrate(
 		// community_thread first: community_post's thread_id FK and the thread
@@ -135,9 +135,65 @@ func rawSQL(db *gorm.DB) error {
 		{"idx_community_post_author", `
 			CREATE INDEX IF NOT EXISTS idx_community_post_author
 			    ON community_post(author_id, created_at DESC)`},
+		// The sub-board lookups and the self-FK check on a board delete; a site's
+		// boards are already reached through uq_community_board_site_slug.
+		{"idx_community_board_parent", `
+			CREATE INDEX IF NOT EXISTS idx_community_board_parent
+			    ON community_board(parent_id)`},
+		// One board's topics by activity, and the per-board stats aggregate.
+		// Partial: topics are a sliver of the table next to the comment walls.
+		{"idx_community_thread_board", `
+			CREATE INDEX IF NOT EXISTS idx_community_thread_board
+			    ON community_thread(site, anchor_id, last_posted_at DESC)
+			    WHERE kind = 0 AND anchor_kind = 0`},
+		// The pinned set a listing puts on top; only pinned rows are indexed.
+		{"idx_community_thread_pinned", `
+			CREATE INDEX IF NOT EXISTS idx_community_thread_pinned
+			    ON community_thread(site, kind, pinned_at DESC)
+			    WHERE pin_scope > 0`},
 	} {
 		if err := db.Exec(ix.stmt).Error; err != nil {
 			return fmt.Errorf("create index %s: %w", ix.name, err)
+		}
+	}
+	return boardsSQL(db)
+}
+
+// boardsSQL (wave 15) turns community_board, which no face had ever written,
+// into the home of every topic.
+//
+// slug becomes the board's URL key and is required. AutoMigrate never turns a
+// nullable column NOT NULL, so the model tag alone would leave it nullable. The
+// table held 0 rows in production and locally when this shipped (2026-09-16),
+// so there is nothing to backfill first.
+//
+// Topics opened before boards existed name their board with a string the site
+// minted: "main", on letmoe's 2 topics and letmoe-staging's 1 in production —
+// the only board anchors anywhere. A board anchor is now a community_board id,
+// so each such string becomes a board of that slug (named after the slug until
+// the site renames it) and its threads move onto the id. Both statements match
+// only topics on non-numeric board anchors, and none are left after the UPDATE,
+// so a rerun changes nothing.
+func boardsSQL(db *gorm.DB) error {
+	for _, st := range []struct{ name, stmt string }{
+		{"require board slug", `ALTER TABLE community_board ALTER COLUMN slug SET NOT NULL`},
+		{"create boards for legacy anchors", `
+			INSERT INTO community_board
+			       (site, slug, name, position, format, status, content_rating,
+			        topic_min_trust_level, reply_min_trust_level, created_at, updated_at)
+			SELECT DISTINCT site, anchor_id, anchor_id, 0, 0, 0, 0, 0, 0, now(), now()
+			  FROM community_thread
+			 WHERE kind = 0 AND anchor_kind = 0 AND anchor_id !~ '^[0-9]+$'
+			ON CONFLICT (site, slug) DO NOTHING`},
+		{"re-anchor legacy topics onto board ids", `
+			UPDATE community_thread AS t
+			   SET anchor_id = b.id::text
+			  FROM community_board AS b
+			 WHERE t.kind = 0 AND t.anchor_kind = 0 AND t.anchor_id !~ '^[0-9]+$'
+			   AND b.site = t.site AND b.slug = t.anchor_id`},
+	} {
+		if err := db.Exec(st.stmt).Error; err != nil {
+			return fmt.Errorf("%s: %w", st.name, err)
 		}
 	}
 	return nil
