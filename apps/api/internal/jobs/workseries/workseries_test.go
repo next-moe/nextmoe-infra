@@ -8,6 +8,7 @@ import (
 	"api/internal/platform/catalog/migrate"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/seed"
+	"api/internal/platform/catalog/srcvndb"
 	"api/internal/testsupport/dbtest"
 
 	"github.com/stretchr/testify/assert"
@@ -39,6 +40,9 @@ func TestMain(m *testing.M) {
 	if err := seed.Run(db); err != nil {
 		dbtest.SkipMainf("jobs/workseries", "catalog seed failed: %v", err)
 	}
+	if err := srcvndb.EnsureSchema(db); err != nil {
+		dbtest.SkipMainf("jobs/workseries", "src_vndb schema failed: %v", err)
+	}
 	for _, ddl := range []string{
 		`CREATE SCHEMA IF NOT EXISTS workseries_dl`,
 		`CREATE TABLE IF NOT EXISTS workseries_dl.works (workno text PRIMARY KEY, product_json jsonb)`,
@@ -56,7 +60,7 @@ func clean(t *testing.T) {
 	t.Helper()
 	for _, table := range []string{
 		"catalog_series_member", "catalog_series", "catalog_external_ref",
-		"catalog_release", "catalog_work", "workseries_dl.works",
+		"catalog_release", "catalog_work", "workseries_dl.works", "src_vndb.releases_vn",
 	} {
 		require.NoError(t, testDB.Exec("TRUNCATE "+table+" RESTART IDENTITY CASCADE").Error)
 	}
@@ -167,4 +171,29 @@ func TestImportWorkSeries(t *testing.T) {
 	assert.Zero(t, n)
 	require.NoError(t, testDB.Table("catalog_series_member").Count(&n).Error)
 	assert.Zero(t, n, "members cascade with the series")
+}
+
+func TestBundleProductJoinsNoSeries(t *testing.T) {
+	clean(t)
+	medium := mediumID(t)
+	mkAnchoredWork(t, medium, "s-a", "RJ400")
+	mkAnchoredWork(t, medium, "s-b", "RJ401")
+	bundled := mkAnchoredWork(t, medium, "bundled", "RJ402")
+	require.NoError(t, testDB.Exec(`
+		INSERT INTO catalog_external_ref (entity_type, entity_id, source_id, external_id, link_kind, matched_by)
+		SELECT 6, r.entity_id, (SELECT id FROM catalog_source WHERE key = 'vndb'), 'r402', 0, 'rule:test'
+		FROM catalog_external_ref r WHERE r.source_id = 4 AND r.external_id = 'RJ402'`).Error)
+	require.NoError(t, testDB.Exec(`INSERT INTO src_vndb.releases_vn (id, vid, rtype) VALUES ('r402','v1','complete'),('r402','v2','complete')`).Error)
+	for _, wn := range []string{"RJ400", "RJ401", "RJ402"} {
+		mkMirrorWork(t, wn, "SRI004", "パック系列")
+	}
+
+	st, err := Run(context.Background(), Opts{DSN: testDSN, DlsiteDSN: dlTestDSN, Apply: true})
+	require.NoError(t, err)
+	assert.Equal(t, 1, st.SkippedBundle)
+	assert.Equal(t, 2, st.AnchoredWorks)
+	assert.Equal(t, 2, st.MembersAdded)
+	var n int64
+	require.NoError(t, testDB.Table("catalog_series_member").Where("work_id = ?", bundled).Count(&n).Error)
+	assert.Zero(t, n, "a work reached only through a bundle product is not a series member")
 }

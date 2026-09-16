@@ -103,3 +103,24 @@ func TestBangumiXmediaProbableOccupancy(t *testing.T) {
 	assert.Zero(t, scalarInt(t, `SELECT count(*) FROM catalog_work_relation WHERE b_work_id=`+itoa64(gProbable)))
 	assert.Zero(t, scalarInt(t, `SELECT count(*) FROM catalog_external_ref WHERE matched_by='rule:bangumi-xmedia-import'`))
 }
+
+func TestBangumiXmediaSkipsAStubMergedIntoItsGalgame(t *testing.T) {
+	if testDB == nil {
+		t.Skip("no test db")
+	}
+	clean(t)
+
+	merged := seedAnchoredWork(t, 100)
+	require.NoError(t, testDB.Exec(`INSERT INTO catalog_external_ref (entity_type, entity_id, source_id, external_id, link_kind, matched_by)
+		VALUES (5, ?, 3, '500', 1, 'rule:bangumi-xmedia-import')`, merged).Error)
+	insertSubject(t, 500, 1, 1002, "小説500", "")
+	insertSubject(t, 501, 2, 0, "アニメ501", "")
+	require.NoError(t, testDB.Exec(`INSERT INTO src_bangumi.subject_relation (subject_id, relation_type, related_subject_id, item_order) VALUES
+		(500, 1, 100, 0), (100, 1, 501, 0)`).Error)
+
+	st, err := New(testDB, nil, Options{}).RunBangumiXmedia()
+	require.NoError(t, err, "one self-pair must not fail the batch")
+	assert.Equal(t, 1, st.SkippedSelf, "the novel's stub was merged into the galgame it adapts")
+	assert.Equal(t, 1, st.EdgesWritten, "the anime edge still lands")
+	assert.Zero(t, scalarInt(t, `SELECT count(*) FROM catalog_work_relation WHERE a_work_id = b_work_id`))
+}

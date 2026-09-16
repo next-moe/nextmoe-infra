@@ -6,6 +6,7 @@ import (
 
 	"api/internal/jobs/workpop"
 	"api/internal/platform/catalog/model"
+	"api/internal/platform/catalog/repository"
 
 	"gorm.io/gorm"
 )
@@ -13,6 +14,7 @@ import (
 type anchorRow struct {
 	WorkID   int64  `gorm:"column:work_id"`
 	GetchuID string `gorm:"column:getchu_id"`
+	Bundle   bool   `gorm:"column:bundle"`
 }
 
 func loadAnchors(ctx context.Context, db *gorm.DB, source int16, pop workpop.Population, limit, offset int) ([]anchorRow, error) {
@@ -22,7 +24,8 @@ func loadAnchors(ctx context.Context, db *gorm.DB, source int16, pop workpop.Pop
 	}
 	var out []anchorRow
 	err = db.WithContext(ctx).Raw(`
-		SELECT DISTINCT w.id AS work_id, r.external_id AS getchu_id
+		SELECT DISTINCT w.id AS work_id, r.external_id AS getchu_id,
+			`+repository.BundleReleaseSQL("rel")+` AS bundle
 		FROM catalog_work w
 		JOIN catalog_release rel ON rel.work_id = w.id AND rel.deleted_at IS NULL
 		JOIN catalog_external_ref r ON r.entity_type = ? AND r.entity_id = rel.id

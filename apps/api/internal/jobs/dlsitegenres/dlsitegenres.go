@@ -42,6 +42,7 @@ type NameFreq struct {
 type Stats struct {
 	TaxonomyRows  int
 	Candidates    int
+	SkippedBundle int
 	MissingMirror int
 	NoGenres      int
 	NotArray      int
@@ -107,7 +108,9 @@ func Run(ctx context.Context, opts Opts) (*Stats, error) {
 
 	worknos := make([]string, 0, len(cands))
 	for _, c := range cands {
-		worknos = append(worknos, c.Workno)
+		if !c.Bundle {
+			worknos = append(worknos, c.Workno)
+		}
 	}
 	mirror, err := loadMirrorGenres(ctx, dlsiteDB, worknos)
 	if err != nil {
@@ -117,6 +120,10 @@ func Run(ctx context.Context, opts Opts) (*Stats, error) {
 	for _, c := range cands {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
+		}
+		if c.Bundle {
+			st.SkippedBundle++
+			continue
 		}
 		raw, ok := mirror[c.Workno]
 		if !ok {
@@ -146,7 +153,7 @@ func Run(ctx context.Context, opts Opts) (*Stats, error) {
 
 	slog.Info("backfill-dlsite-genres done", "apply", opts.Apply,
 		"taxonomy_rows", st.TaxonomyRows, "candidates", st.Candidates,
-		"missing_mirror", st.MissingMirror, "no_genres", st.NoGenres, "not_array", st.NotArray,
+		"skipped_bundle", st.SkippedBundle, "missing_mirror", st.MissingMirror, "no_genres", st.NoGenres, "not_array", st.NotArray,
 		"zh_hit", st.ZhHit, "ja_fallback", st.JaFallback, "name_blank", st.NameBlank,
 		"dup_collapsed", st.DupCollapsed, "planned", st.Planned,
 		"distinct_names", st.DistinctNames, "written", st.Written, "conflict", st.Conflict,

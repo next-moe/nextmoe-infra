@@ -11,6 +11,7 @@ import (
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/seed"
 	srcb "api/internal/platform/catalog/srcbangumi"
+	srcv "api/internal/platform/catalog/srcvndb"
 	"api/internal/testsupport/dbtest"
 
 	"github.com/stretchr/testify/assert"
@@ -45,6 +46,9 @@ func TestMain(m *testing.M) {
 	if err := srcb.EnsureSchema(db); err != nil {
 		dbtest.SkipMainf("jobs/workaliases", "src_bangumi schema failed: %v", err)
 	}
+	if err := srcv.EnsureSchema(db); err != nil {
+		dbtest.SkipMainf("jobs/workaliases", "src_vndb schema failed: %v", err)
+	}
 	for _, ddl := range []string{
 		`CREATE SCHEMA IF NOT EXISTS workaliases_dl`,
 		`CREATE TABLE IF NOT EXISTS workaliases_dl.works (workno text PRIMARY KEY, product_json jsonb, info_json jsonb)`,
@@ -62,7 +66,7 @@ func clean(t *testing.T) {
 	t.Helper()
 	for _, table := range []string{
 		"catalog_work_title", "catalog_external_ref", "catalog_release", "catalog_work",
-		"src_bangumi.subject", "workaliases_dl.works",
+		"src_bangumi.subject", "workaliases_dl.works", "src_vndb.releases_vn",
 	} {
 		require.NoError(t, testDB.Exec("TRUNCATE "+table+" RESTART IDENTITY CASCADE").Error)
 	}
@@ -110,7 +114,7 @@ func mkSubject(t *testing.T, id int64, infobox string) {
 	require.NoError(t, testDB.Create(&sub).Error)
 }
 
-func mkDlsiteRelAnchor(t *testing.T, workID int64, workno string) {
+func mkDlsiteRelAnchor(t *testing.T, workID int64, workno string) int64 {
 	t.Helper()
 	rel := model.CatalogRelease{WorkID: workID, Kind: model.ReleaseKindDigital}
 	require.NoError(t, testDB.Create(&rel).Error)
@@ -118,6 +122,7 @@ func mkDlsiteRelAnchor(t *testing.T, workID int64, workno string) {
 		EntityType: model.EntityTypeRelease, EntityID: rel.ID, SourceID: 4,
 		ExternalID: workno, LinkKind: model.LinkKindExact, MatchedBy: "rule:test",
 	}).Error)
+	return rel.ID
 }
 
 func strPtr(s string) *string { return &s }
@@ -189,4 +194,28 @@ func TestImportWorkAliases(t *testing.T) {
 	require.NoError(t, err)
 	assert.Zero(t, st.BgmWritten+st.KanaWritten, "idempotent re-run")
 	assert.Equal(t, 3, st.BgmSkippedDup, "landed aliases now dedup-skipped")
+}
+
+func TestBundleProductLendsNoKana(t *testing.T) {
+	clean(t)
+	medium := mediumID(t)
+	bundleOnly := mkWork(t, medium, "同梱のみ", nil)
+	rel := mkDlsiteRelAnchor(t, bundleOnly, "RJ910001")
+	require.NoError(t, testDB.Exec(`
+		INSERT INTO catalog_external_ref (entity_type, entity_id, source_id, external_id, link_kind, matched_by)
+		VALUES (6, ?, (SELECT id FROM catalog_source WHERE key = 'vndb'), 'r910001', 0, 'rule:test')`, rel).Error)
+	require.NoError(t, testDB.Exec(`INSERT INTO src_vndb.releases_vn (id, vid, rtype) VALUES ('r910001','v1','complete'),('r910001','v2','complete')`).Error)
+	single := mkWork(t, medium, "単品", nil)
+	mkDlsiteRelAnchor(t, single, "RJ910002")
+	require.NoError(t, testDB.Exec(`INSERT INTO workaliases_dl.works (workno, product_json) VALUES
+		('RJ910001', '{"work_name_kana": "パックノナマエ"}'),
+		('RJ910002', '{"work_name_kana": "タンピン"}')`).Error)
+
+	st, err := Run(context.Background(), Opts{DSN: testDSN, DlsiteDSN: dlTestDSN, Source: "dlsite-kana", Apply: true})
+	require.NoError(t, err)
+	assert.Equal(t, 1, st.KanaBundle)
+	assert.Equal(t, 1, st.KanaWritten)
+	var n int64
+	require.NoError(t, testDB.Table("catalog_work_title").Where("work_id = ?", bundleOnly).Count(&n).Error)
+	assert.Zero(t, n, "a bundle's kana is the package's name, not the work's")
 }

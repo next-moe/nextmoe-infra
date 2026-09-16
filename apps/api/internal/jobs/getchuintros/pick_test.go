@@ -60,3 +60,22 @@ func TestWindowCountsWorksNotRows(t *testing.T) {
 
 	assert.Empty(t, window(rows, 2, 9), "an offset past the end yields nothing")
 }
+
+func TestPickStoryPassesOverABundleAnchor(t *testing.T) {
+	anchors := []anchorRow{
+		{WorkID: 1, GetchuID: "100", Bundle: true},
+		{WorkID: 1, GetchuID: "200"},
+		{WorkID: 2, GetchuID: "300", Bundle: true},
+		{WorkID: 3, GetchuID: "400", Bundle: true},
+	}
+	stories := map[string]string{"100": "the package", "200": "the game", "300": "another package"}
+
+	got := pickStory(anchors, stories)
+	require.Len(t, got, 3)
+	assert.Equal(t, "200", got[0].GetchuID)
+	assert.Equal(t, "the game", got[0].Story, "a single-VN anchor after a bundle still testifies")
+	assert.Empty(t, got[1].Story)
+	assert.True(t, got[1].Bundle, "a work reachable only through a bundle is marked, not silently storyless")
+	assert.Empty(t, got[2].Story)
+	assert.False(t, got[2].Bundle, "a bundle with no text is plain no_story")
+}

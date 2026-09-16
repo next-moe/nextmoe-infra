@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"api/internal/platform/catalog/model"
+	"api/internal/platform/catalog/repository"
 
 	"gorm.io/gorm"
 )
@@ -34,18 +35,20 @@ func resolveRegistry(ctx context.Context, db *gorm.DB) (registry, error) {
 type candidate struct {
 	WorkID int64  `gorm:"column:work_id"`
 	Workno string `gorm:"column:workno"`
+	Bundle bool   `gorm:"column:bundle"`
 }
 
 func loadCandidates(ctx context.Context, db *gorm.DB, reg registry, limit, offset int) ([]candidate, error) {
 	var out []candidate
 	if err := db.WithContext(ctx).
-		Raw(`SELECT DISTINCT ON (w.id) w.id AS work_id, r.external_id AS workno
+		Raw(`SELECT DISTINCT ON (w.id) w.id AS work_id, r.external_id AS workno,
+				`+repository.BundleReleaseSQL("rel")+` AS bundle
 			FROM catalog_work w
 			JOIN catalog_release rel ON rel.work_id = w.id AND rel.deleted_at IS NULL
 			JOIN catalog_external_ref r ON r.entity_type = ? AND r.entity_id = rel.id
 				AND r.source_id = ? AND r.link_kind = ?
 			WHERE w.medium_id = ? AND w.deleted_at IS NULL
-			ORDER BY w.id, r.external_id`,
+			ORDER BY w.id, bundle, r.external_id`,
 			model.EntityTypeRelease, reg.dlsiteSource, model.LinkKindExact, reg.galgameMedium).
 		Scan(&out).Error; err != nil {
 		return nil, err

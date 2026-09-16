@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"api/internal/platform/catalog/repository"
+
 	"gorm.io/gorm"
 )
 
@@ -32,10 +34,15 @@ type Candidate struct {
 // on this work is that catalog character"). Hiding a row does not move the
 // coordinate, and filtering here would make the matcher miss the character and
 // write Getchu's profile onto nobody.
-const rosterSQL = `
+//
+// A bundle product (repository.BundleReleaseSQL) lists every bundled game's
+// cast, so a common name there would resolve onto the anchored work's
+// namesake; it matches nobody.
+var rosterSQL = `
 SELECT DISTINCT g.external_id AS getchu_id, rel.work_id, wc.character_id,
        lower(normalize(regexp_replace(ch.display_name, '[[:space:]　]', '', 'g'), NFKC)) AS key_name,
-       lower(normalize(regexp_replace(coalesce(al.name,''), '[[:space:]　]', '', 'g'), NFKC)) AS key_alias
+       lower(normalize(regexp_replace(coalesce(al.name,''), '[[:space:]　]', '', 'g'), NFKC)) AS key_alias,
+       ` + repository.BundleReleaseSQL("rel") + ` AS bundle
 FROM catalog_external_ref g
 JOIN catalog_release rel ON rel.id = g.entity_id AND rel.deleted_at IS NULL
 JOIN catalog_work w ON w.id = rel.work_id AND w.deleted_at IS NULL
@@ -50,6 +57,7 @@ type rosterRow struct {
 	CharacterID int64  `gorm:"column:character_id"`
 	KeyName     string `gorm:"column:key_name"`
 	KeyAlias    string `gorm:"column:key_alias"`
+	Bundle      bool   `gorm:"column:bundle"`
 }
 
 type getchuChar struct {

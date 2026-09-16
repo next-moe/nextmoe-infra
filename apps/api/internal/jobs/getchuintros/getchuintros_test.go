@@ -10,6 +10,7 @@ import (
 	"api/internal/platform/catalog/migrate"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/seed"
+	"api/internal/platform/catalog/srcvndb"
 	"api/internal/testsupport/dbtest"
 
 	"github.com/stretchr/testify/assert"
@@ -44,6 +45,10 @@ func TestMain(m *testing.M) {
 		fmt.Fprintf(os.Stderr, "FAIL: catalog seed failed: %v\n", err)
 		os.Exit(1)
 	}
+	if err := srcvndb.EnsureSchema(db); err != nil {
+		fmt.Fprintf(os.Stderr, "FAIL: src_vndb schema: %v\n", err)
+		os.Exit(1)
+	}
 	if err := db.Exec(`CREATE TABLE IF NOT EXISTS items (getchu_id text PRIMARY KEY, story text)`).Error; err != nil {
 		fmt.Fprintf(os.Stderr, "FAIL: staging items table: %v\n", err)
 		os.Exit(1)
@@ -62,7 +67,7 @@ func clean(t *testing.T) {
 	if testDB == nil {
 		dbtest.Skip(t)
 	}
-	for _, table := range []string{"catalog_external_ref", "catalog_release", "items"} {
+	for _, table := range []string{"catalog_external_ref", "catalog_release", "items", "src_vndb.releases_vn"} {
 		require.NoError(t, testDB.Exec("TRUNCATE "+table+" CASCADE").Error)
 	}
 	for _, table := range []string{"catalog_work_intro", "catalog_work"} {
@@ -88,7 +93,7 @@ func mkWork(t *testing.T, name string, pop workpop.Population) int64 {
 	return w.ID
 }
 
-func mkAnchoredRelease(t *testing.T, workID int64, getchuID string) {
+func mkAnchoredRelease(t *testing.T, workID int64, getchuID string) int64 {
 	t.Helper()
 	rel := model.CatalogRelease{WorkID: workID, Kind: 0}
 	require.NoError(t, testDB.Create(&rel).Error)
@@ -96,6 +101,19 @@ func mkAnchoredRelease(t *testing.T, workID int64, getchuID string) {
 		INSERT INTO catalog_external_ref (entity_type, entity_id, source_id, external_id, link_kind, matched_by)
 		VALUES (?,?,?,?,?,?)`,
 		model.EntityTypeRelease, rel.ID, getchuSource, getchuID, model.LinkKindExact, getchuRule).Error)
+	return rel.ID
+}
+
+func mkVndbRelease(t *testing.T, releaseID int64, rid string, vids ...string) {
+	t.Helper()
+	require.NoError(t, testDB.Exec(`
+		INSERT INTO catalog_external_ref (entity_type, entity_id, source_id, external_id, link_kind, matched_by)
+		VALUES (?, ?, (SELECT id FROM catalog_source WHERE key = 'vndb'), ?, ?, 'rule:test')`,
+		model.EntityTypeRelease, releaseID, rid, model.LinkKindExact).Error)
+	for _, vid := range vids {
+		require.NoError(t, testDB.Exec(
+			`INSERT INTO src_vndb.releases_vn (id, vid, rtype) VALUES (?, ?, 'complete')`, rid, vid).Error)
+	}
 }
 
 func mkStagingItem(t *testing.T, getchuID, story string) {
@@ -191,6 +209,25 @@ func TestSecondApplyIsAZeroWriteNoOp(t *testing.T) {
 	assert.Equal(t, 0, second.Written)
 	assert.Equal(t, 0, second.Conflict, "the preload skips before the write is attempted")
 	assert.Equal(t, 1, second.SkipHasJa)
+}
+
+func TestBundleReleaseDoesNotTestifyForTheWork(t *testing.T) {
+	clean(t)
+	bundled := mkWork(t, "同梱先", workpop.Published)
+	mkVndbRelease(t, mkAnchoredRelease(t, bundled, "6001"), "r6001", "v1", "v2")
+	mkStagingItem(t, "6001", "パッケージの看板作品の物語")
+
+	single := mkWork(t, "単独", workpop.Published)
+	mkVndbRelease(t, mkAnchoredRelease(t, single, "6002"), "r6002", "v3")
+	mkStagingItem(t, "6002", "この作品の物語")
+
+	st := run(t, true, workpop.Published)
+	assert.Equal(t, 1, st.SkipBundle)
+	assert.Equal(t, 1, st.Written)
+	_, _, found := introOf(t, bundled, "ja")
+	assert.False(t, found, "a release VNDB files under two VNs says nothing about either")
+	_, _, found = introOf(t, single, "ja")
+	assert.True(t, found, "a single-VN release still testifies")
 }
 
 func TestPopulationNarrows(t *testing.T) {

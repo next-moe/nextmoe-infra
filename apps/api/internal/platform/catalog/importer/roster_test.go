@@ -117,3 +117,61 @@ func TestRosterReusesExistingCharacter(t *testing.T) {
 	assert.Equal(t, int64(model.WorkCharacterKindSecondary),
 		scalarInt(t, fmt.Sprintf(`SELECT kind FROM catalog_work_character WHERE work_id=%d AND character_id=%d`, work, charID)))
 }
+
+func seedCastMember(t *testing.T, workID int64, name, matchedBy string) int64 {
+	t.Helper()
+	var charID int64
+	require.NoError(t, testDB.Raw(`INSERT INTO catalog_character (display_name, lang, description, field_provenance)
+		VALUES (?,'ja','','{}') RETURNING id`, name).Scan(&charID).Error)
+	require.NoError(t, testDB.Exec(`INSERT INTO catalog_work_character (work_id, character_id, kind, spoiler, matched_by)
+		VALUES (?,?,0,0,?)`, workID, charID, matchedBy).Error)
+	return charID
+}
+
+func TestBangumiRosterDoesNotCastBesideAnotherSource(t *testing.T) {
+	clean(t)
+	cast := seedExactWork(t, 3, 100)
+	seedCastMember(t, cast, "渚", ruleRosterVNDB)
+	empty := seedExactWork(t, 3, 101)
+
+	seedBangumiChar(t, 50, "渚")
+	seedBangumiChar(t, 51, "早苗")
+	require.NoError(t, testDB.Exec(`INSERT INTO src_bangumi.subject_character (character_id, subject_id, type, item_order)
+		VALUES (50,100,1,0),(51,101,1,0)`).Error)
+
+	dry, err := New(testDB, nil, Options{Source: "bangumi", DryRun: true}).RunRoster("bangumi")
+	require.NoError(t, err)
+	assert.Equal(t, 1, dry.SkippedForeignRoster)
+	assert.Equal(t, 1, dry.CharactersCreated, "a character seen only on a skipped work is not minted")
+
+	st, err := New(testDB, nil, Options{Source: "bangumi"}).RunRoster("bangumi")
+	require.NoError(t, err)
+	assert.Equal(t, 1, st.SkippedForeignRoster)
+	assert.Equal(t, 1, st.EdgesWritten)
+	assert.Equal(t, int64(1), scalarInt(t, fmt.Sprintf(`SELECT count(*) FROM catalog_work_character WHERE work_id=%d`, cast)),
+		"the VNDB cast is not joined by a second 渚")
+	assert.Equal(t, int64(1), scalarInt(t, fmt.Sprintf(`SELECT count(*) FROM catalog_work_character WHERE work_id=%d`, empty)))
+	assert.Zero(t, scalarInt(t, `SELECT count(*) FROM catalog_external_ref WHERE entity_type=4 AND source_id=3 AND external_id='50'`))
+
+	again, err := New(testDB, nil, Options{Source: "bangumi"}).RunRoster("bangumi")
+	require.NoError(t, err)
+	assert.Equal(t, 1, again.Already, "the lane's own cast does not count as foreign")
+	assert.Zero(t, again.EdgesWritten)
+}
+
+func TestEGRosterDoesNotCastBesideAnotherSource(t *testing.T) {
+	clean(t)
+	cast := seedExactWork(t, 5, 7)
+	seedCastMember(t, cast, "EGキャラ", ruleRosterBangumi)
+	empty := seedExactWork(t, 5, 8)
+	testDB.Exec(`INSERT INTO characters (id, raw) VALUES (800,'{"name":"EGキャラ"}'),(801,'{"name":"別キャラ"}')`)
+	testDB.Exec(`INSERT INTO appearances (game, character_id) VALUES (7,800),(8,801)`)
+
+	st, err := New(testDB, testDB, Options{Source: "eg"}).RunRoster("eg")
+	require.NoError(t, err)
+	assert.Equal(t, 1, st.SkippedForeignRoster)
+	assert.Equal(t, 1, st.CharactersCreated)
+	assert.Equal(t, 1, st.EdgesWritten)
+	assert.Equal(t, int64(1), scalarInt(t, fmt.Sprintf(`SELECT count(*) FROM catalog_work_character WHERE work_id=%d`, cast)))
+	assert.Equal(t, int64(1), scalarInt(t, fmt.Sprintf(`SELECT count(*) FROM catalog_work_character WHERE work_id=%d`, empty)))
+}

@@ -3,6 +3,7 @@ package introimport
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"api/internal/platform/catalog/model"
@@ -13,6 +14,28 @@ import (
 )
 
 const introLang = "en"
+
+var (
+	reSpoilerSpan = regexp.MustCompile(`(?is)\[spoiler\].*?\[/spoiler\]`)
+	reSpoilerOpen = regexp.MustCompile(`(?is)\[spoiler\].*\z`)
+	reURLOpen     = regexp.MustCompile(`(?i)\[url=[^\]]*\]`)
+	reSimpleTag   = regexp.MustCompile(`(?i)\[/?(?:url|b|i|u|s|quote|raw|code)\]`)
+	reBlankRuns   = regexp.MustCompile(`\n{3,}`)
+)
+
+// VNDB descriptions are BBCode, and the v2 intro face serves text verbatim.
+// The 2026-09-16 backlog held 480 intros, 307 of them carrying [url=…] tags,
+// which the character and label lanes already strip; this is the same rule
+// as entityintros.stripVNDBMarkup, spoilers removed rather than unwrapped.
+func stripVNDBMarkup(s string) string {
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	s = reSpoilerSpan.ReplaceAllString(s, "")
+	s = reSpoilerOpen.ReplaceAllString(s, "")
+	s = reURLOpen.ReplaceAllString(s, "")
+	s = reSimpleTag.ReplaceAllString(s, "")
+	s = reBlankRuns.ReplaceAllString(s, "\n\n")
+	return strings.TrimSpace(s)
+}
 
 type Options struct {
 	DryRun bool
@@ -92,7 +115,8 @@ func Run(ctx context.Context, db *gorm.DB, opts Options) (Stats, error) {
 
 	var toWrite []model.CatalogWorkIntro
 	for _, c := range cands {
-		if strings.TrimSpace(c.Description) == "" {
+		text := stripVNDBMarkup(c.Description)
+		if text == "" {
 			st.SkippedEmptyDesc++
 			continue
 		}
@@ -101,7 +125,7 @@ func Run(ctx context.Context, db *gorm.DB, opts Options) (Stats, error) {
 			continue
 		}
 		toWrite = append(toWrite, model.CatalogWorkIntro{
-			WorkID: c.WorkID, Lang: introLang, Intro: c.Description, SourceID: vndbSourceID,
+			WorkID: c.WorkID, Lang: introLang, Intro: text, SourceID: vndbSourceID,
 		})
 	}
 

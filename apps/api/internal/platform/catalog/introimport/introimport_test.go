@@ -123,3 +123,50 @@ func TestBackfill(t *testing.T) {
 	require.NoError(t, db.Raw("SELECT count(*) FROM catalog_work_intro").Scan(&n).Error)
 	assert.EqualValues(t, 2, n)
 }
+
+func TestStripVNDBMarkup(t *testing.T) {
+	cases := map[string]string{
+		"A blurb.\r\n\r\n\r\n[From [url=https://www.dlsite.com/x]DLsite[/url]]": "A blurb.\n\n[From DLsite]",
+		"[i]Turnabout[/i] begins. [spoiler]The butler did it.[/spoiler] Fin.":   "Turnabout begins.  Fin.",
+		"Plain text stays.":                     "Plain text stays.",
+		"Open spoiler [spoiler]runs to the end": "Open spoiler",
+	}
+	for in, want := range cases {
+		assert.Equal(t, want, stripVNDBMarkup(in), in)
+	}
+}
+
+func TestBackfillWritesPlainText(t *testing.T) {
+	db := testDB
+	for _, tbl := range []string{"catalog_work_intro", "catalog_external_ref", "catalog_work"} {
+		require.NoError(t, db.Exec("TRUNCATE "+tbl+" RESTART IDENTITY CASCADE").Error)
+	}
+	require.NoError(t, db.Exec("TRUNCATE src_vndb.vn").Error)
+	var vndbID int16
+	require.NoError(t, db.Raw("SELECT id FROM catalog_source WHERE key='vndb'").Scan(&vndbID).Error)
+
+	mk := func(name, vid, desc string) int64 {
+		w := model.CatalogWork{MediumID: 1, OLang: "ja", DisplayName: name}
+		require.NoError(t, db.Create(&w).Error)
+		require.NoError(t, db.Create(&model.CatalogExternalRef{
+			EntityType: model.EntityTypeWork, EntityID: w.ID, SourceID: vndbID, ExternalID: vid,
+			LinkKind: model.LinkKindExact, MatchedBy: "rule:test",
+		}).Error)
+		require.NoError(t, db.Create(&srcvndb.VN{ID: vid, OLang: "ja", Description: desc, IngestedAt: time.Now()}).Error)
+		return w.ID
+	}
+	marked := mk("标记", "v10", "A doujin blurb.\n\n[From [url=https://www.dlsite.com/x]DLsite[/url]]")
+	spoilerOnly := mk("全剧透", "v11", "[spoiler]Everything is a spoiler.[/spoiler]")
+
+	st, err := Run(context.Background(), db, Options{})
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, st.IntrosWritten)
+	assert.EqualValues(t, 1, st.SkippedEmptyDesc, "a description that is all spoiler leaves nothing to write")
+
+	var row model.CatalogWorkIntro
+	require.NoError(t, db.Where("work_id = ?", marked).First(&row).Error)
+	assert.Equal(t, "A doujin blurb.\n\n[From DLsite]", row.Intro)
+	var n int64
+	require.NoError(t, db.Raw("SELECT count(*) FROM catalog_work_intro WHERE work_id = ?", spoilerOnly).Scan(&n).Error)
+	assert.Zero(t, n)
+}

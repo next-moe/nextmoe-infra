@@ -46,6 +46,7 @@ func main() {
 		"apply", *apply,
 		"taxonomy_rows", st.TaxonomyRows,
 		"candidates", st.Candidates,
+		"skipped_bundle", st.SkippedBundle,
 		"missing_mirror", st.MissingMirror,
 		"no_genres", st.NoGenres,
 		"not_array", st.NotArray,

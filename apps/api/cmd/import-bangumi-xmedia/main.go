@@ -43,6 +43,7 @@ func main() {
 		"registered_novel", st.RegisteredNovel, "edges", st.Edges, "edges_written", st.EdgesWritten,
 		"already_edge", st.AlreadyEdge, "already_work", st.AlreadyWork,
 		"skipped_platform", st.SkippedPlatform, "skipped_no_title", st.SkippedNoTitle,
+		"skipped_self", st.SkippedSelf,
 		"errors", st.Errors,
 	)
 	if !*apply {

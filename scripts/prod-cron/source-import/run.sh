@@ -187,12 +187,9 @@ gstep import-work-intro --apply
 # Ceilings. The roster lanes only read EXACT anchors, and a merge demotes both
 # exacts to probable, so a folded batch comes back as a mass re-mint (the same
 # tripwire as vndb-refresh step 5). The two-month backlog these lanes carried
-# on 2026-09-16 planned 24 EG characters, 112 EG names, 0 Bangumi characters.
-#
-# NOTE for the first armed run: that same backlog planned 295 new DLsite series
-# and 2,165 alias_declared candidates, both past their ceilings. Drain them by
-# hand in canary slices before letting this job own them; do not just raise
-# the numbers.
+# on 2026-09-16 planned 24 EG characters, 112 EG names, 0 Bangumi characters,
+# 295 DLsite series and 975 cross-media works; it was drained by hand before
+# this job was armed, so a ceiling tripping here is news, not backlog.
 begin_group eg
 if [ "$GROUP_FAIL" -eq 0 ]; then
   if dry_ok eg-roster import-character-roster --source eg \
@@ -234,13 +231,17 @@ fi
 gstep sh -c "$DSNSH"'; backfill-bgm-zh-names --dsn "$CAT" --lane character --apply'
 gstep sh -c "$DSNSH"'; backfill-bgm-zh-names --dsn "$CAT" --lane person --apply'
 gstep sh -c "$DSNSH"'; backfill-bgm-zh-names --dsn "$CAT" --lane label --apply'
-# --run is the apply flag: Go's flag package treats --apply as undefined and
-# exits 2, the same class of invocation break as bgm-refresh's --wiki-dsn on
-# 2026-08-13. Leg B files human-review candidates, hence the ceiling.
+# --run is the apply flag of the next two tools: Go's flag package treats
+# --apply as undefined and exits 2, the same class of invocation break as
+# bgm-refresh's --wiki-dsn on 2026-08-13. --hints keeps import-entity-aliases
+# to its search-hint leg: the other leg files alias_declared credit-name pairs
+# whose only consumer, person-link-batch, is not scheduled (2,166 would have
+# waited in the review queue on 2026-09-16).
+gstep import-entity-aliases --hints --run
 if [ "$GROUP_FAIL" -eq 0 ]; then
-  if dry_ok entity-aliases import-entity-aliases \
-     && check_counters entity-aliases "$last_dry_log" "alias_declared candidates=300"; then
-    gstep import-entity-aliases --run
+  if dry_ok bangumi-xmedia import-bangumi-xmedia \
+     && check_counters bangumi-xmedia "$last_dry_log" registered_anime=200 registered_manga=200 registered_novel=200; then
+    gstep import-bangumi-xmedia --run
   else
     ceiling_failed
   fi
@@ -263,9 +264,9 @@ fi
 
 # DELIBERATELY NOT RUN HERE:
 #   import-dlsite-works — imports only ボイス・ASMR works; ASMR is out of catalog scope by decision of 2026-08-21
-#   import-eg-dlsite-releases — mints works; pending an operator decision
-#   expand-bgm-type4-gated — mints works; pending an operator decision
-#   import-bangumi-xmedia — mints works; pending an operator decision
+#   import-eg-dlsite-releases — mints a work for an EG-claimed SKU without checking titles; 22 of its 69 mints on 2026-09-16 would have duplicated live works
+#   expand-bgm-type4-gated — its title-collision gate misses 〜/－/- variants; a 30-work canary on 2026-09-16 duplicated at least 10 VNDB works and was rolled back
+#   catalog-char-xsrc — the LLM-adjudicated fold of cross-source character twins that the Bangumi and EG roster lanes wait on (they cast only uncast works until it runs)
 #   reconcile-org-labels — mints labels and files human-review candidates; pending an operator decision
 #   enrich-org-labels — enriches the labels reconcile-org-labels anchors, so it waits on that decision
 #   backfill-dlsite-media, backfill-getchu-media, backfill-getchu-portraits, backfill-vndb-covers,

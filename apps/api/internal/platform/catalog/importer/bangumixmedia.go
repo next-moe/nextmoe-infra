@@ -41,6 +41,7 @@ type XmediaStats struct {
 	AlreadyWork     int
 	SkippedPlatform int
 	SkippedNoTitle  int
+	SkippedSelf     int
 	Errors          int
 }
 
@@ -131,6 +132,14 @@ func (im *Importer) RunBangumiXmedia() (XmediaStats, error) {
 		gW, xSid := p[0], p[1]
 		xW, ok := xWork[xSid]
 		if !ok {
+			continue
+		}
+		// Work-dedup merges folded some registered stubs into the galgame
+		// they adapt (红楼梦 31006 holds novel 123224 beside game 1179), so
+		// both ends resolve to one work; on 2026-09-16 that row failed
+		// chk_catalog_work_relation_distinct and took the whole batch with it.
+		if xW == gW {
+			st.SkippedSelf++
 			continue
 		}
 		key := [3]int64{xW, gW, relAdaptationOf}
