@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -92,10 +93,24 @@ func resetE2E(t *testing.T) {
 			t.Fatalf("reset source (%s): %v", stmt, err)
 		}
 	}
+	// Reactions before posts: they outlive the posts they point at, and a run
+	// that left them behind made the next run report 0 likes inserted.
+	if err := testDB.Exec(`
+		DELETE FROM community_reaction WHERE post_id IN (
+			SELECT p.id FROM community_post p
+			  JOIN community_thread t ON t.id = p.thread_id WHERE t.site = ?)`, e2eSite,
+	).Error; err != nil {
+		t.Fatalf("reset reactions: %v", err)
+	}
 	if err := testDB.Exec(
 		"DELETE FROM community_post WHERE thread_id IN (SELECT id FROM community_thread WHERE site = ?)", e2eSite,
 	).Error; err != nil {
 		t.Fatalf("reset posts: %v", err)
+	}
+	if err := testDB.Exec(
+		"DELETE FROM community_thread_user WHERE thread_id IN (SELECT id FROM community_thread WHERE site = ?)", e2eSite,
+	).Error; err != nil {
+		t.Fatalf("reset subscriptions: %v", err)
 	}
 	for _, stmt := range []string{
 		"DELETE FROM community_thread WHERE site = ?",
@@ -133,8 +148,10 @@ func TestImportMoyuComments(t *testing.T) {
 	insertComment(t, 2, 500, nil, 90002, &one, "reply on the game", edited, base.Add(time.Minute))
 	// The SAME game, but a resource under it: a second wall, not more of the first.
 	insertComment(t, 3, 500, &resource, 90003, nil, "on the resource", "", base.Add(2*time.Minute))
-	// A second game.
-	insertComment(t, 4, 501, nil, 90001, nil, "another game", "", base.Add(3*time.Minute))
+	// A second game, edited in moyu's older format: Date.now() milliseconds.
+	editedMillis := base.Add(3 * time.Hour)
+	insertComment(t, 4, 501, nil, 90001, nil, "another game",
+		strconv.FormatInt(editedMillis.UnixMilli(), 10), base.Add(3*time.Minute))
 
 	if err := srcDB.Exec(
 		`INSERT INTO user_patch_comment_like_relation (user_id, comment_id, created) VALUES (?, ?, ?), (?, ?, ?)`,
@@ -175,6 +192,9 @@ func TestImportMoyuComments(t *testing.T) {
 	}
 	if rep.LikesInserted != 2 {
 		t.Fatalf("apply: want 2 likes, got %d", rep.LikesInserted)
+	}
+	if rep.Subscriptions != 4 {
+		t.Fatalf("apply: want 4 (thread, author) subscriptions, got %d", rep.Subscriptions)
 	}
 
 	// The two walls of game 500 are separate threads, on the anchor kinds that
@@ -244,6 +264,53 @@ func TestImportMoyuComments(t *testing.T) {
 		t.Fatal("an RFC3339 `edit` must become edited_at")
 	}
 
+	var millisEdited *time.Time
+	if err := testDB.Raw(`
+		SELECT p.edited_at FROM community_post p
+		  JOIN community_thread t ON t.id = p.thread_id
+		 WHERE t.site = ? AND t.anchor_id = '501'`, e2eSite).Scan(&millisEdited).Error; err != nil {
+		t.Fatalf("read millis-edited post: %v", err)
+	}
+	if millisEdited == nil || !millisEdited.Equal(editedMillis) {
+		t.Fatalf("an epoch-millis `edit` must become edited_at %v, got %v", editedMillis, millisEdited)
+	}
+
+	// Both authors of the two-post wall are subscribed to it, caught up to its
+	// last post: the new badge must not light up for replies they already read
+	// on the old wall.
+	var subs []struct {
+		UserID   int64 `gorm:"column:user_id"`
+		LastRead int32 `gorm:"column:last_read_post_number"`
+		Level    int16 `gorm:"column:notification_level"`
+	}
+	if err := testDB.Raw(`
+		SELECT tu.user_id, tu.last_read_post_number, tu.notification_level
+		  FROM community_thread_user tu
+		  JOIN community_thread t ON t.id = tu.thread_id
+		 WHERE t.site = ? AND t.anchor_id = '500' AND t.anchor_kind = ?
+		 ORDER BY tu.user_id`, e2eSite, model.AnchorKindSiteGame).Scan(&subs).Error; err != nil {
+		t.Fatalf("read subscriptions: %v", err)
+	}
+	if len(subs) != 2 {
+		t.Fatalf("want both authors subscribed to the game wall, got %+v", subs)
+	}
+	for i, wantUser := range []int64{90001, 90002} {
+		if subs[i].UserID != wantUser || subs[i].LastRead != 2 || subs[i].Level != model.NotificationLevelWatching {
+			t.Fatalf("subscription[%d]: want user %d caught up to post 2 and watching, got %+v", i, wantUser, subs[i])
+		}
+	}
+	var unread int64
+	if err := testDB.Raw(`
+		SELECT count(*) FROM community_thread_user tu
+		  JOIN community_thread t ON t.id = tu.thread_id
+		 WHERE t.site = ? AND t.highest_post_number > tu.last_read_post_number`, e2eSite).
+		Scan(&unread).Error; err != nil {
+		t.Fatalf("count unread: %v", err)
+	}
+	if unread != 0 {
+		t.Fatalf("an import must leave nobody with unread threads, got %d", unread)
+	}
+
 	// Likes land as reactions on the root, and the trust counters that describe
 	// those rows move with them.
 	var likes int64
@@ -261,6 +328,20 @@ func TestImportMoyuComments(t *testing.T) {
 		t.Fatalf("the root's author must have 2 likes_received, got %v", received)
 	}
 
+	// A re-run must not touch a read watermark that has moved on since. This is
+	// the shape that would bite: moyu is live, someone replies, and the import
+	// is run again.
+	var wallID int64
+	if err := testDB.Raw(
+		"SELECT id FROM community_thread WHERE site = ? AND anchor_id = '500' AND anchor_kind = ?",
+		e2eSite, model.AnchorKindSiteGame).Scan(&wallID).Error; err != nil {
+		t.Fatalf("read wall id: %v", err)
+	}
+	if err := testDB.Exec(
+		"UPDATE community_thread SET highest_post_number = 9 WHERE id = ?", wallID).Error; err != nil {
+		t.Fatalf("simulate a later reply: %v", err)
+	}
+
 	// Idempotency: the same run again writes nothing new.
 	again, err := run(srcDB, testDB, e2eSite, true)
 	if err != nil {
@@ -274,6 +355,20 @@ func TestImportMoyuComments(t *testing.T) {
 		t.Fatalf("a re-run must recognise everything it wrote, got %d posts / %d likes",
 			again.PostsExisting, again.LikesExisting)
 	}
+	if again.Subscriptions != 0 || again.SubscriptionsExisting != 4 {
+		t.Fatalf("a re-run must write no subscriptions, got %d written / %d present",
+			again.Subscriptions, again.SubscriptionsExisting)
+	}
+	var stillRead int32
+	if err := testDB.Raw(
+		"SELECT last_read_post_number FROM community_thread_user WHERE thread_id = ? AND user_id = 90001",
+		wallID).Scan(&stillRead).Error; err != nil {
+		t.Fatalf("read watermark after re-run: %v", err)
+	}
+	if stillRead != 2 {
+		t.Fatalf("a re-run must not mark anyone caught up on posts it did not write, got %d", stillRead)
+	}
+
 	var receivedAgain *int32
 	if err := testDB.Raw("SELECT likes_received FROM community_trust WHERE user_id = 90001").Scan(&receivedAgain).Error; err != nil {
 		t.Fatalf("read trust after re-run: %v", err)

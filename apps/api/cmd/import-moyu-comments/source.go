@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strconv"
 	"time"
 
 	"gorm.io/gorm"
@@ -38,17 +39,32 @@ func loadComments(src *gorm.DB) ([]srcComment, int, error) {
 		if rows[i].Edit == "" {
 			continue
 		}
-		// `edit` is text, not a timestamp: moyu writes an RFC3339 string there.
-		// A value this cannot read is an anomaly to report, never a reason to
-		// drop a comment -- edited_at is a decoration, the post is the payload.
-		t, err := time.Parse(time.RFC3339, rows[i].Edit)
-		if err != nil {
+		t, ok := parseEdit(rows[i].Edit)
+		if !ok {
 			unparsable++
 			continue
 		}
 		rows[i].EditedAt = &t
 	}
 	return rows, unparsable, nil
+}
+
+// `edit` is text, not a timestamp, and moyu wrote two different things into it:
+// Date.now() milliseconds until 2026-06-03, RFC3339 from 2026-06-06 on. Reading
+// only RFC3339 dropped edited_at for 338 of the 430 edited comments, and the
+// ledger makes the import a one-shot -- a re-run adopts those posts and never
+// revisits the field. A value neither form can read is an anomaly to report,
+// never a reason to drop a comment: edited_at is a decoration, the post is the
+// payload.
+func parseEdit(s string) (time.Time, bool) {
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t, true
+	}
+	ms, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return time.Time{}, false
+	}
+	return time.UnixMilli(ms).UTC(), true
 }
 
 type srcLike struct {

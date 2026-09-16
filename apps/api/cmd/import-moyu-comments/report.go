@@ -26,6 +26,9 @@ type Report struct {
 	TrustSeeded  int
 	TrustPresent int
 
+	Subscriptions         int
+	SubscriptionsExisting int
+
 	DanglingParents int
 	HiddenRows      int
 	OverLenRows     int
@@ -46,6 +49,7 @@ func (r *Report) print(w io.Writer, apply bool) {
 	fmt.Fprintf(w, "  likes: source %d → to insert %d, inserted %d, present %d, orphaned %d\n",
 		r.SourceLikes, r.LikesToInsert, r.LikesInserted, r.LikesExisting, r.LikesOrphaned)
 	fmt.Fprintf(w, "  trust rows seeded / already present    : %d / %d\n", r.TrustSeeded, r.TrustPresent)
+	fmt.Fprintf(w, "  subscriptions written / already present: %d / %d\n", r.Subscriptions, r.SubscriptionsExisting)
 	fmt.Fprintf(w, "  anomalies: dangling-parent=%d hidden=%d over-%drunes=%d unparsable-edit=%d\n",
 		r.DanglingParents, r.HiddenRows, maxRunes, r.OverLenRows, r.UnparsableEdits)
 	fmt.Fprintf(w, "==========================================================\n")
