@@ -28,7 +28,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$HERE/../wiki-retirement/lib.sh" # psql_val + KUN_PG_* connection env
 
-BASE="${BASE:-http://127.0.0.1:19281}"
+BASE="${BASE:-http://127.0.0.1:9281}"
 # Gate 1 (internal vs api): same base, A_PREFIX=/api B_PREFIX=/internal.
 # Gate 3 (old-face no-disturbance): set A_BASE=baseline B_BASE=candidate with
 # A_PREFIX=B_PREFIX=/api to diff the /api face pre/post the mount refactor.
