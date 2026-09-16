@@ -138,8 +138,13 @@ func DeleteAuthorThreadUsersTx(tx *gorm.DB, site string, userID int64) (int64, e
 		DELETE FROM community_thread_user AS tu
 		 USING community_thread AS t
 		 WHERE tu.thread_id = t.id
-		   AND t.site = ?
+		   AND COALESCE(tu.site, t.site) = ?
 		   AND tu.user_id = ?`,
 		site, userID)
+	return res.RowsAffected, res.Error
+}
+
+func DeleteAuthorAnchorSubscriptionsTx(tx *gorm.DB, site string, userID int64) (int64, error) {
+	res := tx.Exec(`DELETE FROM community_anchor_user WHERE site = ? AND user_id = ?`, site, userID)
 	return res.RowsAffected, res.Error
 }

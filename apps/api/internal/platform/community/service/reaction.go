@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"api/internal/platform/community/model"
 	"api/internal/platform/community/repository"
@@ -68,7 +69,21 @@ func (s *ReactionService) Toggle(ctx context.Context, postID, userID int64, kind
 				return err
 			}
 		}
-		return repository.AdjustLikesTx(tx, pc.AuthorID, 0, delta)
+		if err := repository.AdjustLikesTx(tx, pc.AuthorID, 0, delta); err != nil {
+			return err
+		}
+		if !added {
+			return nil
+		}
+		site := callerSite(ctx)
+		if site == "" {
+			site = pc.Site
+		}
+		return repository.EnqueueEventTx(tx, &model.CommunityEvent{
+			Site: site, Kind: model.EventKindPostLiked,
+			ThreadID: pc.ThreadID, PostID: &postID, ActorID: userID,
+			AttemptAfter: time.Now(),
+		})
 	})
 	return ToggleResult{Added: added, Count: count, Post: pc}, err
 }

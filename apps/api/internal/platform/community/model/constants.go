@@ -59,10 +59,28 @@ const (
 )
 
 const (
-	NotificationLevelMuted    int16 = 0
-	NotificationLevelNormal   int16 = 1
-	NotificationLevelTracking int16 = 2
-	NotificationLevelWatching int16 = 3
+	NotificationLevelMuted             int16 = 0
+	NotificationLevelNormal            int16 = 1
+	NotificationLevelTracking          int16 = 2
+	NotificationLevelWatching          int16 = 3
+	NotificationLevelWatchingFirstPost int16 = 4
+)
+
+const (
+	EventKindPostCreated           int16 = 1
+	EventKindPostLiked             int16 = 2
+	EventKindFeedbackStatusChanged int16 = 3
+	EventKindAnswerAccepted        int16 = 4
+)
+
+const (
+	NotificationKindReplied        int16 = 1
+	NotificationKindMentioned      int16 = 2
+	NotificationKindPosted         int16 = 3
+	NotificationKindThreadCreated  int16 = 4
+	NotificationKindLiked          int16 = 5
+	NotificationKindAnswerAccepted int16 = 6
+	NotificationKindFeedbackStatus int16 = 7
 )
 
 const (

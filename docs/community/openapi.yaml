@@ -35,6 +35,125 @@ components:
         - read_time_s
         - days_visited
       type: object
+    AnchorNotificationRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/AnchorNotificationRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        anchor_id:
+          type: string
+        anchor_kind:
+          description: 0=board 1=site_game 2=site_resource 3=catalog_work 4=catalog_person
+          format: int32
+          type: integer
+        level:
+          description: 0=muted 1=normal 3=watching 4=watching first post; 2 (tracking) is thread-only
+          format: int32
+          type: integer
+        user_id:
+          format: int64
+          type: integer
+      required:
+        - user_id
+        - anchor_kind
+        - anchor_id
+        - level
+      type: object
+    AnchorRef:
+      additionalProperties: false
+      properties:
+        anchor_id:
+          type: string
+        anchor_kind:
+          description: 0=board 1=site_game 2=site_resource 3=catalog_work 4=catalog_person
+          format: int32
+          type: integer
+      required:
+        - anchor_kind
+        - anchor_id
+      type: object
+    AnchorStatesRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/AnchorStatesRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        anchors:
+          description: anchors to report on (max 100); a normal (unsubscribed) anchor is simply absent from the response
+          items:
+            $ref: "#/components/schemas/AnchorRef"
+          type:
+            - array
+            - "null"
+        user_id:
+          format: int64
+          type: integer
+      required:
+        - user_id
+        - anchors
+      type: object
+    AnchorStatesResponse:
+      additionalProperties: false
+      properties:
+        states:
+          items:
+            $ref: "#/components/schemas/AnchorSubscriptionView"
+          type:
+            - array
+            - "null"
+      required:
+        - states
+      type: object
+    AnchorSubscriptionListResponse:
+      additionalProperties: false
+      properties:
+        next_cursor:
+          description: id of the last row, passed as cursor for the next (older) page; empty = last page
+          type: string
+        subscriptions:
+          items:
+            $ref: "#/components/schemas/AnchorSubscriptionView"
+          type:
+            - array
+            - "null"
+      required:
+        - subscriptions
+      type: object
+    AnchorSubscriptionView:
+      additionalProperties: false
+      properties:
+        anchor_id:
+          type: string
+        anchor_kind:
+          description: 0=board 1=site_game 2=site_resource 3=catalog_work 4=catalog_person
+          format: int32
+          type: integer
+        board_id:
+          description: the board this subscription names (its anchor_id as a number)
+          format: int64
+          type: integer
+        notification_level:
+          description: 0=muted 1=normal 3=watching 4=watching first post; 2 (tracking) is thread-only
+          format: int32
+          type: integer
+        user_id:
+          format: int64
+          type: integer
+      required:
+        - user_id
+        - anchor_kind
+        - anchor_id
+        - notification_level
+      type: object
     AuthorPostView:
       additionalProperties: false
       properties:
@@ -250,6 +369,15 @@ components:
           description: 0=all 1=r15 2=r18 (inherited from the anchor); applied only when this comment is the one that creates the thread
           format: int32
           type: integer
+        mention_user_ids:
+          description: the site resolves @name to user ids; community only delivers
+          items:
+            format: int64
+            type: integer
+          maxItems: 20
+          type:
+            - array
+            - "null"
         reply_to_post_id:
           format: int64
           type: integer
@@ -405,6 +533,69 @@ components:
         - author_id
         - body
       type: object
+    EnvelopeAnchorStatesResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeAnchorStatesResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/AnchorStatesResponse"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeAnchorSubscriptionListResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeAnchorSubscriptionListResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/AnchorSubscriptionListResponse"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeAnchorSubscriptionView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeAnchorSubscriptionView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/AnchorSubscriptionView"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
     EnvelopeAuthorPostsResponse:
       additionalProperties: false
       properties:
@@ -504,6 +695,69 @@ components:
           type: integer
         data:
           $ref: "#/components/schemas/CommentsPage"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeMarkNotificationsReadResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeMarkNotificationsReadResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/MarkNotificationsReadResponse"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeNotificationFeedResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeNotificationFeedResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/NotificationFeedResponse"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeNotificationListResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeNotificationListResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/NotificationListResponse"
         message:
           type: string
       required:
@@ -928,6 +1182,40 @@ components:
         - actor_id
         - post_id
       type: object
+    MarkNotificationsReadRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/MarkNotificationsReadRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        all:
+          type: boolean
+        ids:
+          items:
+            format: int64
+            type: integer
+          maxItems: 100
+          type:
+            - array
+            - "null"
+      type: object
+    MarkNotificationsReadResponse:
+      additionalProperties: false
+      properties:
+        marked:
+          format: int64
+          type: integer
+        unread_count:
+          format: int64
+          type: integer
+      required:
+        - marked
+        - unread_count
+      type: object
     MoveTopicRequest:
       additionalProperties: false
       properties:
@@ -949,6 +1237,117 @@ components:
       required:
         - actor_id
         - board_id
+      type: object
+    NotificationFeedResponse:
+      additionalProperties: false
+      properties:
+        next_after:
+          format: int64
+          type: integer
+        notifications:
+          items:
+            $ref: "#/components/schemas/NotificationView"
+          type:
+            - array
+            - "null"
+      required:
+        - notifications
+        - next_after
+      type: object
+    NotificationListResponse:
+      additionalProperties: false
+      properties:
+        next_cursor:
+          type: string
+        notifications:
+          items:
+            $ref: "#/components/schemas/NotificationView"
+          type:
+            - array
+            - "null"
+        unread_count:
+          format: int64
+          type: integer
+      required:
+        - notifications
+        - unread_count
+      type: object
+    NotificationView:
+      additionalProperties: false
+      properties:
+        actor_count:
+          format: int64
+          type: integer
+        actor_id:
+          format: int64
+          type: integer
+        anchor_id:
+          type: string
+        anchor_kind:
+          format: int32
+          type: integer
+        board_id:
+          description: the board this notification names (its anchor_id as a number)
+          format: int64
+          type: integer
+        created_at:
+          format: date-time
+          type: string
+        first_post_number:
+          format: int32
+          type:
+            - integer
+            - "null"
+        id:
+          format: int64
+          type: integer
+        item_count:
+          format: int64
+          type: integer
+        kind:
+          description: 1=replied 2=mentioned 3=posted 4=thread_created 5=liked 6=answer_accepted 7=feedback_status
+          format: int32
+          type: integer
+        post_id:
+          format: int64
+          type:
+            - integer
+            - "null"
+        post_number:
+          format: int32
+          type:
+            - integer
+            - "null"
+        read_at:
+          format: date-time
+          type: string
+        seq:
+          format: int64
+          type: integer
+        thread_id:
+          format: int64
+          type: integer
+        updated_at:
+          format: date-time
+          type: string
+        user_id:
+          format: int64
+          type: integer
+      required:
+        - id
+        - user_id
+        - kind
+        - thread_id
+        - anchor_kind
+        - anchor_id
+        - post_id
+        - post_number
+        - first_post_number
+        - actor_count
+        - item_count
+        - created_at
+        - updated_at
+        - seq
       type: object
     OKResponse:
       additionalProperties: false
@@ -981,6 +1380,15 @@ components:
         content_rating:
           format: int32
           type: integer
+        mention_user_ids:
+          description: the site resolves @name to user ids; community only delivers
+          items:
+            format: int64
+            type: integer
+          maxItems: 20
+          type:
+            - array
+            - "null"
         title:
           type: string
       required:
@@ -1024,6 +1432,15 @@ components:
         header_image_hashes:
           items:
             type: string
+          type:
+            - array
+            - "null"
+        mention_user_ids:
+          description: the site resolves @name to user ids; community only delivers
+          items:
+            format: int64
+            type: integer
+          maxItems: 20
           type:
             - array
             - "null"
@@ -1228,6 +1645,14 @@ components:
     PurgeResponse:
       additionalProperties: false
       properties:
+        anchor_subscriptions_deleted:
+          description: anchor-subscription rows of this site deleted this run
+          format: int64
+          type: integer
+        notifications_deleted:
+          description: inbox rows of this site whose recipient is this user, deleted this run
+          format: int64
+          type: integer
         posts_purged:
           description: posts tombstoned + content-scrubbed this run
           format: int64
@@ -1244,6 +1669,8 @@ components:
         - posts_purged
         - reactions_deleted
         - read_states_deleted
+        - anchor_subscriptions_deleted
+        - notifications_deleted
       type: object
     ReactionToggleRequest:
       additionalProperties: false
@@ -1278,7 +1705,7 @@ components:
           format: int32
           type: integer
         author_id:
-          description: the post's author (the like-notification recipient)
+          description: the post's author
           format: int64
           type: integer
         reaction_count:
@@ -1341,6 +1768,15 @@ components:
           type: integer
         body:
           type: string
+        mention_user_ids:
+          description: the site resolves @name to user ids; community only delivers
+          items:
+            format: int64
+            type: integer
+          maxItems: 20
+          type:
+            - array
+            - "null"
         reply_to_post_id:
           format: int64
           type: integer
@@ -1840,6 +2276,56 @@ info:
   version: 1.0.0
 openapi: 3.1.0
 paths:
+  /api/v1/community/anchors/notification:
+    post:
+      operationId: setAnchorNotification
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnchorNotificationRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAnchorSubscriptionView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Set a user's notification level for an anchor (0=muted 1=normal 3=watching 4=watching first post)
+      tags:
+        - community-engagement
+  /api/v1/community/anchors/states:
+    post:
+      operationId: anchorStates
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnchorStatesRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAnchorStatesResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Batch stored subscription state for a user over a set of anchors
+      tags:
+        - community-engagement
   /api/v1/community/authors/stats:
     get:
       operationId: authorStats
@@ -2395,6 +2881,42 @@ paths:
       summary: Set a feedback thread's status and official response
       tags:
         - community-write
+  /api/v1/community/notifications/feed:
+    get:
+      operationId: notificationFeed
+      parameters:
+        - description: return rows with seq greater than this; 0 = from the start
+          explode: false
+          in: query
+          name: after
+          schema:
+            description: return rows with seq greater than this; 0 = from the start
+            format: int64
+            type: integer
+        - description: page size (default 100, max 500)
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: page size (default 100, max 500)
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeNotificationFeedResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: A site's notification feed in seq order, for a site that mirrors into its own inbox
+      tags:
+        - community-notifications
   /api/v1/community/posts:
     get:
       operationId: listSitePosts
@@ -3363,6 +3885,134 @@ paths:
       summary: Declare a starter boost (veteran/creator/staff) for a user
       tags:
         - community-trust
+  /api/v1/community/users/{id}/anchor-subscriptions:
+    get:
+      operationId: listAnchorSubscriptions
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+        - description: optional anchor-kind filter (0-4); -1 = all kinds
+          explode: false
+          in: query
+          name: anchor_kind
+          schema:
+            default: -1
+            description: optional anchor-kind filter (0-4); -1 = all kinds
+            format: int32
+            type: integer
+        - description: opaque cursor from the previous page
+          explode: false
+          in: query
+          name: cursor
+          schema:
+            description: opaque cursor from the previous page
+            type: string
+        - description: page size (max 100, default 50)
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: page size (max 100, default 50)
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAnchorSubscriptionListResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: List a user's anchor subscriptions on this site, newest first
+      tags:
+        - community-engagement
+  /api/v1/community/users/{id}/notifications:
+    get:
+      operationId: listNotifications
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+        - description: opaque cursor from the previous page (the last row's seq)
+          explode: false
+          in: query
+          name: cursor
+          schema:
+            description: opaque cursor from the previous page (the last row's seq)
+            type: string
+        - description: page size (max 100, default 50)
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: page size (max 100, default 50)
+            format: int64
+            type: integer
+        - explode: false
+          in: query
+          name: unread_only
+          schema:
+            type: boolean
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeNotificationListResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: List a user's notifications on this site, newest first
+      tags:
+        - community-notifications
+  /api/v1/community/users/{id}/notifications/read:
+    post:
+      operationId: markNotificationsRead
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarkNotificationsReadRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeMarkNotificationsReadResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Mark a user's notifications on this site read (by ids, or all)
+      tags:
+        - community-notifications
   /api/v1/community/users/{id}/unread:
     get:
       operationId: listUnread

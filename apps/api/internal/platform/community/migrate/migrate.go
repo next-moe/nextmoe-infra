@@ -24,6 +24,9 @@ func Run(db *gorm.DB) error {
 		&model.CommunityPost{},
 		&model.CommunityReaction{},
 		&model.CommunityThreadUser{},
+		&model.CommunityAnchorUser{},
+		&model.CommunityEvent{},
+		&model.CommunityNotification{},
 		&model.CommunityBoard{},
 		&model.CommunityTrust{},
 		&model.CommunityFlag{},
@@ -76,6 +79,11 @@ func rawSQL(db *gorm.DB) error {
 	// trigger, not the starting point.
 	if err := db.Exec(`CREATE EXTENSION IF NOT EXISTS pg_trgm`).Error; err != nil {
 		return fmt.Errorf("create pg_trgm: %w", err)
+	}
+	// seq is assigned only by the dispatcher (insert and every fold update);
+	// AutoMigrate cannot express a sequence that is not a column default.
+	if err := db.Exec(`CREATE SEQUENCE IF NOT EXISTS community_notification_seq`).Error; err != nil {
+		return fmt.Errorf("create community_notification_seq: %w", err)
 	}
 	for _, ix := range []struct{ name, stmt string }{
 		{"idx_community_post_content_trgm", `
@@ -151,10 +159,61 @@ func rawSQL(db *gorm.DB) error {
 			CREATE INDEX IF NOT EXISTS idx_community_thread_pinned
 			    ON community_thread(site, kind, pinned_at DESC)
 			    WHERE pin_scope > 0`},
+		// Who watches this anchor, per delivery site. The table is new, so the
+		// index is created over no rows.
+		{"idx_community_anchor_user_anchor", `
+			CREATE INDEX IF NOT EXISTS idx_community_anchor_user_anchor
+			    ON community_anchor_user(anchor_kind, anchor_id, site)`},
+		// One unread folded row per (site, user, fold_key). Marking it read
+		// drops it out so the next activity starts a new row; a NULL fold_key
+		// (replied / mentioned / thread_created / answer_accepted) never folds.
+		{"uq_community_notification_fold", `
+			CREATE UNIQUE INDEX IF NOT EXISTS uq_community_notification_fold
+			    ON community_notification(site, user_id, fold_key)
+			    WHERE read_at IS NULL AND fold_key IS NOT NULL`},
+		{"idx_community_notification_inbox", `
+			CREATE INDEX IF NOT EXISTS idx_community_notification_inbox
+			    ON community_notification(site, user_id, seq DESC)`},
+		{"idx_community_notification_unread", `
+			CREATE INDEX IF NOT EXISTS idx_community_notification_unread
+			    ON community_notification(site, user_id)
+			    WHERE read_at IS NULL`},
+		{"idx_community_notification_feed", `
+			CREATE INDEX IF NOT EXISTS idx_community_notification_feed
+			    ON community_notification(site, seq)`},
+		{"idx_community_notification_thread_unread", `
+			CREATE INDEX IF NOT EXISTS idx_community_notification_thread_unread
+			    ON community_notification(thread_id, user_id)
+			    WHERE read_at IS NULL`},
+		{"idx_community_notification_read", `
+			CREATE INDEX IF NOT EXISTS idx_community_notification_read
+			    ON community_notification(read_at)
+			    WHERE read_at IS NOT NULL`},
+		{"idx_community_event_pending", `
+			CREATE INDEX IF NOT EXISTS idx_community_event_pending
+			    ON community_event(attempt_after, id)
+			    WHERE processed_at IS NULL`},
+		{"idx_community_event_processed", `
+			CREATE INDEX IF NOT EXISTS idx_community_event_processed
+			    ON community_event(processed_at)
+			    WHERE processed_at IS NOT NULL`},
 	} {
 		if err := db.Exec(ix.stmt).Error; err != nil {
 			return fmt.Errorf("create index %s: %w", ix.name, err)
 		}
+	}
+	// community_thread_user.site is the site of the user's latest interaction.
+	// Production held 4,909 rows on 2026-09-16 (moyu 4,880, kungal 22, letmoe 7)
+	// and no catalog-anchored thread, so every existing row belongs to its
+	// thread's site. The column stays nullable because the one-off
+	// cmd/import-moyu-comments inserts rows without it, and a reader falls back to
+	// the thread's site when it is NULL.
+	if err := db.Exec(`
+		UPDATE community_thread_user AS tu
+		   SET site = t.site
+		  FROM community_thread AS t
+		 WHERE tu.thread_id = t.id AND tu.site IS NULL`).Error; err != nil {
+		return fmt.Errorf("backfill community_thread_user.site: %w", err)
 	}
 	return boardsSQL(db)
 }

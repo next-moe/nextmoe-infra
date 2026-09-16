@@ -2,11 +2,14 @@ package service
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"api/internal/platform/community/model"
+	"api/internal/platform/community/repository"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type FeedbackService struct {
@@ -29,12 +32,36 @@ func (s *FeedbackService) SetStatus(ctx context.Context, threadID int64, fbStatu
 	if response != nil {
 		updates["fb_response"] = *response
 	}
-	res := feedbackScope(s.db.WithContext(ctx), callerSite(ctx), threadID).Updates(updates)
-	if res.Error != nil {
-		return res.Error
-	}
-	if res.RowsAffected == 0 {
-		return ErrNotFeedback
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var before model.CommunityThread
+		if err := feedbackScope(tx, callerSite(ctx), threadID).
+			Clauses(clause.Locking{Strength: repository.LockUpdate}).Take(&before).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrNotFeedback
+			}
+			return err
+		}
+		if err := feedbackScope(tx, callerSite(ctx), threadID).Updates(updates).Error; err != nil {
+			return err
+		}
+		sameStatus := before.FbStatus != nil && *before.FbStatus == fbStatus
+		sameResponse := response == nil || (before.FbResponse != nil && *before.FbResponse == *response)
+		if sameStatus && sameResponse {
+			return nil
+		}
+		thread := &before
+		site := callerSite(ctx)
+		if site == "" {
+			site = thread.Site
+		}
+		return repository.EnqueueEventTx(tx, &model.CommunityEvent{
+			Site: site, Kind: model.EventKindFeedbackStatusChanged,
+			ThreadID: threadID, ActorID: responderID,
+			AttemptAfter: now,
+		})
+	})
+	if err != nil {
+		return err
 	}
 	s.sink.Emit(Event{Kind: EventFeedbackStatusChanged, ThreadID: threadID, ActorID: responderID})
 	return nil

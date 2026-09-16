@@ -57,14 +57,15 @@ type CommentsResolveRequest struct {
 }
 
 type CommentRequest struct {
-	AnchorKind    int16  `json:"anchor_kind" doc:"1=site_game 2=site_resource 3=catalog_work 4=catalog_person"`
-	AnchorID      string `json:"anchor_id"`
-	ContentRating int16  `json:"content_rating" doc:"0=all 1=r15 2=r18 (inherited from the anchor); applied only when this comment is the one that creates the thread"`
-	AuthorID      int64  `json:"author_id"`
-	Body          string `json:"body" doc:"markdown source"`
-	RootPostID    *int64 `json:"root_post_id,omitempty"`
-	ReplyToPostID *int64 `json:"reply_to_post_id,omitempty"`
-	TargetUserID  *int64 `json:"target_user_id,omitempty"`
+	AnchorKind     int16   `json:"anchor_kind" doc:"1=site_game 2=site_resource 3=catalog_work 4=catalog_person"`
+	AnchorID       string  `json:"anchor_id"`
+	ContentRating  int16   `json:"content_rating" doc:"0=all 1=r15 2=r18 (inherited from the anchor); applied only when this comment is the one that creates the thread"`
+	AuthorID       int64   `json:"author_id"`
+	Body           string  `json:"body" doc:"markdown source"`
+	RootPostID     *int64  `json:"root_post_id,omitempty"`
+	ReplyToPostID  *int64  `json:"reply_to_post_id,omitempty"`
+	TargetUserID   *int64  `json:"target_user_id,omitempty"`
+	MentionUserIDs []int64 `json:"mention_user_ids,omitempty" maxItems:"20" doc:"the site resolves @name to user ids; community only delivers"`
 }
 
 type PostsResolveRequest struct {
@@ -81,23 +82,26 @@ type OpenTopicRequest struct {
 	ContentRating     int16    `json:"content_rating"`
 	Body              string   `json:"body" doc:"markdown source of the opening post"`
 	HeaderImageHashes []string `json:"header_image_hashes,omitempty"`
+	MentionUserIDs    []int64  `json:"mention_user_ids,omitempty" maxItems:"20" doc:"the site resolves @name to user ids; community only delivers"`
 }
 
 type OpenFeedbackRequest struct {
-	AuthorID      int64  `json:"author_id"`
-	AnchorKind    int16  `json:"anchor_kind"`
-	AnchorID      string `json:"anchor_id"`
-	Title         string `json:"title"`
-	ContentRating int16  `json:"content_rating"`
-	Body          string `json:"body"`
+	AuthorID       int64   `json:"author_id"`
+	AnchorKind     int16   `json:"anchor_kind"`
+	AnchorID       string  `json:"anchor_id"`
+	Title          string  `json:"title"`
+	ContentRating  int16   `json:"content_rating"`
+	Body           string  `json:"body"`
+	MentionUserIDs []int64 `json:"mention_user_ids,omitempty" maxItems:"20" doc:"the site resolves @name to user ids; community only delivers"`
 }
 
 type ReplyRequest struct {
-	AuthorID      int64  `json:"author_id"`
-	Body          string `json:"body"`
-	RootPostID    *int64 `json:"root_post_id,omitempty"`
-	ReplyToPostID *int64 `json:"reply_to_post_id,omitempty"`
-	TargetUserID  *int64 `json:"target_user_id,omitempty"`
+	AuthorID       int64   `json:"author_id"`
+	Body           string  `json:"body"`
+	RootPostID     *int64  `json:"root_post_id,omitempty"`
+	ReplyToPostID  *int64  `json:"reply_to_post_id,omitempty"`
+	TargetUserID   *int64  `json:"target_user_id,omitempty"`
+	MentionUserIDs []int64 `json:"mention_user_ids,omitempty" maxItems:"20" doc:"the site resolves @name to user ids; community only delivers"`
 }
 
 type EditPostRequest struct {
@@ -230,9 +234,11 @@ type AuthorStatsResponse struct {
 }
 
 type PurgeResponse struct {
-	PostsPurged       int64 `json:"posts_purged" doc:"posts tombstoned + content-scrubbed this run"`
-	ReactionsDeleted  int64 `json:"reactions_deleted" doc:"reaction rows the author left that were deleted this run"`
-	ReadStatesDeleted int64 `json:"read_states_deleted" doc:"read/subscription rows (which threads they opened, how far they read) deleted this run"`
+	PostsPurged                int64 `json:"posts_purged" doc:"posts tombstoned + content-scrubbed this run"`
+	ReactionsDeleted           int64 `json:"reactions_deleted" doc:"reaction rows the author left that were deleted this run"`
+	ReadStatesDeleted          int64 `json:"read_states_deleted" doc:"read/subscription rows (which threads they opened, how far they read) deleted this run"`
+	AnchorSubscriptionsDeleted int64 `json:"anchor_subscriptions_deleted" doc:"anchor-subscription rows of this site deleted this run"`
+	NotificationsDeleted       int64 `json:"notifications_deleted" doc:"inbox rows of this site whose recipient is this user, deleted this run"`
 }
 
 type PostResponse struct {
@@ -242,7 +248,7 @@ type PostResponse struct {
 type ReactionToggleResponse struct {
 	Added         bool   `json:"added" doc:"the acting user's new state: true = now reacted (the viewer_reacted a read face would report for them)"`
 	ReactionCount int32  `json:"reaction_count" doc:"the post's like count after this toggle, the same number a read face reports"`
-	AuthorID      int64  `json:"author_id" doc:"the post's author (the like-notification recipient)"`
+	AuthorID      int64  `json:"author_id" doc:"the post's author"`
 	ThreadID      int64  `json:"thread_id"`
 	AnchorKind    int16  `json:"anchor_kind"`
 	AnchorID      string `json:"anchor_id"`

@@ -110,7 +110,9 @@ func (s *Server) purgeAuthor(ctx context.Context, in *authorPurgeInput) (*author
 	}
 	return &authorPurgeOutput{Body: okEnvelope(dto.PurgeResponse{
 		PostsPurged: res.PostsPurged, ReactionsDeleted: res.ReactionsDeleted,
-		ReadStatesDeleted: res.ReadStatesDeleted,
+		ReadStatesDeleted:          res.ReadStatesDeleted,
+		AnchorSubscriptionsDeleted: res.AnchorSubscriptionsDeleted,
+		NotificationsDeleted:       res.NotificationsDeleted,
 	})}, nil
 }
 

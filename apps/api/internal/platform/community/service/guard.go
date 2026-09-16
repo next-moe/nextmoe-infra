@@ -17,6 +17,13 @@ func callerSite(ctx context.Context) string {
 	return s
 }
 
+func deliverySite(ctx context.Context, threadSite string) string {
+	if s := callerSite(ctx); s != "" {
+		return s
+	}
+	return threadSite
+}
+
 func CrossTenant(callerSite, threadSite string, anchorKind int16) bool {
 	return callerSite != "" && model.AnchorIsSiteLocal(anchorKind) && threadSite != callerSite
 }
