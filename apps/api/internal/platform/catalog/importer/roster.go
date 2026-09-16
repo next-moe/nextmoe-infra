@@ -22,6 +22,7 @@ type RosterStats struct {
 	Already                  int
 	SkippedNoWorkAnchor      int
 	SkippedNoName            int
+	SkippedForeignRoster     int
 	Errors                   int
 	SkippedClaimedProbable   int
 	SkippedRetiredExactSquat int
@@ -36,6 +37,7 @@ func (s *RosterStats) add(o RosterStats) {
 	s.Already += o.Already
 	s.SkippedNoWorkAnchor += o.SkippedNoWorkAnchor
 	s.SkippedNoName += o.SkippedNoName
+	s.SkippedForeignRoster += o.SkippedForeignRoster
 	s.SkippedClaimedProbable += o.SkippedClaimedProbable
 	s.SkippedRetiredExactSquat += o.SkippedRetiredExactSquat
 	s.Errors += o.Errors
@@ -99,6 +101,25 @@ func (im *Importer) loadExactWorkMap(source int16) (map[int64]int64, error) {
 	return m, nil
 }
 
+// A Bangumi or EG character stays its own entity until catalog-char-xsrc folds
+// it into the cast a work already has, and nothing schedules that fold. Casting
+// one beside another source's roster therefore lists the character twice: the
+// 2026-09-16 backlog drain put 11,375 same-name twins on 2,358 works through
+// the Bangumi lane and 22 through the EG lane. These two lanes only cast a work
+// no other importer or editor has cast; the VNDB lane is not gated.
+func (im *Importer) worksWithForeignRoster(own string) (map[int64]bool, error) {
+	var ids []int64
+	if err := im.catalog.Raw(`SELECT DISTINCT work_id FROM catalog_work_character WHERE matched_by <> ?`, own).
+		Scan(&ids).Error; err != nil {
+		return nil, err
+	}
+	out := make(map[int64]bool, len(ids))
+	for _, id := range ids {
+		out[id] = true
+	}
+	return out, nil
+}
+
 func (im *Importer) runRosterBangumi() (RosterStats, error) {
 	var st RosterStats
 	workMap, err := im.loadExactWorkMap(bangumiSource)
@@ -109,6 +130,10 @@ func (im *Importer) runRosterBangumi() (RosterStats, error) {
 		workMap = capMap(workMap, im.limit)
 	}
 	charAnchor, err := im.loadAnchors(model.EntityTypeCharacter)
+	if err != nil {
+		return st, err
+	}
+	foreign, err := im.worksWithForeignRoster(ruleRosterBangumi)
 	if err != nil {
 		return st, err
 	}
@@ -137,6 +162,10 @@ func (im *Importer) runRosterBangumi() (RosterStats, error) {
 		workID, ok := workMap[sc.SubjectID]
 		if !ok {
 			st.SkippedNoWorkAnchor++
+			continue
+		}
+		if foreign[workID] {
+			st.SkippedForeignRoster++
 			continue
 		}
 		if sc.Name == nil || strings.TrimSpace(*sc.Name) == "" {
@@ -192,6 +221,10 @@ func (im *Importer) runRosterEG() (RosterStats, error) {
 	if err != nil {
 		return st, err
 	}
+	foreign, err := im.worksWithForeignRoster(ruleRosterEG)
+	if err != nil {
+		return st, err
+	}
 
 	var apps []struct {
 		Game int64 `gorm:"column:game"`
@@ -214,6 +247,10 @@ func (im *Importer) runRosterEG() (RosterStats, error) {
 		workID, ok := workMap[a.Game]
 		if !ok {
 			st.SkippedNoWorkAnchor++
+			continue
+		}
+		if foreign[workID] {
+			st.SkippedForeignRoster++
 			continue
 		}
 		name, ok := charName[a.Char]
