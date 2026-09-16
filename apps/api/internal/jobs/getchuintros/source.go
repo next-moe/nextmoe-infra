@@ -13,8 +13,13 @@ import (
 type anchorRow struct {
 	WorkID   int64  `gorm:"column:work_id"`
 	GetchuID string `gorm:"column:getchu_id"`
+	Bundle   bool   `gorm:"column:bundle"`
 }
 
+// A Getchu product that VNDB files under several VNs is still one catalog
+// release on one work, so its synopsis describes whatever the package was
+// named after. The 2026-09-16 backlog drain wrote Escalayer Reboot's story
+// onto 超昂閃忍ハルカ ハルカVSエスカレイヤー through r33394 (v3100 + v311).
 func loadAnchors(ctx context.Context, db *gorm.DB, source int16, pop workpop.Population, limit, offset int) ([]anchorRow, error) {
 	site, err := workpop.Predicate(pop, "w")
 	if err != nil {
@@ -22,13 +27,21 @@ func loadAnchors(ctx context.Context, db *gorm.DB, source int16, pop workpop.Pop
 	}
 	var out []anchorRow
 	err = db.WithContext(ctx).Raw(`
-		SELECT DISTINCT w.id AS work_id, r.external_id AS getchu_id
+		SELECT DISTINCT w.id AS work_id, r.external_id AS getchu_id,
+			EXISTS (
+				SELECT 1 FROM catalog_external_ref vr
+				JOIN src_vndb.releases_vn rv ON rv.id = vr.external_id
+				JOIN src_vndb.releases_vn rv2 ON rv2.id = rv.id AND rv2.vid <> rv.vid
+				WHERE vr.entity_type = ? AND vr.entity_id = rel.id AND vr.link_kind = ?
+				  AND vr.source_id = (SELECT id FROM catalog_source WHERE key = 'vndb')
+			) AS bundle
 		FROM catalog_work w
 		JOIN catalog_release rel ON rel.work_id = w.id AND rel.deleted_at IS NULL
 		JOIN catalog_external_ref r ON r.entity_type = ? AND r.entity_id = rel.id
 			AND r.source_id = ? AND r.link_kind = ?
 		WHERE w.deleted_at IS NULL AND `+site+`
 		ORDER BY w.id, r.external_id`,
+		model.EntityTypeRelease, model.LinkKindExact,
 		model.EntityTypeRelease, source, model.LinkKindExact).Scan(&out).Error
 	if err != nil {
 		return nil, fmt.Errorf("load getchu anchors: %w", err)

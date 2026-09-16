@@ -37,21 +37,22 @@ type Sample struct {
 }
 
 type Stats struct {
-	Works     int
-	NoStory   int
-	SkipHasJa int
-	Planned   int
-	Written   int
-	Conflict  int
-	Errors    int
+	Works      int
+	NoStory    int
+	SkipBundle int
+	SkipHasJa  int
+	Planned    int
+	Written    int
+	Conflict   int
+	Errors     int
 
 	PlanSamples    []Sample
 	NoStorySamples []Sample
 }
 
 func (s Stats) String() string {
-	return fmt.Sprintf("works=%d no_story=%d skip_has_ja=%d planned=%d written=%d conflict=%d errors=%d",
-		s.Works, s.NoStory, s.SkipHasJa, s.Planned, s.Written, s.Conflict, s.Errors)
+	return fmt.Sprintf("works=%d no_story=%d skip_bundle=%d skip_has_ja=%d planned=%d written=%d conflict=%d errors=%d",
+		s.Works, s.NoStory, s.SkipBundle, s.SkipHasJa, s.Planned, s.Written, s.Conflict, s.Errors)
 }
 
 func Run(ctx context.Context, opts Opts) (*Stats, error) {
@@ -120,6 +121,7 @@ type candidate struct {
 	WorkID   int64
 	GetchuID string
 	Story    string
+	Bundle   bool
 }
 
 func pickStory(anchors []anchorRow, stories map[string]string) []candidate {
@@ -131,9 +133,15 @@ func pickStory(anchors []anchorRow, stories map[string]string) []candidate {
 			if c.Story != "" {
 				continue
 			}
-			if s := strings.TrimSpace(stories[anchors[i].GetchuID]); s != "" {
-				c.GetchuID, c.Story = anchors[i].GetchuID, s
+			s := strings.TrimSpace(stories[anchors[i].GetchuID])
+			if s == "" {
+				continue
 			}
+			if anchors[i].Bundle {
+				c.Bundle = true
+				continue
+			}
+			c.GetchuID, c.Story = anchors[i].GetchuID, s
 		}
 		out = append(out, c)
 	}
@@ -153,6 +161,10 @@ func (r *runner) touch(ctx context.Context) error {
 }
 
 func (r *runner) enrich(ctx context.Context, c candidate, apply bool) {
+	if c.Story == "" && c.Bundle {
+		r.stats.SkipBundle++
+		return
+	}
 	if c.Story == "" {
 		r.stats.NoStory++
 		r.collect(&r.stats.NoStorySamples, c)
