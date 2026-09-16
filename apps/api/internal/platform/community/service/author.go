@@ -19,8 +19,12 @@ func (s *PostService) ListAuthorPosts(site string, authorID, after int64, anchor
 	return s.posts.ListAuthorVisiblePosts(site, authorID, after, anchorKind, limit)
 }
 
-func (s *PostService) AuthorStats(site string, authorIDs []int64) (map[int64]int64, error) {
-	return s.posts.CountAuthorVisiblePosts(site, authorIDs)
+func (s *PostService) AuthorStats(site string, authorIDs []int64, kind, anchorKind int16) (map[int64]int64, error) {
+	return s.posts.CountAuthorVisiblePosts(site, authorIDs, kind, anchorKind)
+}
+
+func (s *PostService) TopAuthors(site string, kind, anchorKind int16, limit int) ([]repository.AuthorStatRow, error) {
+	return s.posts.TopAuthors(site, kind, anchorKind, limit)
 }
 
 func (s *PostService) ResolvePosts(site string, ids []int64) ([]repository.AuthorPostRow, error) {

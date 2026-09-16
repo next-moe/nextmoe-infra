@@ -25,6 +25,9 @@ const (
 type anchorPlan struct {
 	entityType int16
 	claimAware bool
+	// catalogIDs marks an anchor id that is already a catalog id, so the
+	// survivor's anchor on this site is the survivor's catalog id itself.
+	catalogIDs bool
 }
 
 // Deliberately not exhaustive. anchor_kind 0 (board) and 2 (site_resource) name
@@ -35,6 +38,32 @@ type anchorPlan struct {
 var anchorPlans = map[int16]anchorPlan{
 	1: {entityType: entityTypeWork, claimAware: true},  // site_game
 	3: {entityType: entityTypeWork, claimAware: false}, // catalog_work
+}
+
+// siteGameAnchorIsCatalogID names the sites whose site_game anchor carries the
+// CATALOG work id rather than a gid of their own.
+//
+// This is knowledge about a site, not a run option: moyu's 铁律 3 says its page
+// id IS the catalog work id (`cmd/align-patch-ids`, migrations 037/038 closed
+// the legacy offset), so the claim exclusion the forum needs -- "this number is
+// a product id that merely collides with a catalog id" -- is exactly wrong
+// there, and would leave a moyu wall standing under a work that no longer
+// exists. A flag would put that difference one typo away from a silent wrong
+// sweep.
+var siteGameAnchorIsCatalogID = map[string]bool{
+	"moyu": true,
+}
+
+func planFor(site string, anchorKind int16) (anchorPlan, error) {
+	plan, ok := anchorPlans[anchorKind]
+	if !ok {
+		return anchorPlan{}, fmt.Errorf("anchor kind %d names no catalog entity", anchorKind)
+	}
+	if anchorKind == 1 && siteGameAnchorIsCatalogID[site] {
+		plan.claimAware = false
+		plan.catalogIDs = true
+	}
+	return plan, nil
 }
 
 // stranded is one comments thread whose anchor names a catalog work that a
@@ -94,9 +123,9 @@ func liveAnchors(db *gorm.DB, o sweepOpts) ([]stranded, error) {
 // work 2649, while catalog work 2656 is an unrelated merged-away work. Without
 // this clause the sweep deletes live conversations and the report looks right.
 func strandedAmong(db *gorm.DB, site string, anchorKind int16, rows []stranded) ([]stranded, error) {
-	plan, ok := anchorPlans[anchorKind]
-	if !ok {
-		return nil, fmt.Errorf("anchor kind %d names no catalog entity", anchorKind)
+	plan, err := planFor(site, anchorKind)
+	if err != nil {
+		return nil, err
 	}
 	out := make([]stranded, 0, len(rows))
 	byAnchor := make(map[string]stranded, len(rows))
@@ -139,7 +168,10 @@ func strandedAmong(db *gorm.DB, site string, anchorKind int16, rows []stranded) 
 			}
 			row := byAnchor[f.Anchor]
 			row.Survivor = f.Survivor
-			if f.SurvivorGID != nil {
+			switch {
+			case plan.catalogIDs:
+				row.SurvivorAnchor = fmt.Sprintf("%d", f.Survivor)
+			case f.SurvivorGID != nil:
 				row.SurvivorAnchor = fmt.Sprintf("%d", *f.SurvivorGID)
 			}
 			out = append(out, row)

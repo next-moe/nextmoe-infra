@@ -10,9 +10,10 @@ import (
 func feedServer() *Server {
 	sink := service.NoopSink{}
 	return &Server{
-		threads: service.NewThreadService(testDB, sink),
-		posts:   service.NewPostService(testDB, sink),
-		trust:   service.NewTrustService(testDB),
+		threads:   service.NewThreadService(testDB, sink),
+		posts:     service.NewPostService(testDB, sink),
+		reactions: service.NewReactionService(testDB),
+		trust:     service.NewTrustService(testDB),
 	}
 }
 

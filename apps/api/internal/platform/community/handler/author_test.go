@@ -161,7 +161,7 @@ func TestAuthorStats(t *testing.T) {
 		t.Fatalf("hide post: %v", err)
 	}
 
-	out, err := s.authorStats(ctx, &authorStatsInput{IDs: "500,600,700"})
+	out, err := s.authorStats(ctx, &authorStatsInput{IDs: "500,600,700", Kind: -1, AnchorKind: -1})
 	if err != nil {
 		t.Fatalf("authorStats: %v", err)
 	}
@@ -183,13 +183,13 @@ func TestAuthorStats(t *testing.T) {
 		}
 		b.WriteString(strconv.Itoa(1000 + i))
 	}
-	_, e := s.authorStats(ctx, &authorStatsInput{IDs: b.String()})
+	_, e := s.authorStats(ctx, &authorStatsInput{IDs: b.String(), Kind: -1, AnchorKind: -1})
 	wantStatus(t, e, 422)
 
-	_, e = s.authorStats(ctx, &authorStatsInput{IDs: "500,abc,600"})
+	_, e = s.authorStats(ctx, &authorStatsInput{IDs: "500,abc,600", Kind: -1, AnchorKind: -1})
 	wantStatus(t, e, 400)
 
-	empty, err := s.authorStats(ctx, &authorStatsInput{IDs: ""})
+	empty, err := s.authorStats(ctx, &authorStatsInput{IDs: "", Kind: -1, AnchorKind: -1})
 	if err != nil || len(empty.Body.Data.Stats) != 0 {
 		t.Fatalf("empty ids should be empty stats: err=%v got=%+v", err, empty.Body.Data.Stats)
 	}
@@ -295,7 +295,7 @@ func TestAuthorCrossTenant(t *testing.T) {
 	if got := pageAuthorPosts(t, s, ctxA, 500, -1, 20); len(got) != 2 {
 		t.Fatalf("site A must see only its 2 posts, got %d", len(got))
 	}
-	stat, err := s.authorStats(ctxA, &authorStatsInput{IDs: "500"})
+	stat, err := s.authorStats(ctxA, &authorStatsInput{IDs: "500", Kind: -1, AnchorKind: -1})
 	if err != nil {
 		t.Fatalf("stats A: %v", err)
 	}

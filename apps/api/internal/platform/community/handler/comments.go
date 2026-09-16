@@ -15,6 +15,7 @@ type commentsPageInput struct {
 	AnchorID   string `query:"anchor_id"`
 	After      int32  `query:"after" doc:"post_number to read after (0 = from the top)"`
 	Limit      int    `query:"limit" doc:"page size (max 100, default 50)"`
+	ViewerID   int64  `query:"viewer_id" doc:"fill viewer_reacted for this user; 0 = no viewer"`
 }
 
 type commentsPageOutput struct {
@@ -42,6 +43,9 @@ func (s *Server) getComments(ctx context.Context, in *commentsPageInput) (*comme
 		return nil, mapErr("list comments", err)
 	}
 	views := toPostViews(posts)
+	if err := s.hydratePostReactions(in.ViewerID, views); err != nil {
+		return nil, mapErr("hydrate comment reactions", err)
+	}
 	view := toThreadView(thread)
 	return &commentsPageOutput{Body: okEnvelope(dto.CommentsPage{
 		Thread: &view, Posts: views, NextCursor: postsPageCursor(views, limit),

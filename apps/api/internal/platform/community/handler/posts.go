@@ -27,8 +27,12 @@ func (s *Server) resolvePosts(ctx context.Context, in *resolvePostsInput) (*reso
 	if err != nil {
 		return nil, mapErr("resolve posts", err)
 	}
+	views := orderResolvedPosts(rows, ids)
+	if err := s.hydrateAuthorPostReactions(in.Body.ViewerID, views); err != nil {
+		return nil, mapErr("hydrate resolved reactions", err)
+	}
 	return &resolvePostsOutput{Body: okEnvelope(dto.PostsResolveResponse{
-		Posts: orderResolvedPosts(rows, ids),
+		Posts: views,
 	})}, nil
 }
 

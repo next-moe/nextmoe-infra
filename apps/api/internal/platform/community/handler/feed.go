@@ -16,6 +16,7 @@ type sitePostsInput struct {
 	RepliesOnly bool   `query:"replies_only" doc:"skip opening posts (post_number = 1), leaving only replies"`
 	Cursor      string `query:"cursor" doc:"opaque cursor from the previous page"`
 	Limit       int    `query:"limit" doc:"page size (max 100, default 50)"`
+	ViewerID    int64  `query:"viewer_id" doc:"fill viewer_reacted for this user; 0 = no viewer"`
 }
 
 type sitePostsOutput struct {
@@ -39,7 +40,11 @@ func (s *Server) listSitePosts(ctx context.Context, in *sitePostsInput) (*sitePo
 	if err != nil {
 		return nil, mapErr("list site posts", err)
 	}
+	views := toAuthorPostViews(rows)
+	if err := s.hydrateAuthorPostReactions(in.ViewerID, views); err != nil {
+		return nil, mapErr("hydrate feed reactions", err)
+	}
 	return &sitePostsOutput{Body: okEnvelope(dto.PostFeedResponse{
-		Posts: toAuthorPostViews(rows), NextCursor: postFeedPageCursor(rows, limit),
+		Posts: views, NextCursor: postFeedPageCursor(rows, limit),
 	})}, nil
 }

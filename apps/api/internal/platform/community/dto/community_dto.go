@@ -41,6 +41,9 @@ type PostView struct {
 	EditedAt          *time.Time `json:"edited_at,omitempty"`
 	EditedByModerator bool       `json:"edited_by_moderator,omitempty" doc:"true when the latest edit was a mod-actor edit (as_moderator)"`
 	CreatedAt         time.Time  `json:"created_at"`
+
+	ReactionCount int32 `json:"reaction_count" doc:"likes on this post (reaction kind 0)"`
+	ViewerReacted bool  `json:"viewer_reacted,omitempty" doc:"whether viewer_id has liked this post; always false when the request named no viewer"`
 }
 
 type CommentsResolveRequest struct {
@@ -61,7 +64,8 @@ type CommentRequest struct {
 }
 
 type PostsResolveRequest struct {
-	IDs []int64 `json:"ids" doc:"post ids to hydrate (max 100; deduped; only visible posts return)"`
+	IDs      []int64 `json:"ids" doc:"post ids to hydrate (max 100; deduped; only visible posts return)"`
+	ViewerID int64   `json:"viewer_id,omitempty" doc:"fill viewer_reacted for this user; 0 = no viewer"`
 }
 
 type OpenTopicRequest struct {

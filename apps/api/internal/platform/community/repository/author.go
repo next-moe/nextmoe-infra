@@ -44,7 +44,7 @@ func (r *PostRepository) ResolveVisiblePosts(site string, ids []int64) ([]Author
 	return rows, err
 }
 
-func (r *PostRepository) CountAuthorVisiblePosts(site string, authorIDs []int64) (map[int64]int64, error) {
+func (r *PostRepository) CountAuthorVisiblePosts(site string, authorIDs []int64, kind, anchorKind int16) (map[int64]int64, error) {
 	out := make(map[int64]int64, len(authorIDs))
 	if len(authorIDs) == 0 {
 		return out, nil
@@ -53,14 +53,19 @@ func (r *PostRepository) CountAuthorVisiblePosts(site string, authorIDs []int64)
 		AuthorID int64 `gorm:"column:author_id"`
 		N        int64 `gorm:"column:n"`
 	}
-	var rows []countRow
-	err := r.db.Model(&model.CommunityPost{}).
+	q := r.db.Model(&model.CommunityPost{}).
 		Select("community_post.author_id AS author_id, COUNT(*) AS n").
 		Joins("JOIN community_thread ON community_thread.id = community_post.thread_id").
 		Where("community_post.author_id IN ? AND community_thread.site = ? AND community_post.status = ?",
-			authorIDs, site, model.PostStatusVisible).
-		Group("community_post.author_id").
-		Scan(&rows).Error
+			authorIDs, site, model.PostStatusVisible)
+	if kind >= 0 {
+		q = q.Where("community_thread.kind = ?", kind)
+	}
+	if anchorKind >= 0 {
+		q = q.Where("community_thread.anchor_kind = ?", anchorKind)
+	}
+	var rows []countRow
+	err := q.Group("community_post.author_id").Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}
@@ -68,6 +73,35 @@ func (r *PostRepository) CountAuthorVisiblePosts(site string, authorIDs []int64)
 		out[row.AuthorID] = row.N
 	}
 	return out, nil
+}
+
+type AuthorStatRow struct {
+	AuthorID     int64 `gorm:"column:author_id"`
+	VisiblePosts int64 `gorm:"column:n"`
+}
+
+// TopAuthors ranks a site's authors by visible posts, most first.
+//
+// CountAuthorVisiblePosts answers a caller that already knows which authors it
+// means; this one answers "who are they", which no batch of <=100 ids can
+// produce. Ties break on the lower author id so a page is stable between calls.
+func (r *PostRepository) TopAuthors(site string, kind, anchorKind int16, limit int) ([]AuthorStatRow, error) {
+	q := r.db.Model(&model.CommunityPost{}).
+		Select("community_post.author_id AS author_id, COUNT(*) AS n").
+		Joins("JOIN community_thread ON community_thread.id = community_post.thread_id").
+		Where("community_thread.site = ? AND community_post.status = ?", site, model.PostStatusVisible).
+		Where("community_thread.status <> ?", model.ThreadStatusDeleted)
+	if kind >= 0 {
+		q = q.Where("community_thread.kind = ?", kind)
+	}
+	if anchorKind >= 0 {
+		q = q.Where("community_thread.anchor_kind = ?", anchorKind)
+	}
+	var rows []AuthorStatRow
+	err := q.Group("community_post.author_id").
+		Order("n DESC, community_post.author_id ASC").
+		Limit(limit).Scan(&rows).Error
+	return rows, err
 }
 
 func PurgeAuthorPostsTx(tx *gorm.DB, site string, authorID int64) (int64, error) {

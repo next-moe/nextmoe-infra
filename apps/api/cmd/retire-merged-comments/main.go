@@ -39,7 +39,7 @@ const exitFound = 3
 func main() {
 	catalogDSN := flag.String("catalog-dsn", "", "catalog DSN (read only); env fallback KUN_CATALOG_DSN")
 	communityDSN := flag.String("community-dsn", "", "kun_community DSN; env fallback KUN_COMMUNITY_DSN, then KUN_COMMUNITY_* config")
-	sites := flag.String("sites", "kungal,letmoe", "comma-separated community sites whose site_game anchor carries a catalog work id")
+	sites := flag.String("sites", "kungal,letmoe,moyu", "comma-separated community sites whose site_game anchor carries a catalog work id")
 	anchorKind := flag.Int("anchor-kind", 1, "anchor kind to sweep (1=site_game)")
 	limit := flag.Int("limit", 200, "retire at most this many threads per run (0 = no cap)")
 	apply := flag.Bool("apply", false, "perform the retirement; default is a report only")

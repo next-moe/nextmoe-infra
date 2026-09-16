@@ -16,6 +16,7 @@ type authorPostsInput struct {
 	After      int64 `query:"after" doc:"post id to read after (descending; 0 = newest first)"`
 	AnchorKind int16 `query:"anchor_kind" default:"-1" doc:"optional anchor-kind filter (0-4); -1 = all kinds"`
 	Limit      int   `query:"limit" doc:"page size (default 20, max 100)"`
+	ViewerID   int64 `query:"viewer_id" doc:"fill viewer_reacted for this user; 0 = no viewer"`
 }
 type authorPostsOutput struct {
 	Body Envelope[dto.AuthorPostsResponse]
@@ -31,13 +32,19 @@ func (s *Server) listAuthorPosts(ctx context.Context, in *authorPostsInput) (*au
 	if err != nil {
 		return nil, mapErr("list author posts", err)
 	}
+	views := toAuthorPostViews(rows)
+	if err := s.hydrateAuthorPostReactions(in.ViewerID, views); err != nil {
+		return nil, mapErr("hydrate author reactions", err)
+	}
 	return &authorPostsOutput{Body: okEnvelope(dto.AuthorPostsResponse{
-		Posts: toAuthorPostViews(rows), NextCursor: authorPostsCursor(rows, limit),
+		Posts: views, NextCursor: authorPostsCursor(rows, limit),
 	})}, nil
 }
 
 type authorStatsInput struct {
-	IDs string `query:"ids" doc:"comma-separated author ids (max 100)"`
+	IDs        string `query:"ids" doc:"comma-separated author ids (max 100)"`
+	Kind       int16  `query:"kind" default:"-1" doc:"thread kind filter (0=topic 1=comments 2=feedback); -1 = every kind"`
+	AnchorKind int16  `query:"anchor_kind" default:"-1" doc:"anchor kind filter (0-4); -1 = every anchor kind"`
 }
 type authorStatsOutput struct {
 	Body Envelope[dto.AuthorStatsResponse]
@@ -52,13 +59,35 @@ func (s *Server) authorStats(ctx context.Context, in *authorStatsInput) (*author
 	if he != nil {
 		return nil, he
 	}
-	counts, err := s.posts.AuthorStats(site, ids)
+	counts, err := s.posts.AuthorStats(site, ids, in.Kind, in.AnchorKind)
 	if err != nil {
 		return nil, mapErr("author stats", err)
 	}
 	stats := make([]dto.AuthorStat, 0, len(ids))
 	for _, id := range ids {
 		stats = append(stats, dto.AuthorStat{AuthorID: id, VisiblePosts: counts[id]})
+	}
+	return &authorStatsOutput{Body: okEnvelope(dto.AuthorStatsResponse{Stats: stats})}, nil
+}
+
+type topAuthorsInput struct {
+	Kind       int16 `query:"kind" default:"-1" doc:"thread kind filter (0=topic 1=comments 2=feedback); -1 = every kind"`
+	AnchorKind int16 `query:"anchor_kind" default:"-1" doc:"anchor kind filter (0-4); -1 = every anchor kind"`
+	Limit      int   `query:"limit" doc:"how many authors (default 50, max 100)"`
+}
+
+func (s *Server) topAuthors(ctx context.Context, in *topAuthorsInput) (*authorStatsOutput, error) {
+	site, he := siteBinding(ctx)
+	if he != nil {
+		return nil, he
+	}
+	rows, err := s.posts.TopAuthors(site, in.Kind, in.AnchorKind, clampLimit(in.Limit))
+	if err != nil {
+		return nil, mapErr("top authors", err)
+	}
+	stats := make([]dto.AuthorStat, 0, len(rows))
+	for _, row := range rows {
+		stats = append(stats, dto.AuthorStat{AuthorID: row.AuthorID, VisiblePosts: row.VisiblePosts})
 	}
 	return &authorStatsOutput{Body: okEnvelope(dto.AuthorStatsResponse{Stats: stats})}, nil
 }

@@ -814,6 +814,10 @@ components:
         post_number:
           format: int32
           type: integer
+        reaction_count:
+          description: likes on this post (reaction kind 0)
+          format: int32
+          type: integer
         reply_to_post_id:
           format: int64
           type: integer
@@ -829,6 +833,9 @@ components:
         thread_id:
           format: int64
           type: integer
+        viewer_reacted:
+          description: whether viewer_id has liked this post; always false when the request named no viewer
+          type: boolean
       required:
         - id
         - thread_id
@@ -839,6 +846,7 @@ components:
         - content_rating
         - status
         - created_at
+        - reaction_count
       type: object
     PostsResolveRequest:
       additionalProperties: false
@@ -858,6 +866,10 @@ components:
           type:
             - array
             - "null"
+        viewer_id:
+          description: fill viewer_reacted for this user; 0 = no viewer
+          format: int64
+          type: integer
       required:
         - ids
       type: object
@@ -1372,6 +1384,24 @@ paths:
           schema:
             description: comma-separated author ids (max 100)
             type: string
+        - description: thread kind filter (0=topic 1=comments 2=feedback); -1 = every kind
+          explode: false
+          in: query
+          name: kind
+          schema:
+            default: -1
+            description: thread kind filter (0=topic 1=comments 2=feedback); -1 = every kind
+            format: int32
+            type: integer
+        - description: anchor kind filter (0-4); -1 = every anchor kind
+          explode: false
+          in: query
+          name: anchor_kind
+          schema:
+            default: -1
+            description: anchor kind filter (0-4); -1 = every anchor kind
+            format: int32
+            type: integer
       responses:
         "200":
           content:
@@ -1386,6 +1416,52 @@ paths:
                 $ref: "#/components/schemas/HouseError"
           description: Error
       summary: Batch visible-post counts for a site's authors
+      tags:
+        - community-read
+  /api/v1/community/authors/top:
+    get:
+      operationId: topAuthors
+      parameters:
+        - description: thread kind filter (0=topic 1=comments 2=feedback); -1 = every kind
+          explode: false
+          in: query
+          name: kind
+          schema:
+            default: -1
+            description: thread kind filter (0=topic 1=comments 2=feedback); -1 = every kind
+            format: int32
+            type: integer
+        - description: anchor kind filter (0-4); -1 = every anchor kind
+          explode: false
+          in: query
+          name: anchor_kind
+          schema:
+            default: -1
+            description: anchor kind filter (0-4); -1 = every anchor kind
+            format: int32
+            type: integer
+        - description: how many authors (default 50, max 100)
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: how many authors (default 50, max 100)
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAuthorStatsResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: The site's most-posted-in authors, most first
       tags:
         - community-read
   /api/v1/community/authors/{id}/posts:
@@ -1421,6 +1497,14 @@ paths:
           name: limit
           schema:
             description: page size (default 20, max 100)
+            format: int64
+            type: integer
+        - description: fill viewer_reacted for this user; 0 = no viewer
+          explode: false
+          in: query
+          name: viewer_id
+          schema:
+            description: fill viewer_reacted for this user; 0 = no viewer
             format: int64
             type: integer
       responses:
@@ -1496,6 +1580,14 @@ paths:
           name: limit
           schema:
             description: page size (max 100, default 50)
+            format: int64
+            type: integer
+        - description: fill viewer_reacted for this user; 0 = no viewer
+          explode: false
+          in: query
+          name: viewer_id
+          schema:
+            description: fill viewer_reacted for this user; 0 = no viewer
             format: int64
             type: integer
       responses:
@@ -1702,6 +1794,14 @@ paths:
           name: limit
           schema:
             description: page size (max 100, default 50)
+            format: int64
+            type: integer
+        - description: fill viewer_reacted for this user; 0 = no viewer
+          explode: false
+          in: query
+          name: viewer_id
+          schema:
+            description: fill viewer_reacted for this user; 0 = no viewer
             format: int64
             type: integer
       responses:
@@ -2015,6 +2115,14 @@ paths:
             description: page size (max 100, default 50)
             format: int64
             type: integer
+        - description: fill viewer_reacted for this user; 0 = no viewer
+          explode: false
+          in: query
+          name: viewer_id
+          schema:
+            description: fill viewer_reacted for this user; 0 = no viewer
+            format: int64
+            type: integer
       responses:
         "200":
           content:
@@ -2035,12 +2143,12 @@ paths:
     get:
       operationId: searchThreads
       parameters:
-        - description: substring to look for, 2-100 characters; matched case-insensitively against the markdown source (posts) or the title (threads)
+        - description: substring to look for, 2-100 characters; matched case-insensitively against the title
           explode: false
           in: query
           name: q
           schema:
-            description: substring to look for, 2-100 characters; matched case-insensitively against the markdown source (posts) or the title (threads)
+            description: substring to look for, 2-100 characters; matched case-insensitively against the title
             type: string
         - description: thread kind filter (0=topic 1=comments 2=feedback); -1 = every kind
           explode: false
@@ -2208,6 +2316,14 @@ paths:
           schema:
             format: int64
             type: integer
+        - description: fill viewer_reacted for this user; 0 = no viewer
+          explode: false
+          in: query
+          name: viewer_id
+          schema:
+            description: fill viewer_reacted for this user; 0 = no viewer
+            format: int64
+            type: integer
       responses:
         "200":
           content:
@@ -2278,6 +2394,14 @@ paths:
           in: query
           name: limit
           schema:
+            format: int64
+            type: integer
+        - description: fill viewer_reacted for this user; 0 = no viewer
+          explode: false
+          in: query
+          name: viewer_id
+          schema:
+            description: fill viewer_reacted for this user; 0 = no viewer
             format: int64
             type: integer
       responses:
