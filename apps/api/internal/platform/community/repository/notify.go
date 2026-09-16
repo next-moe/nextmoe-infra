@@ -76,7 +76,8 @@ func ListAnchorUsersForThreadTx(tx *gorm.DB, th *model.CommunityThread) ([]model
 }
 
 func nextNotificationSeq(tx *gorm.DB) (int64, error) {
-	// seq is assigned only by the dispatcher, on insert and on every fold update.
+	// Taken outside the dispatcher's advisory lock, a seq could commit behind a
+	// larger one, and a feed reader already past the larger one skips the row.
 	var seq int64
 	err := tx.Raw("SELECT nextval('community_notification_seq')").Scan(&seq).Error
 	return seq, err
@@ -124,6 +125,7 @@ func UpsertFoldedNotificationTx(tx *gorm.DB, n *model.CommunityNotification, bum
 			actor_id = CASE WHEN `+foldNewer+` THEN EXCLUDED.actor_id ELSE community_notification.actor_id END,
 			post_number = GREATEST(community_notification.post_number, EXCLUDED.post_number),
 			first_post_number = LEAST(community_notification.first_post_number, EXCLUDED.first_post_number),
+			since_at = LEAST(community_notification.since_at, EXCLUDED.since_at),
 			seq = EXCLUDED.seq,
 			updated_at = now(),
 			item_count = community_notification.item_count + ?

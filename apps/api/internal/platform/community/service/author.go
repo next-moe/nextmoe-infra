@@ -37,6 +37,11 @@ func (s *PostService) PurgeAuthor(ctx context.Context, site string, authorID int
 	var res PurgeResult
 	var actorsCleared, eventsDeleted, eventsForgotten int64
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// A dispatch batch that read this user's rows before the purge committed
+		// would insert their notification after the purge deleted the others.
+		if err := tx.Exec("SELECT pg_advisory_xact_lock(?)", NotifyDispatchLockKey).Error; err != nil {
+			return err
+		}
 		posts, err := repository.PurgeAuthorPostsTx(tx, site, authorID)
 		if err != nil {
 			return err

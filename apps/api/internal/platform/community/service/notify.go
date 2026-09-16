@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	notifyBatchSize     = 100
+	notifyBatchSize     = 50
 	notifyBatchInterval = 2 * time.Second
 	notifyPruneInterval = time.Hour
 	notifyEventRetain   = 7 * 24 * time.Hour
@@ -69,12 +69,13 @@ func (s *NotificationService) ProcessBatch(ctx context.Context) (delivered, park
 		for i := range events {
 			ev := &events[i]
 			sp := fmt.Sprintf("ev%d", ev.ID)
-			if e := tx.SavePoint(sp).Error; e != nil {
+			// gorm's postgres SavePoint and RollbackTo drop the statement's error.
+			if e := tx.Exec("SAVEPOINT " + sp).Error; e != nil {
 				return e
 			}
 			outcome, e := s.dispatchEvent(tx, ev)
 			if e != nil {
-				if rb := tx.RollbackTo(sp).Error; rb != nil {
+				if rb := tx.Exec("ROLLBACK TO SAVEPOINT " + sp).Error; rb != nil {
 					return rb
 				}
 				slog.Error("community notification event", "event_id", ev.ID, "kind", ev.Kind, "err", e)
@@ -175,6 +176,13 @@ func (s *NotificationService) dispatchEvent(tx *gorm.DB, ev *model.CommunityEven
 			}
 			return eventDropped, nil
 		}
+	}
+
+	if ev.Kind == model.EventKindAnswerAccepted && (thread.AnswerPostID == nil || *thread.AnswerPostID != post.ID) {
+		if err := repository.MarkEventProcessedTx(tx, ev.ID); err != nil {
+			return 0, err
+		}
+		return eventDropped, nil
 	}
 
 	var like *model.CommunityReaction

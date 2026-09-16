@@ -410,6 +410,24 @@ func TestNotifyLikes(t *testing.T) {
 		t.Fatalf("D's unlike must not change the fold, got %+v", rows)
 	}
 
+	const E int64 = 500
+	if _, err := rs.Toggle(ctx, post.ID, E, model.ReactionKindLike); err != nil {
+		t.Fatalf("E like: %v", err)
+	}
+	var first model.CommunityReaction
+	if err := testDB.Where("post_id = ? AND user_id = ?", post.ID, B).First(&first).Error; err != nil {
+		t.Fatalf("B's reaction: %v", err)
+	}
+	if err := testDB.Model(&model.CommunityReaction{}).Where("post_id = ? AND user_id = ?", post.ID, E).
+		Update("created_at", first.CreatedAt.Add(-time.Second)).Error; err != nil {
+		t.Fatalf("backdate E: %v", err)
+	}
+	processBatch(t)
+	rows = notifsOf(t, A)
+	if len(rows) != 1 || rows[0].ItemCount != 3 || *rows[0].ActorID != E {
+		t.Fatalf("a like that committed late but was made earlier still counts, got %+v", rows)
+	}
+
 	if _, err := rs.Toggle(ctx, post.ID, A, model.ReactionKindLike); err != nil {
 		t.Fatalf("author like: %v", err)
 	}
@@ -549,6 +567,30 @@ func TestNotifyFeedbackAndAnswer(t *testing.T) {
 		t.Fatalf("two status changes fold to item_count=2, got %+v", rows)
 	}
 
+	countEvents := func(kind int16) int64 {
+		t.Helper()
+		var n int64
+		if err := testDB.Model(&model.CommunityEvent{}).Where("kind = ?", kind).Count(&n).Error; err != nil {
+			t.Fatalf("count events: %v", err)
+		}
+		return n
+	}
+	statusEvents := countEvents(model.EventKindFeedbackStatusChanged)
+	if err := fs.SetStatus(ctx, fb.ID, model.FeedbackStatusFixed, responder, nil); err != nil {
+		t.Fatalf("same status again: %v", err)
+	}
+	if n := countEvents(model.EventKindFeedbackStatusChanged); n != statusEvents {
+		t.Fatalf("an unchanged status must enqueue nothing: %d -> %d", statusEvents, n)
+	}
+	note := "shipped in 1.2"
+	if err := fs.SetStatus(ctx, fb.ID, model.FeedbackStatusFixed, responder, &note); err != nil {
+		t.Fatalf("same status, new response: %v", err)
+	}
+	if n := countEvents(model.EventKindFeedbackStatusChanged); n != statusEvents+1 {
+		t.Fatalf("a new response must enqueue: %d -> %d", statusEvents, n)
+	}
+	processBatch(t)
+
 	createBoard(t, bs, "letmoe", "qa", 0, func(f *BoardFields) { f.Format = model.BoardFormatQA })
 	q := openTopic(t, ts, "letmoe", creator, "qa", "how?")
 	ans := replyTo(t, ps, ctx, q.ID, answerer, nil, nil, "like this")
@@ -583,6 +625,29 @@ func TestNotifyFeedbackAndAnswer(t *testing.T) {
 	}
 	if after != before {
 		t.Fatalf("re-marking the same answer or clearing it must enqueue nothing: %d -> %d", before, after)
+	}
+
+	const first, second int64 = 400, 500
+	a1 := replyTo(t, ps, ctx, q.ID, first, nil, nil, "first try")
+	a2 := replyTo(t, ps, ctx, q.ID, second, nil, nil, "second try")
+	if _, err := ts.SetAnswer(ctx, q.ID, a1.ID, creator, false); err != nil {
+		t.Fatalf("mark a1: %v", err)
+	}
+	if _, err := ts.SetAnswer(ctx, q.ID, a2.ID, creator, false); err != nil {
+		t.Fatalf("mark a2: %v", err)
+	}
+	processBatch(t)
+	accepted := func(user int64) int {
+		n := 0
+		for _, r := range notifsOf(t, user) {
+			if r.Kind == model.NotificationKindAnswerAccepted {
+				n++
+			}
+		}
+		return n
+	}
+	if accepted(first) != 0 || accepted(second) != 1 {
+		t.Fatalf("an answer replaced before dispatch is not announced: first %d second %d", accepted(first), accepted(second))
 	}
 }
 
@@ -691,6 +756,98 @@ func TestNotifyPostingReadsTheThread(t *testing.T) {
 	}
 	if r.ItemCount != 2 || r.ActorCount != 1 {
 		t.Fatalf("the recipient's own post is not counted: items %d actors %d", r.ItemCount, r.ActorCount)
+	}
+}
+
+func TestPurgeTakesThreadRowsByDeliverySite(t *testing.T) {
+	cleanTables(t)
+	ps := NewPostService(testDB, NoopSink{})
+	const opener, U, V int64 = 1, 2, 3
+
+	seedTrust(t, opener, model.TrustLevelBasic, 0)
+	wall, _, err := ps.Comment(WithCallerSite(context.Background(), "kungal"), CommentParams{
+		Site: "kungal", AnchorKind: model.AnchorKindCatalogWork, AnchorID: "w7",
+		AuthorID: opener, BodyRaw: "wall",
+	})
+	if err != nil {
+		t.Fatalf("open wall: %v", err)
+	}
+	replyTo(t, ps, letmoeCtx(), wall.ID, U, nil, nil, "through letmoe")
+	processBatch(t)
+
+	if _, err := ps.PurgeAuthor(context.Background(), "kungal", U); err != nil {
+		t.Fatalf("kungal purge: %v", err)
+	}
+	if got := threadUserSite(t, wall.ID, U); got != "letmoe" {
+		t.Fatalf("kungal's purge must keep letmoe's row, got %q", got)
+	}
+	if _, err := ps.PurgeAuthor(context.Background(), "letmoe", U); err != nil {
+		t.Fatalf("letmoe purge: %v", err)
+	}
+	var left int64
+	if err := testDB.Model(&model.CommunityThreadUser{}).Where("thread_id = ? AND user_id = ?", wall.ID, U).Count(&left).Error; err != nil {
+		t.Fatalf("count rows: %v", err)
+	}
+	if left != 0 {
+		t.Fatalf("letmoe's purge must delete letmoe's row on a kungal thread, found %d", left)
+	}
+	replyTo(t, ps, WithCallerSite(context.Background(), "kungal"), wall.ID, V, nil, nil, "after the purge")
+	processBatch(t)
+	if rows := notifsOf(t, U); len(rows) != 0 {
+		t.Fatalf("a purged user's watch must not deliver, got %+v", rows)
+	}
+}
+
+func TestPurgeWaitsForADispatchBatch(t *testing.T) {
+	cleanTables(t)
+	ps := NewPostService(testDB, NoopSink{})
+	dispatcher := testDB.Begin()
+	if err := dispatcher.Exec("SELECT pg_advisory_xact_lock(?)", NotifyDispatchLockKey).Error; err != nil {
+		dispatcher.Rollback()
+		t.Fatalf("take dispatch lock: %v", err)
+	}
+	done := make(chan error, 1)
+	go func() {
+		_, err := ps.PurgeAuthor(context.Background(), "letmoe", 42)
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		dispatcher.Rollback()
+		t.Fatalf("the purge must wait for the batch, returned %v", err)
+	case <-time.After(300 * time.Millisecond):
+	}
+	if err := dispatcher.Commit().Error; err != nil {
+		t.Fatalf("end batch: %v", err)
+	}
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("purge: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the purge never returned")
+	}
+}
+
+func TestPurgedCreatorHearsNoFeedbackStatus(t *testing.T) {
+	cleanTables(t)
+	ts := NewThreadService(testDB, NoopSink{})
+	ps := NewPostService(testDB, NoopSink{})
+	fs := NewFeedbackService(testDB, NoopSink{})
+	const creator, responder int64 = 100, 200
+
+	fb := openFeedback(t, ts, "letmoe", creator, model.AnchorKindSiteResource, "r1", "bug")
+	processBatch(t)
+	if _, err := ps.PurgeAuthor(letmoeCtx(), "letmoe", creator); err != nil {
+		t.Fatalf("purge creator: %v", err)
+	}
+	if err := fs.SetStatus(letmoeCtx(), fb.ID, model.FeedbackStatusConfirmed, responder, nil); err != nil {
+		t.Fatalf("status: %v", err)
+	}
+	processBatch(t)
+	if rows := notifsOf(t, creator); len(rows) != 0 {
+		t.Fatalf("a purged creator must not be told, got %+v", rows)
 	}
 }
 

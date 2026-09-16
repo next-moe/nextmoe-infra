@@ -372,7 +372,10 @@ state at all — not "everything unread".
   and reports `read_states_deleted`, `anchor_subscriptions_deleted` and
   `notifications_deleted`: a row records which threads a person opened and how
   far they read, which anchors they watch and what they were told, which is
-  exactly the trace the purge exists to remove.
+  exactly the trace the purge exists to remove. A thread row belongs to the
+  site it records (the thread's site when that is NULL), the same site its
+  notifications are delivered to, so a catalog thread row written through
+  another site is that site's to purge.
 - **Posting subscribes you**: opening a thread or replying upserts the author's
   own row at `watching` and marks their own post read. An existing row keeps its
   level — someone who muted a thread and then replies stays muted, because the
@@ -418,7 +421,10 @@ Because a thread row outranks the anchor, the first row a **read** writes takes
 `watching` when the user watches the thread's anchor through the reading site,
 and `normal` otherwise — a board watcher keeps hearing about a topic after
 opening it. The anchor only seeds a new row: an existing row keeps its level,
-and unwatching the anchor later does not rewrite it.
+and unwatching the anchor later does not rewrite it. A muted anchor is not
+copied: it silences the threads a user has never opened, and once they open
+one, replies and mentions addressed to them come through (a `normal` row still
+gets no `posted`).
 
 `community_thread_user` now records the site of the user's latest interaction.
 A catalog-anchored thread can be watched from several sites; the column says
@@ -433,7 +439,7 @@ Writes that should notify someone (`post_created`, `post_liked`,
 event; the in-memory sink is not the notification path.
 
 A single dispatcher (`NotificationService.Run`) claims a transaction-level
-advisory lock, then processes up to 100 pending events with `FOR UPDATE SKIP
+advisory lock, then processes up to 50 pending events with `FOR UPDATE SKIP
 LOCKED`. `seq` on `community_notification` comes from
 `community_notification_seq` and is assigned only by the dispatcher, on insert
 and on every fold update. One writer is what makes `seq` equal commit order, so
@@ -457,9 +463,12 @@ first), and matching anchor rows: `watching` is `thread_created` on the first
 post of a non-comments thread and `posted` otherwise; `watching first post` is
 `thread_created` only on that first non-comments post (a comment wall's first
 comment is not a new thread). A like notifies the post's author (`liked`). A
-feedback status change notifies the thread creator and watching thread rows
-(`feedback_status`). Marking an answer notifies the answer's author
-(`answer_accepted`); clearing it enqueues nothing.
+feedback status change notifies the thread creator (while they still have a
+thread row — a purge removes it) and watching thread rows
+(`feedback_status`); a call that leaves the status and the response as they
+were enqueues nothing. Marking an answer notifies the answer's author
+(`answer_accepted`); clearing it or marking the same post again enqueues
+nothing, and an answer replaced before its event is dispatched is dropped.
 
 A held (hidden) post with a pending review item is **parked** and retried with
 backoff `min(2^attempts minutes, 60 minutes)`. Approve it and the next attempt
@@ -475,7 +484,7 @@ The seven kinds and their folds:
 | `2` mentioned | none | one row per event |
 | `3` posted | `posted:<thread_id>` | `item_count` = visible posts in `[first_post_number, post_number]` not by the recipient; `actor_count` = distinct authors of those |
 | `4` thread_created | none | one row per event |
-| `5` liked | `like:<post_id>` | `item_count` = `actor_count` = like reactions on the post with `created_at >= since_at` not by the recipient |
+| `5` liked | `like:<post_id>` | `item_count` = `actor_count` = like reactions on the post with `created_at >= since_at` (the earliest like folded in) not by the recipient |
 | `6` answer_accepted | none | one row per event |
 | `7` feedback_status | `fb:<thread_id>` | on conflict `item_count = item_count + 1` |
 
@@ -499,10 +508,10 @@ Two ways to consume:
   (`seq > after`, ascending). Upsert by `id`, keep `next_after`, and forward
   reads with `POST /users/{id}/notifications/read` so folds reset.
 
-`mention_user_ids` (max 20) rides `POST /topics`, `POST /feedback`,
+`mention_user_ids` rides `POST /topics`, `POST /feedback`,
 `POST /comments`, and `POST /threads/{id}/posts`. The site resolves `@name` to
-user ids; community only delivers. Ids `<= 0`, the author, and duplicates are
-dropped; more than 20 after that is a `422`.
+user ids; community only delivers. More than 20 ids sent is a `422`; ids
+`<= 0`, the author, and duplicates are dropped.
 
 Retention: processed events older than 7 days, and notifications read more
 than 90 days ago, are pruned. The compliance purge additionally deletes that
@@ -510,7 +519,8 @@ site's notifications whose recipient is the user (`notifications_deleted`),
 nulls `actor_id` on that site's rows whose actor is the user, deletes that
 site's events whose actor is the user, and removes the user as reply target and
 mention from that site's pending events (the last three are logged, not
-reported).
+reported). The purge waits for a running dispatch batch, so no batch can
+deliver to the user after the purge has cleared their rows.
 
 ## 7. Trust engine (doc 11 §6)
 

@@ -135,7 +135,9 @@ func recipientsForEvent(tx *gorm.DB, ev *model.CommunityEvent, thread *model.Com
 			add(notifyCandidate{site: deliveryFor(post.AuthorID), userID: post.AuthorID, kind: model.NotificationKindLiked})
 		}
 	case model.EventKindFeedbackStatusChanged:
-		add(notifyCandidate{site: deliveryFor(thread.CreatedBy), userID: thread.CreatedBy, kind: model.NotificationKindFeedbackStatus})
+		if _, ok := byUser[thread.CreatedBy]; ok {
+			add(notifyCandidate{site: deliveryFor(thread.CreatedBy), userID: thread.CreatedBy, kind: model.NotificationKindFeedbackStatus})
+		}
 		for _, tu := range threadUsers {
 			if tu.NotificationLevel == model.NotificationLevelWatching {
 				add(notifyCandidate{site: deliveryFor(tu.UserID), userID: tu.UserID, kind: model.NotificationKindFeedbackStatus})

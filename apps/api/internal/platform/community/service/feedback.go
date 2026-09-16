@@ -2,12 +2,14 @@ package service
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"api/internal/platform/community/model"
 	"api/internal/platform/community/repository"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type FeedbackService struct {
@@ -31,20 +33,23 @@ func (s *FeedbackService) SetStatus(ctx context.Context, threadID int64, fbStatu
 		updates["fb_response"] = *response
 	}
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		res := feedbackScope(tx, callerSite(ctx), threadID).Updates(updates)
-		if res.Error != nil {
-			return res.Error
-		}
-		if res.RowsAffected == 0 {
-			return ErrNotFeedback
-		}
-		thread, err := repository.GetThreadTx(tx, threadID)
-		if err != nil {
+		var before model.CommunityThread
+		if err := feedbackScope(tx, callerSite(ctx), threadID).
+			Clauses(clause.Locking{Strength: repository.LockUpdate}).Take(&before).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrNotFeedback
+			}
 			return err
 		}
-		if thread == nil {
-			return ErrNotFeedback
+		if err := feedbackScope(tx, callerSite(ctx), threadID).Updates(updates).Error; err != nil {
+			return err
 		}
+		sameStatus := before.FbStatus != nil && *before.FbStatus == fbStatus
+		sameResponse := response == nil || (before.FbResponse != nil && *before.FbResponse == *response)
+		if sameStatus && sameResponse {
+			return nil
+		}
+		thread := &before
 		site := callerSite(ctx)
 		if site == "" {
 			site = thread.Site
