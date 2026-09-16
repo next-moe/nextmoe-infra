@@ -180,6 +180,33 @@ func seedInitialData(db *gorm.DB, env string) error {
 		slog.Info("Backfilled oauth_clients.moemoepoint_awarder for awarder clients", "rows", res.RowsAffected)
 	}
 
+	// Backfill: moyu's community tenant. community_site (GORM AutoMigrate from
+	// siteModel.OAuthClient) overrides catalog_site as the community service's
+	// tenant, and moyu is the site that needs it: its client files catalog
+	// claims as `kungal` and cannot stop, which put its comment walls in the
+	// forum's tenant — where a purge from moyu's admin panel scrubbed the
+	// user's forum comments, the feeds answered the forum's rows, and the
+	// notification badge counted the forum's unread. Set by parent Site.Domain
+	// like the awarder list above, so a freshly created client on that domain
+	// in any environment lands in the right tenant rather than waiting for a
+	// hand-run UPDATE nobody remembers. Idempotent, and a value already set by
+	// hand is left alone.
+	//
+	// It matters that this runs BEFORE the first write: the tenant is stamped
+	// into every thread row, so a site that posts under the wrong one has to be
+	// migrated rather than re-bound.
+	res = db.Exec(`
+		UPDATE oauth_clients
+		SET community_site = 'moyu'
+		WHERE COALESCE(community_site, '') = ''
+		  AND site_id IN (SELECT id FROM sites WHERE domain = 'www.moyu.moe')
+	`)
+	if res.Error != nil {
+		slog.Warn("failed to backfill oauth_clients.community_site", "error", res.Error)
+	} else if res.RowsAffected > 0 {
+		slog.Info("Backfilled oauth_clients.community_site for moyu", "rows", res.RowsAffected)
+	}
+
 	if env == "development" {
 		if err := seedDevPortalClient(db); err != nil {
 			return err

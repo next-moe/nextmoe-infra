@@ -96,6 +96,16 @@ type OAuthClient struct {
 
 	CatalogSite string `gorm:"size:64" json:"catalog_site,omitempty"`
 
+	// The community tenant, when it is not the catalog one. catalog_site names
+	// the site a client FILES CATALOG CLAIMS UNDER, and two properties can share
+	// that identity while being separate communities: moyu and the kungal forum
+	// are both catalog_site=kungal, which put their comment walls in one tenant
+	// where anchor ids are the only separation — 1,992 of moyu's 2,040 commented
+	// page ids already existed as a forum anchor and 490 carried forum posts.
+	// Empty means "same tenant as catalog_site", which is what every site that
+	// is its own property wants and what every existing client had.
+	CommunitySite string `gorm:"size:64" json:"community_site,omitempty"`
+
 	Site *Site `gorm:"foreignKey:SiteID" json:"site,omitempty"`
 }
 
