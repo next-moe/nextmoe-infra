@@ -77,7 +77,9 @@ Two more faces landed with it:
    thread's last post. Without it a legacy commenter reads "not subscribed" on
    a thread they started; caught up rather than at their own post because moyu
    had no unread feature before the cutover, and a watermark at their own post
-   would have opened the new badge on replies they had already read.
+   would have opened the new badge on replies they had already read. An
+   existing row is left exactly as it is, so a re-run after moyu is live cannot
+   mark anyone caught up on a reply they have not seen.
 
    `patch_comment.edit` holds two formats: `Date.now()` milliseconds before
    2026-06-03 and RFC3339 from 2026-06-06 on. Both become `edited_at`; the

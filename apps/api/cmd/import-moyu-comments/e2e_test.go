@@ -93,6 +93,15 @@ func resetE2E(t *testing.T) {
 			t.Fatalf("reset source (%s): %v", stmt, err)
 		}
 	}
+	// Reactions before posts: they outlive the posts they point at, and a run
+	// that left them behind made the next run report 0 likes inserted.
+	if err := testDB.Exec(`
+		DELETE FROM community_reaction WHERE post_id IN (
+			SELECT p.id FROM community_post p
+			  JOIN community_thread t ON t.id = p.thread_id WHERE t.site = ?)`, e2eSite,
+	).Error; err != nil {
+		t.Fatalf("reset reactions: %v", err)
+	}
 	if err := testDB.Exec(
 		"DELETE FROM community_post WHERE thread_id IN (SELECT id FROM community_thread WHERE site = ?)", e2eSite,
 	).Error; err != nil {
@@ -319,6 +328,20 @@ func TestImportMoyuComments(t *testing.T) {
 		t.Fatalf("the root's author must have 2 likes_received, got %v", received)
 	}
 
+	// A re-run must not touch a read watermark that has moved on since. This is
+	// the shape that would bite: moyu is live, someone replies, and the import
+	// is run again.
+	var wallID int64
+	if err := testDB.Raw(
+		"SELECT id FROM community_thread WHERE site = ? AND anchor_id = '500' AND anchor_kind = ?",
+		e2eSite, model.AnchorKindSiteGame).Scan(&wallID).Error; err != nil {
+		t.Fatalf("read wall id: %v", err)
+	}
+	if err := testDB.Exec(
+		"UPDATE community_thread SET highest_post_number = 9 WHERE id = ?", wallID).Error; err != nil {
+		t.Fatalf("simulate a later reply: %v", err)
+	}
+
 	// Idempotency: the same run again writes nothing new.
 	again, err := run(srcDB, testDB, e2eSite, true)
 	if err != nil {
@@ -332,6 +355,20 @@ func TestImportMoyuComments(t *testing.T) {
 		t.Fatalf("a re-run must recognise everything it wrote, got %d posts / %d likes",
 			again.PostsExisting, again.LikesExisting)
 	}
+	if again.Subscriptions != 0 || again.SubscriptionsExisting != 4 {
+		t.Fatalf("a re-run must write no subscriptions, got %d written / %d present",
+			again.Subscriptions, again.SubscriptionsExisting)
+	}
+	var stillRead int32
+	if err := testDB.Raw(
+		"SELECT last_read_post_number FROM community_thread_user WHERE thread_id = ? AND user_id = 90001",
+		wallID).Scan(&stillRead).Error; err != nil {
+		t.Fatalf("read watermark after re-run: %v", err)
+	}
+	if stillRead != 2 {
+		t.Fatalf("a re-run must not mark anyone caught up on posts it did not write, got %d", stillRead)
+	}
+
 	var receivedAgain *int32
 	if err := testDB.Raw("SELECT likes_received FROM community_trust WHERE user_id = 90001").Scan(&receivedAgain).Error; err != nil {
 		t.Fatalf("read trust after re-run: %v", err)
