@@ -101,6 +101,7 @@ func main() {
 	callbackSvc := service.NewCallbackService(communityDB.DB())
 	engagementSvc := service.NewEngagementService(communityDB.DB())
 	searchSvc := service.NewSearchService(communityDB.DB())
+	boardSvc := service.NewBoardService(communityDB.DB())
 
 	application.Fiber.Use(middleware.RequestID())
 	application.Fiber.Use(middleware.Logger())
@@ -117,6 +118,7 @@ func main() {
 	api := commHandler.Setup(application.Fiber, commHandler.Services{
 		Threads: threadSvc, Posts: postSvc, Reactions: reactionSvc, Feedback: feedbackSvc,
 		Flags: flagSvc, Trust: trustSvc, Review: reviewSvc, Engagement: engagementSvc, Search: searchSvc,
+		Boards: boardSvc,
 	})
 
 	go runOutboxTicker(ctx, forwardSvc)

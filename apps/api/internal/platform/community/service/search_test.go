@@ -13,8 +13,8 @@ import (
 func openTitled(t *testing.T, ts *ThreadService, site string, author int64, anchor, title, body string) *model.CommunityThread {
 	t.Helper()
 	seedTrust(t, author, model.TrustLevelBasic, 0)
-	th, _, err := ts.OpenTopic(context.Background(), OpenThreadParams{
-		Site: site, AuthorID: author, AnchorKind: model.AnchorKindBoard, AnchorID: anchor,
+	th, _, err := ts.OpenTopic(context.Background(), OpenTopicParams{
+		Site: site, AuthorID: author, BoardID: testBoard(t, site, anchor),
 		Title: title, BodyRaw: body,
 	})
 	if err != nil {
@@ -109,7 +109,7 @@ func TestSearchPosts_TenancyMirrorsTheIDGuard(t *testing.T) {
 
 	openTitled(t, ts, "letmoe", 100, "b1", "t", "needle mine")
 	openTitled(t, ts, "kungal", 101, "b1", "t", "needle theirs")
-	if _, _, err := ts.OpenFeedback(context.Background(), OpenThreadParams{
+	if _, _, err := ts.OpenFeedback(context.Background(), OpenFeedbackParams{
 		Site: "kungal", AuthorID: 102, AnchorKind: model.AnchorKindCatalogWork, AnchorID: "w42",
 		Title: "t", BodyRaw: "needle shared",
 	}); err != nil {

@@ -86,6 +86,144 @@ components:
       required:
         - stats
       type: object
+    BoardListResponse:
+      additionalProperties: false
+      properties:
+        boards:
+          description: "display order: each top-level board followed by its sub-boards, each group by position"
+          items:
+            $ref: "#/components/schemas/BoardView"
+          type:
+            - array
+            - "null"
+      required:
+        - boards
+      type: object
+    BoardResponse:
+      additionalProperties: false
+      properties:
+        board:
+          $ref: "#/components/schemas/BoardView"
+      required:
+        - board
+      type: object
+    BoardStats:
+      additionalProperties: false
+      properties:
+        last_posted_at:
+          format: date-time
+          type: string
+        last_thread_id:
+          description: the most recently active of those topics
+          format: int64
+          type: integer
+        last_thread_title:
+          type: string
+        posts_count:
+          description: the sum of those topics' posts_count (post numbers allocated, tombstones included)
+          format: int64
+          type: integer
+        topics_count:
+          description: "topics a reader can see: live threads whose opening post is visible"
+          format: int64
+          type: integer
+      required:
+        - topics_count
+        - posts_count
+      type: object
+    BoardView:
+      additionalProperties: false
+      properties:
+        color:
+          description: a palette token the site maps onto its theme
+          type: string
+        content_rating:
+          description: "the floor for its topics' rating: 0=all 1=r15 2=r18"
+          format: int32
+          type: integer
+        created_at:
+          format: date-time
+          type: string
+        description:
+          type: string
+        format:
+          description: 0=discussion 1=qa 2=announcement
+          format: int32
+          type: integer
+        icon:
+          description: an emoji, an icon name or an image hash; the site decides how to render it
+          type: string
+        id:
+          format: int64
+          type: integer
+        name:
+          type: string
+        parent_id:
+          description: the top-level board this one sits under; boards nest one level
+          format: int64
+          type: integer
+        position:
+          description: order among its siblings, ascending
+          format: int32
+          type: integer
+        reply_min_trust_level:
+          format: int32
+          type: integer
+        site:
+          type: string
+        slug:
+          type: string
+        stats:
+          $ref: "#/components/schemas/BoardStats"
+        status:
+          description: 0=active 1=archived (readable; no new topics or replies)
+          format: int32
+          type: integer
+        topic_min_trust_level:
+          format: int32
+          type: integer
+        topic_template:
+          description: markdown the composer starts from
+          type: string
+        updated_at:
+          format: date-time
+          type: string
+      required:
+        - id
+        - site
+        - slug
+        - name
+        - position
+        - format
+        - status
+        - content_rating
+        - topic_min_trust_level
+        - reply_min_trust_level
+        - created_at
+        - updated_at
+        - stats
+      type: object
+    CloseThreadRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/CloseThreadRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        actor_id:
+          description: the moderator; recorded in the audit log
+          format: int64
+          type: integer
+        closed:
+          description: true closes the thread to new posts, false reopens it
+          type: boolean
+      required:
+        - actor_id
+        - closed
+      type: object
     CommentRequest:
       additionalProperties: false
       properties:
@@ -171,6 +309,78 @@ components:
         - anchor_id
         - content_rating
       type: object
+    CreateBoardRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/CreateBoardRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        actor_id:
+          description: the site admin making the change; recorded in the audit log
+          format: int64
+          type: integer
+        color:
+          maxLength: 32
+          type: string
+        content_rating:
+          description: "the floor for its topics' rating: 0=all 1=r15 2=r18"
+          enum:
+            - 0
+            - 1
+            - 2
+          format: int32
+          type: integer
+        description:
+          maxLength: 1000
+          type: string
+        format:
+          description: 0=discussion 1=qa (a topic can mark its answer) 2=announcement (only moderators open topics)
+          enum:
+            - 0
+            - 1
+            - 2
+          format: int32
+          type: integer
+        icon:
+          maxLength: 64
+          type: string
+        name:
+          maxLength: 64
+          minLength: 1
+          type: string
+        parent_id:
+          description: a top-level board to nest this one under; 0 = top level
+          format: int64
+          type: integer
+        reply_min_trust_level:
+          description: trust level needed to reply to its topics
+          format: int32
+          maximum: 3
+          minimum: 0
+          type: integer
+        slug:
+          description: "URL key, unique on the site: lowercase letters, digits and single hyphens, and not all digits"
+          maxLength: 64
+          pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+          type: string
+        topic_min_trust_level:
+          description: trust level needed to open a topic; moderators are exempt
+          format: int32
+          maximum: 3
+          minimum: 0
+          type: integer
+        topic_template:
+          maxLength: 10000
+          type: string
+      required:
+        - actor_id
+        - slug
+        - name
+      type: object
     EditPostRequest:
       additionalProperties: false
       properties:
@@ -231,6 +441,48 @@ components:
           type: integer
         data:
           $ref: "#/components/schemas/AuthorStatsResponse"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeBoardListResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeBoardListResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/BoardListResponse"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeBoardResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeBoardResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/BoardResponse"
         message:
           type: string
       required:
@@ -651,6 +903,53 @@ components:
         - code
         - message
       type: object
+    MarkAnswerRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/MarkAnswerRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        actor_id:
+          description: the thread's author, or a moderator with as_moderator
+          format: int64
+          type: integer
+        as_moderator:
+          description: the site vouches actor_id is its moderator
+          type: boolean
+        post_id:
+          description: the reply that answers the thread; 0 clears the mark
+          format: int64
+          type: integer
+      required:
+        - actor_id
+        - post_id
+      type: object
+    MoveTopicRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/MoveTopicRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        actor_id:
+          description: the moderator; recorded in the audit log
+          format: int64
+          type: integer
+        board_id:
+          description: the board to move the topic to; its rating floor applies, a higher rating is kept
+          format: int64
+          type: integer
+      required:
+        - actor_id
+        - board_id
+      type: object
     OKResponse:
       additionalProperties: false
       properties:
@@ -703,9 +1002,17 @@ components:
           readOnly: true
           type: string
         anchor_id:
-          description: board id
+          deprecated: true
+          description: "deprecated: the board's id or slug; send board_id instead"
           type: string
+        as_moderator:
+          description: "the site vouches author_id is its moderator: required on an announcement board, and exempt from the board's topic trust level"
+          type: boolean
         author_id:
+          format: int64
+          type: integer
+        board_id:
+          description: the board to open the topic on
           format: int64
           type: integer
         body:
@@ -724,10 +1031,39 @@ components:
           type: string
       required:
         - author_id
-        - anchor_id
         - title
         - content_rating
         - body
+      type: object
+    PinTopicRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/PinTopicRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        actor_id:
+          description: the moderator; recorded in the audit log
+          format: int64
+          type: integer
+        scope:
+          description: 0=unpin 1=pinned on its board 2=pinned on its board and on the site's topic listing
+          enum:
+            - 0
+            - 1
+            - 2
+          format: int32
+          type: integer
+        until:
+          description: the pin lapses after this time; absent = until unpinned
+          format: date-time
+          type: string
+      required:
+        - actor_id
+        - scope
       type: object
     PostFeedResponse:
       additionalProperties: false
@@ -774,6 +1110,10 @@ components:
         anchor_kind:
           description: 0=board 1=site_game 2=site_resource 3=catalog_work 4=catalog_person
           format: int32
+          type: integer
+        board_id:
+          description: the board a topic lives on (its anchor_id as a number)
+          format: int64
           type: integer
         thread_id:
           format: int64
@@ -956,6 +1296,36 @@ components:
         - anchor_kind
         - anchor_id
       type: object
+    ReorderBoardsRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ReorderBoardsRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        actor_id:
+          description: the site admin making the change; recorded in the audit log
+          format: int64
+          type: integer
+        board_ids:
+          description: every board under that parent, exactly once, in the new order
+          items:
+            format: int64
+            type: integer
+          type:
+            - array
+            - "null"
+        parent_id:
+          description: whose sub-boards to order; 0 = the top level
+          format: int64
+          type: integer
+      required:
+        - actor_id
+        - board_ids
+      type: object
     ReplyRequest:
       additionalProperties: false
       properties:
@@ -1128,7 +1498,7 @@ components:
       properties:
         post:
           $ref: "#/components/schemas/PostView"
-          description: the opening post, for open-topic/feedback
+          description: the post this call wrote, when it wrote one
         thread:
           $ref: "#/components/schemas/ThreadView"
       required:
@@ -1213,6 +1583,10 @@ components:
         answer_post_id:
           format: int64
           type: integer
+        board_id:
+          description: the board a topic lives on (its anchor_id as a number)
+          format: int64
+          type: integer
         content_rating:
           format: int32
           type: integer
@@ -1258,6 +1632,16 @@ components:
         participants_count:
           format: int32
           type: integer
+        pin_scope:
+          description: 0=not pinned 1=pinned on its board 2=pinned on its board and site-wide; a lapsed pin reads 0
+          format: int32
+          type: integer
+        pinned_at:
+          format: date-time
+          type: string
+        pinned_until:
+          format: date-time
+          type: string
         posts_count:
           format: int32
           type: integer
@@ -1373,6 +1757,83 @@ components:
       required:
         - thread
         - state
+      type: object
+    UpdateBoardRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/UpdateBoardRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        actor_id:
+          description: the site admin making the change; recorded in the audit log
+          format: int64
+          type: integer
+        color:
+          description: an empty string clears it
+          maxLength: 32
+          type: string
+        content_rating:
+          description: applies to topics opened from now on; existing topics keep theirs
+          enum:
+            - 0
+            - 1
+            - 2
+          format: int32
+          type: integer
+        description:
+          description: an empty string clears it
+          maxLength: 1000
+          type: string
+        format:
+          enum:
+            - 0
+            - 1
+            - 2
+          format: int32
+          type: integer
+        icon:
+          description: an empty string clears it
+          maxLength: 64
+          type: string
+        name:
+          maxLength: 64
+          minLength: 1
+          type: string
+        parent_id:
+          description: move under this top-level board; 0 = move to the top level
+          format: int64
+          type: integer
+        reply_min_trust_level:
+          format: int32
+          maximum: 3
+          minimum: 0
+          type: integer
+        slug:
+          maxLength: 64
+          pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+          type: string
+        status:
+          description: 0=active 1=archived
+          enum:
+            - 0
+            - 1
+          format: int32
+          type: integer
+        topic_min_trust_level:
+          format: int32
+          maximum: 3
+          minimum: 0
+          type: integer
+        topic_template:
+          description: an empty string clears it
+          maxLength: 10000
+          type: string
+      required:
+        - actor_id
       type: object
 info:
   title: KUN Community Service
@@ -1555,6 +2016,189 @@ paths:
       summary: "Compliance purge: tombstone + scrub all of a site author's posts and delete their reactions (idempotent)"
       tags:
         - community-write
+  /api/v1/community/boards:
+    get:
+      operationId: listBoards
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeBoardListResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: List the site's boards in display order, with their topic stats
+      tags:
+        - community-boards
+    post:
+      operationId: createBoard
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBoardRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeBoardResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Create a board (top level, or under a top-level board)
+      tags:
+        - community-boards
+  /api/v1/community/boards/by-slug/{slug}:
+    get:
+      operationId: getBoardBySlug
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeBoardResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Get a board by its slug, with its topic stats
+      tags:
+        - community-boards
+  /api/v1/community/boards/reorder:
+    post:
+      operationId: reorderBoards
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderBoardsRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeOKResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Set the order of one parent's boards
+      tags:
+        - community-boards
+  /api/v1/community/boards/{id}:
+    delete:
+      operationId: deleteBoard
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+        - description: the site admin making the change; recorded in the audit log
+          explode: false
+          in: query
+          name: actor_id
+          schema:
+            description: the site admin making the change; recorded in the audit log
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeOKResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Delete a board that holds no topics and no sub-boards
+      tags:
+        - community-boards
+    get:
+      operationId: getBoard
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeBoardResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Get a board by id, with its topic stats
+      tags:
+        - community-boards
+    patch:
+      operationId: updateBoard
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBoardRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeBoardResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Change a board's settings, parent or status
+      tags:
+        - community-boards
   /api/v1/community/comments:
     get:
       operationId: getComments
@@ -2223,6 +2867,33 @@ paths:
           schema:
             description: "optional: narrow to a single anchor (e.g. a resource's feedback wall); empty = the whole site"
             type: string
+        - description: "optional: narrow to one board's topics (kind 0); use it instead of the anchor filter"
+          explode: false
+          in: query
+          name: board_id
+          schema:
+            description: "optional: narrow to one board's topics (kind 0); use it instead of the anchor filter"
+            format: int64
+            type: integer
+        - description: "with board_id: include the topics of its sub-boards"
+          explode: false
+          in: query
+          name: subboards
+          schema:
+            description: "with board_id: include the topics of its sub-boards"
+            type: boolean
+        - description: only = the pinned topics, newest pin first, as one page with no cursor; exclude = everything else. On a board both board and site pins count; on the site listing only site pins do
+          explode: false
+          in: query
+          name: pinned
+          schema:
+            default: any
+            description: only = the pinned topics, newest pin first, as one page with no cursor; exclude = everything else. On a board both board and site pins count; on the site listing only site pins do
+            enum:
+              - any
+              - only
+              - exclude
+            type: string
         - description: activity (newest activity) | created (newest thread) | posts (most replies; a mutable key, so a row can move between pages)
           explode: false
           in: query
@@ -2235,12 +2906,12 @@ paths:
               - created
               - posts
             type: string
-        - description: only threads that hold at least one post; a comments thread is created on first view, so most carry none
+        - description: only threads that hold at least one post
           explode: false
           in: query
           name: has_posts
           schema:
-            description: only threads that hold at least one post; a comments thread is created on first view, so most carry none
+            description: only threads that hold at least one post
             type: boolean
         - description: opaque cursor from the previous page; it is bound to the sort that minted it
           explode: false
@@ -2346,6 +3017,102 @@ paths:
       summary: Get a thread with a page of posts
       tags:
         - community-read
+  /api/v1/community/threads/{id}/answer:
+    post:
+      operationId: markAnswer
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarkAnswerRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeThreadResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Mark the reply that answers a Q&A-board topic or a feedback thread (the thread's author, or a moderator)
+      tags:
+        - community-moderation
+  /api/v1/community/threads/{id}/close:
+    post:
+      operationId: closeThread
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CloseThreadRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeThreadResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Close a thread to new posts, or reopen it
+      tags:
+        - community-moderation
+  /api/v1/community/threads/{id}/move:
+    post:
+      operationId: moveTopic
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MoveTopicRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeThreadResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Move a topic to another board
+      tags:
+        - community-moderation
   /api/v1/community/threads/{id}/notification:
     post:
       operationId: setThreadNotification
@@ -2378,6 +3145,38 @@ paths:
       summary: Set a user's notification level for a thread (0=muted 1=normal 2=tracking 3=watching)
       tags:
         - community-engagement
+  /api/v1/community/threads/{id}/pin:
+    post:
+      operationId: pinTopic
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PinTopicRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeThreadResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Pin a topic on its board or site-wide, optionally until a time; scope 0 unpins
+      tags:
+        - community-moderation
   /api/v1/community/threads/{id}/posts:
     get:
       operationId: listPosts

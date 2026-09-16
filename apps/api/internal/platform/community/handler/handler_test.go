@@ -78,6 +78,18 @@ func TestSpecExport(t *testing.T) {
 		"operationId: recordActivity",
 		"operationId: approveReview",
 		"operationId: topAuthors",
+		"operationId: listBoards",
+		"operationId: getBoardBySlug",
+		"operationId: createBoard",
+		"operationId: updateBoard",
+		"operationId: deleteBoard",
+		"operationId: reorderBoards",
+		"operationId: moveTopic",
+		"operationId: pinTopic",
+		"operationId: closeThread",
+		"operationId: markAnswer",
+		"name: board_id",
+		"name: pinned",
 		"name: anchor_id",
 		"name: viewer_id",
 		"reaction_count",
@@ -107,7 +119,7 @@ func TestHandlerFlow(t *testing.T) {
 	ctx := clientCtx("letmoe")
 
 	topicOut, err := s.openTopic(ctx, &openTopicInput{Body: dto.OpenTopicRequest{
-		AuthorID: 100, AnchorID: "1", Title: "hello", ContentRating: 0, Body: "opening **post**",
+		AuthorID: 100, BoardID: testBoard(t, "letmoe", "b1"), Title: "hello", ContentRating: 0, Body: "opening **post**",
 	}})
 	if err != nil {
 		t.Fatalf("openTopic: %v", err)
@@ -165,7 +177,7 @@ func TestHandlerGapfill(t *testing.T) {
 	}
 	ctx := clientCtx("letmoe")
 
-	topicOut, err := s.openTopic(ctx, &openTopicInput{Body: dto.OpenTopicRequest{AuthorID: 100, AnchorID: "1", Title: "t", Body: "opening"}})
+	topicOut, err := s.openTopic(ctx, &openTopicInput{Body: dto.OpenTopicRequest{AuthorID: 100, BoardID: testBoard(t, "letmoe", "b1"), Title: "t", Body: "opening"}})
 	if err != nil {
 		t.Fatalf("openTopic: %v", err)
 	}
@@ -239,7 +251,7 @@ func TestListThreads_OpeningStatusProjected(t *testing.T) {
 		t.Fatalf("seed trust: %v", err)
 	}
 
-	visOut, err := s.openTopic(ctx, &openTopicInput{Body: dto.OpenTopicRequest{AuthorID: 100, AnchorID: "b1", Title: "vis", Body: "x"}})
+	visOut, err := s.openTopic(ctx, &openTopicInput{Body: dto.OpenTopicRequest{AuthorID: 100, BoardID: testBoard(t, "letmoe", "b1"), Title: "vis", Body: "x"}})
 	if err != nil {
 		t.Fatalf("openTopic vis: %v", err)
 	}
@@ -251,7 +263,7 @@ func TestListThreads_OpeningStatusProjected(t *testing.T) {
 	).Error; err != nil {
 		t.Fatalf("seed held author: %v", err)
 	}
-	heldOut, err := s.openTopic(ctx, &openTopicInput{Body: dto.OpenTopicRequest{AuthorID: 700, AnchorID: "b1", Title: "held", Body: "y"}})
+	heldOut, err := s.openTopic(ctx, &openTopicInput{Body: dto.OpenTopicRequest{AuthorID: 700, BoardID: testBoard(t, "letmoe", "b1"), Title: "held", Body: "y"}})
 	if err != nil {
 		t.Fatalf("openTopic held: %v", err)
 	}
@@ -260,7 +272,7 @@ func TestListThreads_OpeningStatusProjected(t *testing.T) {
 		t.Fatalf("newcomer opening should be held: %d", heldOut.Body.Data.Post.Status)
 	}
 
-	delOut, err := s.openTopic(ctx, &openTopicInput{Body: dto.OpenTopicRequest{AuthorID: 300, AnchorID: "b1", Title: "del", Body: "z"}})
+	delOut, err := s.openTopic(ctx, &openTopicInput{Body: dto.OpenTopicRequest{AuthorID: 300, BoardID: testBoard(t, "letmoe", "b1"), Title: "del", Body: "z"}})
 	if err != nil {
 		t.Fatalf("openTopic del: %v", err)
 	}
@@ -292,4 +304,13 @@ func TestListThreads_OpeningStatusProjected(t *testing.T) {
 	assertOpening(visID, model.PostStatusVisible, 100)
 	assertOpening(heldID, model.PostStatusHidden, 700)
 	assertOpening(delID, model.PostStatusDeleted, 300)
+}
+
+func testBoard(t *testing.T, site, slug string) int64 {
+	t.Helper()
+	id, err := suitelock.Board(testDB, site, slug)
+	if err != nil {
+		t.Fatalf("board %s/%s: %v", site, slug, err)
+	}
+	return id
 }

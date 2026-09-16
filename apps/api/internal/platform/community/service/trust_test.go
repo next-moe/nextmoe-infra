@@ -94,8 +94,8 @@ func TestStaffBoost_ClearsFirstPostHolds(t *testing.T) {
 	}
 
 	threads := NewThreadService(testDB, NoopSink{})
-	_, opening, err := threads.OpenTopic(ctx, OpenThreadParams{
-		Site: "letmoe", AuthorID: 20, AnchorKind: model.AnchorKindBoard, AnchorID: "b1",
+	_, opening, err := threads.OpenTopic(ctx, OpenTopicParams{
+		Site: "letmoe", AuthorID: 20, BoardID: testBoard(t, "letmoe", "b1"),
 		Title: "staff first topic", ContentRating: model.ContentRatingAll, BodyRaw: "hello",
 	})
 	if err != nil {

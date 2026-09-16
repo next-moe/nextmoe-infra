@@ -89,7 +89,7 @@ func createSourceTables(db *gorm.DB) error {
 
 func resetFixtureTables(t *testing.T) {
 	t.Helper()
-	for _, tbl := range []string{"community_reaction", "community_trust", "community_post", "community_thread"} {
+	for _, tbl := range []string{"community_reaction", "community_trust", "community_thread_user", "community_post", "community_thread"} {
 		if err := testDB.Exec("TRUNCATE " + tbl + " RESTART IDENTITY CASCADE").Error; err != nil {
 			t.Fatalf("truncate %s: %v", tbl, err)
 		}

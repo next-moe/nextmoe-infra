@@ -190,7 +190,7 @@ func TestSiteFeed_RepliesOnlyAndThreadContext(t *testing.T) {
 	if len(rows) != 1 || rows[0].PostNumber != 2 {
 		t.Fatalf("replies_only must drop the opening post: got %v", rows)
 	}
-	if rows[0].ThreadTitle == nil || rows[0].ThreadAnchorID != "b1" {
+	if rows[0].ThreadTitle == nil || rows[0].ThreadAnchorID != model.BoardAnchorID(testBoard(t, "letmoe", "b1")) {
 		t.Fatalf("feed rows must carry thread context: %+v", rows[0])
 	}
 

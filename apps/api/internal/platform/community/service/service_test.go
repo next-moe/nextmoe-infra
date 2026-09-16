@@ -128,12 +128,21 @@ func getPost(t *testing.T, id int64) *model.CommunityPost {
 func openTopic(t *testing.T, ts *ThreadService, site string, author int64, anchorID, body string) *model.CommunityThread {
 	t.Helper()
 	seedTrust(t, author, model.TrustLevelBasic, 0)
-	th, _, err := ts.OpenTopic(context.Background(), OpenThreadParams{
-		Site: site, AuthorID: author, AnchorKind: model.AnchorKindBoard, AnchorID: anchorID,
+	th, _, err := ts.OpenTopic(context.Background(), OpenTopicParams{
+		Site: site, AuthorID: author, BoardID: testBoard(t, site, anchorID),
 		Title: "t", ContentRating: model.ContentRatingAll, BodyRaw: body,
 	})
 	if err != nil {
 		t.Fatalf("open topic: %v", err)
 	}
 	return th
+}
+
+func testBoard(t *testing.T, site, slug string) int64 {
+	t.Helper()
+	id, err := suitelock.Board(testDB, site, slug)
+	if err != nil {
+		t.Fatalf("board %s/%s: %v", site, slug, err)
+	}
+	return id
 }

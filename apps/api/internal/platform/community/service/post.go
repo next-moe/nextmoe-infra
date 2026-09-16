@@ -132,6 +132,18 @@ func appendPostTx(tx *gorm.DB, thread *model.CommunityThread, d postDraft) (writ
 		return out, err
 	}
 	held := trust.FirstPostsHeldRemaining > 0
+	if thread.Kind == model.ThreadKindTopic && thread.AnchorKind == model.AnchorKindBoard {
+		board, err := repository.TopicBoardTx(tx, thread)
+		if err != nil {
+			return out, err
+		}
+		if board == nil {
+			return out, ErrBoardNotFound
+		}
+		if err := replyGate(board, trust.Level); err != nil {
+			return out, err
+		}
+	}
 
 	posted, err := repository.AuthorHasPostedTx(tx, thread.ID, d.authorID)
 	if err != nil {

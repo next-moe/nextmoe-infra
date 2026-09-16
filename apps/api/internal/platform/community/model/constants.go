@@ -72,6 +72,17 @@ const (
 )
 
 const (
+	BoardStatusActive   int16 = 0
+	BoardStatusArchived int16 = 1
+)
+
+const (
+	PinScopeNone  int16 = 0
+	PinScopeBoard int16 = 1
+	PinScopeSite  int16 = 2
+)
+
+const (
 	TrustLevelNew     int16 = 0
 	TrustLevelBasic   int16 = 1
 	TrustLevelMember  int16 = 2

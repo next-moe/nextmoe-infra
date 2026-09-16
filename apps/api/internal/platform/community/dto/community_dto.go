@@ -24,6 +24,10 @@ type ThreadView struct {
 	CreatedAt         time.Time  `json:"created_at"`
 	OpeningStatus     *int16     `json:"opening_status,omitempty"`
 	OpeningAuthorID   *int64     `json:"opening_author_id,omitempty"`
+	BoardID           *int64     `json:"board_id,omitempty" doc:"the board a topic lives on (its anchor_id as a number)"`
+	PinScope          int16      `json:"pin_scope,omitempty" doc:"0=not pinned 1=pinned on its board 2=pinned on its board and site-wide; a lapsed pin reads 0"`
+	PinnedAt          *time.Time `json:"pinned_at,omitempty"`
+	PinnedUntil       *time.Time `json:"pinned_until,omitempty"`
 }
 
 type PostView struct {
@@ -70,7 +74,9 @@ type PostsResolveRequest struct {
 
 type OpenTopicRequest struct {
 	AuthorID          int64    `json:"author_id"`
-	AnchorID          string   `json:"anchor_id" doc:"board id"`
+	BoardID           int64    `json:"board_id,omitempty" doc:"the board to open the topic on"`
+	AnchorID          string   `json:"anchor_id,omitempty" deprecated:"true" doc:"deprecated: the board's id or slug; send board_id instead"`
+	AsModerator       bool     `json:"as_moderator,omitempty" doc:"the site vouches author_id is its moderator: required on an announcement board, and exempt from the board's topic trust level"`
 	Title             string   `json:"title"`
 	ContentRating     int16    `json:"content_rating"`
 	Body              string   `json:"body" doc:"markdown source of the opening post"`
@@ -145,7 +151,7 @@ type PostListResponse struct {
 
 type ThreadResponse struct {
 	Thread ThreadView `json:"thread"`
-	Post   *PostView  `json:"post,omitempty" doc:"the opening post, for open-topic/feedback"`
+	Post   *PostView  `json:"post,omitempty" doc:"the post this call wrote, when it wrote one"`
 }
 
 type PostThreadContext struct {
@@ -153,6 +159,7 @@ type PostThreadContext struct {
 	Title      *string `json:"title,omitempty" doc:"thread title (NULL for a comments thread)"`
 	AnchorKind int16   `json:"anchor_kind" doc:"0=board 1=site_game 2=site_resource 3=catalog_work 4=catalog_person"`
 	AnchorID   string  `json:"anchor_id"`
+	BoardID    *int64  `json:"board_id,omitempty" doc:"the board a topic lives on (its anchor_id as a number)"`
 }
 
 type AuthorPostView struct {

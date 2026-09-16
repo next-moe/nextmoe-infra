@@ -138,8 +138,8 @@ func TestScanFirstPostTitlePrefix(t *testing.T) {
 	ts := NewThreadService(testDB, sink)
 
 	seedTrust(t, 100, model.TrustLevelBasic, 0)
-	_, post, err := ts.OpenTopic(ctx, OpenThreadParams{
-		Site: "letmoe", AuthorID: 100, AnchorKind: model.AnchorKindBoard, AnchorID: "b1",
+	_, post, err := ts.OpenTopic(ctx, OpenTopicParams{
+		Site: "letmoe", AuthorID: 100, BoardID: testBoard(t, "letmoe", "b1"),
 		Title: "My Title", ContentRating: model.ContentRatingAll, BodyRaw: "opening body",
 	})
 	if err != nil {

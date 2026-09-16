@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"fmt"
 	"time"
 
 	"api/internal/platform/community/model"
@@ -91,30 +92,66 @@ type ThreadCursor struct {
 	ID             int64
 }
 
+type PinFilter string
+
+const (
+	PinFilterAny     PinFilter = "any"
+	PinFilterOnly    PinFilter = "only"
+	PinFilterExclude PinFilter = "exclude"
+)
+
 type ThreadListQuery struct {
 	Site       string
 	Kind       int16
 	AnchorKind int16
 	AnchorID   string
+	BoardIDs   []int64
 	Sort       ThreadSort
 	HasPosts   bool
+	Pinned     PinFilter
 	Cursor     ThreadCursor
 	Limit      int
 }
 
 func (r *ThreadRepository) List(q ThreadListQuery) ([]model.CommunityThread, error) {
 	db := r.db.Where("site = ? AND kind = ?", q.Site, q.Kind)
-	if q.AnchorID != "" {
+	switch {
+	case len(q.BoardIDs) > 0:
+		anchors := make([]string, len(q.BoardIDs))
+		for i, id := range q.BoardIDs {
+			anchors[i] = model.BoardAnchorID(id)
+		}
+		db = db.Where(boardTopicSQL).Where("anchor_id IN ?", anchors)
+	case q.AnchorID != "":
 		db = db.Where("anchor_kind = ? AND anchor_id = ?", q.AnchorKind, q.AnchorID)
 	}
 	if q.HasPosts {
 		db = db.Where("posts_count > 0")
+	}
+	pinned := pinnedSQL(len(q.BoardIDs) > 0)
+	switch q.Pinned {
+	case PinFilterOnly:
+		var rows []model.CommunityThread
+		err := db.Where(pinned, time.Now()).Order("pinned_at DESC, id DESC").Limit(q.Limit).Find(&rows).Error
+		return rows, err
+	case PinFilterExclude:
+		db = db.Where("NOT "+pinned, time.Now())
 	}
 	db = orderThreads(db, q.Sort, q.Cursor)
 
 	var rows []model.CommunityThread
 	err := db.Limit(q.Limit).Find(&rows).Error
 	return rows, err
+}
+
+// The scope is a literal for the same reason boardTopicSQL's values are.
+func pinnedSQL(inBoard bool) string {
+	scope := model.PinScopeSite
+	if inBoard {
+		scope = model.PinScopeBoard
+	}
+	return fmt.Sprintf("(community_thread.pin_scope >= %d AND "+
+		"(community_thread.pinned_until IS NULL OR community_thread.pinned_until > ?))", scope)
 }
 
 func orderThreads(db *gorm.DB, sort ThreadSort, cursor ThreadCursor) *gorm.DB {
@@ -236,4 +273,19 @@ func AllocateReplyTx(tx *gorm.DB, threadID int64, at time.Time, newParticipant b
 		incParticipant, at, at, threadID,
 	).Scan(&number).Error
 	return number, err
+}
+
+func LockThreadTx(tx *gorm.DB, id int64) (*model.CommunityThread, error) {
+	return getThread(tx.Clauses(clause.Locking{Strength: LockUpdate}), id)
+}
+
+func UpdateThreadTx(tx *gorm.DB, id int64, updates map[string]any) error {
+	updates["updated_at"] = time.Now()
+	return tx.Model(&model.CommunityThread{}).Where("id = ?", id).Updates(updates).Error
+}
+
+func RaisePostRatingTx(tx *gorm.DB, threadID int64, floor int16) error {
+	return tx.Model(&model.CommunityPost{}).
+		Where("thread_id = ? AND content_rating < ?", threadID, floor).
+		Update("content_rating", floor).Error
 }

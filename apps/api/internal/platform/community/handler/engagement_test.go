@@ -23,7 +23,7 @@ func TestEngagementHandlers_StampTheCallerSite(t *testing.T) {
 	mine, theirs := clientCtx("letmoe"), clientCtx("kungal")
 
 	topic, err := s.openTopic(mine, &openTopicInput{Body: dto.OpenTopicRequest{
-		AuthorID: 100, AnchorID: "1", Title: "t", Body: "opening",
+		AuthorID: 100, BoardID: testBoard(t, "letmoe", "b1"), Title: "t", Body: "opening",
 	}})
 	if err != nil {
 		t.Fatalf("openTopic: %v", err)

@@ -83,7 +83,16 @@
   original two-part shape, so cursors held by callers that predate `sort` still
   work; `posts` orders on a mutable key, so a row can move between pages while a
   caller pages through it. **`has_posts`** keeps only threads holding at least
-  one post. A comments thread is created by its first *comment*, but the
+  one post. **`board_id`** narrows a topic listing to one board (with
+  **`subboards=true`**, the board and its sub-boards) and replaces the anchor
+  filter for boards — sending both is a `422`, as is a `board_id` on a kind other
+  than topic; a board of another site is a `404`. **`pinned`** is `any`
+  (default), `only` or `exclude`: on a board both board and site pins count as
+  pinned, on the site listing only site pins do, so a site page reads
+  `pinned=only` for its banner topics and `pinned=exclude` for the rest, and a
+  board page does the same with `board_id`. `only` returns the pinned set as one
+  page, newest pin first, and refuses a `cursor` (`400`). A comments thread is
+  created by its first *comment*, but the
   deprecated resolve face created one per anchor **view**, so a tenant that has
   been serving pages carries a long tail of empty threads (110,918 of kungal's
   114,070 when the write path changed) and an unfiltered "latest threads" read
@@ -91,6 +100,12 @@
   `GET /threads/{id}/posts` — a thread with a page of posts, keyset by
   `post_number` (`after`). Cooked HTML is served for display; the raw markdown is
   included for the editor.
+- Every thread view carries **`board_id`** when the thread is a board topic (its
+  `anchor_id` as a number) and, while a pin is in force, **`pin_scope`** /
+  `pinned_at` / `pinned_until`; a pin whose `pinned_until` has passed reads as
+  unpinned everywhere. The post context on feed, search and author rows carries
+  the same `board_id`.
+- `GET /boards`, `GET /boards/{id}`, `GET /boards/by-slug/{slug}` — see §5.
 - `GET /search/posts` and `GET /search/threads` — case-insensitive substring
   search over a post's **markdown source** and over thread titles, 2-100
   characters, optional `kind` filter, newest-first keyset (creation time for
@@ -151,7 +166,8 @@
 
 ## 4. Write faces (embed capability set, invariant 11)
 
-`POST /topics`, `POST /feedback` (each opens a thread with its opening post),
+`POST /topics`, `POST /feedback` (each opens a thread with its opening post;
+a topic opens on a board, a feedback thread on an entity anchor `1..4`),
 `POST /comments` (comment on an anchor), `POST /threads/{id}/posts` (reply),
 `PATCH /posts/{id}` (author edit),
 `DELETE /posts/{id}` (author self-delete), `POST /posts/{id}/reaction` (toggle),
@@ -159,6 +175,22 @@
 `POST /feedback/{id}/merge`. Capabilities are read/post/reply/edit/delete/react/
 report/feedback — NOT a shrunken forum (edit **history** / the version surface,
 advanced search, and mod tooling live on the full surface, not here).
+
+#### Open a topic — `POST /topics`
+
+A topic names its board with **`board_id`**. The board must belong to the
+caller's site (`404` otherwise) and passes its gates before anything is written:
+an archived board takes no topics (`409`), an announcement board takes them only
+with **`as_moderator: true`** (`403` otherwise), and `topic_min_trust_level`
+refuses authors below it (`403`) unless `as_moderator` is set. The topic's
+rating is the higher of the requested one and the board's floor, and the opening
+post carries the same. `anchor_id` is the **deprecated** way to name the board —
+a board id when it is all digits, a slug otherwise — and exists only so a site
+that opened topics on its own string (letmoe's `"main"`) keeps working through
+the switch; sending both is a `422`. The key resolves only to a board that
+exists: the migration created `main` where topics already hung from it
+(production letmoe and letmoe-staging), and anywhere else — a fresh or local
+database — a site creates its boards before opening topics, or gets a `404`.
 
 #### Comment on an anchor — `POST /comments`
 
@@ -223,6 +255,11 @@ click's result without one. The count arrived after the read faces did: until
 then a site that had dropped its mirror table had to re-read the post after every
 click, which is the round trip the mirror had been saving it.
 
+A reply to a board topic (`POST /threads/{id}/posts`) passes the board's gates
+too: no replies on an archived board (`409`), and `reply_min_trust_level`
+refuses authors below it (`403`). An author can still edit and delete their
+posts on an archived board.
+
 ### Write-time content pipeline (invariant 6)
 
 Every post body is Markdown. On write it is rendered (goldmark, GFM, raw HTML
@@ -238,7 +275,86 @@ and ≤10 replies per rolling 24h, and their first 2 posts are **held** (created
 hidden + enqueued for review). TL≥1 is exempt from the content and daily caps.
 Exceeding a cap returns `429`.
 
-## 5. Unread & subscription (the sparse thread_user row)
+## 5. Boards and topic moderation
+
+A **board** is the anchor every topic hangs from (`anchor_kind = 0`, `anchor_id`
+= the board id). Boards are per site and nest **one level**: a top-level board
+may hold sub-boards, a sub-board holds none. The site owns who may manage them —
+community trusts the calling BFF, as it does for every identity (§2), and writes
+`actor_id` to the audit log.
+
+| field | meaning |
+|---|---|
+| `slug` | URL key, unique on the site; lowercase letters, digits and single hyphens, **never all digits** (a numeric key is read as an id) |
+| `name`, `description`, `icon`, `color`, `topic_template` | presentation; `icon` is an emoji, icon name or image hash and `color` a palette token, both rendered by the site; `topic_template` is the markdown a composer starts from |
+| `parent_id`, `position` | the tree and the order among siblings; a new board goes last |
+| `format` | `0` discussion, `1` Q&A (a topic can mark its answer), `2` announcement (only moderators open topics; everyone can reply) |
+| `status` | `0` active, `1` archived: everything stays readable, no new topics or replies |
+| `content_rating` | the floor for its topics' rating (invariant 12); changing it applies to topics opened afterwards |
+| `topic_min_trust_level`, `reply_min_trust_level` | trust level `0..3` needed to open a topic / to reply. Capped at 3 because a staff boost floors staff at TL3 (§7) — a higher gate would lock the site's own moderators out |
+
+**Faces.** `GET /boards` lists the site's boards in display order (each
+top-level board followed by its sub-boards); `GET /boards/{id}` and
+`GET /boards/by-slug/{slug}` read one. `POST /boards` creates, `PATCH
+/boards/{id}` changes only the fields it carries (`parent_id: 0` moves a board
+to the top level, an empty text clears an optional field; a board with
+sub-boards cannot become a sub-board), `DELETE /boards/{id}?actor_id=` removes a
+board only when **no thread names it** — tombstoned topics included — and it has
+no sub-boards (`409` otherwise: move the topics, or archive the board), and
+`POST /boards/reorder` sets one parent's order from a list that must name every
+sibling exactly once (`422` otherwise), so the result never depends on positions
+the caller did not see. A duplicate slug is a `409`; another site's board is a
+`404` on every face.
+
+**Stats.** Every board read carries `stats`: `topics_count` counts the topics a
+reader sees in the listing — live threads whose opening post is visible, so a
+held or tombstoned opening drops out — `posts_count` sums those topics'
+`posts_count` (numbers allocated, like the thread counter), and
+`last_posted_at` / `last_thread_id` / `last_thread_title` name the most recently
+active one. A board's stats are its own; a parent does not include its
+sub-boards. They are computed from the threads on every read — production held 3
+topics when boards shipped, and the aggregate uses a partial index on board
+topics. A rollup is the scale trigger, and when it comes it must be filled
+by this same aggregate.
+
+**Concurrency.** Opening a topic re-reads its board under a share lock inside
+the write, and deleting or re-parenting a board takes an update lock first, so a
+topic never lands on a board that was deleted while it was being written.
+
+**Legacy anchors.** Before boards existed a site named its board with a string
+of its own. The migration that introduced boards turned each such string into a
+board of that slug on its site — letmoe's and letmoe-staging's `"main"`, the
+only ones in production — and re-anchored the topics onto its id. The board is
+named after its slug until the site renames it.
+
+### Moderation faces
+
+Each takes the acting moderator as `actor_id` and answers with the thread as it
+stands afterwards. They reach only threads **the caller's site opened** (`404`
+otherwise) — stricter than the id-addressed guard: a catalog-anchored thread
+takes replies from every site, but closing it would close it for all of them,
+so only its own site moderates it, as with `POST /feedback/{id}/status`.
+
+- `POST /threads/{id}/move` `{board_id}` — moves a board topic to another board
+  of the same site. The topic's rating (and every post's) rises to the new
+  board's floor and never falls: an R18 topic stays R18 on an all-ages board.
+  A board pin stays behind (it was about the old board); a site pin moves with
+  the topic.
+- `POST /threads/{id}/pin` `{scope, until?}` — `1` pins it on its board, `2` on
+  its board and on the site listing, `0` unpins; `until` is a future time after
+  which the pin lapses by itself. Pinning again restarts `pinned_at`, which is
+  the order pinned topics list in. Board topics only.
+- `POST /threads/{id}/close` `{closed}` — closes a thread of any kind to new
+  posts (`409 thread is not open` on a reply) or reopens it. A merged feedback
+  thread stays closed.
+- `POST /threads/{id}/answer` `{post_id, as_moderator?}` — marks the reply that
+  answers a topic on a Q&A board, or a feedback thread; `post_id: 0` clears it.
+  The thread's author marks it, or a moderator with `as_moderator`. The answer
+  must be a visible reply in that thread. It is checked when it is marked and
+  not kept in step afterwards: a reply removed later stays named in
+  `answer_post_id`, and a reader renders it as removed.
+
+## 6. Unread & subscription (the sparse thread_user row)
 
 A `(thread, user)` row exists only once that pair has interacted (Discourse's
 topic_users model): a thread the user never opened carries no row and reports no
@@ -250,7 +366,7 @@ state at all — not "everything unread".
   highest post number. Reading is never inferred from a GET: a read face with a
   write side effect cannot be cached, retried or prefetched safely.
 - `POST /threads/{id}/notification` — set `0=muted 1=normal 2=tracking
-  3=watching`. Community stores the preference and emits events (§8); delivery
+  3=watching`. Community stores the preference and emits events (§9); delivery
   is the notification layer's job, so the level is a contract with that layer
   rather than a switch inside this service.
 - The **compliance purge** (`POST /authors/{id}/purge`) clears these rows too,
@@ -271,7 +387,7 @@ state at all — not "everything unread".
   catalog-anchored thread — one conversation network-wide — is listed for every
   tenant the user reaches it from.
 
-## 6. Trust engine (doc 11 §6)
+## 7. Trust engine (doc 11 §6)
 
 - **Metering** — `POST /trust/activity` is the site BFF's batch receipt of a
   user's reading behavior (deltas: topics entered / posts read / read seconds /
@@ -296,7 +412,7 @@ state at all — not "everything unread".
   floor alone would not clear it); veteran/creator boosts leave the budget
   untouched.
 
-## 7. Reputation-weighted reporting & the review queue (doc 11 §6 layers 4-5)
+## 8. Reputation-weighted reporting & the review queue (doc 11 §6 layers 4-5)
 
 - A report's **weight** = the reporter's per-TL base (TL0 1.0 … TL4 2.5) × their
   historical accuracy `agreed/(agreed+disagreed)` (1.0 with no history). A post
@@ -318,20 +434,34 @@ state at all — not "everything unread".
 - **No automatic bans** (invariant 9): cross-site signals only soft-hold into the
   queue; hard bans come only from humans and IdP-level suspension.
 
-## 8. Events (doc 11 §7)
+## 9. Events (doc 11 §7)
 
 The service only EMITS domain events (`post.created`, `reply.to_you`, `mention`,
 `feedback.status_changed`, `flag.threshold`); delivery and aggregation belong to
 the notification layer. v0 delivery is a no-op sink.
 
-## 9. Not yet on the wire (deferred, with triggers)
+## 10. Not yet on the wire (deferred, with triggers)
 
 Pre-moderation switch (per-thread/site, opened on a malicious event), Akismet /
-external moderation callback (the `external` review source is reserved), board
-management (`community_board` is still an empty table — every tenant anchors its
-topics on an id it mints itself), aggregate hot-ranking and materialized jobs
-(scale-trigger; `sort=posts` is a live count, not a ranking), and any web/TS type
-generation (no in-repo consumer — letmoe reaches over S2S).
+external moderation callback (the `external` review source is reserved),
+aggregate hot-ranking and materialized jobs (scale-trigger; `sort=posts` is a
+live count, not a ranking), and any web/TS type generation (no in-repo consumer
+— letmoe reaches over S2S).
+
+Boards leave these out on purpose, each with the condition that brings it in:
+
+- **Read-restricted boards** (staff-only areas). Every read face — listings,
+  feed, both searches, thread and post reads, unread, author and resolve faces —
+  would have to take the viewer's role from the site and filter on it; a filter
+  every face must remember is the failure the tenant split exists to avoid.
+  Trigger: the first site that needs a hidden board, designed as a scope on the
+  tenant rather than a parameter on each face.
+- **Per-board moderators.** Roles live at the site, which already vouches with
+  `as_moderator` and can read a topic's board from `board_id`. Trigger: a site
+  that wants community to hold the assignment.
+- **Watching a board.** A board is an anchor, so "notify me of new topics here"
+  is the anchor-level subscription planned next, not a board feature.
+- Tags, polls, slow mode and auto-close timers.
 
 Two follow-ups wait on the consuming sites rather than on this service: the
 retirement of `POST /comments/resolve` (a declared breaking change), and the
