@@ -415,6 +415,12 @@ delivery per site. Muted means nothing is sent. A poster's own thread row
 (watching) therefore outranks a muted board. Notifications that apply this are
 the next step.
 
+Because a thread row outranks the anchor, the first row a **read** writes takes
+`watching` when the user watches the thread's anchor through the reading site,
+and `normal` otherwise — a board watcher keeps hearing about a topic after
+opening it. The anchor only seeds a new row: an existing row keeps its level,
+and unwatching the anchor later does not rewrite it.
+
 `community_thread_user` now records the site of the user's latest interaction.
 A catalog-anchored thread can be watched from several sites; the column says
 which site that interaction came through. A NULL (the one-off importers still

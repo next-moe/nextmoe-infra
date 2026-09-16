@@ -33,7 +33,7 @@ func (s *EngagementService) MarkRead(ctx context.Context, threadID, userID int64
 		if lastRead < 0 {
 			lastRead = 0
 		}
-		return repository.MarkReadTx(tx, threadID, userID, lastRead, deliverySite(ctx, thread.Site))
+		return repository.MarkReadTx(tx, thread, userID, lastRead, deliverySite(ctx, thread.Site))
 	})
 	if err != nil {
 		return nil, err

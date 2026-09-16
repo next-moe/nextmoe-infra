@@ -279,6 +279,103 @@ func TestBoardSubscribeWaitsForABoardBeingDeleted(t *testing.T) {
 	}
 }
 
+func threadUserLevel(t *testing.T, threadID, userID int64) int16 {
+	t.Helper()
+	var row model.CommunityThreadUser
+	if err := testDB.Where("thread_id = ? AND user_id = ?", threadID, userID).First(&row).Error; err != nil {
+		t.Fatalf("thread_user %d/%d: %v", threadID, userID, err)
+	}
+	return row.NotificationLevel
+}
+
+func TestFirstReadTakesWatchingFromTheAnchor(t *testing.T) {
+	cleanTables(t)
+	bs := NewBoardService(testDB)
+	ts := NewThreadService(testDB, NoopSink{})
+	ps := NewPostService(testDB, NoopSink{})
+	es := NewEngagementService(testDB)
+	letmoe := WithCallerSite(context.Background(), "letmoe")
+	seedTrust(t, 100, model.TrustLevelBasic, 0)
+	board := createBoard(t, bs, "letmoe", "general", 0)
+	topic, err := openOn(ts, board.ID, 100, false)
+	if err != nil {
+		t.Fatalf("open topic: %v", err)
+	}
+	levels := map[int64]int16{
+		201: model.NotificationLevelWatching,
+		202: model.NotificationLevelWatchingFirstPost,
+		203: model.NotificationLevelMuted,
+	}
+	for user, level := range levels {
+		if _, err := es.SetAnchorLevel(letmoe, "letmoe", user, model.AnchorKindBoard, model.BoardAnchorID(board.ID), level); err != nil {
+			t.Fatalf("anchor level for %d: %v", user, err)
+		}
+	}
+	for _, user := range []int64{201, 202, 203, 204} {
+		if _, err := es.MarkRead(letmoe, topic.ID, user, 1); err != nil {
+			t.Fatalf("mark read %d: %v", user, err)
+		}
+	}
+	for user, want := range map[int64]int16{
+		201: model.NotificationLevelWatching,
+		202: model.NotificationLevelNormal,
+		203: model.NotificationLevelNormal,
+		204: model.NotificationLevelNormal,
+	} {
+		if got := threadUserLevel(t, topic.ID, user); got != want {
+			t.Fatalf("user %d first read: want level %d, got %d", user, want, got)
+		}
+	}
+
+	if _, err := es.SetAnchorLevel(letmoe, "letmoe", 201, model.AnchorKindBoard, model.BoardAnchorID(board.ID), model.NotificationLevelNormal); err != nil {
+		t.Fatalf("unwatch board: %v", err)
+	}
+	if _, err := es.MarkRead(letmoe, topic.ID, 201, 1); err != nil {
+		t.Fatalf("second read: %v", err)
+	}
+	if got := threadUserLevel(t, topic.ID, 201); got != model.NotificationLevelWatching {
+		t.Fatalf("an existing row keeps its level, got %d", got)
+	}
+	if _, err := es.SetAnchorLevel(letmoe, "letmoe", 204, model.AnchorKindBoard, model.BoardAnchorID(board.ID), model.NotificationLevelWatching); err != nil {
+		t.Fatalf("watch board late: %v", err)
+	}
+	if _, err := es.MarkRead(letmoe, topic.ID, 204, 1); err != nil {
+		t.Fatalf("read after watching: %v", err)
+	}
+	if got := threadUserLevel(t, topic.ID, 204); got != model.NotificationLevelNormal {
+		t.Fatalf("watching an anchor later does not rewrite an existing row, got %d", got)
+	}
+
+	wall, _, err := ps.Comment(context.Background(), CommentParams{
+		Site: "letmoe", AnchorKind: model.AnchorKindCatalogWork, AnchorID: "w9",
+		ContentRating: model.ContentRatingAll, AuthorID: 100, BodyRaw: "hello",
+	})
+	if err != nil {
+		t.Fatalf("open wall: %v", err)
+	}
+	if _, err := es.SetAnchorLevel(letmoe, "letmoe", 301, model.AnchorKindCatalogWork, "w9", model.NotificationLevelWatching); err != nil {
+		t.Fatalf("letmoe watches the work: %v", err)
+	}
+	if _, err := es.MarkRead(WithCallerSite(context.Background(), "kungal"), wall.ID, 301, 1); err != nil {
+		t.Fatalf("read through kungal: %v", err)
+	}
+	if got := threadUserLevel(t, wall.ID, 301); got != model.NotificationLevelNormal {
+		t.Fatalf("another site's anchor row must not set the level, got %d", got)
+	}
+	if _, err := es.MarkRead(letmoe, wall.ID, 302, 1); err != nil {
+		t.Fatalf("read through letmoe: %v", err)
+	}
+	if _, err := es.SetAnchorLevel(letmoe, "letmoe", 303, model.AnchorKindCatalogWork, "w9", model.NotificationLevelWatching); err != nil {
+		t.Fatalf("letmoe 303 watches the work: %v", err)
+	}
+	if _, err := es.MarkRead(letmoe, wall.ID, 303, 1); err != nil {
+		t.Fatalf("read through letmoe: %v", err)
+	}
+	if got := threadUserLevel(t, wall.ID, 303); got != model.NotificationLevelWatching {
+		t.Fatalf("the delivery site's anchor row sets the level, got %d", got)
+	}
+}
+
 func threadUserSite(t *testing.T, threadID, userID int64) string {
 	t.Helper()
 	var row model.CommunityThreadUser

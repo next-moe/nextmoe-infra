@@ -19,8 +19,15 @@ const upsertThreadUser = `
 
 // MarkReadTx advances a reader's high-water mark. It never walks backwards: a
 // late-arriving receipt from a slower tab cannot un-read what was already read.
-func MarkReadTx(tx *gorm.DB, threadID, userID int64, lastRead int32, site string) error {
-	return tx.Exec(upsertThreadUser, threadID, userID, lastRead, model.NotificationLevelNormal, site).Error
+// A thread row outranks the anchor row once it exists, so a first read started
+// at normal silenced every thread a board watcher opened; the first row takes
+// watching from the anchor instead.
+func MarkReadTx(tx *gorm.DB, thread *model.CommunityThread, userID int64, lastRead int32, site string) error {
+	level := gorm.Expr(`COALESCE((
+		SELECT notification_level FROM community_anchor_user
+		 WHERE site = ? AND user_id = ? AND anchor_kind = ? AND anchor_id = ? AND notification_level = ?), ?)`,
+		site, userID, thread.AnchorKind, thread.AnchorID, model.NotificationLevelWatching, model.NotificationLevelNormal)
+	return tx.Exec(upsertThreadUser, thread.ID, userID, lastRead, level, site).Error
 }
 
 // EnsureSubscribedTx is the poster's own row: writing in a thread subscribes you
