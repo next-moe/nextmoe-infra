@@ -142,3 +142,51 @@ func TestTopAuthorsRanksThisSiteOnly(t *testing.T) {
 		t.Fatalf("want 902 with 1 post second, got %+v", stats[1])
 	}
 }
+
+// The edit face returns the post, and it is not a read face: moyu reported it
+// answering reaction_count 0 on a post with likes, and was refilling the count
+// from a resolve it had done before the edit.
+func TestEditPostCarriesReactionCount(t *testing.T) {
+	cleanTables(t)
+	s := newTenantServer()
+	ctx := clientCtx("moyu")
+	seedTL1(t, 700)
+
+	th := resolve(t, s, ctx, model.AnchorKindSiteGame, "77")
+	postID := replyN(t, s, ctx, th, 700, 1)[0]
+
+	for _, user := range []int64{700, 801} {
+		if _, err := s.toggleReaction(ctx, &toggleReactionInput{
+			ID: postID, Body: dto.ReactionToggleRequest{UserID: user, Kind: model.ReactionKindLike},
+		}); err != nil {
+			t.Fatalf("toggle by %d: %v", user, err)
+		}
+	}
+
+	out, err := s.editPost(ctx, &editPostInput{
+		ID: postID, Body: dto.EditPostRequest{AuthorID: 700, Body: "edited"},
+	})
+	if err != nil {
+		t.Fatalf("editPost: %v", err)
+	}
+	if got := out.Body.Data.Post.ReactionCount; got != 2 {
+		t.Fatalf("an edit must not zero the likes: want reaction_count 2, got %d", got)
+	}
+	if !out.Body.Data.Post.ViewerReacted {
+		t.Fatal("the acting user liked this post; viewer_reacted must be true for them")
+	}
+
+	// A moderator editing someone else's post is the viewer of the response.
+	modOut, err := s.editPost(ctx, &editPostInput{
+		ID: postID, Body: dto.EditPostRequest{AuthorID: 909, Body: "moderated", AsModerator: true},
+	})
+	if err != nil {
+		t.Fatalf("editPost as moderator: %v", err)
+	}
+	if got := modOut.Body.Data.Post.ReactionCount; got != 2 {
+		t.Fatalf("moderator edit: want reaction_count 2, got %d", got)
+	}
+	if modOut.Body.Data.Post.ViewerReacted {
+		t.Fatal("the moderator never liked this post; viewer_reacted must be false")
+	}
+}

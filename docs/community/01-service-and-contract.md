@@ -100,7 +100,11 @@
   posts and live threads only, and a title hit carries the same
   `opening_status` the listing does, so a held opening post does not leak its
   title through search either. `%` and `_` in a query are characters the user
-  typed, not wildcards.
+  typed, not wildcards. Both follow the **id-addressed guard**, like `GET /posts`
+  and the unread faces: the caller's own site plus catalog-anchored threads.
+  Only `GET /authors/*` and `POST /posts/resolve` are strictly `site = ?`, so a
+  consumer that renders results as its own pages still has to drop anchors it
+  does not own from the other four — and a page can arrive shorter than `limit`.
   **Why Postgres and not a search engine**: `pg_trgm` is the only CJK-capable
   index on a stock Postgres here (`zhparser`/`pg_jieba` are not installed and
   `to_tsvector` has no Chinese tokenizer). It accelerates queries of three
@@ -130,10 +134,15 @@
   caller that already knows which authors it means; a leaderboard is the question
   no batch of named ids can ask. Ties break on the lower author id, so a page is
   stable between calls.
-- **Every post a read face returns carries `reaction_count`**, and
-  `viewer_reacted` when the request names a `viewer_id` (query parameter on the
-  GET faces, a body field on `POST /posts/resolve`; a request with no viewer gets
-  counts and `false`). Without it a site that wanted to render a like count had
+- **Every post any face returns carries `reaction_count`**, and
+  `viewer_reacted` when the request names a viewer (a `viewer_id` query parameter
+  on the GET faces, a body field on `POST /posts/resolve`; a request with no
+  viewer gets counts and `false`). That includes the one write face that returns
+  a post it did not just create, `PATCH /posts/{id}`, whose viewer is the acting
+  user in the body — it shipped without the count and answered 0 on a post with
+  likes until moyu reported it. The exception is `POST /threads/{id}/posts`,
+  where the post was inserted by that same call and 0 is the true count. Without
+  a count a site that wanted to render a like count had
   to keep a mirror table of its own beside every post id and dual-write it on
   each toggle — two writes that are not one transaction, drifting from
   `community_reaction` the first time one fails and from
