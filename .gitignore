@@ -46,6 +46,12 @@ apps/api/build
 apps/api/tmp
 apps/api/kun-api
 apps/api/kun-blog-solid-fiber
+# A bare `go build` inside apps/api/cmd/<tool> writes an extensionless binary
+# named <tool> next to the source; #213 committed a 21 MB one that way. The
+# directory negation keeps subpackages such as cmd/migrate/backfill visible.
+apps/api/cmd/*/*
+!apps/api/cmd/*/*/
+!apps/api/cmd/*/*.*
 
 # Generated files
 apps/account/public/sitemap.xml
