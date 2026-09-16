@@ -28,6 +28,7 @@ type Opts struct {
 
 type Stats struct {
 	AnchoredWorks  int
+	SkippedBundle  int
 	SeriesEligible int
 	MembersWanted  int
 
@@ -67,9 +68,10 @@ func Run(ctx context.Context, opts Opts) (*Stats, error) {
 	var anchors []struct {
 		ExternalID string `gorm:"column:external_id"`
 		WorkID     int64  `gorm:"column:work_id"`
+		Bundle     bool   `gorm:"column:bundle"`
 	}
 	if err := db.WithContext(ctx).Raw(`
-		SELECT DISTINCT r.external_id, rel.work_id
+		SELECT DISTINCT r.external_id, rel.work_id, `+repository.BundleReleaseSQL("rel")+` AS bundle
 		FROM catalog_external_ref r
 		JOIN catalog_release rel ON rel.id = r.entity_id
 		JOIN catalog_work w ON w.id = rel.work_id AND w.deleted_at IS NULL
@@ -80,11 +82,16 @@ func Run(ctx context.Context, opts Opts) (*Stats, error) {
 	}
 	workByWorkno := make(map[string]int64, len(anchors))
 	distinctWorks := map[int64]struct{}{}
+	skippedBundle := 0
 	for _, a := range anchors {
+		if a.Bundle {
+			skippedBundle++
+			continue
+		}
 		workByWorkno[a.ExternalID] = a.WorkID
 		distinctWorks[a.WorkID] = struct{}{}
 	}
-	st := &Stats{AnchoredWorks: len(distinctWorks)}
+	st := &Stats{AnchoredWorks: len(distinctWorks), SkippedBundle: skippedBundle}
 
 	worknos := make([]string, 0, len(workByWorkno))
 	for wn := range workByWorkno {
@@ -363,6 +370,7 @@ func planMembers(ctx context.Context, db *gorm.DB, want map[string]*seriesInfo, 
 func logDone(st *Stats, apply bool) {
 	slog.Info("workseries done", "apply", apply,
 		"anchored_works", st.AnchoredWorks, "series_eligible", st.SeriesEligible, "members_wanted", st.MembersWanted,
+		"skipped_bundle", st.SkippedBundle,
 		"series_created", st.SeriesCreated, "series_renamed", st.SeriesRenamed, "series_deleted", st.SeriesDeleted,
 		"members_added", st.MembersAdded, "members_stale", st.MembersStale,
 		"order_changed", st.OrderChanged, "errors", st.Errors)

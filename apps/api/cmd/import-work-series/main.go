@@ -26,7 +26,7 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Printf("\n=== import-work-series %s ===\n", mode(*apply))
-	fmt.Printf("anchored_works=%d series_eligible=%d members_wanted=%d\n", st.AnchoredWorks, st.SeriesEligible, st.MembersWanted)
+	fmt.Printf("anchored_works=%d skipped_bundle=%d series_eligible=%d members_wanted=%d\n", st.AnchoredWorks, st.SkippedBundle, st.SeriesEligible, st.MembersWanted)
 	fmt.Printf("series: created=%d renamed=%d deleted=%d\n", st.SeriesCreated, st.SeriesRenamed, st.SeriesDeleted)
 	fmt.Printf("members: added=%d stale=%d\n", st.MembersAdded, st.MembersStale)
 	fmt.Printf("errors=%d\n", st.Errors)

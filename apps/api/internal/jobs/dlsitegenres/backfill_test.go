@@ -8,6 +8,7 @@ import (
 	"api/internal/platform/catalog/migrate"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/seed"
+	"api/internal/platform/catalog/srcvndb"
 	"api/internal/testsupport/dbtest"
 
 	"github.com/stretchr/testify/assert"
@@ -39,6 +40,9 @@ func TestMain(m *testing.M) {
 	if err := seed.Run(db); err != nil {
 		dbtest.SkipMainf("jobs/dlsitegenres", "catalog seed failed: %v", err)
 	}
+	if err := srcvndb.EnsureSchema(db); err != nil {
+		dbtest.SkipMainf("jobs/dlsitegenres", "src_vndb schema failed: %v", err)
+	}
 	for _, ddl := range []string{
 		`CREATE SCHEMA IF NOT EXISTS dlsitegenres_dl`,
 		`CREATE TABLE IF NOT EXISTS dlsitegenres_dl.works (workno text PRIMARY KEY, product_json jsonb)`,
@@ -59,7 +63,7 @@ func clean(t *testing.T) {
 	t.Helper()
 	for _, table := range []string{
 		"catalog_work_tag", "catalog_external_ref", "catalog_release", "catalog_work",
-		"dlsitegenres_dl.works", "dlsitegenres_dl.genre_taxonomy",
+		"dlsitegenres_dl.works", "dlsitegenres_dl.genre_taxonomy", "src_vndb.releases_vn",
 	} {
 		require.NoError(t, testDB.Exec("TRUNCATE "+table+" RESTART IDENTITY CASCADE").Error)
 	}
@@ -72,7 +76,7 @@ func mkWork(t *testing.T, medium int16, name string, site *string) int64 {
 	return w.ID
 }
 
-func mkReleaseAnchor(t *testing.T, workID int64, externalID string, source, kind int16) {
+func mkReleaseAnchor(t *testing.T, workID int64, externalID string, source, kind int16) int64 {
 	t.Helper()
 	rel := model.CatalogRelease{WorkID: workID, Kind: model.ReleaseKindDigital}
 	require.NoError(t, testDB.Create(&rel).Error)
@@ -80,6 +84,19 @@ func mkReleaseAnchor(t *testing.T, workID int64, externalID string, source, kind
 		EntityType: model.EntityTypeRelease, EntityID: rel.ID, SourceID: source,
 		ExternalID: externalID, LinkKind: kind, MatchedBy: "rule:test",
 	}).Error)
+	return rel.ID
+}
+
+func mkVndbRelease(t *testing.T, releaseID int64, rid string, vids ...string) {
+	t.Helper()
+	require.NoError(t, testDB.Exec(`
+		INSERT INTO catalog_external_ref (entity_type, entity_id, source_id, external_id, link_kind, matched_by)
+		VALUES (?, ?, (SELECT id FROM catalog_source WHERE key = 'vndb'), ?, ?, 'rule:test')`,
+		model.EntityTypeRelease, releaseID, rid, model.LinkKindExact).Error)
+	for _, vid := range vids {
+		require.NoError(t, testDB.Exec(
+			`INSERT INTO src_vndb.releases_vn (id, vid, rtype) VALUES (?, ?, 'complete')`, rid, vid).Error)
+	}
 }
 
 func mkMirrorWork(t *testing.T, workno, genres string) {
@@ -263,4 +280,31 @@ func TestClaimPeerWritesAndDSNRequired(t *testing.T) {
 	require.Error(t, err)
 	_, err = Run(ctx, Opts{DSN: testDSN})
 	require.Error(t, err)
+}
+
+func TestBundleReleaseLendsNoGenres(t *testing.T) {
+	clean(t)
+	ctx := context.Background()
+	reg, err := resolveRegistry(ctx, testDB)
+	require.NoError(t, err)
+	mkTaxonomy(t, 226, "zh_CN", "女教师")
+	mkTaxonomy(t, 113, "zh_CN", "强X")
+
+	bundleOnly := mkWork(t, reg.galgameMedium, "bundle-only", nil)
+	mkVndbRelease(t, mkReleaseAnchor(t, bundleOnly, "RJ300001", reg.dlsiteSource, model.LinkKindExact), "r1", "v1", "v2")
+	mkMirrorWork(t, "RJ300001", `[{"id":113,"name":"レイプ"}]`)
+
+	both := mkWork(t, reg.galgameMedium, "bundle-and-single", nil)
+	mkVndbRelease(t, mkReleaseAnchor(t, both, "RJ300002", reg.dlsiteSource, model.LinkKindExact), "r2", "v3", "v4")
+	mkMirrorWork(t, "RJ300002", `[{"id":113,"name":"レイプ"}]`)
+	mkVndbRelease(t, mkReleaseAnchor(t, both, "RJ300003", reg.dlsiteSource, model.LinkKindExact), "r3", "v3")
+	mkMirrorWork(t, "RJ300003", `[{"id":226,"name":"女教師"}]`)
+
+	st, err := Run(ctx, runOpts(true))
+	require.NoError(t, err)
+	assert.Equal(t, 1, st.SkippedBundle)
+	assert.Equal(t, 1, st.Written)
+	assert.EqualValues(t, 0, tagCount(t, "WHERE work_id = ?", bundleOnly))
+	assert.EqualValues(t, 1, tagCount(t, "WHERE work_id = ? AND name = ?", both, "女教师"),
+		"the single-VN product testifies even though the bundle's workno sorts first")
 }

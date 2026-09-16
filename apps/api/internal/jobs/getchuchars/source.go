@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"api/internal/platform/catalog/repository"
+
 	"gorm.io/gorm"
 )
 
@@ -33,22 +35,14 @@ type Candidate struct {
 // coordinate, and filtering here would make the matcher miss the character and
 // write Getchu's profile onto nobody.
 //
-// A product VNDB files under several VNs lists every bundled game's cast but is
-// anchored on one work, so a common name there resolves onto that work's
-// namesake. Such a product is marked bundle and matches nobody — the same rule
-// import-getchu-intros applies after the 2026-09-16 backlog drain wrote a
-// bundle's synopsis onto one of its games.
-const rosterSQL = `
+// A bundle product (repository.BundleReleaseSQL) lists every bundled game's
+// cast, so a common name there would resolve onto the anchored work's
+// namesake; it matches nobody.
+var rosterSQL = `
 SELECT DISTINCT g.external_id AS getchu_id, rel.work_id, wc.character_id,
        lower(normalize(regexp_replace(ch.display_name, '[[:space:]　]', '', 'g'), NFKC)) AS key_name,
        lower(normalize(regexp_replace(coalesce(al.name,''), '[[:space:]　]', '', 'g'), NFKC)) AS key_alias,
-       EXISTS (
-           SELECT 1 FROM catalog_external_ref vr
-           JOIN src_vndb.releases_vn rv ON rv.id = vr.external_id
-           JOIN src_vndb.releases_vn rv2 ON rv2.id = rv.id AND rv2.vid <> rv.vid
-           WHERE vr.entity_type = g.entity_type AND vr.entity_id = rel.id AND vr.link_kind = g.link_kind
-             AND vr.source_id = (SELECT id FROM catalog_source WHERE key = 'vndb')
-       ) AS bundle
+       ` + repository.BundleReleaseSQL("rel") + ` AS bundle
 FROM catalog_external_ref g
 JOIN catalog_release rel ON rel.id = g.entity_id AND rel.deleted_at IS NULL
 JOIN catalog_work w ON w.id = rel.work_id AND w.deleted_at IS NULL

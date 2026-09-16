@@ -29,8 +29,8 @@ func main() {
 	fmt.Printf("\n=== import-work-aliases %s ===\n", mode(*apply))
 	fmt.Printf("bgm: works=%d planned=%d skipped_dup=%d written=%d conflict=%d\n",
 		st.BgmWorks, st.BgmPlanned, st.BgmSkippedDup, st.BgmWritten, st.BgmConflict)
-	fmt.Printf("kana: works=%d no_kana=%d planned=%d written=%d\n",
-		st.KanaWorks, st.KanaNoKana, st.KanaPlanned, st.KanaWritten)
+	fmt.Printf("kana: works=%d bundle=%d no_kana=%d planned=%d written=%d\n",
+		st.KanaWorks, st.KanaBundle, st.KanaNoKana, st.KanaPlanned, st.KanaWritten)
 	fmt.Printf("errors=%d\n", st.Errors)
 	if st.Errors > 0 {
 		os.Exit(1)

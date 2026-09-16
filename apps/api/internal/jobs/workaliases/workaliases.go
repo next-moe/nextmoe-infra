@@ -30,6 +30,7 @@ type Stats struct {
 	BgmConflict   int
 
 	KanaWorks   int
+	KanaBundle  int
 	KanaNoKana  int
 	KanaPlanned int
 	KanaWritten int
@@ -204,16 +205,18 @@ func runKana(ctx context.Context, db *gorm.DB, opts Opts, st *Stats) error {
 	var rows []struct {
 		WorkID int64  `gorm:"column:work_id"`
 		Workno string `gorm:"column:workno"`
+		Bundle bool   `gorm:"column:bundle"`
 	}
 	if err := db.WithContext(ctx).Raw(`
-		SELECT DISTINCT ON (rel.work_id) rel.work_id, r.external_id AS workno
+		SELECT DISTINCT ON (rel.work_id) rel.work_id, r.external_id AS workno,
+			` + repository.BundleReleaseSQL("rel") + ` AS bundle
 		FROM catalog_external_ref r
 		JOIN catalog_release rel ON rel.id = r.entity_id
 		JOIN catalog_work w ON w.id = rel.work_id AND coalesce(w.site,'') = '' AND w.deleted_at IS NULL
 		JOIN catalog_medium m ON m.id = w.medium_id AND m.key = 'galgame'
 		WHERE r.entity_type = 6 AND r.source_id = 4 AND r.link_kind = 0
 		  AND NOT EXISTS (SELECT 1 FROM catalog_work_title t WHERE t.work_id = rel.work_id AND t.kind = 3)
-		ORDER BY rel.work_id, r.external_id`).Scan(&rows).Error; err != nil {
+		ORDER BY rel.work_id, bundle, r.external_id`).Scan(&rows).Error; err != nil {
 		return fmt.Errorf("load kana candidates: %w", err)
 	}
 	st.KanaWorks = len(rows)
@@ -229,7 +232,9 @@ func runKana(ctx context.Context, db *gorm.DB, opts Opts, st *Stats) error {
 
 	worknos := make([]string, 0, len(rows))
 	for _, r := range rows {
-		worknos = append(worknos, r.Workno)
+		if !r.Bundle {
+			worknos = append(worknos, r.Workno)
+		}
 	}
 	kana := map[string]string{}
 	for _, chunk := range chunkStr(worknos, 10000) {
@@ -251,6 +256,10 @@ func runKana(ctx context.Context, db *gorm.DB, opts Opts, st *Stats) error {
 
 	var touched []int64
 	for _, r := range rows {
+		if r.Bundle {
+			st.KanaBundle++
+			continue
+		}
 		k, ok := kana[r.Workno]
 		if !ok {
 			st.KanaNoKana++
