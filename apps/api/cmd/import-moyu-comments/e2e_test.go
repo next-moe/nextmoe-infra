@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -133,8 +134,10 @@ func TestImportMoyuComments(t *testing.T) {
 	insertComment(t, 2, 500, nil, 90002, &one, "reply on the game", edited, base.Add(time.Minute))
 	// The SAME game, but a resource under it: a second wall, not more of the first.
 	insertComment(t, 3, 500, &resource, 90003, nil, "on the resource", "", base.Add(2*time.Minute))
-	// A second game.
-	insertComment(t, 4, 501, nil, 90001, nil, "another game", "", base.Add(3*time.Minute))
+	// A second game, edited in moyu's older format: Date.now() milliseconds.
+	editedMillis := base.Add(3 * time.Hour)
+	insertComment(t, 4, 501, nil, 90001, nil, "another game",
+		strconv.FormatInt(editedMillis.UnixMilli(), 10), base.Add(3*time.Minute))
 
 	if err := srcDB.Exec(
 		`INSERT INTO user_patch_comment_like_relation (user_id, comment_id, created) VALUES (?, ?, ?), (?, ?, ?)`,
@@ -242,6 +245,17 @@ func TestImportMoyuComments(t *testing.T) {
 	}
 	if reply.EditedAt == nil {
 		t.Fatal("an RFC3339 `edit` must become edited_at")
+	}
+
+	var millisEdited *time.Time
+	if err := testDB.Raw(`
+		SELECT p.edited_at FROM community_post p
+		  JOIN community_thread t ON t.id = p.thread_id
+		 WHERE t.site = ? AND t.anchor_id = '501'`, e2eSite).Scan(&millisEdited).Error; err != nil {
+		t.Fatalf("read millis-edited post: %v", err)
+	}
+	if millisEdited == nil || !millisEdited.Equal(editedMillis) {
+		t.Fatalf("an epoch-millis `edit` must become edited_at %v, got %v", editedMillis, millisEdited)
 	}
 
 	// Likes land as reactions on the root, and the trust counters that describe

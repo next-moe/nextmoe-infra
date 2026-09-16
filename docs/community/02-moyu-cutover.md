@@ -62,13 +62,20 @@ Two more faces landed with it:
 
    Source `kungalgame_patch` on 2026-09-16: 7,060 comments / 2,042 games / 427
    resource comments / 3,303 replies / 1,470 authors / 653 likes, all
-   `status = 0`, no dangling parents. The ledger
+   `status = 0`, no dangling parents. They become 2,128 walls — 1,969 game
+   walls and 159 resource walls, fewer game walls than commented games because
+   73 games were only ever commented on through a resource. The ledger
    (`patch_comment_community_map`, written back into moyu's database) is the
    idempotency key: a re-run writes nothing. The likes land in
    `community_reaction` **and** move `community_trust.likes_given/received`,
    which describe those same rows. Existing trust rows are never updated by the
    seed — 1,199 of these authors are kungal forum users whose level and
    held-post budget are theirs, earned on another site.
+
+   `patch_comment.edit` holds two formats: `Date.now()` milliseconds before
+   2026-06-03 and RFC3339 from 2026-06-06 on. Both become `edited_at`; the
+   dry run's `unparsable-edit` counter must read 0, and a non-zero one means
+   moyu started writing a third thing.
 
    Check the wall count landed:
 
