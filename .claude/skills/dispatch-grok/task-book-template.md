@@ -5,23 +5,27 @@ You cannot see the orchestrator's conversation. Everything you need is below.
 
 ## Context
 
-Repository: `/home/kun/Desktop/code/website/kun-galgame-infra` (your working directory).
+Repository: `/home/kun/Desktop/code/website/nextmoe-infra` (your working directory).
 Branch: `<branch>` at `<short sha>`.
 
 <Where the relevant code lives — exact paths. What it does today. Why it is changing.
 Every prior adjudication this task depends on, stated inline. If the reader would have to
 ask "why this way and not the obvious way", answer it here.>
 
-## Your environment (read this, it is not the usual one)
+## Your environment
 
-- **You have no shell.** Any terminal command ends this run immediately. Use only your file
-  tools: read, grep, list_dir, write, edit.
-- You therefore cannot build, test, format, or run anything. **That is expected.** The
-  orchestrator runs every gate after you finish. Write code that compiles; do not try to prove it.
-- Reads inside the repository are free. Everything outside it is unreachable except the one
-  output directory named below. Sibling repositories cannot be read at all.
+- You run under a kernel sandbox: you may write inside this repository, `/tmp` and `~/.grok`,
+  and nowhere else on this machine. A write outside those fails with `Permission denied` — that
+  is the sandbox, not a bug, and it is not to be worked around.
+- Reads are unrestricted, but **do not read or print `apps/api/.env` or any credential file**
+  (it carries live tokens). If a task seems to need one, stop and report it.
+- You have a shell. You may run **only** these commands, and nothing else:
+  - `<exact list — e.g. go build ./..., go vet ./<pkg>, gofmt -l <paths>, go test ./<pkg>, rg, git log/diff/status>`
+  - Run them. A change that does not compile is not finished work. The orchestrator re-runs
+    every one of them at acceptance, so do not report a gate as passing unless it did.
 - The repository `CLAUDE.md` is already in your context. Its iron rules bind you.
-- <Delete if not applicable:> Do not use web search or any MCP tool for this task.
+- <Delete if not applicable:> Do not use web search, the browser tools, or any MCP tool for this
+  task.
 
 ## Binding constraints for this task
 
@@ -48,8 +52,8 @@ the shape, the error handling, the naming — and what not to.>
 
 ## Acceptance criteria
 
-The orchestrator will run these. You cannot. They are listed so you know what your code
-must satisfy:
+Run the ones your command list covers, before you write the report; the orchestrator re-runs
+all of them afterwards and a disagreement is yours to have flagged:
 
 - `<exact command>` → `<expected output>`
 - Test `<TestName>` in `<file>` must pass.
@@ -80,9 +84,10 @@ Structure:
 ## 4. Deviations from the task book
 (if none, write "None.")
 
-## 5. What I could not verify
-(everything requiring a command belongs here — be specific about what the orchestrator
- should check, not just "run the tests")
+## 5. Gates I ran, and what I could not verify
+(each command from your list: the exact command and its result. Then everything you could
+ not settle — a command you were not permitted to run, a database you cannot reach — with
+ what the orchestrator should check, not just "run the tests")
 ```
 
 Your final stdout message: one short paragraph, the report path plus a one-line status.
@@ -94,8 +99,11 @@ Do not paste the report into stdout.
   - `<glob 1>`
   - `<glob 2>`
   - the report path above
-- Forbidden: any shell command; any git operation; any database access; starting any service;
-  editing files outside the writable paths; touching `KunUI` / `@kungal/ui-*` sources.
+- Forbidden, without exception: any git command that writes (`commit`, `push`, `branch`,
+  `checkout`, `rebase`, `stash`, `worktree`); any database access or migration; `docker`,
+  `docker compose`, `pnpm dev*`, or starting/stopping any service; any shell command outside
+  the list above; editing files outside the writable paths; touching `KunUI` / `@kungal/ui-*`
+  sources; reading credential files.
 - **Report, don't work around.** If something is missing, contradictory, or blocked, stop and
   write it in section 4 or 5. A blocked task reported accurately is a success; a task completed
   by inventing around the block is not.
