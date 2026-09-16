@@ -233,11 +233,12 @@ type PostResponse struct {
 }
 
 type ReactionToggleResponse struct {
-	Added      bool   `json:"added"`
-	AuthorID   int64  `json:"author_id" doc:"the post's author (the like-notification recipient)"`
-	ThreadID   int64  `json:"thread_id"`
-	AnchorKind int16  `json:"anchor_kind"`
-	AnchorID   string `json:"anchor_id"`
+	Added         bool   `json:"added" doc:"the acting user's new state: true = now reacted (the viewer_reacted a read face would report for them)"`
+	ReactionCount int32  `json:"reaction_count" doc:"the post's like count after this toggle, the same number a read face reports"`
+	AuthorID      int64  `json:"author_id" doc:"the post's author (the like-notification recipient)"`
+	ThreadID      int64  `json:"thread_id"`
+	AnchorKind    int16  `json:"anchor_kind"`
+	AnchorID      string `json:"anchor_id"`
 }
 
 type OKResponse struct {

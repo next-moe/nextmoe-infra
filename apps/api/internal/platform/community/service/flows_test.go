@@ -154,9 +154,13 @@ func TestReactionToggle(t *testing.T) {
 	post, _ := ps.Reply(context.Background(), ReplyParams{ThreadID: th.ID, AuthorID: 200, BodyRaw: "hi"})
 
 	rs := NewReactionService(testDB)
-	added, pc, err := rs.Toggle(context.Background(), post.ID, 300, model.ReactionKindLike)
+	res, err := rs.Toggle(context.Background(), post.ID, 300, model.ReactionKindLike)
+	added, pc := res.Added, res.Post
 	if err != nil || !added {
 		t.Fatalf("first toggle should add: added=%v err=%v", added, err)
+	}
+	if res.Count != 1 {
+		t.Fatalf("first toggle: want count 1, got %d", res.Count)
 	}
 	if pc.AuthorID != 200 || pc.ThreadID != th.ID || pc.AnchorKind != model.AnchorKindBoard || pc.AnchorID != "b1" {
 		t.Fatalf("post context: author=%d thread=%d anchor=%d/%q", pc.AuthorID, pc.ThreadID, pc.AnchorKind, pc.AnchorID)
@@ -166,9 +170,12 @@ func TestReactionToggle(t *testing.T) {
 	if n != 1 {
 		t.Fatalf("expected 1 reaction row, got %d", n)
 	}
-	added, _, err = rs.Toggle(context.Background(), post.ID, 300, model.ReactionKindLike)
-	if err != nil || added {
-		t.Fatalf("second toggle should remove: added=%v err=%v", added, err)
+	res, err = rs.Toggle(context.Background(), post.ID, 300, model.ReactionKindLike)
+	if err != nil || res.Added {
+		t.Fatalf("second toggle should remove: added=%v err=%v", res.Added, err)
+	}
+	if res.Count != 0 {
+		t.Fatalf("second toggle: want count 0, got %d", res.Count)
 	}
 	testDB.Model(&model.CommunityReaction{}).Where("post_id = ?", post.ID).Count(&n)
 	if n != 0 {

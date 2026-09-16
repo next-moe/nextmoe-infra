@@ -212,10 +212,16 @@ consistent with `highest_post_number`, matching the mod-reject path.
 
 #### Reaction toggle — `POST /posts/{id}/reaction`
 
-The response reports the new state (`added`) **plus the post's context** —
-`author_id` / `thread_id` / `anchor_kind` / `anchor_id` — which the reaction flow
-resolves anyway for the trust tallies. The context lets the consuming site fan
-out its like notification (recipient + jump target) without a second read.
+The response reports the acting user's new state (`added` — the
+`viewer_reacted` a read face would report for them), the post's like count after
+the toggle (`reaction_count`, read in the same transaction, the same number a
+read face reports), **plus the post's context** — `author_id` / `thread_id` /
+`anchor_kind` / `anchor_id` — which the reaction flow resolves anyway for the
+trust tallies. The context lets the consuming site fan out its like notification
+(recipient + jump target) without a second read; the count lets it render the
+click's result without one. The count arrived after the read faces did: until
+then a site that had dropped its mirror table had to re-read the post after every
+click, which is the round trip the mirror had been saving it.
 
 ### Write-time content pipeline (invariant 6)
 

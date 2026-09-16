@@ -190,3 +190,50 @@ func TestEditPostCarriesReactionCount(t *testing.T) {
 		t.Fatal("the moderator never liked this post; viewer_reacted must be false")
 	}
 }
+
+// The toggle is the face that changes the count, so it answers with it: a site
+// without a mirror table otherwise re-reads the post after every click.
+func TestToggleReturnsTheNewCount(t *testing.T) {
+	cleanTables(t)
+	s := newTenantServer()
+	ctx := clientCtx("sticker")
+	seedTL1(t, 700)
+
+	th := resolve(t, s, ctx, model.AnchorKindSiteResource, "pack-1")
+	postID := replyN(t, s, ctx, th, 700, 1)[0]
+
+	toggle := func(user int64) dto.ReactionToggleResponse {
+		t.Helper()
+		out, err := s.toggleReaction(ctx, &toggleReactionInput{
+			ID: postID, Body: dto.ReactionToggleRequest{UserID: user, Kind: model.ReactionKindLike},
+		})
+		if err != nil {
+			t.Fatalf("toggle by %d: %v", user, err)
+		}
+		return out.Body.Data
+	}
+
+	for i, user := range []int64{801, 802, 803} {
+		got := toggle(user)
+		if !got.Added || got.ReactionCount != int32(i+1) {
+			t.Fatalf("like by %d: want added/%d, got %v/%d", user, i+1, got.Added, got.ReactionCount)
+		}
+	}
+	got := toggle(802)
+	if got.Added || got.ReactionCount != 2 {
+		t.Fatalf("un-like by 802: want removed/2, got %v/%d", got.Added, got.ReactionCount)
+	}
+
+	page, err := s.getComments(ctx, &commentsPageInput{
+		AnchorKind: model.AnchorKindSiteResource, AnchorID: "pack-1", ViewerID: 802,
+	})
+	if err != nil {
+		t.Fatalf("getComments: %v", err)
+	}
+	for _, p := range page.Body.Data.Posts {
+		if p.ID == postID && (p.ReactionCount != got.ReactionCount || p.ViewerReacted != got.Added) {
+			t.Fatalf("the toggle and the read face disagree: toggle %d/%v, read %d/%v",
+				got.ReactionCount, got.Added, p.ReactionCount, p.ViewerReacted)
+		}
+	}
+}

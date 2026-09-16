@@ -930,6 +930,7 @@ components:
       additionalProperties: false
       properties:
         added:
+          description: "the acting user's new state: true = now reacted (the viewer_reacted a read face would report for them)"
           type: boolean
         anchor_id:
           type: string
@@ -940,11 +941,16 @@ components:
           description: the post's author (the like-notification recipient)
           format: int64
           type: integer
+        reaction_count:
+          description: the post's like count after this toggle, the same number a read face reports
+          format: int32
+          type: integer
         thread_id:
           format: int64
           type: integer
       required:
         - added
+        - reaction_count
         - author_id
         - thread_id
         - anchor_kind
