@@ -58,7 +58,7 @@ jobs:
     name: OpenAPI specs have no undeclared breaking changes
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # need history to diff against the base version
       - name: Install oasdiff (pinned)
