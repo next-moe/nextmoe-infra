@@ -13,7 +13,7 @@ export interface VocabularyZhMeta {
 
 export interface VocabularyZhValue {
   displayName: string
-  description: string
+  description?: string
 }
 
 export const vocabularyMetaZh: Record<string, VocabularyZhMeta> = {
