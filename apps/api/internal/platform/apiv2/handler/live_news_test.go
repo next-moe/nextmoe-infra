@@ -171,8 +171,13 @@ func TestLiveNewsValidationIsFieldLevel(t *testing.T) {
 		`{"source":"`+liveNewsSource+`","title":"t","summary":"`+strings.Repeat("a", newsmodel.PreviewMaxRunes)+`","source_url":"https://example.test/x"}`)
 	require.Equal(t, 201, status, "exactly 200 runes is the ceiling, not one past it: "+string(raw))
 
+	// ftp:// satisfies huma's format:"uri" (it only asks for a non-empty scheme)
+	// and is refused by newsSourceURLErrors, which wants http or https — so both
+	// this and work_ids are handler-stage failures and must arrive together.
+	// A scheme-less "not a url" would instead fail huma's schema stage, which
+	// returns before the handler runs and can therefore report only that field.
 	status, _, raw = liveDo(t, env, http.MethodPost, "/v2/me/news", liveUserToken,
-		`{"source":"`+liveNewsSource+`","title":"t","summary":"s","source_url":"not a url","work_ids":["abc","`+idstr(env.fx.Work)+`"]}`)
+		`{"source":"`+liveNewsSource+`","title":"t","summary":"s","source_url":"ftp://example.test/x","work_ids":["abc","`+idstr(env.fx.Work)+`"]}`)
 	require.Equal(t, 422, status, string(raw))
 	p = liveProblem(t, raw)
 	require.Equal(t, problem.CodeValidationFailed, p.Code)
@@ -182,6 +187,19 @@ func TestLiveNewsValidationIsFieldLevel(t *testing.T) {
 	}
 	require.Equal(t, problem.ReasonInvalidFormat, pointers["/source_url"])
 	require.Equal(t, problem.ReasonInvalidFormat, pointers["/work_ids/0"], "every failure at once, not one round trip each")
+
+	// The schema stage reports every field it rejects at once, too.
+	status, _, raw = liveDo(t, env, http.MethodPost, "/v2/me/news", liveUserToken,
+		`{"source":"`+liveNewsSource+`","title":"","summary":"s","source_url":"not a url"}`)
+	require.Equal(t, 422, status, string(raw))
+	p = liveProblem(t, raw)
+	require.Equal(t, problem.CodeValidationFailed, p.Code)
+	pointers = map[string]string{}
+	for _, e := range p.Errors {
+		pointers[e.Pointer] = e.Reason
+	}
+	require.Equal(t, problem.ReasonInvalidFormat, pointers["/source_url"])
+	require.Equal(t, problem.ReasonInvalidFormat, pointers["/title"], "every schema failure at once, not one round trip each")
 
 	// banner_hash is refused by the generated schema before the handler runs, so
 	// it is asserted on its own: mixing it into the case above hides every other

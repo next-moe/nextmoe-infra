@@ -137,7 +137,7 @@ func annotateSpec(doc *huma.OpenAPI) {
 	if doc.Components != nil && doc.Components.Schemas != nil {
 		problemRef = doc.Components.Schemas.Schema(reflect.TypeOf(problem.Problem{}), true, "Problem")
 		for _, v := range []any{
-			repr.Image{}, repr.Cover{}, repr.Names{}, repr.LocalizedText{},
+			repr.Image{}, repr.Cover{}, repr.LocalizedText{},
 			repr.WorkTitle{}, repr.EntityName{}, repr.Intro{}, repr.Ref{},
 			repr.Claim{}, repr.Work{}, repr.FacetValue{},
 			repr.Tag{}, repr.Company{}, repr.CreditName{}, repr.Character{},

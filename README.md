@@ -46,7 +46,7 @@
 
 ## 技术栈
 
-- **后端**:Go 1.25 + [Fiber](https://gofiber.io/),**单模块多二进制**(`cmd/*`)。`oauth`/`image` 因 `go-webp` 走 cgo(debian-slim + libwebp),其余纯 Go(distroless)。
+- **后端**:Go 1.27 + [Fiber](https://gofiber.io/),**单模块多二进制**(`cmd/*`)。`oauth`/`image` 因 `go-webp` 走 cgo(debian-slim + libwebp),其余纯 Go(distroless)。
 - **前端**:Nuxt 4 SSR(Nitro `node-server`)+ TypeScript,两个应用共享 **`@kun/ui`** Nuxt layer。
 - **数据**:PostgreSQL · Redis · MinIO(S3 兼容)· OpenSearch(全文搜索)。
 - **工程**:pnpm 10 workspace(monorepo)· Docker Compose · GitHub Actions(CI→GHCR)。

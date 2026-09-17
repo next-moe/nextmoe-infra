@@ -4723,29 +4723,6 @@ components:
         - character_id
         - character_name
       type: object
-    Names:
-      additionalProperties: true
-      properties:
-        display_name:
-          description: Primary label. Never empty. Must not be used as a discriminant.
-          maxLength: 512
-          type: string
-        latin:
-          description: Romanization. null if unrecorded. Must not be used as a discriminant.
-          maxLength: 512
-          type:
-            - string
-            - "null"
-        localized:
-          additionalProperties:
-            $ref: "#/components/schemas/LocalizedText"
-          description: BCP-47 keys, sparse. Empty object if none. Must not be used as a discriminant.
-          type: object
-      required:
-        - display_name
-        - latin
-        - localized
-      type: object
     NewsItem:
       additionalProperties: true
       properties:

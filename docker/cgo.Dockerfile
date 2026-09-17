@@ -8,7 +8,7 @@
 #
 #   docker build -f docker/cgo.Dockerfile --build-arg CMD=oauth -t kun-oauth .
 #   docker build -f docker/cgo.Dockerfile --build-arg CMD=image -t kun-image .
-ARG GO_VERSION=1.25
+ARG GO_VERSION=1.27
 
 # ---- build (needs libwebp headers + pkg-config for the cgo link) ----
 FROM golang:${GO_VERSION}-trixie AS build
