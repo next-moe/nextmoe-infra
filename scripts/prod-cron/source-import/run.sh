@@ -220,6 +220,19 @@ gstep sh -c "$DSNSH"'; import-store-refs --dsn "$CAT" --eg-dsn "$EG" --apply'
 gstep sh -c "$DSNSH"'; backfill-work-playtime --dsn "$CAT" --eg-dsn "$EG" --source eg --apply'
 
 begin_group bangumi
+# Mints Bangumi game subjects that no work anchors yet, ahead of the roster so a
+# new work is cast in the same run. A title colliding with a live work is
+# minted quarantined for the work-pair judge. The dry survey counts the whole
+# pool, quarantine backlog included (1,369 on 2026-09-17), so --limit is what
+# bounds a run and the ceiling watches the live creates only.
+if [ "$GROUP_FAIL" -eq 0 ]; then
+  if dry_ok bgm-type4 sh -c "$DSNSH"'; expand-bgm-type4-gated --dsn "$CAT"' \
+     && check_counters bgm-type4 "$last_dry_log" to_create=150; then
+    gstep sh -c "$DSNSH"'; expand-bgm-type4-gated --dsn "$CAT" --apply --limit 250'
+  else
+    ceiling_failed
+  fi
+fi
 if [ "$GROUP_FAIL" -eq 0 ]; then
   if dry_ok bangumi-roster import-character-roster --source bangumi \
      && check_counters bangumi-roster "$last_dry_log" characters_created=300; then
@@ -248,6 +261,16 @@ if [ "$GROUP_FAIL" -eq 0 ]; then
 fi
 
 begin_group dlsite
+# Mints the DLsite works an EG game claims and no work carries yet, ahead of the
+# genre, alias, platform and series lanes so they enrich it the same run.
+if [ "$GROUP_FAIL" -eq 0 ]; then
+  if dry_ok eg-dlsite import-eg-dlsite-releases \
+     && check_counters eg-dlsite "$last_dry_log" minted=150 quarantined=50; then
+    gstep import-eg-dlsite-releases --run
+  else
+    ceiling_failed
+  fi
+fi
 gstep sh -c "$DSNSH"'; backfill-dlsite-genres --dsn "$CAT" --dlsite-dsn "$DL" --apply'
 gstep sh -c "$DSNSH"'; import-work-aliases --dsn "$CAT" --dlsite-dsn "$DL" --source all --apply'
 gstep sh -c "$DSNSH"'; import-work-platforms --dsn "$CAT" --dlsite-dsn "$DL" --source all --apply'
@@ -264,9 +287,7 @@ fi
 
 # DELIBERATELY NOT RUN HERE:
 #   import-dlsite-works — imports only ボイス・ASMR works; ASMR is out of catalog scope by decision of 2026-08-21
-#   import-eg-dlsite-releases — mints a work for an EG-claimed SKU without checking titles; 22 of its 69 mints on 2026-09-16 would have duplicated live works
-#   expand-bgm-type4-gated — its title-collision gate misses 〜/－/- variants; a 30-work canary on 2026-09-16 duplicated at least 10 VNDB works and was rolled back
-#   catalog-char-xsrc — the LLM-adjudicated fold of cross-source character twins that the Bangumi and EG roster lanes wait on (they cast only uncast works until it runs)
+#   catalog-char-xsrc — the LLM-adjudicated fold of cross-source character twins; it has its own nightly job, char-xsrc-nightly
 #   reconcile-org-labels — mints labels and files human-review candidates; pending an operator decision
 #   enrich-org-labels — enriches the labels reconcile-org-labels anchors, so it waits on that decision
 #   backfill-dlsite-media, backfill-getchu-media, backfill-getchu-portraits, backfill-vndb-covers,

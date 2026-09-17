@@ -50,12 +50,14 @@ import-galgame-credits --source eg --apply
 import-galgame-credits --source eg-music --apply
 import-store-refs --apply
 backfill-work-playtime --source eg --apply
+expand-bgm-type4-gated --apply --limit 250
 import-character-roster --source bangumi --apply
 backfill-bgm-zh-names --lane character --apply
 backfill-bgm-zh-names --lane person --apply
 backfill-bgm-zh-names --lane label --apply
 import-entity-aliases --hints --run
 import-bangumi-xmedia --run
+import-eg-dlsite-releases --run
 backfill-dlsite-genres --apply
 import-work-aliases --source all --apply
 import-work-platforms --source all --apply
@@ -96,6 +98,8 @@ extract_tool_cmd() {
     backfill-bgm-zh-names \
     import-entity-aliases \
     import-bangumi-xmedia \
+    expand-bgm-type4-gated \
+    import-eg-dlsite-releases \
     backfill-dlsite-genres \
     import-work-aliases \
     import-work-platforms \
@@ -147,6 +151,13 @@ emit_out() {
       ;;
     import-bangumi-xmedia+dry|import-bangumi-xmedia+apply)
       echo '2026/09/16 16:30:46 INFO bangumi cross-media wave summary registered_anime=12 registered_manga=3 registered_novel=1 edges=20 edges_written=0 already_edge=2011 already_work=1958 skipped_platform=143 skipped_no_title=0 skipped_self=2 errors=0'
+      ;;
+    expand-bgm-type4-gated+dry)
+      echo '2026/09/17 05:21:17 INFO bgm-type4-gated survey dry=true pool_total=81364 excluded_console_mobile=13707 eligible_pool=67657 sig_p=229 sig_t=695 sig_x=1552 gated_total=1767 skipped_ascii_xonly=1005 title_collisions=1369 skipped_intra_collision=24 to_create=12 to_quarantine=1369 quarantined=0 works_created=0 titles_created=0 anchors_created=0 revisions_created=0'
+      echo '2026/09/17 05:21:17 INFO bgm-type4-gated summary pool_total=81364 excluded_console_mobile=13707 eligible_pool=67657 sig_p=229 sig_t=695 sig_x=1552 gated_total=1767 skipped_ascii_xonly=1005 title_collisions=1369 skipped_intra_collision=24 to_create=12 to_quarantine=1369 quarantined=0 works_created=0 titles_created=0 anchors_created=0 revisions_created=0'
+      ;;
+    import-eg-dlsite-releases+dry)
+      echo '2026/09/17 05:21:23 INFO eg-dlsite wave summary attached=0 minted=46 already=14178 ambiguous=407 missing=782 amb_b1_attach=0 amb_b2_mint=0 amb_b3_conflict=0 releases=46 titles=46 labels=31 names=49 credits=196 edges=46 eg_refs=46 stubs=0 skipped_unmapped_role=0 title_collisions=23 quarantined=23 skipped_intra_collision=0 errors=0'
       ;;
     import-work-series+dry)
       echo '2026/09/16 13:28:23 INFO workseries done apply=false anchored_works=19709 series_eligible=887 members_wanted=3178 series_created=10 series_renamed=0 series_deleted=0 members_added=1100 members_stale=0 order_changed=288 errors=0'
@@ -246,6 +257,8 @@ case "$1" in
       backfill-bgm-zh-names \
       import-entity-aliases \
       import-bangumi-xmedia \
+      expand-bgm-type4-gated \
+      import-eg-dlsite-releases \
       backfill-dlsite-genres \
       import-work-aliases \
       import-work-platforms \
@@ -260,7 +273,7 @@ case "$1" in
       exit 99
     fi
 
-    src=""; only=""; lane=""; pop=""; hints=""
+    src=""; only=""; lane=""; pop=""; hints=""; limit=""
     case "$toolcmd" in
       *"--source eg-music"*) src=eg-music ;;
       *"--source eg"*) src=eg ;;
@@ -283,9 +296,20 @@ case "$1" in
     case "$toolcmd" in
       *"--hints"*) hints=1 ;;
     esac
+    case "$toolcmd" in
+      *"--limit "*) limit=$(printf '%s\n' "$toolcmd" | sed 's/.*--limit \([0-9]*\).*/\1/') ;;
+    esac
     if [ "$tool" = "import-entity-aliases" ] && [ -z "$hints" ]; then
       echo "import-entity-aliases without --hints" >> "$CTL/violations"
     fi
+    case "$tool" in
+      import-entity-aliases|import-bangumi-xmedia|import-eg-dlsite-releases)
+        case "$toolcmd" in *"--apply"*) echo "$tool takes --run, not --apply" >> "$CTL/violations" ;; esac
+        ;;
+      *)
+        case "$toolcmd" in *"--run"*) echo "$tool takes --apply, not --run" >> "$CTL/violations" ;; esac
+        ;;
+    esac
     mode=dry
     case "$toolcmd" in
       *"--apply"*) mode=apply ;;
@@ -307,9 +331,10 @@ case "$1" in
       [ -n "$pop" ] && line="$line --population $pop"
       [ -n "$hints" ] && line="$line --hints"
       case "$tool" in
-        import-entity-aliases|import-bangumi-xmedia) line="$line --run" ;;
+        import-entity-aliases|import-bangumi-xmedia|import-eg-dlsite-releases) line="$line --run" ;;
         *) line="$line --apply" ;;
       esac
+      [ -n "$limit" ] && line="$line --limit $limit"
       printf '%s\n' "$line" >> "$CTL/apply.log"
     fi
 
@@ -684,7 +709,7 @@ if [ ! -f "$td/base/env.tmp" ]; then fail "timed-out run deleted the running run
 tend
 rm -rf "$td"
 
-# --- T12: import-entity-aliases never runs its review-queue leg ---
+# --- T12: import-entity-aliases never runs its review-queue leg, and every tool gets its own apply flag ---
 tstart 12
 td=$(mktemp -d)
 install_fakes "$td"
@@ -692,6 +717,78 @@ run_job "$td"
 expect_exit "$td" 0
 if [ -s "$td/ctl/violations" ]; then fail "$(cat "$td/ctl/violations")"; fi
 if ! grep -q '^import-entity-aliases+apply$' "$td/ctl/tools.log"; then fail "entity-aliases never ran"; fi
+tend
+rm -rf "$td"
+
+# --- T13: an EG-DLsite mint batch past its ceiling mints nothing, and the rest of the DLsite group stands down ---
+tstart 13
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' '2026/09/17 05:21:23 INFO eg-dlsite wave summary attached=0 minted=151 already=14178 ambiguous=407 missing=782 title_collisions=0 quarantined=0 skipped_intra_collision=0 errors=0' \
+  > "$td/ctl/out/import-eg-dlsite-releases+dry"
+run_job "$td"
+expect_exit_nonzero "$td"
+if has_stamp "$td"; then fail "stamp written"; fi
+if ! has_alert "$td"; then fail "no alert"; fi
+write_t1_expected "$td/ctl/t1"
+grep -v -F \
+  -e 'import-eg-dlsite-releases --run' \
+  -e 'backfill-dlsite-genres --apply' \
+  -e 'import-work-aliases --source all --apply' \
+  -e 'import-work-platforms --source all --apply' \
+  -e 'import-work-series --apply' \
+  "$td/ctl/t1" > "$td/ctl/expected"
+expect_apply "$td" "$td/ctl/expected"
+tend
+rm -rf "$td"
+
+# --- T14: a quarantine batch past its ceiling does the same ---
+tstart 14
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' '2026/09/17 05:21:23 INFO eg-dlsite wave summary attached=0 minted=60 already=14178 title_collisions=51 quarantined=51 skipped_intra_collision=0 errors=0' \
+  > "$td/ctl/out/import-eg-dlsite-releases+dry"
+run_job "$td"
+expect_exit_nonzero "$td"
+if ! has_alert "$td"; then fail "no alert"; fi
+if grep -q -F 'import-eg-dlsite-releases --run' "$td/ctl/apply.log"; then fail "eg-dlsite applied past its quarantine ceiling"; fi
+tend
+rm -rf "$td"
+
+# --- T15: a Bangumi live-create batch past its ceiling mints nothing, and the rest of the group stands down ---
+tstart 15
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' '2026/09/17 05:21:17 INFO bgm-type4-gated summary pool_total=81364 gated_total=1767 title_collisions=1369 to_create=151 to_quarantine=1369 works_created=0' \
+  > "$td/ctl/out/expand-bgm-type4-gated+dry"
+run_job "$td"
+expect_exit_nonzero "$td"
+if has_stamp "$td"; then fail "stamp written"; fi
+if ! has_alert "$td"; then fail "no alert"; fi
+write_t1_expected "$td/ctl/t1"
+grep -v -F \
+  -e 'expand-bgm-type4-gated --apply --limit 250' \
+  -e 'import-character-roster --source bangumi --apply' \
+  -e 'backfill-bgm-zh-names --lane character --apply' \
+  -e 'backfill-bgm-zh-names --lane person --apply' \
+  -e 'backfill-bgm-zh-names --lane label --apply' \
+  -e 'import-entity-aliases --hints --run' \
+  -e 'import-bangumi-xmedia --run' \
+  "$td/ctl/t1" > "$td/ctl/expected"
+expect_apply "$td" "$td/ctl/expected"
+tend
+rm -rf "$td"
+
+# --- T16: an unreadable Bangumi survey is a failure, not a pass ---
+tstart 16
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' '2026/09/17 05:21:17 INFO bgm-type4-gated summary pool_total=81364 gated_total=1767' \
+  > "$td/ctl/out/expand-bgm-type4-gated+dry"
+run_job "$td"
+expect_exit_nonzero "$td"
+if ! has_alert "$td"; then fail "no alert"; fi
+if grep -q -F 'expand-bgm-type4-gated' "$td/ctl/apply.log"; then fail "bgm-type4 applied without a readable survey"; fi
 tend
 rm -rf "$td"
 
