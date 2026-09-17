@@ -7,7 +7,7 @@
 #
 # Build context MUST be the repo root. oauth + image transitively import
 # go-webp (cgo) and can't be built CGO_ENABLED=0 — they use cgo.Dockerfile.
-ARG GO_VERSION=1.25
+ARG GO_VERSION=1.27
 
 # ---- build ----
 FROM golang:${GO_VERSION}-trixie AS build

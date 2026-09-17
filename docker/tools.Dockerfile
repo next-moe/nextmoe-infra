@@ -16,7 +16,7 @@
 #
 # Built CGO_ENABLED=1 + libwebp so the cgo cmds (image*, oauth) compile too; the
 # rest are pure Go. Build context MUST be the repo root.
-ARG GO_VERSION=1.25
+ARG GO_VERSION=1.27
 
 # ---- build (libwebp headers for the cgo cmds; pure-Go cmds build the same) ----
 FROM golang:${GO_VERSION}-trixie AS build
