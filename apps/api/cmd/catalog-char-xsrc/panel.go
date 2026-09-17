@@ -43,7 +43,7 @@ func classifyReview(pairs []pairMeta, verdicts []personadj.Verdict) []panelPair 
 	autoPairs := make([]panelPair, 0, len(pairs))
 	for _, p := range pairs {
 		v, ok := byKey[fmt.Sprintf("xsrc:%d:%d", p.A, p.B)]
-		if !ok {
+		if !ok || p.Qualified {
 			continue
 		}
 		pp := panelPair{pairMeta: p, R1Conf: v.Confidence}

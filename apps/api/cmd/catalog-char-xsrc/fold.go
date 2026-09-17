@@ -1,6 +1,7 @@
 package main
 
 import (
+	"regexp"
 	"strings"
 
 	"golang.org/x/text/unicode/norm"
@@ -124,6 +125,29 @@ func namesSimilar(aNames, bNames []string) bool {
 				return true
 			}
 			if len(aA) >= 4 && len(bA) >= 4 && lcsRunes(aA, bA) >= 4 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+var qualifierRe = regexp.MustCompile(`[(（【\[［][^)）】\]］]+[)）】\]］]`)
+
+// qualifiedPair reports whether either display name carries a bracketed
+// qualifier the other name lacks — 「リップ（少女編）」, 「グリム(ヴィルヘルム)」.
+// ErogameScape files a form, period or personality of a character as its own
+// entry this way, and on 2026-09-17 deepseek merged such an entry into the
+// whole character at 0.98 even with a prompt rule naming its sibling, because
+// the two intros describe the same person. Such a pair never merges
+// automatically.
+func qualifiedPair(a, b string) bool {
+	fa, fb := foldName(a), foldName(b)
+	for _, side := range [][2]string{{a, fb}, {b, fa}} {
+		for _, q := range qualifierRe.FindAllString(side[0], -1) {
+			rs := []rune(q)
+			inner := foldName(string(rs[1 : len(rs)-1]))
+			if inner != "" && !strings.Contains(side[1], inner) {
 				return true
 			}
 		}

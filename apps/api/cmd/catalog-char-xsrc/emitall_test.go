@@ -28,6 +28,8 @@ func TestRunEmitAllClaimsEachCharacterOnce(t *testing.T) {
 		pm(11, 12, src("vndb"), src("bangumi"), false),
 		pm(13, 14, src("vndb"), src("erogamescape"), false),
 		pm(15, 16, src("vndb"), src("bangumi"), false),
+		pairMeta{A: 17, B: 18, Tier: 1, ASources: src("erogamescape"), BSources: src("vndb"), Qualified: true,
+			AName: "グリム(ヴィルヘルム)", BName: "グリム"},
 	}
 	r1 := func(a, b int64, verdict string, conf float64) any {
 		return personadj.Verdict{Key: keyFor(a, b), Verdict: verdict, Confidence: conf}
@@ -41,6 +43,7 @@ func TestRunEmitAllClaimsEachCharacterOnce(t *testing.T) {
 		r1(9, 10, "distinct", 0.95),
 		r1(13, 14, "merge", 0.80),
 		r1(15, 16, "unsure", 0.97),
+		r1(17, 18, "merge", 0.98),
 	}
 	pp := func(p any, cat string, conf float64) any {
 		return panelPair{pairMeta: p.(pairMeta), Cat: cat, R1Conf: conf}
@@ -132,11 +135,14 @@ func TestRunEmitAllClaimsEachCharacterOnce(t *testing.T) {
 	if !strings.Contains(string(res), "[并组后同源冲突/auto] tier=1 7 ") {
 		t.Errorf("the weaker vndb edge 7-8 must land in the residual: %q", res)
 	}
+	if !strings.Contains(string(res), "[限定名条目] tier=1 17 グリム(ヴィルヘルム)") {
+		t.Errorf("a qualified pair judged merge must wait in the residual: %q", res)
+	}
 	if !strings.Contains(string(res), "分歧") {
 		t.Errorf("the split panel pair 13-14 must land in the residual: %q", res)
 	}
 	stats := out.String()
-	for _, w := range []string{"pairs=9 ", "judged=8 ", "auto_edges=3 ", "panel_pairs=3 ",
+	for _, w := range []string{"pairs=10 ", "judged=9 ", "auto_edges=3 ", "held_qualified=1 ", "panel_pairs=3 ",
 		"panel_accepted=2 ", "residual=1 ", "edge_conflict=1 ", "edges_applied=4 ", "groups_emitted=3"} {
 		if !strings.Contains(stats, w) {
 			t.Errorf("stats missing %q: %s", w, stats)

@@ -12,18 +12,19 @@ import (
 )
 
 type pairMeta struct {
-	A        int64    `json:"a"`
-	B        int64    `json:"b"`
-	Tier     int      `json:"tier"`
-	Works    []int64  `json:"works"`
-	CV       string   `json:"cv,omitempty"`
-	AName    string   `json:"a_name"`
-	BName    string   `json:"b_name"`
-	ASources []string `json:"a_sources"`
-	BSources []string `json:"b_sources"`
-	Instance bool     `json:"instance,omitempty"`
-	ARich    richness `json:"a_rich"`
-	BRich    richness `json:"b_rich"`
+	A         int64    `json:"a"`
+	B         int64    `json:"b"`
+	Tier      int      `json:"tier"`
+	Works     []int64  `json:"works"`
+	CV        string   `json:"cv,omitempty"`
+	AName     string   `json:"a_name"`
+	BName     string   `json:"b_name"`
+	ASources  []string `json:"a_sources"`
+	BSources  []string `json:"b_sources"`
+	Instance  bool     `json:"instance,omitempty"`
+	Qualified bool     `json:"qualified,omitempty"`
+	ARich     richness `json:"a_rich"`
+	BRich     richness `json:"b_rich"`
 }
 
 type richness struct {
@@ -116,9 +117,10 @@ func buildPairs(db *gorm.DB) ([]pairMeta, map[int64]*charInfo, error) {
 		pairs = append(pairs, pairMeta{
 			A: r.A, B: r.B, Tier: tier, Works: works, CV: cv,
 			AName: a.Name, BName: b.Name, ASources: a.Sources, BSources: b.Sources,
-			Instance: a.Instance || b.Instance,
-			ARich:    richness{Img: a.HasImage, NAliases: len(a.Aliases)},
-			BRich:    richness{Img: b.HasImage, NAliases: len(b.Aliases)},
+			Instance:  a.Instance || b.Instance,
+			Qualified: qualifiedPair(a.Name, b.Name),
+			ARich:     richness{Img: a.HasImage, NAliases: len(a.Aliases)},
+			BRich:     richness{Img: b.HasImage, NAliases: len(b.Aliases)},
 		})
 	}
 	sort.Slice(pairs, func(i, j int) bool {
