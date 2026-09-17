@@ -144,32 +144,6 @@ func (im *Importer) runBangumi() (Stats, error) {
 		return st, err
 	}
 
-	var newNames []nameItem
-	var newLabels []labelItem
-	seenName, seenLabel := map[int64]bool{}, map[int64]bool{}
-	for _, p := range persons {
-		ext := strconv.FormatInt(p.ID, 10)
-		if !seenName[p.ID] && cnAnchor[anchorKey(bangumiSource, ext)] == 0 {
-			seenName[p.ID] = true
-			newNames = append(newNames, nameItem{extID: ext, name: p.Name, lang: "ja"})
-		}
-		if p.Type == bangumiTypeCompany || p.Type == bangumiTypeGroup {
-			if !seenLabel[p.ID] && labelAnchor[anchorKey(bangumiSource, ext)] == 0 {
-				seenLabel[p.ID] = true
-				newLabels = append(newLabels, labelItem{extID: ext, name: p.Name, lang: "ja", kind: labelKind(p.Type)})
-			}
-		}
-	}
-	var newChars []charItem
-	seenChar := map[int64]bool{}
-	for _, c := range chars {
-		ext := strconv.FormatInt(c.ID, 10)
-		if !seenChar[c.ID] && charAnchor[anchorKey(bangumiSource, ext)] == 0 {
-			seenChar[c.ID] = true
-			newChars = append(newChars, charItem{extID: ext, name: c.Name, lang: "ja"})
-		}
-	}
-
 	var plans []creditPlan
 	for _, sp := range sps {
 		workID, ok := workMap[sp.SubjectID]
@@ -201,6 +175,42 @@ func (im *Importer) runBangumi() (Stats, error) {
 			charExtID: strconv.FormatInt(pc.CharacterID, 10),
 			note:      charRoleNote[fmt.Sprintf("%d|%d", pc.SubjectID, pc.CharacterID)],
 		})
+	}
+
+	// On 2026-09-17, the week after 975 anime and manga stubs gained bangumi
+	// refs, a dry run of this lane planned 3,183 names and 182 labels against a
+	// usual 37-94 and 1-5: every staff member and company on those subjects,
+	// whose positions map to no role and so earn no credit. Only a person or a
+	// character that a credit will point at is minted.
+	used := referencedBy(plans)
+	var newNames []nameItem
+	var newLabels []labelItem
+	seenName, seenLabel := map[int64]bool{}, map[int64]bool{}
+	for _, p := range persons {
+		ext := strconv.FormatInt(p.ID, 10)
+		if !used.names[ext] {
+			continue
+		}
+		if !seenName[p.ID] && cnAnchor[anchorKey(bangumiSource, ext)] == 0 {
+			seenName[p.ID] = true
+			newNames = append(newNames, nameItem{extID: ext, name: p.Name, lang: "ja"})
+		}
+		if used.labels[ext] && !seenLabel[p.ID] && labelAnchor[anchorKey(bangumiSource, ext)] == 0 {
+			seenLabel[p.ID] = true
+			newLabels = append(newLabels, labelItem{extID: ext, name: p.Name, lang: "ja", kind: labelKind(p.Type)})
+		}
+	}
+	var newChars []charItem
+	seenChar := map[int64]bool{}
+	for _, c := range chars {
+		ext := strconv.FormatInt(c.ID, 10)
+		if !used.chars[ext] {
+			continue
+		}
+		if !seenChar[c.ID] && charAnchor[anchorKey(bangumiSource, ext)] == 0 {
+			seenChar[c.ID] = true
+			newChars = append(newChars, charItem{extID: ext, name: c.Name, lang: "ja"})
+		}
 	}
 
 	st.NamesCreated = len(newNames)
@@ -239,6 +249,22 @@ func (im *Importer) runBangumi() (Stats, error) {
 		return nil
 	})
 	return st, err
+}
+
+type mintSet struct{ names, labels, chars map[string]bool }
+
+func referencedBy(plans []creditPlan) mintSet {
+	s := mintSet{names: map[string]bool{}, labels: map[string]bool{}, chars: map[string]bool{}}
+	for _, p := range plans {
+		s.names[p.cnExtID] = true
+		if p.labelExt != "" {
+			s.labels[p.labelExt] = true
+		}
+		if p.charExtID != "" {
+			s.chars[p.charExtID] = true
+		}
+	}
+	return s
 }
 
 func charTypeNote(t int) string {

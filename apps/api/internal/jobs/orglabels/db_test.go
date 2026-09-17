@@ -317,13 +317,21 @@ func TestAnchorAndEnrich_Bangumi(t *testing.T) {
 	require.NoError(t, testDB.Exec(`INSERT INTO src_bangumi.person (id,name,type,summary,comments,collects,parser_version,ingested_at,infobox_raw,infobox_parsed,parse_error) VALUES
 		(300,'ういんどみる',2,'ういんどみるはゲームブランド',0,0,'v1',now(),'',
 		 '{"Fields":[{"Key":"官网","Value":"http://windmill.suki.jp/"},{"Key":"Twitter","Value":"windmill_web"}]}'::jsonb,'')`).Error)
+	mkWork(t, 503)
+	mkWorkAnchor(t, sourceBangumi, "9003", 503)
+	require.NoError(t, testDB.Exec(`INSERT INTO src_bangumi.person (id,name,type,summary,comments,collects,parser_version,ingested_at,infobox_raw,infobox_parsed,parse_error) VALUES
+		(301,'主題歌バンド',3,'',0,0,'v1',now(),'','{}',''),
+		(302,'新しい会社',2,'',0,0,'v1',now(),'','{}','')`).Error)
 	require.NoError(t, testDB.Exec(`INSERT INTO src_bangumi.subject_person (person_id,subject_id,position,appear_eps) VALUES
-		(300,9001,1,''),(300,9002,1,'')`).Error)
+		(300,9001,1001,''),(300,9002,1002,''),(301,9001,1011,''),(301,9002,1011,''),(302,9003,1001,'')`).Error)
 
 	ctx := context.Background()
 	st, err := anchorAll(ctx, testDB, testDB, "bangumi", 0, true)
 	require.NoError(t, err)
 	assert.Equal(t, 1, st.AnchorsExact)
+	assert.Zero(t, st.Conflict, "the band that sang on both works never competes for their label")
+	assert.Zero(t, st.NewLabels, "the unmatched company is not minted")
+	assert.EqualValues(t, 1, countRefs(t, 3, sourceBangumi))
 	var labelID int64
 	require.NoError(t, testDB.Raw(
 		`SELECT entity_id FROM catalog_external_ref WHERE entity_type=3 AND source_id=? AND external_id='300' AND link_kind=0`,
@@ -345,6 +353,79 @@ func TestAnchorAndEnrich_Bangumi(t *testing.T) {
 	testDB.Raw(`SELECT count(*) FROM catalog_external_ref WHERE entity_id=400 AND source_id=? AND external_id='windmill_web'`, sourceTwitter).Scan(&twID)
 	assert.Equal(t, int64(1), siteID)
 	assert.Equal(t, int64(1), twID)
+}
+
+func TestAnchorAllNeverMintsTwoLabelsForOneName(t *testing.T) {
+	if testDB == nil {
+		t.Skip("no test db")
+	}
+	cleanAll(t)
+
+	mkWork(t, 903)
+	mkWork(t, 904)
+	mkWorkAnchor(t, sourceVNDB, "v903", 903)
+	mkWorkAnchor(t, sourceEG, "904", 904)
+	require.NoError(t, testDB.Exec(`INSERT INTO src_vndb.producers (id,type,lang,name,latin,alias,description) VALUES
+		('p2','co','ja','新ブランド','','','')`).Error)
+	require.NoError(t, testDB.Create(&srcv.Release{ID: "r3", OLang: "ja", Official: true}).Error)
+	require.NoError(t, testDB.Exec(`INSERT INTO src_vndb.releases_vn (id,vid,rtype) VALUES ('r3','v903','complete')`).Error)
+	require.NoError(t, testDB.Exec(`INSERT INTO src_vndb.releases_producers (id,pid,developer,publisher) VALUES ('r3','p2',true,false)`).Error)
+	require.NoError(t, testDB.Exec(`INSERT INTO brands (id, raw) VALUES
+		(60, '{"id":60,"kind":"CORPORATION","brandname":"株式会社新ブランド"}'::jsonb),
+		(61, '{"id":61,"kind":"CORPORATION","brandname":"新ブランド Co., Ltd."}'::jsonb)`).Error)
+	require.NoError(t, testDB.Exec(`INSERT INTO games (id, brand_id) VALUES (904,60),(904,61)`).Error)
+
+	ctx := context.Background()
+	dry, err := anchorAll(ctx, testDB, testDB, "all", 0, false)
+	require.NoError(t, err)
+	assert.Equal(t, 1, dry.NewLabels, "the dry plan mints the name once")
+	assert.Equal(t, 2, dry.SkipDeferred, "and holds both erogamescape brands that answer to it")
+
+	st, err := anchorAll(ctx, testDB, testDB, "all", 0, true)
+	require.NoError(t, err)
+	assert.Equal(t, dry.NewLabels, st.NewLabels, "apply mints what the dry run planned")
+	var labels []int64
+	require.NoError(t, testDB.Raw(`SELECT id FROM catalog_label`).Scan(&labels).Error)
+	require.Len(t, labels, 1)
+
+	var refs []struct {
+		ExternalID string `gorm:"column:external_id"`
+		EntityID   int64  `gorm:"column:entity_id"`
+		LinkKind   int16  `gorm:"column:link_kind"`
+		MatchedBy  string `gorm:"column:matched_by"`
+	}
+	require.NoError(t, testDB.Raw(`SELECT external_id, entity_id, link_kind, matched_by FROM catalog_external_ref
+		WHERE entity_type = 3 AND source_id = ? ORDER BY external_id`, sourceEG).Scan(&refs).Error)
+	require.Len(t, refs, 1, "one brand anchors the label, the other conflicts on it")
+	assert.Equal(t, labels[0], refs[0].EntityID)
+	assert.Equal(t, model.LinkKindProbable, refs[0].LinkKind, "a loose name is a guess for the refs queue to confirm")
+	assert.Equal(t, ruleEGNameLoose, refs[0].MatchedBy)
+
+	again, err := anchorAll(ctx, testDB, testDB, "all", 0, true)
+	require.NoError(t, err)
+	assert.Zero(t, again.NewLabels)
+	assert.Zero(t, again.AnchorsExact+again.AnchorsProbable)
+}
+
+func TestSpineFilesNoMatchCandidates(t *testing.T) {
+	if testDB == nil {
+		t.Skip("no test db")
+	}
+	cleanAll(t)
+	require.NoError(t, testDB.Exec(`TRUNCATE src_vndb.producers_relations, catalog_match_candidate`).Error)
+
+	mkLabel(t, 41, "NEXTON", model.LabelKindPublisher)
+	mkLabel(t, 13231, "NEXTON", model.LabelKindPublisher)
+	require.NoError(t, testDB.Exec(`INSERT INTO src_vndb.producers (id,type,lang,name,latin,alias,description) VALUES
+		('p75','co','ja','NEXTON','','',''), ('p76','co','ja','Liquid','','','')`).Error)
+	require.NoError(t, testDB.Exec(`INSERT INTO src_vndb.producers_relations (id,pid,relation) VALUES ('p76','p75','par')`).Error)
+
+	st, err := anchorAll(context.Background(), testDB, testDB, "vndb", 0, true)
+	require.NoError(t, err)
+	assert.Equal(t, 1, st.Spine.Candidates, "NEXTON is held between its two labels")
+	var cands int64
+	require.NoError(t, testDB.Raw(`SELECT count(*) FROM catalog_match_candidate WHERE entity_type = 3`).Scan(&cands).Error)
+	assert.Zero(t, cands)
 }
 
 func TestEnrichIntroLandsAlongsideHumanIntro(t *testing.T) {

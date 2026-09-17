@@ -64,6 +64,7 @@ backfill-dlsite-genres --apply
 import-work-aliases --source all --apply
 import-work-platforms --source all --apply
 import-work-series --apply
+reconcile-org-labels --source all --apply
 EOF
 }
 
@@ -106,7 +107,8 @@ extract_tool_cmd() {
     backfill-dlsite-genres \
     import-work-aliases \
     import-work-platforms \
-    import-work-series
+    import-work-series \
+    reconcile-org-labels
   do
     case "$s" in
       *"$t"*)
@@ -174,6 +176,13 @@ emit_out() {
       ;;
     import-work-series+apply)
       echo '2026/09/16 13:28:23 INFO workseries done apply=true anchored_works=19709 series_eligible=887 members_wanted=3178 series_created=10 series_renamed=0 series_deleted=0 members_added=1100 members_stale=0 order_changed=288 errors=0'
+      ;;
+    reconcile-org-labels+all+dry|reconcile-org-labels+all+apply)
+      echo '2026/09/17 14:21:47 INFO org-label anchor source done source=vndb pass=1 apply=false orgs=30089 already=25082 exact=8 probable=16 new_labels=41 new_edges=52 conflict=1421 skip_no_match=922 skip_ambiguous=21 skip_ungradeable=2437 skip_rejected=0 skip_deferred=0 vndb_in_anchored=7'
+      echo '2026/09/17 14:21:47 INFO org-label anchor source done source=eg pass=1 apply=false orgs=7565 already=5094 exact=9 probable=71 new_labels=3 new_edges=3 conflict=110 skip_no_match=1770 skip_ambiguous=106 skip_ungradeable=404 skip_rejected=1 skip_deferred=0 vndb_in_anchored=0'
+      echo '2026/09/17 14:21:48 INFO org-label spine pass done pass=1 apply=false considered=108 minted=4 anchored=2 candidates=22 skip_claimed=64 skip_edgeless=66 skip_alias_only=2 skip_loose_twin=3 skip_deferred=2 errors=0'
+      echo '2026/09/17 14:21:48 INFO reconcile-org-labels summary source=all apply=false orgs=48155 already=33369 anchors_exact=17 anchors_probable=89 new_labels=44 new_edges=55 conflict=1566 skip_no_match=9921 skip_ambiguous=169 skip_ungradeable=2841 skip_rejected=1 skip_deferred=0 vndb_in_anchored=7 errors=0'
+      echo '2026/09/17 14:21:48 INFO reconcile-org-labels spine summary considered=108 minted=4 anchored=2 candidates=22 skip_claimed=64 skip_edgeless=66 skip_alias_only=2 skip_loose_twin=3 skip_deferred=2 errors=0'
       ;;
     *)
       echo "fake-ok $key"
@@ -273,7 +282,8 @@ case "$1" in
       backfill-dlsite-genres \
       import-work-aliases \
       import-work-platforms \
-      import-work-series
+      import-work-series \
+      reconcile-org-labels
     do
       case "$toolcmd" in
         *"$t"*) tool=$t; break ;;
@@ -875,6 +885,59 @@ printf '%s\n' 'person-link-batch: panic before the summary' > "$td/ctl/out/perso
 run_job "$td"
 expect_exit_nonzero "$td"
 if grep -q -F 'person-link-batch' "$td/ctl/apply.log"; then fail "linked without a readable plan"; fi
+tend
+rm -rf "$td"
+
+# --- T20: a label batch past its ceiling mints nothing; the ceiling reads the run total, not the first source ---
+tstart 20
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' \
+  'INFO org-label anchor source done source=vndb pass=1 apply=false new_labels=60 new_edges=70' \
+  'INFO org-label anchor source done source=eg pass=1 apply=false new_labels=41 new_edges=41' \
+  'INFO org-label spine pass done pass=1 apply=false considered=10 minted=1 anchored=0' \
+  'INFO reconcile-org-labels summary source=all apply=false anchors_exact=1 anchors_probable=2 new_labels=101 new_edges=111 errors=0' \
+  'INFO reconcile-org-labels spine summary considered=10 minted=1 anchored=0 errors=0' \
+  > "$td/ctl/out/reconcile-org-labels+all+dry"
+run_job "$td"
+expect_exit_nonzero "$td"
+if has_stamp "$td"; then fail "stamp written"; fi
+if ! has_alert "$td"; then fail "no alert"; fi
+write_t1_expected "$td/ctl/t1"
+grep -v -F -e 'reconcile-org-labels --source all --apply' "$td/ctl/t1" > "$td/ctl/expected"
+expect_apply "$td" "$td/ctl/expected"
+tend
+rm -rf "$td"
+
+# --- T21: so does a corporate-graph burst, and a probable-anchor burst ---
+tstart 21
+for burst in 'minted=31 anchored=0' 'anchors_probable=301'; do
+  td=$(mktemp -d)
+  install_fakes "$td"
+  case "$burst" in
+    minted=*) spine=$burst; probable=2 ;;
+    *) spine='minted=1 anchored=0'; probable=301 ;;
+  esac
+  printf '%s\n' \
+    "INFO reconcile-org-labels summary source=all apply=false anchors_exact=1 anchors_probable=$probable new_labels=5 new_edges=5 errors=0" \
+    "INFO reconcile-org-labels spine summary considered=40 $spine errors=0" \
+    > "$td/ctl/out/reconcile-org-labels+all+dry"
+  run_job "$td"
+  expect_exit_nonzero "$td"
+  if grep -q -F 'reconcile-org-labels' "$td/ctl/apply.log"; then fail "applied past the ceiling ($burst)"; fi
+  rm -rf "$td"
+done
+tend
+
+# --- T22: an unreadable label plan is a failure, not a pass ---
+tstart 22
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' 'reconcile-org-labels failed error="load vndb orgs: connection refused"' > "$td/ctl/out/reconcile-org-labels+all+dry"
+run_job "$td"
+expect_exit_nonzero "$td"
+if ! has_alert "$td"; then fail "no alert"; fi
+if grep -q -F 'reconcile-org-labels' "$td/ctl/apply.log"; then fail "applied without a readable plan"; fi
 tend
 rm -rf "$td"
 

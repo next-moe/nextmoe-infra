@@ -2,6 +2,7 @@ package orglabels
 
 import (
 	"context"
+	"log/slog"
 	"slices"
 
 	"api/internal/platform/catalog/model"
@@ -29,6 +30,8 @@ const (
 	spineCandidate
 	spineSkipClaimed
 	spineSkipAliasOnly
+	spineSkipLooseTwin
+	spineSkipDeferred
 )
 
 func matchLabels(norms []string, index map[string][]int64) []int64 {
@@ -61,10 +64,11 @@ type SpineStats struct {
 	Minted        int
 	Anchored      int
 	Candidates    int
-	CandidateRows int
 	SkipClaimed   int
 	SkipEdgeless  int
 	SkipAliasOnly int
+	SkipLooseTwin int
+	SkipDeferred  int
 	Errors        int
 }
 
@@ -77,15 +81,16 @@ func (s *SpineStats) addWrites(o SpineStats) {
 func (s *SpineStats) setState(o SpineStats) {
 	s.Considered = o.Considered
 	s.Candidates = o.Candidates
-	s.CandidateRows = o.CandidateRows
 	s.SkipClaimed = o.SkipClaimed
 	s.SkipEdgeless = o.SkipEdgeless
 	s.SkipAliasOnly = o.SkipAliasOnly
+	s.SkipLooseTwin = o.SkipLooseTwin
+	s.SkipDeferred = o.SkipDeferred
 }
 
 func (s SpineStats) writes() int { return s.Minted + s.Anchored }
 
-func planSpine(orgs []orgRec, g graphFacts, ea *existingAnchors, labelNorms, displayNorms map[string][]int64) ([]spinePlan, SpineStats) {
+func planSpine(orgs []orgRec, g graphFacts, ea *existingAnchors, labelNorms, displayNorms, loose map[string][]int64, planned *mintPlan) ([]spinePlan, SpineStats) {
 	var st SpineStats
 	claimed := make(map[int64]bool, len(ea.claimedByLabel))
 	for l := range ea.claimedByLabel {
@@ -114,7 +119,14 @@ func planSpine(orgs []orgRec, g graphFacts, ea *existingAnchors, labelNorms, dis
 		}
 
 		switch {
+		case len(any) == 0 && len(looseHits(o, loose)) > 0:
+			out = append(out, spinePlan{act: spineSkipLooseTwin, org: o, labels: looseHits(o, loose)})
+			st.SkipLooseTwin++
+		case len(any) == 0 && planned.taken(sourceVNDB, o):
+			out = append(out, spinePlan{act: spineSkipDeferred, org: o})
+			st.SkipDeferred++
 		case len(any) == 0:
+			planned.add(sourceVNDB, o)
 			out = append(out, spinePlan{act: spineMint, org: o})
 			st.Minted++
 		case len(target) == 0:
@@ -132,29 +144,7 @@ func planSpine(orgs []orgRec, g graphFacts, ea *existingAnchors, labelNorms, dis
 			st.Candidates++
 		}
 	}
-	st.CandidateRows = len(candidatePairs(out))
 	return out, st
-}
-
-func candidatePairs(plans []spinePlan) [][2]int64 {
-	seen := make(map[[2]int64]bool)
-	out := make([][2]int64, 0, len(plans))
-	for _, p := range plans {
-		if p.act != spineCandidate {
-			continue
-		}
-		for i := 0; i < len(p.labels); i++ {
-			for j := i + 1; j < len(p.labels); j++ {
-				pair := [2]int64{p.labels[i], p.labels[j]}
-				if seen[pair] {
-					continue
-				}
-				seen[pair] = true
-				out = append(out, pair)
-			}
-		}
-	}
-	return out
 }
 
 func spineKind(o *orgRec, g graphFacts) int16 {
@@ -164,7 +154,7 @@ func spineKind(o *orgRec, g graphFacts) int16 {
 	return o.newKind
 }
 
-func runSpine(ctx context.Context, db *gorm.DB, labelNorms map[string][]int64, limit int, apply bool) (SpineStats, error) {
+func runSpine(ctx context.Context, db *gorm.DB, labelNorms map[string][]int64, limit int, apply bool, planned *mintPlan) (SpineStats, error) {
 	orgs, _, _, err := loadSource(db, nil, "vndb", limit)
 	if err != nil {
 		return SpineStats{}, err
@@ -182,7 +172,19 @@ func runSpine(ctx context.Context, db *gorm.DB, labelNorms map[string][]int64, l
 		return SpineStats{}, err
 	}
 
-	plans, st := planSpine(orgs, g, ea, labelNorms, displayNorms)
+	plans, st := planSpine(orgs, g, ea, labelNorms, displayNorms, looseIndex(labelNorms), planned)
+	// The label pairs a producer's name is shared by used to be filed as
+	// match candidates; 38 sat there on 2026-09-17 with nothing scheduled to
+	// read them. They are logged for whoever merges labels instead.
+	for _, p := range plans {
+		switch p.act {
+		case spineMint:
+			slog.Info("org-label spine mint", "ext_id", p.org.extID, "name", p.org.displayName, "apply", apply)
+		case spineCandidate, spineSkipLooseTwin:
+			slog.Info("org-label spine held", "ext_id", p.org.extID, "name", p.org.displayName,
+				"labels", p.labels, "loose", p.act == spineSkipLooseTwin)
+		}
+	}
 	if !apply {
 		return st, nil
 	}
@@ -196,25 +198,9 @@ func runSpine(ctx context.Context, db *gorm.DB, labelNorms map[string][]int64, l
 			})
 		}
 	}
-	pairs := candidatePairs(plans)
-	cands := make([]model.CatalogMatchCandidate, 0, len(pairs))
-	for _, pair := range pairs {
-		cands = append(cands, model.CatalogMatchCandidate{
-			EntityType: model.EntityTypeLabel,
-			AID:        pair[0], BID: pair[1],
-			Reason: model.CandidateReasonNameNormEqual,
-			Status: model.CandidateStatusPending,
-		})
-	}
 	if len(refs) > 0 {
 		if err := db.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).
 			CreateInBatches(refs, 1000).Error; err != nil {
-			return st, err
-		}
-	}
-	if len(cands) > 0 {
-		if err := db.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).
-			CreateInBatches(cands, 1000).Error; err != nil {
 			return st, err
 		}
 	}

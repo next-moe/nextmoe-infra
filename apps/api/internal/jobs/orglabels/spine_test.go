@@ -28,7 +28,7 @@ func TestSpineMintsAProducerNoLabelIsNamedAfter(t *testing.T) {
 	norms := map[string][]int64{"liquid": {11784}}
 	g, ea := spineFixture(norms, nil)
 
-	plans, st := planSpine([]orgRec{org("p75", "ネクストン", "ネクストン", "nexton")}, g, ea, norms, norms)
+	plans, st := planSpine([]orgRec{org("p75", "ネクストン", "ネクストン", "nexton")}, g, ea, norms, norms, looseIndex(norms), newMintPlan())
 
 	if st.Considered != 1 || st.Minted != 1 {
 		t.Fatalf("stats = %+v, want one considered and one minted", st)
@@ -45,13 +45,13 @@ func TestSpineRefusesToGuessBetweenSameNamedLabels(t *testing.T) {
 	norms := map[string][]int64{"nexton": {13231, 41}}
 	g, ea := spineFixture(norms, nil)
 
-	plans, st := planSpine([]orgRec{org("p75", "NEXTON", "nexton")}, g, ea, norms, norms)
+	plans, st := planSpine([]orgRec{org("p75", "NEXTON", "nexton")}, g, ea, norms, norms, looseIndex(norms), newMintPlan())
 
 	if st.Minted != 0 || st.Anchored != 0 {
 		t.Fatalf("stats = %+v, want nothing written for an ambiguous name", st)
 	}
-	if st.Candidates != 1 || st.CandidateRows != 1 {
-		t.Fatalf("stats = %+v, want one producer raising one label pair", st)
+	if st.Candidates != 1 {
+		t.Fatalf("stats = %+v, want the producer held between the two labels", st)
 	}
 	if got := plans[0].labels; len(got) != 2 || got[0] != 41 || got[1] != 13231 {
 		t.Errorf("labels = %v, want [41 13231] ascending", got)
@@ -62,7 +62,7 @@ func TestSpineAnchorsALoneNameButNeverASharedOne(t *testing.T) {
 	norms := map[string][]int64{"moon": {900}}
 	g, ea := spineFixture(norms, nil)
 
-	plans, st := planSpine([]orgRec{org("p430", "Moon", "moon"), org("p9", "Moon", "moon")}, g, ea, norms, norms)
+	plans, st := planSpine([]orgRec{org("p430", "Moon", "moon"), org("p9", "Moon", "moon")}, g, ea, norms, norms, looseIndex(norms), newMintPlan())
 
 	if st.Anchored != 1 || st.SkipClaimed != 1 || st.Minted != 0 {
 		t.Fatalf("stats = %+v, want one anchor and one refused, no mint", st)
@@ -75,7 +75,7 @@ func TestSpineAnchorsALoneNameButNeverASharedOne(t *testing.T) {
 	}
 
 	g2, ea2 := spineFixture(norms, map[int64]bool{900: true})
-	_, st2 := planSpine([]orgRec{org("p430", "Moon", "moon")}, g2, ea2, norms, norms)
+	_, st2 := planSpine([]orgRec{org("p430", "Moon", "moon")}, g2, ea2, norms, norms, looseIndex(norms), newMintPlan())
 	if st2.Anchored != 0 || st2.SkipClaimed != 1 {
 		t.Errorf("stats = %+v, want the pre-claimed label left alone", st2)
 	}
@@ -93,7 +93,7 @@ func TestSpineExcludesPersonsNonMembersAndAnchored(t *testing.T) {
 		person,
 		org("p430", "Liquid", "liquid"),
 		org("p999", "Offgraph", "off"),
-	}, g, ea, norms, norms)
+	}, g, ea, norms, norms, looseIndex(norms), newMintPlan())
 
 	if st.Considered != 0 {
 		t.Fatalf("stats = %+v, want every row excluded before grading", st)
@@ -105,7 +105,7 @@ func TestSpineWillNotMintANodeWhoseOnlyNeighboursArePeople(t *testing.T) {
 	g, ea := spineFixture(norms, nil)
 	delete(g.linkable, "p9")
 
-	_, st := planSpine([]orgRec{org("p9", "Founder's Company", "founder")}, g, ea, norms, norms)
+	_, st := planSpine([]orgRec{org("p9", "Founder's Company", "founder")}, g, ea, norms, norms, looseIndex(norms), newMintPlan())
 
 	if st.Minted != 0 || st.Considered != 0 {
 		t.Fatalf("stats = %+v, want no mint for an unrenderable node", st)
@@ -115,23 +115,52 @@ func TestSpineWillNotMintANodeWhoseOnlyNeighboursArePeople(t *testing.T) {
 	}
 }
 
-func TestSpineRaisesEachLabelPairOnce(t *testing.T) {
+func TestSpineHoldsEveryProducerOfASharedName(t *testing.T) {
 	norms := map[string][]int64{"nexton": {41, 13231}, "ネクストン": {41, 13231}}
 	g, ea := spineFixture(norms, nil)
 
-	plans, st := planSpine([]orgRec{
+	_, st := planSpine([]orgRec{
 		org("p430", "NEXTON", "nexton"),
 		org("p9", "ネクストン", "ネクストン"),
-	}, g, ea, norms, norms)
+	}, g, ea, norms, norms, looseIndex(norms), newMintPlan())
 
-	if st.Candidates != 2 {
-		t.Fatalf("Candidates = %d, want both producers routed", st.Candidates)
+	if st.Candidates != 2 || st.Minted != 0 || st.Anchored != 0 {
+		t.Fatalf("stats = %+v, want both producers held and nothing written", st)
 	}
-	if st.CandidateRows != 1 {
-		t.Errorf("CandidateRows = %d, want the shared pair counted once", st.CandidateRows)
+}
+
+func TestSpineWillNotMintATwinThatDiffersByACorporateSuffix(t *testing.T) {
+	norms := map[string][]int64{"株式会社ネクストン": {41}}
+	g, ea := spineFixture(norms, nil)
+
+	plans, st := planSpine([]orgRec{org("p75", "ネクストン", "ネクストン")}, g, ea, norms, norms, looseIndex(norms), newMintPlan())
+
+	if st.Minted != 0 || st.SkipLooseTwin != 1 {
+		t.Fatalf("stats = %+v, want the twin held, not minted", st)
 	}
-	if got := candidatePairs(plans); len(got) != 1 || got[0] != [2]int64{41, 13231} {
-		t.Errorf("pairs = %v, want a single ascending pair", got)
+	if got := plans[0].labels; len(got) != 1 || got[0] != 41 {
+		t.Errorf("labels = %v, want the label it resembles", got)
+	}
+}
+
+func TestSpineMintsASharedNameOnce(t *testing.T) {
+	norms := map[string][]int64{}
+	g, ea := spineFixture(norms, nil)
+	planned := newMintPlan()
+
+	plans, st := planSpine([]orgRec{org("p430", "Moon Co., Ltd.", "moon co., ltd."), org("p9", "MOON", "moon")},
+		g, ea, norms, norms, looseIndex(norms), planned)
+
+	if st.Minted != 1 || st.SkipDeferred != 1 {
+		t.Fatalf("stats = %+v, want one mint and the second deferred", st)
+	}
+	if plans[0].act != spineMint || plans[1].act != spineSkipDeferred {
+		t.Errorf("plans = %v %v, want the first minted", plans[0].act, plans[1].act)
+	}
+
+	_, again := planSpine([]orgRec{org("p9", "MOON", "moon")}, g, ea, norms, norms, looseIndex(norms), planned)
+	if again.Minted != 0 {
+		t.Errorf("stats = %+v, a name this run already minted must not mint again", again)
 	}
 }
 
@@ -140,10 +169,10 @@ func TestSpineNominatesOnlyLabelsThatBearTheNameThemselves(t *testing.T) {
 	display := map[string][]int64{"ネクストン": {41, 13231}, "nexton": {41, 13231}}
 	g, ea := spineFixture(all, nil)
 
-	plans, st := planSpine([]orgRec{org("p75", "ネクストン", "ネクストン")}, g, ea, all, display)
+	plans, st := planSpine([]orgRec{org("p75", "ネクストン", "ネクストン")}, g, ea, all, display, looseIndex(all), newMintPlan())
 
-	if st.Candidates != 1 || st.CandidateRows != 1 {
-		t.Fatalf("stats = %+v, want exactly one pair nominated", st)
+	if st.Candidates != 1 {
+		t.Fatalf("stats = %+v, want exactly one producer held", st)
 	}
 	if got := plans[0].labels; len(got) != 2 || got[0] != 41 || got[1] != 13231 {
 		t.Errorf("nominated %v, want only the labels named NEXTON", got)
@@ -155,7 +184,7 @@ func TestSpineNeitherMintsNorAssertsOnPureAliasNoise(t *testing.T) {
 	display := map[string][]int64{}
 	g, ea := spineFixture(all, nil)
 
-	_, st := planSpine([]orgRec{org("p75", "ネクストン", "ネクストン")}, g, ea, all, display)
+	_, st := planSpine([]orgRec{org("p75", "ネクストン", "ネクストン")}, g, ea, all, display, looseIndex(all), newMintPlan())
 
 	if st.Minted != 0 || st.Anchored != 0 || st.Candidates != 0 {
 		t.Fatalf("stats = %+v, want no write of any kind", st)

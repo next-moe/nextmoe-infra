@@ -122,6 +122,12 @@ run sh -c "$DSNSH"'; backfill-bgm-work-meta --dsn "$CAT" --apply'
 # never overwritten, and a machine title is superseded rather than duplicated.
 # Prod-proven idempotent (wave 210: a second pass wrote zero).
 run sh -c "$DSNSH"'; backfill-work-zh-titles --dsn "$CAT" --mode source --source bgm --apply'
+# A company the credit import finds unanchored gets a label of its own. Of the
+# 499 labels it minted on 2026-07-06 that are still live, 132 have a live twin
+# once case, 株式会社 and punctuation are set aside, so Bangumi companies are
+# anchored to the labels vndb and erogamescape hold first. That lane anchors
+# and never mints.
+run sh -c "$DSNSH"'; reconcile-org-labels --dsn "$CAT" --source bangumi --apply'
 run import-galgame-credits --source bangumi --apply
 run import-work-relations --source all --run
 # Derived series (wave 184): re-cluster the grown relation graph. Reaper

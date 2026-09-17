@@ -300,7 +300,8 @@ run sh -c "$DSNSH"'; backfill-character-attrs --dsn "$CAT" --apply'
 # 6c. Edges. Each writes only where BOTH endpoints already carry an exact
 #     anchor, so a producer/label that reconcile-org-labels has not anchored
 #     yet is counted as skipped_unanchored and comes in on a later pass — it is
-#     never minted here (see NOTES.md: reconcile-org-labels stays manual).
+#     never minted here. reconcile-org-labels runs in source-import half an
+#     hour later, so a new label gets its edges the following week.
 run sh -c "$DSNSH"'; import-work-producers --dsn "$CAT" --apply'
 run sh -c "$DSNSH"'; import-label-relations --dsn "$CAT" --apply'
 run sh -c "$DSNSH"'; import-vndb-links --dsn "$CAT" --apply'
@@ -321,9 +322,9 @@ run sh -c "$DSNSH"'; build-derived-series --dsn "$CAT" --apply --receipts /w/sta
 #     reports `unchanged` and writes nothing.
 run sh -c "$DSNSH"'; backfill-work-ratings --dsn "$CAT" --eg-dsn "$EG" --dlsite-dsn "$DL" --hltb-dsn "$HL" --apply'
 
-# DELIBERATELY NOT RUN HERE (each is a manual follow-up, see NOTES.md):
-#   reconcile-org-labels  — mints labels and human-review candidates
-#   enrich-org-labels     — follows the anchors reconcile mints
+# DELIBERATELY NOT RUN HERE:
+#   reconcile-org-labels  — runs in source-import, behind a dry-run ceiling
+#   enrich-org-labels     — see source-import
 #   backfill-vndb-covers / backfill-character-portraits — fetch image bytes
 #   reindex-catalog       — already has its own daily cron at 06:10
 

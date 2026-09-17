@@ -91,7 +91,7 @@ func TestPatchGroupIsNeverAttributed(t *testing.T) {
 	t.Fatal("p93 not loaded")
 }
 
-func TestBangumiKeepsOneSet(t *testing.T) {
+func TestBangumiCountsOnlyDeveloperAndPublisherAndNeverMints(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test db")
 	}
@@ -101,20 +101,30 @@ func TestBangumiKeepsOneSet(t *testing.T) {
 	mkWorkAnchor(t, sourceBangumi, "940", 940)
 	require.NoError(t, testDB.Exec(
 		`INSERT INTO src_bangumi.person (id,name,type,summary,comments,collects,parser_version,ingested_at,infobox_raw,infobox_parsed,parse_error)
-		 VALUES (77,'ある会社',2,'',0,0,1,now(),'','{}','')`).Error)
+		 VALUES (77,'ある会社',2,'',0,0,1,now(),'','{}',''), (78,'主題歌バンド',3,'',0,0,1,now(),'','{}',''),
+		        (79,'配信会社',2,'',0,0,1,now(),'','{}','')`).Error)
 	require.NoError(t, testDB.Exec(
-		`INSERT INTO src_bangumi.subject_person (subject_id,person_id,position,appear_eps) VALUES (940,77,1,'')`).Error)
+		`INSERT INTO src_bangumi.subject_person (subject_id,person_id,position,appear_eps) VALUES
+		 (940,77,1001,''), (940,78,1011,''), (940,79,1,'')`).Error)
 
 	orgs, err := loadBGMOrgs(testDB, 0)
 	require.NoError(t, err)
-	require.Len(t, orgs, 1)
-	assert.Equal(t, []int64{940}, orgs[0].works)
-	assert.False(t, orgs[0].editionAware, "bangumi draws no edition distinction, so evidence IS attribution")
+	require.Len(t, orgs, 3)
+	works := map[string][]int64{}
+	for _, o := range orgs {
+		works[o.extID] = o.works
+		assert.False(t, o.canCreate, "bangumi org %s must not mint", o.extID)
+	}
+	assert.Equal(t, []int64{940}, works["77"], "the developer")
+	assert.Empty(t, works["78"], "a theme-song credit is not a label")
+	assert.Empty(t, works["79"], "nor is an unmapped position")
 
-	_, err = anchorAll(context.Background(), testDB, testDB, "bangumi", 0, true)
+	st, err := anchorAll(context.Background(), testDB, testDB, "bangumi", 0, true)
 	require.NoError(t, err)
-	var edges int64
-	require.NoError(t, testDB.Raw(
-		`SELECT count(*) FROM catalog_work_label WHERE work_id = 940`).Scan(&edges).Error)
-	assert.Equal(t, int64(1), edges, "the bangumi lane still mints its edge")
+	assert.Zero(t, st.NewLabels)
+	var labels, edges int64
+	require.NoError(t, testDB.Raw(`SELECT count(*) FROM catalog_label`).Scan(&labels).Error)
+	require.NoError(t, testDB.Raw(`SELECT count(*) FROM catalog_work_label`).Scan(&edges).Error)
+	assert.Zero(t, labels, "the bangumi lane anchors and never mints")
+	assert.Zero(t, edges)
 }
