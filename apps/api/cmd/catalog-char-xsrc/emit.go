@@ -17,6 +17,7 @@ type emitStats struct {
 	Pairs, Judged, Merge, Distinct, Unsure  int
 	AutoPairs, Review, InstanceDeferred     int
 	Groups, SameSourceDeferred, GroupsFinal int
+	QualifiedHeld, DeclinedDeferred         int
 }
 
 func runEmit(pairsPath, verdictsPath, worklistPath, reviewPath string, out io.Writer) error {
@@ -55,19 +56,24 @@ func runEmit(pairsPath, verdictsPath, worklistPath, reviewPath string, out io.Wr
 	}
 
 	var review []string
-	pairByKey := map[string]pairMeta{}
+	declined := map[[2]int64]bool{}
 	for _, p := range pairs {
 		key := fmt.Sprintf("xsrc:%d:%d", p.A, p.B)
-		pairByKey[key] = p
 		v, ok := byKey[key]
 		if !ok {
 			continue
 		}
 		st.Judged++
+		if v.Verdict != personadj.VerdictMerge || p.Instance || p.Qualified || v.Confidence < autoConfidence {
+			declined[pairID(p.A, p.B)] = true
+		}
 		switch v.Verdict {
 		case personadj.VerdictMerge:
 			st.Merge++
 			switch {
+			case p.Qualified:
+				st.QualifiedHeld++
+				review = append(review, reviewLine(p, v, "限定名条目"))
 			case p.Instance:
 				st.InstanceDeferred++
 				review = append(review, reviewLine(p, v, "instance 侧不进自动道"))
@@ -91,6 +97,14 @@ func runEmit(pairsPath, verdictsPath, worklistPath, reviewPath string, out io.Wr
 	for id := range parent {
 		r := find(id)
 		members[r] = append(members[r], id)
+	}
+	declinedRoot := map[int64]bool{}
+	for k := range declined {
+		_, okA := parent[k[0]]
+		_, okB := parent[k[1]]
+		if okA && okB && find(k[0]) == find(k[1]) {
+			declinedRoot[find(k[0])] = true
+		}
 	}
 	infoBySide := map[int64]sideInfo{}
 	richBySide := map[int64]richness{}
@@ -126,14 +140,20 @@ func runEmit(pairsPath, verdictsPath, worklistPath, reviewPath string, out io.Wr
 				seen[s] = true
 			}
 		}
-		if sameSource {
-			st.SameSourceDeferred++
+		if sameSource || declinedRoot[r] {
 			var names []string
 			for _, id := range ids {
 				names = append(names, fmt.Sprintf("%d %s(%s)", id,
 					infoBySide[id].Name, strings.Join(infoBySide[id].Sources, "+")))
 			}
-			review = append(review, "组内同源 defer: "+strings.Join(names, " / "))
+			why := "组内同源 defer: "
+			if sameSource {
+				st.SameSourceDeferred++
+			} else {
+				st.DeclinedDeferred++
+				why = "组内含已否决对 defer: "
+			}
+			review = append(review, why+strings.Join(names, " / "))
 			continue
 		}
 		survivor, sources := pickSurvivor(ids, richBySide)
@@ -151,9 +171,11 @@ func runEmit(pairsPath, verdictsPath, worklistPath, reviewPath string, out io.Wr
 		}
 	}
 	fmt.Fprintf(out, "pairs=%d judged=%d merge=%d distinct=%d unsure=%d auto_pairs=%d "+
-		"review=%d instance_deferred=%d groups=%d same_source_deferred=%d groups_emitted=%d\n",
+		"review=%d instance_deferred=%d qualified_held=%d groups=%d same_source_deferred=%d "+
+		"declined_deferred=%d groups_emitted=%d\n",
 		st.Pairs, st.Judged, st.Merge, st.Distinct, st.Unsure, st.AutoPairs,
-		st.Review, st.InstanceDeferred, st.Groups, st.SameSourceDeferred, st.GroupsFinal)
+		st.Review, st.InstanceDeferred, st.QualifiedHeld, st.Groups, st.SameSourceDeferred,
+		st.DeclinedDeferred, st.GroupsFinal)
 	return nil
 }
 

@@ -38,7 +38,7 @@ func runEmitAll(pairsPath, verdictsPath, pairs2Path, verdicts2Path, worklistPath
 	richBySide := map[int64]richness{}
 	var edges []mergeEdge
 	var held []string
-	judged := 0
+	var judged []pairMeta
 	for _, p := range pairs {
 		sourcesBySide[p.A], sourcesBySide[p.B] = p.ASources, p.BSources
 		richBySide[p.A], richBySide[p.B] = p.ARich, p.BRich
@@ -46,7 +46,7 @@ func runEmitAll(pairsPath, verdictsPath, pairs2Path, verdicts2Path, worklistPath
 		if !ok {
 			continue
 		}
-		judged++
+		judged = append(judged, p)
 		if p.Qualified {
 			if v.Verdict == personadj.VerdictMerge {
 				held = append(held, reviewLine(p, v, "限定名条目"))
@@ -57,7 +57,7 @@ func runEmitAll(pairsPath, verdictsPath, pairs2Path, verdicts2Path, worklistPath
 			edges = append(edges, mergeEdge{panelPair{pairMeta: p, Cat: catAuto, R1Conf: v.Confidence}, v.Confidence})
 		}
 	}
-	autoEdges := len(edges)
+	autoEdges, judgedR1 := len(edges), len(judged)
 
 	stats := map[string]int{}
 	accepted, residual := panelEdges(ppairs, verdicts2, false, stats)
@@ -65,9 +65,14 @@ func runEmitAll(pairsPath, verdictsPath, pairs2Path, verdicts2Path, worklistPath
 		sourcesBySide[e.p.A], sourcesBySide[e.p.B] = e.p.ASources, e.p.BSources
 		richBySide[e.p.A], richBySide[e.p.B] = e.p.ARich, e.p.BRich
 	}
+	for _, p := range ppairs {
+		if p.Cat != catSameSource {
+			judged = append(judged, p.pairMeta)
+		}
+	}
 	edges = append(edges, accepted...)
 
-	groups, conflicts, applied := unionEdges(edges, sourcesBySide, richBySide, stats)
+	groups, conflicts, applied := unionEdges(edges, declinedPairs(judged, edges), sourcesBySide, richBySide, stats)
 	residual = append(append(residual, conflicts...), held...)
 	if err := writeGroups(worklistPath, groups); err != nil {
 		return err
@@ -76,10 +81,10 @@ func runEmitAll(pairsPath, verdictsPath, pairs2Path, verdicts2Path, worklistPath
 		return err
 	}
 	fmt.Fprintf(out, "pairs=%d judged=%d auto_edges=%d held_qualified=%d panel_pairs=%d panel_accepted=%d "+
-		"closed_distinct=%d closed_instance=%d residual=%d panel_unjudged=%d edge_conflict=%d "+
+		"closed_distinct=%d closed_instance=%d residual=%d panel_unjudged=%d edge_conflict=%d edge_declined=%d "+
 		"edges_applied=%d groups_emitted=%d\n",
-		len(pairs), judged, autoEdges, len(held), len(ppairs)-countCat(ppairs, catSameSource), len(accepted),
+		len(pairs), judgedR1, autoEdges, len(held), len(ppairs)-countCat(ppairs, catSameSource), len(accepted),
 		stats["closed_distinct"], stats["closed_instance"], stats["residual"], stats["unjudged"],
-		stats["edge_conflict"], applied, len(groups))
+		stats["edge_conflict"], stats["edge_declined"], applied, len(groups))
 	return nil
 }
