@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -59,6 +61,7 @@ type Opts struct {
 	DSN          string
 	DlsiteDSN    string
 	MirrorDir    string
+	WorknosOut   string
 	ImageBaseURL string
 	UploadGap    time.Duration
 }
@@ -82,6 +85,7 @@ type runner struct {
 	c          counters
 	pingHashes []string
 	touched    []int64
+	unmirrored map[string]bool
 }
 
 func Run(ctx context.Context, cfg *config.Config, opts Opts) (map[string]any, error) {
@@ -93,6 +97,9 @@ func Run(ctx context.Context, cfg *config.Config, opts Opts) (map[string]any, er
 	}
 	if !opts.Kinds.any() {
 		return nil, fmt.Errorf("no media kinds selected")
+	}
+	if opts.WorknosOut != "" && opts.Apply {
+		return nil, fmt.Errorf("--worknos-out lists what a dry run would need; drop --apply")
 	}
 	if opts.Kinds.needsMirror() && opts.MirrorDir == "" {
 		return nil, fmt.Errorf("--mirror-dir is required for cover/screenshot (local mirror root <root>/<workno>/<filename>)")
@@ -158,6 +165,11 @@ func Run(ctx context.Context, cfg *config.Config, opts Opts) (map[string]any, er
 	}
 
 	quota := r.process(ctx, opts, cands, dldb)
+	if opts.WorknosOut != "" {
+		if err := writeWorknos(opts.WorknosOut, r.unmirrored); err != nil {
+			return nil, fmt.Errorf("write --worknos-out: %w", err)
+		}
+	}
 
 	if err := repository.TouchWorks(ctx, r.db, r.touched); err != nil {
 		return nil, fmt.Errorf("touch works: %w", err)
@@ -174,6 +186,7 @@ func Run(ctx context.Context, cfg *config.Config, opts Opts) (map[string]any, er
 	sum := r.summary(opts, len(cands))
 	sum["candidates_bodyless"] = bodylessCands
 	sum["candidates_claimed"] = claimedCands
+	sum["unmirrored_works"] = len(r.unmirrored)
 	slog.Info("dlsite-media done", "summary", sum)
 	if quota {
 		return sum, fmt.Errorf("image quota exceeded — aborted (rerun to resume; idempotent)")
@@ -247,6 +260,27 @@ func (r *runner) summary(opts Opts, candidates int) map[string]any {
 		}
 	}
 	return s
+}
+
+func (r *runner) markUnmirrored(workno string) {
+	if r.unmirrored == nil {
+		r.unmirrored = map[string]bool{}
+	}
+	r.unmirrored[workno] = true
+}
+
+func writeWorknos(path string, set map[string]bool) error {
+	worknos := make([]string, 0, len(set))
+	for w := range set {
+		worknos = append(worknos, w)
+	}
+	slices.Sort(worknos)
+	var b strings.Builder
+	for _, w := range worknos {
+		b.WriteString(w)
+		b.WriteByte('\n')
+	}
+	return os.WriteFile(path, []byte(b.String()), 0o644)
 }
 
 func laneSplit(cands []candidate) (bodyless, claimed int) {

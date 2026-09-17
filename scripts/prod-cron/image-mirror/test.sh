@@ -1,6 +1,6 @@
 #!/bin/sh
 # Offline harness for run.sh beside it: fake docker / rsync / timeout / flock /
-# shred / alert on PATH, so it never reaches Docker, VNDB or a database.
+# shred / alert on PATH, so it never reaches Docker, VNDB, DLsite or a database.
 #
 #   sh scripts/prod-cron/image-mirror/test.sh
 set -eu
@@ -20,6 +20,7 @@ install_fakes() {
   : > "$td/vndb/.lock"
   printf 'cv/50/150.jpg\n' > "$td/ctl/files/covers"
   printf 'ch/50/250.jpg\nch/12/12.jpg\n' > "$td/ctl/files/portraits"
+  printf 'RJ01\nVJ02\n' > "$td/ctl/files/dlsite"
 
   cat > "$td/bin/docker" <<'FAKE'
 #!/bin/sh
@@ -28,7 +29,12 @@ CTL=${FAKE_CTL:?FAKE_CTL unset — refusing to reach a real docker}
 { echo "###"; printf '%s\n' "$@"; echo "###end"; } >> "$CTL/docker.args"
 case "$1" in
   pull) exit 0 ;;
-  image) echo "ghcr.io/next-moe/infra-tools@sha256:cafe"; exit 0 ;;
+  image)
+    case "$*" in
+      *kun-dlsite-api*) echo "ghcr.io/kunmoe/kun-dlsite-api@sha256:beef" ;;
+      *) echo "ghcr.io/next-moe/infra-tools@sha256:cafe" ;;
+    esac
+    exit 0 ;;
   inspect)
     printf '%s\n' 'KUN_CATALOG_PG_USER=cron' 'KUN_CATALOG_PG_PASSWORD=not-on-argv' 'KUN_PG_PASSWORD=not-on-argv'
     exit 0 ;;
@@ -36,21 +42,45 @@ case "$1" in
   *) echo "fake docker: unexpected $*" >&2; exit 99 ;;
 esac
 host_w=""
+envfile=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --rm) shift ;;
     -v) case "$2" in *:/w) host_w=${2%:/w} ;; esac; shift 2 ;;
-    --network|--env-file|-e|--user|--name) shift 2 ;;
+    --env-file) envfile=$2; shift 2 ;;
+    --network|-e|--user|--name) shift 2 ;;
     -*) echo "fake docker run: unknown option $1" >&2; exit 99 ;;
     *) break ;;
   esac
 done
+image=$1
 shift
+if [ "$1" = mirror ]; then
+  echo "crawler image=$image" >> "$CTL/tools.log"
+  cp "$envfile" "$CTL/crawler.env"
+  ls -l "$envfile" | cut -c1-10 > "$CTL/crawler.env.mode"
+  printf '%s\n' "$@" > "$CTL/crawler.args"
+  list=$(printf '%s\n' "$@" | sed -n '/^--worknos-file$/{n;p;}' | sed 's|^/w/||')
+  out=$(printf '%s\n' "$@" | sed -n '/^--out$/{n;p;}' | sed 's|^/w/||')
+  n=0
+  while IFS= read -r w; do
+    mkdir -p "$host_w/$out/$w"
+    echo jpeg > "$host_w/$out/$w/${w}_img_main.jpg"
+    n=$((n + 1))
+  done < "$host_w/$list"
+  if [ -f "$CTL/out/crawler" ]; then
+    cat "$CTL/out/crawler"
+  else
+    echo "2026/09/17 mirror: done — worknos=$n downloaded=$n skipped_exist=0 skipped_placeholder=0 skip_no_meta=0 errors=0"
+  fi
+  exit "$(cat "$CTL/rc/crawler" 2>/dev/null || echo 0)"
+fi
 [ "$1" = sh ] && [ "$2" = -c ] || { echo "fake docker run: expected sh -c" >&2; exit 99; }
 script=$3
 case "$script" in
   *backfill-vndb-covers*) tool=covers ;;
   *backfill-character-portraits*) tool=portraits ;;
+  *backfill-dlsite-media*) tool=dlsite ;;
   *) echo "fake docker run: unknown tool: $script" >&2; exit 99 ;;
 esac
 cmd=$(printf '%s\n' "$script" | sed 's/.*\(backfill-[a-z-]*.*\)/\1/')
@@ -59,11 +89,12 @@ case "$cmd" in *--apply*) mode=apply ;; esac
 echo "$tool+$mode" >> "$CTL/tools.log"
 if [ "$mode" = apply ]; then
   echo "$cmd" | sed 's/--dsn "\$CAT" //' >> "$CTL/apply.log"
-  ls "$host_w/mirror/vndb" >/dev/null 2>&1 || echo "$tool applied without a mirror" >> "$CTL/violations"
+  ls "$host_w/mirror" >/dev/null 2>&1 || echo "$tool applied without a mirror" >> "$CTL/violations"
+  [ -f "$host_w/env.dlsite" ] && echo "env.dlsite still on disk during the $tool upload" >> "$CTL/violations"
 else
-  out=$(printf '%s\n' "$cmd" | sed -n 's/.*--files-out \/w\/\([^ ]*\).*/\1/p')
-  [ -n "$out" ] || { echo "$tool dry run without --files-out" >> "$CTL/violations"; }
-  [ -n "$out" ] && cp "$CTL/files/$tool" "$host_w/$out"
+  out=$(printf '%s\n' "$cmd" | sed -n 's/.*--\(files\|worknos\)-out \/w\/\([^ ]*\).*/\2/p')
+  [ -n "$out" ] || { echo "$tool dry run without a list output" >> "$CTL/violations"; }
+  if [ -n "$out" ] && [ -f "$CTL/files/$tool" ]; then cp "$CTL/files/$tool" "$host_w/$out"; fi
 fi
 key="$tool+$mode"
 if [ -f "$CTL/out/$key" ]; then
@@ -72,6 +103,7 @@ else
   case "$key" in
     covers+dry) echo 'INFO backfill-vndb-covers summary result="candidates=1168 no_image=1006 portrait=150 landscape=12 planned=162 uploaded=0 dedup=0 rejected=0 errors=0 local=0 quota=false unrated=0 missing=0 to_fetch=1"' ;;
     portraits+dry) echo 'INFO char-portraits DRY forecast candidates=154912 skipped_has_hash=147947 local_present=0 missing_file=2 bad_id=0' ;;
+    dlsite+dry) echo 'INFO dlsite-media done summary="map[apply:false candidates:10751 errors:0 unmirrored_works:2]"' ;;
     *) echo "fake-ok $key" ;;
   esac
 fi
@@ -141,7 +173,9 @@ run_job() {
 exit_is() { [ "$(cat "$1/ctl/exit")" = "$2" ]; }
 has_stamp() { [ -f "$1/base/state/last-success" ]; }
 has_alert() { [ -s "$1/ctl/alerts" ]; }
-applied() { grep -c . "$1/ctl/apply.log" 2>/dev/null || echo 0; }
+applied() { n=$(grep -c "${2:-.}" "$1/ctl/apply.log" 2>/dev/null); echo "${n:-0}"; }
+vndb_applied() { applied "$1" 'backfill-vndb-covers\|backfill-character-portraits'; }
+dlsite_applied() { applied "$1" 'backfill-dlsite-media'; }
 rsynced() { [ -f "$1/ctl/rsync.args" ]; }
 
 expect_blocked() {
@@ -149,7 +183,17 @@ expect_blocked() {
   if has_stamp "$1"; then fail "stamp written"; fi
   if ! has_alert "$1"; then fail "no alert"; fi
   if rsynced "$1"; then fail "rsync ran"; fi
-  if [ "$(applied "$1")" != 0 ]; then fail "uploads ran"; fi
+  if [ "$(vndb_applied "$1")" != 0 ]; then fail "vndb uploads ran"; fi
+  if [ "$(dlsite_applied "$1")" != 1 ]; then fail "the dlsite lane did not run on its own"; fi
+}
+
+expect_dlsite_blocked() {
+  if exit_is "$1" 0; then fail "exit 0"; fi
+  if has_stamp "$1"; then fail "stamp written"; fi
+  if ! has_alert "$1"; then fail "no alert"; fi
+  if [ "$(dlsite_applied "$1")" != 0 ]; then fail "dlsite uploads ran"; fi
+  if [ "$(vndb_applied "$1")" != 2 ]; then fail "the vndb lane did not run on its own"; fi
+  if [ -f "$1/base/env.dlsite" ]; then fail "env.dlsite left behind"; fi
 }
 
 # --- T1: the happy path fetches exactly the listed files, uploads mirror-only, and cleans up ---
@@ -165,9 +209,15 @@ grep -qx 'mirror/vndb/' "$td/ctl/rsync.args" || fail "rsync destination"
 cat > "$td/ctl/want.apply" <<'EOF'
 backfill-vndb-covers --from-dump --image-dir /w/mirror/vndb --mirror-only --workers 2 --upload-gap 200ms --apply
 backfill-character-portraits --vndb-image-dir /w/mirror/vndb --upload-gap 100ms --apply
+backfill-dlsite-media --dlsite-dsn "$DL" --kind cover,screenshot --mirror-dir /w/mirror/dlsite --upload-gap 100ms --apply
 EOF
 cmp -s "$td/ctl/want.apply" "$td/ctl/apply.log" || fail "apply lines: $(cat "$td/ctl/apply.log")"
-[ -d "$td/base/mirror/vndb" ] && fail "mirror not removed"
+[ -d "$td/base/mirror/vndb" ] && fail "vndb mirror not removed"
+[ -d "$td/base/mirror/dlsite" ] && fail "dlsite mirror not removed"
+grep -qx 'crawler image=ghcr.io/kunmoe/kun-dlsite-api@sha256:beef' "$td/ctl/tools.log" || fail "crawler ran from $(grep crawler "$td/ctl/tools.log")"
+printf 'mirror\n--worknos-file\n/w/state/dlsite.worknos\n--out\n/w/mirror/dlsite\n--rate\n2\n--concurrency\n3\n' > "$td/ctl/want.crawler"
+cmp -s "$td/ctl/want.crawler" "$td/ctl/crawler.args" || fail "crawler args: $(tr '\n' ' ' < "$td/ctl/crawler.args")"
+[ -f "$td/base/env.dlsite" ] && fail "env.dlsite left behind"
 [ -f "$td/base/env.tmp" ] && fail "env.tmp left behind"
 [ -s "$td/ctl/violations" ] && fail "$(cat "$td/ctl/violations")"
 tend; rm -rf "$td"
@@ -206,14 +256,14 @@ td=$(mktemp -d); install_fakes "$td"
 echo 'ch/50/250.jpg' > "$td/ctl/rsync-gone"
 run_job "$td"
 exit_is "$td" 0 || fail "rc 23 failed the run"
-[ "$(applied "$td")" = 2 ] || fail "uploads after rc 23: $(applied "$td")"
+[ "$(vndb_applied "$td")" = 2 ] || fail "uploads after rc 23: $(vndb_applied "$td")"
 rm -rf "$td"
 td=$(mktemp -d); install_fakes "$td"
 echo 10 > "$td/ctl/rc/rsync"
 run_job "$td"
 exit_is "$td" 0 && fail "rc 10 passed"
 has_alert "$td" || fail "no alert on rc 10"
-[ "$(applied "$td")" = 0 ] || fail "uploaded after rc 10"
+[ "$(vndb_applied "$td")" = 0 ] || fail "uploaded after rc 10"
 tend; rm -rf "$td"
 
 # --- T7: nothing to fetch skips rsync and still runs the (no-op) uploads ---
@@ -225,7 +275,7 @@ echo 'INFO char-portraits DRY forecast missing_file=0' > "$td/ctl/out/portraits+
 run_job "$td"
 exit_is "$td" 0 || fail "exit $(cat "$td/ctl/exit")"
 rsynced "$td" && fail "rsync ran with an empty list"
-[ "$(applied "$td")" = 2 ] || fail "uploads: $(applied "$td")"
+[ "$(vndb_applied "$td")" = 2 ] || fail "uploads: $(vndb_applied "$td")"
 tend; rm -rf "$td"
 
 # --- T8: one lane failing still runs the other, fails the run, and keeps the copy ---
@@ -266,6 +316,65 @@ tstart 11
 td=$(mktemp -d); install_fakes "$td"; run_job "$td"
 grep -q 'not-on-argv' "$td/ctl/docker.args" && fail "password on argv"
 grep -q ' password=' "$td/ctl/docker.args" && fail "password= in a DSN"
+tend; rm -rf "$td"
+
+# --- T12: the crawler reads the password from its env file, never from its DSN ---
+tstart 12
+td=$(mktemp -d); install_fakes "$td"; run_job "$td"
+grep -qx 'DATABASE_URL=host=127.0.0.1 port=5432 user=cron dbname=dlsite sslmode=disable' "$td/ctl/crawler.env" || fail "DATABASE_URL: $(head -1 "$td/ctl/crawler.env")"
+grep -qx 'PGPASSWORD=not-on-argv' "$td/ctl/crawler.env" || fail "no PGPASSWORD for the crawler"
+grep -q '^-rw-------' "$td/ctl/crawler.env.mode" || fail "env.dlsite mode $(cat "$td/ctl/crawler.env.mode")"
+grep -q 'not-on-argv' "$td/ctl/crawler.args" && fail "password on the crawler argv"
+tend; rm -rf "$td"
+
+# --- T13: a DLsite list past its ceiling fetches and uploads nothing there, and the VNDB lane still runs ---
+tstart 13
+td=$(mktemp -d); install_fakes "$td"
+i=0; : > "$td/ctl/files/dlsite"
+while [ $i -lt 501 ]; do echo "RJ$i" >> "$td/ctl/files/dlsite"; i=$((i + 1)); done
+run_job "$td"; expect_dlsite_blocked "$td"
+[ -f "$td/ctl/crawler.args" ] && fail "the crawler ran past the ceiling"
+tend; rm -rf "$td"
+
+# --- T14: a mirror that downloaded nothing and failed some is a failure, not a quiet week ---
+tstart 14
+td=$(mktemp -d); install_fakes "$td"
+echo '2026/09/17 mirror: done — worknos=2 downloaded=0 skipped_exist=0 skipped_placeholder=0 skip_no_meta=0 errors=9' > "$td/ctl/out/crawler"
+run_job "$td"; expect_dlsite_blocked "$td"
+rm -rf "$td"
+td=$(mktemp -d); install_fakes "$td"
+echo 1 > "$td/ctl/rc/crawler"
+run_job "$td"; expect_dlsite_blocked "$td"
+rm -rf "$td"
+td=$(mktemp -d); install_fakes "$td"
+echo 'mirror: panic before the summary' > "$td/ctl/out/crawler"
+run_job "$td"; expect_dlsite_blocked "$td"
+tend; rm -rf "$td"
+
+# --- T15: a partial mirror is fine; no DLsite work to fetch skips the crawler and still uploads ---
+tstart 15
+td=$(mktemp -d); install_fakes "$td"
+echo '2026/09/17 mirror: done — worknos=2 downloaded=5 skipped_exist=0 skipped_placeholder=0 skip_no_meta=0 errors=2' > "$td/ctl/out/crawler"
+run_job "$td"
+exit_is "$td" 0 || fail "partial mirror failed the run"
+rm -rf "$td"
+td=$(mktemp -d); install_fakes "$td"
+: > "$td/ctl/files/dlsite"
+run_job "$td"
+exit_is "$td" 0 || fail "exit $(cat "$td/ctl/exit")"
+[ -f "$td/ctl/crawler.args" ] && fail "the crawler ran with nothing to fetch"
+[ "$(dlsite_applied "$td")" = 1 ] || fail "dlsite upload skipped"
+tend; rm -rf "$td"
+
+# --- T16: a failed DLsite dry run, or one that wrote no list, stops that lane only ---
+tstart 16
+td=$(mktemp -d); install_fakes "$td"
+echo 1 > "$td/ctl/rc/dlsite+dry"
+run_job "$td"; expect_dlsite_blocked "$td"
+rm -rf "$td"
+td=$(mktemp -d); install_fakes "$td"
+rm -f "$td/ctl/files/dlsite"
+run_job "$td"; expect_dlsite_blocked "$td"
 tend; rm -rf "$td"
 
 [ "$FAILED" -eq 0 ]

@@ -269,6 +269,7 @@ func TestClaimedScreenshotLane(t *testing.T) {
 	assert.False(t, r.writeScreenshots(ctx, dir, cand, meta, false))
 	assert.Equal(t, 2, r.c.shotWould)
 	assert.Equal(t, 1, r.c.shotMissing, "unmirrored sample is a forecast miss, not an error")
+	assert.Equal(t, map[string]bool{cand.Workno: true}, r.unmirrored, "the work is listed for the mirror")
 	assert.Empty(t, r.touched, "a dry run touches nothing")
 	require.NoError(t, db.Raw("SELECT count(*) FROM catalog_work_screenshot WHERE work_id = ?", cand.WorkID).Scan(&n).Error)
 	assert.EqualValues(t, 0, n)
@@ -355,4 +356,40 @@ func TestCrossSourceSameBytesAreNotWrittenTwice(t *testing.T) {
 			assert.EqualValues(t, vndbSourceID, row.SourceID, "the first writer keeps its source attribution")
 		}
 	}
+}
+
+func TestWorknosOutListsEachWorkOnceInOrder(t *testing.T) {
+	r := &runner{}
+	for _, w := range []string{"RJ300", "VJ100", "RJ300", "BJ200"} {
+		r.markUnmirrored(w)
+	}
+	path := filepath.Join(t.TempDir(), "worknos")
+	require.NoError(t, writeWorknos(path, r.unmirrored))
+	got, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, "BJ200\nRJ300\nVJ100\n", string(got))
+
+	empty := filepath.Join(t.TempDir(), "empty")
+	require.NoError(t, writeWorknos(empty, nil))
+	got, err = os.ReadFile(empty)
+	require.NoError(t, err)
+	assert.Empty(t, got, "nothing to fetch still writes the file the job reads")
+}
+
+func TestAnUnmirroredCoverListsItsWork(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "RJ2"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "RJ2", "RJ2_img_main.jpg"), []byte("x"), 0o644))
+	r := &runner{exist: &existing{cover: map[int64]bool{3: true}}}
+	ctx := context.Background()
+
+	r.writeCover(ctx, dir, candidate{WorkID: 1, Workno: "RJ1"}, dlsiteMeta{CoverFile: "RJ1_img_main.jpg"}, false)
+	r.writeCover(ctx, dir, candidate{WorkID: 2, Workno: "RJ2"}, dlsiteMeta{CoverFile: "RJ2_img_main.jpg"}, false)
+	r.writeCover(ctx, dir, candidate{WorkID: 3, Workno: "RJ3"}, dlsiteMeta{CoverFile: "RJ3_img_main.jpg"}, false)
+	r.writeCover(ctx, dir, candidate{WorkID: 4, Workno: "RJ4"}, dlsiteMeta{}, false)
+
+	assert.Equal(t, map[string]bool{"RJ1": true}, r.unmirrored,
+		"only the cover it would upload and cannot read: not the mirrored one, the covered work, or a placeholder")
+	assert.Equal(t, 1, r.c.coverMissing)
+	assert.Equal(t, 1, r.c.coverWould)
 }

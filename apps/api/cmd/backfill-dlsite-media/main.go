@@ -19,6 +19,7 @@ func main() {
 	dsn := flag.String("dsn", "", "catalog DSN — REQUIRED; the rehearsal copy locally (kun_catalog_rehearsal), the live catalog only in the production run")
 	dlsiteDSN := flag.String("dlsite-dsn", "", "dlsite staging DSN — REQUIRED; reads product_json/page_json")
 	mirrorDir := flag.String("mirror-dir", "", "local mirror root <root>/<workno>/<filename> (required for cover/screenshot)")
+	worknosOut := flag.String("worknos-out", "", "write the worknos with a planned cover or screenshot the mirror lacks, one per line (kun-dlsite-api mirror --worknos-file)")
 	imageBaseURL := flag.String("image-base-url", "", "image_service base override (point at the LOCAL dev service, e.g. http://127.0.0.1:9278)")
 	uploadGap := flag.Duration("upload-gap", 0, "min delay between uploads (0 = none; raise for a gentle production sweep)")
 	flag.Parse()
@@ -44,6 +45,7 @@ func main() {
 		DSN:          *dsn,
 		DlsiteDSN:    *dlsiteDSN,
 		MirrorDir:    *mirrorDir,
+		WorknosOut:   *worknosOut,
 		ImageBaseURL: *imageBaseURL,
 		UploadGap:    *uploadGap,
 	})
