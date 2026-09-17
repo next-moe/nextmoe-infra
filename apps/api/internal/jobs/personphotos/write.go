@@ -77,9 +77,9 @@ func (r *runner) fill(ctx context.Context, c candidate, apply bool) personResult
 		case stderrors.Is(err, imageclient.ErrQuotaExceeded):
 			slog.Warn("daily image quota exhausted — stopping", "person", c.PersonID)
 			out.quota = true
-		case stderrors.Is(err, imageclient.ErrModerationRejected):
+		case imageclient.IsPermanent(err):
 			out.rejected++
-			slog.Warn("photo rejected by moderation", "person", c.PersonID, "external_id", c.ExternalID)
+			slog.Warn("photo rejected by the image service", "person", c.PersonID, "external_id", c.ExternalID, "err", err)
 		default:
 			out.errors++
 			slog.Warn("upload person photo", "person", c.PersonID, "external_id", c.ExternalID, "err", err)
@@ -142,7 +142,7 @@ func (r *runner) upload(ctx context.Context, path string) (*imageclient.UploadRe
 		if err == nil {
 			return res, nil
 		}
-		if stderrors.Is(err, imageclient.ErrQuotaExceeded) || stderrors.Is(err, imageclient.ErrModerationRejected) {
+		if stderrors.Is(err, imageclient.ErrQuotaExceeded) || imageclient.IsPermanent(err) {
 			return nil, err
 		}
 		lastErr = err

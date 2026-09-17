@@ -207,6 +207,18 @@ func TestHTTP_Upload_NonImage_400(t *testing.T) {
 	assert.Equal(t, 80009, env.Code)
 }
 
+func TestHTTP_Upload_UndecodableJPEG_400(t *testing.T) {
+	body := append([]byte{0xff, 0xd8, 0xff, 0xdb}, "sniffed as a JPEG, refused by the decoder"...)
+	req := uploadRequest(t, "avatar", body, basicAuth(testClientID, testClientSecret))
+	resp, err := testApp.Test(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	assert.Equal(t, 400, resp.StatusCode)
+
+	env := decodeEnvelope(t, resp)
+	assert.Equal(t, 80010, env.Code)
+}
+
 func TestHTTP_Meta_Found(t *testing.T) {
 	body := fixturePNG(220, 220, 7, 200, 50)
 	_, result, _ := callUpload(t, body, "avatar", testClientID, testClientSecret)

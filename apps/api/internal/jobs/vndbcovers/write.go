@@ -205,7 +205,7 @@ func (r *runner) upload(ctx context.Context, body []byte, filename string) (*ima
 		if err == nil {
 			return res, nil
 		}
-		if stderrors.Is(err, imageclient.ErrQuotaExceeded) || stderrors.Is(err, imageclient.ErrModerationRejected) {
+		if stderrors.Is(err, imageclient.ErrQuotaExceeded) || imageclient.IsPermanent(err) {
 			return nil, err
 		}
 		lastErr = err
@@ -244,9 +244,9 @@ func (r *runner) classify(err error, row planRow) (quota bool) {
 	case stderrors.Is(err, imageclient.ErrQuotaExceeded):
 		slog.Warn("daily image quota exhausted — stopping", "work", row.WorkID)
 		return true
-	case stderrors.Is(err, imageclient.ErrModerationRejected):
+	case imageclient.IsPermanent(err):
 		r.stats.Rejected++
-		slog.Warn("vndb cover rejected by moderation", "work", row.WorkID, "vn", row.VNDBID)
+		slog.Warn("vndb cover rejected by the image service", "work", row.WorkID, "vn", row.VNDBID, "err", err)
 		return false
 	default:
 		r.stats.Errors++

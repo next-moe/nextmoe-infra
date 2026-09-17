@@ -78,9 +78,9 @@ func (r *runner) fill(ctx context.Context, c candidate, apply bool) labelResult 
 		case stderrors.Is(err, imageclient.ErrQuotaExceeded):
 			slog.Warn("daily image quota exhausted — stopping", "label", c.LabelID)
 			out.quota = true
-		case stderrors.Is(err, imageclient.ErrModerationRejected):
+		case imageclient.IsPermanent(err):
 			out.rejected++
-			slog.Warn("logo rejected by moderation", "source", r.source.Key, "label", c.LabelID, "external_id", c.ExternalID)
+			slog.Warn("logo rejected by the image service", "source", r.source.Key, "label", c.LabelID, "external_id", c.ExternalID, "err", err)
 		default:
 			out.errors++
 			slog.Warn("upload label logo", "source", r.source.Key, "label", c.LabelID, "external_id", c.ExternalID, "err", err)
@@ -143,7 +143,7 @@ func (r *runner) upload(ctx context.Context, path string) (*imageclient.UploadRe
 		if err == nil {
 			return res, nil
 		}
-		if stderrors.Is(err, imageclient.ErrQuotaExceeded) || stderrors.Is(err, imageclient.ErrModerationRejected) {
+		if stderrors.Is(err, imageclient.ErrQuotaExceeded) || imageclient.IsPermanent(err) {
 			return nil, err
 		}
 		lastErr = err
