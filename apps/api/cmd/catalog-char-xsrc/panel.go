@@ -332,9 +332,11 @@ type mergeGroup struct {
 }
 
 // unionEdges applies edges from the most confident down and refuses any edge
-// that would put two rows of one source into a group.
-func unionEdges(edges []mergeEdge, sourcesBySide map[int64][]string, richBySide map[int64]richness,
-	stats map[string]int) (groups []mergeGroup, residual []string, applied int) {
+// that would put two rows of one source, or a pair some stage declined, into a
+// group. The 2026-09-17 drain emitted 直江兼続 bangumi+vndb, judged distinct,
+// as one group because a series-wide EG entry matched each of them.
+func unionEdges(edges []mergeEdge, declined map[[2]int64]bool, sourcesBySide map[int64][]string,
+	richBySide map[int64]richness, stats map[string]int) (groups []mergeGroup, residual []string, applied int) {
 	sort.SliceStable(edges, func(i, j int) bool { return edges[i].conf > edges[j].conf })
 	parent := map[int64]int64{}
 	var find func(int64) int64
@@ -360,6 +362,13 @@ func unionEdges(edges []mergeEdge, sourcesBySide map[int64][]string, richBySide 
 		}
 		return rootSources[r]
 	}
+	rootMembers := map[int64][]int64{}
+	membersOf := func(root int64) []int64 {
+		if m, ok := rootMembers[root]; ok {
+			return m
+		}
+		return []int64{root}
+	}
 	for _, e := range edges {
 		ra, rb := find(e.p.A), find(e.p.B)
 		if ra == rb {
@@ -377,12 +386,20 @@ func unionEdges(edges []mergeEdge, sourcesBySide map[int64][]string, richBySide 
 			residual = append(residual, panelLine(e.p, "并组后同源冲突", nil))
 			continue
 		}
+		ma, mb := membersOf(ra), membersOf(rb)
+		if x, y, ok := declinedAcross(ma, mb, declined); ok {
+			stats["edge_declined"]++
+			residual = append(residual, panelLine(e.p, fmt.Sprintf("并组后含已否决对 %d-%d", x, y), nil))
+			continue
+		}
 		for s := range sb {
 			sa[s] = true
 		}
 		parent[rb] = ra
 		rootSources[ra] = sa
 		delete(rootSources, rb)
+		rootMembers[ra] = append(ma, mb...)
+		delete(rootMembers, rb)
 		applied++
 	}
 
@@ -404,6 +421,36 @@ func unionEdges(edges []mergeEdge, sourcesBySide map[int64][]string, richBySide 
 		groups = append(groups, mergeGroup{survivor, sources})
 	}
 	return groups, residual, applied
+}
+
+func declinedAcross(a, b []int64, declined map[[2]int64]bool) (int64, int64, bool) {
+	for _, x := range a {
+		for _, y := range b {
+			if declined[pairID(x, y)] {
+				return x, y, true
+			}
+		}
+	}
+	return 0, 0, false
+}
+
+// declinedPairs is every judged pair that did not become an edge.
+func declinedPairs(judged []pairMeta, edges []mergeEdge) map[[2]int64]bool {
+	declined := make(map[[2]int64]bool, len(judged))
+	for _, p := range judged {
+		declined[pairID(p.A, p.B)] = true
+	}
+	for _, e := range edges {
+		delete(declined, pairID(e.p.A, e.p.B))
+	}
+	return declined
+}
+
+func pairID(a, b int64) [2]int64 {
+	if a > b {
+		a, b = b, a
+	}
+	return [2]int64{a, b}
 }
 
 func writeGroups(worklistPath string, groups []mergeGroup) error {
@@ -450,7 +497,13 @@ func runPanelEmit(pairs2Path, verdicts2Path, worklistPath, residualPath string, 
 		richBySide[p.A] = p.ARich
 		richBySide[p.B] = p.BRich
 	}
-	groups, conflicts, accepted := unionEdges(edges, sourcesBySide, richBySide, stats)
+	var judged []pairMeta
+	for _, p := range ppairs {
+		if p.Cat != catSameSource {
+			judged = append(judged, p.pairMeta)
+		}
+	}
+	groups, conflicts, accepted := unionEdges(edges, declinedPairs(judged, edges), sourcesBySide, richBySide, stats)
 	residual = append(residual, conflicts...)
 	if err := writeGroups(worklistPath, groups); err != nil {
 		return err
@@ -459,12 +512,12 @@ func runPanelEmit(pairs2Path, verdicts2Path, worklistPath, residualPath string, 
 		return err
 	}
 	fmt.Fprintf(out, "pairs=%d accept_lowconf=%d accept_unsure=%d accept_instance=%d samesource_edges=%d "+
-		"closed_distinct=%d closed_instance=%d residual=%d unjudged=%d edge_conflict=%d "+
+		"closed_distinct=%d closed_instance=%d residual=%d unjudged=%d edge_conflict=%d edge_declined=%d "+
 		"edges_applied=%d groups_emitted=%d\n",
 		len(ppairs), stats["accept_"+catLowConf], stats["accept_"+catUnsure], stats["accept_"+catInstance],
 		countCat(ppairs, catSameSource),
 		stats["closed_distinct"], stats["closed_instance"], stats["residual"], stats["unjudged"],
-		stats["edge_conflict"], accepted, len(groups))
+		stats["edge_conflict"], stats["edge_declined"], accepted, len(groups))
 	return nil
 }
 
