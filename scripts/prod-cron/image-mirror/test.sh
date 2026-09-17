@@ -21,6 +21,9 @@ install_fakes() {
   printf 'cv/50/150.jpg\n' > "$td/ctl/files/covers"
   printf 'ch/50/250.jpg\nch/12/12.jpg\n' > "$td/ctl/files/portraits"
   printf 'RJ01\nVJ02\n' > "$td/ctl/files/dlsite"
+  printf '101\n102\n' > "$td/ctl/files/bgmcovers"
+  printf '7\n9\n' > "$td/ctl/files/bgmlogos"
+  printf '9\n8\n' > "$td/ctl/files/bgmphotos"
 
   cat > "$td/bin/docker" <<'FAKE'
 #!/bin/sh
@@ -55,6 +58,26 @@ while [ $# -gt 0 ]; do
 done
 image=$1
 shift
+if [ "$1" = fetch-bangumi-images ]; then
+  kind=$(printf '%s\n' "$@" | sed -n '/^--kind$/{n;p;}')
+  printf '%s\n' "$@" > "$CTL/bgm-fetch-$kind.args"
+  echo "${envfile:-none}" > "$CTL/bgm-fetch-$kind.envfile"
+  echo "bgm-fetch+$kind" >> "$CTL/tools.log"
+  list=$(printf '%s\n' "$@" | sed -n '/^--ids-file$/{n;p;}' | sed 's|^/w/||')
+  out=$(printf '%s\n' "$@" | sed -n '/^--out$/{n;p;}' | sed 's|^/w/||')
+  n=0
+  while IFS= read -r id; do
+    mkdir -p "$host_w/$out/$id"
+    if [ "$kind" = covers ]; then echo jpeg > "$host_w/$out/$id/cover.jpg"; else echo jpeg > "$host_w/$out/$id/logo.jpg"; fi
+    n=$((n + 1))
+  done < "$host_w/$list"
+  if [ -f "$CTL/out/bgmfetch-$kind" ]; then
+    cat "$CTL/out/bgmfetch-$kind"
+  else
+    echo "fetch-bangumi-images: done — kind=$kind ids=$n downloaded=$n skipped_exist=0 no_image=0 not_found=0 errors=0"
+  fi
+  exit "$(cat "$CTL/rc/bgmfetch-$kind" 2>/dev/null || echo 0)"
+fi
 if [ "$1" = mirror ]; then
   echo "crawler image=$image" >> "$CTL/tools.log"
   cp "$envfile" "$CTL/crawler.env"
@@ -81,6 +104,9 @@ case "$script" in
   *backfill-vndb-covers*) tool=covers ;;
   *backfill-character-portraits*) tool=portraits ;;
   *backfill-dlsite-media*) tool=dlsite ;;
+  *backfill-bangumi-covers*) tool=bgmcovers ;;
+  *backfill-label-logos*) tool=bgmlogos ;;
+  *backfill-person-photos*) tool=bgmphotos ;;
   *) echo "fake docker run: unknown tool: $script" >&2; exit 99 ;;
 esac
 cmd=$(printf '%s\n' "$script" | sed 's/.*\(backfill-[a-z-]*.*\)/\1/')
@@ -92,7 +118,10 @@ if [ "$mode" = apply ]; then
   ls "$host_w/mirror" >/dev/null 2>&1 || echo "$tool applied without a mirror" >> "$CTL/violations"
   [ -f "$host_w/env.dlsite" ] && echo "env.dlsite still on disk during the $tool upload" >> "$CTL/violations"
 else
-  out=$(printf '%s\n' "$cmd" | sed -n 's/.*--\(files\|worknos\)-out \/w\/\([^ ]*\).*/\2/p')
+  if [ "$tool" = bgmcovers ] && [ ! -f "$host_w/mirror/bangumi/covers/dims.jsonl" ]; then
+    echo "bangumi covers dry run found no dims.jsonl" >&2; exit 1
+  fi
+  out=$(printf '%s\n' "$cmd" | sed -n 's/.*--\(files\|worknos\|subjects\|ids\)-out \/w\/\([^ ]*\).*/\2/p')
   [ -n "$out" ] || { echo "$tool dry run without a list output" >> "$CTL/violations"; }
   if [ -n "$out" ] && [ -f "$CTL/files/$tool" ]; then cp "$CTL/files/$tool" "$host_w/$out"; fi
 fi
@@ -176,6 +205,7 @@ has_alert() { [ -s "$1/ctl/alerts" ]; }
 applied() { n=$(grep -c "${2:-.}" "$1/ctl/apply.log" 2>/dev/null); echo "${n:-0}"; }
 vndb_applied() { applied "$1" 'backfill-vndb-covers\|backfill-character-portraits'; }
 dlsite_applied() { applied "$1" 'backfill-dlsite-media'; }
+bgm_applied() { applied "$1" 'backfill-bangumi-covers\|backfill-label-logos\|backfill-person-photos'; }
 rsynced() { [ -f "$1/ctl/rsync.args" ]; }
 
 expect_blocked() {
@@ -185,6 +215,7 @@ expect_blocked() {
   if rsynced "$1"; then fail "rsync ran"; fi
   if [ "$(vndb_applied "$1")" != 0 ]; then fail "vndb uploads ran"; fi
   if [ "$(dlsite_applied "$1")" != 1 ]; then fail "the dlsite lane did not run on its own"; fi
+  if [ "$(bgm_applied "$1")" != 3 ]; then fail "the bangumi lane did not run on its own"; fi
 }
 
 expect_dlsite_blocked() {
@@ -193,7 +224,16 @@ expect_dlsite_blocked() {
   if ! has_alert "$1"; then fail "no alert"; fi
   if [ "$(dlsite_applied "$1")" != 0 ]; then fail "dlsite uploads ran"; fi
   if [ "$(vndb_applied "$1")" != 2 ]; then fail "the vndb lane did not run on its own"; fi
+  if [ "$(bgm_applied "$1")" != 3 ]; then fail "the bangumi lane did not run on its own"; fi
   if [ -f "$1/base/env.dlsite" ]; then fail "env.dlsite left behind"; fi
+}
+
+expect_bgm_blocked() {
+  if exit_is "$1" 0; then fail "exit 0"; fi
+  if has_stamp "$1"; then fail "stamp written"; fi
+  if ! has_alert "$1"; then fail "no alert"; fi
+  if [ "$(bgm_applied "$1")" != 0 ]; then fail "bangumi uploads ran"; fi
+  if [ "$(vndb_applied "$1")" != 2 ] || [ "$(dlsite_applied "$1")" != 1 ]; then fail "the other lanes did not run"; fi
 }
 
 # --- T1: the happy path fetches exactly the listed files, uploads mirror-only, and cleans up ---
@@ -210,10 +250,14 @@ cat > "$td/ctl/want.apply" <<'EOF'
 backfill-vndb-covers --from-dump --image-dir /w/mirror/vndb --mirror-only --workers 2 --upload-gap 200ms --apply
 backfill-character-portraits --vndb-image-dir /w/mirror/vndb --upload-gap 100ms --apply
 backfill-dlsite-media --dlsite-dsn "$DL" --kind cover,screenshot --mirror-dir /w/mirror/dlsite --upload-gap 100ms --apply
+backfill-bangumi-covers --bangumi-mirror /w/mirror/bangumi/covers --allow-landscape --upload-gap 100ms --apply
+backfill-label-logos --source bangumi --mirror-dir /w/mirror/bangumi/persons --upload-gap 100ms --apply
+backfill-person-photos --mirror-dir /w/mirror/bangumi/persons --upload-gap 100ms --apply
 EOF
 cmp -s "$td/ctl/want.apply" "$td/ctl/apply.log" || fail "apply lines: $(cat "$td/ctl/apply.log")"
 [ -d "$td/base/mirror/vndb" ] && fail "vndb mirror not removed"
 [ -d "$td/base/mirror/dlsite" ] && fail "dlsite mirror not removed"
+[ -d "$td/base/mirror/bangumi" ] && fail "bangumi mirror not removed"
 grep -qx 'crawler image=ghcr.io/kunmoe/kun-dlsite-api@sha256:beef' "$td/ctl/tools.log" || fail "crawler ran from $(grep crawler "$td/ctl/tools.log")"
 printf 'mirror\n--worknos-file\n/w/state/dlsite.worknos\n--out\n/w/mirror/dlsite\n--rate\n2\n--concurrency\n3\n' > "$td/ctl/want.crawler"
 cmp -s "$td/ctl/want.crawler" "$td/ctl/crawler.args" || fail "crawler args: $(tr '\n' ' ' < "$td/ctl/crawler.args")"
@@ -375,6 +419,86 @@ rm -rf "$td"
 td=$(mktemp -d); install_fakes "$td"
 rm -f "$td/ctl/files/dlsite"
 run_job "$td"; expect_dlsite_blocked "$td"
+tend; rm -rf "$td"
+
+# --- T17: the Bangumi lane fetches covers and one merged person list, then uploads all three ---
+tstart 17
+td=$(mktemp -d); install_fakes "$td"; run_job "$td"
+exit_is "$td" 0 || fail "exit $(cat "$td/ctl/exit"): $(tail -3 "$td/ctl/stdout")"
+printf 'fetch-bangumi-images\n--kind\ncovers\n--ids-file\n/w/state/bgm-covers.ids\n--out\n/w/mirror/bangumi/covers\n' > "$td/ctl/want.covers"
+cmp -s "$td/ctl/want.covers" "$td/ctl/bgm-fetch-covers.args" || fail "covers fetch args: $(tr '\n' ' ' < "$td/ctl/bgm-fetch-covers.args")"
+printf '7\n8\n9\n' > "$td/ctl/want.persons"
+cmp -s "$td/ctl/want.persons" "$td/base/state/bgm-persons.ids" || fail "persons list: $(tr '\n' ' ' < "$td/base/state/bgm-persons.ids")"
+grep -qx 'none' "$td/ctl/bgm-fetch-persons.envfile" || fail "an env file reached the fetch without bangumi.env"
+[ "$(bgm_applied "$td")" = 3 ] || fail "bangumi uploads: $(bgm_applied "$td")"
+tend; rm -rf "$td"
+
+# --- T18: bangumi.env reaches the fetch as an env file, and its token reaches no argv ---
+tstart 18
+td=$(mktemp -d); install_fakes "$td"
+echo 'KUN_BANGUMI_TOKEN=tok-not-on-argv' > "$td/base/bangumi.env"
+run_job "$td"
+exit_is "$td" 0 || fail "exit $(cat "$td/ctl/exit")"
+grep -qx "$td/base/bangumi.env" "$td/ctl/bgm-fetch-covers.envfile" || fail "covers fetch env: $(cat "$td/ctl/bgm-fetch-covers.envfile")"
+grep -qx "$td/base/bangumi.env" "$td/ctl/bgm-fetch-persons.envfile" || fail "persons fetch env: $(cat "$td/ctl/bgm-fetch-persons.envfile")"
+grep -q 'tok-not-on-argv' "$td/ctl/docker.args" && fail "token on argv"
+[ -f "$td/base/bangumi.env" ] || fail "bangumi.env was removed"
+tend; rm -rf "$td"
+
+# --- T19: a Bangumi list past its ceiling fetches and uploads nothing there ---
+tstart 19
+td=$(mktemp -d); install_fakes "$td"
+seq 1 1001 > "$td/ctl/files/bgmcovers"
+run_job "$td"; expect_bgm_blocked "$td"
+[ -f "$td/ctl/bgm-fetch-covers.args" ] && fail "fetched past the ceiling"
+rm -rf "$td"
+td=$(mktemp -d); install_fakes "$td"
+seq 1 1501 > "$td/ctl/files/bgmlogos"
+run_job "$td"; expect_bgm_blocked "$td"
+tend; rm -rf "$td"
+
+# --- T20: a fetch that got nothing but errors, failed, or printed no summary blocks the lane ---
+tstart 20
+td=$(mktemp -d); install_fakes "$td"
+echo 'fetch-bangumi-images: done — kind=persons ids=3 downloaded=0 skipped_exist=0 no_image=0 not_found=0 errors=3' > "$td/ctl/out/bgmfetch-persons"
+run_job "$td"; expect_bgm_blocked "$td"
+rm -rf "$td"
+td=$(mktemp -d); install_fakes "$td"
+echo 1 > "$td/ctl/rc/bgmfetch-covers"
+run_job "$td"; expect_bgm_blocked "$td"
+rm -rf "$td"
+td=$(mktemp -d); install_fakes "$td"
+echo 'panic' > "$td/ctl/out/bgmfetch-covers"
+run_job "$td"; expect_bgm_blocked "$td"
+rm -rf "$td"
+td=$(mktemp -d); install_fakes "$td"
+echo 'fetch-bangumi-images: done — kind=covers ids=2 downloaded=0 skipped_exist=0 no_image=1 not_found=1 errors=0' > "$td/ctl/out/bgmfetch-covers"
+run_job "$td"
+exit_is "$td" 0 || fail "a quiet fetch with nothing to download failed the run"
+tend; rm -rf "$td"
+
+# --- T21: empty lists skip the fetch and still run the uploads ---
+tstart 21
+td=$(mktemp -d); install_fakes "$td"
+: > "$td/ctl/files/bgmcovers"; : > "$td/ctl/files/bgmlogos"; : > "$td/ctl/files/bgmphotos"
+run_job "$td"
+exit_is "$td" 0 || fail "exit $(cat "$td/ctl/exit")"
+[ -f "$td/ctl/bgm-fetch-covers.args" ] && fail "covers fetched with nothing to fetch"
+[ -f "$td/ctl/bgm-fetch-persons.args" ] && fail "persons fetched with nothing to fetch"
+[ "$(bgm_applied "$td")" = 3 ] || fail "uploads: $(bgm_applied "$td")"
+tend; rm -rf "$td"
+
+# --- T22: a dry run that writes no list blocks the lane; a failed one does too ---
+tstart 22
+for tool in bgmcovers bgmlogos bgmphotos; do
+  td=$(mktemp -d); install_fakes "$td"
+  rm -f "$td/ctl/files/$tool"
+  run_job "$td"; expect_bgm_blocked "$td"
+  rm -rf "$td"
+done
+td=$(mktemp -d); install_fakes "$td"
+echo 1 > "$td/ctl/rc/bgmphotos+dry"
+run_job "$td"; expect_bgm_blocked "$td"
 tend; rm -rf "$td"
 
 [ "$FAILED" -eq 0 ]

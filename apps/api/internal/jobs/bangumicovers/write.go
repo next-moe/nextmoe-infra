@@ -35,6 +35,7 @@ func (r *runner) writeCover(ctx context.Context, mirrorRoot string, c candidate,
 	path := coverPath(mirrorRoot, c.SubjectID, e)
 	if !fileExists(path) {
 		r.c.coverMissing++
+		r.markUnmirrored(c)
 		return false
 	}
 	if !apply {

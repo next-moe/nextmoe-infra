@@ -1,7 +1,7 @@
 #!/bin/sh
 # shellcheck disable=SC2016
 # Weekly image mirror (catalog): VNDB covers and character portraits, DLsite
-# covers and sample screenshots.
+# covers and sample screenshots, Bangumi covers, company logos and person photos.
 # Canonical copy: scripts/prod-cron/image-mirror/run.sh in nextmoe-infra — edit
 # there and redeploy; the box copy is /root/image-mirror/run.sh and must stay
 # byte-identical.
@@ -17,6 +17,10 @@
 #   dlsite — kun-dlsite-api `mirror`, reading prod's restaged dlsite database.
 #            DLsite answers this host with a redirect on www.dlsite.com, but its
 #            image CDN serves it (200 on 2026-09-17).
+#   bangumi — fetch-bangumi-images, Bangumi's API then its CDN. The dump
+#            carries no image fields. Anonymous requests get 404 for NSFW
+#            subjects (143 of the 436 coverless works on 2026-09-17), so a
+#            KUN_BANGUMI_TOKEN in $BASE/bangumi.env is used when present.
 #
 # Crontab: Monday 03:30 CST (`30 3 * * 1`), after Sunday's vndb-refresh and
 # crawler-restage, whose loads are what bring new references.
@@ -29,6 +33,8 @@ DLSITE_IMG_TAG=${IMAGE_MIRROR_DLSITE_IMAGE:-ghcr.io/kunmoe/kun-dlsite-api:latest
 COVERS_MAX=${IMAGE_MIRROR_COVERS_MAX:-500}
 PORTRAITS_MAX=${IMAGE_MIRROR_PORTRAITS_MAX:-3000}
 DLSITE_WORKS_MAX=${IMAGE_MIRROR_DLSITE_WORKS_MAX:-500}
+BANGUMI_COVERS_MAX=${IMAGE_MIRROR_BANGUMI_COVERS_MAX:-1000}
+BANGUMI_PERSONS_MAX=${IMAGE_MIRROR_BANGUMI_PERSONS_MAX:-1500}
 cd "$BASE"
 mkdir -p logs state
 LOG="logs/run-$(date -u +%F).log"
@@ -177,10 +183,69 @@ lane_dlsite() {
   rm -rf "$m"
 }
 
+lane_bangumi() {
+  m=mirror/bangumi
+  rm -rf "$m" && mkdir -p "$m/covers" "$m/persons" || return 1
+  # backfill-bangumi-covers refuses a mirror without a manifest.
+  : > "$m/covers/dims.jsonl" || return 1
+  rm -f state/bgm-covers.ids state/bgm-logos.ids state/bgm-photos.ids
+  run sh -c "$DSNSH"'; backfill-bangumi-covers --dsn "$CAT" --bangumi-mirror /w/mirror/bangumi/covers --subjects-out /w/state/bgm-covers.ids' \
+    > state/bgm-covers-dry.log 2>&1 || { echo "FATAL: bangumi covers dry run failed"; cat state/bgm-covers-dry.log; return 1; }
+  run sh -c "$DSNSH"'; backfill-label-logos --source bangumi --dsn "$CAT" --mirror-dir /w/mirror/bangumi/persons --ids-out /w/state/bgm-logos.ids' \
+    > state/bgm-logos-dry.log 2>&1 || { echo "FATAL: bangumi logos dry run failed"; cat state/bgm-logos-dry.log; return 1; }
+  run sh -c "$DSNSH"'; backfill-person-photos --dsn "$CAT" --mirror-dir /w/mirror/bangumi/persons --ids-out /w/state/bgm-photos.ids' \
+    > state/bgm-photos-dry.log 2>&1 || { echo "FATAL: bangumi photos dry run failed"; cat state/bgm-photos-dry.log; return 1; }
+  for f in bgm-covers bgm-logos bgm-photos; do
+    [ -f "state/$f.ids" ] || { echo "FATAL: the $f dry run wrote no id list"; return 1; }
+  done
+  sort -u state/bgm-logos.ids state/bgm-photos.ids > state/bgm-persons.ids || return 1
+  covers=$(wc -l < state/bgm-covers.ids)
+  persons=$(wc -l < state/bgm-persons.ids)
+  echo "bangumi: subjects to fetch $covers (ceiling $BANGUMI_COVERS_MAX), persons $persons (ceiling $BANGUMI_PERSONS_MAX)"
+  if [ "$covers" -gt "$BANGUMI_COVERS_MAX" ] || [ "$persons" -gt "$BANGUMI_PERSONS_MAX" ]; then
+    echo "FATAL: bangumi fetch list over its ceiling — inspect state/bgm-*.ids before raising it"; return 1
+  fi
+
+  if [ -f bangumi.env ]; then
+    set -- --env-file "$BASE/bangumi.env"
+  else
+    echo "bangumi: no bangumi.env, fetching anonymously (NSFW subjects will read as not found)"
+    set --
+  fi
+  for kind in covers persons; do
+    [ "$kind" = covers ] && list=bgm-covers || list=bgm-persons
+    [ -s "state/$list.ids" ] || continue
+    docker run --rm --network "container:$PG" "$@" -v "$BASE:/w" --user 0:0 "$IMG" \
+      fetch-bangumi-images --kind "$kind" --ids-file "/w/state/$list.ids" --out "/w/mirror/bangumi/$kind" \
+      > "state/bgm-$kind-fetch.log" 2>&1 || { echo "FATAL: bangumi $kind fetch failed"; tail -20 "state/bgm-$kind-fetch.log"; return 1; }
+    grep 'fetch-bangumi-images: done' "state/bgm-$kind-fetch.log" || true
+    got=$(counter downloaded "state/bgm-$kind-fetch.log")
+    bad=$(counter errors "state/bgm-$kind-fetch.log")
+    if [ -z "$got" ] || { [ "${bad:-0}" -gt 0 ] && [ "$got" -eq 0 ]; }; then
+      echo "FATAL: bangumi $kind fetch downloaded nothing (downloaded=${got:-?} errors=${bad:-?})"; return 1
+    fi
+  done
+
+  ok=0
+  # 62% of Bangumi game covers are landscape box art (wave 216); left out, those
+  # works stay coverless and are fetched again every week.
+  run sh -c "$DSNSH"'; backfill-bangumi-covers --dsn "$CAT" --bangumi-mirror /w/mirror/bangumi/covers --allow-landscape --upload-gap 100ms --apply' \
+    || { echo "WARN: bangumi covers upload failed"; ok=1; }
+  run sh -c "$DSNSH"'; backfill-label-logos --source bangumi --dsn "$CAT" --mirror-dir /w/mirror/bangumi/persons --upload-gap 100ms --apply' \
+    || { echo "WARN: bangumi logos upload failed"; ok=1; }
+  run sh -c "$DSNSH"'; backfill-person-photos --dsn "$CAT" --mirror-dir /w/mirror/bangumi/persons --upload-gap 100ms --apply' \
+    || { echo "WARN: bangumi photos upload failed"; ok=1; }
+  if [ "$ok" -eq 0 ]; then
+    rm -rf "$m"
+  fi
+  return "$ok"
+}
+
 # The lanes share nothing but the image service, so one failing never stops
-# the other; either failing fails the run.
+# another; any failing fails the run.
 if ! lane_vndb; then echo "WARN: vndb lane failed"; FAIL=1; fi
 if ! lane_dlsite; then echo "WARN: dlsite lane failed"; FAIL=1; fi
+if ! lane_bangumi; then echo "WARN: bangumi lane failed"; FAIL=1; fi
 
 find logs -name 'run-*.log' ! -name "run-$(date -u +%F).log" -exec gzip -qf {} \;
 find logs -name 'run-*.log.gz' -mtime +90 -delete
