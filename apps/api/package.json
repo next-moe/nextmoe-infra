@@ -2,8 +2,8 @@
   "name": "@apps/api",
   "scripts": {
     "dev": "air",
-    "build": "go build -o ./build/app .",
+    "build": "go build ./...",
     "upgo": "go get -u ./... && go mod tidy && go mod verify",
-    "format": "go fmt"
+    "format": "go fmt ./..."
   }
 }
