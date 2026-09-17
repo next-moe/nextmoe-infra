@@ -18,6 +18,7 @@ const (
 	catUnsure     = "unsure"
 	catInstance   = "instance"
 	catSameSource = "samesource"
+	catAuto       = "auto"
 )
 
 const (
@@ -239,12 +240,12 @@ func runPanelPackets(db *gorm.DB, pairsPath, verdictsPath, pairs2Path, packets2P
 	return nil
 }
 
-func runPanelEmit(pairs2Path, verdicts2Path, worklistPath, residualPath string, out io.Writer) error {
-	data, err := os.ReadFile(pairs2Path)
+func loadPanelPairs(path string) ([]panelPair, error) {
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	var ppairs []panelPair
+	var out []panelPair
 	for i, line := range strings.Split(string(data), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
@@ -252,29 +253,32 @@ func runPanelEmit(pairs2Path, verdicts2Path, worklistPath, residualPath string, 
 		}
 		var p panelPair
 		if err := json.Unmarshal([]byte(line), &p); err != nil {
-			return fmt.Errorf("%s:%d: %w", pairs2Path, i+1, err)
+			return nil, fmt.Errorf("%s:%d: %w", path, i+1, err)
 		}
-		ppairs = append(ppairs, p)
+		out = append(out, p)
 	}
-	verdicts, err := personadj.LoadVerdicts(verdicts2Path)
-	if err != nil {
-		return err
-	}
+	return out, nil
+}
+
+type mergeEdge struct {
+	p    panelPair
+	conf float64
+}
+
+// panelEdges folds the three votes of every judged panel pair. Same-source
+// pairs carry no votes; they come back as edges at their round-one confidence
+// only when withSameSource is set.
+func panelEdges(ppairs []panelPair, verdicts []personadj.Verdict, withSameSource bool,
+	stats map[string]int) (edges []mergeEdge, residual []string) {
 	byKey := make(map[string]personadj.Verdict, len(verdicts))
 	for _, v := range verdicts {
 		byKey[v.Key] = v
 	}
-
-	type edge struct {
-		p    panelPair
-		conf float64
-	}
-	var edges []edge
-	var residual []string
-	stats := map[string]int{}
 	for _, p := range ppairs {
 		if p.Cat == catSameSource {
-			edges = append(edges, edge{p, p.R1Conf})
+			if withSameSource {
+				edges = append(edges, mergeEdge{p, p.R1Conf})
+			}
 			continue
 		}
 		merges, distincts := 0, 0
@@ -309,7 +313,7 @@ func runPanelEmit(pairs2Path, verdicts2Path, worklistPath, residualPath string, 
 		switch {
 		case merges == panelVotes && minConf >= bar:
 			stats["accept_"+p.Cat]++
-			edges = append(edges, edge{p, minConf})
+			edges = append(edges, mergeEdge{p, minConf})
 		case distincts >= 2:
 			stats["closed_distinct"]++
 		case p.Cat == catInstance:
@@ -319,7 +323,18 @@ func runPanelEmit(pairs2Path, verdicts2Path, worklistPath, residualPath string, 
 			residual = append(residual, panelLine(p, "分歧", reasons))
 		}
 	}
+	return edges, residual
+}
 
+type mergeGroup struct {
+	survivor int64
+	sources  []int64
+}
+
+// unionEdges applies edges from the most confident down and refuses any edge
+// that would put two rows of one source into a group.
+func unionEdges(edges []mergeEdge, sourcesBySide map[int64][]string, richBySide map[int64]richness,
+	stats map[string]int) (groups []mergeGroup, residual []string, applied int) {
 	sort.SliceStable(edges, func(i, j int) bool { return edges[i].conf > edges[j].conf })
 	parent := map[int64]int64{}
 	var find func(int64) int64
@@ -334,14 +349,6 @@ func runPanelEmit(pairs2Path, verdicts2Path, worklistPath, residualPath string, 
 		}
 		return parent[x]
 	}
-	sourcesBySide := map[int64][]string{}
-	richBySide := map[int64]richness{}
-	for _, p := range ppairs {
-		sourcesBySide[p.A] = p.ASources
-		sourcesBySide[p.B] = p.BSources
-		richBySide[p.A] = p.ARich
-		richBySide[p.B] = p.BRich
-	}
 	rootSources := map[int64]map[string]bool{}
 	sourceSet := func(id int64) map[string]bool {
 		r := find(id)
@@ -353,7 +360,6 @@ func runPanelEmit(pairs2Path, verdicts2Path, worklistPath, residualPath string, 
 		}
 		return rootSources[r]
 	}
-	accepted := 0
 	for _, e := range edges {
 		ra, rb := find(e.p.A), find(e.p.B)
 		if ra == rb {
@@ -377,7 +383,7 @@ func runPanelEmit(pairs2Path, verdicts2Path, worklistPath, residualPath string, 
 		parent[rb] = ra
 		rootSources[ra] = sa
 		delete(rootSources, rb)
-		accepted++
+		applied++
 	}
 
 	members := map[int64][]int64{}
@@ -385,35 +391,72 @@ func runPanelEmit(pairs2Path, verdicts2Path, worklistPath, residualPath string, 
 		r := find(id)
 		members[r] = append(members[r], id)
 	}
-	wl, err := os.Create(worklistPath)
-	if err != nil {
-		return err
-	}
-	defer wl.Close()
-	enc := json.NewEncoder(wl)
 	roots := make([]int64, 0, len(members))
 	for r := range members {
 		roots = append(roots, r)
 	}
 	sort.Slice(roots, func(i, j int) bool { return roots[i] < roots[j] })
-	groups := 0
 	for _, r := range roots {
 		if len(members[r]) < 2 {
 			continue
 		}
 		survivor, sources := pickSurvivor(members[r], richBySide)
-		if err := enc.Encode(map[string]any{
-			"class": "character", "survivor": survivor, "sources": sources,
-		}); err != nil {
-			return err
-		}
-		groups++
+		groups = append(groups, mergeGroup{survivor, sources})
 	}
+	return groups, residual, applied
+}
 
-	if residualPath != "" {
-		if err := os.WriteFile(residualPath, []byte(strings.Join(residual, "\n")+"\n"), 0o644); err != nil {
+func writeGroups(worklistPath string, groups []mergeGroup) error {
+	wl, err := os.Create(worklistPath)
+	if err != nil {
+		return err
+	}
+	enc := json.NewEncoder(wl)
+	for _, g := range groups {
+		if err := enc.Encode(map[string]any{
+			"class": "character", "survivor": g.survivor, "sources": g.sources,
+		}); err != nil {
+			wl.Close()
 			return err
 		}
+	}
+	return wl.Close()
+}
+
+func writeResidual(residualPath string, residual []string) error {
+	if residualPath == "" {
+		return nil
+	}
+	return os.WriteFile(residualPath, []byte(strings.Join(residual, "\n")+"\n"), 0o644)
+}
+
+func runPanelEmit(pairs2Path, verdicts2Path, worklistPath, residualPath string, out io.Writer) error {
+	ppairs, err := loadPanelPairs(pairs2Path)
+	if err != nil {
+		return err
+	}
+	verdicts, err := personadj.LoadVerdicts(verdicts2Path)
+	if err != nil {
+		return err
+	}
+	stats := map[string]int{}
+	edges, residual := panelEdges(ppairs, verdicts, true, stats)
+
+	sourcesBySide := map[int64][]string{}
+	richBySide := map[int64]richness{}
+	for _, p := range ppairs {
+		sourcesBySide[p.A] = p.ASources
+		sourcesBySide[p.B] = p.BSources
+		richBySide[p.A] = p.ARich
+		richBySide[p.B] = p.BRich
+	}
+	groups, conflicts, accepted := unionEdges(edges, sourcesBySide, richBySide, stats)
+	residual = append(residual, conflicts...)
+	if err := writeGroups(worklistPath, groups); err != nil {
+		return err
+	}
+	if err := writeResidual(residualPath, residual); err != nil {
+		return err
 	}
 	fmt.Fprintf(out, "pairs=%d accept_lowconf=%d accept_unsure=%d accept_instance=%d samesource_edges=%d "+
 		"closed_distinct=%d closed_instance=%d residual=%d unjudged=%d edge_conflict=%d "+
@@ -421,7 +464,7 @@ func runPanelEmit(pairs2Path, verdicts2Path, worklistPath, residualPath string, 
 		len(ppairs), stats["accept_"+catLowConf], stats["accept_"+catUnsure], stats["accept_"+catInstance],
 		countCat(ppairs, catSameSource),
 		stats["closed_distinct"], stats["closed_instance"], stats["residual"], stats["unjudged"],
-		stats["edge_conflict"], accepted, groups)
+		stats["edge_conflict"], accepted, len(groups))
 	return nil
 }
 

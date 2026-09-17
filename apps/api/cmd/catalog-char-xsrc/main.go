@@ -16,7 +16,7 @@ import (
 )
 
 func main() {
-	mode := flag.String("mode", "", "packets | emit | panel-packets | panel-emit")
+	mode := flag.String("mode", "", "packets | emit | panel-packets | panel-emit | emit-all")
 	pairsPath := flag.String("pairs", "pairs.jsonl", "pair metadata JSONL (written by packets, read by emit)")
 	packetsPath := flag.String("packets", "packets.jsonl", "evidence packets JSONL for catalog-adjudicate (packets mode)")
 	verdictsPath := flag.String("verdicts", "", "verdicts JSONL from catalog-adjudicate (emit mode)")
@@ -69,6 +69,17 @@ func main() {
 			slog.Error("panel-emit", "error", err)
 			os.Exit(1)
 		}
+	case "emit-all":
+		logger.Init("development")
+		if *verdictsPath == "" || *verdicts2Path == "" {
+			fmt.Fprintln(os.Stderr, "-verdicts and -verdicts2 are required in emit-all mode")
+			os.Exit(2)
+		}
+		if err := runEmitAll(*pairsPath, *verdictsPath, *pairs2Path, *verdicts2Path,
+			*worklistPath, *residualPath, os.Stdout); err != nil {
+			slog.Error("emit-all", "error", err)
+			os.Exit(1)
+		}
 	case "emit":
 		logger.Init("development")
 		if *verdictsPath == "" {
@@ -80,7 +91,7 @@ func main() {
 			os.Exit(1)
 		}
 	default:
-		fmt.Fprintf(os.Stderr, "unknown -mode %q (packets | emit | panel-packets | panel-emit)\n", *mode)
+		fmt.Fprintf(os.Stderr, "unknown -mode %q (packets | emit | panel-packets | panel-emit | emit-all)\n", *mode)
 		os.Exit(2)
 	}
 }
