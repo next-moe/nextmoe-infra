@@ -1,0 +1,51 @@
+name: typecheck
+
+# Type gate for the three Nuxt apps. Nothing ran `nuxt typecheck` in CI, so a
+# type error could sit on main indefinitely: apps/developer carried 155 of them
+# (its generated vocabularies-zh.ts declared `description` required while the
+# generator omits the key whenever the registry has no description) and no job
+# noticed. Types are the only check these apps have — there is no unit suite —
+# so without this the frontend has no CI signal at all.
+#
+# Sibling gates: openapi-types.yml covers spec -> generated TS, docs-model.yml
+# covers spec -> portal docs model. Both diff committed artifacts; neither
+# compiles the apps that import them.
+#
+# No step consumes event-supplied text (titles, branch names, commit messages),
+# so there is no injection surface in the run: blocks below.
+
+on:
+  push:
+    paths: &paths
+      - "apps/account/**"
+      - "apps/admin/**"
+      - "apps/developer/**"
+      - "packages/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/typecheck.yml"
+  pull_request:
+    paths: *paths
+
+permissions:
+  contents: read
+
+jobs:
+  typecheck:
+    name: nuxt typecheck (account · admin · developer)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # No version input: action-setup reads the repo's packageManager pin.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      # The `nuxt prepare` postinstall is what writes each app's .nuxt/ types,
+      # so this install must NOT pass --ignore-scripts: without it vue-tsc
+      # resolves nothing and every app fails on its auto-imports.
+      - name: Install the workspace
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm -r --parallel run typecheck
