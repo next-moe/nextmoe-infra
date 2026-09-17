@@ -143,6 +143,8 @@ func TestQueueCreditNameJudgesOnADossier(t *testing.T) {
 	galgame := int16(id(`SELECT id FROM catalog_medium WHERE key = 'galgame'`))
 	vndb := int16(id(`SELECT id FROM catalog_source WHERE key = 'vndb'`))
 	bangumi := int16(id(`SELECT id FROM catalog_source WHERE key = 'bangumi'`))
+	dlsite := int16(id(`SELECT id FROM catalog_source WHERE key = 'dlsite'`))
+	erogamescape := int16(id(`SELECT id FROM catalog_source WHERE key = 'erogamescape'`))
 	roleVA := id(`SELECT id FROM catalog_role WHERE key = 'voice-actor'`)
 	roleDev := id(`SELECT id FROM catalog_role WHERE key = 'developer'`)
 
@@ -219,15 +221,66 @@ func TestQueueCreditNameJudgesOnADossier(t *testing.T) {
 	doneB := name("鈴木一郎", bangumi, "p5", nil, "鈴木 一郎")
 	candidate(doneV, doneB, model.CandidateStatusRejected)
 
+	bareV := name("高橋 次郎", vndb, "s6", nil)
+	bareB := name("高橋次郎", bangumi, "p6", nil, "高橋 次郎")
+	credit(w1, bareV, roleVA)
+	candidate(bareV, bareB, model.CandidateStatusPending)
+
+	nickname := name("中野 三郎", dlsite, "d1", nil)
+	credit(w2, nickname, roleVA)
+	claimA := name("中野三郎子", bangumi, "p7", nil, "中野 三郎")
+	credit(w1, claimA, roleVA)
+	claimB := name("中野 三郎太", vndb, "s7", person("中野三郎太"), "中野 三郎")
+	credit(w2, claimB, roleVA)
+	candidate(nickname, claimA, model.CandidateStatusPending)
+	candidate(nickname, claimB, model.CandidateStatusPending)
+
+	declarer := name("伊藤 四郎", erogamescape, "e1", nil, "伊藤しろう", "イトウシロウ")
+	credit(w1, declarer, roleVA)
+	aliasOne := name("伊藤しろう", vndb, "s8", nil)
+	credit(w2, aliasOne, roleVA)
+	aliasTwo := name("イトウシロウ", bangumi, "p8", nil)
+	credit(w2, aliasTwo, roleVA)
+	candidate(declarer, aliasOne, model.CandidateStatusPending)
+	candidate(declarer, aliasTwo, model.CandidateStatusPending)
+
+	ozawaV := name("小澤 亜李", vndb, "s10", nil)
+	credit(w1, ozawaV, roleVA)
+	ozawaD := name("小澤亜李", dlsite, "d3", nil)
+	credit(w2, ozawaD, roleVA)
+	candidate(ozawaV, ozawaD, model.CandidateStatusPending)
+
+	takoV := name("たこやき", vndb, "s11", nil)
+	credit(w1, takoV, roleVA)
+	takoB := name("タコ焼き", bangumi, "p10", nil, "たこやき")
+	credit(w2, takoB, roleVA)
+	candidate(takoV, takoB, model.CandidateStatusPending)
+
+	onePerson := person("渡辺五郎")
+	lone := name("渡辺 五郎", dlsite, "d2", nil)
+	credit(w2, lone, roleVA)
+	twinA := name("渡辺五郎", bangumi, "p9", onePerson, "渡辺 五郎")
+	credit(w1, twinA, roleVA)
+	twinB := name("渡辺 五郎", vndb, "s9", onePerson)
+	credit(w1, twinB, roleVA)
+	candidate(lone, twinA, model.CandidateStatusPending)
+	candidate(lone, twinB, model.CandidateStatusPending)
+
 	llm := &recordingLLM{}
 	c := llm.client(t, `{"verdict":"same","reason":"same career under one brand","confidence":0.97}`)
 	judged, errs, err := RunQueueCreditName(t.Context(), db, c, Options{Model: "mock-model", Concurrency: 1})
 	require.NoError(t, err)
 	assert.Zero(t, errs)
-	assert.Equal(t, 4, judged, "one judged by the model and three held by a guard")
-	require.Len(t, llm.users, 1, "only the unguarded pair reaches the model")
+	assert.Equal(t, 13, judged, "seven judged by the model and six held by a guard")
+	require.Len(t, llm.users, 7, "only the unguarded pairs reach the model")
 
-	user := llm.users[0]
+	var user string
+	for _, u := range llm.users {
+		if strings.Contains(u, "山田") {
+			user = u
+		}
+	}
+	require.NotEmpty(t, user)
 	raw := user[strings.Index(user, "{"):]
 	var d struct {
 		WhyPaired       string   `json:"why_paired"`
@@ -277,7 +330,7 @@ func TestQueueCreditNameJudgesOnADossier(t *testing.T) {
 
 	var rows []QueueVerdict
 	require.NoError(t, db.Where("queue = ?", QueueCreditName).Order("a_id").Find(&rows).Error)
-	require.Len(t, rows, 4)
+	require.Len(t, rows, 13)
 	byPair := map[[2]int64]QueueVerdict{}
 	for _, r := range rows {
 		byPair[[2]int64{r.AID, r.BID}] = r
@@ -287,10 +340,16 @@ func TestQueueCreditNameJudgesOnADossier(t *testing.T) {
 	key := func(a, b int64) [2]int64 { return [2]int64{min(a, b), max(a, b)} }
 	assert.Equal(t, LaneLLM, byPair[key(yamadaV, yamadaB)].Lane)
 	assert.Equal(t, VerdictSame, byPair[key(yamadaV, yamadaB)].Verdict)
+	for _, k := range [][2]int64{key(declarer, aliasOne), key(declarer, aliasTwo), key(lone, twinA), key(lone, twinB)} {
+		assert.Equal(t, LaneLLM, byPair[k].Lane, "%v: a name that declares all its partners, or partners of one person, is not contested", k)
+	}
 	for k, g := range map[[2]int64]string{
 		key(yuraV, yuraB):     guardShortName,
 		key(whiteV, whiteB):   guardCompany,
 		key(linkedV, linkedB): guardBothLinked,
+		key(bareV, bareB):     guardNoCareer,
+		key(nickname, claimA): guardContested,
+		key(nickname, claimB): guardContested,
 	} {
 		r := byPair[k]
 		assert.Equal(t, LaneGuard, r.Lane, g)
@@ -301,13 +360,24 @@ func TestQueueCreditNameJudgesOnADossier(t *testing.T) {
 	judged, _, err = RunQueueCreditName(t.Context(), db, c, Options{Model: "mock-model", Concurrency: 1})
 	require.NoError(t, err)
 	assert.Zero(t, judged, "a second night asks nothing again")
-	assert.Len(t, llm.users, 1)
+	assert.Len(t, llm.users, 7)
+
+	stale := byPair[key(nickname, claimA)]
+	require.NoError(t, db.Model(&QueueVerdict{}).Where("id = ?", stale.ID).
+		Updates(map[string]any{"lane": LaneLLM, "verdict": VerdictSame, "confidence": 0.99}).Error)
+	for _, k := range [][2]int64{key(ozawaV, ozawaD), key(takoV, takoB)} {
+		require.NoError(t, db.Model(&QueueVerdict{}).Where("id = ?", byPair[k].ID).
+			Updates(map[string]any{"verdict": VerdictDifferent, "confidence": 0.95}).Error)
+	}
 
 	st, err := RunApply(t.Context(), db, StagingDBs{}, testQueueService(db), Options{
 		Queue: QueueCreditName, Actor: 1, MinConfidence: 0.95, MinConfidenceReject: 0.7, Model: "mock-model",
 	})
 	require.NoError(t, err)
-	assert.Equal(t, 1, st.Applied, "counts: %v", st.Counts)
+	assert.Equal(t, 6, st.Applied, "counts: %v", st.Counts)
+	assert.Equal(t, 1, st.Counts[skipHeldByGuard], "a verdict judged before the pair became contested is held: %v", st.Counts)
+	assert.Equal(t, 1, st.Counts[skipSameNameDifferent], "an identical spelling judged different waits for a person: %v", st.Counts)
+	assert.Equal(t, 1, st.Counts["applied_"+applyReject], "a differently spelled pair judged different is rejected: %v", st.Counts)
 	var statuses []struct {
 		AID    int64 `gorm:"column:a_id"`
 		Status int16
@@ -319,9 +389,25 @@ func TestQueueCreditNameJudgesOnADossier(t *testing.T) {
 		got[s.AID] = s.Status
 	}
 	assert.Equal(t, model.CandidateStatusAccepted, got[min(yamadaV, yamadaB)])
-	for _, a := range []int64{min(yuraV, yuraB), min(whiteV, whiteB), min(linkedV, linkedB)} {
-		assert.Equal(t, model.CandidateStatusPending, got[a], "a guarded pair waits for a person")
+	pending := 0
+	var all []struct {
+		AID, BID int64
+		Status   int16
 	}
+	require.NoError(t, db.Raw(`SELECT a_id, b_id, status FROM catalog_match_candidate WHERE entity_type = ?`,
+		model.EntityTypeCreditName).Scan(&all).Error)
+	for _, c := range all {
+		k := [2]int64{c.AID, c.BID}
+		switch k {
+		case key(yuraV, yuraB), key(whiteV, whiteB), key(linkedV, linkedB), key(bareV, bareB),
+			key(nickname, claimA), key(nickname, claimB), key(ozawaV, ozawaD):
+			assert.Equal(t, model.CandidateStatusPending, c.Status, "a guarded pair waits for a person: %v", k)
+			pending++
+		}
+	}
+	assert.Equal(t, 7, pending)
+	assert.Equal(t, model.CandidateStatusRejected, got[min(takoV, takoB)])
+	assert.Equal(t, model.CandidateStatusAccepted, got[min(declarer, aliasOne)])
 	var linked int64
 	require.NoError(t, db.Raw(`SELECT count(DISTINCT person_id) FROM catalog_credit_name
 		WHERE id IN (?, ?) AND person_id IS NOT NULL`, yamadaV, yamadaB).Scan(&linked).Error)

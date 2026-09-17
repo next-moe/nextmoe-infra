@@ -35,6 +35,8 @@ const (
 	skipNoCorroborator    = "skipped_corroborator_unavailable"
 	skipGoldQueue         = "skipped_gold_queue"
 	skipUnknownVerdict    = "skipped_unknown_verdict"
+	skipHeldByGuard       = "skipped_held_by_guard"
+	skipSameNameDifferent = "skipped_same_name_different"
 
 	errExactTaken = "error_exact_taken"
 	errState      = "error_state"

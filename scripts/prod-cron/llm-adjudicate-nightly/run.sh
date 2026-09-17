@@ -170,7 +170,8 @@ else
 fi
 
 # An accepted credit-name pair creates or joins a person, and production has no
-# unmerge for either, so both halves are capped per night.
+# unmerge for either, so the judge is capped per night. The apply is not: it
+# leaves held and below-bar rows unstamped, and a row cap would fill with them.
 echo "--- 6/8 judge credit-name pairs ---"
 judge_step queue-creditname \
   docker run --rm --name adj-judge-creditname --network dokploy-network \
@@ -180,7 +181,7 @@ judge_step queue-creditname \
 echo "--- 7/8 apply credit-name verdicts (links persons) ---"
 docker run --rm --name adj-apply-creditname --network dokploy-network \
   --env-file "$BASE/env.tmp" "$IMG" \
-  sh -c "exec llm-suggest --mode apply --queue creditname --actor 1 --min-confidence $CREDITNAME_ACCEPT --min-confidence-reject 0.8 --limit $CREDITNAME_LIMIT --apply"
+  sh -c "exec llm-suggest --mode apply --queue creditname --actor 1 --min-confidence $CREDITNAME_ACCEPT --min-confidence-reject 0.8 --apply"
 
 # Refs last: it is the long lane, and unlike the work-pair lane it can only ever
 # confirm (planRef has no reject path), so nothing downstream waits on it.

@@ -296,6 +296,8 @@ const (
 	guardBothLinked = "both-linked"
 	guardShortName  = "short-name"
 	guardCompany    = "company"
+	guardNoCareer   = "no-career"
+	guardContested  = "contested"
 )
 
 var companyRoleKeys = map[string]bool{
@@ -318,8 +320,50 @@ func creditNameGuard(d creditPairDossier) string {
 		return guardShortName
 	case companySide(d.A) || companySide(d.B):
 		return guardCompany
+	case d.A.Credits == 0 || d.B.Credits == 0:
+		return guardNoCareer
 	}
 	return ""
+}
+
+// markContested holds every pair around a name that pends against more than
+// one partner, unless that name declares all of them itself or every partner
+// already belongs to one person. On 2026-09-17 のっち was the declared alias of
+// two different people, and SONOMAKERSfromSHOTMUSIC was declared by both SONO
+// MAKERS and SHOT MUSIC; the judge accepted each pair on its own.
+func markContested(items []creditNameItem) {
+	sides := map[int64]creditSideDossier{}
+	partners := map[int64][]int64{}
+	for _, it := range items {
+		sides[it.AID], sides[it.BID] = it.Dossier.A, it.Dossier.B
+		partners[it.AID] = append(partners[it.AID], it.BID)
+		partners[it.BID] = append(partners[it.BID], it.AID)
+	}
+	contested := map[int64]bool{}
+	for id, ps := range partners {
+		if len(ps) < 2 {
+			continue
+		}
+		declaresAll, onePerson := true, true
+		first := sides[ps[0]].personID
+		for _, p := range ps {
+			if !sides[id].aliasFolds[foldCreditName(sides[p].Name)] {
+				declaresAll = false
+			}
+			pid := sides[p].personID
+			if pid == nil || first == nil || *pid != *first {
+				onePerson = false
+			}
+		}
+		if !declaresAll && !onePerson {
+			contested[id] = true
+		}
+	}
+	for i := range items {
+		if items[i].Guard == "" && (contested[items[i].AID] || contested[items[i].BID]) {
+			items[i].Guard = guardContested
+		}
+	}
 }
 
 func shortCreditName(name string) bool {

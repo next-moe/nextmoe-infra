@@ -495,6 +495,16 @@ expect_c_contains() {
   esac
 }
 
+expect_c_lacks() {
+  td=$1
+  name=$2
+  needle=$3
+  c=$(c_arg_for "$td" "$name")
+  case "$c" in
+    *"$needle"*) fail "$name cmd must not carry [$needle]: $c" ;;
+  esac
+}
+
 expect_reindex_between() {
   td=$1
   seq="$td/ctl/seq.log"
@@ -646,7 +656,8 @@ install_fakes "$td"
 run_job "$td"
 expect_exit "$td" 0
 expect_c_contains "$td" adj-judge-creditname "--apply --task queue-creditname --limit 300"
-expect_c_contains "$td" adj-apply-creditname "--mode apply --queue creditname --actor 1 --min-confidence 0.9 --min-confidence-reject 0.8 --limit 300 --apply"
+expect_c_contains "$td" adj-apply-creditname "--mode apply --queue creditname --actor 1 --min-confidence 0.9 --min-confidence-reject 0.8 --apply"
+expect_c_lacks "$td" adj-apply-creditname "--limit"
 tend
 rm -rf "$td"
 

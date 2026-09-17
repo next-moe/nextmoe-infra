@@ -147,5 +147,29 @@ func loadCreditNameQueue(db *gorm.DB) ([]creditNameItem, error) {
 			Hash: creditNameHash(c.AID, c.BID, a.Name, b.Name),
 		})
 	}
+	markContested(out)
+	return out, nil
+}
+
+type creditApplyFacts struct {
+	Guard    string
+	SameName bool
+}
+
+// creditNameFacts is re-read at apply time because a verdict outlives the
+// state it was judged on: a partner pair filed later makes a name contested,
+// and a link made since makes both sides linked.
+func creditNameFacts(db *gorm.DB) (map[[2]int64]creditApplyFacts, error) {
+	items, err := loadCreditNameQueue(db)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[[2]int64]creditApplyFacts, len(items))
+	for _, it := range items {
+		out[[2]int64{it.AID, it.BID}] = creditApplyFacts{
+			Guard:    it.Guard,
+			SameName: foldCreditName(it.Dossier.A.Name) == foldCreditName(it.Dossier.B.Name),
+		}
+	}
 	return out, nil
 }
