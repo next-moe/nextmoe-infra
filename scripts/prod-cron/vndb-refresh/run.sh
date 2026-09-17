@@ -325,7 +325,7 @@ run sh -c "$DSNSH"'; backfill-work-ratings --dsn "$CAT" --eg-dsn "$EG" --dlsite-
 # DELIBERATELY NOT RUN HERE:
 #   reconcile-org-labels  — runs in source-import, behind a dry-run ceiling
 #   enrich-org-labels     — see source-import
-#   backfill-vndb-covers / backfill-character-portraits — fetch image bytes
+#   backfill-vndb-covers / backfill-character-portraits — image-mirror, Monday 03:30
 #   reindex-catalog       — already has its own daily cron at 06:10
 
 # 7. Finalize.

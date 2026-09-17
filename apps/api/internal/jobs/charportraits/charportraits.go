@@ -30,6 +30,7 @@ type Opts struct {
 	Offset       int
 	DSN          string
 	VNDBImageDir string
+	FilesOut     string
 	ImageBaseURL string
 	UploadGap    time.Duration
 }
@@ -79,33 +80,22 @@ func Run(ctx context.Context, cfg *config.Config, opts Opts) (map[string]any, er
 	r := &runner{db: db, gap: opts.UploadGap}
 
 	if !opts.Apply {
-		var hasHash, present, missing, badID int
-		for _, c := range cands {
-			if c.ImageHash != nil && *c.ImageHash != "" {
-				hasHash++
-				continue
-			}
-			rel, perr := chRelPath(c.ImageID)
-			if perr != nil {
-				badID++
-				continue
-			}
-			if fileExists(filepath.Join(opts.VNDBImageDir, filepath.FromSlash(rel))) {
-				present++
-			} else {
-				missing++
+		f := forecastMirror(cands, opts.VNDBImageDir)
+		if opts.FilesOut != "" {
+			if err := os.WriteFile(opts.FilesOut, []byte(f.missingList()), 0o644); err != nil {
+				return nil, fmt.Errorf("write --files-out: %w", err)
 			}
 		}
 		slog.Info("char-portraits DRY forecast",
-			"candidates", len(cands), "skipped_has_hash", hasHash,
-			"local_present", present, "missing_file", missing, "bad_id", badID)
+			"candidates", len(cands), "skipped_has_hash", f.hasHash,
+			"local_present", f.present, "missing_file", len(f.missing), "bad_id", f.badID)
 		return map[string]any{
 			"apply":            false,
 			"candidates":       len(cands),
-			"skipped_has_hash": hasHash,
-			"local_present":    present,
-			"missing_file":     missing,
-			"bad_id":           badID,
+			"skipped_has_hash": f.hasHash,
+			"local_present":    f.present,
+			"missing_file":     len(f.missing),
+			"bad_id":           f.badID,
 		}, nil
 	}
 

@@ -42,6 +42,10 @@ const (
 
 func (r *runner) fill(ctx context.Context, row planRow) {
 	body, filename, err := r.download(ctx, row.Img.URL)
+	if stderrors.Is(err, errNotMirrored) {
+		r.bump(func(s *Stats) { s.Missing++ })
+		return
+	}
 	if err != nil {
 		r.bump(func(s *Stats) { s.Errors++ })
 		slog.Warn("download vndb cover", "work", row.WorkID, "vn", row.VNDBID, "url", row.Img.URL, "err", err)
@@ -110,6 +114,9 @@ func (r *runner) download(ctx context.Context, src string) ([]byte, string, erro
 		r.bump(func(s *Stats) { s.Local++ })
 		return body, coverFilename(src), nil
 	}
+	if r.mirrorOnly {
+		return nil, "", errNotMirrored
+	}
 	client := &http.Client{Timeout: downloadTimeout}
 	var lastErr error
 	for attempt := 0; attempt < downloadRetries; attempt++ {
@@ -127,6 +134,8 @@ func (r *runner) download(ctx context.Context, src string) ([]byte, string, erro
 	}
 	return nil, "", lastErr
 }
+
+var errNotMirrored = stderrors.New("not in the local mirror")
 
 func fetch(ctx context.Context, client *http.Client, src string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, src, nil)

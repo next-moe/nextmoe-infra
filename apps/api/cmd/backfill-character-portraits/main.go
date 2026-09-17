@@ -17,6 +17,7 @@ func main() {
 	offset := flag.Int("offset", 0, "skip this many rows (for chunking)")
 	dsn := flag.String("dsn", "", "catalog DSN — REQUIRED; the rehearsal copy locally (kun_catalog_rehearsal), the live catalog only in the production run")
 	vndbImageDir := flag.String("vndb-image-dir", "", "local rsync mirror root containing ch/ (bytes are read from here) [required]")
+	filesOut := flag.String("files-out", "", "dry run: write the mirror-relative paths of unfilled portraits --vndb-image-dir lacks, one per line (rsync --files-from)")
 	imageBaseURL := flag.String("image-base-url", "", "image_service base override (point at the LOCAL compose/dev service, e.g. http://127.0.0.1:9278)")
 	uploadGap := flag.Duration("upload-gap", 0, "min delay between uploads (0 = none; raise for a gentle production sweep)")
 	flag.Parse()
@@ -34,6 +35,7 @@ func main() {
 		Offset:       *offset,
 		DSN:          *dsn,
 		VNDBImageDir: *vndbImageDir,
+		FilesOut:     *filesOut,
 		ImageBaseURL: *imageBaseURL,
 		UploadGap:    *uploadGap,
 	})

@@ -23,7 +23,10 @@ func main() {
 	uploadGap := flag.Duration("upload-gap", 0, "min delay between uploads (0 = none; raise for a gentle production sweep)")
 	apiBase := flag.String("vndb-api-base", "", "VNDB API base override (default https://api.vndb.org/kana)")
 	manifest := flag.String("manifest", "", "CSV built from the daily VNDB DB dump (vndb_id,url,width,height,sexual,violence); replaces the rate-limited Kana API metadata phase")
+	fromDump := flag.Bool("from-dump", false, "read cover ids, sizes and ratings from the staged VNDB dump (src_vndb.vn / src_vndb.images) instead of a manifest or the API")
 	imageDir := flag.String("image-dir", "", "local mirror of rsync://dl.vndb.org/vndb-img — cover bytes are read from here first, HTTP only for files the mirror lacks")
+	mirrorOnly := flag.Bool("mirror-only", false, "never fetch over HTTP: a cover the mirror lacks is counted as missing and skipped")
+	filesOut := flag.String("files-out", "", "write the mirror-relative paths of planned covers --image-dir lacks, one per line (rsync --files-from)")
 	workers := flag.Int("workers", 1, "concurrent shrink+upload workers; --upload-gap stays a single shared pace across all of them")
 	flag.Parse()
 
@@ -52,7 +55,10 @@ func main() {
 		UploadGap:    *uploadGap,
 		APIBase:      *apiBase,
 		Manifest:     *manifest,
+		FromDump:     *fromDump,
 		ImageDir:     *imageDir,
+		MirrorOnly:   *mirrorOnly,
+		FilesOut:     *filesOut,
 		Workers:      *workers,
 	})
 	if stats != nil {

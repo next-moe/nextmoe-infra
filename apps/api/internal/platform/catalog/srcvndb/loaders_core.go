@@ -88,7 +88,7 @@ func newCharVNLoader(tx *gorm.DB, _ time.Time) tableLoader {
 func newImageLoader(tx *gorm.DB, _ time.Time) tableLoader {
 	return newLoader(tx, func(get getter) (Image, bool) {
 		id, _ := get("id")
-		if !strings.HasPrefix(id, "ch") {
+		if !strings.HasPrefix(id, "ch") && !strings.HasPrefix(id, "cv") {
 			return Image{}, false
 		}
 		return Image{

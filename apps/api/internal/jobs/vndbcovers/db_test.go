@@ -11,11 +11,14 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"api/internal/platform/catalog/migrate"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/seed"
+	srcv "api/internal/platform/catalog/srcvndb"
 	"api/internal/testsupport/dbtest"
+	"api/pkg/config"
 	"api/pkg/imageclient"
 
 	"github.com/stretchr/testify/assert"
@@ -25,7 +28,10 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-var testDB *gorm.DB
+var (
+	testDB  *gorm.DB
+	testDSN string
+)
 
 func TestMain(m *testing.M) {
 	dsn, ok := dbtest.DSN()
@@ -46,7 +52,11 @@ func TestMain(m *testing.M) {
 		fmt.Fprintf(os.Stderr, "FAIL: catalog seed failed: %v\n", err)
 		os.Exit(1)
 	}
-	testDB = db
+	if err := srcv.EnsureSchema(db); err != nil {
+		fmt.Fprintf(os.Stderr, "FAIL: src_vndb schema failed: %v\n", err)
+		os.Exit(1)
+	}
+	testDB, testDSN = db, dsn
 	os.Exit(m.Run())
 }
 
@@ -299,4 +309,85 @@ func TestFillRelabelsAByteIdenticalPackageRowOfItsOwnSource(t *testing.T) {
 	rerun.fill(context.Background(), row)
 	assert.Equal(t, 1, rerun.stats.Dedup, "source and kind now both agree, so a re-run must not write")
 	assert.Zero(t, rerun.stats.Uploaded)
+}
+
+func TestFromDumpPlansTheServedCoverAndListsWhatTheMirrorLacks(t *testing.T) {
+	clean(t)
+	require.NoError(t, testDB.Exec("TRUNCATE src_vndb.vn, src_vndb.images").Error)
+	reg, err := resolveRegistry(context.Background(), testDB)
+	require.NoError(t, err)
+
+	works := map[string]int64{}
+	for _, v := range []string{"v1", "v2", "v3", "v4", "v5", "v6"} {
+		works[v] = mkWork(t, reg, v)
+		mkAnchor(t, reg, works[v], v, model.LinkKindExact)
+	}
+	require.NoError(t, testDB.Create([]srcv.VN{
+		{ID: "v1", OLang: "ja", CImage: "cv150"}, {ID: "v2", OLang: "ja"}, {ID: "v3", OLang: "ja", CImage: "cv3"},
+		{ID: "v4", OLang: "ja", CImage: "cv4"}, {ID: "v6", OLang: "ja", Image: "cv1206", CImage: "cv1206"},
+	}).Error)
+	require.NoError(t, testDB.Exec(`INSERT INTO src_vndb.images
+		(id, width, height, c_votecount, c_sexual_avg, c_sexual_stddev, c_violence_avg, c_violence_stddev, c_weight) VALUES
+		('cv150',400,600,3,150,0,40,0,1), ('cv4',400,600,0,0,0,0,0,1), ('cv1206',600,400,5,0,0,0,0,1)`).Error)
+
+	mirror := t.TempDir()
+	var jpg bytes.Buffer
+	require.NoError(t, jpeg.Encode(&jpg, image.NewRGBA(image.Rect(0, 0, 16, 12)), nil))
+	require.NoError(t, os.MkdirAll(filepath.Join(mirror, "cv", "06"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(mirror, "cv", "06", "1206.jpg"), jpg.Bytes(), 0o644))
+
+	images, unrated, err := loadDumpImages(context.Background(), testDB, []string{"v1", "v2", "v3", "v4", "v5", "v6"})
+	require.NoError(t, err)
+	assert.Equal(t, 1, unrated, "an image nobody has flagged is not published as safe")
+	require.NotNil(t, images["v1"])
+	assert.Equal(t, "https://t.vndb.org/cv/50/150.jpg", images["v1"].URL, "c_image, not the empty pinned image")
+	assert.Equal(t, []int{400, 600}, images["v1"].Dims)
+	assert.Equal(t, int16(2), ratingLevel(images["v1"].Sexual), "150/100 rounds to the explicit level")
+	assert.Equal(t, int16(0), ratingLevel(images["v1"].Violence))
+	v2, known := images["v2"]
+	assert.True(t, known)
+	assert.Nil(t, v2, "an empty c_image is a VN with no cover")
+	for _, v := range []string{"v3", "v4", "v5"} {
+		_, known := images[v]
+		assert.False(t, known, "%s has no usable metadata", v)
+	}
+
+	filesOut := filepath.Join(t.TempDir(), "covers.files")
+	stats, err := Run(context.Background(), &config.Config{}, Opts{
+		DSN: testDSN, FromDump: true, ImageDir: mirror, FilesOut: filesOut,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 6, stats.Candidates)
+	assert.Equal(t, 2, stats.Planned)
+	assert.Equal(t, 4, stats.NoImage)
+	assert.Equal(t, 1, stats.Unrated)
+	assert.Equal(t, 1, stats.ToFetch)
+	listed, err := os.ReadFile(filesOut)
+	require.NoError(t, err)
+	assert.Equal(t, "cv/50/150.jpg\n", string(listed), "only the planned cover the mirror lacks")
+
+	var covers int64
+	require.NoError(t, testDB.Model(&model.CatalogWorkCover{}).Count(&covers).Error)
+	assert.Zero(t, covers, "a dry run writes nothing")
+}
+
+func TestMirrorOnlyNeverFetches(t *testing.T) {
+	clean(t)
+	reg, err := resolveRegistry(context.Background(), testDB)
+	require.NoError(t, err)
+	id := mkWork(t, reg, "not-mirrored")
+	row := planRow{WorkID: id, VNDBID: "v7", Img: &vnImage{URL: "http://127.0.0.1:9/cv/07/7.jpg", Dims: []int{12, 16}}}
+
+	offline := &runner{db: testDB, cli: &stubUploader{}, sourceID: reg.vndbSource,
+		imageDir: t.TempDir(), mirrorOnly: true, stats: &Stats{}}
+	offline.fill(context.Background(), row)
+	assert.Equal(t, 1, offline.stats.Missing)
+	assert.Zero(t, offline.stats.Errors, "a file the mirror lacks is not a failure")
+
+	online := &runner{db: testDB, cli: &stubUploader{}, sourceID: reg.vndbSource,
+		imageDir: t.TempDir(), stats: &Stats{}}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	online.fill(ctx, row)
+	assert.Zero(t, online.stats.Missing, "without the flag the same row goes to the network")
 }
