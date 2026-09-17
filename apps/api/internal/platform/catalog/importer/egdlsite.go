@@ -41,6 +41,7 @@ type EGDLsiteStats struct {
 	TitleCollisions       int
 	Quarantined           int
 	SkippedIntraCollision int
+	EGAliases             int
 }
 
 type egdlItem struct {
@@ -51,6 +52,8 @@ type egdlItem struct {
 	nameFold       string
 	noEGRef        bool
 	collidedWorkID int64
+	egName         string
+	egNameFold     string
 }
 
 type dlRow struct {
@@ -160,7 +163,13 @@ func (im *Importer) RunEGDLsite(dlsiteDB *gorm.DB) (EGDLsiteStats, error) {
 		}
 	}
 
+	if err := im.ensureEGDLAliases(&st); err != nil {
+		return st, err
+	}
 	if len(mint) > 0 {
+		if err := im.attachEGNames(mint); err != nil {
+			return st, err
+		}
 		wt, err := im.loadExistingWorkTitleNorms()
 		if err != nil {
 			return st, err
@@ -189,6 +198,9 @@ func (im *Importer) RunEGDLsite(dlsiteDB *gorm.DB) (EGDLsiteStats, error) {
 				st.Stubs++
 			}
 			st.TitlesCreated++
+			if _, ok := egAliasTitle(0, it); ok {
+				st.TitlesCreated++
+			}
 			if !it.noEGRef {
 				st.EGRefsWritten++
 			}
@@ -231,16 +243,25 @@ func (im *Importer) RunEGDLsite(dlsiteDB *gorm.DB) (EGDLsiteStats, error) {
 // a pending candidate, so the work-pair judge either merges or releases it; two
 // pending mints that spell one title are both held back.
 func gateEGDLMints(mint []egdlItem, wt map[string]wtNorm, st *EGDLsiteStats) []egdlItem {
+	keysOf := func(it egdlItem) map[string]bool {
+		keys := map[string]bool{}
+		for _, n := range []string{it.nameFold, it.egNameFold} {
+			for _, key := range gateKeys(n) {
+				keys[key] = true
+			}
+		}
+		return keys
+	}
 	perKey := map[string]int{}
 	for _, it := range mint {
-		for _, key := range gateKeys(it.nameFold) {
+		for key := range keysOf(it) {
 			perKey[key]++
 		}
 	}
 	out := mint[:0]
 	for _, it := range mint {
 		shared := false
-		for _, key := range gateKeys(it.nameFold) {
+		for key := range keysOf(it) {
 			if perKey[key] > 1 {
 				shared = true
 			}
@@ -249,7 +270,7 @@ func gateEGDLMints(mint []egdlItem, wt map[string]wtNorm, st *EGDLsiteStats) []e
 			st.SkippedIntraCollision++
 			continue
 		}
-		if _, w, ok := firstCorpusHit(wt, it.nameFold); ok {
+		if _, w, ok := firstCorpusHit(wt, it.nameFold, it.egNameFold); ok {
 			it.collidedWorkID = w.workID
 			st.TitleCollisions++
 		}

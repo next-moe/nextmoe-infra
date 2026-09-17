@@ -197,3 +197,101 @@ func TestEGDLsiteQuarantinesATitleCollision(t *testing.T) {
 	assert.Zero(t, again.Minted+again.Quarantined)
 	assert.Equal(t, 2, again.SkippedIntraCollision)
 }
+
+func TestEGDLsiteGatesAndFilesTheEGName(t *testing.T) {
+	if testDB == nil {
+		t.Skip("no test db")
+	}
+	clean(t)
+
+	existing := seedExistingWork(t, "リリィとイザベラの館")
+	require.NoError(t, testDB.Exec(`INSERT INTO games (id, dlsite_id, gamename) VALUES
+		(900,'RJ0DEC','リリィとイザベラの館'), (901,'RJ0ALI','メカクレカノジョ'), (902,'RJ0ODD','温泉へ行こう'),
+		(903,'RJ0TW1','双子の館'), (904,'RJ0TW2','双子の館')`).Error)
+	require.NoError(t, testDB.Exec(`INSERT INTO works (workno, work_name, work_name_kana, maker_id, maker_name, age_category, work_type_string, status, product_json) VALUES
+		('RJ0DEC','【ゲームのみ】リリィとイザベラの館','','RG900','','3','アドベンチャー','fetched','{"creaters":[]}'::jsonb),
+		('RJ0ALI','メカクレカノジョ《WIN版》','','RG901','','3','アドベンチャー','fetched','{"creaters":[]}'::jsonb),
+		('RJ0ODD','【豪華5特典】プリズナー～てんこ盛り完全版～','','RG902','','3','アドベンチャー','fetched','{"creaters":[]}'::jsonb),
+		('RJ0TW1','【ゲームのみ】双子の館','','RG903','','3','アドベンチャー','fetched','{"creaters":[]}'::jsonb),
+		('RJ0TW2','双子の館 DL版','','RG904','','3','アドベンチャー','fetched','{"creaters":[]}'::jsonb)`).Error)
+
+	dry, err := New(testDB, testDB, Options{DryRun: true}).RunEGDLsite(testDB)
+	require.NoError(t, err)
+	assert.Equal(t, 3, dry.Minted)
+	assert.Equal(t, 2, dry.SkippedIntraCollision, "two store names that EG files under one title are both held back")
+	assert.Equal(t, 1, dry.TitleCollisions, "the store-decorated name hides a title the EG name matches")
+	assert.Equal(t, 5, dry.TitlesCreated, "three store names and two EG aliases")
+
+	st, err := New(testDB, testDB, Options{}).RunEGDLsite(testDB)
+	require.NoError(t, err)
+	assert.Equal(t, 1, st.Quarantined)
+
+	workOfSKU := func(sku string) int64 {
+		t.Helper()
+		return scalarInt(t, `SELECT rel.work_id FROM catalog_external_ref r JOIN catalog_release rel ON rel.id = r.entity_id
+			WHERE r.entity_type = 6 AND r.source_id = 4 AND r.external_id = '`+sku+`'`)
+	}
+	aliases := func(work int64) int64 {
+		t.Helper()
+		return scalarInt(t, `SELECT count(*) FROM catalog_work_title WHERE kind = 1 AND work_id = `+itoa64(work))
+	}
+	dec, ali, odd := workOfSKU("RJ0DEC"), workOfSKU("RJ0ALI"), workOfSKU("RJ0ODD")
+	assert.Equal(t, model.WorkStatusQuarantine, workStatusOf(t, dec))
+	a, b := existing, dec
+	if b < a {
+		a, b = b, a
+	}
+	assert.Equal(t, int64(1), scalarInt(t, `SELECT count(*) FROM catalog_match_candidate
+		WHERE entity_type = 5 AND status = 0 AND a_id = `+itoa64(a)+` AND b_id = `+itoa64(b)))
+	assert.Equal(t, int64(1), scalarInt(t, `SELECT count(*) FROM catalog_work_title
+		WHERE kind = 1 AND title = 'リリィとイザベラの館' AND work_id = `+itoa64(dec)))
+	assert.Equal(t, model.WorkStatusLive, workStatusOf(t, ali))
+	assert.Equal(t, int64(1), scalarInt(t, `SELECT count(*) FROM catalog_work_title
+		WHERE kind = 1 AND title = 'メカクレカノジョ' AND work_id = `+itoa64(ali)))
+	assert.Equal(t, model.WorkStatusLive, workStatusOf(t, odd))
+	assert.Zero(t, aliases(odd), "an EG name sharing nothing with the store name is not filed")
+}
+
+func TestEGDLsiteBackfillsTheEGNameAlias(t *testing.T) {
+	if testDB == nil {
+		t.Skip("no test db")
+	}
+	clean(t)
+
+	minted := func(display string, game int64, linkKind int16) int64 {
+		t.Helper()
+		w := seedExistingWork(t, display)
+		require.NoError(t, testDB.Exec(`INSERT INTO catalog_external_ref
+			(entity_type, entity_id, source_id, external_id, link_kind, matched_by)
+			VALUES (5, ?, 5, ?, ?, 'rule:eg-dlsite-rosetta')`, w, strconv.FormatInt(game, 10), linkKind).Error)
+		return w
+	}
+	decorated := minted("なついろにっき。製品版", 950, model.LinkKindProbable)
+	short := minted("MY…", 951, model.LinkKindProbable)
+	translated := minted("Maid of the Dead", 952, model.LinkKindProbable)
+	confirmed := minted("メカクレカノジョ《WIN版》", 953, model.LinkKindExact)
+	require.NoError(t, testDB.Exec(`INSERT INTO games (id, gamename) VALUES
+		(950,'なついろにっき。'), (951,'MY… 懐疑編'), (952,'メイド・オブ・ザ・デッド'), (953,'メカクレカノジョ')`).Error)
+
+	dry, err := New(testDB, testDB, Options{DryRun: true}).RunEGDLsite(testDB)
+	require.NoError(t, err)
+	assert.Equal(t, 2, dry.EGAliases)
+	assert.Zero(t, scalarInt(t, `SELECT count(*) FROM catalog_work_title WHERE kind = 1`))
+
+	st, err := New(testDB, testDB, Options{}).RunEGDLsite(testDB)
+	require.NoError(t, err)
+	assert.Equal(t, 2, st.EGAliases)
+	assert.Equal(t, int64(1), scalarInt(t, `SELECT count(*) FROM catalog_work_title
+		WHERE kind = 1 AND provenance = 0 AND lang = 'ja' AND title = 'なついろにっき。' AND work_id = `+itoa64(decorated)))
+	assert.Equal(t, int64(1), scalarInt(t, `SELECT count(*) FROM catalog_work_title
+		WHERE kind = 1 AND title = 'メカクレカノジョ' AND work_id = `+itoa64(confirmed)), "a ref the judge confirmed to exact still names the game")
+	assert.Zero(t, scalarInt(t, `SELECT count(*) FROM catalog_work_title WHERE kind = 1 AND work_id IN (`+
+		itoa64(short)+`,`+itoa64(translated)+`)`), "a two-letter store name and a translation file nothing")
+
+	again, err := New(testDB, testDB, Options{}).RunEGDLsite(testDB)
+	require.NoError(t, err)
+	assert.Zero(t, again.EGAliases)
+	dryAgain, err := New(testDB, testDB, Options{DryRun: true}).RunEGDLsite(testDB)
+	require.NoError(t, err)
+	assert.Zero(t, dryAgain.EGAliases, "a dry run counts only the aliases still missing")
+}

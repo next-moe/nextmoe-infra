@@ -119,6 +119,9 @@ func (im *Importer) createMintChunk(tx *gorm.DB, chunk []egdlItem, cnResolve fun
 		if it.dw.kana != "" && it.dw.kana != it.dw.name {
 			titles = append(titles, model.CatalogWorkTitle{WorkID: wid, Lang: "ja", Title: it.dw.kana, Kind: model.WorkTitleKindSearchHint})
 		}
+		if alias, ok := egAliasTitle(wid, it); ok {
+			titles = append(titles, alias)
+		}
 		releases[i] = model.CatalogRelease{
 			WorkID: wid, Kind: model.ReleaseKindDigital,
 			ReleasedY: it.dw.y, ReleasedM: it.dw.m, ReleasedD: it.dw.d, Extra: datatypes.JSON(`{}`),

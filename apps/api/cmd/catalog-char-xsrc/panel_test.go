@@ -20,6 +20,7 @@ func TestClassifyReview(t *testing.T) {
 		{A: 9, B: 10, Tier: 1, ASources: src("vndb"), BSources: src("bangumi")},
 		{A: 10, B: 11, Tier: 1, ASources: src("bangumi"), BSources: src("vndb")},
 		{A: 12, B: 13, Tier: 3, ASources: src("vndb"), BSources: src("bangumi")},
+		{A: 14, B: 15, Tier: 1, ASources: src("erogamescape"), BSources: src("vndb"), Qualified: true},
 	}
 	v := func(a, b int64, verdict string, conf float64) personadj.Verdict {
 		return personadj.Verdict{Key: keyFor(a, b), Verdict: verdict, Confidence: conf}
@@ -32,6 +33,7 @@ func TestClassifyReview(t *testing.T) {
 		v(9, 10, "merge", 0.97),
 		v(10, 11, "merge", 0.96),
 		v(12, 13, "distinct", 0.95),
+		v(14, 15, "merge", 0.80),
 	}
 	tail := classifyReview(pairs, verdicts)
 	got := map[string]string{}

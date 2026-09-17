@@ -136,3 +136,25 @@ func TestNamesSimilarASCIIFloor(t *testing.T) {
 		t.Error("a shared Latin word still qualifies via the segment rule")
 	}
 }
+
+func TestQualifiedPair(t *testing.T) {
+	cases := []struct {
+		a, b string
+		want bool
+	}{
+		{"リップ（少女編）", "リップ・ゲルソーク・ゼングルクル", true},
+		{"グリム", "グリム(ヴィルヘルム)", true},
+		{"猫（キャット）", "猫", true},
+		{"【覚醒】ミカ", "ミカ", true},
+		{"SILENCE(シランス)", "シランス", false},
+		{"高嶺 鏡華", "高嶺鏡華", false},
+		{"アルビレオ", "白鳥のナイト", false},
+		{"木下 百合（右）/蘭（左）", "木下百合", true},
+		{"猫（キャット）", "キャットの猫", false},
+	}
+	for _, c := range cases {
+		if got := qualifiedPair(c.a, c.b); got != c.want {
+			t.Errorf("qualifiedPair(%q, %q) = %v, want %v", c.a, c.b, got, c.want)
+		}
+	}
+}
