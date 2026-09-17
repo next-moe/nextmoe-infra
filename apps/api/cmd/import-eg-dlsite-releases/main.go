@@ -81,7 +81,7 @@ func main() {
 		"names", st.NamesCreated, "credits", st.CreditsWritten, "edges", st.EdgesWritten,
 		"eg_refs", st.EGRefsWritten, "stubs", st.Stubs, "skipped_unmapped_role", st.SkippedUnmappedRole,
 		"title_collisions", st.TitleCollisions, "quarantined", st.Quarantined,
-		"skipped_intra_collision", st.SkippedIntraCollision,
+		"skipped_intra_collision", st.SkippedIntraCollision, "eg_aliases", st.EGAliases,
 		"errors", st.Errors,
 	)
 	if !*apply {

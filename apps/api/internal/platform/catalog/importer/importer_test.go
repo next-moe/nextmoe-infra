@@ -51,6 +51,7 @@ func TestMain(m *testing.M) {
 		`CREATE TABLE IF NOT EXISTS games (id bigint, vndb text, dlsite_id text)`,
 		`ALTER TABLE games ADD COLUMN IF NOT EXISTS dlsite_id text`,
 		`ALTER TABLE games ADD COLUMN IF NOT EXISTS vndb text`,
+		`ALTER TABLE games ADD COLUMN IF NOT EXISTS gamename text`,
 	}
 	for _, s := range stmts {
 		if err := db.Exec(s).Error; err != nil {
