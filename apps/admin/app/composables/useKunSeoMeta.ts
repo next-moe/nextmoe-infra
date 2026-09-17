@@ -46,7 +46,6 @@ export const useKunSeoMeta = (
     {
       title: pageTitle,
       description,
-      keywords: admin.keywords.toString(),
       ogUrl: pageUrl,
       ogType: input.ogType || 'website',
       ogTitle: fullTitle,
@@ -64,7 +63,10 @@ export const useKunSeoMeta = (
   )
 
 
+  // unhead v2 dropped `keywords` from UseSeoMetaInput, so the tag is written
+  // here to keep it in the rendered head.
   useHead({
+    meta: [{ name: 'keywords', content: admin.keywords.toString() }],
     link: [{ rel: 'canonical', href: pageUrl }]
   })
 }
