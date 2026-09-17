@@ -244,13 +244,33 @@ fi
 gstep sh -c "$DSNSH"'; backfill-bgm-zh-names --dsn "$CAT" --lane character --apply'
 gstep sh -c "$DSNSH"'; backfill-bgm-zh-names --dsn "$CAT" --lane person --apply'
 gstep sh -c "$DSNSH"'; backfill-bgm-zh-names --dsn "$CAT" --lane label --apply'
-# --run is the apply flag of the next two tools: Go's flag package treats
-# --apply as undefined and exits 2, the same class of invocation break as
-# bgm-refresh's --wiki-dsn on 2026-08-13. --hints keeps import-entity-aliases
-# to its search-hint leg: the other leg files alias_declared credit-name pairs
-# whose only consumer, person-link-batch, is not scheduled (2,166 would have
-# waited in the review queue on 2026-09-16).
+# --run is the apply flag of import-entity-aliases, person-link-batch and
+# import-bangumi-xmedia: Go's flag package treats --apply as undefined and exits
+# 2, the same class of invocation break as bgm-refresh's --wiki-dsn on
+# 2026-08-13. Each leg is named; with neither flag the tool runs both.
 gstep import-entity-aliases --hints --run
+# The candidate leg files the credit-name pairs Bangumi declares as aliases, and
+# person-link-batch links the ones its rules settle: A3, both names credited on
+# one work; A4, each declared as the other's alias. On 2026-09-17 those rules
+# linked 786 of a 2,167-pair backlog (342 new people) and left 1,359 pending,
+# because the LLM credit-name judge sees nothing but the two names and is not
+# scheduled. A link has no undo, so both steps run behind a dry-run ceiling.
+if [ "$GROUP_FAIL" -eq 0 ]; then
+  if dry_ok alias-candidates import-entity-aliases --candidates \
+     && check_counters alias-candidates "$last_dry_log" candidates=300; then
+    gstep import-entity-aliases --candidates --run
+  else
+    ceiling_failed
+  fi
+fi
+if [ "$GROUP_FAIL" -eq 0 ]; then
+  if dry_ok person-link person-link-batch --rule-set alias --actor 1 \
+     && check_counters person-link "$last_dry_log" created=200 attached=300; then
+    gstep person-link-batch --rule-set alias --actor 1 --run
+  else
+    ceiling_failed
+  fi
+fi
 if [ "$GROUP_FAIL" -eq 0 ]; then
   if dry_ok bangumi-xmedia import-bangumi-xmedia \
      && check_counters bangumi-xmedia "$last_dry_log" registered_anime=200 registered_manga=200 registered_novel=200; then
@@ -288,6 +308,7 @@ fi
 # DELIBERATELY NOT RUN HERE:
 #   import-dlsite-works — imports only ボイス・ASMR works; ASMR is out of catalog scope by decision of 2026-08-21
 #   catalog-char-xsrc — the LLM-adjudicated fold of cross-source character twins; it has its own nightly job, char-xsrc-nightly
+#   llm-suggest --task queue-creditname — judges a credit-name pair from the two names alone; its accept creates a person with no undo
 #   reconcile-org-labels — mints labels and files human-review candidates; pending an operator decision
 #   enrich-org-labels — enriches the labels reconcile-org-labels anchors, so it waits on that decision
 #   backfill-dlsite-media, backfill-getchu-media, backfill-getchu-portraits, backfill-vndb-covers,
