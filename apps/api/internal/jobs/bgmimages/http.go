@@ -230,7 +230,24 @@ func readDims(path string) (w, h int, format string, err error) {
 	defer f.Close()
 	cfg, format, err := image.DecodeConfig(f)
 	if err != nil {
-		return 0, 0, "", err
+		// image/jpeg refuses a Cb/Cr sampling pair it cannot decode even when only the size is
+		// asked for. The first Bangumi drain on 2026-09-17 counted four valid logos as errors,
+		// every week, with "unsupported JPEG feature: luma/chroma subsampling ratio".
+		if _, seekErr := f.Seek(0, io.SeekStart); seekErr != nil {
+			return 0, 0, "", err
+		}
+		var magic [2]byte
+		if _, readErr := io.ReadFull(f, magic[:]); readErr != nil || magic[0] != 0xff || magic[1] != 0xd8 {
+			return 0, 0, "", err
+		}
+		if _, seekErr := f.Seek(0, io.SeekStart); seekErr != nil {
+			return 0, 0, "", err
+		}
+		w, h, jpegErr := jpegSize(f)
+		if jpegErr != nil {
+			return 0, 0, "", err
+		}
+		return w, h, "jpeg", nil
 	}
 	return cfg.Width, cfg.Height, format, nil
 }
