@@ -58,6 +58,13 @@ func RunApply(ctx context.Context, db *gorm.DB, up StagingDBs, queues *service.A
 			return ApplyStats{}, err
 		}
 	}
+	credit := map[[2]int64]creditApplyFacts{}
+	if opts.Queue == QueueCreditName {
+		var err error
+		if credit, err = creditNameFacts(db); err != nil {
+			return ApplyStats{}, err
+		}
+	}
 	holders := map[string]int64{}
 	evidence := map[int64]refEvidence{}
 	if opts.Queue == QueueRef {
@@ -78,7 +85,7 @@ func RunApply(ctx context.Context, db *gorm.DB, up StagingDBs, queues *service.A
 	for _, row := range rows {
 		h, held := holders[exactSlotKey(row.EntityType, row.SourceID, row.ExternalID)]
 		plan := planFor(opts.Queue, row, sides, opts, held && h != row.EntityID,
-			applyEvidence{Ref: evidence[row.ID], Pair: names[row.ID]})
+			applyEvidence{Ref: evidence[row.ID], Pair: names[row.ID], Credit: credit[[2]int64{row.AID, row.BID}]})
 		if plan.Skip != "" {
 			st.add(plan.Skip, 1)
 			if opts.DryRun {
@@ -150,13 +157,23 @@ func applySelection(opts Options) (minConf float64, verdicts []string) {
 // not carry: for a ref, what agrees with the name; for a work pair, who else
 // answers to the name.
 type applyEvidence struct {
-	Ref  refEvidence
-	Pair pairEvidence
+	Ref    refEvidence
+	Pair   pairEvidence
+	Credit creditApplyFacts
 }
 
 func planFor(queue string, row QueueVerdict, sides map[int64]workPairSides, opts Options, slotTaken bool, ev applyEvidence) applyPlan {
 	switch queue {
 	case QueueCreditName:
+		if ev.Credit.Guard != "" {
+			return applyPlan{Skip: skipHeldByGuard}
+		}
+		// On 2026-09-17 four of the five identically spelled pairs judged
+		// different were one voice actor: the judge read a remake's first
+		// release year as the start of the other side's career.
+		if row.Verdict == VerdictDifferent && ev.Credit.SameName {
+			return applyPlan{Skip: skipSameNameDifferent}
+		}
 		return planCreditName(row.Verdict, row.Confidence, opts.MinConfidence, opts.MinConfidenceReject)
 	case QueueWorkPair:
 		a := sides[row.AID]

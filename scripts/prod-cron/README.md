@@ -51,10 +51,11 @@ had to be rebuilt by hand.
 | cover-shelf-watch | daily 17:00 | daily 09:00 | 48h |
 | retire-merged-comments | daily 23:30 | daily 15:30 | 48h |
 
-`source-import/test.sh` and `char-xsrc-nightly/test.sh` are the offline tests
-in this directory: each runs the `run.sh` beside it against fake `docker` /
-`flock` / alert stand-ins and asserts the call order, the ceilings and the
-lock/stamp rules. Run the matching one before redeploying either script.
+`source-import/test.sh`, `char-xsrc-nightly/test.sh` and
+`llm-adjudicate-nightly/test.sh` are the offline tests in this directory: each
+runs the `run.sh` beside it against fake `docker` / `flock` / alert stand-ins
+and asserts the call order, the ceilings and the lock/stamp rules. Run the
+matching one before redeploying any of those scripts.
 
 char-xsrc-nightly keeps its judged verdicts in `state/verdicts.jsonl` and
 `state/verdicts2.jsonl`; a key there is never sent to the gateway again. They

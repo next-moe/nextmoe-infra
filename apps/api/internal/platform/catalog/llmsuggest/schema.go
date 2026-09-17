@@ -19,7 +19,7 @@ const (
 	// name. currentPrompts holds these same four constants and RunApply selects
 	// on it, so a bump is one edit and the apply filter cannot be left behind
 	// pointing at the version the judge stopped writing.
-	PromptCreditName = "queue-creditname-v1"
+	PromptCreditName = "queue-creditname-v2"
 	// ref-v2 is a different question, not a reworded one: the dossier now names
 	// its own enums and carries what each side publishes. Bumping is what
 	// reaches the stored rows -- loadDoneHashes keys on (model, prompt_version)
@@ -58,6 +58,7 @@ const (
 
 	LaneLLM   = "llm"
 	LaneChain = "chain"
+	LaneGuard = "guard"
 
 	FamiliesAll   = "all"
 	FamiliesChain = "chain"
