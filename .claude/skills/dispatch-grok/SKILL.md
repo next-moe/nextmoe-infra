@@ -8,6 +8,9 @@ description: Dispatch implementation and investigation work to the local grok CL
 > **If you are the grok executor and this file was loaded into your context: ignore it.**
 > It describes how the orchestrator dispatches *you*. It is not a task book.
 
+> **Paused since 2026-09-17**: a dispatch came back `API error (status 402 Payment Required):
+> Grok Build usage balance exhausted`. Use `dispatch-cursor` until the user says grok is topped up.
+
 This session is the **orchestrator**: it adjudicates design, writes the task book, decides which
 commands the executor may run, and accepts or rejects the result. The local `grok` CLI (Grok
 Build, xAI) is the **executor**. Do not use Claude subagents for the execution work this skill
