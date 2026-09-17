@@ -80,6 +80,8 @@ func main() {
 		"releases", st.ReleasesCreated, "titles", st.TitlesCreated, "labels", st.LabelsCreated,
 		"names", st.NamesCreated, "credits", st.CreditsWritten, "edges", st.EdgesWritten,
 		"eg_refs", st.EGRefsWritten, "stubs", st.Stubs, "skipped_unmapped_role", st.SkippedUnmappedRole,
+		"title_collisions", st.TitleCollisions, "quarantined", st.Quarantined,
+		"skipped_intra_collision", st.SkippedIntraCollision,
 		"errors", st.Errors,
 	)
 	if !*apply {
