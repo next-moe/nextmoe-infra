@@ -7,7 +7,6 @@ type Page[T any] struct {
 	Total int64 `json:"total"`
 }
 
-
 type ReportRequest struct {
 	SubjectKind string  `json:"subject_kind" doc:"registered subject kind for this site (e.g. forum_topic)"`
 	SubjectID   string  `json:"subject_id" doc:"the subject's stable id in the product"`
@@ -24,11 +23,11 @@ type ReportResponse struct {
 }
 
 type ScanRequest struct {
-	Site        string `json:"site,omitempty" doc:"optional tenant site (allowlist-gated relay path); omitted = derived from the client binding"`
-	SubjectKind string `json:"subject_kind" doc:"registered subject kind for this site (e.g. community_post)"`
-	SubjectID   string `json:"subject_id" doc:"the subject's stable id in the product"`
-	Text        string `json:"text" doc:"the UGC text to scan (capped at ~8000 runes; excess is truncated and recorded)"`
-	AuthorID    *int64 `json:"author_id,omitempty" doc:"optional content author's global id (attribution/repeat-offender signal); not the tenant"`
+	Site         string `json:"site,omitempty" doc:"optional tenant site (allowlist-gated relay path); omitted = derived from the client binding"`
+	SubjectKind  string `json:"subject_kind" doc:"registered subject kind for this site (e.g. community_post)"`
+	SubjectID    string `json:"subject_id" doc:"the subject's stable id in the product"`
+	Text         string `json:"text" doc:"the UGC text to scan (capped at ~8000 runes; excess is truncated and recorded)"`
+	AuthorID     *int64 `json:"author_id,omitempty" doc:"optional content author's global id (attribution/repeat-offender signal); not the tenant"`
 	SubjectReach *int64 `json:"subject_reach,omitempty" doc:"optional audience the content has reached so far (views or the product's nearest equivalent); ranks the review queue — omitted or 0 contributes no boost"`
 }
 
@@ -55,7 +54,6 @@ type SubjectKindsResponse struct {
 type ReportReasonsResponse struct {
 	Reasons []ReasonView `json:"reasons"`
 }
-
 
 type SubjectKindView struct {
 	ID              int64     `json:"id"`
@@ -98,13 +96,13 @@ type ReviewItemView struct {
 }
 
 type ReportView struct {
-	ID          int64   `json:"id"`
-	Site        string  `json:"site"`
-	SubjectKind string  `json:"subject_kind"`
-	SubjectID   string  `json:"subject_id"`
-	ReporterID  int64   `json:"reporter_id"`
-	ReasonID    int64   `json:"reason_id"`
-	Note        *string `json:"note,omitempty"`
+	ID              int64     `json:"id"`
+	Site            string    `json:"site"`
+	SubjectKind     string    `json:"subject_kind"`
+	SubjectID       string    `json:"subject_id"`
+	ReporterID      int64     `json:"reporter_id"`
+	ReasonID        int64     `json:"reason_id"`
+	Note            *string   `json:"note,omitempty"`
 	SubjectSnapshot *string   `json:"subject_snapshot,omitempty"`
 	SubjectURL      *string   `json:"subject_url,omitempty" doc:"submitter-carried deep link to the content in its product context"`
 	Weight          float32   `json:"weight"`
@@ -132,7 +130,6 @@ type DispositionView struct {
 	CreatedAt        time.Time  `json:"created_at"`
 }
 
-
 type DecideRequest struct {
 	Decision   string  `json:"decision" enum:"dismissed,actioned"`
 	Action     *int16  `json:"action,omitempty" doc:"required for actioned: 0=none 1=hide 2=remove 3=warn_user 4=restrict 5=escalate_idp"`
@@ -154,7 +151,6 @@ type PatchSubjectKindRequest struct {
 	IsDeprecated    *bool   `json:"is_deprecated,omitempty"`
 	NotifyOnDismiss *bool   `json:"notify_on_dismiss,omitempty"`
 }
-
 
 type EnsureSubjectKindItem struct {
 	Key             string  `json:"key" doc:"stable subject-kind key (e.g. forum_topic)"`
@@ -180,7 +176,6 @@ type EnsureSubjectKindResultView struct {
 type EnsureSubjectKindsResponse struct {
 	Results []EnsureSubjectKindResultView `json:"results"`
 }
-
 
 type ForwardRequest struct {
 	Site         string   `json:"site" doc:"tenant site the subject belongs to (allowlist-gated, not from the client binding)"`
@@ -208,7 +203,6 @@ type ForwardResolveResponse struct {
 	Closed bool `json:"closed" doc:"false = the item was already terminal (tolerated race)"`
 }
 
-
 type TermView struct {
 	ID           int64     `json:"id"`
 	Site         *string   `json:"site,omitempty" doc:"null = global (applies to every site)"`
@@ -226,11 +220,11 @@ type TermsResponse struct {
 }
 
 type CreateTermRequest struct {
-	Site *string `json:"site,omitempty" doc:"tenant site; null = global (applies to every site)"`
-	Term string  `json:"term" doc:"the raw term (normalized server-side before storage)"`
-	Kind int16   `json:"kind" doc:"0=suspect (hold — enqueue, don't block) 1=banned (deny — the sync check rejects)"`
-	Purpose int16 `json:"purpose,omitempty" doc:"0=abuse (default; precision-prunable against the AI classifier) 1=compliance (legal/regulatory — exempt from precision pruning, since the abuse classifier does not judge that question)"`
-	Note *string `json:"note,omitempty" doc:"optional operator memo"`
+	Site    *string `json:"site,omitempty" doc:"tenant site; null = global (applies to every site)"`
+	Term    string  `json:"term" doc:"the raw term (normalized server-side before storage)"`
+	Kind    int16   `json:"kind" doc:"0=suspect (hold — enqueue, don't block) 1=banned (deny — the sync check rejects)"`
+	Purpose int16   `json:"purpose,omitempty" doc:"0=abuse (default; precision-prunable against the AI classifier) 1=compliance (legal/regulatory — exempt from precision pruning, since the abuse classifier does not judge that question)"`
+	Note    *string `json:"note,omitempty" doc:"optional operator memo"`
 }
 
 type CreateReasonRequest struct {

@@ -14,26 +14,26 @@ func NormalizeEmail(email string) string {
 }
 
 type User struct {
-	ID          uint           `gorm:"primaryKey" json:"id"`
-	UUID        string         `gorm:"type:uuid;uniqueIndex;default:gen_random_uuid()" json:"uuid"`
-	Name        string         `gorm:"size:17;uniqueIndex;not null" json:"name"`
-	Email       string         `gorm:"size:255;uniqueIndex;not null" json:"email"`
+	ID             uint    `gorm:"primaryKey" json:"id"`
+	UUID           string  `gorm:"type:uuid;uniqueIndex;default:gen_random_uuid()" json:"uuid"`
+	Name           string  `gorm:"size:17;uniqueIndex;not null" json:"name"`
+	Email          string  `gorm:"size:255;uniqueIndex;not null" json:"email"`
 	Password       *string `gorm:"size:255" json:"-"`
 	KungalPassword *string `gorm:"size:255" json:"-"`
 	MoyuPassword   *string `gorm:"size:255" json:"-"`
-	Avatar string `gorm:"size:255;default:''" json:"avatar"`
+	Avatar         string  `gorm:"size:255;default:''" json:"avatar"`
 
 	AvatarImageHash *string `gorm:"size:64;index" json:"avatar_image_hash,omitempty"`
 
-	Bio         string         `gorm:"size:107;default:''" json:"bio"`
-	Moemoepoint int            `gorm:"default:0" json:"moemoepoint"`
-	Status      int            `gorm:"default:0" json:"status"`
-	AnonymizedAt *time.Time `gorm:"index" json:"anonymized_at,omitempty"`
-	OriginalEmail *string `gorm:"size:255" json:"-"`
-	IP          string         `gorm:"size:45;default:''" json:"-"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
-	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+	Bio           string         `gorm:"size:107;default:''" json:"bio"`
+	Moemoepoint   int            `gorm:"default:0" json:"moemoepoint"`
+	Status        int            `gorm:"default:0" json:"status"`
+	AnonymizedAt  *time.Time     `gorm:"index" json:"anonymized_at,omitempty"`
+	OriginalEmail *string        `gorm:"size:255" json:"-"`
+	IP            string         `gorm:"size:45;default:''" json:"-"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
+	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
 
 	SiteData      []UserSiteData   `gorm:"foreignKey:UserID" json:"site_data,omitempty"`
 	Sessions      []Session        `gorm:"foreignKey:UserID" json:"-"`

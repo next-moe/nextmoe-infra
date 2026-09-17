@@ -32,10 +32,10 @@ func ClientAuth(clientRepo *siteRepo.OAuthClientRepository, cfg *config.Config) 
 		authHeader := c.Get("Authorization")
 
 		var (
-			client *siteModel.OAuthClient
+			client  *siteModel.OAuthClient
 			userSub string
-			method string
-			err    error
+			method  string
+			err     error
 		)
 
 		switch {
@@ -79,7 +79,6 @@ func ClientAuth(clientRepo *siteRepo.OAuthClientRepository, cfg *config.Config) 
 		return c.Next()
 	}
 }
-
 
 var (
 	errBadClient        = stderrors.New("bad client")

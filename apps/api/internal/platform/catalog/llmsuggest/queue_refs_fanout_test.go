@@ -78,7 +78,7 @@ func TestApplyLeavesNoMemberOfAFanoutGroupHoldingExact(t *testing.T) {
 			Queue: QueueRef, Lane: LaneChain, EntityType: model.EntityTypeRelease,
 			EntityID: id, SourceID: vndb, ExternalID: ext,
 			InputHash: refInputHash(model.EntityTypeRelease, id, vndb, ext),
-			Model: ChainModel, PromptVersion: prompt, Verdict: v, Confidence: conf,
+			Model:     ChainModel, PromptVersion: prompt, Verdict: v, Confidence: conf,
 			Evidence: []byte(`{}`),
 		}).Error)
 	}

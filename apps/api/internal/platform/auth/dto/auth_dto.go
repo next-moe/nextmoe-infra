@@ -87,19 +87,19 @@ type TokenPair struct {
 }
 
 type UserResponse struct {
-	ID     uint   `json:"id,omitempty"`
-	UUID   string `json:"uuid"`
-	Name   string `json:"name"`
-	Email  string `json:"email"`
-	Avatar string `json:"avatar"`
-	AvatarImageHash *string `json:"avatar_image_hash,omitempty"`
-	Bio             string  `json:"bio"`
-	Moemoepoint     int     `json:"moemoepoint"`
-	Status          int     `json:"status"`
-	IsAnonymized bool     `json:"is_anonymized"`
-	OriginalEmail string   `json:"original_email,omitempty"`
-	Roles         []string `json:"roles"`
-	CreatedAt     string   `json:"created_at"`
+	ID              uint     `json:"id,omitempty"`
+	UUID            string   `json:"uuid"`
+	Name            string   `json:"name"`
+	Email           string   `json:"email"`
+	Avatar          string   `json:"avatar"`
+	AvatarImageHash *string  `json:"avatar_image_hash,omitempty"`
+	Bio             string   `json:"bio"`
+	Moemoepoint     int      `json:"moemoepoint"`
+	Status          int      `json:"status"`
+	IsAnonymized    bool     `json:"is_anonymized"`
+	OriginalEmail   string   `json:"original_email,omitempty"`
+	Roles           []string `json:"roles"`
+	CreatedAt       string   `json:"created_at"`
 }
 
 type LoginResponse struct {

@@ -57,6 +57,17 @@ jobs:
       # build/test needs the headers + pkg-config (matches docker/cgo.Dockerfile).
       - name: Install CGO deps (libwebp)
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libwebp-dev pkg-config
+      # `go vet` says nothing about layout, so 30 files had drifted out of
+      # gofmt shape before anything checked. gofmt is the toolchain's own
+      # formatter and the CI toolchain is pinned by go.mod, so this cannot
+      # disagree with a contributor running gofmt from the same version.
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "not gofmt-clean -- run: gofmt -w $unformatted" >&2
+            exit 1
+          fi
       - run: go build ./...
       - run: go vet ./...
       - run: go test ./...

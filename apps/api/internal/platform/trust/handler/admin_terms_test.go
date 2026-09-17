@@ -31,9 +31,9 @@ func TestAdminTermsHandlersRejectModerator(t *testing.T) {
 	ctx := scopedCtx([]string{"moderator"}, "", 1)
 
 	checks := map[string]func() error{
-		"listTerms":      func() error { _, e := s.listTerms(ctx, &listTermsInput{Kind: -1}); return e },
-		"createTerm":     func() error { _, e := s.createTerm(ctx, &createTermInput{}); return e },
-		"deprecateTerm":  func() error { _, e := s.deprecateTerm(ctx, &deprecateTermInput{ID: 1}); return e },
+		"listTerms":     func() error { _, e := s.listTerms(ctx, &listTermsInput{Kind: -1}); return e },
+		"createTerm":    func() error { _, e := s.createTerm(ctx, &createTermInput{}); return e },
+		"deprecateTerm": func() error { _, e := s.deprecateTerm(ctx, &deprecateTermInput{ID: 1}); return e },
 	}
 	for name, fn := range checks {
 		if got := statusOf(fn()); got != http.StatusForbidden {

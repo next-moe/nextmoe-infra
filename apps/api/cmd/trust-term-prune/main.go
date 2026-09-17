@@ -28,7 +28,7 @@ type termStat struct {
 	Hits      int64   `json:"hits"`
 	Flagged   int64   `json:"flagged"`
 	Precision float64 `json:"precision"`
-	Reason string `json:"reason"`
+	Reason    string  `json:"reason"`
 }
 
 func main() {

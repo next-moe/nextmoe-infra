@@ -27,11 +27,11 @@ func New(c *cache.RedisCache) *Checker {
 }
 
 type DailyUsage struct {
-	Count       int64
-	Bytes       int64
-	ResetAt     time.Time
-	LimitCount  int
-	LimitBytes  int64
+	Count      int64
+	Bytes      int64
+	ResetAt    time.Time
+	LimitCount int
+	LimitBytes int64
 }
 
 func dayKey(now time.Time) string {

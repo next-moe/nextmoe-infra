@@ -91,9 +91,9 @@ func (s *SiteService) CreateOAuthClient(ctx context.Context, siteID uint, name s
 	grantsJSON, _ := json.Marshal(grants)
 
 	client := &model.OAuthClient{
-		ID:     clientID,
-		SiteID: &siteID,
-		Name:   name,
+		ID:              clientID,
+		SiteID:          &siteID,
+		Name:            name,
 		Secret:          model.HashOAuthClientSecret(secret),
 		RedirectURIs:    urisJSON,
 		Grants:          grantsJSON,

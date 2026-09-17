@@ -159,4 +159,3 @@ func mode(apply bool) string {
 	}
 	return "DRY"
 }
-
