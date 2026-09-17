@@ -40,13 +40,14 @@ func main() {
 		"new_labels", st.NewLabels, "new_edges", st.NewEdges,
 		"conflict", st.Conflict, "skip_no_match", st.SkipNoMatch,
 		"skip_ambiguous", st.SkipAmbiguous, "skip_ungradeable", st.SkipUngradeable,
+		"skip_rejected", st.SkipRejected, "skip_deferred", st.SkipDeferred,
 		"vndb_in_anchored", st.VNDBInAnchored, "errors", st.Errors)
 	slog.Info("reconcile-org-labels spine summary",
 		"considered", st.Spine.Considered, "minted", st.Spine.Minted,
 		"anchored", st.Spine.Anchored, "candidates", st.Spine.Candidates,
-		"candidate_rows", st.Spine.CandidateRows,
 		"skip_claimed", st.Spine.SkipClaimed, "skip_edgeless", st.Spine.SkipEdgeless,
-		"skip_alias_only", st.Spine.SkipAliasOnly, "errors", st.Spine.Errors)
+		"skip_alias_only", st.Spine.SkipAliasOnly, "skip_loose_twin", st.Spine.SkipLooseTwin,
+		"skip_deferred", st.Spine.SkipDeferred, "errors", st.Spine.Errors)
 	if !*apply {
 		slog.Info("DRY RUN — nothing written; re-run with --apply")
 	}

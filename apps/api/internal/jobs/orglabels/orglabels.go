@@ -28,21 +28,24 @@ const (
 	ruleVNDBCoworks    = "rule:vndb-org-coworks"
 	ruleVNDBCoworkName = "rule:vndb-org-cowork-name"
 	ruleVNDBNameOnly   = "rule:vndb-org-name-only"
+	ruleVNDBNameLoose  = "rule:vndb-org-name-loose"
 	ruleVNDBNew        = "rule:vndb-org-new"
 
 	ruleBGMCoworks    = "rule:bangumi-org-coworks"
 	ruleBGMCoworkName = "rule:bangumi-org-cowork-name"
 	ruleBGMNameOnly   = "rule:bangumi-org-name-only"
+	ruleBGMNameLoose  = "rule:bangumi-org-name-loose"
 	ruleBGMNew        = "rule:bangumi-org-new"
 
 	ruleEGCoworks    = "rule:eg-org-coworks"
 	ruleEGCoworkName = "rule:eg-org-cowork-name"
 	ruleEGNameOnly   = "rule:eg-org-name-only"
+	ruleEGNameLoose  = "rule:eg-org-name-loose"
 	ruleEGNew        = "rule:eg-org-new"
 )
 
 type ruleSet struct {
-	coworks, coworkName, nameOnly, newLabel string
+	coworks, coworkName, nameOnly, nameLoose, newLabel string
 }
 
 func srcKey(source int16) string {

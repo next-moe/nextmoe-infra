@@ -111,10 +111,10 @@ func labelSnapshot(label model.CatalogLabel) datatypes.JSON {
 func ruleSetFor(source int16) ruleSet {
 	switch source {
 	case sourceVNDB:
-		return ruleSet{ruleVNDBCoworks, ruleVNDBCoworkName, ruleVNDBNameOnly, ruleVNDBNew}
+		return ruleSet{ruleVNDBCoworks, ruleVNDBCoworkName, ruleVNDBNameOnly, ruleVNDBNameLoose, ruleVNDBNew}
 	case sourceBangumi:
-		return ruleSet{ruleBGMCoworks, ruleBGMCoworkName, ruleBGMNameOnly, ruleBGMNew}
+		return ruleSet{ruleBGMCoworks, ruleBGMCoworkName, ruleBGMNameOnly, ruleBGMNameLoose, ruleBGMNew}
 	default:
-		return ruleSet{ruleEGCoworks, ruleEGCoworkName, ruleEGNameOnly, ruleEGNew}
+		return ruleSet{ruleEGCoworks, ruleEGCoworkName, ruleEGNameOnly, ruleEGNameLoose, ruleEGNew}
 	}
 }

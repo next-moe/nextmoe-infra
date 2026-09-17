@@ -193,9 +193,68 @@ func TestUnmappedRoleSkipped(t *testing.T) {
 
 	st, err := New(testDB, nil, Options{Source: "bangumi"}).Run("bangumi")
 	require.NoError(t, err)
-	assert.Equal(t, 1, st.NamesCreated, "the name is still created")
+	assert.Zero(t, st.NamesCreated, "no credit points at the name, so it is not minted")
 	assert.Equal(t, 1, st.SkippedUnmappedRole)
 	assert.Zero(t, st.CreditsWritten, "unmapped position → no credit")
+}
+
+func TestBangumiMintsOnlyWhatACreditReferences(t *testing.T) {
+	clean(t)
+	game := seedAnchoredWork(t, 100)
+	anime := seedAnchoredWork(t, 400)
+	testDB.Exec(`INSERT INTO src_bangumi.person (id, type, name, career, infobox_raw, parse_error, summary, comments, collects, parser_version, ingested_at) VALUES
+		(20,2,'Key','[]','','','',0,0,'v',now()),
+		(60,1,'アニメ監督','[]','','','',0,0,'v',now()),
+		(61,2,'Netflix','[]','','','',0,0,'v',now()),
+		(62,3,'主題歌バンド','[]','','','',0,0,'v',now()),
+		(63,1,'声優A','[]','','','',0,0,'v',now())`)
+	testDB.Exec(`INSERT INTO src_bangumi.subject_person (person_id, subject_id, position, appear_eps) VALUES
+		(20,100,1001,''), (60,400,2,''), (61,400,5,''), (62,400,3,'')`)
+	testDB.Exec(`INSERT INTO src_bangumi.character (id, role, name, infobox_raw, parse_error, summary, comments, collects, parser_version, ingested_at) VALUES
+		(70,1,'声のないキャラ','','','',0,0,'v',now()), (71,1,'声のあるキャラ','','','',0,0,'v',now())`)
+	testDB.Exec(`INSERT INTO src_bangumi.subject_character (character_id, subject_id, type, item_order) VALUES (70,400,1,0), (71,400,1,1)`)
+	testDB.Exec(`INSERT INTO src_bangumi.person_character (person_id, subject_id, character_id, type, summary) VALUES (63,400,71,1,'')`)
+	var roleID int64
+	require.NoError(t, testDB.Raw(`SELECT role_id FROM catalog_source_role_map WHERE source_id=3 LIMIT 1`).Scan(&roleID).Error)
+	testDB.Exec(`INSERT INTO catalog_source_role_map (source_id, source_role, role_id, note) VALUES (3, '4:1001', ?, '') ON CONFLICT DO NOTHING`, roleID)
+
+	dry, err := New(testDB, nil, Options{Source: "bangumi", DryRun: true}).Run("bangumi")
+	require.NoError(t, err)
+	st, err := New(testDB, nil, Options{Source: "bangumi"}).Run("bangumi")
+	require.NoError(t, err)
+	for _, s := range []Stats{dry, st} {
+		assert.Equal(t, 2, s.NamesCreated, "the credited company and the voice actor")
+		assert.Equal(t, 1, s.LabelsCreated, "only the company with a mapped position")
+		assert.Equal(t, 1, s.CharactersCreated, "only the voiced character")
+		assert.Equal(t, 3, s.SkippedUnmappedRole)
+	}
+	assert.Equal(t, 2, st.CreditsWritten)
+
+	anchored := func(entityType int, ext string) bool {
+		var n int64
+		require.NoError(t, testDB.Raw(`SELECT count(*) FROM catalog_external_ref WHERE entity_type=? AND source_id=3 AND external_id=?`, entityType, ext).Scan(&n).Error)
+		return n > 0
+	}
+	for _, ext := range []string{"60", "61", "62"} {
+		assert.False(t, anchored(1, ext), "uncredited person %s gets no name", ext)
+		assert.False(t, anchored(3, ext), "uncredited org %s gets no label", ext)
+	}
+	assert.True(t, anchored(1, "20"))
+	assert.True(t, anchored(3, "20"))
+	assert.True(t, anchored(1, "63"))
+	assert.False(t, anchored(4, "70"), "a character no credit names is left to the roster lane")
+	assert.True(t, anchored(4, "71"))
+
+	var orphanNames, orphanLabels int64
+	testDB.Raw(`SELECT count(*) FROM catalog_credit_name n WHERE NOT EXISTS (SELECT 1 FROM catalog_credit c WHERE c.credit_name_id = n.id)`).Scan(&orphanNames)
+	testDB.Raw(`SELECT count(*) FROM catalog_label l WHERE NOT EXISTS (SELECT 1 FROM catalog_credit c WHERE c.label_id = l.id)`).Scan(&orphanLabels)
+	assert.Zero(t, orphanNames)
+	assert.Zero(t, orphanLabels)
+	var gameCredits, animeCredits int64
+	testDB.Raw(`SELECT count(*) FROM catalog_credit WHERE work_id = ?`, game).Scan(&gameCredits)
+	testDB.Raw(`SELECT count(*) FROM catalog_credit WHERE work_id = ?`, anime).Scan(&animeCredits)
+	assert.EqualValues(t, 1, gameCredits)
+	assert.EqualValues(t, 1, animeCredits)
 }
 
 func TestEGWaveAndCandidates(t *testing.T) {

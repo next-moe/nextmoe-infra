@@ -308,12 +308,26 @@ if [ "$GROUP_FAIL" -eq 0 ]; then
   fi
 fi
 
+begin_group labels
+# Last, so the works the groups above minted carry their anchors first. vndb and
+# erogamescape mint a label for a producer no label answers to; Bangumi only
+# anchors. The 2026-09-17 backlog (182 producers, 13 corporate-graph nodes, a
+# month of VNDB) was drained by hand after its whole name list was read, so a
+# ceiling tripping here is news, not backlog.
+if [ "$GROUP_FAIL" -eq 0 ]; then
+  if dry_ok org-labels sh -c "$DSNSH"'; reconcile-org-labels --dsn "$CAT" --eg-dsn "$EG" --source all' \
+     && check_counters org-labels "$last_dry_log" new_labels=100 minted=30 anchors_exact=300 anchors_probable=300; then
+    gstep sh -c "$DSNSH"'; reconcile-org-labels --dsn "$CAT" --eg-dsn "$EG" --source all --apply'
+  else
+    ceiling_failed
+  fi
+fi
+
 # DELIBERATELY NOT RUN HERE:
 #   import-dlsite-works — imports only ボイス・ASMR works; ASMR is out of catalog scope by decision of 2026-08-21
 #   catalog-char-xsrc — the LLM-adjudicated fold of cross-source character twins; it has its own nightly job, char-xsrc-nightly
-#   llm-suggest --task queue-creditname — judges a credit-name pair from the two names alone; its accept creates a person with no undo
-#   reconcile-org-labels — mints labels and files human-review candidates; pending an operator decision
-#   enrich-org-labels — enriches the labels reconcile-org-labels anchors, so it waits on that decision
+#   llm-suggest --task queue-creditname — has its own nightly job, llm-adjudicate-nightly
+#   enrich-org-labels — its dry counts do not subtract the rows already written, so its first apply is unmeasured
 #   backfill-dlsite-media, backfill-getchu-media, backfill-getchu-portraits, backfill-vndb-covers,
 #   backfill-character-portraits, backfill-bangumi-covers, backfill-label-logos,
 #   backfill-person-photos — need a local image mirror (--mirror-dir) that no crawler produces yet

@@ -47,6 +47,7 @@ type gradeResult struct {
 type grader struct {
 	workLabels map[int64][]int64
 	labelNorms map[string][]int64
+	labelLoose map[string][]int64
 	rules      ruleSet
 }
 
@@ -103,10 +104,20 @@ func (g *grader) grade(o *orgRec) gradeResult {
 	if len(share) > 0 {
 		return gradeResult{kind: resSkipUngradeable}
 	}
-	if o.canCreate && len(o.works) > 0 {
-		return gradeResult{kind: resNewLabel}
+	if !o.canCreate || len(o.works) == 0 {
+		return gradeResult{kind: resSkipNoMatch}
 	}
-	return gradeResult{kind: resSkipNoMatch}
+	// The 2026-09-17 dry run planned four labels whose names differ from a
+	// live label only by 株式会社, (株) or punctuation; the name index is an
+	// NFKC equality and let every one of them through as new.
+	switch twins := looseHits(o, g.labelLoose); len(twins) {
+	case 0:
+		return gradeResult{kind: resNewLabel}
+	case 1:
+		return gradeResult{kind: resAnchorExisting, labelID: twins[0], tier: model.LinkKindProbable, rule: g.rules.nameLoose}
+	default:
+		return gradeResult{kind: resSkipAmbiguous}
+	}
 }
 
 func better(s int, name bool, id int64, bestS int, bestName bool, bestID int64) bool {
@@ -131,6 +142,7 @@ type AnchorStats struct {
 	SkipAmbiguous   int
 	SkipUngradeable int
 	SkipRejected    int
+	SkipDeferred    int
 	VNDBInAnchored  int
 	Errors          int
 	Spine           SpineStats
@@ -148,6 +160,7 @@ func (s *AnchorStats) add(o AnchorStats) {
 	s.SkipAmbiguous += o.SkipAmbiguous
 	s.SkipUngradeable += o.SkipUngradeable
 	s.SkipRejected += o.SkipRejected
+	s.SkipDeferred += o.SkipDeferred
 	s.VNDBInAnchored += o.VNDBInAnchored
 	s.Errors += o.Errors
 }
@@ -163,26 +176,34 @@ func RunAnchor(ctx context.Context, opts Opts) (AnchorStats, error) {
 
 const maxAnchorPasses = 6
 
+func loadGrader(db *gorm.DB) (*grader, error) {
+	workLabels, err := loadLabelWorks(db)
+	if err != nil {
+		return nil, fmt.Errorf("load label works: %w", err)
+	}
+	labelNorms, err := loadLabelNorms(db)
+	if err != nil {
+		return nil, fmt.Errorf("load label norms: %w", err)
+	}
+	return &grader{workLabels: workLabels, labelNorms: labelNorms, labelLoose: looseIndex(labelNorms)}, nil
+}
+
 func anchorAll(ctx context.Context, catalog, eg *gorm.DB, source string, limit int, apply bool) (AnchorStats, error) {
 	var total AnchorStats
+	planned := newMintPlan()
 	for pass := 1; pass <= maxAnchorPasses; pass++ {
-		workLabels, err := loadLabelWorks(catalog)
+		g, err := loadGrader(catalog)
 		if err != nil {
-			return total, fmt.Errorf("load label works: %w", err)
+			return total, err
 		}
-		labelNorms, err := loadLabelNorms(catalog)
-		if err != nil {
-			return total, fmt.Errorf("load label norms: %w", err)
-		}
-
 		var pt AnchorStats
 		for _, src := range wantedSources(source) {
 			orgs, rules, srcID, err := loadSource(catalog, eg, src, limit)
 			if err != nil {
 				return total, fmt.Errorf("load %s orgs: %w", src, err)
 			}
-			g := &grader{workLabels: workLabels, labelNorms: labelNorms, rules: rules}
-			st, err := anchorSource(ctx, catalog, g, orgs, srcID, apply)
+			g.rules = rules
+			st, err := anchorSource(ctx, catalog, g, orgs, srcID, apply, planned)
 			if err != nil {
 				return total, fmt.Errorf("anchor %s: %w", src, err)
 			}
@@ -191,20 +212,22 @@ func anchorAll(ctx context.Context, catalog, eg *gorm.DB, source string, limit i
 				"probable", st.AnchorsProbable, "new_labels", st.NewLabels, "new_edges", st.NewEdges,
 				"conflict", st.Conflict, "skip_no_match", st.SkipNoMatch,
 				"skip_ambiguous", st.SkipAmbiguous, "skip_ungradeable", st.SkipUngradeable,
-				"skip_rejected", st.SkipRejected, "vndb_in_anchored", st.VNDBInAnchored)
+				"skip_rejected", st.SkipRejected, "skip_deferred", st.SkipDeferred,
+				"vndb_in_anchored", st.VNDBInAnchored)
 			pt.add(st)
 		}
 
 		if slices.Contains(wantedSources(source), "vndb") {
-			sp, err := runSpine(ctx, catalog, labelNorms, limit, apply)
+			sp, err := runSpine(ctx, catalog, g.labelNorms, limit, apply, planned)
 			if err != nil {
 				return total, fmt.Errorf("spine pass: %w", err)
 			}
 			slog.Info("org-label spine pass done", "pass", pass, "apply", apply,
 				"considered", sp.Considered, "minted", sp.Minted, "anchored", sp.Anchored,
-				"candidates", sp.Candidates, "candidate_rows", sp.CandidateRows,
-				"skip_claimed", sp.SkipClaimed, "skip_edgeless", sp.SkipEdgeless,
-				"skip_alias_only", sp.SkipAliasOnly, "errors", sp.Errors)
+				"candidates", sp.Candidates, "skip_claimed", sp.SkipClaimed,
+				"skip_edgeless", sp.SkipEdgeless, "skip_alias_only", sp.SkipAliasOnly,
+				"skip_loose_twin", sp.SkipLooseTwin, "skip_deferred", sp.SkipDeferred,
+				"errors", sp.Errors)
 			pt.Spine = sp
 		}
 
@@ -217,6 +240,7 @@ func anchorAll(ctx context.Context, catalog, eg *gorm.DB, source string, limit i
 			total.NewEdges += pt.NewEdges
 			total.VNDBInAnchored += pt.VNDBInAnchored
 			total.Errors += pt.Errors
+			total.SkipDeferred = pt.SkipDeferred
 			total.Spine.addWrites(pt.Spine)
 		}
 		total.Spine.setState(pt.Spine)
@@ -234,7 +258,7 @@ func wantedSources(sel string) []string {
 	return []string{sel}
 }
 
-func anchorSource(ctx context.Context, db *gorm.DB, g *grader, orgs []orgRec, source int16, apply bool) (AnchorStats, error) {
+func anchorSource(ctx context.Context, db *gorm.DB, g *grader, orgs []orgRec, source int16, apply bool, planned *mintPlan) (AnchorStats, error) {
 	ea, err := loadExistingAnchors(db, source)
 	if err != nil {
 		return AnchorStats{}, fmt.Errorf("load existing anchors: %w", err)
@@ -308,7 +332,7 @@ func anchorSource(ctx context.Context, db *gorm.DB, g *grader, orgs []orgRec, so
 		} else {
 			st.AnchorsProbable++
 		}
-		if !it.org.canCreate {
+		if source == sourceVNDB && !it.org.canCreate {
 			st.VNDBInAnchored++
 		}
 	}
@@ -320,6 +344,13 @@ func anchorSource(ctx context.Context, db *gorm.DB, g *grader, orgs []orgRec, so
 	}
 
 	for _, it := range newLabels {
+		if planned.taken(source, it.org) {
+			st.SkipDeferred++
+			continue
+		}
+		planned.add(source, it.org)
+		slog.Info("org-label new", "source", source, "ext_id", it.org.extID,
+			"name", it.org.displayName, "works", len(it.org.works), "apply", apply)
 		edges := len(it.org.works)
 		if apply {
 			n, err := mintLabel(ctx, db, source, it.org)

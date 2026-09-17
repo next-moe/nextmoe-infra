@@ -12,7 +12,8 @@ func newGrader(workLabels map[int64][]int64, labelNorms map[string][]int64) *gra
 	return &grader{
 		workLabels: workLabels,
 		labelNorms: labelNorms,
-		rules:      ruleSet{"coworks", "cowork-name", "name-only", "new"},
+		labelLoose: looseIndex(labelNorms),
+		rules:      ruleSet{"coworks", "cowork-name", "name-only", "name-loose", "new"},
 	}
 }
 
@@ -87,6 +88,47 @@ func TestGrade_NameBreaksShareTie(t *testing.T) {
 	assert.Equal(t, int64(11), r.labelID)
 	assert.Equal(t, model.LinkKindExact, r.tier)
 	assert.Equal(t, "coworks", r.rule)
+}
+
+func TestGrade_LooseTwinIsProbableNotNew(t *testing.T) {
+	g := newGrader(nil, map[string][]int64{"株式会社アリスソフト": {600}})
+	r := g.grade(&orgRec{extID: "50", works: []int64{99}, nameNorms: []string{"アリスソフト"}, canCreate: true})
+	assert.Equal(t, resAnchorExisting, r.kind)
+	assert.Equal(t, int64(600), r.labelID)
+	assert.Equal(t, model.LinkKindProbable, r.tier)
+	assert.Equal(t, "name-loose", r.rule)
+}
+
+func TestGrade_LooseTwinOfTwoLabelsIsAmbiguous(t *testing.T) {
+	g := newGrader(nil, map[string][]int64{"(株)ういんどみる": {1}, "ういんどみる co., ltd.": {2}})
+	r := g.grade(&orgRec{extID: "p1", works: []int64{99}, nameNorms: []string{"ういんどみる"}, canCreate: true})
+	assert.Equal(t, resSkipAmbiguous, r.kind)
+}
+
+func TestGrade_LooseNameNeverAnchorsANonMintingOrg(t *testing.T) {
+	g := newGrader(nil, map[string][]int64{"株式会社アリスソフト": {600}})
+	r := g.grade(&orgRec{extID: "300", works: []int64{99}, nameNorms: []string{"アリスソフト"}})
+	assert.Equal(t, resSkipNoMatch, r.kind)
+}
+
+func TestLooseLabelKey(t *testing.T) {
+	for in, want := range map[string]string{
+		"株式会社アリスソフト":      "アリスソフト",
+		"アリスソフト 有限会社":     "アリスソフト",
+		"(株)ういんどみる":       "ういんどみる",
+		"key co.,ltd.":    "key",
+		"key co., ltd":    "key",
+		"abc inc.":        "abc",
+		"visual art's":    "visualarts",
+		"incredible soft": "incrediblesoft",
+		"corpse party":    "corpseparty",
+		"nitro+":          "nitro",
+		"株式会社":            "",
+		"x":               "",
+		"ltd.":            "",
+	} {
+		assert.Equal(t, want, looseLabelKey(in), in)
+	}
 }
 
 func TestBetter(t *testing.T) {

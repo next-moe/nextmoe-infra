@@ -149,7 +149,7 @@ func loadBGMOrgs(db *gorm.DB, limit int) ([]orgRec, error) {
 		}
 		recByExt[m.ExtID] = &orgRec{
 			extID: m.ExtID, nameNorms: []string{m.NameNorm}, displayName: m.Name,
-			lang: "", newKind: kind, canCreate: true,
+			lang: "", newKind: kind,
 		}
 	}
 
@@ -174,17 +174,28 @@ func loadBGMOrgs(db *gorm.DB, limit int) ([]orgRec, error) {
 		}
 	}
 
-	if err := attachWorks(db, recByExt, `
+	// Until 2026-09-17 any position on any subject counted, and the dry run
+	// that day planned 175 new labels out of bands that sang a theme song,
+	// magazines that serialised a manga, a streaming service and a manga artist.
+	// Developer and publisher are the two positions that make a company a label,
+	// and the lane only anchors: a label is minted from vndb or erogamescape.
+	if err := attachWorks(db, recByExt, fmt.Sprintf(`
 		SELECT DISTINCT sp.person_id::text AS ext_id, bwa.work_id AS work_id
 		FROM src_bangumi.subject_person sp
 		JOIN (SELECT external_id::bigint AS sid, entity_id AS work_id FROM catalog_external_ref
 		      WHERE entity_type = 5 AND source_id = 3 AND link_kind = 0) bwa ON bwa.sid = sp.subject_id
-		JOIN src_bangumi.person p ON p.id = sp.person_id WHERE p.type IN (2, 3)`,
+		JOIN src_bangumi.person p ON p.id = sp.person_id
+		WHERE p.type IN (2, 3) AND sp.position IN (%d, %d)`, bgmPositionDeveloper, bgmPositionPublisher),
 		func(r *orgRec, workID int64) { r.works = append(r.works, workID) }); err != nil {
 		return nil, err
 	}
 	return finalize(recByExt, limit), nil
 }
+
+const (
+	bgmPositionDeveloper = 1001
+	bgmPositionPublisher = 1002
+)
 
 func loadEGOrgs(catalog, eg *gorm.DB, limit int) ([]orgRec, error) {
 	var meta []struct {
