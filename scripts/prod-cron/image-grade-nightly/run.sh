@@ -49,10 +49,12 @@ IMG=$(docker image inspect --format '{{index .RepoDigests 0}}' "$IMG_TAG")
 echo "image: $IMG"
 
 PGHOST_C=kun-visual-novel-infra-vqvqbc-postgres-1
-# DSNs are assembled INSIDE the container from the env files, never on a host
-# command line. The PG credentials are shared across the platform databases;
-# only the dbname differs.
-DSNSH='B="host='"$PGHOST_C"' port=5432 user=$KUN_PG_USER password=$KUN_PG_PASSWORD sslmode=disable"; IMGDSN="$B dbname=${KUN_IMAGES_PG_DATABASE:-kun_images}"; AIDSN="$B dbname=${KUN_AI_PG_DATABASE:-kun_ai}"; CATDSN="$B dbname=${KUN_CATALOG_PG_DATABASE:-kun_catalog}"'
+# The password rides PGPASSWORD, never the DSN: a container's processes sit in
+# this host's process table with their argv, and on 2026-09-02 `ps` printed the
+# assembled DSN with its password. pgx reads PGPASSWORD when the DSN names none.
+# The PG credentials are shared across the platform databases; only the
+# dbname differs.
+DSNSH='export PGPASSWORD="$KUN_PG_PASSWORD"; B="host='"$PGHOST_C"' port=5432 user=$KUN_PG_USER sslmode=disable"; IMGDSN="$B dbname=${KUN_IMAGES_PG_DATABASE:-kun_images}"; AIDSN="$B dbname=${KUN_AI_PG_DATABASE:-kun_ai}"; CATDSN="$B dbname=${KUN_CATALOG_PG_DATABASE:-kun_catalog}"'
 
 # Step A — grade only the ungraded. -guard-dsn watches the LIVE ai_usage failure
 # share: Workers AI limits are account-scoped, and in 2026-08 a batch on this

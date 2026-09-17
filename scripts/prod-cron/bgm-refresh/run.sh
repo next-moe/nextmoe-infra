@@ -88,13 +88,16 @@ run() {
     -e KUN_CATALOG_PG_HOST=127.0.0.1 -e KUN_CATALOG_PG_DATABASE=kun_catalog \
     -v "$BASE:/w" --user 0:0 "$IMG" "$@"
 }
-# --dsn-style tools get their DSNs built INSIDE the container from env vars.
+# The password rides PGPASSWORD, never the DSN: a container's processes sit in
+# this host's process table with their argv, and on 2026-09-02 `ps` printed the
+# assembled DSN with its password. pgx reads PGPASSWORD when the DSN names none.
+#
 # Parallel query is disabled per session: the postgres container runs with the
 # 64MB docker-default /dev/shm, and parallel hash joins on the big staging
 # tables exhaust it (SQLSTATE 53100, seen 2026-07-22 in backfill-entity-intros).
 # Serial plans spill to disk instead — slower but bounded. Remove once the
 # compose sets shm_size on the postgres service.
-DSNSH='U="${KUN_CATALOG_PG_USER:-$KUN_PG_USER}"; P="${KUN_CATALOG_PG_PASSWORD:-$KUN_PG_PASSWORD}"; B="host=127.0.0.1 port=5432 user=$U password=$P sslmode=disable options='"'"'-c max_parallel_workers_per_gather=0'"'"'"; CAT="$B dbname=kun_catalog"; EG="$B dbname=erogamescape"; DL="$B dbname=dlsite"; HL="$B dbname=howlongtobeat"'
+DSNSH='U="${KUN_CATALOG_PG_USER:-$KUN_PG_USER}"; export PGPASSWORD="${KUN_CATALOG_PG_PASSWORD:-$KUN_PG_PASSWORD}"; B="host=127.0.0.1 port=5432 user=$U sslmode=disable options='"'"'-c max_parallel_workers_per_gather=0'"'"'"; CAT="$B dbname=kun_catalog"; EG="$B dbname=erogamescape"; DL="$B dbname=dlsite"; HL="$B dbname=howlongtobeat"'
 
 # 4. Ingest (env-config tool).
 run ingest-bangumi --dump-dir /w/dump
