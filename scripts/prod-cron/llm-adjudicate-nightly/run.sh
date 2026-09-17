@@ -29,7 +29,10 @@
 # nextmoe-infra — installing or updating it on the box is a manual scp over
 # /root/llm-adjudicate-nightly/run.sh.
 set -eu
-BASE=/root/llm-adjudicate-nightly
+BASE=${ADJ_BASE:-/root/llm-adjudicate-nightly}
+ALERT_SH=${ADJ_ALERT:-/root/lib/alert.sh}
+REINDEX_SH=${ADJ_REINDEX:-/root/reindex-catalog/run.sh}
+LLM_ENV=${ADJ_LLM_ENV:-/root/env-llm-key.env}
 cd "$BASE"
 mkdir -p logs state
 LOG="logs/run-$(date +%F).log"
@@ -48,7 +51,7 @@ on_exit() {
     date -u '+%F %T' > "$BASE/state/last-success"
   elif [ "$rc" -ne 0 ]; then
     echo "=== FAILED (exit $rc) - sending alert ==="
-    /root/lib/alert.sh "[FAIL] llm adjudicate nightly (exit $rc)" "$BASE/$LOG" || echo "alert delivery failed"
+    "$ALERT_SH" "[FAIL] llm adjudicate nightly (exit $rc)" "$BASE/$LOG" || echo "alert delivery failed"
   fi
 }
 trap on_exit EXIT
@@ -57,6 +60,8 @@ echo "=== llm adjudicate nightly start $(date -u '+%F %T')Z ==="
 CATC=kun-visual-novel-infra-vqvqbc-catalog-1
 NOTE='llm:queue-adjudicator'
 APPROVE_LIMIT=200
+CREDITNAME_LIMIT=300
+CREDITNAME_ACCEPT=0.9
 
 IMG_TAG=ghcr.io/next-moe/infra-tools:latest
 docker pull -q "$IMG_TAG" >/dev/null 2>&1 || echo "WARN: image pull failed; using the local copy"
@@ -106,7 +111,7 @@ judge_step() {
   # A dead gateway otherwise looks exactly like a quiet night: every call fails,
   # the lane finishes clean, stamps its success, and the deadman stays quiet.
   if [ "$_errs" -gt "$_judged" ]; then
-    /root/lib/alert.sh "[ADJ] $_task: $_errs failures against $_judged judgements" "$BASE/$LOG" \
+    "$ALERT_SH" "[ADJ] $_task: $_errs failures against $_judged judgements" "$BASE/$LOG" \
       || echo "alert delivery failed"
   fi
   return 0
@@ -116,10 +121,10 @@ judge_step() {
 # otherwise read the FIRST run's counters. Everything past this offset is ours.
 MARK=$(wc -c < "$LOG")
 
-echo "--- 1/6 judge work pairs ---"
+echo "--- 1/8 judge work pairs ---"
 judge_step queue-workpair \
   docker run --rm --name adj-judge-workpair --network dokploy-network \
-  --env-file "$BASE/env.tmp" --env-file /root/env-llm-key.env "$IMG" \
+  --env-file "$BASE/env.tmp" --env-file "$LLM_ENV" "$IMG" \
   sh -c "exec llm-suggest $LLM --apply --task queue-workpair"
 
 # Both bars are spelled out because they are not the same bar. An accept files a
@@ -127,7 +132,7 @@ judge_step queue-workpair \
 # only parks a pair, and the pair stays readable in catalog_match_candidate.
 # Holding both to 0.9 is what left 811 judged-different pairs stuck in
 # needs_manual with no action that could ever clear them.
-echo "--- 2/6 apply work-pair verdicts (files open proposals) ---"
+echo "--- 2/8 apply work-pair verdicts (files open proposals) ---"
 docker run --rm --name adj-apply-workpair --network dokploy-network \
   --env-file "$BASE/env.tmp" "$IMG" \
   sh -c 'exec llm-suggest --mode apply --queue workpair --actor 1 --min-confidence 0.9 --min-confidence-reject 0.7 --apply'
@@ -135,12 +140,12 @@ docker run --rm --name adj-apply-workpair --network dokploy-network \
 # Screens the RESOLVED endpoints for an exact-ref contradiction from an
 # independent registry before approving; a contradiction only from a
 # first-party source is our own duplicate and does not veto the merge.
-echo "--- 3/6 approve (capped at $APPROVE_LIMIT) ---"
+echo "--- 3/8 approve (capped at $APPROVE_LIMIT) ---"
 docker run --rm --name adj-approve --network dokploy-network \
   --env-file "$BASE/env.tmp" "$IMG" \
   sh -c "exec work-dedup -mode approve -actor 1 -note '$NOTE' -limit $APPROVE_LIMIT -run"
 
-echo "--- 4/6 execute ---"
+echo "--- 4/8 execute ---"
 docker run --rm --name adj-execute --network dokploy-network \
   --env-file "$BASE/env.tmp" "$IMG" \
   sh -c "exec work-dedup -mode execute -actor 1 -note '$NOTE' -run"
@@ -151,18 +156,31 @@ OURS=$(tail -c "+$((MARK + 1))" "$LOG")
 # allowed to approve. The lane itself is healthy, so this alerts and carries on.
 if echo "$OURS" | grep -q "\[approve\].*open=$APPROVE_LIMIT "; then
   echo "=== approve hit its -limit; the proposal backlog is growing ==="
-  /root/lib/alert.sh "[ADJ] llm adjudicate backlog" "$BASE/$LOG" || echo "alert delivery failed"
+  "$ALERT_SH" "[ADJ] llm adjudicate backlog" "$BASE/$LOG" || echo "alert delivery failed"
 fi
 
 # A merge that executed tonight left the search indexes pointing at a
 # soft-deleted work, so hand the reindex its trigger. It owns its own flock,
 # alerting and success stamp, so a failure here is logged and not re-alerted.
 if echo "$OURS" | grep -q '\[execute\].*executed=[1-9]'; then
-  echo "--- 5/6 merges executed - triggering catalog reindex ---"
-  /root/reindex-catalog/run.sh || echo "reindex-catalog exited $? (its own alerting covers this)"
+  echo "--- 5/8 merges executed - triggering catalog reindex ---"
+  "$REINDEX_SH" || echo "reindex-catalog exited $? (its own alerting covers this)"
 else
-  echo "--- 5/6 no merges executed - skipping reindex ---"
+  echo "--- 5/8 no merges executed - skipping reindex ---"
 fi
+
+# An accepted credit-name pair creates or joins a person, and production has no
+# unmerge for either, so both halves are capped per night.
+echo "--- 6/8 judge credit-name pairs ---"
+judge_step queue-creditname \
+  docker run --rm --name adj-judge-creditname --network dokploy-network \
+  --env-file "$BASE/env.tmp" --env-file "$LLM_ENV" "$IMG" \
+  sh -c "exec llm-suggest $LLM --apply --task queue-creditname --limit $CREDITNAME_LIMIT"
+
+echo "--- 7/8 apply credit-name verdicts (links persons) ---"
+docker run --rm --name adj-apply-creditname --network dokploy-network \
+  --env-file "$BASE/env.tmp" "$IMG" \
+  sh -c "exec llm-suggest --mode apply --queue creditname --actor 1 --min-confidence $CREDITNAME_ACCEPT --min-confidence-reject 0.8 --limit $CREDITNAME_LIMIT --apply"
 
 # Refs last: it is the long lane, and unlike the work-pair lane it can only ever
 # confirm (planRef has no reject path), so nothing downstream waits on it.
@@ -172,10 +190,10 @@ fi
 # so llm-suggest reaches it by swapping the dbname on the catalog credentials
 # and it costs no model calls at all. Probed 2026-09-14: eg-steam and eg-dmm
 # both return chain-verified, over 3,728 rows that the llm-only lane skipped.
-echo "--- 6/6 judge and confirm probable refs ---"
+echo "--- 8/8 judge and confirm probable refs ---"
 judge_step queue-refs \
   docker run --rm --name adj-judge-refs --network dokploy-network \
-  --env-file "$BASE/env.tmp" --env-file /root/env-llm-key.env "$IMG" \
+  --env-file "$BASE/env.tmp" --env-file "$LLM_ENV" "$IMG" \
   sh -c "exec llm-suggest $LLM --apply --task queue-refs --families all"
 docker run --rm --name adj-apply-refs --network dokploy-network \
   --env-file "$BASE/env.tmp" "$IMG" \
