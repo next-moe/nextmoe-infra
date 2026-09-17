@@ -23,6 +23,7 @@ type RosterStats struct {
 	SkippedNoWorkAnchor      int
 	SkippedNoName            int
 	SkippedForeignRoster     int
+	SkippedQuarantined       int
 	Errors                   int
 	SkippedClaimedProbable   int
 	SkippedRetiredExactSquat int
@@ -38,6 +39,7 @@ func (s *RosterStats) add(o RosterStats) {
 	s.SkippedNoWorkAnchor += o.SkippedNoWorkAnchor
 	s.SkippedNoName += o.SkippedNoName
 	s.SkippedForeignRoster += o.SkippedForeignRoster
+	s.SkippedQuarantined += o.SkippedQuarantined
 	s.SkippedClaimedProbable += o.SkippedClaimedProbable
 	s.SkippedRetiredExactSquat += o.SkippedRetiredExactSquat
 	s.Errors += o.Errors
@@ -106,7 +108,23 @@ func (im *Importer) loadExactWorkMap(source int16) (map[int64]int64, error) {
 // one beside another source's roster therefore lists the character twice: the
 // 2026-09-16 backlog drain put 11,375 same-name twins on 2,358 works through
 // the Bangumi lane and 22 through the EG lane. These two lanes only cast a work
-// no other importer or editor has cast; the VNDB lane is not gated.
+// no other importer or editor has cast; the VNDB lane is not gated. A
+// quarantined work is skipped for the same reason: it exists to be merged into
+// a live work that may already have a cast, and the merge would bring its cast
+// along.
+func (im *Importer) quarantinedWorks() (map[int64]bool, error) {
+	var ids []int64
+	if err := im.catalog.Raw(`SELECT id FROM catalog_work WHERE status = ? AND deleted_at IS NULL`,
+		model.WorkStatusQuarantine).Scan(&ids).Error; err != nil {
+		return nil, err
+	}
+	out := make(map[int64]bool, len(ids))
+	for _, id := range ids {
+		out[id] = true
+	}
+	return out, nil
+}
+
 func (im *Importer) worksWithForeignRoster(own string) (map[int64]bool, error) {
 	var ids []int64
 	if err := im.catalog.Raw(`SELECT DISTINCT work_id FROM catalog_work_character WHERE matched_by <> ?`, own).
@@ -137,6 +155,10 @@ func (im *Importer) runRosterBangumi() (RosterStats, error) {
 	if err != nil {
 		return st, err
 	}
+	quarantined, err := im.quarantinedWorks()
+	if err != nil {
+		return st, err
+	}
 
 	type scRow struct {
 		CharacterID int64   `gorm:"column:character_id"`
@@ -162,6 +184,10 @@ func (im *Importer) runRosterBangumi() (RosterStats, error) {
 		workID, ok := workMap[sc.SubjectID]
 		if !ok {
 			st.SkippedNoWorkAnchor++
+			continue
+		}
+		if quarantined[workID] {
+			st.SkippedQuarantined++
 			continue
 		}
 		if foreign[workID] {
@@ -225,6 +251,10 @@ func (im *Importer) runRosterEG() (RosterStats, error) {
 	if err != nil {
 		return st, err
 	}
+	quarantined, err := im.quarantinedWorks()
+	if err != nil {
+		return st, err
+	}
 
 	var apps []struct {
 		Game int64 `gorm:"column:game"`
@@ -247,6 +277,10 @@ func (im *Importer) runRosterEG() (RosterStats, error) {
 		workID, ok := workMap[a.Game]
 		if !ok {
 			st.SkippedNoWorkAnchor++
+			continue
+		}
+		if quarantined[workID] {
+			st.SkippedQuarantined++
 			continue
 		}
 		if foreign[workID] {

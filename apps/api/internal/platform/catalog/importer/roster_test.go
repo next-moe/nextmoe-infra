@@ -175,3 +175,35 @@ func TestEGRosterDoesNotCastBesideAnotherSource(t *testing.T) {
 	assert.Equal(t, int64(1), scalarInt(t, fmt.Sprintf(`SELECT count(*) FROM catalog_work_character WHERE work_id=%d`, cast)))
 	assert.Equal(t, int64(1), scalarInt(t, fmt.Sprintf(`SELECT count(*) FROM catalog_work_character WHERE work_id=%d`, empty)))
 }
+
+func TestSecondaryRostersSkipAQuarantinedWork(t *testing.T) {
+	clean(t)
+	held := seedExactWork(t, 3, 100)
+	require.NoError(t, testDB.Exec(`UPDATE catalog_work SET status = ? WHERE id = ?`, model.WorkStatusQuarantine, held).Error)
+	heldEG := seedExactWork(t, 5, 7)
+	require.NoError(t, testDB.Exec(`UPDATE catalog_work SET status = ? WHERE id = ?`, model.WorkStatusQuarantine, heldEG).Error)
+
+	seedBangumiChar(t, 50, "渚")
+	require.NoError(t, testDB.Exec(`INSERT INTO src_bangumi.subject_character (character_id, subject_id, type, item_order)
+		VALUES (50,100,1,0)`).Error)
+	testDB.Exec(`INSERT INTO characters (id, raw) VALUES (800,'{"name":"EGキャラ"}')`)
+	testDB.Exec(`INSERT INTO appearances (game, character_id) VALUES (7,800)`)
+
+	bgm, err := New(testDB, nil, Options{Source: "bangumi"}).RunRoster("bangumi")
+	require.NoError(t, err)
+	assert.Equal(t, 1, bgm.SkippedQuarantined)
+	assert.Zero(t, bgm.CharactersCreated+bgm.EdgesWritten)
+	eg, err := New(testDB, testDB, Options{Source: "eg"}).RunRoster("eg")
+	require.NoError(t, err)
+	assert.Equal(t, 1, eg.SkippedQuarantined)
+	assert.Zero(t, eg.CharactersCreated+eg.EdgesWritten)
+	assert.Zero(t, scalarInt(t, `SELECT count(*) FROM catalog_work_character`))
+
+	require.NoError(t, testDB.Exec(`UPDATE catalog_work SET status = ? WHERE id IN (?, ?)`, model.WorkStatusLive, held, heldEG).Error)
+	bgm, err = New(testDB, nil, Options{Source: "bangumi"}).RunRoster("bangumi")
+	require.NoError(t, err)
+	eg, err = New(testDB, testDB, Options{Source: "eg"}).RunRoster("eg")
+	require.NoError(t, err)
+	assert.Equal(t, 1, bgm.EdgesWritten, "a released work is cast on the next run")
+	assert.Equal(t, 1, eg.EdgesWritten)
+}

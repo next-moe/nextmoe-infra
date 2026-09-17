@@ -57,6 +57,7 @@ func main() {
 		"skipped_no_work_anchor", stats.SkippedNoWorkAnchor,
 		"skipped_no_name", stats.SkippedNoName,
 		"skipped_foreign_roster", stats.SkippedForeignRoster,
+		"skipped_quarantined", stats.SkippedQuarantined,
 		"skipped_claimed_probable", stats.SkippedClaimedProbable,
 		"skipped_retired_exact_squat", stats.SkippedRetiredExactSquat,
 		"portrait_candidates", stats.PortraitCandidates,
