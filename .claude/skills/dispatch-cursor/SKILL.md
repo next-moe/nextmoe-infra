@@ -31,7 +31,7 @@ artefacts are in that session's scratchpad under `cursor/probe/` and `cursor/run
 | Go gates | `go build ./...`, `go vet`, `go test` all work in the sandbox, **including `httptest.NewServer`** (the sandbox has a loopback of its own). `GOCACHE`/`GOMODCACHE` are redirected to a fresh `/tmp/cursor-sandbox-cache/<hash>/` **per run**, so every run builds cold, and that directory is never removed: 1.3 GB of tmpfs, which is RAM, per Go run. `dispatch.sh` deletes it afterwards, using the path the preflight prints |
 | Network | only through Cursor's proxy, which allows package registries (`proxy.golang.org` → 200) and refuses the rest (`api.github.com` → `CONNECT tunnel failed, response 403`). Raw TCP: `Network is unreachable` |
 | Project instructions | `CLAUDE.md` / `AGENTS.md` load as rules, and per Cursor's rule model (not probed separately) so does every `.cursor/rules/*.mdc` with `alwaysApply`; the kun-ui-flutter probes saw every `.claude/skills/*` listed as a skill — hence the guard at the top of this file |
-| Model | `~/.cursor/cli-config.json` picks it: Cursor Grok 4.6 Extra High today. `CURSOR_MODEL=<id>` overrides with an id from `cursor-agent models`; `cursor-grok-4.6-low` for probes. **cursor-agent writes a `--model` choice back into the config it started with**: on 2026-09-17 a probe run without `CURSOR_CONFIG_DIR` turned the user's default into Grok 4.6 Low, and two other sessions' dispatches (and one of ours) inherited it before it was noticed. Never run `cursor-agent --model` outside `dispatch.sh`; it warns if the global model fields change during a run |
+| Model | `~/.cursor/cli-config.json` picks it: Cursor Grok 4.6 Extra High today. `CURSOR_MODEL=<id>` overrides with an id from `cursor-agent models`; `cursor-grok-4.6-low` for probes. **cursor-agent writes a `--model` choice back into the config it started with**: on 2026-09-17 a probe run without `CURSOR_CONFIG_DIR` turned the user's default into Grok 4.6 Low, and two other sessions' dispatches (and one of ours) inherited it before it was noticed. Never run `cursor-agent --model` outside `dispatch.sh`. `dispatch.sh` pins `--model cursor-grok-4.6-xhigh` (Extra High) unless `CURSOR_MODEL` is set, so the global default no longer reaches a run, and it warns if the global model fields change during one |
 | Output | `--output-format stream-json`, one event per line; the `result` event has token counts and no cost |
 | Long commands | the shell tool times out after 30 s by default and moves the command to the background; the model polls it. Task books ask for a 600 s timeout on builds |
 | Budget | no turn limit. The wall clock is the budget: `CURSOR_TIMEOUT`, 4 h by default |
@@ -127,7 +127,7 @@ hands the stream to `check.sh`. Extra arguments pass through to `cursor-agent`.
 
 | Variable | When |
 |---|---|
-| `CURSOR_MODEL=cursor-grok-4.6-low` | probes and mechanical sweeps; leave unset for real work |
+| `CURSOR_MODEL=cursor-grok-4.6-low` | probes and mechanical sweeps; unset means `cursor-grok-4.6-xhigh` |
 | `CURSOR_TIMEOUT=<seconds>` | default 14400 |
 
 **At most two at once**, and never two over overlapping paths. A dispatch started with
@@ -190,6 +190,14 @@ the discipline section; fill in the rest.
 - **Forbid ranking**, and put "anything that looks wrong, in scope or not" near the top of the
   report.
 - **Demand a positive control** on any search, audit or census.
+- **Word each check as the property, not as your guess at its shape.** "Every `docker run` uses
+  the infra-tools digest" produced a false positive on a second image that was digest-pinned on
+  its own line; "sources the alert library" did not match a library that is exec'd. The executor
+  follows the letter and says so, which is right, and the cost is yours.
+- **Ask it to check that the new tests actually run.** A `TestMain` that exits 0 without a
+  database skips a whole package, new DB-free tests included. The `image-decode-400` book asked
+  for tests that do not need a database where the code allows it; the executor then noticed that
+  two packages would have skipped them anyway, and fixed it.
 
 ## 6. What the orchestrator never delegates
 
@@ -210,6 +218,10 @@ re-reading its input.
 | New code carrying open design judgement | **Do not dispatch** until you have adjudicated it. |
 | Anything whose truth is in a database or in production | **Do not dispatch.** The sandbox cannot reach either, by design. |
 
+An audit of something that is deployed (`scripts/prod-cron`, compose files) can only compare the
+repo with itself. Pair it with your own read-only pass on the box: the `cron-audit` run was right
+about every file it could see and could not see the job that had no crontab line.
+
 ## 8. Quality ledger
 
 Record each real dispatch here — task shape, model, what acceptance found — so the next
@@ -219,3 +231,5 @@ orchestrator knows how far to trust the executor.
 |---|---|---|---|---|
 | 2026-09-17 | fence smoke (10 scripted probes) | grok-4.6-low | 85 s | every step attempted once, as written; report matched the stream |
 | 2026-09-17 | `bgm-jpeg-dims` (#233): fully adjudicated Go fix, 91 lines + 166 lines of tests | grok-4.6-low (inherited by accident, see section 1) | 335 s, 30 calls, 208k in + 560k cache read, 17k out | Code correct, in scope, gates green, one transcribed comment and no others. **Caught a wrong premise in the task book**: local Go 1.27 already accepts the production sampling, which the book said `DecodeConfig` refuses (true on 1.25, which CI and the image use); it switched to factor-3 fixtures and said so under Deviations instead of weakening the assertion. Added a C4 trap nobody asked for. Weakness: 4 of 12 mutants survived because every broken-header case ended at EOF, so a parser that walked past the fault still errored (the book did not ask for a trailing frame either); acceptance added one per case and a both-paths-fail case. "Anything wrong" list accurate, mostly minor |
+| 2026-09-17 | `cron-audit`: read-only drift audit of `scripts/prod-cron` (20 directories × checks A–H), task book with a known answer key | grok-4.6-xhigh | 495 s, 46 calls, 265k in + 705k cache read, 30k out | Complete table, every `ok` cell backed by a quoted line; all 5 answer-key items found (the 6h-vs-25h limit, the README test list, both non-jobs quoted, the two jobs with no infra-tools image). Every sampled `file:line` was exact. 7 findings: 4 real (#235), 1 false positive that was **the book's wording** (check F said "every `docker run` must use the infra-tools digest"; it listed the separately digest-pinned DLsite image, quoting both lines accurately), 2 correctly marked unverifiable from the tree. It noticed that check E's "sources the alert library" did not match reality (alert.sh is exec'd) and recorded it instead of failing every row. Blind spot by construction: prod state. The largest gap, a job with no crontab line, was only found at acceptance on the box |
+| 2026-09-17 | `image-decode-400` (#236): adjudicated fix across the image handler, imageclient and six backfill jobs, one test per job | grok-4.6-xhigh | 695 s, 172 calls, 285k in + 2.96M cache read, 45k out | Every adjudication implemented as written, no stray edits, gates green on both toolchains. Chose the extraction seam the book allowed and said why. **Found on its own that two packages' `TestMain` exited 0 without a database**, so its new DB-free tests would never have run in CI; it fixed that by following the named precedent and listed it under Deviations. "Anything wrong" was 20 accurate `file:line` items: the out-of-scope jobs still retrying 80010, the v2 face answering it with 503, `ErrTooLarge` still 500. Acceptance: 18/18 compiling mutants killed with no test changes; 128 tests ran against three ephemeral DBs and minio, 0 skipped; the one addition was an end-to-end HTTP test through the real decoder, which the book had not asked for. Verdict: at Extra High it is a dependable implementer of adjudicated work; still re-run and mutate |

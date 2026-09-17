@@ -110,8 +110,8 @@ for scheme in 'https://' 'http://' 'ssh://' 'git@'; do
 done
 env_fence+=(CURSOR_CONFIG_DIR="$cfg")
 
-model=()
-[ -n "${CURSOR_MODEL:-}" ] && model=(--model "$CURSOR_MODEL")
+# Pinned, so a change to the global config's default cannot reach a run.
+model=(--model "${CURSOR_MODEL:-cursor-grok-4.6-xhigh}")
 
 # A listener on the host's loopback for the preflight to fail to reach. A socket that is
 # listening completes the handshake without accept(), so reaching it proves the loopback is shared.
