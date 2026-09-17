@@ -258,30 +258,33 @@ func TestEGDLsiteBackfillsTheEGNameAlias(t *testing.T) {
 	}
 	clean(t)
 
-	minted := func(display string, game int64) int64 {
+	minted := func(display string, game int64, linkKind int16) int64 {
 		t.Helper()
 		w := seedExistingWork(t, display)
 		require.NoError(t, testDB.Exec(`INSERT INTO catalog_external_ref
 			(entity_type, entity_id, source_id, external_id, link_kind, matched_by)
-			VALUES (5, ?, 5, ?, 1, 'rule:eg-dlsite-rosetta')`, w, strconv.FormatInt(game, 10)).Error)
+			VALUES (5, ?, 5, ?, ?, 'rule:eg-dlsite-rosetta')`, w, strconv.FormatInt(game, 10), linkKind).Error)
 		return w
 	}
-	decorated := minted("なついろにっき。製品版", 950)
-	short := minted("MY…", 951)
-	translated := minted("Maid of the Dead", 952)
+	decorated := minted("なついろにっき。製品版", 950, model.LinkKindProbable)
+	short := minted("MY…", 951, model.LinkKindProbable)
+	translated := minted("Maid of the Dead", 952, model.LinkKindProbable)
+	confirmed := minted("メカクレカノジョ《WIN版》", 953, model.LinkKindExact)
 	require.NoError(t, testDB.Exec(`INSERT INTO games (id, gamename) VALUES
-		(950,'なついろにっき。'), (951,'MY… 懐疑編'), (952,'メイド・オブ・ザ・デッド')`).Error)
+		(950,'なついろにっき。'), (951,'MY… 懐疑編'), (952,'メイド・オブ・ザ・デッド'), (953,'メカクレカノジョ')`).Error)
 
 	dry, err := New(testDB, testDB, Options{DryRun: true}).RunEGDLsite(testDB)
 	require.NoError(t, err)
-	assert.Equal(t, 1, dry.EGAliases)
+	assert.Equal(t, 2, dry.EGAliases)
 	assert.Zero(t, scalarInt(t, `SELECT count(*) FROM catalog_work_title WHERE kind = 1`))
 
 	st, err := New(testDB, testDB, Options{}).RunEGDLsite(testDB)
 	require.NoError(t, err)
-	assert.Equal(t, 1, st.EGAliases)
+	assert.Equal(t, 2, st.EGAliases)
 	assert.Equal(t, int64(1), scalarInt(t, `SELECT count(*) FROM catalog_work_title
 		WHERE kind = 1 AND provenance = 0 AND lang = 'ja' AND title = 'なついろにっき。' AND work_id = `+itoa64(decorated)))
+	assert.Equal(t, int64(1), scalarInt(t, `SELECT count(*) FROM catalog_work_title
+		WHERE kind = 1 AND title = 'メカクレカノジョ' AND work_id = `+itoa64(confirmed)), "a ref the judge confirmed to exact still names the game")
 	assert.Zero(t, scalarInt(t, `SELECT count(*) FROM catalog_work_title WHERE kind = 1 AND work_id IN (`+
 		itoa64(short)+`,`+itoa64(translated)+`)`), "a two-letter store name and a translation file nothing")
 

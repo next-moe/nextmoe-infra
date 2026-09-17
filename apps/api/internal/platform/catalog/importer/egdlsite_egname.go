@@ -80,7 +80,9 @@ func egAliasTitle(workID int64, it egdlItem) (model.CatalogWorkTitle, bool) {
 }
 
 // ensureEGDLAliases files the alias on the works this lane minted before it
-// filed one, so the title gates and the work-dedup census can see them.
+// filed one, so the title gates and the work-dedup census can see them. The
+// lane writes its EG ref as probable, but the ref judge had confirmed 5,800 of
+// them to exact by 2026-09-17, so the link kind is not a filter.
 func (im *Importer) ensureEGDLAliases(st *EGDLsiteStats) error {
 	var rows []struct {
 		WorkID  int64  `gorm:"column:work_id"`
@@ -90,9 +92,9 @@ func (im *Importer) ensureEGDLAliases(st *EGDLsiteStats) error {
 	if err := im.catalog.Raw(`SELECT w.id AS work_id, w.display_name, r.external_id AS game
 		FROM catalog_external_ref r
 		JOIN catalog_work w ON w.id = r.entity_id AND w.deleted_at IS NULL
-		WHERE r.entity_type = ? AND r.source_id = ? AND r.link_kind = ? AND r.matched_by = ?
+		WHERE r.entity_type = ? AND r.source_id = ? AND r.link_kind IN (?, ?) AND r.matched_by = ?
 		ORDER BY w.id`,
-		model.EntityTypeWork, egSource, model.LinkKindProbable, ruleEGDLsite).Scan(&rows).Error; err != nil {
+		model.EntityTypeWork, egSource, model.LinkKindExact, model.LinkKindProbable, ruleEGDLsite).Scan(&rows).Error; err != nil {
 		return fmt.Errorf("load eg-dlsite works: %w", err)
 	}
 	ids := make([]int64, 0, len(rows))
