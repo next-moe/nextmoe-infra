@@ -329,7 +329,8 @@ fi
 #   llm-suggest --task queue-creditname — has its own nightly job, llm-adjudicate-nightly
 #   enrich-org-labels — its dry counts do not subtract the rows already written, so its first apply is unmeasured
 #   backfill-vndb-covers, backfill-character-portraits, backfill-dlsite-media (cover, screenshot) — image-mirror
-#   backfill-dlsite-media --kind intro — needs no mirror, but its 3,679-row first write has not been read
+#   backfill-dlsite-media --kind intro — needs no mirror; its first write (325 store blurbs on 2026-09-17,
+#     73 carrying URLs and support notes) has not been judged fit for the read face
 #   backfill-getchu-media, backfill-getchu-portraits — Getchu's robots.txt disallows the image paths
 #   backfill-bangumi-covers, backfill-label-logos, backfill-person-photos — the Bangumi image fetcher
 #     lives in kun-bangumi-api, which has no build and no deployment
