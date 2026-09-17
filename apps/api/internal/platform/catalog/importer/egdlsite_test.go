@@ -145,3 +145,55 @@ func TestEGDLsiteResolveAmbiguous(t *testing.T) {
 func itoa64(n int64) string {
 	return strconv.FormatInt(n, 10)
 }
+
+func TestEGDLsiteQuarantinesATitleCollision(t *testing.T) {
+	if testDB == nil {
+		t.Skip("no test db")
+	}
+	clean(t)
+
+	existing := seedExistingWork(t, "お姫様は特訓中R！！～性なる魔法修行～")
+	require.NoError(t, testDB.Exec(`INSERT INTO games (id, dlsite_id) VALUES
+		(800,'RJ0COL'), (801,'RJ0NEW'), (802,'RJ0TWA'), (803,'RJ0TWB')`).Error)
+	require.NoError(t, testDB.Exec(`INSERT INTO works (workno, work_name, work_name_kana, maker_id, maker_name, age_category, work_type_string, status, product_json) VALUES
+		('RJ0COL','お姫様は特訓中R!!〜性なる魔法修行〜','','RG800','','3','アドベンチャー','fetched','{"creaters":[]}'::jsonb),
+		('RJ0NEW','衝突しない同人新作','','RG801','','3','アドベンチャー','fetched','{"creaters":[]}'::jsonb),
+		('RJ0TWA','双子タイトル－前編－','','RG802','','3','アドベンチャー','fetched','{"creaters":[]}'::jsonb),
+		('RJ0TWB','双子タイトル〜前編〜','','RG803','','3','アドベンチャー','fetched','{"creaters":[]}'::jsonb)`).Error)
+
+	dry, err := New(testDB, testDB, Options{DryRun: true}).RunEGDLsite(testDB)
+	require.NoError(t, err)
+	assert.Equal(t, 2, dry.Minted)
+	assert.Equal(t, 1, dry.TitleCollisions)
+	assert.Equal(t, 1, dry.Quarantined)
+	assert.Equal(t, 2, dry.SkippedIntraCollision, "two pending SKUs spelling one title are both held back")
+	assert.Zero(t, scalarInt(t, `SELECT count(*) FROM catalog_work WHERE site IS NULL AND id <> `+itoa64(existing)))
+
+	st, err := New(testDB, testDB, Options{}).RunEGDLsite(testDB)
+	require.NoError(t, err)
+	assert.Equal(t, 2, st.Minted)
+	assert.Equal(t, 1, st.Quarantined)
+
+	workOfSKU := func(sku string) int64 {
+		t.Helper()
+		return scalarInt(t, `SELECT rel.work_id FROM catalog_external_ref r JOIN catalog_release rel ON rel.id = r.entity_id
+			WHERE r.entity_type = 6 AND r.source_id = 4 AND r.external_id = '`+sku+`'`)
+	}
+	col := workOfSKU("RJ0COL")
+	require.NotZero(t, col)
+	assert.Equal(t, model.WorkStatusQuarantine, workStatusOf(t, col))
+	a, b := existing, col
+	if b < a {
+		a, b = b, a
+	}
+	assert.Equal(t, int64(1), scalarInt(t, `SELECT count(*) FROM catalog_match_candidate
+		WHERE entity_type = 5 AND status = 0 AND a_id = `+itoa64(a)+` AND b_id = `+itoa64(b)))
+	assert.Equal(t, model.WorkStatusLive, workStatusOf(t, workOfSKU("RJ0NEW")))
+	assert.Zero(t, scalarInt(t, `SELECT count(*) FROM catalog_external_ref WHERE entity_type = 6 AND external_id IN ('RJ0TWA','RJ0TWB')`))
+
+	again, err := New(testDB, testDB, Options{}).RunEGDLsite(testDB)
+	require.NoError(t, err)
+	assert.Equal(t, 2, again.Already)
+	assert.Zero(t, again.Minted+again.Quarantined)
+	assert.Equal(t, 2, again.SkippedIntraCollision)
+}

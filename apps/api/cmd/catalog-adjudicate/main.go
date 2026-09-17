@@ -23,6 +23,8 @@ func main() {
 	chunk := flag.Int("chunk", 1, "pack this many cases into one request; the gateway ceiling is requests/min, so >1 is the throughput lever (a misaligned chunk is re-judged by a later -chunk 1 run)")
 	rpm := flag.Int("rpm", 24, "requests per minute ceiling; the gateway quota is per-minute inference requests, so pacing beats worker count (0 = unpaced)")
 	mock := flag.Bool("mock", false, "use the offline deterministic judge instead of the gateway")
+	requestTimeout := flag.Duration("request-timeout", 0, "bound on one gateway call (0 = the judge default, 900s)")
+	deadline := flag.Duration("deadline", 0, "stop starting new packets after this long and cancel the ones in flight (0 = none)")
 	flag.Parse()
 
 	logger.Init("development")
@@ -48,10 +50,16 @@ func main() {
 			fmt.Fprintln(os.Stderr, "gateway not configured: set KUN_AI_UPSTREAM_BASE_URL and KUN_AI_UPSTREAM_TOKEN (or pass -mock)")
 			os.Exit(2)
 		}
-		judge = h
+		judge = h.WithRequestTimeout(*requestTimeout)
 	}
 
-	st, err := personadj.RunBatch(context.Background(), judge, personadj.BatchOpts{
+	ctx := context.Background()
+	if *deadline > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, *deadline)
+		defer cancel()
+	}
+	st, err := personadj.RunBatch(ctx, judge, personadj.BatchOpts{
 		PacketsPath:  *packets,
 		VerdictsPath: *verdicts,
 		ErrorsPath:   *errorsPath,

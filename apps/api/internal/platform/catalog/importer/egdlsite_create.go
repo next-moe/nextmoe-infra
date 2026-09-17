@@ -93,9 +93,12 @@ func (im *Importer) createMintChunk(tx *gorm.DB, chunk []egdlItem, cnResolve fun
 	works := make([]model.CatalogWork, len(chunk))
 	for i, it := range chunk {
 		status := model.WorkStatusLive
-		if it.dw.stub {
+		switch {
+		case it.dw.stub:
 			status = model.WorkStatusStub
 			st.Stubs++
+		case it.collidedWorkID != 0:
+			status = model.WorkStatusQuarantine
 		}
 		works[i] = model.CatalogWork{
 			MediumID: mediumGalgame, OLang: model.OLangDefault, DisplayName: it.dw.name,
@@ -149,6 +152,27 @@ func (im *Importer) createMintChunk(tx *gorm.DB, chunk []egdlItem, cnResolve fun
 	}
 	if err := im.batchRefsRevs(tx, refs, revs); err != nil {
 		return err
+	}
+	var cands []model.CatalogMatchCandidate
+	for i, it := range chunk {
+		if it.collidedWorkID == 0 {
+			continue
+		}
+		a, b := works[i].ID, it.collidedWorkID
+		if b < a {
+			a, b = b, a
+		}
+		cands = append(cands, model.CatalogMatchCandidate{
+			EntityType: model.EntityTypeWork, AID: a, BID: b,
+			Reason: model.CandidateReasonNameNormEqual,
+			Status: model.CandidateStatusPending,
+		})
+	}
+	if len(cands) > 0 {
+		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&cands).Error; err != nil {
+			return err
+		}
+		st.Quarantined += len(cands)
 	}
 	written, err := im.insertCredits(tx, credits)
 	if err != nil {

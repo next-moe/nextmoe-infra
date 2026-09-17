@@ -294,3 +294,39 @@ func TestVNDBWorksMintQuarantineOnTitleCollision(t *testing.T) {
 	assert.Equal(t, model.WorkStatusLive, workStatusOf(t, workOf("v201")))
 	assert.Equal(t, model.WorkStatusLive, workStatusOf(t, workOf("v202")))
 }
+
+func TestVNDBWorksMintQuarantinesAPunctuationVariant(t *testing.T) {
+	clean(t)
+	cleanReleases(t)
+	cleanVNPool(t)
+
+	existing := seedExistingWork(t, "CARTAGRAN ～少女狩猟機～")
+	insVN(t, "v300", "ja", 0)
+	insVNTitle(t, "v300", "ja", true, "CARTAGRAN －少女狩猟機－", "")
+	insVN(t, "v301", "ja", 0)
+	insVNTitle(t, "v301", "ja", true, "CARTAGRAN －少女狩猟機2－", "")
+
+	st, err := New(testDB, nil, Options{Source: "vndb"}).RunVNDBWorks()
+	require.NoError(t, err)
+	assert.Equal(t, 1, st.TitleCollisions)
+	assert.Equal(t, 1, st.Quarantined)
+
+	workOf := func(vid string) int64 {
+		t.Helper()
+		var id int64
+		require.NoError(t, testDB.Raw(`SELECT entity_id FROM catalog_external_ref
+			WHERE entity_type = ? AND source_id = ? AND external_id = ? AND link_kind = ?`,
+			model.EntityTypeWork, vndbSource, vid, model.LinkKindExact).Scan(&id).Error)
+		return id
+	}
+	q := workOf("v300")
+	assert.Equal(t, model.WorkStatusQuarantine, workStatusOf(t, q))
+	a, b := existing, q
+	if b < a {
+		a, b = b, a
+	}
+	assert.Equal(t, int64(1), countWhere(t, `SELECT count(*) FROM catalog_match_candidate
+		WHERE entity_type = ? AND a_id = ? AND b_id = ? AND status = ?`,
+		model.EntityTypeWork, a, b, model.CandidateStatusPending))
+	assert.Equal(t, model.WorkStatusLive, workStatusOf(t, workOf("v301")))
+}

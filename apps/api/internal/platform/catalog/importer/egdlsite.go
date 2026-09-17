@@ -37,15 +37,20 @@ type EGDLsiteStats struct {
 	Stubs               int
 	SkippedUnmappedRole int
 	Errors              int
+
+	TitleCollisions       int
+	Quarantined           int
+	SkippedIntraCollision int
 }
 
 type egdlItem struct {
-	dw       dlWork
-	egGame   int64
-	workID   int64
-	attach   bool
-	nameFold string
-	noEGRef  bool
+	dw             dlWork
+	egGame         int64
+	workID         int64
+	attach         bool
+	nameFold       string
+	noEGRef        bool
+	collidedWorkID int64
 }
 
 type dlRow struct {
@@ -155,6 +160,14 @@ func (im *Importer) RunEGDLsite(dlsiteDB *gorm.DB) (EGDLsiteStats, error) {
 		}
 	}
 
+	if len(mint) > 0 {
+		wt, err := im.loadExistingWorkTitleNorms()
+		if err != nil {
+			return st, err
+		}
+		mint = gateEGDLMints(mint, wt, &st)
+	}
+
 	st.Attached = len(attach)
 	st.Minted = len(mint)
 
@@ -180,6 +193,9 @@ func (im *Importer) RunEGDLsite(dlsiteDB *gorm.DB) (EGDLsiteStats, error) {
 				st.EGRefsWritten++
 			}
 			st.CreditsWritten += len(it.dw.credits)
+			if it.collidedWorkID != 0 {
+				st.Quarantined++
+			}
 		}
 		for _, it := range attach {
 			st.CreditsWritten += len(it.dw.credits)
@@ -206,6 +222,40 @@ func (im *Importer) RunEGDLsite(dlsiteDB *gorm.DB) (EGDLsiteStats, error) {
 		return st, err
 	}
 	return st, nil
+}
+
+// gateEGDLMints holds this lane to the title gate the other minting lanes use.
+// It had none: on 2026-09-16, 23 of its 69 pending mints already existed as
+// live works under the same title, because an EG game that no work carries a
+// rosetta ref for looks unanchored. A collision mints the work quarantined with
+// a pending candidate, so the work-pair judge either merges or releases it; two
+// pending mints that spell one title are both held back.
+func gateEGDLMints(mint []egdlItem, wt map[string]wtNorm, st *EGDLsiteStats) []egdlItem {
+	perKey := map[string]int{}
+	for _, it := range mint {
+		for _, key := range gateKeys(it.nameFold) {
+			perKey[key]++
+		}
+	}
+	out := mint[:0]
+	for _, it := range mint {
+		shared := false
+		for _, key := range gateKeys(it.nameFold) {
+			if perKey[key] > 1 {
+				shared = true
+			}
+		}
+		if shared {
+			st.SkippedIntraCollision++
+			continue
+		}
+		if _, w, ok := firstCorpusHit(wt, it.nameFold); ok {
+			it.collidedWorkID = w.workID
+			st.TitleCollisions++
+		}
+		out = append(out, it)
+	}
+	return out
 }
 
 func parseDLRow(r dlRow, roleMap map[string]int64, creaters map[string]dlNamed, st *EGDLsiteStats) dlWork {

@@ -54,12 +54,14 @@ func (im *Importer) loadExistingWorkTitleNorms() (map[string]wtNorm, error) {
 			return err
 		}
 		for _, r := range rows {
-			folded := foldSpace(r.Norm)
-			if !service.WorkDupeNormEligible(folded) {
-				continue
-			}
-			if _, ok := out[folded]; !ok {
-				out[folded] = wtNorm{workID: r.WorkID, title: r.Title}
+			keys := []string{foldSpace(r.Norm), looseGateKey(r.Norm)}
+			for _, key := range keys {
+				if !service.WorkDupeNormEligible(key) {
+					continue
+				}
+				if _, ok := out[key]; !ok {
+					out[key] = wtNorm{workID: r.WorkID, title: r.Title}
+				}
 			}
 		}
 		return nil

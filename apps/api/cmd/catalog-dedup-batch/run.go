@@ -8,6 +8,7 @@ import (
 
 	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
+	"api/internal/platform/catalog/repository"
 	"api/internal/platform/catalog/service"
 
 	"gorm.io/gorm"
@@ -99,7 +100,40 @@ func printSamples(w io.Writer, groups []mergeGroup, n int) {
 }
 
 type proposeStats struct {
-	groups, pairs, proposals, approved, skipped, errs int
+	groups, pairs, proposals, approved, skipped, decided, errs int
+}
+
+// decidedStatuses are the proposal states that already carry a decision on a
+// pair. uq_catalog_merge_proposal_open only covers status 0 and ApproveMerge
+// moves a proposal off it at once, so without this check a worklist proposed
+// on a schedule files a second proposal for every pair still cooling, and
+// re-files every pair a reviewer rejected.
+var decidedStatuses = []int16{
+	model.ProposalStatusApproved, model.ProposalStatusRejected, model.ProposalStatusWithdrawn,
+}
+
+// pairState resolves both ends and reports whether they are already one entity
+// or the pair, in either direction, already has a decided proposal.
+func pairState(ctx context.Context, db *gorm.DB, resolve *service.ResolveService,
+	entityType int16, src, dst int64) (same, decided bool, err error) {
+	rs, _, err := resolve.Resolve(ctx, entityType, src)
+	if err != nil {
+		return false, false, err
+	}
+	rd, _, err := resolve.Resolve(ctx, entityType, dst)
+	if err != nil {
+		return false, false, err
+	}
+	if rs == rd {
+		return true, false, nil
+	}
+	var n int64
+	err = db.WithContext(ctx).Model(&model.CatalogMergeProposal{}).
+		Where(`entity_type = ? AND status IN ? AND
+			((source_entity_id = ? AND target_entity_id = ?) OR (source_entity_id = ? AND target_entity_id = ?))`,
+			entityType, decidedStatuses, rs, rd, rd, rs).
+		Count(&n).Error
+	return false, n > 0, err
 }
 
 func runPropose(ctx context.Context, db *gorm.DB, w io.Writer, merge *service.MergeService,
@@ -112,6 +146,7 @@ func runPropose(ctx context.Context, db *gorm.DB, w io.Writer, merge *service.Me
 		groups = groups[:limit]
 	}
 	note := noteTagFor(worklist, noteOverride)
+	resolve := service.NewResolveService(repository.NewRedirectRepository(db))
 
 	var st proposeStats
 	for _, g := range groups {
@@ -119,6 +154,19 @@ func runPropose(ctx context.Context, db *gorm.DB, w io.Writer, merge *service.Me
 		et := entityTypeOf(g.class)
 		for _, src := range g.sources {
 			st.pairs++
+			same, decided, err := pairState(ctx, db, resolve, et, src, g.survivor)
+			switch {
+			case err != nil:
+				fmt.Fprintf(w, "  %s %d→%d: resolve ERROR %v\n", g.class, src, g.survivor, err)
+				st.errs++
+				continue
+			case same:
+				st.skipped++
+				continue
+			case decided:
+				st.decided++
+				continue
+			}
 			if !run {
 				st.proposals++
 				continue
@@ -150,8 +198,8 @@ func runPropose(ctx context.Context, db *gorm.DB, w io.Writer, merge *service.Me
 	if worklist != "" {
 		scope = "worklist=" + worklist
 	}
-	fmt.Fprintf(w, "%s [propose] %s note=%s groups=%d pairs=%d proposals=%d approved=%d skipped=%d errors=%d\n",
-		mode, scope, note, st.groups, st.pairs, st.proposals, st.approved, st.skipped, st.errs)
+	fmt.Fprintf(w, "%s [propose] %s note=%s groups=%d pairs=%d proposals=%d approved=%d skipped=%d decided=%d errors=%d\n",
+		mode, scope, note, st.groups, st.pairs, st.proposals, st.approved, st.skipped, st.decided, st.errs)
 	if st.errs > 0 {
 		return fmt.Errorf("%d pairs failed to propose/approve", st.errs)
 	}

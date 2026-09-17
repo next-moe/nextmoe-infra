@@ -91,6 +91,9 @@ func RunBatch(ctx context.Context, j Judge, opts BatchOpts) (*BatchStats, error)
 		go func() {
 			defer wg.Done()
 			for c := range in {
+				if ctx.Err() != nil {
+					continue
+				}
 				vs, err := judgeChunk(ctx, j, c)
 				mu.Lock()
 				if err != nil {

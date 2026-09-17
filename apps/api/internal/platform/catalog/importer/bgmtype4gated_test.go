@@ -373,3 +373,38 @@ func workStatusOf(t *testing.T, id int64) int16 {
 	require.NoError(t, testDB.Raw(`SELECT status FROM catalog_work WHERE id = ?`, id).Scan(&status).Error)
 	return status
 }
+
+func TestBgmType4GatedPunctuationVariantsCollide(t *testing.T) {
+	clean(t)
+	require.NoError(t, testDB.Exec(`ALTER TABLE games ADD COLUMN IF NOT EXISTS gamename text`).Error)
+	tags := `["Galgame","PC","游戏"]`
+
+	seedSubject(t, 3601, "ドラゴンペナンス 〜龍珠演舞〜", "", tags, "", false)
+	seedExistingWork(t, "ドラゴンペナンス－龍珠演舞－")
+	seedSubject(t, 3602, "逆レイプ女子寮 〜迫り来る女達に搾り取られ続ける俺の白濁液〜", "", tags, "", false)
+	seedExistingWork(t, "逆レイプ女子寮 ～迫り来る女達に搾り取られ続ける俺の白濁液～")
+	seedSubject(t, 3603, "朝からずっしり♥ミルクポット SPECIAL", "", tags, "", false)
+	seedDisplayOnlyWork(t, "朝からずっしりミルクポットSPECIAL")
+
+	seedSubject(t, 3604, "ドラゴンペナンス 〜龍珠演舞2〜", "", tags, "", false)
+	seedSubject(t, 3606, "夏色キセキ〜再会の章〜", "", tags, "", false)
+	seedSubject(t, 3607, "夏色キセキ－再会の章－", "", tags, "", false)
+
+	dry, err := New(testDB, testDB, Options{DryRun: true}).RunBgmType4Gated(testDB)
+	require.NoError(t, err)
+	assert.Equal(t, 6, dry.GatedTotal)
+	assert.Equal(t, 3, dry.TitleCollisions, "wave dash against fullwidth tilde, dashes, and a heart are one title")
+	assert.Equal(t, 3, dry.ToQuarantine)
+	assert.Equal(t, 2, dry.SkippedIntraCollision, "two pool rows that differ only in the dash both stand down")
+	assert.Equal(t, 1, dry.ToCreate, "a differing digit is a different title")
+
+	st, err := New(testDB, testDB, Options{}).RunBgmType4Gated(testDB)
+	require.NoError(t, err)
+	assert.Equal(t, 3, st.Quarantined)
+	for _, ext := range []string{"3601", "3602", "3603"} {
+		assert.Equal(t, model.WorkStatusQuarantine, workStatusOf(t, workIDByBgmExt(t, ext)), ext)
+	}
+	assert.Equal(t, model.WorkStatusLive, workStatusOf(t, workIDByBgmExt(t, "3604")))
+	assert.Zero(t, scalarInt(t, `SELECT count(*) FROM catalog_external_ref
+		WHERE matched_by='rule:bgm-type4-gated' AND external_id IN ('3606','3607')`))
+}
