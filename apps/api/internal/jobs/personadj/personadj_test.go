@@ -281,3 +281,68 @@ func TestRunBatchChunkFailureMarksEveryPacket(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 2, st2.Judged)
 }
+
+func TestHTTPJudgeGivesUpOnAHungGateway(t *testing.T) {
+	old := retrySchedule
+	retrySchedule = []time.Duration{time.Millisecond}
+	defer func() { retrySchedule = old }()
+
+	release := make(chan struct{})
+	var calls int64
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt64(&calls, 1)
+		select {
+		case <-release:
+		case <-r.Context().Done():
+		}
+	}))
+	defer srv.Close()
+	defer close(release)
+
+	start := time.Now()
+	_, err := NewHTTPJudge(srv.URL, "t", "deepseek", 0, 0).WithRequestTimeout(50*time.Millisecond).
+		Judge(context.Background(), Packet{Key: "k", Bucket: BucketCharacterPair, User: "u"})
+	require.Error(t, err)
+	assert.Less(t, time.Since(start), 5*time.Second, "a hung call must not hold the batch for the 900s default")
+	assert.EqualValues(t, 2, atomic.LoadInt64(&calls), "a timed-out call is retried like any transport error")
+}
+
+type blockingJudge struct{ fastKey string }
+
+func (b blockingJudge) Judge(ctx context.Context, p Packet) (Verdict, error) {
+	if p.Key == b.fastKey {
+		return Verdict{Key: p.Key, Bucket: p.Bucket, Verdict: VerdictDistinct, Confidence: 0.9}, nil
+	}
+	<-ctx.Done()
+	return Verdict{}, ctx.Err()
+}
+
+func TestRunBatchStopsAtTheDeadline(t *testing.T) {
+	dir := t.TempDir()
+	packets := writeFile(t, dir, "packets.jsonl", `{"bucket":"character_pair","key":"x:1","user":"a"}
+{"bucket":"character_pair","key":"x:2","user":"b"}
+{"bucket":"character_pair","key":"x:3","user":"c"}
+`)
+	verdicts := filepath.Join(dir, "verdicts.jsonl")
+	errs := filepath.Join(dir, "errors.jsonl")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	st, err := RunBatch(ctx, blockingJudge{fastKey: "x:1"}, BatchOpts{
+		PacketsPath: packets, VerdictsPath: verdicts, ErrorsPath: errs, Workers: 1,
+	})
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.NotNil(t, st)
+	assert.Equal(t, 1, st.Judged)
+	assert.Equal(t, 1, st.Errors, "only the packet in flight fails; the one never started is left for the next run")
+
+	raw, err := os.ReadFile(errs)
+	require.NoError(t, err)
+	assert.Contains(t, string(raw), `"x:2"`)
+	assert.NotContains(t, string(raw), `"x:3"`)
+
+	got, err := LoadVerdicts(verdicts)
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, "x:1", got[0].Key)
+}
