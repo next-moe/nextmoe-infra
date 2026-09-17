@@ -102,10 +102,10 @@ jobs:
     name: generated docs model matches the public specs
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # No version input: action-setup reads the repo's packageManager pin.
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       # The script needs `yaml` plus the Markdown toolchain the guide compiler
