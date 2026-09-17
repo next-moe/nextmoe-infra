@@ -171,9 +171,9 @@ func (r *runner) fillPortrait(ctx context.Context, dir string, c candidate) (quo
 		switch {
 		case stderrors.Is(err, imageclient.ErrQuotaExceeded):
 			return true
-		case stderrors.Is(err, imageclient.ErrModerationRejected):
+		case imageclient.IsPermanent(err):
 			r.rejected++
-			slog.Warn("portrait rejected by moderation", "char", c.CatalogCharacterID, "image_id", c.ImageID, "err", err)
+			slog.Warn("portrait rejected by the image service", "char", c.CatalogCharacterID, "image_id", c.ImageID, "err", err)
 			return false
 		default:
 			r.errors++

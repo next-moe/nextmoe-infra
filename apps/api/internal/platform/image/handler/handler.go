@@ -9,6 +9,7 @@ import (
 
 	"api/internal/platform/image/metrics"
 	imgMW "api/internal/platform/image/middleware"
+	"api/internal/platform/image/processor"
 	"api/internal/platform/image/quota"
 	"api/internal/platform/image/repository"
 	"api/internal/platform/image/service"
@@ -104,26 +105,7 @@ func (h *Handler) Upload(c fiber.Ctx) error {
 	}
 	result, err := h.svc.Upload(c.Context(), req)
 	if err != nil {
-		var resultLabel string
-		switch {
-		case stderrors.Is(err, service.ErrPresetNotFound):
-			resultLabel = "preset_not_found"
-			metrics.UploadTotal.WithLabelValues(site, presetName, resultLabel).Inc()
-			return response.BadRequest(c, errors.ErrImagePresetNotFound)
-		case stderrors.Is(err, service.ErrMIMENotAllowed):
-			resultLabel = "mime_denied"
-			metrics.UploadTotal.WithLabelValues(site, presetName, resultLabel).Inc()
-			return response.BadRequest(c, errors.ErrImageMIMEDenied)
-		case stderrors.Is(err, service.ErrModerationRejected):
-			resultLabel = "rejected_moderation"
-			metrics.UploadTotal.WithLabelValues(site, presetName, resultLabel).Inc()
-			return response.Error(c, fiber.StatusUnprocessableEntity, errors.ErrModerationRejected, errors.GetMessage(errors.ErrModerationRejected))
-		default:
-			metrics.UploadTotal.WithLabelValues(site, presetName, "error").Inc()
-			slog.Error("image upload failed",
-				"site", site, "client_id", client.ID, "preset", presetName, "err", err)
-			return response.InternalError(c, errors.ErrImageStoreFailed)
-		}
+		return respondUploadError(c, site, presetName, client.ID, err)
 	}
 
 	resultLabel := "success"
@@ -135,6 +117,33 @@ func (h *Handler) Upload(c fiber.Ctx) error {
 	metrics.UploadDuration.WithLabelValues(site, presetName).Observe(time.Since(start).Seconds())
 
 	return response.Success(c, result)
+}
+
+func respondUploadError(c fiber.Ctx, site, presetName, clientID string, err error) error {
+	var resultLabel string
+	switch {
+	case stderrors.Is(err, service.ErrPresetNotFound):
+		resultLabel = "preset_not_found"
+		metrics.UploadTotal.WithLabelValues(site, presetName, resultLabel).Inc()
+		return response.BadRequest(c, errors.ErrImagePresetNotFound)
+	case stderrors.Is(err, service.ErrMIMENotAllowed):
+		resultLabel = "mime_denied"
+		metrics.UploadTotal.WithLabelValues(site, presetName, resultLabel).Inc()
+		return response.BadRequest(c, errors.ErrImageMIMEDenied)
+	case stderrors.Is(err, service.ErrModerationRejected):
+		resultLabel = "rejected_moderation"
+		metrics.UploadTotal.WithLabelValues(site, presetName, resultLabel).Inc()
+		return response.Error(c, fiber.StatusUnprocessableEntity, errors.ErrModerationRejected, errors.GetMessage(errors.ErrModerationRejected))
+	case stderrors.Is(err, processor.ErrInvalidInput):
+		resultLabel = "decode_failed"
+		metrics.UploadTotal.WithLabelValues(site, presetName, resultLabel).Inc()
+		return response.BadRequest(c, errors.ErrImageDecodeFailed)
+	default:
+		metrics.UploadTotal.WithLabelValues(site, presetName, "error").Inc()
+		slog.Error("image upload failed",
+			"site", site, "client_id", clientID, "preset", presetName, "err", err)
+		return response.InternalError(c, errors.ErrImageStoreFailed)
+	}
 }
 
 func (h *Handler) SoftDelete(c fiber.Ctx) error {

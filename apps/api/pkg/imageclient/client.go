@@ -90,14 +90,20 @@ func (e *Error) Error() string {
 var (
 	ErrQuotaExceeded      = errors.New("imageclient: quota exceeded")
 	ErrModerationRejected = errors.New("imageclient: rejected by moderation")
-	// ErrMIMEDenied is the preset refusing the file's format (code 80009). Like
-	// moderation it is a PERMANENT verdict on this file, not a transient
+	// ErrMIMEDenied is the preset refusing the file's format (code 80009);
+	// ErrDecodeFailed is the decoder refusing the bytes (code 80010). Like
+	// moderation both are a PERMANENT verdict on this file, not a transient
 	// failure: retrying re-uploads the same bytes to the same preset for the
-	// same answer. A backfill that treats it as retryable burns its whole
+	// same answer. A backfill that treats either as retryable burns its whole
 	// backoff ladder per file (~90s) to learn nothing.
 	ErrMIMEDenied   = errors.New("imageclient: preset does not accept this format")
+	ErrDecodeFailed = errors.New("imageclient: image could not be decoded")
 	ErrUnauthorized = errors.New("imageclient: unauthorized")
 )
+
+func IsPermanent(err error) bool {
+	return errors.Is(err, ErrModerationRejected) || errors.Is(err, ErrMIMEDenied) || errors.Is(err, ErrDecodeFailed)
+}
 
 func classifyError(e *Error) error {
 	if e == nil {
@@ -112,6 +118,8 @@ func classifyError(e *Error) error {
 		return fmt.Errorf("%w: %s", ErrModerationRejected, e.Message)
 	case 80009:
 		return fmt.Errorf("%w: %s", ErrMIMEDenied, e.Message)
+	case 80010:
+		return fmt.Errorf("%w: %s", ErrDecodeFailed, e.Message)
 	default:
 		return e
 	}

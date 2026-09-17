@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -264,4 +266,34 @@ func (c *countingUploader) UploadWithSub(_ context.Context, _ io.Reader, _, _, _
 
 func (c *countingUploader) ReferencePing(_ context.Context, _ []string) (*imageclient.ReferencePingResult, error) {
 	return &imageclient.ReferencePingResult{}, nil
+}
+
+func TestFillDecodeFailedIsRejectedWithoutRetry(t *testing.T) {
+	uploads := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		uploads++
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"code":80010,"message":"图片解码失败"}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "5", "logo.jpg"))
+	m, err := loadMirror(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := &runner{
+		cli:    imageclient.New(imageclient.Config{BaseURL: srv.URL, ClientID: "t", ClientSecret: "t"}),
+		mirror: m,
+		stats:  &Stats{},
+	}
+	got := r.fill(context.Background(), candidate{PersonID: 1, ExternalID: "5"}, true)
+	if got.rejected != 1 || got.errors != 0 || got.quota {
+		t.Fatalf("fill = %+v, want rejected=1 errors=0 quota=false", got)
+	}
+	if uploads != 1 {
+		t.Fatalf("uploads = %d, want 1", uploads)
+	}
 }

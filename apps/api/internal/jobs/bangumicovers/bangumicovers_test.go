@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -30,7 +32,8 @@ var testDB *gorm.DB
 func TestMain(m *testing.M) {
 	dsn, ok := dbtest.DSN()
 	if !ok {
-		dbtest.SkipMain("jobs/bangumicovers")
+		fmt.Fprintln(os.Stderr, "SKIP: no TEST_DATABASE_DSN — DB-backed bangumicovers tests will skip individually")
+		os.Exit(m.Run())
 	}
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {
@@ -71,6 +74,9 @@ func (f *fakeUploader) Health(context.Context) error { return nil }
 
 func truncate(t *testing.T) {
 	t.Helper()
+	if testDB == nil {
+		dbtest.Skip(t)
+	}
 	for _, tbl := range []string{"catalog_work_cover", "catalog_external_ref", "catalog_work"} {
 		require.NoError(t, testDB.Exec("TRUNCATE "+tbl+" RESTART IDENTITY CASCADE").Error)
 	}
@@ -369,6 +375,31 @@ func TestWriteCoverDoesNotStealExistingPin(t *testing.T) {
 	require.Len(t, freshRows, 1)
 	assert.True(t, freshRows[0].PortraitPinned, "a work with no pin still gets the bangumi pin")
 	assert.EqualValues(t, reg.bangumiSource, freshRows[0].SourceID)
+}
+
+func TestWriteCoverDecodeFailedIsRejectedWithoutRetry(t *testing.T) {
+	uploads := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		uploads++
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"code":80010,"message":"图片解码失败"}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	mirror := writeMirror(t, []dimsEntry{{SubjectID: 9001, W: 800, H: 1200, File: "9001/cover.jpg"}}, map[string]bool{"9001": true})
+	d, err := loadDims(mirror)
+	require.NoError(t, err)
+
+	r := &runner{
+		cli:   imageclient.New(imageclient.Config{BaseURL: srv.URL, ClientID: "t", ClientSecret: "t"}),
+		exist: map[int64]bool{},
+	}
+	quota := r.writeCover(context.Background(), mirror, candidate{WorkID: 1, SubjectID: "9001"}, d.entry["9001"], true)
+	assert.False(t, quota)
+	assert.Equal(t, 1, r.c.coverRejected)
+	assert.Equal(t, 0, r.c.errors)
+	assert.Equal(t, 1, uploads)
 }
 
 func TestQuotaAbort(t *testing.T) {

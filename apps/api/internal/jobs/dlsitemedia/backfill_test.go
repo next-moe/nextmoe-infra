@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -30,7 +31,8 @@ var testDB *gorm.DB
 func TestMain(m *testing.M) {
 	dsn, ok := dbtest.DSN()
 	if !ok {
-		dbtest.SkipMain("jobs/dlsitemedia")
+		fmt.Fprintln(os.Stderr, "SKIP: no TEST_DATABASE_DSN — DB-backed dlsitemedia tests will skip individually")
+		os.Exit(m.Run())
 	}
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {
@@ -46,8 +48,16 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func requireDB(t *testing.T) *gorm.DB {
+	t.Helper()
+	if testDB == nil {
+		dbtest.Skip(t)
+	}
+	return testDB
+}
+
 func TestIntroWritePath(t *testing.T) {
-	db := testDB
+	db := requireDB(t)
 	for _, tbl := range []string{"catalog_work_intro", "catalog_work"} {
 		require.NoError(t, db.Exec("TRUNCATE "+tbl+" RESTART IDENTITY CASCADE").Error)
 	}
@@ -151,7 +161,7 @@ func stubImageService(t *testing.T) *imageclient.Client {
 }
 
 func TestClaimedScreenshotLane(t *testing.T) {
-	db := testDB
+	db := requireDB(t)
 	ctx := context.Background()
 	for _, tbl := range []string{"catalog_external_ref", "catalog_release", "catalog_work_screenshot", "catalog_work"} {
 		require.NoError(t, db.Exec("TRUNCATE "+tbl+" CASCADE").Error)
@@ -374,6 +384,31 @@ func TestWorknosOutListsEachWorkOnceInOrder(t *testing.T) {
 	got, err = os.ReadFile(empty)
 	require.NoError(t, err)
 	assert.Empty(t, got, "nothing to fetch still writes the file the job reads")
+}
+
+func TestWriteCoverDecodeFailedIsRejectedWithoutRetry(t *testing.T) {
+	uploads := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		uploads++
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"code":80010,"message":"图片解码失败"}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "RJ1"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "RJ1", "cover.jpg"), []byte("bytes"), 0o644))
+
+	r := &runner{
+		cli:   imageclient.New(imageclient.Config{BaseURL: srv.URL, ClientID: "t", ClientSecret: "t"}),
+		exist: &existing{cover: map[int64]bool{}},
+	}
+	quota := r.writeCover(context.Background(), dir, candidate{WorkID: 1, Workno: "RJ1"}, dlsiteMeta{CoverFile: "cover.jpg"}, true)
+	assert.False(t, quota)
+	assert.Equal(t, 1, r.c.coverRejected)
+	assert.Equal(t, 0, r.c.errors)
+	assert.Equal(t, 1, uploads)
 }
 
 func TestAnUnmirroredCoverListsItsWork(t *testing.T) {

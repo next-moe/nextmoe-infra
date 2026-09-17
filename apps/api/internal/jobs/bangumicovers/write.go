@@ -87,7 +87,7 @@ func (r *runner) upload(ctx context.Context, path string) (*imageclient.UploadRe
 		if err == nil {
 			return res, nil
 		}
-		if stderrors.Is(err, imageclient.ErrQuotaExceeded) || stderrors.Is(err, imageclient.ErrModerationRejected) {
+		if stderrors.Is(err, imageclient.ErrQuotaExceeded) || imageclient.IsPermanent(err) {
 			return nil, err
 		}
 		lastErr = err
@@ -105,9 +105,9 @@ func (r *runner) classifyUpload(err error, c candidate) (quota bool) {
 	switch {
 	case stderrors.Is(err, imageclient.ErrQuotaExceeded):
 		return true
-	case stderrors.Is(err, imageclient.ErrModerationRejected):
+	case imageclient.IsPermanent(err):
 		r.c.coverRejected++
-		slog.Warn("bangumi cover rejected by moderation", "work", c.WorkID, "subject", c.SubjectID)
+		slog.Warn("bangumi cover rejected by the image service", "work", c.WorkID, "subject", c.SubjectID, "err", err)
 		return false
 	default:
 		r.c.errors++
