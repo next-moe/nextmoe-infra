@@ -28,7 +28,10 @@ type Opts struct {
 	UploadGap    time.Duration
 	APIBase      string
 	Manifest     string
+	FromDump     bool
 	ImageDir     string
+	MirrorOnly   bool
+	FilesOut     string
 	Workers      int
 }
 
@@ -44,11 +47,15 @@ type Stats struct {
 	Errors     int
 	Local      int
 	Quota      bool
+	Unrated    int
+	Missing    int
+	ToFetch    int
 }
 
 func (s Stats) String() string {
-	return fmt.Sprintf("candidates=%d no_image=%d portrait=%d landscape=%d planned=%d uploaded=%d dedup=%d rejected=%d errors=%d local=%d quota=%t",
-		s.Candidates, s.NoImage, s.Portrait, s.Landscape, s.Planned, s.Uploaded, s.Dedup, s.Rejected, s.Errors, s.Local, s.Quota)
+	return fmt.Sprintf("candidates=%d no_image=%d portrait=%d landscape=%d planned=%d uploaded=%d dedup=%d rejected=%d errors=%d local=%d quota=%t unrated=%d missing=%d to_fetch=%d",
+		s.Candidates, s.NoImage, s.Portrait, s.Landscape, s.Planned, s.Uploaded, s.Dedup, s.Rejected, s.Errors, s.Local, s.Quota,
+		s.Unrated, s.Missing, s.ToFetch)
 }
 
 type imageUploader interface {
@@ -63,6 +70,7 @@ type runner struct {
 	sourceID   int16
 	gap        time.Duration
 	imageDir   string
+	mirrorOnly bool
 	stats      *Stats
 	touched    []int64
 	pingHashes []string
@@ -121,6 +129,12 @@ func Run(ctx context.Context, cfg *config.Config, opts Opts) (*Stats, error) {
 	if opts.DSN == "" {
 		return nil, fmt.Errorf("catalog DSN is required (--dsn); refusing to guess — pass the rehearsal copy locally, the live catalog only in the production run")
 	}
+	if opts.FromDump && opts.Manifest != "" {
+		return nil, fmt.Errorf("--from-dump and --manifest are two sources for the same metadata; pass one")
+	}
+	if (opts.MirrorOnly || opts.FilesOut != "") && opts.ImageDir == "" {
+		return nil, fmt.Errorf("--mirror-only and --files-out need --image-dir")
+	}
 	clientCfg := cfg.CatalogImageClient
 	if opts.Apply && (clientCfg.ClientID == "" || clientCfg.ClientSecret == "") {
 		return nil, fmt.Errorf("catalog image client not configured (set KUN_CATALOG_IMAGE_CLIENT_ID/SECRET); refusing to --apply cover upload")
@@ -148,18 +162,29 @@ func Run(ctx context.Context, cfg *config.Config, opts Opts) (*Stats, error) {
 		"offset", opts.Offset, "limit", opts.Limit, "explicit_ids", len(opts.IDs))
 
 	var images map[string]*vnImage
-	if opts.Manifest != "" {
+	switch {
+	case opts.FromDump:
+		if images, stats.Unrated, err = loadDumpImages(ctx, db, anchorIDs(cands)); err != nil {
+			return stats, err
+		}
+		slog.Info("vndb dump images", "entries", len(images), "unrated", stats.Unrated)
+	case opts.Manifest != "":
 		if images, err = loadManifest(opts.Manifest); err != nil {
 			return stats, fmt.Errorf("load manifest: %w", err)
 		}
 		slog.Info("vndb image manifest", "entries", len(images), "path", opts.Manifest)
-	} else {
+	default:
 		api := newVNDBAPI(opts.APIBase)
 		if images, err = api.fetchImages(ctx, anchorIDs(cands)); err != nil {
 			return stats, fmt.Errorf("query vndb api: %w", err)
 		}
 	}
 	plan := buildPlan(cands, images, stats)
+	if opts.FilesOut != "" {
+		if stats.ToFetch, err = writeFilesOut(opts.FilesOut, opts.ImageDir, plan); err != nil {
+			return stats, fmt.Errorf("write --files-out: %w", err)
+		}
+	}
 	printForecast(plan, opts)
 	if !opts.Apply {
 		printTotals(stats)
@@ -167,7 +192,8 @@ func Run(ctx context.Context, cfg *config.Config, opts Opts) (*Stats, error) {
 		return stats, nil
 	}
 
-	r := &runner{db: db, sourceID: reg.vndbSource, gap: opts.UploadGap, imageDir: opts.ImageDir, stats: stats}
+	r := &runner{db: db, sourceID: reg.vndbSource, gap: opts.UploadGap, imageDir: opts.ImageDir,
+		mirrorOnly: opts.MirrorOnly, stats: stats}
 	r.cli = imageclient.New(imageclient.Config{
 		BaseURL:      resolveBaseURL(cfg, clientCfg, opts.ImageBaseURL),
 		CDNBase:      cfg.ImageService.CDNBase,

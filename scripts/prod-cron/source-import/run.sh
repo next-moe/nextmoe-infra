@@ -328,9 +328,9 @@ fi
 #   catalog-char-xsrc — the LLM-adjudicated fold of cross-source character twins; it has its own nightly job, char-xsrc-nightly
 #   llm-suggest --task queue-creditname — has its own nightly job, llm-adjudicate-nightly
 #   enrich-org-labels — its dry counts do not subtract the rows already written, so its first apply is unmeasured
-#   backfill-dlsite-media, backfill-getchu-media, backfill-getchu-portraits, backfill-vndb-covers,
-#   backfill-character-portraits, backfill-bangumi-covers, backfill-label-logos,
-#   backfill-person-photos — need a local image mirror (--mirror-dir) that no crawler produces yet
+#   backfill-vndb-covers, backfill-character-portraits — have their own weekly job, image-mirror
+#   backfill-dlsite-media, backfill-getchu-media, backfill-getchu-portraits, backfill-bangumi-covers,
+#   backfill-label-logos, backfill-person-photos — need a local image mirror (--mirror-dir) that no job produces yet
 #   mint-catalog-persons — one-shot; requires a wave-152 clusters file
 #   reindex-catalog — has its own daily cron at 06:10 CST
 
