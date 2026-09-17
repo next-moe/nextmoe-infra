@@ -56,6 +56,8 @@ backfill-bgm-zh-names --lane character --apply
 backfill-bgm-zh-names --lane person --apply
 backfill-bgm-zh-names --lane label --apply
 import-entity-aliases --hints --run
+import-entity-aliases --candidates --run
+person-link-batch --rule-set alias --actor 1 --run
 import-bangumi-xmedia --run
 import-eg-dlsite-releases --run
 backfill-dlsite-genres --apply
@@ -97,6 +99,7 @@ extract_tool_cmd() {
     backfill-work-playtime \
     backfill-bgm-zh-names \
     import-entity-aliases \
+    person-link-batch \
     import-bangumi-xmedia \
     expand-bgm-type4-gated \
     import-eg-dlsite-releases \
@@ -146,8 +149,15 @@ emit_out() {
     import-character-roster+bangumi+dry|import-character-roster+bangumi+apply)
       echo '2026/09/16 13:28:27 INFO roster import summary source=bangumi characters_created=0 attached_existing=0 aliases_created=0 edges_written=101357 already=0 skipped_no_work_anchor=0 skipped_no_name=1 skipped_claimed_probable=0 skipped_retired_exact_squat=0 portrait_candidates=0 errors=0'
       ;;
-    import-entity-aliases+apply)
+    import-entity-aliases+hints+apply)
       echo 'leg A APPLIED — hints written: bgm_names=0 bgm_labels=0 bgm_chars=0 eg_names=0 | skipped_same=24171 skipped_role=283 already=111488'
+      ;;
+    import-entity-aliases+candidates+dry)
+      echo 'leg B DRY-RUN — alias_declared candidates=12 (bidirectional=0) | ambiguous=40 already_candidate=2174 already_same_person=389'
+      ;;
+    person-link-batch+dry)
+      echo '[create] A3   "作家A" ↔ "作家A(ペンネーム)"'
+      echo 'DRY-RUN (nothing written; pass --run to link) [alias] — A1=0 A2=0 A3=8 A4=0 | created=3 attached=5 needs_manual=0 already=0 errors=0 | unmatched=4 of 12'
       ;;
     import-bangumi-xmedia+dry|import-bangumi-xmedia+apply)
       echo '2026/09/16 16:30:46 INFO bangumi cross-media wave summary registered_anime=12 registered_manga=3 registered_novel=1 edges=20 edges_written=0 already_edge=2011 already_work=1958 skipped_platform=143 skipped_no_title=0 skipped_self=2 errors=0'
@@ -256,6 +266,7 @@ case "$1" in
       backfill-work-playtime \
       backfill-bgm-zh-names \
       import-entity-aliases \
+      person-link-batch \
       import-bangumi-xmedia \
       expand-bgm-type4-gated \
       import-eg-dlsite-releases \
@@ -273,7 +284,7 @@ case "$1" in
       exit 99
     fi
 
-    src=""; only=""; lane=""; pop=""; hints=""; limit=""
+    src=""; only=""; lane=""; pop=""; hints=""; limit=""; leg=""; ruleset=""; actor=""
     case "$toolcmd" in
       *"--source eg-music"*) src=eg-music ;;
       *"--source eg"*) src=eg ;;
@@ -294,16 +305,27 @@ case "$1" in
       *"--population all"*) pop=all ;;
     esac
     case "$toolcmd" in
-      *"--hints"*) hints=1 ;;
+      *"--hints"*) hints=1; leg=hints ;;
+      *"--candidates"*) leg=candidates ;;
+    esac
+    case "$toolcmd" in
+      *"--rule-set alias"*) ruleset=alias ;;
+      *"--rule-set shared"*) ruleset=shared ;;
+    esac
+    case "$toolcmd" in
+      *"--actor 1"*) actor=1 ;;
     esac
     case "$toolcmd" in
       *"--limit "*) limit=$(printf '%s\n' "$toolcmd" | sed 's/.*--limit \([0-9]*\).*/\1/') ;;
     esac
-    if [ "$tool" = "import-entity-aliases" ] && [ -z "$hints" ]; then
-      echo "import-entity-aliases without --hints" >> "$CTL/violations"
+    if [ "$tool" = "import-entity-aliases" ] && [ -z "$leg" ]; then
+      echo "import-entity-aliases without --hints or --candidates runs both legs" >> "$CTL/violations"
+    fi
+    if [ "$tool" = "person-link-batch" ] && { [ "$ruleset" != alias ] || [ "$actor" != 1 ]; }; then
+      echo "person-link-batch must run --rule-set alias --actor 1: $toolcmd" >> "$CTL/violations"
     fi
     case "$tool" in
-      import-entity-aliases|import-bangumi-xmedia|import-eg-dlsite-releases)
+      import-entity-aliases|import-bangumi-xmedia|import-eg-dlsite-releases|person-link-batch)
         case "$toolcmd" in *"--apply"*) echo "$tool takes --run, not --apply" >> "$CTL/violations" ;; esac
         ;;
       *)
@@ -317,6 +339,7 @@ case "$1" in
     esac
 
     key=$tool
+    [ -n "$leg" ] && key="$key+$leg"
     [ -n "$src" ] && key="$key+$src"
     [ -n "$only" ] && key="$key+$only"
     [ -n "$lane" ] && key="$key+$lane"
@@ -330,8 +353,11 @@ case "$1" in
       [ -n "$lane" ] && line="$line --lane $lane"
       [ -n "$pop" ] && line="$line --population $pop"
       [ -n "$hints" ] && line="$line --hints"
+      [ "$leg" = candidates ] && line="$line --candidates"
+      [ -n "$ruleset" ] && line="$line --rule-set $ruleset"
+      [ -n "$actor" ] && line="$line --actor $actor"
       case "$tool" in
-        import-entity-aliases|import-bangumi-xmedia|import-eg-dlsite-releases) line="$line --run" ;;
+        import-entity-aliases|import-bangumi-xmedia|import-eg-dlsite-releases|person-link-batch) line="$line --run" ;;
         *) line="$line --apply" ;;
       esac
       [ -n "$limit" ] && line="$line --limit $limit"
@@ -716,7 +742,8 @@ install_fakes "$td"
 run_job "$td"
 expect_exit "$td" 0
 if [ -s "$td/ctl/violations" ]; then fail "$(cat "$td/ctl/violations")"; fi
-if ! grep -q '^import-entity-aliases+apply$' "$td/ctl/tools.log"; then fail "entity-aliases never ran"; fi
+if ! grep -q '^import-entity-aliases+hints+apply$' "$td/ctl/tools.log"; then fail "entity-aliases hints never ran"; fi
+if ! grep -q '^person-link-batch+apply$' "$td/ctl/tools.log"; then fail "person-link-batch never ran"; fi
 tend
 rm -rf "$td"
 
@@ -773,6 +800,8 @@ grep -v -F \
   -e 'backfill-bgm-zh-names --lane person --apply' \
   -e 'backfill-bgm-zh-names --lane label --apply' \
   -e 'import-entity-aliases --hints --run' \
+  -e 'import-entity-aliases --candidates --run' \
+  -e 'person-link-batch --rule-set alias --actor 1 --run' \
   -e 'import-bangumi-xmedia --run' \
   "$td/ctl/t1" > "$td/ctl/expected"
 expect_apply "$td" "$td/ctl/expected"
@@ -789,6 +818,63 @@ run_job "$td"
 expect_exit_nonzero "$td"
 if ! has_alert "$td"; then fail "no alert"; fi
 if grep -q -F 'expand-bgm-type4-gated' "$td/ctl/apply.log"; then fail "bgm-type4 applied without a readable survey"; fi
+tend
+rm -rf "$td"
+
+# --- T17: a burst of alias-declared pairs files nothing and links nothing ---
+tstart 17
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' 'leg B DRY-RUN — alias_declared candidates=301 (bidirectional=3) | ambiguous=40 already_candidate=2174 already_same_person=389' \
+  > "$td/ctl/out/import-entity-aliases+candidates+dry"
+run_job "$td"
+expect_exit_nonzero "$td"
+if has_stamp "$td"; then fail "stamp written"; fi
+if ! has_alert "$td"; then fail "no alert"; fi
+write_t1_expected "$td/ctl/t1"
+grep -v -F \
+  -e 'import-entity-aliases --candidates --run' \
+  -e 'person-link-batch --rule-set alias --actor 1 --run' \
+  -e 'import-bangumi-xmedia --run' \
+  "$td/ctl/t1" > "$td/ctl/expected"
+expect_apply "$td" "$td/ctl/expected"
+tend
+rm -rf "$td"
+
+# --- T18: a link batch past its ceiling creates no one ---
+tstart 18
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' 'DRY-RUN (nothing written; pass --run to link) [alias] — A1=0 A2=0 A3=250 A4=0 | created=201 attached=49 needs_manual=0 already=0 errors=0 | unmatched=0 of 250' \
+  > "$td/ctl/out/person-link-batch+dry"
+run_job "$td"
+expect_exit_nonzero "$td"
+if ! has_alert "$td"; then fail "no alert"; fi
+write_t1_expected "$td/ctl/t1"
+grep -v -F \
+  -e 'person-link-batch --rule-set alias --actor 1 --run' \
+  -e 'import-bangumi-xmedia --run' \
+  "$td/ctl/t1" > "$td/ctl/expected"
+expect_apply "$td" "$td/ctl/expected"
+tend
+rm -rf "$td"
+
+# --- T19: so does an attach burst, and an unreadable link plan ---
+tstart 19
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' 'DRY-RUN (nothing written; pass --run to link) [alias] — A1=0 A2=0 A3=301 A4=0 | created=0 attached=301 needs_manual=0 already=0 errors=0 | unmatched=0 of 301' \
+  > "$td/ctl/out/person-link-batch+dry"
+run_job "$td"
+expect_exit_nonzero "$td"
+if grep -q -F 'person-link-batch' "$td/ctl/apply.log"; then fail "linked past the attach ceiling"; fi
+rm -rf "$td"
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' 'person-link-batch: panic before the summary' > "$td/ctl/out/person-link-batch+dry"
+run_job "$td"
+expect_exit_nonzero "$td"
+if grep -q -F 'person-link-batch' "$td/ctl/apply.log"; then fail "linked without a readable plan"; fi
 tend
 rm -rf "$td"
 
