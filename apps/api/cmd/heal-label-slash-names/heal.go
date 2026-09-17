@@ -11,7 +11,7 @@ import (
 )
 
 type healCase struct {
-	LabelID int64
+	LabelID   int64
 	Expect    string
 	Canonical string
 }

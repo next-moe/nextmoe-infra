@@ -24,11 +24,11 @@ func NewGCService(db *gorm.DB, s *storage.Client, imgRepo *repository.ImageRepos
 }
 
 type GCConfig struct {
-	ColdAfter     time.Duration
-	SoftDelAfter  time.Duration
-	HardDelAfter  time.Duration
-	DryRun        bool
-	MaxPerRun     int
+	ColdAfter    time.Duration
+	SoftDelAfter time.Duration
+	HardDelAfter time.Duration
+	DryRun       bool
+	MaxPerRun    int
 }
 
 func (c *GCConfig) defaults() {

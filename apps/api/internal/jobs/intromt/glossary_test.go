@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-
 func TestGlossaryCanonical(t *testing.T) {
 	assert.Equal(t, "", Glossary(nil).Canonical(), "an empty glossary serializes to nothing")
 
@@ -74,7 +73,6 @@ func TestGlossaryBuilderCapAndDedup(t *testing.T) {
 	assert.Len(t, capped.out, maxGlossaryEntries, "the cap holds")
 	assert.Equal(t, "x", capped.out[0].Src, "the cap keeps the HIGHEST-priority entries")
 }
-
 
 func cleanEntities(t *testing.T) {
 	t.Helper()

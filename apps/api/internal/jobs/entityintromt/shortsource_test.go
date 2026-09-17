@@ -8,9 +8,9 @@ func TestSubstanceRunes(t *testing.T) {
 		want int
 	}{
 		{"", 0},
-		{"…!?――【】", 0},              // markup glyphs carry nothing to translate
+		{"…!?――【】", 0}, // markup glyphs carry nothing to translate
 		{"沙耶", 2},
-		{"Robo Clinic 2", 11},       // letters and the digit, not the spaces
+		{"Robo Clinic 2", 11}, // letters and the digit, not the spaces
 		{"名前:\n———\n", 2},
 	}
 	for _, c := range cases {

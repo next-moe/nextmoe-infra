@@ -32,9 +32,9 @@ func TestApplyReviewedCSVWritesMachineRows(t *testing.T) {
 	path := writeCSV(t, [][]string{
 		{"character_id", "name", "latin", "works", "uses", "proposed_zh", "model"},
 		{itoa(alice), "アリス", "Alice", "w1", "3", "爱丽丝", "glm-5.2"},
-		{itoa(rejected), "ひなた", "", "w2", "2", "", "glm-5.2"},     // reviewer blanked it
-		{itoa(skipped), "レナ", "", "w3", "1", "SKIP", "glm-5.2"},   // model declined
-		{"999999", "ゴースト", "", "", "0", "幽灵", "glm-5.2"},         // character gone
+		{itoa(rejected), "ひなた", "", "w2", "2", "", "glm-5.2"},   // reviewer blanked it
+		{itoa(skipped), "レナ", "", "w3", "1", "SKIP", "glm-5.2"}, // model declined
+		{"999999", "ゴースト", "", "", "0", "幽灵", "glm-5.2"},        // character gone
 	})
 	require.NoError(t, runApplyCSV(context.Background(), testDB, path, 0, 0))
 
@@ -75,8 +75,8 @@ func TestApplyReviewedCSVIsIdempotent(t *testing.T) {
 
 func TestLoadMTResidueSelectsOnlyTheResidue(t *testing.T) {
 	truncateCharacters(t)
-	kanji := seedCharacter(t, "雪村時音", nil)     // passthrough's, not MT's
-	named := seedCharacter(t, "時雨", nil)        // already has a zh name
+	kanji := seedCharacter(t, "雪村時音", nil) // passthrough's, not MT's
+	named := seedCharacter(t, "時雨", nil)   // already has a zh name
 	seedAlias(t, named, "时雨", "zh-Hans", 0, 0, true)
 	kana := seedCharacter(t, "アリス", strPtr("Alice"))
 	seedWorkWithCharacter(t, kana)

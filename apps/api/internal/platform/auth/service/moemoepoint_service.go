@@ -42,8 +42,8 @@ type AdjustParams struct {
 }
 
 type AdjustResult struct {
-	Balance int  `json:"balance"`
-	Applied bool `json:"applied"`
+	Balance int   `json:"balance"`
+	Applied bool  `json:"applied"`
 	LogID   int64 `json:"-"`
 }
 

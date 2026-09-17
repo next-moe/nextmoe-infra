@@ -255,7 +255,7 @@ func TestScanLiveModeCarriesReachIntoPriority(t *testing.T) {
 	r := model.TrustScanResult{
 		Site: tSite, SubjectKind: tKind, SubjectID: "reach-1",
 		ContentText: "convict me", SubjectReach: &reach,
-		Status:      model.ScanStatusPending, Mode: model.ScanModeShadow,
+		Status: model.ScanStatusPending, Mode: model.ScanModeShadow,
 	}
 	if err := testDB.Create(&r).Error; err != nil {
 		t.Fatalf("seed: %v", err)
@@ -289,7 +289,7 @@ func TestScanRescanRepricesOpenItemUpward(t *testing.T) {
 		row := model.TrustScanResult{
 			Site: tSite, SubjectKind: tKind, SubjectID: subject,
 			ContentText: "convict me", SubjectReach: &reach,
-			Status:      model.ScanStatusPending, Mode: model.ScanModeShadow,
+			Status: model.ScanStatusPending, Mode: model.ScanModeShadow,
 		}
 		if err := testDB.Create(&row).Error; err != nil {
 			t.Fatalf("seed %s: %v", subject, err)

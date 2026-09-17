@@ -12,10 +12,10 @@ import (
 // account ("kun" vs "kun<ZWSP>") and impersonate them.
 //
 // Written as `\u` / `\U` escapes — NOT raw bytes — for two reasons:
-//   1. Go's parser rejects U+FEFF (BOM) inside string literals; raw-
-//      byte form fails to compile.
-//   2. Raw zero-width bytes silently corrupt on any future Read/Edit
-//      roundtrip through editors that normalize whitespace.
+//  1. Go's parser rejects U+FEFF (BOM) inside string literals; raw-
+//     byte form fails to compile.
+//  2. Raw zero-width bytes silently corrupt on any future Read/Edit
+//     roundtrip through editors that normalize whitespace.
 //
 // Mirrored from the legacy JS isValidName rule. The JS source used 4-
 // digit `\uXXXX` escapes for some plane-1 codepoints (e.g. JS `ᴕ9`

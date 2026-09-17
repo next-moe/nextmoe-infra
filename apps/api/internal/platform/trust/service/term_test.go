@@ -135,7 +135,6 @@ func TestTermCacheTTLRefresh(t *testing.T) {
 	}
 }
 
-
 func TestTermCreateNormalizesAndStores(t *testing.T) {
 	cleanTables(t)
 	svc := NewTermService(testDB, nil)
@@ -214,7 +213,6 @@ func TestTermDeprecateNotFound(t *testing.T) {
 		t.Fatalf("deprecate absent → %v, want ErrTermNotFound", err)
 	}
 }
-
 
 func TestCheckSiteBoundWhenNoWire(t *testing.T) {
 	cleanTables(t)

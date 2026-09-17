@@ -1,6 +1,5 @@
 package image_test
 
-
 import (
 	"bytes"
 	"context"
@@ -158,14 +157,14 @@ func seedHTTPTestClients(db *gorm.DB) error {
 			ImageAllowedPresets:  allPresets,
 		},
 		{
-			ID:                   testDisabledClientID,
-			Name:                 "disabled",
-			Secret:               "secret",
-			RedirectURIs:         emptyJSON,
-			Grants:               emptyJSON,
-			ImageEnabled:         false,
-			ImageSiteKey:         "x",
-			ImageMaxFileSize:     10485760,
+			ID:               testDisabledClientID,
+			Name:             "disabled",
+			Secret:           "secret",
+			RedirectURIs:     emptyJSON,
+			Grants:           emptyJSON,
+			ImageEnabled:     false,
+			ImageSiteKey:     "x",
+			ImageMaxFileSize: 10485760,
 		},
 		{
 			ID:                   testRestrictedClient,
@@ -246,7 +245,6 @@ func fixturePNG(w, h int, r, g, b uint8) []byte {
 	_ = png.Encode(&buf, img)
 	return buf.Bytes()
 }
-
 
 func TestUpload_NewAvatar_CreatesMainAndVariants(t *testing.T) {
 	ctx := context.Background()
@@ -344,7 +342,7 @@ func TestUpload_CrossPresetBackfill(t *testing.T) {
 func TestUpload_RejectsNonImage(t *testing.T) {
 	ctx := context.Background()
 	_, err := testSvc.Upload(ctx, service.UploadRequest{
-		Body: []byte("this is not an image, just ASCII text to break mime sniffer"),
+		Body:   []byte("this is not an image, just ASCII text to break mime sniffer"),
 		Preset: "avatar", Site: "siteF",
 	})
 	require.Error(t, err)

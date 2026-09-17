@@ -28,10 +28,10 @@ type CreateOAuthClientRequest struct {
 	IsPublic               bool     `json:"is_public"`
 	AutoConsent            bool     `json:"auto_consent"`
 	RefreshTokenTTLSeconds *int     `json:"refresh_token_ttl_seconds" validate:"omitempty,min=60"`
-	Listed       bool   `json:"listed"`
-	LogoURL      string `json:"logo_url" validate:"omitempty,url,max=255"`
-	Tagline      string `json:"tagline" validate:"omitempty,max=100"`
-	DisplayOrder int    `json:"display_order" validate:"omitempty,min=0"`
+	Listed                 bool     `json:"listed"`
+	LogoURL                string   `json:"logo_url" validate:"omitempty,url,max=255"`
+	Tagline                string   `json:"tagline" validate:"omitempty,max=100"`
+	DisplayOrder           int      `json:"display_order" validate:"omitempty,min=0"`
 }
 
 type UpdateOAuthClientRequest struct {
@@ -41,28 +41,28 @@ type UpdateOAuthClientRequest struct {
 	AllowedScopes          []string `json:"allowed_scopes"`
 	AutoConsent            *bool    `json:"auto_consent"`
 	RefreshTokenTTLSeconds *int     `json:"refresh_token_ttl_seconds" validate:"omitempty,min=60"`
-	Listed       *bool   `json:"listed"`
-	LogoURL      *string `json:"logo_url" validate:"omitempty,url,max=255"`
-	Tagline      *string `json:"tagline" validate:"omitempty,max=100"`
-	DisplayOrder *int    `json:"display_order" validate:"omitempty,min=0"`
+	Listed                 *bool    `json:"listed"`
+	LogoURL                *string  `json:"logo_url" validate:"omitempty,url,max=255"`
+	Tagline                *string  `json:"tagline" validate:"omitempty,max=100"`
+	DisplayOrder           *int     `json:"display_order" validate:"omitempty,min=0"`
 }
 
 type OAuthClientResponse struct {
-	ID                     string   `json:"id"`
-	SiteID                 *uint    `json:"site_id,omitempty"`
-	Name                   string   `json:"name"`
-	RedirectURIs           []string `json:"redirect_uris"`
-	Grants                 []string `json:"grants"`
-	AllowedScopes          []string `json:"allowed_scopes"`
-	IsPublic               bool     `json:"is_public"`
-	AutoConsent            bool     `json:"auto_consent"`
-	RefreshTokenTTLSeconds int      `json:"refresh_token_ttl_seconds"`
-	Listed       bool   `json:"listed"`
-	LogoURL      string `json:"logo_url"`
-	Tagline      string `json:"tagline"`
-	DisplayOrder int    `json:"display_order"`
-	CreatedAt    string `json:"created_at"`
-	Storage OAuthClientStorageConfig `json:"storage"`
+	ID                     string                   `json:"id"`
+	SiteID                 *uint                    `json:"site_id,omitempty"`
+	Name                   string                   `json:"name"`
+	RedirectURIs           []string                 `json:"redirect_uris"`
+	Grants                 []string                 `json:"grants"`
+	AllowedScopes          []string                 `json:"allowed_scopes"`
+	IsPublic               bool                     `json:"is_public"`
+	AutoConsent            bool                     `json:"auto_consent"`
+	RefreshTokenTTLSeconds int                      `json:"refresh_token_ttl_seconds"`
+	Listed                 bool                     `json:"listed"`
+	LogoURL                string                   `json:"logo_url"`
+	Tagline                string                   `json:"tagline"`
+	DisplayOrder           int                      `json:"display_order"`
+	CreatedAt              string                   `json:"created_at"`
+	Storage                OAuthClientStorageConfig `json:"storage"`
 }
 
 type OAuthClientStorageConfig struct {

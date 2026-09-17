@@ -46,7 +46,7 @@ func (s *AdminServer) listTerms(ctx context.Context, in *listTermsInput) (*terms
 	terms, total, err := s.terms.List(ctx, service.TermFilters{
 		Site: in.Site, Kind: optionalFilter(in.Kind), Purpose: optionalFilter(in.Purpose),
 		IncludeDeprecated: in.IncludeDeprecated,
-		Query: in.Q, Page: in.Page, Limit: in.Limit,
+		Query:             in.Q, Page: in.Page, Limit: in.Limit,
 	})
 	if err != nil {
 		return nil, mapAdminErr("list terms", err)

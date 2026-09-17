@@ -18,13 +18,13 @@ func NewStatsRepository(db *gorm.DB) *StatsRepository {
 }
 
 type StatsResult struct {
-	UploadCount        int64           `json:"upload_count"`
-	UniqueImages       int64           `json:"unique_images"`
-	DeduplicatedCount  int64           `json:"deduplicated_count"`
-	TotalBytes         int64           `json:"total_bytes"`
-	BySite             map[string]SiteStats `json:"by_site,omitempty"`
-	ReviewPending      int64           `json:"review_pending"`
-	ReviewRejected     int64           `json:"review_rejected"`
+	UploadCount       int64                `json:"upload_count"`
+	UniqueImages      int64                `json:"unique_images"`
+	DeduplicatedCount int64                `json:"deduplicated_count"`
+	TotalBytes        int64                `json:"total_bytes"`
+	BySite            map[string]SiteStats `json:"by_site,omitempty"`
+	ReviewPending     int64                `json:"review_pending"`
+	ReviewRejected    int64                `json:"review_rejected"`
 }
 
 type SiteStats struct {
