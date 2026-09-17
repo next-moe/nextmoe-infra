@@ -45,15 +45,21 @@ had to be rebuilt by hand.
 | tag-vocab-backlog | 1st 12:30 | 1st 04:30 | 768h |
 | work-dedup-nightly | daily 18:30 | daily 10:30 | 48h |
 | llm-adjudicate-nightly | daily 21:00 | daily 13:00 | 48h |
+| char-xsrc-nightly | daily 22:30 | daily 14:30 | 48h |
 | work-dedup-watch | Mon 04:20 | Sun 20:20 | 192h |
 | ymgal-pending-watch | daily 09:30 | daily 01:30 | 48h |
 | cover-shelf-watch | daily 17:00 | daily 09:00 | 48h |
 | retire-merged-comments | daily 23:30 | daily 15:30 | 48h |
 
-`source-import/test.sh` is the one offline test in this directory: it runs
-`source-import/run.sh` against fake `docker` / `flock` / alert stand-ins and
-asserts the apply order, the ceilings and the lock/stamp rules. Run it before
-redeploying that script.
+`source-import/test.sh` and `char-xsrc-nightly/test.sh` are the offline tests
+in this directory: each runs the `run.sh` beside it against fake `docker` /
+`flock` / alert stand-ins and asserts the call order, the ceilings and the
+lock/stamp rules. Run the matching one before redeploying either script.
+
+char-xsrc-nightly keeps its judged verdicts in `state/verdicts.jsonl` and
+`state/verdicts2.jsonl`; a key there is never sent to the gateway again. They
+were seeded from the 2026-08-06 wave (`/root/wave177`), so deleting them re-judges
+every pair that wave already settled.
 
 `logrotate/docker-containers` is host config, not a job: it is deployed as
 `/etc/logrotate.d/docker-containers`. Dokploy's containers are created with an
