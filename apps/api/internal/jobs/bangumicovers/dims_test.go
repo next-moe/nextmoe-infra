@@ -1,6 +1,7 @@
 package bangumicovers
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -89,5 +90,43 @@ func TestIsBodyless(t *testing.T) {
 	}
 	if isBodyless(&claimed) {
 		t.Error("claimed site must NOT be bodyless")
+	}
+}
+
+func TestSubjectsOutListsWhatTheMirrorLacks(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "40"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "40", "cover.jpg"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	d := &dims{entry: map[string]dimsEntry{
+		"30": {SubjectID: 30, W: 3, H: 4, File: "30/cover.jpg"},
+		"40": {SubjectID: 40, W: 3, H: 4, File: "40/cover.jpg"},
+	}}
+	r := &runner{exist: map[int64]bool{2: true}}
+	cands := []candidate{
+		{WorkID: 1, SubjectID: "10"},
+		{WorkID: 2, SubjectID: "20"},
+		{WorkID: 3, SubjectID: "30"},
+		{WorkID: 4, SubjectID: "40"},
+		{WorkID: 5, SubjectID: "5"},
+	}
+	r.process(context.Background(), Opts{BangumiMirror: root}, cands, d)
+
+	out := filepath.Join(t.TempDir(), "subjects")
+	if err := writeSubjects(out, r.unmirrored); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "5\n10\n30\n" {
+		t.Errorf("subjects = %q; want the unrecorded, uncovered ones and the recorded one whose file is gone, in numeric order", got)
+	}
+	if r.c.coverWould != 1 {
+		t.Errorf("would upload = %d, want the mirrored one", r.c.coverWould)
 	}
 }

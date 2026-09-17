@@ -17,6 +17,7 @@ func main() {
 	apply := flag.Bool("apply", false, "write changes (default: dry-run forecast only)")
 	dsn := flag.String("dsn", "", "catalog DSN — REQUIRED; the rehearsal copy locally (kun_catalog_rehearsal), the live catalog only in the production run")
 	mirror := flag.String("bangumi-mirror", "", "local mirror root — REQUIRED (<dir>/<subject_id>/cover.jpg + <dir>/dims.jsonl)")
+	subjectsOut := flag.String("subjects-out", "", "dry run: write the subject ids with no bangumi cover yet whose image the mirror lacks, one per line (fetch-bangumi-images --ids-file)")
 	limit := flag.Int("limit", 0, "max candidate works to process (0 = all)")
 	offset := flag.Int("offset", 0, "skip this many candidate works (for chunking)")
 	imageBaseURL := flag.String("image-base-url", "", "image_service base override (point at the LOCAL dev service, e.g. http://127.0.0.1:9278)")
@@ -39,6 +40,7 @@ func main() {
 		Offset:         *offset,
 		DSN:            *dsn,
 		BangumiMirror:  *mirror,
+		SubjectsOut:    *subjectsOut,
 		ImageBaseURL:   *imageBaseURL,
 		UploadGap:      *uploadGap,
 		AllowLandscape: *allowLandscape,

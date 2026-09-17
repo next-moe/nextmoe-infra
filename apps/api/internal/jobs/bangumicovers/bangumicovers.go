@@ -5,6 +5,10 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
+	"slices"
+	"strconv"
+	"strings"
 	"time"
 
 	"api/internal/infrastructure/database"
@@ -23,6 +27,7 @@ type Opts struct {
 	Offset         int
 	DSN            string
 	BangumiMirror  string
+	SubjectsOut    string
 	ImageBaseURL   string
 	UploadGap      time.Duration
 	AllowLandscape bool
@@ -58,11 +63,15 @@ type runner struct {
 	c          counters
 	pingHashes []string
 	touched    []int64
+	unmirrored map[int64]bool
 }
 
 func Run(ctx context.Context, cfg *config.Config, opts Opts) (map[string]any, error) {
 	if opts.DSN == "" {
 		return nil, fmt.Errorf("catalog DSN is required (--dsn); refusing to guess — pass the rehearsal copy locally, the live catalog only in the production run")
+	}
+	if opts.SubjectsOut != "" && opts.Apply {
+		return nil, fmt.Errorf("--subjects-out lists what a dry run would need; drop --apply")
 	}
 	if opts.BangumiMirror == "" {
 		return nil, fmt.Errorf("--bangumi-mirror is required (local mirror root <dir>/<subject_id>/cover.jpg + <dir>/dims.jsonl)")
@@ -125,6 +134,11 @@ func Run(ctx context.Context, cfg *config.Config, opts Opts) (map[string]any, er
 	}
 
 	quota := r.process(ctx, opts, cands, d)
+	if opts.SubjectsOut != "" {
+		if err := writeSubjects(opts.SubjectsOut, r.unmirrored); err != nil {
+			return nil, fmt.Errorf("write --subjects-out: %w", err)
+		}
+	}
 
 	if err := repository.TouchWorks(ctx, r.db, r.touched); err != nil {
 		return nil, fmt.Errorf("touch works: %w", err)
@@ -154,6 +168,9 @@ func (r *runner) process(ctx context.Context, opts Opts, cands []candidate, d *d
 		e, ok := d.entry[c.SubjectID]
 		if !ok {
 			r.c.coverNoDims++
+			if !r.exist[c.WorkID] {
+				r.markUnmirrored(c)
+			}
 			continue
 		}
 		if !e.portrait() {
@@ -186,8 +203,34 @@ func (r *runner) summary(opts Opts, candidates int) map[string]any {
 			"refused_claimed": r.c.coverRefused,
 			"dedup":           r.c.coverDedup,
 		},
-		"errors": r.c.errors,
+		"errors":              r.c.errors,
+		"unmirrored_subjects": len(r.unmirrored),
 	}
+}
+
+func (r *runner) markUnmirrored(c candidate) {
+	id, err := strconv.ParseInt(c.SubjectID, 10, 64)
+	if err != nil {
+		return
+	}
+	if r.unmirrored == nil {
+		r.unmirrored = map[int64]bool{}
+	}
+	r.unmirrored[id] = true
+}
+
+func writeSubjects(path string, set map[int64]bool) error {
+	ids := make([]int64, 0, len(set))
+	for id := range set {
+		ids = append(ids, id)
+	}
+	slices.Sort(ids)
+	var b strings.Builder
+	for _, id := range ids {
+		b.WriteString(strconv.FormatInt(id, 10))
+		b.WriteByte('\n')
+	}
+	return os.WriteFile(path, []byte(b.String()), 0o644)
 }
 
 func openGorm(dsn string) (*gorm.DB, error) {
