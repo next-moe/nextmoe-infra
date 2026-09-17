@@ -66,10 +66,13 @@ echo "image: $IMG"
 docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$CATC" > env.tmp
 chmod 600 env.tmp
 
-# The DSN is assembled INSIDE the container from that snapshot, so the password
-# exists only in that process and never in argv on this host. Parallel query is
-# disabled per session: the postgres container runs with the 64MB docker-default
-# /dev/shm and the pair detector is a self-join over every live work title.
+# The password rides PGPASSWORD, never the DSN: a container's processes sit in
+# this host's process table with their argv, and on 2026-09-02 `ps` printed the
+# assembled DSN with its password. pgx reads PGPASSWORD when the DSN names none.
+#
+# Parallel query is disabled per session: the postgres container runs with the
+# 64MB docker-default /dev/shm and the pair detector is a self-join over every
+# live work title.
 #
 # work_mem / hash_mem_multiplier / jit are forced down because parallel-off
 # alone was not enough: on 2026-08-29 the first prod census ran under prod's
@@ -79,7 +82,7 @@ chmod 600 env.tmp
 # outage). Dev never showed this because its work_mem=4MB made the identical
 # query spill ~5GB to temp files instead. These GUCs pin the disk-spill plan;
 # do not remove them to make the run faster.
-DSNSH='U="${KUN_CATALOG_PG_USER:-$KUN_PG_USER}"; P="${KUN_CATALOG_PG_PASSWORD:-$KUN_PG_PASSWORD}"; CAT="host=127.0.0.1 port=5432 user=$U password=$P dbname=${KUN_CATALOG_PG_DATABASE:-kun_catalog} sslmode=disable options='"'"'-c max_parallel_workers_per_gather=0 -c work_mem=8MB -c hash_mem_multiplier=1 -c jit=off'"'"'"'
+DSNSH='U="${KUN_CATALOG_PG_USER:-$KUN_PG_USER}"; export PGPASSWORD="${KUN_CATALOG_PG_PASSWORD:-$KUN_PG_PASSWORD}"; CAT="host=127.0.0.1 port=5432 user=$U dbname=${KUN_CATALOG_PG_DATABASE:-kun_catalog} sslmode=disable options='"'"'-c max_parallel_workers_per_gather=0 -c work_mem=8MB -c hash_mem_multiplier=1 -c jit=off'"'"'"'
 
 # Yield guard, from the 2026-08-29 lock convoy (same day as the OOM above):
 # the census holds an ACCESS SHARE on the work tables for ~1h, a deploy's

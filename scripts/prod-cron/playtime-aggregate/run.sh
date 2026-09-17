@@ -63,9 +63,10 @@ chmod 600 env.tmp
 run() {
   docker run --rm --network "container:$PG" --env-file "$BASE/env.tmp" "$IMG" "$@"
 }
-# The DSN is assembled INSIDE the container from the env snapshot, so the
-# password exists only in that process — never in argv on this host.
-DSNSH='U="${KUN_CATALOG_PG_USER:-$KUN_PG_USER}"; P="${KUN_CATALOG_PG_PASSWORD:-$KUN_PG_PASSWORD}"; CAT="host=127.0.0.1 port=5432 user=$U password=$P dbname=kun_catalog sslmode=disable"; FORUM="host=127.0.0.1 port=5432 user=$U password=$P dbname=kungalgame sslmode=disable"'
+# The password rides PGPASSWORD, never the DSN: a container's processes sit in
+# this host's process table with their argv, and on 2026-09-02 `ps` printed the
+# assembled DSN with its password. pgx reads PGPASSWORD when the DSN names none.
+DSNSH='U="${KUN_CATALOG_PG_USER:-$KUN_PG_USER}"; export PGPASSWORD="${KUN_CATALOG_PG_PASSWORD:-$KUN_PG_PASSWORD}"; CAT="host=127.0.0.1 port=5432 user=$U dbname=kun_catalog sslmode=disable"; FORUM="host=127.0.0.1 port=5432 user=$U dbname=kungalgame sslmode=disable"'
 
 # A dry pass first, and a ceiling on it. The threshold means a work can only
 # appear once at least three different people have finished it, so organic

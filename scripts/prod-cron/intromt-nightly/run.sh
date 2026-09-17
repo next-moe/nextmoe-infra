@@ -42,10 +42,13 @@ docker pull -q "$IMG_TAG" >/dev/null 2>&1 || echo "WARN: image pull failed; usin
 IMG=$(docker image inspect --format '{{index .RepoDigests 0}}' "$IMG_TAG")
 echo "image: $IMG"
 
-# DSN assembled INSIDE the container from the env files, never on a host
-# command line. Parallel query disabled per session: the postgres container
+# The password rides PGPASSWORD, never the DSN: a container's processes sit in
+# this host's process table with their argv, and on 2026-09-02 `ps` printed the
+# assembled DSN with its password. pgx reads PGPASSWORD when the DSN names none.
+#
+# Parallel query disabled per session: the postgres container
 # runs with the 64MB docker-default /dev/shm (SQLSTATE 53100 on big joins).
-MTDSN='DSN="host=$KUN_PG_HOST port=$KUN_PG_PORT user=$KUN_PG_USER password=$KUN_PG_PASSWORD dbname=$KUN_CATALOG_PG_DATABASE sslmode=disable options='"'"'-c max_parallel_workers_per_gather=0'"'"'"'
+MTDSN='export PGPASSWORD="$KUN_PG_PASSWORD"; DSN="host=$KUN_PG_HOST port=$KUN_PG_PORT user=$KUN_PG_USER dbname=$KUN_CATALOG_PG_DATABASE sslmode=disable options='"'"'-c max_parallel_workers_per_gather=0'"'"'"'
 
 echo "--- entity lanes (character/person/label) ---"
 docker run --rm --name entitymt-nightly --network dokploy-network \
