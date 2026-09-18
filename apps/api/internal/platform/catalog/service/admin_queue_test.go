@@ -356,6 +356,43 @@ func TestDecideCandidateAcceptDoesNotReleaseQuarantine(t *testing.T) {
 	assert.Equal(t, model.WorkStatusQuarantine, got.Status)
 }
 
+func TestReleaseSkipsWorkInOpenOrApprovedProposal(t *testing.T) {
+	cleanTables(t)
+
+	q := createWorkX(t, galgameMediumID, model.ContentRatingAllAges, model.WorkStatusQuarantine, "隔離")
+	live := createWorkX(t, galgameMediumID, model.ContentRatingAllAges, model.WorkStatusLive, "公開")
+
+	ok, err := shouldReleaseQuarantine(testDB, q.ID)
+	require.NoError(t, err)
+	assert.True(t, ok, "nothing holds this work yet")
+
+	require.NoError(t, testDB.Create(&model.CatalogMergeProposal{
+		EntityType:     model.EntityTypeWork,
+		SourceEntityID: q.ID,
+		TargetEntityID: live.ID,
+		Status:         model.ProposalStatusOpen,
+		ProposedBy:     1,
+		Note:           "test",
+	}).Error)
+	ok, err = shouldReleaseQuarantine(testDB, q.ID)
+	require.NoError(t, err)
+	assert.False(t, ok, "an open proposal holds the work")
+
+	require.NoError(t, testDB.Model(&model.CatalogMergeProposal{}).
+		Where("source_entity_id = ?", q.ID).
+		Update("status", model.ProposalStatusApproved).Error)
+	ok, err = shouldReleaseQuarantine(testDB, q.ID)
+	require.NoError(t, err)
+	assert.False(t, ok, "an approved proposal holds the work")
+
+	require.NoError(t, testDB.Model(&model.CatalogMergeProposal{}).
+		Where("source_entity_id = ?", q.ID).
+		Update("status", model.ProposalStatusRejected).Error)
+	ok, err = shouldReleaseQuarantine(testDB, q.ID)
+	require.NoError(t, err)
+	assert.True(t, ok, "a rejected proposal does not hold the work")
+}
+
 // The reviewer queue and the machine lane must both hide a probable ref whose
 // exact slot another entity already holds: ConfirmRef is the only action the
 // queue offers and it can never succeed on such a row.

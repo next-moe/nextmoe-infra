@@ -24,8 +24,8 @@ const waveTagW1 = "rule:work-dedup w1"
 const exitNewPairs = 3
 
 func main() {
-	mode := flag.String("mode", "census", "census | seed | propose | approve | execute | watch | crossmedium | nightly (seed+propose+execute over one census)")
-	actor := flag.Int64("actor", 0, "operator user id recorded on candidates/proposals (required for seed/propose/approve/execute/crossmedium/nightly)")
+	mode := flag.String("mode", "census", "census | seed | propose | approve | execute | release | watch | crossmedium | nightly (seed+propose+execute over one census)")
+	actor := flag.Int64("actor", 0, "operator user id recorded on candidates/proposals (required for seed/propose/approve/execute/release/crossmedium/nightly)")
 	run := flag.Bool("run", false, "write (default: dry-run preview)")
 	limit := flag.Int("limit", 0, "propose: max merge groups this run; approve/execute: max proposals this run (0 = all)")
 	note := flag.String("note", waveTagW1, "wave note tag stamped on proposals and matched by -mode approve and -mode execute")
@@ -35,9 +35,9 @@ func main() {
 	flag.Parse()
 
 	writes := *mode == "seed" || *mode == "propose" || *mode == "approve" || *mode == "execute" ||
-		*mode == "crossmedium" || *mode == "nightly"
+		*mode == "release" || *mode == "crossmedium" || *mode == "nightly"
 	if writes && *actor <= 0 {
-		fmt.Fprintln(os.Stderr, "-actor <user-id> is required for seed/propose/approve/execute/crossmedium/nightly")
+		fmt.Fprintln(os.Stderr, "-actor <user-id> is required for seed/propose/approve/execute/release/crossmedium/nightly")
 		os.Exit(2)
 	}
 
@@ -62,6 +62,8 @@ func main() {
 		err = runApprove(ctx, db, os.Stdout, merge, resolve, *actor, *note, *limit, *run)
 	case "execute":
 		err = runExecute(ctx, db, os.Stdout, merge, resolve, *actor, *note, *limit, *run)
+	case "release":
+		err = runRelease(ctx, os.Stdout, service.NewAdminQueueService(db, merge), *actor, *note, *run)
 	case "watch":
 		var fresh int
 		fresh, err = runWatch(ctx, db, os.Stdout)

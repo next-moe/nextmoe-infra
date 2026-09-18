@@ -26,6 +26,19 @@ const (
 	// behind it starts doing something else.
 	stampObsoletePair = "obsolete_endpoint_deferred"
 
+	// 1,067 work candidates sat in needs_manual on 2026-09-18 (672 latest
+	// verdict same, 340 unsure, 30 different below the 0.7 bar) because a skip
+	// writes no stamp and the next night retries the same row forever. A merge
+	// cannot be undone; keeping two works apart can, so these three park the
+	// candidate as deferred and are deliberately absent from currentStamps so
+	// a later corroborator can still accept the same verdict row.
+	stampKeptApartBothClaimed    = "kept_apart_both_claimed"
+	stampKeptApartUncorroborated = "kept_apart_uncorroborated"
+	stampKeptApartLowConfidence  = "kept_apart_low_confidence"
+	stampHeldProbableDisputed    = "held_probable_disputed"
+	skipKeptApartUnchanged       = "kept_apart_unchanged"
+	skipCuratedRef               = "skipped_curated_ref"
+
 	skipUnsure            = "skipped_unsure"
 	skipBelowConfidence   = "skipped_below_confidence"
 	skipFrozenBothClaimed = "frozen_both_claimed"
@@ -44,18 +57,20 @@ const (
 	errOther      = "error_other"
 )
 
-// currentStamps is every value this package can write to applied_action. It is
-// the idempotency key of the whole apply step, which is why it is a list and
-// not an empty-string test: on 2026-09-14 a hand-written SQL pass stamped 325
-// rows with excluded_conflicting_refs and held_ref_conflict, words that appear
-// nowhere in this repo, and selecting on an empty applied_action then hid those
-// rows from every rule written afterwards — including the ref-conflict screen
-// that would have decided 319 of them that same night. A stamp outside this
-// list means the row was parked by something that is no longer the rule, so
-// the row is judged again rather than treated as done.
+// currentStamps is every value this package can write to applied_action that
+// should not be re-planned. It is the idempotency key of the whole apply step,
+// which is why it is a list and not an empty-string test: on 2026-09-14 a
+// hand-written SQL pass stamped 325 rows with excluded_conflicting_refs and
+// held_ref_conflict, words that appear nowhere in this repo, and selecting on
+// an empty applied_action then hid those rows from every rule written
+// afterwards — including the ref-conflict screen that would have decided 319
+// of them that same night. A stamp outside this list is judged again. The
+// kept-apart stamps are omitted on purpose: a pair kept apart is re-planned
+// every night so it is accepted the night a corroborator appears.
 var currentStamps = []string{
 	applyAccept, applyReject, applyConfirm, applyConfirmRelated,
 	stampRefConflict, stampObsoletePair, stampTargetGone,
+	stampHeldProbableDisputed,
 }
 
 // currentPrompts is to prompt_version what currentStamps is to applied_action,
@@ -230,8 +245,12 @@ func planCreditName(verdict string, conf, minAccept, minReject float64) applyPla
 // the ones whose other side is a bangumi row with no year, no label and no ref
 // -- a thin dossier, not a doubt about identity. 172 of the 305 pairs that pass
 // the name gate are unsure, and they read as "How to Date an Entity (and stay
-// alive)" facing itself. A verdict of different still vetoes: that one the
-// model reached by naming something.
+// alive)" facing itself. A verdict of different still vetoes at the reject bar:
+// that one the model reached by naming something. Below the bar it is deferred
+// rather than skipped, because skipping is what left the 30 low-confidence
+// different pairs in needs_manual on 2026-09-18 with nothing that could move
+// them. The letters-and-digits key is same-only: 450 catalog pairs share an
+// exclusive one while carrying different exact VNDB ids.
 func planWorkPair(verdict string, conf, minReject float64, s workPairSides, ev pairEvidence) applyPlan {
 	if s.DeletedA || s.DeletedB {
 		return applyPlan{Action: applyDefer, Stamp: stampObsoletePair}
@@ -242,21 +261,29 @@ func planWorkPair(verdict string, conf, minReject float64, s workPairSides, ev p
 	switch verdict {
 	case VerdictDifferent:
 		if conf < minReject {
-			return applyPlan{Skip: skipBelowConfidence}
+			return applyPlan{Action: applyDefer, Stamp: stampKeptApartLowConfidence}
 		}
 		return applyPlan{Action: applyReject}
 	case VerdictSame, VerdictUnsure:
 		if bothClaimed(s) {
-			return applyPlan{Skip: skipFrozenBothClaimed}
+			return applyPlan{Action: applyDefer, Stamp: stampKeptApartBothClaimed}
 		}
-		if !ev.exclusive() {
-			return applyPlan{Skip: skipUncorroborated}
+		if reason := ev.acceptReason(verdict); reason != "" {
+			src, tgt := survivorTarget(s)
+			return applyPlan{Action: applyAccept, Source: src, Target: tgt, Reason: reason}
 		}
-		src, tgt := survivorTarget(s)
-		return applyPlan{Action: applyAccept, Source: src, Target: tgt,
-			Reason: fmt.Sprintf("sole holders of %q", ev.Name)}
+		return applyPlan{Action: applyDefer, Stamp: stampKeptApartUncorroborated}
 	default:
 		return applyPlan{Skip: skipUnknownVerdict}
+	}
+}
+
+func isKeptApartStamp(stamp string) bool {
+	switch stamp {
+	case stampKeptApartBothClaimed, stampKeptApartUncorroborated, stampKeptApartLowConfidence:
+		return true
+	default:
+		return false
 	}
 }
 
@@ -266,10 +293,10 @@ func planWorkPair(verdict string, conf, minReject float64, s workPairSides, ev p
 // no exact action — 10,684 of the 16,654 rows in the queue on 2026-09-14, every
 // one chain-verified at confidence >= 0.90. Verifying them as related records
 // the judgement without claiming the slot.
-func planRef(verdict string, conf, min float64, slotTaken bool, ev refEvidence) applyPlan {
+func planRef(verdict string, conf, minAccept, minReject float64, slotTaken bool, ev refEvidence) applyPlan {
 	switch verdict {
 	case VerdictSame:
-		if conf < min {
+		if conf < minAccept {
 			return applyPlan{Skip: skipBelowConfidence}
 		}
 		switch {
@@ -282,7 +309,7 @@ func planRef(verdict string, conf, min float64, slotTaken bool, ev refEvidence) 
 	case VerdictChainVerified:
 		// The chain lane proved this row against an upstream join before it
 		// ever wrote a verdict, so its evidence is the verdict.
-		if conf < min {
+		if conf < minAccept {
 			return applyPlan{Skip: skipBelowConfidence}
 		}
 		return confirmPlan(slotTaken, "")
@@ -290,7 +317,12 @@ func planRef(verdict string, conf, min float64, slotTaken bool, ev refEvidence) 
 		// No confidence gate: the fan-out lane counts rows, it does not estimate.
 		return applyPlan{Action: applyConfirmRelated}
 	case VerdictDifferent:
-		return applyPlan{Skip: skipRefDifferent}
+		// minReject <= 0 is an apply run that never passed the flag: do not
+		// delete a probable ref on a default.
+		if minReject <= 0 || conf < minReject {
+			return applyPlan{Stamp: stampHeldProbableDisputed}
+		}
+		return applyPlan{Action: applyReject}
 	case VerdictChainUnproven:
 		return applyPlan{Skip: skipChainUnproven}
 	case VerdictUnsure:

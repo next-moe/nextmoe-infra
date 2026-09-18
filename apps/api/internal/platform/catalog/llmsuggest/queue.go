@@ -22,6 +22,7 @@ const (
 	matchedByHLTBSteam           = "rule:hltb-steam"
 	matchedByBgmTitleOnly        = "rule:bgm-title-only"
 	matchedByTitleYearStrict     = "rule:title-year-strict"
+	matchedByCurated             = "curated"
 
 	sourceKeyVNDB    = "vndb"
 	sourceKeyBangumi = "bangumi"

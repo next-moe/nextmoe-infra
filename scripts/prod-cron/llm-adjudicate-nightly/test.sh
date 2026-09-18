@@ -42,6 +42,7 @@ adj-judge-workpair
 adj-apply-workpair
 adj-approve
 adj-execute
+adj-release
 adj-judge-creditname
 adj-apply-creditname
 adj-judge-refs
@@ -125,7 +126,7 @@ case "$1" in
       exit 99
     fi
     case "$name" in
-      adj-judge-workpair|adj-apply-workpair|adj-approve|adj-execute|adj-judge-creditname|adj-apply-creditname|adj-judge-refs|adj-apply-refs)
+      adj-judge-workpair|adj-apply-workpair|adj-approve|adj-execute|adj-release|adj-judge-creditname|adj-apply-creditname|adj-judge-refs|adj-apply-refs)
         ;;
       *)
         echo "fake docker run: unexpected --name $name" >&2
@@ -149,6 +150,9 @@ case "$1" in
           ;;
         adj-execute)
           echo "[execute] cooled=2 executed=2 chain_superseded=0 errors=0"
+          ;;
+        adj-release)
+          echo "[release] quarantined=0 held=0 released=0"
           ;;
         adj-judge-creditname)
           echo "2026/09/17 10:52:40 INFO queue-creditname done judged=20 errors=0 dry=false"
@@ -523,7 +527,7 @@ expect_reindex_between() {
   bad=0
   while IFS= read -r line || [ -n "$line" ]; do
     if [ "$line" = "reindex" ]; then
-      if [ "$prev" != "adj-execute" ]; then
+      if [ "$prev" != "adj-release" ]; then
         bad=1
       fi
       saw=1
@@ -536,7 +540,7 @@ expect_reindex_between() {
     prev=$line
   done < "$seq"
   if [ "$bad" = 1 ] || [ "$saw" != 2 ]; then
-    fail "reindex not between adj-execute and adj-judge-creditname"
+    fail "reindex not between adj-release and adj-judge-creditname"
   fi
 }
 
@@ -620,7 +624,7 @@ scan_t3() {
       name=$line
       case "$line" in
         adj-judge-*) is_judge=1 ;;
-        adj-apply-*|adj-approve|adj-execute) is_apply=1 ;;
+        adj-apply-*|adj-approve|adj-execute|adj-release) is_apply=1 ;;
       esac
     fi
     prev=$line
@@ -628,8 +632,8 @@ scan_t3() {
   if [ "$njudge" -ne 3 ]; then
     fail "judge docker runs=$njudge want 3"
   fi
-  if [ "$napply" -ne 5 ]; then
-    fail "apply/approve/execute docker runs=$napply want 5"
+  if [ "$napply" -ne 6 ]; then
+    fail "apply/approve/execute docker runs=$napply want 6"
   fi
 }
 
@@ -658,6 +662,9 @@ expect_exit "$td" 0
 expect_c_contains "$td" adj-judge-creditname "--apply --task queue-creditname --limit 300"
 expect_c_contains "$td" adj-apply-creditname "--mode apply --queue creditname --actor 1 --min-confidence 0.9 --min-confidence-reject 0.8 --apply"
 expect_c_lacks "$td" adj-apply-creditname "--limit"
+expect_c_contains "$td" adj-apply-refs "--min-confidence-reject 0.8"
+expect_c_contains "$td" adj-release "work-dedup -mode release -actor 1 -note"
+expect_c_contains "$td" adj-release "-run"
 tend
 rm -rf "$td"
 
@@ -870,6 +877,7 @@ expect_no_name "$td" adj-judge-creditname
 expect_no_name "$td" adj-apply-creditname
 expect_no_name "$td" adj-judge-refs
 expect_no_name "$td" adj-apply-refs
+expect_no_name "$td" adj-release
 expect_reindex "$td" 0
 expect_no_stamp "$td"
 tend

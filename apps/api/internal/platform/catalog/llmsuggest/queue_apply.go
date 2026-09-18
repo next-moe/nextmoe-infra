@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"api/internal/platform/catalog/model"
@@ -54,7 +55,7 @@ func RunApply(ctx context.Context, db *gorm.DB, up StagingDBs, queues *service.A
 		if sides, err = loadApplySides(db, rows); err != nil {
 			return ApplyStats{}, err
 		}
-		if names, err = workPairNameEvidence(db, rows); err != nil {
+		if names, err = loadPairEvidence(db, rows); err != nil {
 			return ApplyStats{}, err
 		}
 	}
@@ -67,6 +68,7 @@ func RunApply(ctx context.Context, db *gorm.DB, up StagingDBs, queues *service.A
 	}
 	holders := map[string]int64{}
 	evidence := map[int64]refEvidence{}
+	matchedBy := map[int64]string{}
 	if opts.Queue == QueueRef {
 		var err error
 		if holders, err = exactSlotHolders(db, rows); err != nil {
@@ -79,13 +81,20 @@ func RunApply(ctx context.Context, db *gorm.DB, up StagingDBs, queues *service.A
 		if evidence, err = refCorroboration(db, up.EG, reg, rows); err != nil {
 			return ApplyStats{}, err
 		}
+		if matchedBy, err = loadRefMatchedBy(db, rows); err != nil {
+			return ApplyStats{}, err
+		}
 	}
 
 	st := &tally{}
 	for _, row := range rows {
 		h, held := holders[exactSlotKey(row.EntityType, row.SourceID, row.ExternalID)]
 		plan := planFor(opts.Queue, row, sides, opts, held && h != row.EntityID,
-			applyEvidence{Ref: evidence[row.ID], Pair: names[row.ID], Credit: credit[[2]int64{row.AID, row.BID}]})
+			applyEvidence{Ref: evidence[row.ID], Pair: names[row.ID], Credit: credit[[2]int64{row.AID, row.BID}], RefMatchedBy: matchedBy[row.ID]})
+		if isKeptApartStamp(plan.stamp()) && row.AppliedAction == plan.stamp() {
+			st.add(skipKeptApartUnchanged, 1)
+			continue
+		}
 		if plan.Skip != "" {
 			st.add(plan.Skip, 1)
 			if opts.DryRun {
@@ -102,6 +111,11 @@ func RunApply(ctx context.Context, db *gorm.DB, up StagingDBs, queues *service.A
 		}
 		if !plan.recordOnly() {
 			if err := executeApply(ctx, queues, opts.Queue, row, plan, opts.Actor); err != nil {
+				if errors.Is(err, service.ErrCuratedRef) {
+					st.add(skipCuratedRef, 1)
+					fmt.Printf("  ! apply %s id=%d: %v\n", skipCuratedRef, row.ID, err)
+					continue
+				}
 				class := classifyApplyErr(err)
 				if class != errNotFound {
 					st.add(class, 1)
@@ -148,8 +162,9 @@ func applySelection(opts Options) (minConf float64, verdicts []string) {
 	case QueueCreditName:
 		return math.Min(opts.MinConfidence, opts.MinConfidenceReject), verdicts
 	default:
-		// planRef has no reject path, so the reject bar cannot widen it
-		return opts.MinConfidence, append(verdicts, VerdictRelated)
+		// Different below the reject bar is stamped held_probable_disputed, so
+		// the loop has to see those rows even when they sit under the confirm bar.
+		return 0, append(verdicts, VerdictRelated)
 	}
 }
 
@@ -157,9 +172,10 @@ func applySelection(opts Options) (minConf float64, verdicts []string) {
 // not carry: for a ref, what agrees with the name; for a work pair, who else
 // answers to the name.
 type applyEvidence struct {
-	Ref    refEvidence
-	Pair   pairEvidence
-	Credit creditApplyFacts
+	Ref          refEvidence
+	Pair         pairEvidence
+	Credit       creditApplyFacts
+	RefMatchedBy string
 }
 
 func planFor(queue string, row QueueVerdict, sides map[int64]workPairSides, opts Options, slotTaken bool, ev applyEvidence) applyPlan {
@@ -187,7 +203,11 @@ func planFor(queue string, row QueueVerdict, sides map[int64]workPairSides, opts
 		}
 		return planWorkPair(row.Verdict, row.Confidence, opts.MinConfidenceReject, s, ev.Pair)
 	case QueueRef:
-		return planRef(row.Verdict, row.Confidence, opts.MinConfidence, slotTaken, ev.Ref)
+		p := planRef(row.Verdict, row.Confidence, opts.MinConfidence, opts.MinConfidenceReject, slotTaken, ev.Ref)
+		if p.Action == applyReject && ev.RefMatchedBy == matchedByCurated {
+			return applyPlan{Skip: skipCuratedRef}
+		}
+		return p
 	default:
 		return applyPlan{Skip: skipGoldQueue}
 	}
@@ -223,10 +243,14 @@ func executeApply(ctx context.Context, queues *service.AdminQueueService, queue 
 			EntityType: row.EntityType, EntityID: row.EntityID,
 			SourceID: row.SourceID, ExternalID: row.ExternalID,
 		}
-		if plan.Action == applyConfirmRelated {
+		switch plan.Action {
+		case applyConfirmRelated:
 			return queues.VerifyRefAsRelated(ctx, key, actor)
+		case applyReject:
+			return queues.RejectRef(ctx, key, note, actor)
+		default:
+			return queues.ConfirmRef(ctx, key, actor)
 		}
-		return queues.ConfirmRef(ctx, key, actor)
 	default:
 		return fmt.Errorf("unknown queue %q", queue)
 	}
@@ -359,6 +383,52 @@ func exactSlotHolders(db *gorm.DB, rows []QueueVerdict) (map[string]int64, error
 			for _, f := range found {
 				out[exactSlotKey(g.et, g.src, f.ExternalID)] = f.EntityID
 			}
+		}
+	}
+	return out, nil
+}
+
+func loadRefMatchedBy(db *gorm.DB, rows []QueueVerdict) (map[int64]string, error) {
+	out := map[int64]string{}
+	type pk struct {
+		et  int16
+		id  int64
+		src int16
+		ext string
+	}
+	ids := map[pk][]int64{}
+	vals := make([]string, 0, len(rows))
+	args := make([]any, 0, len(rows)*4)
+	for _, r := range rows {
+		k := pk{r.EntityType, r.EntityID, r.SourceID, r.ExternalID}
+		if _, seen := ids[k]; !seen {
+			vals = append(vals, "(CAST(? AS smallint), CAST(? AS bigint), CAST(? AS smallint), CAST(? AS text))")
+			args = append(args, r.EntityType, r.EntityID, r.SourceID, r.ExternalID)
+		}
+		ids[k] = append(ids[k], r.ID)
+	}
+	if len(vals) == 0 {
+		return out, nil
+	}
+	var found []struct {
+		EntityType int16  `gorm:"column:entity_type"`
+		EntityID   int64  `gorm:"column:entity_id"`
+		SourceID   int16  `gorm:"column:source_id"`
+		ExternalID string `gorm:"column:external_id"`
+		MatchedBy  string `gorm:"column:matched_by"`
+	}
+	if err := db.Raw(`
+		WITH wanted(entity_type, entity_id, source_id, external_id) AS (VALUES `+strings.Join(vals, ", ")+`)
+		SELECT r.entity_type, r.entity_id, r.source_id, r.external_id, r.matched_by
+		FROM catalog_external_ref r
+		JOIN wanted w ON w.entity_type = r.entity_type AND w.entity_id = r.entity_id
+			AND w.source_id = r.source_id AND w.external_id = r.external_id`, args...).
+		Scan(&found).Error; err != nil {
+		return nil, err
+	}
+	for _, f := range found {
+		for _, id := range ids[pk{f.EntityType, f.EntityID, f.SourceID, f.ExternalID}] {
+			out[id] = f.MatchedBy
 		}
 	}
 	return out, nil

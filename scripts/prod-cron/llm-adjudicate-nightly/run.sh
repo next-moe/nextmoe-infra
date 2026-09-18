@@ -8,10 +8,11 @@
 # review piles grew without bound while the machinery to drain them was already
 # written and passing its tests.
 #
-# The merge half is four steps, not two, and the last two are the reason this
+# The merge half is five steps, not two, and approve/execute are the reason this
 # file exists: llm-suggest's `accept` only files an OPEN proposal. Approval and
 # execution are separate transitions, so a lane that stops after apply produces
-# proposals nobody executes — 965 of them had accumulated by 2026-09-14.
+# proposals nobody executes — 965 of them had accumulated by 2026-09-14. Release
+# then lets go of any quarantined work nothing still holds.
 #
 # Two outcomes, as in work-dedup-nightly: a lane that broke exits non-zero and
 # the trap sends [FAIL] with no success stamp; a lane that ran but found the
@@ -121,7 +122,7 @@ judge_step() {
 # otherwise read the FIRST run's counters. Everything past this offset is ours.
 MARK=$(wc -c < "$LOG")
 
-echo "--- 1/8 judge work pairs ---"
+echo "--- 1/9 judge work pairs ---"
 judge_step queue-workpair \
   docker run --rm --name adj-judge-workpair --network dokploy-network \
   --env-file "$BASE/env.tmp" --env-file "$LLM_ENV" "$IMG" \
@@ -132,7 +133,7 @@ judge_step queue-workpair \
 # only parks a pair, and the pair stays readable in catalog_match_candidate.
 # Holding both to 0.9 is what left 811 judged-different pairs stuck in
 # needs_manual with no action that could ever clear them.
-echo "--- 2/8 apply work-pair verdicts (files open proposals) ---"
+echo "--- 2/9 apply work-pair verdicts (files open proposals) ---"
 docker run --rm --name adj-apply-workpair --network dokploy-network \
   --env-file "$BASE/env.tmp" "$IMG" \
   sh -c 'exec llm-suggest --mode apply --queue workpair --actor 1 --min-confidence 0.9 --min-confidence-reject 0.7 --apply'
@@ -140,15 +141,20 @@ docker run --rm --name adj-apply-workpair --network dokploy-network \
 # Screens the RESOLVED endpoints for an exact-ref contradiction from an
 # independent registry before approving; a contradiction only from a
 # first-party source is our own duplicate and does not veto the merge.
-echo "--- 3/8 approve (capped at $APPROVE_LIMIT) ---"
+echo "--- 3/9 approve (capped at $APPROVE_LIMIT) ---"
 docker run --rm --name adj-approve --network dokploy-network \
   --env-file "$BASE/env.tmp" "$IMG" \
   sh -c "exec work-dedup -mode approve -actor 1 -note '$NOTE' -limit $APPROVE_LIMIT -run"
 
-echo "--- 4/8 execute ---"
+echo "--- 4/9 execute ---"
 docker run --rm --name adj-execute --network dokploy-network \
   --env-file "$BASE/env.tmp" "$IMG" \
   sh -c "exec work-dedup -mode execute -actor 1 -note '$NOTE' -run"
+
+echo "--- 5/9 release unheld quarantine ---"
+docker run --rm --name adj-release --network dokploy-network \
+  --env-file "$BASE/env.tmp" "$IMG" \
+  sh -c "exec work-dedup -mode release -actor 1 -note '$NOTE' -run"
 
 OURS=$(tail -c "+$((MARK + 1))" "$LOG")
 
@@ -163,42 +169,43 @@ fi
 # soft-deleted work, so hand the reindex its trigger. It owns its own flock,
 # alerting and success stamp, so a failure here is logged and not re-alerted.
 if echo "$OURS" | grep -q '\[execute\].*executed=[1-9]'; then
-  echo "--- 5/8 merges executed - triggering catalog reindex ---"
+  echo "--- 6/9 merges executed - triggering catalog reindex ---"
   "$REINDEX_SH" || echo "reindex-catalog exited $? (its own alerting covers this)"
 else
-  echo "--- 5/8 no merges executed - skipping reindex ---"
+  echo "--- 6/9 no merges executed - skipping reindex ---"
 fi
 
 # An accepted credit-name pair creates or joins a person, and production has no
 # unmerge for either, so the judge is capped per night. The apply is not: it
 # leaves held and below-bar rows unstamped, and a row cap would fill with them.
-echo "--- 6/8 judge credit-name pairs ---"
+echo "--- 7/9 judge credit-name pairs ---"
 judge_step queue-creditname \
   docker run --rm --name adj-judge-creditname --network dokploy-network \
   --env-file "$BASE/env.tmp" --env-file "$LLM_ENV" "$IMG" \
   sh -c "exec llm-suggest $LLM --apply --task queue-creditname --limit $CREDITNAME_LIMIT"
 
-echo "--- 7/8 apply credit-name verdicts (links persons) ---"
+echo "--- 8/9 apply credit-name verdicts (links persons) ---"
 docker run --rm --name adj-apply-creditname --network dokploy-network \
   --env-file "$BASE/env.tmp" "$IMG" \
   sh -c "exec llm-suggest --mode apply --queue creditname --actor 1 --min-confidence $CREDITNAME_ACCEPT --min-confidence-reject 0.8 --apply"
 
-# Refs last: it is the long lane, and unlike the work-pair lane it can only ever
-# confirm (planRef has no reject path), so nothing downstream waits on it.
+# Refs last: it is the long lane. different at --min-confidence-reject 0.8 is
+# rejected through RejectRef; below that the row is stamped held_probable_disputed
+# and stays probable until the dossier changes.
 #
 # --families all, not llm: the chain family resolves its evidence with a join
 # against the erogamescape database, which lives on this same postgres server,
 # so llm-suggest reaches it by swapping the dbname on the catalog credentials
 # and it costs no model calls at all. Probed 2026-09-14: eg-steam and eg-dmm
 # both return chain-verified, over 3,728 rows that the llm-only lane skipped.
-echo "--- 8/8 judge and confirm probable refs ---"
+echo "--- 9/9 judge and confirm probable refs ---"
 judge_step queue-refs \
   docker run --rm --name adj-judge-refs --network dokploy-network \
   --env-file "$BASE/env.tmp" --env-file "$LLM_ENV" "$IMG" \
   sh -c "exec llm-suggest $LLM --apply --task queue-refs --families all"
 docker run --rm --name adj-apply-refs --network dokploy-network \
   --env-file "$BASE/env.tmp" "$IMG" \
-  sh -c 'exec llm-suggest --mode apply --queue ref --actor 1 --min-confidence 0.9 --apply'
+  sh -c 'exec llm-suggest --mode apply --queue ref --actor 1 --min-confidence 0.9 --min-confidence-reject 0.8 --apply'
 
 find logs -name 'run-*.log' ! -name "run-$(date +%F).log" -exec gzip -qf {} \;
 find logs -name 'run-*.log.gz' -mtime +90 -delete
