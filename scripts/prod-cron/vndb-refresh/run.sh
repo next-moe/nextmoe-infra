@@ -293,6 +293,11 @@ run sh -c "$DSNSH"'; import-store-anchors --dsn "$CAT" --only steam --apply'
 #      rule:hltb-steam, rejection-guarded — a pair a human rejected stays dead.
 run sh -c "$DSNSH"'; import-hltb-refs --dsn "$CAT" --hltb-dsn "$HL" --apply'
 
+# 6a6. Title+date HLTB work refs for the games 6a5 left unclaimed: a unique
+#      title hit whose release date equals a full work date. Probable like 6a5,
+#      attach only, never mint; before the playtime pass so it reads them.
+run sh -c "$DSNSH"'; reconcile-hltb --dsn "$CAT" --hltb-dsn "$HL" --apply'
+
 # 6b. Character facets for the characters 6a just created.
 run sh -c "$DSNSH"'; import-character-traits --dsn "$CAT" --apply'
 run sh -c "$DSNSH"'; backfill-character-attrs --dsn "$CAT" --apply'
