@@ -62,6 +62,7 @@ import-entity-aliases --candidates --run
 person-link-batch --rule-set alias --actor 1 --run
 import-bangumi-xmedia --run
 import-eg-dlsite-releases --run
+import-dlsite-games --run --limit 250
 backfill-dlsite-genres --apply
 backfill-dlsite-media --kind intro --apply
 import-work-aliases --source all --apply
@@ -107,6 +108,7 @@ extract_tool_cmd() {
     import-bangumi-xmedia \
     expand-bgm-type4-gated \
     import-eg-dlsite-releases \
+    import-dlsite-games \
     backfill-dlsite-genres \
     backfill-dlsite-media \
     import-work-aliases \
@@ -176,6 +178,9 @@ emit_out() {
       ;;
     import-eg-dlsite-releases+dry)
       echo '2026/09/17 05:21:23 INFO eg-dlsite wave summary attached=0 minted=46 already=14178 ambiguous=407 missing=782 amb_b1_attach=0 amb_b2_mint=0 amb_b3_conflict=0 releases=46 titles=46 labels=31 names=49 credits=196 edges=46 eg_refs=46 stubs=0 skipped_unmapped_role=0 title_collisions=23 quarantined=23 skipped_intra_collision=0 errors=0'
+      ;;
+    import-dlsite-games+dry|import-dlsite-games+apply)
+      echo '2026/09/18 12:31:50 INFO dlsite-games wave summary population=0 total_groups=0 pack_products=0 edition_groups=0 declared_groups=0 split_groups=0 title_attached_groups=0 rejected_skips=0 quarantined_groups=0 minted_groups=0 folded_groups=0 releases_planned=0 refs_planned=0 candidates_planned=0 limited_groups=0 written=0 errors=0'
       ;;
     import-work-series+dry)
       echo '2026/09/16 13:28:23 INFO workseries done apply=false anchored_works=19709 series_eligible=887 members_wanted=3178 series_created=10 series_renamed=0 series_deleted=0 members_added=1100 members_stale=0 order_changed=288 errors=0'
@@ -291,6 +296,8 @@ case "$1" in
       import-bangumi-xmedia \
       expand-bgm-type4-gated \
       import-eg-dlsite-releases \
+      import-dlsite-games \
+    import-dlsite-games \
       backfill-dlsite-genres \
       backfill-dlsite-media \
       import-work-aliases \
@@ -356,7 +363,7 @@ case "$1" in
       echo "backfill-dlsite-media must run --kind intro (covers and screenshots are image-mirror's): $toolcmd" >> "$CTL/violations"
     fi
     case "$tool" in
-      import-entity-aliases|import-bangumi-xmedia|import-eg-dlsite-releases|person-link-batch)
+      import-entity-aliases|import-bangumi-xmedia|import-eg-dlsite-releases|import-dlsite-games|person-link-batch)
         case "$toolcmd" in *"--apply"*) echo "$tool takes --run, not --apply" >> "$CTL/violations" ;; esac
         ;;
       *)
@@ -389,7 +396,7 @@ case "$1" in
       [ -n "$actor" ] && line="$line --actor $actor"
       [ -n "$kind" ] && line="$line --kind $kind"
       case "$tool" in
-        import-entity-aliases|import-bangumi-xmedia|import-eg-dlsite-releases|person-link-batch) line="$line --run" ;;
+        import-entity-aliases|import-bangumi-xmedia|import-eg-dlsite-releases|import-dlsite-games|person-link-batch) line="$line --run" ;;
         *) line="$line --apply" ;;
       esac
       [ -n "$limit" ] && line="$line --limit $limit"
@@ -792,6 +799,7 @@ if ! has_alert "$td"; then fail "no alert"; fi
 write_t1_expected "$td/ctl/t1"
 grep -v -F \
   -e 'import-eg-dlsite-releases --run' \
+  -e 'import-dlsite-games --run --limit 250' \
   -e 'backfill-dlsite-genres --apply' \
   -e 'backfill-dlsite-media --kind intro --apply' \
   -e 'import-work-aliases --source all --apply' \
@@ -1006,6 +1014,29 @@ grep -v -F \
   -e 'import-galgame-credits --source eg-music --apply' \
   -e 'import-store-refs --apply' \
   -e 'backfill-work-playtime --source eg --apply' \
+  "$td/ctl/t1" > "$td/ctl/expected"
+expect_apply "$td" "$td/ctl/expected"
+tend
+rm -rf "$td"
+
+# --- T25: a DLsite-games mint batch past its ceiling writes nothing, and the rest of the DLsite group stands down ---
+tstart 25
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' '2026/09/18 12:31:50 INFO dlsite-games wave summary population=9000 total_groups=8000 pack_products=0 edition_groups=0 declared_groups=0 split_groups=0 title_attached_groups=0 rejected_skips=0 quarantined_groups=0 minted_groups=301 folded_groups=0 releases_planned=301 refs_planned=301 candidates_planned=0 limited_groups=0 written=0 errors=0' \
+  > "$td/ctl/out/import-dlsite-games+dry"
+run_job "$td"
+expect_exit_nonzero "$td"
+if has_stamp "$td"; then fail "stamp written"; fi
+if ! has_alert "$td"; then fail "no alert"; fi
+write_t1_expected "$td/ctl/t1"
+grep -v -F \
+  -e 'import-dlsite-games --run --limit 250' \
+  -e 'backfill-dlsite-genres --apply' \
+  -e 'backfill-dlsite-media --kind intro --apply' \
+  -e 'import-work-aliases --source all --apply' \
+  -e 'import-work-platforms --source all --apply' \
+  -e 'import-work-series --apply' \
   "$td/ctl/t1" > "$td/ctl/expected"
 expect_apply "$td" "$td/ctl/expected"
 tend
