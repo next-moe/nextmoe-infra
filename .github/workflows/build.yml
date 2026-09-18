@@ -70,7 +70,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           sha=$(gh run list -R "$GITHUB_REPOSITORY" --workflow build.yml --branch "$GITHUB_REF_NAME" \
-            --event push --status success --limit 1 --json headSha -q '.[0].headSha // empty')
+            --event push --status success --limit 1 --json headSha -q '.[0].headSha // empty') \
+            || { echo "::warning::last-success lookup failed; diffing against event.before"; sha=""; }
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
           echo "changes since: ${sha:-event.before}"
       - uses: dorny/paths-filter@v4
