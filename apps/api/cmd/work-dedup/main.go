@@ -24,20 +24,20 @@ const waveTagW1 = "rule:work-dedup w1"
 const exitNewPairs = 3
 
 func main() {
-	mode := flag.String("mode", "census", "census | seed | propose | approve | execute | release | watch | crossmedium | nightly (seed+propose+execute over one census)")
-	actor := flag.Int64("actor", 0, "operator user id recorded on candidates/proposals (required for seed/propose/approve/execute/release/crossmedium/nightly)")
+	mode := flag.String("mode", "census", "census | seed | seed-keys | propose | approve | execute | release | watch | crossmedium | nightly (seed+propose+execute over one census)")
+	actor := flag.Int64("actor", 0, "operator user id recorded on candidates/proposals (required for seed/seed-keys/propose/approve/execute/release/crossmedium/nightly)")
 	run := flag.Bool("run", false, "write (default: dry-run preview)")
-	limit := flag.Int("limit", 0, "propose: max merge groups this run; approve/execute: max proposals this run (0 = all)")
+	limit := flag.Int("limit", 0, "propose: max merge groups this run; approve/execute: max proposals this run (0 = all); seed-keys: max candidate rows written (0 = none)")
 	note := flag.String("note", waveTagW1, "wave note tag stamped on proposals and matched by -mode approve and -mode execute")
 	csvPath := flag.String("csv", "", "census: also export the full pair dossier to this CSV path")
 	dsn := flag.String("dsn", "", "catalog DSN override (default: KUN_CATALOG_PG_* env)")
 	failOnNew := flag.Bool("fail-on-new", false, fmt.Sprintf("watch: exit %d when undecided new pairs exist; nightly: exit %d when the seed filed new needs_manual pairs", exitNewPairs, exitNewPairs))
 	flag.Parse()
 
-	writes := *mode == "seed" || *mode == "propose" || *mode == "approve" || *mode == "execute" ||
+	writes := *mode == "seed" || *mode == "seed-keys" || *mode == "propose" || *mode == "approve" || *mode == "execute" ||
 		*mode == "release" || *mode == "crossmedium" || *mode == "nightly"
 	if writes && *actor <= 0 {
-		fmt.Fprintln(os.Stderr, "-actor <user-id> is required for seed/propose/approve/execute/release/crossmedium/nightly")
+		fmt.Fprintln(os.Stderr, "-actor <user-id> is required for seed/seed-keys/propose/approve/execute/release/crossmedium/nightly")
 		os.Exit(2)
 	}
 
@@ -56,6 +56,8 @@ func main() {
 		err = runCensus(ctx, db, os.Stdout, *csvPath)
 	case "seed":
 		err = runSeed(ctx, db, os.Stdout, *actor, *run)
+	case "seed-keys":
+		err = runSeedKeys(ctx, db, os.Stdout, *actor, *limit, *run)
 	case "propose":
 		err = runPropose(ctx, db, os.Stdout, merge, *actor, *note, *limit, *run)
 	case "approve":

@@ -122,7 +122,12 @@ judge_step() {
 # otherwise read the FIRST run's counters. Everything past this offset is ours.
 MARK=$(wc -c < "$LOG")
 
-echo "--- 1/9 judge work pairs ---"
+echo "--- 1/10 seed-keys ---"
+docker run --rm --name adj-seed-keys --network dokploy-network \
+  --env-file "$BASE/env.tmp" "$IMG" \
+  sh -c 'exec work-dedup -mode seed-keys -actor 1 -limit 500 -run'
+
+echo "--- 2/10 judge work pairs ---"
 judge_step queue-workpair \
   docker run --rm --name adj-judge-workpair --network dokploy-network \
   --env-file "$BASE/env.tmp" --env-file "$LLM_ENV" "$IMG" \
@@ -133,7 +138,7 @@ judge_step queue-workpair \
 # only parks a pair, and the pair stays readable in catalog_match_candidate.
 # Holding both to 0.9 is what left 811 judged-different pairs stuck in
 # needs_manual with no action that could ever clear them.
-echo "--- 2/9 apply work-pair verdicts (files open proposals) ---"
+echo "--- 3/10 apply work-pair verdicts (files open proposals) ---"
 docker run --rm --name adj-apply-workpair --network dokploy-network \
   --env-file "$BASE/env.tmp" "$IMG" \
   sh -c 'exec llm-suggest --mode apply --queue workpair --actor 1 --min-confidence 0.9 --min-confidence-reject 0.7 --apply'
@@ -141,17 +146,17 @@ docker run --rm --name adj-apply-workpair --network dokploy-network \
 # Screens the RESOLVED endpoints for an exact-ref contradiction from an
 # independent registry before approving; a contradiction only from a
 # first-party source is our own duplicate and does not veto the merge.
-echo "--- 3/9 approve (capped at $APPROVE_LIMIT) ---"
+echo "--- 4/10 approve (capped at $APPROVE_LIMIT) ---"
 docker run --rm --name adj-approve --network dokploy-network \
   --env-file "$BASE/env.tmp" "$IMG" \
   sh -c "exec work-dedup -mode approve -actor 1 -note '$NOTE' -limit $APPROVE_LIMIT -run"
 
-echo "--- 4/9 execute ---"
+echo "--- 5/10 execute ---"
 docker run --rm --name adj-execute --network dokploy-network \
   --env-file "$BASE/env.tmp" "$IMG" \
   sh -c "exec work-dedup -mode execute -actor 1 -note '$NOTE' -run"
 
-echo "--- 5/9 release unheld quarantine ---"
+echo "--- 6/10 release unheld quarantine ---"
 docker run --rm --name adj-release --network dokploy-network \
   --env-file "$BASE/env.tmp" "$IMG" \
   sh -c "exec work-dedup -mode release -actor 1 -note '$NOTE' -run"
@@ -169,22 +174,22 @@ fi
 # soft-deleted work, so hand the reindex its trigger. It owns its own flock,
 # alerting and success stamp, so a failure here is logged and not re-alerted.
 if echo "$OURS" | grep -q '\[execute\].*executed=[1-9]'; then
-  echo "--- 6/9 merges executed - triggering catalog reindex ---"
+  echo "--- 7/10 merges executed - triggering catalog reindex ---"
   "$REINDEX_SH" || echo "reindex-catalog exited $? (its own alerting covers this)"
 else
-  echo "--- 6/9 no merges executed - skipping reindex ---"
+  echo "--- 7/10 no merges executed - skipping reindex ---"
 fi
 
 # An accepted credit-name pair creates or joins a person, and production has no
 # unmerge for either, so the judge is capped per night. The apply is not: it
 # leaves held and below-bar rows unstamped, and a row cap would fill with them.
-echo "--- 7/9 judge credit-name pairs ---"
+echo "--- 8/10 judge credit-name pairs ---"
 judge_step queue-creditname \
   docker run --rm --name adj-judge-creditname --network dokploy-network \
   --env-file "$BASE/env.tmp" --env-file "$LLM_ENV" "$IMG" \
   sh -c "exec llm-suggest $LLM --apply --task queue-creditname --limit $CREDITNAME_LIMIT"
 
-echo "--- 8/9 apply credit-name verdicts (links persons) ---"
+echo "--- 9/10 apply credit-name verdicts (links persons) ---"
 docker run --rm --name adj-apply-creditname --network dokploy-network \
   --env-file "$BASE/env.tmp" "$IMG" \
   sh -c "exec llm-suggest --mode apply --queue creditname --actor 1 --min-confidence $CREDITNAME_ACCEPT --min-confidence-reject 0.8 --apply"
@@ -198,7 +203,7 @@ docker run --rm --name adj-apply-creditname --network dokploy-network \
 # so llm-suggest reaches it by swapping the dbname on the catalog credentials
 # and it costs no model calls at all. Probed 2026-09-14: eg-steam and eg-dmm
 # both return chain-verified, over 3,728 rows that the llm-only lane skipped.
-echo "--- 9/9 judge and confirm probable refs ---"
+echo "--- 10/10 judge and confirm probable refs ---"
 judge_step queue-refs \
   docker run --rm --name adj-judge-refs --network dokploy-network \
   --env-file "$BASE/env.tmp" --env-file "$LLM_ENV" "$IMG" \

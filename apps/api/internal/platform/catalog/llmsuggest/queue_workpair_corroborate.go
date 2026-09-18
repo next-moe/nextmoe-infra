@@ -55,9 +55,15 @@ type pairEvidence struct {
 	LooseName    string
 	LooseHolders int
 
+	StrippedName    string
+	StrippedHolders int
+
 	SharedSourceKey  string
 	SharedExternalID string
 	SharedHolders    int
+
+	DeclaredSubject string
+	DeclaredWorkno  string
 }
 
 func (e pairEvidence) exclusive() bool { return e.Name != "" && e.Holders == exclusiveNameHolders }
@@ -70,9 +76,18 @@ func (e pairEvidence) exclusiveShared() bool {
 	return e.SharedSourceKey != "" && e.SharedExternalID != "" && e.SharedHolders == exclusiveNameHolders
 }
 
+func (e pairEvidence) exclusiveStripped() bool {
+	return e.StrippedName != "" && e.StrippedHolders == exclusiveNameHolders && utf8.RuneCountInString(e.StrippedName) >= looseNameMinRunes
+}
+
+func (e pairEvidence) exclusiveDeclared() bool {
+	return e.DeclaredSubject != "" && e.DeclaredWorkno != ""
+}
+
 // acceptReason names the corroborator that decides an accept, in preference
-// order folded name, shared record, loose name. unsure cannot use the loose
-// key: that is the 450-pair VNDB-disagreement class above.
+// order folded name, shared record, declared dlsite, loose name, stripped key.
+// unsure cannot use loose, stripped, or declared: the 450-pair VNDB-disagreement
+// class above is the loose-key reason, and declared/stripped are same-only.
 func (e pairEvidence) acceptReason(verdict string) string {
 	if e.exclusive() {
 		return fmt.Sprintf("sole holders of %q", e.Name)
@@ -80,8 +95,14 @@ func (e pairEvidence) acceptReason(verdict string) string {
 	if e.exclusiveShared() {
 		return fmt.Sprintf("shares %s:%s", e.SharedSourceKey, e.SharedExternalID)
 	}
+	if verdict == VerdictSame && e.exclusiveDeclared() {
+		return fmt.Sprintf("bangumi %s declares dlsite %s", e.DeclaredSubject, e.DeclaredWorkno)
+	}
 	if verdict == VerdictSame && e.exclusiveLoose() {
 		return fmt.Sprintf("sole holders of loose %q", e.LooseName)
+	}
+	if verdict == VerdictSame && e.exclusiveStripped() {
+		return fmt.Sprintf("sole holders of stripped %q", e.StrippedName)
 	}
 	return ""
 }
@@ -91,10 +112,23 @@ func loadPairEvidence(db *gorm.DB, rows []QueueVerdict) (map[int64]pairEvidence,
 	if err != nil {
 		return nil, err
 	}
-	if err := attachLooseNameEvidence(db, rows, out); err != nil {
+	if len(rows) == 0 {
+		return out, nil
+	}
+	corpus, err := loadWorkNameCorpus(db)
+	if err != nil {
 		return nil, err
 	}
+	display, err := loadWorkDisplays(db, verdictWorkIDs(rows))
+	if err != nil {
+		return nil, err
+	}
+	attachLooseNameEvidence(rows, out, corpus, display)
+	attachStrippedKeyEvidence(rows, out, corpus, display)
 	if err := attachSharedRecordEvidence(db, rows, out); err != nil {
+		return nil, err
+	}
+	if err := attachDeclaredEvidence(db, rows, out); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -163,18 +197,16 @@ func workPairNameEvidence(db *gorm.DB, rows []QueueVerdict) (map[int64]pairEvide
 	return out, nil
 }
 
-func attachLooseNameEvidence(db *gorm.DB, rows []QueueVerdict, out map[int64]pairEvidence) error {
-	if len(rows) == 0 {
-		return nil
-	}
+type workNameRow struct {
+	WorkID int64  `gorm:"column:work_id"`
+	Raw    string `gorm:"column:raw"`
+}
+
+func loadWorkNameCorpus(db *gorm.DB) ([]workNameRow, error) {
 	foldTitle := service.WorkTitleFoldSQL("t.title_norm")
 	foldDisplay := service.WorkTitleFoldSQL("lower(normalize(w.display_name, NFKC))")
-	var corpus []struct {
-		WorkID int64  `gorm:"column:work_id"`
-		Raw    string `gorm:"column:raw"`
-	}
 	// Membership mirrors WorkDupeCorpusSQL (live works, kind 0/1 titles that
-	// are not suppressed, eligible folded norms). The key itself is titleKey
+	// are not suppressed, eligible folded norms). The key itself is computed
 	// in Go: PostgreSQL [:alnum:] follows the database locale, and the test
 	// database need not match production.
 	sql := `SELECT t.work_id, t.title AS raw
@@ -186,38 +218,42 @@ func attachLooseNameEvidence(db *gorm.DB, rows []QueueVerdict, out map[int64]pai
 		SELECT w.id, w.display_name
 		FROM catalog_work w
 		WHERE w.deleted_at IS NULL AND ` + service.WorkDupeNormEligibleSQL(foldDisplay)
+	var corpus []workNameRow
 	if err := db.Raw(sql).Scan(&corpus).Error; err != nil {
-		return err
+		return nil, err
 	}
-	holders := map[string]map[int64]struct{}{}
-	for _, row := range corpus {
-		k := titleKey(row.Raw)
-		if k == "" {
-			continue
-		}
-		if holders[k] == nil {
-			holders[k] = map[int64]struct{}{}
-		}
-		holders[k][row.WorkID] = struct{}{}
-	}
+	return corpus, nil
+}
 
-	ids := verdictWorkIDs(rows)
+func loadWorkDisplays(db *gorm.DB, ids []int64) (map[int64]string, error) {
+	out := map[int64]string{}
 	if len(ids) == 0 {
-		return nil
+		return out, nil
 	}
 	var names []struct {
 		ID   int64  `gorm:"column:id"`
 		Name string `gorm:"column:display_name"`
 	}
 	if err := db.Raw(`SELECT id, display_name FROM catalog_work WHERE id IN ? AND deleted_at IS NULL`, ids).Scan(&names).Error; err != nil {
-		return err
+		return nil, err
 	}
-	display := map[int64]string{}
 	for _, n := range names {
-		display[n.ID] = titleKey(n.Name)
+		out[n.ID] = n.Name
+	}
+	return out, nil
+}
+
+func attachLooseNameEvidence(rows []QueueVerdict, out map[int64]pairEvidence, corpus []workNameRow, display map[int64]string) {
+	holders := map[string]map[int64]struct{}{}
+	for _, row := range corpus {
+		k := titleKey(row.Raw)
+		if k == "" {
+			continue
+		}
+		addKeyHolder(holders, k, row.WorkID)
 	}
 	for _, r := range rows {
-		ka, kb := display[r.AID], display[r.BID]
+		ka, kb := titleKey(display[r.AID]), titleKey(display[r.BID])
 		if ka == "" || ka != kb {
 			continue
 		}
@@ -226,7 +262,16 @@ func attachLooseNameEvidence(db *gorm.DB, rows []QueueVerdict, out map[int64]pai
 		ev.LooseHolders = len(holders[ka])
 		out[r.ID] = ev
 	}
-	return nil
+}
+
+func addKeyHolder(holders map[string]map[int64]struct{}, key string, workID int64) {
+	if key == "" {
+		return
+	}
+	if holders[key] == nil {
+		holders[key] = map[int64]struct{}{}
+	}
+	holders[key][workID] = struct{}{}
 }
 
 type workIdentityRef struct {
