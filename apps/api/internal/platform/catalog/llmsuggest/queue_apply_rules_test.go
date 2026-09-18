@@ -44,6 +44,8 @@ func TestExemptSourcesDoNotVeto(t *testing.T) {
 	}{
 		{"first-party curated", model.SourceCurated, "curated"},
 		{"does not dedupe itself", model.SourceHowLongToBeat, "howlongtobeat"},
+		{"bangumi lists editions", model.SourceBangumi, "bangumi"},
+		{"eg lists editions", model.SourceErogameScape, "erogamescape"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			s := workPairSides{
@@ -57,13 +59,13 @@ func TestExemptSourcesDoNotVeto(t *testing.T) {
 	}
 
 	// positive control: the same shape under a source nobody exempts does veto,
-	// so the two empty results above are the exemption and not a broken compare
+	// so the empty results above are the exemption and not a broken compare
 	s := workPairSides{
 		AID: 1, BID: 2,
-		RefsA: []exactRef{ref(3, "bangumi", 1, "100")},
-		RefsB: []exactRef{ref(3, "bangumi", 1, "200")},
+		RefsA: []exactRef{ref(4, "dlsite", 1, "100")},
+		RefsB: []exactRef{ref(4, "dlsite", 1, "200")},
 	}
-	assert.Equal(t, "bangumi 100 vs 200", contradictingExactRef(s))
+	assert.Equal(t, "dlsite 100 vs 200", contradictingExactRef(s))
 }
 
 func TestContradictionNamesTheMostTrustedSource(t *testing.T) {
@@ -135,6 +137,7 @@ func TestEveryStampThisPackageWritesIsAKnownStamp(t *testing.T) {
 	for _, stamp := range currentStamps {
 		assert.True(t, written[stamp], "no rule writes %q", stamp)
 	}
+	assert.NotContains(t, currentStamps, stampRefConflictPrev)
 }
 
 func TestRejectThresholdIsIndependentOfAccept(t *testing.T) {

@@ -110,23 +110,31 @@ func RunApply(ctx context.Context, db *gorm.DB, up StagingDBs, queues *service.A
 			continue
 		}
 		if !plan.recordOnly() {
-			if err := executeApply(ctx, queues, opts.Queue, row, plan, opts.Actor); err != nil {
-				if errors.Is(err, service.ErrCuratedRef) {
-					st.add(skipCuratedRef, 1)
-					fmt.Printf("  ! apply %s id=%d: %v\n", skipCuratedRef, row.ID, err)
-					continue
+			skipExec, err := reopenOldRefConflictReject(db, row, plan)
+			if err != nil {
+				st.add(errOther, 1)
+				fmt.Printf("  ! reopen id=%d: %v\n", row.ID, err)
+				continue
+			}
+			if !skipExec {
+				if err := executeApply(ctx, queues, opts.Queue, row, plan, opts.Actor); err != nil {
+					if errors.Is(err, service.ErrCuratedRef) {
+						st.add(skipCuratedRef, 1)
+						fmt.Printf("  ! apply %s id=%d: %v\n", skipCuratedRef, row.ID, err)
+						continue
+					}
+					class := classifyApplyErr(err)
+					if class != errNotFound {
+						st.add(class, 1)
+						fmt.Printf("  ! apply %s id=%d: %v\n", class, row.ID, err)
+						continue
+					}
+					// The thing to act on is gone — a ref rehung onto a merge
+					// survivor, a candidate the executor deleted. Retrying cannot
+					// bring it back, and leaving the row unstamped is what made 15
+					// ref rows fail on every single nightly run.
+					plan = applyPlan{Stamp: stampTargetGone, Reason: err.Error()}
 				}
-				class := classifyApplyErr(err)
-				if class != errNotFound {
-					st.add(class, 1)
-					fmt.Printf("  ! apply %s id=%d: %v\n", class, row.ID, err)
-					continue
-				}
-				// The thing to act on is gone — a ref rehung onto a merge
-				// survivor, a candidate the executor deleted. Retrying cannot
-				// bring it back, and leaving the row unstamped is what made 15
-				// ref rows fail on every single nightly run.
-				plan = applyPlan{Stamp: stampTargetGone, Reason: err.Error()}
 			}
 		}
 		now := time.Now()
@@ -211,6 +219,26 @@ func planFor(queue string, row QueueVerdict, sides map[int64]workPairSides, opts
 	default:
 		return applyPlan{Skip: skipGoldQueue}
 	}
+}
+
+// reopenOldRefConflictReject is the only path that moves a rejected candidate
+// back to deferred, and only when the verdict row still carries
+// stampRefConflictPrev. On 2026-09-18 the veto rejected 83 pairs; 55 had a
+// same verdict and 52 of those conflicted only on EG ids. A candidate rejected
+// for any other reason (a different verdict, a human) is stamped reject, which
+// is still in currentStamps, so this function never sees those rows. skipExec
+// is the still-a-ref-conflict case: write the new stamp, leave status 2.
+func reopenOldRefConflictReject(db *gorm.DB, row QueueVerdict, plan applyPlan) (skipExec bool, err error) {
+	if row.AppliedAction != stampRefConflictPrev {
+		return false, nil
+	}
+	if plan.Action == applyReject && plan.Stamp == stampRefConflict {
+		return true, nil
+	}
+	return false, db.Exec(`UPDATE catalog_match_candidate SET status = ?
+		WHERE entity_type = ? AND a_id = ? AND b_id = ? AND status = ?`,
+		model.CandidateStatusDeferred, row.EntityType, row.AID, row.BID,
+		model.CandidateStatusRejected).Error
 }
 
 func executeApply(ctx context.Context, queues *service.AdminQueueService, queue string, row QueueVerdict, plan applyPlan, actor int64) error {

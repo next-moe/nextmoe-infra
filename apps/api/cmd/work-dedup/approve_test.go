@@ -65,6 +65,23 @@ func TestApproveIgnoresAFirstPartyConflict(t *testing.T) {
 		"two curated ids on one game is our own duplicate, which is what the merge fixes")
 }
 
+func TestApproveIgnoresAnEditionSplittingWorkConflict(t *testing.T) {
+	for _, src := range model.EditionSplittingSourceIDs {
+		_, status := approvePair(t, src, false)
+		require.Equal(t, model.ProposalStatusApproved, status,
+			"ErogameScape and Bangumi list editions separately, so their work ids do not prove two games")
+	}
+}
+
+func TestEditionSplittingSourcesStillVetoOtherEntities(t *testing.T) {
+	for _, src := range model.EditionSplittingSourceIDs {
+		require.Contains(t, model.IdentityVetoExemptSourceIDsFor(model.EntityTypeWork), src)
+		require.NotContains(t, model.IdentityVetoExemptSourceIDsFor(model.EntityTypePerson), src)
+		require.NotContains(t, model.IdentityVetoExemptSourceIDsFor(model.EntityTypeLabel), src)
+	}
+	require.NotContains(t, model.IdentityVetoExemptSourceIDsFor(model.EntityTypeWork), vndbSource)
+}
+
 func TestApproveWithNoConflictIsTheControl(t *testing.T) {
 	_, status := approvePair(t, 0, false)
 	require.Equal(t, model.ProposalStatusApproved, status)

@@ -15,8 +15,16 @@ const (
 	applyConfirm        = "confirm"
 	applyConfirmRelated = "confirm-related"
 
-	stampRefConflict = "reject_ref_conflict"
-	stampTargetGone  = "obsolete_target_missing"
+	// The stamp is renamed because the veto behind it changed: ErogameScape
+	// and Bangumi left the identity-veto list. On 2026-09-18 the veto rejected
+	// 83 pairs; 55 had a same verdict and 52 of those conflicted only on EG
+	// ids a new anchoring lane had just written. Over all nights, EG-id-only
+	// conflicts: 114 same, 32 unsure; Bangumi-id-only: 84 same, 69 unsure.
+	// Rows stamped reject_ref_conflict sit outside currentStamps and are
+	// planned again.
+	stampRefConflictPrev = "reject_ref_conflict"
+	stampRefConflict     = "reject_ref_conflict_v2"
+	stampTargetGone      = "obsolete_target_missing"
 
 	// The stamp is renamed because what it records changed: it used to mean
 	// "noted, candidate untouched", and it now means "candidate deferred".
@@ -124,7 +132,7 @@ func bothClaimed(s workPairSides) bool { return s.ClaimedA && s.ClaimedB }
 func contradictingExactRef(s workPairSides) string {
 	byKey := map[int16][]exactRef{}
 	for _, r := range s.RefsB {
-		if slices.Contains(model.IdentityVetoExemptSourceIDs, r.SourceID) {
+		if slices.Contains(model.IdentityVetoExemptSourceIDsFor(model.EntityTypeWork), r.SourceID) {
 			continue
 		}
 		byKey[r.SourceID] = append(byKey[r.SourceID], r)
