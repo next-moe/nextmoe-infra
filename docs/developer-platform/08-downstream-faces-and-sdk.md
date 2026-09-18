@@ -78,11 +78,11 @@ ForwardAuth 对所有方法生效,浏览器 `OPTIONS` 预检不带认证头 → 
 
 ### 17.1 spec 是唯一机器契约
 
-Huma 从 handler 生成 /v1 冻结 spec;今日已有三个消费者:门户 docs-model、CI oasdiff 破坏门、operation-count 守卫(02 §10)。一切「客户端如何知道 API 形状」的问题,答案都是 spec,不是散文文档。
+Huma 从 handler 生成公开面 spec(现为 `/v2`,`docs/catalog/v2-openapi.yaml`;`/v1` 已于 2026-08-27 整族落 410);今日已有三个消费者:门户 docs-model、CI oasdiff 破坏门、operation-count 守卫(02 §10)。一切「客户端如何知道 API 形状」的问题,答案都是 spec,不是散文文档。
 
 ### 17.2 客户端 SDK = spec codegen,按真实消费付费
 
-- **Flutter App**(未来一方 App):openapi-generator(`dart-dio`)从门户发布的 /v1 spec 生成类型化 Dart SDK;放 **App 仓**,随 spec 演进重新生成;破坏性漂移由 oasdiff 门在源头拦截,App 端零手写 DTO。
+- **Flutter App**(kungal 一方 App,2026-09 立项):**不直连平台面**。community 与 artifact 只收站点服务端凭证,所以资料库、通知、未读、下载都由论坛 Go api 供数,论坛再用自己的凭证或转发用户令牌去调平台。App 仓因此退役了从 `/v2` spec 生成的 Dart SDK:生成了 639 个文件,却没有一个真实调用方,按下一条纪律整条撤掉。**重建的触发条件**:出现 App 必须直连 `/v2`、而论坛不代理的功能。届时从门户发布的 `/v2` spec 生成,放 App 仓,破坏性漂移由 oasdiff 门在源头拦截。凭证与接入流程见 [10 §18](./10-native-app-integration.md)。
 - **纪律**(2026-07 下游 TS codegen 管线退役的教训):**只为真实被消费的端点集生成**;生成物无人 import 时,整条管线(含配套 workflow)一起退役,不留「以后可能用」。管线的死法要和它的生法一样干脆。
 - **第三方 SDK**:门户提供 spec 下载即可,官方不维护多语言 SDK;有真实需求再逐语言评估。
 
