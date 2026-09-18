@@ -56,7 +56,8 @@ extract_tool_cmd() {
     import-dlsite-games \
     expand-bgm-type4-gated \
     reconcile-eg-anchors \
-    reconcile-eg-works
+    reconcile-eg-works \
+    reconcile-getchu
   do
     case "$s" in
       *"$t"*)
@@ -92,6 +93,9 @@ emit_tool() {
       ;;
     reconcile-eg-works)
       echo '2026/09/18 02:00:00 INFO eg-works summary attached=0 quarantined=0 minted_live=0 limited=0 errors=0'
+      ;;
+    reconcile-getchu)
+      echo '2026/09/18 06:00:00 INFO getchuattach summary population=0 attached=0 jan_vndb=0 jan_eg=0 title_date=0 title_cut=0 eg_brand=0 eg_near=0 jan_conflict=0 bundles=0 goods=0 all_ages=0 extras=0 addons=0 reissues=0 cancelled=0 undated=0 brand_unknown=0 unmapped_relations=0 eg_editions=0 rejected_skips=0 mint_groups=0 minted_live=0 minted_quarantined=0 candidates=0 written=0 errors=0'
       ;;
     import-eg-dlsite-releases)
       echo '2026/09/17 05:21:23 INFO eg-dlsite wave summary attached=0 minted=0 already=0 ambiguous=0 missing=0 title_collisions=0 quarantined=0 skipped_intra_collision=0 errors=0'
@@ -263,7 +267,8 @@ case "$1" in
       import-dlsite-games \
       expand-bgm-type4-gated \
       reconcile-eg-anchors \
-      reconcile-eg-works
+      reconcile-eg-works \
+      reconcile-getchu
     do
       case "$toolcmd" in
         *"$t"*) tool=$t; break ;;

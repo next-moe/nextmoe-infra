@@ -36,10 +36,6 @@ tend() {
 
 write_t1_expected() {
   cat > "$1" <<'EOF'
-import-getchu-refs --apply
-reconcile-getchu --apply
-import-getchu-intros --population all --apply
-import-getchu-characters --apply
 import-store-anchors --only dmm --apply
 import-store-anchors --only dlsite --apply
 import-store-anchors --only dlsite-en --apply
@@ -69,6 +65,10 @@ backfill-dlsite-media --kind intro --apply
 import-work-aliases --source all --apply
 import-work-platforms --source all --apply
 import-work-series --apply
+import-getchu-refs --apply
+reconcile-getchu --apply
+import-getchu-intros --population all --apply
+import-getchu-characters --apply
 reconcile-org-labels --source all --apply
 EOF
 }
@@ -197,7 +197,7 @@ emit_out() {
       echo '2026/09/18 04:00:00 INFO egworks summary population=0 pack_games=0 port_games=0 attached=0 quarantined=0 minted_live=0 edition_folded=0 rejected_skips=0 limited=0 refs_planned=0 candidates_planned=0 written=0 errors=0'
       ;;
     reconcile-getchu+dry|reconcile-getchu+apply)
-      echo '2026/09/18 06:00:00 INFO getchuattach summary population=0 attached=0 uncorroborated=0 multi_hit=0 no_hit=0 rejected_skips=0 written=0 errors=0'
+      echo '2026/09/18 06:00:00 INFO getchuattach summary population=0 attached=0 jan_vndb=0 jan_eg=0 title_date=0 title_cut=0 eg_brand=0 eg_near=0 jan_conflict=0 bundles=0 goods=0 all_ages=0 extras=0 addons=0 reissues=0 cancelled=0 undated=0 brand_unknown=0 unmapped_relations=0 eg_editions=0 rejected_skips=0 mint_groups=0 minted_live=0 minted_quarantined=0 candidates=0 written=0 errors=0'
       ;;
     reconcile-org-labels+all+dry|reconcile-org-labels+all+apply)
       echo '2026/09/17 14:21:47 INFO org-label anchor source done source=vndb pass=1 apply=false orgs=30089 already=25082 exact=8 probable=16 new_labels=41 new_edges=52 conflict=1421 skip_no_match=922 skip_ambiguous=21 skip_ungradeable=2437 skip_rejected=0 skip_deferred=0 vndb_in_anchored=7'
@@ -1052,7 +1052,47 @@ rm -rf "$td"
 tstart 26
 td=$(mktemp -d)
 install_fakes "$td"
-printf '%s\n' '2026/09/18 06:00:00 INFO getchuattach summary population=9000 attached=301 uncorroborated=0 multi_hit=0 no_hit=0 rejected_skips=0 written=0 errors=0' \
+printf '%s\n' '2026/09/18 06:00:00 INFO getchuattach summary population=9000 attached=301 jan_vndb=0 jan_eg=0 title_date=0 title_cut=0 eg_brand=0 eg_near=0 jan_conflict=0 bundles=0 goods=0 all_ages=0 extras=0 addons=0 reissues=0 cancelled=0 undated=0 brand_unknown=0 unmapped_relations=0 eg_editions=0 rejected_skips=0 mint_groups=0 minted_live=0 minted_quarantined=0 candidates=0 written=0 errors=0' \
+  > "$td/ctl/out/reconcile-getchu+dry"
+run_job "$td"
+expect_exit_nonzero "$td"
+if has_stamp "$td"; then fail "stamp written"; fi
+if ! has_alert "$td"; then fail "no alert"; fi
+write_t1_expected "$td/ctl/t1"
+grep -v -F \
+  -e 'reconcile-getchu --apply' \
+  -e 'import-getchu-intros --population all --apply' \
+  -e 'import-getchu-characters --apply' \
+  "$td/ctl/t1" > "$td/ctl/expected"
+expect_apply "$td" "$td/ctl/expected"
+tend
+rm -rf "$td"
+
+# --- T27: minted_live past its ceiling stands the rest of the getchu group down ---
+tstart 27
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' '2026/09/18 06:00:00 INFO getchuattach summary population=9000 attached=0 jan_vndb=0 jan_eg=0 title_date=0 title_cut=0 eg_brand=0 eg_near=0 jan_conflict=0 bundles=0 goods=0 all_ages=0 extras=0 addons=0 reissues=0 cancelled=0 undated=0 brand_unknown=0 unmapped_relations=0 eg_editions=0 rejected_skips=0 mint_groups=51 minted_live=51 minted_quarantined=0 candidates=0 written=0 errors=0' \
+  > "$td/ctl/out/reconcile-getchu+dry"
+run_job "$td"
+expect_exit_nonzero "$td"
+if has_stamp "$td"; then fail "stamp written"; fi
+if ! has_alert "$td"; then fail "no alert"; fi
+write_t1_expected "$td/ctl/t1"
+grep -v -F \
+  -e 'reconcile-getchu --apply' \
+  -e 'import-getchu-intros --population all --apply' \
+  -e 'import-getchu-characters --apply' \
+  "$td/ctl/t1" > "$td/ctl/expected"
+expect_apply "$td" "$td/ctl/expected"
+tend
+rm -rf "$td"
+
+# --- T28: minted_quarantined past its ceiling stands the rest of the getchu group down ---
+tstart 28
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' '2026/09/18 06:00:00 INFO getchuattach summary population=9000 attached=0 jan_vndb=0 jan_eg=0 title_date=0 title_cut=0 eg_brand=0 eg_near=0 jan_conflict=0 bundles=0 goods=0 all_ages=0 extras=0 addons=0 reissues=0 cancelled=0 undated=0 brand_unknown=0 unmapped_relations=0 eg_editions=0 rejected_skips=0 mint_groups=101 minted_live=0 minted_quarantined=101 candidates=0 written=0 errors=0' \
   > "$td/ctl/out/reconcile-getchu+dry"
 run_job "$td"
 expect_exit_nonzero "$td"

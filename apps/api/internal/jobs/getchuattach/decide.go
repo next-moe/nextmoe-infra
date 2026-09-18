@@ -1,6 +1,7 @@
 package getchuattach
 
 import (
+	"fmt"
 	"sort"
 	"time"
 
@@ -9,61 +10,108 @@ import (
 
 const (
 	actionAttach = "attach"
+	actionAnchor = "anchor"
+	actionMint   = "mint"
 
-	ruleTitleDate = "rule:getchu-title+date"
+	ruleJanVNDB     = "rule:getchu-jan-vndb"
+	ruleJanEG       = "rule:getchu-jan-eg"
+	ruleTitleDate   = "rule:getchu-title+date"
+	ruleTitleCut    = "rule:getchu-titlecut+date"
+	ruleEGBrand     = "rule:getchu-eg-brand+date"
+	ruleEGBrandNear = "rule:getchu-eg-brand+near-date"
+	ruleWorkImport  = "rule:getchu-work-import"
+
+	maxCandidates = 3
+
+	nearWindow = 31 * 24 * time.Hour
+
+	minEditionRunes = 8
+	minCensorRunes  = 6
 )
 
 type plannedAction struct {
-	Action    string
-	GetchuID  string
-	WorkID    int64
-	MatchedBy string
-	Hits      []int64
-	ReleasedY *int16
-	ReleasedM *int16
-	ReleasedD *int16
+	Action     string
+	GetchuID   string
+	GetchuIDs  []string
+	WorkID     int64
+	ReleaseID  int64
+	MatchedBy  string
+	Hits       []int64
+	ReleasedY  *int16
+	ReleasedM  *int16
+	ReleasedD  *int16
+	Members    []item
+	Quarantine bool
+	Primary    item
 }
 
 func decide(snap snapshot, pop []item) ([]plannedAction, Stats) {
+	planned, leftover, st := decideAttach(snap, pop)
+	minted := planMints(snap, leftover, &st)
+	planned = append(planned, minted...)
+	sortPlanned(planned)
+	return planned, st
+}
+
+func decideAttach(snap snapshot, pop []item) ([]plannedAction, []item, Stats) {
 	st := Stats{Population: len(pop)}
 	var planned []plannedAction
+	var leftover []item
 	for _, it := range pop {
-		hits := withoutRejected(titleHits(it, snap), it.GetchuID, snap, &st)
-		switch {
-		case len(hits) == 0:
-			// Decision 2026-08-05 (still binding): Getchu never mints a work. Of
-			// 3,028 unanchored items with no title hit (measured 2026-09-18) the
-			// mass are KOEI/SEGA PC titles, art books, and a few visual novels
-			// not in the catalog yet.
-			st.NoHit++
-		case len(hits) > 1:
-			st.MultiHit++
-		default:
-			w := hits[0]
-			rule := corroborate(it, w, snap)
-			if rule == "" {
-				// A unique hit whose date does not match (867 of 5,619
-				// unanchored, measured 2026-09-18) is mostly another package of
-				// the same game — 初回版, DVD-ROM版, 限定版 — but not reliably.
-				st.Uncorroborated++
-				continue
+		if p, stop := rungJanVNDB(it, snap, &st); stop {
+			if p.Action != "" {
+				planned = append(planned, p)
 			}
-			y, m, d := releaseParts(it.ReleaseDate, snap.now)
-			planned = append(planned, plannedAction{
-				Action: actionAttach, GetchuID: it.GetchuID, WorkID: w,
-				MatchedBy: rule, Hits: []int64{w},
-				ReleasedY: y, ReleasedM: m, ReleasedD: d,
-			})
-			st.Attached++
+			continue
 		}
+		if p, stop := rungJanEG(it, snap, &st); stop {
+			if p.Action != "" {
+				planned = append(planned, p)
+			}
+			continue
+		}
+		if screened(it, &st) {
+			continue
+		}
+		if p, ok := rungTitleDate(it, snap, &st); ok {
+			planned = append(planned, p)
+			continue
+		}
+		if p, ok := rungTitleCut(it, snap, &st); ok {
+			planned = append(planned, p)
+			continue
+		}
+		if p, ok := rungEGBrandDate(it, snap, &st); ok {
+			planned = append(planned, p)
+			continue
+		}
+		leftover = append(leftover, it)
 	}
+	return planned, leftover, st
+}
+
+func sortPlanned(planned []plannedAction) {
 	sort.Slice(planned, func(i, j int) bool {
-		if planned[i].GetchuID != planned[j].GetchuID {
-			return planned[i].GetchuID < planned[j].GetchuID
+		a, b := planned[i], planned[j]
+		aid, bid := a.sortID(), b.sortID()
+		if aid != bid {
+			return aid < bid
 		}
-		return planned[i].WorkID < planned[j].WorkID
+		if a.Action != b.Action {
+			return a.Action < b.Action
+		}
+		return a.WorkID < b.WorkID
 	})
-	return planned, st
+}
+
+func (p plannedAction) sortID() string {
+	if p.GetchuID != "" {
+		return p.GetchuID
+	}
+	if len(p.GetchuIDs) > 0 {
+		return p.GetchuIDs[0]
+	}
+	return p.Primary.GetchuID
 }
 
 func titleHits(it item, snap snapshot) []int64 {
@@ -98,7 +146,7 @@ func withoutRejected(hits []int64, getchuID string, snap snapshot, st *Stats) []
 // (14,931 items anchored on VNDB works) title+date was right 7,887 times and
 // wrong 81; a matching brand label was right 31 times and wrong 108, and a
 // matching Bangumi date 22 and 247 — mostly a same-brand sequel or a
-// per-volume Bangumi entry. Getchu never mints, so a skipped item costs nothing.
+// per-volume Bangumi entry.
 func corroborate(it item, workID int64, snap snapshot) string {
 	day := catalogDay(it.ReleaseDate)
 	if day == "" {
@@ -112,8 +160,21 @@ func corroborate(it item, workID int64, snap snapshot) string {
 	return ""
 }
 
+// parseGetchuDate reads Getchu's YYYY/MM/DD. Getchu writes 0001/01/01 for an
+// unknown date (67 fetched items, 2026-09-18), which is no date at all.
+func parseGetchuDate(s string) (time.Time, error) {
+	t, err := time.Parse("2006/01/02", s)
+	if err != nil {
+		return t, err
+	}
+	if t.Year() < 1970 {
+		return time.Time{}, fmt.Errorf("placeholder date %q", s)
+	}
+	return t, nil
+}
+
 func catalogDay(getchuDate string) string {
-	t, err := time.Parse("2006/01/02", getchuDate)
+	t, err := parseGetchuDate(getchuDate)
 	if err != nil {
 		return ""
 	}
@@ -121,7 +182,7 @@ func catalogDay(getchuDate string) string {
 }
 
 func releaseParts(getchuDate string, now time.Time) (y, m, d *int16) {
-	t, err := time.Parse("2006/01/02", getchuDate)
+	t, err := parseGetchuDate(getchuDate)
 	if err != nil {
 		return nil, nil, nil
 	}
@@ -130,4 +191,26 @@ func releaseParts(getchuDate string, now time.Time) (y, m, d *int16) {
 	}
 	yy, mm, dd := int16(t.Year()), int16(t.Month()), int16(t.Day())
 	return &yy, &mm, &dd
+}
+
+func attachOn(it item, workID int64, rule string, snap snapshot) plannedAction {
+	y, m, d := releaseParts(it.ReleaseDate, snap.now)
+	return plannedAction{
+		Action: actionAttach, GetchuID: it.GetchuID, WorkID: workID,
+		MatchedBy: rule, Hits: []int64{workID},
+		ReleasedY: y, ReleasedM: m, ReleasedD: d,
+	}
+}
+
+func uniqueIDs(in []int64) []int64 {
+	seen := map[int64]struct{}{}
+	var out []int64
+	for _, id := range in {
+		if _, dup := seen[id]; dup {
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, id)
+	}
+	return out
 }

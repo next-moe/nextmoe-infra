@@ -27,7 +27,7 @@ func TestHoldoutReportCountsAttachesAgainstTruth(t *testing.T) {
 
 		before := refCount(t)
 		st, err := Run(context.Background(), Opts{
-			DSN: testDSN, GetchuDSN: gcTestDSN, HoldoutReport: true,
+			DSN: testDSN, GetchuDSN: gcTestDSN, EGDSN: egTestDSN, HoldoutReport: true,
 			Now: time.Date(2026, 9, 18, 0, 0, 0, 0, time.UTC),
 		})
 		require.NoError(t, err)
@@ -54,7 +54,7 @@ func TestHoldoutReportCountsAttachesAgainstTruth(t *testing.T) {
 		path := filepath.Join(t.TempDir(), "wrong.jsonl")
 		before := refCount(t)
 		st, err := Run(context.Background(), Opts{
-			DSN: testDSN, GetchuDSN: gcTestDSN, HoldoutReport: true, Receipts: path, Apply: true,
+			DSN: testDSN, GetchuDSN: gcTestDSN, EGDSN: egTestDSN, HoldoutReport: true, Receipts: path, Apply: true,
 			Now: time.Date(2026, 9, 18, 0, 0, 0, 0, time.UTC),
 		})
 		require.NoError(t, err)

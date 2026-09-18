@@ -157,6 +157,9 @@ lane_backlog dlsite-games edition_groups declared_groups title_attached_groups m
 dry_lane bgm-type4 sh -c "$DSNSH"'; expand-bgm-type4-gated --dsn "$CAT"'
 lane_backlog bgm-type4 to_create
 
+dry_lane getchu sh -c "$DSNSH"'; reconcile-getchu --dsn "$CAT" --getchu-dsn "$GC" --eg-dsn "$EG"'
+lane_backlog getchu attached minted_live minted_quarantined
+
 read_queue quarantined_works \
   "SELECT count(*) FROM catalog_work WHERE status = 3 AND deleted_at IS NULL"
 

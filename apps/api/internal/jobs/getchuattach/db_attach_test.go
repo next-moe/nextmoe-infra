@@ -24,8 +24,8 @@ func TestUniqueHitDatedAttaches(t *testing.T) {
 	assert.Equal(t, 1, st.Population)
 	assert.Equal(t, 1, st.Attached)
 	assert.Equal(t, 1, st.Written)
-	assert.Zero(t, st.Uncorroborated)
-	assert.Equal(t, before, workCount(t), "Getchu never mints a work")
+	assert.Equal(t, 1, st.TitleDate)
+	assert.Equal(t, before, workCount(t), "an attach does not mint a work")
 	rel := attachedRelease(t, "100")
 	assert.Equal(t, w, rel.WorkID)
 	assert.Equal(t, model.ReleaseKindPhysical, rel.Kind)
@@ -56,7 +56,7 @@ func TestBangumiDateAloneDoesNotAttach(t *testing.T) {
 
 	st := runLane(t, true, "")
 	assert.Zero(t, st.Attached)
-	assert.Equal(t, 1, st.Uncorroborated)
+	assert.Equal(t, 1, st.AllAges)
 	assert.Empty(t, getchuRefs(t, "102"))
 }
 
@@ -69,7 +69,7 @@ func TestBrandAloneDoesNotAttach(t *testing.T) {
 
 	st := runLane(t, true, "")
 	assert.Zero(t, st.Attached)
-	assert.Equal(t, 1, st.Uncorroborated)
+	assert.Equal(t, 1, st.AllAges)
 	assert.Empty(t, getchuRefs(t, "101"))
 }
 
@@ -80,7 +80,7 @@ func TestUncorroboratedHitIsSkipped(t *testing.T) {
 
 	beforeWorks, beforeRels := workCount(t), releaseCount(t)
 	st := runLane(t, true, "")
-	assert.Equal(t, 1, st.Uncorroborated)
+	assert.Equal(t, 1, st.AllAges)
 	assert.Zero(t, st.Attached)
 	assert.Zero(t, st.Written)
 	assert.Equal(t, beforeWorks, workCount(t))
@@ -98,7 +98,7 @@ func TestTwoHitsAreSkipped(t *testing.T) {
 
 	before := workCount(t)
 	st := runLane(t, true, "")
-	assert.Equal(t, 1, st.MultiHit)
+	assert.Equal(t, 1, st.AllAges)
 	assert.Zero(t, st.Attached)
 	assert.Equal(t, before, workCount(t))
 	assert.Empty(t, getchuRefs(t, "201"))
@@ -113,7 +113,7 @@ func TestNoHitNeverMints(t *testing.T) {
 
 	beforeWorks, beforeRels := workCount(t), releaseCount(t)
 	st := runLane(t, true, "")
-	assert.Equal(t, 1, st.NoHit)
+	assert.Equal(t, 1, st.AllAges)
 	assert.Zero(t, st.Attached)
 	assert.Equal(t, beforeWorks, workCount(t))
 	assert.Equal(t, beforeRels, releaseCount(t))
@@ -128,7 +128,7 @@ func TestSearchHintIsNotCorpus(t *testing.T) {
 	insertFetched(t, "500", "Search Hint Only Title", "", "2001/01/01")
 
 	st := runLane(t, true, "")
-	assert.Equal(t, 1, st.NoHit)
+	assert.Equal(t, 1, st.AllAges)
 	assert.Zero(t, st.Attached)
 	assert.Empty(t, getchuRefs(t, "500"))
 	assert.Empty(t, getchuRefsForWork(t, w))
@@ -145,7 +145,7 @@ func TestQuarantinedAndDeletedWorksAreNotCorpus(t *testing.T) {
 
 	before := workCount(t)
 	st := runLane(t, true, "")
-	assert.Equal(t, 1, st.NoHit)
+	assert.Equal(t, 1, st.AllAges)
 	assert.Zero(t, st.Attached)
 	assert.Equal(t, before, workCount(t))
 	assert.Empty(t, getchuRefs(t, "501"))
@@ -163,7 +163,7 @@ func TestRejectionRemovesTheHit(t *testing.T) {
 
 		st := runLane(t, true, "")
 		assert.Equal(t, 1, st.RejectedSkips)
-		assert.Equal(t, 1, st.NoHit)
+		assert.Equal(t, 1, st.AllAges)
 		assert.Zero(t, st.Attached)
 		assert.Empty(t, getchuRefs(t, "300"))
 		assert.Empty(t, getchuRefsForWork(t, w))
@@ -177,7 +177,7 @@ func TestRejectionRemovesTheHit(t *testing.T) {
 
 		st := runLane(t, true, "")
 		assert.Equal(t, 1, st.RejectedSkips)
-		assert.Equal(t, 1, st.NoHit)
+		assert.Equal(t, 1, st.AllAges)
 		assert.Zero(t, st.Attached)
 		assert.Empty(t, getchuRefs(t, "301"))
 		assert.Empty(t, getchuRefsForWork(t, w))
@@ -226,7 +226,7 @@ func TestDeletedReleaseDateDoesNotCorroborate(t *testing.T) {
 
 	st := runLane(t, true, "")
 	assert.Zero(t, st.Attached)
-	assert.Equal(t, 1, st.Uncorroborated)
+	assert.Equal(t, 1, st.AllAges)
 	assert.Empty(t, getchuRefs(t, "610"))
 	assert.Empty(t, getchuRefsForWork(t, w))
 }
@@ -248,18 +248,35 @@ func TestDryRunWritesNothing(t *testing.T) {
 
 func TestSecondRunPlansNothing(t *testing.T) {
 	requireDB(t)
-	w := mkWork(t, "Second Run Title")
-	mkReleaseYMD(t, w, i16(2001), i16(1), i16(1))
-	insertFetched(t, "71", "Second Run Title", "", "2001/01/01")
+	t.Run("attach", func(t *testing.T) {
+		requireDB(t)
+		w := mkWork(t, "Second Run Title")
+		mkReleaseYMD(t, w, i16(2001), i16(1), i16(1))
+		insertFetched(t, "71", "Second Run Title", "", "2001/01/01")
 
-	first := runLane(t, true, "")
-	assert.Equal(t, 1, first.Attached)
-	assert.Equal(t, 1, first.Written)
-	second := runLane(t, true, "")
-	assert.Zero(t, second.Population)
-	assert.Zero(t, second.Attached)
-	assert.Zero(t, second.Written)
-	assert.Len(t, getchuRefs(t, "71"), 1)
+		first := runLane(t, true, "")
+		assert.Equal(t, 1, first.Attached)
+		assert.Equal(t, 1, first.Written)
+		second := runLane(t, true, "")
+		assert.Zero(t, second.Population)
+		assert.Zero(t, second.Attached)
+		assert.Zero(t, second.Written)
+		assert.Len(t, getchuRefs(t, "71"), 1)
+	})
+	t.Run("mint", func(t *testing.T) {
+		requireDB(t)
+		seedMintBrand(t, 13, "SecondMint")
+		insertItem(t, item{
+			GetchuID: "907", Title: "Second Run Mint Unique", Brand: "SecondMint", BrandID: 13,
+			ReleaseDate: "2001/01/01", Adult: true,
+		})
+		first := runLane(t, true, "")
+		assert.Equal(t, 1, first.MintedLive)
+		second := runLane(t, true, "")
+		assert.Zero(t, second.Population)
+		assert.Zero(t, second.MintedLive)
+		assert.Len(t, getchuRefs(t, "907"), 1)
+	})
 }
 
 func TestReceiptsMatchWrites(t *testing.T) {
@@ -267,9 +284,15 @@ func TestReceiptsMatchWrites(t *testing.T) {
 	w := mkWork(t, "Receipt Attach Title")
 	mkReleaseYMD(t, w, i16(2001), i16(1), i16(1))
 	insertFetched(t, "80", "Receipt Attach Title", "", "2001/01/01")
+	seedMintBrand(t, 14, "ReceiptMint")
+	insertItem(t, item{
+		GetchuID: "81", Title: "Receipt Mint Unique Game", Brand: "ReceiptMint", BrandID: 14,
+		ReleaseDate: "2001/01/01", Adult: true,
+	})
 	path := filepath.Join(t.TempDir(), "receipts.jsonl")
 	st := runLane(t, true, path)
 	assert.Equal(t, 1, st.Attached)
+	assert.Equal(t, 1, st.MintedLive)
 	raw, err := os.ReadFile(path)
 	require.NoError(t, err)
 	var recs []receipt
@@ -281,15 +304,28 @@ func TestReceiptsMatchWrites(t *testing.T) {
 		require.NoError(t, json.Unmarshal(line, &rec))
 		recs = append(recs, rec)
 	}
-	require.Len(t, recs, 1)
-	assert.Equal(t, actionAttach, recs[0].Action)
-	assert.Equal(t, "80", recs[0].GetchuID)
-	assert.Equal(t, w, recs[0].WorkID)
-	assert.Equal(t, ruleTitleDate, recs[0].MatchedBy)
-	refs := getchuRefs(t, recs[0].GetchuID)
-	require.Len(t, refs, 1)
-	assert.Equal(t, recs[0].WorkID, attachedRelease(t, "80").WorkID)
-	assert.Equal(t, st.Written, 1)
+	require.Len(t, recs, 2)
+	byID := map[string]receipt{}
+	for _, r := range recs {
+		if r.GetchuID != "" {
+			byID[r.GetchuID] = r
+		}
+		for _, id := range r.GetchuIDs {
+			byID[id] = r
+		}
+	}
+	attach := byID["80"]
+	assert.Equal(t, actionAttach, attach.Action)
+	assert.Equal(t, "80", attach.GetchuID)
+	assert.Equal(t, w, attach.WorkID)
+	assert.Equal(t, ruleTitleDate, attach.MatchedBy)
+	assert.Equal(t, attach.WorkID, attachedRelease(t, "80").WorkID)
+	mint := byID["81"]
+	assert.Equal(t, actionMint, mint.Action)
+	assert.Equal(t, "live", mint.Status)
+	assert.Contains(t, mint.GetchuIDs, "81")
+	assert.Equal(t, ruleWorkImport, mint.MatchedBy)
+	assert.Len(t, getchuRefs(t, "81"), 1)
 }
 
 func getchuRefsForWork(t *testing.T, workID int64) []model.CatalogExternalRef {
