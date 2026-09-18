@@ -62,6 +62,7 @@ type Opts struct {
 	DlsiteDSN    string
 	MirrorDir    string
 	WorknosOut   string
+	CDNMissing   string
 	ImageBaseURL string
 	UploadGap    time.Duration
 }
@@ -69,9 +70,9 @@ type Opts struct {
 type counters struct {
 	introWritten, introWould, introExists, introNoText int
 
-	coverUploaded, coverWould, coverExists, coverPlaceholder, coverMissing, coverRejected, coverRefused, coverDedup int
+	coverUploaded, coverWould, coverExists, coverPlaceholder, coverMissing, coverCDNMissing, coverRejected, coverRefused, coverDedup int
 
-	shotUploaded, shotWould, shotExists, shotMissing, shotRejected, shotNoSamples, shotDedup int
+	shotUploaded, shotWould, shotExists, shotMissing, shotCDNMissing, shotRejected, shotNoSamples, shotDedup int
 
 	errors int
 }
@@ -86,6 +87,7 @@ type runner struct {
 	pingHashes []string
 	touched    []int64
 	unmirrored map[string]bool
+	cdnMissing map[string]bool
 }
 
 func Run(ctx context.Context, cfg *config.Config, opts Opts) (map[string]any, error) {
@@ -104,11 +106,23 @@ func Run(ctx context.Context, cfg *config.Config, opts Opts) (map[string]any, er
 	if opts.Kinds.needsMirror() && opts.MirrorDir == "" {
 		return nil, fmt.Errorf("--mirror-dir is required for cover/screenshot (local mirror root <root>/<workno>/<filename>)")
 	}
+	if opts.CDNMissing != "" && !opts.Kinds.needsMirror() {
+		return nil, fmt.Errorf("--cdn-missing applies to cover/screenshot")
+	}
 
 	clientCfg := cfg.CatalogImageClient
 	needImage := opts.Apply && opts.Kinds.needsImage()
 	if needImage && (clientCfg.ClientID == "" || clientCfg.ClientSecret == "") {
 		return nil, fmt.Errorf("catalog image client not configured (set KUN_CATALOG_IMAGE_CLIENT_ID/SECRET); refusing to --apply cover/screenshot")
+	}
+
+	var cdnMissing map[string]bool
+	if opts.CDNMissing != "" {
+		var err error
+		cdnMissing, err = loadCDNMissing(opts.CDNMissing)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	db, err := openGorm(opts.DSN)
@@ -148,7 +162,7 @@ func Run(ctx context.Context, cfg *config.Config, opts Opts) (map[string]any, er
 		"kinds", fmt.Sprintf("intro=%t cover=%t screenshot=%t", opts.Kinds.Intro, opts.Kinds.Cover, opts.Kinds.Screenshot),
 		"offset", opts.Offset, "limit", opts.Limit)
 
-	r := &runner{db: db, sourceID: reg.dlsiteSource, gap: opts.UploadGap, exist: exist}
+	r := &runner{db: db, sourceID: reg.dlsiteSource, gap: opts.UploadGap, exist: exist, cdnMissing: cdnMissing}
 	if needImage {
 		r.cli = imageclient.New(imageclient.Config{
 			BaseURL:      resolveBaseURL(cfg, clientCfg, opts.ImageBaseURL),
@@ -250,6 +264,7 @@ func (r *runner) summary(opts Opts, candidates int) map[string]any {
 			"already_exists": r.c.coverExists, "placeholder_skip": r.c.coverPlaceholder,
 			"missing_file": r.c.coverMissing, "rejected": r.c.coverRejected,
 			"refused_claimed": r.c.coverRefused, "dedup": r.c.coverDedup,
+			"cdn_missing": r.c.coverCDNMissing,
 		}
 	}
 	if opts.Kinds.Screenshot {
@@ -257,6 +272,7 @@ func (r *runner) summary(opts Opts, candidates int) map[string]any {
 			"uploaded": r.c.shotUploaded, "would_upload": r.c.shotWould,
 			"already_exists": r.c.shotExists, "missing_file": r.c.shotMissing,
 			"rejected": r.c.shotRejected, "no_samples": r.c.shotNoSamples, "dedup": r.c.shotDedup,
+			"cdn_missing": r.c.shotCDNMissing,
 		}
 	}
 	return s
@@ -281,6 +297,26 @@ func writeWorknos(path string, set map[string]bool) error {
 		b.WriteByte('\n')
 	}
 	return os.WriteFile(path, []byte(b.String()), 0o644)
+}
+
+func loadCDNMissing(path string) (map[string]bool, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read --cdn-missing: %w", err)
+	}
+	out := map[string]bool{}
+	for i, line := range strings.Split(string(b), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		workno, filename, ok := strings.Cut(line, "/")
+		if !ok || workno == "" || filename == "" || strings.Contains(filename, "/") {
+			return nil, fmt.Errorf("line %d: want <workno>/<filename>", i+1)
+		}
+		out[line] = true
+	}
+	return out, nil
 }
 
 func laneSplit(cands []candidate) (bodyless, claimed int) {

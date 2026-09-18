@@ -73,6 +73,10 @@ func (r *runner) writeCover(ctx context.Context, dir string, c candidate, m dlsi
 	}
 	path := mirrorPath(dir, c.Workno, m.CoverFile)
 	if !fileExists(path) {
+		if r.cdnMissing[c.Workno+"/"+m.CoverFile] {
+			r.c.coverCDNMissing++
+			return false
+		}
 		r.c.coverMissing++
 		r.markUnmirrored(c.Workno)
 		return false
@@ -121,6 +125,10 @@ func (r *runner) writeScreenshots(ctx context.Context, dir string, c candidate, 
 		}
 		path := mirrorPath(dir, c.Workno, fname)
 		if !fileExists(path) {
+			if r.cdnMissing[c.Workno+"/"+fname] {
+				r.c.shotCDNMissing++
+				continue
+			}
 			r.c.shotMissing++
 			r.markUnmirrored(c.Workno)
 			continue

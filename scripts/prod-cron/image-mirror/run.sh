@@ -33,6 +33,7 @@ DLSITE_IMG_TAG=${IMAGE_MIRROR_DLSITE_IMAGE:-ghcr.io/kunmoe/kun-dlsite-api:latest
 COVERS_MAX=${IMAGE_MIRROR_COVERS_MAX:-500}
 PORTRAITS_MAX=${IMAGE_MIRROR_PORTRAITS_MAX:-3000}
 DLSITE_WORKS_MAX=${IMAGE_MIRROR_DLSITE_WORKS_MAX:-500}
+DLSITE_404_RETRY_DAYS=${IMAGE_MIRROR_DLSITE_404_RETRY_DAYS:-90}
 BANGUMI_COVERS_MAX=${IMAGE_MIRROR_BANGUMI_COVERS_MAX:-1000}
 BANGUMI_PERSONS_MAX=${IMAGE_MIRROR_BANGUMI_PERSONS_MAX:-1500}
 cd "$BASE"
@@ -96,6 +97,16 @@ counter() {
   sed -n "s/.*$1=\\([0-9][0-9]*\\).*/\\1/p" "$2" | tail -1
 }
 
+write_dlsite_cdn_missing() {
+  if [ -f state/dlsite-cdn-404 ]; then
+    awk 'NF >= 2 { print $2 }' state/dlsite-cdn-404 > state/dlsite-cdn-missing.tmp || return 1
+    sort state/dlsite-cdn-missing.tmp -o state/dlsite-cdn-missing.tmp || return 1
+  else
+    : > state/dlsite-cdn-missing.tmp || return 1
+  fi
+  mv state/dlsite-cdn-missing.tmp state/dlsite-cdn-missing || return 1
+}
+
 # `set -e` does not reach inside a function called as a condition, so every
 # step in a lane checks itself.
 lane_vndb() {
@@ -143,7 +154,23 @@ lane_dlsite() {
   m=mirror/dlsite
   rm -rf "$m" && mkdir -p "$m" || return 1
   rm -f state/dlsite.worknos
-  run sh -c "$DSNSH"'; backfill-dlsite-media --dsn "$CAT" --dlsite-dsn "$DL" --kind cover,screenshot --mirror-dir /w/mirror/dlsite --worknos-out /w/state/dlsite.worknos' \
+  # The first run (2026-09-18) re-listed 257 works to fetch 958 files the CDN answers 404 for,
+  # and would have done so every week. A 404 is recorded and skips its file for $DLSITE_404_RETRY_DAYS days;
+  # other failures are not recorded, since a CDN refusing this host must stay loud.
+  cutoff=$(date -u -d "$DLSITE_404_RETRY_DAYS days ago" +%F) || return 1
+  expired=0
+  if [ -f state/dlsite-cdn-404 ]; then
+    before=$(awk 'END { print NR }' state/dlsite-cdn-404)
+    awk -v cutoff="$cutoff" 'NF >= 2 && $1 >= cutoff' state/dlsite-cdn-404 > state/dlsite-cdn-404.tmp || return 1
+    sort -k2,2 state/dlsite-cdn-404.tmp -o state/dlsite-cdn-404.tmp || return 1
+    mv state/dlsite-cdn-404.tmp state/dlsite-cdn-404 || return 1
+    after=$(awk 'END { print NR }' state/dlsite-cdn-404)
+    expired=$((before - after))
+  fi
+  write_dlsite_cdn_missing || return 1
+  kept=$(awk 'END { print NR }' state/dlsite-cdn-missing)
+  echo "dlsite: known CDN 404s $kept ($expired expired, retried after $DLSITE_404_RETRY_DAYS days)"
+  run sh -c "$DSNSH"'; backfill-dlsite-media --dsn "$CAT" --dlsite-dsn "$DL" --kind cover,screenshot --mirror-dir /w/mirror/dlsite --cdn-missing /w/state/dlsite-cdn-missing --worknos-out /w/state/dlsite.worknos' \
     > state/dlsite-dry.log 2>&1 || { echo "FATAL: dlsite dry run failed"; cat state/dlsite-dry.log; return 1; }
   [ -f state/dlsite.worknos ] || { echo "FATAL: the dlsite dry run wrote no worknos file"; return 1; }
   works=$(wc -l < state/dlsite.worknos)
@@ -168,6 +195,37 @@ lane_dlsite() {
       "$dimg" mirror --worknos-file /w/state/dlsite.worknos --out /w/mirror/dlsite --rate 2 --concurrency 3 \
       > state/dlsite-mirror.log 2>&1 || { echo "FATAL: dlsite mirror failed"; tail -20 state/dlsite-mirror.log; return 1; }
     shred -u env.dlsite
+    today=$(date -u +%F) || return 1
+    sed -n 's/.* mirror: \([A-Z][A-Z][0-9][0-9]*\) \([^ /:]\{1,\}\): http 404$/\1\/\2/p' \
+      state/dlsite-mirror.log | sort -u > state/dlsite-cdn-404.found.tmp || return 1
+    n404=$(awk 'END { print NR }' state/dlsite-cdn-404.found.tmp)
+    if [ -f state/dlsite-cdn-404 ]; then
+      ledger=state/dlsite-cdn-404
+    else
+      ledger=/dev/null
+    fi
+    awk -v today="$today" -v foundfile="state/dlsite-cdn-404.found.tmp" '
+      BEGIN {
+        while ((getline p < foundfile) > 0) if (p != "") found[p] = 1
+        close(foundfile)
+      }
+      NF >= 2 {
+        if ($2 in found) {
+          print today, $2
+          delete found[$2]
+        } else {
+          print $1, $2
+        }
+      }
+      END {
+        for (p in found) print today, p
+      }
+    ' "$ledger" > state/dlsite-cdn-404.tmp || return 1
+    sort -k2,2 state/dlsite-cdn-404.tmp -o state/dlsite-cdn-404.tmp || return 1
+    mv state/dlsite-cdn-404.tmp state/dlsite-cdn-404 || return 1
+    rm -f state/dlsite-cdn-404.found.tmp
+    write_dlsite_cdn_missing || return 1
+    echo "dlsite: recorded $n404 CDN 404(s)"
     grep 'mirror: done' state/dlsite-mirror.log || true
     got=$(counter downloaded state/dlsite-mirror.log)
     bad=$(counter errors state/dlsite-mirror.log)
@@ -178,7 +236,7 @@ lane_dlsite() {
     fi
   fi
 
-  run sh -c "$DSNSH"'; backfill-dlsite-media --dsn "$CAT" --dlsite-dsn "$DL" --kind cover,screenshot --mirror-dir /w/mirror/dlsite --upload-gap 100ms --apply' \
+  run sh -c "$DSNSH"'; backfill-dlsite-media --dsn "$CAT" --dlsite-dsn "$DL" --kind cover,screenshot --mirror-dir /w/mirror/dlsite --cdn-missing /w/state/dlsite-cdn-missing --upload-gap 100ms --apply' \
     || { echo "WARN: dlsite upload failed"; return 1; }
   rm -rf "$m"
 }

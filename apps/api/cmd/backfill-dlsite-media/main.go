@@ -20,6 +20,7 @@ func main() {
 	dlsiteDSN := flag.String("dlsite-dsn", "", "dlsite staging DSN — REQUIRED; reads product_json/page_json")
 	mirrorDir := flag.String("mirror-dir", "", "local mirror root <root>/<workno>/<filename> (required for cover/screenshot)")
 	worknosOut := flag.String("worknos-out", "", "write the worknos with a planned cover or screenshot the mirror lacks, one per line (kun-dlsite-api mirror --worknos-file)")
+	cdnMissing := flag.String("cdn-missing", "", "file of <workno>/<filename> lines the DLsite CDN answered 404 for: such a file the mirror lacks is counted as cdn_missing and does not list its work in --worknos-out")
 	imageBaseURL := flag.String("image-base-url", "", "image_service base override (point at the LOCAL dev service, e.g. http://127.0.0.1:9278)")
 	uploadGap := flag.Duration("upload-gap", 0, "min delay between uploads (0 = none; raise for a gentle production sweep)")
 	flag.Parse()
@@ -46,6 +47,7 @@ func main() {
 		DlsiteDSN:    *dlsiteDSN,
 		MirrorDir:    *mirrorDir,
 		WorknosOut:   *worknosOut,
+		CDNMissing:   *cdnMissing,
 		ImageBaseURL: *imageBaseURL,
 		UploadGap:    *uploadGap,
 	})
