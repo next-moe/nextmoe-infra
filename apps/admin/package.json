@@ -26,7 +26,6 @@
     "@kungal/ui-vue": "^2.42.0",
     "@nuxt/eslint": "1.15.2",
     "@tailwindcss/vite": "^4.3.3",
-    "@vueuse/core": "^14.4.0",
     "date-fns": "^4.4.0",
     "echarts": "^6.1.0",
     "localforage": "^1.10.0",
