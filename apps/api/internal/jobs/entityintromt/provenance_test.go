@@ -92,7 +92,7 @@ func TestLabelIntrosSurviveTheMachineTranslator(t *testing.T) {
 		[2]string{"zh-Hans", "人工写的中文简介。"})
 
 	r := &runner{db: testDB, lane: labelLane(t), stats: &LaneStats{Lane: LaneLabel}}
-	rows, err := r.upsert(ctx,
+	rows, _, err := r.writeMachine(ctx,
 		candidate{EntityID: label, SourceID: curated, Text: "老舗ブランドです。"},
 		"机器译文", hashSource("老舗ブランドです。"), "mock:stub")
 	require.NoError(t, err)

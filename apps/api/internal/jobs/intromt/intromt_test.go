@@ -132,11 +132,15 @@ type fakeTranslator struct {
 	calls int
 	fn    func(ja string) string
 	gloss Glossary
+	err   error
 }
 
 func (f *fakeTranslator) Translate(_ context.Context, ja string, gloss Glossary) (string, string, error) {
 	f.calls++
 	f.gloss = gloss
+	if f.err != nil {
+		return "", "", f.err
+	}
 	return f.fn(ja), f.model, nil
 }
 
@@ -214,14 +218,18 @@ func TestPilotEndToEnd(t *testing.T) {
 func TestNeverOverwriteSource(t *testing.T) {
 	clean(t)
 	ctx := context.Background()
-	medium, _, bangumi := reg(t)
+	medium, dlsite, bangumi := reg(t)
 	w := mkWork(t, medium, "src-zh-guard", nil)
 	mkIntro(t, w, "zh-Hans", "人工/源中文,不可覆盖。", bangumi)
+	mkMachineIntro(t, w, "zh-Hans", "别的来源的机翻", dlsite, "stray-hash")
 
 	r := &runner{db: testDB, tr: nil, stats: &Stats{}}
-	rows, err := r.upsert(ctx, candidate{WorkID: w, JaSourceID: bangumi}, "机翻不该落地", "deadbeef", "test-mt")
+	rows, pruned, err := r.writeMachine(ctx, candidate{WorkID: w, JaSourceID: bangumi}, "机翻不该落地", "deadbeef", "test-mt")
 	require.NoError(t, err)
 	assert.EqualValues(t, 0, rows, "DO UPDATE WHERE provenance=1 refuses the source row")
+	assert.Zero(t, pruned, "a refused write prunes nothing")
+	assert.EqualValues(t, 1, introCount(t,
+		"WHERE work_id=? AND lang='zh-Hans' AND provenance=1 AND source_id=?", w, dlsite))
 
 	var row model.CatalogWorkIntro
 	require.NoError(t, testDB.Where("work_id=? AND lang='zh-Hans'", w).First(&row).Error)

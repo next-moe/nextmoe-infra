@@ -41,8 +41,10 @@ type Stats struct {
 	WouldInsert      int
 	WouldRetranslate int
 	SkipUnchanged    int
+	WouldPrune       int
 	Inserted         int
 	Retranslated     int
+	Pruned           int
 	Refused          int
 	Collapsed        int
 	Errors           int
@@ -108,7 +110,8 @@ func Run(ctx context.Context, tr Translator, opts Opts) (*Stats, error) {
 	slog.Info("intro-mt done", "apply", opts.Apply,
 		"candidates", st.Candidates, "with_glossary", st.WithGlossary, "would_insert", st.WouldInsert,
 		"would_retranslate", st.WouldRetranslate, "skip_unchanged", st.SkipUnchanged,
-		"inserted", st.Inserted, "retranslated", st.Retranslated,
+		"would_prune", st.WouldPrune,
+		"inserted", st.Inserted, "retranslated", st.Retranslated, "pruned", st.Pruned,
 		"refused", st.Refused, "collapsed", st.Collapsed, "errors", st.Errors)
 	return st, nil
 }
