@@ -129,7 +129,7 @@ const write = await fetch(url, {
 
 ### Idempotency-Key：网络超时不该写两条
 
-所有 `POST` 都支持 `Idempotency-Key`。同一身份、同一路径、同一个 key 的重复请求会重放首次结果（保留 24 小时）。key 请用 UUID 之类的一次性值，并且**同一个 key 只配同一个 body**——body 不同是 `409 IDEMPOTENCY_KEY_REUSED`。
+所有 `POST` 都支持 `Idempotency-Key`。同一身份、同一路径、同一个 key 的重复请求会重放首次结果（保留 24 小时）。key 请用 UUID 之类的一次性值，并且**同一个 key 只配同一个 body**——body 不同是 `409 IDEMPOTENCY_KEY_REUSED`；首个请求还没处理完就重试是 `409 IDEMPOTENCY_REQUEST_IN_PROGRESS`，写操作不会被执行两遍，稍等用同一个 key 重试即可。
 
 - [拿用户令牌](/docs/authentication) — 授权码 + PKCE 的四步，以及刷新令牌的注意事项。
 - [错误处理](/docs/errors) — 412 / 428 / 409 分别意味着什么，该怎么恢复。

@@ -703,6 +703,28 @@ Decisions behind that table:
   and a test validates marshalled `repr` values with a standard validator
   against both the fixed and the unfixed document. `CalendarList.meta`, which is
   always present, stopped being a pointer so it stays required and non-null.
+- **Field errors a client can localise, since 2.24.0.** `errors[]` items carry
+  `params` keyed by `reason` (`max_length`, `min_length`, `minimum`/`maximum`,
+  `max_items`, `min_items`, `allowed`), and `GET /v2/problems/reasons`
+  publishes each reason's `param_names`. The shape is the kungal forum's
+  `/api/v1` one verbatim, so a client decodes both with one type. huma's own
+  validation failures now map to their exact reason: before this, every one
+  was `INVALID_FORMAT`, so a title over its `maxLength` said `INVALID_FORMAT`
+  although `TOO_LONG` existed, and a `REQUIRED` body error pointed at the
+  parent object instead of the missing property. `TOO_FEW_ITEMS` joins the
+  reason registry (no v2 schema uses `minItems` yet; it keeps the platform to
+  one reason table).
+- **`Idempotency-Key` has an in-flight state, since 2.24.0.** The middleware
+  used to read, run the handler, then write, so a retry that overlapped the
+  first request (the weak-network retry the header exists for) ran the handler
+  twice. It now claims the key with a pending record (`SETNX`, 2 minutes)
+  before the handler runs; an overlapping retry answers `409
+  IDEMPOTENCY_REQUEST_IN_PROGRESS` (platform domain; the forum had it in its own
+  domain first). A 5xx, 429 or panic deletes the claim so the client may retry.
+  A record without the `pending` member is a completed one, which is what keeps
+  the records written before this deploy replaying. Keys over 255 bytes are
+  `400 TOO_LONG`. Every `/v2` POST now declares the header and a `409`; none
+  did before, so no generated client could send the key.
 - **`released` is accepted since 2.21.0** (it was deliberately absent through
   2.20.x — no caller had ever sent it). The v1 shape returned: `{y, m?, d?}`
   becomes ONE curated `catalog_release` row on the minted work, because a fresh

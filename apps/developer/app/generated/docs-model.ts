@@ -1010,9 +1010,9 @@ export const docsModel: DocsModel = {
                               "type": "string"
                             },
                             {
-                              "name": "params",
+                              "name": "param_names",
                               "required": true,
-                              "doc": "Declared params keys this reason may carry. Empty array when the reason has none; never null.",
+                              "doc": "Keys this reason can carry in a field error's params. Empty array when it carries none.",
                               "type": "array",
                               "itemsOf": {
                                 "enum": [
