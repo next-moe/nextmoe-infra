@@ -13,6 +13,8 @@ type Store interface {
 	Decr(ctx context.Context, key string) error
 	Get(ctx context.Context, key string) ([]byte, error)
 	Set(ctx context.Context, key string, value []byte, ttl time.Duration) error
+	SetNX(ctx context.Context, key string, value []byte, ttl time.Duration) (bool, error)
+	Del(ctx context.Context, key string) error
 }
 
 type Memory struct {
@@ -83,6 +85,31 @@ func (m *Memory) Set(_ context.Context, key string, value []byte, ttl time.Durat
 	return nil
 }
 
+func (m *Memory) SetNX(_ context.Context, key string, value []byte, ttl time.Duration) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if exp, ok := m.kvExp[key]; ok && time.Now().After(exp) {
+		delete(m.kv, key)
+		delete(m.kvExp, key)
+	}
+	if _, ok := m.kv[key]; ok {
+		return false, nil
+	}
+	cp := make([]byte, len(value))
+	copy(cp, value)
+	m.kv[key] = cp
+	m.kvExp[key] = time.Now().Add(ttl)
+	return true, nil
+}
+
+func (m *Memory) Del(_ context.Context, key string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.kv, key)
+	delete(m.kvExp, key)
+	return nil
+}
+
 type RedisStore struct {
 	cache *cache.RedisCache
 }
@@ -133,6 +160,20 @@ func (s *RedisStore) Set(_ context.Context, key string, value []byte, ttl time.D
 		return errUnavailable
 	}
 	return s.cache.Set(key, value, ttl)
+}
+
+func (s *RedisStore) SetNX(ctx context.Context, key string, value []byte, ttl time.Duration) (bool, error) {
+	if !s.live() {
+		return false, errUnavailable
+	}
+	return s.cache.Storage().Conn().SetNX(ctx, key, value, ttl).Result()
+}
+
+func (s *RedisStore) Del(ctx context.Context, key string) error {
+	if !s.live() {
+		return errUnavailable
+	}
+	return s.cache.Storage().Conn().Del(ctx, key).Err()
 }
 
 var errUnavailable = errStore("protocol store unavailable")

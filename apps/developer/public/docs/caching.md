@@ -82,6 +82,8 @@ curl -X POST "https://api.nextmoe.dev/v2/me/claims" \
 
 同一个 key 配上**不同的** body 是 `409 IDEMPOTENCY_KEY_REUSED`——这是在提醒你 key 生成有 bug，而不是在阻挠你。
 
+首个请求还没处理完时，用同一个 key 重试会得到 `409 IDEMPOTENCY_REQUEST_IN_PROGRESS`，而**不会**把写操作执行第二遍。稍等再用同一个 key、同一个 body 重试，拿到的就是首个请求的响应。key 最长 255 字节。
+
 ## 要跟住变化，不要轮询
 
 把目录同步进自己的库，然后靠增量信道保持新鲜，比任何缓存策略都有效：`GET /v2/catalog/changes` 按 `(updated_at, id)` 升序枚举整个人口，冷启动翻一遍就是全量清点，之后只拉增量。配方见 [增量镜像目录](/docs/mirror)。

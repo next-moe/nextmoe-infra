@@ -479,7 +479,7 @@ v2 允许任意 origin，并暴露 `ETag`、`Link`、`RateLimit*`、`Retry-After
 ## 写操作
 
 - 请求体是 JSON，`Content-Type: application/json`。
-- `POST` 支持 `Idempotency-Key`：同一把密钥、同一路径、同一个 key 的重复请求会重放首次结果（保存 24 小时）；body 不同则是 `409 IDEMPOTENCY_KEY_REUSED`。
+- `POST` 支持 `Idempotency-Key`：同一把密钥、同一路径、同一个 key 的重复请求会重放首次结果（保存 24 小时）；body 不同则是 `409 IDEMPOTENCY_KEY_REUSED`；首个请求还在处理时重试是 `409 IDEMPOTENCY_REQUEST_IN_PROGRESS`。
 - 改动别人也能改的资源时要求乐观并发：把读到的 `ETag` 放进 `If-Match`。不带是 `428 PRECONDITION_REQUIRED`，带了但对不上是 `412 PRECONDITION_FAILED`。目前 `PATCH /v2/me/claims/{id}`、`PATCH /v2/me/proposals/{id}`、`POST /v2/me/proposals/{id}/amendments` 与两个 `moderation` 决策面都要求它。
 
 写面的完整清单与流程见 [接入用户数据](/docs/user-data)。
@@ -684,7 +684,12 @@ X-Request-ID: req_01JBQ7X4M2K9P3W5T8ZVN6HRDC
   "instance": "/v2/catalog/works?include=tags,nope",
   "request_id": "req_01JBQ7X4M2K9P3W5T8ZVN6HRDC",
   "errors": [
-    { "parameter": "include", "reason": "UNKNOWN_VALUE", "detail": "nope" }
+    {
+      "parameter": "include",
+      "reason": "UNKNOWN_VALUE",
+      "detail": "nope",
+      "params": { "allowed": ["titles", "refs", "intros", "covers", "companies", "ratings", "tags", "credits"] }
+    }
   ]
 }
 ```
@@ -706,9 +711,25 @@ X-Request-ID: req_01JBQ7X4M2K9P3W5T8ZVN6HRDC
 顶层用 `code`，`errors[]` 里用 `reason`——**故意不同名**。两个层级用同一个键名，会让「读错嵌套层」这个最常见的消费端 bug 拿到一个看起来合理的值，而不是 `undefined`。两份注册表的成员集合互不重叠。
 
 - `code`：这次请求整体为什么失败。例如 `UNKNOWN_INCLUDE`、`SCOPE_REQUIRED`、`RATE_LIMITED`。
-- `reason`：某个具体字段为什么不合格。封闭的一小套：`REQUIRED`、`INVALID_FORMAT`、`OUT_OF_RANGE`、`TOO_LONG`、`TOO_SHORT`、`TOO_MANY_ITEMS`、`DUPLICATE_ITEM`、`UNKNOWN_VALUE`、`NOT_ALLOWED_VALUE`、`UNKNOWN_REFERENCE`、`IMMUTABLE`、`INCONSISTENT_WITH`。
+- `reason`：某个具体字段为什么不合格。封闭的一小套：`REQUIRED`、`INVALID_FORMAT`、`OUT_OF_RANGE`、`TOO_LONG`、`TOO_SHORT`、`TOO_MANY_ITEMS`、`TOO_FEW_ITEMS`、`DUPLICATE_ITEM`、`UNKNOWN_VALUE`、`NOT_ALLOWED_VALUE`、`UNKNOWN_REFERENCE`、`IMMUTABLE`、`INCONSISTENT_WITH`、`NOT_PERMITTED`。
 
 `errors[]` 的每一项**恰好**带 `pointer`、`parameter`、`header` 三者之一，指出出问题的位置：`pointer` 是请求体里的 JSON Pointer（RFC 6901），`parameter` 是查询或路径参数名，`header` 是请求头名。
+
+## 本地化：`params`
+
+`detail` 是英文诊断信息，**不要**把它显示给终端用户，也不要去解析它。要拼出「标题最多 233 个字」这样的本地化文案，读 `reason` 和 `params`：
+
+| `reason`         | `params`                                                       |
+| ---------------- | -------------------------------------------------------------- |
+| `TOO_LONG`       | `{ "max_length": 233 }`                                        |
+| `TOO_SHORT`      | `{ "min_length": 1 }`                                          |
+| `OUT_OF_RANGE`   | `{ "minimum": 0, "maximum": 60000 }`（数值界才有，可只有一边） |
+| `TOO_MANY_ITEMS` | `{ "max_items": 100 }`                                         |
+| `TOO_FEW_ITEMS`  | `{ "min_items": 1 }`                                           |
+| `UNKNOWN_VALUE`  | `{ "allowed": ["wish", "doing", …] }`（封闭词表才有）          |
+| 其余             | 不出现                                                         |
+
+每个 `reason` 可能携带哪些键写在注册表里：`GET /v2/problems/reasons` 每项的 `param_names`。`params` 缺席时按 `reason` 出一句不带数字的通用文案即可。
 
 ## 怎么分支
 
@@ -720,18 +741,19 @@ X-Request-ID: req_01JBQ7X4M2K9P3W5T8ZVN6HRDC
 
 ## 按状态码的处置
 
-| 状态          | 典型 `code`                                                                                            | 该怎么办                                                     |
-| ------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
-| `400`         | `INVALID_PARAMETER` `UNKNOWN_INCLUDE` `UNKNOWN_SORT` `LIMIT_TOO_LARGE` `TOO_MANY_IDS` `INVALID_CURSOR` | 你的请求有 bug。**不要重试**，修代码                         |
-| `401`         | `MISSING_CREDENTIAL` `INVALID_CREDENTIAL`                                                              | 带上凭据；用户令牌则刷新一次再试                             |
-| `403`         | `SCOPE_REQUIRED` `USER_IDENTITY_REQUIRED` `PERMISSION_REQUIRED` `TENANT_MISMATCH`                      | 换凭据或补 scope。重试同一请求没有意义                       |
-| `404`         | `NOT_FOUND` `ENTITY_MERGED`                                                                            | `ENTITY_MERGED` 时读 `current_id` 重指本地行；其余当作不存在 |
-| `405`         | `METHOD_NOT_ALLOWED`                                                                                   | 路径在，方法不在                                             |
-| `409`         | `ALREADY_EXISTS` `IDEMPOTENCY_KEY_REUSED` `INVALID_STATE_TRANSITION`                                   | 先读当前状态再决定，不要盲目重试                             |
-| `410`         | `GONE`                                                                                                 | 这个 URL 永久退役了。v1 的六个前缀都在这里                   |
-| `412` / `428` | `PRECONDITION_FAILED` / `PRECONDITION_REQUIRED`                                                        | 重新 GET 拿最新 `ETag`，带上 `If-Match` 再写                 |
-| `429`         | `RATE_LIMITED` `QUOTA_EXCEEDED`                                                                        | 按 `Retry-After` 等待。见 [限流与配额](/docs/rate-limits)    |
-| `5xx`         | `INTERNAL_ERROR` `SERVICE_UNAVAILABLE`                                                                 | 指数退避 + 抖动重试；连续失败就降级到本地缓存                |
+| 状态          | 典型 `code`                                                                                            | 该怎么办                                                                                |
+| ------------- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| `400`         | `INVALID_PARAMETER` `UNKNOWN_INCLUDE` `UNKNOWN_SORT` `LIMIT_TOO_LARGE` `TOO_MANY_IDS` `INVALID_CURSOR` | 你的请求有 bug。**不要重试**，修代码                                                    |
+| `401`         | `MISSING_CREDENTIAL` `INVALID_CREDENTIAL`                                                              | 带上凭据；用户令牌则刷新一次再试                                                        |
+| `403`         | `SCOPE_REQUIRED` `USER_IDENTITY_REQUIRED` `PERMISSION_REQUIRED` `TENANT_MISMATCH`                      | 换凭据或补 scope。重试同一请求没有意义                                                  |
+| `404`         | `NOT_FOUND` `ENTITY_MERGED`                                                                            | `ENTITY_MERGED` 时读 `current_id` 重指本地行；其余当作不存在                            |
+| `405`         | `METHOD_NOT_ALLOWED`                                                                                   | 路径在，方法不在                                                                        |
+| `409`         | `ALREADY_EXISTS` `IDEMPOTENCY_KEY_REUSED` `INVALID_STATE_TRANSITION`                                   | 先读当前状态再决定，不要盲目重试                                                        |
+| `409`         | `IDEMPOTENCY_REQUEST_IN_PROGRESS`                                                                      | 同一个 key 的首个请求还没跑完：稍等，用**同一个 key、同一个 body** 重试即可拿到它的结果 |
+| `410`         | `GONE`                                                                                                 | 这个 URL 永久退役了。v1 的六个前缀都在这里                                              |
+| `412` / `428` | `PRECONDITION_FAILED` / `PRECONDITION_REQUIRED`                                                        | 重新 GET 拿最新 `ETag`，带上 `If-Match` 再写                                            |
+| `429`         | `RATE_LIMITED` `QUOTA_EXCEEDED`                                                                        | 按 `Retry-After` 等待。见 [限流与配额](/docs/rate-limits)                               |
+| `5xx`         | `INTERNAL_ERROR` `SERVICE_UNAVAILABLE`                                                                 | 指数退避 + 抖动重试；连续失败就降级到本地缓存                                           |
 
 ## ENTITY_MERGED
 
@@ -897,6 +919,8 @@ curl -X POST "https://api.nextmoe.dev/v2/me/claims" \
 ```
 
 同一个 key 配上**不同的** body 是 `409 IDEMPOTENCY_KEY_REUSED`——这是在提醒你 key 生成有 bug，而不是在阻挠你。
+
+首个请求还没处理完时，用同一个 key 重试会得到 `409 IDEMPOTENCY_REQUEST_IN_PROGRESS`，而**不会**把写操作执行第二遍。稍等再用同一个 key、同一个 body 重试，拿到的就是首个请求的响应。key 最长 255 字节。
 
 ## 要跟住变化，不要轮询
 
@@ -1364,7 +1388,7 @@ const write = await fetch(url, {
 
 ### Idempotency-Key：网络超时不该写两条
 
-所有 `POST` 都支持 `Idempotency-Key`。同一身份、同一路径、同一个 key 的重复请求会重放首次结果（保留 24 小时）。key 请用 UUID 之类的一次性值，并且**同一个 key 只配同一个 body**——body 不同是 `409 IDEMPOTENCY_KEY_REUSED`。
+所有 `POST` 都支持 `Idempotency-Key`。同一身份、同一路径、同一个 key 的重复请求会重放首次结果（保留 24 小时）。key 请用 UUID 之类的一次性值，并且**同一个 key 只配同一个 body**——body 不同是 `409 IDEMPOTENCY_KEY_REUSED`；首个请求还没处理完就重试是 `409 IDEMPOTENCY_REQUEST_IN_PROGRESS`，写操作不会被执行两遍，稍等用同一个 key 重试即可。
 
 - [拿用户令牌](/docs/authentication) — 授权码 + PKCE 的四步，以及刷新令牌的注意事项。
 - [错误处理](/docs/errors) — 412 / 428 / 409 分别意味着什么，该怎么恢复。
@@ -2273,7 +2297,7 @@ if (!res.ok) {
 
 # Problem types
 
-## 错误码注册表（顶层 `code`，共 42 个）
+## 错误码注册表（顶层 `code`，共 43 个）
 
 `code` 是封闭注册表里的稳定标识；`errors[].reason` 是另一套互不重叠的字段级词表。认不得的 `code` 一律按 `status` 兜底——我们会往注册表里加新成员。
 
@@ -2299,6 +2323,7 @@ if (!res.ok) {
 | `NOT_FOUND` | 404 | Not found | Nothing visible exists at this URL. |
 | `METHOD_NOT_ALLOWED` | 405 | Method not allowed | The path exists but this method does not. |
 | `IDEMPOTENCY_KEY_REUSED` | 409 | Idempotency key reused | The same Idempotency-Key was sent with a different request body. |
+| `IDEMPOTENCY_REQUEST_IN_PROGRESS` | 409 | Idempotency request in progress | A request with the same Idempotency-Key is still being processed. Retry after it completes. |
 | `GONE` | 410 | Gone | This URL existed and has been permanently retired. |
 | `PRECONDITION_FAILED` | 412 | Precondition failed | If-Match did not match the current representation. |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | Unsupported media type | The request body media type is not supported. |
@@ -4407,7 +4432,9 @@ Mint or claim a work. work_id claims an existing catalog work. refs= claims the 
 - 鉴权：Authorization: Bearer <用户访问令牌>
 - scope：无需凭据
 
-无参数。
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/me/claims" \
@@ -4563,7 +4590,9 @@ multipart/form-data with preset and file. Returns the hash an edit proposal carr
 - 鉴权：Authorization: Bearer <用户访问令牌>
 - scope：无需凭据
 
-无参数。
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/me/edit-images" \
@@ -4610,7 +4639,9 @@ Requires a user access token with folder:write.
 - 鉴权：Authorization: Bearer <用户访问令牌>
 - scope：folder:write
 
-无参数。
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/me/folders" \
@@ -4740,6 +4771,7 @@ Batch add works to a folder
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
 | `id` | path | 是 | string | Folder id. |
+| `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/me/folders/value/items" \
@@ -4827,7 +4859,9 @@ Always lands on pending: publishing is a human step. source must be bound to the
 - 鉴权：Authorization: Bearer <用户访问令牌>
 - scope：无需凭据
 
-无参数。
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/me/news" \
@@ -4917,7 +4951,9 @@ Batch write playtimes
 - 鉴权：Authorization: Bearer <用户访问令牌>
 - scope：无需凭据
 
-无参数。
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/me/playtimes" \
@@ -5028,7 +5064,9 @@ A contributor who has used up catalog.proposals_per_day inside the sliding windo
 - 鉴权：Authorization: Bearer <用户访问令牌>
 - scope：无需凭据
 
-无参数。
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/me/proposals" \
@@ -5094,6 +5132,7 @@ If-Match required. Requires a user access token. The token must carry the catalo
 | --- | --- | --- | --- | --- |
 | `id` | path | 是 | string | Proposal id. |
 | `If-Match` | header | 是 | string | Current ETag. Required; its absence is 428 PRECONDITION_REQUIRED. |
+| `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/me/proposals/value/amendments" \
@@ -5142,7 +5181,9 @@ Batch write work states
 - 鉴权：Authorization: Bearer <用户访问令牌>
 - scope：无需凭据
 
-无参数。
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/me/work-states" \
@@ -5275,6 +5316,7 @@ decision=approve|decline|ban|unban. unban restores the state the claim was hidde
 | --- | --- | --- | --- | --- |
 | `id` | path | 是 | string | Catalog work id. |
 | `If-Match` | header | 是 | string | Current ETag. Required; its absence is 428 PRECONDITION_REQUIRED. |
+| `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/moderation/claims/value/decisions" \
@@ -5390,6 +5432,7 @@ decision=merge|decline. If-Match required. The token must carry the catalog:edit
 | --- | --- | --- | --- | --- |
 | `id` | path | 是 | string | Proposal id. |
 | `If-Match` | header | 是 | string | Current ETag. Required; its absence is 428 PRECONDITION_REQUIRED. |
+| `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/moderation/proposals/value/decisions" \
@@ -5408,7 +5451,9 @@ Body names revision_id. Requires a user access token bound to a catalog site. Th
 - 鉴权：Authorization: Bearer <用户访问令牌>
 - scope：无需凭据
 
-无参数。
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/moderation/reverts" \

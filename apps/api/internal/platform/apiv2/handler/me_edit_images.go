@@ -34,7 +34,8 @@ func (c *Catalog) UploadEditImage(ctx context.Context, preset, filename string, 
 	if !ok {
 		p := problem.New(problem.CodeValidationFailed, "", "", "preset is not an editor image slot.")
 		p.Errors = []problem.FieldError{{Pointer: "/preset", Reason: problem.ReasonUnknownValue,
-			Detail: "expected one of: cover, screenshot"}}
+			Detail: "expected one of: cover, screenshot",
+			Params: &problem.FieldParams{Allowed: &[]string{"cover", "screenshot"}}}}
 		return repr.EditImage{}, p
 	}
 	res, uerr := c.Uploads(ctx, body, filename, target, site+":"+strconv.FormatInt(uid, 10))

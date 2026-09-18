@@ -2032,6 +2032,9 @@ components:
           maxLength: 64
           pattern: ^[A-Za-z_][A-Za-z0-9_]*$
           type: string
+        params:
+          $ref: "#/components/schemas/FieldParams"
+          description: Constraint values for this reason. Omitted when the reason carries none.
         pointer:
           description: JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.
           maxLength: 256
@@ -2045,6 +2048,50 @@ components:
       required:
         - reason
         - detail
+      type: object
+    FieldParams:
+      additionalProperties: true
+      properties:
+        allowed:
+          description: Closed vocabulary members that were expected.
+          items:
+            maxLength: 128
+            pattern: ^[\x20-\x7E]+$
+            type: string
+          maxItems: 256
+          type: array
+        max_items:
+          description: Maximum array length the value exceeded.
+          format: int64
+          minimum: 0
+          type: integer
+        max_length:
+          description: Maximum string length the value exceeded.
+          format: int64
+          minimum: 0
+          type: integer
+        maximum:
+          description: Inclusive numeric upper bound the value missed.
+          format: double
+          maximum: 9007199254740991
+          minimum: -9007199254740991
+          type: number
+        min_items:
+          description: Minimum array length the value failed.
+          format: int64
+          minimum: 0
+          type: integer
+        min_length:
+          description: Minimum string length the value failed.
+          format: int64
+          minimum: 0
+          type: integer
+        minimum:
+          description: Inclusive numeric lower bound the value missed.
+          format: double
+          maximum: 9007199254740991
+          minimum: -9007199254740991
+          type: number
       type: object
     FolderBatchEntry:
       additionalProperties: true
@@ -5461,6 +5508,21 @@ components:
             - problem_reason
           type: string
           x-vocabulary-closed: true
+        param_names:
+          description: Keys this reason can carry in a field error's params. Empty array when it carries none.
+          items:
+            enum:
+              - max_length
+              - min_length
+              - minimum
+              - maximum
+              - max_items
+              - min_items
+              - allowed
+            type: string
+            x-vocabulary-closed: true
+          maxItems: 7
+          type: array
         reason:
           description: Field-level reason. UPPER_SNAKE. Disjoint from top-level codes.
           maxLength: 63
@@ -5476,6 +5538,7 @@ components:
         - reason
         - title
         - description
+        - param_names
       type: object
     ProblemType:
       additionalProperties: true
@@ -7957,7 +8020,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.23.1
+  version: 2.24.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -14797,6 +14860,15 @@ paths:
     post:
       description: Mint or claim a work. work_id claims an existing catalog work. refs= claims the work they resolve to, or mints one from display_name when none match. site_work_id with display_name and neither work_id nor refs mints a work anchored to the site's own id. field_values carries an editing-engine work field map onto any mint lane and may be sent alone, without work_id, refs or site_work_id; it is refused with work_id, and refs that already resolve to a work answer 409 instead of dropping it. released rides the same mint lanes under the same two refusals and becomes one curated catalog_release row on the minted work. A caller holding catalog.claim.trusted mints straight to live rather than pending. A mint whose display_name or catalog.work.titles match live works of the same medium is refused with 409 DUPLICATE_SUSPECTS naming them in suspects[] and nothing is written; re-send with confirm_duplicates=true to mint anyway. The claiming lanes — work_id, and refs that resolve — never hit this gate. A contributor who has used up catalog.claim_writes_per_day inside the sliding window is refused 429 QUOTA_EXCEEDED; holders of catalog.claim.trusted get the higher catalog.claim_writes_per_day_trusted. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
       operationId: createMyClaim
+      parameters:
+        - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+            maxLength: 255
+            minLength: 1
+            type: string
       requestBody:
         content:
           application/json:
@@ -15474,6 +15546,15 @@ paths:
     post:
       description: multipart/form-data with preset and file. Returns the hash an edit proposal carries in a cover or screenshot row. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
       operationId: uploadMyEditImage
+      parameters:
+        - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+            maxLength: 255
+            minLength: 1
+            type: string
       requestBody:
         content:
           multipart/form-data:
@@ -15749,6 +15830,15 @@ paths:
     post:
       description: Requires a user access token with folder:write.
       operationId: createMyFolder
+      parameters:
+        - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+            maxLength: 255
+            minLength: 1
+            type: string
       requestBody:
         content:
           application/json:
@@ -15786,6 +15876,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
           description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
         "422":
           content:
             application/problem+json:
@@ -16290,6 +16386,14 @@ paths:
             minLength: 1
             pattern: ^[0-9]+$
             type: string
+        - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+            maxLength: 255
+            minLength: 1
+            type: string
       requestBody:
         content:
           application/json:
@@ -16327,6 +16431,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
           description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
         "422":
           content:
             application/problem+json:
@@ -16679,6 +16789,15 @@ paths:
     post:
       description: "Always lands on pending: publishing is a human step. source must be bound to the bearer and active. Requires a user access token."
       operationId: createMyNews
+      parameters:
+        - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+            maxLength: 255
+            minLength: 1
+            type: string
       requestBody:
         content:
           application/json:
@@ -17125,6 +17244,15 @@ paths:
     post:
       description: 207 Multi-Status. Each item is a playtime or a problem. Requires a user access token. Any app may call this; playtime:write is not required.
       operationId: batchMyPlaytimes
+      parameters:
+        - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+            maxLength: 255
+            minLength: 1
+            type: string
       requestBody:
         content:
           application/json:
@@ -17626,6 +17754,15 @@ paths:
     post:
       description: A contributor who has used up catalog.proposals_per_day inside the sliding window is refused 429 QUOTA_EXCEEDED; holders of catalog.edit.trusted, whose proposals merge without review, get the higher catalog.proposals_per_day_trusted. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
       operationId: createMyProposal
+      parameters:
+        - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+            maxLength: 255
+            minLength: 1
+            type: string
       requestBody:
         content:
           application/json:
@@ -17945,6 +18082,14 @@ paths:
           schema:
             description: Current ETag. Required; its absence is 428 PRECONDITION_REQUIRED.
             type: string
+        - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+            maxLength: 255
+            minLength: 1
+            type: string
       requestBody:
         content:
           application/json:
@@ -18200,6 +18345,15 @@ paths:
     post:
       description: 207 Multi-Status. Each item is a work_state or a problem. Requires a user access token. Any app may call this; no scope is required.
       operationId: batchMyWorkStates
+      parameters:
+        - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+            maxLength: 255
+            minLength: 1
+            type: string
       requestBody:
         content:
           application/json:
@@ -18778,6 +18932,14 @@ paths:
           schema:
             description: Current ETag. Required; its absence is 428 PRECONDITION_REQUIRED.
             type: string
+        - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+            maxLength: 255
+            minLength: 1
+            type: string
       requestBody:
         content:
           application/json:
@@ -19312,6 +19474,14 @@ paths:
           schema:
             description: Current ETag. Required; its absence is 428 PRECONDITION_REQUIRED.
             type: string
+        - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+            maxLength: 255
+            minLength: 1
+            type: string
       requestBody:
         content:
           application/json:
@@ -19400,6 +19570,15 @@ paths:
     post:
       description: Body names revision_id. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
       operationId: revertModeration
+      parameters:
+        - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+            maxLength: 255
+            minLength: 1
+            type: string
       requestBody:
         content:
           application/json:

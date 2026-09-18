@@ -97,7 +97,7 @@
 - https://developer.nextmoe.dev/docs/moyu-patches.md — moyu 补丁面接入
 - https://developer.nextmoe.dev/docs/sticker-packs.md — sticker 表情包面接入
 - https://developer.nextmoe.dev/docs/<face>/<operationId>.md — 单个端点
-- https://developer.nextmoe.dev/problems.md — 全部 42 个错误码（RFC 9457 problem types）
+- https://developer.nextmoe.dev/problems.md — 全部 43 个错误码（RFC 9457 problem types）
 - https://developer.nextmoe.dev/problems/<domain>/<kebab-code>.md — 单个错误码
 - https://developer.nextmoe.dev/docs/vocabularies.md — 全部 26 个词表的成员
 - https://developer.nextmoe.dev/docs/vocabularies/<name>.md — 单个词表

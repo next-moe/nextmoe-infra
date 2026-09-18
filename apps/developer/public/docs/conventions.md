@@ -97,7 +97,7 @@ v2 允许任意 origin，并暴露 `ETag`、`Link`、`RateLimit*`、`Retry-After
 ## 写操作
 
 - 请求体是 JSON，`Content-Type: application/json`。
-- `POST` 支持 `Idempotency-Key`：同一把密钥、同一路径、同一个 key 的重复请求会重放首次结果（保存 24 小时）；body 不同则是 `409 IDEMPOTENCY_KEY_REUSED`。
+- `POST` 支持 `Idempotency-Key`：同一把密钥、同一路径、同一个 key 的重复请求会重放首次结果（保存 24 小时）；body 不同则是 `409 IDEMPOTENCY_KEY_REUSED`；首个请求还在处理时重试是 `409 IDEMPOTENCY_REQUEST_IN_PROGRESS`。
 - 改动别人也能改的资源时要求乐观并发：把读到的 `ETag` 放进 `If-Match`。不带是 `428 PRECONDITION_REQUIRED`，带了但对不上是 `412 PRECONDITION_FAILED`。目前 `PATCH /v2/me/claims/{id}`、`PATCH /v2/me/proposals/{id}`、`POST /v2/me/proposals/{id}/amendments` 与两个 `moderation` 决策面都要求它。
 
 写面的完整清单与流程见 [接入用户数据](/docs/user-data)。

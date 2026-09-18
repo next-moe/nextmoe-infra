@@ -92,7 +92,29 @@ func (s *liveUnlimitedStore) Set(_ context.Context, key string, value []byte, _ 
 	if s.kept == nil {
 		s.kept = map[string][]byte{}
 	}
-	s.kept[key] = value
+	cp := make([]byte, len(value))
+	copy(cp, value)
+	s.kept[key] = cp
+	return nil
+}
+func (s *liveUnlimitedStore) SetNX(_ context.Context, key string, value []byte, _ time.Duration) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.kept == nil {
+		s.kept = map[string][]byte{}
+	}
+	if _, ok := s.kept[key]; ok {
+		return false, nil
+	}
+	cp := make([]byte, len(value))
+	copy(cp, value)
+	s.kept[key] = cp
+	return true, nil
+}
+func (s *liveUnlimitedStore) Del(_ context.Context, key string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.kept, key)
 	return nil
 }
 

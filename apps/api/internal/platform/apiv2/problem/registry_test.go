@@ -1,6 +1,7 @@
 package problem
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -46,6 +47,77 @@ func TestRegistryClosedAndDisjoint(t *testing.T) {
 			t.Errorf("reason %s missing title/description", r.Reason)
 		}
 	}
+}
+
+func TestReasonParamsMatchContract(t *testing.T) {
+	want := map[string][]string{
+		ReasonTooLong:      {ParamMaxLength},
+		ReasonTooShort:     {ParamMinLength},
+		ReasonOutOfRange:   {ParamMinimum, ParamMaximum},
+		ReasonTooManyItems: {ParamMaxItems},
+		ReasonTooFewItems:  {ParamMinItems},
+		ReasonUnknownValue: {ParamAllowed},
+	}
+	if err := reasonParamsOK(Reasons, want); err != nil {
+		t.Fatal(err)
+	}
+	if err := reasonParamsOK([]ReasonDef{{Reason: "X", Params: []string{"nope"}}}, want); err == nil {
+		t.Fatal("positive control: a params key outside the seven must fail")
+	}
+	foundFew, foundInProgress := false, false
+	for i, r := range Reasons {
+		if r.Reason == ReasonTooManyItems {
+			if i+1 >= len(Reasons) || Reasons[i+1].Reason != ReasonTooFewItems {
+				t.Fatal("TOO_FEW_ITEMS must sit right after TOO_MANY_ITEMS")
+			}
+			foundFew = true
+		}
+	}
+	if !foundFew {
+		t.Fatal("TOO_MANY_ITEMS missing")
+	}
+	for i, d := range Codes {
+		if d.Code == CodeIdempotencyKeyReused {
+			if i+1 >= len(Codes) || Codes[i+1].Code != CodeIdempotencyRequestInProgress {
+				t.Fatal("IDEMPOTENCY_REQUEST_IN_PROGRESS must sit right after IDEMPOTENCY_KEY_REUSED")
+			}
+			foundInProgress = true
+		}
+	}
+	if !foundInProgress {
+		t.Fatal("IDEMPOTENCY_KEY_REUSED missing")
+	}
+}
+
+func reasonParamsOK(defs []ReasonDef, want map[string][]string) error {
+	allowed := map[string]bool{
+		ParamMaxLength: true, ParamMinLength: true, ParamMinimum: true, ParamMaximum: true,
+		ParamMaxItems: true, ParamMinItems: true, ParamAllowed: true,
+	}
+	for _, r := range defs {
+		for _, p := range r.Params {
+			if !allowed[p] {
+				return fmt.Errorf("reason %s declares unknown params key %q", r.Reason, p)
+			}
+		}
+		exp := want[r.Reason]
+		if !slicesEqual(r.Params, exp) {
+			return fmt.Errorf("reason %s params %v want %v", r.Reason, r.Params, exp)
+		}
+	}
+	return nil
+}
+
+func slicesEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func TestLookupUnknown(t *testing.T) {

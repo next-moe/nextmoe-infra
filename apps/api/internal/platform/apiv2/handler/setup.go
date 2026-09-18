@@ -57,7 +57,7 @@ func SetupWith(app *fiber.App, opt Options) huma.API {
 	app.Use(protocol.RateLimit(opt.Store, credentialLimitIdentity))
 	app.Use(protocol.Idempotency(opt.Store, credentialLimitIdentity))
 
-	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.23.1")
+	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.24.0")
 	cfg.OpenAPIPath = ""
 	cfg.DocsPath = ""
 	cfg.SchemasPath = ""
@@ -181,6 +181,7 @@ func annotateSpec(doc *huma.OpenAPI) {
 	}
 	declareSecuritySchemes(doc)
 	for path, item := range doc.Paths {
+		declareIdempotency(path, item)
 		for _, op := range pathOps(item) {
 			rewriteErrorResponses(path, op, problemRef)
 			noteEditingPlaneScope(path, op)

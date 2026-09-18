@@ -195,11 +195,18 @@ func TestLiveNewsValidationIsFieldLevel(t *testing.T) {
 	p = liveProblem(t, raw)
 	require.Equal(t, problem.CodeValidationFailed, p.Code)
 	pointers = map[string]string{}
+	var titleParams *problem.FieldParams
 	for _, e := range p.Errors {
 		pointers[e.Pointer] = e.Reason
+		if e.Pointer == "/title" {
+			titleParams = e.Params
+		}
 	}
 	require.Equal(t, problem.ReasonInvalidFormat, pointers["/source_url"])
-	require.Equal(t, problem.ReasonInvalidFormat, pointers["/title"], "every schema failure at once, not one round trip each")
+	require.Equal(t, problem.ReasonTooShort, pointers["/title"], "every schema failure at once, not one round trip each")
+	require.NotNil(t, titleParams)
+	require.NotNil(t, titleParams.MinLength)
+	require.Equal(t, 1, *titleParams.MinLength)
 
 	// banner_hash is refused by the generated schema before the handler runs, so
 	// it is asserted on its own: mixing it into the case above hides every other

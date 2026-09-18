@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -13,13 +14,22 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-const idempotencyTTL = 24 * time.Hour
+const (
+	idempotencyTTL        = 24 * time.Hour
+	idempotencyPendingTTL = 2 * time.Minute
+	idempotencyKeyMaxLen  = 255
+)
 
 type idempotencyRecord struct {
 	Status      int    `json:"status"`
 	ContentType string `json:"content_type"`
 	Body        []byte `json:"body"`
 	Hash        string `json:"hash"`
+	// Pending marks an in-flight claim. A record without the field is a
+	// completed record: records written before this deploy have no pending
+	// key and live for 24h, and a done-style positive flag would decode them
+	// as pending and answer 409 to every retry for a day.
+	Pending bool `json:"pending,omitempty"`
 }
 
 // Idempotency must be registered AFTER the auth middlewares. The key was
@@ -32,18 +42,44 @@ func Idempotency(store Store, ident IdentityFunc) fiber.Handler {
 		if store == nil || c.Method() != fiber.MethodPost || !strings.HasPrefix(routepath.Normalize(c.Path()), "/v2") {
 			return c.Next()
 		}
-		if c.Get("Idempotency-Key") == "" {
+		rawKey := c.Get("Idempotency-Key")
+		if rawKey == "" {
 			return c.Next()
 		}
-		key := idempotencyKey(c, ident)
-		if replayed, err := replayPOST(store, c, key); replayed {
-			if err != nil {
-				return writeErr(c, err)
-			}
-			return nil
+		if len(rawKey) > idempotencyKeyMaxLen {
+			p := problem.New(problem.CodeInvalidParameter, problem.RequestID(c), problem.Instance(c),
+				"Idempotency-Key is at most 255 bytes.")
+			p.Errors = []problem.FieldError{{
+				Header: "Idempotency-Key",
+				Reason: problem.ReasonTooLong,
+				Detail: "at most 255 bytes",
+				Params: &problem.FieldParams{MaxLength: problem.Ptr(idempotencyKeyMaxLen)},
+			}}
+			return writeErr(c, p)
 		}
-		err := c.Next()
-		rememberPOST(store, c, key)
+		key := idempotencyKey(c, ident)
+		h := bodyHash(c.Body())
+		pending, err := json.Marshal(idempotencyRecord{Pending: true, Hash: h})
+		if err != nil {
+			slog.Warn("v2 idempotency store unavailable; failing open", "request_id", problem.RequestID(c), "err", err)
+			return c.Next()
+		}
+		claimed, err := store.SetNX(c.Context(), key, pending, idempotencyPendingTTL)
+		if err != nil {
+			slog.Warn("v2 idempotency store unavailable; failing open", "request_id", problem.RequestID(c), "err", err)
+			return c.Next()
+		}
+		if !claimed {
+			return replayOrConflict(store, c, key, h)
+		}
+		stored := false
+		defer func() {
+			if !stored {
+				_ = store.Del(c.Context(), key)
+			}
+		}()
+		err = c.Next()
+		stored = rememberPOST(store, c, key)
 		return err
 	}
 }
@@ -63,36 +99,48 @@ func bodyHash(b []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func replayPOST(store Store, c fiber.Ctx, key string) (replayed bool, err error) {
+func replayOrConflict(store Store, c fiber.Ctx, key, hash string) error {
 	raw, err := store.Get(c.Context(), key)
 	if err != nil || len(raw) == 0 {
-		return false, nil
+		if err != nil {
+			slog.Warn("v2 idempotency store unavailable; failing open", "request_id", problem.RequestID(c), "err", err)
+			return c.Next()
+		}
+		p := problem.New(problem.CodeIdempotencyRequestInProgress, problem.RequestID(c), problem.Instance(c),
+			"A request with the same Idempotency-Key is still being processed. Retry after it completes.")
+		return writeErr(c, p)
 	}
 	var rec idempotencyRecord
 	if json.Unmarshal(raw, &rec) != nil {
-		return false, nil
+		err := c.Next()
+		rememberPOST(store, c, key)
+		return err
 	}
-	h := bodyHash(c.Body())
-	if h != rec.Hash {
+	if hash != rec.Hash {
 		p := problem.New(problem.CodeIdempotencyKeyReused, problem.RequestID(c), problem.Instance(c),
 			"Idempotency-Key was reused with a different request body.")
-		return true, p
+		return writeErr(c, p)
+	}
+	if rec.Pending {
+		p := problem.New(problem.CodeIdempotencyRequestInProgress, problem.RequestID(c), problem.Instance(c),
+			"A request with the same Idempotency-Key is still being processed. Retry after it completes.")
+		return writeErr(c, p)
 	}
 	c.Set("Idempotency-Replayed", "true")
 	if rec.ContentType != "" {
 		c.Set("Content-Type", rec.ContentType)
 	}
 	c.Status(rec.Status)
-	return true, c.Send(rec.Body)
+	return c.Send(rec.Body)
 }
 
-func rememberPOST(store Store, c fiber.Ctx, key string) {
+func rememberPOST(store Store, c fiber.Ctx, key string) bool {
 	status := c.Response().StatusCode()
 	// 429 became reachable here when the limiter moved inside the chain
 	// (RateLimit runs within c.Next()); remembering one would replay the
 	// rate-limit refusal for 24h after the window reset.
 	if status < 200 || status >= 500 || status == fiber.StatusTooManyRequests {
-		return
+		return false
 	}
 	rec := idempotencyRecord{
 		Status:      status,
@@ -102,7 +150,10 @@ func rememberPOST(store Store, c fiber.Ctx, key string) {
 	}
 	b, err := json.Marshal(rec)
 	if err != nil {
-		return
+		return false
 	}
-	_ = store.Set(c.Context(), key, b, idempotencyTTL)
+	if err := store.Set(c.Context(), key, b, idempotencyTTL); err != nil {
+		return false
+	}
+	return true
 }

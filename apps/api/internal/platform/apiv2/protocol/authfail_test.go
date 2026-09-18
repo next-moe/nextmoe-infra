@@ -98,6 +98,10 @@ func (s *brokenStore) Get(context.Context, string) ([]byte, error) {
 func (s *brokenStore) Set(context.Context, string, []byte, time.Duration) error {
 	return errUnavailable
 }
+func (s *brokenStore) SetNX(context.Context, string, []byte, time.Duration) (bool, error) {
+	return false, errUnavailable
+}
+func (s *brokenStore) Del(context.Context, string) error { return errUnavailable }
 
 func TestLimiterFailsOpenAndSaysSo(t *testing.T) {
 	var buf bytes.Buffer

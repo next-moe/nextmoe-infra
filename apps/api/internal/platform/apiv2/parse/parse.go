@@ -47,6 +47,7 @@ func Limit(raw string, def, max int) (int, *problem.Problem) {
 			Parameter: "limit",
 			Reason:    problem.ReasonOutOfRange,
 			Detail:    "maximum " + strconv.Itoa(max),
+			Params:    &problem.FieldParams{Maximum: problem.Ptr(float64(max))},
 		}}
 		return 0, p
 	}
@@ -64,6 +65,7 @@ func Enum(raw, name string, allowed []string) (string, *problem.Problem) {
 		Parameter: name,
 		Reason:    problem.ReasonUnknownValue,
 		Detail:    "allowed values: " + strings.Join(allowed, ", "),
+		Params:    &problem.FieldParams{Allowed: problem.Ptr(append([]string(nil), allowed...))},
 	}}
 	return "", p
 }

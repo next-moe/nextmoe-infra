@@ -437,8 +437,10 @@ func contentRatingFromKey(s string) (int16, bool) {
 }
 
 func closedParam(name, allowed string) *problem.Problem {
+	vals := strings.Split(allowed, ", ")
 	p := problem.New(problem.CodeUnknownEnumValue, "", "", name+" is not in the closed vocabulary.")
-	p.Errors = []problem.FieldError{{Parameter: name, Reason: problem.ReasonUnknownValue, Detail: "allowed values: " + allowed}}
+	p.Errors = []problem.FieldError{{Parameter: name, Reason: problem.ReasonUnknownValue, Detail: "allowed values: " + allowed,
+		Params: &problem.FieldParams{Allowed: &vals}}}
 	return p
 }
 
@@ -492,7 +494,8 @@ func idList(raw, name string, max int) ([]int64, *problem.Problem) {
 	parts := strings.Split(raw, ",")
 	if len(parts) > max {
 		p := problem.New(problem.CodeInvalidParameter, "", "", name+" accepts at most "+strconv.Itoa(max)+" values.")
-		p.Errors = []problem.FieldError{{Parameter: name, Reason: problem.ReasonOutOfRange, Detail: "maximum " + strconv.Itoa(max)}}
+		p.Errors = []problem.FieldError{{Parameter: name, Reason: problem.ReasonOutOfRange, Detail: "maximum " + strconv.Itoa(max),
+			Params: &problem.FieldParams{Maximum: problem.Ptr(float64(max))}}}
 		return nil, p
 	}
 	var out []int64

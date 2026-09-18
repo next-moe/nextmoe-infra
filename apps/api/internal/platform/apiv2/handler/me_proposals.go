@@ -455,7 +455,8 @@ func (c *Catalog) DecideProposal(ctx context.Context, id int64, decision, note, 
 		}
 	default:
 		p := problem.New(problem.CodeValidationFailed, "", "", "decision must be merge or decline.")
-		p.Errors = []problem.FieldError{{Pointer: "/decision", Reason: problem.ReasonUnknownValue, Detail: "merge or decline"}}
+		p.Errors = []problem.FieldError{{Pointer: "/decision", Reason: problem.ReasonUnknownValue, Detail: "merge or decline",
+			Params: &problem.FieldParams{Allowed: &[]string{"merge", "decline"}}}}
 		return repr.ProposalDecisionRecord{}, p
 	}
 	// Read the outcome back rather than deriving it from the verb: a

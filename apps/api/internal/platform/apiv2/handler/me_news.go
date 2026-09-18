@@ -95,7 +95,8 @@ func (c *Catalog) CreateMyNews(ctx context.Context, in newsSubmissionBody) (repr
 		lane = newsmodel.LaneNews
 	}
 	if !newsmodel.IsKnownLane(lane) {
-		p.Errors = append(p.Errors, problem.FieldError{Pointer: "/lane", Reason: problem.ReasonUnknownValue, Detail: "expected one of: news, column"})
+		p.Errors = append(p.Errors, problem.FieldError{Pointer: "/lane", Reason: problem.ReasonUnknownValue, Detail: "expected one of: news, column",
+			Params: &problem.FieldParams{Allowed: &[]string{"news", "column"}}})
 	}
 	if strings.TrimSpace(in.Title) == "" {
 		p.Errors = append(p.Errors, problem.FieldError{Pointer: "/title", Reason: problem.ReasonRequired, Detail: "a news item needs a title"})
@@ -145,7 +146,8 @@ func (c *Catalog) PatchMyNews(ctx context.Context, id int64, in newsPatchBody, i
 		}
 		if *in.Status != "withdrawn" {
 			p := problem.New(problem.CodeValidationFailed, "", "", "the write face only performs the withdrawal transition.")
-			p.Errors = []problem.FieldError{{Pointer: "/status", Reason: problem.ReasonUnknownValue, Detail: "expected one of: withdrawn"}}
+			p.Errors = []problem.FieldError{{Pointer: "/status", Reason: problem.ReasonUnknownValue, Detail: "expected one of: withdrawn",
+				Params: &problem.FieldParams{Allowed: &[]string{"withdrawn"}}}}
 			return repr.NewsSubmission{}, "", p
 		}
 		if merr := requireIfMatch(ifMatch, etag); merr != nil {

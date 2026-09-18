@@ -5,21 +5,36 @@ import (
 	"errors"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/validation"
 	"github.com/gofiber/fiber/v3"
 )
 
-type FieldError struct {
-	_         struct{} `json:"-" additionalProperties:"true"`
-	Pointer   string   `json:"pointer,omitempty" maxLength:"256" pattern:"^/" doc:"JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set."`
-	Parameter string   `json:"parameter,omitempty" maxLength:"64" pattern:"^[A-Za-z_][A-Za-z0-9_]*$" doc:"Query or path parameter name. Exactly one of pointer, parameter, or header is set."`
-	Header    string   `json:"header,omitempty" maxLength:"64" pattern:"^[A-Za-z0-9-]+$" doc:"Request header name. Exactly one of pointer, parameter, or header is set."`
-	Reason    string   `json:"reason" pattern:"^[A-Z][A-Z0-9_]*[A-Z0-9]$" maxLength:"63" doc:"Field-level reason from the closed reason registry."`
-	Detail    string   `json:"detail" maxLength:"2048" doc:"English, request-specific. Must not be used as a discriminant."`
+type FieldParams struct {
+	MaxLength *int      `json:"max_length,omitempty" minimum:"0" doc:"Maximum string length the value exceeded."`
+	MinLength *int      `json:"min_length,omitempty" minimum:"0" doc:"Minimum string length the value failed."`
+	Minimum   *float64  `json:"minimum,omitempty" minimum:"-9007199254740991" maximum:"9007199254740991" doc:"Inclusive numeric lower bound the value missed."`
+	Maximum   *float64  `json:"maximum,omitempty" minimum:"-9007199254740991" maximum:"9007199254740991" doc:"Inclusive numeric upper bound the value missed."`
+	MaxItems  *int      `json:"max_items,omitempty" minimum:"0" doc:"Maximum array length the value exceeded."`
+	MinItems  *int      `json:"min_items,omitempty" minimum:"0" doc:"Minimum array length the value failed."`
+	Allowed   *[]string `json:"allowed,omitempty" maxItems:"256" maxLength:"128" pattern:"^[\\x20-\\x7E]+$" doc:"Closed vocabulary members that were expected."`
 }
+
+type FieldError struct {
+	_         struct{}     `json:"-" additionalProperties:"true"`
+	Pointer   string       `json:"pointer,omitempty" maxLength:"256" pattern:"^/" doc:"JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set."`
+	Parameter string       `json:"parameter,omitempty" maxLength:"64" pattern:"^[A-Za-z_][A-Za-z0-9_]*$" doc:"Query or path parameter name. Exactly one of pointer, parameter, or header is set."`
+	Header    string       `json:"header,omitempty" maxLength:"64" pattern:"^[A-Za-z0-9-]+$" doc:"Request header name. Exactly one of pointer, parameter, or header is set."`
+	Reason    string       `json:"reason" pattern:"^[A-Z][A-Z0-9_]*[A-Z0-9]$" maxLength:"63" doc:"Field-level reason from the closed reason registry."`
+	Detail    string       `json:"detail" maxLength:"2048" doc:"English, request-specific. Must not be used as a discriminant."`
+	Params    *FieldParams `json:"params,omitempty" doc:"Constraint values for this reason. Omitted when the reason carries none."`
+}
+
+func Ptr[T any](v T) *T { return &v }
 
 type Problem struct {
 	_         struct{}     `json:"-" additionalProperties:"true"`
@@ -226,26 +241,140 @@ var bodyLoc = regexp.MustCompile(`\[(\d+)]`)
 
 func fieldFromHuma(err error) FieldError {
 	var d *huma.ErrorDetail
-	if errors.As(err, &d) && d != nil {
-		fe := FieldError{Detail: d.Message, Reason: ReasonInvalidFormat}
-		loc := d.Location
-		switch {
-		case strings.HasPrefix(loc, "query."):
-			fe.Parameter = strings.TrimPrefix(loc, "query.")
-		case strings.HasPrefix(loc, "path."):
-			fe.Parameter = strings.TrimPrefix(loc, "path.")
-		case strings.HasPrefix(loc, "header."):
-			fe.Header = strings.TrimPrefix(loc, "header.")
-		case strings.HasPrefix(loc, "body."):
-			fe.Pointer = bodyPointer(strings.TrimPrefix(loc, "body."))
-		default:
-			if loc != "" {
-				fe.Parameter = loc
-			}
-		}
-		return fe
+	if !errors.As(err, &d) || d == nil {
+		return FieldError{Reason: ReasonInvalidFormat, Detail: err.Error()}
 	}
-	return FieldError{Reason: ReasonInvalidFormat, Detail: err.Error()}
+	reason, params, requiredProp := mapReason(d.Message)
+	fe := FieldError{Detail: d.Message, Reason: reason, Params: params}
+	loc := d.Location
+	switch {
+	case strings.HasPrefix(loc, "query."):
+		fe.Parameter = strings.TrimPrefix(loc, "query.")
+	case strings.HasPrefix(loc, "path."):
+		fe.Parameter = strings.TrimPrefix(loc, "path.")
+	case strings.HasPrefix(loc, "header."):
+		fe.Header = strings.TrimPrefix(loc, "header.")
+	case loc == "body" || strings.HasPrefix(loc, "body."):
+		parent := ""
+		if strings.HasPrefix(loc, "body.") {
+			parent = bodyPointer(strings.TrimPrefix(loc, "body."))
+		}
+		if requiredProp != "" {
+			fe.Pointer = joinPointer(parent, requiredProp)
+		} else {
+			fe.Pointer = parent
+		}
+	default:
+		if loc != "" {
+			fe.Parameter = loc
+		}
+	}
+	return fe
+}
+
+func mapReason(msg string) (reason string, params *FieldParams, requiredProp string) {
+	if name, ok := parseRequiredProperty(msg); ok {
+		return ReasonRequired, nil, name
+	}
+	if strings.HasPrefix(msg, "required ") && strings.HasSuffix(msg, " parameter is missing") {
+		return ReasonRequired, nil, ""
+	}
+	if n, ok := parseAfter(msg, "expected array length <= "); ok {
+		return ReasonTooManyItems, &FieldParams{MaxItems: Ptr(n)}, ""
+	}
+	if n, ok := parseAfter(msg, "expected array length >= "); ok {
+		return ReasonTooFewItems, &FieldParams{MinItems: Ptr(n)}, ""
+	}
+	if n, ok := parseAfter(msg, "expected length <= "); ok {
+		return ReasonTooLong, &FieldParams{MaxLength: Ptr(n)}, ""
+	}
+	if n, ok := parseAfter(msg, "expected length >= "); ok {
+		return ReasonTooShort, &FieldParams{MinLength: Ptr(n)}, ""
+	}
+	if f, ok := parseFloatAfter(msg, "expected number >= "); ok {
+		return ReasonOutOfRange, &FieldParams{Minimum: Ptr(f)}, ""
+	}
+	if f, ok := parseFloatAfter(msg, "expected number > "); ok {
+		return ReasonOutOfRange, &FieldParams{Minimum: Ptr(f)}, ""
+	}
+	if f, ok := parseFloatAfter(msg, "expected number <= "); ok {
+		return ReasonOutOfRange, &FieldParams{Maximum: Ptr(f)}, ""
+	}
+	if f, ok := parseFloatAfter(msg, "expected number < "); ok {
+		return ReasonOutOfRange, &FieldParams{Maximum: Ptr(f)}, ""
+	}
+	if msg == validation.MsgExpectedArrayItemsUnique {
+		return ReasonDuplicateItem, nil, ""
+	}
+	if allowed, ok := parseOneOf(msg); ok {
+		return ReasonUnknownValue, &FieldParams{Allowed: Ptr(allowed)}, ""
+	}
+	if v, ok := strings.CutPrefix(msg, "expected value to be "); ok && v != "" && !strings.HasPrefix(v, "one of ") {
+		return ReasonUnknownValue, &FieldParams{Allowed: Ptr([]string{v})}, ""
+	}
+	return ReasonInvalidFormat, nil, ""
+}
+
+func parseRequiredProperty(msg string) (string, bool) {
+	const pre, suf = "expected required property ", " to be present"
+	if !strings.HasPrefix(msg, pre) || !strings.HasSuffix(msg, suf) {
+		return "", false
+	}
+	name := msg[len(pre) : len(msg)-len(suf)]
+	if name == "" {
+		return "", false
+	}
+	return name, true
+}
+
+func parseAfter(msg, prefix string) (int, bool) {
+	rest, ok := strings.CutPrefix(msg, prefix)
+	if !ok {
+		return 0, false
+	}
+	n, err := strconv.Atoi(rest)
+	if err != nil {
+		return 0, false
+	}
+	return n, true
+}
+
+func parseFloatAfter(msg, prefix string) (float64, bool) {
+	rest, ok := strings.CutPrefix(msg, prefix)
+	if !ok {
+		return 0, false
+	}
+	f, err := strconv.ParseFloat(rest, 64)
+	if err != nil {
+		return 0, false
+	}
+	return f, true
+}
+
+func parseOneOf(msg string) ([]string, bool) {
+	const pre, suf = `expected value to be one of "`, `"`
+	if !strings.HasPrefix(msg, pre) || !strings.HasSuffix(msg, suf) {
+		return nil, false
+	}
+	inner := msg[len(pre) : len(msg)-len(suf)]
+	if inner == "" {
+		return []string{}, true
+	}
+	return strings.Split(inner, ", "), true
+}
+
+func joinPointer(parent, name string) string {
+	token := escapePointerToken(name)
+	if parent == "" || parent == "/" {
+		return "/" + token
+	}
+	return parent + "/" + token
+}
+
+func escapePointerToken(s string) string {
+	s = strings.ReplaceAll(s, "~", "~0")
+	s = strings.ReplaceAll(s, "/", "~1")
+	return s
 }
 
 func bodyPointer(loc string) string {
