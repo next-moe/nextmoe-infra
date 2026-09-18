@@ -295,6 +295,12 @@ if [ "$GROUP_FAIL" -eq 0 ]; then
   fi
 fi
 gstep sh -c "$DSNSH"'; backfill-dlsite-genres --dsn "$CAT" --dlsite-dsn "$DL" --apply'
+# Held back until 2026-09-18 as possibly unfit (a quarter of store blurbs carry a
+# URL line). It fills only works with no ja intro at all, and the 7,455 DLsite
+# intros already live carry URLs at a higher rate (24.8%) than its backlog (19.6%);
+# intromt strips bare URL lines before translating, so the zh-Hans face gets 0.3%.
+# --kind intro only: covers and screenshots need the mirror and belong to image-mirror.
+gstep sh -c "$DSNSH"'; backfill-dlsite-media --dsn "$CAT" --dlsite-dsn "$DL" --kind intro --apply'
 gstep sh -c "$DSNSH"'; import-work-aliases --dsn "$CAT" --dlsite-dsn "$DL" --source all --apply'
 gstep sh -c "$DSNSH"'; import-work-platforms --dsn "$CAT" --dlsite-dsn "$DL" --source all --apply'
 # Rebuilds the DLsite series lane and deletes series that lost all members;
@@ -330,8 +336,6 @@ fi
 #   enrich-org-labels — its dry counts do not subtract the rows already written, so its first apply is unmeasured
 #   backfill-vndb-covers, backfill-character-portraits, backfill-dlsite-media (cover, screenshot),
 #   backfill-bangumi-covers, backfill-label-logos (bangumi), backfill-person-photos — image-mirror
-#   backfill-dlsite-media --kind intro — needs no mirror; its first write (325 store blurbs on 2026-09-17,
-#     73 carrying URLs and support notes) has not been judged fit for the read face
 #   backfill-getchu-media, backfill-getchu-portraits — Getchu's robots.txt disallows the image paths
 #   backfill-label-logos --source cien — kun-dlsite-api cien-avatars reads cien.dlsite.com, which this host has not been probed against
 #   mint-catalog-persons — one-shot; requires a wave-152 clusters file

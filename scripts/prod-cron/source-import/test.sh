@@ -61,6 +61,7 @@ person-link-batch --rule-set alias --actor 1 --run
 import-bangumi-xmedia --run
 import-eg-dlsite-releases --run
 backfill-dlsite-genres --apply
+backfill-dlsite-media --kind intro --apply
 import-work-aliases --source all --apply
 import-work-platforms --source all --apply
 import-work-series --apply
@@ -105,6 +106,7 @@ extract_tool_cmd() {
     expand-bgm-type4-gated \
     import-eg-dlsite-releases \
     backfill-dlsite-genres \
+    backfill-dlsite-media \
     import-work-aliases \
     import-work-platforms \
     import-work-series \
@@ -280,6 +282,7 @@ case "$1" in
       expand-bgm-type4-gated \
       import-eg-dlsite-releases \
       backfill-dlsite-genres \
+      backfill-dlsite-media \
       import-work-aliases \
       import-work-platforms \
       import-work-series \
@@ -294,7 +297,7 @@ case "$1" in
       exit 99
     fi
 
-    src=""; only=""; lane=""; pop=""; hints=""; limit=""; leg=""; ruleset=""; actor=""
+    src=""; only=""; lane=""; pop=""; hints=""; limit=""; leg=""; ruleset=""; actor=""; kind=""
     case "$toolcmd" in
       *"--source eg-music"*) src=eg-music ;;
       *"--source eg"*) src=eg ;;
@@ -328,11 +331,17 @@ case "$1" in
     case "$toolcmd" in
       *"--limit "*) limit=$(printf '%s\n' "$toolcmd" | sed 's/.*--limit \([0-9]*\).*/\1/') ;;
     esac
+    case "$toolcmd" in
+      *"--kind "*) kind=$(printf '%s\n' "$toolcmd" | sed 's/.*--kind \([a-z,]*\).*/\1/') ;;
+    esac
     if [ "$tool" = "import-entity-aliases" ] && [ -z "$leg" ]; then
       echo "import-entity-aliases without --hints or --candidates runs both legs" >> "$CTL/violations"
     fi
     if [ "$tool" = "person-link-batch" ] && { [ "$ruleset" != alias ] || [ "$actor" != 1 ]; }; then
       echo "person-link-batch must run --rule-set alias --actor 1: $toolcmd" >> "$CTL/violations"
+    fi
+    if [ "$tool" = "backfill-dlsite-media" ] && [ "$kind" != intro ]; then
+      echo "backfill-dlsite-media must run --kind intro (covers and screenshots are image-mirror's): $toolcmd" >> "$CTL/violations"
     fi
     case "$tool" in
       import-entity-aliases|import-bangumi-xmedia|import-eg-dlsite-releases|person-link-batch)
@@ -366,6 +375,7 @@ case "$1" in
       [ "$leg" = candidates ] && line="$line --candidates"
       [ -n "$ruleset" ] && line="$line --rule-set $ruleset"
       [ -n "$actor" ] && line="$line --actor $actor"
+      [ -n "$kind" ] && line="$line --kind $kind"
       case "$tool" in
         import-entity-aliases|import-bangumi-xmedia|import-eg-dlsite-releases|person-link-batch) line="$line --run" ;;
         *) line="$line --apply" ;;
@@ -771,6 +781,7 @@ write_t1_expected "$td/ctl/t1"
 grep -v -F \
   -e 'import-eg-dlsite-releases --run' \
   -e 'backfill-dlsite-genres --apply' \
+  -e 'backfill-dlsite-media --kind intro --apply' \
   -e 'import-work-aliases --source all --apply' \
   -e 'import-work-platforms --source all --apply' \
   -e 'import-work-series --apply' \
