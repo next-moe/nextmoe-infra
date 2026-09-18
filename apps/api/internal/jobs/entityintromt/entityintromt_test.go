@@ -275,18 +275,27 @@ func TestApply_MockWritePath(t *testing.T) {
 
 func TestApply_NeverOverwritesSourceRow(t *testing.T) {
 	clean(t)
-	vndb, _ := srcIDs(t)
+	vndb, bangumi := srcIDs(t)
 	ctx := context.Background()
 
 	id := mkCharacter(t, "guarded")
 	mkCharIntro(t, id, "ja", "日本語の紹介", vndb)
 	mkCharIntro(t, id, "zh-Hans", "人工翻译的中文简介", vndb)
+	require.NoError(t, testDB.Create(&model.CatalogCharacterIntro{
+		CharacterID: id, Lang: "zh-Hans", Intro: "别的来源的机翻", SourceID: bangumi,
+		Provenance: model.IntroProvenanceMachine, SrcHash: "stray-hash", MTModel: "old-mt",
+	}).Error)
 
 	r := &runner{db: testDB, lane: charLane(t), stats: &LaneStats{Lane: LaneCharacter}}
-	rows, err := r.upsert(ctx, candidate{EntityID: id, SourceID: vndb, Text: "日本語の紹介"},
+	rows, pruned, err := r.writeMachine(ctx, candidate{EntityID: id, SourceID: vndb, Text: "日本語の紹介"},
 		"机器译文", hashSource("日本語の紹介"), "mock:stub")
 	require.NoError(t, err)
 	assert.Zero(t, rows, "the DO UPDATE guard must refuse a provenance=0 row")
+	assert.Zero(t, pruned, "a refused write prunes nothing")
+	var strays int64
+	require.NoError(t, testDB.Raw(`SELECT count(*) FROM catalog_character_intro
+		WHERE character_id = ? AND lang = 'zh-Hans' AND provenance = 1 AND source_id = ?`, id, bangumi).Scan(&strays).Error)
+	assert.EqualValues(t, 1, strays)
 
 	var kept struct {
 		Intro      string

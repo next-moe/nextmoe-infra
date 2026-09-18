@@ -111,11 +111,15 @@ func (r *runner) handle(ctx context.Context, c candidate, apply bool, delay time
 	switch dec {
 	case decSkipSame:
 		r.inc(&r.stats.SkipUnchanged)
+		r.pruneIfStray(ctx, c, apply)
 		return
 	case decRetrans:
 		r.inc(&r.stats.WouldRetranslate)
 	case decInsert:
 		r.inc(&r.stats.WouldInsert)
+	}
+	if c.MZhStrays {
+		r.inc(&r.stats.WouldPrune)
 	}
 
 	sample := r.beginSample(c, dec)
@@ -150,7 +154,7 @@ func (r *runner) handle(ctx context.Context, c candidate, apply bool, delay time
 		return
 	}
 
-	rows, err := r.upsert(ctx, c, zh, hash, mtModel)
+	rows, pruned, err := r.writeMachine(ctx, c, zh, hash, mtModel)
 	if err != nil {
 		r.inc(&r.stats.Errors)
 		slog.Warn("write machine intro", "work", c.WorkID, "err", err)
@@ -161,6 +165,9 @@ func (r *runner) handle(ctx context.Context, c candidate, apply bool, delay time
 		slog.Warn("refused to overwrite a source intro row", "work", c.WorkID, "source_id", c.JaSourceID)
 		return
 	}
+	if pruned > 0 {
+		r.inc(&r.stats.Pruned)
+	}
 	r.markTouched(c.WorkID)
 	if dec == decRetrans {
 		r.inc(&r.stats.Retranslated)
@@ -170,8 +177,44 @@ func (r *runner) handle(ctx context.Context, c candidate, apply bool, delay time
 	r.finishSample(sample, zh, mtModel)
 }
 
-func (r *runner) upsert(ctx context.Context, c candidate, zh, hash, mtModel string) (int64, error) {
-	res := r.db.WithContext(ctx).Exec(`
+func (r *runner) pruneIfStray(ctx context.Context, c candidate, apply bool) {
+	if !c.MZhStrays {
+		return
+	}
+	r.inc(&r.stats.WouldPrune)
+	if !apply {
+		return
+	}
+	n, err := r.deleteStrays(r.db.WithContext(ctx), c.WorkID, c.JaSourceID)
+	if err != nil {
+		r.inc(&r.stats.Errors)
+		slog.Warn("prune stray machine intros", "work", c.WorkID, "err", err)
+		return
+	}
+	if n > 0 {
+		r.inc(&r.stats.Pruned)
+		r.markTouched(c.WorkID)
+	}
+}
+
+func (r *runner) writeMachine(ctx context.Context, c candidate, zh, hash, mtModel string) (rows, pruned int64, err error) {
+	err = r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var e error
+		rows, e = r.upsert(tx, c, zh, hash, mtModel)
+		if e != nil {
+			return e
+		}
+		if rows == 0 {
+			return nil
+		}
+		pruned, e = r.deleteStrays(tx, c.WorkID, c.JaSourceID)
+		return e
+	})
+	return rows, pruned, err
+}
+
+func (r *runner) upsert(db *gorm.DB, c candidate, zh, hash, mtModel string) (int64, error) {
+	res := db.Exec(`
 		INSERT INTO catalog_work_intro
 			(work_id, lang, intro, source_id, provenance, src_hash, mt_model, created_at, updated_at)
 		VALUES (?, ?, ?, ?, 1, ?, ?, now(), now())
@@ -182,6 +225,17 @@ func (r *runner) upsert(ctx context.Context, c candidate, zh, hash, mtModel stri
 				updated_at = now()
 			WHERE catalog_work_intro.provenance = 1`,
 		c.WorkID, langZhHans, zh, c.JaSourceID, hash, mtModel)
+	if res.Error != nil {
+		return 0, res.Error
+	}
+	return res.RowsAffected, nil
+}
+
+func (r *runner) deleteStrays(db *gorm.DB, workID int64, keepSource int16) (int64, error) {
+	res := db.Exec(`
+		DELETE FROM catalog_work_intro
+		WHERE work_id = ? AND lang = ? AND provenance = 1 AND source_id <> ?`,
+		workID, langZhHans, keepSource)
 	if res.Error != nil {
 		return 0, res.Error
 	}

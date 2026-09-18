@@ -47,7 +47,7 @@ func TestWorkIntrosSurviveTheMachineTranslator(t *testing.T) {
 	require.NotNil(t, rev, "the kungal overlay automerges a reviewer's own proposal")
 
 	r := &runner{db: testDB, tr: nil, stats: &Stats{}}
-	rows, err := r.upsert(ctx, candidate{WorkID: w, JaSourceID: curated},
+	rows, _, err := r.writeMachine(ctx, candidate{WorkID: w, JaSourceID: curated},
 		"机翻不该落地", hashSource("あらすじです。"), "test-mt")
 	require.NoError(t, err)
 	assert.Zero(t, rows, "DO UPDATE WHERE provenance=1 refuses an engine-written row")

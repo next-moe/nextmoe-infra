@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 
+	"api/internal/platform/catalog/model"
+
 	"gorm.io/gorm"
 )
 
@@ -21,17 +23,22 @@ type candidate struct {
 	Text       string   `gorm:"column:src_text"`
 	MZhID      *int64   `gorm:"column:mzh_id"`
 	MZhSrcHash *string  `gorm:"column:mzh_src_hash"`
+	MZhStrays  bool     `gorm:"column:mzh_strays"`
 	Gloss      Glossary `gorm:"-"`
 }
 
 func loadCandidates(ctx context.Context, db *gorm.DB, lane laneDef, limit, offset int, entityIDs []int64) ([]candidate, error) {
 	t, id := lane.introTable, lane.idCol
-	idGate, args := ``, []any{}
+	idGate := ``
+	args := []any{model.SourceDerived}
 	if len(entityIDs) > 0 {
 		idGate = `
 		  AND src.entity_id IN (?)`
 		args = append(args, entityIDs)
 	}
+	// Comparing against the lowest-source machine row while the write landed on the
+	// chosen source retranslated the same characters every night and left readers
+	// on the older row (2026-09-18).
 	q := `
 		WITH src AS (
 			SELECT DISTINCT ON (` + id + `) ` + id + ` AS entity_id, lang, source_id, intro
@@ -44,16 +51,23 @@ func loadCandidates(ctx context.Context, db *gorm.DB, lane laneDef, limit, offse
 			WHERE lang IN ('zh-Hans','zh-Hant') AND provenance = 0
 		),
 		mzh AS (
-			SELECT DISTINCT ON (` + id + `) ` + id + ` AS entity_id, id AS mzh_id, src_hash AS mzh_src_hash
+			SELECT ` + id + ` AS entity_id, source_id, id AS mzh_id, src_hash AS mzh_src_hash
 			FROM ` + t + ` WHERE lang = 'zh-Hans' AND provenance = 1
-			ORDER BY ` + id + `, source_id
 		)
 		SELECT src.entity_id, src.lang AS src_lang, src.source_id, src.intro AS src_text,
-			mzh.mzh_id, mzh.mzh_src_hash
+			mzh.mzh_id, mzh.mzh_src_hash,
+			EXISTS (
+				SELECT 1 FROM ` + t + ` stray
+				WHERE stray.` + id + ` = src.entity_id
+				  AND stray.lang = 'zh-Hans'
+				  AND stray.provenance = 1
+				  AND stray.source_id <> src.source_id
+				  AND stray.source_id <> ?
+			) AS mzh_strays
 		FROM src
 		JOIN ` + lane.entityTable + ` e ON e.id = src.entity_id AND e.deleted_at IS NULL
 		LEFT JOIN has_zh_source hz ON hz.entity_id = src.entity_id
-		LEFT JOIN mzh ON mzh.entity_id = src.entity_id
+		LEFT JOIN mzh ON mzh.entity_id = src.entity_id AND mzh.source_id = src.source_id
 		WHERE hz.entity_id IS NULL` + idGate + `
 		ORDER BY src.entity_id ASC`
 	if limit > 0 {

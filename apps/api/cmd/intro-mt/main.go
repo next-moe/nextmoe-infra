@@ -88,11 +88,11 @@ func main() {
 
 func printReport(st *intromt.Stats, apply bool) {
 	fmt.Printf("\n=== intro-mt %s ===\n", modeLabel(apply))
-	fmt.Printf("candidates=%d with_glossary=%d would_insert=%d would_retranslate=%d skip_unchanged=%d\n",
-		st.Candidates, st.WithGlossary, st.WouldInsert, st.WouldRetranslate, st.SkipUnchanged)
+	fmt.Printf("candidates=%d with_glossary=%d would_insert=%d would_retranslate=%d skip_unchanged=%d would_prune=%d\n",
+		st.Candidates, st.WithGlossary, st.WouldInsert, st.WouldRetranslate, st.SkipUnchanged, st.WouldPrune)
 	if apply {
-		fmt.Printf("inserted=%d retranslated=%d refused=%d errors=%d\n",
-			st.Inserted, st.Retranslated, st.Refused, st.Errors)
+		fmt.Printf("inserted=%d retranslated=%d refused=%d errors=%d pruned=%d\n",
+			st.Inserted, st.Retranslated, st.Refused, st.Errors, st.Pruned)
 	}
 	for i, s := range st.Samples {
 		fmt.Printf("\n--- sample %d (work %d, %s%s) ---\n", i+1, s.WorkID, s.Decision, modelSuffix(s.MTModel))

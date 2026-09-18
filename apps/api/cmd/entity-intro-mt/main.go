@@ -91,12 +91,12 @@ func main() {
 func printReport(lanes []*entityintromt.LaneStats, apply bool) {
 	fmt.Printf("\n=== entity-intro-mt %s ===\n", modeLabel(apply))
 	for _, st := range lanes {
-		fmt.Printf("\n[%s] candidates=%d from_ja=%d from_en=%d with_glossary=%d would_insert=%d would_retranslate=%d skip_unchanged=%d\n",
+		fmt.Printf("\n[%s] candidates=%d from_ja=%d from_en=%d with_glossary=%d would_insert=%d would_retranslate=%d skip_unchanged=%d would_prune=%d\n",
 			st.Lane, st.Candidates, st.FromJa, st.FromEn, st.WithGlossary,
-			st.WouldInsert, st.WouldRetranslate, st.SkipUnchanged)
+			st.WouldInsert, st.WouldRetranslate, st.SkipUnchanged, st.WouldPrune)
 		if apply {
-			fmt.Printf("[%s] inserted=%d retranslated=%d refused=%d errors=%d\n",
-				st.Lane, st.Inserted, st.Retranslated, st.Refused, st.Errors)
+			fmt.Printf("[%s] inserted=%d retranslated=%d refused=%d errors=%d pruned=%d\n",
+				st.Lane, st.Inserted, st.Retranslated, st.Refused, st.Errors, st.Pruned)
 		}
 		for i, s := range st.Samples {
 			fmt.Printf("\n--- %s sample %d (entity %d, %s%s) ---\n", s.Lane, i+1, s.EntityID, s.Decision, modelSuffix(s.MTModel))

@@ -52,6 +52,7 @@ type candidate struct {
 	JaText     string   `gorm:"column:ja_text"`
 	MZhID      *int64   `gorm:"column:mzh_id"`
 	MZhSrcHash *string  `gorm:"column:mzh_src_hash"`
+	MZhStrays  bool     `gorm:"column:mzh_strays"`
 	PopScore   int64    `gorm:"column:pop_score"`
 	Gloss      Glossary `gorm:"-"`
 }
@@ -91,6 +92,9 @@ func loadCandidates(ctx context.Context, db *gorm.DB, reg registry, pop Populati
 	} else {
 		args = append(args, top)
 	}
+	// Comparing against the lowest-source machine row while the write landed on the
+	// chosen source retranslated ~700 works every night and left readers on the
+	// older row (2026-09-18).
 	q := db.WithContext(ctx).Raw(`
 		WITH pool AS (
 			SELECT id FROM catalog_work
@@ -107,9 +111,8 @@ func loadCandidates(ctx context.Context, db *gorm.DB, reg registry, pop Populati
 			ORDER BY work_id, source_id
 		),
 		mzh AS (
-			SELECT DISTINCT ON (work_id) work_id, id AS mzh_id, src_hash AS mzh_src_hash
+			SELECT work_id, source_id, id AS mzh_id, src_hash AS mzh_src_hash
 			FROM catalog_work_intro WHERE lang = 'zh-Hans' AND provenance = 1
-			ORDER BY work_id, source_id
 		),
 		pop AS (
 			SELECT work_id,
@@ -119,11 +122,18 @@ func loadCandidates(ctx context.Context, db *gorm.DB, reg registry, pop Populati
 		)
 		SELECT b.id AS work_id, ja.ja_source_id, ja.ja_text,
 			mzh.mzh_id, mzh.mzh_src_hash,
+			EXISTS (
+				SELECT 1 FROM catalog_work_intro stray
+				WHERE stray.work_id = b.id
+				  AND stray.lang = 'zh-Hans'
+				  AND stray.provenance = 1
+				  AND stray.source_id <> ja.ja_source_id
+			) AS mzh_strays,
 			COALESCE(pop.dl, pop.wl, 0) AS pop_score
 		FROM pool b
 		JOIN ja ON ja.work_id = b.id
 		LEFT JOIN has_zh_source hs ON hs.work_id = b.id
-		LEFT JOIN mzh ON mzh.work_id = b.id
+		LEFT JOIN mzh ON mzh.work_id = b.id AND mzh.source_id = ja.ja_source_id
 		LEFT JOIN pop ON pop.work_id = b.id
 		WHERE hs.work_id IS NULL`+lastResortGate+idGate+`
 		ORDER BY COALESCE(pop.dl, pop.wl, 0) DESC, b.id ASC`+limitClause,
