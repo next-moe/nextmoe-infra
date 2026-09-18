@@ -31,7 +31,7 @@
     "@types/node": "^25.9.7",
     "eslint-plugin-vuejs-accessibility": "^2.6.0",
     "esno": "^4.8.0",
-    "tsx": "^4.21.0",
+    "tsx": "^4.23.13",
     "typescript": "^5.9.3",
     "vue-tsc": "^3.3.11"
   }
