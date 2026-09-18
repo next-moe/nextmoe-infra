@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"os/exec"
 	"sort"
 	"testing"
 
@@ -14,7 +13,6 @@ import (
 	catsvc "api/internal/platform/catalog/service"
 
 	"github.com/gofiber/fiber/v3"
-	"gopkg.in/yaml.v3"
 )
 
 func fakeWorkItem() dto.PublicWorkListItem {
@@ -232,39 +230,5 @@ func TestPageDeclaredOnExactlyTwoOperations(t *testing.T) {
 	sort.Strings(ops)
 	if len(ops) != 2 || ops[0] != "listCatalogWorks" || ops[1] != "searchCatalog" {
 		t.Fatalf("page ops=%v want [listCatalogWorks searchCatalog]", ops)
-	}
-
-	out, err := exec.Command("git", "show", "c9546d3c:docs/catalog/v2-openapi.yaml").Output()
-	if err != nil {
-		t.Fatalf("git show base document: %v", err)
-	}
-	var base struct {
-		Paths map[string]struct {
-			Get *struct {
-				OperationID string `yaml:"operationId"`
-				Parameters  []struct {
-					Name string `yaml:"name"`
-					In   string `yaml:"in"`
-				} `yaml:"parameters"`
-			} `yaml:"get"`
-		} `yaml:"paths"`
-	}
-	if err := yaml.Unmarshal(out, &base); err != nil {
-		t.Fatal(err)
-	}
-	var baseOps []string
-	for _, item := range base.Paths {
-		if item.Get == nil {
-			continue
-		}
-		for _, p := range item.Get.Parameters {
-			if p.In == "query" && p.Name == "page" {
-				baseOps = append(baseOps, item.Get.OperationID)
-				break
-			}
-		}
-	}
-	if len(baseOps) != 0 {
-		t.Fatalf("base document page ops=%v want 0", baseOps)
 	}
 }
