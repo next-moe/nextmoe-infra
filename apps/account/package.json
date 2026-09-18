@@ -23,7 +23,7 @@
     "@nuxt/eslint": "1.15.2",
     "@tailwindcss/vite": "^4.3.3",
     "nuxt": "^4.5.2",
-    "nuxt-schema-org": "^5.0.10",
+    "nuxt-schema-org": "^6.3.2",
     "pinia": "^3.0.4",
     "postcss": "^8.5.28",
     "tailwindcss": "^4.3.3",
