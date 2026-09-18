@@ -66,6 +66,7 @@ func TestEGDLsiteWave(t *testing.T) {
 	assert.Equal(t, int64(1), scalarInt(t, `SELECT count(*) FROM catalog_work_title WHERE work_id=`+itoa64(w)+` AND kind=3 AND title='付属作品'`), "search-hint title for the differing dlsite name")
 
 	assert.Equal(t, int64(1), scalarInt(t, `SELECT count(*) FROM catalog_work WHERE medium_id=1 AND site IS NULL AND display_name='新作'`), "minted unclaimed galgame work")
+	assert.Equal(t, int64(1), scalarInt(t, `SELECT count(*) FROM catalog_revision r JOIN catalog_work w ON w.id = r.entity_id AND w.display_name='新作' WHERE r.entity_type=5 AND r.snapshot ? 'work' AND r.snapshot ? 'titles'`), "the work revision snapshots the work")
 	assert.Equal(t, int64(1), scalarInt(t, `SELECT count(*) FROM catalog_external_ref WHERE entity_type=5 AND source_id=5 AND external_id='200' AND link_kind=1 AND matched_by='rule:eg-dlsite-rosetta'`), "probable EG work-ref")
 	assert.Equal(t, int64(1), scalarInt(t, `SELECT count(*) FROM catalog_external_ref WHERE entity_type=6 AND source_id=4 AND external_id='RJ0MINT' AND link_kind=0 AND matched_by='rule:eg-dlsite-rosetta'`), "release SKU anchor")
 
@@ -294,4 +295,22 @@ func TestEGDLsiteBackfillsTheEGNameAlias(t *testing.T) {
 	dryAgain, err := New(testDB, testDB, Options{DryRun: true}).RunEGDLsite(testDB)
 	require.NoError(t, err)
 	assert.Zero(t, dryAgain.EGAliases, "a dry run counts only the aliases still missing")
+}
+
+func TestEGDLsiteReleaseDayIsTheAPIDay(t *testing.T) {
+	if testDB == nil {
+		t.Skip("no test db")
+	}
+	clean(t)
+	require.NoError(t, testDB.Exec(`INSERT INTO games (id, dlsite_id) VALUES (500,'RJ0DAY')`).Error)
+	require.NoError(t, testDB.Exec(`INSERT INTO works (workno, work_name, work_name_kana, maker_id, maker_name, age_category, work_type_string, status, regist_date, product_json) VALUES
+		('RJ0DAY','日付境界','','RG500','サークル','3','アドベンチャー','fetched','2023-05-14 15:30:00+00','{"regist_date":"2023-05-15 00:00:00","creaters":[]}'::jsonb)`).Error)
+
+	_, err := New(testDB, testDB, Options{}).RunEGDLsite(testDB)
+	require.NoError(t, err)
+	var day string
+	require.NoError(t, testDB.Raw(`SELECT lpad(rel.released_y::text,4,'0')||'-'||lpad(rel.released_m::text,2,'0')||'-'||lpad(rel.released_d::text,2,'0')
+		FROM catalog_external_ref r JOIN catalog_release rel ON rel.id = r.entity_id
+		WHERE r.entity_type = 6 AND r.source_id = 4 AND r.external_id = 'RJ0DAY'`).Scan(&day).Error)
+	assert.Equal(t, "2023-05-15", day)
 }

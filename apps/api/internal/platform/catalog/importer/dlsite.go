@@ -3,8 +3,8 @@ package importer
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
-	"time"
 
 	"api/internal/platform/catalog/model"
 
@@ -70,7 +70,7 @@ func (im *Importer) RunDLsite(dlsiteDB *gorm.DB) (DLsiteStats, error) {
 	}
 
 	q := `SELECT workno, work_name, coalesce(work_name_kana,'') AS kana, maker_id, coalesce(maker_name,'') AS maker_name,
-		age_category, regist_date, coalesce(product_json->'creaters','{}') AS creaters
+		age_category, ` + dlRegistDaySQL + ` AS regist_ymd, coalesce(product_json->'creaters','{}') AS creaters
 		FROM works WHERE work_type_string='ボイス・ASMR' AND status='fetched' ORDER BY workno`
 	if im.limit > 0 {
 		q += fmt.Sprintf(" LIMIT %d", im.limit)
@@ -82,7 +82,7 @@ func (im *Importer) RunDLsite(dlsiteDB *gorm.DB) (DLsiteStats, error) {
 		MakerID   string         `gorm:"column:maker_id"`
 		MakerName string         `gorm:"column:maker_name"`
 		Age       string         `gorm:"column:age_category"`
-		Regist    *time.Time     `gorm:"column:regist_date"`
+		RegistYMD string         `gorm:"column:regist_ymd"`
 		Creaters  datatypes.JSON `gorm:"column:creaters"`
 	}
 	if err := dlsiteDB.Raw(q).Scan(&rows).Error; err != nil {
@@ -98,7 +98,7 @@ func (im *Importer) RunDLsite(dlsiteDB *gorm.DB) (DLsiteStats, error) {
 			makers[r.MakerID] = dlNamed{ext: r.MakerID, name: firstNonEmptyStr(r.MakerName, r.MakerID)}
 			makerKind[r.MakerID] = dlLabelKind(r.MakerID)
 		}
-		y, mo, d := splitDate(r.Regist)
+		y, mo, d := ymdParts(r.RegistYMD)
 		w := dlWork{
 			workno: r.Workno, name: r.WorkName, kana: r.Kana, makerExt: r.MakerID,
 			contentRating: dlContentRating(r.Age), stub: strings.TrimSpace(r.WorkName) == "",
@@ -386,12 +386,27 @@ func dlLabelKind(makerID string) int16 {
 	return model.LabelKindDoujinCircle
 }
 
-func splitDate(t *time.Time) (y, m, d *int16) {
-	if t == nil {
+// regist_date holds the API's JST midnight read as UTC+8, so 2023-05-15 00:00
+// JST is stored as 2023-05-14 16:00 UTC and its UTC day is one day early. On
+// 2026-09-18, 13,457 of 14,274 DLsite releases the 07-08 import wrote carried
+// that day. The API's own string is the date.
+const dlRegistDaySQL = `coalesce(
+	CASE WHEN product_json->>'regist_date' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN left(product_json->>'regist_date', 10) END,
+	to_char(regist_date AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD'),
+	'')`
+
+func ymdParts(ymd string) (y, m, d *int16) {
+	if len(ymd) < 10 {
 		return nil, nil, nil
 	}
-	yy, mm, dd := int16(t.Year()), int16(t.Month()), int16(t.Day())
-	return &yy, &mm, &dd
+	yy, err1 := strconv.Atoi(ymd[0:4])
+	mm, err2 := strconv.Atoi(ymd[5:7])
+	dd, err3 := strconv.Atoi(ymd[8:10])
+	if err1 != nil || err2 != nil || err3 != nil {
+		return nil, nil, nil
+	}
+	y16, m16, d16 := int16(yy), int16(mm), int16(dd)
+	return &y16, &m16, &d16
 }
 
 func firstNonEmptyStr(vals ...string) string {

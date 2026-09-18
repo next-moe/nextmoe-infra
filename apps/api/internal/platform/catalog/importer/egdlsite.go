@@ -3,7 +3,6 @@ package importer
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"api/internal/platform/catalog/model"
 
@@ -64,7 +63,7 @@ type dlRow struct {
 	MakerID   string         `gorm:"column:maker_id"`
 	MakerName string         `gorm:"column:maker_name"`
 	Age       string         `gorm:"column:age_category"`
-	Regist    *time.Time     `gorm:"column:regist_date"`
+	RegistYMD string         `gorm:"column:regist_ymd"`
 	Creaters  datatypes.JSON `gorm:"column:creaters"`
 	NameFold  string         `gorm:"column:name_fold"`
 }
@@ -288,7 +287,7 @@ func parseDLRow(r dlRow, roleMap map[string]int64, creaters map[string]dlNamed, 
 		workno: r.Workno, name: r.WorkName, kana: r.Kana, makerExt: r.MakerID,
 		contentRating: dlContentRating(r.Age), stub: strings.TrimSpace(r.WorkName) == "",
 	}
-	dw.y, dw.m, dw.d = splitDate(r.Regist)
+	dw.y, dw.m, dw.d = ymdParts(r.RegistYMD)
 	for _, c := range parseCreaters(r.Creaters) {
 		roleID, ok := roleMap[c.classification]
 		if !ok {
