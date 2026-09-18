@@ -120,7 +120,7 @@ func contradictingExactRef(ctx context.Context, db *gorm.DB, entityType int16, a
 		  AND ea.dead_at IS NULL
 		  AND ea.source_id NOT IN ?
 		ORDER BY cs.trust_tier, cs.id
-		LIMIT 1`, b, entityType, a, model.IdentityVetoExemptSourceIDs).Scan(&row).Error
+		LIMIT 1`, b, entityType, a, model.IdentityVetoExemptSourceIDsFor(entityType)).Scan(&row).Error
 	if err != nil || row.SourceKey == "" {
 		return "", err
 	}
