@@ -725,6 +725,19 @@ Decisions behind that table:
   the records written before this deploy replaying. Keys over 255 bytes are
   `400 TOO_LONG`. Every `/v2` POST now declares the header and a `409`; none
   did before, so no generated client could send the key.
+- **Page mode on the two search-backed collections, since 2.25.0.**
+  `GET /v2/catalog/works` and `GET /v2/catalog/search` take `page=` (1-based,
+  `page × limit ≤ 10000`, exclusive with `cursor`/`ids`/`refs`). The response
+  omits `next_cursor`, always carries `total`, and carries `total_relation`
+  (`eq`; the enum also has `gte` because the forum's page collections can
+  emit it). On works, `page=` selects the search lane like `q=`/`facets=` do.
+  This is a named exception to B17, not a second platform style: these two
+  collections are served by the search index, which pages by `from + size`
+  and counts exactly, and their cursor already carried a page number. The
+  forum's `/galgame` paginator forged that cursor (`cur_` + base64 of a page
+  number, plus `facets=` to force the search lane) because no page mode
+  existed; it should switch to `page=`. Every other collection stays
+  cursor-only.
 - **`released` is accepted since 2.21.0** (it was deliberately absent through
   2.20.x — no caller had ever sent it). The v1 shape returned: `{y, m?, d?}`
   becomes ONE curated `catalog_release` row on the minted work, because a fresh

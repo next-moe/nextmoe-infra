@@ -259,7 +259,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -2419,7 +2419,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -6144,7 +6144,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -7582,7 +7582,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -9463,7 +9463,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -15073,7 +15073,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -16717,7 +16717,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -18368,7 +18368,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -23386,7 +23386,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -28501,7 +28501,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -30112,7 +30112,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -33035,7 +33035,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -36166,7 +36166,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -37923,7 +37923,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -40982,7 +40982,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -42472,7 +42472,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -45551,7 +45551,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -48590,7 +48590,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -52965,7 +52965,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -54451,7 +54451,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -58246,7 +58246,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -61215,7 +61215,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -64065,7 +64065,7 @@ export const docsModel: DocsModel = {
                   "in": "query",
                   "required": false,
                   "type": "string",
-                  "doc": "The claiming site's own user id of the claim owner. Requires site=. Live registry filter; cannot be combined with q= or search sorts."
+                  "doc": "The claiming site's own user id of the claim owner. Requires site=. Live registry filter; cannot be combined with q=, page= or search sorts."
                 },
                 {
                   "name": "company_id",
@@ -66191,7 +66191,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -71500,7 +71500,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -73110,7 +73110,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -74716,7 +74716,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -76263,7 +76263,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -77807,7 +77807,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -79339,7 +79339,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -80948,7 +80948,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -84445,7 +84445,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -86059,7 +86059,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -87650,7 +87650,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -89203,7 +89203,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -90796,7 +90796,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -92578,7 +92578,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -93596,7 +93596,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -95979,7 +95979,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -97506,7 +97506,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -100430,7 +100430,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -102161,7 +102161,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -111413,7 +111413,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -119325,7 +119325,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -122545,7 +122545,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -128413,7 +128413,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -130136,7 +130136,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -134956,7 +134956,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -142550,7 +142550,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -144279,7 +144279,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -150883,7 +150883,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -160568,7 +160568,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -162329,7 +162329,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -168953,7 +168953,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -177239,7 +177239,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -186119,7 +186119,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },
@@ -189244,7 +189244,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
                       },

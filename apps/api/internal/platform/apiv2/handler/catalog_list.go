@@ -325,16 +325,12 @@ func finishList[T any](items []T, next *string, total int64, q collect.Query, mi
 	return out
 }
 
-func finishPageList[T any](items []T, total int64, q collect.Query, missing []string) repr.List[T] {
+func finishPageList[T any](items []T, total int64) repr.List[T] {
 	out := repr.NewList(items, nil)
 	n := total
 	out.Total = &n
 	rel := "eq"
 	out.TotalRelation = &rel
-	if missing != nil {
-		m := missing
-		out.Missing = &m
-	}
 	return out
 }
 

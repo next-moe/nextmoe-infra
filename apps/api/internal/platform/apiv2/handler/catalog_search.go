@@ -100,7 +100,7 @@ func (c *Catalog) Search(ctx context.Context, q collect.Query, object, query, lo
 		}
 	}
 	if q.Page > 0 {
-		return finishPageList(items, res.Total, q, nil), nil
+		return finishPageList(items, res.Total), nil
 	}
 	var next *string
 	if int64(page)*int64(limit) < res.Total && len(items) > 0 {

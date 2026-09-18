@@ -208,6 +208,7 @@ func parsePage(raw string, limit int, batch bool, cursor string, pages bool) (in
 		p.Errors = []problem.FieldError{{
 			Parameter: "page",
 			Reason:    problem.ReasonNotAllowedValue,
+			Detail:    "page= is accepted only on /v2/catalog/works and /v2/catalog/search; page this collection with cursor=",
 		}}
 		return 0, p
 	}
@@ -217,6 +218,7 @@ func parsePage(raw string, limit int, batch bool, cursor string, pages bool) (in
 		p.Errors = []problem.FieldError{{
 			Parameter: "page",
 			Reason:    problem.ReasonInvalidFormat,
+			Detail:    "expected a positive integer",
 		}}
 		return 0, p
 	}
@@ -225,6 +227,7 @@ func parsePage(raw string, limit int, batch bool, cursor string, pages bool) (in
 		p.Errors = []problem.FieldError{{
 			Parameter: "page",
 			Reason:    problem.ReasonOutOfRange,
+			Detail:    "page starts at 1",
 			Params:    &problem.FieldParams{Minimum: problem.Ptr(1.0)},
 		}}
 		return 0, p
@@ -252,6 +255,7 @@ func parsePage(raw string, limit int, batch bool, cursor string, pages bool) (in
 		p.Errors = []problem.FieldError{{
 			Parameter: "page",
 			Reason:    problem.ReasonOutOfRange,
+			Detail:    "page times limit may not exceed " + strconv.Itoa(MaxPageDepth),
 			Params: &problem.FieldParams{
 				Minimum: problem.Ptr(1.0),
 				Maximum: problem.Ptr(float64(MaxPageDepth / limit)),
