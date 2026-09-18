@@ -142,7 +142,7 @@ func (s *Service) InitUpload(ctx context.Context, req dto.InitUploadRequest, p I
 	return resp, nil
 }
 
-func (s *Service) ResumeUpload(ctx context.Context, uuidStr, site string) (*dto.ResumeUploadResponse, error) {
+func (s *Service) ResumeUpload(ctx context.Context, uuidStr, site, owner string) (*dto.ResumeUploadResponse, error) {
 	a, err := s.repo.FindByUUID(ctx, uuidStr)
 	if err != nil {
 		if stderrors.Is(err, gorm.ErrRecordNotFound) {
@@ -150,7 +150,7 @@ func (s *Service) ResumeUpload(ctx context.Context, uuidStr, site string) (*dto.
 		}
 		return nil, err
 	}
-	if a.SiteKey != site {
+	if a.SiteKey != site || !uploadedBy(a, owner) {
 		return nil, ErrNotFound
 	}
 	if a.Status != model.StatusUploading {
@@ -206,7 +206,7 @@ func (s *Service) ResumeUpload(ctx context.Context, uuidStr, site string) (*dto.
 	return resp, nil
 }
 
-func (s *Service) CompleteUpload(ctx context.Context, uuidStr, site string, req dto.CompleteUploadRequest) (*dto.ArtifactResponse, error) {
+func (s *Service) CompleteUpload(ctx context.Context, uuidStr, site, owner string, req dto.CompleteUploadRequest) (*dto.ArtifactResponse, error) {
 	a, err := s.repo.FindByUUID(ctx, uuidStr)
 	if err != nil {
 		if stderrors.Is(err, gorm.ErrRecordNotFound) {
@@ -214,7 +214,7 @@ func (s *Service) CompleteUpload(ctx context.Context, uuidStr, site string, req 
 		}
 		return nil, err
 	}
-	if a.SiteKey != site {
+	if a.SiteKey != site || !uploadedBy(a, owner) {
 		return nil, ErrNotFound
 	}
 	if a.IsReady() {
@@ -349,6 +349,10 @@ func (s *Service) persistManifestAndRespond(ctx context.Context, a *model.Artifa
 		}
 	}
 	return toResponse(a), nil
+}
+
+func uploadedBy(a *model.Artifact, owner string) bool {
+	return owner == "" || a.UploaderSub == owner
 }
 
 func toResponse(a *model.Artifact) *dto.ArtifactResponse {

@@ -26,6 +26,11 @@ const (
 
 const ClientHeaderID = "X-Kun-Artifact-Client-Id"
 
+const (
+	MethodBasic = "basic"
+	MethodJWT   = "jwt"
+)
+
 const uploadScope = "artifact:upload"
 
 func ClientAuth(clientRepo *siteRepo.OAuthClientRepository, cfg *config.Config) fiber.Handler {
@@ -43,10 +48,10 @@ func ClientAuth(clientRepo *siteRepo.OAuthClientRepository, cfg *config.Config) 
 		switch {
 		case strings.HasPrefix(authHeader, "Basic "):
 			client, err = authenticateBasic(c, clientRepo, authHeader)
-			method = "basic"
+			method = MethodBasic
 		case strings.HasPrefix(authHeader, "Bearer "):
 			client, userSub, err = authenticateJWT(c, clientRepo, authHeader, verifier)
-			method = "jwt"
+			method = MethodJWT
 		default:
 			return response.Unauthorized(c, errors.ErrArtifactUnauthorized)
 		}
@@ -142,6 +147,9 @@ func authenticateJWT(c fiber.Ctx, repo *siteRepo.OAuthClientRepository, authHead
 	if client.SiteID == nil || claims.SiteID == 0 || *client.SiteID != claims.SiteID {
 		return nil, "", errSiteMismatch
 	}
+	if claims.UserUUID == "" {
+		return nil, "", errBadClient
+	}
 	return client, claims.UserUUID, nil
 }
 
@@ -173,5 +181,10 @@ func SiteKeyFromCtx(c fiber.Ctx) string {
 
 func UserSubFromCtx(c fiber.Ctx) string {
 	v, _ := c.Locals(LocalUserSub).(string)
+	return v
+}
+
+func AuthMethodFromCtx(c fiber.Ctx) string {
+	v, _ := c.Locals(LocalAuthMethod).(string)
 	return v
 }

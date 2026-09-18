@@ -25,6 +25,7 @@ const (
 	ctxKeySite    ctxKey = "artifact:site_key"
 	ctxKeyClient  ctxKey = "artifact:oauth_client"
 	ctxKeyUserSub ctxKey = "artifact:user_sub"
+	ctxKeyMethod  ctxKey = "artifact:auth_method"
 )
 
 func AuthBridge(ctx huma.Context, next func(huma.Context)) {
@@ -32,6 +33,7 @@ func AuthBridge(ctx huma.Context, next func(huma.Context)) {
 	ctx = huma.WithValue(ctx, ctxKeySite, artMW.SiteKeyFromCtx(fc))
 	ctx = huma.WithValue(ctx, ctxKeyClient, artMW.ClientFromCtx(fc))
 	ctx = huma.WithValue(ctx, ctxKeyUserSub, artMW.UserSubFromCtx(fc))
+	ctx = huma.WithValue(ctx, ctxKeyMethod, artMW.AuthMethodFromCtx(fc))
 	next(ctx)
 }
 
@@ -48,6 +50,32 @@ func clientFromCtx(ctx context.Context) *siteModel.OAuthClient {
 func userSubFromCtx(ctx context.Context) string {
 	s, _ := ctx.Value(ctxKeyUserSub).(string)
 	return s
+}
+
+func byUserToken(ctx context.Context) bool {
+	m, _ := ctx.Value(ctxKeyMethod).(string)
+	return m == artMW.MethodJWT
+}
+
+// A user token exists to upload from the browser, yet until 2026-09 it also
+// listed, downloaded and deleted every artifact of its site: only the site key
+// was checked. Site-wide operations take the site's server credential alone.
+func siteWideSite(ctx context.Context) (string, error) {
+	if byUserToken(ctx) {
+		return "", apiErr(http.StatusForbidden, errors.ErrArtifactForbidden)
+	}
+	site := siteFromCtx(ctx)
+	if site == "" {
+		return "", apiErr(http.StatusUnauthorized, errors.ErrArtifactUnauthorized)
+	}
+	return site, nil
+}
+
+func uploadOwner(ctx context.Context) string {
+	if byUserToken(ctx) {
+		return userSubFromCtx(ctx)
+	}
+	return ""
 }
 
 func uploadEnabled(ctx context.Context) bool {
@@ -162,9 +190,9 @@ func (s *HumaServer) register(api huma.API) {
 }
 
 func (s *HumaServer) list(ctx context.Context, in *listInput) (*listOutput, error) {
-	site := siteFromCtx(ctx)
-	if site == "" {
-		return nil, apiErr(http.StatusUnauthorized, errors.ErrArtifactUnauthorized)
+	site, err := siteWideSite(ctx)
+	if err != nil {
+		return nil, err
 	}
 	p := utils.Pagination{Page: in.Page, PageSize: in.PageSize}
 	p.Normalize()
@@ -177,9 +205,9 @@ func (s *HumaServer) list(ctx context.Context, in *listInput) (*listOutput, erro
 }
 
 func (s *HumaServer) get(ctx context.Context, in *uuidInput) (*artifactOutput, error) {
-	site := siteFromCtx(ctx)
-	if site == "" {
-		return nil, apiErr(http.StatusUnauthorized, errors.ErrArtifactUnauthorized)
+	site, err := siteWideSite(ctx)
+	if err != nil {
+		return nil, err
 	}
 	resp, err := s.svc.Get(ctx, in.UUID, site)
 	if err != nil {
@@ -193,9 +221,12 @@ func (s *HumaServer) get(ctx context.Context, in *uuidInput) (*artifactOutput, e
 }
 
 func (s *HumaServer) download(ctx context.Context, in *uuidInput) (*downloadOutput, error) {
-	site := siteFromCtx(ctx)
+	site, err := siteWideSite(ctx)
+	if err != nil {
+		return nil, err
+	}
 	client := clientFromCtx(ctx)
-	if site == "" || client == nil {
+	if client == nil {
 		return nil, apiErr(http.StatusUnauthorized, errors.ErrArtifactUnauthorized)
 	}
 	resp, err := s.svc.Download(ctx, in.UUID, site, client.ArtifactCDNBase)
@@ -217,7 +248,7 @@ func (s *HumaServer) resumeUpload(ctx context.Context, in *uuidInput) (*resumeOu
 	if site == "" {
 		return nil, apiErr(http.StatusUnauthorized, errors.ErrArtifactUnauthorized)
 	}
-	resp, err := s.svc.ResumeUpload(ctx, in.UUID, site)
+	resp, err := s.svc.ResumeUpload(ctx, in.UUID, site, uploadOwner(ctx))
 	if err != nil {
 		switch {
 		case stderrors.Is(err, service.ErrNotFound):
@@ -235,9 +266,9 @@ func (s *HumaServer) resumeUpload(ctx context.Context, in *uuidInput) (*resumeOu
 }
 
 func (s *HumaServer) delete(ctx context.Context, in *uuidInput) (*deleteOutput, error) {
-	site := siteFromCtx(ctx)
-	if site == "" {
-		return nil, apiErr(http.StatusUnauthorized, errors.ErrArtifactUnauthorized)
+	site, err := siteWideSite(ctx)
+	if err != nil {
+		return nil, err
 	}
 	ok, err := s.svc.Delete(ctx, in.UUID, site)
 	if err != nil {
@@ -305,7 +336,7 @@ func (s *HumaServer) completeUpload(ctx context.Context, in *completeInput) (*ar
 		return nil, apiErr(http.StatusBadRequest, errors.ErrArtifactBadRequest)
 	}
 
-	resp, err := s.svc.CompleteUpload(ctx, in.UUID, site, in.Body)
+	resp, err := s.svc.CompleteUpload(ctx, in.UUID, site, uploadOwner(ctx), in.Body)
 	if err != nil {
 		switch {
 		case stderrors.Is(err, service.ErrNotFound):
