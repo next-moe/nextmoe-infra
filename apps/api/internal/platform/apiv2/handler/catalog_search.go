@@ -23,13 +23,9 @@ func (c *Catalog) Search(ctx context.Context, q collect.Query, object, query, lo
 	if q.Batch {
 		return repr.List[repr.SearchHit]{}, feedNoBatch("search")
 	}
-	page := 1
-	if q.Cursor != "" {
-		n, err := strconv.Atoi(q.Cursor)
-		if err != nil || n < 1 {
-			return repr.List[repr.SearchHit]{}, collectInvalidCursor()
-		}
-		page = n
+	page, perr := searchPage(q)
+	if perr != nil {
+		return repr.List[repr.SearchHit]{}, perr
 	}
 	rawObject := strings.TrimSpace(object)
 	object, err := parse.Enum(rawObject, "object", searchObjects)
@@ -56,7 +52,7 @@ func (c *Catalog) Search(ctx context.Context, q collect.Query, object, query, lo
 		r18 := catmodel.ContentRatingR18
 		eq.ContentRatingNot = &r18
 	}
-	res, serr := c.Searcher.SearchEntities(ctx, uid, eq)
+	res, serr := searchEntities(c, ctx, uid, eq)
 	if serr != nil {
 		return repr.List[repr.SearchHit]{}, serr
 	}
@@ -103,6 +99,9 @@ func (c *Catalog) Search(ctx context.Context, q collect.Query, object, query, lo
 			return repr.List[repr.SearchHit]{}, fillErr
 		}
 	}
+	if q.Page > 0 {
+		return finishPageList(items, res.Total, q, nil), nil
+	}
 	var next *string
 	if int64(page)*int64(limit) < res.Total && len(items) > 0 {
 		enc := strconv.Itoa(page + 1)
@@ -110,6 +109,10 @@ func (c *Catalog) Search(ctx context.Context, q collect.Query, object, query, lo
 	}
 	out := finishList(items, next, res.Total, q, nil)
 	return out, nil
+}
+
+var searchEntities = func(c *Catalog, ctx context.Context, uid string, eq spec.EntityQuery) (catsearch.SearchResult, error) {
+	return c.Searcher.SearchEntities(ctx, uid, eq)
 }
 
 func (c *Catalog) fillSearchLocalized(ctx context.Context, v1Type string, ids []int64, items []repr.SearchHit) error {

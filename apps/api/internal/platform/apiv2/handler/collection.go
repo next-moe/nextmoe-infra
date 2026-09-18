@@ -40,6 +40,13 @@ type CollectionInput struct {
 	NSFW         string `query:"nsfw" maxLength:"8" doc:"true includes r18. false or absent hides r18. Only true or false."`
 }
 
+// The forum forged page-number cursors on GET /v2/catalog/works (search lane)
+// and GET /v2/catalog/search because no page mode existed. page= is the
+// documented exception to B17 on those two collections so it can stop forging.
+type PageInput struct {
+	Page string `query:"page" maxLength:"8" doc:"1-based page number. Selects page mode: the response carries total and total_relation and no next_cursor. page times limit may not exceed 10000; the last reachable page is min(ceil(total/limit), floor(10000/limit)). Cannot be combined with cursor, ids or refs."`
+}
+
 type listVocabOutput struct {
 	Body repr.List[vocab.Vocabulary]
 }
@@ -91,6 +98,7 @@ type listWorksInput struct {
 	ReleasedAfter  string `query:"released_after" maxLength:"10" doc:"YYYY-MM-DD inclusive, earliest release per work."`
 	ReleasedBefore string `query:"released_before" maxLength:"10" doc:"YYYY-MM-DD inclusive, earliest release per work."`
 	OLang          string `query:"olang" maxLength:"64" doc:"Comma-separated BCP-47, or all. Open vocabulary; unknown values match nothing. Absent = no language gate."`
+	PageInput
 }
 
 func registerCollections(api huma.API, works WorksFunc, cat *Catalog) {
@@ -120,7 +128,7 @@ func registerCollections(api huma.API, works WorksFunc, cat *Catalog) {
 		Method:             http.MethodGet,
 		Path:               "/v2/catalog/works",
 		Summary:            "List catalog works",
-		Description:        "Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. Requires an application key or a user access token with catalog:read. view/include/fields/ids/refs/facets follow the v2 collection contract. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on every lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.",
+		Description:        "Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. Requires an application key or a user access token with catalog:read. view/include/fields/ids/refs/facets follow the v2 collection contract. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on every lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE. page= selects page mode (see the page parameter); every other collection is cursor-only.",
 		Tags:               []string{"catalog"},
 		Errors:             collectionErrors(http.StatusUnauthorized, http.StatusForbidden, http.StatusServiceUnavailable),
 		SkipValidateParams: true,
@@ -162,11 +170,13 @@ func listWorks(src WorksFunc, cat *Catalog) func(context.Context, *listWorksInpu
 		if in == nil {
 			in = &listWorksInput{}
 		}
-		q, err := collect.Parse(rawFrom(&CollectionInput{
+		raw := rawFrom(&CollectionInput{
 			Cursor: in.Cursor, Limit: in.Limit, View: in.View, Include: in.Include,
 			Fields: in.Fields, IDs: in.IDs, Refs: in.Refs, IncludeTotal: in.IncludeTotal,
 			Facets: in.Facets, Sort: in.Sort, NSFW: in.NSFW,
-		}), collect.WorkListSpec())
+		})
+		raw.Page = in.Page
+		q, err := collect.Parse(raw, collect.WorkListSpec())
 		if err != nil {
 			return nil, withIdent(ctx, err)
 		}
