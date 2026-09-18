@@ -378,9 +378,12 @@ tend; rm -rf "$td"
 tstart 13
 td=$(mktemp -d); install_fakes "$td"
 i=0; : > "$td/ctl/files/dlsite"
-while [ $i -lt 501 ]; do echo "RJ$i" >> "$td/ctl/files/dlsite"; i=$((i + 1)); done
-run_job "$td"; expect_dlsite_blocked "$td"
-[ -f "$td/ctl/crawler.args" ] && fail "the crawler ran past the ceiling"
+while [ $i -lt 3001 ]; do echo "RJ$i" >> "$td/ctl/files/dlsite"; i=$((i + 1)); done
+run_job "$td"
+exit_is "$td" 0 || fail "exit $(cat "$td/ctl/exit"): $(tail -3 "$td/ctl/stdout")"
+[ "$(wc -l < "$td/base/state/dlsite.worknos")" = 3000 ] || fail "fetch list not cut to the batch: $(wc -l < "$td/base/state/dlsite.worknos")"
+grep -qF "dlsite: batch 3000 of 3001 listed (at most 3000)" "$td/base/logs/run-$(date -u +%F).log" || fail "no batch line"
+[ "$(dlsite_applied "$td")" = 1 ] || fail "dlsite upload skipped"
 tend; rm -rf "$td"
 
 # --- T14: a mirror that downloaded nothing and failed some is a failure, not a quiet week ---
@@ -584,6 +587,37 @@ exit_is "$td" 0 || fail "exit $(cat "$td/ctl/exit")"
 [ ! -s "$td/base/state/dlsite-cdn-missing" ] || fail "missing file not empty: $(cat "$td/base/state/dlsite-cdn-missing")"
 [ -f "$td/base/state/dlsite-cdn-404" ] && [ -s "$td/base/state/dlsite-cdn-404" ] && fail "ledger grew: $(cat "$td/base/state/dlsite-cdn-404")"
 grep -qF -- '--mirror-dir /w/mirror/dlsite --cdn-missing /w/state/dlsite-cdn-missing --worknos-out' "$td/ctl/docker.args" || fail "dry run missing --cdn-missing"
+tend; rm -rf "$td"
+
+# --- T27: the fetch list is cut to IMAGE_MIRROR_DLSITE_BATCH, and the dry run is never given --limit ---
+tstart 27
+td=$(mktemp -d); install_fakes "$td"
+i=0; : > "$td/ctl/files/dlsite"
+while [ $i -lt 100 ]; do echo "RJ$i" >> "$td/ctl/files/dlsite"; i=$((i + 1)); done
+IMAGE_MIRROR_DLSITE_BATCH=42 run_job "$td"
+exit_is "$td" 0 || fail "exit $(cat "$td/ctl/exit")"
+[ "$(wc -l < "$td/base/state/dlsite.worknos")" = 42 ] || fail "fetch list not cut to 42"
+grep -qF -- '--limit' "$td/ctl/docker.args" && fail "the dry run was given --limit"
+tend; rm -rf "$td"
+
+# --- T28: a batch of 3000 listed works passes the guard and the download and apply run ---
+tstart 28
+td=$(mktemp -d); install_fakes "$td"
+i=0; : > "$td/ctl/files/dlsite"
+while [ $i -lt 3000 ]; do echo "RJ$i" >> "$td/ctl/files/dlsite"; i=$((i + 1)); done
+run_job "$td"
+exit_is "$td" 0 || fail "exit $(cat "$td/ctl/exit"): $(tail -3 "$td/ctl/stdout")"
+[ -f "$td/ctl/crawler.args" ] || fail "the crawler did not run"
+[ "$(dlsite_applied "$td")" = 1 ] || fail "dlsite upload skipped"
+tend; rm -rf "$td"
+
+# --- T29: IMAGE_MIRROR_DLSITE_BATCH=5000 with 5000 listed works fails because the guard is 3000 ---
+tstart 29
+td=$(mktemp -d); install_fakes "$td"
+i=0; : > "$td/ctl/files/dlsite"
+while [ $i -lt 5000 ]; do echo "RJ$i" >> "$td/ctl/files/dlsite"; i=$((i + 1)); done
+IMAGE_MIRROR_DLSITE_BATCH=5000 run_job "$td"; expect_dlsite_blocked "$td"
+[ -f "$td/ctl/crawler.args" ] && fail "the crawler ran past the ceiling"
 tend; rm -rf "$td"
 
 [ "$FAILED" -eq 0 ]
