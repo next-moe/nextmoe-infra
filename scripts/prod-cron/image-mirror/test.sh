@@ -118,6 +118,9 @@ if [ "$mode" = apply ]; then
   ls "$host_w/mirror" >/dev/null 2>&1 || echo "$tool applied without a mirror" >> "$CTL/violations"
   [ -f "$host_w/env.dlsite" ] && echo "env.dlsite still on disk during the $tool upload" >> "$CTL/violations"
 else
+  if [ "$tool" = dlsite ]; then
+    cp "$host_w/state/dlsite-cdn-missing" "$CTL/dlsite-cdn-missing.dry"
+  fi
   if [ "$tool" = bgmcovers ] && [ ! -f "$host_w/mirror/bangumi/covers/dims.jsonl" ]; then
     echo "bangumi covers dry run found no dims.jsonl" >&2; exit 1
   fi
@@ -249,7 +252,7 @@ grep -qx 'mirror/vndb/' "$td/ctl/rsync.args" || fail "rsync destination"
 cat > "$td/ctl/want.apply" <<'EOF'
 backfill-vndb-covers --from-dump --image-dir /w/mirror/vndb --mirror-only --workers 2 --upload-gap 200ms --apply
 backfill-character-portraits --vndb-image-dir /w/mirror/vndb --upload-gap 100ms --apply
-backfill-dlsite-media --dlsite-dsn "$DL" --kind cover,screenshot --mirror-dir /w/mirror/dlsite --upload-gap 100ms --apply
+backfill-dlsite-media --dlsite-dsn "$DL" --kind cover,screenshot --mirror-dir /w/mirror/dlsite --cdn-missing /w/state/dlsite-cdn-missing --upload-gap 100ms --apply
 backfill-bangumi-covers --bangumi-mirror /w/mirror/bangumi/covers --allow-landscape --upload-gap 100ms --apply
 backfill-label-logos --source bangumi --mirror-dir /w/mirror/bangumi/persons --upload-gap 100ms --apply
 backfill-person-photos --mirror-dir /w/mirror/bangumi/persons --upload-gap 100ms --apply
@@ -499,6 +502,88 @@ done
 td=$(mktemp -d); install_fakes "$td"
 echo 1 > "$td/ctl/rc/bgmphotos+dry"
 run_job "$td"; expect_bgm_blocked "$td"
+tend; rm -rf "$td"
+
+# --- T23: CDN 404s are recorded; 403 and network errors are not ---
+tstart 23
+td=$(mktemp -d); install_fakes "$td"
+cat > "$td/ctl/out/crawler" <<'EOF'
+2026/09/18 04:42:36 mirror: RJ01008586 RJ01008586_img_smp2.jpg: http 404
+2026/09/18 04:42:36 mirror: RJ01008586 RJ01008586_img_main.jpg: http 404
+2026/09/18 04:42:36 mirror: RJ01008587 RJ01008587_img_main.jpg: http 403
+2026/09/18 04:42:36 mirror: RJ01 RJ01_img_smp9.jpg: Get "https://x": dial tcp: i/o timeout
+2026/09/18 04:56:54 mirror: done — worknos=2 downloaded=1 skipped_exist=0 skipped_placeholder=0 skip_no_meta=0 errors=3
+EOF
+run_job "$td"
+exit_is "$td" 0 || fail "exit $(cat "$td/ctl/exit"): $(tail -3 "$td/ctl/stdout")"
+has_stamp "$td" || fail "no stamp"
+today=$(date -u +%F)
+printf '%s %s\n' "$today" "RJ01008586/RJ01008586_img_main.jpg" "$today" "RJ01008586/RJ01008586_img_smp2.jpg" > "$td/ctl/want.ledger"
+cmp -s "$td/ctl/want.ledger" "$td/base/state/dlsite-cdn-404" || fail "ledger: $(cat "$td/base/state/dlsite-cdn-404" 2>/dev/null)"
+printf '%s\n' "RJ01008586/RJ01008586_img_main.jpg" "RJ01008586/RJ01008586_img_smp2.jpg" > "$td/ctl/want.missing"
+cmp -s "$td/ctl/want.missing" "$td/base/state/dlsite-cdn-missing" || fail "missing: $(cat "$td/base/state/dlsite-cdn-missing" 2>/dev/null)"
+grep -q 'RJ01008587/' "$td/base/state/dlsite-cdn-404" && fail "403 recorded"
+grep -q 'RJ01/RJ01_img_smp9.jpg' "$td/base/state/dlsite-cdn-404" && fail "timeout recorded"
+grep -q 'RJ01008587/' "$td/base/state/dlsite-cdn-missing" && fail "403 in missing"
+grep -q 'RJ01/RJ01_img_smp9.jpg' "$td/base/state/dlsite-cdn-missing" && fail "timeout in missing"
+grep -qF -- '--mirror-dir /w/mirror/dlsite --cdn-missing /w/state/dlsite-cdn-missing --worknos-out' "$td/ctl/docker.args" || fail "dry run missing --cdn-missing"
+grep -qF -- '--mirror-dir /w/mirror/dlsite --cdn-missing /w/state/dlsite-cdn-missing --upload-gap' "$td/ctl/docker.args" || fail "apply missing --cdn-missing"
+tend; rm -rf "$td"
+
+# --- T24: expired entries drop before the dry run; a repeat 404 updates the date once ---
+tstart 24
+td=$(mktemp -d); install_fakes "$td"
+mkdir -p "$td/base/state"
+x_date=$(date -u -d '91 days ago' +%F)
+y_date=$(date -u -d '90 days ago' +%F)
+z_date=$(date -u -d '10 days ago' +%F)
+{
+  printf '%s %s\n' "$x_date" "RJ01/RJ01_img_main.jpg"
+  printf '%s %s\n' "$y_date" "RJ02/RJ02_img_main.jpg"
+  printf '%s %s\n' "$z_date" "RJ03/RJ03_img_main.jpg"
+} | sort -k2,2 > "$td/base/state/dlsite-cdn-404"
+cat > "$td/ctl/out/crawler" <<'EOF'
+2026/09/18 04:42:36 mirror: RJ03 RJ03_img_main.jpg: http 404
+2026/09/18 04:56:54 mirror: done — worknos=2 downloaded=1 skipped_exist=0 skipped_placeholder=0 skip_no_meta=0 errors=1
+EOF
+run_job "$td"
+exit_is "$td" 0 || fail "exit $(cat "$td/ctl/exit"): $(tail -3 "$td/ctl/stdout")"
+printf '%s\n' "RJ02/RJ02_img_main.jpg" "RJ03/RJ03_img_main.jpg" > "$td/ctl/want.dry"
+cmp -s "$td/ctl/want.dry" "$td/ctl/dlsite-cdn-missing.dry" || fail "dry missing: $(cat "$td/ctl/dlsite-cdn-missing.dry" 2>/dev/null)"
+today=$(date -u +%F)
+{
+  printf '%s %s\n' "$y_date" "RJ02/RJ02_img_main.jpg"
+  printf '%s %s\n' "$today" "RJ03/RJ03_img_main.jpg"
+} > "$td/ctl/want.ledger"
+cmp -s "$td/ctl/want.ledger" "$td/base/state/dlsite-cdn-404" || fail "ledger: $(cat "$td/base/state/dlsite-cdn-404" 2>/dev/null)"
+grep -q 'RJ01/RJ01_img_main.jpg' "$td/base/state/dlsite-cdn-404" && fail "expired X kept"
+n=$(grep -c 'RJ03/RJ03_img_main.jpg' "$td/base/state/dlsite-cdn-404" || true)
+[ "$n" = 1 ] || fail "Z lines: $n"
+tend; rm -rf "$td"
+
+# --- T25: 404s are recorded before the downloaded-nothing FATAL ---
+tstart 25
+td=$(mktemp -d); install_fakes "$td"
+cat > "$td/ctl/out/crawler" <<'EOF'
+2026/09/18 04:42:36 mirror: RJ01008586 RJ01008586_img_smp2.jpg: http 404
+2026/09/18 04:42:36 mirror: RJ01008586 RJ01008586_img_main.jpg: http 404
+2026/09/18 04:56:54 mirror: done — worknos=2 downloaded=0 skipped_exist=0 skipped_placeholder=0 skip_no_meta=0 errors=2
+EOF
+run_job "$td"; expect_dlsite_blocked "$td"
+today=$(date -u +%F)
+printf '%s %s\n' "$today" "RJ01008586/RJ01008586_img_main.jpg" "$today" "RJ01008586/RJ01008586_img_smp2.jpg" > "$td/ctl/want.ledger"
+cmp -s "$td/ctl/want.ledger" "$td/base/state/dlsite-cdn-404" || fail "ledger: $(cat "$td/base/state/dlsite-cdn-404" 2>/dev/null)"
+tend; rm -rf "$td"
+
+# --- T26: no ledger at start still writes an empty missing file and passes the flag ---
+tstart 26
+td=$(mktemp -d); install_fakes "$td"
+run_job "$td"
+exit_is "$td" 0 || fail "exit $(cat "$td/ctl/exit")"
+[ -f "$td/base/state/dlsite-cdn-missing" ] || fail "missing file absent"
+[ ! -s "$td/base/state/dlsite-cdn-missing" ] || fail "missing file not empty: $(cat "$td/base/state/dlsite-cdn-missing")"
+[ -f "$td/base/state/dlsite-cdn-404" ] && [ -s "$td/base/state/dlsite-cdn-404" ] && fail "ledger grew: $(cat "$td/base/state/dlsite-cdn-404")"
+grep -qF -- '--mirror-dir /w/mirror/dlsite --cdn-missing /w/state/dlsite-cdn-missing --worknos-out' "$td/ctl/docker.args" || fail "dry run missing --cdn-missing"
 tend; rm -rf "$td"
 
 [ "$FAILED" -eq 0 ]
