@@ -45,6 +45,7 @@ import-store-anchors --only dlsite-en --apply
 import-release-labels --apply
 backfill-character-instances --apply
 import-work-intro --apply
+reconcile-eg-anchors --apply
 import-character-roster --source eg --apply
 import-galgame-credits --source eg --apply
 import-galgame-credits --source eg-music --apply
@@ -110,6 +111,7 @@ extract_tool_cmd() {
     import-work-aliases \
     import-work-platforms \
     import-work-series \
+    reconcile-eg-anchors \
     reconcile-org-labels
   do
     case "$s" in
@@ -178,6 +180,9 @@ emit_out() {
       ;;
     import-work-series+apply)
       echo '2026/09/16 13:28:23 INFO workseries done apply=true anchored_works=19709 series_eligible=887 members_wanted=3178 series_created=10 series_renamed=0 series_deleted=0 members_added=1100 members_stale=0 order_changed=288 errors=0'
+      ;;
+    reconcile-eg-anchors+dry|reconcile-eg-anchors+apply)
+      echo '2026/09/18 02:00:00 INFO eganchors summary games=0 anchored_games=0 no_evidence_games=0 multi_games=0 twin_games=0 candidate_games=0 rejected_skips=0 exact_planned=0 probable_planned=0 related_planned=0 corroborated=0 written=0 exists=0 errors=0'
       ;;
     reconcile-org-labels+all+dry|reconcile-org-labels+all+apply)
       echo '2026/09/17 14:21:47 INFO org-label anchor source done source=vndb pass=1 apply=false orgs=30089 already=25082 exact=8 probable=16 new_labels=41 new_edges=52 conflict=1421 skip_no_match=922 skip_ambiguous=21 skip_ungradeable=2437 skip_rejected=0 skip_deferred=0 vndb_in_anchored=7'
@@ -286,6 +291,7 @@ case "$1" in
       import-work-aliases \
       import-work-platforms \
       import-work-series \
+      reconcile-eg-anchors \
       reconcile-org-labels
     do
       case "$toolcmd" in
@@ -949,6 +955,29 @@ run_job "$td"
 expect_exit_nonzero "$td"
 if ! has_alert "$td"; then fail "no alert"; fi
 if grep -q -F 'reconcile-org-labels' "$td/ctl/apply.log"; then fail "applied without a readable plan"; fi
+tend
+rm -rf "$td"
+
+# --- T23: an EG-anchor batch past its ceiling writes nothing and the rest of the EG group stands down ---
+tstart 23
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' '2026/09/18 02:00:00 INFO eganchors summary games=9000 anchored_games=0 no_evidence_games=0 multi_games=0 twin_games=0 candidate_games=9000 rejected_skips=0 exact_planned=301 probable_planned=0 related_planned=0 corroborated=0 written=0 exists=0 errors=0' \
+  > "$td/ctl/out/reconcile-eg-anchors+dry"
+run_job "$td"
+expect_exit_nonzero "$td"
+if has_stamp "$td"; then fail "stamp written"; fi
+if ! has_alert "$td"; then fail "no alert"; fi
+write_t1_expected "$td/ctl/t1"
+grep -v -F \
+  -e 'reconcile-eg-anchors --apply' \
+  -e 'import-character-roster --source eg --apply' \
+  -e 'import-galgame-credits --source eg --apply' \
+  -e 'import-galgame-credits --source eg-music --apply' \
+  -e 'import-store-refs --apply' \
+  -e 'backfill-work-playtime --source eg --apply' \
+  "$td/ctl/t1" > "$td/ctl/expected"
+expect_apply "$td" "$td/ctl/expected"
 tend
 rm -rf "$td"
 

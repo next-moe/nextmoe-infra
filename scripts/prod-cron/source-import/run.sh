@@ -195,6 +195,14 @@ gstep import-work-intro --apply
 # this job was armed, so a ceiling tripping here is news, not backlog.
 begin_group eg
 if [ "$GROUP_FAIL" -eq 0 ]; then
+  if dry_ok eg-anchors sh -c "$DSNSH"'; reconcile-eg-anchors --dsn "$CAT" --eg-dsn "$EG"' \
+     && check_counters eg-anchors "$last_dry_log" exact_planned=300 probable_planned=600 related_planned=1500; then
+    gstep sh -c "$DSNSH"'; reconcile-eg-anchors --dsn "$CAT" --eg-dsn "$EG" --apply'
+  else
+    ceiling_failed
+  fi
+fi
+if [ "$GROUP_FAIL" -eq 0 ]; then
   if dry_ok eg-roster import-character-roster --source eg \
      && check_counters eg-roster "$last_dry_log" characters_created=300; then
     gstep import-character-roster --source eg --apply

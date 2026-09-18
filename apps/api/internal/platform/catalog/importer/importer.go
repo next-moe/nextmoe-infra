@@ -126,19 +126,49 @@ func (im *Importer) Run(source string) (Stats, error) {
 	return total, nil
 }
 
-func (im *Importer) loadEGRosettaWorkMap() (map[int64]int64, error) {
+func (im *Importer) loadExactLiveWorkMap(source int16) (map[int64]int64, error) {
 	var rows []struct {
 		ExternalID int64 `gorm:"column:external_id"`
 		WorkID     int64 `gorm:"column:work_id"`
 	}
 	if err := im.catalog.Raw(`
-		SELECT external_id::bigint AS external_id, entity_id AS work_id
-		FROM catalog_external_ref WHERE matched_by = 'rule:eg-vndb-rosetta'`).Scan(&rows).Error; err != nil {
+		SELECT r.external_id::bigint AS external_id, r.entity_id AS work_id
+		FROM catalog_external_ref r
+		JOIN catalog_work w ON w.id = r.entity_id AND w.deleted_at IS NULL
+		WHERE r.entity_type = ? AND r.source_id = ? AND r.link_kind = ? AND r.dead_at IS NULL`,
+		model.EntityTypeWork, source, model.LinkKindExact).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	m := make(map[int64]int64, len(rows))
 	for _, r := range rows {
 		m[r.ExternalID] = r.WorkID
+	}
+	return m, nil
+}
+
+func (im *Importer) loadEGKnownWorks() (map[int64][]int64, error) {
+	var rows []struct {
+		ExternalID int64 `gorm:"column:external_id"`
+		WorkID     int64 `gorm:"column:work_id"`
+	}
+	if err := im.catalog.Raw(`
+		SELECT r.external_id::bigint AS external_id, r.entity_id AS work_id
+		FROM catalog_external_ref r
+		JOIN catalog_work w ON w.id = r.entity_id AND w.deleted_at IS NULL
+		WHERE r.entity_type = ? AND r.source_id = ? AND r.link_kind IN (?, ?, ?) AND r.dead_at IS NULL`,
+		model.EntityTypeWork, egSource, model.LinkKindExact, model.LinkKindProbable, model.LinkKindRelated).
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	m := map[int64][]int64{}
+	seen := map[[2]int64]struct{}{}
+	for _, r := range rows {
+		key := [2]int64{r.ExternalID, r.WorkID}
+		if _, dup := seen[key]; dup {
+			continue
+		}
+		seen[key] = struct{}{}
+		m[r.ExternalID] = append(m[r.ExternalID], r.WorkID)
 	}
 	return m, nil
 }

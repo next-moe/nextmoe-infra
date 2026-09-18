@@ -40,7 +40,7 @@ type egMusicRow struct {
 func (im *Importer) runEGMusic() (Stats, error) {
 	var st Stats
 
-	workMap, err := im.loadEGRosettaWorkMap()
+	workMap, err := im.loadExactLiveWorkMap(egSource)
 	if err != nil {
 		return st, err
 	}

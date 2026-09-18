@@ -82,7 +82,7 @@ func main() {
 		"eg_refs", st.EGRefsWritten, "stubs", st.Stubs, "skipped_unmapped_role", st.SkippedUnmappedRole,
 		"title_collisions", st.TitleCollisions, "quarantined", st.Quarantined,
 		"skipped_intra_collision", st.SkippedIntraCollision, "eg_aliases", st.EGAliases,
-		"errors", st.Errors,
+		"skipped_multi_work", st.SkippedMultiWork, "errors", st.Errors,
 	)
 	if !*apply {
 		slog.Info("DRY RUN — nothing written; re-run with --run")

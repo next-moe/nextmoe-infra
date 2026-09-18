@@ -262,7 +262,7 @@ func TestEGWaveAndCandidates(t *testing.T) {
 	var workID int64
 	require.NoError(t, testDB.Raw(`INSERT INTO catalog_work (medium_id, site, product_work_id, olang, display_name, content_rating, status, extra, field_provenance, display_nsfw)
 		VALUES (1,'galgame_wiki',7,'ja','w',0,0,'{}','{}',false) RETURNING id`).Scan(&workID).Error)
-	testDB.Exec(`INSERT INTO catalog_external_ref (entity_type, entity_id, source_id, external_id, link_kind, matched_by) VALUES (5,?,5,'7',1,'rule:eg-vndb-rosetta')`, workID)
+	testDB.Exec(`INSERT INTO catalog_external_ref (entity_type, entity_id, source_id, external_id, link_kind, matched_by) VALUES (5,?,5,'7',0,'rule:eg-vndb-rosetta')`, workID)
 	testDB.Exec(`INSERT INTO creaters (id, raw) VALUES (500, '{"name":"絵師","twitter_username":"SharedHandle"}'), (501,'{"name":"声太"}')`)
 	testDB.Exec(`INSERT INTO characters (id, raw) VALUES (800, '{"name":"EGキャラ"}')`)
 	testDB.Exec(`INSERT INTO staff (game, creater_id, shubetu) VALUES (7,500,1)`)
