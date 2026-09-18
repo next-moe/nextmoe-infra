@@ -46,6 +46,7 @@ import-release-labels --apply
 backfill-character-instances --apply
 import-work-intro --apply
 reconcile-eg-anchors --apply
+reconcile-eg-works --apply --limit 250
 import-character-roster --source eg --apply
 import-galgame-credits --source eg --apply
 import-galgame-credits --source eg-music --apply
@@ -112,6 +113,7 @@ extract_tool_cmd() {
     import-work-platforms \
     import-work-series \
     reconcile-eg-anchors \
+    reconcile-eg-works \
     reconcile-org-labels
   do
     case "$s" in
@@ -183,6 +185,9 @@ emit_out() {
       ;;
     reconcile-eg-anchors+dry|reconcile-eg-anchors+apply)
       echo '2026/09/18 02:00:00 INFO eganchors summary games=0 anchored_games=0 no_evidence_games=0 multi_games=0 twin_games=0 candidate_games=0 rejected_skips=0 exact_planned=0 probable_planned=0 related_planned=0 corroborated=0 written=0 exists=0 errors=0'
+      ;;
+    reconcile-eg-works+dry|reconcile-eg-works+apply)
+      echo '2026/09/18 04:00:00 INFO egworks summary population=0 pack_games=0 port_games=0 attached=0 quarantined=0 minted_live=0 edition_folded=0 rejected_skips=0 limited=0 refs_planned=0 candidates_planned=0 written=0 errors=0'
       ;;
     reconcile-org-labels+all+dry|reconcile-org-labels+all+apply)
       echo '2026/09/17 14:21:47 INFO org-label anchor source done source=vndb pass=1 apply=false orgs=30089 already=25082 exact=8 probable=16 new_labels=41 new_edges=52 conflict=1421 skip_no_match=922 skip_ambiguous=21 skip_ungradeable=2437 skip_rejected=0 skip_deferred=0 vndb_in_anchored=7'
@@ -292,6 +297,7 @@ case "$1" in
       import-work-platforms \
       import-work-series \
       reconcile-eg-anchors \
+      reconcile-eg-works \
       reconcile-org-labels
     do
       case "$toolcmd" in
@@ -971,6 +977,30 @@ if ! has_alert "$td"; then fail "no alert"; fi
 write_t1_expected "$td/ctl/t1"
 grep -v -F \
   -e 'reconcile-eg-anchors --apply' \
+  -e 'reconcile-eg-works --apply --limit 250' \
+  -e 'import-character-roster --source eg --apply' \
+  -e 'import-galgame-credits --source eg --apply' \
+  -e 'import-galgame-credits --source eg-music --apply' \
+  -e 'import-store-refs --apply' \
+  -e 'backfill-work-playtime --source eg --apply' \
+  "$td/ctl/t1" > "$td/ctl/expected"
+expect_apply "$td" "$td/ctl/expected"
+tend
+rm -rf "$td"
+
+# --- T24: an EG-works batch past its ceiling writes nothing and the rest of the EG group stands down ---
+tstart 24
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' '2026/09/18 04:00:00 INFO egworks summary population=9000 pack_games=0 port_games=0 attached=301 quarantined=0 minted_live=0 edition_folded=0 rejected_skips=0 limited=0 refs_planned=301 candidates_planned=0 written=0 errors=0' \
+  > "$td/ctl/out/reconcile-eg-works+dry"
+run_job "$td"
+expect_exit_nonzero "$td"
+if has_stamp "$td"; then fail "stamp written"; fi
+if ! has_alert "$td"; then fail "no alert"; fi
+write_t1_expected "$td/ctl/t1"
+grep -v -F \
+  -e 'reconcile-eg-works --apply --limit 250' \
   -e 'import-character-roster --source eg --apply' \
   -e 'import-galgame-credits --source eg --apply' \
   -e 'import-galgame-credits --source eg-music --apply' \

@@ -203,6 +203,14 @@ if [ "$GROUP_FAIL" -eq 0 ]; then
   fi
 fi
 if [ "$GROUP_FAIL" -eq 0 ]; then
+  if dry_ok eg-works sh -c "$DSNSH"'; reconcile-eg-works --dsn "$CAT" --eg-dsn "$EG"' \
+     && check_counters eg-works "$last_dry_log" attached=300 quarantined=100 minted_live=150; then
+    gstep sh -c "$DSNSH"'; reconcile-eg-works --dsn "$CAT" --eg-dsn "$EG" --apply --limit 250'
+  else
+    ceiling_failed
+  fi
+fi
+if [ "$GROUP_FAIL" -eq 0 ]; then
   if dry_ok eg-roster import-character-roster --source eg \
      && check_counters eg-roster "$last_dry_log" characters_created=300; then
     gstep import-character-roster --source eg --apply

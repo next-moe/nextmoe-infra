@@ -164,7 +164,7 @@ var heuristicRules = []struct {
 	{regexp.MustCompile(`windows`), "win"},
 }
 
-func normalize(raw string, registry map[string]struct{}) string {
+func Normalize(raw string, registry map[string]struct{}) string {
 	s := strings.ToLower(strings.TrimSpace(raw))
 	if s == "" {
 		return ""
@@ -374,7 +374,7 @@ func runBgm(ctx context.Context, db *gorm.DB, opts Opts, registry map[string]str
 		st.BgmWorks++
 		seen := map[string]struct{}{}
 		for _, raw := range raws {
-			code := normalize(raw, registry)
+			code := Normalize(raw, registry)
 			if code == "" {
 				if s := strings.TrimSpace(raw); s != "" {
 					st.Unmapped[s]++
