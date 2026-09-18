@@ -48,12 +48,14 @@ had to be rebuilt by hand.
 | char-xsrc-nightly | daily 22:30 | daily 14:30 | 48h |
 | image-mirror | Mon 03:30 | Sun 19:30 | 192h |
 | work-dedup-watch | Mon 04:20 | Sun 20:20 | 192h |
+| reconcile-watch | Mon 05:30 | Sun 21:30 | 192h |
 | ymgal-pending-watch | daily 09:30 | daily 01:30 | 48h |
 | cover-shelf-watch | daily 17:00 | daily 09:00 | 48h |
 | retire-merged-comments | daily 23:30 | daily 15:30 | 48h |
 
 `source-import/test.sh`, `char-xsrc-nightly/test.sh`,
-`llm-adjudicate-nightly/test.sh` and `image-mirror/test.sh` are the offline tests in this directory: each
+`llm-adjudicate-nightly/test.sh`, `image-mirror/test.sh` and
+`reconcile-watch/test.sh` are the offline tests in this directory: each
 runs the `run.sh` beside it against fake `docker` / `flock` / alert stand-ins
 and asserts the call order, the ceilings and the lock/stamp rules. Run the
 matching one before redeploying any of those scripts.
