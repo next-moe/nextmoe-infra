@@ -40,7 +40,7 @@
     "eslint": "^10.10.0",
     "gray-matter": "^4.0.3",
     "markdown-it": "^15.0.2",
-    "nuxt-echarts": "^1.0.1",
+    "nuxt-echarts": "^1.1.0",
     "pinia-plugin-persistedstate": "4.7.1",
     "prettier": "^3.9.7",
     "prettier-plugin-tailwindcss": "^0.8.1",

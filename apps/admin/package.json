@@ -31,7 +31,7 @@
     "echarts": "^6.1.0",
     "localforage": "^1.10.0",
     "nuxt": "^4.5.2",
-    "nuxt-echarts": "^1.0.1",
+    "nuxt-echarts": "^1.1.0",
     "nuxt-schema-org": "^6.3.2",
     "pinia": "^4.0.3",
     "postcss": "^8.5.28",
