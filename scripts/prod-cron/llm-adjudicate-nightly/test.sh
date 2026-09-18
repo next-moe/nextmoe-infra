@@ -38,6 +38,7 @@ tend() {
 
 write_t1_names() {
   cat > "$1" <<'EOF'
+adj-seed-keys
 adj-judge-workpair
 adj-apply-workpair
 adj-approve
@@ -126,7 +127,7 @@ case "$1" in
       exit 99
     fi
     case "$name" in
-      adj-judge-workpair|adj-apply-workpair|adj-approve|adj-execute|adj-release|adj-judge-creditname|adj-apply-creditname|adj-judge-refs|adj-apply-refs)
+      adj-seed-keys|adj-judge-workpair|adj-apply-workpair|adj-approve|adj-execute|adj-release|adj-judge-creditname|adj-apply-creditname|adj-judge-refs|adj-apply-refs)
         ;;
       *)
         echo "fake docker run: unexpected --name $name" >&2
@@ -139,6 +140,9 @@ case "$1" in
       cat "$CTL/out/$name"
     else
       case "$name" in
+        adj-seed-keys)
+          echo "APPLIED [seed-keys] stripped_pairs=0 declared_pairs=0 existing_skips=0 conflict_skips=0 limited=0 written=0"
+          ;;
         adj-judge-workpair)
           echo "2026/09/17 10:52:40 INFO queue-workpair done judged=10 errors=0 dry=false"
           ;;
@@ -624,7 +628,7 @@ scan_t3() {
       name=$line
       case "$line" in
         adj-judge-*) is_judge=1 ;;
-        adj-apply-*|adj-approve|adj-execute|adj-release) is_apply=1 ;;
+        adj-apply-*|adj-approve|adj-execute|adj-release|adj-seed-keys) is_apply=1 ;;
       esac
     fi
     prev=$line
@@ -632,8 +636,8 @@ scan_t3() {
   if [ "$njudge" -ne 3 ]; then
     fail "judge docker runs=$njudge want 3"
   fi
-  if [ "$napply" -ne 6 ]; then
-    fail "apply/approve/execute docker runs=$napply want 6"
+  if [ "$napply" -ne 7 ]; then
+    fail "apply/approve/execute docker runs=$napply want 7"
   fi
 }
 
@@ -659,6 +663,7 @@ td=$(mktemp -d)
 install_fakes "$td"
 run_job "$td"
 expect_exit "$td" 0
+expect_c_contains "$td" adj-seed-keys "work-dedup -mode seed-keys -actor 1 -limit 500 -run"
 expect_c_contains "$td" adj-judge-creditname "--apply --task queue-creditname --limit 300"
 expect_c_contains "$td" adj-apply-creditname "--mode apply --queue creditname --actor 1 --min-confidence 0.9 --min-confidence-reject 0.8 --apply"
 expect_c_lacks "$td" adj-apply-creditname "--limit"
@@ -859,7 +864,7 @@ echo 1 > "$td/ctl/rc/adj-judge-workpair"
 run_job "$td"
 expect_exit "$td" 1
 expect_fail_alert "$td"
-printf '%s\n' 'adj-judge-workpair' > "$td/ctl/expected"
+printf '%s\n' 'adj-seed-keys' 'adj-judge-workpair' > "$td/ctl/expected"
 expect_seq "$td" "$td/ctl/expected"
 expect_no_stamp "$td"
 tend
