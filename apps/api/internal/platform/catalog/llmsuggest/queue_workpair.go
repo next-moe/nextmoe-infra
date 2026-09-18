@@ -143,13 +143,19 @@ func loadWorkPairQueue(db *gorm.DB) ([]workPairItem, int, error) {
 	// entity". assertEntityAlive tests deleted_at and not status, so this
 	// matches it: a quarantined work is still mergeable, and merging it is how
 	// it gets released.
+	//
+	// Deferred is loaded too: 164 deferred work candidates on 2026-09-18 were
+	// never judged again, and a pair kept apart has to come back the night a
+	// corroborator appears. uq_queue_verdict on (queue, input_hash, model,
+	// prompt_version) plus loadDoneHashes means an already-judged pair costs
+	// no model call.
 	if err := db.Raw(`SELECT c.a_id, c.b_id, wa.medium_id AS a_med, wb.medium_id AS b_med
 		FROM catalog_match_candidate c
 		JOIN catalog_work wa ON wa.id = c.a_id AND wa.deleted_at IS NULL
 		JOIN catalog_work wb ON wb.id = c.b_id AND wb.deleted_at IS NULL
-		WHERE c.entity_type = ? AND c.status IN (?, ?)
+		WHERE c.entity_type = ? AND c.status IN (?, ?, ?)
 		ORDER BY c.a_id, c.b_id`,
-		model.EntityTypeWork, model.CandidateStatusPending, model.CandidateStatusNeedsManual).
+		model.EntityTypeWork, model.CandidateStatusPending, model.CandidateStatusNeedsManual, model.CandidateStatusDeferred).
 		Scan(&rows).Error; err != nil {
 		return nil, 0, err
 	}

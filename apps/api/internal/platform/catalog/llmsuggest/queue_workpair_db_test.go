@@ -214,3 +214,36 @@ func TestSharedRefsSurviveTheDossierDisplayCap(t *testing.T) {
 		"the shared ref sorts ninth and the cap must not hide it")
 	require.Equal(t, 2, items[0].Dossier.SharedRefs[0].WorksHolding)
 }
+
+func TestDeferredCandidatesAreLoadedForJudging(t *testing.T) {
+	db := testCatalogDB(t)
+	require.NoError(t, migrate.Run(db))
+	require.NoError(t, seed.Run(db))
+	require.NoError(t, db.Exec(
+		"TRUNCATE catalog_match_candidate, catalog_work RESTART IDENTITY CASCADE").Error)
+
+	var medium int16
+	require.NoError(t, db.Raw(`SELECT id FROM catalog_medium WHERE key = 'galgame'`).Scan(&medium).Error)
+	mkWork := func(name string) int64 {
+		w := &model.CatalogWork{
+			MediumID: medium, OLang: "ja", DisplayName: name,
+			ContentRating: model.ContentRatingAllAges, Status: model.WorkStatusLive,
+		}
+		require.NoError(t, db.Create(w).Error)
+		return w.ID
+	}
+	mkCandidate := func(a, b int64, status int16) {
+		require.NoError(t, db.Create(&model.CatalogMatchCandidate{
+			EntityType: model.EntityTypeWork, AID: min(a, b), BID: max(a, b),
+			Reason: model.CandidateReasonNameNormEqual, Status: status,
+		}).Error)
+	}
+	dA, dB := mkWork("deferred A"), mkWork("deferred B")
+	nA, nB := mkWork("needs A"), mkWork("needs B")
+	mkCandidate(dA, dB, model.CandidateStatusDeferred)
+	mkCandidate(nA, nB, model.CandidateStatusNeedsManual)
+
+	items, _, err := loadWorkPairQueue(db)
+	require.NoError(t, err)
+	require.Len(t, items, 2)
+}

@@ -124,5 +124,5 @@ func TestEGRefsWithoutTheMirrorAreNotSilentlyHeld(t *testing.T) {
 	_, _, unavailable, err := sourceNeighbourWorks(nil, nil, reg, rows)
 	require.NoError(t, err)
 	assert.True(t, unavailable[1])
-	assert.Equal(t, skipNoCorroborator, planRef(VerdictSame, 1, 0.9, false, refEvidence{Unavailable: true}).Skip)
+	assert.Equal(t, skipNoCorroborator, planRef(VerdictSame, 1, 0.9, 0, false, refEvidence{Unavailable: true}).Skip)
 }

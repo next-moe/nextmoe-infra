@@ -33,8 +33,8 @@ func TestFanoutIsReleaseOnly(t *testing.T) {
 }
 
 func TestRelatedConfirmsWithoutAConfidenceBar(t *testing.T) {
-	assert.Equal(t, applyConfirmRelated, planRef(VerdictRelated, 1, 0.9, false, refEvidence{}).Action)
-	assert.Equal(t, applyConfirmRelated, planRef(VerdictRelated, 0, 0.9, false, refEvidence{}).Action,
+	assert.Equal(t, applyConfirmRelated, planRef(VerdictRelated, 1, 0.9, 0, false, refEvidence{}).Action)
+	assert.Equal(t, applyConfirmRelated, planRef(VerdictRelated, 0, 0.9, 0, false, refEvidence{}).Action,
 		"the fan-out lane counts rows, it does not estimate")
 	_, refVerdicts := applySelection(Options{Queue: QueueRef, MinConfidence: 0.9})
 	assert.Contains(t, refVerdicts, VerdictRelated)

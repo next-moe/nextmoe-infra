@@ -50,8 +50,9 @@ func TestBothClaimedFreeze(t *testing.T) {
 	s := workPairSides{AID: 1, BID: 2, ClaimedA: true, ClaimedB: true}
 	assert.True(t, bothClaimed(s))
 	p := planWorkPair(VerdictSame, 1, 0.7, s, soleName("sole"))
-	assert.Equal(t, skipFrozenBothClaimed, p.Skip)
-	assert.Empty(t, p.Action)
+	assert.Equal(t, applyDefer, p.Action)
+	assert.Equal(t, stampKeptApartBothClaimed, p.stamp())
+	assert.Empty(t, p.Skip)
 }
 
 func TestVerdictActionMapping(t *testing.T) {
@@ -72,18 +73,18 @@ func TestVerdictActionMapping(t *testing.T) {
 }
 
 func TestNeverRejectRef(t *testing.T) {
-	p := planRef(VerdictDifferent, 1, 0.9, false, refEvidence{})
+	p := planRef(VerdictDifferent, 1, 0.9, 0, false, refEvidence{})
 	assert.NotEqual(t, applyReject, p.Action)
 	assert.NotEqual(t, applyConfirm, p.Action)
-	assert.Equal(t, skipRefDifferent, p.Skip)
+	assert.Equal(t, stampHeldProbableDisputed, p.stamp())
 
-	p = planRef(VerdictSame, 0.95, 0.9, false, refEvidence{Corroborator: "vndb v1"})
+	p = planRef(VerdictSame, 0.95, 0.9, 0, false, refEvidence{Corroborator: "vndb v1"})
 	assert.Equal(t, applyConfirm, p.Action)
-	p = planRef(VerdictChainVerified, 1, 0.9, false, refEvidence{})
+	p = planRef(VerdictChainVerified, 1, 0.9, 0, false, refEvidence{})
 	assert.Equal(t, applyConfirm, p.Action)
-	p = planRef(VerdictChainUnproven, 0, 0.9, false, refEvidence{})
+	p = planRef(VerdictChainUnproven, 0, 0.9, 0, false, refEvidence{})
 	assert.Equal(t, skipChainUnproven, p.Skip)
-	p = planRef(VerdictUnsure, 1, 0.9, false, refEvidence{})
+	p = planRef(VerdictUnsure, 1, 0.9, 0, false, refEvidence{})
 	assert.Equal(t, skipUnsure, p.Skip)
 }
 

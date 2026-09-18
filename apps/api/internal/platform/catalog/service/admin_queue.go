@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"time"
@@ -27,6 +28,8 @@ func (s *AdminQueueService) DetachName(ctx context.Context, creditNameID int64, 
 }
 
 var ErrExactTaken = fmt.Errorf("catalog: external identity is exact-linked to another entity")
+
+var ErrCuratedRef = errors.New("ref is human-linked (curated); remove it through the editor")
 
 const matchedByCurated = "curated"
 
@@ -220,6 +223,9 @@ func (s *AdminQueueService) DecideCandidate(ctx context.Context, d CandidateDeci
 	}
 	if d.Action == "reject" && d.EntityType == model.EntityTypeWork {
 		return s.rejectWorkCandidate(ctx, d)
+	}
+	if d.Action == "defer" && d.EntityType == model.EntityTypeWork {
+		return s.deferWorkCandidate(ctx, d)
 	}
 
 	status := model.CandidateStatusRejected
@@ -503,7 +509,7 @@ func (s *AdminQueueService) RejectRef(ctx context.Context, key RefKey, reason st
 			return fmt.Errorf("%w: external ref", ErrNotFound)
 		}
 		if matchedBy == matchedByCurated {
-			return fmt.Errorf("%w: ref is human-linked (curated); remove it through the editor", ErrProposalState)
+			return fmt.Errorf("%w: %w", ErrProposalState, ErrCuratedRef)
 		}
 		res := tx.Exec(`DELETE FROM catalog_external_ref
 		                 WHERE entity_type = ? AND entity_id = ? AND source_id = ? AND external_id = ?`,

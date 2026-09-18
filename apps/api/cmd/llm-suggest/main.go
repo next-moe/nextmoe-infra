@@ -26,7 +26,7 @@ func main() {
 	queue := flag.String("queue", "", "apply/calibrate: creditname | workpair | ref")
 	actor := flag.Int64("actor", 0, "apply: operator user id stamped on live writes")
 	minConf := flag.Float64("min-confidence", 0.9, "apply: minimum confidence to confirm a ref or accept a credit name (work merges are gated on evidence, not confidence)")
-	minConfReject := flag.Float64("min-confidence-reject", 0.7, "apply: minimum confidence to reject a candidate")
+	minConfReject := flag.Float64("min-confidence-reject", 0.7, "apply: minimum confidence to reject a candidate or a ref (omitting this flag never rejects a ref)")
 	families := flag.String("families", "all", "queue-refs: chain | llm | all")
 	apply := flag.Bool("apply", false, "write suggestions (default: dry run — sample + print)")
 	limit := flag.Int("limit", 0, "cap items processed (0 = all); dry-run sample size")
@@ -89,6 +89,17 @@ func main() {
 		Model: *model, Concurrency: *conc, Limit: *limit, DryRun: !*apply, GoldSetPath: *goldPath, Batch: *batch,
 		Actor: *actor, MinConfidence: *minConf, MinConfidenceReject: *minConfReject,
 		Families: *families, Queue: *queue,
+	}
+	if *queue == llmsuggest.QueueRef {
+		rejectSet := false
+		flag.Visit(func(f *flag.Flag) {
+			if f.Name == "min-confidence-reject" {
+				rejectSet = true
+			}
+		})
+		if !rejectSet {
+			opts.MinConfidenceReject = 0
+		}
 	}
 
 	switch *families {
