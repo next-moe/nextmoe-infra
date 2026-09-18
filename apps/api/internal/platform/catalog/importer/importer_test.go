@@ -47,7 +47,8 @@ func TestMain(m *testing.M) {
 		`CREATE TABLE IF NOT EXISTS lyricists (raw jsonb, music int, creater_id int)`,
 		`CREATE TABLE IF NOT EXISTS composers (raw jsonb, music int, creater_id int)`,
 		`CREATE TABLE IF NOT EXISTS arrangers (raw jsonb, music int, creater_id int)`,
-		`CREATE TABLE IF NOT EXISTS works (workno text, work_name text, work_name_kana text, maker_id text, maker_name text, age_category text, work_type_string text, status text, regist_date timestamptz, product_json jsonb)`,
+		`CREATE TABLE IF NOT EXISTS works (workno text, work_name text, work_name_kana text, maker_id text, maker_name text, age_category text, work_type text, work_type_string text, status text, regist_date timestamptz, product_json jsonb)`,
+		`ALTER TABLE works ADD COLUMN IF NOT EXISTS work_type text`,
 		`CREATE TABLE IF NOT EXISTS games (id bigint, vndb text, dlsite_id text)`,
 		`ALTER TABLE games ADD COLUMN IF NOT EXISTS dlsite_id text`,
 		`ALTER TABLE games ADD COLUMN IF NOT EXISTS vndb text`,
@@ -65,7 +66,7 @@ func TestMain(m *testing.M) {
 func clean(t *testing.T) {
 	t.Helper()
 	tables := []string{
-		"catalog_credit", "catalog_work_character", "catalog_match_candidate", "catalog_external_ref", "catalog_revision",
+		"catalog_credit", "catalog_work_character", "catalog_match_candidate", "catalog_match_rejection", "catalog_external_ref", "catalog_revision",
 		"catalog_credit_name", "catalog_label", "catalog_character_alias", "catalog_character", "catalog_work",
 		"src_bangumi.subject_person", "src_bangumi.subject_character", "src_bangumi.person_character",
 		"src_bangumi.person", "src_bangumi.character", "src_bangumi.subject_relation", "src_bangumi.subject",
