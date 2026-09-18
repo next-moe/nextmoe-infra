@@ -32,7 +32,8 @@ VNDB_RSYNC=${IMAGE_MIRROR_VNDB_RSYNC:-rsync://dl.vndb.org/vndb-img/}
 DLSITE_IMG_TAG=${IMAGE_MIRROR_DLSITE_IMAGE:-ghcr.io/kunmoe/kun-dlsite-api:latest}
 COVERS_MAX=${IMAGE_MIRROR_COVERS_MAX:-500}
 PORTRAITS_MAX=${IMAGE_MIRROR_PORTRAITS_MAX:-3000}
-DLSITE_WORKS_MAX=${IMAGE_MIRROR_DLSITE_WORKS_MAX:-500}
+DLSITE_BATCH=${IMAGE_MIRROR_DLSITE_BATCH:-3000}
+DLSITE_WORKS_MAX=${IMAGE_MIRROR_DLSITE_WORKS_MAX:-3000}
 DLSITE_404_RETRY_DAYS=${IMAGE_MIRROR_DLSITE_404_RETRY_DAYS:-90}
 BANGUMI_COVERS_MAX=${IMAGE_MIRROR_BANGUMI_COVERS_MAX:-1000}
 BANGUMI_PERSONS_MAX=${IMAGE_MIRROR_BANGUMI_PERSONS_MAX:-1500}
@@ -173,8 +174,14 @@ lane_dlsite() {
   run sh -c "$DSNSH"'; backfill-dlsite-media --dsn "$CAT" --dlsite-dsn "$DL" --kind cover,screenshot --mirror-dir /w/mirror/dlsite --cdn-missing /w/state/dlsite-cdn-missing --worknos-out /w/state/dlsite.worknos' \
     > state/dlsite-dry.log 2>&1 || { echo "FATAL: dlsite dry run failed"; cat state/dlsite-dry.log; return 1; }
   [ -f state/dlsite.worknos ] || { echo "FATAL: the dlsite dry run wrote no worknos file"; return 1; }
+  # On 2026-09-18 two new lanes added about 39,000 DLsite products in one night; the full list
+  # waits its turn in batches. The cut is on the fetch list, not the tool's --limit: that caps
+  # candidates, and a work whose files the CDN answers 404 for stays a candidate that fetches nothing.
+  listed=$(wc -l < state/dlsite.worknos)
+  head -n "$DLSITE_BATCH" state/dlsite.worknos > state/dlsite.worknos.batch || return 1
+  mv state/dlsite.worknos.batch state/dlsite.worknos || return 1
   works=$(wc -l < state/dlsite.worknos)
-  echo "dlsite: works to fetch $works (ceiling $DLSITE_WORKS_MAX)"
+  echo "dlsite: batch $works of $listed listed (at most $DLSITE_BATCH)"
   if [ "$works" -gt "$DLSITE_WORKS_MAX" ]; then
     echo "FATAL: dlsite fetch list over its ceiling — inspect state/dlsite.worknos before raising it"; return 1
   fi
