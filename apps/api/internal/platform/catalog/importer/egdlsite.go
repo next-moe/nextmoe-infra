@@ -42,6 +42,7 @@ type EGDLsiteStats struct {
 	Quarantined           int
 	SkippedIntraCollision int
 	EGAliases             int
+	SkippedMultiWork      int
 }
 
 type egdlItem struct {
@@ -89,7 +90,7 @@ func (im *Importer) RunEGDLsite(dlsiteDB *gorm.DB) (EGDLsiteStats, error) {
 	if err != nil {
 		return st, err
 	}
-	egWork, err := im.loadEGRosettaWorkMap()
+	egWork, err := im.loadEGKnownWorks()
 	if err != nil {
 		return st, err
 	}
@@ -147,11 +148,14 @@ func (im *Importer) RunEGDLsite(dlsiteDB *gorm.DB) (EGDLsiteStats, error) {
 		collectMaker(r.MakerID, r.MakerName)
 		eg := dlsiteToEG[r.Workno][0]
 		item := egdlItem{dw: dw, egGame: eg, nameFold: r.NameFold}
-		if wid, ok := egWork[eg]; ok {
-			item.attach, item.workID = true, wid
+		switch works := egWork[eg]; len(works) {
+		case 1:
+			item.attach, item.workID = true, works[0]
 			attach = append(attach, item)
-		} else {
+		case 0:
 			mint = append(mint, item)
+		default:
+			st.SkippedMultiWork++
 		}
 	}
 
@@ -238,8 +242,8 @@ func (im *Importer) RunEGDLsite(dlsiteDB *gorm.DB) (EGDLsiteStats, error) {
 
 // gateEGDLMints holds this lane to the title gate the other minting lanes use.
 // It had none: on 2026-09-16, 23 of its 69 pending mints already existed as
-// live works under the same title, because an EG game that no work carries a
-// rosetta ref for looks unanchored. A collision mints the work quarantined with
+// live works under the same title, because an EG game that no work carries an
+// EG ref for looks unanchored. A collision mints the work quarantined with
 // a pending candidate, so the work-pair judge either merges or releases it; two
 // pending mints that spell one title are both held back.
 func gateEGDLMints(mint []egdlItem, wt map[string]wtNorm, st *EGDLsiteStats) []egdlItem {

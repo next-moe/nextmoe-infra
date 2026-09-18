@@ -10,7 +10,7 @@ import (
 
 func (im *Importer) runEG() (Stats, error) {
 	var st Stats
-	workMap, err := im.loadEGRosettaWorkMap()
+	workMap, err := im.loadExactLiveWorkMap(egSource)
 	if err != nil {
 		return st, err
 	}

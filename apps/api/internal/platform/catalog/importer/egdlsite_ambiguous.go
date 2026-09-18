@@ -21,7 +21,7 @@ type conflictClaimant struct {
 }
 
 func (im *Importer) resolveAmbiguousGroups(dlsiteDB *gorm.DB, ambiguousIDs []string,
-	dlsiteToEG map[string][]int64, egWork map[int64]int64, relAnchor map[string]int64,
+	dlsiteToEG map[string][]int64, egWork map[int64][]int64, relAnchor map[string]int64,
 	roleMap map[string]int64, collectMaker func(id, name string), creaters map[string]dlNamed,
 	attach, mint *[]egdlItem, conflicts *[]conflictRow, st *EGDLsiteStats) error {
 
@@ -48,10 +48,20 @@ func (im *Importer) resolveAmbiguousGroups(dlsiteDB *gorm.DB, ambiguousIDs []str
 		collectMaker(r.MakerID, r.MakerName)
 
 		matched := map[int64]int64{}
+		sawMulti := false
 		for _, g := range dlsiteToEG[r.Workno] {
-			if w, ok := egWork[g]; ok {
-				matched[w] = g
+			works := egWork[g]
+			if len(works) >= 2 {
+				sawMulti = true
+				continue
 			}
+			if len(works) == 1 {
+				matched[works[0]] = g
+			}
+		}
+		if sawMulti {
+			st.SkippedMultiWork++
+			continue
 		}
 		switch len(matched) {
 		case 1:
@@ -65,8 +75,8 @@ func (im *Importer) resolveAmbiguousGroups(dlsiteDB *gorm.DB, ambiguousIDs []str
 		default:
 			cr := conflictRow{workno: r.Workno, name: r.WorkName, y: dw.y, m: dw.m, d: dw.d}
 			for _, g := range dlsiteToEG[r.Workno] {
-				if w, ok := egWork[g]; ok {
-					cr.claimants = append(cr.claimants, conflictClaimant{egGame: g, workID: w})
+				if works := egWork[g]; len(works) == 1 {
+					cr.claimants = append(cr.claimants, conflictClaimant{egGame: g, workID: works[0]})
 				}
 			}
 			*conflicts = append(*conflicts, cr)
