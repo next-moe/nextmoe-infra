@@ -125,6 +125,29 @@ const buildNode = (schema, { name, required, schemas, seen }) => {
       seen: next
     })
   }
+  if (schema.anyOf) {
+    const members = schema.anyOf
+    const nullMember = members.find(
+      (m) =>
+        m &&
+        m.type === 'null' &&
+        !m.$ref &&
+        !m.anyOf &&
+        !m.oneOf &&
+        !m.allOf &&
+        !m.properties
+    )
+    const others = members.filter((m) => m !== nullMember)
+    if (members.length !== 2 || !nullMember || others.length !== 1) {
+      throw new Error(
+        `docs-model anyOf guard: property ${name ?? '(anonymous)'} is not a nullable union of one schema plus null`
+      )
+    }
+    const node = buildNode(others[0], { name, required, schemas, seen })
+    node.nullable = true
+    if (schema.description) node.doc = schema.description
+    return node
+  }
   if (schema.$ref) {
     const rn = refName(schema.$ref)
     if (seen.has(rn)) {

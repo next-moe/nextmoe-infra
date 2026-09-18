@@ -57,7 +57,7 @@ func SetupWith(app *fiber.App, opt Options) huma.API {
 	app.Use(protocol.RateLimit(opt.Store, credentialLimitIdentity))
 	app.Use(protocol.Idempotency(opt.Store, credentialLimitIdentity))
 
-	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.23.0")
+	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.23.1")
 	cfg.OpenAPIPath = ""
 	cfg.DocsPath = ""
 	cfg.SchemasPath = ""
@@ -170,6 +170,9 @@ func annotateSpec(doc *huma.OpenAPI) {
 		// its four undocumented Go fields fail G2 and G14, which is how it was
 		// found.
 		delete(doc.Components.Schemas.Map(), "FormFile")
+		if !skipNullablePasses {
+			markNullablePointers(doc)
+		}
 		for _, schema := range doc.Components.Schemas.Map() {
 			markClosedEnums(schema)
 			forceObjectOpen(schema)
@@ -194,6 +197,9 @@ func annotateSpec(doc *huma.OpenAPI) {
 				}
 			}
 		}
+	}
+	if !skipNullablePasses {
+		markNullableEnums(doc)
 	}
 }
 

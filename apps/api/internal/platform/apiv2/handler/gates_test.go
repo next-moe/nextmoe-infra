@@ -46,6 +46,7 @@ func TestG10G15G17(t *testing.T) {
 	errs = append(errs, CheckG10(doc)...)
 	errs = append(errs, CheckG15(doc)...)
 	errs = append(errs, CheckG17(doc)...)
+	errs = append(errs, CheckG18(doc)...)
 	if len(errs) > 0 {
 		t.Fatalf("gates:\n  %s", stringsJoin(errs))
 	}

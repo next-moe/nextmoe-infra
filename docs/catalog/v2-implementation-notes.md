@@ -688,6 +688,21 @@ Decisions behind that table:
   since 2026-08-05, claim writes per contributor per day ran p50 1 / p90 6 / p99
   17, all-time max 31; proposals over 182 contributor-days ran p50 1 / p90 4 /
   p99 17, max 17.
+- **The document admits every null the server sends, since 2.23.1.** Two
+  defects, both invisible to huma's own validator and both caught by a
+  downstream standard JSON Schema validator. A pointer-to-struct field without
+  `omitempty` was published as a bare, required `$ref` while the code sent
+  `null` (ten fields: `NewsItem.banner`, `NewsSubmission.banner`,
+  `Work.cover`/`banner`/`claim`, `WorkCharacter.image`/`figure`,
+  `PriceQuote.list`/`current`, `StorePurchaseLinks.campaign`); it is now
+  `anyOf: [{$ref}, {type: null}]`, decided from the Go type. A nullable enum
+  was published as `type: [string, null]` with an `enum` that had no `null`, so
+  `null` failed the `enum` keyword on 23 properties (`Image.sexual`/`violence`
+  on every image, `Person.gender`, `Work.release_date_precision`, …); `null` is
+  now listed. The wire did not change. Gate G18 holds both from the Go types,
+  and a test validates marshalled `repr` values with a standard validator
+  against both the fixed and the unfixed document. `CalendarList.meta`, which is
+  always present, stopped being a pointer so it stays required and non-null.
 - **`released` is accepted since 2.21.0** (it was deliberately absent through
   2.20.x — no caller had ever sent it). The v1 shape returned: `{y, m?, d?}`
   becomes ONE curated `catalog_release` row on the minted work, because a fresh
