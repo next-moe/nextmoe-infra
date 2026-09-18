@@ -310,6 +310,14 @@ if [ "$GROUP_FAIL" -eq 0 ]; then
     ceiling_failed
   fi
 fi
+if [ "$GROUP_FAIL" -eq 0 ]; then
+  if dry_ok dlsite-games sh -c "$DSNSH"'; import-dlsite-games --dlsite-dsn "$DL"' \
+     && check_counters dlsite-games "$last_dry_log" declared_groups=300 title_attached_groups=300 quarantined_groups=100 minted_groups=300; then
+    gstep sh -c "$DSNSH"'; import-dlsite-games --dlsite-dsn "$DL" --run --limit 250'
+  else
+    ceiling_failed
+  fi
+fi
 gstep sh -c "$DSNSH"'; backfill-dlsite-genres --dsn "$CAT" --dlsite-dsn "$DL" --apply'
 # Held back until 2026-09-18 as possibly unfit (a quarter of store blurbs carry a
 # URL line). It fills only works with no ja intro at all, and the 7,455 DLsite
