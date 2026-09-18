@@ -43,6 +43,7 @@ on:
 permissions:
   contents: read
   packages: write            # required to push to GHCR
+  actions: read              # the changes job looks up the last successful build
 
 concurrency:                 # a newer push on the same ref cancels the older build
   group: build-${{ github.ref }}
@@ -59,10 +60,24 @@ jobs:
       deploy: ${{ steps.set.outputs.deploy }}  # did a *deployable* (non-tool) image change?
     steps:
       - uses: actions/checkout@v7
+      # Diffing against event.before loses whatever a cancelled run was about to
+      # build: on 2026-09-18 a scripts-only push cancelled #245's run, found no
+      # app changes of its own, and admin's pinia 4 image was never built or
+      # deployed. The last successful push build is the point prod is known to match.
+      - id: base
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha=$(gh run list -R "$GITHUB_REPOSITORY" --workflow build.yml --branch "$GITHUB_REF_NAME" \
+            --event push --status success --limit 1 --json headSha -q '.[0].headSha // empty')
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "changes since: ${sha:-event.before}"
       - uses: dorny/paths-filter@v4
         id: filter
         if: github.event_name == 'push'
         with:
+          base: ${{ steps.base.outputs.sha || github.event.before }}
           filters: |
             go:
               - 'apps/api/**'
