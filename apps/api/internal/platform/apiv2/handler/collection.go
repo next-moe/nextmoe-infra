@@ -88,7 +88,7 @@ type listWorksInput struct {
 	ClaimState     string `query:"claim_state" maxLength:"128" doc:"Comma-separated closed states: none, live, draft. pending, declined and hidden are the per-site moderation queue: they need a key holding claim_events:read and a site= naming the caller's own site, and are otherwise not in the vocabulary."`
 	ContentLimit   string `query:"content_limit" maxLength:"32" doc:"Comma-separated closed editorial axis: sfw, nsfw."`
 	Site           string `query:"site" maxLength:"64" doc:"Claiming site key. Open vocabulary; unknown values match nothing."`
-	OwnerUID       string `query:"owner_uid" maxLength:"20" doc:"The claiming site's own user id of the claim owner. Requires site=. Live registry filter; cannot be combined with q= or search sorts."`
+	OwnerUID       string `query:"owner_uid" maxLength:"20" doc:"The claiming site's own user id of the claim owner. Requires site=. Live registry filter; cannot be combined with q=, page= or search sorts."`
 	CompanyID      string `query:"company_id" maxLength:"20" doc:"Catalog company id. Live registry filter when q= is absent."`
 	CompanyRollup  string `query:"company_rollup" maxLength:"8" doc:"true expands company_id one hop down imprint/subsidiary. Only true or false."`
 	TagID          string `query:"tag_id" maxLength:"256" doc:"Comma-separated canonical tag ids, AND, max 10."`

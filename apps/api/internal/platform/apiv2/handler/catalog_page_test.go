@@ -26,7 +26,7 @@ func fakeWorkItem() dto.PublicWorkListItem {
 }
 
 func TestFinishPageListOmitsCursorAndAlwaysTotals(t *testing.T) {
-	out := finishPageList([]string{"a"}, 40, collect.Query{Page: 1, Limit: 20, IncludeTotal: false}, nil)
+	out := finishPageList([]string{"a"}, 40)
 	if out.NextCursor != nil {
 		t.Fatalf("next_cursor=%v", out.NextCursor)
 	}

@@ -38,7 +38,7 @@ Keyset-paginated work collection. q= switches to search (sort defaults to releva
 | `claim_state` | query | 否 | string | Comma-separated closed states: none, live, draft. pending, declined and hidden are the per-site moderation queue: they need a key holding claim_events:read and a site= naming the caller's own site, and are otherwise not in the vocabulary. |
 | `content_limit` | query | 否 | string | Comma-separated closed editorial axis: sfw, nsfw. |
 | `site` | query | 否 | string | Claiming site key. Open vocabulary; unknown values match nothing. |
-| `owner_uid` | query | 否 | string | The claiming site's own user id of the claim owner. Requires site=. Live registry filter; cannot be combined with q= or search sorts. |
+| `owner_uid` | query | 否 | string | The claiming site's own user id of the claim owner. Requires site=. Live registry filter; cannot be combined with q=, page= or search sorts. |
 | `company_id` | query | 否 | string | Catalog company id. Live registry filter when q= is absent. |
 | `company_rollup` | query | 否 | string | true expands company_id one hop down imprint/subsidiary. Only true or false. |
 | `tag_id` | query | 否 | string | Comma-separated canonical tag ids, AND, max 10. |

@@ -337,7 +337,7 @@ func (c *Catalog) listWorksSearch(ctx context.Context, q collect.Query, f worksF
 		items = append(items, workFromListItem(it, q.Include, c.imageURL))
 	}
 	if q.Page > 0 {
-		out := finishPageList(items, data.Total, q, nil)
+		out := finishPageList(items, data.Total)
 		if len(q.Facets) > 0 {
 			out.Facets = mapSearchFacets(q.Facets, data.Facets)
 		}
