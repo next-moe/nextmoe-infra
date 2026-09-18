@@ -299,8 +299,8 @@ func TestNormalizeSpellingTail(t *testing.T) {
 		"Neo Geo Pocket": "", "Commodore 64": "", "PCC": "", "ONS": "", "Doll": "",
 	}
 	for raw, want := range cases {
-		if got := normalize(raw, reg); got != want {
-			t.Errorf("normalize(%q) = %q, want %q", raw, got, want)
+		if got := Normalize(raw, reg); got != want {
+			t.Errorf("Normalize(%q) = %q, want %q", raw, got, want)
 		}
 	}
 }
