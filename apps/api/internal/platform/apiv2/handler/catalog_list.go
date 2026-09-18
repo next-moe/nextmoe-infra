@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"strconv"
 
 	"api/internal/platform/apiv2/collect"
 	"api/internal/platform/apiv2/problem"
@@ -322,4 +323,32 @@ func finishList[T any](items []T, next *string, total int64, q collect.Query, mi
 		out.Missing = &m
 	}
 	return out
+}
+
+func finishPageList[T any](items []T, total int64, q collect.Query, missing []string) repr.List[T] {
+	out := repr.NewList(items, nil)
+	n := total
+	out.Total = &n
+	rel := "eq"
+	out.TotalRelation = &rel
+	if missing != nil {
+		m := missing
+		out.Missing = &m
+	}
+	return out
+}
+
+func searchPage(q collect.Query) (int, *problem.Problem) {
+	if q.Page > 0 {
+		return q.Page, nil
+	}
+	page := 1
+	if q.Cursor != "" {
+		n, err := strconv.Atoi(q.Cursor)
+		if err != nil || n < 1 {
+			return 0, collectInvalidCursor()
+		}
+		page = n
+	}
+	return page, nil
 }
