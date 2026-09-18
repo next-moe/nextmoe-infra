@@ -15,13 +15,14 @@ type Claim struct {
 }
 
 type List[T any] struct {
-	_          struct{}                 `json:"-" additionalProperties:"true"`
-	Object     string                   `json:"object" enum:"list" doc:"Type discriminant. Always list."`
-	Items      []T                      `json:"items" doc:"Members of this page. Empty array, never null."`
-	NextCursor *string                  `json:"next_cursor,omitempty" pattern:"^cur_[A-Za-z0-9._~-]+$" maxLength:"512" doc:"Opaque keyset cursor. Omitted on the last page."`
-	Total      *int64                   `json:"total,omitempty" minimum:"0" doc:"Present only when include_total=true. Same visibility gate as items."`
-	Missing    *[]string                `json:"missing,omitempty" doc:"ids requested but not visible. Present only on the ids=/refs= batch lane."`
-	Facets     *map[string][]FacetValue `json:"facets,omitempty" doc:"Named facet buckets. Present only when facets= is requested."`
+	_             struct{}                 `json:"-" additionalProperties:"true"`
+	Object        string                   `json:"object" enum:"list" doc:"Type discriminant. Always list."`
+	Items         []T                      `json:"items" doc:"Members of this page. Empty array, never null."`
+	NextCursor    *string                  `json:"next_cursor,omitempty" pattern:"^cur_[A-Za-z0-9._~-]+$" maxLength:"512" doc:"Opaque keyset cursor. Omitted on the last page."`
+	Total         *int64                   `json:"total,omitempty" minimum:"0" doc:"Present when include_total=true, and always in page mode (page=). Same visibility gate as items."`
+	TotalRelation *string                  `json:"total_relation,omitempty" enum:"eq,gte" doc:"Present in page mode only. eq: total is exact. gte: total is a lower bound."`
+	Missing       *[]string                `json:"missing,omitempty" doc:"ids requested but not visible. Present only on the ids=/refs= batch lane."`
+	Facets        *map[string][]FacetValue `json:"facets,omitempty" doc:"Named facet buckets. Present only when facets= is requested."`
 }
 
 type FacetValue struct {

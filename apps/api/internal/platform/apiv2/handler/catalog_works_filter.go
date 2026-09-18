@@ -11,6 +11,7 @@ import (
 	"api/internal/platform/apiv2/parse"
 	"api/internal/platform/apiv2/problem"
 	"api/internal/platform/apiv2/repr"
+	"api/internal/platform/catalog/dto"
 	catmodel "api/internal/platform/catalog/model"
 	catsvc "api/internal/platform/catalog/service"
 )
@@ -214,7 +215,7 @@ func (c *Catalog) ListWorksFiltered(ctx context.Context, q collect.Query, f work
 		return c.listWorksSQL(ctx, q, f, inc)
 	}
 	if f.OwnerUID > 0 {
-		p := problem.New(problem.CodeMutuallyExclusiveParameters, "", "", "owner_uid= cannot be combined with q= or search sorts.")
+		p := problem.New(problem.CodeMutuallyExclusiveParameters, "", "", "owner_uid= cannot be combined with q=, page= or search sorts.")
 		p.Errors = []problem.FieldError{{Parameter: "owner_uid", Reason: problem.ReasonNotAllowedValue, Detail: "the search index carries no claim owner"}}
 		return repr.List[repr.Work]{}, p
 	}
@@ -230,16 +231,16 @@ func (c *Catalog) ListWorksFiltered(ctx context.Context, q collect.Query, f work
 		if f.Site == "" {
 			name = "platform"
 		}
-		p := problem.New(problem.CodeMutuallyExclusiveParameters, "", "", name+"= cannot be combined with q=, facets= or a search sort.")
+		p := problem.New(problem.CodeMutuallyExclusiveParameters, "", "", name+"= cannot be combined with q=, facets=, page= or a search sort.")
 		p.Errors = []problem.FieldError{{Parameter: name, Reason: problem.ReasonNotAllowedValue,
-			Detail: "the search index carries neither the claiming site nor the platform; drop q=/facets=/the search sort to filter on it"}}
+			Detail: "the search index carries neither the claiming site nor the platform; drop q=/facets=/page=/the search sort to filter on it"}}
 		return repr.List[repr.Work]{}, p
 	}
 	return c.listWorksSearch(ctx, q, f, inc)
 }
 
 func searchWorksRequested(q collect.Query, f worksFilter) bool {
-	if f.Q != "" || collect.SearchSort(q.Sort) {
+	if f.Q != "" || collect.SearchSort(q.Sort) || q.Page > 0 {
 		return true
 	}
 	return len(q.Facets) > 0
@@ -309,13 +310,9 @@ func (c *Catalog) listWorksSQL(ctx context.Context, q collect.Query, f worksFilt
 }
 
 func (c *Catalog) listWorksSearch(ctx context.Context, q collect.Query, f worksFilter, inc catsvc.WorksListInclude) (repr.List[repr.Work], error) {
-	page := 1
-	if q.Cursor != "" {
-		n, err := strconv.Atoi(q.Cursor)
-		if err != nil || n < 1 {
-			return repr.List[repr.Work]{}, collectInvalidCursor()
-		}
-		page = n
+	page, perr := searchPage(q)
+	if perr != nil {
+		return repr.List[repr.Work]{}, perr
 	}
 	sort := q.Sort
 	if f.Q != "" && (sort == "" || sort == "id") {
@@ -328,7 +325,7 @@ func (c *Catalog) listWorksSearch(ctx context.Context, q collect.Query, f worksF
 		OLang: f.OLang, NSFW: q.NSFW, Sort: sort, Facets: searchFacetTokens(q.Facets),
 		Page: page, Limit: q.Limit, Include: inc,
 	}
-	data, err := c.Public.WorksSearch(ctx, sf)
+	data, err := searchWorks(c, ctx, sf)
 	if err != nil {
 		if errors.Is(err, catsvc.ErrSearchUnavailable) {
 			return repr.List[repr.Work]{}, problem.New(problem.CodeServiceUnavailable, "", "", "works search is not bound.")
@@ -338,6 +335,13 @@ func (c *Catalog) listWorksSearch(ctx context.Context, q collect.Query, f worksF
 	items := make([]repr.Work, 0, len(data.Items))
 	for _, it := range data.Items {
 		items = append(items, workFromListItem(it, q.Include, c.imageURL))
+	}
+	if q.Page > 0 {
+		out := finishPageList(items, data.Total)
+		if len(q.Facets) > 0 {
+			out.Facets = mapSearchFacets(q.Facets, data.Facets)
+		}
+		return out, nil
 	}
 	var next *string
 	if int64(page)*int64(data.Limit) < data.Total && len(data.Items) > 0 {
@@ -353,6 +357,10 @@ func (c *Catalog) listWorksSearch(ctx context.Context, q collect.Query, f worksF
 		out.Facets = mapSearchFacets(q.Facets, data.Facets)
 	}
 	return out, nil
+}
+
+var searchWorks = func(c *Catalog, ctx context.Context, sf catsvc.WorksSearchFilter) (dto.PublicWorksSearchData, error) {
+	return c.Public.WorksSearch(ctx, sf)
 }
 
 func listWorksInclude(tokens []string) catsvc.WorksListInclude {
