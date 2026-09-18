@@ -18,6 +18,18 @@ func TestStrippedAcceptsSameOnly(t *testing.T) {
 	assert.Equal(t, stampKeptApartUncorroborated, p.stamp())
 }
 
+func TestDeclaredAcceptsSameOnly(t *testing.T) {
+	s := workPairSides{AID: 1, BID: 2}
+	ev := pairEvidence{DeclaredSubject: "100", DeclaredWorkno: "RJ01000001"}
+	p := planWorkPair(VerdictSame, 1, 0.7, s, ev)
+	assert.Equal(t, applyAccept, p.Action)
+	assert.Equal(t, "bangumi 100 declares dlsite RJ01000001", p.Reason)
+
+	p = planWorkPair(VerdictUnsure, 0.9, 0.7, s, ev)
+	assert.Equal(t, applyDefer, p.Action)
+	assert.Equal(t, stampKeptApartUncorroborated, p.stamp())
+}
+
 func TestAcceptReasonPreferenceOrder(t *testing.T) {
 	s := workPairSides{AID: 1, BID: 2}
 	ev := pairEvidence{

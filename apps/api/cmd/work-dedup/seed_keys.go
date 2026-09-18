@@ -39,7 +39,7 @@ func runSeedKeys(ctx context.Context, db *gorm.DB, w io.Writer, _ int64, limit i
 		return err
 	}
 	exempt := map[int16]struct{}{}
-	for _, id := range model.IdentityVetoExemptSourceIDs {
+	for _, id := range model.IdentityVetoExemptSourceIDsFor(model.EntityTypeWork) {
 		exempt[id] = struct{}{}
 	}
 
@@ -105,9 +105,13 @@ func discoverSeedKeyPairs(ctx context.Context, db *gorm.DB) (stripped, declared 
 		DisplayName string `gorm:"column:display_name"`
 	}
 	var works []seedWork
+	// Galgame only: over every medium a dry run on 2026-09-18 found 21,065
+	// stripped pairs, about 20,000 of them among the 144,523 ASMR works, where
+	// circles reuse one title for different works.
 	if err = db.WithContext(ctx).Raw(`
-		SELECT id, medium_id, display_name FROM catalog_work
-		WHERE deleted_at IS NULL AND status IN (?, ?)`,
+		SELECT w.id, w.medium_id, w.display_name FROM catalog_work w
+		JOIN catalog_medium m ON m.id = w.medium_id AND m.key = 'galgame'
+		WHERE w.deleted_at IS NULL AND w.status IN (?, ?)`,
 		model.WorkStatusLive, model.WorkStatusStub).Scan(&works).Error; err != nil {
 		return nil, nil, err
 	}

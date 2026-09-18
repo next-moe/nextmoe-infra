@@ -140,6 +140,35 @@ func TestSeedKeysSkipsConflictingExact(t *testing.T) {
 	assert.Equal(t, int64(0), countRows(t, `SELECT count(*) FROM catalog_match_candidate`))
 }
 
+func TestSeedKeysSeedsAcrossAnEditionSplittingConflict(t *testing.T) {
+	requireDB(t)
+	cleanPipeline(t)
+	medium := galgameMedium(t)
+	a := mkWork(t, medium, "【スマホ版】版違い作品", nil)
+	b := mkWork(t, medium, "版違い作品", nil)
+	mkAnchor(t, a, model.SourceErogameScape, "9001")
+	mkAnchor(t, b, model.SourceErogameScape, "9002")
+
+	out := runSeedKeysBuf(t, 10, true)
+	sum := parseSeedKeysSummary(t, out)
+	assert.Equal(t, 0, sum["conflict_skips"])
+	assert.Equal(t, 1, sum["written"])
+}
+
+func TestSeedKeysSeedsGalgameOnly(t *testing.T) {
+	requireDB(t)
+	cleanPipeline(t)
+	var anime int16
+	require.NoError(t, testDB.Raw(`SELECT id FROM catalog_medium WHERE key = 'anime'`).Scan(&anime).Error)
+	mkWork(t, anime, "【スマホ版】アニメ同名作品", nil)
+	mkWork(t, anime, "アニメ同名作品", nil)
+
+	out := runSeedKeysBuf(t, 10, true)
+	sum := parseSeedKeysSummary(t, out)
+	assert.Equal(t, 0, sum["stripped_pairs"])
+	assert.Equal(t, 0, sum["written"])
+}
+
 func TestSeedKeysSkipsOtherMediumAndQuarantined(t *testing.T) {
 	requireDB(t)
 	cleanPipeline(t)
