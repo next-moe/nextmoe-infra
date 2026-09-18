@@ -47,6 +47,14 @@
 
 移动端(Android / iOS)走同样的两条路:环回监听在手机上同样成立,规则与桌面一致;自定义 scheme 不开是刻意的(scheme 在移动系统上不可认领,任何应用都能抢注同一个 scheme 拦走授权码,PKCE 防不住拦截方自己发起的流程)。有域名的应用推荐注册 `https://` 回调并配成 App Links / Universal Links(RFC 8252 §7.2),域名归属由操作系统验证。2026-09 一个 Android 下游读到「自定义 scheme 注册即拒」后判定平台必须放开 scheme 才能接入——两条已支持的路都在文档里,但当时没有点名移动端,这段就是为此写的。
 
+**一方 App 的例外(2026-09-17)。** 上面三条是**开发者门户自助注册**的护栏(`devapi.validateRedirectURI`);运营方在管理台或直接登记的 client 不经过它。kungal 一方 App 的 iOS 版靠侧载分发,拿不到 associated domains,Universal Links 用不了,于是 `kungal-app` 登记了自定义 scheme `com.kungal.app://oauth2redirect`。这是一次有意的豁免,只对一方 client 成立,门户规则不变。它靠三件事兜底:
+
+- scheme 必须带 host(`scheme://host`)。单斜杠的 `scheme:/path` 在 authorize 的 `url` 校验就被拒(400 / code 7),登记了也用不了;登出后跳转也要求有 host。
+- client 保持 `auto_consent=false`。凡是能被抢注的回调,授权都得经用户在同意页上确认(RFC 8252 §8.6),见 [oauth 05 · auto_consent](../integration/oauth/05-registration.md#auto_consent-字段语义)。
+- 桌面端的环回回调单独放在 `kungal-app-desktop`,不与移动端共用一个 client。
+
+管理台里更早登记的外部应用 scheme(`yukihub://`、`papervn://`)是这次豁免之前的存量,不作为先例。
+
 ### 18.3 完整流程
 
 以下每一步都是必需的,顺序不可换。

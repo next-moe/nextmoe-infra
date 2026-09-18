@@ -10,12 +10,12 @@
 
 ### 4.1 API Key —— 主入口,面向"读公开目录"
 
-- **格式**:`nm_live_<base62(24B)>` / `nm_test_<base62(24B)>`(`nm` = NextMoe;前缀区分环境;前缀便于密钥泄漏扫描器识别)。
+- **格式**:`nmk_live_…` / `nmk_test_…`,定长 37,尾部 6 位是 body 的 CRC32(base62),格式错的 key 不查库就拒(`devapi/key_v2.go`)。前缀区分环境,也便于密钥泄漏扫描器识别。更早的 `nm_live_` / `nm_test_` 是 `/v1` 那一代,`/v2` 一律拒收;`/v1` 已 410,存量旧 key 现在打不开任何面,轮换即换发 `nmk_`。
 - **存储**(复用 `oauth_client.go` 的 `HashOAuthClientSecret` 模式):
   - 库里**只存 `sha256(key)` 的 hex**,带 `sha256:` 前缀;**明文仅创建时显示一次**,永不落库。
-  - 另存 `key_prefix`(如 `nm_live_a1b2`)与 `last4` 供门户识别。
+  - 另存 `key_prefix`(如 `nmk_live_a1b2`)与 `last4` 供门户识别。
   - 校验用 `crypto/subtle` 常量时间比较(同 `VerifySecret`)。
-- **传递**:`Authorization: Bearer nm_live_…`(统一用 Authorization;`X-API-Key` 作兼容备选)。
+- **传递**:`Authorization: Bearer nmk_live_…`。`X-API-Key` 只是 `/v1` 时代的兼容备选,`/v2` 不读它。
 - **一个应用可有多把 key**:支持**轮换**(签发新 key,旧 key 设未来 `expires_at`,宽限 24–72h,不瞬杀)与**吊销**(`revoked_at`,下次请求即拒)。
 - **默认 scope** = `catalog:read`(只读公开);**NSFW 不是 scope**——曾是一道能力位,已于 2026-08-25 退役,见下方 §4.2 词表后的「NSFW 能力位(已退役)」条。**2026-08-18 更正**:原默认里的 `galgame:read` 已移除——`/v1/galgame` 面于 wave 146 整体退役为 `410 Gone`,该 scope 自那以后不被任何活路由消费,继续默认签发等于发一张对着空气的通行证。**已发出的旧 key 不动、不失效**(它们身上的这个 scope 同样什么都打不开);自助与 admin 两条铸 key 路径的空 scopes 默认现均为 `[catalog:read]`。
 - API key 是**机密**:只能服务端使用;浏览器直连第三方用 OAuth2 public client + PKCE,**不发 key**。
