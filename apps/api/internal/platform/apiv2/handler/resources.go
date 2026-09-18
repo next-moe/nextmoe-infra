@@ -33,6 +33,7 @@ type problemReason struct {
 	Reason      string   `json:"reason" pattern:"^[A-Z][A-Z0-9_]*[A-Z0-9]$" maxLength:"63" doc:"Field-level reason. UPPER_SNAKE. Disjoint from top-level codes."`
 	Title       string   `json:"title" maxLength:"128" pattern:"^[ -~]+$" doc:"Stable English phrase for this reason."`
 	Description string   `json:"description" maxLength:"512" doc:"English prose. Must not be used as a discriminant."`
+	ParamNames  []string `json:"param_names" enum:"max_length,min_length,minimum,maximum,max_items,min_items,allowed" maxItems:"7" doc:"Keys this reason can carry in a field error's params. Empty array when it carries none."`
 }
 
 type getProblemInput struct {
@@ -85,8 +86,12 @@ func registerMeta(api huma.API) {
 func listProblemReasons(ctx context.Context, _ *struct{}) (*listReasonsOutput, error) {
 	items := make([]problemReason, 0, len(problem.Reasons))
 	for _, d := range problem.Reasons {
+		params := d.Params
+		if params == nil {
+			params = []string{}
+		}
 		items = append(items, problemReason{
-			Object: "problem_reason", Reason: d.Reason, Title: d.Title, Description: d.Description,
+			Object: "problem_reason", Reason: d.Reason, Title: d.Title, Description: d.Description, ParamNames: params,
 		})
 	}
 	return &listReasonsOutput{Body: listObject[problemReason]{Object: "list", Items: items}}, nil

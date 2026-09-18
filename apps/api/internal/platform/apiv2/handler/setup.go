@@ -181,6 +181,7 @@ func annotateSpec(doc *huma.OpenAPI) {
 	}
 	declareSecuritySchemes(doc)
 	for path, item := range doc.Paths {
+		declareIdempotency(path, item)
 		for _, op := range pathOps(item) {
 			rewriteErrorResponses(path, op, problemRef)
 			noteEditingPlaneScope(path, op)

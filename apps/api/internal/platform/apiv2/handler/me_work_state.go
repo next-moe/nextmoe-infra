@@ -245,11 +245,13 @@ func workStateErr(err error) error {
 		return p
 	case err == catsvc.ErrWorkStateBadCompletion:
 		p := problem.New(problem.CodeValidationFailed, "", "", "completion is not in the vocabulary.")
-		p.Errors = []problem.FieldError{{Pointer: "/completion", Reason: problem.ReasonUnknownValue, Detail: err.Error()}}
+		p.Errors = []problem.FieldError{{Pointer: "/completion", Reason: problem.ReasonUnknownValue, Detail: err.Error(),
+			Params: &problem.FieldParams{Allowed: &[]string{"one_route", "main", "all"}}}}
 		return p
 	case err == catsvc.ErrWorkStateBadState:
 		p := problem.New(problem.CodeValidationFailed, "", "", "state is not in the vocabulary.")
-		p.Errors = []problem.FieldError{{Pointer: "/state", Reason: problem.ReasonUnknownValue, Detail: err.Error()}}
+		p.Errors = []problem.FieldError{{Pointer: "/state", Reason: problem.ReasonUnknownValue, Detail: err.Error(),
+			Params: &problem.FieldParams{Allowed: &[]string{"wish", "doing", "done", "on_hold", "dropped"}}}}
 		return p
 	case err == catsvc.ErrWorkStateWorkUnavailable:
 		return problem.New(problem.CodeNotFound, "", "", "work is not available for states.")

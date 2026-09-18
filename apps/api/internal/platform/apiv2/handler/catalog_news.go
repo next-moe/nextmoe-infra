@@ -120,6 +120,7 @@ func parseNewsFeedFilter(in *listNewsInput) (newssvc.FeedFilter, *problem.Proble
 		p := problem.New(problem.CodeInvalidParameter, "", "", "source= accepts at most 20 keys.")
 		p.Errors = []problem.FieldError{{
 			Parameter: "source", Reason: problem.ReasonTooManyItems, Detail: "maximum 20",
+			Params: &problem.FieldParams{MaxItems: problem.Ptr(newsMaxSources)},
 		}}
 		return newssvc.FeedFilter{}, p
 	}

@@ -530,7 +530,8 @@ func (c *Catalog) PatchClaim(ctx context.Context, workID int64, state, ifMatch s
 	if !known {
 		p := problem.New(problem.CodeValidationFailed, "", "", "state is not a claim transition the owner may request.")
 		p.Errors = []problem.FieldError{{Pointer: "/state", Reason: problem.ReasonUnknownValue,
-			Detail: "expected one of: live, pending, withdrawn"}}
+			Detail: "expected one of: live, pending, withdrawn",
+			Params: &problem.FieldParams{Allowed: &[]string{"live", "pending", "withdrawn"}}}}
 		return repr.ClaimRecord{}, p
 	}
 	if from, ok := catsvc.TransitionRule(action); ok && !slices.Contains(from, cur.State) {
@@ -570,7 +571,8 @@ func (c *Catalog) DecideClaim(ctx context.Context, workID int64, decision, note,
 	if !known {
 		p := problem.New(problem.CodeValidationFailed, "", "", "decision must be approve, decline, ban, or unban.")
 		p.Errors = []problem.FieldError{{Pointer: "/decision", Reason: problem.ReasonUnknownValue,
-			Detail: "expected one of: approve, decline, ban, unban"}}
+			Detail: "expected one of: approve, decline, ban, unban",
+			Params: &problem.FieldParams{Allowed: &[]string{"approve", "decline", "ban", "unban"}}}}
 		return repr.ClaimDecisionRecord{}, p
 	}
 	if from, ok := catsvc.TransitionRule(action); ok && !slices.Contains(from, cur.State) {
@@ -667,7 +669,12 @@ func claimWriteErr(err error) error {
 			reason = problem.ReasonInvalidFormat
 		}
 		p := problem.New(problem.CodeValidationFailed, "", "", field.Error())
-		p.Errors = []problem.FieldError{{Pointer: "/field_values/" + field.Field, Reason: reason, Detail: field.Error()}}
+		fe := problem.FieldError{Pointer: "/field_values/" + field.Field, Reason: reason, Detail: field.Error()}
+		if reason == problem.ReasonUnknownValue {
+			keys := editspec.SubmissionFieldKeys()
+			fe.Params = &problem.FieldParams{Allowed: &keys}
+		}
+		p.Errors = []problem.FieldError{fe}
 		return p
 	}
 	if errors.Is(err, catsvc.ErrSubmitInvalidDate) {

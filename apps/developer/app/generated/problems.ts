@@ -164,6 +164,15 @@ export const problems = [
     "type": "https://developer.nextmoe.dev/problems/platform/idempotency-key-reused"
   },
   {
+    "code": "IDEMPOTENCY_REQUEST_IN_PROGRESS",
+    "domain": "platform",
+    "kebab": "idempotency-request-in-progress",
+    "status": 409,
+    "title": "Idempotency request in progress",
+    "description": "A request with the same Idempotency-Key is still being processed. Retry after it completes.",
+    "type": "https://developer.nextmoe.dev/problems/platform/idempotency-request-in-progress"
+  },
+  {
     "code": "GONE",
     "domain": "platform",
     "kebab": "gone",

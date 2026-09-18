@@ -130,7 +130,8 @@ func (c *Catalog) ListRevisions(ctx context.Context, q collect.Query, f revision
 		if entityType == "" {
 			p := problem.New(problem.CodeUnknownEnumValue, "", "", "object= is not an editable family.")
 			p.Errors = []problem.FieldError{{Parameter: "object", Reason: problem.ReasonUnknownValue,
-				Detail: "allowed values: work, company, character, release, tag, engine, series"}}
+				Detail: "allowed values: work, company, character, release, tag, engine, series",
+				Params: &problem.FieldParams{Allowed: &[]string{"work", "company", "character", "release", "tag", "engine", "series"}}}}
 			return repr.List[repr.Revision]{}, p
 		}
 		page.EntityType = entityType

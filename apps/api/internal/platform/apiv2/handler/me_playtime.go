@@ -9,6 +9,7 @@ import (
 	"api/internal/platform/apiv2/collect"
 	"api/internal/platform/apiv2/problem"
 	"api/internal/platform/apiv2/repr"
+	"api/internal/platform/catalog/model"
 	catsvc "api/internal/platform/catalog/service"
 )
 
@@ -181,7 +182,8 @@ func playtimeErr(err error) error {
 	switch {
 	case err == catsvc.ErrPlaytimeMinutesRange:
 		p := problem.New(problem.CodeValidationFailed, "", "", "minutes is out of range.")
-		p.Errors = []problem.FieldError{{Pointer: "/minutes", Reason: problem.ReasonOutOfRange, Detail: err.Error()}}
+		p.Errors = []problem.FieldError{{Pointer: "/minutes", Reason: problem.ReasonOutOfRange, Detail: err.Error(),
+			Params: &problem.FieldParams{Minimum: problem.Ptr(0.0), Maximum: problem.Ptr(float64(model.PlaytimeMinutesMax))}}}
 		return p
 	case err == catsvc.ErrPlaytimeWorkUnavailable:
 		return problem.New(problem.CodeNotFound, "", "", "work is not available for playtime.")

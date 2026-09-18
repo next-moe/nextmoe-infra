@@ -62,6 +62,9 @@
     "Idempotency key reused": "幂等键被复用",
     "The same Idempotency-Key was sent with a different request body.": "同一个 Idempotency-Key 配了不一样的请求体。",
 
+    "Idempotency request in progress": "幂等请求仍在处理",
+    "A request with the same Idempotency-Key is still being processed. Retry after it completes.": "同一个 Idempotency-Key 的请求还在处理中。等它完成后再重试。",
+
     "Gone": "已永久退役",
     "This URL existed and has been permanently retired.": "这个 URL 曾经存在，现已永久退役。",
 

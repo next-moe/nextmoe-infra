@@ -214,6 +214,7 @@ func tokens(raw, name string, allowed []string, code string) ([]string, *problem
 				Parameter: name,
 				Reason:    problem.ReasonUnknownValue,
 				Detail:    "allowed values: " + strings.Join(allowed, ", "),
+				Params:    &problem.FieldParams{Allowed: problem.Ptr(append([]string(nil), allowed...))},
 			}}
 			return nil, p
 		}
@@ -241,6 +242,7 @@ func splitIDs(raw string) ([]string, *problem.Problem) {
 			Parameter: "ids",
 			Reason:    problem.ReasonTooManyItems,
 			Detail:    "maximum 100",
+			Params:    &problem.FieldParams{MaxItems: problem.Ptr(MaxBatchItems)},
 		}}
 		return nil, p
 	}
@@ -275,6 +277,7 @@ func splitRefs(raw string) ([]repr.Ref, *problem.Problem) {
 			Parameter: "refs",
 			Reason:    problem.ReasonTooManyItems,
 			Detail:    "maximum 100",
+			Params:    &problem.FieldParams{MaxItems: problem.Ptr(MaxBatchItems)},
 		}}
 		return nil, p
 	}

@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-## 错误码注册表（顶层 `code`，共 42 个）
+## 错误码注册表（顶层 `code`，共 43 个）
 
 `code` 是封闭注册表里的稳定标识；`errors[].reason` 是另一套互不重叠的字段级词表。认不得的 `code` 一律按 `status` 兜底——我们会往注册表里加新成员。
 
@@ -35,6 +35,7 @@
 | `NOT_FOUND` | 404 | Not found | Nothing visible exists at this URL. |
 | `METHOD_NOT_ALLOWED` | 405 | Method not allowed | The path exists but this method does not. |
 | `IDEMPOTENCY_KEY_REUSED` | 409 | Idempotency key reused | The same Idempotency-Key was sent with a different request body. |
+| `IDEMPOTENCY_REQUEST_IN_PROGRESS` | 409 | Idempotency request in progress | A request with the same Idempotency-Key is still being processed. Retry after it completes. |
 | `GONE` | 410 | Gone | This URL existed and has been permanently retired. |
 | `PRECONDITION_FAILED` | 412 | Precondition failed | If-Match did not match the current representation. |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | Unsupported media type | The request body media type is not supported. |

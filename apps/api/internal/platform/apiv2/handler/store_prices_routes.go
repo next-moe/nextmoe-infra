@@ -161,6 +161,7 @@ func parsePriceIDs(raw string) ([]int64, *problem.Problem) {
 		p := problem.New(problem.CodeTooManyIDs, "", "", "ids= accepts at most 100 values.")
 		p.Errors = []problem.FieldError{{
 			Parameter: "ids", Reason: problem.ReasonTooManyItems, Detail: "maximum 100",
+			Params: &problem.FieldParams{MaxItems: problem.Ptr(collect.MaxBatchItems)},
 		}}
 		return nil, p
 	}

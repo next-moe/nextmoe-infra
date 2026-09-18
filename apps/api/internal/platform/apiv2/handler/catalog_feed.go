@@ -82,6 +82,7 @@ func (c *Catalog) ListRedirects(ctx context.Context, q collect.Query, object str
 			p.Errors = []problem.FieldError{{
 				Parameter: "object", Reason: problem.ReasonUnknownValue,
 				Detail: "allowed values: work, release, character, credit_name, person, company, tag, engine",
+				Params: &problem.FieldParams{Allowed: &[]string{"work", "release", "character", "credit_name", "person", "company", "tag", "engine"}},
 			}}
 			return repr.List[repr.Redirect]{}, p
 		}

@@ -87,6 +87,10 @@ export const problemsZh: Record<string, { title: string; description: string }> 
     "title": "幂等键被复用",
     "description": "同一个 Idempotency-Key 配了不一样的请求体。"
   },
+  "IDEMPOTENCY_REQUEST_IN_PROGRESS": {
+    "title": "幂等请求仍在处理",
+    "description": "同一个 Idempotency-Key 的请求还在处理中。等它完成后再重试。"
+  },
   "GONE": {
     "title": "已永久退役",
     "description": "这个 URL 曾经存在，现已永久退役。"

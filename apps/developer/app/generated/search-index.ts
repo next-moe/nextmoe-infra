@@ -1215,7 +1215,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "提交认领",
     "s": "端点 · 我的",
     "d": "POST /v2/me/claims",
-    "b": "createMyClaim /v2/me/claims post Submit a claim Mint or claim a work. work_id claims an existing catalog work. refs= claims the work they resolve to, or mints one from display_name when none match. site_work_id with display_name and neither work_id nor refs mints a work anchored to the site's own id. field_values carries an editing-engine work field map onto any mint lane and may be sent alone, without work_id, refs or site_work_id; it is refused with work_id, and refs that already resolve to a work answer 409 instead of dropping it. released rides the same mint lanes under the same two refusals and becomes one curated catalog_release row on the minted work. A caller holding catalog.claim.trusted mints straight to live rather than pending. A mint whose display_name or catalog.work.titles match live works of the same medium is refused with 409 DUPLICATE_SUSPECTS naming them in suspects[] and nothing is written; re-send with confirm_duplicates=true to mint anyway. The claiming lanes — work_id, and refs that resolve — never hit this gate. A contributor who has used up catalog.claim_writes_per_day inside the sliding window is refused 429 QUOTA_EXCEEDED; holders of catalog.claim.trusted get the higher catalog.claim_writes_per_day_trusted. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 铸造或认领一部作品。work_id 认领已有作品。refs= 认领它们解析到的作品；无一匹配时按 display_name 铸造一部。site_work_id 配 display_name、且既无 work_id 也无 refs 时，铸造一部锚定到站点自身 id 的作品。field_values 把编辑引擎的作品字段映射带到任意铸造车道，也可单独发送、不带 work_id、refs 或 site_work_id；与 work_id 同发会被拒绝；refs 已解析到作品时返回 409 而非丢弃它。released 走同样的铸造车道、受同样的两道拒绝，成为铸出作品上的一条 curated catalog_release 行。持有 catalog.claim.trusted 的调用方直接铸造为 live 而非 pending。若铸造的 display_name 或 catalog.work.titles 与同一 medium 的在用作品同名，则返回 409 DUPLICATE_SUSPECTS，在 suspects[] 中列出它们，且一行不写；带 confirm_duplicates=true 重发即照旧铸造。认领车道——work_id、以及能解析的 refs——永不走这道闸。在滑动窗口内用满 catalog.claim_writes_per_day 的贡献者会被拒以 429 QUOTA_EXCEEDED；持 catalog.claim.trusted 者按更高的 catalog.claim_writes_per_day_trusted 计。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。"
+    "b": "createMyClaim /v2/me/claims post Submit a claim Mint or claim a work. work_id claims an existing catalog work. refs= claims the work they resolve to, or mints one from display_name when none match. site_work_id with display_name and neither work_id nor refs mints a work anchored to the site's own id. field_values carries an editing-engine work field map onto any mint lane and may be sent alone, without work_id, refs or site_work_id; it is refused with work_id, and refs that already resolve to a work answer 409 instead of dropping it. released rides the same mint lanes under the same two refusals and becomes one curated catalog_release row on the minted work. A caller holding catalog.claim.trusted mints straight to live rather than pending. A mint whose display_name or catalog.work.titles match live works of the same medium is refused with 409 DUPLICATE_SUSPECTS naming them in suspects[] and nothing is written; re-send with confirm_duplicates=true to mint anyway. The claiming lanes — work_id, and refs that resolve — never hit this gate. A contributor who has used up catalog.claim_writes_per_day inside the sliding window is refused 429 QUOTA_EXCEEDED; holders of catalog.claim.trusted get the higher catalog.claim_writes_per_day_trusted. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 铸造或认领一部作品。work_id 认领已有作品。refs= 认领它们解析到的作品；无一匹配时按 display_name 铸造一部。site_work_id 配 display_name、且既无 work_id 也无 refs 时，铸造一部锚定到站点自身 id 的作品。field_values 把编辑引擎的作品字段映射带到任意铸造车道，也可单独发送、不带 work_id、refs 或 site_work_id；与 work_id 同发会被拒绝；refs 已解析到作品时返回 409 而非丢弃它。released 走同样的铸造车道、受同样的两道拒绝，成为铸出作品上的一条 curated catalog_release 行。持有 catalog.claim.trusted 的调用方直接铸造为 live 而非 pending。若铸造的 display_name 或 catalog.work.titles 与同一 medium 的在用作品同名，则返回 409 DUPLICATE_SUSPECTS，在 suspects[] 中列出它们，且一行不写；带 confirm_duplicates=true 重发即照旧铸造。认领车道——work_id、以及能解析的 refs——永不走这道闸。在滑动窗口内用满 catalog.claim_writes_per_day 的贡献者会被拒以 429 QUOTA_EXCEEDED；持 catalog.claim.trusted 者按更高的 catalog.claim_writes_per_day_trusted 计。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 Idempotency-Key"
   },
   {
     "r": "/docs/v2/getMyClaim",
@@ -1271,7 +1271,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "为编辑提案上传图片",
     "s": "端点 · 我的",
     "d": "POST /v2/me/edit-images",
-    "b": "uploadMyEditImage /v2/me/edit-images post Upload an image for an edit proposal multipart/form-data with preset and file. Returns the hash an edit proposal carries in a cover or screenshot row. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. multipart/form-data，含 preset 与 file。返回编辑提案在封面或截图行中携带的 hash。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。"
+    "b": "uploadMyEditImage /v2/me/edit-images post Upload an image for an edit proposal multipart/form-data with preset and file. Returns the hash an edit proposal carries in a cover or screenshot row. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. multipart/form-data，含 preset 与 file。返回编辑提案在封面或截图行中携带的 hash。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 Idempotency-Key"
   },
   {
     "r": "/docs/v2/listMyFolders",
@@ -1285,7 +1285,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "创建收藏夹",
     "s": "端点 · 我的",
     "d": "POST /v2/me/folders",
-    "b": "createMyFolder /v2/me/folders post Create a folder Requires a user access token with folder:write. 需要带 folder:write 的用户访问令牌。 folder:write"
+    "b": "createMyFolder /v2/me/folders post Create a folder Requires a user access token with folder:write. 需要带 folder:write 的用户访问令牌。 folder:write Idempotency-Key"
   },
   {
     "r": "/docs/v2/listMyFolderHoldings",
@@ -1327,7 +1327,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "批量向收藏夹添加作品",
     "s": "端点 · 我的",
     "d": "POST /v2/me/folders/{id}/items",
-    "b": "batchMyFolderItems /v2/me/folders/{id}/items post Batch add works to a folder 207 Multi-Status. Each item is a folder_item or a problem. Requires a user access token with folder:write. 207 多状态。每项为 folder_item 或 problem。需要带 folder:write 的用户访问令牌。 folder:write id"
+    "b": "batchMyFolderItems /v2/me/folders/{id}/items post Batch add works to a folder 207 Multi-Status. Each item is a folder_item or a problem. Requires a user access token with folder:write. 207 多状态。每项为 folder_item 或 problem。需要带 folder:write 的用户访问令牌。 folder:write id Idempotency-Key"
   },
   {
     "r": "/docs/v2/putMyFolderItem",
@@ -1355,7 +1355,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "提交资讯",
     "s": "端点 · 我的",
     "d": "POST /v2/me/news",
-    "b": "createMyNews /v2/me/news post Submit a news item Always lands on pending: publishing is a human step. source must be bound to the bearer and active. Requires a user access token. 始终落入 pending：发布是人工步骤。source 必须绑定到持有者且为 active。需要用户访问令牌。"
+    "b": "createMyNews /v2/me/news post Submit a news item Always lands on pending: publishing is a human step. source must be bound to the bearer and active. Requires a user access token. 始终落入 pending：发布是人工步骤。source 必须绑定到持有者且为 active。需要用户访问令牌。 Idempotency-Key"
   },
   {
     "r": "/docs/v2/getMyNewsItem",
@@ -1383,7 +1383,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "批量写入 playtime",
     "s": "端点 · 我的",
     "d": "POST /v2/me/playtimes",
-    "b": "batchMyPlaytimes /v2/me/playtimes post Batch write playtimes 207 Multi-Status. Each item is a playtime or a problem. Requires a user access token. Any app may call this; playtime:write is not required. 207 多状态。每项为 playtime 或 problem。需要用户访问令牌。任何应用均可调用；不要求 playtime:write。"
+    "b": "batchMyPlaytimes /v2/me/playtimes post Batch write playtimes 207 Multi-Status. Each item is a playtime or a problem. Requires a user access token. Any app may call this; playtime:write is not required. 207 多状态。每项为 playtime 或 problem。需要用户访问令牌。任何应用均可调用；不要求 playtime:write。 Idempotency-Key"
   },
   {
     "r": "/docs/v2/getMyPlaytime",
@@ -1418,7 +1418,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "提交提案",
     "s": "端点 · 我的",
     "d": "POST /v2/me/proposals",
-    "b": "createMyProposal /v2/me/proposals post File a proposal A contributor who has used up catalog.proposals_per_day inside the sliding window is refused 429 QUOTA_EXCEEDED; holders of catalog.edit.trusted, whose proposals merge without review, get the higher catalog.proposals_per_day_trusted. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 在滑动窗口内用满 catalog.proposals_per_day 的贡献者会被拒以 429 QUOTA_EXCEEDED；持 catalog.edit.trusted 者(其提案免审直接合并)按更高的 catalog.proposals_per_day_trusted 计。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。"
+    "b": "createMyProposal /v2/me/proposals post File a proposal A contributor who has used up catalog.proposals_per_day inside the sliding window is refused 429 QUOTA_EXCEEDED; holders of catalog.edit.trusted, whose proposals merge without review, get the higher catalog.proposals_per_day_trusted. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 在滑动窗口内用满 catalog.proposals_per_day 的贡献者会被拒以 429 QUOTA_EXCEEDED；持 catalog.edit.trusted 者(其提案免审直接合并)按更高的 catalog.proposals_per_day_trusted 计。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 Idempotency-Key"
   },
   {
     "r": "/docs/v2/getMyProposal",
@@ -1439,7 +1439,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "追加一条修订",
     "s": "端点 · 我的",
     "d": "POST /v2/me/proposals/{id}/amendments",
-    "b": "amendMyProposal /v2/me/proposals/{id}/amendments post Append an amendment If-Match required. Requires a user access token. The token must carry the catalog:edit scope. 需要 If-Match。需要用户访问令牌。令牌须带 catalog:edit scope。 id If-Match"
+    "b": "amendMyProposal /v2/me/proposals/{id}/amendments post Append an amendment If-Match required. Requires a user access token. The token must carry the catalog:edit scope. 需要 If-Match。需要用户访问令牌。令牌须带 catalog:edit scope。 id If-Match Idempotency-Key"
   },
   {
     "r": "/docs/v2/listMyWorkStates",
@@ -1453,7 +1453,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "批量写入作品状态",
     "s": "端点 · 我的",
     "d": "POST /v2/me/work-states",
-    "b": "batchMyWorkStates /v2/me/work-states post Batch write work states 207 Multi-Status. Each item is a work_state or a problem. Requires a user access token. Any app may call this; no scope is required. 207 多状态。每项为 work_state 或 problem。需要用户访问令牌。任何应用均可调用；不要求任何 scope。"
+    "b": "batchMyWorkStates /v2/me/work-states post Batch write work states 207 Multi-Status. Each item is a work_state or a problem. Requires a user access token. Any app may call this; no scope is required. 207 多状态。每项为 work_state 或 problem。需要用户访问令牌。任何应用均可调用；不要求任何 scope。 Idempotency-Key"
   },
   {
     "r": "/docs/v2/getMyWorkState",
@@ -1495,7 +1495,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "裁决一条认领",
     "s": "端点 · 审核",
     "d": "POST /v2/moderation/claims/{id}/decisions",
-    "b": "decideModerationClaim /v2/moderation/claims/{id}/decisions post Decide a claim decision=approve|decline|ban|unban. unban restores the state the claim was hidden from. If-Match required, and the ETag comes from GET /v2/moderation/claims/{id}. Requires the catalog.claim.review permission. The token must carry the catalog:edit scope. decision=approve|decline|ban|unban。unban 恢复该认领被隐藏前所处的状态。需要 If-Match，ETag 来自 GET /v2/moderation/claims/{id}。需要 catalog.claim.review 权限。令牌须带 catalog:edit scope。 id If-Match"
+    "b": "decideModerationClaim /v2/moderation/claims/{id}/decisions post Decide a claim decision=approve|decline|ban|unban. unban restores the state the claim was hidden from. If-Match required, and the ETag comes from GET /v2/moderation/claims/{id}. Requires the catalog.claim.review permission. The token must carry the catalog:edit scope. decision=approve|decline|ban|unban。unban 恢复该认领被隐藏前所处的状态。需要 If-Match，ETag 来自 GET /v2/moderation/claims/{id}。需要 catalog.claim.review 权限。令牌须带 catalog:edit scope。 id If-Match Idempotency-Key"
   },
   {
     "r": "/docs/v2/patchModerationFolder",
@@ -1530,14 +1530,14 @@ export const searchIndex: SearchEntry[] = [
     "t": "裁决一条提案",
     "s": "端点 · 审核",
     "d": "POST /v2/moderation/proposals/{id}/decisions",
-    "b": "decideModerationProposal /v2/moderation/proposals/{id}/decisions post Decide a proposal decision=merge|decline. If-Match required. The token must carry the catalog:edit scope. decision=merge|decline。需要 If-Match。令牌须带 catalog:edit scope。 id If-Match"
+    "b": "decideModerationProposal /v2/moderation/proposals/{id}/decisions post Decide a proposal decision=merge|decline. If-Match required. The token must carry the catalog:edit scope. decision=merge|decline。需要 If-Match。令牌须带 catalog:edit scope。 id If-Match Idempotency-Key"
   },
   {
     "r": "/docs/v2/revertModeration",
     "t": "回退到一条修订",
     "s": "端点 · 审核",
     "d": "POST /v2/moderation/reverts",
-    "b": "revertModeration /v2/moderation/reverts post Revert to a revision Body names revision_id. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 请求体给出 revision_id。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。"
+    "b": "revertModeration /v2/moderation/reverts post Revert to a revision Body names revision_id. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 请求体给出 revision_id。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 Idempotency-Key"
   },
   {
     "r": "/docs/v2/getModerationSnapshot",
@@ -1818,6 +1818,13 @@ export const searchIndex: SearchEntry[] = [
     "s": "错误码 · 平台通用",
     "d": "IDEMPOTENCY_KEY_REUSED · HTTP 409",
     "b": "IDEMPOTENCY_KEY_REUSED Idempotency key reused The same Idempotency-Key was sent with a different request body. 同一个 Idempotency-Key 配了不一样的请求体。 platform"
+  },
+  {
+    "r": "/problems/platform/idempotency-request-in-progress",
+    "t": "幂等请求仍在处理",
+    "s": "错误码 · 平台通用",
+    "d": "IDEMPOTENCY_REQUEST_IN_PROGRESS · HTTP 409",
+    "b": "IDEMPOTENCY_REQUEST_IN_PROGRESS Idempotency request in progress A request with the same Idempotency-Key is still being processed. Retry after it completes. 同一个 Idempotency-Key 的请求还在处理中。等它完成后再重试。 platform"
   },
   {
     "r": "/problems/platform/gone",

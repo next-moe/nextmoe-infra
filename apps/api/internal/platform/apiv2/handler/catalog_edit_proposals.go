@@ -48,7 +48,8 @@ func (c *Catalog) proposalQuery(f proposalFilter, limit int, cursor int64) (edit
 		if entityType == "" {
 			p := problem.New(problem.CodeUnknownEnumValue, "", "", "object= is not an editable family.")
 			p.Errors = []problem.FieldError{{Parameter: "object", Reason: problem.ReasonUnknownValue,
-				Detail: "allowed values: work, company, character, release, tag, engine, series"}}
+				Detail: "allowed values: work, company, character, release, tag, engine, series",
+				Params: &problem.FieldParams{Allowed: &[]string{"work", "company", "character", "release", "tag", "engine", "series"}}}}
 			return out, p
 		}
 		out.EntityType = entityType
@@ -61,7 +62,8 @@ func (c *Catalog) proposalQuery(f proposalFilter, limit int, cursor int64) (edit
 		if schemaObject(f.EntityType) == "" {
 			p := problem.New(problem.CodeUnknownEnumValue, "", "", "entity_type= is not an editable type.")
 			p.Errors = []problem.FieldError{{Parameter: "entity_type", Reason: problem.ReasonUnknownValue,
-				Detail: "allowed values: catalog.work, catalog.company, catalog.character, catalog.release, catalog.tag, catalog.engine, catalog.series"}}
+				Detail: "allowed values: catalog.work, catalog.company, catalog.character, catalog.release, catalog.tag, catalog.engine, catalog.series",
+				Params: &problem.FieldParams{Allowed: &[]string{"catalog.work", "catalog.company", "catalog.character", "catalog.release", "catalog.tag", "catalog.engine", "catalog.series"}}}}
 			return out, p
 		}
 		if out.EntityType != "" && out.EntityType != f.EntityType {
@@ -97,7 +99,8 @@ func (c *Catalog) proposalQuery(f proposalFilter, limit int, cursor int64) (edit
 		if !ok {
 			p := problem.New(problem.CodeUnknownEnumValue, "", "", "state= is not a proposal state.")
 			p.Errors = []problem.FieldError{{Parameter: "state", Reason: problem.ReasonUnknownValue,
-				Detail: "allowed values: open, pending, merged, declined, withdrawn"}}
+				Detail: "allowed values: open, pending, merged, declined, withdrawn",
+				Params: &problem.FieldParams{Allowed: &[]string{"open", "pending", "merged", "declined", "withdrawn"}}}}
 			return out, p
 		}
 		out.Status = st

@@ -19,7 +19,8 @@ func newsSummaryErrors(pointer, value string) []problem.FieldError {
 		return []problem.FieldError{{Pointer: pointer, Reason: problem.ReasonRequired, Detail: "the lede the source wrote"}}
 	}
 	if utf8.RuneCountInString(value) > newsmodel.PreviewMaxRunes {
-		return []problem.FieldError{{Pointer: pointer, Reason: problem.ReasonTooLong, Detail: "at most 200 runes; the body lives at source_url"}}
+		return []problem.FieldError{{Pointer: pointer, Reason: problem.ReasonTooLong, Detail: "at most 200 runes; the body lives at source_url",
+			Params: &problem.FieldParams{MaxLength: problem.Ptr(newsmodel.PreviewMaxRunes)}}}
 	}
 	return nil
 }
@@ -126,7 +127,8 @@ func newsWriteErr(err error) error {
 		return problem.New(problem.CodeInvalidStateTransition, "", "", err.Error())
 	case errors.Is(err, newssvc.ErrPreviewTooLong):
 		p := problem.New(problem.CodeValidationFailed, "", "", "the edit is not acceptable.")
-		p.Errors = []problem.FieldError{{Pointer: "/summary", Reason: problem.ReasonTooLong, Detail: "at most 200 runes; the body lives at source_url"}}
+		p.Errors = []problem.FieldError{{Pointer: "/summary", Reason: problem.ReasonTooLong, Detail: "at most 200 runes; the body lives at source_url",
+			Params: &problem.FieldParams{MaxLength: problem.Ptr(newsmodel.PreviewMaxRunes)}}}
 		return p
 	}
 	return err

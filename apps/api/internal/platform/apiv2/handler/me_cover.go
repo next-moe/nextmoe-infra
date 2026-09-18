@@ -40,7 +40,8 @@ func (c *Catalog) PutCoverVote(ctx context.Context, coverID int64, vote string) 
 	}
 	if vote != "up" {
 		p := problem.New(problem.CodeValidationFailed, "", "", "only vote=up is stored.")
-		p.Errors = []problem.FieldError{{Pointer: "/vote", Reason: problem.ReasonUnknownValue, Detail: "allowed values: up"}}
+		p.Errors = []problem.FieldError{{Pointer: "/vote", Reason: problem.ReasonUnknownValue, Detail: "allowed values: up",
+			Params: &problem.FieldParams{Allowed: &[]string{"up"}}}}
 		return repr.CoverVote{}, p
 	}
 	workID, werr := c.CoverVotes.WorkIDForCover(ctx, coverID)

@@ -22,6 +22,7 @@ Batch add works to a folder
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
 | `id` | path | 是 | string | Folder id. |
+| `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/me/folders/value/items" \
