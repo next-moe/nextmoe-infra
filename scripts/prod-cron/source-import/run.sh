@@ -176,6 +176,14 @@ ceiling_failed() {
 
 begin_group getchu
 gstep import-getchu-refs --apply
+if [ "$GROUP_FAIL" -eq 0 ]; then
+  if dry_ok getchu-attach sh -c "$DSNSH"'; reconcile-getchu --dsn "$CAT" --getchu-dsn "$GC"' \
+     && check_counters getchu-attach "$last_dry_log" attached=300; then
+    gstep sh -c "$DSNSH"'; reconcile-getchu --dsn "$CAT" --getchu-dsn "$GC" --apply'
+  else
+    ceiling_failed
+  fi
+fi
 gstep sh -c "$DSNSH"'; import-getchu-intros --dsn "$CAT" --getchu-dsn "$GC" --population all --apply'
 gstep sh -c "$DSNSH"'; import-getchu-characters --dsn "$CAT" --getchu-dsn "$GC" --apply'
 

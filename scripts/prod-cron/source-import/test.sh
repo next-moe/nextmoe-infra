@@ -37,6 +37,7 @@ tend() {
 write_t1_expected() {
   cat > "$1" <<'EOF'
 import-getchu-refs --apply
+reconcile-getchu --apply
 import-getchu-intros --population all --apply
 import-getchu-characters --apply
 import-store-anchors --only dmm --apply
@@ -94,6 +95,7 @@ extract_tool_cmd() {
     import-getchu-characters \
     import-getchu-intros \
     import-getchu-refs \
+    reconcile-getchu \
     import-store-anchors \
     import-release-labels \
     backfill-character-instances \
@@ -194,6 +196,9 @@ emit_out() {
     reconcile-eg-works+dry|reconcile-eg-works+apply)
       echo '2026/09/18 04:00:00 INFO egworks summary population=0 pack_games=0 port_games=0 attached=0 quarantined=0 minted_live=0 edition_folded=0 rejected_skips=0 limited=0 refs_planned=0 candidates_planned=0 written=0 errors=0'
       ;;
+    reconcile-getchu+dry|reconcile-getchu+apply)
+      echo '2026/09/18 06:00:00 INFO getchuattach summary population=0 attached=0 uncorroborated=0 multi_hit=0 no_hit=0 rejected_skips=0 written=0 errors=0'
+      ;;
     reconcile-org-labels+all+dry|reconcile-org-labels+all+apply)
       echo '2026/09/17 14:21:47 INFO org-label anchor source done source=vndb pass=1 apply=false orgs=30089 already=25082 exact=8 probable=16 new_labels=41 new_edges=52 conflict=1421 skip_no_match=922 skip_ambiguous=21 skip_ungradeable=2437 skip_rejected=0 skip_deferred=0 vndb_in_anchored=7'
       echo '2026/09/17 14:21:47 INFO org-label anchor source done source=eg pass=1 apply=false orgs=7565 already=5094 exact=9 probable=71 new_labels=3 new_edges=3 conflict=110 skip_no_match=1770 skip_ambiguous=106 skip_ungradeable=404 skip_rejected=1 skip_deferred=0 vndb_in_anchored=0'
@@ -282,6 +287,7 @@ case "$1" in
       import-getchu-characters \
       import-getchu-intros \
       import-getchu-refs \
+      reconcile-getchu \
       import-store-anchors \
       import-release-labels \
       backfill-character-instances \
@@ -1037,6 +1043,26 @@ grep -v -F \
   -e 'import-work-aliases --source all --apply' \
   -e 'import-work-platforms --source all --apply' \
   -e 'import-work-series --apply' \
+  "$td/ctl/t1" > "$td/ctl/expected"
+expect_apply "$td" "$td/ctl/expected"
+tend
+rm -rf "$td"
+
+# --- T26: a Getchu-attach batch past its ceiling writes nothing and the rest of the getchu group stands down ---
+tstart 26
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' '2026/09/18 06:00:00 INFO getchuattach summary population=9000 attached=301 uncorroborated=0 multi_hit=0 no_hit=0 rejected_skips=0 written=0 errors=0' \
+  > "$td/ctl/out/reconcile-getchu+dry"
+run_job "$td"
+expect_exit_nonzero "$td"
+if has_stamp "$td"; then fail "stamp written"; fi
+if ! has_alert "$td"; then fail "no alert"; fi
+write_t1_expected "$td/ctl/t1"
+grep -v -F \
+  -e 'reconcile-getchu --apply' \
+  -e 'import-getchu-intros --population all --apply' \
+  -e 'import-getchu-characters --apply' \
   "$td/ctl/t1" > "$td/ctl/expected"
 expect_apply "$td" "$td/ctl/expected"
 tend
