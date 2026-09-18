@@ -113,18 +113,29 @@ type chatMessage struct {
 	Content string `json:"content"`
 }
 
+type chatTemplateKwargs struct {
+	EnableThinking bool `json:"enable_thinking"`
+}
+
 type chatRequest struct {
-	Model       string        `json:"model"`
-	Messages    []chatMessage `json:"messages"`
-	MaxTokens   int           `json:"max_tokens"`
-	Temperature float64       `json:"temperature"`
+	Model              string              `json:"model"`
+	Messages           []chatMessage       `json:"messages"`
+	MaxTokens          int                 `json:"max_tokens"`
+	Temperature        float64             `json:"temperature"`
+	ChatTemplateKwargs *chatTemplateKwargs `json:"chat_template_kwargs,omitempty"`
+}
+
+type chatResponseMessage struct {
+	Role             string `json:"role"`
+	Content          string `json:"content"`
+	ReasoningContent string `json:"reasoning_content"`
 }
 
 type chatResponse struct {
 	Model   string `json:"model"`
 	Choices []struct {
-		Message      chatMessage `json:"message"`
-		FinishReason string      `json:"finish_reason"`
+		Message      chatResponseMessage `json:"message"`
+		FinishReason string              `json:"finish_reason"`
 	} `json:"choices"`
 	Error *struct {
 		Message string `json:"message"`
@@ -147,28 +158,63 @@ func (t *HTTPTranslator) Translate(ctx context.Context, text string, src SourceL
 	if err != nil {
 		return "", "", err
 	}
-	data, err := t.post(ctx, raw)
+	zh, model, reasoning, finish, err := t.complete(ctx, raw)
 	if err != nil {
 		return "", "", err
 	}
+	// The gateway files an answer written without thinking under reasoning_content and leaves
+	// content empty: seven characters came back empty every night from 2026-09-13 to 09-18.
+	// The reasoning text cannot stand in for the answer, because when the model does think it is
+	// the thinking; asked again with thinking off, all of them answered in content. A length stop
+	// is a reasoning spiral, not a short ceiling (see backfill-char-zh-names), so it gets one
+	// fresh roll.
+	if finish == "length" {
+		zh, model, reasoning, finish, err = t.complete(ctx, raw)
+		if err != nil {
+			return "", "", err
+		}
+	}
+	if finish != "" && finish != "stop" {
+		return "", "", fmt.Errorf("generation finished with finish_reason=%q — refusing partial output", finish)
+	}
+	if zh == "" && strings.TrimSpace(reasoning) != "" {
+		body.ChatTemplateKwargs = &chatTemplateKwargs{EnableThinking: false}
+		raw, err = json.Marshal(body)
+		if err != nil {
+			return "", "", err
+		}
+		zh, model, _, finish, err = t.complete(ctx, raw)
+		if err != nil {
+			return "", "", err
+		}
+		if finish != "" && finish != "stop" {
+			return "", "", fmt.Errorf("generation finished with finish_reason=%q — refusing partial output", finish)
+		}
+	}
+	return zh, model, nil
+}
+
+func (t *HTTPTranslator) complete(ctx context.Context, raw []byte) (content, model, reasoning, finish string, err error) {
+	data, err := t.post(ctx, raw)
+	if err != nil {
+		return "", "", "", "", err
+	}
 	var cr chatResponse
 	if err := json.Unmarshal(data, &cr); err != nil {
-		return "", "", fmt.Errorf("decode chat response: %w (body: %s)", err, truncate(string(data), 300))
+		return "", "", "", "", fmt.Errorf("decode chat response: %w (body: %s)", err, truncate(string(data), 300))
 	}
 	if cr.Error != nil {
-		return "", "", fmt.Errorf("gateway error: %s", cr.Error.Message)
+		return "", "", "", "", fmt.Errorf("gateway error: %s", cr.Error.Message)
 	}
 	if len(cr.Choices) == 0 {
-		return "", "", fmt.Errorf("gateway returned no choices")
+		return "", "", "", "", fmt.Errorf("gateway returned no choices")
 	}
-	if fr := cr.Choices[0].FinishReason; fr != "" && fr != "stop" {
-		return "", "", fmt.Errorf("generation finished with finish_reason=%q — refusing partial output", fr)
-	}
-	model := cr.Model
+	model = cr.Model
 	if model == "" {
 		model = t.model
 	}
-	return strings.TrimSpace(cr.Choices[0].Message.Content), model, nil
+	msg := cr.Choices[0].Message
+	return strings.TrimSpace(msg.Content), model, msg.ReasoningContent, cr.Choices[0].FinishReason, nil
 }
 
 func systemPrompt(src SourceLang) string {
