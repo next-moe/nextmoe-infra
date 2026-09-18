@@ -2,7 +2,7 @@ package repr
 
 type CalendarList struct {
 	List[Work]
-	Meta *CalendarMeta `json:"meta" doc:"Calendar navigation block. Always present on this collection."`
+	Meta CalendarMeta `json:"meta" doc:"Calendar navigation block. Always present on this collection."`
 }
 
 type CalendarMeta struct {

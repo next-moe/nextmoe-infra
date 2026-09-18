@@ -62,3 +62,360 @@ in API GET /v2/me/news removed the required property `items/items/banner_hash` f
 in API POST /v2/me/news removed the required property `banner_hash` from the response with the `201` status
 in API GET /v2/me/news/{id} removed the required property `banner_hash` from the response with the `200` status
 in API PATCH /v2/me/news/{id} removed the required property `banner_hash` from the response with the `200` status
+
+# Nullability (2026-09-18): every non-omitempty pointer-to-struct field is
+# published as anyOf [$ref, {type: null}] and every nullable enum lists null.
+# The document now admits nulls the server has always sent; no request or
+# response changes. oasdiff reads the anyOf wrapper as a type change to `any`
+# and as the removal of every required property underneath it, hence the
+# length. These lines only have to hold for the one transition: once the base
+# document carries the wrapper nothing here can recur, and left in place they
+# would also match a later, genuine removal of a field under these paths. The
+# next change to this document deletes this block.
+
+in API GET /v2/catalog/calendar removed the required property `items/items/banner/hash` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/banner/height` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/banner/origin` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/banner/sexual` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/banner/source` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/banner/thumbhash` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/banner/url` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/banner/violence` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/banner/width` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/characters/items/figure/hash` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/characters/items/figure/height` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/characters/items/figure/sexual` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/characters/items/figure/source` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/characters/items/figure/thumbhash` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/characters/items/figure/url` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/characters/items/figure/violence` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/characters/items/figure/width` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/characters/items/image/hash` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/characters/items/image/height` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/characters/items/image/sexual` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/characters/items/image/source` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/characters/items/image/thumbhash` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/characters/items/image/url` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/characters/items/image/violence` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/characters/items/image/width` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/claim/content_limit` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/claim/site` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/claim/site_work_id` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/claim/state` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/cover/hash` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/cover/height` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/cover/origin` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/cover/sexual` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/cover/source` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/cover/thumbhash` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/cover/url` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/cover/violence` from the response with the `200` status
+in API GET /v2/catalog/calendar removed the required property `items/items/cover/width` from the response with the `200` status
+in API GET /v2/catalog/calendar the `items/items/banner` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/calendar the `items/items/characters/items/figure` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/calendar the `items/items/characters/items/image` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/calendar the `items/items/claim` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/calendar the `items/items/cover` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/banner/hash` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/banner/height` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/banner/origin` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/banner/sexual` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/banner/source` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/banner/thumbhash` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/banner/url` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/banner/violence` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/banner/width` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/characters/items/figure/hash` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/characters/items/figure/height` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/characters/items/figure/sexual` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/characters/items/figure/source` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/characters/items/figure/thumbhash` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/characters/items/figure/url` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/characters/items/figure/violence` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/characters/items/figure/width` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/characters/items/image/hash` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/characters/items/image/height` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/characters/items/image/sexual` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/characters/items/image/source` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/characters/items/image/thumbhash` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/characters/items/image/url` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/characters/items/image/violence` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/characters/items/image/width` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/claim/content_limit` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/claim/site` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/claim/site_work_id` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/claim/state` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/cover/hash` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/cover/height` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/cover/origin` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/cover/sexual` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/cover/source` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/cover/thumbhash` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/cover/url` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/cover/violence` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances removed the required property `items/items/work/cover/width` from the response with the `200` status
+in API GET /v2/catalog/characters/{id}/appearances the `items/items/work/banner` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/characters/{id}/appearances the `items/items/work/characters/items/figure` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/characters/{id}/appearances the `items/items/work/characters/items/image` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/characters/{id}/appearances the `items/items/work/claim` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/characters/{id}/appearances the `items/items/work/cover` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/banner/hash` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/banner/height` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/banner/origin` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/banner/sexual` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/banner/source` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/banner/thumbhash` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/banner/url` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/banner/violence` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/banner/width` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/characters/items/figure/hash` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/characters/items/figure/height` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/characters/items/figure/sexual` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/characters/items/figure/source` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/characters/items/figure/thumbhash` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/characters/items/figure/url` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/characters/items/figure/violence` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/characters/items/figure/width` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/characters/items/image/hash` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/characters/items/image/height` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/characters/items/image/sexual` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/characters/items/image/source` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/characters/items/image/thumbhash` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/characters/items/image/url` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/characters/items/image/violence` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/characters/items/image/width` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/claim/content_limit` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/claim/site` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/claim/site_work_id` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/claim/state` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/cover/hash` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/cover/height` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/cover/origin` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/cover/sexual` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/cover/source` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/cover/thumbhash` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/cover/url` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/cover/violence` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits removed the required property `items/items/work/cover/width` from the response with the `200` status
+in API GET /v2/catalog/credit-names/{id}/credits the `items/items/work/banner` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/credit-names/{id}/credits the `items/items/work/characters/items/figure` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/credit-names/{id}/credits the `items/items/work/characters/items/image` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/credit-names/{id}/credits the `items/items/work/claim` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/credit-names/{id}/credits the `items/items/work/cover` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/works/{id}/characters removed the required property `items/items/figure/hash` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/characters removed the required property `items/items/figure/height` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/characters removed the required property `items/items/figure/sexual` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/characters removed the required property `items/items/figure/source` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/characters removed the required property `items/items/figure/thumbhash` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/characters removed the required property `items/items/figure/url` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/characters removed the required property `items/items/figure/violence` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/characters removed the required property `items/items/figure/width` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/characters removed the required property `items/items/image/hash` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/characters removed the required property `items/items/image/height` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/characters removed the required property `items/items/image/sexual` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/characters removed the required property `items/items/image/source` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/characters removed the required property `items/items/image/thumbhash` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/characters removed the required property `items/items/image/url` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/characters removed the required property `items/items/image/violence` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/characters removed the required property `items/items/image/width` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/characters the `items/items/figure` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/works/{id}/characters the `items/items/image` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/banner/hash` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/banner/height` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/banner/origin` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/banner/sexual` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/banner/source` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/banner/thumbhash` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/banner/url` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/banner/violence` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/banner/width` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/characters/items/figure/hash` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/characters/items/figure/height` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/characters/items/figure/sexual` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/characters/items/figure/source` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/characters/items/figure/thumbhash` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/characters/items/figure/url` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/characters/items/figure/violence` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/characters/items/figure/width` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/characters/items/image/hash` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/characters/items/image/height` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/characters/items/image/sexual` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/characters/items/image/source` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/characters/items/image/thumbhash` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/characters/items/image/url` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/characters/items/image/violence` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/characters/items/image/width` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/claim/content_limit` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/claim/site` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/claim/site_work_id` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/claim/state` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/cover/hash` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/cover/height` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/cover/origin` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/cover/sexual` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/cover/source` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/cover/thumbhash` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/cover/url` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/cover/violence` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations removed the required property `items/items/work/cover/width` from the response with the `200` status
+in API GET /v2/catalog/works/{id}/relations the `items/items/work/banner` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/works/{id}/relations the `items/items/work/characters/items/figure` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/works/{id}/relations the `items/items/work/characters/items/image` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/works/{id}/relations the `items/items/work/claim` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/works/{id}/relations the `items/items/work/cover` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/works/{id} removed the required property `banner/hash` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `banner/height` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `banner/origin` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `banner/sexual` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `banner/source` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `banner/thumbhash` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `banner/url` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `banner/violence` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `banner/width` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `characters/items/figure/hash` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `characters/items/figure/height` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `characters/items/figure/sexual` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `characters/items/figure/source` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `characters/items/figure/thumbhash` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `characters/items/figure/url` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `characters/items/figure/violence` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `characters/items/figure/width` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `characters/items/image/hash` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `characters/items/image/height` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `characters/items/image/sexual` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `characters/items/image/source` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `characters/items/image/thumbhash` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `characters/items/image/url` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `characters/items/image/violence` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `characters/items/image/width` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `claim/content_limit` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `claim/site` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `claim/site_work_id` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `claim/state` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `cover/hash` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `cover/height` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `cover/origin` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `cover/sexual` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `cover/source` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `cover/thumbhash` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `cover/url` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `cover/violence` from the response with the `200` status
+in API GET /v2/catalog/works/{id} removed the required property `cover/width` from the response with the `200` status
+in API GET /v2/catalog/works/{id} the `banner` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/works/{id} the `characters/items/figure` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/works/{id} the `characters/items/image` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/works/{id} the `claim` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/works/{id} the `cover` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/works removed the required property `items/items/banner/hash` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/banner/height` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/banner/origin` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/banner/sexual` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/banner/source` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/banner/thumbhash` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/banner/url` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/banner/violence` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/banner/width` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/characters/items/figure/hash` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/characters/items/figure/height` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/characters/items/figure/sexual` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/characters/items/figure/source` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/characters/items/figure/thumbhash` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/characters/items/figure/url` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/characters/items/figure/violence` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/characters/items/figure/width` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/characters/items/image/hash` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/characters/items/image/height` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/characters/items/image/sexual` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/characters/items/image/source` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/characters/items/image/thumbhash` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/characters/items/image/url` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/characters/items/image/violence` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/characters/items/image/width` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/claim/content_limit` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/claim/site` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/claim/site_work_id` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/claim/state` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/cover/hash` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/cover/height` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/cover/origin` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/cover/sexual` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/cover/source` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/cover/thumbhash` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/cover/url` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/cover/violence` from the response with the `200` status
+in API GET /v2/catalog/works removed the required property `items/items/cover/width` from the response with the `200` status
+in API GET /v2/catalog/works the `items/items/banner` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/works the `items/items/characters/items/figure` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/works the `items/items/characters/items/image` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/works the `items/items/claim` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/catalog/works the `items/items/cover` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/me/news/{id} removed the required property `banner/hash` from the response with the `200` status
+in API GET /v2/me/news/{id} removed the required property `banner/height` from the response with the `200` status
+in API GET /v2/me/news/{id} removed the required property `banner/sexual` from the response with the `200` status
+in API GET /v2/me/news/{id} removed the required property `banner/source` from the response with the `200` status
+in API GET /v2/me/news/{id} removed the required property `banner/thumbhash` from the response with the `200` status
+in API GET /v2/me/news/{id} removed the required property `banner/url` from the response with the `200` status
+in API GET /v2/me/news/{id} removed the required property `banner/violence` from the response with the `200` status
+in API GET /v2/me/news/{id} removed the required property `banner/width` from the response with the `200` status
+in API GET /v2/me/news/{id} the `banner` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/me/news removed the required property `items/items/banner/hash` from the response with the `200` status
+in API GET /v2/me/news removed the required property `items/items/banner/height` from the response with the `200` status
+in API GET /v2/me/news removed the required property `items/items/banner/sexual` from the response with the `200` status
+in API GET /v2/me/news removed the required property `items/items/banner/source` from the response with the `200` status
+in API GET /v2/me/news removed the required property `items/items/banner/thumbhash` from the response with the `200` status
+in API GET /v2/me/news removed the required property `items/items/banner/url` from the response with the `200` status
+in API GET /v2/me/news removed the required property `items/items/banner/violence` from the response with the `200` status
+in API GET /v2/me/news removed the required property `items/items/banner/width` from the response with the `200` status
+in API GET /v2/me/news the `items/items/banner` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/news/{id} removed the required property `banner/hash` from the response with the `200` status
+in API GET /v2/news/{id} removed the required property `banner/height` from the response with the `200` status
+in API GET /v2/news/{id} removed the required property `banner/sexual` from the response with the `200` status
+in API GET /v2/news/{id} removed the required property `banner/source` from the response with the `200` status
+in API GET /v2/news/{id} removed the required property `banner/thumbhash` from the response with the `200` status
+in API GET /v2/news/{id} removed the required property `banner/url` from the response with the `200` status
+in API GET /v2/news/{id} removed the required property `banner/violence` from the response with the `200` status
+in API GET /v2/news/{id} removed the required property `banner/width` from the response with the `200` status
+in API GET /v2/news/{id} the `banner` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/news removed the required property `items/items/banner/hash` from the response with the `200` status
+in API GET /v2/news removed the required property `items/items/banner/height` from the response with the `200` status
+in API GET /v2/news removed the required property `items/items/banner/sexual` from the response with the `200` status
+in API GET /v2/news removed the required property `items/items/banner/source` from the response with the `200` status
+in API GET /v2/news removed the required property `items/items/banner/thumbhash` from the response with the `200` status
+in API GET /v2/news removed the required property `items/items/banner/url` from the response with the `200` status
+in API GET /v2/news removed the required property `items/items/banner/violence` from the response with the `200` status
+in API GET /v2/news removed the required property `items/items/banner/width` from the response with the `200` status
+in API GET /v2/news the `items/items/banner` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/store/prices/{id} removed the required property `quotes/items/current/amount` from the response with the `200` status
+in API GET /v2/store/prices/{id} removed the required property `quotes/items/current/currency` from the response with the `200` status
+in API GET /v2/store/prices/{id} removed the required property `quotes/items/list/amount` from the response with the `200` status
+in API GET /v2/store/prices/{id} removed the required property `quotes/items/list/currency` from the response with the `200` status
+in API GET /v2/store/prices/{id} the `quotes/items/current` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/store/prices/{id} the `quotes/items/list` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/store/prices removed the required property `items/items/quotes/items/current/amount` from the response with the `200` status
+in API GET /v2/store/prices removed the required property `items/items/quotes/items/current/currency` from the response with the `200` status
+in API GET /v2/store/prices removed the required property `items/items/quotes/items/list/amount` from the response with the `200` status
+in API GET /v2/store/prices removed the required property `items/items/quotes/items/list/currency` from the response with the `200` status
+in API GET /v2/store/prices the `items/items/quotes/items/current` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/store/prices the `items/items/quotes/items/list` response's property `type` changed from `object` to `any` for status `200`
+in API GET /v2/store/purchase-links/{product_id} removed the required property `campaign/id` from the response with the `200` status
+in API GET /v2/store/purchase-links/{product_id} removed the required property `campaign/name` from the response with the `200` status
+in API GET /v2/store/purchase-links/{product_id} removed the required property `campaign/object` from the response with the `200` status
+in API GET /v2/store/purchase-links/{product_id} the `campaign` response's property `type` changed from `object` to `any` for status `200`
+in API PATCH /v2/me/news/{id} removed the required property `banner/hash` from the response with the `200` status
+in API PATCH /v2/me/news/{id} removed the required property `banner/height` from the response with the `200` status
+in API PATCH /v2/me/news/{id} removed the required property `banner/sexual` from the response with the `200` status
+in API PATCH /v2/me/news/{id} removed the required property `banner/source` from the response with the `200` status
+in API PATCH /v2/me/news/{id} removed the required property `banner/thumbhash` from the response with the `200` status
+in API PATCH /v2/me/news/{id} removed the required property `banner/url` from the response with the `200` status
+in API PATCH /v2/me/news/{id} removed the required property `banner/violence` from the response with the `200` status
+in API PATCH /v2/me/news/{id} removed the required property `banner/width` from the response with the `200` status
+in API PATCH /v2/me/news/{id} the `banner` response's property `type` changed from `object` to `any` for status `200`
+in API POST /v2/me/news removed the required property `banner/hash` from the response with the `201` status
+in API POST /v2/me/news removed the required property `banner/height` from the response with the `201` status
+in API POST /v2/me/news removed the required property `banner/sexual` from the response with the `201` status
+in API POST /v2/me/news removed the required property `banner/source` from the response with the `201` status
+in API POST /v2/me/news removed the required property `banner/thumbhash` from the response with the `201` status
+in API POST /v2/me/news removed the required property `banner/url` from the response with the `201` status
+in API POST /v2/me/news removed the required property `banner/violence` from the response with the `201` status
+in API POST /v2/me/news removed the required property `banner/width` from the response with the `201` status
+in API POST /v2/me/news the `banner` response's property `type` changed from `object` to `any` for status `201`

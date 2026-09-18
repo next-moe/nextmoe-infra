@@ -3243,7 +3243,9 @@ export const docsModel: DocsModel = {
                                   "format": "int64",
                                   "type": "integer"
                                 }
-                              ]
+                              ],
+                              "nullable": true,
+                              "doc": "Selected landscape image. null if none. origin=screenshot marks the fallback for a work with no landscape cover."
                             },
                             {
                               "name": "characters",
@@ -3329,7 +3331,9 @@ export const docsModel: DocsModel = {
                                         "format": "int64",
                                         "type": "integer"
                                       }
-                                    ]
+                                    ],
+                                    "nullable": true,
+                                    "doc": "Figure image. null if none."
                                   },
                                   {
                                     "name": "id",
@@ -3413,7 +3417,9 @@ export const docsModel: DocsModel = {
                                         "format": "int64",
                                         "type": "integer"
                                       }
-                                    ]
+                                    ],
+                                    "nullable": true,
+                                    "doc": "Character image. null if none."
                                   },
                                   {
                                     "name": "latin",
@@ -3824,7 +3830,9 @@ export const docsModel: DocsModel = {
                                   ],
                                   "type": "string"
                                 }
-                              ]
+                              ],
+                              "nullable": true,
+                              "doc": "null if unclaimed. Never omitted on view=basic."
                             },
                             {
                               "name": "companies",
@@ -4078,7 +4086,9 @@ export const docsModel: DocsModel = {
                                   "format": "int64",
                                   "type": "integer"
                                 }
-                              ]
+                              ],
+                              "nullable": true,
+                              "doc": "Selected portrait image. null if none."
                             },
                             {
                               "name": "covers",
@@ -10725,7 +10735,9 @@ export const docsModel: DocsModel = {
                                       "format": "int64",
                                       "type": "integer"
                                     }
-                                  ]
+                                  ],
+                                  "nullable": true,
+                                  "doc": "Selected landscape image. null if none. origin=screenshot marks the fallback for a work with no landscape cover."
                                 },
                                 {
                                   "name": "characters",
@@ -10811,7 +10823,9 @@ export const docsModel: DocsModel = {
                                             "format": "int64",
                                             "type": "integer"
                                           }
-                                        ]
+                                        ],
+                                        "nullable": true,
+                                        "doc": "Figure image. null if none."
                                       },
                                       {
                                         "name": "id",
@@ -10895,7 +10909,9 @@ export const docsModel: DocsModel = {
                                             "format": "int64",
                                             "type": "integer"
                                           }
-                                        ]
+                                        ],
+                                        "nullable": true,
+                                        "doc": "Character image. null if none."
                                       },
                                       {
                                         "name": "latin",
@@ -11306,7 +11322,9 @@ export const docsModel: DocsModel = {
                                       ],
                                       "type": "string"
                                     }
-                                  ]
+                                  ],
+                                  "nullable": true,
+                                  "doc": "null if unclaimed. Never omitted on view=basic."
                                 },
                                 {
                                   "name": "companies",
@@ -11560,7 +11578,9 @@ export const docsModel: DocsModel = {
                                       "format": "int64",
                                       "type": "integer"
                                     }
-                                  ]
+                                  ],
+                                  "nullable": true,
+                                  "doc": "Selected portrait image. null if none."
                                 },
                                 {
                                   "name": "covers",
@@ -21457,7 +21477,9 @@ export const docsModel: DocsModel = {
                                       "format": "int64",
                                       "type": "integer"
                                     }
-                                  ]
+                                  ],
+                                  "nullable": true,
+                                  "doc": "Selected landscape image. null if none. origin=screenshot marks the fallback for a work with no landscape cover."
                                 },
                                 {
                                   "name": "characters",
@@ -21543,7 +21565,9 @@ export const docsModel: DocsModel = {
                                             "format": "int64",
                                             "type": "integer"
                                           }
-                                        ]
+                                        ],
+                                        "nullable": true,
+                                        "doc": "Figure image. null if none."
                                       },
                                       {
                                         "name": "id",
@@ -21627,7 +21651,9 @@ export const docsModel: DocsModel = {
                                             "format": "int64",
                                             "type": "integer"
                                           }
-                                        ]
+                                        ],
+                                        "nullable": true,
+                                        "doc": "Character image. null if none."
                                       },
                                       {
                                         "name": "latin",
@@ -22038,7 +22064,9 @@ export const docsModel: DocsModel = {
                                       ],
                                       "type": "string"
                                     }
-                                  ]
+                                  ],
+                                  "nullable": true,
+                                  "doc": "null if unclaimed. Never omitted on view=basic."
                                 },
                                 {
                                   "name": "companies",
@@ -22292,7 +22320,9 @@ export const docsModel: DocsModel = {
                                       "format": "int64",
                                       "type": "integer"
                                     }
-                                  ]
+                                  ],
+                                  "nullable": true,
+                                  "doc": "Selected portrait image. null if none."
                                 },
                                 {
                                   "name": "covers",
@@ -50258,7 +50288,9 @@ export const docsModel: DocsModel = {
                                   "format": "int64",
                                   "type": "integer"
                                 }
-                              ]
+                              ],
+                              "nullable": true,
+                              "doc": "Selected landscape image. null if none. origin=screenshot marks the fallback for a work with no landscape cover."
                             },
                             {
                               "name": "characters",
@@ -50344,7 +50376,9 @@ export const docsModel: DocsModel = {
                                         "format": "int64",
                                         "type": "integer"
                                       }
-                                    ]
+                                    ],
+                                    "nullable": true,
+                                    "doc": "Figure image. null if none."
                                   },
                                   {
                                     "name": "id",
@@ -50428,7 +50462,9 @@ export const docsModel: DocsModel = {
                                         "format": "int64",
                                         "type": "integer"
                                       }
-                                    ]
+                                    ],
+                                    "nullable": true,
+                                    "doc": "Character image. null if none."
                                   },
                                   {
                                     "name": "latin",
@@ -50839,7 +50875,9 @@ export const docsModel: DocsModel = {
                                   ],
                                   "type": "string"
                                 }
-                              ]
+                              ],
+                              "nullable": true,
+                              "doc": "null if unclaimed. Never omitted on view=basic."
                             },
                             {
                               "name": "companies",
@@ -51093,7 +51131,9 @@ export const docsModel: DocsModel = {
                                   "format": "int64",
                                   "type": "integer"
                                 }
-                              ]
+                              ],
+                              "nullable": true,
+                              "doc": "Selected portrait image. null if none."
                             },
                             {
                               "name": "covers",
@@ -53186,7 +53226,9 @@ export const docsModel: DocsModel = {
                             "format": "int64",
                             "type": "integer"
                           }
-                        ]
+                        ],
+                        "nullable": true,
+                        "doc": "Selected landscape image. null if none. origin=screenshot marks the fallback for a work with no landscape cover."
                       },
                       {
                         "name": "characters",
@@ -53272,7 +53314,9 @@ export const docsModel: DocsModel = {
                                   "format": "int64",
                                   "type": "integer"
                                 }
-                              ]
+                              ],
+                              "nullable": true,
+                              "doc": "Figure image. null if none."
                             },
                             {
                               "name": "id",
@@ -53356,7 +53400,9 @@ export const docsModel: DocsModel = {
                                   "format": "int64",
                                   "type": "integer"
                                 }
-                              ]
+                              ],
+                              "nullable": true,
+                              "doc": "Character image. null if none."
                             },
                             {
                               "name": "latin",
@@ -53767,7 +53813,9 @@ export const docsModel: DocsModel = {
                             ],
                             "type": "string"
                           }
-                        ]
+                        ],
+                        "nullable": true,
+                        "doc": "null if unclaimed. Never omitted on view=basic."
                       },
                       {
                         "name": "companies",
@@ -54021,7 +54069,9 @@ export const docsModel: DocsModel = {
                             "format": "int64",
                             "type": "integer"
                           }
-                        ]
+                        ],
+                        "nullable": true,
+                        "doc": "Selected portrait image. null if none."
                       },
                       {
                         "name": "covers",
@@ -56228,7 +56278,9 @@ export const docsModel: DocsModel = {
                                   "format": "int64",
                                   "type": "integer"
                                 }
-                              ]
+                              ],
+                              "nullable": true,
+                              "doc": "Figure image. null if none."
                             },
                             {
                               "name": "id",
@@ -56312,7 +56364,9 @@ export const docsModel: DocsModel = {
                                   "format": "int64",
                                   "type": "integer"
                                 }
-                              ]
+                              ],
+                              "nullable": true,
+                              "doc": "Character image. null if none."
                             },
                             {
                               "name": "latin",
@@ -64883,7 +64937,9 @@ export const docsModel: DocsModel = {
                                       "format": "int64",
                                       "type": "integer"
                                     }
-                                  ]
+                                  ],
+                                  "nullable": true,
+                                  "doc": "Selected landscape image. null if none. origin=screenshot marks the fallback for a work with no landscape cover."
                                 },
                                 {
                                   "name": "characters",
@@ -64969,7 +65025,9 @@ export const docsModel: DocsModel = {
                                             "format": "int64",
                                             "type": "integer"
                                           }
-                                        ]
+                                        ],
+                                        "nullable": true,
+                                        "doc": "Figure image. null if none."
                                       },
                                       {
                                         "name": "id",
@@ -65053,7 +65111,9 @@ export const docsModel: DocsModel = {
                                             "format": "int64",
                                             "type": "integer"
                                           }
-                                        ]
+                                        ],
+                                        "nullable": true,
+                                        "doc": "Character image. null if none."
                                       },
                                       {
                                         "name": "latin",
@@ -65464,7 +65524,9 @@ export const docsModel: DocsModel = {
                                       ],
                                       "type": "string"
                                     }
-                                  ]
+                                  ],
+                                  "nullable": true,
+                                  "doc": "null if unclaimed. Never omitted on view=basic."
                                 },
                                 {
                                   "name": "companies",
@@ -65718,7 +65780,9 @@ export const docsModel: DocsModel = {
                                       "format": "int64",
                                       "type": "integer"
                                     }
-                                  ]
+                                  ],
+                                  "nullable": true,
+                                  "doc": "Selected portrait image. null if none."
                                 },
                                 {
                                   "name": "covers",
@@ -72737,7 +72801,9 @@ export const docsModel: DocsModel = {
                                   "format": "int64",
                                   "type": "integer"
                                 }
-                              ]
+                              ],
+                              "nullable": true,
+                              "doc": "Lead image. null when the item has none."
                             },
                             {
                               "name": "id",
@@ -74230,7 +74296,9 @@ export const docsModel: DocsModel = {
                             "format": "int64",
                             "type": "integer"
                           }
-                        ]
+                        ],
+                        "nullable": true,
+                        "doc": "Lead image. null when the item has none."
                       },
                       {
                         "name": "id",
@@ -103714,7 +103782,9 @@ export const docsModel: DocsModel = {
                                   "format": "int64",
                                   "type": "integer"
                                 }
-                              ]
+                              ],
+                              "nullable": true,
+                              "doc": "Lead image. null when there is none. B10: never a bare hash."
                             },
                             {
                               "name": "id",
@@ -105011,7 +105081,9 @@ export const docsModel: DocsModel = {
                             "format": "int64",
                             "type": "integer"
                           }
-                        ]
+                        ],
+                        "nullable": true,
+                        "doc": "Lead image. null when there is none. B10: never a bare hash."
                       },
                       {
                         "name": "id",
@@ -106592,7 +106664,9 @@ export const docsModel: DocsModel = {
                             "format": "int64",
                             "type": "integer"
                           }
-                        ]
+                        ],
+                        "nullable": true,
+                        "doc": "Lead image. null when there is none. B10: never a bare hash."
                       },
                       {
                         "name": "id",
@@ -107857,7 +107931,9 @@ export const docsModel: DocsModel = {
                             "format": "int64",
                             "type": "integer"
                           }
-                        ]
+                        ],
+                        "nullable": true,
+                        "doc": "Lead image. null when there is none. B10: never a bare hash."
                       },
                       {
                         "name": "id",
@@ -143860,7 +143936,9 @@ export const docsModel: DocsModel = {
                                         "doc": "ISO 4217 currency code.",
                                         "type": "string"
                                       }
-                                    ]
+                                    ],
+                                    "nullable": true,
+                                    "doc": "Current price, tax-inclusive as the store shows it. null unless quote_state is priced."
                                   },
                                   {
                                     "name": "discount_percent",
@@ -143908,7 +143986,9 @@ export const docsModel: DocsModel = {
                                         "doc": "ISO 4217 currency code.",
                                         "type": "string"
                                       }
-                                    ]
+                                    ],
+                                    "nullable": true,
+                                    "doc": "List price, tax-inclusive as the store shows it. null unless quote_state is priced."
                                   },
                                   {
                                     "name": "object",
@@ -144708,7 +144788,9 @@ export const docsModel: DocsModel = {
                                   "doc": "ISO 4217 currency code.",
                                   "type": "string"
                                 }
-                              ]
+                              ],
+                              "nullable": true,
+                              "doc": "Current price, tax-inclusive as the store shows it. null unless quote_state is priced."
                             },
                             {
                               "name": "discount_percent",
@@ -144756,7 +144838,9 @@ export const docsModel: DocsModel = {
                                   "doc": "ISO 4217 currency code.",
                                   "type": "string"
                                 }
-                              ]
+                              ],
+                              "nullable": true,
+                              "doc": "List price, tax-inclusive as the store shows it. null unless quote_state is priced."
                             },
                             {
                               "name": "object",
@@ -145617,7 +145701,9 @@ export const docsModel: DocsModel = {
                             ],
                             "type": "string"
                           }
-                        ]
+                        ],
+                        "nullable": true,
+                        "doc": "The campaign coupon_url belongs to. null when no campaign is running."
                       },
                       {
                         "name": "coupon_url",

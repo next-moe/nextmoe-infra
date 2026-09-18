@@ -596,6 +596,7 @@ components:
             - pending
             - declined
             - hidden
+            - null
           type:
             - string
             - "null"
@@ -658,6 +659,7 @@ components:
             - pending
             - declined
             - hidden
+            - null
           type:
             - string
             - "null"
@@ -743,6 +745,7 @@ components:
             - pending
             - declined
             - hidden
+            - null
           type:
             - string
             - "null"
@@ -1124,6 +1127,7 @@ components:
             - safe
             - suggestive
             - explicit
+            - null
           type:
             - string
             - "null"
@@ -1152,6 +1156,7 @@ components:
             - tame
             - violent
             - brutal
+            - null
           type:
             - string
             - "null"
@@ -1214,6 +1219,7 @@ components:
             - safe
             - suggestive
             - explicit
+            - null
           type:
             - string
             - "null"
@@ -1242,6 +1248,7 @@ components:
             - tame
             - violent
             - brutal
+            - null
           type:
             - string
             - "null"
@@ -1813,6 +1820,7 @@ components:
             - safe
             - suggestive
             - explicit
+            - null
           type:
             - string
             - "null"
@@ -1840,6 +1848,7 @@ components:
             - tame
             - violent
             - brutal
+            - null
           type:
             - string
             - "null"
@@ -2180,6 +2189,7 @@ components:
             - safe
             - suggestive
             - explicit
+            - null
           type:
             - string
             - "null"
@@ -2208,6 +2218,7 @@ components:
             - tame
             - violent
             - brutal
+            - null
           type:
             - string
             - "null"
@@ -4734,7 +4745,9 @@ components:
           readOnly: true
           type: string
         banner:
-          $ref: "#/components/schemas/Image"
+          anyOf:
+            - $ref: "#/components/schemas/Image"
+            - type: "null"
           description: Lead image. null when the item has none.
         id:
           description: News item id.
@@ -4838,7 +4851,9 @@ components:
           readOnly: true
           type: string
         banner:
-          $ref: "#/components/schemas/Image"
+          anyOf:
+            - $ref: "#/components/schemas/Image"
+            - type: "null"
           description: "Lead image. null when there is none. B10: never a bare hash."
         id:
           description: News item id. Same id space as /v2/news.
@@ -5149,6 +5164,7 @@ components:
             - male
             - female
             - other
+            - null
           type:
             - string
             - "null"
@@ -5267,7 +5283,9 @@ components:
             $ref: "#/components/schemas/Money"
           type: array
         current:
-          $ref: "#/components/schemas/Money"
+          anyOf:
+            - $ref: "#/components/schemas/Money"
+            - type: "null"
           description: Current price, tax-inclusive as the store shows it. null unless quote_state is priced.
         discount_percent:
           description: Percent off list. Zero when not on sale or not priced.
@@ -5294,7 +5312,9 @@ components:
             - string
             - "null"
         list:
-          $ref: "#/components/schemas/Money"
+          anyOf:
+            - $ref: "#/components/schemas/Money"
+            - type: "null"
           description: List price, tax-inclusive as the store shows it. null unless quote_state is priced.
         object:
           description: Type discriminant. Always price_quote.
@@ -5542,6 +5562,7 @@ components:
             - merged
             - declined
             - withdrawn
+            - null
           type:
             - string
             - "null"
@@ -6389,6 +6410,7 @@ components:
             - safe
             - suggestive
             - explicit
+            - null
           type:
             - string
             - "null"
@@ -6417,6 +6439,7 @@ components:
             - tame
             - violent
             - brutal
+            - null
           type:
             - string
             - "null"
@@ -6449,6 +6472,7 @@ components:
             - all_ages
             - sensitive
             - r18
+            - null
           type:
             - string
             - "null"
@@ -6495,6 +6519,7 @@ components:
           enum:
             - content
             - meta
+            - null
           type:
             - string
             - "null"
@@ -6518,6 +6543,7 @@ components:
             - core
             - longtail
             - hidden
+            - null
           type:
             - string
             - "null"
@@ -6657,7 +6683,9 @@ components:
           readOnly: true
           type: string
         campaign:
-          $ref: "#/components/schemas/StoreCampaign"
+          anyOf:
+            - $ref: "#/components/schemas/StoreCampaign"
+            - type: "null"
           description: The campaign coupon_url belongs to. null when no campaign is running.
         coupon_url:
           description: Short link to the coupon claim page. null when no campaign is running.
@@ -6751,6 +6779,7 @@ components:
           enum:
             - purchase
             - coupon
+            - null
           type:
             - string
             - "null"
@@ -7107,6 +7136,7 @@ components:
             - one_route
             - main
             - all
+            - null
           type:
             - string
             - "null"
@@ -7247,7 +7277,9 @@ components:
           readOnly: true
           type: string
         banner:
-          $ref: "#/components/schemas/CoverSlot"
+          anyOf:
+            - $ref: "#/components/schemas/CoverSlot"
+            - type: "null"
           description: Selected landscape image. null if none. origin=screenshot marks the fallback for a work with no landscape cover.
         characters:
           description: Present when include=characters. Empty array if none.
@@ -7255,7 +7287,9 @@ components:
             $ref: "#/components/schemas/WorkCharacter"
           type: array
         claim:
-          $ref: "#/components/schemas/Claim"
+          anyOf:
+            - $ref: "#/components/schemas/Claim"
+            - type: "null"
           description: null if unclaimed. Never omitted on view=basic.
         companies:
           description: Present when include=companies. Empty array if none.
@@ -7271,7 +7305,9 @@ components:
           type: string
           x-vocabulary-closed: true
         cover:
-          $ref: "#/components/schemas/CoverSlot"
+          anyOf:
+            - $ref: "#/components/schemas/CoverSlot"
+            - type: "null"
           description: Selected portrait image. null if none.
         covers:
           description: Present when include=covers. Empty array if none.
@@ -7390,6 +7426,7 @@ components:
             - day
             - month
             - year
+            - null
           type:
             - string
             - "null"
@@ -7463,7 +7500,9 @@ components:
           maxLength: 512
           type: string
         figure:
-          $ref: "#/components/schemas/Image"
+          anyOf:
+            - $ref: "#/components/schemas/Image"
+            - type: "null"
           description: Figure image. null if none.
         id:
           description: Catalog character id.
@@ -7476,7 +7515,9 @@ components:
           maxLength: 64
           type: string
         image:
-          $ref: "#/components/schemas/Image"
+          anyOf:
+            - $ref: "#/components/schemas/Image"
+            - type: "null"
           description: Character image. null if none.
         latin:
           description: null if unrecorded. Must not be used as a discriminant.
@@ -7835,6 +7876,7 @@ components:
           enum:
             - content
             - meta
+            - null
           type:
             - string
             - "null"
@@ -7845,6 +7887,7 @@ components:
             - core
             - longtail
             - hidden
+            - null
           type:
             - string
             - "null"
@@ -7914,7 +7957,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.23.0
+  version: 2.23.1
   x-stability: stable
 openapi: 3.1.0
 paths:

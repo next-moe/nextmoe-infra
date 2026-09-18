@@ -262,7 +262,13 @@ func checkG5(doc *huma.OpenAPI) []string {
 }
 
 func deref(doc *huma.OpenAPI, s *huma.Schema) *huma.Schema {
-	if s == nil || s.Ref == "" || doc.Components == nil || doc.Components.Schemas == nil {
+	if s == nil {
+		return nil
+	}
+	if other := nullUnionOther(s); other != nil {
+		s = other
+	}
+	if s.Ref == "" || doc.Components == nil || doc.Components.Schemas == nil {
 		return s
 	}
 	if r := doc.Components.Schemas.SchemaFromRef(s.Ref); r != nil {

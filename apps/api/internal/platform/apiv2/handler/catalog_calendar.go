@@ -47,7 +47,7 @@ func (c *Catalog) ListCalendar(ctx context.Context, q collect.Query, p calendarP
 	}
 	meta := &repr.CalendarMeta{Today: time.Now().In(calendarJST).Format("2006-01-02")}
 	if win.empty {
-		return repr.CalendarList{List: finishList([]repr.Work{}, nil, 0, q, nil), Meta: meta}, nil
+		return repr.CalendarList{List: finishList([]repr.Work{}, nil, 0, q, nil), Meta: *meta}, nil
 	}
 	if win.bucket.Kind == catsvc.CalendarMonthBucket {
 		if merr := calendarMonthMeta(ctx, c, f, win.bucket, meta); merr != nil {
@@ -74,7 +74,7 @@ func (c *Catalog) ListCalendar(ctx context.Context, q collect.Query, p calendarP
 		}
 		total = n
 	}
-	return repr.CalendarList{List: finishList(items, data.NextCursor, total, q, nil), Meta: meta}, nil
+	return repr.CalendarList{List: finishList(items, data.NextCursor, total, q, nil), Meta: *meta}, nil
 }
 
 func calendarMonthMeta(ctx context.Context, c *Catalog, f catsvc.CalendarFilter, b catsvc.CalendarBucket, meta *repr.CalendarMeta) error {
