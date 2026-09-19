@@ -23,7 +23,7 @@ repo needs on top of that sits behind the `full` profile.
 | trust | 9283 | `ghcr.io/next-moe/infra-trust` | — |
 | ai *(`full`)* | 9284 | `ghcr.io/next-moe/infra-ai` | — |
 | image-cdn-proxy (Caddy) | 9290 | `caddy:2-alpine` | — |
-| MinIO (S3) | 9000 / 9001 | `minio/minio` | http://127.0.0.1:9001 (minioadmin/minioadmin) |
+| MinIO (S3) | 9000 / 9001 | `quay.io/minio/minio` | http://127.0.0.1:9001 (minioadmin/minioadmin) |
 | Mailpit | 1025 / 8025 | `axllent/mailpit` | http://127.0.0.1:8025 |
 | OpenSearch | 9200 | `ghcr.io/next-moe/infra-opensearch` | http://127.0.0.1:9200 |
 | Redis | 6379 | `redis:8-alpine` | — |
