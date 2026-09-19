@@ -27,8 +27,6 @@ const (
 	ruleVNDBReleaseBackfill = "rule:vndb-release-backfill"
 )
 
-const releaseMinYear = 1950
-
 const releaseApplyBatch = 500
 
 type ReleaseStats struct {

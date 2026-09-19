@@ -9,6 +9,7 @@ import (
 	"api/internal/platform/catalog/dlsitecode"
 	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
+	"api/internal/platform/catalog/sourcedate"
 	"api/internal/platform/catalog/titlekey"
 
 	"gorm.io/datatypes"
@@ -109,7 +110,7 @@ func loadDLGameRows(dlsiteDB *gorm.DB, roleMap map[string]int64) (map[string]dlG
 		SELECT workno, coalesce(work_name,'') AS work_name, coalesce(work_name_kana,'') AS kana,
 		       coalesce(maker_id,'') AS maker_id, coalesce(maker_name,'') AS maker_name,
 		       coalesce(age_category,'') AS age_category, coalesce(work_type,'') AS work_type,
-		       `+dlRegistDaySQL+` AS ymd,
+		       `+sourcedate.DLsiteDaySQL+` AS ymd,
 		       jsonb_strip_nulls(jsonb_build_object(
 		         'editions', product_json->'editions',
 		         'language_editions', product_json->'language_editions',

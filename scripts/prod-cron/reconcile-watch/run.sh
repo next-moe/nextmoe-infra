@@ -160,6 +160,9 @@ lane_backlog bgm-type4 to_create
 dry_lane getchu sh -c "$DSNSH"'; reconcile-getchu --dsn "$CAT" --getchu-dsn "$GC" --eg-dsn "$EG"'
 lane_backlog getchu attached minted_live minted_quarantined
 
+dry_lane release-dates sh -c "$DSNSH"'; backfill-release-meta --dsn "$CAT" --dlsite-dsn "$DL" --eg-dsn "$EG" --getchu-dsn "$GC"'
+lane_backlog release-dates all_filled all_moved all_cleared
+
 read_queue quarantined_works \
   "SELECT count(*) FROM catalog_work WHERE status = 3 AND deleted_at IS NULL"
 

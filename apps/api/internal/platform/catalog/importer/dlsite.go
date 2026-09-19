@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"api/internal/platform/catalog/model"
+	"api/internal/platform/catalog/sourcedate"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -70,7 +71,7 @@ func (im *Importer) RunDLsite(dlsiteDB *gorm.DB) (DLsiteStats, error) {
 	}
 
 	q := `SELECT workno, work_name, coalesce(work_name_kana,'') AS kana, maker_id, coalesce(maker_name,'') AS maker_name,
-		age_category, ` + dlRegistDaySQL + ` AS regist_ymd, coalesce(product_json->'creaters','{}') AS creaters
+		age_category, ` + sourcedate.DLsiteDaySQL + ` AS regist_ymd, coalesce(product_json->'creaters','{}') AS creaters
 		FROM works WHERE work_type_string='ボイス・ASMR' AND status='fetched' ORDER BY workno`
 	if im.limit > 0 {
 		q += fmt.Sprintf(" LIMIT %d", im.limit)
@@ -385,15 +386,6 @@ func dlLabelKind(makerID string) int16 {
 	}
 	return model.LabelKindDoujinCircle
 }
-
-// regist_date holds the API's JST midnight read as UTC+8, so 2023-05-15 00:00
-// JST is stored as 2023-05-14 16:00 UTC and its UTC day is one day early. On
-// 2026-09-18, 13,457 of 14,274 DLsite releases the 07-08 import wrote carried
-// that day. The API's own string is the date.
-const dlRegistDaySQL = `coalesce(
-	CASE WHEN product_json->>'regist_date' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN left(product_json->>'regist_date', 10) END,
-	to_char(regist_date AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD'),
-	'')`
 
 func ymdParts(ymd string) (y, m, d *int16) {
 	if len(ymd) < 10 {

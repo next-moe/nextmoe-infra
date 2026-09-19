@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"api/internal/platform/catalog/model"
+	"api/internal/platform/catalog/sourcedate"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -34,7 +35,7 @@ func loadDLWorks(dlsiteDB *gorm.DB, worknos []string, limit int) ([]dlRow, error
 	if err := dlsiteDB.Raw(`
 		SELECT workno, work_name, coalesce(work_name_kana,'') AS kana,
 		       coalesce(maker_id,'') AS maker_id, coalesce(maker_name,'') AS maker_name,
-		       coalesce(age_category,'') AS age_category, `+dlRegistDaySQL+` AS regist_ymd,
+		       coalesce(age_category,'') AS age_category, `+sourcedate.DLsiteDaySQL+` AS regist_ymd,
 		       coalesce(product_json->'creaters','{}') AS creaters,
 		       lower(normalize(work_name, NFKC)) AS name_fold
 		FROM works WHERE status = 'fetched' AND workno IN ? ORDER BY workno`, worknos).

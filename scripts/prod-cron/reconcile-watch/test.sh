@@ -57,7 +57,8 @@ extract_tool_cmd() {
     expand-bgm-type4-gated \
     reconcile-eg-anchors \
     reconcile-eg-works \
-    reconcile-getchu
+    reconcile-getchu \
+    backfill-release-meta
   do
     case "$s" in
       *"$t"*)
@@ -96,6 +97,9 @@ emit_tool() {
       ;;
     reconcile-getchu)
       echo '2026/09/18 06:00:00 INFO getchuattach summary population=0 attached=0 jan_vndb=0 jan_eg=0 title_date=0 title_cut=0 eg_brand=0 eg_near=0 jan_conflict=0 bundles=0 goods=0 all_ages=0 extras=0 addons=0 reissues=0 cancelled=0 undated=0 brand_unknown=0 unmapped_relations=0 eg_editions=0 rejected_skips=0 mint_groups=0 minted_live=0 minted_quarantined=0 candidates=0 written=0 errors=0'
+      ;;
+    backfill-release-meta)
+      echo '2026/09/19 00:00:00 INFO backfill-release-meta summary apply=false dates_candidates=0 dates_same=0 dates_unknown=0 dates_human=0 dates_written=0 dates_lost=0 all_filled=0 all_moved=0 all_cleared=0 vndb_date_filled=0 vndb_date_moved=0 vndb_date_cleared=0 dl_date_filled=0 dl_date_moved=0 dl_date_cleared=0 gc_date_filled=0 gc_date_moved=0 gc_date_cleared=0 eg_date_filled=0 eg_date_moved=0 eg_date_cleared=0 bgm_date_filled=0 bgm_date_moved=0 bgm_date_cleared=0 vndb_missing=0 dl_missing=0 gc_missing=0 eg_missing=0 bgm_missing=0 rating_candidates=0 rating_vndb_r18=0 rating_dl_r18=0 rating_dl_sensitive=0 rating_dl_all_ages=0 rating_eg_r18=0 rating_bgm_r18=0 rating_no_verdict=0 rating_planned=0 rating_filled=0 rating_skipped_non_empty=0 rating_curated_override=0 errors=0'
       ;;
     import-eg-dlsite-releases)
       echo '2026/09/17 05:21:23 INFO eg-dlsite wave summary attached=0 minted=0 already=0 ambiguous=0 missing=0 title_collisions=0 quarantined=0 skipped_intra_collision=0 errors=0'
@@ -268,7 +272,8 @@ case "$1" in
       expand-bgm-type4-gated \
       reconcile-eg-anchors \
       reconcile-eg-works \
-      reconcile-getchu
+      reconcile-getchu \
+      backfill-release-meta
     do
       case "$toolcmd" in
         *"$t"*) tool=$t; break ;;
@@ -572,6 +577,50 @@ FLOCK_HOLD_FAIL=1 run_job "$td"
 expect_exit "$td" 0
 if has_stamp "$td"; then fail "stamp written"; fi
 if has_alert "$td"; then fail "unexpected alert"; fi
+tend
+rm -rf "$td"
+
+# --- T11: release-dates all-zero is converged ---
+tstart 11
+td=$(mktemp -d)
+install_fakes "$td"
+run_job "$td"
+expect_exit "$td" 0
+if ! has_stamp "$td"; then fail "missing stamp"; fi
+if has_alert "$td"; then fail "unexpected alert"; fi
+if ! job_log "$td" | grep -q 'recon verdict=converged'; then fail "missing converged verdict"; fi
+if ! grep -q '^backfill-release-meta$' "$td/ctl/tools.log"; then fail "release-dates lane never ran"; fi
+rd_cmd='backfill-release-meta --dsn "$CAT" --dlsite-dsn "$DL" --eg-dsn "$EG" --getchu-dsn "$GC"'
+if ! grep -q -F -- "$rd_cmd" "$td/ctl/docker.args"; then fail "release-dates lane missing a mirror DSN"; fi
+if grep -F -- 'backfill-release-meta' "$td/ctl/docker.args" | grep -q -- '--apply'; then fail "release-dates lane is not read-only"; fi
+tend
+rm -rf "$td"
+
+# --- T12: all_moved>0 alerts [RECON] naming release-dates, still stamps ---
+tstart 12
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' '2026/09/19 00:00:00 INFO backfill-release-meta summary all_filled=0 all_moved=3 all_cleared=0' \
+  > "$td/ctl/out/backfill-release-meta"
+run_job "$td"
+expect_exit "$td" 0
+if ! has_stamp "$td"; then fail "missing stamp"; fi
+if [ "$(alert_count "$td")" != 1 ]; then fail "alert count $(alert_count "$td") want 1"; fi
+if ! alert_text "$td" | grep -q '\[RECON\]'; then fail "no RECON alert"; fi
+if ! alert_text "$td" | grep -q 'release-dates'; then fail "alert did not name release-dates"; fi
+tend
+rm -rf "$td"
+
+# --- T13: dry output missing all_cleared is [FAIL], no stamp ---
+tstart 13
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' '2026/09/19 00:00:00 INFO backfill-release-meta summary all_filled=0 all_moved=0' \
+  > "$td/ctl/out/backfill-release-meta"
+run_job "$td"
+expect_exit_nonzero "$td"
+if has_stamp "$td"; then fail "stamp written"; fi
+if ! alert_text "$td" | grep -q '\[FAIL\]'; then fail "no FAIL alert"; fi
 tend
 rm -rf "$td"
 
