@@ -38,6 +38,11 @@ func Open() (*gorm.DB, func(), bool) {
 	sqlDB, _ := db.DB()
 	release := acquireSuiteLock(sqlDB)
 
+	if err := model.RekeyCouponsByOwner(db); err != nil {
+		release()
+		fmt.Fprintf(os.Stderr, "SKIP: store coupon re-key failed: %v\n", err)
+		return nil, nil, false
+	}
 	if err := db.AutoMigrate(model.AllModels()...); err != nil {
 		release()
 		fmt.Fprintf(os.Stderr, "SKIP: store migration failed: %v\n", err)

@@ -88,11 +88,10 @@ type OAuthClient struct {
 	// five-slot count, which a plain dev_enabled=false never did.
 	DevArchivedAt *time.Time `json:"dev_archived_at,omitempty"`
 
-	// Whether this application takes a share of the monthly DLsite coupon pool.
-	// Minting store links is self-service; being paid out of a fixed pool that
-	// every added participant dilutes is not, so the roster is an operator
-	// decision recorded here rather than "whoever holds store:read".
-	StoreSettlementEligible bool `gorm:"not null;default:false" json:"store_settlement_eligible"`
+	// Whether this application's clicks count toward its owner's share of the
+	// DLsite coupon pool. New applications join by default (2026-09-19); the
+	// operator takes one off here, and archiving takes it off too.
+	StoreSettlementEligible bool `gorm:"not null;default:true" json:"store_settlement_eligible"`
 
 	CatalogSite string `gorm:"size:64" json:"catalog_site,omitempty"`
 

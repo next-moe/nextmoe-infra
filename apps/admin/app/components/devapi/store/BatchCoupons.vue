@@ -17,7 +17,7 @@ const td = 'whitespace-nowrap px-3 py-2 text-sm'
           <th :class="[th, 'text-right']">面额</th>
           <th :class="th">有效期至</th>
           <th :class="th">分给</th>
-          <th :class="th">站长已发放</th>
+          <th :class="th">已发放</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-default-200">
@@ -28,7 +28,9 @@ const td = 'whitespace-nowrap px-3 py-2 text-sm'
           <td :class="[td, 'text-right']">{{ formatCount(c.face_value) }} 点</td>
           <td :class="[td, 'text-default-500']">{{ c.expires_on ?? '—' }}</td>
           <td :class="td">
-            <span v-if="c.client_id" class="text-foreground">{{ c.app_name || c.client_id }}</span>
+            <span v-if="c.user_id !== null" class="text-foreground">
+              {{ c.user_name || `用户 #${c.user_id}` }}
+            </span>
             <span v-else class="text-default-400">未分配（留在平台）</span>
           </td>
           <td :class="td">

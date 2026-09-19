@@ -26,9 +26,14 @@ func mountAdmin(t *testing.T, ren bool) *fiber.App {
 	h := NewAdminHandler(
 		service.New(testDB, nil, service.Options{}),
 		func(_ context.Context, ids []string) ([]service.AdminApp, error) {
+			owners := map[string]uint{"site-a": 1, "site-b": 3}
 			out := make([]service.AdminApp, len(ids))
 			for i, id := range ids {
-				out[i] = service.AdminApp{ClientID: id, Name: "站 " + id, SettlementEligible: id == "site-a"}
+				owner := owners[id]
+				out[i] = service.AdminApp{
+					ClientID: id, Name: "站 " + id, OwnerUserID: &owner, OwnerName: "站长 " + id,
+					SettlementEligible: id == "site-a",
+				}
 			}
 			return out, nil
 		},
@@ -142,15 +147,18 @@ func TestCouponBatchRoundTripOverHTTP(t *testing.T) {
 	}
 	var detail service.BatchDetail
 	_ = json.Unmarshal(env.Data, &detail)
-	if len(detail.Split) == 0 || detail.Split[0].ClientID != "site-a" || detail.Split[0].AllocatedPoints != 2000 {
-		t.Fatalf("split = %+v, want the only eligible site proposed both coupons", detail.Split)
+	if len(detail.Split) != 1 || detail.Split[0].UserID != 1 || detail.Split[0].AllocatedPoints != 2000 {
+		t.Fatalf("split = %+v, want the owner of the only eligible site proposed both coupons", detail.Split)
+	}
+	if len(detail.Excluded) != 1 || detail.Excluded[0].ClientID != "site-b" {
+		t.Errorf("excluded = %+v, want the ineligible site listed with its clicks", detail.Excluded)
 	}
 
-	grants := map[string]any{"grants": []map[string]any{{"client_id": "site-b", "face_value": 1000, "count": 1}}}
+	grants := map[string]any{"grants": []map[string]any{{"user_id": 3, "face_value": 1000, "count": 1}}}
 	if status, _ := call(t, app, http.MethodPost, path+"/publish", grants); status != http.StatusBadRequest {
-		t.Errorf("granting an ineligible site answered %d, want 400", status)
+		t.Errorf("granting an owner with no eligible application answered %d, want 400", status)
 	}
-	grants = map[string]any{"grants": []map[string]any{{"client_id": "site-a", "face_value": 1000, "count": 2}}}
+	grants = map[string]any{"grants": []map[string]any{{"user_id": 1, "face_value": 1000, "count": 2}}}
 	if status, env := call(t, app, http.MethodPost, path+"/publish", grants); status != http.StatusOK {
 		t.Fatalf("publish = %d %+v", status, env)
 	}
@@ -165,7 +173,7 @@ func TestCouponBatchRoundTripOverHTTP(t *testing.T) {
 	if status != http.StatusOK || len(mine.Coupons) != 2 {
 		t.Fatalf("owner coupons = %d %+v", status, mine)
 	}
-	stranger := mountDev(t, 1, []service.OwnerApp{{ClientID: "site-b", Name: "站 B"}})
+	stranger := mountDev(t, 3, []service.OwnerApp{{ClientID: "site-b", Name: "站 B"}})
 	delivered := "/dev/store/coupons/" + jsonID(mine.Coupons[0].ID) + "/delivered"
 	if status, _ := call(t, stranger, http.MethodPost, delivered, map[string]any{"delivered": true}); status != http.StatusNotFound {
 		t.Errorf("another owner marking the coupon answered %d, want 404", status)

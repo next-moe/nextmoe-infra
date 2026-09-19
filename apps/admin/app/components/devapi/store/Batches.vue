@@ -34,7 +34,7 @@ const valueLine = (b: CouponBatchSummary) =>
       <div>
         <h2 class="text-lg font-semibold text-foreground">优惠券批次</h2>
         <p class="text-sm text-default-500">
-          录入 DLsite 给的券码，按结算区间内的去重点击占比分给参与分成的站点；发布后各站站长在开发者平台看到自己的券码。
+          录入 DLsite 给的券码，按结算区间内的去重点击占比分给用户（同一用户名下参与分成的应用合并，向下取整）；发布后用户在开发者平台看到自己的券码。
         </p>
       </div>
       <KunButton color="primary" @click="createOpen = true">

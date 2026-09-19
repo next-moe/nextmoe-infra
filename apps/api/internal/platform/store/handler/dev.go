@@ -32,11 +32,20 @@ func (h *DevHandler) Register(r fiber.Router) {
 	r.Post("/store/coupons/:id/delivered", h.SetDelivered)
 }
 
-// ownerApps answers the request itself when it returns false.
-func (h *DevHandler) ownerApps(c fiber.Ctx) ([]service.OwnerApp, bool, error) {
+// owner answers the request itself when it returns false.
+func owner(c fiber.Ctx) (uint, bool, error) {
 	ownerID, ok := c.Locals("user_id").(uint)
 	if !ok || ownerID == 0 {
-		return nil, false, response.Unauthorized(c, errors.ErrAuthUnauthorized)
+		return 0, false, response.Unauthorized(c, errors.ErrAuthUnauthorized)
+	}
+	return ownerID, true, nil
+}
+
+// ownerApps answers the request itself when it returns false.
+func (h *DevHandler) ownerApps(c fiber.Ctx) ([]service.OwnerApp, bool, error) {
+	ownerID, ok, err := owner(c)
+	if !ok {
+		return nil, false, err
 	}
 	apps, err := h.apps(c.Context(), ownerID)
 	if err != nil {
@@ -59,11 +68,11 @@ func (h *DevHandler) Usage(c fiber.Ctx) error {
 }
 
 func (h *DevHandler) Coupons(c fiber.Ctx) error {
-	apps, ok, err := h.ownerApps(c)
+	ownerID, ok, err := owner(c)
 	if !ok {
 		return err
 	}
-	out, err := h.svc.OwnerCoupons(c.Context(), apps)
+	out, err := h.svc.OwnerCoupons(c.Context(), ownerID)
 	if err != nil {
 		return response.InternalError(c, errors.ErrOperationFailed)
 	}
@@ -75,7 +84,7 @@ type deliveredRequest struct {
 }
 
 func (h *DevHandler) SetDelivered(c fiber.Ctx) error {
-	apps, ok, err := h.ownerApps(c)
+	ownerID, ok, err := owner(c)
 	if !ok {
 		return err
 	}
@@ -87,7 +96,7 @@ func (h *DevHandler) SetDelivered(c fiber.Ctx) error {
 	if err := c.Bind().JSON(&req); err != nil {
 		return response.BadRequest(c, errors.ErrBadRequest)
 	}
-	if err := h.svc.SetCouponDelivered(c.Context(), apps, id, req.Delivered, time.Now()); err != nil {
+	if err := h.svc.SetCouponDelivered(c.Context(), ownerID, id, req.Delivered, time.Now()); err != nil {
 		return couponError(c, err)
 	}
 	return response.Success(c, nil)

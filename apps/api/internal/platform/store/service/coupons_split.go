@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 
 	"api/internal/platform/store/model"
@@ -16,28 +17,93 @@ type Grant struct {
 	Count     int `json:"count"`
 }
 
-// SplitRow is one site's line in a batch's split: the proposal on a draft,
-// the frozen share plus what it actually received on a published batch.
+// SplitRow is one developer account's line in a batch's split: the proposal
+// on a draft, the frozen share plus what it actually received on a published
+// batch.
 type SplitRow struct {
-	ClientID           string  `json:"client_id"`
-	Name               string  `json:"name"`
-	SettlementEligible bool    `json:"settlement_eligible"`
-	Uniques            int64   `json:"uniques"`
-	SharePPM           int64   `json:"share_ppm"`
-	EntitledPoints     int64   `json:"entitled_points"`
-	Grants             []Grant `json:"grants"`
-	AllocatedPoints    int64   `json:"allocated_points"`
+	UserID          uint             `json:"user_id"`
+	Name            string           `json:"name"`
+	Apps            []model.ShareApp `json:"apps"`
+	Uniques         int64            `json:"uniques"`
+	SharePPM        int64            `json:"share_ppm"`
+	EntitledPoints  int64            `json:"entitled_points"`
+	Grants          []Grant          `json:"grants"`
+	AllocatedPoints int64            `json:"allocated_points"`
+}
+
+// SplitApp is an application with clicks in a batch's period that counts
+// toward nobody's share: it is off the roster, or has no owner to receive.
+type SplitApp struct {
+	ClientID           string `json:"client_id"`
+	Name               string `json:"name"`
+	OwnerUserID        *uint  `json:"owner_user_id"`
+	SettlementEligible bool   `json:"settlement_eligible"`
+	Uniques            int64  `json:"uniques"`
 }
 
 type AdminCoupon struct {
 	model.Coupon
-	AppName string `json:"app_name"`
+	UserName string `json:"user_name"`
 }
 
 type BatchDetail struct {
 	BatchSummary
 	CouponList []AdminCoupon `json:"coupon_list"`
 	Split      []SplitRow    `json:"split"`
+	Excluded   []SplitApp    `json:"excluded"`
+}
+
+type claimant struct {
+	name    string
+	apps    []model.ShareApp
+	uniques int64
+}
+
+// claimantsOf groups the settlement-eligible applications by owner: an
+// account's claim is the sum of its eligible applications' uniques. Every
+// eligible owner is a claimant, clicks or not, so a grant to one validates.
+func claimantsOf(apps []AdminApp, uniques map[string]int64) (map[uint]*claimant, []Claim, []SplitApp) {
+	users := map[uint]*claimant{}
+	excluded := []SplitApp{}
+	for _, a := range apps {
+		if !a.SettlementEligible || a.OwnerUserID == nil {
+			if uniques[a.ClientID] > 0 {
+				excluded = append(excluded, SplitApp{
+					ClientID: a.ClientID, Name: a.Name, OwnerUserID: a.OwnerUserID,
+					SettlementEligible: a.SettlementEligible, Uniques: uniques[a.ClientID],
+				})
+			}
+			continue
+		}
+		u := users[*a.OwnerUserID]
+		if u == nil {
+			u = &claimant{name: ownerName(a), apps: []model.ShareApp{}}
+			users[*a.OwnerUserID] = u
+		}
+		if n := uniques[a.ClientID]; n > 0 {
+			u.apps = append(u.apps, model.ShareApp{ClientID: a.ClientID, Name: a.Name, Uniques: n})
+			u.uniques += n
+		}
+	}
+	claims := make([]Claim, 0, len(users))
+	for id, u := range users {
+		slices.SortFunc(u.apps, func(a, b model.ShareApp) int {
+			return cmp.Or(cmp.Compare(b.Uniques, a.Uniques), cmp.Compare(a.ClientID, b.ClientID))
+		})
+		claims = append(claims, Claim{UserID: id, Uniques: u.uniques})
+	}
+	slices.SortFunc(claims, func(a, b Claim) int { return cmp.Compare(a.UserID, b.UserID) })
+	slices.SortFunc(excluded, func(a, b SplitApp) int {
+		return cmp.Or(cmp.Compare(b.Uniques, a.Uniques), cmp.Compare(a.ClientID, b.ClientID))
+	})
+	return users, claims, excluded
+}
+
+func ownerName(a AdminApp) string {
+	if a.OwnerName != "" {
+		return a.OwnerName
+	}
+	return fmt.Sprintf("用户 #%d", *a.OwnerUserID)
 }
 
 func (s *Service) CouponBatchDetail(ctx context.Context, id int64, apps []AdminApp) (*BatchDetail, error) {
@@ -59,43 +125,40 @@ func (s *Service) CouponBatchDetail(ctx context.Context, id int64, apps []AdminA
 		return nil, err
 	}
 
-	byID := make(map[string]AdminApp, len(apps))
-	for _, a := range apps {
-		byID[a.ClientID] = a
-	}
 	out := &BatchDetail{
 		BatchSummary: summarize(batch, counts[id]),
 		CouponList:   make([]AdminCoupon, len(coupons)),
+		Excluded:     []SplitApp{},
 	}
-	for i, c := range coupons {
-		out.CouponList[i] = AdminCoupon{Coupon: c}
-		if c.ClientID != nil {
-			out.CouponList[i].AppName = byID[*c.ClientID].Name
-		}
-	}
-
 	if batch.Status == model.BatchPublished {
-		out.Split, err = s.publishedSplit(ctx, id, coupons, byID)
+		out.Split, err = s.publishedSplit(ctx, id, coupons, apps)
 	} else {
-		out.Split, err = s.proposedSplit(ctx, batch, coupons, apps)
+		out.Split, out.Excluded, err = s.proposedSplit(ctx, batch, coupons, apps)
 	}
 	if err != nil {
 		return nil, err
+	}
+
+	names := map[uint]string{}
+	for _, row := range out.Split {
+		names[row.UserID] = row.Name
+	}
+	for i, c := range coupons {
+		out.CouponList[i] = AdminCoupon{Coupon: c}
+		if c.UserID != nil {
+			out.CouponList[i].UserName = names[*c.UserID]
+		}
 	}
 	return out, nil
 }
 
-// proposedSplit lists every site with clicks in the period: eligible sites with
-// the allocation Allocate proposes, the others with nothing so the operator
-// sees who was left out and why.
-func (s *Service) proposedSplit(ctx context.Context, batch model.CouponBatch, coupons []model.Coupon, apps []AdminApp) ([]SplitRow, error) {
-	ids := make([]string, len(apps))
-	for i, a := range apps {
-		ids[i] = a.ClientID
-	}
-	uniques, err := s.clientUniques(ctx, ids, batch.PeriodFrom, batch.PeriodTo)
+// proposedSplit is what Allocate proposes for every account with clicks in the
+// period, next to the applications whose clicks count for nobody so the
+// operator sees who was left out and why.
+func (s *Service) proposedSplit(ctx context.Context, batch model.CouponBatch, coupons []model.Coupon, apps []AdminApp) ([]SplitRow, []SplitApp, error) {
+	uniques, err := s.clientUniques(ctx, clientIDsOf(apps), batch.PeriodFrom, batch.PeriodTo)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	pool := map[int]int{}
 	var total int64
@@ -103,60 +166,56 @@ func (s *Service) proposedSplit(ctx context.Context, batch model.CouponBatch, co
 		pool[c.FaceValue]++
 		total += int64(c.FaceValue)
 	}
-	var claims []Claim
-	for _, a := range apps {
-		if a.SettlementEligible {
-			claims = append(claims, Claim{ClientID: a.ClientID, Uniques: uniques[a.ClientID]})
-		}
-	}
+	users, claims, excluded := claimantsOf(apps, uniques)
 	ent := Entitlements(claims, total)
 	grants := Allocate(claims, pool)
 
 	rows := []SplitRow{}
-	for _, a := range apps {
-		if uniques[a.ClientID] == 0 && len(grants[a.ClientID]) == 0 {
+	for _, c := range claims {
+		if c.Uniques == 0 {
 			continue
 		}
-		row := SplitRow{
-			ClientID: a.ClientID, Name: a.Name, SettlementEligible: a.SettlementEligible,
-			Uniques: uniques[a.ClientID], Grants: []Grant{},
-		}
-		if a.SettlementEligible {
-			row.SharePPM = ent[a.ClientID].SharePPM
-			row.EntitledPoints = ent[a.ClientID].Points
-			row.Grants = grantList(grants[a.ClientID])
-			row.AllocatedPoints = grantPoints(row.Grants)
-		}
-		rows = append(rows, row)
+		g := grantList(grants[c.UserID])
+		rows = append(rows, SplitRow{
+			UserID: c.UserID, Name: users[c.UserID].name, Apps: users[c.UserID].apps,
+			Uniques: c.Uniques, SharePPM: ent[c.UserID].SharePPM, EntitledPoints: ent[c.UserID].Points,
+			Grants: g, AllocatedPoints: grantPoints(g),
+		})
 	}
 	sortSplit(rows)
-	return rows, nil
+	return rows, excluded, nil
 }
 
-func (s *Service) publishedSplit(ctx context.Context, id int64, coupons []model.Coupon, byID map[string]AdminApp) ([]SplitRow, error) {
+func (s *Service) publishedSplit(ctx context.Context, id int64, coupons []model.Coupon, apps []AdminApp) ([]SplitRow, error) {
 	var shares []model.CouponShare
 	if err := s.db.WithContext(ctx).Where("batch_id = ?", id).Find(&shares).Error; err != nil {
 		return nil, err
 	}
-	received := map[string]map[int]int{}
+	live := map[uint]string{}
+	for _, a := range apps {
+		if a.OwnerUserID != nil && a.OwnerName != "" {
+			live[*a.OwnerUserID] = a.OwnerName
+		}
+	}
+	received := map[uint]map[int]int{}
 	for _, c := range coupons {
-		if c.ClientID == nil {
+		if c.UserID == nil {
 			continue
 		}
-		if received[*c.ClientID] == nil {
-			received[*c.ClientID] = map[int]int{}
+		if received[*c.UserID] == nil {
+			received[*c.UserID] = map[int]int{}
 		}
-		received[*c.ClientID][c.FaceValue]++
+		received[*c.UserID][c.FaceValue]++
 	}
 	rows := make([]SplitRow, 0, len(shares))
 	for _, sh := range shares {
-		name := sh.AppName
-		if a, ok := byID[sh.ClientID]; ok && a.Name != "" {
-			name = a.Name
+		counted := []model.ShareApp(sh.Apps)
+		if counted == nil {
+			counted = []model.ShareApp{}
 		}
-		grants := grantList(received[sh.ClientID])
+		grants := grantList(received[sh.UserID])
 		rows = append(rows, SplitRow{
-			ClientID: sh.ClientID, Name: name, SettlementEligible: true,
+			UserID: sh.UserID, Name: cmp.Or(live[sh.UserID], sh.UserName), Apps: counted,
 			Uniques: sh.Uniques, SharePPM: sh.SharePPM, EntitledPoints: sh.EntitledPoints,
 			Grants: grants, AllocatedPoints: grantPoints(grants),
 		})
@@ -165,15 +224,17 @@ func (s *Service) publishedSplit(ctx context.Context, id int64, coupons []model.
 	return rows, nil
 }
 
+func clientIDsOf(apps []AdminApp) []string {
+	ids := make([]string, len(apps))
+	for i, a := range apps {
+		ids[i] = a.ClientID
+	}
+	return ids
+}
+
 func sortSplit(rows []SplitRow) {
 	slices.SortFunc(rows, func(a, b SplitRow) int {
-		if a.SettlementEligible != b.SettlementEligible {
-			if a.SettlementEligible {
-				return -1
-			}
-			return 1
-		}
-		return cmp.Or(cmp.Compare(b.Uniques, a.Uniques), cmp.Compare(a.ClientID, b.ClientID))
+		return cmp.Or(cmp.Compare(b.Uniques, a.Uniques), cmp.Compare(a.UserID, b.UserID))
 	})
 }
 

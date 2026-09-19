@@ -355,6 +355,7 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 		storeService.New(db, nil, storeService.Options{}),
 		func(ctx context.Context, clientIDs []string) ([]storeService.AdminApp, error) {
 			out := make([]storeService.AdminApp, 0, len(clientIDs))
+			var owners []uint
 			for _, id := range clientIDs {
 				app, err := devRepo.GetApp(ctx, id)
 				if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -365,8 +366,24 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 					row.Name = app.Name
 					row.OwnerUserID = app.OwnerUserID
 					row.SettlementEligible = app.StoreSettlementEligible
+					if app.OwnerUserID != nil {
+						owners = append(owners, *app.OwnerUserID)
+					}
 				}
 				out = append(out, row)
+			}
+			users, err := userRepo.FindByIDsWithRoles(ctx, owners)
+			if err != nil {
+				return nil, err
+			}
+			names := make(map[uint]string, len(users))
+			for _, u := range users {
+				names[u.ID] = u.Name
+			}
+			for i := range out {
+				if out[i].OwnerUserID != nil {
+					out[i].OwnerName = names[*out[i].OwnerUserID]
+				}
 			}
 			return out, nil
 		},

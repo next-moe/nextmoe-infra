@@ -40,13 +40,17 @@ export interface StoreCoupon {
   id: number
   batch_id: number
   batch_name: string
-  client_id: string
-  app_name: string
   face_value: number
   code: string
   expires_on: string | null
   delivered_at: string | null
   published_at: string | null
+}
+
+export interface StoreCouponShareApp {
+  client_id: string
+  name: string
+  uniques: number
 }
 
 export interface StoreCouponShare {
@@ -55,8 +59,7 @@ export interface StoreCouponShare {
   period_from: string
   period_to: string
   published_at: string | null
-  client_id: string
-  app_name: string
+  apps: StoreCouponShareApp[]
   uniques: number
   share_ppm: number
   entitled_points: number

@@ -190,7 +190,7 @@ func (s *Service) valueCounts(ctx context.Context, batchIDs []int64) (map[int64]
 		ValueCount
 	}
 	err := s.db.WithContext(ctx).Raw(`
-		SELECT batch_id, face_value, count(*) AS count, count(client_id) AS allocated,
+		SELECT batch_id, face_value, count(*) AS count, count(user_id) AS allocated,
 		       count(delivered_at) AS delivered
 		  FROM store_coupons WHERE batch_id IN ?
 		 GROUP BY batch_id, face_value
@@ -205,25 +205,16 @@ func (s *Service) valueCounts(ctx context.Context, batchIDs []int64) (map[int64]
 }
 
 type GrantInput struct {
-	ClientID  string `json:"client_id"`
-	FaceValue int    `json:"face_value"`
-	Count     int    `json:"count"`
+	UserID    uint `json:"user_id"`
+	FaceValue int  `json:"face_value"`
+	Count     int  `json:"count"`
 }
 
 // PublishCouponBatch assigns the batch's coupons as the operator settled them
-// (soonest-expiring codes first), freezes each eligible site's share of the
-// period's clicks next to what it received, and makes the codes visible to the
-// sites' owners. Coupons no grant covers stay with the operator.
+// (soonest-expiring codes first), freezes each account's share of the period's
+// clicks next to what it received, and makes the codes visible to the owners.
+// Coupons no grant covers stay with the operator.
 func (s *Service) PublishCouponBatch(ctx context.Context, id int64, apps []AdminApp, grants []GrantInput, now time.Time) error {
-	eligible := map[string]AdminApp{}
-	var eligibleIDs []string
-	for _, a := range apps {
-		if a.SettlementEligible {
-			eligible[a.ClientID] = a
-			eligibleIDs = append(eligibleIDs, a.ClientID)
-		}
-	}
-
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var batch model.CouponBatch
 		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", id).Take(&batch).Error
@@ -249,6 +240,12 @@ func (s *Service) PublishCouponBatch(ctx context.Context, id int64, apps []Admin
 			total += int64(c.FaceValue)
 		}
 
+		uniques, err := s.clientUniques(ctx, clientIDsOf(apps), batch.PeriodFrom, batch.PeriodTo)
+		if err != nil {
+			return err
+		}
+		users, claims, _ := claimantsOf(apps, uniques)
+
 		want := map[int]int{}
 		seen := map[string]bool{}
 		var live []GrantInput
@@ -259,15 +256,15 @@ func (s *Service) PublishCouponBatch(ctx context.Context, id int64, apps []Admin
 			if g.Count == 0 {
 				continue
 			}
-			if _, ok := eligible[g.ClientID]; !ok {
-				return inputErr("应用 %s 不参与分成，不能分给它", g.ClientID)
+			if users[g.UserID] == nil {
+				return inputErr("用户 #%d 名下没有参与分成的应用，不能分给这个用户", g.UserID)
 			}
 			if _, ok := byFace[g.FaceValue]; !ok {
 				return inputErr("这批没有 %d 点的券", g.FaceValue)
 			}
-			key := fmt.Sprintf("%s/%d", g.ClientID, g.FaceValue)
+			key := fmt.Sprintf("%d/%d", g.UserID, g.FaceValue)
 			if seen[key] {
-				return inputErr("应用 %s 的 %d 点券重复出现", g.ClientID, g.FaceValue)
+				return inputErr("用户 #%d 的 %d 点券重复出现", g.UserID, g.FaceValue)
 			}
 			seen[key] = true
 			want[g.FaceValue] += g.Count
@@ -280,38 +277,31 @@ func (s *Service) PublishCouponBatch(ctx context.Context, id int64, apps []Admin
 		}
 
 		slices.SortFunc(live, func(a, b GrantInput) int {
-			return cmp.Or(cmp.Compare(a.ClientID, b.ClientID), cmp.Compare(b.FaceValue, a.FaceValue))
+			return cmp.Or(cmp.Compare(a.UserID, b.UserID), cmp.Compare(b.FaceValue, a.FaceValue))
 		})
 		next := map[int]int{}
-		received := map[string]int64{}
+		received := map[uint]int64{}
 		for _, g := range live {
 			ids := byFace[g.FaceValue][next[g.FaceValue] : next[g.FaceValue]+g.Count]
 			next[g.FaceValue] += g.Count
 			if err := tx.Model(&model.Coupon{}).Where("id IN ?", ids).
-				Update("client_id", g.ClientID).Error; err != nil {
+				Update("user_id", g.UserID).Error; err != nil {
 				return err
 			}
-			received[g.ClientID] += int64(g.FaceValue) * int64(g.Count)
+			received[g.UserID] += int64(g.FaceValue) * int64(g.Count)
 		}
 
-		uniques, err := s.clientUniques(ctx, eligibleIDs, batch.PeriodFrom, batch.PeriodTo)
-		if err != nil {
-			return err
-		}
-		claims := make([]Claim, 0, len(eligibleIDs))
-		for _, cid := range eligibleIDs {
-			claims = append(claims, Claim{ClientID: cid, Uniques: uniques[cid]})
-		}
 		ent := Entitlements(claims, total)
 		var shares []model.CouponShare
-		for _, cid := range eligibleIDs {
-			if uniques[cid] == 0 && received[cid] == 0 {
+		for _, c := range claims {
+			if c.Uniques == 0 && received[c.UserID] == 0 {
 				continue
 			}
+			u := users[c.UserID]
 			shares = append(shares, model.CouponShare{
-				BatchID: id, ClientID: cid, AppName: eligible[cid].Name,
-				Uniques: uniques[cid], SharePPM: ent[cid].SharePPM,
-				EntitledPoints: ent[cid].Points, AllocatedPoints: received[cid],
+				BatchID: id, UserID: c.UserID, UserName: u.name, Apps: u.apps,
+				Uniques: c.Uniques, SharePPM: ent[c.UserID].SharePPM,
+				EntitledPoints: ent[c.UserID].Points, AllocatedPoints: received[c.UserID],
 			})
 		}
 		if len(shares) > 0 {

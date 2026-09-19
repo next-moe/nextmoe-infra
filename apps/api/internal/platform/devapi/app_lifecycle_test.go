@@ -489,8 +489,13 @@ func TestStoreSettlementEligibleRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	if app.StoreSettlementEligible {
-		t.Fatalf("a new application must not be on the settlement roster")
+	stored, err := repo.GetApp(ctx, app.ID)
+	if err != nil {
+		t.Fatalf("reload new: %v", err)
+	}
+	if !app.StoreSettlementEligible || !stored.StoreSettlementEligible {
+		t.Fatalf("a new application joins the settlement roster (returned %v, stored %v)",
+			app.StoreSettlementEligible, stored.StoreSettlementEligible)
 	}
 	key, _, err := svc.MintKey(ctx, owner, app.ID, MintKeyInput{Name: "k", Scopes: []string{ScopeStoreRead}})
 	if err != nil {
@@ -498,7 +503,7 @@ func TestStoreSettlementEligibleRoundTrip(t *testing.T) {
 	}
 	giveKeyHistory(t, repo, key.ID)
 
-	for _, want := range []bool{true, false, true} {
+	for _, want := range []bool{false, true} {
 		flag := want
 		updated, err := admin.UpdateAppConfig(ctx, app.ID, AppConfig{StoreSettlementEligible: &flag})
 		if err != nil {
