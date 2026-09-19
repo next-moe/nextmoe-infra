@@ -184,28 +184,30 @@ echo "roster plans $PLANNED new characters (ceiling $ROSTER_CEILING)"
   echo "       ceiling deliberately or fix the anchors before re-arming."
   exit 1; }
 
-# 5b. Upstream-liveness audit — maintain catalog_external_ref.dead_at for the
-#     work-level exact VNDB anchors, against the mirror step 4 just reloaded.
-#     VNDB deletes ~20 entries a week and we anchor ~98.7% of it, so without
-#     this the set of anchors pointing at a vndb.org page that now 404s grows
-#     forever; the public faces render those anchors as links. Marking (never
-#     deleting, never re-pointing) is deliberate: the dump carries no
-#     redirect/tombstone table, so a deleted entry has no derivable successor,
-#     and a deleted ROW would just be re-asserted by the wiki-vndb-id rule.
-#     The tool is bidirectional and self-healing — an entry VNDB restores gets
-#     its dead_at cleared on the next pass.
+# 5b. Upstream-liveness audit — maintain catalog_external_ref.dead_at for every
+#     VNDB entity type (work, release, character, person, credit_name, label)
+#     and every link kind, against the mirror step 4 just reloaded. VNDB deletes
+#     entries every week, so without this the set of anchors pointing at a
+#     vndb.org page that now 404s grows forever; the public faces render those
+#     anchors as links. Marking (never deleting, never re-pointing) is
+#     deliberate: the dump carries no redirect/tombstone table, so a deleted
+#     entry has no derivable successor, and a deleted ROW would just be
+#     re-asserted by the next import. The tool is bidirectional and
+#     self-healing — an entry VNDB restores gets its dead_at cleared on the
+#     next pass.
 #
-#     WHY HERE, the earliest legal slot: it only needs a fresh src_vndb (step 4)
-#     and interacts with nothing the family below writes (that lane touches
-#     character and release anchors, never work-level vndb ones). It must come
-#     after the step-5 tripwire because dead_at is a Gold write, and running it
-#     before the family rather than after means it still lands on the weeks a
-#     later family step aborts the run — the audit is the cheap half.
+#     WHY HERE, the earliest legal slot: it only needs a fresh src_vndb (step 4).
+#     It must come after the step-5 tripwire because dead_at is a Gold write,
+#     and running it before the family rather than after means it still lands
+#     on the weeks a later family step aborts the run — the audit is the cheap
+#     half.
 #
-#     Its own --min-mirror-rows guard (default 50,000) refuses to write against
-#     a partially-loaded mirror, which would otherwise mark all ~64k anchors
-#     dead in one transaction and strip every VNDB link from the site.
-run sh -c "$DSNSH"'; audit-vndb-anchors --dsn "$CAT" --apply'
+#     Each lane's mirror-row floor refuses to write against a partially-loaded
+#     mirror (the dump reload replaces src_vndb wholesale, so the floors are
+#     exactly the partial-load case). A half-loaded vn table would otherwise
+#     mark all ~64k work anchors dead in one transaction and strip every VNDB
+#     link from the site. No dry-run ceiling: the floors are that guard.
+run sh -c "$DSNSH"'; audit-anchor-liveness --dsn "$CAT" --source vndb --apply --receipts /w/state/liveness-vndb.jsonl'
 
 # 5c. Mint stage — admit VNs that have appeared upstream since the last run as
 #     new catalog works. Until wave 211 nothing did this: every VNDB consumer
