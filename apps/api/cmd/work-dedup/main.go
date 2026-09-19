@@ -24,20 +24,25 @@ const waveTagW1 = "rule:work-dedup w1"
 const exitNewPairs = 3
 
 func main() {
-	mode := flag.String("mode", "census", "census | seed | seed-keys | propose | approve | execute | release | watch | crossmedium | nightly (seed+propose+execute over one census)")
-	actor := flag.Int64("actor", 0, "operator user id recorded on candidates/proposals (required for seed/seed-keys/propose/approve/execute/release/crossmedium/nightly)")
+	mode := flag.String("mode", "census", "census | seed | seed-keys | propose | approve | execute | release | watch | crossmedium | nightly (seed+propose+execute over one census) | pairs")
+	actor := flag.Int64("actor", 0, "operator user id recorded on candidates/proposals (required for seed/seed-keys/propose/approve/execute/release/crossmedium/nightly/pairs)")
 	run := flag.Bool("run", false, "write (default: dry-run preview)")
 	limit := flag.Int("limit", 0, "propose: max merge groups this run; approve/execute: max proposals this run (0 = all); seed-keys: max candidate rows written (0 = none)")
 	note := flag.String("note", waveTagW1, "wave note tag stamped on proposals and matched by -mode approve and -mode execute")
 	csvPath := flag.String("csv", "", "census: also export the full pair dossier to this CSV path")
+	pairsPath := flag.String("pairs", "", "pairs: TSV of source_work_id, target_work_id, evidence")
 	dsn := flag.String("dsn", "", "catalog DSN override (default: KUN_CATALOG_PG_* env)")
 	failOnNew := flag.Bool("fail-on-new", false, fmt.Sprintf("watch: exit %d when undecided new pairs exist; nightly: exit %d when the seed filed new needs_manual pairs", exitNewPairs, exitNewPairs))
 	flag.Parse()
 
 	writes := *mode == "seed" || *mode == "seed-keys" || *mode == "propose" || *mode == "approve" || *mode == "execute" ||
-		*mode == "release" || *mode == "crossmedium" || *mode == "nightly"
+		*mode == "release" || *mode == "crossmedium" || *mode == "nightly" || *mode == "pairs"
 	if writes && *actor <= 0 {
-		fmt.Fprintln(os.Stderr, "-actor <user-id> is required for seed/seed-keys/propose/approve/execute/release/crossmedium/nightly")
+		fmt.Fprintln(os.Stderr, "-actor <user-id> is required for seed/seed-keys/propose/approve/execute/release/crossmedium/nightly/pairs")
+		os.Exit(2)
+	}
+	if *mode == "pairs" && *pairsPath == "" {
+		fmt.Fprintln(os.Stderr, "-mode pairs requires -pairs <path>")
 		os.Exit(2)
 	}
 
@@ -80,6 +85,8 @@ func main() {
 		}
 	case "crossmedium":
 		err = runCrossMedium(ctx, db, os.Stdout, *actor, *run)
+	case "pairs":
+		err = runPairs(ctx, db, os.Stdout, merge, resolve, *actor, *note, *pairsPath, *run)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown mode %q\n", *mode)
 		os.Exit(2)
