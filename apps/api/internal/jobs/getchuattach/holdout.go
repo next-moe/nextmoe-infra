@@ -6,16 +6,11 @@ import (
 	"sort"
 )
 
-type holdoutRule struct {
-	Rule    string
-	Correct int
-	Wrong   int
-}
-
 func runHoldout(ctx context.Context, snap snapshot, opts Opts) (*Stats, error) {
 	_ = ctx
 	pop, truth := holdoutPopulation(snap)
-	planned, st := decide(snap, pop)
+	planned, leftover, st := decideAttach(snap, pop)
+	_ = leftover
 	rules := map[string]*holdoutRule{}
 	var wrong []plannedAction
 	for _, p := range planned {
@@ -71,4 +66,10 @@ func holdoutPopulation(snap snapshot) ([]item, map[string]int64) {
 		truth[it.GetchuID] = w
 	}
 	return pop, truth
+}
+
+type holdoutRule struct {
+	Rule    string
+	Correct int
+	Wrong   int
 }

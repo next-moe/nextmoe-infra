@@ -2,8 +2,10 @@ package getchuattach
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -11,6 +13,7 @@ import (
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/seed"
 	"api/internal/platform/catalog/srcbangumi"
+	"api/internal/platform/catalog/srcvndb"
 	"api/internal/testsupport/dbtest"
 
 	"github.com/stretchr/testify/require"
@@ -24,6 +27,7 @@ var (
 	testDB    *gorm.DB
 	testDSN   string
 	gcTestDSN string
+	egTestDSN string
 )
 
 func TestMain(m *testing.M) {
@@ -37,6 +41,8 @@ func TestMain(m *testing.M) {
 				fmt.Fprintf(os.Stderr, "DB TESTS SKIPPED: catalog migrate failed: %v\n", err)
 			} else if err := srcbangumi.EnsureSchema(db); err != nil {
 				fmt.Fprintf(os.Stderr, "DB TESTS SKIPPED: src_bangumi migrate failed: %v\n", err)
+			} else if err := srcvndb.EnsureSchema(db); err != nil {
+				fmt.Fprintf(os.Stderr, "DB TESTS SKIPPED: src_vndb migrate failed: %v\n", err)
 			} else if err := seed.Run(db); err != nil {
 				fmt.Fprintf(os.Stderr, "DB TESTS SKIPPED: catalog seed failed: %v\n", err)
 			} else {
@@ -48,7 +54,28 @@ func TestMain(m *testing.M) {
 						title text,
 						brand text,
 						release_date text,
-						parsed_json jsonb)`,
+						parsed_json jsonb,
+						raw_html text)`,
+					`ALTER TABLE getchuattach_gc.items ADD COLUMN IF NOT EXISTS raw_html text`,
+					`ALTER TABLE getchuattach_gc.items ADD COLUMN IF NOT EXISTS parsed_json jsonb`,
+					`CREATE SCHEMA IF NOT EXISTS getchuattach_eg`,
+					`CREATE TABLE IF NOT EXISTS getchuattach_eg.games (
+						id int PRIMARY KEY,
+						gamename text,
+						furigana text,
+						sellday text,
+						brand_id int,
+						erogame boolean,
+						raw jsonb)`,
+					`CREATE TABLE IF NOT EXISTS getchuattach_eg.brands (
+						id int PRIMARY KEY,
+						raw jsonb)`,
+					`CREATE TABLE IF NOT EXISTS getchuattach_eg.items (
+						id int PRIMARY KEY,
+						raw jsonb)`,
+					`CREATE TABLE IF NOT EXISTS getchuattach_eg.item_games (
+						item int,
+						game int)`,
 				} {
 					if err := db.Exec(ddl).Error; err != nil {
 						fmt.Fprintf(os.Stderr, "DB TESTS SKIPPED: staging fixture failed: %v\n", err)
@@ -58,6 +85,7 @@ func TestMain(m *testing.M) {
 				}
 				testDSN = dsn
 				gcTestDSN = dsn + " options='-csearch_path=getchuattach_gc'"
+				egTestDSN = dsn + " options='-csearch_path=getchuattach_eg'"
 				testDB = db
 			}
 		}
@@ -79,10 +107,12 @@ func requireDB(t *testing.T) *gorm.DB {
 func clean(t *testing.T) {
 	t.Helper()
 	for _, tbl := range []string{
-		"catalog_match_rejection", "catalog_external_ref",
+		"catalog_match_candidate", "catalog_match_rejection", "catalog_external_ref",
 		"catalog_work_title", "catalog_work_label",
 		"catalog_release", "catalog_revision", "catalog_work", "catalog_label",
-		"src_bangumi.subject", "getchuattach_gc.items",
+		"src_bangumi.subject", "src_vndb.releases",
+		"getchuattach_gc.items",
+		"getchuattach_eg.games", "getchuattach_eg.brands", "getchuattach_eg.items", "getchuattach_eg.item_games",
 	} {
 		require.NoError(t, testDB.Exec("TRUNCATE "+tbl+" CASCADE").Error)
 	}
@@ -166,11 +196,91 @@ func mkWorkLabel(t *testing.T, workID, labelID int64) {
 
 func insertFetched(t *testing.T, id, title, brand, releaseDate string) {
 	t.Helper()
+	insertItem(t, item{GetchuID: id, Title: title, Brand: brand, ReleaseDate: releaseDate})
+}
+
+func insertItem(t *testing.T, it item) {
+	t.Helper()
+	info := map[string]any{}
+	if it.JAN != 0 {
+		info["JANコード"] = strconv.FormatInt(it.JAN, 10)
+	}
+	if it.Genre != "" {
+		info["ジャンル"] = it.Genre
+	}
+	if it.Subgenre != "" {
+		info["サブジャンル"] = it.Subgenre
+	}
+	if it.Media != "" {
+		info["メディア"] = it.Media
+	}
+	parsed := map[string]any{"Info": info}
+	if it.BrandID != 0 {
+		parsed["BrandID"] = it.BrandID
+	}
+	rawHTML := ""
+	if it.Adult {
+		rawHTML = "18歳未満の方は購入できません"
+	}
+	parsedJSON, err := json.Marshal(parsed)
+	require.NoError(t, err)
 	require.NoError(t, testDB.Exec(
-		`INSERT INTO getchuattach_gc.items (getchu_id, status, title, brand, release_date)
-		 VALUES (?, 'fetched', ?, ?, ?)`,
-		id, nullIfEmpty(title), nullIfEmpty(brand), nullIfEmpty(releaseDate),
+		`INSERT INTO getchuattach_gc.items (getchu_id, status, title, brand, release_date, parsed_json, raw_html)
+		 VALUES (?, 'fetched', ?, ?, ?, ?, ?)`,
+		it.GetchuID, nullIfEmpty(it.Title), nullIfEmpty(it.Brand), nullIfEmpty(it.ReleaseDate),
+		parsedJSON, nullIfEmpty(rawHTML),
 	).Error)
+}
+
+func insertEGBrand(t *testing.T, id int64, name, furigana string) {
+	t.Helper()
+	raw, err := json.Marshal(map[string]string{"brandname": name, "brandfurigana": furigana})
+	require.NoError(t, err)
+	require.NoError(t, testDB.Exec(`INSERT INTO getchuattach_eg.brands (id, raw) VALUES (?, ?)`, id, raw).Error)
+}
+
+func insertEGGame(t *testing.T, id int64, name, sellday string, brandID int64) {
+	t.Helper()
+	require.NoError(t, testDB.Exec(
+		`INSERT INTO getchuattach_eg.games (id, gamename, sellday, brand_id) VALUES (?, ?, ?, ?)`,
+		id, name, sellday, brandID,
+	).Error)
+}
+
+func insertEGItemJAN(t *testing.T, id int64, jan string) {
+	t.Helper()
+	raw, err := json.Marshal(map[string]string{"jan": jan})
+	require.NoError(t, err)
+	require.NoError(t, testDB.Exec(`INSERT INTO getchuattach_eg.items (id, raw) VALUES (?, ?)`, id, raw).Error)
+}
+
+func insertEGItemGame(t *testing.T, itemID, game int64) {
+	t.Helper()
+	require.NoError(t, testDB.Exec(`INSERT INTO getchuattach_eg.item_games (item, game) VALUES (?, ?)`, itemID, game).Error)
+}
+
+func mapEGWork(t *testing.T, workID, egID int64) {
+	t.Helper()
+	mkRef(t, model.EntityTypeWork, workID, sourceID(t, "erogamescape"), strconv.FormatInt(egID, 10), model.LinkKindExact)
+}
+
+func insertVNDBRelease(t *testing.T, id string, gtin int64) {
+	t.Helper()
+	require.NoError(t, testDB.Exec(`INSERT INTO src_vndb.releases
+		(id, gtin, olang, released, voiced, reso_x, reso_y, ani_story, ani_ero, has_ero, patch, freeware, official, catalog, notes, engine)
+		VALUES (?, ?, 'ja', 20010101, 0, 0, 0, 0, 0, false, false, false, true, '', '', '')`, id, gtin).Error)
+}
+
+func seedMintBrand(t *testing.T, brandID int64, name string) int64 {
+	t.Helper()
+	insertEGBrand(t, brandID, name, "")
+	require.NoError(t, testDB.Exec(
+		`INSERT INTO getchuattach_eg.games (id, gamename, sellday, brand_id, erogame) VALUES (?, ?, '1990-01-01', ?, true)`,
+		100000+brandID, fmt.Sprintf("Adult Catalogue %d", brandID), brandID,
+	).Error)
+	lid := mkLabel(t, name)
+	mkRef(t, model.EntityTypeLabel, lid, sourceID(t, "erogamescape"), strconv.FormatInt(brandID, 10), model.LinkKindExact)
+	return lid
 }
 
 func insertBgmSubject(t *testing.T, id int64, date string) {
@@ -198,7 +308,7 @@ func nullIfEmpty(s string) any {
 func runLane(t *testing.T, apply bool, receipts string) *Stats {
 	t.Helper()
 	st, err := Run(context.Background(), Opts{
-		Apply: apply, DSN: testDSN, GetchuDSN: gcTestDSN, Receipts: receipts,
+		Apply: apply, DSN: testDSN, GetchuDSN: gcTestDSN, EGDSN: egTestDSN, Receipts: receipts,
 		Now: time.Date(2026, 9, 18, 0, 0, 0, 0, time.UTC),
 	})
 	require.NoError(t, err)
@@ -243,4 +353,12 @@ func attachedRelease(t *testing.T, getchuID string) model.CatalogRelease {
 	var rel model.CatalogRelease
 	require.NoError(t, testDB.First(&rel, refs[0].EntityID).Error)
 	return rel
+}
+
+func mintedWork(t *testing.T, getchuID string) model.CatalogWork {
+	t.Helper()
+	rel := attachedRelease(t, getchuID)
+	var w model.CatalogWork
+	require.NoError(t, testDB.First(&w, rel.WorkID).Error)
+	return w
 }

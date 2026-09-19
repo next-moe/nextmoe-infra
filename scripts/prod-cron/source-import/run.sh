@@ -174,19 +174,6 @@ ceiling_failed() {
   fi
 }
 
-begin_group getchu
-gstep import-getchu-refs --apply
-if [ "$GROUP_FAIL" -eq 0 ]; then
-  if dry_ok getchu-attach sh -c "$DSNSH"'; reconcile-getchu --dsn "$CAT" --getchu-dsn "$GC"' \
-     && check_counters getchu-attach "$last_dry_log" attached=300; then
-    gstep sh -c "$DSNSH"'; reconcile-getchu --dsn "$CAT" --getchu-dsn "$GC" --apply'
-  else
-    ceiling_failed
-  fi
-fi
-gstep sh -c "$DSNSH"'; import-getchu-intros --dsn "$CAT" --getchu-dsn "$GC" --population all --apply'
-gstep sh -c "$DSNSH"'; import-getchu-characters --dsn "$CAT" --getchu-dsn "$GC" --apply'
-
 begin_group vndb-extra
 gstep sh -c "$DSNSH"'; import-store-anchors --dsn "$CAT" --only dmm --apply'
 gstep sh -c "$DSNSH"'; import-store-anchors --dsn "$CAT" --only dlsite --apply'
@@ -345,6 +332,20 @@ if [ "$GROUP_FAIL" -eq 0 ]; then
     ceiling_failed
   fi
 fi
+
+begin_group getchu
+# After EG and DLsite so a Getchu mint sees the works those lanes just created.
+gstep import-getchu-refs --apply
+if [ "$GROUP_FAIL" -eq 0 ]; then
+  if dry_ok getchu-attach sh -c "$DSNSH"'; reconcile-getchu --dsn "$CAT" --getchu-dsn "$GC" --eg-dsn "$EG"' \
+     && check_counters getchu-attach "$last_dry_log" attached=300 minted_live=50 minted_quarantined=100; then
+    gstep sh -c "$DSNSH"'; reconcile-getchu --dsn "$CAT" --getchu-dsn "$GC" --eg-dsn "$EG" --apply'
+  else
+    ceiling_failed
+  fi
+fi
+gstep sh -c "$DSNSH"'; import-getchu-intros --dsn "$CAT" --getchu-dsn "$GC" --population all --apply'
+gstep sh -c "$DSNSH"'; import-getchu-characters --dsn "$CAT" --getchu-dsn "$GC" --apply'
 
 begin_group labels
 # Last, so the works the groups above minted carry their anchors first. vndb and
