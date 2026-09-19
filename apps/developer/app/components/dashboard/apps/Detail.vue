@@ -1,13 +1,9 @@
 <script setup lang="ts">
 import {
   API_CODE_VALIDATION_FAILED,
-  DEV_APP_REVIEW_COLORS,
-  DEV_APP_REVIEW_LABELS,
   DEV_CAP_APP_MANAGE,
   DEV_CAP_KEY_MINT,
   DEV_DISABLED_HINT,
-  DEV_TIER_COLORS,
-  DEV_TIER_LABELS,
   isAppUnderReview
 } from '~/constants/dev'
 import type {
@@ -43,14 +39,6 @@ const mintDisabled = computed(() => policy(DEV_CAP_KEY_MINT) === 'disabled')
 
 const reviewStatus = computed(() => app.value?.review_status ?? '')
 const underReview = computed(() => isAppUnderReview(reviewStatus.value))
-const isDeclined = computed(() => reviewStatus.value === 'declined')
-const reviewChip = computed(() => {
-  if (!underReview.value) return null
-  return {
-    label: DEV_APP_REVIEW_LABELS[reviewStatus.value],
-    color: DEV_APP_REVIEW_COLORS[reviewStatus.value]
-  }
-})
 
 const busy = ref(false)
 const showEditModal = ref(false)
@@ -95,9 +83,6 @@ const runConfirm = async () => {
     confirmOpen.value = false
   }
 }
-
-const limitLabel = (v: number, unit: string) =>
-  v > 0 ? `${v.toLocaleString()} ${unit}` : '不限'
 
 const handleMinted = (minted: DevKeyMinted) => {
   reveal(minted, false)
@@ -253,180 +238,21 @@ const askDeleteApp = () => {
     </KunCard>
 
     <template v-else>
-      <KunCard content-class="justify-start gap-0" class-name="p-6">
-        <div class="flex items-start justify-between gap-4">
-          <div class="min-w-0">
-            <div class="flex flex-wrap items-center gap-2">
-              <h2 class="text-foreground text-lg font-semibold">
-                {{ app.name }}
-              </h2>
-              <KunChip
-                :color="DEV_TIER_COLORS[app.tier] ?? 'default'"
-                variant="flat"
-                size="sm"
-              >
-                {{ DEV_TIER_LABELS[app.tier] ?? app.tier }}
-              </KunChip>
-              <KunChip
-                v-if="reviewChip"
-                :color="reviewChip.color"
-                variant="flat"
-                size="sm"
-              >
-                {{ reviewChip.label }}
-              </KunChip>
-            </div>
-            <p v-if="app.description" class="text-default-500 mt-1 text-sm">
-              {{ app.description }}
-            </p>
-            <div class="mt-2 flex items-center gap-2">
-              <p class="text-default-400 truncate font-mono text-sm">
-                {{ app.client_id }}
-              </p>
-              <KunCopy :text="app.client_id" size="sm" />
-            </div>
-          </div>
-          <div class="flex shrink-0 gap-1">
-            <KunButton
-              v-if="isDeclined"
-              color="primary"
-              size="sm"
-              :disabled="resubmitting"
-              @click="resubmit"
-            >
-              <KunIcon
-                v-if="resubmitting"
-                name="lucide:loader-circle"
-                class="mr-1 size-4 animate-spin"
-              />
-              <KunIcon v-else name="lucide:send" class="mr-1 size-4" />
-              重新提交
-            </KunButton>
-            <KunButton
-              variant="flat"
-              size="sm"
-              :disabled="manageDisabled"
-              @click="showEditModal = true"
-            >
-              <KunIcon name="lucide:pencil" class="mr-1 size-4" />
-              编辑
-            </KunButton>
-            <KunButton
-              color="danger"
-              variant="flat"
-              size="sm"
-              :disabled="manageDisabled"
-              @click="askDeleteApp"
-            >
-              <KunIcon name="lucide:trash-2" class="mr-1 size-4" />
-              {{ deleteAction.label }}
-            </KunButton>
-          </div>
-        </div>
+      <DashboardAppsOverview
+        :app="app"
+        :manage-disabled="manageDisabled"
+        :resubmitting="resubmitting"
+        :delete-label="deleteAction.label"
+        @edit="showEditModal = true"
+        @delete="askDeleteApp"
+        @resubmit="resubmit"
+      />
 
-        <p
-          v-if="isDeclined && app.review_note"
-          class="bg-danger-50 text-danger mt-3 rounded-lg p-3 text-sm"
-        >
-          未通过审核：{{ app.review_note }}
-        </p>
-        <p
-          v-else-if="reviewStatus === 'pending'"
-          class="bg-warning-50 text-warning mt-3 rounded-lg p-3 text-sm"
-        >
-          已提交，等待平台审核。通过后应用即启用，届时可铸造密钥。
-        </p>
-        <p
-          v-else-if="manageDisabled"
-          class="bg-default-100 text-default-500 mt-3 rounded-lg p-3 text-sm"
-        >
-          {{ DEV_DISABLED_HINT }}：应用的编辑与删除暂由平台代为处理。
-        </p>
-
-        <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div>
-            <p class="text-default-400 text-xs">分层</p>
-            <p class="text-foreground mt-0.5 text-sm">
-              {{ DEV_TIER_LABELS[app.tier] ?? app.tier }}
-            </p>
-          </div>
-          <div>
-            <p class="text-default-400 text-xs">限流</p>
-            <p class="text-foreground mt-0.5 text-sm">
-              {{ limitLabel(app.rate_per_min, '次/分') }}
-            </p>
-          </div>
-          <div>
-            <p class="text-default-400 text-xs">日配额</p>
-            <p class="text-foreground mt-0.5 text-sm">
-              {{ limitLabel(app.quota_daily, '次/日') }}
-            </p>
-          </div>
-          <div>
-            <p class="text-default-400 text-xs">创建时间</p>
-            <p class="text-foreground mt-0.5 text-sm">
-              {{ formatDate(app.created_at, { isShowYear: true }) }}
-            </p>
-          </div>
-        </div>
-      </KunCard>
-
-      <div class="flex items-center justify-between">
-        <h2 class="text-foreground text-lg font-semibold">用户登录</h2>
-        <KunButton
-          :color="app.user_login ? 'default' : 'primary'"
-          variant="flat"
-          size="sm"
-          :disabled="manageDisabled"
-          @click="showUserLoginModal = true"
-        >
-          <KunIcon
-            :name="app.user_login ? 'lucide:pencil' : 'lucide:log-in'"
-            class="mr-1 size-4"
-          />
-          {{ app.user_login ? '编辑' : '开启用户登录' }}
-        </KunButton>
-      </div>
-
-      <KunCard content-class="justify-start gap-0" class-name="p-6">
-        <div v-if="app.user_login" class="space-y-4">
-          <div>
-            <p class="text-default-400 text-xs">回调地址</p>
-            <div class="mt-1 space-y-1">
-              <div
-                v-for="uri in app.user_login.redirect_uris"
-                :key="uri"
-                class="flex min-w-0 items-center gap-2"
-              >
-                <p class="text-foreground truncate font-mono text-sm">
-                  {{ uri }}
-                </p>
-                <KunCopy :text="uri" size="sm" />
-              </div>
-            </div>
-          </div>
-          <div>
-            <p class="text-default-400 text-xs">同意 scope</p>
-            <div class="mt-1 flex flex-wrap gap-2">
-              <KunChip
-                v-for="scope in app.user_login.scopes"
-                :key="scope"
-                variant="flat"
-                size="sm"
-              >
-                {{ scope }}
-              </KunChip>
-            </div>
-          </div>
-          <p class="text-default-500 text-xs">
-            PKCE 强制（S256）：授权请求必须携带 code_challenge。
-          </p>
-        </div>
-        <p v-else class="text-default-500 text-sm">
-          开启后，应用可通过 OAuth 授权码 + PKCE 流程让 NextMoe
-          用户登录；回调地址与 scope 在此自助配置，无需联系平台。
-        </p>
-      </KunCard>
+      <DashboardAppsUserLoginCard
+        :app="app"
+        :disabled="manageDisabled"
+        @edit="showUserLoginModal = true"
+      />
 
       <div class="flex items-center justify-between">
         <h2 class="text-foreground text-lg font-semibold">API 密钥</h2>
