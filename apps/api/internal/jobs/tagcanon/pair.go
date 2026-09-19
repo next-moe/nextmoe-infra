@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"api/internal/infrastructure/database"
+	"api/internal/platform/catalog/vndbtagmap"
 
 	"gorm.io/gorm"
 )
@@ -301,14 +302,16 @@ func loadNameWorkIDs(ctx context.Context, db *gorm.DB, sourceID int16) (map[stri
 }
 
 func loadVndbOrig(tagMapPath string) func(string) string {
-	path := tagMapPath
-	if path == "" {
-		path = DefaultTagMapPath()
-	}
-	m, err := ParseTagMap(path)
-	if err != nil {
-		slog.Warn("tag-pair: tagMap unreadable — vndb originals fall back to zh names", "path", path, "err", err)
-		return func(s string) string { return s }
+	var m map[string]string
+	if tagMapPath == "" {
+		m = vndbtagmap.Embedded()
+	} else {
+		parsed, err := ParseTagMap(tagMapPath)
+		if err != nil {
+			slog.Warn("tag-pair: tagMap unreadable — vndb originals fall back to zh names", "path", tagMapPath, "err", err)
+			return func(s string) string { return s }
+		}
+		m = parsed
 	}
 	inv := make(map[string]string, len(m))
 	for eng, zh := range m {

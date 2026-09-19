@@ -58,7 +58,8 @@ extract_tool_cmd() {
     reconcile-eg-anchors \
     reconcile-eg-works \
     reconcile-getchu \
-    backfill-release-meta
+    backfill-release-meta \
+    sync-vndb-tags
   do
     case "$s" in
       *"$t"*)
@@ -100,6 +101,9 @@ emit_tool() {
       ;;
     backfill-release-meta)
       echo '2026/09/19 00:00:00 INFO backfill-release-meta summary apply=false dates_candidates=0 dates_same=0 dates_unknown=0 dates_human=0 dates_written=0 dates_lost=0 all_filled=0 all_moved=0 all_cleared=0 vndb_date_filled=0 vndb_date_moved=0 vndb_date_cleared=0 dl_date_filled=0 dl_date_moved=0 dl_date_cleared=0 gc_date_filled=0 gc_date_moved=0 gc_date_cleared=0 eg_date_filled=0 eg_date_moved=0 eg_date_cleared=0 bgm_date_filled=0 bgm_date_moved=0 bgm_date_cleared=0 vndb_missing=0 dl_missing=0 gc_missing=0 eg_missing=0 bgm_missing=0 rating_candidates=0 rating_vndb_r18=0 rating_dl_r18=0 rating_dl_sensitive=0 rating_dl_all_ages=0 rating_eg_r18=0 rating_bgm_r18=0 rating_no_verdict=0 rating_planned=0 rating_filled=0 rating_skipped_non_empty=0 rating_curated_override=0 errors=0'
+      ;;
+    sync-vndb-tags)
+      echo '2026/09/19 00:00:00 INFO sync-vndb-tags summary apply=false works_population=0 works_multi_anchor=0 works_vn_missing=0 works_changed=0 orphan_works=0 tags_desired=0 tags_same=0 tags_inserted=0 tags_updated=0 tags_deleted=0 tags_lost=0 orphan_rows_removed=0 sexual_inherited=0 errors=0'
       ;;
     import-eg-dlsite-releases)
       echo '2026/09/17 05:21:23 INFO eg-dlsite wave summary attached=0 minted=0 already=0 ambiguous=0 missing=0 title_collisions=0 quarantined=0 skipped_intra_collision=0 errors=0'
@@ -273,7 +277,8 @@ case "$1" in
       reconcile-eg-anchors \
       reconcile-eg-works \
       reconcile-getchu \
-      backfill-release-meta
+      backfill-release-meta \
+      sync-vndb-tags
     do
       case "$toolcmd" in
         *"$t"*) tool=$t; break ;;
@@ -617,6 +622,50 @@ td=$(mktemp -d)
 install_fakes "$td"
 printf '%s\n' '2026/09/19 00:00:00 INFO backfill-release-meta summary all_filled=0 all_moved=0' \
   > "$td/ctl/out/backfill-release-meta"
+run_job "$td"
+expect_exit_nonzero "$td"
+if has_stamp "$td"; then fail "stamp written"; fi
+if ! alert_text "$td" | grep -q '\[FAIL\]'; then fail "no FAIL alert"; fi
+tend
+rm -rf "$td"
+
+# --- T14: vndb-tags all-zero is converged ---
+tstart 14
+td=$(mktemp -d)
+install_fakes "$td"
+run_job "$td"
+expect_exit "$td" 0
+if ! has_stamp "$td"; then fail "missing stamp"; fi
+if has_alert "$td"; then fail "unexpected alert"; fi
+if ! job_log "$td" | grep -q 'recon verdict=converged'; then fail "missing converged verdict"; fi
+if ! grep -q '^sync-vndb-tags$' "$td/ctl/tools.log"; then fail "vndb-tags lane never ran"; fi
+vt_cmd='sync-vndb-tags --dsn "$CAT"'
+if ! grep -q -F -- "$vt_cmd" "$td/ctl/docker.args"; then fail "vndb-tags lane missing its command"; fi
+if grep -F -- 'sync-vndb-tags' "$td/ctl/docker.args" | grep -q -- '--apply'; then fail "vndb-tags lane is not read-only"; fi
+tend
+rm -rf "$td"
+
+# --- T15: tags_deleted>0 alerts [RECON] naming vndb-tags, still stamps ---
+tstart 15
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' '2026/09/19 00:00:00 INFO sync-vndb-tags summary tags_inserted=0 tags_deleted=3 orphan_rows_removed=0' \
+  > "$td/ctl/out/sync-vndb-tags"
+run_job "$td"
+expect_exit "$td" 0
+if ! has_stamp "$td"; then fail "missing stamp"; fi
+if [ "$(alert_count "$td")" != 1 ]; then fail "alert count $(alert_count "$td") want 1"; fi
+if ! alert_text "$td" | grep -q '\[RECON\]'; then fail "no RECON alert"; fi
+if ! alert_text "$td" | grep -q 'vndb-tags'; then fail "alert did not name vndb-tags"; fi
+tend
+rm -rf "$td"
+
+# --- T16: dry output missing orphan_rows_removed is [FAIL], no stamp ---
+tstart 16
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' '2026/09/19 00:00:00 INFO sync-vndb-tags summary tags_inserted=0 tags_deleted=0' \
+  > "$td/ctl/out/sync-vndb-tags"
 run_job "$td"
 expect_exit_nonzero "$td"
 if has_stamp "$td"; then fail "stamp written"; fi

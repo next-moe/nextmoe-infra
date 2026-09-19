@@ -38,7 +38,7 @@ func main() {
 	llmBase := flag.String("llm-base", envOr("KUN_TAG_PAIR_LLM_BASE", os.Getenv("KUN_AI_UPSTREAM_BASE_URL")), "OpenAI-compatible gateway base URL (…/v1)")
 	llmToken := flag.String("llm-token", envOr("KUN_TAG_PAIR_LLM_TOKEN", os.Getenv("KUN_AI_UPSTREAM_TOKEN")), "gateway bearer token")
 	maxTokens := flag.Int("max-tokens", 1024, "LLM max_tokens per judgment")
-	tagMapPath := flag.String("tagmap", os.Getenv("KUN_VNDB_TAGMAP_PATH"), "propose: docs/tagMap.ts override (vndb EN originals)")
+	tagMapPath := flag.String("tagmap", os.Getenv("KUN_VNDB_TAGMAP_PATH"), "propose: override of the embedded VNDB tag map (vndb EN originals)")
 	mock := flag.Bool("mock", false, "propose: REHEARSAL ONLY offline deterministic matcher (no network)")
 	flag.Parse()
 
