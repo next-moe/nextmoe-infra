@@ -281,6 +281,14 @@ run import-vndb-releases --apply --stale-anchors-out /w/stale-anchors.tsv
 #      wrote zero).
 run sh -c "$DSNSH"'; backfill-work-zh-titles --dsn "$CAT" --mode source --source vndb --apply'
 
+# 6a3b. The titles 5c writes for a work it mints, for works that got their VNDB
+#       anchor some other way. The 2026-07-06 wiki fold anchored 4,084 works whose
+#       names only covered ja/en/zh, so their Russian, Korean, Spanish… original
+#       titles were never stored and 2,714 of them had an empty display_name, which
+#       every public face prints as the work's name. Fill-missing only: no title is
+#       updated or deleted, and a display_name is written only when it is empty.
+run sh -c "$DSNSH"'; backfill-vndb-work-titles --dsn "$CAT" --apply'
+
 # 6a4. Steam release anchors from the extlinks step 4 just reloaded. Until this
 #      line the steam lane only ever ran by hand (store wave, 2026-08-26), so
 #      works minted after that day had no steam anchor and the whole HLTB layer
