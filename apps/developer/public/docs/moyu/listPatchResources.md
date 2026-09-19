@@ -28,7 +28,7 @@ URL, exactly as on the site.
 | `limit` | query | 否 | integer | 1 to 100. Over 100 is `LIMIT_TOO_LARGE`; the value is not clamped. |
 | `cursor` | query | 否 | string | The `next_cursor` from a previous page of the same collection. |
 | `include_total` | query | 否 | boolean | Count the whole collection. Absent by default because it costs a count. |
-| `include` | query | 否 | string |  取值：publisher |
+| `include` | query | 否 | string[] |  取值：publisher |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/moyu/patches/value/resources" \

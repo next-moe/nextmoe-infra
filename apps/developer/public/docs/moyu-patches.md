@@ -119,7 +119,7 @@ curl "https://api.nextmoe.dev/v2/moyu/patches?limit=2&sort=updated&has_resources
 - `sort` 一律降序，可取 `updated`（默认）、`created`、`downloads`、`views`。`updated` 排的是**资源**最近一次新增或改动的时间（也就是 `resource_updated_at`），这与补丁页本身被编辑的时间不是一回事。
 - `has_resources` 不传时返回全部页。一个页可以还没有任何资源，`true` 就是「确实有东西可下」的那道过滤。
 - `type`、`language`、`platform` 都是逗号分隔的多值，命中其中任意一个即可（例如 `type=ai,manual`）。
-- `include=` 只认 `resources`、`publisher`、`resources,publisher` 三种写法；写别的是 `400 UNKNOWN_INCLUDE`。
+- `include=` 的取值是 `resources`、`publisher`，逗号分隔、顺序不限（`resources,publisher` 与 `publisher,resources` 等价）；写别的是 `400 UNKNOWN_INCLUDE`。
 - 单页详情 `GET /v2/moyu/patches/{id}` **默认什么都不附加**，资源也不例外：先看 `resource_count` 有没有东西可要，数量多时用 `/v2/moyu/patches/{id}/resources` 翻页。
 
 ### 例二：refs= 批量反查

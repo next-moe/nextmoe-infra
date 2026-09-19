@@ -193986,26 +193986,25 @@ export const docsModel: DocsModel = {
                   "name": "include",
                   "in": "query",
                   "required": false,
-                  "type": "string",
+                  "type": "string[]",
                   "doc": "Comma-separated relations to attach.",
                   "enum": [
                     "resources",
-                    "publisher",
-                    "resources,publisher"
+                    "publisher"
                   ]
                 },
                 {
                   "name": "ids",
                   "in": "query",
                   "required": false,
-                  "type": "string",
+                  "type": "string[]",
                   "doc": "Up to 100 moyu patch ids. Mutually exclusive with `refs`.\n"
                 },
                 {
                   "name": "refs",
                   "in": "query",
                   "required": false,
-                  "type": "string",
+                  "type": "string[]",
                   "doc": "Up to 100 foreign anchors as `source:external_id`. Sources are\n`vndb` (a VNDB id such as `v65869`) and `catalog` (a NextMoe catalog\nwork id). Mutually exclusive with `ids`.\n"
                 },
                 {
@@ -194025,22 +194024,51 @@ export const docsModel: DocsModel = {
                   "name": "type",
                   "in": "query",
                   "required": false,
-                  "type": "string",
-                  "doc": "Comma-separated patch kinds; any of them matches."
+                  "type": "string[]",
+                  "doc": "Comma-separated patch kinds; any of them matches.",
+                  "enum": [
+                    "manual",
+                    "ai",
+                    "machine_polishing",
+                    "machine",
+                    "save",
+                    "crack",
+                    "fix",
+                    "mod",
+                    "r18",
+                    "decensor",
+                    "image",
+                    "other"
+                  ]
                 },
                 {
                   "name": "language",
                   "in": "query",
                   "required": false,
-                  "type": "string",
-                  "doc": "Comma-separated languages; any of them matches."
+                  "type": "string[]",
+                  "doc": "Comma-separated languages; any of them matches.",
+                  "enum": [
+                    "zh-Hans",
+                    "zh-Hant",
+                    "ja",
+                    "en",
+                    "other"
+                  ]
                 },
                 {
                   "name": "platform",
                   "in": "query",
                   "required": false,
-                  "type": "string",
-                  "doc": "Comma-separated platforms; any of them matches."
+                  "type": "string[]",
+                  "doc": "Comma-separated platforms; any of them matches.",
+                  "enum": [
+                    "windows",
+                    "android",
+                    "macos",
+                    "ios",
+                    "linux",
+                    "other"
+                  ]
                 },
                 {
                   "name": "has_resources",
@@ -194523,6 +194551,21 @@ export const docsModel: DocsModel = {
                           "children": [
                             {
                               "name": "parameter",
+                              "enum": [
+                                "id",
+                                "limit",
+                                "cursor",
+                                "include_total",
+                                "include",
+                                "nsfw",
+                                "ids",
+                                "refs",
+                                "sort",
+                                "type",
+                                "language",
+                                "platform",
+                                "has_resources"
+                              ],
                               "type": "string"
                             },
                             {
@@ -194623,6 +194666,21 @@ export const docsModel: DocsModel = {
                           "children": [
                             {
                               "name": "parameter",
+                              "enum": [
+                                "id",
+                                "limit",
+                                "cursor",
+                                "include_total",
+                                "include",
+                                "nsfw",
+                                "ids",
+                                "refs",
+                                "sort",
+                                "type",
+                                "language",
+                                "platform",
+                                "has_resources"
+                              ],
                               "type": "string"
                             },
                             {
@@ -194723,6 +194781,21 @@ export const docsModel: DocsModel = {
                           "children": [
                             {
                               "name": "parameter",
+                              "enum": [
+                                "id",
+                                "limit",
+                                "cursor",
+                                "include_total",
+                                "include",
+                                "nsfw",
+                                "ids",
+                                "refs",
+                                "sort",
+                                "type",
+                                "language",
+                                "platform",
+                                "has_resources"
+                              ],
                               "type": "string"
                             },
                             {
@@ -194773,12 +194846,11 @@ export const docsModel: DocsModel = {
                   "name": "include",
                   "in": "query",
                   "required": false,
-                  "type": "string",
+                  "type": "string[]",
                   "doc": "Comma-separated relations to attach. Nothing is attached by default,\nincluding the resources — `resource_count` tells you whether there\nis anything to ask for, and `/patches/{id}/resources` pages them\nwhen there are many.\n",
                   "enum": [
                     "resources",
-                    "publisher",
-                    "resources,publisher"
+                    "publisher"
                   ]
                 }
               ],
@@ -195218,6 +195290,21 @@ export const docsModel: DocsModel = {
                           "children": [
                             {
                               "name": "parameter",
+                              "enum": [
+                                "id",
+                                "limit",
+                                "cursor",
+                                "include_total",
+                                "include",
+                                "nsfw",
+                                "ids",
+                                "refs",
+                                "sort",
+                                "type",
+                                "language",
+                                "platform",
+                                "has_resources"
+                              ],
                               "type": "string"
                             },
                             {
@@ -195318,6 +195405,21 @@ export const docsModel: DocsModel = {
                           "children": [
                             {
                               "name": "parameter",
+                              "enum": [
+                                "id",
+                                "limit",
+                                "cursor",
+                                "include_total",
+                                "include",
+                                "nsfw",
+                                "ids",
+                                "refs",
+                                "sort",
+                                "type",
+                                "language",
+                                "platform",
+                                "has_resources"
+                              ],
                               "type": "string"
                             },
                             {
@@ -195418,6 +195520,21 @@ export const docsModel: DocsModel = {
                           "children": [
                             {
                               "name": "parameter",
+                              "enum": [
+                                "id",
+                                "limit",
+                                "cursor",
+                                "include_total",
+                                "include",
+                                "nsfw",
+                                "ids",
+                                "refs",
+                                "sort",
+                                "type",
+                                "language",
+                                "platform",
+                                "has_resources"
+                              ],
                               "type": "string"
                             },
                             {
@@ -195518,6 +195635,21 @@ export const docsModel: DocsModel = {
                           "children": [
                             {
                               "name": "parameter",
+                              "enum": [
+                                "id",
+                                "limit",
+                                "cursor",
+                                "include_total",
+                                "include",
+                                "nsfw",
+                                "ids",
+                                "refs",
+                                "sort",
+                                "type",
+                                "language",
+                                "platform",
+                                "has_resources"
+                              ],
                               "type": "string"
                             },
                             {
@@ -195590,7 +195722,7 @@ export const docsModel: DocsModel = {
                   "name": "include",
                   "in": "query",
                   "required": false,
-                  "type": "string",
+                  "type": "string[]",
                   "enum": [
                     "publisher"
                   ]
@@ -195875,6 +196007,21 @@ export const docsModel: DocsModel = {
                           "children": [
                             {
                               "name": "parameter",
+                              "enum": [
+                                "id",
+                                "limit",
+                                "cursor",
+                                "include_total",
+                                "include",
+                                "nsfw",
+                                "ids",
+                                "refs",
+                                "sort",
+                                "type",
+                                "language",
+                                "platform",
+                                "has_resources"
+                              ],
                               "type": "string"
                             },
                             {
@@ -195975,6 +196122,21 @@ export const docsModel: DocsModel = {
                           "children": [
                             {
                               "name": "parameter",
+                              "enum": [
+                                "id",
+                                "limit",
+                                "cursor",
+                                "include_total",
+                                "include",
+                                "nsfw",
+                                "ids",
+                                "refs",
+                                "sort",
+                                "type",
+                                "language",
+                                "platform",
+                                "has_resources"
+                              ],
                               "type": "string"
                             },
                             {
@@ -196075,6 +196237,21 @@ export const docsModel: DocsModel = {
                           "children": [
                             {
                               "name": "parameter",
+                              "enum": [
+                                "id",
+                                "limit",
+                                "cursor",
+                                "include_total",
+                                "include",
+                                "nsfw",
+                                "ids",
+                                "refs",
+                                "sort",
+                                "type",
+                                "language",
+                                "platform",
+                                "has_resources"
+                              ],
                               "type": "string"
                             },
                             {
@@ -196175,6 +196352,21 @@ export const docsModel: DocsModel = {
                           "children": [
                             {
                               "name": "parameter",
+                              "enum": [
+                                "id",
+                                "limit",
+                                "cursor",
+                                "include_total",
+                                "include",
+                                "nsfw",
+                                "ids",
+                                "refs",
+                                "sort",
+                                "type",
+                                "language",
+                                "platform",
+                                "has_resources"
+                              ],
                               "type": "string"
                             },
                             {
@@ -196231,7 +196423,7 @@ export const docsModel: DocsModel = {
                   "name": "include",
                   "in": "query",
                   "required": false,
-                  "type": "string",
+                  "type": "string[]",
                   "enum": [
                     "publisher"
                   ]
@@ -196489,6 +196681,21 @@ export const docsModel: DocsModel = {
                           "children": [
                             {
                               "name": "parameter",
+                              "enum": [
+                                "id",
+                                "limit",
+                                "cursor",
+                                "include_total",
+                                "include",
+                                "nsfw",
+                                "ids",
+                                "refs",
+                                "sort",
+                                "type",
+                                "language",
+                                "platform",
+                                "has_resources"
+                              ],
                               "type": "string"
                             },
                             {
@@ -196589,6 +196796,21 @@ export const docsModel: DocsModel = {
                           "children": [
                             {
                               "name": "parameter",
+                              "enum": [
+                                "id",
+                                "limit",
+                                "cursor",
+                                "include_total",
+                                "include",
+                                "nsfw",
+                                "ids",
+                                "refs",
+                                "sort",
+                                "type",
+                                "language",
+                                "platform",
+                                "has_resources"
+                              ],
                               "type": "string"
                             },
                             {
@@ -196689,6 +196911,21 @@ export const docsModel: DocsModel = {
                           "children": [
                             {
                               "name": "parameter",
+                              "enum": [
+                                "id",
+                                "limit",
+                                "cursor",
+                                "include_total",
+                                "include",
+                                "nsfw",
+                                "ids",
+                                "refs",
+                                "sort",
+                                "type",
+                                "language",
+                                "platform",
+                                "has_resources"
+                              ],
                               "type": "string"
                             },
                             {
@@ -196789,6 +197026,21 @@ export const docsModel: DocsModel = {
                           "children": [
                             {
                               "name": "parameter",
+                              "enum": [
+                                "id",
+                                "limit",
+                                "cursor",
+                                "include_total",
+                                "include",
+                                "nsfw",
+                                "ids",
+                                "refs",
+                                "sort",
+                                "type",
+                                "language",
+                                "platform",
+                                "has_resources"
+                              ],
                               "type": "string"
                             },
                             {

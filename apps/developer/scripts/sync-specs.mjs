@@ -289,21 +289,43 @@ const derefParam = (param, paramDefs) => {
   return cur
 }
 
-const buildParams = (rawParams = [], paramDefs = {}) => {
+const derefSchema = (schema, schemas) => {
+  const seen = new Set()
+  let cur = schema
+  while (cur?.$ref) {
+    const rn = refName(cur.$ref)
+    if (seen.has(rn)) break
+    seen.add(rn)
+    const next = schemas[rn]
+    if (!next) throw new Error(`unresolved $ref: ${cur.$ref}`)
+    cur = next
+  }
+  return cur || {}
+}
+
+// moyu 1.1.0 declared its comma-separated filters as arrays (style: form,
+// explode: false) whose values live on `items` — an enum there, or a $ref to a
+// named vocabulary — and the reference page showed `array` with no values.
+const buildParams = (rawParams = [], paramDefs = {}, schemas = {}) => {
   const mapped = rawParams.map((raw) => {
     const p = derefParam(raw, paramDefs)
-    const s = p.schema || {}
+    const s = derefSchema(p.schema, schemas)
     const { primary } = splitType(s.type)
+    const items =
+      primary === 'array' && s.items ? derefSchema(s.items, schemas) : null
+    const values = items ?? s
     const param = {
       name: p.name,
       in: p.in,
       required: !!p.required,
-      type: primary || 'string'
+      type: items
+        ? `${splitType(items.type).primary || 'string'}[]`
+        : primary || 'string'
     }
-    if (s.format) param.format = s.format
+    if (values.format) param.format = values.format
     if (p.description || s.description)
       param.doc = p.description || s.description
-    if (s.enum) param.enum = stringEnum(s.enum)
+    if (values.enum) param.enum = stringEnum(values.enum)
     return param
   })
   return mapped.sort((a, b) => {
@@ -355,7 +377,7 @@ const buildOperation = (
   op,
   { schemas, responseDefs, paramDefs, scope, auth, faceAuth }
 ) => {
-  const params = buildParams(op.parameters, paramDefs)
+  const params = buildParams(op.parameters, paramDefs, schemas)
 
   let requestBody
   let bodyExample
