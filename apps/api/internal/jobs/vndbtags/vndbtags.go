@@ -83,7 +83,7 @@ func Run(ctx context.Context, opts Opts) (*Stats, error) {
 	if err := db.WithContext(ctx).Raw(`SELECT count(*) FROM src_vndb.tags_vn`).Scan(&mirrorRows).Error; err != nil {
 		return nil, fmt.Errorf("count src_vndb.tags_vn (is the VNDB mirror loaded?): %w", err)
 	}
-	// audit-vndb-anchors carries the same guard because a partially loaded
+	// The anchor-liveness audit carries the same guard because a partially loaded
 	// mirror would otherwise have marked all ~64k anchors dead in one
 	// transaction; here it would delete every VNDB tag.
 	if mirrorRows < opts.MinMirrorRows {
