@@ -277,7 +277,7 @@ curl -i "https://api.nextmoe.dev/v2/moyu/patches/11617" \
 ## 接下来
 
 - [端点参考 · moyu 补丁面](/docs/moyu) —— 四个端点的全部参数、响应 schema 与可直接运行的 curl 示例。
-- [sticker 表情包面接入](/docs/sticker-packs) —— 另一个下游站点面，同一把密钥、同一套错误方言。
+- [sticker 表情包面接入](/docs/sticker-packs) —— 另一个下游站点面，同一把密钥、同一套约定。
 - [鉴权与凭据](/docs/authentication) —— 为什么这个面不能从浏览器直接调。
 
 ---

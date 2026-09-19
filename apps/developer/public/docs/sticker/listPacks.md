@@ -19,13 +19,14 @@ List published sticker packs
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
-| `limit` | query | 否 | integer | Page size, 1-50, default 20. Above 50 is 400 LIMIT_TOO_LARGE. |
-| `page` | query | 否 | integer | 1-based page number, 1-1000. |
+| `limit` | query | 否 | integer | Page size, 1-100, default 20. Above 100 is 400 `LIMIT_TOO_LARGE`; the value is not clamped. |
+| `cursor` | query | 否 | string | The `next_cursor` from a previous page of the same collection. Opaque; anything this face did not mint is 400 `INVALID_CURSOR`. |
+| `include_total` | query | 否 | string | `true` adds `total`, counted under the same filter as `items`. 取值：true \| false |
 | `sort` | query | 否 | string | `new` (default) orders by publication date, `hot` by downloads then views. Both end on the id, which is a UUIDv7 and therefore a stable tiebreaker. 取值：new \| hot |
 | `q` | query | 否 | string | Substring match, case-insensitive, across every language at once -- a Japanese query finds a pack whose Japanese title matches even when nothing else does. Truncated at 100 characters. |
 | `nsfw` | query | 否 | string | `true` includes r18 packs; absent or `false` hides them. Same meaning as catalog's nsfw parameter. Note this is the *pack's* rating: a pack of ordinary reaction faces cut from an r18 game is `all_ages`, and its work's `content_rating` still says `r18`. 取值：true \| false |
 | `tag` | query | 否 | string | Tag slug. Unknown slugs match nothing rather than erroring. |
-| `work` | query | 否 | integer (int64) | Catalog work id. Keeps packs that declare this game or hold a sticker of it -- the same relation `/v2/sticker/works/{work_id}/packs` uses. |
+| `work` | query | 否 | string | Catalog work id. Keeps packs that declare this game or hold a sticker of it -- the same relation `/v2/sticker/works/{work_id}/packs` uses. |
 | `official` | query | 否 | string | true keeps only packs published by the site itself. 取值：true \| false |
 | `linked` | query | 否 | string | true keeps only packs that declare a catalog work. 取值：true \| false |
 

@@ -21,12 +21,13 @@ The primary lane. Newest first, published packs only. An empty page and a 404 me
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
-| `character_id` | path | 是 | integer (int64) | Infra catalog character id. |
-| `limit` | query | 否 | integer | Page size, 1-50, default 20. Above 50 is 400 LIMIT_TOO_LARGE. |
-| `page` | query | 否 | integer | 1-based page number, 1-1000. |
+| `character_id` | path | 是 | string | Infra catalog character id. |
+| `limit` | query | 否 | integer | Page size, 1-100, default 20. Above 100 is 400 `LIMIT_TOO_LARGE`; the value is not clamped. |
+| `cursor` | query | 否 | string | The `next_cursor` from a previous page of the same collection. Opaque; anything this face did not mint is 400 `INVALID_CURSOR`. |
+| `include_total` | query | 否 | string | `true` adds `total`, counted under the same filter as `items`. 取值：true \| false |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/sticker/characters/1/stickers" \
+curl "https://api.nextmoe.dev/v2/sticker/characters/value/stickers" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 

@@ -21,14 +21,15 @@ A pack counts as being about a game if it declares it or holds a sticker of it. 
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
-| `work_id` | path | 是 | integer (int64) | Infra catalog work id. |
-| `limit` | query | 否 | integer | Page size, 1-50, default 20. Above 50 is 400 LIMIT_TOO_LARGE. |
-| `page` | query | 否 | integer | 1-based page number, 1-1000. |
+| `work_id` | path | 是 | string | Infra catalog work id. |
+| `limit` | query | 否 | integer | Page size, 1-100, default 20. Above 100 is 400 `LIMIT_TOO_LARGE`; the value is not clamped. |
+| `cursor` | query | 否 | string | The `next_cursor` from a previous page of the same collection. Opaque; anything this face did not mint is 400 `INVALID_CURSOR`. |
+| `include_total` | query | 否 | string | `true` adds `total`, counted under the same filter as `items`. 取值：true \| false |
 | `sort` | query | 否 | string | `new` (default) orders by publication date, `hot` by downloads then views. Both end on the id, which is a UUIDv7 and therefore a stable tiebreaker. 取值：new \| hot |
 | `nsfw` | query | 否 | string | `true` includes r18 packs; absent or `false` hides them. Same meaning as catalog's nsfw parameter. Note this is the *pack's* rating: a pack of ordinary reaction faces cut from an r18 game is `all_ages`, and its work's `content_rating` still says `r18`. 取值：true \| false |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/sticker/works/1/packs" \
+curl "https://api.nextmoe.dev/v2/sticker/works/value/packs" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 

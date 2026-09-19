@@ -1,7 +1,7 @@
 ---
 title: sticker 表情包面接入
 eyebrow: 下游站点面
-description: 接入 /v2/sticker 只读面：按 catalog 作品与角色身份索引的 Galgame 表情包素材。任意有效应用密钥即可调用，无需 scope；多语言标题、page/limit 翻页、与 catalog 的连接方式、两种错误方言。
+description: 接入 /v2/sticker 只读面：按 catalog 作品与角色身份索引的 Galgame 表情包素材。任意有效应用密钥即可调用，无需 scope；多语言标题、cursor 翻页、与 catalog 的连接方式、错误与缓存。
 ---
 
 # sticker 表情包面接入
@@ -54,8 +54,7 @@ curl "https://api.nextmoe.dev/v2/sticker/packs?limit=3" \
 | `GET /v2/sticker/works/{work_id}/packs`              | **主车道**：关于某部作品的表情包 |
 | `GET /v2/sticker/tags`                               | 标签，用得最多的在前             |
 
-> [!NOTE]
-> 这个面的翻页与 catalog `/v2` **不同**：它用 `page`（1 起，最大 1000）加 `limit`（1–50，默认 20）的偏移翻页，列表信封是 `{object, items, total, page, limit}`——**没有 `next_cursor`**，`total` 一直都在。`limit` 超过 50 是 `400 LIMIT_TOO_LARGE`。
+翻页与 catalog `/v2` 完全相同：列表信封是 `{object, items, next_cursor}`，把 `next_cursor` 原样作为 `cursor` 传回取下一页，**末页直接不出现这个键**（不是 `null`）；`limit` 取 1–100，默认 20，超过 100 是 `400 LIMIT_TOO_LARGE`，不会被截断；`total` 默认不发，要就传 `include_total=true`。不是这个面签发的 `cursor` 是 `400 INVALID_CURSOR`。循环写法见[集合与分页](/docs/pagination#cursor)。
 
 其余参数：`sort` 取 `new`（默认，按发布时间）或 `hot`（按下载数再按浏览数），两者都以 UUIDv7 的 id 收尾，所以是稳定的 tiebreaker；`q` 是不分大小写的子串匹配，**同时跨全部语言**——一个日文查询能命中只有日文标题匹配的包，超过 100 字符会被截断。
 
@@ -90,17 +89,15 @@ curl "https://api.nextmoe.dev/v2/sticker/characters/12345/stickers?limit=2" \
         "height": 512
       },
       "note": "…",
-      "work": { "object": "work", "id": 61311, "name": { "zh-cn": "…" } },
+      "work": { "object": "work", "id": "61311", "name": { "zh-cn": "…" } },
       "character": {
         "object": "character",
-        "id": 12345,
+        "id": "12345",
         "name": { "ja-jp": "…" }
       }
     }
   ],
-  "total": 24,
-  "page": 1,
-  "limit": 2
+  "next_cursor": "cur_Mg"
 }
 ```
 
@@ -137,7 +134,7 @@ curl "https://api.nextmoe.dev/v2/sticker/works/61311/packs?sort=hot&nsfw=true" \
       "cover_sticker_id": "0193f2a1-…",
       "work": {
         "object": "work",
-        "id": 61311,
+        "id": "61311",
         "name": { "zh-cn": "…" },
         "content_rating": "r18"
       },
@@ -151,7 +148,7 @@ curl "https://api.nextmoe.dev/v2/sticker/works/61311/packs?sort=hot&nsfw=true" \
       ],
       "author": {
         "object": "author",
-        "id": 1,
+        "id": "1",
         "name": "…",
         "avatar_url": "https://…"
       },
@@ -159,10 +156,7 @@ curl "https://api.nextmoe.dev/v2/sticker/works/61311/packs?sort=hot&nsfw=true" \
       "updated_at": "2026-08-29T02:51:07Z",
       "published_at": "2026-08-29T02:51:07Z"
     }
-  ],
-  "total": 3,
-  "page": 1,
-  "limit": 20
+  ]
 }
 ```
 
@@ -180,7 +174,7 @@ curl "https://api.nextmoe.dev/v2/sticker/packs/0193f29c-…" \
 
 详情比列表多三个数组：`stickers`（按展示顺序）、`works`（这些表情覆盖到的去重后游戏）、`characters`（去重后角色）。`works` 与 `characters` 就是这个包能 join 回 catalog 的全部身份，用它们做一次批量水合最省事。
 
-`pack_id` 与 `sticker_id` 是 **UUIDv7 字符串**；`work.id`、`character.id`、`author.id` 是 **JSON 数字**（int64）。这与 catalog `/v2` 的「id 一律是字符串」不同，跨面拼接时记得转换。
+`pack_id` 与 `sticker_id` 是 **UUIDv7 字符串**；`work.id`、`character.id`、`author.id` 是**十进制字符串**，与 catalog `/v2` 的 id 同形，可以直接拿去拼 catalog 的路径。
 
 ## 和 catalog 拼起来 {#catalog}
 
@@ -240,13 +234,21 @@ Content-Type: application/problem+json
   "type": "https://developer.nextmoe.dev/problems/platform/limit-too-large",
   "title": "Limit too large",
   "status": 400,
-  "detail": "limit must be between 1 and 50",
+  "detail": "limit must be at most 100; the value is not clamped",
   "instance": "/v2/sticker/packs?limit=500",
-  "code": "LIMIT_TOO_LARGE"
+  "code": "LIMIT_TOO_LARGE",
+  "request_id": "req_01JBQ7X4M2K9P3W5T8ZVN6HRDC",
+  "errors": [
+    {
+      "parameter": "limit",
+      "reason": "OUT_OF_RANGE",
+      "detail": "limit must be at most 100; the value is not clamped"
+    }
+  ]
 }
 ```
 
-`type` URI 解析到本站的[错误码注册表](/problems)。`code` 取自平台那份封闭注册表，原样照搬，因此一套客户端解码逻辑同时覆盖这个面与 catalog；这个面会出现的是 `INVALID_PARAMETER`、`LIMIT_TOO_LARGE`、`NOT_FOUND`、`INTERNAL_ERROR`、`SERVICE_UNAVAILABLE` 五个。`instance` 是失败的那条请求的路径与查询串。
+`type` URI 解析到本站的[错误码注册表](/problems)。`code` 取自平台那份封闭注册表，原样照搬，因此一套客户端解码逻辑同时覆盖这个面与 catalog；这个面会出现的是 `INVALID_PARAMETER`、`LIMIT_TOO_LARGE`、`INVALID_CURSOR`、`NOT_FOUND`、`METHOD_NOT_ALLOWED`、`INTERNAL_ERROR`、`SERVICE_UNAVAILABLE`。`detail`、`request_id`（与 `X-Request-ID` 响应头同值）和 `errors` 恒在；`400` 时 `errors[0].parameter` 指出要改的是哪个参数。`instance` 是失败的那条请求的路径与查询串。
 
 未知 slug 是个例外：`tag=` 传一个不存在的 slug**匹配不到任何东西**，返回空列表，而不是报错。
 
@@ -271,17 +273,24 @@ if (!res.ok) {
 
 限流在网关按**密钥所属应用**计数，与 v2 共池：free 档 60 次/分、50,000 次/日。超限是 `429` 加 `Retry-After`，并带 `X-RateLimit-*` 与 `X-Quota-*` 响应头。分档与退避写法见[限流与配额](/docs/rate-limits)。
 
-同步索引时用满 `limit=50` 而不是默认 20，请求数直接降到四成之一。
+同步索引时用满 `limit=100` 而不是默认 20，请求数直接降到五分之一。
 
 ## 缓存 {#caching}
 
-> [!NOTE]
-> 与 [moyu 补丁面](/docs/moyu-patches#caching)不同，这个面的契约里**没有声明 `ETag`、`304` 与 `Cache-Control`**。不要按条件请求去写客户端：`If-None-Match` 命中与否都不在承诺范围内。请按自己的 TTL 缓存响应体——素材是只增不改的，几分钟到几小时都安全。平台整体的条件请求约定见[缓存与条件请求](/docs/caching)。
+每个 200 的 GET 都带 `ETag`。把它原样放进下一次请求的 `If-None-Match`，没变就是 `304`，不计入响应体传输：
+
+```bash
+curl -i "https://api.nextmoe.dev/v2/sticker/works/61311/packs" \
+  -H "Authorization: Bearer nmk_live_<YOUR_KEY>" \
+  -H 'If-None-Match: "9f2a1c…"'
+```
+
+这个面声明的是 `Cache-Control: public, max-age=300, s-maxage=1800, stale-while-revalidate=3600`——**可共享缓存**，与 [moyu 补丁面](/docs/moyu-patches#caching)一致；错误文档是 `no-store`。放一层自己的 CDN 或反向代理是安全的。完整契约见[缓存与条件请求](/docs/caching)。
 
 真正该缓存的是图片：`image.url` 与 `image.thumb_url` 指向图床 CDN，直接引用即可，既不经过这个面也不消耗 API 配额。`thumb_url` 是 320px 变体，列表页用它。`image.hash` 是内容寻址，可以直接当本地缓存键。
 
 ## 接下来 {#next}
 
 - [端点参考 · sticker 表情包面](/docs/sticker) —— 九个端点的全部参数、响应 schema 与可直接运行的 curl 示例。
-- [moyu 补丁面接入](/docs/moyu-patches) —— 另一个下游站点面，同一把密钥、同一套错误方言。
+- [moyu 补丁面接入](/docs/moyu-patches) —— 另一个下游站点面，同一把密钥、同一套约定。
 - [鉴权与凭据](/docs/authentication) —— 为什么这个面不能从浏览器直接调。

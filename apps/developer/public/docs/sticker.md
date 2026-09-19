@@ -20,7 +20,7 @@
 - 它不是第二份内容列表：站上每张表情都打了 catalog 的作品 id 与角色 id，所以这个面回答的是「这个 catalog 身份有哪些表情素材」。/v2/sticker/characters/{character_id}/stickers 与 /v2/sticker/works/{work_id}/packs 是主车道，其余是它们的脚手架。
 - 只暴露已发布的表情包。草稿、隐藏、已删除、评论正文、审核状态与全部创作端点都不在这个面里，将来也不会有。
 - 名字是多语言映射而不是字符串：键为 zh-cn / zh-tw / ja-jp / en-us / und，每个都可缺，und 放的是 catalog 里没有语言标记的显示名。回退链由你自己定，这个面永远不替你挑。
-- 翻页用 page + limit（1-50），与 catalog 的游标翻页不同；nsfw 说的是表情包自己的分级，不是它所属游戏的——从 r18 游戏里剪出来的日常表情包是 all_ages，而它的 work.content_rating 仍然是 r18。
+- 约定与 catalog /v2 相同：作品、角色与作者 id 是十进制字符串，集合按不透明 cursor 翻页（limit 1-100，末页不出现 next_cursor，include_total=true 才给 total），200 带 ETag 可 304。nsfw 说的是表情包自己的分级，不是它所属游戏的——从 r18 游戏里剪出来的日常表情包是 all_ages，而它的 work.content_rating 仍然是 r18。
 - 错误全部是 RFC 9457 application/problem+json：网关写的 401（MISSING_CREDENTIAL / INVALID_CREDENTIAL）与 429（RATE_LIMITED / QUOTA_EXCEEDED）和表情包站写的其余错误同一个形状，code 取自平台那份封闭注册表。按 HTTP status 分支，再看 code。
 - 只能服务端调用：预检 OPTIONS 不带认证头，会被网关 401，浏览器直连没有出路。
 

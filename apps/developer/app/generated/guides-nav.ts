@@ -216,6 +216,6 @@ export const guideMeta: Record<string, GuideMeta> = {
     "slug": "sticker-packs",
     "title": "sticker 表情包面接入",
     "eyebrow": "下游站点面",
-    "description": "接入 /v2/sticker 只读面：按 catalog 作品与角色身份索引的 Galgame 表情包素材。任意有效应用密钥即可调用，无需 scope；多语言标题、page/limit 翻页、与 catalog 的连接方式、两种错误方言。"
+    "description": "接入 /v2/sticker 只读面：按 catalog 作品与角色身份索引的 Galgame 表情包素材。任意有效应用密钥即可调用，无需 scope；多语言标题、cursor 翻页、与 catalog 的连接方式、错误与缓存。"
   }
 }

@@ -30,7 +30,7 @@ export const DOCS_FACE_META: Record<
     label: 'sticker 表情包',
     badge: '下游站点面',
     tagline:
-      'sticker.kungal.com 联邦进来的只读面：按 catalog 作品与角色身份索引的 Galgame 表情包素材。任意有效应用密钥即可调用，不需要任何 scope。标题是多语言映射，翻页用 page + limit。'
+      'sticker.kungal.com 联邦进来的只读面：按 catalog 作品与角色身份索引的 Galgame 表情包素材。任意有效应用密钥即可调用，不需要任何 scope。标题是多语言映射，id 与翻页约定与 catalog /v2 相同。'
   }
 }
 
