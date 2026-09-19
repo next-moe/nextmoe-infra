@@ -20,7 +20,7 @@ One patch page
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
 | `id` | path | 是 | string | moyu patch id. Not a catalog work id and not a VNDB number. |
-| `include` | query | 否 | string | Comma-separated relations to attach. Nothing is attached by default, including the resources — `resource_count` tells you whether there is anything to ask for, and `/patches/{id}/resources` pages them when there are many.  取值：resources \| publisher \| resources,publisher |
+| `include` | query | 否 | string[] | Comma-separated relations to attach. Nothing is attached by default, including the resources — `resource_count` tells you whether there is anything to ask for, and `/patches/{id}/resources` pages them when there are many.  取值：resources \| publisher |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/moyu/patches/value" \

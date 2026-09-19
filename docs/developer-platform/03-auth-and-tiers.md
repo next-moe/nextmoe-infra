@@ -15,7 +15,7 @@
   - 库里**只存 `sha256(key)` 的 hex**,带 `sha256:` 前缀;**明文仅创建时显示一次**,永不落库。
   - 另存 `key_prefix`(如 `nmk_live_a1b2`)与 `last4` 供门户识别。
   - 校验用 `crypto/subtle` 常量时间比较(同 `VerifySecret`)。
-- **传递**:`Authorization: Bearer nmk_live_…`。`X-API-Key` 只是 `/v1` 时代的兼容备选,`/v2` 不读它。
+- **传递**:`Authorization: Bearer nmk_live_…`。`X-API-Key` 两处行为不同(2026-09-19 公网实测):catalog 进程自己的 `/v2`(catalog/news/store/me…,`apiv2/handler/identity.go` 的 `catalogAuth`)**只读 `Authorization`**,只带 `X-API-Key` 回 `401 MISSING_CREDENTIAL`;经网关 ForwardAuth 的下游面 `/v2/moyu`、`/v2/sticker`(`devapi/forwardauth.go` 借 `extractKey`)**两种都认**,门户 moyu/sticker 指南据此写了「等价写法」。对接方一律用 `Authorization`,两边都通。
 - **一个应用可有多把 key**:支持**轮换**(签发新 key,旧 key 设未来 `expires_at`,宽限 24–72h,不瞬杀)与**吊销**(`revoked_at`,下次请求即拒)。
 - **默认 scope** = `catalog:read`(只读公开);**NSFW 不是 scope**——曾是一道能力位,已于 2026-08-25 退役,见下方 §4.2 词表后的「NSFW 能力位(已退役)」条。**2026-08-18 更正**:原默认里的 `galgame:read` 已移除——`/v1/galgame` 面于 wave 146 整体退役为 `410 Gone`,该 scope 自那以后不被任何活路由消费,继续默认签发等于发一张对着空气的通行证。**已发出的旧 key 不动、不失效**(它们身上的这个 scope 同样什么都打不开);自助与 admin 两条铸 key 路径的空 scopes 默认现均为 `[catalog:read]`。
 - API key 是**机密**:只能服务端使用;浏览器直连第三方用 OAuth2 public client + PKCE,**不发 key**。

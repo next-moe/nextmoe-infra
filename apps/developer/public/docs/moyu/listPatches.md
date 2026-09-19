@@ -37,13 +37,13 @@ They are ordered so that the page a reader should land on comes first.
 | `cursor` | query | 否 | string | The `next_cursor` from a previous page of the same collection. |
 | `include_total` | query | 否 | boolean | Count the whole collection. Absent by default because it costs a count. |
 | `nsfw` | query | 否 | boolean | Include pages catalog rates as adult. Off by default, matching catalog's own convention; a page catalog has not been rated yet is included either way and reports `content_limit: null`.  |
-| `include` | query | 否 | string | Comma-separated relations to attach. 取值：resources \| publisher \| resources,publisher |
-| `ids` | query | 否 | string | Up to 100 moyu patch ids. Mutually exclusive with `refs`.  |
-| `refs` | query | 否 | string | Up to 100 foreign anchors as `source:external_id`. Sources are `vndb` (a VNDB id such as `v65869`) and `catalog` (a NextMoe catalog work id). Mutually exclusive with `ids`.  |
+| `include` | query | 否 | string[] | Comma-separated relations to attach. 取值：resources \| publisher |
+| `ids` | query | 否 | string[] | Up to 100 moyu patch ids. Mutually exclusive with `refs`.  |
+| `refs` | query | 否 | string[] | Up to 100 foreign anchors as `source:external_id`. Sources are `vndb` (a VNDB id such as `v65869`) and `catalog` (a NextMoe catalog work id). Mutually exclusive with `ids`.  |
 | `sort` | query | 否 | string | All descending. `updated` orders by when a resource was last added or changed, which is not the same as when the page was edited.  取值：updated \| created \| downloads \| views |
-| `type` | query | 否 | string | Comma-separated patch kinds; any of them matches. |
-| `language` | query | 否 | string | Comma-separated languages; any of them matches. |
-| `platform` | query | 否 | string | Comma-separated platforms; any of them matches. |
+| `type` | query | 否 | string[] | Comma-separated patch kinds; any of them matches. 取值：manual \| ai \| machine_polishing \| machine \| save \| crack \| fix \| mod \| r18 \| decensor \| image \| other |
+| `language` | query | 否 | string[] | Comma-separated languages; any of them matches. 取值：zh-Hans \| zh-Hant \| ja \| en \| other |
+| `platform` | query | 否 | string[] | Comma-separated platforms; any of them matches. 取值：windows \| android \| macos \| ios \| linux \| other |
 | `has_resources` | query | 否 | boolean | Unset returns every page. A page can exist with no resources on it yet; `true` is the filter for "actually has something to download".  |
 
 ```bash

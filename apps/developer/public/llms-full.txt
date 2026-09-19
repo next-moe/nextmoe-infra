@@ -1874,7 +1874,7 @@ curl "https://api.nextmoe.dev/v2/moyu/patches?limit=2&sort=updated&has_resources
 - `sort` 一律降序，可取 `updated`（默认）、`created`、`downloads`、`views`。`updated` 排的是**资源**最近一次新增或改动的时间（也就是 `resource_updated_at`），这与补丁页本身被编辑的时间不是一回事。
 - `has_resources` 不传时返回全部页。一个页可以还没有任何资源，`true` 就是「确实有东西可下」的那道过滤。
 - `type`、`language`、`platform` 都是逗号分隔的多值，命中其中任意一个即可（例如 `type=ai,manual`）。
-- `include=` 只认 `resources`、`publisher`、`resources,publisher` 三种写法；写别的是 `400 UNKNOWN_INCLUDE`。
+- `include=` 的取值是 `resources`、`publisher`，逗号分隔、顺序不限（`resources,publisher` 与 `publisher,resources` 等价）；写别的是 `400 UNKNOWN_INCLUDE`。
 - 单页详情 `GET /v2/moyu/patches/{id}` **默认什么都不附加**，资源也不例外：先看 `resource_count` 有没有东西可要，数量多时用 `/v2/moyu/patches/{id}/resources` 翻页。
 
 ### 例二：refs= 批量反查
@@ -5697,13 +5697,13 @@ They are ordered so that the page a reader should land on comes first.
 | `cursor` | query | 否 | string | The `next_cursor` from a previous page of the same collection. |
 | `include_total` | query | 否 | boolean | Count the whole collection. Absent by default because it costs a count. |
 | `nsfw` | query | 否 | boolean | Include pages catalog rates as adult. Off by default, matching catalog's own convention; a page catalog has not been rated yet is included either way and reports `content_limit: null`.  |
-| `include` | query | 否 | string | Comma-separated relations to attach. 取值：resources \| publisher \| resources,publisher |
-| `ids` | query | 否 | string | Up to 100 moyu patch ids. Mutually exclusive with `refs`.  |
-| `refs` | query | 否 | string | Up to 100 foreign anchors as `source:external_id`. Sources are `vndb` (a VNDB id such as `v65869`) and `catalog` (a NextMoe catalog work id). Mutually exclusive with `ids`.  |
+| `include` | query | 否 | string[] | Comma-separated relations to attach. 取值：resources \| publisher |
+| `ids` | query | 否 | string[] | Up to 100 moyu patch ids. Mutually exclusive with `refs`.  |
+| `refs` | query | 否 | string[] | Up to 100 foreign anchors as `source:external_id`. Sources are `vndb` (a VNDB id such as `v65869`) and `catalog` (a NextMoe catalog work id). Mutually exclusive with `ids`.  |
 | `sort` | query | 否 | string | All descending. `updated` orders by when a resource was last added or changed, which is not the same as when the page was edited.  取值：updated \| created \| downloads \| views |
-| `type` | query | 否 | string | Comma-separated patch kinds; any of them matches. |
-| `language` | query | 否 | string | Comma-separated languages; any of them matches. |
-| `platform` | query | 否 | string | Comma-separated platforms; any of them matches. |
+| `type` | query | 否 | string[] | Comma-separated patch kinds; any of them matches. 取值：manual \| ai \| machine_polishing \| machine \| save \| crack \| fix \| mod \| r18 \| decensor \| image \| other |
+| `language` | query | 否 | string[] | Comma-separated languages; any of them matches. 取值：zh-Hans \| zh-Hant \| ja \| en \| other |
+| `platform` | query | 否 | string[] | Comma-separated platforms; any of them matches. 取值：windows \| android \| macos \| ios \| linux \| other |
 | `has_resources` | query | 否 | boolean | Unset returns every page. A page can exist with no resources on it yet; `true` is the filter for "actually has something to download".  |
 
 ```bash
@@ -5722,7 +5722,7 @@ One patch page
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
 | `id` | path | 是 | string | moyu patch id. Not a catalog work id and not a VNDB number. |
-| `include` | query | 否 | string | Comma-separated relations to attach. Nothing is attached by default, including the resources — `resource_count` tells you whether there is anything to ask for, and `/patches/{id}/resources` pages them when there are many.  取值：resources \| publisher \| resources,publisher |
+| `include` | query | 否 | string[] | Comma-separated relations to attach. Nothing is attached by default, including the resources — `resource_count` tells you whether there is anything to ask for, and `/patches/{id}/resources` pages them when there are many.  取值：resources \| publisher |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/moyu/patches/value" \
@@ -5748,7 +5748,7 @@ URL, exactly as on the site.
 | `limit` | query | 否 | integer | 1 to 100. Over 100 is `LIMIT_TOO_LARGE`; the value is not clamped. |
 | `cursor` | query | 否 | string | The `next_cursor` from a previous page of the same collection. |
 | `include_total` | query | 否 | boolean | Count the whole collection. Absent by default because it costs a count. |
-| `include` | query | 否 | string |  取值：publisher |
+| `include` | query | 否 | string[] |  取值：publisher |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/moyu/patches/value/resources" \
@@ -5768,7 +5768,7 @@ One resource
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
 | `id` | path | 是 | string | Resource id. |
-| `include` | query | 否 | string |  取值：publisher |
+| `include` | query | 否 | string[] |  取值：publisher |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/moyu/resources/value" \

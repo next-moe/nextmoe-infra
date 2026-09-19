@@ -20,7 +20,7 @@ One resource
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
 | `id` | path | 是 | string | Resource id. |
-| `include` | query | 否 | string |  取值：publisher |
+| `include` | query | 否 | string[] |  取值：publisher |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/moyu/resources/value" \
