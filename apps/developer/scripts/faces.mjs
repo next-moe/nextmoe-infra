@@ -120,7 +120,7 @@ export const FACES = [
       '不带下载直链、提取码与解压密码，这是契约里写死的取舍而不是遗漏：在 moyu 上取链接是一次单独的、按资源限速的请求，就是为了不能被批量抓走。每行都给 web_url，把读者送过去。',
       '也不带游戏名、封面、标签与角色：那些归 catalog。每行都带 catalog_work_id，拿它去 /v2/catalog/works/{id} 解析——同一把密钥就能读。patch.id、vndb_id 与 catalog_work_id 是三个互不相等的 id 空间。',
       '/v2/moyu/patches 上的 refs= 是批量反查：一次最多 100 个 vndb:<id> 或 catalog:<id> 锚，没命中的原样回在 missing[] 里。这是「我手上这 100 部作品哪些有补丁」的一次性问法，此时 cursor 与 sort 会被拒。',
-      '错误方言分两半：401（缺密钥或密钥无效）与 429（超限）由网关写，body 是平台信封 {"code":10001,"message":"未授权，请先登录"}；其余全部是 RFC 9457 application/problem+json。按 HTTP status 分支，不要按 body 形状猜。',
+      '错误全部是 RFC 9457 application/problem+json：网关写的 401（MISSING_CREDENTIAL / INVALID_CREDENTIAL）与 429（RATE_LIMITED / QUOTA_EXCEEDED）和补丁站写的其余错误同一个形状、同一份封闭注册表。按 HTTP status 分支，再看 code。',
       '只能服务端调用。网关对包括 OPTIONS 在内的每个方法都验密钥，而预检不带认证头，所以浏览器直连必然 401——nmk_ 密钥本来也不该出现在浏览器里。'
     ]
   },
@@ -147,7 +147,7 @@ export const FACES = [
       '只暴露已发布的表情包。草稿、隐藏、已删除、评论正文、审核状态与全部创作端点都不在这个面里，将来也不会有。',
       '名字是多语言映射而不是字符串：键为 zh-cn / zh-tw / ja-jp / en-us / und，每个都可缺，und 放的是 catalog 里没有语言标记的显示名。回退链由你自己定，这个面永远不替你挑。',
       '翻页用 page + limit（1-50），与 catalog 的游标翻页不同；nsfw 说的是表情包自己的分级，不是它所属游戏的——从 r18 游戏里剪出来的日常表情包是 all_ages，而它的 work.content_rating 仍然是 r18。',
-      '错误方言分两半：401 与 429 由网关写，body 是平台信封 {"code":10001,"message":"未授权，请先登录"}；其余全部是 RFC 9457 application/problem+json，code 取自平台那份封闭注册表。按 HTTP status 分支。',
+      '错误全部是 RFC 9457 application/problem+json：网关写的 401（MISSING_CREDENTIAL / INVALID_CREDENTIAL）与 429（RATE_LIMITED / QUOTA_EXCEEDED）和表情包站写的其余错误同一个形状，code 取自平台那份封闭注册表。按 HTTP status 分支，再看 code。',
       '只能服务端调用：预检 OPTIONS 不带认证头，会被网关 401，浏览器直连没有出路。'
     ]
   }
