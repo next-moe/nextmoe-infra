@@ -189,6 +189,19 @@ gstep import-work-intro --apply
 # 295 DLsite series and 975 cross-media works; it was drained by hand before
 # this job was armed, so a ceiling tripping here is news, not backlog.
 begin_group eg
+# Upstream-liveness audit for every EG entity type and link kind. A row the
+# daily crawler has not re-synced within 48 hours of the table max is treated
+# as deleted upstream (the crawler never DELETEs). Organic EG deletions are a
+# few a week; a dry-run ceiling of 500 on marked_total trips a mass event
+# (a half-finished crawl is also refused by the 97% freshness guard).
+if [ "$GROUP_FAIL" -eq 0 ]; then
+  if dry_ok eg-liveness sh -c "$DSNSH"'; audit-anchor-liveness --dsn "$CAT" --source erogamescape --eg-dsn "$EG"' \
+     && check_counters eg-liveness "$last_dry_log" marked_total=500; then
+    gstep sh -c "$DSNSH"'; audit-anchor-liveness --dsn "$CAT" --source erogamescape --eg-dsn "$EG" --apply --receipts /w/state/liveness-erogamescape.jsonl'
+  else
+    ceiling_failed
+  fi
+fi
 if [ "$GROUP_FAIL" -eq 0 ]; then
   if dry_ok eg-anchors sh -c "$DSNSH"'; reconcile-eg-anchors --dsn "$CAT" --eg-dsn "$EG"' \
      && check_counters eg-anchors "$last_dry_log" exact_planned=300 probable_planned=600 related_planned=1500; then

@@ -102,6 +102,13 @@ DSNSH='U="${KUN_CATALOG_PG_USER:-$KUN_PG_USER}"; export PGPASSWORD="${KUN_CATALO
 # 4. Ingest (env-config tool).
 run ingest-bangumi --dump-dir /w/dump
 
+# 4b. Upstream-liveness audit — mark/clear dead_at for every Bangumi entity
+#     type (work, character, person, credit_name, label) and every link kind
+#     against the subject/person/character tables step 4 just replaced. Each
+#     lane's mirror-row floor refuses a partial ingest (the dump reload is
+#     wholesale, so the floors are exactly that case). No dry-run ceiling.
+run sh -c "$DSNSH"'; audit-anchor-liveness --dsn "$CAT" --source bangumi --apply --receipts /w/state/liveness-bangumi.jsonl'
+
 # 5. Family re-run, anchors first (all idempotent fill/upsert; a failure
 #    aborts the run and leaves state/last-dump unset so next week retries).
 run sh -c "$DSNSH"'; reconcile-doujin-bangumi --dsn "$CAT" --apply'

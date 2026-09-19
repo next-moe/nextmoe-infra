@@ -42,6 +42,7 @@ import-store-anchors --only dlsite-en --apply
 import-release-labels --apply
 backfill-character-instances --apply
 import-work-intro --apply
+audit-anchor-liveness --source erogamescape --apply
 reconcile-eg-anchors --apply
 reconcile-eg-works --apply --limit 250
 import-character-roster --source eg --apply
@@ -102,6 +103,7 @@ extract_tool_cmd() {
     import-release-labels \
     backfill-character-instances \
     import-work-intro \
+    audit-anchor-liveness \
     import-character-roster \
     import-galgame-credits \
     import-store-refs \
@@ -191,6 +193,9 @@ emit_out() {
       ;;
     import-work-series+apply)
       echo '2026/09/16 13:28:23 INFO workseries done apply=true anchored_works=19709 series_eligible=887 members_wanted=3178 series_created=10 series_renamed=0 series_deleted=0 members_added=1100 members_stale=0 order_changed=288 errors=0'
+      ;;
+    audit-anchor-liveness+erogamescape+dry|audit-anchor-liveness+erogamescape+apply)
+      echo '2026/09/19 00:00:00 INFO audit-anchor-liveness summary source=erogamescape apply=false work_refs=0 work_to_mark=0 work_to_clear=0 release_refs=0 release_to_mark=0 release_to_clear=0 character_refs=0 character_to_mark=0 character_to_clear=0 person_refs=0 person_to_mark=0 person_to_clear=0 credit_name_refs=0 credit_name_to_mark=0 credit_name_to_clear=0 label_refs=0 label_to_mark=0 label_to_clear=0 marked_total=0 cleared_total=0 lanes_refused=0 errors=0'
       ;;
     reconcile-eg-anchors+dry|reconcile-eg-anchors+apply)
       echo '2026/09/18 02:00:00 INFO eganchors summary games=0 anchored_games=0 no_evidence_games=0 multi_games=0 twin_games=0 candidate_games=0 rejected_skips=0 exact_planned=0 probable_planned=0 related_planned=0 corroborated=0 written=0 exists=0 errors=0'
@@ -298,6 +303,7 @@ case "$1" in
       import-release-labels \
       backfill-character-instances \
       import-work-intro \
+      audit-anchor-liveness \
       import-character-roster \
       import-galgame-credits \
       import-store-refs \
@@ -330,6 +336,7 @@ case "$1" in
 
     src=""; only=""; lane=""; pop=""; hints=""; limit=""; leg=""; ruleset=""; actor=""; kind=""
     case "$toolcmd" in
+      *"--source erogamescape"*) src=erogamescape ;;
       *"--source eg-music"*) src=eg-music ;;
       *"--source eg"*) src=eg ;;
       *"--source bangumi"*) src=bangumi ;;
@@ -1143,6 +1150,31 @@ grep -v -F -e 'backfill-release-meta --apply' "$td/ctl/t1" > "$td/ctl/expected"
 expect_apply "$td" "$td/ctl/expected"
 if grep -q -F 'backfill-release-meta --apply' "$td/ctl/apply.log"; then fail "release-dates applied past its ceiling"; fi
 if ! grep -q -F 'reconcile-org-labels --source all --apply' "$td/ctl/apply.log"; then fail "labels group did not apply after release-dates ceiling"; fi
+tend
+rm -rf "$td"
+
+# --- T31: an EG liveness dry run over its marked_total ceiling writes nothing and the rest of the EG group stands down ---
+tstart 31
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' '2026/09/19 00:00:00 INFO audit-anchor-liveness summary source=erogamescape apply=false work_refs=0 work_to_mark=501 work_to_clear=0 release_refs=0 release_to_mark=0 release_to_clear=0 character_refs=0 character_to_mark=0 character_to_clear=0 person_refs=0 person_to_mark=0 person_to_clear=0 credit_name_refs=0 credit_name_to_mark=0 credit_name_to_clear=0 label_refs=0 label_to_mark=0 label_to_clear=0 marked_total=501 cleared_total=0 lanes_refused=0 errors=0' \
+  > "$td/ctl/out/audit-anchor-liveness+erogamescape+dry"
+run_job "$td"
+expect_exit_nonzero "$td"
+if has_stamp "$td"; then fail "stamp written"; fi
+if ! has_alert "$td"; then fail "no alert"; fi
+write_t1_expected "$td/ctl/t1"
+grep -v -F \
+  -e 'audit-anchor-liveness --source erogamescape --apply' \
+  -e 'reconcile-eg-anchors --apply' \
+  -e 'reconcile-eg-works --apply --limit 250' \
+  -e 'import-character-roster --source eg --apply' \
+  -e 'import-galgame-credits --source eg --apply' \
+  -e 'import-galgame-credits --source eg-music --apply' \
+  -e 'import-store-refs --apply' \
+  -e 'backfill-work-playtime --source eg --apply' \
+  "$td/ctl/t1" > "$td/ctl/expected"
+expect_apply "$td" "$td/ctl/expected"
 tend
 rm -rf "$td"
 
