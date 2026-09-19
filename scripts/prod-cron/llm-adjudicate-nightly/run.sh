@@ -60,7 +60,11 @@ echo "=== llm adjudicate nightly start $(date -u '+%F %T')Z ==="
 
 CATC=kun-visual-novel-infra-vqvqbc-catalog-1
 NOTE='llm:queue-adjudicator'
-APPROVE_LIMIT=200
+# 200 was three weeks of nightly [ADJ] alerts against the 4,376 candidates the
+# mint lanes filed on 2026-09-18, while a 45-pair sample of that night's 200
+# approvals read 45 correct. execute_after holds each approval for 48h, and
+# that window is where a bad night gets caught, not this cap.
+APPROVE_LIMIT=600
 CREDITNAME_LIMIT=300
 CREDITNAME_ACCEPT=0.9
 

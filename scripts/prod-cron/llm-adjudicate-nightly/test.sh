@@ -790,7 +790,7 @@ rm -rf "$td"
 tstart 10
 td=$(mktemp -d)
 install_fakes "$td"
-printf '%s\n' '[approve] note=llm:queue-adjudicator open=200 approved=200 skipped=0' \
+printf '%s\n' '[approve] note=llm:queue-adjudicator open=600 approved=600 skipped=0' \
   > "$td/ctl/out/adj-approve"
 run_job "$td"
 if [ ! -f "$td/lib/alert.out" ]; then
@@ -885,6 +885,23 @@ expect_no_name "$td" adj-apply-refs
 expect_no_name "$td" adj-release
 expect_reindex "$td" 0
 expect_no_stamp "$td"
+tend
+rm -rf "$td"
+
+# --- T16 ---
+tstart 16
+# 200 approvals is under the 600 cap: no backlog alert, and the cap reaches the tool.
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' '[approve] note=llm:queue-adjudicator open=200 approved=200 skipped=0' \
+  > "$td/ctl/out/adj-approve"
+run_job "$td"
+if [ -f "$td/lib/alert.out" ] && grep -q '\[ADJ\] llm adjudicate backlog' "$td/lib/alert.out"; then
+  fail "backlog alert at open=200: $(alert_text "$td")"
+fi
+expect_c_contains "$td" adj-approve "-limit 600 -run"
+expect_exit "$td" 0
+expect_stamp "$td"
 tend
 rm -rf "$td"
 
