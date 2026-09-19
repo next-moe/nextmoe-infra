@@ -245,9 +245,13 @@ func TestBackfillVNDBWorkTitles(t *testing.T) {
 	assert.Zero(t, titleCount(t, wDead))
 	assert.Equal(t, revsBefore, revisionCount(t))
 
+	require.NoError(t, testDB.Exec(`UPDATE catalog_work SET updated_at = now() - interval '1 day'`).Error)
 	apply, err := Run(ctx, Opts{DSN: testDSN, Apply: true})
 	require.NoError(t, err)
 	assertPlan(t, apply)
+	var touched int64
+	require.NoError(t, testDB.Raw(`SELECT count(*) FROM catalog_work WHERE updated_at > now() - interval '1 hour'`).Scan(&touched).Error)
+	assert.Equal(t, int64(2), touched, "only the two works that were written are touched for the search index")
 	assert.Zero(t, apply.TitlesLost)
 	assert.Zero(t, apply.DisplayLost)
 	assert.Zero(t, apply.Errors)
