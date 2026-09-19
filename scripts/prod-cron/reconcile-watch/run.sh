@@ -163,6 +163,9 @@ lane_backlog getchu attached minted_live minted_quarantined
 dry_lane release-dates sh -c "$DSNSH"'; backfill-release-meta --dsn "$CAT" --dlsite-dsn "$DL" --eg-dsn "$EG" --getchu-dsn "$GC"'
 lane_backlog release-dates all_filled all_moved all_cleared
 
+dry_lane vndb-tags sh -c "$DSNSH"'; sync-vndb-tags --dsn "$CAT"'
+lane_backlog vndb-tags tags_inserted tags_deleted orphan_rows_removed
+
 read_queue quarantined_works \
   "SELECT count(*) FROM catalog_work WHERE status = 3 AND deleted_at IS NULL"
 

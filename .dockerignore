@@ -25,7 +25,4 @@ scripts/*.dump
 
 # Docs / references — not needed to build.
 docs
-# …except tagMap.ts: the surviving VNDB sync jobs (vndbsync / vndbenrich /
-# tagcanon) still parse it at runtime, so the image must be able to COPY it.
-!docs/tagMap.ts
 **/refs

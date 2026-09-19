@@ -35,10 +35,5 @@ COPY --from=build /out/app /app/app
 # default path; ship it + point at the absolute path. oauth ignores it.
 COPY apps/api/configs/image_presets.yaml /app/configs/image_presets.yaml
 ENV KUN_IMAGE_PRESETS_PATH=/app/configs/image_presets.yaml
-# oauth runs the in-process job scheduler; the sync-vndb / sync-vndb-enrich
-# jobs parse docs/tagMap.ts at runtime (relative to WORKDIR /app). Ship it so
-# the scheduled VNDB jobs don't fail with "open docs/tagMap.ts: no such file"
-# (image doesn't use it — harmless extra ~200KB).
-COPY docs/tagMap.ts /app/docs/tagMap.ts
 USER appuser
 ENTRYPOINT ["/app/app"]

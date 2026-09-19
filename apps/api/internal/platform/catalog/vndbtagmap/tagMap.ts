@@ -591,6 +591,7 @@ export const TAG_MAP: Record<string, string> = {
   'All-girls School': '女子学校',
   'Consensual Sex Involving Tentacles': '合意触手性交',
   'Pure Love Story': '纯爱故事',
+  'Love Overcomes All': '纯爱故事',
 
   Kind: '善良',
   Boyfriend: '男朋友',

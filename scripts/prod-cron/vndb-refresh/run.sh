@@ -335,6 +335,38 @@ run sh -c "$DSNSH"'; build-derived-series --dsn "$CAT" --apply --receipts /w/sta
 #     reports `unchanged` and writes nothing.
 run sh -c "$DSNSH"'; backfill-work-ratings --dsn "$CAT" --eg-dsn "$EG" --dlsite-dsn "$DL" --hltb-dsn "$HL" --apply'
 
+# 6f. VNDB work tags. After the 2026-07-30 wiki fold nothing wrote VNDB tags,
+#     so 46,917 anchored works had none and every mint since had none; the
+#     13,076 rows the wiki left are frozen at that day's votes. This step
+#     recomputes catalog_work_tag from the tags_vn mirror step 4 just loaded.
+#
+#     WHY the ceilings: a partially loaded or empty tags_vn looks like
+#     "upstream removed every tag" and would delete the lot. Organic weekly
+#     change is a few thousand rows. The first drain is done by hand, not by
+#     this step.
+VNDB_TAGS_INSERT_CEILING=20000
+VNDB_TAGS_DELETE_CEILING=8000
+VNDB_TAGS_ORPHAN_CEILING=1000
+run sh -c "$DSNSH"'; sync-vndb-tags --dsn "$CAT"' > state/vndb-tags-dry.log 2>&1 || {
+  echo "FATAL: vndb-tags dry run failed"; cat state/vndb-tags-dry.log; exit 1; }
+TAGS_INSERTED=$(sed -n 's/.*tags_inserted=\([0-9]*\).*/\1/p' state/vndb-tags-dry.log | tail -1)
+TAGS_DELETED=$(sed -n 's/.*tags_deleted=\([0-9]*\).*/\1/p' state/vndb-tags-dry.log | tail -1)
+TAGS_ORPHAN=$(sed -n 's/.*orphan_rows_removed=\([0-9]*\).*/\1/p' state/vndb-tags-dry.log | tail -1)
+[ -n "$TAGS_INSERTED" ] || { echo "FATAL: could not read tags_inserted from the vndb-tags dry run"; cat state/vndb-tags-dry.log; exit 1; }
+[ -n "$TAGS_DELETED" ] || { echo "FATAL: could not read tags_deleted from the vndb-tags dry run"; cat state/vndb-tags-dry.log; exit 1; }
+[ -n "$TAGS_ORPHAN" ] || { echo "FATAL: could not read orphan_rows_removed from the vndb-tags dry run"; cat state/vndb-tags-dry.log; exit 1; }
+echo "vndb-tags plans inserted=$TAGS_INSERTED deleted=$TAGS_DELETED orphan_rows_removed=$TAGS_ORPHAN"
+[ "$TAGS_INSERTED" -le "$VNDB_TAGS_INSERT_CEILING" ] || {
+  echo "FATAL: tags_inserted $TAGS_INSERTED exceeds the ceiling $VNDB_TAGS_INSERT_CEILING"
+  exit 1; }
+[ "$TAGS_DELETED" -le "$VNDB_TAGS_DELETE_CEILING" ] || {
+  echo "FATAL: tags_deleted $TAGS_DELETED exceeds the ceiling $VNDB_TAGS_DELETE_CEILING"
+  exit 1; }
+[ "$TAGS_ORPHAN" -le "$VNDB_TAGS_ORPHAN_CEILING" ] || {
+  echo "FATAL: orphan_rows_removed $TAGS_ORPHAN exceeds the ceiling $VNDB_TAGS_ORPHAN_CEILING"
+  exit 1; }
+run sh -c "$DSNSH"'; sync-vndb-tags --dsn "$CAT" --apply --receipts /w/state/vndb-tags.jsonl'
+
 # DELIBERATELY NOT RUN HERE:
 #   reconcile-org-labels  — runs in source-import, behind a dry-run ceiling
 #   enrich-org-labels     — see source-import
