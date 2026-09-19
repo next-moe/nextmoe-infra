@@ -43,18 +43,18 @@ MCP server 是公开只读契约前面的一层**协议适配**,不是第二个 
 - MCP 规范的 OAuth 2.1 授权流 = M2(第三方实际开放后,与 `dev:manage`
   同期评估);M1 的静态 key 模式对 agent 场景已充分。
 
-## 4. 工具面(54 个,由 v2 spec 派生)
+## 4. 工具面(由 v2 spec 派生)
 
 **工具清单不是手写的,从 2026-08-25 起也不再写在这里。** `mcpface.ToolsFromSpec` 读 v2 OpenAPI 文档,把符合准入前缀的每一条 GET 变成一个工具:工具名 = `operationId`,参数集合 = 该 op 的 query + path 参数(含 `view=` / `fields=`),描述 = 该 op 的 spec description。`NewServer` 启动时调它注册,`cmd/gen-v2-portal` 调同一个函数生成门户的 `app/generated/mcp-tools.mjs`,门户页与 `docs/mcp.md` 消费那份生成物 + 一张按 `operationId` 索引的中文描述表(双向完整性断言,缺一条或多一条都在构建期硬失败)。
 
-两条准入规则,都在 `internal/platform/mcpface/spec.go`,是这一节唯一的手写判据:
+准入与凭据两条规则,都在 `internal/platform/mcpface/spec.go`:
 
 | 规则 | 内容 |
 |---|---|
 | `mcpToolPrefixes` | 进面的路径前缀:`/v2/catalog` `/v2/news` `/v2/problems` `/v2/vocabularies`。`/v2/me` 与 `/v2/moderation` 不进面(用户令牌写面,理由同下文 playtime 条) |
-| `httpNeedsKey` | 哪些工具在缺 key 时**本地**就报错而不去打上游:`/v2/news` `/v2/problems` `/v2/vocabularies` `/v2/catalog/stats` `/v2/catalog/schemas/*` 无需 key,其余 `/v2/catalog/*` 需要 |
+| `takesAppKey` | 哪些工具在缺 key 时**本地**就报错而不去打上游:读该 op 在 spec 里声明的 `security`,含 `applicationKey` 即需要。**不是手写路径表**——2026-09-18 之前这里是一份按前缀手写的 `httpNeedsKey`,与 apiv2 的 `v2Security` 是同一规则的两份副本;现在 `v2Security` 写进 spec、MCP 从 spec 读,只剩一个真源 |
 
-当前是 **54 个工具**(`/v2/catalog` 46 + `/v2/news` 3 + `/v2/problems` 3 + `/v2/vocabularies` 2)。这个数随 v2 spec 增长自动变,**不需要改本文**;`CheckG10`(`apiv2/handler/gates_mcp.go`)保证 spec 里每条该进面的 GET 都有对应工具且参数不缺。
+2026-09-18 为 **57 个工具**(`/v2/catalog` 49 + `/v2/news` 3 + `/v2/problems` 3 + `/v2/vocabularies` 2)。每个参数的描述与闭词表(`enum`)也取自 spec;v2 的 query/path 参数在 spec 里一律声明为 `type: string`、由服务端解析,所以工具入参全是 string 不丢类型信息。这个数随 v2 spec 增长自动变,**不需要改本文**;`CheckG10`(`apiv2/handler/gates_mcp.go`)保证 spec 里每条该进面的 GET 都有对应工具且参数不缺。
 
 > **为什么删掉原来的 37 行表**:那张表列的是 M1 时代手写的 v1 工具名(`catalog_search` / `news_list` / …)。`409a7a80` 把 `NewServer` 切到 `registerSpecTools` 之后,server 注册的是 v2 `operationId`,而表和门户页都没跟上——**表上每一个名字都不再存在**,而没有任何东西比对过两边。第二份手写清单必然漂移,所以这一波把它换成派生物,并把「派生物 vs 描述表」的比对做成构建期断言。
 

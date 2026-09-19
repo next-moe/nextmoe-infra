@@ -23,7 +23,7 @@ func authError() *mcp.CallToolResult {
 	return errorResult(
 		"Missing or malformed API key. Configure your MCP client to send the header " +
 			"`Authorization: Bearer nmk_live_…` on the MCP endpoint. " +
-			"Mint a preview v2 key at " + devPortalURL + ".",
+			"Mint a v2 key at " + devPortalURL + ".",
 	)
 }
 

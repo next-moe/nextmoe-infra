@@ -27,7 +27,15 @@ func applySpecTools(s *mcp.Server, up *Upstream, raw []byte) ([]string, error) {
 		}
 		props := schema["properties"].(map[string]any)
 		for _, name := range td.Params {
-			props[name] = map[string]any{"type": "string", "description": name}
+			doc := td.ParamDocs[name]
+			prop := map[string]any{"type": "string", "description": name}
+			if doc.Description != "" {
+				prop["description"] = doc.Description
+			}
+			if len(doc.Enum) > 0 {
+				prop["enum"] = doc.Enum
+			}
+			props[name] = prop
 		}
 		if len(td.Required) > 0 {
 			schema["required"] = td.Required

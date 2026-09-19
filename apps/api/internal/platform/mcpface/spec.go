@@ -3,6 +3,7 @@ package mcpface
 import (
 	"encoding/json"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -17,18 +18,33 @@ type specPathItem struct {
 }
 
 type specOp struct {
-	OperationID string      `json:"operationId"`
-	Summary     string      `json:"summary"`
-	Description string      `json:"description"`
-	Parameters  []specParam `json:"parameters"`
+	OperationID string                `json:"operationId"`
+	Summary     string                `json:"summary"`
+	Description string                `json:"description"`
+	Parameters  []specParam           `json:"parameters"`
+	Security    []map[string][]string `json:"security"`
 }
 
 type specParam struct {
-	Name        string          `json:"name"`
-	In          string          `json:"in"`
-	Required    bool            `json:"required"`
-	Description string          `json:"description"`
-	Schema      json.RawMessage `json:"schema"`
+	Name        string     `json:"name"`
+	In          string     `json:"in"`
+	Required    bool       `json:"required"`
+	Description string     `json:"description"`
+	Schema      specSchema `json:"schema"`
+}
+
+type specSchema struct {
+	Description string   `json:"description"`
+	Enum        []string `json:"enum"`
+}
+
+// Every v2 query and path parameter is declared `type: string` and parsed
+// server-side, so a string-only input schema loses no type information. What
+// the tools did lose was each parameter's description: they described a
+// parameter by its own name.
+type ParamDoc struct {
+	Description string
+	Enum        []string
 }
 
 type ToolDesc struct {
@@ -38,9 +54,12 @@ type ToolDesc struct {
 	Summary     string
 	Description string
 	Params      []string
+	ParamDocs   map[string]ParamDoc
 	Required    []string
 	NeedsKey    bool
 }
+
+const appKeyScheme = "applicationKey"
 
 func mcpToolPrefixes(path string) bool {
 	return strings.HasPrefix(path, "/v2/catalog") ||
@@ -49,17 +68,11 @@ func mcpToolPrefixes(path string) bool {
 		strings.HasPrefix(path, "/v2/vocabularies")
 }
 
-func httpNeedsKey(path string) bool {
-	if strings.HasPrefix(path, "/v2/problems") || strings.HasPrefix(path, "/v2/vocabularies") {
-		return false
-	}
-	if strings.HasPrefix(path, "/v2/news") {
-		return false
-	}
-	if path == "/v2/catalog/stats" || strings.HasPrefix(path, "/v2/catalog/schemas/") {
-		return false
-	}
-	return strings.HasPrefix(path, "/v2/catalog/")
+func takesAppKey(security []map[string][]string) bool {
+	return slices.ContainsFunc(security, func(req map[string][]string) bool {
+		_, ok := req[appKeyScheme]
+		return ok
+	})
 }
 
 func ToolsFromSpec(raw []byte) ([]ToolDesc, error) {
@@ -86,7 +99,8 @@ func ToolsFromSpec(raw []byte) ([]ToolDesc, error) {
 		td := ToolDesc{
 			Name: name, Method: http.MethodGet, Path: path,
 			Summary: strings.TrimSpace(op.Summary), Description: desc,
-			NeedsKey: httpNeedsKey(path),
+			ParamDocs: map[string]ParamDoc{},
+			NeedsKey:  takesAppKey(op.Security),
 		}
 		seen := map[string]bool{}
 		for _, p := range params {
@@ -95,6 +109,11 @@ func ToolsFromSpec(raw []byte) ([]ToolDesc, error) {
 			}
 			seen[p.Name] = true
 			td.Params = append(td.Params, p.Name)
+			pd := ParamDoc{Description: strings.TrimSpace(p.Description), Enum: p.Schema.Enum}
+			if pd.Description == "" {
+				pd.Description = strings.TrimSpace(p.Schema.Description)
+			}
+			td.ParamDocs[p.Name] = pd
 			if p.Required || p.In == "path" {
 				td.Required = append(td.Required, p.Name)
 			}

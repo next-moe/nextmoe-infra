@@ -2,6 +2,7 @@ package mcpface
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -292,4 +293,90 @@ func contains(s, sub string) bool {
 		}
 	}
 	return false
+}
+
+// Two catalog paths with opposite answers: if NeedsKey were still derived from
+// the path prefix, stats would come out keyed.
+var securitySpec = []byte(`{
+  "paths": {
+    "/v2/catalog/works/{id}": {
+      "get": {
+        "operationId": "getCatalogWork",
+        "summary": "Get one work",
+        "security": [{"applicationKey": []}, {"userToken": []}],
+        "parameters": [
+          {"name": "id", "in": "path", "required": true, "description": "Decimal catalog id.", "schema": {"type": "string"}},
+          {"name": "view", "in": "query", "description": "Projection.", "schema": {"type": "string", "enum": ["basic", "full"]}}
+        ]
+      }
+    },
+    "/v2/catalog/stats": {
+      "get": {"operationId": "getCatalogStats", "summary": "Stats"}
+    }
+  }
+}`)
+
+func TestNeedsKeyAndParamDocsComeFromTheSpec(t *testing.T) {
+	descs, err := ToolsFromSpec(securitySpec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byName := map[string]ToolDesc{}
+	for _, d := range descs {
+		byName[d.Name] = d
+	}
+	if !byName["getCatalogWork"].NeedsKey {
+		t.Error("getCatalogWork declares applicationKey but NeedsKey is false")
+	}
+	if byName["getCatalogStats"].NeedsKey {
+		t.Error("getCatalogStats declares no security but NeedsKey is true")
+	}
+
+	ctx := context.Background()
+	server, _, err := NewServer(NewUpstream("http://127.0.0.1:0"), securitySpec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := mcp.NewClient(&mcp.Implementation{Name: "test", Version: "0"}, nil)
+	st, ct := mcp.NewInMemoryTransports()
+	ss, err := server.Connect(ctx, st, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ss.Close()
+	cs, err := client.Connect(ctx, ct, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cs.Close()
+	res, err := cs.ListTools(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tool := range res.Tools {
+		if tool.Name != "getCatalogWork" {
+			continue
+		}
+		raw, err := json.Marshal(tool.InputSchema)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var schema struct {
+			Properties map[string]struct {
+				Description string   `json:"description"`
+				Enum        []string `json:"enum"`
+			} `json:"properties"`
+		}
+		if err := json.Unmarshal(raw, &schema); err != nil {
+			t.Fatal(err)
+		}
+		if got := schema.Properties["id"].Description; got != "Decimal catalog id." {
+			t.Errorf("id description = %q, want the spec's", got)
+		}
+		if got := schema.Properties["view"].Enum; len(got) != 2 {
+			t.Errorf("view enum = %v, want the spec's two values", got)
+		}
+		return
+	}
+	t.Fatal("getCatalogWork was not registered")
 }
