@@ -36,7 +36,7 @@
 
 首个下游面立项,触发 §16.4:**moyu**(www.moyu.moe 补丁资源)与 **sticker**(sticker.kungal.com 表情包)。B 档校验端点随本次交付;网关标签另接线,不在本变更落地。
 
-**端点**:oauth 服务 `GET /internal/devapi/forward-auth?face=<name>`。生产 oauth 的 Traefik router 只覆盖 `/api/v1`、两条 OIDC 元数据路径与面板 web,`/internal/*` 靠路由隔离,不是靠保密。2xx 放行,其余状态原样回给调用方。401 无/坏密钥,429 超限;未注册或缺失 `face` 为 500(Traefik 接线错误,不是客户端错误)。首批曾各配一个 `<site>:read` 自助 scope(缺则 403),2026-09-08 当天即改判撤销:免费只读面收任意有效密钥,不查 scope。
+**端点**:oauth 服务 `GET /internal/devapi/forward-auth?face=<name>`。生产 oauth 的 Traefik router 只覆盖 `/api/v1`、两条 OIDC 元数据路径与面板 web,`/internal/*` 靠路由隔离,不是靠保密。2xx 放行,其余状态连同响应头与 body 由 Traefik 原样回给调用方。拒绝一律是 RFC 9457 `application/problem+json`(与 `/v2` 同一注册表,`instance` 取 `X-Forwarded-Uri`):401 `MISSING_CREDENTIAL` / `INVALID_CREDENTIAL`,429 `RATE_LIMITED` / `QUOTA_EXCEEDED`(均带 `Retry-After`);2026-09-18 之前 401/429 回的是平台 `{code,message}` 信封。未注册或缺失 `face` 为 500(Traefik 接线错误,不是客户端错误)。首批曾各配一个 `<site>:read` 自助 scope(缺则 403),2026-09-08 当天即改判撤销:免费只读面收任意有效密钥,不查 scope。
 
 成功时写三个响应头,始终全写,好让 Traefik `authResponseHeaders` 覆盖客户端原值:
 

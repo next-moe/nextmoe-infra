@@ -1946,20 +1946,33 @@ curl "https://api.nextmoe.dev/v2/catalog/works?ids=61311&include=covers" \
 
 `content_limit` 是 catalog 展示轴判定的镜像，`null` 表示 moyu 还没镜像过来。**无论如何以 catalog 为准**——要严格的分级判定，请按[镜像到自己的库](/docs/mirror)里的写法从 catalog 取。
 
-## 错误：两种方言
+## 错误
 
-这个面上有**两套错误体**，按 HTTP status 分支，不要按 body 形状猜。
+这个面上的错误**全部**是 RFC 9457 `application/problem+json`，`code` 取自平台那份封闭注册表。先按 HTTP status 分支，再看 `code`。
 
-**网关写的（401、429）**——请求还没到补丁站就被拦下，body 是平台自己的信封：
+**网关写的（401、429）**——请求还没到补丁站就被拦下。`instance` 是你请求的那条路径：
 
 ```http
 HTTP/1.1 401 Unauthorized
-Content-Type: application/json
+Content-Type: application/problem+json
+WWW-Authenticate: Bearer realm="nextmoe", error="invalid_token"
 
-{"code":10001,"message":"未授权，请先登录"}
+{
+  "type": "https://developer.nextmoe.dev/problems/platform/invalid-credential",
+  "title": "Invalid credential",
+  "status": 401,
+  "detail": "The application key is invalid, revoked or expired.",
+  "instance": "/v2/moyu/patches?limit=20",
+  "code": "INVALID_CREDENTIAL",
+  "request_id": "req_01JBQ7X4M2K9P3W5T8ZVN6HRDC",
+  "errors": []
+}
 ```
 
-401 是缺密钥或密钥无效/已吊销；429 是这把密钥的速率或配额用尽，带 `Retry-After` 与 `X-RateLimit-*`。
+401 的 `code` 是 `MISSING_CREDENTIAL`（没带密钥）或 `INVALID_CREDENTIAL`（密钥无效、已吊销或已过期）；429 的是 `RATE_LIMITED`（每分钟速率）或 `QUOTA_EXCEEDED`（每日配额），两者都带 `Retry-After`（秒），并带 `X-RateLimit-*` 与 `X-Quota-*`。
+
+> [!NOTE]
+> 2026-09-18 之前，网关的 401 与 429 回的是平台旧信封 `{"code":10001,"message":"…"}`。按 HTTP status 分支的代码不受这次统一影响；按 body 里 `code` 数值判断的代码需要改看 status 或新的字符串 `code`。
 
 **补丁站写的（其余全部）**——RFC 9457 `application/problem+json`，与 catalog `/v2` 同一个形状：
 
@@ -1981,7 +1994,7 @@ Content-Type: application/problem+json
 
 `type` URI 解析到本站的[错误码注册表](/problems)，`code` 取自平台那份封闭注册表，因此一套解码逻辑同时覆盖这个面与 catalog。这个面会出现的 `code`：`INVALID_PARAMETER`、`UNKNOWN_ENUM_VALUE`、`UNKNOWN_SORT`、`UNKNOWN_INCLUDE`、`INVALID_CURSOR`、`LIMIT_TOO_LARGE`、`TOO_MANY_IDS`、`NOT_FOUND`、`METHOD_NOT_ALLOWED`、`INTERNAL_ERROR`、`SERVICE_UNAVAILABLE`。`400` 时 `errors[0]` 指出是哪个参数。
 
-一个能同时吃下两种方言的分支写法：
+一个分支写法：
 
 ```js
 const res = await fetch(url, { headers: { Authorization: `Bearer ${key}` } })
@@ -2222,20 +2235,33 @@ curl "https://api.nextmoe.dev/v2/catalog/characters/12345" \
 
 `Work.content_rating` 与 `Character.image_url` 都是 catalog 的值原样透传；catalog 标记角色立绘为限制级时 `image_url` 不下发。要严格的分级判定仍以 catalog 为准，见[镜像到自己的库](/docs/mirror)。
 
-## 错误：两种方言
+## 错误
 
-这个面上有**两套错误体**，按 HTTP status 分支，不要按 body 形状猜。
+这个面上的错误**全部**是 RFC 9457 `application/problem+json`，`code` 取自平台那份封闭注册表。先按 HTTP status 分支，再看 `code`。
 
-**网关写的（401、429）**——请求还没到表情包站就被拦下，body 是平台自己的信封：
+**网关写的（401、429）**——请求还没到表情包站就被拦下。`instance` 是你请求的那条路径：
 
 ```http
 HTTP/1.1 401 Unauthorized
-Content-Type: application/json
+Content-Type: application/problem+json
+WWW-Authenticate: Bearer realm="nextmoe", error="invalid_token"
 
-{"code":10001,"message":"未授权，请先登录"}
+{
+  "type": "https://developer.nextmoe.dev/problems/platform/invalid-credential",
+  "title": "Invalid credential",
+  "status": 401,
+  "detail": "The application key is invalid, revoked or expired.",
+  "instance": "/v2/sticker/packs?limit=20",
+  "code": "INVALID_CREDENTIAL",
+  "request_id": "req_01JBQ7X4M2K9P3W5T8ZVN6HRDC",
+  "errors": []
+}
 ```
 
-401 是缺密钥或密钥无效/已吊销；429 是这把密钥的速率或配额用尽，带 `Retry-After` 与 `X-RateLimit-*`。
+401 的 `code` 是 `MISSING_CREDENTIAL`（没带密钥）或 `INVALID_CREDENTIAL`（密钥无效、已吊销或已过期）；429 的是 `RATE_LIMITED`（每分钟速率）或 `QUOTA_EXCEEDED`（每日配额），两者都带 `Retry-After`（秒），并带 `X-RateLimit-*` 与 `X-Quota-*`。
+
+> [!NOTE]
+> 2026-09-18 之前，网关的 401 与 429 回的是平台旧信封 `{"code":10001,"message":"…"}`。按 HTTP status 分支的代码不受这次统一影响；按 body 里 `code` 数值判断的代码需要改看 status 或新的字符串 `code`。
 
 **表情包站写的（其余全部）**——RFC 9457 `application/problem+json`，字段名与平台 `/v2` 的 problem 文档一致：
 
@@ -2257,7 +2283,7 @@ Content-Type: application/problem+json
 
 未知 slug 是个例外：`tag=` 传一个不存在的 slug**匹配不到任何东西**，返回空列表，而不是报错。
 
-一个能同时吃下两种方言的分支写法：
+一个分支写法：
 
 ```js
 const res = await fetch(url, { headers: { Authorization: `Bearer ${key}` } })
@@ -5628,7 +5654,7 @@ curl "https://api.nextmoe.dev/v2/store/stats" \
 
 > /v2/moyu/patches 上的 refs= 是批量反查：一次最多 100 个 vndb:<id> 或 catalog:<id> 锚，没命中的原样回在 missing[] 里。这是「我手上这 100 部作品哪些有补丁」的一次性问法，此时 cursor 与 sort 会被拒。
 
-> 错误方言分两半：401（缺密钥或密钥无效）与 429（超限）由网关写，body 是平台信封 {"code":10001,"message":"未授权，请先登录"}；其余全部是 RFC 9457 application/problem+json。按 HTTP status 分支，不要按 body 形状猜。
+> 错误全部是 RFC 9457 application/problem+json：网关写的 401（MISSING_CREDENTIAL / INVALID_CREDENTIAL）与 429（RATE_LIMITED / QUOTA_EXCEEDED）和补丁站写的其余错误同一个形状、同一份封闭注册表。按 HTTP status 分支，再看 code。
 
 > 只能服务端调用。网关对包括 OPTIONS 在内的每个方法都验密钥，而预检不带认证头，所以浏览器直连必然 401——nmk_ 密钥本来也不该出现在浏览器里。
 
@@ -5760,7 +5786,7 @@ curl "https://api.nextmoe.dev/v2/moyu/resources/value" \
 
 > 翻页用 page + limit（1-50），与 catalog 的游标翻页不同；nsfw 说的是表情包自己的分级，不是它所属游戏的——从 r18 游戏里剪出来的日常表情包是 all_ages，而它的 work.content_rating 仍然是 r18。
 
-> 错误方言分两半：401 与 429 由网关写，body 是平台信封 {"code":10001,"message":"未授权，请先登录"}；其余全部是 RFC 9457 application/problem+json，code 取自平台那份封闭注册表。按 HTTP status 分支。
+> 错误全部是 RFC 9457 application/problem+json：网关写的 401（MISSING_CREDENTIAL / INVALID_CREDENTIAL）与 429（RATE_LIMITED / QUOTA_EXCEEDED）和表情包站写的其余错误同一个形状，code 取自平台那份封闭注册表。按 HTTP status 分支，再看 code。
 
 > 只能服务端调用：预检 OPTIONS 不带认证头，会被网关 401，浏览器直连没有出路。
 

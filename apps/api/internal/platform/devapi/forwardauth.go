@@ -4,10 +4,10 @@ import (
 	"context"
 	"log/slog"
 	"strconv"
+	"strings"
 	"time"
 
-	"api/pkg/errors"
-	"api/pkg/response"
+	"api/internal/platform/apiv2/problem"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -38,28 +38,33 @@ func (f *ForwardAuth) Handle(c fiber.Ctx) error {
 	pathLabel, ok := forwardAuthFaces[name]
 	if !ok {
 		slog.Error("unregistered forward-auth face", "face", name)
-		return response.Error(c, fiber.StatusInternalServerError, errors.ErrInternalServer, "unregistered forward-auth face")
+		return refuseForward(c, problem.CodeInternalError, "unregistered forward-auth face.")
 	}
 
 	raw := extractKey(c)
+	if raw == "" && c.Get("Authorization") == "" && c.Get("X-API-Key") == "" {
+		return refuseForward(c, problem.CodeMissingCredential,
+			"An application key is required: send Authorization: Bearer nmk_live_….")
+	}
 	if IsV2KeyPrefix(raw) {
 		if !ValidV2Key(raw) {
-			return resp401(c)
+			return refuseForward(c, problem.CodeInvalidCredential, "The application key is invalid.")
 		}
 	} else if !HasV1KeyPrefix(raw) {
-		return resp401(c)
+		return refuseForward(c, problem.CodeInvalidCredential, "The application key is invalid.")
 	}
 
 	cred, err := f.mw.resolve(c.Context(), raw)
 	if err != nil {
 		slog.Error("devapi credential resolve failed", "err", err)
-		return response.Error(c, fiber.StatusServiceUnavailable, errors.ErrInternalServer, "credential store unavailable")
+		return refuseForward(c, problem.CodeServiceUnavailable, "credential store is unavailable.")
 	}
 	if cred == nil {
-		return resp401(c)
+		return refuseForward(c, problem.CodeInvalidCredential, "The application key is invalid, revoked or expired.")
 	}
 
-	limit, remaining, reset, allowed, failOpen := f.mw.rateResult(c.Context(), cred, time.Now())
+	now := time.Now()
+	limit, remaining, reset, allowed, failOpen := f.mw.rateResult(c.Context(), cred, now)
 	if failOpen {
 		slog.Warn("devapi rate-limit store unavailable; failing open", "key_id", cred.KeyID)
 	} else {
@@ -69,17 +74,13 @@ func (f *ForwardAuth) Handle(c fiber.Ctx) error {
 			c.Set("X-RateLimit-Reset", strconv.FormatInt(reset, 10))
 		}
 		if !allowed {
-			retry := reset - time.Now().UTC().Unix()
-			if retry < 1 {
-				retry = 1
-			}
-			c.Set("Retry-After", strconv.FormatInt(retry, 10))
+			c.Set("Retry-After", strconv.FormatInt(max(reset-now.UTC().Unix(), 1), 10))
 			f.usage.Record(cred, name, pathLabel, fiber.StatusTooManyRequests)
-			return resp429(c)
+			return refuseForward(c, problem.CodeRateLimited, "Short-window rate limit exceeded.")
 		}
 	}
 
-	qLimit, qRemaining, qAllowed, qFailOpen := f.mw.quotaResult(c.Context(), cred, time.Now())
+	qLimit, qRemaining, qAllowed, qFailOpen := f.mw.quotaResult(c.Context(), cred, now)
 	if qFailOpen {
 		slog.Warn("devapi quota store unavailable; failing open", "key_id", cred.KeyID)
 	} else {
@@ -88,8 +89,9 @@ func (f *ForwardAuth) Handle(c fiber.Ctx) error {
 			c.Set("X-Quota-Remaining", strconv.Itoa(qRemaining))
 		}
 		if !qAllowed {
+			c.Set("Retry-After", strconv.FormatInt(max(nextDayStartUnix(now)-now.UTC().Unix(), 1), 10))
 			f.usage.Record(cred, name, pathLabel, fiber.StatusTooManyRequests)
-			return resp429(c)
+			return refuseForward(c, problem.CodeQuotaExceeded, "Daily quota exceeded.")
 		}
 	}
 
@@ -99,4 +101,16 @@ func (f *ForwardAuth) Handle(c fiber.Ctx) error {
 	f.usage.Record(cred, name, pathLabel, fiber.StatusNoContent)
 	go f.usage.TouchLastUsed(context.Background(), cred)
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// Traefik returns a refused forward-auth response to the caller verbatim,
+// headers and body, so this is the error document a /v2/moyu or /v2/sticker
+// client reads. Until 2026-09-18 it was the platform's {code, message}
+// envelope while every other /v2 answer was problem+json.
+func refuseForward(c fiber.Ctx, code, detail string) error {
+	instance := ""
+	if uri := c.Get("X-Forwarded-Uri"); strings.HasPrefix(uri, "/") {
+		instance = uri
+	}
+	return problem.WriteFiberError(c, problem.New(code, problem.RequestID(c), instance, detail))
 }

@@ -3,7 +3,10 @@ package devapi
 import (
 	"context"
 	"encoding/json"
+	"io"
+	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -68,6 +71,41 @@ func recorded(u *UsageRecorder) []recordedDelta {
 	return out
 }
 
+var requestIDShape = regexp.MustCompile(`^req_[0-9A-HJKMNP-TV-Z]{26}$`)
+
+type forwardProblem struct {
+	Type      string `json:"type"`
+	Status    int    `json:"status"`
+	Code      string `json:"code"`
+	Instance  string `json:"instance"`
+	RequestID string `json:"request_id"`
+}
+
+func problemOf(t *testing.T, resp *http.Response, wantStatus int, wantCode string) forwardProblem {
+	t.Helper()
+	if resp.StatusCode != wantStatus {
+		t.Errorf("status = %d, want %d", resp.StatusCode, wantStatus)
+	}
+	if ct := resp.Header.Get("Content-Type"); !strings.HasPrefix(ct, "application/problem+json") {
+		t.Errorf("Content-Type = %q, want application/problem+json", ct)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	var p forwardProblem
+	if err := json.Unmarshal(body, &p); err != nil {
+		t.Fatalf("body is not a problem document: %v (%s)", err, body)
+	}
+	if p.Code != wantCode || p.Status != wantStatus {
+		t.Errorf("problem = %s %d, want %s %d (%s)", p.Code, p.Status, wantCode, wantStatus, body)
+	}
+	if !requestIDShape.MatchString(p.RequestID) || resp.Header.Get("X-Request-ID") != p.RequestID {
+		t.Errorf("request_id = %q, X-Request-ID = %q, want the same req_ ULID in both", p.RequestID, resp.Header.Get("X-Request-ID"))
+	}
+	return p
+}
+
 func TestForwardAuthUnknownFace(t *testing.T) {
 	store, fwd, usage := newFwdHarness()
 	raw := mustV2Key(t)
@@ -80,9 +118,7 @@ func TestForwardAuthUnknownFace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("app.Test: %v", err)
 	}
-	if resp.StatusCode != fiber.StatusInternalServerError {
-		t.Errorf("status = %d, want 500", resp.StatusCode)
-	}
+	problemOf(t, resp, fiber.StatusInternalServerError, "INTERNAL_ERROR")
 	if n := len(recorded(usage)); n != 0 {
 		t.Errorf("usage deltas = %d, want 0", n)
 	}
@@ -95,12 +131,27 @@ func TestForwardAuthMissingKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("app.Test: %v", err)
 	}
-	if resp.StatusCode != fiber.StatusUnauthorized {
-		t.Errorf("status = %d, want 401", resp.StatusCode)
+	problemOf(t, resp, fiber.StatusUnauthorized, "MISSING_CREDENTIAL")
+	if resp.Header.Get("WWW-Authenticate") == "" {
+		t.Error("401 missing WWW-Authenticate")
 	}
 	if n := len(recorded(usage)); n != 0 {
 		t.Errorf("usage deltas = %d, want 0", n)
 	}
+}
+
+// A user access token is a credential, just not one these faces take: the
+// caller sent something, so the answer is INVALID, not MISSING.
+func TestForwardAuthNonKeyBearer(t *testing.T) {
+	_, fwd, _ := newFwdHarness()
+	app := fwdApp(fwd.Handle)
+	req := httptest.NewRequest("GET", "/internal/devapi/forward-auth?face=moyu", nil)
+	req.Header.Set("Authorization", "Bearer eyJhbGciOiJFUzI1NiJ9.e30.sig")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test: %v", err)
+	}
+	problemOf(t, resp, fiber.StatusUnauthorized, "INVALID_CREDENTIAL")
 }
 
 func TestForwardAuthUnresolvableKey(t *testing.T) {
@@ -111,12 +162,14 @@ func TestForwardAuthUnresolvableKey(t *testing.T) {
 	app := fwdApp(fwd.Handle)
 	req := httptest.NewRequest("GET", "/internal/devapi/forward-auth?face=moyu", nil)
 	req.Header.Set("Authorization", "Bearer "+raw)
+	req.Header.Set("X-Forwarded-Uri", "/v2/moyu/patches?limit=1")
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("app.Test: %v", err)
 	}
-	if resp.StatusCode != fiber.StatusUnauthorized {
-		t.Errorf("status = %d, want 401", resp.StatusCode)
+	p := problemOf(t, resp, fiber.StatusUnauthorized, "INVALID_CREDENTIAL")
+	if p.Instance != "/v2/moyu/patches?limit=1" {
+		t.Errorf("instance = %q, want the caller's own URI from X-Forwarded-Uri", p.Instance)
 	}
 	if n := len(recorded(usage)); n != 0 {
 		t.Errorf("usage deltas = %d, want 0", n)
@@ -220,9 +273,7 @@ func TestForwardAuthRateLimited(t *testing.T) {
 	if err != nil {
 		t.Fatalf("second: %v", err)
 	}
-	if resp2.StatusCode != fiber.StatusTooManyRequests {
-		t.Errorf("second status = %d, want 429", resp2.StatusCode)
-	}
+	problemOf(t, resp2, fiber.StatusTooManyRequests, "RATE_LIMITED")
 	if resp2.Header.Get("Retry-After") == "" {
 		t.Errorf("429 missing Retry-After header")
 	}
@@ -258,8 +309,9 @@ func TestForwardAuthQuotaExceeded(t *testing.T) {
 	if err != nil {
 		t.Fatalf("second: %v", err)
 	}
-	if resp2.StatusCode != fiber.StatusTooManyRequests {
-		t.Errorf("second status = %d, want 429", resp2.StatusCode)
+	problemOf(t, resp2, fiber.StatusTooManyRequests, "QUOTA_EXCEEDED")
+	if n, err := strconv.Atoi(resp2.Header.Get("Retry-After")); err != nil || n < 1 || n > 86400 {
+		t.Errorf("Retry-After = %q, want seconds until the next UTC day", resp2.Header.Get("Retry-After"))
 	}
 	got := recorded(usage)
 	if len(got) != 1 {

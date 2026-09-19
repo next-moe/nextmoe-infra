@@ -188,20 +188,33 @@ curl "https://api.nextmoe.dev/v2/catalog/works?ids=61311&include=covers" \
 
 `content_limit` 是 catalog 展示轴判定的镜像，`null` 表示 moyu 还没镜像过来。**无论如何以 catalog 为准**——要严格的分级判定，请按[镜像到自己的库](/docs/mirror)里的写法从 catalog 取。
 
-## 错误：两种方言 {#errors}
+## 错误 {#errors}
 
-这个面上有**两套错误体**，按 HTTP status 分支，不要按 body 形状猜。
+这个面上的错误**全部**是 RFC 9457 `application/problem+json`，`code` 取自平台那份封闭注册表。先按 HTTP status 分支，再看 `code`。
 
-**网关写的（401、429）**——请求还没到补丁站就被拦下，body 是平台自己的信封：
+**网关写的（401、429）**——请求还没到补丁站就被拦下。`instance` 是你请求的那条路径：
 
 ```http
 HTTP/1.1 401 Unauthorized
-Content-Type: application/json
+Content-Type: application/problem+json
+WWW-Authenticate: Bearer realm="nextmoe", error="invalid_token"
 
-{"code":10001,"message":"未授权，请先登录"}
+{
+  "type": "https://developer.nextmoe.dev/problems/platform/invalid-credential",
+  "title": "Invalid credential",
+  "status": 401,
+  "detail": "The application key is invalid, revoked or expired.",
+  "instance": "/v2/moyu/patches?limit=20",
+  "code": "INVALID_CREDENTIAL",
+  "request_id": "req_01JBQ7X4M2K9P3W5T8ZVN6HRDC",
+  "errors": []
+}
 ```
 
-401 是缺密钥或密钥无效/已吊销；429 是这把密钥的速率或配额用尽，带 `Retry-After` 与 `X-RateLimit-*`。
+401 的 `code` 是 `MISSING_CREDENTIAL`（没带密钥）或 `INVALID_CREDENTIAL`（密钥无效、已吊销或已过期）；429 的是 `RATE_LIMITED`（每分钟速率）或 `QUOTA_EXCEEDED`（每日配额），两者都带 `Retry-After`（秒），并带 `X-RateLimit-*` 与 `X-Quota-*`。
+
+> [!NOTE]
+> 2026-09-18 之前，网关的 401 与 429 回的是平台旧信封 `{"code":10001,"message":"…"}`。按 HTTP status 分支的代码不受这次统一影响；按 body 里 `code` 数值判断的代码需要改看 status 或新的字符串 `code`。
 
 **补丁站写的（其余全部）**——RFC 9457 `application/problem+json`，与 catalog `/v2` 同一个形状：
 
@@ -223,7 +236,7 @@ Content-Type: application/problem+json
 
 `type` URI 解析到本站的[错误码注册表](/problems)，`code` 取自平台那份封闭注册表，因此一套解码逻辑同时覆盖这个面与 catalog。这个面会出现的 `code`：`INVALID_PARAMETER`、`UNKNOWN_ENUM_VALUE`、`UNKNOWN_SORT`、`UNKNOWN_INCLUDE`、`INVALID_CURSOR`、`LIMIT_TOO_LARGE`、`TOO_MANY_IDS`、`NOT_FOUND`、`METHOD_NOT_ALLOWED`、`INTERNAL_ERROR`、`SERVICE_UNAVAILABLE`。`400` 时 `errors[0]` 指出是哪个参数。
 
-一个能同时吃下两种方言的分支写法：
+一个分支写法：
 
 ```js
 const res = await fetch(url, { headers: { Authorization: `Bearer ${key}` } })
