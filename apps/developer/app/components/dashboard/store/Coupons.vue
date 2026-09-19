@@ -11,9 +11,7 @@ const saving = ref<number | null>(null)
 const batches = computed(() =>
   shares.value.map((share) => ({
     share,
-    coupons: coupons.value.filter(
-      (c) => c.batch_id === share.batch_id && c.client_id === share.client_id
-    )
+    coupons: coupons.value.filter((c) => c.batch_id === share.batch_id)
   }))
 )
 
@@ -42,13 +40,13 @@ const toggleDelivered = async (c: StoreCoupon) => {
     <div>
       <h2 class="text-foreground text-lg font-semibold">DLsite 优惠券</h2>
       <p class="text-default-500 mt-1 text-sm">
-        DLsite 按生态整体的分销销售返还优惠券,平台按结算区间里各站的去重点击占比分发。券码只有你能看到,发给你的用户之后可以标记为已发放。
+        DLsite 按生态整体的分销销售返还优惠券,平台按结算区间里的去重点击占比分发:你名下参与分成的应用合并计算,应得点数向下取整,凑不够一张券的部分不分。券码只有你能看到,发给你的用户之后可以标记为已发放。
       </p>
     </div>
 
     <KunCard
       v-for="{ share, coupons: list } in batches"
-      :key="`${share.batch_id}:${share.client_id}`"
+      :key="share.batch_id"
       content-class="justify-start gap-4 items-stretch"
       class-name="p-6"
     >
@@ -56,7 +54,10 @@ const toggleDelivered = async (c: StoreCoupon) => {
         <div>
           <p class="text-foreground font-semibold">{{ share.batch_name }}</p>
           <p class="text-default-500 mt-0.5 text-sm">
-            {{ share.app_name }} · 结算区间 {{ share.period_from }} ~ {{ share.period_to }}
+            结算区间 {{ share.period_from }} ~ {{ share.period_to }}
+            <template v-if="share.apps.length">
+              · {{ share.apps.map((a) => a.name).join('、') }}
+            </template>
           </p>
         </div>
         <div class="text-right text-sm">

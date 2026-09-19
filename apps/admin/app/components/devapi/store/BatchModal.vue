@@ -8,7 +8,7 @@ const open = defineModel<boolean>('open', { required: true })
 
 const api = useApi()
 const detail = ref<CouponBatchDetail | null>(null)
-const counts = ref<Record<string, Record<number, number>>>({})
+const counts = ref<Record<number, Record<number, number>>>({})
 const loading = ref(false)
 const busy = ref(false)
 const error = ref('')
@@ -18,9 +18,9 @@ const confirmOpen = ref(false)
 const isDraft = computed(() => detail.value?.status === 'draft')
 
 const resetCounts = () => {
-  const next: Record<string, Record<number, number>> = {}
+  const next: Record<number, Record<number, number>> = {}
   for (const row of detail.value?.split ?? []) {
-    next[row.client_id] = Object.fromEntries(row.grants.map((g) => [g.face_value, g.count]))
+    next[row.user_id] = Object.fromEntries(row.grants.map((g) => [g.face_value, g.count]))
   }
   counts.value = next
 }
@@ -47,10 +47,10 @@ watch(open, (v) => {
 })
 
 const grants = computed<CouponGrantInput[]>(() =>
-  Object.entries(counts.value).flatMap(([clientId, byFace]) =>
+  Object.entries(counts.value).flatMap(([userId, byFace]) =>
     Object.entries(byFace)
       .filter(([, n]) => n > 0)
-      .map(([face, n]) => ({ client_id: clientId, face_value: Number(face), count: n }))
+      .map(([face, n]) => ({ user_id: Number(userId), face_value: Number(face), count: n }))
   )
 )
 
@@ -94,7 +94,7 @@ const run = async () => {
       useKunMessage('草稿已删除', 'success')
       open.value = false
     } else {
-      useKunMessage('已发布，各站站长现在能在开发者平台看到自己的券码', 'success')
+      useKunMessage('已发布，分到券的用户现在能在开发者平台看到自己的券码', 'success')
       await load()
     }
   } finally {
@@ -128,12 +128,13 @@ const run = async () => {
       </div>
 
       <div v-if="isDraft" class="rounded-lg bg-primary-50 p-3 text-sm text-primary-700">
-        下表是按去重点击占比算出的建议：从大面额开始，每张券给离应得点数差得最多的站点。可以直接改张数；少分的券留在平台，不会给任何人。
+        下表是按去重点击占比算出的建议：同一用户名下参与分成的应用合并计算，应得点数向下取整；从大面额开始，每张券给剩余应得最多、且放得下这张券的用户，放不下的券留在平台。可以直接改张数；没分出去的券不会给任何人。
       </div>
 
       <DevapiStoreBatchSplit
         v-model="counts"
         :rows="detail.split"
+        :excluded="detail.excluded"
         :values="detail.by_value"
         :readonly="!isDraft"
       />
@@ -169,7 +170,7 @@ const run = async () => {
       </h3>
       <p class="text-sm text-default-500">
         <template v-if="confirm === 'publish'">
-          发布后各站站长立刻能在开发者平台看到分给自己的券码，分配不能再改。
+          发布后分到券的用户立刻能在开发者平台看到自己的券码，分配不能再改。
         </template>
         <template v-else>草稿和其中的券码都会删除，之后可以重新录入同样的券码。</template>
       </p>

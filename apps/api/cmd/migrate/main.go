@@ -132,6 +132,15 @@ func runPlatform(cfg *config.Config, args []string) {
 		os.Exit(1)
 	}
 
+	// The reward-coupon tables are keyed by developer account, not application,
+	// since 2026-09-19; the re-key has to happen before AutoMigrate recreates
+	// store_coupon_shares with its new primary key. Idempotent. See
+	// storeModel.RekeyCouponsByOwner.
+	if err := storeModel.RekeyCouponsByOwner(gormDB); err != nil {
+		slog.Error("failed to rekey the store coupon tables by owner", "error", err)
+		os.Exit(1)
+	}
+
 	// Get all models to migrate
 	models := getAllModels()
 
@@ -281,8 +290,10 @@ func getAllModels() []any {
 
 		// DLsite reward-coupon batches (2026-09-19). Three brand-new tables:
 		// a batch of coupon codes the operator pastes in, the codes themselves
-		// (assigned to a site when the batch is published), and the per-site
-		// numbers each published split was computed from. The same wave adds
+		// (assigned to a developer account when the batch is published), and the
+		// per-account numbers each published split was computed from — keyed by
+		// application on the first deploy, re-keyed by owner the same day (see
+		// RekeyCouponsByOwner above). The same wave adds
 		// store_link_daily_stats.bots (NOT NULL DEFAULT 0): existing rows read
 		// 0 until the next store-stats-resync re-pulls them from the
 		// redirector, which has recounted its own history by then.

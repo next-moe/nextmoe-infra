@@ -34,7 +34,7 @@ const td = 'whitespace-nowrap px-4 py-3 text-sm'
     <div>
       <h2 class="text-lg font-semibold text-foreground">各站点击</h2>
       <p class="text-sm text-default-500">
-        占比按全部站点的去重点击算；分券时只在打开「参与分成」的站点之间按比例切分。
+        占比按全部站点的去重点击算。分券按用户：同一用户名下打开「参与分成」的应用合并计算；新建的应用默认参与。
       </p>
     </div>
     <div class="overflow-x-auto rounded-xl bg-content1 shadow-sm">
@@ -58,7 +58,13 @@ const td = 'whitespace-nowrap px-4 py-3 text-sm'
           <tr v-for="app in apps" :key="app.client_id" class="hover:bg-default-100">
             <td :class="td">
               <p class="font-medium text-foreground">{{ app.name }}</p>
-              <p class="font-mono text-xs text-default-400">{{ app.client_id }}</p>
+              <p class="text-xs text-default-400">
+                <span v-if="app.owner_user_id !== null">
+                  {{ app.owner_name || `用户 #${app.owner_user_id}` }}
+                </span>
+                <span v-else class="text-warning-600">没有归属用户，不分券</span>
+                · <span class="font-mono">{{ app.client_id }}</span>
+              </p>
             </td>
             <td :class="td">
               <KunSwitch

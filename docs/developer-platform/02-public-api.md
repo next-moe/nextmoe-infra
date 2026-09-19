@@ -711,7 +711,7 @@ archived ──admin DELETE──> 行消失（须零引用 + 从不具备登录
 | 列 | 类型 | 是什么 |
 |---|---|---|
 | `dev_archived_at` | `timestamptz NULL` | owner 在门户删除应用的时刻。**它不是软删的 `deleted_at`**——行还在、`client_id` 还在解析、每一条引用都还活着,变的只是「它不再属于 owner 的世界」 |
-| `store_settlement_eligible` | `boolean NOT NULL DEFAULT false` | 这个应用是否参与每月 DLsite 优惠券池的分账,见下文「结算名册」 |
+| `store_settlement_eligible` | `boolean NOT NULL DEFAULT true` | 这个应用的点击是否计入其 owner 在每月 DLsite 优惠券池里的份额,见下文「结算名册」(2026-09-19 起新建默认 `true`,此前是 `false`) |
 
 **归档做什么**:吊销该应用**全部**未吊销的钥匙 → `dev_enabled=false` → 盖 `dev_archived_at` → 清 `store_settlement_eligible`。**没有任何东西被删**:sessions、authorization codes、短链、计量历史与 `client_id` 本身全部原地留下——owner 的决定管的是「这个应用还是不是我的」,管不到已经发生过的事。
 
@@ -751,9 +751,10 @@ archived ──admin DELETE──> 行消失（须零引用 + 从不具备登录
 
 - **存量行全部回填 `false`,包括已经持有 `store:read` 的那九个应用**。回填成 `true` 等于把「名册存在之前恰好勾过那个框的人」静默地招进了分账名单。
 - 归档/删除**顺手清掉这一位**:短链会永远计下去,而一份定额池的份额不该继续累给一个已经被 owner 撤下的应用。
-- **今天还没有任何结算查询读这一列**:首次结算是 2026-09,读它的那一波在后面。列现在就落,是因为**这个名册决定一旦晚于点击数据的累积就失效了**——到那时再定名册,定的是「已经分过的钱该怎么算」。
+- 列在首次结算之前就落,是因为**这个名册决定一旦晚于点击数据的累积就失效了**——到那时再定名册,定的是「已经分过的钱该怎么算」。
+- **2026-09-19 起(运营裁定)新建应用默认进名册**:DEFAULT 改成 `true`,存量行保持原值;运营在管理台「DLsite 分销」或应用配置里随时可以把某个应用移出。同日起分券**按用户而不是按应用**:同一 owner 名下进了名册的应用点击合并成一份,应得点数 = 池子 × 份额**向下取整**,自动建议从大面额起每张券只给剩余应得放得下它的用户,放不下的券留在平台;没有 owner 的应用不计入任何人。券与冻结的份额快照都挂在 `user_id` 上(`store_coupons.user_id`、`store_coupon_shares` 主键 `(batch_id, user_id)`),门户按登录用户读。
 
-> **迁移**:本节的两列由 `devapi.AddOAuthClientDevColumns` 加,主库迁移**不随部署自动执行**——须手工 `go run ./cmd/migrate`(库 `kun_galgame_infra`)。`dev_archived_at` 可空,存量行全部回填 `NULL`(把「建在功能之前」读成「已删除」会清空每个开发者的应用列表)。`store_settlement_eligible` **保留 SQL DEFAULT** 而不像其余 `dev_*` 列那样 `DROP DEFAULT`:`false` 是 Go 零值,GORM 因此在**每一条 INSERT 里都省掉这一列**,一个没有 default 的 NOT NULL 列会直接拒掉整行。
+> **迁移**:本节的两列由 `devapi.AddOAuthClientDevColumns` 加,主库迁移**不随部署自动执行**——须手工 `go run ./cmd/migrate`(库 `kun_galgame_infra`)。`dev_archived_at` 可空,存量行全部回填 `NULL`(把「建在功能之前」读成「已删除」会清空每个开发者的应用列表)。`store_settlement_eligible` **保留 SQL DEFAULT** 而不像其余 `dev_*` 列那样 `DROP DEFAULT`:模型带 `default:` 标签,GORM 因此在零值时**把这一列从 INSERT 里省掉**,一个没有 default 的 NOT NULL 列会直接拒掉整行。2026-09-19 起标签与 SQL DEFAULT 都是 `true`,于是任何代码路径建出的应用都在名册里,要移出只能建完再改。
 
 ---
 

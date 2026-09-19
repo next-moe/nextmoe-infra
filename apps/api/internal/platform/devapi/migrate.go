@@ -39,8 +39,9 @@ func DropScopeApplications(db *gorm.DB) error {
 // temporary DEFAULT so existing rows backfill, then the DEFAULT is dropped so
 // the GORM zero-value INSERT trap can't reintroduce a silent default. Two
 // columns keep their DEFAULT because the Go model never writes them explicitly
-// — dev_nsfw_allowed (the field is gone) and store_settlement_eligible (false
-// is the zero value, so GORM omits it) — see the notes at those statements.
+// — dev_nsfw_allowed (the field is gone) and store_settlement_eligible (GORM
+// omits a zero-valued field that has a default) — see the notes at those
+// statements.
 // owner_user_id is nullable (third-party app owner; NULL for first-party site
 // clients) and gets a plain index.
 //
@@ -101,7 +102,12 @@ func AddOAuthClientDevColumns(db *gorm.DB) error {
 		// backfilling them to true would silently enrol whoever happened to tick
 		// the box before the roster existed.
 		`ALTER TABLE oauth_clients ADD COLUMN IF NOT EXISTS store_settlement_eligible boolean NOT NULL DEFAULT false`,
-		`ALTER TABLE oauth_clients ALTER COLUMN store_settlement_eligible SET DEFAULT false`,
+		// 2026-09-19: every application created from now on joins the roster
+		// (operator ruling); the ones already on file keep what they have, and
+		// an operator can still take any of them off. With a true default GORM
+		// omits a false field from the INSERT, so no code path can create an
+		// application off the roster — they all switch it off afterwards.
+		`ALTER TABLE oauth_clients ALTER COLUMN store_settlement_eligible SET DEFAULT true`,
 	}
 	for _, s := range stmts {
 		if err := db.Exec(s).Error; err != nil {

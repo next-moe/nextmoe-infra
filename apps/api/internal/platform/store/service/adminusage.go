@@ -20,6 +20,7 @@ type AdminApp struct {
 	ClientID           string
 	Name               string
 	OwnerUserID        *uint
+	OwnerName          string
 	SettlementEligible bool
 }
 
@@ -27,13 +28,15 @@ type AdminUsageApp struct {
 	ClientID           string `json:"client_id"`
 	Name               string `json:"name"`
 	OwnerUserID        *uint  `json:"owner_user_id"`
+	OwnerName          string `json:"owner_name"`
 	SettlementEligible bool   `json:"settlement_eligible"`
 	Links              int64  `json:"links"`
 	Total              int64  `json:"total"`
 	Uniques            int64  `json:"uniques"`
 	Bots               int64  `json:"bots"`
 	// SharePPM is this site's part of every site's uniques in the range, in
-	// parts per million; settlement shares count eligible sites only.
+	// parts per million; settlement shares count eligible sites only, summed
+	// per owner.
 	SharePPM int64 `json:"share_ppm"`
 }
 
@@ -96,13 +99,11 @@ func (s *Service) AdminUsage(ctx context.Context, apps []AdminApp, from, to stri
 		ByApp:    []AdminUsageApp{},
 		TopLinks: []OwnerUsageLink{},
 	}
-	ids := make([]string, len(apps))
 	names := make(map[string]string, len(apps))
-	for i, a := range apps {
-		ids[i] = a.ClientID
+	for _, a := range apps {
 		names[a.ClientID] = a.Name
 	}
-	tally, err := s.tallyRange(ctx, ids, names, from, to, out.Daily)
+	tally, err := s.tallyRange(ctx, clientIDsOf(apps), names, from, to, out.Daily)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +112,7 @@ func (s *Service) AdminUsage(ctx context.Context, apps []AdminApp, from, to stri
 	for _, a := range apps {
 		t := tally.apps[a.ClientID]
 		row := AdminUsageApp{
-			ClientID: a.ClientID, Name: a.Name, OwnerUserID: a.OwnerUserID,
+			ClientID: a.ClientID, Name: a.Name, OwnerUserID: a.OwnerUserID, OwnerName: a.OwnerName,
 			SettlementEligible: a.SettlementEligible,
 			Links:              t.Links, Total: t.Total, Uniques: t.Uniques, Bots: t.Bots,
 		}

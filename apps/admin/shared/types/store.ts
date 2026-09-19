@@ -9,6 +9,7 @@ export interface StoreUsageApp {
   client_id: string
   name: string
   owner_user_id: number | null
+  owner_name: string
   settlement_eligible: boolean
   links: number
   total: number
@@ -72,15 +73,29 @@ export interface CouponGrant {
   count: number
 }
 
-export interface CouponSplitRow {
+export interface CouponShareApp {
   client_id: string
   name: string
-  settlement_eligible: boolean
+  uniques: number
+}
+
+export interface CouponSplitRow {
+  user_id: number
+  name: string
+  apps: CouponShareApp[]
   uniques: number
   share_ppm: number
   entitled_points: number
   grants: CouponGrant[]
   allocated_points: number
+}
+
+export interface CouponExcludedApp {
+  client_id: string
+  name: string
+  owner_user_id: number | null
+  settlement_eligible: boolean
+  uniques: number
 }
 
 export interface AdminCoupon {
@@ -89,19 +104,20 @@ export interface AdminCoupon {
   face_value: number
   code: string
   expires_on: string | null
-  client_id: string | null
+  user_id: number | null
   delivered_at: string | null
   created_at: string
-  app_name: string
+  user_name: string
 }
 
 export interface CouponBatchDetail extends CouponBatchSummary {
   coupon_list: AdminCoupon[]
   split: CouponSplitRow[]
+  excluded: CouponExcludedApp[]
 }
 
 export interface CouponGrantInput {
-  client_id: string
+  user_id: number
   face_value: number
   count: number
 }

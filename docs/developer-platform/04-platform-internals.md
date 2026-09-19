@@ -41,16 +41,15 @@ DevReviewNote   string `gorm:"type:text" json:"dev_review_note,omitempty"`
 // 波的理由,此前一个被拒的申请永久占着一格且自助面交不回来。
 DevArchivedAt *time.Time `json:"dev_archived_at,omitempty"`
 
-// StoreSettlementEligible: 是否参与每月 DLsite 优惠券池的分账。铸店铺短链是
-// 自助的(store:read 在 selfServiceScopes 里),但池是定额的、每多一个参与者
-// 都稀释其余人,所以「分不分钱」是运营写在这一列上的名册,不是「谁手里有
-// store:read」。存量行全部回填 false,含已持有该 scope 的九个应用。
-StoreSettlementEligible bool `gorm:"not null;default:false" json:"store_settlement_eligible"`
+// StoreSettlementEligible: 这个应用的点击是否计入其 owner 在每月 DLsite
+// 优惠券池里的份额。2026-08-29 落列时存量行全部回填 false;2026-09-19 起
+// 新建应用默认 true(运营裁定),运营与归档照常能把它关掉。
+StoreSettlementEligible bool `gorm:"not null;default:true" json:"store_settlement_eligible"`
 ```
 > scope 直接复用既有 `AllowedScopes` + `CheckScope`,不另起字段。
 > 以上各列由 `devapi.AddOAuthClientDevColumns` 的 raw SQL 加(`ADD COLUMN … NOT NULL DEFAULT 'approved'` 完成回填后 `DROP DEFAULT`),与既有 `dev_*` 列同一模式、同一函数,**必须在 AutoMigrate 之前跑**。
-> **`store_settlement_eligible` 是这条模式的例外,DEFAULT 刻意留着**:`false` 是 Go 零值,GORM 因此在**每一条 INSERT 里都省掉这一列**,`DROP DEFAULT` 之后 NOT NULL 会直接拒掉整行。(同样保留 DEFAULT 的还有 `dev_nsfw_allowed`,理由不同——Go 侧的字段已经没了。)`dev_archived_at` 可空,存量行回填 `NULL`。
-> 模型上的 `gorm:"default:false"` 标签与那条保留的 SQL DEFAULT **必须成对**:带 default 标签的零值字段正是 GORM 从 INSERT 里省掉的那一种,省掉之后接住这一列的就只剩库里的 DEFAULT。§5.4「不用 GORM `default:` 标签」管的是另一类列——那里的列需要写得进零值。运营改这一位走 `UpdateAppFields` 的 map,map 里的 `false` 照常写得进去。
+> **`store_settlement_eligible` 是这条模式的例外,DEFAULT 刻意留着**:字段带 `default:` 标签,GORM 在它取零值 `false` 时**把这一列从 INSERT 里省掉**,`DROP DEFAULT` 之后 NOT NULL 会直接拒掉整行。2026-09-19 起 DEFAULT 是 `true`:省掉的那一列落成 `true`,所以新应用一律进名册。(同样保留 DEFAULT 的还有 `dev_nsfw_allowed`,理由不同——Go 侧的字段已经没了。)`dev_archived_at` 可空,存量行回填 `NULL`。
+> 模型上的 `gorm:"default:true"` 标签与那条保留的 SQL DEFAULT **必须成对**:带 default 标签的零值字段正是 GORM 从 INSERT 里省掉的那一种,省掉之后接住这一列的就只剩库里的 DEFAULT。§5.4「不用 GORM `default:` 标签」管的是另一类列——那里的列需要写得进零值。运营改这一位走 `UpdateAppFields` 的 map,map 里的 `false` 照常写得进去。
 
 ### 5.2 新表 `developer_api_keys`
 
