@@ -69,6 +69,7 @@ import-getchu-refs --apply
 reconcile-getchu --apply
 import-getchu-intros --population all --apply
 import-getchu-characters --apply
+backfill-release-meta --apply
 reconcile-org-labels --source all --apply
 EOF
 }
@@ -96,6 +97,7 @@ extract_tool_cmd() {
     import-getchu-intros \
     import-getchu-refs \
     reconcile-getchu \
+    backfill-release-meta \
     import-store-anchors \
     import-release-labels \
     backfill-character-instances \
@@ -199,6 +201,9 @@ emit_out() {
     reconcile-getchu+dry|reconcile-getchu+apply)
       echo '2026/09/18 06:00:00 INFO getchuattach summary population=0 attached=0 jan_vndb=0 jan_eg=0 title_date=0 title_cut=0 eg_brand=0 eg_near=0 jan_conflict=0 bundles=0 goods=0 all_ages=0 extras=0 addons=0 reissues=0 cancelled=0 undated=0 brand_unknown=0 unmapped_relations=0 eg_editions=0 rejected_skips=0 mint_groups=0 minted_live=0 minted_quarantined=0 candidates=0 written=0 errors=0'
       ;;
+    backfill-release-meta+dry|backfill-release-meta+apply)
+      echo '2026/09/19 00:00:00 INFO backfill-release-meta summary apply=false dates_candidates=0 dates_same=0 dates_unknown=0 dates_human=0 dates_written=0 dates_lost=0 all_filled=0 all_moved=0 all_cleared=0 vndb_date_filled=0 vndb_date_moved=0 vndb_date_cleared=0 dl_date_filled=0 dl_date_moved=0 dl_date_cleared=0 gc_date_filled=0 gc_date_moved=0 gc_date_cleared=0 eg_date_filled=0 eg_date_moved=0 eg_date_cleared=0 bgm_date_filled=0 bgm_date_moved=0 bgm_date_cleared=0 vndb_missing=0 dl_missing=0 gc_missing=0 eg_missing=0 bgm_missing=0 rating_candidates=0 rating_planned=0 rating_filled=0 errors=0'
+      ;;
     reconcile-org-labels+all+dry|reconcile-org-labels+all+apply)
       echo '2026/09/17 14:21:47 INFO org-label anchor source done source=vndb pass=1 apply=false orgs=30089 already=25082 exact=8 probable=16 new_labels=41 new_edges=52 conflict=1421 skip_no_match=922 skip_ambiguous=21 skip_ungradeable=2437 skip_rejected=0 skip_deferred=0 vndb_in_anchored=7'
       echo '2026/09/17 14:21:47 INFO org-label anchor source done source=eg pass=1 apply=false orgs=7565 already=5094 exact=9 probable=71 new_labels=3 new_edges=3 conflict=110 skip_no_match=1770 skip_ambiguous=106 skip_ungradeable=404 skip_rejected=1 skip_deferred=0 vndb_in_anchored=0'
@@ -288,6 +293,7 @@ case "$1" in
       import-getchu-intros \
       import-getchu-refs \
       reconcile-getchu \
+      backfill-release-meta \
       import-store-anchors \
       import-release-labels \
       backfill-character-instances \
@@ -1105,6 +1111,38 @@ grep -v -F \
   -e 'import-getchu-characters --apply' \
   "$td/ctl/t1" > "$td/ctl/expected"
 expect_apply "$td" "$td/ctl/expected"
+tend
+rm -rf "$td"
+
+# --- T29: release-dates dry and apply carry every flag, including getchu DSN and receipts ---
+tstart 29
+td=$(mktemp -d)
+install_fakes "$td"
+run_job "$td"
+expect_exit "$td" 0
+if ! grep -q '^backfill-release-meta+dry$' "$td/ctl/tools.log"; then fail "release-dates dry never ran"; fi
+if ! grep -q '^backfill-release-meta+apply$' "$td/ctl/tools.log"; then fail "release-dates apply never ran"; fi
+rd_cmd='backfill-release-meta --dsn "$CAT" --dlsite-dsn "$DL" --eg-dsn "$EG" --getchu-dsn "$GC"'
+if ! grep -F -- "$rd_cmd" "$td/ctl/docker.args" | grep -q -v -- '--apply'; then fail "release-dates dry run missing a mirror DSN"; fi
+if ! grep -q -F -- "$rd_cmd --apply --receipts /w/state/release-dates.jsonl" "$td/ctl/docker.args"; then fail "release-dates apply missing a mirror DSN or its receipts"; fi
+tend
+rm -rf "$td"
+
+# --- T30: all_moved past its ceiling skips only release-dates apply; labels still applies ---
+tstart 30
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' '2026/09/19 00:00:00 INFO backfill-release-meta summary apply=false all_filled=0 all_moved=1001 all_cleared=0 dates_candidates=0 errors=0' \
+  > "$td/ctl/out/backfill-release-meta+dry"
+run_job "$td"
+expect_exit_nonzero "$td"
+if has_stamp "$td"; then fail "stamp written"; fi
+if ! has_alert "$td"; then fail "no alert"; fi
+write_t1_expected "$td/ctl/t1"
+grep -v -F -e 'backfill-release-meta --apply' "$td/ctl/t1" > "$td/ctl/expected"
+expect_apply "$td" "$td/ctl/expected"
+if grep -q -F 'backfill-release-meta --apply' "$td/ctl/apply.log"; then fail "release-dates applied past its ceiling"; fi
+if ! grep -q -F 'reconcile-org-labels --source all --apply' "$td/ctl/apply.log"; then fail "labels group did not apply after release-dates ceiling"; fi
 tend
 rm -rf "$td"
 

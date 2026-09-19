@@ -1,9 +1,17 @@
-package releasemeta
+package sourcedate
 
 import (
 	"strconv"
 	"strings"
 )
+
+func Bangumi(s string, maxYear int) Verdict {
+	y, m, d, ok := parseFuzzyDate(s, maxYear)
+	if !ok {
+		return Verdict{State: Unknown}
+	}
+	return Verdict{State: Dated, Y: y, M: m, D: d}
+}
 
 func parseFuzzyDate(s string, maxYear int) (y int16, m, d *int16, ok bool) {
 	s = strings.TrimSpace(s)

@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strings"
 
+	"api/internal/platform/catalog/sourcedate"
+
 	"gorm.io/datatypes"
 )
 
@@ -73,20 +75,8 @@ func buildReleaseExtra(rid string, m relMeta, langs, plats []string) datatypes.J
 }
 
 func parseVNDBReleased(released, maxYear int) (y int16, m, d *int16, ok bool) {
-	yy := released / 10000
-	if yy < releaseMinYear || yy > maxYear {
-		return 0, nil, nil, false
-	}
-	y = int16(yy)
-	if mm := (released / 100) % 100; mm >= 1 && mm <= 12 {
-		mv := int16(mm)
-		m = &mv
-		if dd := released % 100; dd >= 1 && dd <= 31 {
-			dv := int16(dd)
-			d = &dv
-		}
-	}
-	return y, m, d, true
+	v := sourcedate.VNDB(int64(released), maxYear)
+	return v.Y, v.M, v.D, v.State == sourcedate.Dated
 }
 
 func (im *Importer) loadReleaseMeta() (map[string]relMeta, error) {

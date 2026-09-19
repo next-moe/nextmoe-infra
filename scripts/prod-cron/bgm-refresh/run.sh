@@ -109,12 +109,9 @@ run sh -c "$DSNSH"'; enrich-bgm-summaries --dsn "$CAT" --apply'
 run sh -c "$DSNSH"'; backfill-work-tags --dsn "$CAT" --apply'
 run sh -c "$DSNSH"'; backfill-work-ratings --dsn "$CAT" --eg-dsn "$EG" --dlsite-dsn "$DL" --hltb-dsn "$HL" --apply'
 run sh -c "$DSNSH"'; backfill-entity-intros --dsn "$CAT" --eg-dsn "$EG" --apply'
-# --wiki-dsn was dropped from the tool with the galgame-wiki retirement. Go's
-# flag package treats an undefined flag as a usage error and exits 2, so this
-# line killed the 2026-08-13 run the moment the binary was current again: the
-# image tracking main can break the INVOCATION, not just the binary. When a
-# tool's flags change in infra, fix this file in the same PR.
-run sh -c "$DSNSH"'; backfill-release-meta --dsn "$CAT" --dlsite-dsn "$DL" --eg-dsn "$EG" --apply'
+# backfill-release-meta runs in source-import's release-dates group, behind a
+# dry-run ceiling: since 2026-09-19 it rewrites dates that moved upstream, not
+# only empty ones, and one ceiling on one schedule is the guard.
 run sh -c "$DSNSH"'; backfill-bgm-work-meta --dsn "$CAT" --apply'
 # Chinese source titles from the subject.name_cn the ingest above just
 # replaced — work-level metadata, so it belongs beside the meta step rather

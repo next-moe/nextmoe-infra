@@ -347,6 +347,21 @@ fi
 gstep sh -c "$DSNSH"'; import-getchu-intros --dsn "$CAT" --getchu-dsn "$GC" --population all --apply'
 gstep sh -c "$DSNSH"'; import-getchu-characters --dsn "$CAT" --getchu-dsn "$GC" --apply'
 
+# Last of the source groups: it reads every source the groups above and
+# vndb-refresh just refreshed. Importers only create releases, so a date that
+# moved upstream (VNDB postponements, DLsite announcements) stayed put; the
+# previous fill-empty job also read works.regist_date, which sat one day late
+# on 2,009 DLsite rows against the API string.
+begin_group release-dates
+if [ "$GROUP_FAIL" -eq 0 ]; then
+  if dry_ok release-dates sh -c "$DSNSH"'; backfill-release-meta --dsn "$CAT" --dlsite-dsn "$DL" --eg-dsn "$EG" --getchu-dsn "$GC"' \
+     && check_counters release-dates "$last_dry_log" all_filled=3000 all_moved=1000 all_cleared=100; then
+    gstep sh -c "$DSNSH"'; backfill-release-meta --dsn "$CAT" --dlsite-dsn "$DL" --eg-dsn "$EG" --getchu-dsn "$GC" --apply --receipts /w/state/release-dates.jsonl'
+  else
+    ceiling_failed
+  fi
+fi
+
 begin_group labels
 # Last, so the works the groups above minted carry their anchors first. vndb and
 # erogamescape mint a label for a producer no label answers to; Bangumi only

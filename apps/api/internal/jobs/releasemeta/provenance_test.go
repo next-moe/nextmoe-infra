@@ -94,10 +94,17 @@ func TestFillDateSkipsEngineClearedDate(t *testing.T) {
 		HasPerm: func(key string) bool { return perm.Resolver.Can([]string{"ren"}, authz.Permission(key)) },
 	}
 
-	ruledWork := mkWork(t, medium, "human cleared date", nil, nil, 0)
+	ruledWork := mkWork(t, medium, "human cleared date", nil, nil, model.ContentRatingSensitive)
 	ruled := mkRelease(t, ruledWork, 2001, 2, 3)
-	controlWork := mkWork(t, medium, "never edited date", nil, nil, 0)
+	controlWork := mkWork(t, medium, "never edited date", nil, nil, model.ContentRatingSensitive)
 	control := mkRelease(t, controlWork, 0, 0, 0)
+
+	regSrc, err := resolveRegistry(ctx, testDB)
+	require.NoError(t, err)
+	mkReleaseAnchor(t, ruled, "RJ030001", regSrc.dlsiteSource)
+	mkDlWorkFull(t, "RJ030001", "2020-06-07 00:00:00", "2020-06-07 00:00:00+00", "")
+	mkReleaseAnchor(t, control, "RJ030002", regSrc.dlsiteSource)
+	mkDlWorkFull(t, "RJ030002", "2020-06-07 00:00:00", "2020-06-07 00:00:00+00", "")
 
 	_, rev, err := e.CreateProposal(ctx, editing.CreateProposalInput{
 		EntityType: editspec.TypeRelease, EntityID: ruled,
@@ -109,15 +116,12 @@ func TestFillDateSkipsEngineClearedDate(t *testing.T) {
 	require.Equal(t, provenance.SourceCurated, provenance.FirstSource(
 		reloadReleaseProv(t, ruled), "released_y"))
 
-	w := &writer{db: testDB, stats: &Stats{}}
-	var filled, skipped int
-	m, d := int16(6), int16(7)
-	w.fillDate(ctx, ruled, 2020, &m, &d, true, &filled, &skipped)
-	w.fillDate(ctx, control, 2020, &m, &d, true, &filled, &skipped)
+	st, err := Run(ctx, runOpts(true))
+	require.NoError(t, err)
+	assert.Equal(t, 1, st.DatesHuman)
 
 	y, _, _ := relDate(t, ruled)
 	assert.Nil(t, y, "an engine-cleared date must survive releasemeta")
-	assert.Equal(t, 1, skipped)
 	cy, cm, cd := relDate(t, control)
 	require.NotNil(t, cy)
 	assert.Equal(t, int16(2020), *cy)
@@ -125,7 +129,8 @@ func TestFillDateSkipsEngineClearedDate(t *testing.T) {
 	assert.Equal(t, int16(6), *cm)
 	require.NotNil(t, cd)
 	assert.Equal(t, int16(7), *cd)
-	assert.Equal(t, 1, filled)
+	assert.Equal(t, 1, st.DlDateFilled)
+	assert.Equal(t, 1, st.DatesWritten)
 }
 
 func reloadReleaseProv(t *testing.T, id int64) []byte {
