@@ -194268,6 +194268,12 @@ export const docsModel: DocsModel = {
                                   "name": "avatar_url",
                                   "required": true,
                                   "type": "string"
+                                },
+                                {
+                                  "name": "web_url",
+                                  "required": true,
+                                  "format": "uri",
+                                  "type": "string"
                                 }
                               ]
                             },
@@ -194441,6 +194447,12 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "avatar_url",
                                         "required": true,
+                                        "type": "string"
+                                      },
+                                      {
+                                        "name": "web_url",
+                                        "required": true,
+                                        "format": "uri",
                                         "type": "string"
                                       }
                                     ]
@@ -195032,6 +195044,12 @@ export const docsModel: DocsModel = {
                             "name": "avatar_url",
                             "required": true,
                             "type": "string"
+                          },
+                          {
+                            "name": "web_url",
+                            "required": true,
+                            "format": "uri",
+                            "type": "string"
                           }
                         ]
                       },
@@ -195205,6 +195223,12 @@ export const docsModel: DocsModel = {
                                 {
                                   "name": "avatar_url",
                                   "required": true,
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "web_url",
+                                  "required": true,
+                                  "format": "uri",
                                   "type": "string"
                                 }
                               ]
@@ -195911,6 +195935,12 @@ export const docsModel: DocsModel = {
                                   "name": "avatar_url",
                                   "required": true,
                                   "type": "string"
+                                },
+                                {
+                                  "name": "web_url",
+                                  "required": true,
+                                  "format": "uri",
+                                  "type": "string"
                                 }
                               ]
                             }
@@ -196599,6 +196629,12 @@ export const docsModel: DocsModel = {
                           {
                             "name": "avatar_url",
                             "required": true,
+                            "type": "string"
+                          },
+                          {
+                            "name": "web_url",
+                            "required": true,
+                            "format": "uri",
                             "type": "string"
                           }
                         ]
