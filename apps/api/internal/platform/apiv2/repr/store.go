@@ -37,13 +37,13 @@ type StoreStatRow struct {
 	ProductID  *string  `json:"product_id" pattern:"^(RJ|VJ)[0-9]{6,8}$" maxLength:"10" doc:"The DLsite product number on a purchase row. null on coupon rows."`
 	CampaignID *string  `json:"campaign_id" pattern:"^[0-9]+$" maxLength:"20" doc:"The campaign id on a coupon row. null on purchase rows."`
 	Date       string   `json:"date" format:"date" maxLength:"10" doc:"JST calendar day."`
-	Total      int      `json:"total" minimum:"0" doc:"Clicks that day, before de-duplication."`
-	Uniques    int      `json:"uniques" minimum:"0" doc:"Distinct (day, fingerprint) clicks that day — the number settlement uses."`
+	Total      int      `json:"total" minimum:"0" doc:"Clicks that day, before de-duplication and crawlers included."`
+	Uniques    int      `json:"uniques" minimum:"0" doc:"Distinct (day, fingerprint) clicks that day, clients whose User-Agent announces a crawler, link preview or HTTP library left out — the number settlement uses."`
 }
 
 type StoreStatTotal struct {
 	_        struct{} `json:"-" additionalProperties:"true"`
 	LinkKind *string  `json:"link_kind" enum:"purchase,coupon" doc:"Which half of the range this total covers. null on the grand total."`
-	Total    int      `json:"total" minimum:"0" doc:"Clicks in the range, before de-duplication."`
-	Uniques  int      `json:"uniques" minimum:"0" doc:"De-duplicated clicks in the range — the number settlement uses."`
+	Total    int      `json:"total" minimum:"0" doc:"Clicks in the range, before de-duplication and crawlers included."`
+	Uniques  int      `json:"uniques" minimum:"0" doc:"De-duplicated clicks in the range, declared crawlers left out — the number settlement uses."`
 }

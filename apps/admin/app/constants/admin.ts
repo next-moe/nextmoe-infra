@@ -44,6 +44,7 @@ export const SIDEBAR_MENU: SidebarItem[] = [
     children: [
       { icon: 'lucide:layout-grid', label: '应用与策略', to: '/devapi', adminOnly: true },
       { icon: 'lucide:key-round', label: '全部密钥', to: '/devapi/keys', adminOnly: true },
+      { icon: 'lucide:shopping-bag', label: 'DLsite 分销', to: '/devapi/store', adminOnly: true },
     ],
   },
   { icon: 'lucide:shield-check', label: '权限矩阵', to: '/permission', adminOnly: true },

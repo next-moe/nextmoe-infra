@@ -48,7 +48,8 @@ func Open() (*gorm.DB, func(), bool) {
 
 func Truncate(db *gorm.DB) error {
 	return db.Exec(`TRUNCATE store_price_quotes, store_link_daily_stats, store_coupon_links,
-		store_purchase_links, store_campaigns RESTART IDENTITY CASCADE`).Error
+		store_purchase_links, store_campaigns, store_coupon_batches, store_coupons,
+		store_coupon_shares RESTART IDENTITY CASCADE`).Error
 }
 
 func acquireSuiteLock(db *sql.DB) func() {

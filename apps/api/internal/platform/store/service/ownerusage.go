@@ -27,6 +27,7 @@ type OwnerUsageDay struct {
 	Day     string `json:"day"`
 	Total   int64  `json:"total"`
 	Uniques int64  `json:"uniques"`
+	Bots    int64  `json:"bots"`
 }
 
 type OwnerUsageApp struct {
@@ -35,6 +36,7 @@ type OwnerUsageApp struct {
 	Links    int64  `json:"links"`
 	Total    int64  `json:"total"`
 	Uniques  int64  `json:"uniques"`
+	Bots     int64  `json:"bots"`
 }
 
 type OwnerUsageLink struct {
@@ -45,6 +47,7 @@ type OwnerUsageLink struct {
 	CampaignID *int64  `json:"campaign_id"`
 	Total      int64   `json:"total"`
 	Uniques    int64   `json:"uniques"`
+	Bots       int64   `json:"bots"`
 }
 
 type OwnerUsageSummary struct {
@@ -53,6 +56,7 @@ type OwnerUsageSummary struct {
 	Until     string           `json:"until"`
 	Total     int64            `json:"total"`
 	Uniques   int64            `json:"uniques"`
+	Bots      int64            `json:"bots"`
 	LinkCount int64            `json:"link_count"`
 	Daily     []OwnerUsageDay  `json:"daily"`
 	ByApp     []OwnerUsageApp  `json:"by_app"`
@@ -77,7 +81,7 @@ func (s *Service) OwnerUsage(ctx context.Context, apps []OwnerApp, days int) (*O
 
 	out := &OwnerUsageSummary{
 		Days: days, Since: since, Until: until,
-		Daily:  denseDays(now, days),
+		Daily:  denseDays(since, until),
 		ByApp:  []OwnerUsageApp{},
 		ByLink: []OwnerUsageLink{},
 	}
@@ -91,7 +95,47 @@ func (s *Service) OwnerUsage(ctx context.Context, apps []OwnerApp, days int) (*O
 		clientIDs[i] = a.ClientID
 		names[a.ClientID] = a.Name
 	}
+	tally, err := s.tallyRange(ctx, clientIDs, names, since, until, out.Daily)
+	if err != nil {
+		return nil, err
+	}
+	out.Total, out.Uniques, out.Bots = tally.total, tally.uniques, tally.bots
 
+	for _, a := range apps {
+		row := tally.apps[a.ClientID]
+		row.ClientID, row.Name = a.ClientID, a.Name
+		if row.Links == 0 && row.Total == 0 {
+			continue
+		}
+		out.LinkCount += row.Links
+		out.ByApp = append(out.ByApp, row)
+	}
+	slices.SortFunc(out.ByApp, func(a, b OwnerUsageApp) int {
+		return cmp.Or(cmp.Compare(b.Total, a.Total), cmp.Compare(a.ClientID, b.ClientID))
+	})
+
+	out.ByLink = tally.links
+	slices.SortFunc(out.ByLink, func(a, b OwnerUsageLink) int {
+		return cmp.Or(cmp.Compare(b.Total, a.Total), compareLinks(a, b))
+	})
+	return out, nil
+}
+
+// rangeTally is the click counts of a set of sites over a closed JST-day range.
+type rangeTally struct {
+	total, uniques, bots int64
+	apps                 map[string]OwnerUsageApp
+	links                []OwnerUsageLink
+}
+
+// tallyRange adds every link-day of clientIDs in [since, until] into daily (in
+// place, matched by day) and returns the per-site and per-link sums. Every
+// client ID gets an apps entry, its link count filled even without clicks.
+func (s *Service) tallyRange(ctx context.Context, clientIDs []string, names map[string]string, since, until string, daily []OwnerUsageDay) (*rangeTally, error) {
+	out := &rangeTally{apps: make(map[string]OwnerUsageApp, len(clientIDs)), links: []OwnerUsageLink{}}
+	if len(clientIDs) == 0 {
+		return out, nil
+	}
 	linkCounts, err := s.linkCounts(ctx, clientIDs)
 	if err != nil {
 		return nil, err
@@ -101,28 +145,30 @@ func (s *Service) OwnerUsage(ctx context.Context, apps []OwnerApp, days int) (*O
 		return nil, err
 	}
 
-	byDay := make(map[string]int, len(out.Daily))
-	for i, d := range out.Daily {
+	byDay := make(map[string]int, len(daily))
+	for i, d := range daily {
 		byDay[d.Day] = i
 	}
-	perApp := map[string]*OwnerUsageApp{}
+	for _, id := range clientIDs {
+		out.apps[id] = OwnerUsageApp{ClientID: id, Name: names[id], Links: linkCounts[id]}
+	}
 	perLink := map[string]*OwnerUsageLink{}
 
 	for _, r := range rows {
-		out.Total += r.Total
-		out.Uniques += r.Uniques
+		out.total += r.Total
+		out.uniques += r.Uniques
+		out.bots += r.Bots
 		if i, ok := byDay[r.Day]; ok {
-			out.Daily[i].Total += r.Total
-			out.Daily[i].Uniques += r.Uniques
+			daily[i].Total += r.Total
+			daily[i].Uniques += r.Uniques
+			daily[i].Bots += r.Bots
 		}
 
-		app, ok := perApp[r.ClientID]
-		if !ok {
-			app = &OwnerUsageApp{ClientID: r.ClientID, Name: names[r.ClientID]}
-			perApp[r.ClientID] = app
-		}
+		app := out.apps[r.ClientID]
 		app.Total += r.Total
 		app.Uniques += r.Uniques
+		app.Bots += r.Bots
+		out.apps[r.ClientID] = app
 
 		key := r.ClientID + "\x00" + r.Kind + "\x00" + derefString(r.ProductID) + "\x00" + derefInt64(r.CampaignID)
 		link, ok := perLink[key]
@@ -135,36 +181,21 @@ func (s *Service) OwnerUsage(ctx context.Context, apps []OwnerApp, days int) (*O
 		}
 		link.Total += r.Total
 		link.Uniques += r.Uniques
+		link.Bots += r.Bots
 	}
-
-	for _, a := range apps {
-		row := OwnerUsageApp{ClientID: a.ClientID, Name: a.Name, Links: linkCounts[a.ClientID]}
-		if got, ok := perApp[a.ClientID]; ok {
-			row.Total, row.Uniques = got.Total, got.Uniques
-		}
-		if row.Links == 0 && row.Total == 0 {
-			continue
-		}
-		out.LinkCount += row.Links
-		out.ByApp = append(out.ByApp, row)
-	}
-	slices.SortFunc(out.ByApp, func(a, b OwnerUsageApp) int {
-		return cmp.Or(cmp.Compare(b.Total, a.Total), cmp.Compare(a.ClientID, b.ClientID))
-	})
-
 	for _, l := range perLink {
-		out.ByLink = append(out.ByLink, *l)
+		out.links = append(out.links, *l)
 	}
-	slices.SortFunc(out.ByLink, func(a, b OwnerUsageLink) int {
-		return cmp.Or(
-			cmp.Compare(b.Total, a.Total),
-			cmp.Compare(a.ClientID, b.ClientID),
-			cmp.Compare(a.Kind, b.Kind),
-			cmp.Compare(derefString(a.ProductID), derefString(b.ProductID)),
-			cmp.Compare(derefInt64(a.CampaignID), derefInt64(b.CampaignID)),
-		)
-	})
 	return out, nil
+}
+
+func compareLinks(a, b OwnerUsageLink) int {
+	return cmp.Or(
+		cmp.Compare(a.ClientID, b.ClientID),
+		cmp.Compare(a.Kind, b.Kind),
+		cmp.Compare(derefString(a.ProductID), derefString(b.ProductID)),
+		cmp.Compare(derefInt64(a.CampaignID), derefInt64(b.CampaignID)),
+	)
 }
 
 type ownerStatRow struct {
@@ -175,17 +206,18 @@ type ownerStatRow struct {
 	Day        string
 	Total      int64
 	Uniques    int64
+	Bots       int64
 }
 
 const ownerStatsSQL = `
 SELECT p.client_id, 'purchase' AS kind, p.product_id AS product_id, NULL::bigint AS campaign_id,
-       s.day, s.total, s.uniques
+       s.day, s.total, s.uniques, s.bots
   FROM store_link_daily_stats s
   JOIN store_purchase_links p ON p.alias = s.alias
  WHERE p.client_id IN ? AND s.day >= ? AND s.day <= ?
 UNION ALL
 SELECT c.client_id, 'coupon' AS kind, NULL::text AS product_id, c.campaign_id,
-       s.day, s.total, s.uniques
+       s.day, s.total, s.uniques, s.bots
   FROM store_link_daily_stats s
   JOIN store_coupon_links c ON c.alias = s.alias
  WHERE c.client_id IN ? AND s.day >= ? AND s.day <= ?`
@@ -218,10 +250,19 @@ func (s *Service) linkCounts(ctx context.Context, clientIDs []string) (map[strin
 	return out, nil
 }
 
-func denseDays(now time.Time, days int) []OwnerUsageDay {
-	out := make([]OwnerUsageDay, 0, days)
-	for i := days - 1; i >= 0; i-- {
-		out = append(out, OwnerUsageDay{Day: model.JSTDay(now.AddDate(0, 0, -i))})
+// denseDays lists every JST day of the closed range [since, until], zeroed.
+func denseDays(since, until string) []OwnerUsageDay {
+	from, ok := model.ParseJSTDay(since)
+	if !ok {
+		return []OwnerUsageDay{}
+	}
+	to, ok := model.ParseJSTDay(until)
+	if !ok {
+		return []OwnerUsageDay{}
+	}
+	out := make([]OwnerUsageDay, 0, model.DaySpan(from, to))
+	for d := from; !d.After(to); d = d.AddDate(0, 0, 1) {
+		out = append(out, OwnerUsageDay{Day: model.JSTDay(d)})
 	}
 	return out
 }

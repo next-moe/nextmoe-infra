@@ -128,6 +128,7 @@ oauth 上的调度器(`internal/jobs`)每个任务两把键,没有环境变量�
 | `ymgal-news-poll` | true | `every:10m` |
 | `ymgal-news-sweep` | true | `daily@04:05` |
 | `store-stats-sync` | true | `every:1h` |
+| `store-stats-resync` | true | `daily@05:10` |
 | `news-moderate` | true | `every:5m` |
 
 键名里的 `<n>` 是任务名把 `-` 换成 `_`(`jobs.image_gc.schedule`)。

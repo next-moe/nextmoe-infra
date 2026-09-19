@@ -349,7 +349,32 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	devAdminSvc := devapi.NewAdminService(devRepo, devStore)
 	devAdminH := devapi.NewAdminHandler(devAdminSvc)
 	devGroup := admin.Group("/devapi", middleware.RequirePermission(devapiPerm.Resolver, devapiPerm.Manage))
-	devAdminH.Register(devGroup, middleware.RequirePermission(devapiPerm.Resolver, devapiPerm.PolicyManage))
+	policyManageGate := middleware.RequirePermission(devapiPerm.Resolver, devapiPerm.PolicyManage)
+	devAdminH.Register(devGroup, policyManageGate)
+	storeHandler.NewAdminHandler(
+		storeService.New(db, nil, storeService.Options{}),
+		func(ctx context.Context, clientIDs []string) ([]storeService.AdminApp, error) {
+			out := make([]storeService.AdminApp, 0, len(clientIDs))
+			for _, id := range clientIDs {
+				app, err := devRepo.GetApp(ctx, id)
+				if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+					return nil, err
+				}
+				row := storeService.AdminApp{ClientID: id, Name: id}
+				if app != nil {
+					row.Name = app.Name
+					row.OwnerUserID = app.OwnerUserID
+					row.SettlementEligible = app.StoreSettlementEligible
+				}
+				out = append(out, row)
+			}
+			return out, nil
+		},
+		func(c fiber.Ctx) bool {
+			roles, _ := c.Locals("user_roles").([]string)
+			return devapiPerm.Resolver.Can(roles, devapiPerm.PolicyManage)
+		},
+	).Register(devGroup, policyManageGate)
 
 	devSelfH := devapi.NewSelfServiceHandler(devapi.NewSelfServiceService(devRepo, devAdminSvc, devStore))
 	devPortalClients := make(map[string]bool, len(cfg.DevPortalClientIDs))

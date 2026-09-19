@@ -100,6 +100,8 @@ var goldenNames = []string{
 	"jobs.ymgal_news_sweep.schedule",
 	"jobs.store_stats_sync.enabled",
 	"jobs.store_stats_sync.schedule",
+	"jobs.store_stats_resync.enabled",
+	"jobs.store_stats_resync.schedule",
 	"jobs.news_moderate.enabled",
 	"jobs.news_moderate.schedule",
 }
@@ -199,8 +201,8 @@ func TestJobKeysLookup(t *testing.T) {
 	}
 
 	names := keys.JobNames()
-	if len(names) != 12 {
-		t.Fatalf("JobNames() = %d, want 12", len(names))
+	if len(names) != 13 {
+		t.Fatalf("JobNames() = %d, want 13", len(names))
 	}
 	seen := make(map[string]bool, len(names))
 	re := regexp.MustCompile(keys.JobSchedulePattern)

@@ -115,6 +115,16 @@ func RegisterAll(r *Registry) {
 		},
 	})
 
+	// The hourly sync only re-reads three days, so a recount on the redirector
+	// (its bot rule changed on 2026-09-19) would never reach older days.
+	r.Register(Job{
+		Name: "store-stats-resync",
+		Desc: "DLsite 分销短链点击全量重拉（上月 1 日至今；短链服务重算历史后由它改正本地缓存）",
+		Run: func(ctx context.Context, cfg *config.Config) (Summary, error) {
+			return RunStoreStatsSync(ctx, cfg, storestats.ResyncOpts(time.Now()))
+		},
+	})
+
 	// Faster than ingestion (10 min) so a freshly ingested item is gradeable by
 	// the time a moderator opens the queue. Nothing here can publish: the gate
 	// only ever auto-REJECTS, and only on a deterministic Tier0 word match.

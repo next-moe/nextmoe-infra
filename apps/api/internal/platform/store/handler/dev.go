@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"strconv"
+	"time"
 
 	"api/internal/platform/store/service"
 	"api/pkg/errors"
@@ -27,16 +28,27 @@ func NewDevHandler(svc *service.Service, apps OwnerApps) *DevHandler {
 
 func (h *DevHandler) Register(r fiber.Router) {
 	r.Get("/store/usage", h.Usage)
+	r.Get("/store/coupons", h.Coupons)
+	r.Post("/store/coupons/:id/delivered", h.SetDelivered)
 }
 
-func (h *DevHandler) Usage(c fiber.Ctx) error {
+// ownerApps answers the request itself when it returns false.
+func (h *DevHandler) ownerApps(c fiber.Ctx) ([]service.OwnerApp, bool, error) {
 	ownerID, ok := c.Locals("user_id").(uint)
 	if !ok || ownerID == 0 {
-		return response.Unauthorized(c, errors.ErrAuthUnauthorized)
+		return nil, false, response.Unauthorized(c, errors.ErrAuthUnauthorized)
 	}
 	apps, err := h.apps(c.Context(), ownerID)
 	if err != nil {
-		return response.InternalError(c, errors.ErrOperationFailed)
+		return nil, false, response.InternalError(c, errors.ErrOperationFailed)
+	}
+	return apps, true, nil
+}
+
+func (h *DevHandler) Usage(c fiber.Ctx) error {
+	apps, ok, err := h.ownerApps(c)
+	if !ok {
+		return err
 	}
 	days, _ := strconv.Atoi(c.Query("days"))
 	summary, err := h.svc.OwnerUsage(c.Context(), apps, days)
@@ -44,4 +56,39 @@ func (h *DevHandler) Usage(c fiber.Ctx) error {
 		return response.InternalError(c, errors.ErrOperationFailed)
 	}
 	return response.Success(c, summary)
+}
+
+func (h *DevHandler) Coupons(c fiber.Ctx) error {
+	apps, ok, err := h.ownerApps(c)
+	if !ok {
+		return err
+	}
+	out, err := h.svc.OwnerCoupons(c.Context(), apps)
+	if err != nil {
+		return response.InternalError(c, errors.ErrOperationFailed)
+	}
+	return response.Success(c, out)
+}
+
+type deliveredRequest struct {
+	Delivered bool `json:"delivered"`
+}
+
+func (h *DevHandler) SetDelivered(c fiber.Ctx) error {
+	apps, ok, err := h.ownerApps(c)
+	if !ok {
+		return err
+	}
+	id, ok := batchID(c)
+	if !ok {
+		return response.BadRequest(c, errors.ErrInvalidID)
+	}
+	var req deliveredRequest
+	if err := c.Bind().JSON(&req); err != nil {
+		return response.BadRequest(c, errors.ErrBadRequest)
+	}
+	if err := h.svc.SetCouponDelivered(c.Context(), apps, id, req.Delivered, time.Now()); err != nil {
+		return couponError(c, err)
+	}
+	return response.Success(c, nil)
 }

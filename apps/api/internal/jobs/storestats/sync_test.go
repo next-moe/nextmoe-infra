@@ -258,3 +258,45 @@ func TestUnknownAliasYieldsNoRowsRatherThanAnError(t *testing.T) {
 		t.Errorf("rows = %d, want 0", res.Rows)
 	}
 }
+
+func TestResyncRereadsFromThePreviousMonthAndTakesTheRecountedBots(t *testing.T) {
+	fake := fresh(t)
+	now := time.Date(2026, 9, 19, 3, 0, 0, 0, time.UTC)
+	seedPurchase(t, "site-a", "RJ100001", "a1", time.Date(2026, 8, 20, 0, 0, 0, 0, time.UTC))
+	if err := testDB.Create(&model.LinkDailyStat{
+		Alias: "a1", Day: "2026-08-29", Total: 10, Uniques: 10, SyncedAt: now,
+	}).Error; err != nil {
+		t.Fatalf("seed cached row: %v", err)
+	}
+	fake.Series["a1"] = []shortener.DayStat{{Date: "2026-08-29", Total: 10, Uniques: 2, Bots: 8}}
+
+	if _, err := Run(context.Background(), testDB, fake.Client("slk_test"), Opts{Now: now}); err != nil {
+		t.Fatalf("routine run: %v", err)
+	}
+	if got := statFor(t, "a1", "2026-08-29"); got.Uniques != 10 {
+		t.Fatalf("the three-day window reached a day three weeks back: %+v", got)
+	}
+
+	res, err := Run(context.Background(), testDB, fake.Client("slk_test"), ResyncOpts(now))
+	if err != nil {
+		t.Fatalf("resync: %v", err)
+	}
+	if !res.FullPull || res.From != "2026-08-20" {
+		t.Errorf("resync window = %s (full=%v), want the earliest mint 2026-08-20 inside the previous month", res.From, res.FullPull)
+	}
+	if got := statFor(t, "a1", "2026-08-29"); got.Uniques != 2 || got.Bots != 8 || got.Total != 10 {
+		t.Errorf("row = %+v, want the recounted uniques=2 bots=8", got)
+	}
+}
+
+func TestResyncOptsStartsOnTheFirstOfThePreviousJSTMonth(t *testing.T) {
+	// 2026-10-31T16:00Z is already November 1st in Tokyo.
+	opts := ResyncOpts(time.Date(2026, 10, 31, 16, 0, 0, 0, time.UTC))
+	if got := model.JSTDay(opts.From); got != "2026-10-01" {
+		t.Errorf("from = %s, want 2026-10-01", got)
+	}
+	opts = ResyncOpts(time.Date(2026, 1, 5, 0, 0, 0, 0, time.UTC))
+	if got := model.JSTDay(opts.From); got != "2025-12-01" {
+		t.Errorf("from = %s, want 2025-12-01 across the year boundary", got)
+	}
+}

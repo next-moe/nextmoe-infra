@@ -192560,14 +192560,14 @@ export const docsModel: DocsModel = {
                             {
                               "name": "total",
                               "required": true,
-                              "doc": "Clicks in the range, before de-duplication.",
+                              "doc": "Clicks in the range, before de-duplication and crawlers included.",
                               "format": "int64",
                               "type": "integer"
                             },
                             {
                               "name": "uniques",
                               "required": true,
-                              "doc": "De-duplicated clicks in the range — the number settlement uses.",
+                              "doc": "De-duplicated clicks in the range, declared crawlers left out — the number settlement uses.",
                               "format": "int64",
                               "type": "integer"
                             }
@@ -192641,14 +192641,14 @@ export const docsModel: DocsModel = {
                             {
                               "name": "total",
                               "required": true,
-                              "doc": "Clicks that day, before de-duplication.",
+                              "doc": "Clicks that day, before de-duplication and crawlers included.",
                               "format": "int64",
                               "type": "integer"
                             },
                             {
                               "name": "uniques",
                               "required": true,
-                              "doc": "Distinct (day, fingerprint) clicks that day — the number settlement uses.",
+                              "doc": "Distinct (day, fingerprint) clicks that day, clients whose User-Agent announces a crawler, link preview or HTTP library left out — the number settlement uses.",
                               "format": "int64",
                               "type": "integer"
                             }
@@ -192681,14 +192681,14 @@ export const docsModel: DocsModel = {
                           {
                             "name": "total",
                             "required": true,
-                            "doc": "Clicks in the range, before de-duplication.",
+                            "doc": "Clicks in the range, before de-duplication and crawlers included.",
                             "format": "int64",
                             "type": "integer"
                           },
                           {
                             "name": "uniques",
                             "required": true,
-                            "doc": "De-duplicated clicks in the range — the number settlement uses.",
+                            "doc": "De-duplicated clicks in the range, declared crawlers left out — the number settlement uses.",
                             "format": "int64",
                             "type": "integer"
                           }

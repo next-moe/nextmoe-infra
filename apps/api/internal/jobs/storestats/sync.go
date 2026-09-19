@@ -27,9 +27,22 @@ type Opts struct {
 	// Batch is the alias count per upstream call; the contract caps it at 500.
 	Batch int
 	Now   time.Time
+	// From, when set, replaces the rolling window with [From, Now], clamped to
+	// the earliest mint. The resync job uses it to re-read whole settlement
+	// months after the redirector recounts its history.
+	From time.Time
 }
 
 func DefaultOpts() Opts { return Opts{WindowDays: 3, Batch: shortener.MaxAliasesPerStatsCall} }
+
+// ResyncOpts re-reads everything since the first day of the previous JST
+// calendar month: the months a coupon batch can still be split over.
+func ResyncOpts(now time.Time) Opts {
+	opts := DefaultOpts()
+	jst := now.In(model.JST())
+	opts.From = time.Date(jst.Year(), jst.Month()-1, 1, 0, 0, 0, 0, model.JST())
+	return opts
+}
 
 type Result struct {
 	Aliases  int
@@ -72,6 +85,13 @@ func Run(ctx context.Context, db *gorm.DB, reader Reader, opts Opts) (Result, er
 
 	to := opts.Now
 	from := to.AddDate(0, 0, -(opts.WindowDays - 1))
+	if !opts.From.IsZero() {
+		res.FullPull = true
+		from = opts.From
+		if from.Before(earliest) {
+			from = earliest
+		}
+	}
 	if synced == 0 {
 		// Nothing cached yet, so the window would silently start three days ago
 		// and lose every click a link collected before this job first ran.
@@ -127,7 +147,7 @@ func upsert(ctx context.Context, db *gorm.DB, stats map[string][]shortener.DaySt
 	for alias, series := range stats {
 		for _, p := range series {
 			rows = append(rows, model.LinkDailyStat{
-				Alias: alias, Day: p.Date, Total: p.Total, Uniques: p.Uniques, SyncedAt: now,
+				Alias: alias, Day: p.Date, Total: p.Total, Uniques: p.Uniques, Bots: p.Bots, SyncedAt: now,
 			})
 		}
 	}
@@ -136,7 +156,7 @@ func upsert(ctx context.Context, db *gorm.DB, stats map[string][]shortener.DaySt
 	}
 	err := db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "alias"}, {Name: "day"}},
-		DoUpdates: clause.AssignmentColumns([]string{"total", "uniques", "synced_at"}),
+		DoUpdates: clause.AssignmentColumns([]string{"total", "uniques", "bots", "synced_at"}),
 	}).CreateInBatches(&rows, 500).Error
 	if err != nil {
 		return 0, err
