@@ -194496,8 +194496,12 @@ export const docsModel: DocsModel = {
                           "INVALID_CURSOR",
                           "UNKNOWN_INCLUDE",
                           "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
                           "NOT_FOUND",
                           "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
                           "INTERNAL_ERROR",
                           "SERVICE_UNAVAILABLE"
                         ],
@@ -194550,7 +194554,103 @@ export const docsModel: DocsModel = {
                 },
                 {
                   "status": "429",
-                  "description": "The key's rate limit or quota is spent. Written by the gateway, so the\nbody is the platform's `{code, message}` rather than a problem document.\n`Retry-After` says when to come back.\n"
+                  "description": "The key's rate limit or quota is spent. Written by the gateway as a\nproblem document from the same registry: `code` is `RATE_LIMITED` or\n`QUOTA_EXCEEDED`. `Retry-After` says when to come back.\n",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
                 },
                 {
                   "status": "503",
@@ -194596,8 +194696,12 @@ export const docsModel: DocsModel = {
                           "INVALID_CURSOR",
                           "UNKNOWN_INCLUDE",
                           "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
                           "NOT_FOUND",
                           "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
                           "INTERNAL_ERROR",
                           "SERVICE_UNAVAILABLE"
                         ],
@@ -195087,8 +195191,12 @@ export const docsModel: DocsModel = {
                           "INVALID_CURSOR",
                           "UNKNOWN_INCLUDE",
                           "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
                           "NOT_FOUND",
                           "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
                           "INTERNAL_ERROR",
                           "SERVICE_UNAVAILABLE"
                         ],
@@ -195183,8 +195291,12 @@ export const docsModel: DocsModel = {
                           "INVALID_CURSOR",
                           "UNKNOWN_INCLUDE",
                           "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
                           "NOT_FOUND",
                           "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
                           "INTERNAL_ERROR",
                           "SERVICE_UNAVAILABLE"
                         ],
@@ -195237,7 +195349,103 @@ export const docsModel: DocsModel = {
                 },
                 {
                   "status": "429",
-                  "description": "The key's rate limit or quota is spent. Written by the gateway, so the\nbody is the platform's `{code, message}` rather than a problem document.\n`Retry-After` says when to come back.\n"
+                  "description": "The key's rate limit or quota is spent. Written by the gateway as a\nproblem document from the same registry: `code` is `RATE_LIMITED` or\n`QUOTA_EXCEEDED`. `Retry-After` says when to come back.\n",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
                 },
                 {
                   "status": "503",
@@ -195283,8 +195491,12 @@ export const docsModel: DocsModel = {
                           "INVALID_CURSOR",
                           "UNKNOWN_INCLUDE",
                           "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
                           "NOT_FOUND",
                           "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
                           "INTERNAL_ERROR",
                           "SERVICE_UNAVAILABLE"
                         ],
@@ -195636,8 +195848,12 @@ export const docsModel: DocsModel = {
                           "INVALID_CURSOR",
                           "UNKNOWN_INCLUDE",
                           "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
                           "NOT_FOUND",
                           "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
                           "INTERNAL_ERROR",
                           "SERVICE_UNAVAILABLE"
                         ],
@@ -195732,8 +195948,12 @@ export const docsModel: DocsModel = {
                           "INVALID_CURSOR",
                           "UNKNOWN_INCLUDE",
                           "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
                           "NOT_FOUND",
                           "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
                           "INTERNAL_ERROR",
                           "SERVICE_UNAVAILABLE"
                         ],
@@ -195786,7 +196006,103 @@ export const docsModel: DocsModel = {
                 },
                 {
                   "status": "429",
-                  "description": "The key's rate limit or quota is spent. Written by the gateway, so the\nbody is the platform's `{code, message}` rather than a problem document.\n`Retry-After` says when to come back.\n"
+                  "description": "The key's rate limit or quota is spent. Written by the gateway as a\nproblem document from the same registry: `code` is `RATE_LIMITED` or\n`QUOTA_EXCEEDED`. `Retry-After` says when to come back.\n",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
                 },
                 {
                   "status": "503",
@@ -195832,8 +196148,12 @@ export const docsModel: DocsModel = {
                           "INVALID_CURSOR",
                           "UNKNOWN_INCLUDE",
                           "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
                           "NOT_FOUND",
                           "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
                           "INTERNAL_ERROR",
                           "SERVICE_UNAVAILABLE"
                         ],
@@ -196142,8 +196462,12 @@ export const docsModel: DocsModel = {
                           "INVALID_CURSOR",
                           "UNKNOWN_INCLUDE",
                           "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
                           "NOT_FOUND",
                           "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
                           "INTERNAL_ERROR",
                           "SERVICE_UNAVAILABLE"
                         ],
@@ -196238,8 +196562,12 @@ export const docsModel: DocsModel = {
                           "INVALID_CURSOR",
                           "UNKNOWN_INCLUDE",
                           "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
                           "NOT_FOUND",
                           "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
                           "INTERNAL_ERROR",
                           "SERVICE_UNAVAILABLE"
                         ],
@@ -196292,7 +196620,103 @@ export const docsModel: DocsModel = {
                 },
                 {
                   "status": "429",
-                  "description": "The key's rate limit or quota is spent. Written by the gateway, so the\nbody is the platform's `{code, message}` rather than a problem document.\n`Retry-After` says when to come back.\n"
+                  "description": "The key's rate limit or quota is spent. Written by the gateway as a\nproblem document from the same registry: `code` is `RATE_LIMITED` or\n`QUOTA_EXCEEDED`. `Retry-After` says when to come back.\n",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
                 },
                 {
                   "status": "503",
@@ -196338,8 +196762,12 @@ export const docsModel: DocsModel = {
                           "INVALID_CURSOR",
                           "UNKNOWN_INCLUDE",
                           "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
                           "NOT_FOUND",
                           "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
                           "INTERNAL_ERROR",
                           "SERVICE_UNAVAILABLE"
                         ],
@@ -196416,7 +196844,7 @@ export const docsModel: DocsModel = {
         "它不是第二份内容列表：站上每张表情都打了 catalog 的作品 id 与角色 id，所以这个面回答的是「这个 catalog 身份有哪些表情素材」。/v2/sticker/characters/{character_id}/stickers 与 /v2/sticker/works/{work_id}/packs 是主车道，其余是它们的脚手架。",
         "只暴露已发布的表情包。草稿、隐藏、已删除、评论正文、审核状态与全部创作端点都不在这个面里，将来也不会有。",
         "名字是多语言映射而不是字符串：键为 zh-cn / zh-tw / ja-jp / en-us / und，每个都可缺，und 放的是 catalog 里没有语言标记的显示名。回退链由你自己定，这个面永远不替你挑。",
-        "翻页用 page + limit（1-50），与 catalog 的游标翻页不同；nsfw 说的是表情包自己的分级，不是它所属游戏的——从 r18 游戏里剪出来的日常表情包是 all_ages，而它的 work.content_rating 仍然是 r18。",
+        "约定与 catalog /v2 相同：作品、角色与作者 id 是十进制字符串，集合按不透明 cursor 翻页（limit 1-100，末页不出现 next_cursor，include_total=true 才给 total），200 带 ETag 可 304。nsfw 说的是表情包自己的分级，不是它所属游戏的——从 r18 游戏里剪出来的日常表情包是 all_ages，而它的 work.content_rating 仍然是 r18。",
         "错误全部是 RFC 9457 application/problem+json：网关写的 401（MISSING_CREDENTIAL / INVALID_CREDENTIAL）与 429（RATE_LIMITED / QUOTA_EXCEEDED）和表情包站写的其余错误同一个形状，code 取自平台那份封闭注册表。按 HTTP status 分支，再看 code。",
         "只能服务端调用：预检 OPTIONS 不带认证头，会被网关 401，浏览器直连没有出路。"
       ],
@@ -196437,14 +196865,25 @@ export const docsModel: DocsModel = {
                   "in": "query",
                   "required": false,
                   "type": "integer",
-                  "doc": "Page size, 1-50, default 20. Above 50 is 400 LIMIT_TOO_LARGE."
+                  "doc": "Page size, 1-100, default 20. Above 100 is 400 `LIMIT_TOO_LARGE`; the value is not clamped."
                 },
                 {
-                  "name": "page",
+                  "name": "cursor",
                   "in": "query",
                   "required": false,
-                  "type": "integer",
-                  "doc": "1-based page number, 1-1000."
+                  "type": "string",
+                  "doc": "The `next_cursor` from a previous page of the same collection. Opaque; anything this face did not mint is 400 `INVALID_CURSOR`."
+                },
+                {
+                  "name": "include_total",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "`true` adds `total`, counted under the same filter as `items`.",
+                  "enum": [
+                    "true",
+                    "false"
+                  ]
                 },
                 {
                   "name": "sort",
@@ -196486,8 +196925,7 @@ export const docsModel: DocsModel = {
                   "name": "work",
                   "in": "query",
                   "required": false,
-                  "type": "integer",
-                  "format": "int64",
+                  "type": "string",
                   "doc": "Catalog work id. Keeps packs that declare this game or hold a sticker of it -- the same relation `/v2/sticker/works/{work_id}/packs` uses."
                 },
                 {
@@ -196647,8 +197085,7 @@ export const docsModel: DocsModel = {
                                   "name": "id",
                                   "required": true,
                                   "doc": "Infra catalog work id. Resolve it against `/v2/catalog/works/{id}`.",
-                                  "format": "int64",
-                                  "type": "integer"
+                                  "type": "string"
                                 },
                                 {
                                   "name": "name",
@@ -196730,7 +197167,7 @@ export const docsModel: DocsModel = {
                                   "name": "id",
                                   "required": true,
                                   "doc": "NextMoe account id, the same one every site in the ecosystem uses.",
-                                  "type": "integer"
+                                  "type": "string"
                                 },
                                 {
                                   "name": "name",
@@ -196765,28 +197202,26 @@ export const docsModel: DocsModel = {
                         }
                       },
                       {
+                        "name": "next_cursor",
+                        "doc": "Pass as `cursor` for the next page. Omitted, not null, on the last page.",
+                        "type": "string"
+                      },
+                      {
                         "name": "total",
-                        "required": true,
-                        "doc": "Rows matching the filter, across all pages.",
+                        "doc": "Rows matching the filter, across all pages. Present only with `include_total=true`.",
                         "format": "int64",
-                        "type": "integer"
-                      },
-                      {
-                        "name": "page",
-                        "required": true,
-                        "type": "integer"
-                      },
-                      {
-                        "name": "limit",
-                        "required": true,
                         "type": "integer"
                       }
                     ]
                   }
                 },
                 {
+                  "status": "304",
+                  "description": "The `If-None-Match` entity tag still matches."
+                },
+                {
                   "status": "400",
-                  "description": "An RFC 9457 problem document.",
+                  "description": "A parameter was refused. `code` is `INVALID_PARAMETER`, `LIMIT_TOO_LARGE` or `INVALID_CURSOR`, and `errors[0].parameter` names the parameter to fix.",
                   "schema": {
                     "doc": "RFC 9457. Field names match the platform's /v2 problem documents.",
                     "type": "object",
@@ -196794,6 +197229,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "type",
                         "required": true,
+                        "doc": "The platform's own problem type; the last segment is `code` in kebab case.",
                         "format": "uri",
                         "type": "string"
                       },
@@ -196809,6 +197245,8 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Never use it as a discriminant.",
                         "type": "string"
                       },
                       {
@@ -196824,11 +197262,52 @@ export const docsModel: DocsModel = {
                         "enum": [
                           "INVALID_PARAMETER",
                           "LIMIT_TOO_LARGE",
+                          "INVALID_CURSOR",
                           "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
                           "INTERNAL_ERROR",
                           "SERVICE_UNAVAILABLE"
                         ],
                         "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not about one parameter; on a 400, `errors[0]` names the parameter.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "doc": "Query or path parameter name, as this document spells it.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the platform's closed reason registry.",
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "UNKNOWN_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
                       }
                     ]
                   }
@@ -196843,6 +197322,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "type",
                         "required": true,
+                        "doc": "The platform's own problem type; the last segment is `code` in kebab case.",
                         "format": "uri",
                         "type": "string"
                       },
@@ -196858,6 +197338,8 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Never use it as a discriminant.",
                         "type": "string"
                       },
                       {
@@ -196873,11 +197355,52 @@ export const docsModel: DocsModel = {
                         "enum": [
                           "INVALID_PARAMETER",
                           "LIMIT_TOO_LARGE",
+                          "INVALID_CURSOR",
                           "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
                           "INTERNAL_ERROR",
                           "SERVICE_UNAVAILABLE"
                         ],
                         "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not about one parameter; on a 400, `errors[0]` names the parameter.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "doc": "Query or path parameter name, as this document spells it.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the platform's closed reason registry.",
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "UNKNOWN_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
                       }
                     ]
                   }
@@ -197023,8 +197546,7 @@ export const docsModel: DocsModel = {
                             "name": "id",
                             "required": true,
                             "doc": "Infra catalog work id. Resolve it against `/v2/catalog/works/{id}`.",
-                            "format": "int64",
-                            "type": "integer"
+                            "type": "string"
                           },
                           {
                             "name": "name",
@@ -197106,7 +197628,7 @@ export const docsModel: DocsModel = {
                             "name": "id",
                             "required": true,
                             "doc": "NextMoe account id, the same one every site in the ecosystem uses.",
-                            "type": "integer"
+                            "type": "string"
                           },
                           {
                             "name": "name",
@@ -197219,8 +197741,7 @@ export const docsModel: DocsModel = {
                                   "name": "id",
                                   "required": true,
                                   "doc": "Infra catalog work id. Resolve it against `/v2/catalog/works/{id}`.",
-                                  "format": "int64",
-                                  "type": "integer"
+                                  "type": "string"
                                 },
                                 {
                                   "name": "name",
@@ -197267,8 +197788,7 @@ export const docsModel: DocsModel = {
                                   "name": "id",
                                   "required": true,
                                   "doc": "Infra catalog character id. Resolve it against `/v2/catalog/characters/{id}`.",
-                                  "format": "int64",
-                                  "type": "integer"
+                                  "type": "string"
                                 },
                                 {
                                   "name": "name",
@@ -197304,8 +197824,7 @@ export const docsModel: DocsModel = {
                                       "name": "id",
                                       "required": true,
                                       "doc": "Infra catalog work id. Resolve it against `/v2/catalog/works/{id}`.",
-                                      "format": "int64",
-                                      "type": "integer"
+                                      "type": "string"
                                     },
                                     {
                                       "name": "name",
@@ -197361,8 +197880,7 @@ export const docsModel: DocsModel = {
                               "name": "id",
                               "required": true,
                               "doc": "Infra catalog work id. Resolve it against `/v2/catalog/works/{id}`.",
-                              "format": "int64",
-                              "type": "integer"
+                              "type": "string"
                             },
                             {
                               "name": "name",
@@ -197414,8 +197932,7 @@ export const docsModel: DocsModel = {
                               "name": "id",
                               "required": true,
                               "doc": "Infra catalog character id. Resolve it against `/v2/catalog/characters/{id}`.",
-                              "format": "int64",
-                              "type": "integer"
+                              "type": "string"
                             },
                             {
                               "name": "name",
@@ -197451,8 +197968,7 @@ export const docsModel: DocsModel = {
                                   "name": "id",
                                   "required": true,
                                   "doc": "Infra catalog work id. Resolve it against `/v2/catalog/works/{id}`.",
-                                  "format": "int64",
-                                  "type": "integer"
+                                  "type": "string"
                                 },
                                 {
                                   "name": "name",
@@ -197493,8 +198009,12 @@ export const docsModel: DocsModel = {
                   }
                 },
                 {
+                  "status": "304",
+                  "description": "The `If-None-Match` entity tag still matches."
+                },
+                {
                   "status": "400",
-                  "description": "An RFC 9457 problem document.",
+                  "description": "A parameter was refused. `code` is `INVALID_PARAMETER`, `LIMIT_TOO_LARGE` or `INVALID_CURSOR`, and `errors[0].parameter` names the parameter to fix.",
                   "schema": {
                     "doc": "RFC 9457. Field names match the platform's /v2 problem documents.",
                     "type": "object",
@@ -197502,6 +198022,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "type",
                         "required": true,
+                        "doc": "The platform's own problem type; the last segment is `code` in kebab case.",
                         "format": "uri",
                         "type": "string"
                       },
@@ -197517,6 +198038,8 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Never use it as a discriminant.",
                         "type": "string"
                       },
                       {
@@ -197532,18 +198055,59 @@ export const docsModel: DocsModel = {
                         "enum": [
                           "INVALID_PARAMETER",
                           "LIMIT_TOO_LARGE",
+                          "INVALID_CURSOR",
                           "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
                           "INTERNAL_ERROR",
                           "SERVICE_UNAVAILABLE"
                         ],
                         "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not about one parameter; on a 400, `errors[0]` names the parameter.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "doc": "Query or path parameter name, as this document spells it.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the platform's closed reason registry.",
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "UNKNOWN_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
                       }
                     ]
                   }
                 },
                 {
                   "status": "404",
-                  "description": "An RFC 9457 problem document.",
+                  "description": "Nothing published exists at this URL.",
                   "schema": {
                     "doc": "RFC 9457. Field names match the platform's /v2 problem documents.",
                     "type": "object",
@@ -197551,6 +198115,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "type",
                         "required": true,
+                        "doc": "The platform's own problem type; the last segment is `code` in kebab case.",
                         "format": "uri",
                         "type": "string"
                       },
@@ -197566,6 +198131,8 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Never use it as a discriminant.",
                         "type": "string"
                       },
                       {
@@ -197581,11 +198148,52 @@ export const docsModel: DocsModel = {
                         "enum": [
                           "INVALID_PARAMETER",
                           "LIMIT_TOO_LARGE",
+                          "INVALID_CURSOR",
                           "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
                           "INTERNAL_ERROR",
                           "SERVICE_UNAVAILABLE"
                         ],
                         "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not about one parameter; on a 400, `errors[0]` names the parameter.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "doc": "Query or path parameter name, as this document spells it.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the platform's closed reason registry.",
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "UNKNOWN_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
                       }
                     ]
                   }
@@ -197695,8 +198303,7 @@ export const docsModel: DocsModel = {
                             "name": "id",
                             "required": true,
                             "doc": "Infra catalog work id. Resolve it against `/v2/catalog/works/{id}`.",
-                            "format": "int64",
-                            "type": "integer"
+                            "type": "string"
                           },
                           {
                             "name": "name",
@@ -197743,8 +198350,7 @@ export const docsModel: DocsModel = {
                             "name": "id",
                             "required": true,
                             "doc": "Infra catalog character id. Resolve it against `/v2/catalog/characters/{id}`.",
-                            "format": "int64",
-                            "type": "integer"
+                            "type": "string"
                           },
                           {
                             "name": "name",
@@ -197780,8 +198386,7 @@ export const docsModel: DocsModel = {
                                 "name": "id",
                                 "required": true,
                                 "doc": "Infra catalog work id. Resolve it against `/v2/catalog/works/{id}`.",
-                                "format": "int64",
-                                "type": "integer"
+                                "type": "string"
                               },
                               {
                                 "name": "name",
@@ -197821,8 +198426,12 @@ export const docsModel: DocsModel = {
                   }
                 },
                 {
+                  "status": "304",
+                  "description": "The `If-None-Match` entity tag still matches."
+                },
+                {
                   "status": "400",
-                  "description": "An RFC 9457 problem document.",
+                  "description": "A parameter was refused. `code` is `INVALID_PARAMETER`, `LIMIT_TOO_LARGE` or `INVALID_CURSOR`, and `errors[0].parameter` names the parameter to fix.",
                   "schema": {
                     "doc": "RFC 9457. Field names match the platform's /v2 problem documents.",
                     "type": "object",
@@ -197830,6 +198439,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "type",
                         "required": true,
+                        "doc": "The platform's own problem type; the last segment is `code` in kebab case.",
                         "format": "uri",
                         "type": "string"
                       },
@@ -197845,6 +198455,8 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Never use it as a discriminant.",
                         "type": "string"
                       },
                       {
@@ -197860,18 +198472,59 @@ export const docsModel: DocsModel = {
                         "enum": [
                           "INVALID_PARAMETER",
                           "LIMIT_TOO_LARGE",
+                          "INVALID_CURSOR",
                           "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
                           "INTERNAL_ERROR",
                           "SERVICE_UNAVAILABLE"
                         ],
                         "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not about one parameter; on a 400, `errors[0]` names the parameter.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "doc": "Query or path parameter name, as this document spells it.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the platform's closed reason registry.",
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "UNKNOWN_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
                       }
                     ]
                   }
                 },
                 {
                   "status": "404",
-                  "description": "An RFC 9457 problem document.",
+                  "description": "Nothing published exists at this URL.",
                   "schema": {
                     "doc": "RFC 9457. Field names match the platform's /v2 problem documents.",
                     "type": "object",
@@ -197879,6 +198532,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "type",
                         "required": true,
+                        "doc": "The platform's own problem type; the last segment is `code` in kebab case.",
                         "format": "uri",
                         "type": "string"
                       },
@@ -197894,6 +198548,8 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Never use it as a discriminant.",
                         "type": "string"
                       },
                       {
@@ -197909,11 +198565,52 @@ export const docsModel: DocsModel = {
                         "enum": [
                           "INVALID_PARAMETER",
                           "LIMIT_TOO_LARGE",
+                          "INVALID_CURSOR",
                           "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
                           "INTERNAL_ERROR",
                           "SERVICE_UNAVAILABLE"
                         ],
                         "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not about one parameter; on a 400, `errors[0]` names the parameter.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "doc": "Query or path parameter name, as this document spells it.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the platform's closed reason registry.",
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "UNKNOWN_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
                       }
                     ]
                   }
@@ -197940,14 +198637,25 @@ export const docsModel: DocsModel = {
                   "in": "query",
                   "required": false,
                   "type": "integer",
-                  "doc": "Page size, 1-50, default 20. Above 50 is 400 LIMIT_TOO_LARGE."
+                  "doc": "Page size, 1-100, default 20. Above 100 is 400 `LIMIT_TOO_LARGE`; the value is not clamped."
                 },
                 {
-                  "name": "page",
+                  "name": "cursor",
                   "in": "query",
                   "required": false,
-                  "type": "integer",
-                  "doc": "1-based page number, 1-1000."
+                  "type": "string",
+                  "doc": "The `next_cursor` from a previous page of the same collection. Opaque; anything this face did not mint is 400 `INVALID_CURSOR`."
+                },
+                {
+                  "name": "include_total",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "`true` adds `total`, counted under the same filter as `items`.",
+                  "enum": [
+                    "true",
+                    "false"
+                  ]
                 },
                 {
                   "name": "q",
@@ -197960,8 +198668,7 @@ export const docsModel: DocsModel = {
                   "name": "work",
                   "in": "query",
                   "required": false,
-                  "type": "integer",
-                  "format": "int64",
+                  "type": "string",
                   "doc": "Narrow to the characters of one catalog work."
                 }
               ],
@@ -197993,8 +198700,7 @@ export const docsModel: DocsModel = {
                               "name": "id",
                               "required": true,
                               "doc": "Infra catalog character id. Resolve it against `/v2/catalog/characters/{id}`.",
-                              "format": "int64",
-                              "type": "integer"
+                              "type": "string"
                             },
                             {
                               "name": "name",
@@ -198030,8 +198736,7 @@ export const docsModel: DocsModel = {
                                   "name": "id",
                                   "required": true,
                                   "doc": "Infra catalog work id. Resolve it against `/v2/catalog/works/{id}`.",
-                                  "format": "int64",
-                                  "type": "integer"
+                                  "type": "string"
                                 },
                                 {
                                   "name": "name",
@@ -198069,28 +198774,26 @@ export const docsModel: DocsModel = {
                         }
                       },
                       {
+                        "name": "next_cursor",
+                        "doc": "Pass as `cursor` for the next page. Omitted, not null, on the last page.",
+                        "type": "string"
+                      },
+                      {
                         "name": "total",
-                        "required": true,
-                        "doc": "Rows matching the filter, across all pages.",
+                        "doc": "Rows matching the filter, across all pages. Present only with `include_total=true`.",
                         "format": "int64",
-                        "type": "integer"
-                      },
-                      {
-                        "name": "page",
-                        "required": true,
-                        "type": "integer"
-                      },
-                      {
-                        "name": "limit",
-                        "required": true,
                         "type": "integer"
                       }
                     ]
                   }
                 },
                 {
+                  "status": "304",
+                  "description": "The `If-None-Match` entity tag still matches."
+                },
+                {
                   "status": "400",
-                  "description": "An RFC 9457 problem document.",
+                  "description": "A parameter was refused. `code` is `INVALID_PARAMETER`, `LIMIT_TOO_LARGE` or `INVALID_CURSOR`, and `errors[0].parameter` names the parameter to fix.",
                   "schema": {
                     "doc": "RFC 9457. Field names match the platform's /v2 problem documents.",
                     "type": "object",
@@ -198098,6 +198801,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "type",
                         "required": true,
+                        "doc": "The platform's own problem type; the last segment is `code` in kebab case.",
                         "format": "uri",
                         "type": "string"
                       },
@@ -198113,6 +198817,8 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Never use it as a discriminant.",
                         "type": "string"
                       },
                       {
@@ -198128,11 +198834,52 @@ export const docsModel: DocsModel = {
                         "enum": [
                           "INVALID_PARAMETER",
                           "LIMIT_TOO_LARGE",
+                          "INVALID_CURSOR",
                           "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
                           "INTERNAL_ERROR",
                           "SERVICE_UNAVAILABLE"
                         ],
                         "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not about one parameter; on a 400, `errors[0]` names the parameter.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "doc": "Query or path parameter name, as this document spells it.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the platform's closed reason registry.",
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "UNKNOWN_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
                       }
                     ]
                   }
@@ -198151,8 +198898,7 @@ export const docsModel: DocsModel = {
                   "name": "character_id",
                   "in": "path",
                   "required": true,
-                  "type": "integer",
-                  "format": "int64",
+                  "type": "string",
                   "doc": "Infra catalog character id."
                 }
               ],
@@ -198172,8 +198918,7 @@ export const docsModel: DocsModel = {
                         "name": "id",
                         "required": true,
                         "doc": "Infra catalog character id. Resolve it against `/v2/catalog/characters/{id}`.",
-                        "format": "int64",
-                        "type": "integer"
+                        "type": "string"
                       },
                       {
                         "name": "name",
@@ -198209,8 +198954,7 @@ export const docsModel: DocsModel = {
                             "name": "id",
                             "required": true,
                             "doc": "Infra catalog work id. Resolve it against `/v2/catalog/works/{id}`.",
-                            "format": "int64",
-                            "type": "integer"
+                            "type": "string"
                           },
                           {
                             "name": "name",
@@ -198248,8 +198992,12 @@ export const docsModel: DocsModel = {
                   }
                 },
                 {
+                  "status": "304",
+                  "description": "The `If-None-Match` entity tag still matches."
+                },
+                {
                   "status": "400",
-                  "description": "An RFC 9457 problem document.",
+                  "description": "A parameter was refused. `code` is `INVALID_PARAMETER`, `LIMIT_TOO_LARGE` or `INVALID_CURSOR`, and `errors[0].parameter` names the parameter to fix.",
                   "schema": {
                     "doc": "RFC 9457. Field names match the platform's /v2 problem documents.",
                     "type": "object",
@@ -198257,6 +199005,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "type",
                         "required": true,
+                        "doc": "The platform's own problem type; the last segment is `code` in kebab case.",
                         "format": "uri",
                         "type": "string"
                       },
@@ -198272,6 +199021,8 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Never use it as a discriminant.",
                         "type": "string"
                       },
                       {
@@ -198287,11 +199038,52 @@ export const docsModel: DocsModel = {
                         "enum": [
                           "INVALID_PARAMETER",
                           "LIMIT_TOO_LARGE",
+                          "INVALID_CURSOR",
                           "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
                           "INTERNAL_ERROR",
                           "SERVICE_UNAVAILABLE"
                         ],
                         "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not about one parameter; on a 400, `errors[0]` names the parameter.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "doc": "Query or path parameter name, as this document spells it.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the platform's closed reason registry.",
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "UNKNOWN_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
                       }
                     ]
                   }
@@ -198306,6 +199098,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "type",
                         "required": true,
+                        "doc": "The platform's own problem type; the last segment is `code` in kebab case.",
                         "format": "uri",
                         "type": "string"
                       },
@@ -198321,6 +199114,8 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Never use it as a discriminant.",
                         "type": "string"
                       },
                       {
@@ -198336,17 +199131,58 @@ export const docsModel: DocsModel = {
                         "enum": [
                           "INVALID_PARAMETER",
                           "LIMIT_TOO_LARGE",
+                          "INVALID_CURSOR",
                           "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
                           "INTERNAL_ERROR",
                           "SERVICE_UNAVAILABLE"
                         ],
                         "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not about one parameter; on a 400, `errors[0]` names the parameter.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "doc": "Query or path parameter name, as this document spells it.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the platform's closed reason registry.",
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "UNKNOWN_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
                       }
                     ]
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/sticker/characters/1\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/sticker/characters/value\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
             },
             {
               "id": "listCharacterStickers",
@@ -198360,8 +199196,7 @@ export const docsModel: DocsModel = {
                   "name": "character_id",
                   "in": "path",
                   "required": true,
-                  "type": "integer",
-                  "format": "int64",
+                  "type": "string",
                   "doc": "Infra catalog character id."
                 },
                 {
@@ -198369,14 +199204,25 @@ export const docsModel: DocsModel = {
                   "in": "query",
                   "required": false,
                   "type": "integer",
-                  "doc": "Page size, 1-50, default 20. Above 50 is 400 LIMIT_TOO_LARGE."
+                  "doc": "Page size, 1-100, default 20. Above 100 is 400 `LIMIT_TOO_LARGE`; the value is not clamped."
                 },
                 {
-                  "name": "page",
+                  "name": "cursor",
                   "in": "query",
                   "required": false,
-                  "type": "integer",
-                  "doc": "1-based page number, 1-1000."
+                  "type": "string",
+                  "doc": "The `next_cursor` from a previous page of the same collection. Opaque; anything this face did not mint is 400 `INVALID_CURSOR`."
+                },
+                {
+                  "name": "include_total",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "`true` adds `total`, counted under the same filter as `items`.",
+                  "enum": [
+                    "true",
+                    "false"
+                  ]
                 }
               ],
               "responses": [
@@ -198472,8 +199318,7 @@ export const docsModel: DocsModel = {
                                   "name": "id",
                                   "required": true,
                                   "doc": "Infra catalog work id. Resolve it against `/v2/catalog/works/{id}`.",
-                                  "format": "int64",
-                                  "type": "integer"
+                                  "type": "string"
                                 },
                                 {
                                   "name": "name",
@@ -198520,8 +199365,7 @@ export const docsModel: DocsModel = {
                                   "name": "id",
                                   "required": true,
                                   "doc": "Infra catalog character id. Resolve it against `/v2/catalog/characters/{id}`.",
-                                  "format": "int64",
-                                  "type": "integer"
+                                  "type": "string"
                                 },
                                 {
                                   "name": "name",
@@ -198557,8 +199401,7 @@ export const docsModel: DocsModel = {
                                       "name": "id",
                                       "required": true,
                                       "doc": "Infra catalog work id. Resolve it against `/v2/catalog/works/{id}`.",
-                                      "format": "int64",
-                                      "type": "integer"
+                                      "type": "string"
                                     },
                                     {
                                       "name": "name",
@@ -198598,28 +199441,26 @@ export const docsModel: DocsModel = {
                         }
                       },
                       {
+                        "name": "next_cursor",
+                        "doc": "Pass as `cursor` for the next page. Omitted, not null, on the last page.",
+                        "type": "string"
+                      },
+                      {
                         "name": "total",
-                        "required": true,
-                        "doc": "Rows matching the filter, across all pages.",
+                        "doc": "Rows matching the filter, across all pages. Present only with `include_total=true`.",
                         "format": "int64",
-                        "type": "integer"
-                      },
-                      {
-                        "name": "page",
-                        "required": true,
-                        "type": "integer"
-                      },
-                      {
-                        "name": "limit",
-                        "required": true,
                         "type": "integer"
                       }
                     ]
                   }
                 },
                 {
+                  "status": "304",
+                  "description": "The `If-None-Match` entity tag still matches."
+                },
+                {
                   "status": "400",
-                  "description": "An RFC 9457 problem document.",
+                  "description": "A parameter was refused. `code` is `INVALID_PARAMETER`, `LIMIT_TOO_LARGE` or `INVALID_CURSOR`, and `errors[0].parameter` names the parameter to fix.",
                   "schema": {
                     "doc": "RFC 9457. Field names match the platform's /v2 problem documents.",
                     "type": "object",
@@ -198627,6 +199468,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "type",
                         "required": true,
+                        "doc": "The platform's own problem type; the last segment is `code` in kebab case.",
                         "format": "uri",
                         "type": "string"
                       },
@@ -198642,6 +199484,8 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Never use it as a discriminant.",
                         "type": "string"
                       },
                       {
@@ -198657,17 +199501,58 @@ export const docsModel: DocsModel = {
                         "enum": [
                           "INVALID_PARAMETER",
                           "LIMIT_TOO_LARGE",
+                          "INVALID_CURSOR",
                           "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
                           "INTERNAL_ERROR",
                           "SERVICE_UNAVAILABLE"
                         ],
                         "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not about one parameter; on a 400, `errors[0]` names the parameter.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "doc": "Query or path parameter name, as this document spells it.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the platform's closed reason registry.",
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "UNKNOWN_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
                       }
                     ]
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/sticker/characters/1/stickers\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/sticker/characters/value/stickers\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
             }
           ]
         },
@@ -198687,14 +199572,25 @@ export const docsModel: DocsModel = {
                   "in": "query",
                   "required": false,
                   "type": "integer",
-                  "doc": "Page size, 1-50, default 20. Above 50 is 400 LIMIT_TOO_LARGE."
+                  "doc": "Page size, 1-100, default 20. Above 100 is 400 `LIMIT_TOO_LARGE`; the value is not clamped."
                 },
                 {
-                  "name": "page",
+                  "name": "cursor",
                   "in": "query",
                   "required": false,
-                  "type": "integer",
-                  "doc": "1-based page number, 1-1000."
+                  "type": "string",
+                  "doc": "The `next_cursor` from a previous page of the same collection. Opaque; anything this face did not mint is 400 `INVALID_CURSOR`."
+                },
+                {
+                  "name": "include_total",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "`true` adds `total`, counted under the same filter as `items`.",
+                  "enum": [
+                    "true",
+                    "false"
+                  ]
                 },
                 {
                   "name": "q",
@@ -198732,8 +199628,7 @@ export const docsModel: DocsModel = {
                               "name": "id",
                               "required": true,
                               "doc": "Infra catalog work id. Resolve it against `/v2/catalog/works/{id}`.",
-                              "format": "int64",
-                              "type": "integer"
+                              "type": "string"
                             },
                             {
                               "name": "name",
@@ -198769,28 +199664,26 @@ export const docsModel: DocsModel = {
                         }
                       },
                       {
+                        "name": "next_cursor",
+                        "doc": "Pass as `cursor` for the next page. Omitted, not null, on the last page.",
+                        "type": "string"
+                      },
+                      {
                         "name": "total",
-                        "required": true,
-                        "doc": "Rows matching the filter, across all pages.",
+                        "doc": "Rows matching the filter, across all pages. Present only with `include_total=true`.",
                         "format": "int64",
-                        "type": "integer"
-                      },
-                      {
-                        "name": "page",
-                        "required": true,
-                        "type": "integer"
-                      },
-                      {
-                        "name": "limit",
-                        "required": true,
                         "type": "integer"
                       }
                     ]
                   }
                 },
                 {
+                  "status": "304",
+                  "description": "The `If-None-Match` entity tag still matches."
+                },
+                {
                   "status": "400",
-                  "description": "An RFC 9457 problem document.",
+                  "description": "A parameter was refused. `code` is `INVALID_PARAMETER`, `LIMIT_TOO_LARGE` or `INVALID_CURSOR`, and `errors[0].parameter` names the parameter to fix.",
                   "schema": {
                     "doc": "RFC 9457. Field names match the platform's /v2 problem documents.",
                     "type": "object",
@@ -198798,6 +199691,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "type",
                         "required": true,
+                        "doc": "The platform's own problem type; the last segment is `code` in kebab case.",
                         "format": "uri",
                         "type": "string"
                       },
@@ -198813,6 +199707,8 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Never use it as a discriminant.",
                         "type": "string"
                       },
                       {
@@ -198828,11 +199724,52 @@ export const docsModel: DocsModel = {
                         "enum": [
                           "INVALID_PARAMETER",
                           "LIMIT_TOO_LARGE",
+                          "INVALID_CURSOR",
                           "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
                           "INTERNAL_ERROR",
                           "SERVICE_UNAVAILABLE"
                         ],
                         "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not about one parameter; on a 400, `errors[0]` names the parameter.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "doc": "Query or path parameter name, as this document spells it.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the platform's closed reason registry.",
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "UNKNOWN_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
                       }
                     ]
                   }
@@ -198852,8 +199789,7 @@ export const docsModel: DocsModel = {
                   "name": "work_id",
                   "in": "path",
                   "required": true,
-                  "type": "integer",
-                  "format": "int64",
+                  "type": "string",
                   "doc": "Infra catalog work id."
                 },
                 {
@@ -198861,14 +199797,25 @@ export const docsModel: DocsModel = {
                   "in": "query",
                   "required": false,
                   "type": "integer",
-                  "doc": "Page size, 1-50, default 20. Above 50 is 400 LIMIT_TOO_LARGE."
+                  "doc": "Page size, 1-100, default 20. Above 100 is 400 `LIMIT_TOO_LARGE`; the value is not clamped."
                 },
                 {
-                  "name": "page",
+                  "name": "cursor",
                   "in": "query",
                   "required": false,
-                  "type": "integer",
-                  "doc": "1-based page number, 1-1000."
+                  "type": "string",
+                  "doc": "The `next_cursor` from a previous page of the same collection. Opaque; anything this face did not mint is 400 `INVALID_CURSOR`."
+                },
+                {
+                  "name": "include_total",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "`true` adds `total`, counted under the same filter as `items`.",
+                  "enum": [
+                    "true",
+                    "false"
+                  ]
                 },
                 {
                   "name": "sort",
@@ -199027,8 +199974,7 @@ export const docsModel: DocsModel = {
                                   "name": "id",
                                   "required": true,
                                   "doc": "Infra catalog work id. Resolve it against `/v2/catalog/works/{id}`.",
-                                  "format": "int64",
-                                  "type": "integer"
+                                  "type": "string"
                                 },
                                 {
                                   "name": "name",
@@ -199110,7 +200056,7 @@ export const docsModel: DocsModel = {
                                   "name": "id",
                                   "required": true,
                                   "doc": "NextMoe account id, the same one every site in the ecosystem uses.",
-                                  "type": "integer"
+                                  "type": "string"
                                 },
                                 {
                                   "name": "name",
@@ -199145,28 +200091,26 @@ export const docsModel: DocsModel = {
                         }
                       },
                       {
+                        "name": "next_cursor",
+                        "doc": "Pass as `cursor` for the next page. Omitted, not null, on the last page.",
+                        "type": "string"
+                      },
+                      {
                         "name": "total",
-                        "required": true,
-                        "doc": "Rows matching the filter, across all pages.",
+                        "doc": "Rows matching the filter, across all pages. Present only with `include_total=true`.",
                         "format": "int64",
-                        "type": "integer"
-                      },
-                      {
-                        "name": "page",
-                        "required": true,
-                        "type": "integer"
-                      },
-                      {
-                        "name": "limit",
-                        "required": true,
                         "type": "integer"
                       }
                     ]
                   }
                 },
                 {
+                  "status": "304",
+                  "description": "The `If-None-Match` entity tag still matches."
+                },
+                {
                   "status": "400",
-                  "description": "An RFC 9457 problem document.",
+                  "description": "A parameter was refused. `code` is `INVALID_PARAMETER`, `LIMIT_TOO_LARGE` or `INVALID_CURSOR`, and `errors[0].parameter` names the parameter to fix.",
                   "schema": {
                     "doc": "RFC 9457. Field names match the platform's /v2 problem documents.",
                     "type": "object",
@@ -199174,6 +200118,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "type",
                         "required": true,
+                        "doc": "The platform's own problem type; the last segment is `code` in kebab case.",
                         "format": "uri",
                         "type": "string"
                       },
@@ -199189,6 +200134,8 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Never use it as a discriminant.",
                         "type": "string"
                       },
                       {
@@ -199204,17 +200151,58 @@ export const docsModel: DocsModel = {
                         "enum": [
                           "INVALID_PARAMETER",
                           "LIMIT_TOO_LARGE",
+                          "INVALID_CURSOR",
                           "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
                           "INTERNAL_ERROR",
                           "SERVICE_UNAVAILABLE"
                         ],
                         "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not about one parameter; on a 400, `errors[0]` names the parameter.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "doc": "Query or path parameter name, as this document spells it.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the platform's closed reason registry.",
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "UNKNOWN_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
                       }
                     ]
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/sticker/works/1/packs\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/sticker/works/value/packs\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
             }
           ]
         },
@@ -199234,7 +200222,25 @@ export const docsModel: DocsModel = {
                   "in": "query",
                   "required": false,
                   "type": "integer",
-                  "doc": "Page size, 1-50, default 20. Above 50 is 400 LIMIT_TOO_LARGE."
+                  "doc": "Page size, 1-100, default 20. Above 100 is 400 `LIMIT_TOO_LARGE`; the value is not clamped."
+                },
+                {
+                  "name": "cursor",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "The `next_cursor` from a previous page of the same collection. Opaque; anything this face did not mint is 400 `INVALID_CURSOR`."
+                },
+                {
+                  "name": "include_total",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "`true` adds `total`, counted under the same filter as `items`.",
+                  "enum": [
+                    "true",
+                    "false"
+                  ]
                 }
               ],
               "responses": [
@@ -199284,28 +200290,26 @@ export const docsModel: DocsModel = {
                         }
                       },
                       {
+                        "name": "next_cursor",
+                        "doc": "Pass as `cursor` for the next page. Omitted, not null, on the last page.",
+                        "type": "string"
+                      },
+                      {
                         "name": "total",
-                        "required": true,
-                        "doc": "Rows matching the filter, across all pages.",
+                        "doc": "Rows matching the filter, across all pages. Present only with `include_total=true`.",
                         "format": "int64",
-                        "type": "integer"
-                      },
-                      {
-                        "name": "page",
-                        "required": true,
-                        "type": "integer"
-                      },
-                      {
-                        "name": "limit",
-                        "required": true,
                         "type": "integer"
                       }
                     ]
                   }
                 },
                 {
+                  "status": "304",
+                  "description": "The `If-None-Match` entity tag still matches."
+                },
+                {
                   "status": "400",
-                  "description": "An RFC 9457 problem document.",
+                  "description": "A parameter was refused. `code` is `INVALID_PARAMETER`, `LIMIT_TOO_LARGE` or `INVALID_CURSOR`, and `errors[0].parameter` names the parameter to fix.",
                   "schema": {
                     "doc": "RFC 9457. Field names match the platform's /v2 problem documents.",
                     "type": "object",
@@ -199313,6 +200317,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "type",
                         "required": true,
+                        "doc": "The platform's own problem type; the last segment is `code` in kebab case.",
                         "format": "uri",
                         "type": "string"
                       },
@@ -199328,6 +200333,8 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Never use it as a discriminant.",
                         "type": "string"
                       },
                       {
@@ -199343,11 +200350,52 @@ export const docsModel: DocsModel = {
                         "enum": [
                           "INVALID_PARAMETER",
                           "LIMIT_TOO_LARGE",
+                          "INVALID_CURSOR",
                           "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
                           "INTERNAL_ERROR",
                           "SERVICE_UNAVAILABLE"
                         ],
                         "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not about one parameter; on a 400, `errors[0]` names the parameter.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "required": true,
+                              "doc": "Query or path parameter name, as this document spells it.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the platform's closed reason registry.",
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "UNKNOWN_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
                       }
                     ]
                   }

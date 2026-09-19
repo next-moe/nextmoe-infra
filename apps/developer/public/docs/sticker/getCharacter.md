@@ -19,10 +19,10 @@ One catalog character, as this site holds it
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
-| `character_id` | path | 是 | integer (int64) | Infra catalog character id. |
+| `character_id` | path | 是 | string | Infra catalog character id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/sticker/characters/1" \
+curl "https://api.nextmoe.dev/v2/sticker/characters/value" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 

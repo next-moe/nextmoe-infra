@@ -21,10 +21,11 @@ The index a caller syncs against: every catalog character id that has at least o
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
-| `limit` | query | 否 | integer | Page size, 1-50, default 20. Above 50 is 400 LIMIT_TOO_LARGE. |
-| `page` | query | 否 | integer | 1-based page number, 1-1000. |
+| `limit` | query | 否 | integer | Page size, 1-100, default 20. Above 100 is 400 `LIMIT_TOO_LARGE`; the value is not clamped. |
+| `cursor` | query | 否 | string | The `next_cursor` from a previous page of the same collection. Opaque; anything this face did not mint is 400 `INVALID_CURSOR`. |
+| `include_total` | query | 否 | string | `true` adds `total`, counted under the same filter as `items`. 取值：true \| false |
 | `q` | query | 否 | string | Substring match, case-insensitive, across every language at once -- a Japanese query finds a pack whose Japanese title matches even when nothing else does. Truncated at 100 characters. |
-| `work` | query | 否 | integer (int64) | Narrow to the characters of one catalog work. |
+| `work` | query | 否 | string | Narrow to the characters of one catalog work. |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/sticker/characters" \
