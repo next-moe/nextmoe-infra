@@ -20,7 +20,7 @@ const option = computed<EChartsOption>(() => {
   return {
     ...chartBase(t),
     legend: {
-      data: ['去重点击', '重复点击'],
+      data: ['去重点击', '重复与爬虫'],
       top: 0,
       left: 0,
       icon: 'roundRect',
@@ -39,7 +39,7 @@ const option = computed<EChartsOption>(() => {
         return [
           `<span style="font-family:monospace">${d.day}</span>`,
           `去重 <b>${d.uniques.toLocaleString()}</b>`,
-          `重复 ${(d.total - d.uniques).toLocaleString()}`,
+          `重复与爬虫 ${(d.total - d.uniques).toLocaleString()}`,
           `合计 ${d.total.toLocaleString()}`
         ].join('<br/>')
       }
@@ -78,7 +78,7 @@ const option = computed<EChartsOption>(() => {
       },
       {
         type: 'bar',
-        name: '重复点击',
+        name: '重复与爬虫',
         stack: 'clicks',
         barMaxWidth: 22,
         barCategoryGap: CHART_BAR_CATEGORY_GAP,

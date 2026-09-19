@@ -35,3 +35,35 @@ export interface StoreUsageSummary {
   by_app: StoreUsageApp[]
   by_link: StoreUsageLink[]
 }
+
+export interface StoreCoupon {
+  id: number
+  batch_id: number
+  batch_name: string
+  client_id: string
+  app_name: string
+  face_value: number
+  code: string
+  expires_on: string | null
+  delivered_at: string | null
+  published_at: string | null
+}
+
+export interface StoreCouponShare {
+  batch_id: number
+  batch_name: string
+  period_from: string
+  period_to: string
+  published_at: string | null
+  client_id: string
+  app_name: string
+  uniques: number
+  share_ppm: number
+  entitled_points: number
+  allocated_points: number
+}
+
+export interface StoreCoupons {
+  coupons: StoreCoupon[]
+  shares: StoreCouponShare[]
+}

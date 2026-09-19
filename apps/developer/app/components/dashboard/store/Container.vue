@@ -105,6 +105,8 @@ const peak = computed(() =>
     </KunCard>
 
     <template v-else>
+      <DashboardStoreCoupons />
+
       <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
         <ChartStatTile
           label="去重点击"
@@ -116,7 +118,7 @@ const peak = computed(() =>
           label="总点击"
           :value="total"
           :spark="daily.map((d) => d.total)"
-          :hint="`含重复 ${fmt(total - uniques)}`"
+          :hint="`含重复与爬虫 ${fmt(total - uniques)}`"
         />
         <ChartStatTile
           label="去重占比"
@@ -175,7 +177,7 @@ const peak = computed(() =>
       <p class="text-default-400 text-xs leading-relaxed">
         去重口径:同一条短链、同一个 JST 日、同一个指纹(访问 IP 与 User-Agent 的
         SHA-256)只算一次——这是我们对 DLsite
-        的承诺。计数每小时从跳转器同步一次,当天数字始终是不完整的。
+        的承诺;User-Agent 自报是爬虫、链接预览或 HTTP 库的访问照常跳转,但不计入去重点击。计数每小时从跳转器同步一次,当天数字始终是不完整的。
       </p>
     </template>
 

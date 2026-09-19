@@ -25,6 +25,7 @@ var jobSpecs = []struct{ Name, Schedule string }{
 	{"ymgal-news-poll", "every:10m"},
 	{"ymgal-news-sweep", "daily@04:05"},
 	{"store-stats-sync", "every:1h"},
+	{"store-stats-resync", "daily@05:10"},
 	{"news-moderate", "every:5m"},
 }
 

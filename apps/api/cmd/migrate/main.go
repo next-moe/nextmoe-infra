@@ -279,6 +279,17 @@ func getAllModels() []any {
 		// and the /v2/store/prices face reads them.
 		&storeModel.PriceQuote{},
 
+		// DLsite reward-coupon batches (2026-09-19). Three brand-new tables:
+		// a batch of coupon codes the operator pastes in, the codes themselves
+		// (assigned to a site when the batch is published), and the per-site
+		// numbers each published split was computed from. The same wave adds
+		// store_link_daily_stats.bots (NOT NULL DEFAULT 0): existing rows read
+		// 0 until the next store-stats-resync re-pulls them from the
+		// redirector, which has recounted its own history by then.
+		&storeModel.CouponBatch{},
+		&storeModel.Coupon{},
+		&storeModel.CouponShare{},
+
 		// Job registry observability
 		&jobsModel.JobRun{},
 	}

@@ -6816,12 +6816,12 @@ components:
             - string
             - "null"
         total:
-          description: Clicks that day, before de-duplication.
+          description: Clicks that day, before de-duplication and crawlers included.
           format: int64
           minimum: 0
           type: integer
         uniques:
-          description: Distinct (day, fingerprint) clicks that day — the number settlement uses.
+          description: Distinct (day, fingerprint) clicks that day, clients whose User-Agent announces a crawler, link preview or HTTP library left out — the number settlement uses.
           format: int64
           minimum: 0
           type: integer
@@ -6848,12 +6848,12 @@ components:
             - "null"
           x-vocabulary-closed: true
         total:
-          description: Clicks in the range, before de-duplication.
+          description: Clicks in the range, before de-duplication and crawlers included.
           format: int64
           minimum: 0
           type: integer
         uniques:
-          description: De-duplicated clicks in the range — the number settlement uses.
+          description: De-duplicated clicks in the range, declared crawlers left out — the number settlement uses.
           format: int64
           minimum: 0
           type: integer

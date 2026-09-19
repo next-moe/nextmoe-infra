@@ -65,6 +65,7 @@ type DayStat struct {
 	Date    string `json:"date"`
 	Total   int64  `json:"total"`
 	Uniques int64  `json:"uniques"`
+	Bots    int64  `json:"bots"`
 }
 
 type dailyStatsRequest struct {
