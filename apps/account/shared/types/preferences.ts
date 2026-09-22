@@ -1,9 +1,5 @@
 export type NsfwDisplay = 'hide' | 'blur' | 'show'
 
-export interface AdultConfirmationResponse {
-  adult_confirmed_at: string
-}
-
 export interface NsfwDisplayResponse {
   nsfw_display: NsfwDisplay
   adult_confirmed_at: string | null

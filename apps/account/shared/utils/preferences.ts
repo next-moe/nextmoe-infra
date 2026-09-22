@@ -1,9 +1,9 @@
 import type { NsfwDisplay } from '../types/preferences'
 
-// The server stores the choice and the attestation separately, and a row that
-// predates the attestation carries the 'blur' backfill with no confirmation —
-// so reading nsfw_display on its own would un-blur every account that never
-// attested. Mirrors EffectiveNSFWDisplay in the Go model.
+// Mirrors EffectiveNSFWDisplay in the Go model, which the deployed downstream
+// sites also ship. The age attestation was retired on 2026-09-23 and
+// adult_confirmed_at is now set on every account, so the first branch only
+// still fires for a user object restored from a session older than the field.
 export const effectiveNsfwDisplay = (
   adultConfirmedAt: string | null | undefined,
   nsfwDisplay: NsfwDisplay | undefined

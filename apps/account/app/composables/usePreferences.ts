@@ -1,5 +1,4 @@
 import type {
-  AdultConfirmationResponse,
   NsfwDisplay,
   NsfwDisplayResponse,
   PreferenceSummary
@@ -11,16 +10,6 @@ export const usePreferences = () => {
 
   const patchUser = (patch: Partial<User>) => {
     if (userStore.user) userStore.setUser({ ...userStore.user, ...patch })
-  }
-
-  const confirmAdult = async () => {
-    const response = await api.post<AdultConfirmationResponse>(
-      '/auth/me/adult-confirmation'
-    )
-    if (response.code === 0) {
-      patchUser({ adult_confirmed_at: response.data.adult_confirmed_at })
-    }
-    return response
   }
 
   const setNsfwDisplay = async (nsfwDisplay: NsfwDisplay) => {
@@ -42,5 +31,5 @@ export const usePreferences = () => {
   const deletePreference = (namespace: string) =>
     api.delete(`/auth/me/preferences/${encodeURIComponent(namespace)}`)
 
-  return { confirmAdult, setNsfwDisplay, listPreferences, deletePreference }
+  return { setNsfwDisplay, listPreferences, deletePreference }
 }
