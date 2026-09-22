@@ -349,14 +349,29 @@ fi
 begin_group getchu
 # After EG and DLsite so a Getchu mint sees the works those lanes just created.
 gstep import-getchu-refs --apply
-if [ "$GROUP_FAIL" -eq 0 ]; then
-  if dry_ok getchu-attach sh -c "$DSNSH"'; reconcile-getchu --dsn "$CAT" --getchu-dsn "$GC" --eg-dsn "$EG"' \
-     && check_counters getchu-attach "$last_dry_log" attached=300 minted_live=50 minted_quarantined=100; then
-    gstep sh -c "$DSNSH"'; reconcile-getchu --dsn "$CAT" --getchu-dsn "$GC" --eg-dsn "$EG" --apply'
-  else
-    ceiling_failed
+# Up to three passes, because this lane cascades: an attach writes the anchor
+# that lets the NEXT item match. On 2026-09-20 one pass attached 11 and left 8
+# that only became matchable because of those 11, and those 8 were still sitting
+# there two days later — a [RECON] alert for work the lane could have finished
+# on the night. Each pass keeps its own dry run and the same ceiling; the loop
+# stops as soon as a dry run plans nothing.
+getchu_pass=1
+while [ "$getchu_pass" -le 3 ] && [ "$GROUP_FAIL" -eq 0 ]; do
+  if ! dry_ok getchu-attach sh -c "$DSNSH"'; reconcile-getchu --dsn "$CAT" --getchu-dsn "$GC" --eg-dsn "$EG"'; then
+    break
   fi
-fi
+  if ! check_counters getchu-attach "$last_dry_log" attached=300 minted_live=50 minted_quarantined=100; then
+    ceiling_failed
+    break
+  fi
+  if [ "$getchu_pass" -gt 1 ] \
+     && check_counters getchu-attach "$last_dry_log" attached=0 minted_live=0 minted_quarantined=0 >/dev/null 2>&1; then
+    echo "getchu-attach: converged after $((getchu_pass - 1)) apply pass(es)"
+    break
+  fi
+  gstep sh -c "$DSNSH"'; reconcile-getchu --dsn "$CAT" --getchu-dsn "$GC" --eg-dsn "$EG" --apply'
+  getchu_pass=$((getchu_pass + 1))
+done
 gstep sh -c "$DSNSH"'; import-getchu-intros --dsn "$CAT" --getchu-dsn "$GC" --population all --apply'
 gstep sh -c "$DSNSH"'; import-getchu-characters --dsn "$CAT" --getchu-dsn "$GC" --apply'
 
