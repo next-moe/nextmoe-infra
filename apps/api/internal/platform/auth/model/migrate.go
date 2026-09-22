@@ -24,9 +24,9 @@ import (
 //     rejects them. (GORM's own INSERTs do carry the value: a `default` tag
 //     holding a parseable literal is sent explicitly, not left to the database.
 //     The 2026-09-22 version of this comment claimed the opposite.) That
-//     default was 'blur' on 2026-09-22 and is 'hide' since 2026-09-23 — see
-//     NeutralizeAgeAttestation for why a database arriving late must not
-//     backfill 'blur' any more.
+//     default was 'blur' on 2026-09-22, 'hide' on 2026-09-23, and 'show' since
+//     the same-day second ruling that every account sees adult content — see
+//     NeutralizeAgeAttestation for the two rulings and what each pass wrote.
 //
 // Per-site NSFW states held by downstream products are deliberately NOT
 // migrated in: they were never an age attestation.
@@ -42,8 +42,8 @@ func AddUserContentPreferenceColumns(db *gorm.DB) error {
 	stmts := []string{
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS adult_confirmed_at timestamptz`,
 		`CREATE INDEX IF NOT EXISTS idx_users_adult_confirmed_at ON users (adult_confirmed_at)`,
-		`ALTER TABLE users ADD COLUMN IF NOT EXISTS nsfw_display varchar(8) NOT NULL DEFAULT 'hide'`,
-		`ALTER TABLE users ALTER COLUMN nsfw_display SET DEFAULT 'hide'`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS nsfw_display varchar(8) NOT NULL DEFAULT 'show'`,
+		`ALTER TABLE users ALTER COLUMN nsfw_display SET DEFAULT 'show'`,
 	}
 	for _, s := range stmts {
 		if err := db.Exec(s).Error; err != nil {
@@ -60,19 +60,24 @@ func AddUserContentPreferenceColumns(db *gorm.DB) error {
 // sites already ship, `adult_confirmed ? nsfw_display : 'hide'`, keeps working
 // untouched with adult_confirmed simply always true.
 //
-// What happened to existing rows:
+// What happened to existing rows, in two production passes on 2026-09-23:
 //
-//   - Production was backfilled by hand on 2026-09-23, before this code
-//     existed: 130,292 unconfirmed rows got adult_confirmed_at = now(), and
-//     their nsfw_display was flipped 'blur' -> 'hide' first. The flip is the
-//     part that is easy to miss. An unconfirmed row carried the 2026-09-22
-//     'blur' backfill and rendered as 'hide'; confirming it without the flip
-//     would have un-blurred 130k feeds nobody asked to change. The 33 accounts
-//     that had genuinely attested kept the values they chose.
-//   - This function repeats both halves in the same order for the accounts
-//     registered between that manual UPDATE and this code deploying, and for
-//     every dev/staging database that never saw the manual pass. Idempotent:
-//     after one run no row matches adult_confirmed_at IS NULL again.
+//   - First pass (retirement, by hand, before this code existed): 130,292
+//     unconfirmed rows got adult_confirmed_at = now(), and their nsfw_display
+//     was flipped 'blur' -> 'hide' FIRST, so that confirming them did not
+//     un-blur 130k feeds nobody asked to change. The 33 accounts that had
+//     genuinely attested kept the values they chose.
+//   - Second pass (the same-day ruling that every account sees adult content,
+//     also by hand): every row, the 33 choosers included, was set to 'show'.
+//     That ruling is why the flip target below is 'show' and not the first
+//     pass's 'hide' — a database arriving late lands directly on the final
+//     state instead of replaying the superseded intermediate one.
+//
+// The UPDATE below only touches rows with adult_confirmed_at IS NULL. That
+// guard is what makes rerunning this on every deploy safe: an account whose
+// owner later picks 'hide' is confirmed, so no redeploy can stomp the choice.
+// The all-rows second pass has no such guard and therefore deliberately stays
+// manual SQL, never code.
 //
 // New rows do not depend on it — User.BeforeCreate stamps the column — so on a
 // database that has only ever run this version both statements match nothing.
@@ -82,7 +87,7 @@ func NeutralizeAgeAttestation(db *gorm.DB) error {
 	}
 
 	stmts := []string{
-		`UPDATE users SET nsfw_display = 'hide' WHERE adult_confirmed_at IS NULL AND nsfw_display <> 'hide'`,
+		`UPDATE users SET nsfw_display = 'show' WHERE adult_confirmed_at IS NULL AND nsfw_display <> 'show'`,
 		`UPDATE users SET adult_confirmed_at = now() WHERE adult_confirmed_at IS NULL`,
 	}
 	for _, s := range stmts {

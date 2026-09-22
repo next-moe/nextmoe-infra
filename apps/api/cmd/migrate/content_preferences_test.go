@@ -69,20 +69,21 @@ func TestContentPreferenceMigrationIsIdempotentAndBackfills(t *testing.T) {
 	if err := db.Where("name = ?", "legacy_prefs").First(&legacy).Error; err != nil {
 		t.Fatalf("reload legacy user: %v", err)
 	}
-	if legacy.NSFWDisplay != authModel.NSFWDisplayHide {
+	if legacy.NSFWDisplay != authModel.NSFWDisplayShow {
 		t.Fatalf("a row that predates the column backfilled to %q, want %q",
-			legacy.NSFWDisplay, authModel.NSFWDisplayHide)
+			legacy.NSFWDisplay, authModel.NSFWDisplayShow)
 	}
 	if legacy.AdultConfirmedAt == nil {
 		t.Fatal("a row that predates the column must still come out adult: the attestation was retired 2026-09-23")
 	}
-	if got := authModel.EffectiveNSFWDisplay(legacy.AdultConfirmedAt, legacy.NSFWDisplay); got != authModel.NSFWDisplayHide {
-		t.Fatalf("the backfilled row is effectively %q, want %q", got, authModel.NSFWDisplayHide)
+	if got := authModel.EffectiveNSFWDisplay(legacy.AdultConfirmedAt, legacy.NSFWDisplay); got != authModel.NSFWDisplayShow {
+		t.Fatalf("the backfilled row is effectively %q, want %q", got, authModel.NSFWDisplayShow)
 	}
 
-	// The DEFAULT stays on the column: "" is Go's zero value, so GORM omits
-	// nsfw_display from every user INSERT and a NOT NULL column without one
-	// would reject registration outright.
+	// The DEFAULT stays on the column for the INSERTs that bypass the model —
+	// seed rows and operational SQL — since a NOT NULL column without one
+	// rejects them. (GORM's own INSERTs carry the `default` tag literal
+	// explicitly; the 2026-09-22 version of this comment claimed they omit it.)
 	fresh := &authModel.User{Name: "fresh_prefs", Email: "fresh_prefs@example.test"}
 	if err := db.Create(fresh).Error; err != nil {
 		t.Fatalf("insert a user the way registration does: %v", err)
@@ -91,9 +92,9 @@ func TestContentPreferenceMigrationIsIdempotentAndBackfills(t *testing.T) {
 	if err := db.First(fresh, fresh.ID).Error; err != nil {
 		t.Fatalf("reload fresh user: %v", err)
 	}
-	if fresh.NSFWDisplay != authModel.NSFWDisplayHide {
+	if fresh.NSFWDisplay != authModel.NSFWDisplayShow {
 		t.Fatalf("a newly registered user got nsfw_display %q, want %q",
-			fresh.NSFWDisplay, authModel.NSFWDisplayHide)
+			fresh.NSFWDisplay, authModel.NSFWDisplayShow)
 	}
 	if fresh.AdultConfirmedAt == nil {
 		t.Fatal("a newly registered user has a null adult_confirmed_at: the BeforeCreate hook did not reach the INSERT")

@@ -13,13 +13,15 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// TestNeutralizeAgeAttestationKeepsEveryRowsEffectiveDisplay covers the three
+// TestNeutralizeAgeAttestationLandsUnconfirmedRowsOnShow covers the three
 // states a users row could be in on 2026-09-23, when the age attestation was
-// retired. The one that is easy to get wrong is the straggler: it carries the
-// previous day's 'blur' backfill with a null attestation, so it renders as
-// 'hide', and confirming it without first flipping the column to 'hide' would
-// silently un-blur an account that never asked for it.
-func TestNeutralizeAgeAttestationKeepsEveryRowsEffectiveDisplay(t *testing.T) {
+// retired and, the same day, the second ruling made every account see adult
+// content. An unconfirmed row lands on 'show' regardless of what it held —
+// only a row that is already confirmed is out of reach, which is the guard
+// that lets this rerun on every deploy without stomping a choice made since.
+// The attested seed deliberately holds a NON-'show' value so that "kept the
+// value it chose" cannot pass by coincidence with "was flipped to 'show'".
+func TestNeutralizeAgeAttestationLandsUnconfirmedRowsOnShow(t *testing.T) {
 	dsn, ok := dbtest.DSN()
 	if !ok {
 		dbtest.Skip(t)
@@ -63,7 +65,7 @@ func TestNeutralizeAgeAttestationKeepsEveryRowsEffectiveDisplay(t *testing.T) {
 
 	straggler := seed(t, "str", authModel.NSFWDisplayBlur, nil)
 	hidden := seed(t, "hid", authModel.NSFWDisplayHide, nil)
-	chose := seed(t, "cho", authModel.NSFWDisplayShow, &attested)
+	chose := seed(t, "cho", authModel.NSFWDisplayHide, &attested)
 
 	for pass := 1; pass <= 2; pass++ {
 		if err := authModel.NeutralizeAgeAttestation(db); err != nil {
@@ -85,9 +87,9 @@ func TestNeutralizeAgeAttestationKeepsEveryRowsEffectiveDisplay(t *testing.T) {
 		id      uint
 		display string
 	}{
-		{"a straggler registered under the old default loses the blur it never saw", straggler.ID, authModel.NSFWDisplayHide},
-		{"an account already on hide stays there", hidden.ID, authModel.NSFWDisplayHide},
-		{"an account that attested keeps the value it chose", chose.ID, authModel.NSFWDisplayShow},
+		{"an unconfirmed blur row lands on show", straggler.ID, authModel.NSFWDisplayShow},
+		{"an unconfirmed hide row lands on show too", hidden.ID, authModel.NSFWDisplayShow},
+		{"a confirmed account keeps the value it chose", chose.ID, authModel.NSFWDisplayHide},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := reload(t, tc.id)

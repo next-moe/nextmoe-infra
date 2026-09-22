@@ -45,7 +45,7 @@ func TestComplete_federatedFirstLoginIsAdultByConstruction(t *testing.T) {
 	if stored.AdultConfirmedAt == nil {
 		t.Fatal("a federated first login created an account with a null adult_confirmed_at")
 	}
-	if stored.NSFWDisplay != model.NSFWDisplayHide {
-		t.Fatalf("nsfw_display = %q, want %q", stored.NSFWDisplay, model.NSFWDisplayHide)
+	if stored.NSFWDisplay != model.NSFWDisplayShow {
+		t.Fatalf("nsfw_display = %q, want %q", stored.NSFWDisplay, model.NSFWDisplayShow)
 	}
 }

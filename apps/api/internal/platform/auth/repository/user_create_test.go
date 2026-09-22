@@ -64,11 +64,11 @@ func TestCreateMakesEveryAccountAdult(t *testing.T) {
 		if stored.AdultConfirmedAt == nil {
 			t.Fatal("the stored row has a null adult_confirmed_at: the BeforeCreate hook never reached the INSERT")
 		}
-		if stored.NSFWDisplay != model.NSFWDisplayHide {
-			t.Fatalf("stored nsfw_display = %q, want %q", stored.NSFWDisplay, model.NSFWDisplayHide)
+		if stored.NSFWDisplay != model.NSFWDisplayShow {
+			t.Fatalf("stored nsfw_display = %q, want %q", stored.NSFWDisplay, model.NSFWDisplayShow)
 		}
-		if got := model.EffectiveNSFWDisplay(stored.AdultConfirmedAt, stored.NSFWDisplay); got != model.NSFWDisplayHide {
-			t.Fatalf("effective display = %q, want %q", got, model.NSFWDisplayHide)
+		if got := model.EffectiveNSFWDisplay(stored.AdultConfirmedAt, stored.NSFWDisplay); got != model.NSFWDisplayShow {
+			t.Fatalf("effective display = %q, want %q", got, model.NSFWDisplayShow)
 		}
 	})
 
