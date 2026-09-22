@@ -43,6 +43,8 @@ type snapshot struct {
 	dlsiteWork     map[string]int64
 	egHoldings     map[int64][]holding
 	workHasPrimary map[int64]bool
+	exactAnywhere  map[int64]int64
+	egRefsAnywhere map[[2]int64]struct{}
 	rejected       map[string]struct{}
 	workTitles     map[int64][]string
 	workDates      map[int64][]string
@@ -213,11 +215,10 @@ func finish(snap snapshot, d classDraft) ([]plannedRef, Stats) {
 			// work had exactly one exact EG id (measured 2026-09-18), and a second
 			// exact must not appear.
 			for _, c := range live {
-				planned = append(planned, plannedRef{
+				appendPlan(&planned, &st, snap, plannedRef{
 					EgID: c.game.ID, WorkID: w, LinkKind: model.LinkKindRelated,
 					MatchedBy: matchedByFamilies(c.families), Class: classEdition, Families: c.families,
 				})
-				st.RelatedPlanned++
 			}
 			continue
 		}
@@ -231,7 +232,6 @@ func finish(snap snapshot, d classDraft) ([]plannedRef, Stats) {
 				p.Class = classPrimary
 				if len(c.families) >= 2 {
 					p.LinkKind = model.LinkKindExact
-					st.ExactPlanned++
 				} else if corr := corroborate(c.game, w, snap); corr != "" {
 					// Of 3,280 EG games named by exactly one family (measured
 					// 2026-09-18, read-only), 3,252 are corroborated by title or by
@@ -239,18 +239,15 @@ func finish(snap snapshot, d classDraft) ([]plannedRef, Stats) {
 					p.LinkKind = model.LinkKindExact
 					p.Corroboration = corr
 					p.MatchedBy += "+" + corr
-					st.ExactPlanned++
 					st.Corroborated++
 				} else {
 					p.LinkKind = model.LinkKindProbable
-					st.ProbablePlanned++
 				}
 			} else {
 				p.Class = classEdition
 				p.LinkKind = model.LinkKindRelated
-				st.RelatedPlanned++
 			}
-			planned = append(planned, p)
+			appendPlan(&planned, &st, snap, p)
 		}
 	}
 
@@ -268,8 +265,29 @@ func appendRelated(d *classDraft, snap snapshot, p plannedRef) bool {
 		d.st.RejectedSkips++
 		return false
 	}
-	d.planned = append(d.planned, p)
-	d.st.RelatedPlanned++
+	return appendPlan(&d.planned, &d.st, snap, p)
+}
+
+func appendPlan(planned *[]plannedRef, st *Stats, snap snapshot, p plannedRef) bool {
+	if _, held := snap.egRefsAnywhere[[2]int64{p.EgID, p.WorkID}]; held {
+		st.SlotHeld++
+		return false
+	}
+	if p.LinkKind == model.LinkKindExact {
+		if holder, ok := snap.exactAnywhere[p.EgID]; ok && holder != p.WorkID {
+			p.LinkKind = model.LinkKindProbable
+			st.ExactSlotTaken++
+			st.ProbablePlanned++
+			*planned = append(*planned, p)
+			return true
+		}
+		st.ExactPlanned++
+	} else if p.LinkKind == model.LinkKindProbable {
+		st.ProbablePlanned++
+	} else {
+		st.RelatedPlanned++
+	}
+	*planned = append(*planned, p)
 	return true
 }
 

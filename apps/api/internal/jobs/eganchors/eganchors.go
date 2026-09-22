@@ -35,6 +35,8 @@ type Stats struct {
 	ExactPlanned    int
 	ProbablePlanned int
 	RelatedPlanned  int
+	SlotHeld        int
+	ExactSlotTaken  int
 	Corroborated    int
 	Written         int
 	Exists          int
@@ -94,6 +96,8 @@ func RunWithDB(ctx context.Context, db, egDB *gorm.DB, opts Opts) (*Stats, error
 		"exact_planned", st.ExactPlanned,
 		"probable_planned", st.ProbablePlanned,
 		"related_planned", st.RelatedPlanned,
+		"slot_held", st.SlotHeld,
+		"exact_slot_taken", st.ExactSlotTaken,
 		"corroborated", st.Corroborated,
 		"written", st.Written,
 		"exists", st.Exists,
