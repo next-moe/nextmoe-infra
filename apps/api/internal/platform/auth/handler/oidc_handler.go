@@ -51,7 +51,7 @@ func (h *OIDCHandler) metadata() fiber.Map {
 		"response_types_supported":              []string{"code"},
 		"response_modes_supported":              []string{"query"},
 		"grant_types_supported":                 []string{"authorization_code", "refresh_token"},
-		"scopes_supported":                      []string{"openid", "profile", "email"},
+		"scopes_supported":                      []string{"openid", "profile", "email", PreferencesScope},
 		"subject_types_supported":               []string{"public"},
 		"id_token_signing_alg_values_supported": []string{"RS256"},
 		"token_endpoint_auth_methods_supported": []string{"client_secret_basic", "client_secret_post", "none"},
@@ -59,6 +59,7 @@ func (h *OIDCHandler) metadata() fiber.Map {
 		"claims_supported": []string{
 			"iss", "sub", "aud", "exp", "iat", "nonce",
 			"name", "email", "picture", "roles",
+			"adult_confirmed", "nsfw_display",
 		},
 	}
 }

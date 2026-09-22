@@ -323,16 +323,18 @@ func (h *AuthHandler) Me(c fiber.Ctx) error {
 	}
 
 	return response.Success(c, dto.UserResponse{
-		UUID:            user.UUID,
-		Name:            user.Name,
-		Email:           service.EmailForScope(scope, user.Email),
-		Avatar:          user.Avatar,
-		AvatarImageHash: user.AvatarImageHash,
-		Bio:             user.Bio,
-		Moemoepoint:     user.Moemoepoint,
-		Status:          user.Status,
-		Roles:           user.RoleNames(),
-		CreatedAt:       user.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		UUID:             user.UUID,
+		Name:             user.Name,
+		Email:            service.EmailForScope(scope, user.Email),
+		Avatar:           user.Avatar,
+		AvatarImageHash:  user.AvatarImageHash,
+		Bio:              user.Bio,
+		Moemoepoint:      user.Moemoepoint,
+		Status:           user.Status,
+		Roles:            user.RoleNames(),
+		CreatedAt:        user.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		AdultConfirmedAt: adultConfirmedAt(user),
+		NSFWDisplay:      user.NSFWDisplay,
 	})
 }
 
@@ -362,16 +364,18 @@ func (h *AuthHandler) UpdateProfile(c fiber.Ctx) error {
 	}
 
 	return response.Success(c, dto.UserResponse{
-		UUID:            user.UUID,
-		Name:            user.Name,
-		Email:           service.EmailForScope(scope, user.Email),
-		Avatar:          user.Avatar,
-		AvatarImageHash: user.AvatarImageHash,
-		Bio:             user.Bio,
-		Moemoepoint:     user.Moemoepoint,
-		Status:          user.Status,
-		Roles:           roles,
-		CreatedAt:       user.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		UUID:             user.UUID,
+		Name:             user.Name,
+		Email:            service.EmailForScope(scope, user.Email),
+		Avatar:           user.Avatar,
+		AvatarImageHash:  user.AvatarImageHash,
+		Bio:              user.Bio,
+		Moemoepoint:      user.Moemoepoint,
+		Status:           user.Status,
+		Roles:            roles,
+		CreatedAt:        user.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		AdultConfirmedAt: adultConfirmedAt(user),
+		NSFWDisplay:      user.NSFWDisplay,
 	})
 }
 

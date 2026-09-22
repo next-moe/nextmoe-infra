@@ -120,6 +120,7 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	creatorAppSvc := authService.NewCreatorApplicationService(authRepo.NewCreatorApplicationRepository(db), userRepo, userBatchSvc)
 	moemoepointSvc := authService.NewMoemoepointService(a.DB.DB(), userRepo)
 	authSvc.WithMoemoepoint(moemoepointSvc)
+	prefSvc := authService.NewPreferenceService(userRepo, authRepo.NewUserPreferenceRepository(db))
 
 	fedReg := federation.NewRegistry(cfg)
 	oauthAccountRepo := authRepo.NewOAuthAccountRepository(db)
@@ -137,6 +138,7 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	moemoepointH := authHandler.NewMoemoepointHandler(moemoepointSvc)
 	userBatchH := authHandler.NewUserBatchHandler(userBatchSvc)
 	creatorAppH := authHandler.NewCreatorApplicationHandler(creatorAppSvc)
+	prefH := authHandler.NewPreferenceHandler(prefSvc)
 
 	var avatarUploadH *authHandler.AvatarUploadHandler
 	if imgCli != nil {
@@ -243,13 +245,31 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 
 	authProtected := auth.Group("", middleware.Auth(authSvc))
 	authProtected.Post("/logout", authH.Logout)
-	authProtected.Get("/me", authH.Me)
+	authProtected.Get("/me", middleware.NoStore(), authH.Me)
 	authProtected.Get("/sessions", authH.ListSessions)
 	authProtected.Post("/sessions/switch", authH.SwitchSession)
 	authProtected.Post("/sessions/logout", authH.LogoutAccount)
 	authProtected.Post("/sessions/logout-all", authH.LogoutAll)
-	authProtected.Patch("/me", authH.UpdateProfile)
+	authProtected.Patch("/me", middleware.NoStore(), authH.UpdateProfile)
 	authProtected.Get("/me/moemoepoint/log", moemoepointH.MyLog)
+
+	// middleware.Auth, not BearerAuth: both guards validate the same JWT with
+	// the same verifier, so an OAuth access token passes here too — and the
+	// house {code,message,data} envelope is what the rest of the /auth/me
+	// family already answers. The OAuth half of the contract (the
+	// `preferences` scope, the namespace binding) is enforced in the handler,
+	// where the token's client_id is readable.
+	//
+	// NoStore is named per route for the reason spelled out at the /oauth
+	// group below: a Group("/me", mw) would also attach it to every /me route
+	// registered afterwards, /me/avatar included.
+	noStore := middleware.NoStore()
+	authProtected.Post("/me/adult-confirmation", noStore, prefH.ConfirmAdult)
+	authProtected.Put("/me/nsfw", noStore, prefH.SetNSFWDisplay)
+	authProtected.Get("/me/preferences", noStore, prefH.List)
+	authProtected.Get("/me/preferences/:namespace", noStore, prefH.Get)
+	authProtected.Put("/me/preferences/:namespace", noStore, prefH.Put)
+	authProtected.Delete("/me/preferences/:namespace", noStore, prefH.Delete)
 	authProtected.Put("/password", authH.ChangePassword)
 	authProtected.Post("/email/send-code", authH.SendEmailChangeCode)
 	authProtected.Put("/email", authH.ChangeEmail)

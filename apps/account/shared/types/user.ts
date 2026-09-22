@@ -1,3 +1,5 @@
+import type { NsfwDisplay } from './preferences'
+
 export interface User {
   id?: number
   uuid: string
@@ -12,6 +14,11 @@ export interface User {
   original_email?: string
   roles: string[]
   created_at: string
+  // Only the /auth/me family fills these two; the login / register responses
+  // build the same shape without them, so a store loaded from a fresh login
+  // has them undefined until /auth/me is read.
+  adult_confirmed_at?: string | null
+  nsfw_display?: NsfwDisplay
 }
 
 export interface UserSiteData {

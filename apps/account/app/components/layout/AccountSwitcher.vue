@@ -79,6 +79,11 @@ const handleAddAccount = async () => {
   await navigateTo('/auth/login?force=1')
 }
 
+const handleSettings = async () => {
+  popoverRef.value?.close()
+  await navigateTo('/settings')
+}
+
 const handleLogoutCurrent = async () => {
   popoverRef.value?.close()
   if (!hasLoaded.value) await loadSessions()
@@ -159,6 +164,15 @@ const handleLogoutAll = async () => {
           </p>
         </div>
       </div>
+
+      <button
+        type="button"
+        class="text-default-500 hover:bg-default-100 hover:text-foreground flex w-full items-center gap-3 px-3 py-2 text-sm transition-colors"
+        @click="handleSettings"
+      >
+        <KunIcon name="lucide:settings" class="size-4 shrink-0" />
+        <span class="flex-1 text-left">设置</span>
+      </button>
 
       <button
         type="button"

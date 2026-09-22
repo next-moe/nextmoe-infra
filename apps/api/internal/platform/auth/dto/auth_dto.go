@@ -100,6 +100,13 @@ type UserResponse struct {
 	OriginalEmail   string   `json:"original_email,omitempty"`
 	Roles           []string `json:"roles"`
 	CreatedAt       string   `json:"created_at"`
+
+	// Filled by the /auth/me family only. The login / register / federation
+	// responses build the same struct from a user record that was never read
+	// back after INSERT, so nsfw_display would be "" there — omitempty keeps
+	// that out of the wire instead of shipping an invalid third value.
+	AdultConfirmedAt *string `json:"adult_confirmed_at,omitempty"`
+	NSFWDisplay      string  `json:"nsfw_display,omitempty"`
 }
 
 type LoginResponse struct {

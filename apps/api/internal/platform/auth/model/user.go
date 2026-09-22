@@ -25,9 +25,13 @@ type User struct {
 
 	AvatarImageHash *string `gorm:"size:64;index" json:"avatar_image_hash,omitempty"`
 
-	Bio           string         `gorm:"size:107;default:''" json:"bio"`
-	Moemoepoint   int            `gorm:"default:0" json:"moemoepoint"`
-	Status        int            `gorm:"default:0" json:"status"`
+	Bio         string `gorm:"size:107;default:''" json:"bio"`
+	Moemoepoint int    `gorm:"default:0" json:"moemoepoint"`
+	Status      int    `gorm:"default:0" json:"status"`
+
+	AdultConfirmedAt *time.Time `gorm:"index" json:"adult_confirmed_at,omitempty"`
+	NSFWDisplay      string     `gorm:"column:nsfw_display;size:8;not null;default:'blur'" json:"nsfw_display"`
+
 	AnonymizedAt  *time.Time     `gorm:"index" json:"anonymized_at,omitempty"`
 	OriginalEmail *string        `gorm:"size:255" json:"-"`
 	IP            string         `gorm:"size:45;default:''" json:"-"`

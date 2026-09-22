@@ -58,6 +58,15 @@ const (
 	ErrCreatorAppNotFound   = 17004
 	ErrCreatorAppNotPending = 17005
 
+	ErrPrefScopeRequired    = 18001
+	ErrPrefNamespaceInvalid = 18002
+	ErrPrefNamespaceDenied  = 18003
+	ErrPrefDocInvalid       = 18004
+	ErrPrefDocTooLarge      = 18005
+	ErrPrefVersionConflict  = 18006
+	ErrPrefDisplayInvalid   = 18007
+	ErrPrefAdultRequired    = 18008
+
 	ErrGalgameNotFound           = 20001
 	ErrGalgameAlreadyExists      = 20002
 	ErrGalgameInvalidVNDB        = 20003
@@ -153,6 +162,15 @@ var codeMessages = map[int]string{
 	ErrCreatorAppCooldown:   "申请被拒绝后需等待冷却期才能重新申请",
 	ErrCreatorAppNotFound:   "申请不存在",
 	ErrCreatorAppNotPending: "该申请已被处理",
+
+	ErrPrefScopeRequired:    "缺少 preferences 权限范围",
+	ErrPrefNamespaceInvalid: "命名空间格式不合法",
+	ErrPrefNamespaceDenied:  "无权访问该命名空间",
+	ErrPrefDocInvalid:       "doc 必须是 JSON 对象",
+	ErrPrefDocTooLarge:      "偏好文档超过 64 KB 上限",
+	ErrPrefVersionConflict:  "偏好文档版本冲突，请重新读取后再写入",
+	ErrPrefDisplayInvalid:   "成人内容显示方式必须是 hide / blur / show",
+	ErrPrefAdultRequired:    "请先完成年龄确认",
 
 	ErrOAuthInvalidClient:        "无效的客户端",
 	ErrOAuthInvalidRedirectURI:   "无效的回调地址",

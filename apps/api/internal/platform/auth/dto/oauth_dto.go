@@ -48,6 +48,9 @@ type UserInfoResponse struct {
 	Roles     []string `json:"roles"`
 	SiteRoles []string `json:"site_roles,omitempty"`
 	UpdatedAt int64    `json:"updated_at,omitempty"`
+
+	AdultConfirmed *bool  `json:"adult_confirmed,omitempty"`
+	NSFWDisplay    string `json:"nsfw_display,omitempty"`
 }
 
 type AuthorizationCode struct {
