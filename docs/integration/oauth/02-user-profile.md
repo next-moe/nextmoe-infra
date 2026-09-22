@@ -113,7 +113,7 @@ OAuth 的用户自助 API 在设计上分两层。下游接入时**不要**把�
 
 > **2026-09-22 新增 `adult_confirmed_at` / `nsfw_display`**（见 [15-content-preferences.md](./15-content-preferences.md)）。`adult_confirmed_at` 未确认时**整个键缺失**；`nsfw_display` 是账号存着的值，生效值 = `adult_confirmed_at != null ? nsfw_display : 'hide'`。
 >
-> 这两个字段**只出现在 `GET /auth/me` 与 `PATCH /auth/me` 的响应里**。`/auth/login`、`/auth/register`、`/auth/federation/complete` 返回的是同一个 `UserResponse` 结构，但那些路径上的用户记录是刚写完还没回读的，`nsfw_display` 会是空串——所以它们把两个键都省略掉了。**登录后想要这两个值，读一次 `/auth/me`。**
+> 这两个字段**只出现在 `GET /auth/me` 与 `PATCH /auth/me` 的响应里**。`/auth/login`、`/auth/register`、`/auth/federation/complete` 返回的是同一个 `UserResponse` 结构，但三条路径拿到的用户记录不一样：登录是整行读出来的，注册答的是刚 INSERT 的那条记录（`nsfw_display` 没进 INSERT、走的是 DB 默认值，所以在内存里是空串）。与其让三条会话建立路径各答各的，这三条一律省略这两个键。**登录后想要这两个值，读一次 `/auth/me`。**
 >
 > 这两个字段在 `/auth/me` 上**不受 scope 门控**（与 `name` / `bio` / `moemoepoint` / `status` / `roles` 同一条规则，只有 `email` 被门控）。`/oauth/userinfo` 上的同名 claim 则跟着 `profile`——两边不对称是 `/auth/me` 既有的「展示字段一律不门控」策略造成的，不是遗漏。
 >
