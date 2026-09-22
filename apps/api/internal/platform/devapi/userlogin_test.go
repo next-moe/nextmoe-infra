@@ -74,6 +74,15 @@ func TestValidateUserLogin(t *testing.T) {
 		assert.Contains(t, scopes, ScopeCatalogRead)
 	})
 
+	t.Run("preferences is accepted as a user scope", func(t *testing.T) {
+		scopes, err := validateUserLogin(UserLoginRequest{
+			RedirectURIs: good, Scopes: []string{ScopePreferences},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "preferences", ScopePreferences)
+		assert.Contains(t, scopes, ScopePreferences)
+	})
+
 	t.Run("a scope off the allow-list is refused", func(t *testing.T) {
 		for _, scope := range []string{"image:upload", "artifact:upload", "galgame:nsfw"} {
 			_, err := validateUserLogin(UserLoginRequest{RedirectURIs: good, Scopes: []string{scope}})

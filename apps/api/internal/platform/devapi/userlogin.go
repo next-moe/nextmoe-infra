@@ -33,6 +33,7 @@ var selfServiceUserScopes = []string{
 	ScopeFolderRead, ScopeFolderWrite,
 	ScopeCatalogEdit,
 	ScopeCatalogRead,
+	ScopePreferences,
 }
 
 const (
@@ -48,13 +49,19 @@ const (
 	// nothing over, so from that day /v2/me/proposals accepted an
 	// `openid profile` token and merged the edit.
 	ScopeCatalogEdit = "catalog:edit"
+	// Enforced by auth/handler (PreferencesScope), and wider than the
+	// per-client preferences KV its name suggests: the same scope also gates
+	// PUT /auth/me/nsfw, an account-level write. Weighed and accepted when the
+	// scope was opened to self-service on 2026-09-23 — the boundary is the
+	// user's consent at /oauth/authorize, not this list.
+	ScopePreferences = "preferences"
 )
 
 var (
 	ErrRedirectURIRequired = errors.New("devapi: user login needs at least one redirect URI")
 	ErrTooManyRedirectURIs = errors.New("devapi: too many redirect URIs (max 5)")
 	ErrRedirectURIInvalid  = errors.New("devapi: redirect URI must be https://, or http:// on the 127.0.0.1 / [::1] loopback for a native app")
-	ErrUserScopeNotAllowed = errors.New("devapi: scope not permitted for a self-service app (want openid/profile/email/playtime:read/playtime:write/folder:read/folder:write/catalog:edit/catalog:read)")
+	ErrUserScopeNotAllowed = errors.New("devapi: scope not permitted for a self-service app (want openid/profile/email/playtime:read/playtime:write/folder:read/folder:write/catalog:edit/catalog:read/preferences)")
 	ErrAppNameReserved     = errors.New("devapi: application name may not claim to be NextMoe or an official application")
 )
 

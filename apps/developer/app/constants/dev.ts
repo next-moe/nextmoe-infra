@@ -62,6 +62,12 @@ export const DEV_USER_LOGIN_SCOPES: {
     value: 'catalog:edit',
     label: '资料编辑',
     description: '以用户身份提交条目编辑提案'
+  },
+  {
+    value: 'preferences',
+    label: '云端偏好',
+    description:
+      '读写该用户在本应用命名空间与 global 里的偏好，并可改其成人内容显示方式'
   }
 ]
 
