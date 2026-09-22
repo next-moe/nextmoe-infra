@@ -132,6 +132,16 @@ func runPlatform(cfg *config.Config, args []string) {
 		os.Exit(1)
 	}
 
+	// users.adult_confirmed_at + users.nsfw_display (2026-09-22), for the same
+	// reason as the columns above: nsfw_display is NOT NULL on a populated
+	// table, so the backfilling DEFAULT has to be in place before AutoMigrate
+	// sees it. Idempotent. See authModel.AddUserContentPreferenceColumns for
+	// what existing rows get and why the DEFAULT is kept.
+	if err := authModel.AddUserContentPreferenceColumns(gormDB); err != nil {
+		slog.Error("failed to add the user content preference columns", "error", err)
+		os.Exit(1)
+	}
+
 	// The reward-coupon tables are keyed by developer account, not application,
 	// since 2026-09-19; the re-key has to happen before AutoMigrate recreates
 	// store_coupon_shares with its new primary key. Idempotent. See
@@ -188,6 +198,15 @@ func runPlatform(cfg *config.Config, args []string) {
 		os.Exit(1)
 	}
 
+	// users.nsfw_display is a three-value enum with no Postgres enum type
+	// behind it. AutoMigrate never emits a CHECK, and on a brand-new database
+	// AddUserContentPreferenceColumns above found no users table to constrain,
+	// so the constraint has to be (re)created here. Idempotent.
+	if err := authModel.EnsureNSFWDisplayCheck(gormDB); err != nil {
+		slog.Error("failed to create the nsfw_display check constraint", "error", err)
+		os.Exit(1)
+	}
+
 	// Case-insensitive email lookups. Login / forgot-password / existence checks
 	// query LOWER(email) (email is case-insensitive in practice); this functional
 	// index keeps those lookups index-backed. NON-unique on purpose: legacy data
@@ -233,6 +252,13 @@ func getAllModels() []any {
 		&authModel.MoemoepointLog{},
 		&authModel.CreatorApplication{},
 		&authModel.SigningKey{},
+
+		// Per-client cloud preferences KV (2026-09-22). Brand-new table, no
+		// existing rows to convert: one JSON document per (user, namespace),
+		// version-stamped so an If-Match write can be rejected instead of
+		// silently overwriting a concurrent one. Rows die with their user
+		// (ON DELETE CASCADE), like user_site_data.
+		&authModel.UserPreference{},
 
 		// Site models
 		&siteModel.Site{},

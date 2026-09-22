@@ -382,6 +382,9 @@ func (s *OAuthService) GetUserInfo(ctx context.Context, userUUID, scope string, 
 	if ScopeGrants(scope, "profile") {
 		info.Name = user.Name
 		info.Picture = s.resolveAvatar(user)
+		confirmed := user.AdultConfirmedAt != nil
+		info.AdultConfirmed = &confirmed
+		info.NSFWDisplay = user.NSFWDisplay
 	}
 	info.Email = EmailForScope(scope, user.Email)
 
@@ -416,6 +419,15 @@ func ScopeGrants(scope, want string) bool {
 	if strings.TrimSpace(scope) == "" {
 		return true
 	}
+	return parseScopes(scope)[want]
+}
+
+// ScopeHolds is ScopeGrants without the empty-scope amnesty, for scopes that
+// were never part of the implicit grant. ScopeGrants reads an empty scope as
+// "everything" because first-party session tokens never negotiated one — but
+// /oauth/authorize also accepts an empty scope, so an OAuth client that asks
+// for nothing would inherit every later-added scope for free.
+func ScopeHolds(scope, want string) bool {
 	return parseScopes(scope)[want]
 }
 

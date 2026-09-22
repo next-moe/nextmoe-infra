@@ -100,6 +100,17 @@ type UserResponse struct {
 	OriginalEmail   string   `json:"original_email,omitempty"`
 	Roles           []string `json:"roles"`
 	CreatedAt       string   `json:"created_at"`
+
+	// Filled by the /auth/me family only. The three session-establishing
+	// responses (login / register / federation) build this same struct, but
+	// only some of them hold the columns: Login reads the row back in full,
+	// while Register answers with the record it just INSERTed — and GORM omits
+	// nsfw_display from that INSERT (zero value + DB default), so it is "" on
+	// exactly that path. omitempty keeps all three uniform rather than shipping
+	// a real value from two of them and an invalid fourth display value from
+	// the third.
+	AdultConfirmedAt *string `json:"adult_confirmed_at,omitempty"`
+	NSFWDisplay      string  `json:"nsfw_display,omitempty"`
 }
 
 type LoginResponse struct {

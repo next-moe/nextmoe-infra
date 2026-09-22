@@ -66,6 +66,7 @@ export const SCOPE_LABELS: Record<string, string> = {
   'catalog:read': '以你的名义读取公开目录数据 (计入你的每日配额)',
   'image:upload': '以你的名义上传图片',
   'artifact:upload': '以你的名义上传文件',
+  preferences: '读写你在本应用里的界面偏好（以及全站通用偏好）',
 }
 
 export const KNOWN_SCOPES: readonly string[] = Object.keys(SCOPE_LABELS)

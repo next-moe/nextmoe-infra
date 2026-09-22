@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { AUTH_ART } from '~/constants/auth-art'
 import { CONSENT_CLAIMS, IDENTITY_SCOPES } from '~/constants/consent'
+import { NSFW_DISPLAY_LABELS } from '~/constants/preferences'
 import { needsStepUp, roleLabel } from '~/constants/roles'
 import { SCOPE_LABELS } from '~~/shared/types/oauth-client'
 import { resolveAvatarUrl } from '~~/shared/utils/resolveImage'
@@ -81,6 +82,14 @@ const claimRows = computed(() => {
     email: user.email,
     sub: user.uuid,
     roles: (user.roles ?? []).map(roleLabel).join('、'),
+    // Blank rather than a guess: the two fields ride only on /auth/me, and a
+    // store restored from an older session has them undefined — which the
+    // effective rule would read as 隐藏 even for an account set to 显示.
+    content: user.nsfw_display
+      ? NSFW_DISPLAY_LABELS[
+          effectiveNsfwDisplay(user.adult_confirmed_at, user.nsfw_display)
+        ]
+      : '',
   }
   return CONSENT_CLAIMS.filter((c) => !c.scope || grantsScope(c.scope)).map(
     (c) => ({ ...c, value: values[c.key] ?? '' })

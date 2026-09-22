@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http/httptest"
+	"slices"
 	"testing"
 
 	"api/pkg/config"
@@ -143,5 +144,17 @@ func TestDiscoveryDocument(t *testing.T) {
 
 	if algs, _ := meta["id_token_signing_alg_values_supported"].([]string); len(algs) != 1 || algs[0] != "RS256" {
 		t.Errorf("id_token_signing_alg_values_supported = %v, want [RS256]", meta["id_token_signing_alg_values_supported"])
+	}
+
+	scopes, _ := meta["scopes_supported"].([]string)
+	if !slices.Contains(scopes, PreferencesScope) {
+		t.Errorf("scopes_supported = %v, want it to advertise %q", scopes, PreferencesScope)
+	}
+
+	claims, _ := meta["claims_supported"].([]string)
+	for _, want := range []string{"adult_confirmed", "nsfw_display"} {
+		if !slices.Contains(claims, want) {
+			t.Errorf("claims_supported = %v, missing %q", claims, want)
+		}
 	}
 }

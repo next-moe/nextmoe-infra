@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"strings"
+	"time"
 
 	"api/internal/platform/auth/model"
 
@@ -169,6 +170,20 @@ func (r *UserRepository) UpdateEmail(ctx context.Context, uuid string, email str
 
 func (r *UserRepository) UpdateProfile(ctx context.Context, uuid string, fields map[string]any) error {
 	return r.UpdateProfileTx(ctx, r.db, uuid, fields)
+}
+
+func (r *UserRepository) ConfirmAdult(ctx context.Context, uuid string) error {
+	return r.db.WithContext(ctx).
+		Model(&model.User{}).
+		Where("uuid = ? AND adult_confirmed_at IS NULL", uuid).
+		Update("adult_confirmed_at", time.Now()).Error
+}
+
+func (r *UserRepository) UpdateNSFWDisplay(ctx context.Context, uuid string, value string) error {
+	return r.db.WithContext(ctx).
+		Model(&model.User{}).
+		Where("uuid = ?", uuid).
+		Update("nsfw_display", value).Error
 }
 
 // Transact runs fn inside one transaction on the user store's handle, so a
