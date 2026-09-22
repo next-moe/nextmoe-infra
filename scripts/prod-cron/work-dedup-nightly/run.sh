@@ -82,7 +82,23 @@ chmod 600 env.tmp
 # outage). Dev never showed this because its work_mem=4MB made the identical
 # query spill ~5GB to temp files instead. These GUCs pin the disk-spill plan;
 # do not remove them to make the run faster.
-DSNSH='U="${KUN_CATALOG_PG_USER:-$KUN_PG_USER}"; export PGPASSWORD="${KUN_CATALOG_PG_PASSWORD:-$KUN_PG_PASSWORD}"; CAT="host=127.0.0.1 port=5432 user=$U dbname=${KUN_CATALOG_PG_DATABASE:-kun_catalog} sslmode=disable options='"'"'-c max_parallel_workers_per_gather=0 -c work_mem=8MB -c hash_mem_multiplier=1 -c jit=off'"'"'"'
+#
+# The disk-spill plan those GUCs pin is only bounded for the corpus it was tuned
+# on. On 2026-09-18 a manual drain minted 39,039 works in one go (226k -> 265k
+# live works); the census succeeded that morning and has failed every night
+# since with
+#   ERROR: could not write to file "base/pgsql_tmp/..." No space left on device
+# It spends ~50 minutes on CPU and then writes temp files at ~90 MB/s until the
+# filesystem is gone — 8,244 files totalling 20 GB in 36 minutes, average
+# 2.5 MB, which is a subplan re-spilling per outer row, not one big sort. Every
+# other database on this host shares that filesystem, so temp_file_limit is not
+# a tuning knob here: it is the line between a lane that fails and a box that
+# fills. Raise it only with a measurement that says a healthy run needs more.
+# Raising work_mem does not fix it: a read-only rerun at work_mem=32MB spilled at
+# the same ~85 MB/s and hit the same 20 GB cap, 8 minutes sooner. The cure is in
+# the query — the per-pair EXISTS over the materialized wanchor/ranchor CTEs have
+# to become one pre-aggregated join — not in these GUCs.
+DSNSH='U="${KUN_CATALOG_PG_USER:-$KUN_PG_USER}"; export PGPASSWORD="${KUN_CATALOG_PG_PASSWORD:-$KUN_PG_PASSWORD}"; CAT="host=127.0.0.1 port=5432 user=$U dbname=${KUN_CATALOG_PG_DATABASE:-kun_catalog} sslmode=disable options='"'"'-c max_parallel_workers_per_gather=0 -c work_mem=8MB -c hash_mem_multiplier=1 -c jit=off -c temp_file_limit=20971520'"'"'"'
 
 # Yield guard, from the 2026-08-29 lock convoy (same day as the OOM above):
 # the census holds an ACCESS SHARE on the work tables for ~1h, a deploy's
