@@ -28,10 +28,11 @@ func IsPreferenceNamespace(v string) bool {
 	return preferenceNamespacePattern.MatchString(v)
 }
 
-// EffectiveNSFWDisplay is the rule every reader of the two columns has to
-// apply: the stored choice only counts once the account has attested its age.
-// Rows that predate the attestation carry the 'blur' backfill with a NULL
-// adult_confirmed_at, so reading nsfw_display alone would un-blur them.
+// EffectiveNSFWDisplay is the rule the deployed downstream sites ship, kept
+// verbatim after the 2026-09-23 retirement of the age attestation so none of
+// them had to redeploy: adult_confirmed_at is now set on every account, so the
+// first branch is simply never taken. The second one still is — an unknown
+// nsfw_display is not a display value.
 func EffectiveNSFWDisplay(adultConfirmedAt *time.Time, nsfwDisplay string) string {
 	if adultConfirmedAt == nil || !IsNSFWDisplay(nsfwDisplay) {
 		return NSFWDisplayHide

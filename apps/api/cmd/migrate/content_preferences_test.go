@@ -54,6 +54,9 @@ func TestContentPreferenceMigrationIsIdempotentAndBackfills(t *testing.T) {
 		if err := authModel.AddUserContentPreferenceColumns(db); err != nil {
 			t.Fatalf("pass %d pre-AutoMigrate: %v", pass, err)
 		}
+		if err := authModel.NeutralizeAgeAttestation(db); err != nil {
+			t.Fatalf("pass %d attestation retirement: %v", pass, err)
+		}
 		if err := db.AutoMigrate(&authModel.User{}, &authModel.UserPreference{}); err != nil {
 			t.Fatalf("pass %d AutoMigrate: %v", pass, err)
 		}
@@ -66,12 +69,12 @@ func TestContentPreferenceMigrationIsIdempotentAndBackfills(t *testing.T) {
 	if err := db.Where("name = ?", "legacy_prefs").First(&legacy).Error; err != nil {
 		t.Fatalf("reload legacy user: %v", err)
 	}
-	if legacy.NSFWDisplay != authModel.NSFWDisplayBlur {
+	if legacy.NSFWDisplay != authModel.NSFWDisplayHide {
 		t.Fatalf("a row that predates the column backfilled to %q, want %q",
-			legacy.NSFWDisplay, authModel.NSFWDisplayBlur)
+			legacy.NSFWDisplay, authModel.NSFWDisplayHide)
 	}
-	if legacy.AdultConfirmedAt != nil {
-		t.Fatal("a row that predates the column must not read as already attested")
+	if legacy.AdultConfirmedAt == nil {
+		t.Fatal("a row that predates the column must still come out adult: the attestation was retired 2026-09-23")
 	}
 	if got := authModel.EffectiveNSFWDisplay(legacy.AdultConfirmedAt, legacy.NSFWDisplay); got != authModel.NSFWDisplayHide {
 		t.Fatalf("the backfilled row is effectively %q, want %q", got, authModel.NSFWDisplayHide)
@@ -88,9 +91,12 @@ func TestContentPreferenceMigrationIsIdempotentAndBackfills(t *testing.T) {
 	if err := db.First(fresh, fresh.ID).Error; err != nil {
 		t.Fatalf("reload fresh user: %v", err)
 	}
-	if fresh.NSFWDisplay != authModel.NSFWDisplayBlur {
+	if fresh.NSFWDisplay != authModel.NSFWDisplayHide {
 		t.Fatalf("a newly registered user got nsfw_display %q, want %q",
-			fresh.NSFWDisplay, authModel.NSFWDisplayBlur)
+			fresh.NSFWDisplay, authModel.NSFWDisplayHide)
+	}
+	if fresh.AdultConfirmedAt == nil {
+		t.Fatal("a newly registered user has a null adult_confirmed_at: the BeforeCreate hook did not reach the INSERT")
 	}
 
 	if err := db.Exec(`UPDATE users SET nsfw_display = 'reveal' WHERE id = ?`, fresh.ID).Error; err == nil {
