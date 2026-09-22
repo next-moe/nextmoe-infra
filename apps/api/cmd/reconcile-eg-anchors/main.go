@@ -29,8 +29,9 @@ func main() {
 	fmt.Printf("\n=== reconcile-eg-anchors %s ===\n", mode(*apply))
 	fmt.Printf("games=%d anchored_games=%d no_evidence_games=%d multi_games=%d twin_games=%d candidate_games=%d\n",
 		st.Games, st.AnchoredGames, st.NoEvidenceGames, st.MultiGames, st.TwinGames, st.CandidateGames)
-	fmt.Printf("rejected_skips=%d exact_planned=%d probable_planned=%d related_planned=%d corroborated=%d written=%d exists=%d errors=%d\n",
-		st.RejectedSkips, st.ExactPlanned, st.ProbablePlanned, st.RelatedPlanned, st.Corroborated, st.Written, st.Exists, st.Errors)
+	fmt.Printf("rejected_skips=%d exact_planned=%d probable_planned=%d related_planned=%d corroborated=%d slot_held=%d exact_slot_taken=%d written=%d exists=%d errors=%d\n",
+		st.RejectedSkips, st.ExactPlanned, st.ProbablePlanned, st.RelatedPlanned, st.Corroborated,
+		st.SlotHeld, st.ExactSlotTaken, st.Written, st.Exists, st.Errors)
 	if st.Errors > 0 {
 		os.Exit(1)
 	}

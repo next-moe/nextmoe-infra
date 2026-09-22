@@ -52,6 +52,12 @@ func loadSnapshot(ctx context.Context, db, egDB *gorm.DB, ids registryIDs) (snap
 	if snap.egHoldings, snap.workHasPrimary, err = loadEGHoldings(ctx, db, ids.eg); err != nil {
 		return snap, err
 	}
+	if snap.exactAnywhere, err = loadExactAnywhere(ctx, db, ids.eg); err != nil {
+		return snap, err
+	}
+	if snap.egRefsAnywhere, err = loadEGRefsAnywhere(ctx, db, ids.eg); err != nil {
+		return snap, err
+	}
 	if snap.rejected, err = loadRejections(ctx, db, ids.eg); err != nil {
 		return snap, err
 	}
@@ -207,6 +213,59 @@ func loadEGHoldings(ctx context.Context, db *gorm.DB, source int16) (map[int64][
 		}
 	}
 	return holds, holdsPrimary, nil
+}
+
+func loadExactAnywhere(ctx context.Context, db *gorm.DB, source int16) (map[int64]int64, error) {
+	// uq_catalog_external_ref_exact holds one exact row per EG id whatever became
+	// of its work, with no dead_at predicate and no live-work join. Sunday apply
+	// printed exact_planned=22 probable_planned=0 related_planned=2 corroborated=22
+	// written=2 exists=22 errors=0, and two days later the dry watch re-planned
+	// those 22. A dead_at IS NULL here is the filter that looks missing and is
+	// the one that caused that.
+	var rows []struct {
+		ExternalID string `gorm:"column:external_id"`
+		WorkID     int64  `gorm:"column:entity_id"`
+	}
+	if err := db.WithContext(ctx).Raw(`
+		SELECT external_id, entity_id FROM catalog_external_ref
+		WHERE entity_type = ? AND source_id = ? AND link_kind = ?`,
+		model.EntityTypeWork, source, model.LinkKindExact).Scan(&rows).Error; err != nil {
+		return nil, fmt.Errorf("load eg exact ids: %w", err)
+	}
+	out := make(map[int64]int64, len(rows))
+	for _, r := range rows {
+		egID, err := strconv.ParseInt(r.ExternalID, 10, 64)
+		if err != nil {
+			continue
+		}
+		out[egID] = r.WorkID
+	}
+	return out, nil
+}
+
+func loadEGRefsAnywhere(ctx context.Context, db *gorm.DB, source int16) (map[[2]int64]struct{}, error) {
+	// Primary key is (entity_type, entity_id, source_id, external_id); link_kind
+	// is not in it. InsertRefIfAbsent ON CONFLICT DO NOTHING treats any unique
+	// hit as exists, so a row in any state on that pair is a silent no-op.
+	var rows []struct {
+		ExternalID string `gorm:"column:external_id"`
+		WorkID     int64  `gorm:"column:entity_id"`
+	}
+	if err := db.WithContext(ctx).Raw(`
+		SELECT external_id, entity_id FROM catalog_external_ref
+		WHERE entity_type = ? AND source_id = ?`,
+		model.EntityTypeWork, source).Scan(&rows).Error; err != nil {
+		return nil, fmt.Errorf("load eg refs anywhere: %w", err)
+	}
+	out := make(map[[2]int64]struct{}, len(rows))
+	for _, r := range rows {
+		egID, err := strconv.ParseInt(r.ExternalID, 10, 64)
+		if err != nil {
+			continue
+		}
+		out[[2]int64{egID, r.WorkID}] = struct{}{}
+	}
+	return out, nil
 }
 
 func loadRejections(ctx context.Context, db *gorm.DB, source int16) (map[string]struct{}, error) {
