@@ -30,7 +30,7 @@ type User struct {
 	Status      int    `gorm:"default:0" json:"status"`
 
 	AdultConfirmedAt *time.Time `gorm:"index" json:"adult_confirmed_at,omitempty"`
-	NSFWDisplay      string     `gorm:"column:nsfw_display;size:8;not null;default:'hide'" json:"nsfw_display"`
+	NSFWDisplay      string     `gorm:"column:nsfw_display;size:8;not null;default:'show'" json:"nsfw_display"`
 
 	AnonymizedAt  *time.Time     `gorm:"index" json:"anonymized_at,omitempty"`
 	OriginalEmail *string        `gorm:"size:255" json:"-"`

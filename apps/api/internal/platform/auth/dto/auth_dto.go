@@ -110,8 +110,8 @@ type UserResponse struct {
 	// answers with the record it just INSERTed and nsfw_display never entered
 	// the INSERT". Measured on 2026-09-23, that is false: a `default` tag
 	// holding a parseable literal is written into the INSERT and set back on
-	// the struct, so Register does hold "hide". The uniformity is a choice
-	// here, not a GORM limitation.
+	// the struct, so Register does hold the tag's literal. The uniformity is
+	// a choice here, not a GORM limitation.
 	AdultConfirmedAt *string `json:"adult_confirmed_at,omitempty"`
 	NSFWDisplay      string  `json:"nsfw_display,omitempty"`
 }
