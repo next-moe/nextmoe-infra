@@ -65,7 +65,12 @@ const (
 	ErrPrefDocTooLarge      = 18005
 	ErrPrefVersionConflict  = 18006
 	ErrPrefDisplayInvalid   = 18007
-	ErrPrefAdultRequired    = 18008
+	// 18008 was the age-attestation guard on PUT /auth/me/nsfw, retired
+	// 2026-09-23 when every account became adult by construction. Nothing
+	// emits it any more; the number stays taken because downstream sites that
+	// shipped before the retirement still map it, and reusing it for something
+	// else would give them the wrong message for the wrong failure.
+	ErrPrefAdultRequired = 18008
 
 	ErrGalgameNotFound           = 20001
 	ErrGalgameAlreadyExists      = 20002

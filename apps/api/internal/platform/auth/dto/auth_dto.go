@@ -101,14 +101,17 @@ type UserResponse struct {
 	Roles           []string `json:"roles"`
 	CreatedAt       string   `json:"created_at"`
 
-	// Filled by the /auth/me family only. The three session-establishing
-	// responses (login / register / federation) build this same struct, but
-	// only some of them hold the columns: Login reads the row back in full,
-	// while Register answers with the record it just INSERTed — and GORM omits
-	// nsfw_display from that INSERT (zero value + DB default), so it is "" on
-	// exactly that path. omitempty keeps all three uniform rather than shipping
-	// a real value from two of them and an invalid fourth display value from
-	// the third.
+	// Filled by the /auth/me family only. Login, Register and federation
+	// complete build this same struct and simply never assign these two
+	// fields, so omitempty drops them and all three stay uniform; read
+	// /auth/me for the values.
+	//
+	// A 2026-09-22 revision of this comment blamed GORM for it — "Register
+	// answers with the record it just INSERTed and nsfw_display never entered
+	// the INSERT". Measured on 2026-09-23, that is false: a `default` tag
+	// holding a parseable literal is written into the INSERT and set back on
+	// the struct, so Register does hold "hide". The uniformity is a choice
+	// here, not a GORM limitation.
 	AdultConfirmedAt *string `json:"adult_confirmed_at,omitempty"`
 	NSFWDisplay      string  `json:"nsfw_display,omitempty"`
 }

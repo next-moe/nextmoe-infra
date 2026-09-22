@@ -40,9 +40,6 @@ func (s *PreferenceService) SetNSFWDisplay(ctx context.Context, userUUID, displa
 	if err != nil {
 		return nil, err
 	}
-	if display != model.NSFWDisplayHide && current.AdultConfirmedAt == nil {
-		return nil, errors.NewWithCode(errors.ErrPrefAdultRequired)
-	}
 	if err := s.userRepo.UpdateNSFWDisplay(ctx, userUUID, display); err != nil {
 		return nil, err
 	}

@@ -142,6 +142,19 @@ func runPlatform(cfg *config.Config, args []string) {
 		os.Exit(1)
 	}
 
+	// The age attestation those columns shipped with was retired one day later
+	// (2026-09-23): every account is adult by construction, the write guard and
+	// the attestation UI are gone, and only adult_confirmed_at's precondition
+	// role is neutralized — the column, the three nsfw_display values and the
+	// downstream `adult_confirmed ? nsfw_display : 'hide'` rule all stay.
+	// Production was backfilled by hand that day; this covers the accounts
+	// created since and every database that never saw that pass. Idempotent.
+	// See authModel.NeutralizeAgeAttestation for what each existing row got.
+	if err := authModel.NeutralizeAgeAttestation(gormDB); err != nil {
+		slog.Error("failed to retire the age attestation", "error", err)
+		os.Exit(1)
+	}
+
 	// The reward-coupon tables are keyed by developer account, not application,
 	// since 2026-09-19; the re-key has to happen before AutoMigrate recreates
 	// store_coupon_shares with its new primary key. Idempotent. See

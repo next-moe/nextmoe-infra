@@ -408,20 +408,31 @@ func TestPreferenceScopeAndNamespaceBinding(t *testing.T) {
 	})
 }
 
-func TestAdultConfirmationAndNSFWGuard(t *testing.T) {
+func TestNSFWDisplayNeedsNoAttestation(t *testing.T) {
 	env := newPrefEnv(t)
 	env.asSession()
 
-	t.Run("before confirmation only hide is accepted", func(t *testing.T) {
-		for _, v := range []string{model.NSFWDisplayBlur, model.NSFWDisplayShow} {
+	// Accounts are adult by construction since 2026-09-23, so the hook has
+	// already stamped this row. Clear it: the state the retired 18008 guard
+	// keyed on is still constructible, and the endpoint must no longer care.
+	if err := env.db.Model(&model.User{}).Where("id = ?", env.user.ID).
+		Update("adult_confirmed_at", nil).Error; err != nil {
+		t.Fatalf("clear the attestation: %v", err)
+	}
+
+	t.Run("every display value is accepted on a row with no attestation", func(t *testing.T) {
+		for _, v := range []string{model.NSFWDisplayBlur, model.NSFWDisplayShow, model.NSFWDisplayHide} {
 			r := env.call(t, "PUT", "/auth/me/nsfw", fmt.Sprintf(`{"nsfw_display":%q}`, v), nil)
-			if r.status != http.StatusBadRequest || r.Code != errors.ErrPrefAdultRequired {
-				t.Fatalf("%q before confirmation = %d code=%d, want 400 code=%d",
-					v, r.status, r.Code, errors.ErrPrefAdultRequired)
+			if r.status != http.StatusOK {
+				t.Fatalf("%q = %d code=%d, want 200", v, r.status, r.Code)
 			}
-		}
-		if r := env.call(t, "PUT", "/auth/me/nsfw", `{"nsfw_display":"hide"}`, nil); r.status != http.StatusOK {
-			t.Fatalf("hide before confirmation = %d code=%d, want 200", r.status, r.Code)
+			var stored model.User
+			if err := env.db.First(&stored, env.user.ID).Error; err != nil {
+				t.Fatalf("reload: %v", err)
+			}
+			if stored.NSFWDisplay != v {
+				t.Fatalf("stored nsfw_display = %q, want %q", stored.NSFWDisplay, v)
+			}
 		}
 	})
 
@@ -432,6 +443,8 @@ func TestAdultConfirmationAndNSFWGuard(t *testing.T) {
 		}
 	})
 
+	// Vestigial but alive: downstream sites that shipped before the retirement
+	// still call it, and they must keep getting a timestamp back.
 	t.Run("confirmation is idempotent and never moves the timestamp", func(t *testing.T) {
 		first := env.call(t, "POST", "/auth/me/adult-confirmation", "", nil)
 		if first.status != http.StatusOK {
@@ -454,21 +467,6 @@ func TestAdultConfirmationAndNSFWGuard(t *testing.T) {
 		if second.status != http.StatusOK || secondAt.AdultConfirmedAt != firstAt.AdultConfirmedAt {
 			t.Fatalf("second confirmation = %d at %q, want 200 at the first %q",
 				second.status, secondAt.AdultConfirmedAt, firstAt.AdultConfirmedAt)
-		}
-	})
-
-	t.Run("after confirmation blur and show are accepted and persist", func(t *testing.T) {
-		for _, v := range []string{model.NSFWDisplayBlur, model.NSFWDisplayShow, model.NSFWDisplayHide} {
-			if r := env.call(t, "PUT", "/auth/me/nsfw", fmt.Sprintf(`{"nsfw_display":%q}`, v), nil); r.status != http.StatusOK {
-				t.Fatalf("%q after confirmation = %d code=%d", v, r.status, r.Code)
-			}
-			var stored model.User
-			if err := env.db.First(&stored, env.user.ID).Error; err != nil {
-				t.Fatalf("reload: %v", err)
-			}
-			if stored.NSFWDisplay != v {
-				t.Fatalf("stored nsfw_display = %q, want %q", stored.NSFWDisplay, v)
-			}
 		}
 	})
 
@@ -521,7 +519,11 @@ func TestUserInfoContentClaimsRideProfileScope(t *testing.T) {
 		}
 	})
 
-	t.Run("an unconfirmed account reports adult_confirmed false, not a missing key", func(t *testing.T) {
+	// No account reaches this state any more — the attestation was retired on
+	// 2026-09-23 and the column is stamped on create — but the claim's shape
+	// is what downstream sites branch on, so a null must still serialize as a
+	// present false rather than vanish.
+	t.Run("a null attestation reports adult_confirmed false, not a missing key", func(t *testing.T) {
 		if err := env.db.Model(&model.User{}).Where("id = ?", env.user.ID).
 			Update("adult_confirmed_at", nil).Error; err != nil {
 			t.Fatalf("reset: %v", err)

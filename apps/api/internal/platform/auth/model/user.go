@@ -30,7 +30,7 @@ type User struct {
 	Status      int    `gorm:"default:0" json:"status"`
 
 	AdultConfirmedAt *time.Time `gorm:"index" json:"adult_confirmed_at,omitempty"`
-	NSFWDisplay      string     `gorm:"column:nsfw_display;size:8;not null;default:'blur'" json:"nsfw_display"`
+	NSFWDisplay      string     `gorm:"column:nsfw_display;size:8;not null;default:'hide'" json:"nsfw_display"`
 
 	AnonymizedAt  *time.Time     `gorm:"index" json:"anonymized_at,omitempty"`
 	OriginalEmail *string        `gorm:"size:255" json:"-"`
@@ -57,6 +57,24 @@ func (u *User) RoleNames() []string {
 
 func (User) TableName() string {
 	return "users"
+}
+
+// BeforeCreate stamps adult_confirmed_at on every account, which is what the
+// 2026-09-23 decision to retire the age attestation means in the schema: the
+// column stays, and it is never null. Losing this hook would not break any
+// request — it would silently pin every account created afterwards to 'hide',
+// because the deployed downstream sites fold
+// `effective = adult_confirmed ? nsfw_display : 'hide'` and that contract was
+// kept verbatim so they would not have to redeploy. The tests that would catch
+// it are elsewhere: repository.TestCreateMakesEveryAccountAdult covers the one
+// INSERT statement both production paths reach, and
+// TestComplete_federatedFirstLoginIsAdultByConstruction covers the far one.
+func (u *User) BeforeCreate(tx *gorm.DB) error {
+	if u.AdultConfirmedAt == nil {
+		now := time.Now()
+		u.AdultConfirmedAt = &now
+	}
+	return nil
 }
 
 func (u *User) IsPasswordSet() bool {
