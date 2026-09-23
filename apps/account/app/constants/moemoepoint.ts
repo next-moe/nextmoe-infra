@@ -6,7 +6,10 @@ const STATIC_REASON_LABEL: Record<string, string> = {
   register_gift: '注册欢迎礼',
   daily_checkin: '每日签到',
   content_removed: '内容被下架',
-  name_change: '修改用户名'
+  name_change: '修改用户名',
+  spend: '消费',
+  reversal: '撤销',
+  opening_balance: '期初余额'
 }
 
 const REF_TYPE_NOUN: Record<string, string> = {

@@ -45,7 +45,9 @@
 
 | 路径 | 鉴权 | Handler | 状态 | 备注 |
 |---|---|---|---|---|
-| `POST /api/v1/users/:id/moemoepoint` | ClientAuth | `moemoepointH.Adjust` | 已审计 | 发放/扣除（幂等）；s2s 不可用 admin_*/migration reason |
+| `POST /api/v1/users/:id/moemoepoint` | ClientAuth | `moemoepointH.Adjust` | 已审计 | 发放/回收（幂等）；只接受 content_approved / content_removed / daily_checkin / liked |
+| `POST /api/v1/users/:id/moemoepoint/charges` | ClientAuth | `moemoepointH.Charge` | 新增 | 扣费（幂等）；服务端校验余额，不足 400/16006 且不扣 |
+| `POST /api/v1/users/:id/moemoepoint/reversals` | ClientAuth | `moemoepointH.Reverse` | 新增 | 按原幂等键撤销本 client 的一笔记录（每笔至多一次）|
 
 ## 5. 管理 — 用户
 

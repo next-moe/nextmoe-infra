@@ -10,6 +10,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -24,6 +25,8 @@ import (
 	jobsModel "api/internal/jobs/model"
 	authModel "api/internal/platform/auth/model"
 	"api/internal/platform/devapi"
+	ledgerModel "api/internal/platform/ledger/model"
+	ledgerService "api/internal/platform/ledger/service"
 	"api/internal/platform/permissions"
 	"api/internal/platform/settings"
 	siteModel "api/internal/platform/site/model"
@@ -232,6 +235,21 @@ func runPlatform(cfg *config.Config, args []string) {
 		os.Exit(1)
 	}
 
+	// Fill the moemoepoint ledger from moemoepoint_log and users.moemoepoint:
+	// every legacy row becomes a transfer against its client's issuer (or, for
+	// name_change, the oauth sink), and a user whose balance the log does not
+	// explain gets an opening_balance transfer for the difference. The binary
+	// this deploy replaces is still writing the log while this runs; the
+	// import reads one repeatable-read snapshot, and cmd/oauth repeats it
+	// before serving to carry the rows written after that snapshot.
+	// Idempotent; a no-op once nothing is pending.
+	if imported, err := ledgerService.ImportLegacy(context.Background(), gormDB); err != nil {
+		slog.Error("failed to import the moemoepoint log into the ledger", "error", err)
+		os.Exit(1)
+	} else {
+		slog.Info("moemoepoint ledger import", "legacy", imported.Legacy, "openings", imported.Openings)
+	}
+
 	// In-place OP domain rename + admin site insert. Must run before seed:
 	// seed insert-if-missing keys on domain, so renaming first is what stops
 	// a production cutover from inserting a duplicate OP row.
@@ -262,7 +280,6 @@ func getAllModels() []any {
 		&authModel.UserMigration{},
 		&authModel.PasswordReset{},
 		&authModel.AuthorizationCode{},
-		&authModel.MoemoepointLog{},
 		&authModel.CreatorApplication{},
 		&authModel.SigningKey{},
 
@@ -272,6 +289,15 @@ func getAllModels() []any {
 		// silently overwriting a concurrent one. Rows die with their user
 		// (ON DELETE CASCADE), like user_site_data.
 		&authModel.UserPreference{},
+
+		// The moemoepoint ledger (2026-09-23): accounts, transfers and their
+		// entries replace the single-entry moemoepoint_log, which stays in the
+		// list only because ledgerService.ImportLegacy still reads it. See the
+		// import call below for how the three new tables are filled.
+		&ledgerModel.LegacyLog{},
+		&ledgerModel.Account{},
+		&ledgerModel.Transfer{},
+		&ledgerModel.Entry{},
 
 		// Site models
 		&siteModel.Site{},

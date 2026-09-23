@@ -1,6 +1,7 @@
 export interface MoemoepointLogItem {
   id: number
   delta: number
+  balance_after?: number
   reason: string
   source_app: string
   source_name?: string

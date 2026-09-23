@@ -24,6 +24,8 @@ import (
 	authHandler "api/internal/platform/auth/handler"
 	authRepo "api/internal/platform/auth/repository"
 	authService "api/internal/platform/auth/service"
+	ledgerHandler "api/internal/platform/ledger/handler"
+	ledgerService "api/internal/platform/ledger/service"
 	"api/pkg/imageclient"
 
 	artifactHandler "api/internal/platform/artifact/handler"
@@ -73,6 +75,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	importLegacyMoemoepoint(application)
+
 	cleanupCtx, cancelCleanup := context.WithCancel(context.Background())
 	defer cancelCleanup()
 
@@ -81,6 +85,33 @@ func main() {
 	if err := application.Run(cfg.Server.Host, cfg.Server.Port); err != nil {
 		slog.Error("application error", "error", err)
 		os.Exit(1)
+	}
+}
+
+// An oauth image can reach production ahead of the migrate job that creates
+// the ledger — a cancelled build drops one image group, and autoDeploy can run
+// before the build finishes. Exiting then would crash-loop login on every site
+// over a missing moemoepoint table, so only an import that fails against an
+// installed ledger stops the process.
+func importLegacyMoemoepoint(a *app.App) {
+	ctx := context.Background()
+	installed, err := ledgerService.Installed(ctx, a.DB.DB())
+	if err != nil {
+		slog.Error("cannot inspect the moemoepoint ledger", "error", err)
+		os.Exit(1)
+	}
+	if !installed {
+		slog.Error("moemoepoint ledger tables are missing; serving without them until cmd/migrate runs")
+		return
+	}
+	imported, err := ledgerService.ImportLegacy(ctx, a.DB.DB())
+	if err != nil {
+		slog.Error("moemoepoint ledger import failed; refusing to serve an unimported ledger", "error", err)
+		os.Exit(1)
+	}
+	if imported.Legacy+imported.Openings > 0 {
+		slog.Info("imported legacy moemoepoint rows into the ledger",
+			"legacy", imported.Legacy, "openings", imported.Openings)
 	}
 }
 
@@ -118,8 +149,8 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	adminSvc := authService.NewAdminService(userRepo, sessionRepo, siteRoleRepo, siteRepository, imgCli)
 	userBatchSvc := authService.NewUserBatchService(userRepo, siteRoleRepo)
 	creatorAppSvc := authService.NewCreatorApplicationService(authRepo.NewCreatorApplicationRepository(db), userRepo, userBatchSvc)
-	moemoepointSvc := authService.NewMoemoepointService(a.DB.DB(), userRepo)
-	authSvc.WithMoemoepoint(moemoepointSvc)
+	ledger := ledgerService.New(a.DB.DB())
+	authSvc.WithLedger(ledger)
 	prefSvc := authService.NewPreferenceService(userRepo, authRepo.NewUserPreferenceRepository(db))
 
 	fedReg := federation.NewRegistry(cfg)
@@ -135,7 +166,7 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	fedH := authHandler.NewFederationHandler(fedSvc, cfg)
 	oauthH := authHandler.NewOAuthHandler(oauthSvc, cfg)
 	adminH := authHandler.NewAdminHandler(adminSvc)
-	moemoepointH := authHandler.NewMoemoepointHandler(moemoepointSvc)
+	moemoepointH := ledgerHandler.New(ledger, userRepo)
 	userBatchH := authHandler.NewUserBatchHandler(userBatchSvc)
 	creatorAppH := authHandler.NewCreatorApplicationHandler(creatorAppSvc)
 	prefH := authHandler.NewPreferenceHandler(prefSvc)
@@ -308,6 +339,10 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	)
 	v1.Post("/users/:id/moemoepoint",
 		middleware.OAuthClientBasicAuth(oauthClientRepo), moemoepointH.Adjust)
+	v1.Post("/users/:id/moemoepoint/charges",
+		middleware.OAuthClientBasicAuth(oauthClientRepo), moemoepointH.Charge)
+	v1.Post("/users/:id/moemoepoint/reversals",
+		middleware.OAuthClientBasicAuth(oauthClientRepo), moemoepointH.Reverse)
 	v1.Get("/users/:id/moemoepoint",
 		middleware.OAuthClientBasicAuth(oauthClientRepo), moemoepointH.GetBalance)
 	v1.Get("/users/:id/moemoepoint/log",

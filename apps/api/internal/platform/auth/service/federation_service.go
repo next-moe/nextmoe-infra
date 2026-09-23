@@ -17,7 +17,6 @@ import (
 	"api/internal/platform/auth/federation"
 	"api/internal/platform/auth/model"
 	"api/internal/platform/auth/repository"
-	"api/internal/platform/settings/keys"
 	"api/pkg/config"
 	"api/pkg/errors"
 	"api/pkg/imageclient"
@@ -434,20 +433,8 @@ func (s *FederationService) Complete(ctx context.Context, req *dto.FederationCom
 		return nil, nil, err
 	}
 
-	if s.authSvc != nil && s.authSvc.moemoepointSvc != nil {
-		res, gErr := s.authSvc.moemoepointSvc.Adjust(ctx, AdjustParams{
-			UserID:         user.ID,
-			Delta:          int(keys.AuthRegisterGiftPoints.Get()),
-			Reason:         model.MoemoepointReasonRegisterGift,
-			SourceApp:      "oauth",
-			IdempotencyKey: fmt.Sprintf("oauth:register_gift:%d", user.ID),
-			Note:           "NextMoe·未萌给予你的第一份礼物",
-		})
-		if gErr != nil {
-			slog.Warn("register welcome gift failed (best-effort)", "user_id", user.ID, "err", gErr)
-		} else {
-			user.Moemoepoint = res.Balance
-		}
+	if s.authSvc != nil {
+		s.authSvc.grantRegisterGift(ctx, user)
 	}
 
 	_ = s.kvDelete(federationPendingKeyPrefix + req.Token)

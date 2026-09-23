@@ -11,7 +11,9 @@ import (
 	"api/internal/platform/auth/dto"
 	"api/internal/platform/auth/model"
 	"api/internal/platform/auth/repository"
-	siteModel "api/internal/platform/site/model"
+	"api/internal/platform/ledger/ledgertest"
+	ledgerModel "api/internal/platform/ledger/model"
+	ledgerService "api/internal/platform/ledger/service"
 	"api/pkg/config"
 	"api/pkg/errors"
 
@@ -29,7 +31,7 @@ func renameTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := db.AutoMigrate(&model.User{}, &siteModel.Role{}, &model.MoemoepointLog{}); err != nil {
+	if err := ledgertest.Migrate(db); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	return db
@@ -39,7 +41,7 @@ func renameTestService(t *testing.T, db *gorm.DB) *AuthService {
 	t.Helper()
 	userRepo := repository.NewUserRepository(db)
 	svc := NewAuthService(userRepo, nil, config.JWTConfig{})
-	return svc.WithMoemoepoint(NewMoemoepointService(db, userRepo))
+	return svc.WithLedger(ledgerService.New(db))
 }
 
 var renameTestSeq int64
@@ -49,17 +51,20 @@ func seedRenameUser(t *testing.T, db *gorm.DB, balance int) *model.User {
 	renameTestSeq++
 	tag := strconv.FormatInt(time.Now().UnixNano(), 10) + "-" + strconv.FormatInt(renameTestSeq, 10)
 	u := &model.User{
-		Name:        "rc" + tag[len(tag)-12:],
-		Email:       "rc-" + tag + "@test.local",
-		Moemoepoint: balance,
+		Name:  "rc" + tag[len(tag)-12:],
+		Email: "rc-" + tag + "@test.local",
 	}
 	if err := db.Create(u).Error; err != nil {
 		t.Fatalf("seed user: %v", err)
 	}
 	t.Cleanup(func() {
-		db.Exec("DELETE FROM moemoepoint_log WHERE user_id = ?", u.ID)
+		_ = ledgertest.Purge(db, u.ID)
 		db.Exec("DELETE FROM users WHERE id = ?", u.ID)
 	})
+	ledgertest.Fund(t, ledgerService.New(db), u.ID, int64(balance))
+	if err := db.First(u, u.ID).Error; err != nil {
+		t.Fatalf("reload seeded user: %v", err)
+	}
 	return u
 }
 
@@ -69,10 +74,16 @@ func renameState(t *testing.T, db *gorm.DB, id uint) (name string, balance int, 
 	if err := db.First(&u, id).Error; err != nil {
 		t.Fatalf("reload user: %v", err)
 	}
-	if err := db.Model(&model.MoemoepointLog{}).
-		Where("user_id = ? AND reason = ?", id, model.MoemoepointReasonNameChange).
-		Count(&charges).Error; err != nil {
+	charges, err := ledgerService.New(db).CountUserTransfersTx(context.Background(), db, id, ledgerModel.ReasonNameChange)
+	if err != nil {
 		t.Fatalf("count charges: %v", err)
+	}
+	ledgerBalance, err := ledgerService.New(db).UserBalance(context.Background(), id)
+	if err != nil {
+		t.Fatalf("ledger balance: %v", err)
+	}
+	if ledgerBalance != int64(u.Moemoepoint) {
+		t.Fatalf("users.moemoepoint=%d drifted from the ledger's %d", u.Moemoepoint, ledgerBalance)
 	}
 	return u.Name, u.Moemoepoint, charges
 }
@@ -238,19 +249,30 @@ func TestRenameChargeIsAuditable(t *testing.T) {
 		t.Fatalf("rename: %v", err)
 	}
 
-	var log model.MoemoepointLog
-	if err := db.Where("user_id = ? AND reason = ?", u.ID, model.MoemoepointReasonNameChange).
-		First(&log).Error; err != nil {
-		t.Fatalf("load log: %v", err)
+	var charge struct {
+		IdempotencyKey string
+		SourceApp      string
+		ActorUserID    uint
+		Note           string
+		Amount         int64
+	}
+	if err := db.Raw(`
+		SELECT t.idempotency_key, t.source_app, t.actor_user_id, t.note, e.amount
+		FROM ledger_transfers t
+		JOIN ledger_entries e ON e.transfer_id = t.id
+		JOIN ledger_accounts a ON a.id = e.account_id
+		WHERE a.kind = 'user' AND a.user_id = ? AND t.reason = ?`,
+		u.ID, ledgerModel.ReasonNameChange).Scan(&charge).Error; err != nil {
+		t.Fatalf("load charge: %v", err)
 	}
 	wantKey := fmt.Sprintf("oauth:name_change:%d:1", u.ID)
-	if log.IdempotencyKey != wantKey {
-		t.Errorf("idempotency key = %q, want %q", log.IdempotencyKey, wantKey)
+	if charge.IdempotencyKey != wantKey {
+		t.Errorf("idempotency key = %q, want %q", charge.IdempotencyKey, wantKey)
 	}
-	if log.Delta != -17 || log.SourceApp != "oauth" || log.ActorUserID != u.ID {
-		t.Errorf("delta=%d source_app=%q actor=%d", log.Delta, log.SourceApp, log.ActorUserID)
+	if charge.Amount != -17 || charge.SourceApp != "oauth" || charge.ActorUserID != u.ID {
+		t.Errorf("amount=%d source_app=%q actor=%d", charge.Amount, charge.SourceApp, charge.ActorUserID)
 	}
-	if log.Note != from+" → "+to {
-		t.Errorf("note = %q, want %q", log.Note, from+" → "+to)
+	if charge.Note != from+" → "+to {
+		t.Errorf("note = %q, want %q", charge.Note, from+" → "+to)
 	}
 }

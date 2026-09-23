@@ -74,6 +74,30 @@ DELETE FROM user_site_data  WHERE user_id NOT IN (SELECT id FROM keep_user);
 DELETE FROM moemoepoint_log
   WHERE user_id NOT IN (SELECT id FROM keep_user)
      OR (actor_user_id IS NOT NULL AND actor_user_id NOT IN (SELECT id FROM keep_user));
+-- The ledger is pruned by whole transfers, never by entries: a transfer that
+-- loses one leg no longer balances, and the system accounts are re-derived from
+-- what is left. It is not capped like the log above for the same reason.
+DO $$
+BEGIN
+  IF to_regclass('ledger_transfers') IS NULL THEN
+    RETURN;
+  END IF;
+  CREATE TEMP TABLE drop_transfer ON COMMIT DROP AS
+    SELECT DISTINCT e.transfer_id AS id FROM ledger_entries e
+    JOIN ledger_accounts a ON a.id = e.account_id
+    WHERE a.kind = 'user' AND a.user_id NOT IN (SELECT id FROM keep_user)
+    UNION
+    SELECT id FROM ledger_transfers
+    WHERE actor_user_id <> 0 AND actor_user_id NOT IN (SELECT id FROM keep_user);
+  DELETE FROM ledger_entries WHERE transfer_id IN (SELECT id FROM drop_transfer);
+  DELETE FROM ledger_transfers WHERE id IN (SELECT id FROM drop_transfer);
+  DELETE FROM ledger_accounts WHERE kind = 'user' AND user_id NOT IN (SELECT id FROM keep_user);
+  UPDATE ledger_accounts a
+    SET balance = COALESCE((SELECT SUM(e.amount) FROM ledger_entries e WHERE e.account_id = a.id), 0);
+  UPDATE users u SET moemoepoint = a.balance
+    FROM ledger_accounts a
+    WHERE a.kind = 'user' AND a.asset = 'moemoepoint' AND a.code = '' AND a.user_id = u.id;
+END $$;
 DELETE FROM users WHERE id NOT IN (SELECT id FROM keep_user);
 
 -- Caps on log-ish tables that survive per-user filtering.
