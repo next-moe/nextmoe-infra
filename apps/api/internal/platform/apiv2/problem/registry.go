@@ -60,6 +60,7 @@ const (
 	CodeIdempotencyRequestInProgress = "IDEMPOTENCY_REQUEST_IN_PROGRESS"
 	CodeGone                         = "GONE"
 	CodePreconditionFailed           = "PRECONDITION_FAILED"
+	CodePayloadTooLarge              = "PAYLOAD_TOO_LARGE"
 	CodeUnsupportedMediaType         = "UNSUPPORTED_MEDIA_TYPE"
 	CodeValidationFailed             = "VALIDATION_FAILED"
 	CodePreconditionRequired         = "PRECONDITION_REQUIRED"
@@ -133,6 +134,7 @@ var Codes = []Def{
 	{CodeIdempotencyRequestInProgress, DomainPlatform, http.StatusConflict, "Idempotency request in progress", "A request with the same Idempotency-Key is still being processed. Retry after it completes."},
 	{CodeGone, DomainPlatform, http.StatusGone, "Gone", "This URL existed and has been permanently retired."},
 	{CodePreconditionFailed, DomainPlatform, http.StatusPreconditionFailed, "Precondition failed", "If-Match did not match the current representation."},
+	{CodePayloadTooLarge, DomainPlatform, http.StatusRequestEntityTooLarge, "Payload too large", "The request body is larger than this operation accepts. Retrying the same body cannot succeed."},
 	{CodeUnsupportedMediaType, DomainPlatform, http.StatusUnsupportedMediaType, "Unsupported media type", "The request body media type is not supported."},
 	{CodeValidationFailed, DomainPlatform, http.StatusUnprocessableEntity, "Validation failed", "The request is syntactically valid but semantically not. errors[] is present and non-empty."},
 	{CodePreconditionRequired, DomainPlatform, http.StatusPreconditionRequired, "Precondition required", "This operation requires If-Match and none was sent."},
@@ -236,6 +238,8 @@ func StatusToCode(status int) string {
 		return CodeGone
 	case http.StatusPreconditionFailed:
 		return CodePreconditionFailed
+	case http.StatusRequestEntityTooLarge:
+		return CodePayloadTooLarge
 	case http.StatusUnsupportedMediaType:
 		return CodeUnsupportedMediaType
 	case http.StatusUnprocessableEntity:

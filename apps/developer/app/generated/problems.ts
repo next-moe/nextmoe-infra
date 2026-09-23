@@ -191,6 +191,15 @@ export const problems = [
     "type": "https://developer.nextmoe.dev/problems/platform/precondition-failed"
   },
   {
+    "code": "PAYLOAD_TOO_LARGE",
+    "domain": "platform",
+    "kebab": "payload-too-large",
+    "status": 413,
+    "title": "Payload too large",
+    "description": "The request body is larger than this operation accepts. Retrying the same body cannot succeed.",
+    "type": "https://developer.nextmoe.dev/problems/platform/payload-too-large"
+  },
+  {
     "code": "UNSUPPORTED_MEDIA_TYPE",
     "domain": "platform",
     "kebab": "unsupported-media-type",

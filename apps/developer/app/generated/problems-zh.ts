@@ -99,6 +99,10 @@ export const problemsZh: Record<string, { title: string; description: string }> 
     "title": "前置条件不满足",
     "description": "If-Match 与当前表示不匹配。"
   },
+  "PAYLOAD_TOO_LARGE": {
+    "title": "请求体过大",
+    "description": "请求体超过了这个操作能接受的大小。原样重试不会成功。"
+  },
   "UNSUPPORTED_MEDIA_TYPE": {
     "title": "不支持的媒体类型",
     "description": "不支持这种请求体媒体类型。"

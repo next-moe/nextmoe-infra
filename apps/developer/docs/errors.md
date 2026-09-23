@@ -94,6 +94,7 @@ X-Request-ID: req_01JBQ7X4M2K9P3W5T8ZVN6HRDC
 | `409`         | `IDEMPOTENCY_REQUEST_IN_PROGRESS`                                                                      | 同一个 key 的首个请求还没跑完：稍等，用**同一个 key、同一个 body** 重试即可拿到它的结果 |
 | `410`         | `GONE`                                                                                                 | 这个 URL 永久退役了。v1 的六个前缀都在这里                                              |
 | `412` / `428` | `PRECONDITION_FAILED` / `PRECONDITION_REQUIRED`                                                        | 重新 GET 拿最新 `ETag`，带上 `If-Match` 再写                                            |
+| `413`         | `PAYLOAD_TOO_LARGE`                                                                                    | 请求体超过了这个操作的上限。**不要原样重试**，缩小请求体或拆成多次                      |
 | `429`         | `RATE_LIMITED` `QUOTA_EXCEEDED`                                                                        | 按 `Retry-After` 等待。见 [限流与配额](/docs/rate-limits)                               |
 | `5xx`         | `INTERNAL_ERROR` `SERVICE_UNAVAILABLE`                                                                 | 指数退避 + 抖动重试；连续失败就降级到本地缓存                                           |
 
