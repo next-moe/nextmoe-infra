@@ -40,6 +40,14 @@ await callOnce('auth:user', async () => {
         </NuxtLink>
 
         <div class="flex shrink-0 items-center gap-2 md:gap-3">
+          <nav class="flex items-center gap-1">
+            <KunButton href="/profile" size="sm" variant="light" color="default">
+              资料
+            </KunButton>
+            <KunButton href="/shop" size="sm" variant="light" color="default">
+              商店
+            </KunButton>
+          </nav>
           <LayoutColorModeToggle size="md" />
           <LayoutAccountSwitcher />
         </div>

@@ -20,6 +20,7 @@ var goldenNames = []string{
 	"auth.verification_resend_cooldown_seconds",
 	"auth.register_gift_points",
 	"auth.name_change_cost",
+	"shop.min_price",
 	"image.upload_enabled",
 	"image.gc_cold_after_days",
 	"image.gc_softdelete_after_days",

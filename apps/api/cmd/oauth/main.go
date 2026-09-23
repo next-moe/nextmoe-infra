@@ -26,6 +26,9 @@ import (
 	authService "api/internal/platform/auth/service"
 	ledgerHandler "api/internal/platform/ledger/handler"
 	ledgerService "api/internal/platform/ledger/service"
+	shopHandler "api/internal/platform/shop/handler"
+	shopPerm "api/internal/platform/shop/perm"
+	shopService "api/internal/platform/shop/service"
 	"api/pkg/imageclient"
 
 	artifactHandler "api/internal/platform/artifact/handler"
@@ -151,6 +154,14 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	creatorAppSvc := authService.NewCreatorApplicationService(authRepo.NewCreatorApplicationRepository(db), userRepo, userBatchSvc)
 	ledger := ledgerService.New(a.DB.DB())
 	authSvc.WithLedger(ledger)
+	var decorationStore shopService.ObjectStore
+	if s3, err := imgStorage.NewClient(cfg.ImageS3); err != nil {
+		slog.Warn("shop: image object storage unavailable; decoration uploads disabled", "err", err)
+	} else {
+		decorationStore = s3
+	}
+	shop := shopService.New(a.DB.DB(), ledger, decorationStore, cfg.ImageService.CDNBase)
+	userBatchSvc.WithCosmetics(shop)
 	prefSvc := authService.NewPreferenceService(userRepo, authRepo.NewUserPreferenceRepository(db))
 
 	fedReg := federation.NewRegistry(cfg)
@@ -162,11 +173,12 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	devRepo := devapi.NewRepository(db)
 	siteSvc := siteService.NewSiteService(siteRepository, oauthClientRepo, devRepo)
 
-	authH := authHandler.NewAuthHandler(authSvc, cfg)
+	authH := authHandler.NewAuthHandler(authSvc, cfg).WithCosmetics(shop)
 	fedH := authHandler.NewFederationHandler(fedSvc, cfg)
 	oauthH := authHandler.NewOAuthHandler(oauthSvc, cfg)
 	adminH := authHandler.NewAdminHandler(adminSvc)
 	moemoepointH := ledgerHandler.New(ledger, userRepo)
+	shopH := shopHandler.New(shop, userRepo)
 	userBatchH := authHandler.NewUserBatchHandler(userBatchSvc)
 	creatorAppH := authHandler.NewCreatorApplicationHandler(creatorAppSvc)
 	prefH := authHandler.NewPreferenceHandler(prefSvc)
@@ -348,6 +360,11 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	v1.Get("/users/:id/moemoepoint/log",
 		middleware.OAuthClientBasicAuth(oauthClientRepo), moemoepointH.GetLog)
 
+	v1.Get("/shop/catalog", shopH.Catalog)
+	v1.Get("/shop/me", middleware.Auth(authSvc), middleware.NoStore(), shopH.Inventory)
+	v1.Put("/shop/me/loadout", middleware.Auth(authSvc), middleware.NoStore(), shopH.Equip)
+	v1.Post("/shop/orders", middleware.Auth(authSvc), middleware.NoStore(), shopH.Purchase)
+
 	users := v1.Group("/users", middleware.Auth(authSvc))
 	users.Get("/:uuid", authH.GetProfile)
 
@@ -374,6 +391,23 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	admin.Post("/creator/applications/:id/decline", creatorAppH.AdminDecline)
 	admin.Post("/users/:uuid/moemoepoint", moemoepointH.AdminAdjust)
 	admin.Get("/users/:uuid/moemoepoint/log", moemoepointH.AdminGetLog)
+	shopManage := middleware.RequirePermission(shopPerm.Resolver, shopPerm.Manage)
+	shopGrant := middleware.RequirePermission(shopPerm.Resolver, shopPerm.Grant)
+	admin.Get("/shop/assets", shopManage, shopH.ListAssets)
+	admin.Post("/shop/assets", shopManage, shopH.UploadAsset)
+	admin.Get("/shop/items", shopManage, shopH.ListItems)
+	admin.Post("/shop/items", shopManage, shopH.CreateItem)
+	admin.Put("/shop/items/:id", shopManage, shopH.UpdateItem)
+	admin.Post("/shop/items/:id/:action", shopManage, shopH.TransitionItem)
+	admin.Delete("/shop/items/:id", shopManage, shopH.DeleteItem)
+	admin.Get("/shop/offers", shopManage, shopH.ListOffers)
+	admin.Post("/shop/offers", shopManage, shopH.CreateOffer)
+	admin.Put("/shop/offers/:id", shopManage, shopH.UpdateOffer)
+	admin.Post("/shop/offers/:id/:action", shopManage, shopH.TransitionOffer)
+	admin.Get("/shop/users/:uuid", shopGrant, shopH.UserShop)
+	admin.Post("/shop/users/:uuid/grants", shopGrant, shopH.Grant)
+	admin.Post("/shop/entitlements/:id/revoke", shopGrant, shopH.Revoke)
+	admin.Post("/shop/orders/:id/refund", shopGrant, shopH.Refund)
 	admin.Get("/stats/registrations", adminH.RegistrationStats)
 	admin.Get("/stats/registrations/hourly", adminH.HourlyRegistrationStats)
 	if avatarUploadH != nil {

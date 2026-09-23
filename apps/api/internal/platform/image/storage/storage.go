@@ -63,6 +63,20 @@ func (c *Client) Put(ctx context.Context, key string, body []byte, contentType s
 	return nil
 }
 
+func (c *Client) PutWithCacheControl(ctx context.Context, key string, body []byte, contentType, cacheControl string) error {
+	_, err := c.s3.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:       aws.String(c.bucket),
+		Key:          aws.String(key),
+		Body:         bytes.NewReader(body),
+		ContentType:  aws.String(contentType),
+		CacheControl: aws.String(cacheControl),
+	})
+	if err != nil {
+		return fmt.Errorf("storage: put %q: %w", key, err)
+	}
+	return nil
+}
+
 func (c *Client) Get(ctx context.Context, key string) (io.ReadCloser, error) {
 	out, err := c.s3.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(c.bucket),

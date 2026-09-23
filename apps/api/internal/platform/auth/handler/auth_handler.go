@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"log/slog"
 	"time"
 
 	"api/internal/platform/auth/dto"
 	"api/internal/platform/auth/service"
+	shopModel "api/internal/platform/shop/model"
 	"api/pkg/config"
 	"api/pkg/errors"
 	"api/pkg/response"
@@ -19,6 +21,24 @@ const refreshTokenCookieName = "refresh_token"
 type AuthHandler struct {
 	authService *service.AuthService
 	cfg         *config.Config
+	cosmetics   service.CosmeticsSource
+}
+
+func (h *AuthHandler) WithCosmetics(src service.CosmeticsSource) *AuthHandler {
+	h.cosmetics = src
+	return h
+}
+
+func (h *AuthHandler) cosmeticsOf(c fiber.Ctx, userID, siteID uint) *shopModel.Cosmetics {
+	if h.cosmetics == nil {
+		return nil
+	}
+	worn, err := h.cosmetics.CosmeticsFor(c.Context(), []uint{userID}, siteID)
+	if err != nil {
+		slog.Warn("cosmetics lookup failed; answering without them", "user_id", userID, "err", err)
+		return nil
+	}
+	return worn[userID]
 }
 
 func NewAuthHandler(authService *service.AuthService, cfg *config.Config) *AuthHandler {
@@ -316,6 +336,7 @@ func (h *AuthHandler) Refresh(c fiber.Ctx) error {
 func (h *AuthHandler) Me(c fiber.Ctx) error {
 	userUUID := c.Locals("user_uuid").(string)
 	scope, _ := c.Locals("user_scope").(string)
+	site, _ := c.Locals("user_site").(uint)
 
 	user, err := h.authService.GetCurrentUserWithRoles(c.Context(), userUUID)
 	if err != nil {
@@ -335,6 +356,7 @@ func (h *AuthHandler) Me(c fiber.Ctx) error {
 		CreatedAt:        user.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
 		AdultConfirmedAt: adultConfirmedAt(user),
 		NSFWDisplay:      user.NSFWDisplay,
+		Cosmetics:        h.cosmeticsOf(c, user.ID, site),
 	})
 }
 
@@ -456,6 +478,7 @@ func (h *AuthHandler) GetProfile(c fiber.Ctx) error {
 		Moemoepoint:     user.Moemoepoint,
 		Roles:           user.RoleNames(),
 		CreatedAt:       user.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		Cosmetics:       h.cosmeticsOf(c, user.ID, shopModel.EverySite),
 	})
 }
 

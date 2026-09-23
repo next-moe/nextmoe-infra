@@ -29,6 +29,7 @@ import (
 	ledgerService "api/internal/platform/ledger/service"
 	"api/internal/platform/permissions"
 	"api/internal/platform/settings"
+	shopModel "api/internal/platform/shop/model"
 	siteModel "api/internal/platform/site/model"
 	storeModel "api/internal/platform/store/model"
 
@@ -298,6 +299,16 @@ func getAllModels() []any {
 		&ledgerModel.Account{},
 		&ledgerModel.Transfer{},
 		&ledgerModel.Entry{},
+
+		// The moemoepoint shop (2026-09-23). Six brand-new tables, no rows to
+		// convert: decoration assets, items, offers, orders, entitlements and
+		// what each user wears per slot and site.
+		&shopModel.Asset{},
+		&shopModel.Item{},
+		&shopModel.Offer{},
+		&shopModel.Order{},
+		&shopModel.Entitlement{},
+		&shopModel.Loadout{},
 
 		// Site models
 		&siteModel.Site{},

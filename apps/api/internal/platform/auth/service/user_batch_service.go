@@ -2,19 +2,31 @@ package service
 
 import (
 	"context"
+	"log/slog"
 
 	"api/internal/platform/auth/dto"
 	"api/internal/platform/auth/model"
 	"api/internal/platform/auth/repository"
+	shopModel "api/internal/platform/shop/model"
 )
+
+type CosmeticsSource interface {
+	CosmeticsFor(ctx context.Context, userIDs []uint, siteID uint) (map[uint]*shopModel.Cosmetics, error)
+}
 
 type UserBatchService struct {
 	userRepo     *repository.UserRepository
 	siteRoleRepo *repository.UserSiteRoleRepository
+	cosmetics    CosmeticsSource
 }
 
 func NewUserBatchService(userRepo *repository.UserRepository, siteRoleRepo *repository.UserSiteRoleRepository) *UserBatchService {
 	return &UserBatchService{userRepo: userRepo, siteRoleRepo: siteRoleRepo}
+}
+
+func (s *UserBatchService) WithCosmetics(src CosmeticsSource) *UserBatchService {
+	s.cosmetics = src
+	return s
 }
 
 func (s *UserBatchService) GetBriefs(ctx context.Context, ids []uint, siteID uint) (*dto.BatchGetUsersResponse, error) {
@@ -34,6 +46,16 @@ func (s *UserBatchService) GetBriefs(ctx context.Context, ids []uint, siteID uin
 		if byUser, err := s.siteRoleRepo.ActiveRoleNamesForUsers(ctx, ids, siteID); err == nil {
 			for i := range briefs {
 				briefs[i].SiteRoles = byUser[briefs[i].ID]
+			}
+		}
+	}
+
+	if s.cosmetics != nil {
+		if worn, err := s.cosmetics.CosmeticsFor(ctx, ids, siteID); err != nil {
+			slog.Warn("users batch: cosmetics lookup failed; answering without them", "err", err)
+		} else {
+			for i := range briefs {
+				briefs[i].Cosmetics = worn[briefs[i].ID]
 			}
 		}
 	}
