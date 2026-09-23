@@ -16,7 +16,15 @@ import (
 )
 
 func Migrate(db *gorm.DB) error {
-	return db.AutoMigrate(append([]any{&authModel.User{}, &siteModel.Role{}}, model.AllModels()...)...)
+	if err := db.AutoMigrate(append([]any{&authModel.User{}, &siteModel.Role{}}, model.AllModels()...)...); err != nil {
+		return err
+	}
+	// Other suites sharing this database insert users with explicit ids and
+	// never advance the sequence, so the next generated id can land on a row
+	// that exists: "duplicate key value violates unique constraint users_pkey"
+	// failed the shop suite in CI on 2026-09-23.
+	return db.Exec(`SELECT setval(pg_get_serial_sequence('users', 'id'),
+		GREATEST((SELECT COALESCE(MAX(id), 0) FROM users), 1))`).Error
 }
 
 // Fund gives a test user a starting balance the way production would, through
