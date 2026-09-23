@@ -4732,7 +4732,7 @@ export const docsModel: DocsModel = {
                                 {
                                   "name": "site_work_id",
                                   "required": true,
-                                  "doc": "The site's own work id, not the catalog id.",
+                                  "doc": "The site's own work id. kungal and moyu number their pages by catalog id, so there it equals the work's id; other sites number their own.",
                                   "type": "string"
                                 },
                                 {
@@ -13674,7 +13674,7 @@ export const docsModel: DocsModel = {
                                     {
                                       "name": "site_work_id",
                                       "required": true,
-                                      "doc": "The site's own work id, not the catalog id.",
+                                      "doc": "The site's own work id. kungal and moyu number their pages by catalog id, so there it equals the work's id; other sites number their own.",
                                       "type": "string"
                                     },
                                     {
@@ -27066,7 +27066,7 @@ export const docsModel: DocsModel = {
                                     {
                                       "name": "site_work_id",
                                       "required": true,
-                                      "doc": "The site's own work id, not the catalog id.",
+                                      "doc": "The site's own work id. kungal and moyu number their pages by catalog id, so there it equals the work's id; other sites number their own.",
                                       "type": "string"
                                     },
                                     {
@@ -45362,7 +45362,7 @@ export const docsModel: DocsModel = {
                               "name": "site_work_id",
                               "required": true,
                               "nullable": true,
-                              "doc": "The claiming site's own work id, not the catalog id. null unless target_object is work and the claiming site equals site.",
+                              "doc": "The claiming site's own work id, which on kungal and moyu is the catalog id. null unless target_object is work and the claiming site equals site.",
                               "type": "string"
                             },
                             {
@@ -46802,7 +46802,7 @@ export const docsModel: DocsModel = {
                         "name": "site_work_id",
                         "required": true,
                         "nullable": true,
-                        "doc": "The claiming site's own work id, not the catalog id. null unless target_object is work and the claiming site equals site.",
+                        "doc": "The claiming site's own work id, which on kungal and moyu is the catalog id. null unless target_object is work and the claiming site equals site.",
                         "type": "string"
                       },
                       {
@@ -64627,7 +64627,7 @@ export const docsModel: DocsModel = {
                                 {
                                   "name": "site_work_id",
                                   "required": true,
-                                  "doc": "The site's own work id, not the catalog id.",
+                                  "doc": "The site's own work id. kungal and moyu number their pages by catalog id, so there it equals the work's id; other sites number their own.",
                                   "type": "string"
                                 },
                                 {
@@ -67915,7 +67915,7 @@ export const docsModel: DocsModel = {
                           {
                             "name": "site_work_id",
                             "required": true,
-                            "doc": "The site's own work id, not the catalog id.",
+                            "doc": "The site's own work id. kungal and moyu number their pages by catalog id, so there it equals the work's id; other sites number their own.",
                             "type": "string"
                           },
                           {
@@ -82826,7 +82826,7 @@ export const docsModel: DocsModel = {
                                     {
                                       "name": "site_work_id",
                                       "required": true,
-                                      "doc": "The site's own work id, not the catalog id.",
+                                      "doc": "The site's own work id. kungal and moyu number their pages by catalog id, so there it equals the work's id; other sites number their own.",
                                       "type": "string"
                                     },
                                     {

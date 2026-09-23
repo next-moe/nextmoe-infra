@@ -236,7 +236,7 @@ func TestMergeWorkClaimTransferTouchesTarget(t *testing.T) {
 
 	dst := createWork(t, "unclaimed target")
 	src := createWork(t, "claimed source")
-	claimWork(t, src.ID, "kungal", 4242)
+	claimWork(t, src.ID, "letmoe", 4242)
 
 	settleWorks(t)
 	before := workUpdatedAt(t, dst.ID)
@@ -250,12 +250,38 @@ func TestMergeWorkClaimTransferTouchesTarget(t *testing.T) {
 	var merged model.CatalogWork
 	require.NoError(t, testDB.First(&merged, dst.ID).Error)
 	require.NotNil(t, merged.Site)
-	assert.Equal(t, "kungal", *merged.Site)
+	assert.Equal(t, "letmoe", *merged.Site)
 	require.NotNil(t, merged.ProductWorkID)
-	assert.Equal(t, int64(4242), *merged.ProductWorkID)
+	assert.Equal(t, int64(4242), *merged.ProductWorkID, "letmoe numbers its own pages, so its id travels with the claim")
 	assert.True(t, workUpdatedAt(t, dst.ID).After(before), "the target now carries the claim")
 
 	ids := changesSince(t, cursor)
 	assert.ElementsMatch(t, []int64{src.ID, dst.ID}, ids,
 		"the claim's new owner and the id it left enter the feed together")
+}
+
+func TestMergeWorkClaimOnACatalogIDSiteTakesTheSurvivorsID(t *testing.T) {
+	for _, site := range []string{"kungal", "moyu"} {
+		t.Run(site, func(t *testing.T) {
+			cleanTables(t)
+			ctx := t.Context()
+
+			dst := createWork(t, "unclaimed target")
+			src := createWork(t, "claimed source")
+			claimWork(t, src.ID, site, src.ID)
+
+			p, err := testMerge.ProposeMerge(ctx, model.EntityTypeWork, src.ID, dst.ID, 7, "claim moves")
+			require.NoError(t, err)
+			approveAndForceExecutable(t, p.ID)
+			require.NoError(t, testMerge.ExecuteMerge(ctx, p.ID, nil))
+
+			var merged model.CatalogWork
+			require.NoError(t, testDB.First(&merged, dst.ID).Error)
+			require.NotNil(t, merged.Site)
+			assert.Equal(t, site, *merged.Site)
+			require.NotNil(t, merged.ProductWorkID)
+			assert.Equal(t, dst.ID, *merged.ProductWorkID,
+				"the site's page for the survivor is the survivor's id; the loser's id is gone")
+		})
+	}
 }

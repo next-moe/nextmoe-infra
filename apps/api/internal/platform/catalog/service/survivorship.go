@@ -193,14 +193,18 @@ func applySurvivorship(tx *gorm.DB, entityType int16, src, dst int64, resolution
 			return nil, err
 		}
 		if d.Site == nil && s.Site != nil {
+			productWorkID := s.ProductWorkID
+			if model.SiteWorkIDIsCatalogID(*s.Site) {
+				productWorkID = &dst
+			}
 			if err := tx.Exec(`UPDATE catalog_work SET site = NULL, product_work_id = NULL, updated_at = now() WHERE id = ?`, src).Error; err != nil {
 				return nil, err
 			}
 			if err := tx.Exec(`UPDATE catalog_work SET site = ?, product_work_id = ?, status = ?, updated_at = now() WHERE id = ?`,
-				*s.Site, s.ProductWorkID, s.Status, dst).Error; err != nil {
+				*s.Site, productWorkID, s.Status, dst).Error; err != nil {
 				return nil, err
 			}
-			changed["claim"] = map[string]any{"site": *s.Site, "product_work_id": s.ProductWorkID}
+			changed["claim"] = map[string]any{"site": *s.Site, "product_work_id": productWorkID}
 		}
 		return changed, nil
 	}
