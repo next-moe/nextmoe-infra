@@ -45,13 +45,15 @@ var anchorPlans = map[int16]anchorPlan{
 //
 // This is knowledge about a site, not a run option: moyu's 铁律 3 says its page
 // id IS the catalog work id (`cmd/align-patch-ids`, migrations 037/038 closed
-// the legacy offset), so the claim exclusion the forum needs -- "this number is
-// a product id that merely collides with a catalog id" -- is exactly wrong
-// there, and would leave a moyu wall standing under a work that no longer
-// exists. A flag would put that difference one typo away from a silent wrong
-// sweep.
+// the legacy offset), and the forum joined it on 2026-09-23 (its G0 renumber,
+// `align-galgame-ids`, which also set every kungal claim's product_work_id to
+// the work id). The claim exclusion -- "this number is a product id that merely
+// collides with a catalog id" -- is exactly wrong on both, and would leave a
+// wall standing under a work that no longer exists. A flag would put that
+// difference one typo away from a silent wrong sweep.
 var siteGameAnchorIsCatalogID = map[string]bool{
-	"moyu": true,
+	"moyu":   true,
+	"kungal": true,
 }
 
 func planFor(site string, anchorKind int16) (anchorPlan, error) {
@@ -113,12 +115,12 @@ func liveAnchors(db *gorm.DB, o sweepOpts) ([]stranded, error) {
 // strandedAmong asks the catalog which of those anchors name a work that is
 // gone, and names the work that replaced it.
 //
-// The claim exclusion is the whole correctness of this sweep. A site's anchor
-// is its own game id, and for a CLAIMED work that id is the claim's
+// The claim exclusion is the whole correctness of this sweep on a site whose
+// anchor is its own game id: for a CLAIMED work that id is the claim's
 // product_work_id -- a number from the product's keyspace that has nothing to
-// do with the catalog id it happens to equal. 10,289 forum gids are also the
-// catalog id of a different work, and the first census written without this
-// clause reported kungal thread 1406 as stranded: its three posts are a live
+// do with the catalog id it happens to equal. Before its G0 renumber 10,289
+// forum gids were also the catalog id of a different work, and the first
+// census written without this clause reported kungal thread 1406 as stranded: its three posts are a live
 // support thread about 光翼戦姫エクスティアコンチェルト1, whose gid 2656 belongs to
 // work 2649, while catalog work 2656 is an unrelated merged-away work. Without
 // this clause the sweep deletes live conversations and the report looks right.

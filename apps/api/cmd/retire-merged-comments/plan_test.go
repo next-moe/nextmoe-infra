@@ -2,26 +2,29 @@ package main
 
 import "testing"
 
-// A site_game anchor means different things on different sites. On the forum it
-// is a gid of the site's own — a number from the product keyspace that may
+// A site_game anchor means different things on different sites. On letmoe it
+// is a game id of the site's own -- a number from the product keyspace that may
 // collide with an unrelated catalog id, which is why a live claim owning it
-// keeps the anchor alive. On moyu the same field IS the catalog work id (铁律
-// 3), where that exclusion would instead keep a genuinely dead anchor standing.
+// keeps the anchor alive. On moyu (铁律 3) and, since its 2026-09-23 G0
+// renumber, on the forum, the same field IS the catalog work id, where that
+// exclusion would instead keep a genuinely dead anchor standing.
 func TestPlanForSiteGameAnchorIDSpace(t *testing.T) {
-	forum, err := planFor("kungal", 1)
+	own, err := planFor("letmoe", 1)
 	if err != nil {
-		t.Fatalf("kungal site_game: %v", err)
+		t.Fatalf("letmoe site_game: %v", err)
 	}
-	if !forum.claimAware || forum.catalogIDs {
-		t.Fatalf("kungal site_game must be claim-aware and not a catalog id space, got %+v", forum)
+	if !own.claimAware || own.catalogIDs {
+		t.Fatalf("letmoe site_game must be claim-aware and not a catalog id space, got %+v", own)
 	}
 
-	moyu, err := planFor("moyu", 1)
-	if err != nil {
-		t.Fatalf("moyu site_game: %v", err)
-	}
-	if moyu.claimAware || !moyu.catalogIDs {
-		t.Fatalf("moyu site_game carries catalog ids, got %+v", moyu)
+	for _, site := range []string{"moyu", "kungal"} {
+		plan, err := planFor(site, 1)
+		if err != nil {
+			t.Fatalf("%s site_game: %v", site, err)
+		}
+		if plan.claimAware || !plan.catalogIDs {
+			t.Fatalf("%s site_game carries catalog ids, got %+v", site, plan)
+		}
 	}
 
 	// The catalog anchor kind is the same on every site.

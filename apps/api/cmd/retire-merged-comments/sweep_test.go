@@ -49,7 +49,9 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-const testSite = "kungal"
+// A site whose site_game anchor is still its own product id. The forum was one
+// until its 2026-09-23 G0 renumber; see siteGameAnchorIsCatalogID.
+const testSite = "letmoe"
 
 // The four threads differ from each other in one fact apiece, so a thread that
 // survives the sweep is attributable to that fact alone.
@@ -57,10 +59,10 @@ const testSite = "kungal"
 // coincidence is the one that matters. It is stranded's exact shape -- a post,
 // a soft-deleted work of the same id, a redirect naming a survivor -- and
 // differs only in that a LIVE work claims that number as its product_work_id.
-// That is the production case: kungal thread 1406 holds three posts about a
-// game whose gid 2656 belongs to work 2649, while catalog work 2656 is an
-// unrelated merged-away work. A sweep without the claim clause deletes it and
-// reports success.
+// That was the production case before the forum's renumber: kungal thread 1406
+// held three posts about a game whose gid 2656 belonged to work 2649, while
+// catalog work 2656 was an unrelated merged-away work. A sweep without the
+// claim clause deletes it and reports success.
 func TestOnlyADeadAnchorLosesItsComments(t *testing.T) {
 	if testDB == nil {
 		t.Skip("no test DB")

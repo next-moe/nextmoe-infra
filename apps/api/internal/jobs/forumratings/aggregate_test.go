@@ -36,10 +36,10 @@ func TestMain(m *testing.M) {
 	}
 	if err := db.Exec(`CREATE TABLE IF NOT EXISTS galgame_rating (
 		id serial primary key,
-		galgame_id int not null,
+		work_id bigint not null,
 		user_id int not null,
 		overall int not null,
-		unique(user_id, galgame_id)
+		unique(user_id, work_id)
 	)`).Error; err != nil {
 		dbtest.SkipMainf("jobs/forumratings", "galgame_rating fixture: %v", err)
 	}
@@ -68,23 +68,30 @@ func nextmoeID(t *testing.T) int16 {
 	return id
 }
 
-func createClaimedWork(t *testing.T, name string, gid int64, state int16, medium int16) *model.CatalogWork {
+func createWork(t *testing.T, name string) *model.CatalogWork {
 	t.Helper()
-	site := "kungal"
 	w := &model.CatalogWork{
-		MediumID: medium, OLang: "ja", DisplayName: name,
+		MediumID: 1, OLang: "ja", DisplayName: name,
 		ContentRating: model.ContentRatingAllAges, Status: model.WorkStatusLive,
-		Site: &site, ProductWorkID: &gid, ClaimState: &state,
 	}
 	require.NoError(t, testDB.Create(w).Error)
 	return w
 }
 
-func seedRating(t *testing.T, gid, uid, overall int) {
+func createClaimedWork(t *testing.T, name string, state int16) *model.CatalogWork {
+	t.Helper()
+	w := createWork(t, name)
+	require.NoError(t, testDB.Exec(
+		`UPDATE catalog_work SET site = 'kungal', product_work_id = id, claim_state = ? WHERE id = ?`,
+		state, w.ID).Error)
+	return w
+}
+
+func seedRating(t *testing.T, workID int64, uid, overall int) {
 	t.Helper()
 	require.NoError(t, testDB.Exec(
-		`INSERT INTO galgame_rating (galgame_id, user_id, overall) VALUES (?,?,?)`,
-		gid, uid, overall).Error)
+		`INSERT INTO galgame_rating (work_id, user_id, overall) VALUES (?,?,?)`,
+		workID, uid, overall).Error)
 }
 
 type storedRating struct {
@@ -118,10 +125,10 @@ func ratingCount(t *testing.T, workID int64, sourceID int16) int64 {
 func TestHappyPathWritesScoreDistributionStats(t *testing.T) {
 	clean(t)
 	src := nextmoeID(t)
-	w := createClaimedWork(t, "forum-rated", 101, model.ClaimStateLive, 1)
-	seedRating(t, 101, 1, 8)
-	seedRating(t, 101, 2, 9)
-	seedRating(t, 101, 3, 10)
+	w := createClaimedWork(t, "forum-rated", model.ClaimStateLive)
+	seedRating(t, w.ID, 1, 8)
+	seedRating(t, w.ID, 2, 9)
+	seedRating(t, w.ID, 3, 10)
 
 	dry := run(t, false)
 	require.Equal(t, 1, dry.Candidates)
@@ -164,10 +171,10 @@ func TestHappyPathWritesScoreDistributionStats(t *testing.T) {
 func TestStdevZeroWhenAllVotesEqual(t *testing.T) {
 	clean(t)
 	src := nextmoeID(t)
-	w := createClaimedWork(t, "equal-votes", 202, model.ClaimStateLive, 1)
-	seedRating(t, 202, 1, 7)
-	seedRating(t, 202, 2, 7)
-	seedRating(t, 202, 3, 7)
+	w := createClaimedWork(t, "equal-votes", model.ClaimStateLive)
+	seedRating(t, w.ID, 1, 7)
+	seedRating(t, w.ID, 2, 7)
+	seedRating(t, w.ID, 3, 7)
 
 	st := run(t, true)
 	require.Equal(t, 1, st.Written)
@@ -182,9 +189,9 @@ func TestStdevZeroWhenAllVotesEqual(t *testing.T) {
 func TestBelowMinVotersWritesNoRow(t *testing.T) {
 	clean(t)
 	src := nextmoeID(t)
-	w := createClaimedWork(t, "two-voters", 303, model.ClaimStateLive, 1)
-	seedRating(t, 303, 1, 8)
-	seedRating(t, 303, 2, 9)
+	w := createClaimedWork(t, "two-voters", model.ClaimStateLive)
+	seedRating(t, w.ID, 1, 8)
+	seedRating(t, w.ID, 2, 9)
 
 	st := run(t, true)
 	require.Zero(t, st.Candidates)
@@ -193,12 +200,12 @@ func TestBelowMinVotersWritesNoRow(t *testing.T) {
 	require.Zero(t, ratingCount(t, w.ID, src))
 }
 
-func TestUnmappedGidCountedAndSkipped(t *testing.T) {
+func TestUnknownWorkCountedAndSkipped(t *testing.T) {
 	clean(t)
 	src := nextmoeID(t)
-	seedRating(t, 404, 1, 8)
-	seedRating(t, 404, 2, 9)
-	seedRating(t, 404, 3, 10)
+	seedRating(t, 404404, 1, 8)
+	seedRating(t, 404404, 2, 9)
+	seedRating(t, 404404, 3, 10)
 
 	st := run(t, true)
 	require.Equal(t, 1, st.Candidates)
@@ -211,31 +218,44 @@ func TestUnmappedGidCountedAndSkipped(t *testing.T) {
 	require.Zero(t, n)
 }
 
-func TestMultiClaimSkipped(t *testing.T) {
+func TestDeletedWorkUnmapped(t *testing.T) {
 	clean(t)
 	src := nextmoeID(t)
-	a := createClaimedWork(t, "multi-a", 505, model.ClaimStateLive, 1)
-	b := createClaimedWork(t, "multi-b", 505, model.ClaimStateLive, 5)
-	seedRating(t, 505, 1, 8)
-	seedRating(t, 505, 2, 9)
-	seedRating(t, 505, 3, 6)
+	w := createWork(t, "merged-away")
+	require.NoError(t, testDB.Exec(`UPDATE catalog_work SET deleted_at = now() WHERE id = ?`, w.ID).Error)
+	seedRating(t, w.ID, 1, 8)
+	seedRating(t, w.ID, 2, 9)
+	seedRating(t, w.ID, 3, 10)
 
 	st := run(t, true)
-	require.Equal(t, 1, st.Candidates)
-	require.Equal(t, 1, st.MultiClaim)
-	require.Zero(t, st.Unmapped)
+	require.Equal(t, 1, st.Unmapped)
 	require.Zero(t, st.Eligible)
-	require.Zero(t, ratingCount(t, a.ID, src))
-	require.Zero(t, ratingCount(t, b.ID, src))
+	require.Zero(t, ratingCount(t, w.ID, src))
+}
+
+func TestUnclaimedWorkIsPublished(t *testing.T) {
+	clean(t)
+	src := nextmoeID(t)
+	w := createWork(t, "no-claim")
+	seedRating(t, w.ID, 1, 6)
+	seedRating(t, w.ID, 2, 8)
+	seedRating(t, w.ID, 3, 10)
+
+	st := run(t, true)
+	require.Equal(t, 1, st.Eligible)
+	require.Equal(t, 1, st.Written)
+	got, ok := loadRating(t, w.ID, src)
+	require.True(t, ok)
+	require.Equal(t, 8.0, got.Score)
 }
 
 func TestHiddenClaimUnmapped(t *testing.T) {
 	clean(t)
 	src := nextmoeID(t)
-	w := createClaimedWork(t, "hidden", 606, model.ClaimStateHidden, 1)
-	seedRating(t, 606, 1, 8)
-	seedRating(t, 606, 2, 9)
-	seedRating(t, 606, 3, 10)
+	w := createClaimedWork(t, "hidden", model.ClaimStateHidden)
+	seedRating(t, w.ID, 1, 8)
+	seedRating(t, w.ID, 2, 9)
+	seedRating(t, w.ID, 3, 10)
 
 	st := run(t, true)
 	require.Equal(t, 1, st.Candidates)
@@ -247,17 +267,17 @@ func TestHiddenClaimUnmapped(t *testing.T) {
 func TestVotersDroppingUnderFloorDeletesRow(t *testing.T) {
 	clean(t)
 	src := nextmoeID(t)
-	w := createClaimedWork(t, "drop-under", 707, model.ClaimStateLive, 1)
-	seedRating(t, 707, 1, 8)
-	seedRating(t, 707, 2, 9)
-	seedRating(t, 707, 3, 10)
+	w := createClaimedWork(t, "drop-under", model.ClaimStateLive)
+	seedRating(t, w.ID, 1, 8)
+	seedRating(t, w.ID, 2, 9)
+	seedRating(t, w.ID, 3, 10)
 
 	st := run(t, true)
 	require.Equal(t, 1, st.Written)
 	require.Equal(t, int64(1), ratingCount(t, w.ID, src))
 
 	require.NoError(t, testDB.Exec(
-		`DELETE FROM galgame_rating WHERE galgame_id = ? AND user_id = ?`, 707, 3).Error)
+		`DELETE FROM galgame_rating WHERE work_id = ? AND user_id = ?`, w.ID, 3).Error)
 	require.NoError(t, testDB.Exec(
 		`UPDATE catalog_work SET updated_at = now() - interval '1 hour' WHERE id = ?`, w.ID).Error)
 	var before time.Time

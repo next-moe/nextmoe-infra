@@ -18,7 +18,6 @@ import (
 type Stats struct {
 	Candidates int
 	Unmapped   int
-	MultiClaim int
 	Eligible   int
 	Written    int
 	Unchanged  int
@@ -36,7 +35,7 @@ type Opts struct {
 }
 
 type candidate struct {
-	GalgameID int64
+	WorkID    int64
 	VoteCount int
 	Score     float64
 	Stdev     float64
@@ -93,15 +92,15 @@ func Run(ctx context.Context, o Opts) (*Stats, error) {
 	}
 	st.Candidates = len(cands)
 
-	gids := make([]int64, len(cands))
+	ids := make([]int64, len(cands))
 	for i, c := range cands {
-		gids[i] = c.GalgameID
+		ids[i] = c.WorkID
 	}
-	if err := attachBuckets(ctx, o.ForumDB, cands, gids); err != nil {
+	if err := attachBuckets(ctx, o.ForumDB, cands, ids); err != nil {
 		return nil, err
 	}
 
-	byGid, err := liveClaims(ctx, o.DB, gids)
+	live, err := liveWorks(ctx, o.DB, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -109,17 +108,11 @@ func Run(ctx context.Context, o Opts) (*Stats, error) {
 	keep := make(map[int64]bool, len(cands))
 	var touched []int64
 	for _, c := range cands {
-		works := byGid[c.GalgameID]
-		switch len(works) {
-		case 0:
+		if !live[c.WorkID] {
 			st.Unmapped++
 			continue
-		case 1:
-		default:
-			st.MultiClaim++
-			continue
 		}
-		workID := works[0]
+		workID := c.WorkID
 		st.Eligible++
 		keep[workID] = true
 		if !o.Apply {
@@ -173,88 +166,86 @@ func nextmoeSourceID(ctx context.Context, db *gorm.DB) (int16, error) {
 
 func forumAggregates(ctx context.Context, db *gorm.DB, min int) ([]candidate, error) {
 	var rows []struct {
-		GalgameID int64   `gorm:"column:galgame_id"`
+		WorkID    int64   `gorm:"column:work_id"`
 		VoteCount int     `gorm:"column:vote_count"`
 		Score     float64 `gorm:"column:score"`
 		Stdev     float64 `gorm:"column:stdev"`
 	}
 	err := db.WithContext(ctx).Raw(`
-		SELECT galgame_id,
+		SELECT work_id,
 		       COUNT(*)::int AS vote_count,
 		       ROUND(AVG(overall)::numeric, 2)::float8 AS score,
 		       ROUND(STDDEV_SAMP(overall)::numeric, 2)::float8 AS stdev
 		  FROM galgame_rating
-		 GROUP BY galgame_id
+		 GROUP BY work_id
 		HAVING COUNT(*) >= ?
-		 ORDER BY galgame_id`, min).Scan(&rows).Error
+		 ORDER BY work_id`, min).Scan(&rows).Error
 	if err != nil {
 		return nil, fmt.Errorf("aggregate forum ratings: %w", err)
 	}
 	out := make([]candidate, len(rows))
 	for i, r := range rows {
 		out[i] = candidate{
-			GalgameID: r.GalgameID, VoteCount: r.VoteCount,
+			WorkID: r.WorkID, VoteCount: r.VoteCount,
 			Score: r.Score, Stdev: r.Stdev,
 		}
 	}
 	return out, nil
 }
 
-func attachBuckets(ctx context.Context, db *gorm.DB, cands []candidate, gids []int64) error {
-	if len(gids) == 0 {
+func attachBuckets(ctx context.Context, db *gorm.DB, cands []candidate, ids []int64) error {
+	if len(ids) == 0 {
 		return nil
 	}
 	var rows []struct {
-		GalgameID int64 `gorm:"column:galgame_id"`
-		Overall   int   `gorm:"column:overall"`
-		N         int   `gorm:"column:n"`
+		WorkID  int64 `gorm:"column:work_id"`
+		Overall int   `gorm:"column:overall"`
+		N       int   `gorm:"column:n"`
 	}
 	if err := db.WithContext(ctx).Raw(`
-		SELECT galgame_id, overall, COUNT(*)::int AS n
+		SELECT work_id, overall, COUNT(*)::int AS n
 		  FROM galgame_rating
-		 WHERE galgame_id IN ?
-		 GROUP BY galgame_id, overall`, gids).Scan(&rows).Error; err != nil {
+		 WHERE work_id IN ?
+		 GROUP BY work_id, overall`, ids).Scan(&rows).Error; err != nil {
 		return fmt.Errorf("forum rating histogram: %w", err)
 	}
-	byGid := make(map[int64]map[string]int, len(cands))
+	byWork := make(map[int64]map[string]int, len(cands))
 	for _, r := range rows {
 		if r.N <= 0 {
 			continue
 		}
-		b := byGid[r.GalgameID]
+		b := byWork[r.WorkID]
 		if b == nil {
 			b = map[string]int{}
-			byGid[r.GalgameID] = b
+			byWork[r.WorkID] = b
 		}
 		b[strconv.Itoa(r.Overall)] += r.N
 	}
 	for i := range cands {
-		cands[i].Buckets = byGid[cands[i].GalgameID]
+		cands[i].Buckets = byWork[cands[i].WorkID]
 	}
 	return nil
 }
 
-func liveClaims(ctx context.Context, db *gorm.DB, gids []int64) (map[int64][]int64, error) {
-	out := map[int64][]int64{}
-	if len(gids) == 0 {
+// The forum's work_id is the catalog work id (forum G0, 2026-09-23). A rating
+// is published only while that work exists and no claim on it is withdrawn.
+func liveWorks(ctx context.Context, db *gorm.DB, ids []int64) (map[int64]bool, error) {
+	out := map[int64]bool{}
+	if len(ids) == 0 {
 		return out, nil
 	}
-	var rows []struct {
-		ID            int64 `gorm:"column:id"`
-		ProductWorkID int64 `gorm:"column:product_work_id"`
-	}
+	var rows []int64
 	if err := db.WithContext(ctx).Raw(`
-		SELECT id, product_work_id
+		SELECT id
 		  FROM catalog_work
-		 WHERE site = 'kungal'
-		   AND (claim_state IS NULL OR claim_state = ?)
+		 WHERE id IN ?
 		   AND deleted_at IS NULL
-		   AND product_work_id IN ?`,
-		model.ClaimStateLive, gids).Scan(&rows).Error; err != nil {
-		return nil, fmt.Errorf("map forum claims: %w", err)
+		   AND (claim_state IS NULL OR claim_state = ?)`,
+		ids, model.ClaimStateLive).Scan(&rows).Error; err != nil {
+		return nil, fmt.Errorf("live forum-rated works: %w", err)
 	}
-	for _, r := range rows {
-		out[r.ProductWorkID] = append(out[r.ProductWorkID], r.ID)
+	for _, id := range rows {
+		out[id] = true
 	}
 	return out, nil
 }
