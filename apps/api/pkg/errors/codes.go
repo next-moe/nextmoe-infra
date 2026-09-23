@@ -54,6 +54,22 @@ const (
 	ErrMoemoepointTransferNotFound = 16007
 	ErrMoemoepointNotReversible    = 16008
 
+	ErrShopItemNotFound       = 19001
+	ErrShopOfferUnavailable   = 19002
+	ErrShopAlreadyOwned       = 19003
+	ErrShopLimitReached       = 19004
+	ErrShopSoldOut            = 19005
+	ErrShopNotOwned           = 19006
+	ErrShopInvalidAsset       = 19007
+	ErrShopInvalidItem        = 19008
+	ErrShopInvalidOffer       = 19009
+	ErrShopInvalidTransition  = 19010
+	ErrShopStorageUnavailable = 19011
+	ErrShopFirstPartyOnly     = 19012
+	ErrShopOrderNotFound      = 19013
+	ErrShopIdemConflict       = 19014
+	ErrShopPriceBelowMinimum  = 19015
+
 	ErrCreatorAlreadyHas    = 17001
 	ErrCreatorAppPending    = 17002
 	ErrCreatorAppCooldown   = 17003
@@ -197,7 +213,23 @@ var codeMessages = map[int]string{
 	ErrMoemoepointNotAwarder:       "该客户端无权发放萌萌点",
 	ErrMoemoepointInsufficient:     "萌萌点不足",
 	ErrMoemoepointTransferNotFound: "萌萌点记录不存在",
-	ErrMoemoepointNotReversible:    "撤销记录不能再被撤销",
+
+	ErrShopItemNotFound:         "物品不存在",
+	ErrShopOfferUnavailable:     "该商品当前不可购买",
+	ErrShopAlreadyOwned:         "你已经拥有这件物品",
+	ErrShopLimitReached:         "已达到该商品的购买上限",
+	ErrShopSoldOut:              "该商品已售罄",
+	ErrShopNotOwned:             "你还没有拥有这件物品",
+	ErrShopInvalidAsset:         "素材文件不符合规范",
+	ErrShopInvalidItem:          "物品配置无效",
+	ErrShopInvalidOffer:         "商品配置无效",
+	ErrShopInvalidTransition:    "当前状态不允许这个操作",
+	ErrShopStorageUnavailable:   "素材存储未配置",
+	ErrShopFirstPartyOnly:       "这个操作只能在账号中心进行",
+	ErrShopOrderNotFound:        "订单不存在",
+	ErrShopIdemConflict:         "幂等键已用于另一笔订单",
+	ErrShopPriceBelowMinimum:    "价格低于商店最低价",
+	ErrMoemoepointNotReversible: "撤销记录不能再被撤销",
 
 	ErrGalgameNotFound:           "Galgame 不存在",
 	ErrGalgameAlreadyExists:      "Galgame 已存在",

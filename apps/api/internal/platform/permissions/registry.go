@@ -8,6 +8,7 @@ import (
 	devapiPerm "api/internal/platform/devapi/perm"
 	newsPerm "api/internal/platform/news/perm"
 	settingsPerm "api/internal/platform/settings/perm"
+	shopPerm "api/internal/platform/shop/perm"
 	sitePerm "api/internal/platform/site/perm"
 	trustPerm "api/internal/platform/trust/perm"
 )
@@ -198,6 +199,17 @@ var live = NewRegistry(
 		Holder:  artifactPerm.Resolver,
 		Keys: []Key{
 			{artifactPerm.FilesManage, "Browse, delete and reclaim stored artifact files.", "浏览/删除/回收 artifact 文件"},
+		},
+	},
+	Domain{
+		Name:    "shop",
+		TitleZH: "萌萌点商店",
+		Bundles: shopPerm.Bundles,
+		Holder:  shopPerm.Resolver,
+		Keys: []Key{
+			{shopPerm.Manage, "Upload decoration assets and create or edit shop items and offers.", "上传装扮素材,创建/编辑商店物品与商品"},
+			{shopPerm.Publish, "Publish, reject and retire items, and put offers on sale or take them off.", "发布/驳回/下架物品,上架/下架商品"},
+			{shopPerm.Grant, "Grant and revoke a user's items, and refund a shop order.", "发放/收回用户物品,退款商店订单"},
 		},
 	},
 	Domain{

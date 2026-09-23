@@ -175,6 +175,15 @@ var StoreLinkQuotaPerClient = settings.Int(settings.Meta{
 	Max:    settings.F(1000000),
 }, 5000)
 
+var ShopMinPrice = settings.Int(settings.Meta{
+	Name:   "shop.min_price",
+	DescEN: "Lowest moemoepoint price an offer in the moemoepoint shop may carry.",
+	DescZH: "萌萌点商店中一件商品可以标的最低萌萌点价格。",
+	Public: true,
+	Min:    settings.F(1),
+	Max:    settings.F(1000000),
+}, 100)
+
 var live = settings.NewRegistry(
 	settings.Domain{
 		Name:    "platform",
@@ -195,6 +204,11 @@ var live = settings.NewRegistry(
 			AuthRegisterGiftPoints,
 			AuthNameChangeCost,
 		},
+	},
+	settings.Domain{
+		Name:    "shop",
+		TitleZH: "萌萌点商店",
+		Keys:    []settings.Entry{ShopMinPrice},
 	},
 	settings.Domain{
 		Name:    "image",

@@ -1,5 +1,7 @@
 package dto
 
+import shopModel "api/internal/platform/shop/model"
+
 type UserBrief struct {
 	ID              uint     `json:"id"`
 	UUID            string   `json:"uuid"`
@@ -11,6 +13,8 @@ type UserBrief struct {
 	Roles           []string `json:"roles"`
 	SiteRoles       []string `json:"site_roles,omitempty"`
 	CreatedAt       string   `json:"created_at"`
+
+	Cosmetics *shopModel.Cosmetics `json:"cosmetics,omitempty"`
 }
 
 type BatchGetUsersRequest struct {

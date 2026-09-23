@@ -22,6 +22,7 @@ const (
 	ReasonLiked           = "liked"
 	ReasonNameChange      = "name_change"
 	ReasonSpend           = "spend"
+	ReasonPurchase        = "purchase"
 	ReasonReversal        = "reversal"
 )
 
@@ -29,7 +30,7 @@ func IsValidReason(r string) bool {
 	switch r {
 	case ReasonAdminGrant, ReasonAdminDeduct, ReasonMigration, ReasonOpeningBalance,
 		ReasonRegisterGift, ReasonContentApproved, ReasonContentRemoved,
-		ReasonDailyCheckin, ReasonLiked, ReasonNameChange, ReasonSpend, ReasonReversal:
+		ReasonDailyCheckin, ReasonLiked, ReasonNameChange, ReasonSpend, ReasonPurchase, ReasonReversal:
 		return true
 	}
 	return false

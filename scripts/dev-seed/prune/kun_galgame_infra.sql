@@ -98,6 +98,15 @@ BEGIN
     FROM ledger_accounts a
     WHERE a.kind = 'user' AND a.asset = 'moemoepoint' AND a.code = '' AND a.user_id = u.id;
 END $$;
+DO $$
+BEGIN
+  IF to_regclass('shop_orders') IS NULL THEN
+    RETURN;
+  END IF;
+  DELETE FROM shop_loadouts     WHERE user_id NOT IN (SELECT id FROM keep_user);
+  DELETE FROM shop_entitlements WHERE user_id NOT IN (SELECT id FROM keep_user);
+  DELETE FROM shop_orders       WHERE user_id NOT IN (SELECT id FROM keep_user);
+END $$;
 DELETE FROM users WHERE id NOT IN (SELECT id FROM keep_user);
 
 -- Caps on log-ish tables that survive per-user filtering.

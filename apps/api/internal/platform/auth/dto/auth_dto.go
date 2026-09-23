@@ -1,5 +1,7 @@
 package dto
 
+import shopModel "api/internal/platform/shop/model"
+
 type RegisterRequest struct {
 	Name      string `json:"name" validate:"required,kun_name"`
 	Email     string `json:"email" validate:"required,email"`
@@ -114,6 +116,8 @@ type UserResponse struct {
 	// a choice here, not a GORM limitation.
 	AdultConfirmedAt *string `json:"adult_confirmed_at,omitempty"`
 	NSFWDisplay      string  `json:"nsfw_display,omitempty"`
+
+	Cosmetics *shopModel.Cosmetics `json:"cosmetics,omitempty"`
 }
 
 type LoginResponse struct {
