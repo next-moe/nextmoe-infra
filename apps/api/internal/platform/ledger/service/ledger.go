@@ -74,8 +74,6 @@ func (l *Ledger) Post(ctx context.Context, t Transfer) (*Posted, error) {
 	return out, err
 }
 
-// PostTx is Post on a transaction the caller owns, for an action that must
-// commit or roll back together with what it pays for.
 func (l *Ledger) PostTx(ctx context.Context, tx *gorm.DB, t Transfer) (*Posted, error) {
 	if t.Asset == "" {
 		t.Asset = model.AssetMoemoepoint
@@ -306,8 +304,6 @@ func transferLegs(tx *gorm.DB, transferID int64) ([]legRow, error) {
 	return rows, err
 }
 
-// replay answers a retried request with the transfer it already made, and
-// refuses one that reuses the key for something else.
 func replay(tx *gorm.DB, existing *model.Transfer, t Transfer) (*Posted, error) {
 	legs, err := transferLegs(tx, existing.ID)
 	if err != nil {
@@ -357,16 +353,13 @@ func currentBalances(tx *gorm.DB, asset string, refs []AccountRef) (map[AccountR
 type Reversal struct {
 	SourceApp      string
 	IdempotencyKey string
-	// UserID, when set, must be a party to the transfer; a caller that names
-	// the wrong user gets not-found rather than someone else's reversal.
-	UserID      uint
-	ActorUserID uint
-	Note        string
+	PartyUserID    uint
+	ActorUserID    uint
+	Note           string
 }
 
-// ReverseTx undoes a transfer by posting its legs negated. A transfer is
-// reversed at most once: the reversal's key is derived from the original, so
-// asking again, with any note, answers with the first reversal.
+// A transfer is reversed at most once: the reversal's key is derived from the
+// original, so asking again, with any note, answers with the first reversal.
 func (l *Ledger) ReverseTx(ctx context.Context, tx *gorm.DB, r Reversal) (*Posted, error) {
 	tx = tx.WithContext(ctx)
 	original, err := findTransfer(tx, r.SourceApp, r.IdempotencyKey)
@@ -393,10 +386,10 @@ func (l *Ledger) ReverseTx(ctx context.Context, tx *gorm.DB, r Reversal) (*Poste
 		Note:           r.Note,
 		reverses:       &original.ID,
 	}
-	party := r.UserID == 0
+	party := r.PartyUserID == 0
 	for _, leg := range legs {
 		ref := AccountRef{Kind: leg.Kind, UserID: leg.UserID, Code: leg.Code}
-		if ref == UserAccount(r.UserID) {
+		if ref == UserAccount(r.PartyUserID) {
 			party = true
 		}
 		t.Legs = append(t.Legs, Leg{Account: ref, Amount: -leg.Amount})

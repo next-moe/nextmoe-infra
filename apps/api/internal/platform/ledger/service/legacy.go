@@ -49,6 +49,12 @@ func ImportLegacy(ctx context.Context, db *gorm.DB) (Imported, error) {
 	return out, err
 }
 
+func Installed(ctx context.Context, db *gorm.DB) (bool, error) {
+	var ok bool
+	err := db.WithContext(ctx).Raw(`SELECT to_regclass('ledger_transfers') IS NOT NULL`).Scan(&ok).Error
+	return ok, err
+}
+
 func isSerializationFailure(err error) bool {
 	var pgErr *pgconn.PgError
 	return stderrors.As(err, &pgErr) && (pgErr.Code == "40001" || pgErr.Code == "40P01")
@@ -96,7 +102,7 @@ var importStage = []string{
 	`INSERT INTO ledger_import_moves (legacy_id, user_id, delta, reason, source_app, ref,
 		actor_user_id, idempotency_key, note, created_at, counter_kind, counter_code)
 	SELECT l.id, l.user_id, l.delta, l.reason, l.source_app, COALESCE(l.ref, ''),
-		l.actor_user_id, l.idempotency_key, COALESCE(l.note, ''), l.created_at,
+		l.actor_user_id, l.idempotency_key, COALESCE(l.note, ''), COALESCE(l.created_at, now()),
 		CASE WHEN l.reason = 'name_change' THEN 'sink' ELSE 'issuer' END, l.source_app
 	FROM moemoepoint_log l
 	WHERE NOT EXISTS (SELECT 1 FROM ledger_transfers t WHERE t.legacy_log_id = l.id)
@@ -106,7 +112,7 @@ var importStage = []string{
 	`INSERT INTO ledger_import_moves (legacy_id, user_id, delta, reason, source_app, ref,
 		actor_user_id, idempotency_key, note, created_at, counter_kind, counter_code)
 	SELECT NULL, u.id, u.moemoepoint - COALESCE(p.pending, 0), 'opening_balance', 'oauth', '',
-		0, 'oauth:opening_balance:' || u.id, '', u.created_at, 'issuer', 'oauth'
+		0, 'oauth:opening_balance:' || u.id, '', COALESCE(u.created_at, now()), 'issuer', 'oauth'
 	FROM users u
 	LEFT JOIN (SELECT user_id, SUM(delta) AS pending FROM ledger_import_moves GROUP BY user_id) p
 	  ON p.user_id = u.id

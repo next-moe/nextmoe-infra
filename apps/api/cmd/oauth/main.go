@@ -75,15 +75,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	imported, err := ledgerService.ImportLegacy(context.Background(), application.DB.DB())
-	if err != nil {
-		slog.Error("moemoepoint ledger import failed; refusing to serve an unimported ledger", "error", err)
-		os.Exit(1)
-	}
-	if imported.Legacy+imported.Openings > 0 {
-		slog.Info("imported legacy moemoepoint rows into the ledger",
-			"legacy", imported.Legacy, "openings", imported.Openings)
-	}
+	importLegacyMoemoepoint(application)
 
 	cleanupCtx, cancelCleanup := context.WithCancel(context.Background())
 	defer cancelCleanup()
@@ -93,6 +85,33 @@ func main() {
 	if err := application.Run(cfg.Server.Host, cfg.Server.Port); err != nil {
 		slog.Error("application error", "error", err)
 		os.Exit(1)
+	}
+}
+
+// An oauth image can reach production ahead of the migrate job that creates
+// the ledger — a cancelled build drops one image group, and autoDeploy can run
+// before the build finishes. Exiting then would crash-loop login on every site
+// over a missing moemoepoint table, so only an import that fails against an
+// installed ledger stops the process.
+func importLegacyMoemoepoint(a *app.App) {
+	ctx := context.Background()
+	installed, err := ledgerService.Installed(ctx, a.DB.DB())
+	if err != nil {
+		slog.Error("cannot inspect the moemoepoint ledger", "error", err)
+		os.Exit(1)
+	}
+	if !installed {
+		slog.Error("moemoepoint ledger tables are missing; serving without them until cmd/migrate runs")
+		return
+	}
+	imported, err := ledgerService.ImportLegacy(ctx, a.DB.DB())
+	if err != nil {
+		slog.Error("moemoepoint ledger import failed; refusing to serve an unimported ledger", "error", err)
+		os.Exit(1)
+	}
+	if imported.Legacy+imported.Openings > 0 {
+		slog.Info("imported legacy moemoepoint rows into the ledger",
+			"legacy", imported.Legacy, "openings", imported.Openings)
 	}
 }
 

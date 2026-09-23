@@ -163,3 +163,10 @@ func TestImportLegacySkipsARowTheLedgerAlreadyAnswered(t *testing.T) {
 	}
 	audit(t)
 }
+
+func TestInstalledSeesTheLedger(t *testing.T) {
+	ok, err := service.Installed(context.Background(), testDB)
+	if err != nil || !ok {
+		t.Fatalf("Installed = %v, %v on a migrated database", ok, err)
+	}
+}

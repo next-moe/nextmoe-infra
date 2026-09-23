@@ -219,21 +219,21 @@ func TestReverseUndoesOnce(t *testing.T) {
 	}
 
 	if _, err := l.Reverse(ctx, service.Reversal{SourceApp: "forum-test", IdempotencyKey: chargeKey,
-		UserID: stranger}); !errors.Is(err, errors.ErrMoemoepointTransferNotFound) {
+		PartyUserID: stranger}); !errors.Is(err, errors.ErrMoemoepointTransferNotFound) {
 		t.Fatalf("reversal naming a non-party: got %v, want ErrMoemoepointTransferNotFound", err)
 	}
 	if _, err := l.Reverse(ctx, service.Reversal{SourceApp: "patch-test", IdempotencyKey: chargeKey,
-		UserID: u}); !errors.Is(err, errors.ErrMoemoepointTransferNotFound) {
+		PartyUserID: u}); !errors.Is(err, errors.ErrMoemoepointTransferNotFound) {
 		t.Fatalf("reversal by another client: got %v, want ErrMoemoepointTransferNotFound", err)
 	}
 
 	res, err := l.Reverse(ctx, service.Reversal{SourceApp: "forum-test", IdempotencyKey: chargeKey,
-		UserID: u, Note: "first"})
+		PartyUserID: u, Note: "first"})
 	if err != nil || !res.Applied || res.UserBalance(u) != 10 {
 		t.Fatalf("reverse: res=%+v err=%v", res, err)
 	}
 	res, err = l.Reverse(ctx, service.Reversal{SourceApp: "forum-test", IdempotencyKey: chargeKey,
-		UserID: u, Note: "a retry with another note"})
+		PartyUserID: u, Note: "a retry with another note"})
 	if err != nil || res.Applied || res.UserBalance(u) != 10 {
 		t.Fatalf("second reverse: res=%+v err=%v", res, err)
 	}
@@ -243,7 +243,7 @@ func TestReverseUndoesOnce(t *testing.T) {
 	testDB.Raw(`SELECT reverses_id FROM ledger_transfers WHERE id = ?`, res.TransferID).Scan(&originalID)
 	reversalKey := "reversal:" + strconv.FormatInt(originalID, 10)
 	if _, err := l.Reverse(ctx, service.Reversal{SourceApp: "forum-test", IdempotencyKey: reversalKey,
-		UserID: u}); !errors.Is(err, errors.ErrMoemoepointNotReversible) {
+		PartyUserID: u}); !errors.Is(err, errors.ErrMoemoepointNotReversible) {
 		t.Fatalf("reversing a reversal: got %v, want ErrMoemoepointNotReversible", err)
 	}
 	audit(t)

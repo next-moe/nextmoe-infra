@@ -119,17 +119,15 @@ func (h *Handler) Reverse(c fiber.Ctx) error {
 	res, err := h.ledger.Reverse(c.Context(), service.Reversal{
 		SourceApp:      client,
 		IdempotencyKey: req.IdempotencyKey,
-		UserID:         userID,
+		PartyUserID:    userID,
 		Note:           req.Note,
 	})
 	return respondPosted(c, userID, res, err)
 }
 
-// s2sTarget authorises a write to the ledger: only a client on the awarder
-// allow-list may move a user's moemoepoints, in either direction.
 func s2sTarget(c fiber.Ctx) (uint, string, func() error) {
 	userID, err := parseUintParam(c, "id")
-	if err != nil {
+	if err != nil || userID == 0 {
 		return 0, "", func() error { return response.BadRequest(c, errors.ErrInvalidID) }
 	}
 	client := middleware.OAuthClientFromCtx(c)
