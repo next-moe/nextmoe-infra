@@ -34,14 +34,13 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Printf("\n=== aggregate-forum-ratings %s ===\n", mode(*apply))
-	fmt.Printf("eligible=%d candidates=%d unmapped=%d multi_claim=%d written=%d unchanged=%d deleted=%d errors=%d\n",
-		st.Eligible, st.Candidates, st.Unmapped, st.MultiClaim, st.Written, st.Unchanged, st.Deleted, st.Errors)
+	fmt.Printf("eligible=%d candidates=%d unmapped=%d written=%d unchanged=%d deleted=%d errors=%d\n",
+		st.Eligible, st.Candidates, st.Unmapped, st.Written, st.Unchanged, st.Deleted, st.Errors)
 	slog.Info("aggregate-forum-ratings summary",
 		"apply", *apply,
 		"eligible", st.Eligible,
 		"candidates", st.Candidates,
 		"unmapped", st.Unmapped,
-		"multi_claim", st.MultiClaim,
 		"written", st.Written,
 		"unchanged", st.Unchanged,
 		"deleted", st.Deleted,
