@@ -71,6 +71,9 @@
     "Precondition failed": "前置条件不满足",
     "If-Match did not match the current representation.": "If-Match 与当前表示不匹配。",
 
+    "Payload too large": "请求体过大",
+    "The request body is larger than this operation accepts. Retrying the same body cannot succeed.": "请求体超过了这个操作能接受的大小。原样重试不会成功。",
+
     "Unsupported media type": "不支持的媒体类型",
     "The request body media type is not supported.": "不支持这种请求体媒体类型。",
 

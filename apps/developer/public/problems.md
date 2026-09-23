@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-## 错误码注册表（顶层 `code`，共 43 个）
+## 错误码注册表（顶层 `code`，共 44 个）
 
 `code` 是封闭注册表里的稳定标识；`errors[].reason` 是另一套互不重叠的字段级词表。认不得的 `code` 一律按 `status` 兜底——我们会往注册表里加新成员。
 
@@ -38,6 +38,7 @@
 | `IDEMPOTENCY_REQUEST_IN_PROGRESS` | 409 | Idempotency request in progress | A request with the same Idempotency-Key is still being processed. Retry after it completes. |
 | `GONE` | 410 | Gone | This URL existed and has been permanently retired. |
 | `PRECONDITION_FAILED` | 412 | Precondition failed | If-Match did not match the current representation. |
+| `PAYLOAD_TOO_LARGE` | 413 | Payload too large | The request body is larger than this operation accepts. Retrying the same body cannot succeed. |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | Unsupported media type | The request body media type is not supported. |
 | `VALIDATION_FAILED` | 422 | Validation failed | The request is syntactically valid but semantically not. errors[] is present and non-empty. |
 | `PRECONDITION_REQUIRED` | 428 | Precondition required | This operation requires If-Match and none was sent. |
