@@ -433,3 +433,72 @@ func TestTheSameItemInTwoOffersIsBoughtOnce(t *testing.T) {
 		t.Fatalf("%d purchases went through and the balance is %d, want exactly one", ok.Load(), b)
 	}
 }
+
+func TestRefundTakesBackOnlyWhatTheOrderBought(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	item := f.frame("续期")
+	timed := f.offer(OfferInput{Price: 100, Rewards: []model.Reward{{ItemID: item, DurationDays: 30}}})
+	forever := f.offer(OfferInput{Price: 300, Rewards: []model.Reward{{ItemID: item}}})
+	u := f.user(1000)
+	start := f.clock
+
+	if _, err := f.buy(u, timed, "first"); err != nil {
+		t.Fatalf("first: %v", err)
+	}
+	second, err := f.buy(u, timed, "second")
+	if err != nil {
+		t.Fatalf("second: %v", err)
+	}
+	if _, err := f.shop.Refund(ctx, second.Order.ID, 1, "t"); err != nil {
+		t.Fatalf("refund second: %v", err)
+	}
+	var e model.Entitlement
+	testDB.Where("user_id = ? AND item_id = ?", u, item).First(&e)
+	if e.RevokedAt != nil || e.ExpiresAt == nil || e.ExpiresAt.Sub(start) < 29*24*time.Hour || e.ExpiresAt.Sub(start) > 31*24*time.Hour {
+		t.Fatalf("refunding the second 30 days left revoked=%v expires=%v, want the first 30 days", e.RevokedAt, e.ExpiresAt)
+	}
+
+	upgrade, err := f.buy(u, forever, "upgrade")
+	if err != nil {
+		t.Fatalf("upgrade: %v", err)
+	}
+	if _, err := f.shop.Refund(ctx, upgrade.Order.ID, 1, "t"); err != nil {
+		t.Fatalf("refund upgrade: %v", err)
+	}
+	testDB.Where("user_id = ? AND item_id = ?", u, item).First(&e)
+	if e.RevokedAt != nil || e.ExpiresAt == nil || e.ExpiresAt.Sub(start) < 29*24*time.Hour {
+		t.Fatalf("refunding the upgrade left revoked=%v expires=%v, want the timed holding back", e.RevokedAt, e.ExpiresAt)
+	}
+	if f.balance(u) != 900 {
+		t.Fatalf("balance %d, want 900 (only the first purchase kept)", f.balance(u))
+	}
+}
+
+func TestAConcurrentRetryGetsTheFirstOrder(t *testing.T) {
+	f := newFixture(t)
+	item := f.frame("重试")
+	offer := f.offer(OfferInput{Price: 100, Rewards: []model.Reward{{ItemID: item}}})
+	u := f.user(1000)
+	var replays, fresh atomic.Int64
+	var wg sync.WaitGroup
+	for i := range 6 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			got, err := f.buy(u, offer, "same-key")
+			switch {
+			case err != nil:
+				t.Errorf("attempt %d: %v", i, err)
+			case got.Replay:
+				replays.Add(1)
+			default:
+				fresh.Add(1)
+			}
+		}()
+	}
+	wg.Wait()
+	if fresh.Load() != 1 || replays.Load() != 5 || f.balance(u) != 900 {
+		t.Fatalf("%d fresh, %d replays, balance %d; want 1, 5, 900", fresh.Load(), replays.Load(), f.balance(u))
+	}
+}

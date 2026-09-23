@@ -374,7 +374,7 @@ func (s *Shop) loadOffer(tx *gorm.DB, id int64, lock bool) (*model.Offer, error)
 	return &o, err
 }
 
-func (s *Shop) UpdateOffer(ctx context.Context, id int64, in OfferInput) (*OfferView, error) {
+func (s *Shop) UpdateOffer(ctx context.Context, id int64, in OfferInput, canPublish bool) (*OfferView, error) {
 	var out *OfferView
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		o, err := s.loadOffer(tx, id, true)
@@ -383,6 +383,9 @@ func (s *Shop) UpdateOffer(ctx context.Context, id int64, in OfferInput) (*Offer
 		}
 		if o.Status == model.OfferRetired {
 			return errors.New(errors.ErrShopInvalidTransition, "已下架的商品不能再修改")
+		}
+		if o.Status == model.OfferActive && !canPublish {
+			return errors.NewWithCode(errors.ErrForbidden)
 		}
 		items, err := s.validateOffer(tx, in)
 		if err != nil {

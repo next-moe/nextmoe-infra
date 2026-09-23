@@ -82,6 +82,32 @@ func revokeTx(tx *gorm.DB, e *model.Entitlement, now time.Time) error {
 	return tx.Where("user_id = ? AND item_id = ?", e.UserID, e.ItemID).Delete(&model.Loadout{}).Error
 }
 
+func takeBack(tx *gorm.DB, o model.Order, r model.Reward, prior []model.PriorHolding, now time.Time) error {
+	e, err := findEntitlement(tx, o.RecipientUserID, r.ItemID, true)
+	if err != nil || e == nil || e.RevokedAt != nil {
+		return err
+	}
+	if r.DurationDays > 0 {
+		if e.ExpiresAt == nil {
+			return nil
+		}
+		left := e.ExpiresAt.AddDate(0, 0, -r.DurationDays)
+		if !left.After(now) {
+			return revokeTx(tx, e, now)
+		}
+		return tx.Model(e).Update("expires_at", left).Error
+	}
+	if e.OrderID == nil || *e.OrderID != o.ID {
+		return nil
+	}
+	for _, h := range prior {
+		if h.ItemID == r.ItemID && h.Held && h.ExpiresAt != nil && h.ExpiresAt.After(now) {
+			return tx.Model(e).Update("expires_at", *h.ExpiresAt).Error
+		}
+	}
+	return revokeTx(tx, e, now)
+}
+
 func (s *Shop) Revoke(ctx context.Context, entitlementID int64) error {
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var e model.Entitlement
@@ -99,8 +125,9 @@ func (s *Shop) Revoke(ctx context.Context, entitlementID int64) error {
 	})
 }
 
-// Refund gives the points back and takes back only what this order handed
-// out: an entitlement a later purchase or grant renewed stays with the user.
+// Refund gives the points back and takes back what the order bought: the
+// days of a timed reward, or the permanence of a permanent one — restoring
+// whatever timed holding the buyer had before it.
 func (s *Shop) Refund(ctx context.Context, orderID int64, by uint, note string) (*OrderView, error) {
 	var out *OrderView
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -115,6 +142,9 @@ func (s *Shop) Refund(ctx context.Context, orderID int64, by uint, note string) 
 		if o.Status != model.OrderCompleted {
 			return errors.New(errors.ErrShopInvalidTransition, "这笔订单已经退过款了")
 		}
+		if _, err := s.loadOffer(tx, o.OfferID, true); err != nil && !errors.Is(err, errors.ErrShopOfferUnavailable) {
+			return err
+		}
 		posted, err := s.ledger.ReverseTx(ctx, tx, ledgerService.Reversal{
 			SourceApp: ledgerSource, IdempotencyKey: orderTransferKey(o.ID),
 			PartyUserID: o.UserID, ActorUserID: by, Note: note,
@@ -128,16 +158,12 @@ func (s *Shop) Refund(ctx context.Context, orderID int64, by uint, note string) 
 			return err
 		}
 		var rewards []model.Reward
+		var prior []model.PriorHolding
 		_ = json.Unmarshal(o.Rewards, &rewards)
+		_ = json.Unmarshal(o.Prior, &prior)
 		for _, r := range rewards {
-			e, err := findEntitlement(tx, o.RecipientUserID, r.ItemID, true)
-			if err != nil {
+			if err := takeBack(tx, o, r, prior, now); err != nil {
 				return err
-			}
-			if e != nil && e.RevokedAt == nil && e.OrderID != nil && *e.OrderID == o.ID {
-				if err := revokeTx(tx, e, now); err != nil {
-					return err
-				}
 			}
 		}
 		if err := tx.Model(&model.Offer{}).Where("id = ? AND sold > 0", o.OfferID).

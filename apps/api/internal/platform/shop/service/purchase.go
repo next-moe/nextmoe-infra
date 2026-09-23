@@ -13,9 +13,16 @@ import (
 	"api/internal/platform/shop/model"
 	"api/pkg/errors"
 
+	"github.com/jackc/pgx/v5/pgconn"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
+
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return stderrors.As(err, &pgErr) && pgErr.Code == "23505"
+}
 
 const ledgerSource = "shop"
 
@@ -49,6 +56,10 @@ func (s *Shop) Purchase(ctx context.Context, userID uint, offerID int64, idemKey
 	}
 	var out *Purchased
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		offer, err := s.loadOffer(tx, offerID, true)
+		if err != nil {
+			return err
+		}
 		var prior []model.Order
 		if err := tx.Where("user_id = ? AND idempotency_key = ?", userID, idemKey).Limit(1).Find(&prior).Error; err != nil {
 			return err
@@ -67,11 +78,6 @@ func (s *Shop) Purchase(ctx context.Context, userID uint, offerID int64, idemKey
 			}
 			out = &Purchased{Order: *view, Balance: balance, Replay: true}
 			return nil
-		}
-
-		offer, err := s.loadOffer(tx, offerID, true)
-		if err != nil {
-			return err
 		}
 		now := s.now()
 		if offer.Status != model.OfferActive || offer.SiteID != nil ||
@@ -100,6 +106,7 @@ func (s *Shop) Purchase(ctx context.Context, userID uint, offerID int64, idemKey
 		price := priceOf(costs)
 		items := make([]model.Item, 0, len(rewards))
 		names := make([]string, 0, len(rewards))
+		holdings := make([]model.PriorHolding, 0, len(rewards))
 		for _, r := range rewards {
 			it, err := s.loadItem(tx, r.ItemID, false)
 			if err != nil {
@@ -115,15 +122,24 @@ func (s *Shop) Purchase(ctx context.Context, userID uint, offerID int64, idemKey
 			if owned != nil && owned.ExpiresAt == nil {
 				return errors.New(errors.ErrShopAlreadyOwned, "你已经永久拥有「"+it.Name+"」")
 			}
+			h := model.PriorHolding{ItemID: it.ID, Held: owned != nil}
+			if owned != nil {
+				h.ExpiresAt = owned.ExpiresAt
+			}
+			holdings = append(holdings, h)
 			items = append(items, *it)
 			names = append(names, it.Name)
 		}
 
 		order := model.Order{
 			UserID: userID, IdempotencyKey: idemKey, RecipientUserID: userID, OfferID: offer.ID,
-			Costs: offer.Costs, Rewards: offer.Rewards, Status: model.OrderCompleted, CreatedAt: now,
+			Costs: offer.Costs, Rewards: offer.Rewards, Prior: datatypes.JSON(mustJSON(holdings)),
+			Status: model.OrderCompleted, CreatedAt: now,
 		}
 		if err := tx.Create(&order).Error; err != nil {
+			if isUniqueViolation(err) {
+				return errors.NewWithCode(errors.ErrShopIdemConflict)
+			}
 			return err
 		}
 		posted, err := s.ledger.PostTx(ctx, tx, ledgerService.Transfer{
@@ -202,8 +218,6 @@ func findEntitlement(tx *gorm.DB, userID uint, itemID int64, lock bool) (*model.
 	return &e, nil
 }
 
-// A timed grant on an item the user already holds extends what is left
-// rather than restarting it, and a permanent grant makes it permanent.
 func grantTx(tx *gorm.DB, g grant) error {
 	var expires *time.Time
 	if g.days > 0 {

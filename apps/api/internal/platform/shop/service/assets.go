@@ -45,6 +45,13 @@ func inspectAsset(data []byte) (assetMeta, error) {
 		if isAPNG(data) {
 			return m, invalidAsset("动图请上传动态 WebP,静态图只接受普通 PNG")
 		}
+		cfg, err := png.DecodeConfig(bytes.NewReader(data))
+		if err != nil {
+			return m, invalidAsset("PNG 无法解码")
+		}
+		if err := checkSide(cfg.Width, cfg.Height); err != nil {
+			return m, err
+		}
 		img, err := png.Decode(bytes.NewReader(data))
 		if err != nil {
 			return m, invalidAsset("PNG 无法解码")
@@ -72,19 +79,23 @@ func inspectAsset(data []byte) (assetMeta, error) {
 		}
 		m = assetMeta{
 			contentType: "image/webp", ext: ".webp", animated: true,
-			width:  1 + int(data[24]) | int(data[25])<<8 | int(data[26])<<16,
-			height: 1 + int(data[27]) | int(data[28])<<8 | int(data[29])<<16,
+			width:  1 + (int(data[24]) | int(data[25])<<8 | int(data[26])<<16),
+			height: 1 + (int(data[27]) | int(data[28])<<8 | int(data[29])<<16),
 		}
 	default:
 		return m, invalidAsset("只接受 PNG(静态)或动态 WebP")
 	}
-	if m.width != m.height {
-		return m, invalidAsset("头像框必须是正方形")
+	return m, checkSide(m.width, m.height)
+}
+
+func checkSide(w, h int) error {
+	if w != h {
+		return invalidAsset("头像框必须是正方形")
 	}
-	if m.width < minFrameSide || m.width > maxFrameSide {
-		return m, invalidAsset("头像框边长必须在 192 到 1024 像素之间")
+	if w < minFrameSide || w > maxFrameSide {
+		return invalidAsset("头像框边长必须在 192 到 1024 像素之间")
 	}
-	return m, nil
+	return nil
 }
 
 func isAPNG(data []byte) bool {

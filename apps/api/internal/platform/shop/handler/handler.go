@@ -37,8 +37,6 @@ func (h *Handler) Catalog(c fiber.Ctx) error {
 	return response.Success(c, fiber.Map{"offers": offers})
 }
 
-// The shop spends a user's points, so an OAuth access token from some other
-// application must not reach it; only the account center's own session may.
 func firstPartyUser(c fiber.Ctx) (uint, bool) {
 	if client, _ := c.Locals("token_client_id").(string); client != "" {
 		return 0, false
@@ -234,7 +232,7 @@ func (h *Handler) UpdateOffer(c fiber.Ctx) error {
 	if err := c.Bind().JSON(&in); err != nil {
 		return response.BadRequest(c, errors.ErrBadRequest)
 	}
-	out, err := h.shop.UpdateOffer(c.Context(), id, in)
+	out, err := h.shop.UpdateOffer(c.Context(), id, in, canPublish(c))
 	if err != nil {
 		return respondErr(c, err)
 	}
@@ -344,6 +342,8 @@ func respondErr(c fiber.Ctx, err error) error {
 			return response.FromAppError(c, fiber.StatusNotFound, appErr)
 		case errors.ErrShopStorageUnavailable:
 			return response.FromAppError(c, fiber.StatusServiceUnavailable, appErr)
+		case errors.ErrForbidden:
+			return response.FromAppError(c, fiber.StatusForbidden, appErr)
 		case errors.ErrShopOfferUnavailable, errors.ErrShopAlreadyOwned, errors.ErrShopLimitReached,
 			errors.ErrShopSoldOut, errors.ErrShopNotOwned, errors.ErrShopInvalidAsset, errors.ErrShopInvalidItem,
 			errors.ErrShopInvalidOffer, errors.ErrShopInvalidTransition, errors.ErrShopIdemConflict,

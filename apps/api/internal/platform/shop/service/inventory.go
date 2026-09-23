@@ -113,9 +113,9 @@ type wornRow struct {
 	Render []byte
 }
 
-// CosmeticsFor resolves what each user wears as seen from siteID: a
-// site-specific choice wins over the everywhere default, and a loadout whose
-// entitlement lapsed or was revoked shows nothing.
+// CosmeticsFor resolves what each user wears as seen from siteID. A
+// site-specific choice wins over the everywhere default; a loadout whose
+// entitlement lapsed or was revoked is skipped, so the default shows instead.
 func (s *Shop) CosmeticsFor(ctx context.Context, userIDs []uint, siteID uint) (map[uint]*model.Cosmetics, error) {
 	out := make(map[uint]*model.Cosmetics, len(userIDs))
 	if len(userIDs) == 0 {

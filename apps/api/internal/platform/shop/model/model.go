@@ -115,6 +115,7 @@ type Order struct {
 	SiteID           uint           `gorm:"not null;default:0" json:"site_id"`
 	Costs            datatypes.JSON `gorm:"type:jsonb;not null" json:"costs"`
 	Rewards          datatypes.JSON `gorm:"type:jsonb;not null" json:"rewards"`
+	Prior            datatypes.JSON `gorm:"type:jsonb" json:"-"`
 	TransferID       *int64         `json:"transfer_id"`
 	Status           string         `gorm:"size:16;not null" json:"status"`
 	RefundTransferID *int64         `json:"refund_transfer_id"`
@@ -123,6 +124,14 @@ type Order struct {
 }
 
 func (Order) TableName() string { return "shop_orders" }
+
+// PriorHolding is what the buyer held of a reward before the order, so a
+// refund of a permanent purchase can put a timed holding back.
+type PriorHolding struct {
+	ItemID    int64      `json:"item_id"`
+	Held      bool       `json:"held"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+}
 
 type Entitlement struct {
 	ID         int64      `gorm:"primaryKey" json:"id"`

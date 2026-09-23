@@ -47,6 +47,18 @@ func withAcTL(t *testing.T, p []byte) []byte {
 	return append(out, p[ihdrEnd:]...)
 }
 
+// A PNG whose IHDR declares 20000x20000: png.Decode would allocate the whole
+// canvas before noticing the data is missing.
+func hugePNGHeader(t *testing.T) []byte {
+	t.Helper()
+	p := framePNG(t, 192, false)
+	out := append([]byte{}, p...)
+	binary.BigEndian.PutUint32(out[16:20], 20000)
+	binary.BigEndian.PutUint32(out[20:24], 20000)
+	binary.BigEndian.PutUint32(out[29:33], crc32.ChecksumIEEE(out[12:29]))
+	return out
+}
+
 func animatedWebPHeader(side int, flags byte) []byte {
 	b := make([]byte, 64)
 	copy(b[0:4], "RIFF")
@@ -76,6 +88,13 @@ func TestInspectAsset(t *testing.T) {
 		t.Fatalf("a valid animated WebP header: %+v, %v", m, err)
 	}
 
+	for _, side := range []int{192, 256, 512, 1024} {
+		if m, err := inspectAsset(animatedWebPHeader(side, 0x12)); err != nil || m.width != side || m.height != side {
+			t.Fatalf("a %dpx animated WebP read as %dx%d, %v", side, m.width, m.height, err)
+		}
+	}
+
+	wantAssetErr(t, hugePNGHeader(t), "a small PNG declaring a huge canvas")
 	wantAssetErr(t, framePNG(t, 384, true), "an opaque corner")
 	wantAssetErr(t, withAcTL(t, framePNG(t, 384, false)), "an APNG passed off as the static image")
 	wantAssetErr(t, framePNG(t, 128, false), "a frame below the minimum side")

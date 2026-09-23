@@ -1,0 +1,7 @@
+[
+  { "file": "neko", "name": "猫耳", "description": "橘色的猫耳朵和一对肉球，悬停时右耳会抖一下。", "price": 100 },
+  { "file": "moe-heart", "name": "萌心", "description": "六颗小爱心绕着头像慢慢转圈。", "price": 100 },
+  { "file": "sakura", "name": "樱花", "description": "樱花开在头像边上，花瓣沿着圆环飘落。", "price": 120 },
+  { "file": "starlight", "name": "星轨", "description": "弯月和星星守着头像，一道流星沿着圆环划过。", "price": 150 },
+  { "file": "laurel", "name": "月桂", "description": "金边月桂冠，底下系着一枚红色缎带。", "price": 200 }
+]
