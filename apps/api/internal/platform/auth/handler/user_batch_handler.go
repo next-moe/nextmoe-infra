@@ -32,12 +32,7 @@ func (h *UserBatchHandler) Get(c fiber.Ctx) error {
 		return response.BadRequestMsg(c, errors.ErrInvalidParam, "ids: max 100 per request")
 	}
 
-	var siteID uint
-	if client := middleware.OAuthClientFromCtx(c); client != nil && client.SiteID != nil {
-		siteID = *client.SiteID
-	}
-
-	resp, err := h.svc.GetBriefs(c.Context(), ids, siteID)
+	resp, err := h.svc.GetBriefs(c.Context(), ids, callerSite(c))
 	if err != nil {
 		slog.Error("users batch query", "ids_len", len(ids), "err", err)
 		return response.InternalError(c, errors.ErrInternalServer)
@@ -66,7 +61,7 @@ func (h *UserBatchHandler) Search(c fiber.Ctx) error {
 		limit = 50
 	}
 
-	resp, err := h.svc.SearchByName(c.Context(), q, limit)
+	resp, err := h.svc.SearchByName(c.Context(), q, limit, callerSite(c))
 	if err != nil {
 		slog.Error("users search", "q", q, "limit", limit, "err", err)
 		return response.InternalError(c, errors.ErrInternalServer)
@@ -92,4 +87,11 @@ func parseUintList(s string) ([]uint, error) {
 		out = append(out, uint(v))
 	}
 	return out, nil
+}
+
+func callerSite(c fiber.Ctx) uint {
+	if client := middleware.OAuthClientFromCtx(c); client != nil && client.SiteID != nil {
+		return *client.SiteID
+	}
+	return 0
 }

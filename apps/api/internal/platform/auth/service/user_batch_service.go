@@ -50,15 +50,7 @@ func (s *UserBatchService) GetBriefs(ctx context.Context, ids []uint, siteID uin
 		}
 	}
 
-	if s.cosmetics != nil {
-		if worn, err := s.cosmetics.CosmeticsFor(ctx, ids, siteID); err != nil {
-			slog.Warn("users batch: cosmetics lookup failed; answering without them", "err", err)
-		} else {
-			for i := range briefs {
-				briefs[i].Cosmetics = worn[briefs[i].ID]
-			}
-		}
-	}
+	s.attachCosmetics(ctx, briefs, siteID)
 
 	notFound := make([]uint, 0)
 	for _, id := range ids {
@@ -73,7 +65,7 @@ func (s *UserBatchService) GetBriefs(ctx context.Context, ids []uint, siteID uin
 	}, nil
 }
 
-func (s *UserBatchService) SearchByName(ctx context.Context, query string, limit int) (*dto.SearchUsersResponse, error) {
+func (s *UserBatchService) SearchByName(ctx context.Context, query string, limit int, siteID uint) (*dto.SearchUsersResponse, error) {
 	users, err := s.userRepo.SearchByName(ctx, query, limit)
 	if err != nil {
 		return nil, err
@@ -82,7 +74,26 @@ func (s *UserBatchService) SearchByName(ctx context.Context, query string, limit
 	for i := range users {
 		briefs = append(briefs, toBrief(&users[i]))
 	}
+	s.attachCosmetics(ctx, briefs, siteID)
 	return &dto.SearchUsersResponse{Users: briefs}, nil
+}
+
+func (s *UserBatchService) attachCosmetics(ctx context.Context, briefs []dto.UserBrief, siteID uint) {
+	if s.cosmetics == nil || len(briefs) == 0 {
+		return
+	}
+	ids := make([]uint, len(briefs))
+	for i := range briefs {
+		ids[i] = briefs[i].ID
+	}
+	worn, err := s.cosmetics.CosmeticsFor(ctx, ids, siteID)
+	if err != nil {
+		slog.Warn("users: cosmetics lookup failed; answering without them", "err", err)
+		return
+	}
+	for i := range briefs {
+		briefs[i].Cosmetics = worn[briefs[i].ID]
+	}
 }
 
 func toBrief(u *model.User) dto.UserBrief {

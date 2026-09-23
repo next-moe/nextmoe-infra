@@ -79,6 +79,11 @@ const pick = async (e: Event, which: 'static' | 'animated') => {
   }
 }
 
+const clearAnimated = () => {
+  animatedKey.value = ''
+  animatedAsset.value = null
+}
+
 const save = async () => {
   error.value = ''
   if (!name.value.trim() || !staticKey.value) {
@@ -199,10 +204,7 @@ const save = async () => {
             size="sm"
             variant="light"
             color="danger"
-            @click="
-              animatedKey = ''
-              animatedAsset = null
-            "
+            @click="clearAnimated"
           >
             去掉动图
           </KunButton>
