@@ -30,17 +30,17 @@ importers:
   apps/account:
     dependencies:
       '@kungal/ui-core':
-        specifier: ^2.42.0
-        version: 2.42.0
+        specifier: ^2.44.0
+        version: 2.44.0
       '@kungal/ui-nuxt':
-        specifier: ^2.42.0
-        version: 2.42.0(afb0e3084937707255e202fa374056e8)
+        specifier: ^2.44.0
+        version: 2.44.0(afb0e3084937707255e202fa374056e8)
       '@kungal/ui-tokens':
-        specifier: ^2.42.0
-        version: 2.42.0(tailwindcss@4.3.3)
+        specifier: ^2.44.0
+        version: 2.44.0(tailwindcss@4.3.3)
       '@kungal/ui-vue':
-        specifier: ^2.42.0
-        version: 2.42.0(change-case@5.4.4)(fuse.js@7.5.0)(vue@3.5.42(typescript@6.0.3))
+        specifier: ^2.44.0
+        version: 2.44.0(change-case@5.4.4)(fuse.js@7.5.0)(vue@3.5.42(typescript@6.0.3))
       '@nuxt/eslint':
         specifier: 1.15.2
         version: 1.15.2(@typescript-eslint/utils@8.70.0(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.42)(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(magic-string@1.4.1)(magicast@0.5.5)(rolldown@1.2.9)(supports-color@10.2.2)(typescript@6.0.3)(unplugin@3.4.0(esbuild@0.27.7)(rolldown@1.2.9)(rollup@4.63.3)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(vite@8.3.0(@types/node@26.6.1)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1))
@@ -100,17 +100,17 @@ importers:
   apps/admin:
     dependencies:
       '@kungal/ui-core':
-        specifier: ^2.42.0
-        version: 2.42.0
+        specifier: ^2.44.0
+        version: 2.44.0
       '@kungal/ui-nuxt':
-        specifier: ^2.42.0
-        version: 2.42.0(e0a2373d1ef0480fda3d63b9966f24b7)
+        specifier: ^2.44.0
+        version: 2.44.0(e0a2373d1ef0480fda3d63b9966f24b7)
       '@kungal/ui-tokens':
-        specifier: ^2.42.0
-        version: 2.42.0(tailwindcss@4.3.3)
+        specifier: ^2.44.0
+        version: 2.44.0(tailwindcss@4.3.3)
       '@kungal/ui-vue':
-        specifier: ^2.42.0
-        version: 2.42.0(change-case@5.4.4)(fuse.js@7.5.0)(vue@3.5.42(typescript@6.0.3))
+        specifier: ^2.44.0
+        version: 2.44.0(change-case@5.4.4)(fuse.js@7.5.0)(vue@3.5.42(typescript@6.0.3))
       '@nuxt/eslint':
         specifier: 1.15.2
         version: 1.15.2(@typescript-eslint/utils@8.70.0(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.42)(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(magic-string@1.4.1)(magicast@0.5.5)(rolldown@1.2.9)(supports-color@10.2.2)(typescript@6.0.3)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.9)(rollup@4.63.3)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(vite@8.3.0(@types/node@26.6.1)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1))
@@ -190,17 +190,17 @@ importers:
   apps/developer:
     dependencies:
       '@kungal/ui-core':
-        specifier: ^2.42.0
-        version: 2.42.0
+        specifier: ^2.44.0
+        version: 2.44.0
       '@kungal/ui-nuxt':
-        specifier: ^2.42.0
-        version: 2.42.0(01b5fef47ebbc745fc0d5e904f9f9797)
+        specifier: ^2.44.0
+        version: 2.44.0(01b5fef47ebbc745fc0d5e904f9f9797)
       '@kungal/ui-tokens':
-        specifier: ^2.42.0
-        version: 2.42.0(tailwindcss@4.3.3)
+        specifier: ^2.44.0
+        version: 2.44.0(tailwindcss@4.3.3)
       '@kungal/ui-vue':
-        specifier: ^2.42.0
-        version: 2.42.0(change-case@5.4.4)(fuse.js@7.5.0)(vue@3.5.42(typescript@6.0.3))
+        specifier: ^2.44.0
+        version: 2.44.0(change-case@5.4.4)(fuse.js@7.5.0)(vue@3.5.42(typescript@6.0.3))
       '@nuxt/eslint':
         specifier: 1.15.2
         version: 1.15.2(@typescript-eslint/utils@8.70.0(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.42)(eslint@10.10.0(jiti@2.7.0)(supports-color@10.2.2))(magic-string@1.4.1)(magicast@0.5.5)(rolldown@1.2.9)(supports-color@10.2.2)(typescript@6.0.3)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.9)(rollup@4.63.3)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(vite@8.3.0(@types/node@26.6.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1))
@@ -1084,22 +1084,22 @@ packages:
   '@keyv/serialize@1.1.1':
     resolution: {integrity: sha512-dXn3FZhPv0US+7dtJsIi2R+c7qWYiReoEh5zUntWCf4oSpMNib8FDhSoed6m3QyZdx5hK7iLFkYk3rNxwt8vTA==}
 
-  '@kungal/ui-core@2.42.0':
-    resolution: {integrity: sha512-2ctBI4su/7pM2sR2PDe+BTY0PhTW0pXQfm8jBpENfyni54ms6yPY7hhR1mng+kV+d2qPo7fT5ym5Jxu4W3ji7g==}
+  '@kungal/ui-core@2.44.0':
+    resolution: {integrity: sha512-EiODo60XJwAFsxYSkd4SsPh3097ln+7nMP4i5OU3CAAudLynY5AYlgy7C8sVSI0J1WlkPT4PCU3xvw3yQiVApQ==}
 
-  '@kungal/ui-nuxt@2.42.0':
-    resolution: {integrity: sha512-bT01j3utdEUENfSpdNGbzSkeWdWrfHFSSdcVgBUmJBBCqt2Q1IbLT3601Jd67xtYAnqE0b4CgoPxxBDyop6D5w==}
+  '@kungal/ui-nuxt@2.44.0':
+    resolution: {integrity: sha512-86Fz6/1yndXp66t1+GSZiN3r1dngt6PmgflY9QS0SrRzu5mafDD7cbxErZHApiGf6MFs80AaKEHCmf/xiQwSFw==}
     peerDependencies:
       nuxt: ^4.0.0
       vue: ^3.5.0
 
-  '@kungal/ui-tokens@2.42.0':
-    resolution: {integrity: sha512-Sehn2cZGbVn7O4etYRK6Ph0W/C3P89Y1MEj6RbDt9CC3Hk4Bw3pYHawp0tk73/b7IHavtLtAdW2AacxLV0Ow9Q==}
+  '@kungal/ui-tokens@2.44.0':
+    resolution: {integrity: sha512-YU0NShjRtvxYVEzmqHBkoGSElz2alRUNGbw2Op3bILbMUyjX6YQS7fPnZqIg/jw/QSk9iip/Wf62NHjHObMTmA==}
     peerDependencies:
       tailwindcss: ^4.0.0
 
-  '@kungal/ui-vue@2.42.0':
-    resolution: {integrity: sha512-erzYKqvagaFBItdqnIJ8VllYnIW3CDf1R75dqpNFngwCvTHP/9/NjlSFA/RyAwyAxzZoxzJhI4ijYYLDV9VCmg==}
+  '@kungal/ui-vue@2.44.0':
+    resolution: {integrity: sha512-L3zHPZ7Z7i9e7j/dcxB9XEZiX7d6u03T80dYLuG0G/jdZCA6LalSefapk3RJ8z3jQeRitzY9Rr60ZPluaLGeRA==}
     peerDependencies:
       vue: ^3.5.0
 
@@ -6167,15 +6167,15 @@ snapshots:
 
   '@keyv/serialize@1.1.1': {}
 
-  '@kungal/ui-core@2.42.0':
+  '@kungal/ui-core@2.44.0':
     dependencies:
       clsx: 2.1.1
       tailwind-merge: 3.7.0
 
-  '@kungal/ui-nuxt@2.42.0(01b5fef47ebbc745fc0d5e904f9f9797)':
+  '@kungal/ui-nuxt@2.44.0(01b5fef47ebbc745fc0d5e904f9f9797)':
     dependencies:
-      '@kungal/ui-tokens': 2.42.0(tailwindcss@4.3.3)
-      '@kungal/ui-vue': 2.42.0(change-case@5.4.4)(fuse.js@7.5.0)(vue@3.5.42(typescript@6.0.3))
+      '@kungal/ui-tokens': 2.44.0(tailwindcss@4.3.3)
+      '@kungal/ui-vue': 2.44.0(change-case@5.4.4)(fuse.js@7.5.0)(vue@3.5.42(typescript@6.0.3))
       '@nuxt/icon': 2.5.1(magic-string@1.4.1)(magicast@0.5.5)(rolldown@1.2.9)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.9)(rollup@4.63.3)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(vite@8.3.0(@types/node@26.6.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1))(vue@3.5.42(typescript@6.0.3))
       '@nuxt/image': 2.1.0(@types/node@26.6.1)(magic-string@1.4.1)(magicast@0.5.5)(rolldown@1.2.9)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.9)(rollup@4.63.3)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(unstorage@1.17.5(db0@0.3.4)(ioredis@5.11.1(supports-color@10.2.2)))
       '@nuxt/kit': 4.5.2(magic-string@1.4.1)(magicast@0.5.5)(rolldown@1.2.9)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.9)(rollup@4.63.3)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))
@@ -6204,10 +6204,10 @@ snapshots:
       - unstorage
       - vite
 
-  '@kungal/ui-nuxt@2.42.0(afb0e3084937707255e202fa374056e8)':
+  '@kungal/ui-nuxt@2.44.0(afb0e3084937707255e202fa374056e8)':
     dependencies:
-      '@kungal/ui-tokens': 2.42.0(tailwindcss@4.3.3)
-      '@kungal/ui-vue': 2.42.0(change-case@5.4.4)(fuse.js@7.5.0)(vue@3.5.42(typescript@6.0.3))
+      '@kungal/ui-tokens': 2.44.0(tailwindcss@4.3.3)
+      '@kungal/ui-vue': 2.44.0(change-case@5.4.4)(fuse.js@7.5.0)(vue@3.5.42(typescript@6.0.3))
       '@nuxt/icon': 2.5.1(magic-string@1.4.1)(magicast@0.5.5)(rolldown@1.2.9)(unplugin@3.4.0(esbuild@0.27.7)(rolldown@1.2.9)(rollup@4.63.3)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(vite@8.3.0(@types/node@26.6.1)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1))(vue@3.5.42(typescript@6.0.3))
       '@nuxt/image': 2.1.0(@types/node@26.6.1)(magic-string@1.4.1)(magicast@0.5.5)(rolldown@1.2.9)(unplugin@3.4.0(esbuild@0.27.7)(rolldown@1.2.9)(rollup@4.63.3)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(unstorage@1.17.5(db0@0.3.4)(ioredis@5.11.1(supports-color@10.2.2)))
       '@nuxt/kit': 4.5.2(magic-string@1.4.1)(magicast@0.5.5)(rolldown@1.2.9)(unplugin@3.4.0(esbuild@0.27.7)(rolldown@1.2.9)(rollup@4.63.3)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))
@@ -6236,10 +6236,10 @@ snapshots:
       - unstorage
       - vite
 
-  '@kungal/ui-nuxt@2.42.0(e0a2373d1ef0480fda3d63b9966f24b7)':
+  '@kungal/ui-nuxt@2.44.0(e0a2373d1ef0480fda3d63b9966f24b7)':
     dependencies:
-      '@kungal/ui-tokens': 2.42.0(tailwindcss@4.3.3)
-      '@kungal/ui-vue': 2.42.0(change-case@5.4.4)(fuse.js@7.5.0)(vue@3.5.42(typescript@6.0.3))
+      '@kungal/ui-tokens': 2.44.0(tailwindcss@4.3.3)
+      '@kungal/ui-vue': 2.44.0(change-case@5.4.4)(fuse.js@7.5.0)(vue@3.5.42(typescript@6.0.3))
       '@nuxt/icon': 2.5.1(magic-string@1.4.1)(magicast@0.5.5)(rolldown@1.2.9)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.9)(rollup@4.63.3)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(vite@8.3.0(@types/node@26.6.1)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1))(vue@3.5.42(typescript@6.0.3))
       '@nuxt/image': 2.1.0(@types/node@26.6.1)(magic-string@1.4.1)(magicast@0.5.5)(rolldown@1.2.9)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.9)(rollup@4.63.3)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(unstorage@1.17.5(db0@0.3.4)(ioredis@5.11.1(supports-color@10.2.2)))
       '@nuxt/kit': 4.5.2(magic-string@1.4.1)(magicast@0.5.5)(rolldown@1.2.9)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.9)(rollup@4.63.3)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))
@@ -6268,14 +6268,14 @@ snapshots:
       - unstorage
       - vite
 
-  '@kungal/ui-tokens@2.42.0(tailwindcss@4.3.3)':
+  '@kungal/ui-tokens@2.44.0(tailwindcss@4.3.3)':
     dependencies:
       tailwindcss: 4.3.3
 
-  '@kungal/ui-vue@2.42.0(change-case@5.4.4)(fuse.js@7.5.0)(vue@3.5.42(typescript@6.0.3))':
+  '@kungal/ui-vue@2.44.0(change-case@5.4.4)(fuse.js@7.5.0)(vue@3.5.42(typescript@6.0.3))':
     dependencies:
       '@floating-ui/vue': 1.1.11(vue@3.5.42(typescript@6.0.3))
-      '@kungal/ui-core': 2.42.0
+      '@kungal/ui-core': 2.44.0
       '@vueuse/core': 14.4.0(vue@3.5.42(typescript@6.0.3))
       '@vueuse/integrations': 14.4.0(change-case@5.4.4)(focus-trap@8.2.2)(fuse.js@7.5.0)(vue@3.5.42(typescript@6.0.3))
       date-fns: 4.4.0

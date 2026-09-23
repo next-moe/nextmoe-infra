@@ -1,4 +1,5 @@
 import type { NsfwDisplay } from './preferences'
+import type { ShopCosmetics } from './shop'
 
 export interface User {
   id?: number
@@ -19,6 +20,7 @@ export interface User {
   // has them undefined until /auth/me is read.
   adult_confirmed_at?: string | null
   nsfw_display?: NsfwDisplay
+  cosmetics?: ShopCosmetics
 }
 
 export interface UserSiteData {

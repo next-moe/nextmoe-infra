@@ -8,6 +8,7 @@ const STATIC_REASON_LABEL: Record<string, string> = {
   content_removed: '内容被下架',
   name_change: '修改用户名',
   spend: '消费',
+  purchase: '商店购买',
   reversal: '撤销',
   opening_balance: '期初余额'
 }
@@ -47,5 +48,10 @@ export const moemoepointReasonLabel = (
   }
 }
 
+const SOURCE_LABEL: Record<string, string> = {
+  oauth: '账号中心',
+  shop: '萌萌点商店'
+}
+
 export const moemoepointSourceLabel = (sourceApp: string): string =>
-  sourceApp === 'oauth' ? '账号中心' : sourceApp
+  SOURCE_LABEL[sourceApp] ?? sourceApp

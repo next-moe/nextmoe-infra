@@ -24,10 +24,18 @@ const formattedDate = computed(() => {
   <KunCard v-if="user" class="p-6">
     <div class="flex flex-col items-center text-center">
       <KunAvatar
-        :user="{ id: 0, name: user.name, avatar: avatarSrc }"
-        size="lg"
+        :user="{
+          id: 0,
+          name: user.name,
+          avatar: avatarSrc,
+          avatarDecoration: toAvatarDecoration(user.cosmetics?.avatar_frame)
+        }"
+        size="original-sm"
         :is-navigation="false"
       />
+      <KunButton href="/shop" size="sm" variant="light" class="mt-2">
+        {{ user.cosmetics?.avatar_frame ? '换一个头像框' : '去挑一个头像框' }}
+      </KunButton>
 
       <h2 class="text-foreground mt-4 text-lg font-semibold">{{ user.name }}</h2>
       <p class="text-default-400 mt-1 text-sm break-all">{{ user.email }}</p>
