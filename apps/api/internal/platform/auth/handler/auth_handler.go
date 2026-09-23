@@ -29,7 +29,7 @@ func (h *AuthHandler) WithCosmetics(src service.CosmeticsSource) *AuthHandler {
 	return h
 }
 
-func (h *AuthHandler) cosmeticsOf(c fiber.Ctx, userID, siteID uint) *shopModel.Cosmetics {
+func (h *AuthHandler) cosmeticsOf(c fiber.Ctx, userID, siteID uint) shopModel.Cosmetics {
 	if h.cosmetics == nil {
 		return nil
 	}

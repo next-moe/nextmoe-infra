@@ -86,7 +86,7 @@ func (s *Shop) Equip(ctx context.Context, userID uint, slot string, siteID uint,
 		if err != nil {
 			return err
 		}
-		if itemSlot, ok := model.SlotOf(it.Kind); !ok || itemSlot != slot {
+		if itemSlot, ok := slotOf(it.Kind); !ok || itemSlot != slot {
 			return errors.New(errors.ErrShopInvalidItem, "这件物品不能戴在这个位置")
 		}
 		owned, err := activeEntitlement(tx, userID, it.ID, s.now(), false)
@@ -116,8 +116,8 @@ type wornRow struct {
 // CosmeticsFor resolves what each user wears as seen from siteID. A
 // site-specific choice wins over the everywhere default; a loadout whose
 // entitlement lapsed or was revoked is skipped, so the default shows instead.
-func (s *Shop) CosmeticsFor(ctx context.Context, userIDs []uint, siteID uint) (map[uint]*model.Cosmetics, error) {
-	out := make(map[uint]*model.Cosmetics, len(userIDs))
+func (s *Shop) CosmeticsFor(ctx context.Context, userIDs []uint, siteID uint) (map[uint]model.Cosmetics, error) {
+	out := make(map[uint]model.Cosmetics, len(userIDs))
 	if len(userIDs) == 0 {
 		return out, nil
 	}
@@ -152,14 +152,10 @@ func (s *Shop) CosmeticsFor(ctx context.Context, userIDs []uint, siteID uint) (m
 		if d == nil {
 			continue
 		}
-		c := out[k.user]
-		if c == nil {
-			c = &model.Cosmetics{}
-			out[k.user] = c
+		if out[k.user] == nil {
+			out[k.user] = model.Cosmetics{}
 		}
-		if k.slot == model.SlotAvatarFrame {
-			c.AvatarFrame = d
-		}
+		out[k.user][k.slot] = d
 	}
 	return out, nil
 }

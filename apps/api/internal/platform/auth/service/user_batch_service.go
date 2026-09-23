@@ -11,7 +11,7 @@ import (
 )
 
 type CosmeticsSource interface {
-	CosmeticsFor(ctx context.Context, userIDs []uint, siteID uint) (map[uint]*shopModel.Cosmetics, error)
+	CosmeticsFor(ctx context.Context, userIDs []uint, siteID uint) (map[uint]shopModel.Cosmetics, error)
 }
 
 type UserBatchService struct {

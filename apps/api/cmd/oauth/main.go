@@ -393,6 +393,7 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	admin.Get("/users/:uuid/moemoepoint/log", moemoepointH.AdminGetLog)
 	shopManage := middleware.RequirePermission(shopPerm.Resolver, shopPerm.Manage)
 	shopGrant := middleware.RequirePermission(shopPerm.Resolver, shopPerm.Grant)
+	admin.Get("/shop/sites", shopManage, shopH.ListSites)
 	admin.Get("/shop/assets", shopManage, shopH.ListAssets)
 	admin.Post("/shop/assets", shopManage, shopH.UploadAsset)
 	admin.Get("/shop/items", shopManage, shopH.ListItems)

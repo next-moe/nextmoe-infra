@@ -1,10 +1,14 @@
 <script setup lang="ts">
+import { SHOP_KINDS } from '~/constants/shop'
+
 const props = defineProps<{ offer: ShopOffer | null }>()
 const open = defineModel<boolean>({ required: true })
 const emit = defineEmits<{ saved: [] }>()
 
 const api = useApi()
+const shopSites = useShopSites()
 const items = ref<ShopItem[]>([])
+const siteId = ref<number | ''>('')
 const itemId = ref<number | ''>('')
 const price = ref('100')
 const durationDays = ref('0')
@@ -19,19 +23,24 @@ const error = ref('')
 const toLocalInput = (s: string | null) => {
   if (!s) return ''
   const d = new Date(s)
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 16)
 }
 
 watch(open, async (v) => {
   if (!v) return
   error.value = ''
+  shopSites.load()
   const res = await api.get<{ items: ShopItem[] }>('/admin/shop/items')
   items.value = (res.data?.items ?? []).filter((i) => i.status !== 'retired')
   const o = props.offer
+  siteId.value = o?.site_id ?? ''
   itemId.value = o?.rewards[0]?.item.id ?? ''
   price.value = String(o?.price ?? 100)
   durationDays.value = String(o?.rewards[0]?.duration_days ?? 0)
-  stock.value = o?.stock !== null && o?.stock !== undefined ? String(o.stock) : ''
+  stock.value =
+    o?.stock !== null && o?.stock !== undefined ? String(o.stock) : ''
   perUserLimit.value = String(o?.per_user_limit ?? 0)
   sortOrder.value = String(o?.sort_order ?? 0)
   startsAt.value = toLocalInput(o?.starts_at ?? null)
@@ -39,10 +48,12 @@ watch(open, async (v) => {
 })
 
 const itemOptions = computed(() =>
-  items.value.map((i) => ({
-    value: i.id,
-    label: `${i.name}（${i.status === 'published' ? '已发布' : '未发布'}）`,
-  }))
+  items.value
+    .filter((i) => i.site_id === null || i.site_id === siteId.value)
+    .map((i) => ({
+      value: i.id,
+      label: `${SHOP_KINDS[i.kind]?.label ?? i.kind} · ${i.name}（${i.status === 'published' ? '已发布' : '未发布'}）`
+    }))
 )
 
 const save = async () => {
@@ -55,13 +66,16 @@ const save = async () => {
   try {
     const days = Number(durationDays.value) || 0
     const body = {
+      site_id: siteId.value === '' ? null : siteId.value,
       price: Number(price.value),
-      rewards: [{ item_id: itemId.value, ...(days > 0 ? { duration_days: days } : {}) }],
+      rewards: [
+        { item_id: itemId.value, ...(days > 0 ? { duration_days: days } : {}) }
+      ],
       stock: stock.value === '' ? null : Number(stock.value),
       per_user_limit: Number(perUserLimit.value) || 0,
       sort_order: Number(sortOrder.value) || 0,
       starts_at: startsAt.value ? new Date(startsAt.value).toISOString() : null,
-      ends_at: endsAt.value ? new Date(endsAt.value).toISOString() : null,
+      ends_at: endsAt.value ? new Date(endsAt.value).toISOString() : null
     }
     const res = props.offer
       ? await api.put(`/admin/shop/offers/${props.offer.id}`, body)
@@ -70,7 +84,10 @@ const save = async () => {
       error.value = res.message || '保存失败'
       return
     }
-    useKunMessage(props.offer ? '已保存' : '已创建，上架后用户才能看到', 'success')
+    useKunMessage(
+      props.offer ? '已保存' : '已创建，上架后用户才能看到',
+      'success'
+    )
     open.value = false
     emit('saved')
   } finally {
@@ -82,20 +99,72 @@ const save = async () => {
 <template>
   <KunModal v-model="open" :title="offer ? '编辑商品' : '新建商品'" size="md">
     <div class="space-y-4">
-      <KunSelect v-model="itemId" label="物品" placeholder="选择一个头像框" :options="itemOptions" />
+      <KunSelect
+        v-model="siteId"
+        label="在哪里卖"
+        :options="shopSites.options.value"
+        description="全站商品出现在商店首页；站点商品出现在该站点的专区"
+      />
+      <KunSelect
+        v-model="itemId"
+        label="物品"
+        placeholder="选择一件物品"
+        :options="itemOptions"
+      />
       <div class="grid grid-cols-2 gap-3">
-        <KunInput v-model="price" type="number" label="价格（萌萌点）" description="不能低于商店最低价（默认 100）" />
-        <KunInput v-model="durationDays" type="number" label="有效期（天）" description="0 表示永久" />
-        <KunInput v-model="stock" type="number" label="库存" description="留空表示不限量" />
-        <KunInput v-model="perUserLimit" type="number" label="每人限购" description="0 表示不限" />
-        <KunInput v-model="startsAt" type="datetime-local" label="开始时间" description="留空表示立即" />
-        <KunInput v-model="endsAt" type="datetime-local" label="结束时间" description="留空表示长期" />
-        <KunInput v-model="sortOrder" type="number" label="排序" description="越大越靠前" />
+        <KunInput
+          v-model="price"
+          type="number"
+          label="价格（萌萌点）"
+          description="不能低于商店最低价（默认 100）"
+        />
+        <KunInput
+          v-model="durationDays"
+          type="number"
+          label="有效期（天）"
+          description="0 表示永久"
+        />
+        <KunInput
+          v-model="stock"
+          type="number"
+          label="库存"
+          description="留空表示不限量"
+        />
+        <KunInput
+          v-model="perUserLimit"
+          type="number"
+          label="每人限购"
+          description="0 表示不限"
+        />
+        <KunInput
+          v-model="startsAt"
+          type="datetime-local"
+          label="开始时间"
+          description="留空表示立即"
+        />
+        <KunInput
+          v-model="endsAt"
+          type="datetime-local"
+          label="结束时间"
+          description="留空表示长期"
+        />
+        <KunInput
+          v-model="sortOrder"
+          type="number"
+          label="排序"
+          description="越大越靠前"
+        />
       </div>
-      <div v-if="error" class="bg-danger-50 text-danger rounded-lg p-3 text-sm">{{ error }}</div>
+      <div v-if="error" class="bg-danger-50 text-danger rounded-lg p-3 text-sm">
+        {{ error }}
+      </div>
       <div class="flex justify-end gap-3">
-        <KunButton color="default" variant="flat" @click="open = false">取消</KunButton>
-        <KunButton color="primary" :loading="saving" @click="save">保存</KunButton>
+        <KunButton color="default" variant="flat" @click="open = false"
+          >取消</KunButton
+        >
+        <KunButton color="primary" :loading="saving" @click="save"
+          >保存</KunButton
+        >
       </div>
     </div>
   </KunModal>

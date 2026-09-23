@@ -117,7 +117,7 @@ type UserResponse struct {
 	AdultConfirmedAt *string `json:"adult_confirmed_at,omitempty"`
 	NSFWDisplay      string  `json:"nsfw_display,omitempty"`
 
-	Cosmetics *shopModel.Cosmetics `json:"cosmetics,omitempty"`
+	Cosmetics shopModel.Cosmetics `json:"cosmetics,omitempty"`
 }
 
 type LoginResponse struct {

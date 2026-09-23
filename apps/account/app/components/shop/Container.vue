@@ -33,7 +33,9 @@ const load = async () => {
 
 onMounted(load)
 
-const balance = computed(() => inventory.value?.balance ?? user.value?.moemoepoint ?? 0)
+const balance = computed(
+  () => inventory.value?.balance ?? user.value?.moemoepoint ?? 0
+)
 const ownedForever = computed(
   () =>
     new Set(
@@ -42,12 +44,27 @@ const ownedForever = computed(
         .map((o) => o.item.id)
     )
 )
-const wornId = computed(
-  () =>
-    inventory.value?.loadout.find(
-      (l) => l.slot === 'avatar_frame' && l.site_id === 0
-    )?.item_id ?? null
-)
+const sections = computed(() => {
+  const global = offers.value.filter((o) => !o.site)
+  const bySite = new Map<number, { site: ShopSite; offers: ShopOffer[] }>()
+  for (const o of offers.value) {
+    if (!o.site) continue
+    const group = bySite.get(o.site.id) ?? { site: o.site, offers: [] }
+    group.offers.push(o)
+    bySite.set(o.site.id, group)
+  }
+  return [
+    ...(global.length
+      ? [{ key: 'all', title: '全站', note: '', offers: global }]
+      : []),
+    ...[...bySite.values()].map((g) => ({
+      key: `site-${g.site.id}`,
+      title: `${g.site.name} 专区`,
+      note: `${g.site.domain} 独家`,
+      offers: g.offers
+    }))
+  ]
+})
 
 const buying = ref<ShopOffer | null>(null)
 const purchaseOpen = ref(false)
@@ -76,7 +93,7 @@ const onEquipped = async () => {
           萌萌点商店
         </h1>
         <p class="text-default-500 mt-2 text-sm">
-          用萌萌点换头像框，戴上之后在所有 NextMoe·未萌 站点都能看到
+          用萌萌点换头像框和主页背景，装扮在所有 NextMoe·未萌 站点通用
         </p>
       </div>
       <KunChip color="warning" variant="flat" size="md">
@@ -90,7 +107,10 @@ const onEquipped = async () => {
     <KunTab v-model="tab" :items="tabs" />
 
     <div v-if="loading" class="flex justify-center py-16">
-      <KunIcon name="lucide:loader-circle" class="text-primary size-6 animate-spin" />
+      <KunIcon
+        name="lucide:loader-circle"
+        class="text-primary size-6 animate-spin"
+      />
     </div>
 
     <template v-else-if="tab === 'store'">
@@ -101,24 +121,34 @@ const onEquipped = async () => {
         <KunIcon name="lucide:gift" class="size-8" />
         商店还在准备中，过几天再来看看吧
       </div>
-      <div v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <ShopOfferCard
-          v-for="offer in offers"
-          :key="offer.id"
-          :offer="offer"
-          :user-name="user?.name ?? ''"
-          :avatar="avatarSrc"
-          :balance="balance"
-          :owned="offer.rewards.every((r) => ownedForever.has(r.item.id))"
-          @buy="openPurchase(offer)"
-        />
+      <div v-else class="space-y-8">
+        <section v-for="sec in sections" :key="sec.key" class="space-y-3">
+          <div v-if="sections.length > 1" class="flex items-baseline gap-2">
+            <h2 class="text-foreground font-semibold">{{ sec.title }}</h2>
+            <span v-if="sec.note" class="text-default-400 text-xs">{{
+              sec.note
+            }}</span>
+          </div>
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <ShopOfferCard
+              v-for="offer in sec.offers"
+              :key="offer.id"
+              :offer="offer"
+              :user-name="user?.name ?? ''"
+              :avatar="avatarSrc"
+              :balance="balance"
+              :owned="offer.rewards.every((r) => ownedForever.has(r.item.id))"
+              @buy="openPurchase(offer)"
+            />
+          </div>
+        </section>
       </div>
     </template>
 
     <ShopWardrobe
       v-else
       :items="inventory?.items ?? []"
-      :worn-id="wornId"
+      :loadout="inventory?.loadout ?? []"
       :user-name="user?.name ?? ''"
       :avatar="avatarSrc"
       @equipped="onEquipped"

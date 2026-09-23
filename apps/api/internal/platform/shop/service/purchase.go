@@ -38,11 +38,9 @@ type Purchased struct {
 	Replay  bool      `json:"replay"`
 }
 
-func sinkFor(items []model.Item) string {
-	for _, it := range items {
-		if it.SiteID != nil {
-			return fmt.Sprintf("shop:site:%d", *it.SiteID)
-		}
+func sinkFor(offer *model.Offer) string {
+	if offer.SiteID != nil {
+		return fmt.Sprintf("shop:site:%d", *offer.SiteID)
 	}
 	return ledgerSource
 }
@@ -80,7 +78,7 @@ func (s *Shop) Purchase(ctx context.Context, userID uint, offerID int64, idemKey
 			return nil
 		}
 		now := s.now()
-		if offer.Status != model.OfferActive || offer.SiteID != nil ||
+		if offer.Status != model.OfferActive ||
 			(offer.StartsAt != nil && offer.StartsAt.After(now)) || (offer.EndsAt != nil && !offer.EndsAt.After(now)) {
 			return errors.NewWithCode(errors.ErrShopOfferUnavailable)
 		}
@@ -104,7 +102,6 @@ func (s *Shop) Purchase(ctx context.Context, userID uint, offerID int64, idemKey
 		_ = json.Unmarshal(offer.Costs, &costs)
 		_ = json.Unmarshal(offer.Rewards, &rewards)
 		price := priceOf(costs)
-		items := make([]model.Item, 0, len(rewards))
 		names := make([]string, 0, len(rewards))
 		holdings := make([]model.PriorHolding, 0, len(rewards))
 		for _, r := range rewards {
@@ -127,7 +124,6 @@ func (s *Shop) Purchase(ctx context.Context, userID uint, offerID int64, idemKey
 				h.ExpiresAt = owned.ExpiresAt
 			}
 			holdings = append(holdings, h)
-			items = append(items, *it)
 			names = append(names, it.Name)
 		}
 
@@ -152,7 +148,7 @@ func (s *Shop) Purchase(ctx context.Context, userID uint, offerID int64, idemKey
 			Funded:         true,
 			Legs: []ledgerService.Leg{
 				{Account: ledgerService.UserAccount(userID), Amount: -price},
-				{Account: ledgerService.SinkAccount(sinkFor(items)), Amount: price},
+				{Account: ledgerService.SinkAccount(sinkFor(offer)), Amount: price},
 			},
 		})
 		if err != nil {

@@ -1,5 +1,12 @@
 export type ShopItemStatus = 'draft' | 'review' | 'published' | 'retired'
 export type ShopOfferStatus = 'draft' | 'active' | 'retired'
+export type ShopKind = 'avatar_frame' | 'profile_background'
+
+export interface ShopSite {
+  id: number
+  name: string
+  domain: string
+}
 
 export interface ShopDecoration {
   item_id: number
@@ -22,7 +29,7 @@ export interface ShopAsset {
 
 export interface ShopItem {
   id: number
-  kind: string
+  kind: ShopKind
   site_id: number | null
   status: ShopItemStatus
   name: string
@@ -41,6 +48,7 @@ export interface ShopRewardInput {
 export interface ShopOffer {
   id: number
   site_id: number | null
+  site?: ShopSite
   status: ShopOfferStatus
   price: number
   rewards: { item: ShopItem; duration_days?: number }[]

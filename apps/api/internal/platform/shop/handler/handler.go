@@ -113,16 +113,24 @@ func (h *Handler) UploadAsset(c fiber.Ctx) error {
 		return response.InternalError(c, errors.ErrOperationFailed)
 	}
 	defer f.Close()
-	data, err := io.ReadAll(io.LimitReader(f, 3<<20))
+	data, err := io.ReadAll(io.LimitReader(f, service.MaxUploadBytes+1))
 	if err != nil {
 		return response.InternalError(c, errors.ErrOperationFailed)
 	}
 	by, _ := c.Locals("user_id").(uint)
-	a, err := h.shop.UploadAsset(c.Context(), data, by)
+	a, err := h.shop.UploadAsset(c.Context(), c.FormValue("kind"), data, by)
 	if err != nil {
 		return respondErr(c, err)
 	}
 	return response.Success(c, a)
+}
+
+func (h *Handler) ListSites(c fiber.Ctx) error {
+	sites, err := h.shop.Sites(c.Context())
+	if err != nil {
+		return respondErr(c, err)
+	}
+	return response.Success(c, sites)
 }
 
 func (h *Handler) ListAssets(c fiber.Ctx) error {

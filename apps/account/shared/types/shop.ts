@@ -5,13 +5,22 @@ export interface ShopDecoration {
   animated_url?: string
 }
 
+export type ShopKind = 'avatar_frame' | 'profile_background'
+
 export interface ShopCosmetics {
   avatar_frame?: ShopDecoration
+  profile_background?: ShopDecoration
+}
+
+export interface ShopSite {
+  id: number
+  name: string
+  domain: string
 }
 
 export interface ShopItem {
   id: number
-  kind: string
+  kind: ShopKind
   site_id: number | null
   status: 'draft' | 'review' | 'published' | 'retired'
   name: string
@@ -26,6 +35,8 @@ export interface ShopReward {
 
 export interface ShopOffer {
   id: number
+  site_id: number | null
+  site?: ShopSite
   price: number
   rewards: ShopReward[]
   starts_at: string | null
@@ -44,7 +55,7 @@ export interface ShopOwnedItem {
 }
 
 export interface ShopLoadout {
-  slot: string
+  slot: ShopKind
   site_id: number
   item_id: number
 }
