@@ -24,6 +24,8 @@ import (
 	authHandler "api/internal/platform/auth/handler"
 	authRepo "api/internal/platform/auth/repository"
 	authService "api/internal/platform/auth/service"
+	ledgerHandler "api/internal/platform/ledger/handler"
+	ledgerService "api/internal/platform/ledger/service"
 	"api/pkg/imageclient"
 
 	artifactHandler "api/internal/platform/artifact/handler"
@@ -73,6 +75,16 @@ func main() {
 		os.Exit(1)
 	}
 
+	imported, err := ledgerService.ImportLegacy(context.Background(), application.DB.DB())
+	if err != nil {
+		slog.Error("moemoepoint ledger import failed; refusing to serve an unimported ledger", "error", err)
+		os.Exit(1)
+	}
+	if imported.Legacy+imported.Openings > 0 {
+		slog.Info("imported legacy moemoepoint rows into the ledger",
+			"legacy", imported.Legacy, "openings", imported.Openings)
+	}
+
 	cleanupCtx, cancelCleanup := context.WithCancel(context.Background())
 	defer cancelCleanup()
 
@@ -118,8 +130,8 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	adminSvc := authService.NewAdminService(userRepo, sessionRepo, siteRoleRepo, siteRepository, imgCli)
 	userBatchSvc := authService.NewUserBatchService(userRepo, siteRoleRepo)
 	creatorAppSvc := authService.NewCreatorApplicationService(authRepo.NewCreatorApplicationRepository(db), userRepo, userBatchSvc)
-	moemoepointSvc := authService.NewMoemoepointService(a.DB.DB(), userRepo)
-	authSvc.WithMoemoepoint(moemoepointSvc)
+	ledger := ledgerService.New(a.DB.DB())
+	authSvc.WithLedger(ledger)
 	prefSvc := authService.NewPreferenceService(userRepo, authRepo.NewUserPreferenceRepository(db))
 
 	fedReg := federation.NewRegistry(cfg)
@@ -135,7 +147,7 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	fedH := authHandler.NewFederationHandler(fedSvc, cfg)
 	oauthH := authHandler.NewOAuthHandler(oauthSvc, cfg)
 	adminH := authHandler.NewAdminHandler(adminSvc)
-	moemoepointH := authHandler.NewMoemoepointHandler(moemoepointSvc)
+	moemoepointH := ledgerHandler.New(ledger, userRepo)
 	userBatchH := authHandler.NewUserBatchHandler(userBatchSvc)
 	creatorAppH := authHandler.NewCreatorApplicationHandler(creatorAppSvc)
 	prefH := authHandler.NewPreferenceHandler(prefSvc)
@@ -308,6 +320,10 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	)
 	v1.Post("/users/:id/moemoepoint",
 		middleware.OAuthClientBasicAuth(oauthClientRepo), moemoepointH.Adjust)
+	v1.Post("/users/:id/moemoepoint/charges",
+		middleware.OAuthClientBasicAuth(oauthClientRepo), moemoepointH.Charge)
+	v1.Post("/users/:id/moemoepoint/reversals",
+		middleware.OAuthClientBasicAuth(oauthClientRepo), moemoepointH.Reverse)
 	v1.Get("/users/:id/moemoepoint",
 		middleware.OAuthClientBasicAuth(oauthClientRepo), moemoepointH.GetBalance)
 	v1.Get("/users/:id/moemoepoint/log",

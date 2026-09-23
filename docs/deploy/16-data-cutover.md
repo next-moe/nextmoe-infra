@@ -229,7 +229,7 @@ docker compose --env-file "$INFRA/.env" -f "$INFRA/docker-compose.prod.yml" up -
 
 $MOYU   backfill-release-date
 $KUNGAL backfill-release-date
-$INFRA_OAUTH migrate-moemoepoint     # 迁移 kungal/moyu 萌萌点日志
+$INFRA_OAUTH migrate-moemoepoint     # 迁移 kungal/moyu 萌萌点日志(2026-09-23 已删除,见 06-moemoepoint.md §6)
 ```
 
 ---
@@ -302,7 +302,7 @@ curl -I https://account.nextmoe.com https://www.kungal.com https://www.moyu.moe 
 | `oauth-admin: go run ./cmd/cleanup-bogus-vndb-id [--delete]` | `$INFRA_WIKI cleanup-bogus-vndb-id [--delete]` |
 | `oauth-admin: go run ./cmd/sync-vndb-relations` | `$INFRA_WIKI sync-vndb-relations -tagmap docs/tagMap.ts` |
 | `patch-next/nuxt4: go run ./cmd/backfill-release-date` | `$MOYU backfill-release-date` / `$KUNGAL backfill-release-date`(需 galgame 在跑) |
-| `oauth-admin: go run ./cmd/migrate-moemoepoint` | `$INFRA_OAUTH migrate-moemoepoint` |
+| `oauth-admin: go run ./cmd/migrate-moemoepoint` | 已删除(2026-09-23,由账本导入取代) |
 
 ---
 

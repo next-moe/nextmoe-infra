@@ -6,6 +6,7 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"log/slog"
 	"math/big"
@@ -18,6 +19,8 @@ import (
 	"api/internal/platform/auth/dto"
 	"api/internal/platform/auth/model"
 	"api/internal/platform/auth/repository"
+	ledgerModel "api/internal/platform/ledger/model"
+	ledgerService "api/internal/platform/ledger/service"
 	"api/internal/platform/settings/keys"
 	"api/pkg/config"
 	"api/pkg/errors"
@@ -43,14 +46,34 @@ type AuthService struct {
 	mailer            *mail.Mailer
 	cache             *cache.RedisCache
 	cfg               *config.Config
-	moemoepointSvc    *MoemoepointService
+	ledger            *ledgerService.Ledger
 	signer            oidctoken.Signer
 	verifier          *oidctoken.Verifier
 }
 
-func (s *AuthService) WithMoemoepoint(mp *MoemoepointService) *AuthService {
-	s.moemoepointSvc = mp
+func (s *AuthService) WithLedger(l *ledgerService.Ledger) *AuthService {
+	s.ledger = l
 	return s
+}
+
+func (s *AuthService) grantRegisterGift(ctx context.Context, user *model.User) {
+	gift := int64(keys.AuthRegisterGiftPoints.Get())
+	if s.ledger == nil || gift == 0 {
+		return
+	}
+	res, err := s.ledger.Award(ctx, ledgerService.Award{
+		UserID:         user.ID,
+		Delta:          gift,
+		Reason:         ledgerModel.ReasonRegisterGift,
+		SourceApp:      "oauth",
+		IdempotencyKey: fmt.Sprintf("oauth:register_gift:%d", user.ID),
+		Note:           "NextMoe·未萌给予你的第一份礼物",
+	})
+	if err != nil {
+		slog.Warn("register welcome gift failed (best-effort)", "user_id", user.ID, "err", err)
+		return
+	}
+	user.Moemoepoint = int(res.UserBalance(user.ID))
 }
 
 func (s *AuthService) WithTokenSigner(signer oidctoken.Signer) *AuthService {
@@ -218,21 +241,7 @@ func (s *AuthService) Register(ctx context.Context, req *dto.RegisterRequest) (*
 
 	_ = s.cache.Delete(redisKey)
 
-	if s.moemoepointSvc != nil {
-		res, gErr := s.moemoepointSvc.Adjust(ctx, AdjustParams{
-			UserID:         user.ID,
-			Delta:          int(keys.AuthRegisterGiftPoints.Get()),
-			Reason:         model.MoemoepointReasonRegisterGift,
-			SourceApp:      "oauth",
-			IdempotencyKey: fmt.Sprintf("oauth:register_gift:%d", user.ID),
-			Note:           "NextMoe·未萌给予你的第一份礼物",
-		})
-		if gErr != nil {
-			slog.Warn("register welcome gift failed (best-effort)", "user_id", user.ID, "err", gErr)
-		} else {
-			user.Moemoepoint = res.Balance
-		}
-	}
+	s.grantRegisterGift(ctx, user)
 
 	return tokens, user, nil
 }
@@ -759,8 +768,8 @@ func (s *AuthService) UpdateProfile(ctx context.Context, userUUID string, req *d
 	// bug in a smaller form (renamed but not charged, or charged but not
 	// renamed), so the charge is not something a later edit can drop by moving
 	// one call out of the block.
-	if s.moemoepointSvc == nil {
-		return nil, fmt.Errorf("moemoepoint service not configured: refusing to rename without charging")
+	if s.ledger == nil {
+		return nil, fmt.Errorf("ledger not configured: refusing to rename without charging")
 	}
 	cost := int(keys.AuthNameChangeCost.Get())
 
@@ -790,19 +799,18 @@ func (s *AuthService) UpdateProfile(ctx context.Context, userUUID string, req *d
 			return nil
 		}
 
-		seq, err := s.moemoepointSvc.NextReasonSeqTx(ctx, tx, user.ID, model.MoemoepointReasonNameChange)
+		prior, err := s.ledger.CountUserTransfersTx(ctx, tx, user.ID, ledgerModel.ReasonNameChange)
 		if err != nil {
 			return err
 		}
-		_, err = s.moemoepointSvc.AdjustTx(ctx, tx, AdjustParams{
-			UserID:             user.ID,
-			Delta:              -cost,
-			Reason:             model.MoemoepointReasonNameChange,
-			SourceApp:          "oauth",
-			ActorUserID:        user.ID,
-			IdempotencyKey:     fmt.Sprintf("oauth:name_change:%d:%d", user.ID, seq),
-			Note:               user.Name + " → " + *req.Name,
-			RequireNonNegative: true,
+		_, err = s.ledger.ChargeTx(ctx, tx, ledgerService.Charge{
+			UserID:         user.ID,
+			Amount:         int64(cost),
+			Reason:         ledgerModel.ReasonNameChange,
+			SourceApp:      "oauth",
+			ActorUserID:    user.ID,
+			IdempotencyKey: fmt.Sprintf("oauth:name_change:%d:%d", user.ID, prior+1),
+			Note:           user.Name + " → " + *req.Name,
 		})
 		return err
 	})
@@ -853,6 +861,13 @@ func (s *AuthService) ChangeEmail(ctx context.Context, userUUID, code, newEmail 
 	_ = s.cache.Delete(redisKey)
 
 	return nil
+}
+
+func mapUserErr(err error) error {
+	if stderrors.Is(err, gorm.ErrRecordNotFound) {
+		return errors.NewWithCode(errors.ErrAuthUserNotFound)
+	}
+	return err
 }
 
 func generateNumericCode(length int) (string, error) {

@@ -116,7 +116,7 @@ cd nextmoe-infra/apps/api && go run ./cmd/reindex-catalog
 5. **kungal 收尾迁移**(**必须在 `migrate-users` 之后**,否则游标指向旧 id):
    kungal `migrate --only=005/006/007/015/012` + `backfill-provider-names`。
 6. **moyu 收尾迁移**:moyu `migrate`(001 then 全量)+ `remap-patch-ids`。
-7. **VNDB / 发布日期 / 萌萌点回填**:infra `sync-vndb*`、各仓 `backfill-release-date`、infra `migrate-moemoepoint`。
+7. **VNDB / 发布日期 / 萌萌点回填**:infra `sync-vndb*`、各仓 `backfill-release-date`、infra `migrate-moemoepoint`(2026-09-23 已删除:萌萌点改记复式账本,旧流水由 `cmd/migrate` 与 `cmd/oauth` 启动时自动导入,见 `docs/integration/oauth/06-moemoepoint.md` §6)。
 
 > 每步对应一个 `docker compose run --rm <job>`(job 名 = `cmd/` 目录名,用 `--build-arg CMD=` 出镜像)。**严格按上面的序**;`migrate-users` 是分水岭,跨它的步骤不能乱序。原始逐条命令见仓库根 `docs/migration/` 与团队 runbook。
 

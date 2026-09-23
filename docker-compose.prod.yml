@@ -1002,7 +1002,6 @@ services:
 
   # All cmd/* binaries (data cutover). Run a job by name (see 16-data-cutover.md):
   #   docker compose -f docker-compose.prod.yml --profile jobs run --rm tools reindex-catalog --batch=5000
-  #   docker compose -f docker-compose.prod.yml --profile jobs run --rm tools migrate-moemoepoint
   tools:
     image: ghcr.io/next-moe/infra-tools:latest
     pull_policy: always

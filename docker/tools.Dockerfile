@@ -1,7 +1,7 @@
 #
 # Tools image: EVERY apps/api/cmd/* binary in one image, for the one-off
 # migration / maintenance jobs the per-service images don't carry — e.g.
-# reindex-catalog, migrate-moemoepoint, the catalog backfills
+# reindex-catalog, unmerge-work, the catalog backfills
 # (see docs/deploy/03-bootstrap.md §B). Wave 161 retired the galgame-family
 # binaries this comment used to name (migrate-galgame-data, dedup-galgame-alias,
 # reindex-search, sync-vndb, ...) together with the tables they operated on.

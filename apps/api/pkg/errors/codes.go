@@ -46,11 +46,13 @@ const (
 	ErrOAuthConsentRequired      = 15010
 	ErrOAuthUnsupportedGrantType = 15011
 
-	ErrMoemoepointInvalidDelta  = 16002
-	ErrMoemoepointInvalidReason = 16003
-	ErrMoemoepointIdemConflict  = 16004
-	ErrMoemoepointNotAwarder    = 16005
-	ErrMoemoepointInsufficient  = 16006
+	ErrMoemoepointInvalidDelta     = 16002
+	ErrMoemoepointInvalidReason    = 16003
+	ErrMoemoepointIdemConflict     = 16004
+	ErrMoemoepointNotAwarder       = 16005
+	ErrMoemoepointInsufficient     = 16006
+	ErrMoemoepointTransferNotFound = 16007
+	ErrMoemoepointNotReversible    = 16008
 
 	ErrCreatorAlreadyHas    = 17001
 	ErrCreatorAppPending    = 17002
@@ -189,11 +191,13 @@ var codeMessages = map[int]string{
 	ErrOAuthConsentRequired:      "需要用户授权同意",
 	ErrOAuthUnsupportedGrantType: "不支持的授权类型",
 
-	ErrMoemoepointInvalidDelta:  "萌萌点变动值不能为 0",
-	ErrMoemoepointInvalidReason: "未知的萌萌点变动原因",
-	ErrMoemoepointIdemConflict:  "幂等键已存在但请求内容不一致",
-	ErrMoemoepointNotAwarder:    "该客户端无权发放萌萌点",
-	ErrMoemoepointInsufficient:  "萌萌点不足",
+	ErrMoemoepointInvalidDelta:     "萌萌点变动值不能为 0",
+	ErrMoemoepointInvalidReason:    "未知的萌萌点变动原因",
+	ErrMoemoepointIdemConflict:     "幂等键已存在但请求内容不一致",
+	ErrMoemoepointNotAwarder:       "该客户端无权发放萌萌点",
+	ErrMoemoepointInsufficient:     "萌萌点不足",
+	ErrMoemoepointTransferNotFound: "萌萌点记录不存在",
+	ErrMoemoepointNotReversible:    "撤销记录不能再被撤销",
 
 	ErrGalgameNotFound:           "Galgame 不存在",
 	ErrGalgameAlreadyExists:      "Galgame 已存在",
