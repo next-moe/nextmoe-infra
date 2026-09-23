@@ -21,55 +21,78 @@ const formattedDate = computed(() => {
 </script>
 
 <template>
-  <KunCard v-if="user" class="p-6">
-    <div class="flex flex-col items-center text-center">
-      <KunAvatar
-        :user="{
-          id: 0,
-          name: user.name,
-          avatar: avatarSrc,
-          avatarDecoration: toAvatarDecoration(user.cosmetics?.avatar_frame)
-        }"
-        size="original-sm"
-        :is-navigation="false"
-      />
-      <KunButton href="/shop" size="sm" variant="light" class="mt-2">
-        {{ user.cosmetics?.avatar_frame ? '换一个头像框' : '去挑一个头像框' }}
-      </KunButton>
+  <KunCard v-if="user" padding="none" class="overflow-hidden">
+    <ShopBanner
+      v-if="user.cosmetics?.profile_background"
+      :decoration="user.cosmetics.profile_background"
+    />
+    <div class="p-6">
+      <div class="flex flex-col items-center text-center">
+        <KunAvatar
+          :user="{
+            id: 0,
+            name: user.name,
+            avatar: avatarSrc,
+            avatarDecoration: toAvatarDecoration(user.cosmetics?.avatar_frame)
+          }"
+          size="original-sm"
+          :is-navigation="false"
+        />
+        <KunButton href="/shop" size="sm" variant="light" class="mt-2">
+          {{
+            user.cosmetics?.avatar_frame || user.cosmetics?.profile_background
+              ? '换装扮'
+              : '去挑装扮'
+          }}
+        </KunButton>
 
-      <h2 class="text-foreground mt-4 text-lg font-semibold">{{ user.name }}</h2>
-      <p class="text-default-400 mt-1 text-sm break-all">{{ user.email }}</p>
+        <h2 class="text-foreground mt-4 text-lg font-semibold">
+          {{ user.name }}
+        </h2>
+        <p class="text-default-400 mt-1 text-sm break-all">{{ user.email }}</p>
 
-      <div v-if="user.roles?.length" class="mt-4 flex flex-wrap justify-center gap-2">
-        <KunChip
-          v-for="role in user.roles"
-          :key="role"
-          :color="roleColor(role)"
-          size="sm"
+        <div
+          v-if="user.roles?.length"
+          class="mt-4 flex flex-wrap justify-center gap-2"
         >
-          {{ roleLabel(role) }}
-        </KunChip>
+          <KunChip
+            v-for="role in user.roles"
+            :key="role"
+            :color="roleColor(role)"
+            size="sm"
+          >
+            {{ roleLabel(role) }}
+          </KunChip>
+        </div>
+
+        <p
+          v-if="user.bio"
+          class="text-default-500 mt-4 text-sm leading-relaxed"
+        >
+          {{ user.bio }}
+        </p>
       </div>
 
-      <p v-if="user.bio" class="text-default-500 mt-4 text-sm leading-relaxed">
-        {{ user.bio }}
-      </p>
-    </div>
-
-    <div class="border-default-200 mt-6 space-y-3 border-t pt-5 text-sm">
-      <div class="flex items-center justify-between gap-3">
-        <span class="text-default-400 flex items-center gap-1.5">
-          <KunIcon name="lucide:star" class="size-4" />
-          萌萌点
-        </span>
-        <span class="text-foreground font-medium">{{ user.moemoepoint }}</span>
-      </div>
-      <div v-if="formattedDate" class="flex items-center justify-between gap-3">
-        <span class="text-default-400 flex items-center gap-1.5">
-          <KunIcon name="lucide:calendar" class="size-4" />
-          注册于
-        </span>
-        <span class="text-foreground">{{ formattedDate }}</span>
+      <div class="border-default-200 mt-6 space-y-3 border-t pt-5 text-sm">
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-default-400 flex items-center gap-1.5">
+            <KunIcon name="lucide:star" class="size-4" />
+            萌萌点
+          </span>
+          <span class="text-foreground font-medium">{{
+            user.moemoepoint
+          }}</span>
+        </div>
+        <div
+          v-if="formattedDate"
+          class="flex items-center justify-between gap-3"
+        >
+          <span class="text-default-400 flex items-center gap-1.5">
+            <KunIcon name="lucide:calendar" class="size-4" />
+            注册于
+          </span>
+          <span class="text-foreground">{{ formattedDate }}</span>
+        </div>
       </div>
     </div>
   </KunCard>

@@ -95,15 +95,15 @@ func (f *fixture) user(balance int64) uint {
 func (f *fixture) frame(name string) int64 {
 	f.t.Helper()
 	ctx := context.Background()
-	static, err := f.shop.UploadAsset(ctx, framePNG(f.t, 384, false), 1)
+	static, err := f.shop.UploadAsset(ctx, model.KindAvatarFrame, framePNG(f.t, 384, false), 1)
 	if err != nil {
 		f.t.Fatalf("upload static: %v", err)
 	}
-	anim, err := f.shop.UploadAsset(ctx, animatedWebPHeader(384, 0x12), 1)
+	anim, err := f.shop.UploadAsset(ctx, model.KindAvatarFrame, animatedWebPHeader(384, 0x12), 1)
 	if err != nil {
 		f.t.Fatalf("upload animated: %v", err)
 	}
-	render, _ := json.Marshal(model.AvatarFrameRender{Static: static.Key, Animated: anim.Key})
+	render, _ := json.Marshal(model.Render{Static: static.Key, Animated: anim.Key})
 	it, err := f.shop.CreateItem(ctx, ItemInput{Kind: model.KindAvatarFrame, Name: name, Render: render}, 1)
 	if err != nil {
 		f.t.Fatalf("create item: %v", err)
@@ -116,6 +116,38 @@ func (f *fixture) frame(name string) int64 {
 		testDB.Exec(`DELETE FROM shop_items WHERE id = ?`, it.ID)
 	})
 	return it.ID
+}
+
+func (f *fixture) background(name string, siteID *uint) int64 {
+	f.t.Helper()
+	ctx := context.Background()
+	static, err := f.shop.UploadAsset(ctx, model.KindProfileBackground, bannerJPEG(f.t, 1500, 500), 1)
+	if err != nil {
+		f.t.Fatalf("upload banner: %v", err)
+	}
+	render, _ := json.Marshal(model.Render{Static: static.Key})
+	it, err := f.shop.CreateItem(ctx, ItemInput{Kind: model.KindProfileBackground, SiteID: siteID, Name: name, Render: render}, 1)
+	if err != nil {
+		f.t.Fatalf("create background: %v", err)
+	}
+	if _, err := f.shop.TransitionItem(ctx, it.ID, ItemPublish); err != nil {
+		f.t.Fatalf("publish background: %v", err)
+	}
+	f.t.Cleanup(func() {
+		testDB.Exec(`DELETE FROM shop_entitlements WHERE item_id = ?`, it.ID)
+		testDB.Exec(`DELETE FROM shop_items WHERE id = ?`, it.ID)
+	})
+	return it.ID
+}
+
+func (f *fixture) site() uint {
+	f.t.Helper()
+	site := siteModel.Site{Name: "t" + strconv.FormatInt(seq.Add(1), 10), Domain: fmt.Sprintf("s%d.test.local", time.Now().UnixNano())}
+	if err := testDB.Create(&site).Error; err != nil {
+		f.t.Fatalf("create site: %v", err)
+	}
+	f.t.Cleanup(func() { testDB.Exec(`DELETE FROM sites WHERE id = ?`, site.ID) })
+	return site.ID
 }
 
 func (f *fixture) offer(in OfferInput) int64 {
@@ -150,10 +182,7 @@ func (f *fixture) worn(user uint, site uint) *model.Decoration {
 	if err != nil {
 		f.t.Fatalf("cosmetics: %v", err)
 	}
-	if c[user] == nil {
-		return nil
-	}
-	return c[user].AvatarFrame
+	return c[user][model.SlotAvatarFrame]
 }
 
 func wantCode(t *testing.T, err error, code int, what string) {
@@ -170,12 +199,12 @@ func TestOfferRespectsTheMinimumPriceAndPublishedItems(t *testing.T) {
 	_, err := f.shop.CreateOffer(ctx, OfferInput{Price: 99, Rewards: []model.Reward{{ItemID: item}}}, 1)
 	wantCode(t, err, errors.ErrShopPriceBelowMinimum, "a price under shop.min_price")
 
-	render, _ := json.Marshal(model.AvatarFrameRender{Static: "decorations/missing.png"})
+	render, _ := json.Marshal(model.Render{Static: "decorations/missing.png"})
 	_, err = f.shop.CreateItem(ctx, ItemInput{Kind: model.KindAvatarFrame, Name: "x", Render: render}, 1)
 	wantCode(t, err, errors.ErrShopInvalidItem, "an item whose art was never uploaded")
 
-	static, _ := f.shop.UploadAsset(ctx, framePNG(t, 384, false), 1)
-	render, _ = json.Marshal(model.AvatarFrameRender{Static: static.Key})
+	static, _ := f.shop.UploadAsset(ctx, model.KindAvatarFrame, framePNG(t, 384, false), 1)
+	render, _ = json.Marshal(model.Render{Static: static.Key})
 	draft, err := f.shop.CreateItem(ctx, ItemInput{Kind: model.KindAvatarFrame, Name: "草稿", Render: render}, 1)
 	if err != nil {
 		t.Fatalf("create draft: %v", err)
@@ -189,8 +218,8 @@ func TestOfferRespectsTheMinimumPriceAndPublishedItems(t *testing.T) {
 	_, err = f.shop.TransitionOffer(ctx, o.ID, OfferActivate)
 	wantCode(t, err, errors.ErrShopInvalidOffer, "putting a draft item on sale")
 
-	anim, _ := f.shop.UploadAsset(ctx, animatedWebPHeader(384, 0x12), 1)
-	moved, _ := json.Marshal(model.AvatarFrameRender{Static: static.Key, Animated: anim.Key})
+	anim, _ := f.shop.UploadAsset(ctx, model.KindAvatarFrame, animatedWebPHeader(384, 0x12), 1)
+	moved, _ := json.Marshal(model.Render{Static: static.Key, Animated: anim.Key})
 	if _, err := f.shop.TransitionItem(ctx, draft.ID, ItemPublish); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
@@ -501,4 +530,113 @@ func TestAConcurrentRetryGetsTheFirstOrder(t *testing.T) {
 	if fresh.Load() != 1 || replays.Load() != 5 || f.balance(u) != 900 {
 		t.Fatalf("%d fresh, %d replays, balance %d; want 1, 5, 900", fresh.Load(), replays.Load(), f.balance(u))
 	}
+}
+
+func TestAFrameAndABackgroundAreWornTogether(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	frame, bg := f.frame("并存框"), f.background("并存背景", nil)
+	u := f.user(1000)
+	for _, item := range []int64{frame, bg} {
+		if _, err := f.buy(u, f.offer(OfferInput{Price: 100, Rewards: []model.Reward{{ItemID: item}}}), fmt.Sprint("k", item)); err != nil {
+			t.Fatalf("buy %d: %v", item, err)
+		}
+	}
+
+	wantCode(t, f.shop.Equip(ctx, u, model.SlotProfileBackground, model.EverySite, &frame), errors.ErrShopInvalidItem, "a frame in the background slot")
+	if err := f.shop.Equip(ctx, u, model.SlotAvatarFrame, model.EverySite, &frame); err != nil {
+		t.Fatalf("equip frame: %v", err)
+	}
+	if err := f.shop.Equip(ctx, u, model.SlotProfileBackground, model.EverySite, &bg); err != nil {
+		t.Fatalf("equip background: %v", err)
+	}
+
+	c, err := f.shop.CosmeticsFor(ctx, []uint{u}, model.EverySite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d := c[u][model.SlotAvatarFrame]; d == nil || d.ItemID != frame {
+		t.Fatalf("frame slot shows %+v", d)
+	}
+	if d := c[u][model.SlotProfileBackground]; d == nil || d.ItemID != bg || d.StaticURL == "" || d.AnimatedURL != "" {
+		t.Fatalf("background slot shows %+v", d)
+	}
+	raw, _ := json.Marshal(c[u])
+	var wire map[string]json.RawMessage
+	_ = json.Unmarshal(raw, &wire)
+	if len(wire) != 2 || wire["avatar_frame"] == nil || wire["profile_background"] == nil {
+		t.Fatalf("cosmetics on the wire: %s", raw)
+	}
+}
+
+func TestAnAssetOfTheOtherKindIsRefused(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	frameArt, err := f.shop.UploadAsset(ctx, model.KindAvatarFrame, framePNG(t, 384, false), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	banner, err := f.shop.UploadAsset(ctx, model.KindProfileBackground, bannerJPEG(t, 1500, 500), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = f.shop.UploadAsset(ctx, model.KindProfileBackground, framePNG(t, 384, false), 1)
+	wantCode(t, err, errors.ErrShopInvalidAsset, "a frame uploaded as a background")
+
+	render, _ := json.Marshal(model.Render{Static: frameArt.Key})
+	_, err = f.shop.CreateItem(ctx, ItemInput{Kind: model.KindProfileBackground, Name: "错配", Render: render}, 1)
+	wantCode(t, err, errors.ErrShopInvalidAsset, "a background whose art is a frame")
+	render, _ = json.Marshal(model.Render{Static: banner.Key})
+	_, err = f.shop.CreateItem(ctx, ItemInput{Kind: model.KindAvatarFrame, Name: "错配", Render: render}, 1)
+	wantCode(t, err, errors.ErrShopInvalidItem, "a frame whose art is a JPEG banner")
+	_, err = f.shop.CreateItem(ctx, ItemInput{Kind: "nameplate", Name: "未知", Render: render}, 1)
+	wantCode(t, err, errors.ErrShopInvalidItem, "an unregistered kind")
+}
+
+func TestASiteOfferSellsInTheAccountCenterAndPaysTheSite(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	site := f.site()
+	bg := f.background("站点背景", &site)
+	oid := f.offer(OfferInput{SiteID: &site, Price: 150, Rewards: []model.Reward{{ItemID: bg}}})
+
+	cat, err := f.shop.Catalog(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var listed *OfferView
+	for i := range cat {
+		if cat[i].ID == oid {
+			listed = &cat[i]
+		}
+	}
+	if listed == nil || listed.Site == nil || listed.Site.ID != site || listed.Site.Name == "" {
+		t.Fatalf("the site offer is listed as %+v", listed)
+	}
+
+	sink := fmt.Sprintf("shop:site:%d", site)
+	before := sinkBalance(t, sink)
+	u := f.user(500)
+	if _, err := f.buy(u, oid, "site-offer"); err != nil {
+		t.Fatalf("buy the site offer: %v", err)
+	}
+	if got := f.balance(u); got != 350 {
+		t.Fatalf("buyer balance %d, want 350", got)
+	}
+	if got := sinkBalance(t, sink) - before; got != 150 {
+		t.Fatalf("the site's sink gained %d, want 150", got)
+	}
+	if err := f.shop.Equip(ctx, u, model.SlotProfileBackground, model.EverySite, &bg); err != nil {
+		t.Fatalf("a site item is worn everywhere: %v", err)
+	}
+}
+
+func sinkBalance(t *testing.T, code string) int64 {
+	t.Helper()
+	var b int64
+	if err := testDB.Raw(`SELECT COALESCE(SUM(balance), 0) FROM ledger_accounts WHERE kind = ? AND code = ?`,
+		ledgerModel.KindSink, code).Scan(&b).Error; err != nil {
+		t.Fatal(err)
+	}
+	return b
 }

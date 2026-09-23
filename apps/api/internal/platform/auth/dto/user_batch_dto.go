@@ -14,7 +14,7 @@ type UserBrief struct {
 	SiteRoles       []string `json:"site_roles,omitempty"`
 	CreatedAt       string   `json:"created_at"`
 
-	Cosmetics *shopModel.Cosmetics `json:"cosmetics,omitempty"`
+	Cosmetics shopModel.Cosmetics `json:"cosmetics,omitempty"`
 }
 
 type BatchGetUsersRequest struct {

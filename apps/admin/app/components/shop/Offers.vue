@@ -2,6 +2,7 @@
 import { SHOP_OFFER_STATUS } from '~/constants/shop'
 
 const api = useApi()
+const shopSites = useShopSites()
 const offers = ref<ShopOffer[]>([])
 const loading = ref(true)
 const busy = ref('')
@@ -12,7 +13,7 @@ const load = async () => {
   else useKunMessage(res.message || '加载失败', 'error')
   loading.value = false
 }
-onMounted(load)
+onMounted(() => Promise.all([load(), shopSites.load()]))
 
 const modalOpen = ref(false)
 const editing = ref<ShopOffer | null>(null)
@@ -41,7 +42,8 @@ const act = async (offer: ShopOffer, action: 'activate' | 'retire') => {
 }
 
 const title = (o: ShopOffer) => o.rewards.map((r) => r.item.name).join(' + ')
-const formatDate = (s: string | null) => (s ? new Date(s).toLocaleString('zh-CN') : '不限')
+const formatDate = (s: string | null) =>
+  s ? new Date(s).toLocaleString('zh-CN') : '不限'
 </script>
 
 <template>
@@ -54,10 +56,15 @@ const formatDate = (s: string | null) => (s ? new Date(s).toLocaleString('zh-CN'
     </div>
 
     <div v-if="loading" class="flex justify-center py-12">
-      <KunIcon name="lucide:loader-circle" class="text-primary size-8 animate-spin" />
+      <KunIcon
+        name="lucide:loader-circle"
+        class="text-primary size-8 animate-spin"
+      />
     </div>
     <KunCard v-else-if="offers.length === 0" class-name="py-12 text-center">
-      <p class="text-default-400">还没有商品。先在「物品」里发布头像框，再来这里定价上架</p>
+      <p class="text-default-400">
+        还没有商品。先在「物品」里发布物品，再来这里定价上架
+      </p>
     </KunCard>
     <div v-else class="space-y-2">
       <KunCard v-for="o in offers" :key="o.id" class="p-4">
@@ -70,10 +77,15 @@ const formatDate = (s: string | null) => (s ? new Date(s).toLocaleString('zh-CN'
               </KunChip>
             </div>
             <p class="text-default-500 text-xs">
-              #{{ o.id }} · {{ o.price }} 萌萌点
-              · {{ o.rewards[0]?.duration_days ? `${o.rewards[0].duration_days} 天` : '永久' }}
-              · 已售 {{ o.sold }}{{ o.stock !== null ? ` / ${o.stock}` : '' }}
-              · 每人限购 {{ o.per_user_limit || '不限' }}
+              #{{ o.id }} · {{ o.site?.name ?? shopSites.nameOf(o.site_id) }} ·
+              {{ o.price }} 萌萌点 ·
+              {{
+                o.rewards[0]?.duration_days
+                  ? `${o.rewards[0].duration_days} 天`
+                  : '永久'
+              }}
+              · 已售 {{ o.sold }}{{ o.stock !== null ? ` / ${o.stock}` : '' }} ·
+              每人限购 {{ o.per_user_limit || '不限' }}
             </p>
             <p class="text-default-400 text-xs">
               {{ formatDate(o.starts_at) }} — {{ formatDate(o.ends_at) }}

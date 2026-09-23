@@ -7,17 +7,12 @@ import (
 )
 
 const (
-	KindAvatarFrame = "avatar_frame"
-	SlotAvatarFrame = "avatar_frame"
-)
+	KindAvatarFrame       = "avatar_frame"
+	KindProfileBackground = "profile_background"
 
-func SlotOf(kind string) (string, bool) {
-	switch kind {
-	case KindAvatarFrame:
-		return SlotAvatarFrame, true
-	}
-	return "", false
-}
+	SlotAvatarFrame       = "avatar_frame"
+	SlotProfileBackground = "profile_background"
+)
 
 const (
 	ItemDraft     = "draft"
@@ -56,7 +51,7 @@ type Asset struct {
 
 func (Asset) TableName() string { return "shop_assets" }
 
-type AvatarFrameRender struct {
+type Render struct {
 	Static   string `json:"static"`
 	Animated string `json:"animated,omitempty"`
 }
@@ -172,9 +167,7 @@ type Decoration struct {
 	AnimatedURL string `json:"animated_url,omitempty"`
 }
 
-type Cosmetics struct {
-	AvatarFrame *Decoration `json:"avatar_frame,omitempty"`
-}
+type Cosmetics map[string]*Decoration
 
 func AllModels() []any {
 	return []any{&Asset{}, &Item{}, &Offer{}, &Order{}, &Entitlement{}, &Loadout{}}

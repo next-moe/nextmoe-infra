@@ -20,7 +20,9 @@ watch(open, (v) => {
 })
 
 const lead = computed(() => props.offer?.rewards[0])
-const title = computed(() => props.offer?.rewards.map((r) => r.item.name).join(' + ') ?? '')
+const title = computed(
+  () => props.offer?.rewards.map((r) => r.item.name).join(' + ') ?? ''
+)
 const after = computed(() => props.balance - (props.offer?.price ?? 0))
 
 const confirm = async () => {
@@ -35,7 +37,7 @@ const confirm = async () => {
       useKunMessage(res.message, 'error')
       return
     }
-    useKunMessage(`已购买「${title.value}」，去「我的装扮」戴上它吧`, 'success')
+    useKunMessage(`已购买「${title.value}」，去「我的装扮」换上它吧`, 'success')
     open.value = false
     emit('purchased')
   } finally {
@@ -47,23 +49,20 @@ const confirm = async () => {
 <template>
   <KunModal v-model="open" title="确认购买" size="sm">
     <div v-if="offer" class="space-y-5">
-      <div class="flex justify-center py-4">
-        <KunAvatar
-          :user="{
-            id: 0,
-            name: userName,
-            avatar,
-            avatarDecoration: toAvatarDecoration(lead?.item.preview)
-          }"
-          size="original-sm"
+      <div class="py-4">
+        <ShopItemPreview
+          :item="lead?.item"
+          :user-name="userName"
+          :avatar="avatar"
           decoration="always"
-          :is-navigation="false"
         />
       </div>
       <div class="text-center">
         <p class="text-foreground font-semibold">{{ title }}</p>
         <p class="text-default-500 mt-1 text-sm">
-          {{ lead?.duration_days ? `有效期 ${lead.duration_days} 天` : '永久拥有' }}
+          {{
+            lead?.duration_days ? `有效期 ${lead.duration_days} 天` : '永久拥有'
+          }}
         </p>
       </div>
       <div class="border-default-200 space-y-2 rounded-lg border p-4 text-sm">
@@ -79,7 +78,9 @@ const confirm = async () => {
         </div>
       </div>
       <div class="flex justify-end gap-2">
-        <KunButton variant="light" color="default" @click="open = false">取消</KunButton>
+        <KunButton variant="light" color="default" @click="open = false"
+          >取消</KunButton
+        >
         <KunButton :loading="submitting" :disabled="after < 0" @click="confirm">
           确认购买
         </KunButton>

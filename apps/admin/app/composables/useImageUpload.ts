@@ -12,7 +12,8 @@ export const useImageUpload = () => {
   const upload = async <T extends object>(
     endpoint: string,
     blob: Blob,
-    filename: string
+    filename: string,
+    fields: Record<string, string> = {}
   ): Promise<T | null> => {
     if (uploading.value) return null
     uploading.value = true
@@ -21,6 +22,7 @@ export const useImageUpload = () => {
     try {
       const fd = new FormData()
       fd.append('file', blob, filename)
+      for (const [k, v] of Object.entries(fields)) fd.append(k, v)
 
       const cookie = useCookie('access_token')
       const res = await $fetch<UploadResponse<T>>(
@@ -31,7 +33,7 @@ export const useImageUpload = () => {
           headers: cookie.value
             ? { Authorization: `Bearer ${cookie.value}` }
             : {},
-          credentials: 'include',
+          credentials: 'include'
         }
       )
 

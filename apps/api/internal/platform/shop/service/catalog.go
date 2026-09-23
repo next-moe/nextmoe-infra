@@ -36,10 +36,10 @@ func invalidItem(msg string) error { return errors.New(errors.ErrShopInvalidItem
 func invalidOffer(msg string) error { return errors.New(errors.ErrShopInvalidOffer, msg) }
 
 func (s *Shop) decoration(it *model.Item) *model.Decoration {
-	if it.Kind != model.KindAvatarFrame {
+	if _, ok := kinds[it.Kind]; !ok {
 		return nil
 	}
-	var r model.AvatarFrameRender
+	var r model.Render
 	if json.Unmarshal(it.Render, &r) != nil || r.Static == "" {
 		return nil
 	}
@@ -54,21 +54,25 @@ func (s *Shop) itemView(it model.Item) ItemView {
 }
 
 func (s *Shop) validateRender(tx *gorm.DB, kind string, raw json.RawMessage) (datatypes.JSON, error) {
-	if kind != model.KindAvatarFrame {
-		return nil, invalidItem("未知的物品类型")
+	spec, err := specOf(kind)
+	if err != nil {
+		return nil, err
 	}
-	var r model.AvatarFrameRender
+	var r model.Render
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&r); err != nil || r.Static == "" {
-		return nil, invalidItem("头像框需要一张静态图")
+		return nil, invalidItem(spec.label + "需要一张静态图")
 	}
 	static, err := assetByKey(tx, r.Static)
 	if err != nil {
 		return nil, err
 	}
-	if static == nil || static.Animated {
-		return nil, invalidItem("静态图必须是已上传的 PNG 素材")
+	if static == nil || static.Animated || !spec.static.accepts(static.ContentType) {
+		return nil, invalidItem("静态图必须是按" + spec.label + "规格上传的素材")
+	}
+	if err := spec.static.fits(static.Width, static.Height); err != nil {
+		return nil, err
 	}
 	if r.Animated != "" {
 		anim, err := assetByKey(tx, r.Animated)
@@ -78,8 +82,11 @@ func (s *Shop) validateRender(tx *gorm.DB, kind string, raw json.RawMessage) (da
 		if anim == nil || !anim.Animated {
 			return nil, invalidItem("动图必须是已上传的动态 WebP 素材")
 		}
-		if anim.Width != static.Width {
+		if anim.Width != static.Width || anim.Height != static.Height {
 			return nil, invalidItem("动图和静态图的尺寸必须一致")
+		}
+		if anim.Bytes > spec.animated.maxBytes {
+			return nil, invalidItem(spec.label + "的动图超过了大小上限")
 		}
 	}
 	out, _ := json.Marshal(r)
@@ -279,9 +286,16 @@ type RewardView struct {
 	DurationDays int      `json:"duration_days,omitempty"`
 }
 
+type SiteRef struct {
+	ID     uint   `json:"id"`
+	Name   string `json:"name"`
+	Domain string `json:"domain"`
+}
+
 type OfferView struct {
 	ID           int64        `json:"id"`
 	SiteID       *uint        `json:"site_id"`
+	Site         *SiteRef     `json:"site,omitempty"`
 	Status       string       `json:"status"`
 	Price        int64        `json:"price"`
 	Costs        []model.Cost `json:"costs"`
@@ -468,7 +482,7 @@ func (s *Shop) Catalog(ctx context.Context) ([]OfferView, error) {
 	db := s.db.WithContext(ctx)
 	now := s.now()
 	var rows []model.Offer
-	if err := db.Where("status = ? AND site_id IS NULL", model.OfferActive).
+	if err := db.Where("status = ?", model.OfferActive).
 		Where("(starts_at IS NULL OR starts_at <= ?) AND (ends_at IS NULL OR ends_at > ?)", now, now).
 		Order("sort_order DESC, id DESC").Find(&rows).Error; err != nil {
 		return nil, err
@@ -517,6 +531,16 @@ func (s *Shop) offerViews(tx *gorm.DB, offers []model.Offer) ([]OfferView, error
 			items[it.ID] = it
 		}
 	}
+	var siteIDs []uint
+	for _, o := range offers {
+		if o.SiteID != nil {
+			siteIDs = append(siteIDs, *o.SiteID)
+		}
+	}
+	sites, err := sitesByID(tx, siteIDs)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]OfferView, len(offers))
 	for i, o := range offers {
 		var costs []model.Cost
@@ -525,6 +549,9 @@ func (s *Shop) offerViews(tx *gorm.DB, offers []model.Offer) ([]OfferView, error
 			ID: o.ID, SiteID: o.SiteID, Status: o.Status, Price: priceOf(costs), Costs: costs,
 			StartsAt: o.StartsAt, EndsAt: o.EndsAt, PerUserLimit: o.PerUserLimit, Stock: o.Stock,
 			Sold: o.Sold, SortOrder: o.SortOrder, CreatedAt: o.CreatedAt,
+		}
+		if o.SiteID != nil {
+			v.Site = sites[*o.SiteID]
 		}
 		for _, r := range rewardsOf[i] {
 			v.Rewards = append(v.Rewards, RewardView{Item: s.itemView(items[r.ItemID]), DurationDays: r.DurationDays})
@@ -558,4 +585,25 @@ func mustJSON(v any) []byte {
 		panic(err)
 	}
 	return b
+}
+
+func sitesByID(tx *gorm.DB, ids []uint) (map[uint]*SiteRef, error) {
+	out := map[uint]*SiteRef{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	var rows []SiteRef
+	if err := tx.Table("sites").Select("id, name, domain").Where("id IN ?", ids).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	for i := range rows {
+		out[rows[i].ID] = &rows[i]
+	}
+	return out, nil
+}
+
+func (s *Shop) Sites(ctx context.Context) ([]SiteRef, error) {
+	var rows []SiteRef
+	err := s.db.WithContext(ctx).Table("sites").Select("id, name, domain").Order("id").Scan(&rows).Error
+	return rows, err
 }
