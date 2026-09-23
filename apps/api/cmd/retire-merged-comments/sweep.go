@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	catmodel "api/internal/platform/catalog/model"
+
 	"gorm.io/gorm"
 )
 
@@ -40,28 +42,16 @@ var anchorPlans = map[int16]anchorPlan{
 	3: {entityType: entityTypeWork, claimAware: false}, // catalog_work
 }
 
-// siteGameAnchorIsCatalogID names the sites whose site_game anchor carries the
-// CATALOG work id rather than a gid of their own.
-//
-// This is knowledge about a site, not a run option: moyu's 铁律 3 says its page
-// id IS the catalog work id (`cmd/align-patch-ids`, migrations 037/038 closed
-// the legacy offset), and the forum joined it on 2026-09-23 (its G0 renumber,
-// `align-galgame-ids`, which also set every kungal claim's product_work_id to
-// the work id). The claim exclusion -- "this number is a product id that merely
-// collides with a catalog id" -- is exactly wrong on both, and would leave a
-// wall standing under a work that no longer exists. A flag would put that
-// difference one typo away from a silent wrong sweep.
-var siteGameAnchorIsCatalogID = map[string]bool{
-	"moyu":   true,
-	"kungal": true,
-}
-
 func planFor(site string, anchorKind int16) (anchorPlan, error) {
 	plan, ok := anchorPlans[anchorKind]
 	if !ok {
 		return anchorPlan{}, fmt.Errorf("anchor kind %d names no catalog entity", anchorKind)
 	}
-	if anchorKind == 1 && siteGameAnchorIsCatalogID[site] {
+	// On a site whose own id is the catalog id, the claim exclusion -- "this
+	// number is a product id that merely collides with a catalog id" -- is
+	// exactly wrong, and would leave a wall standing under a work that no
+	// longer exists.
+	if anchorKind == 1 && catmodel.SiteWorkIDIsCatalogID(site) {
 		plan.claimAware = false
 		plan.catalogIDs = true
 	}

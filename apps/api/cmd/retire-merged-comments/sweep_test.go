@@ -50,7 +50,7 @@ func TestMain(m *testing.M) {
 }
 
 // A site whose site_game anchor is still its own product id. The forum was one
-// until its 2026-09-23 G0 renumber; see siteGameAnchorIsCatalogID.
+// until its 2026-09-23 G0 renumber; see catmodel.SiteWorkIDIsCatalogID.
 const testSite = "letmoe"
 
 // The four threads differ from each other in one fact apiece, so a thread that
