@@ -32,6 +32,7 @@ func Run(db *gorm.DB) error {
 		&model.CommunityFlag{},
 		&model.CommunityReviewItem{},
 		&model.CommunityPurgeArchive{},
+		&model.CommunityWriteRequest{},
 	); err != nil {
 		return fmt.Errorf("community automigrate: %w", err)
 	}

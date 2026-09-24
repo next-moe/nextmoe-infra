@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 
 	"api/internal/platform/community/model"
 	"api/internal/platform/community/repository"
@@ -26,14 +27,28 @@ type CommentParams struct {
 	MentionUserIDs []int64
 }
 
+type CommentResult struct {
+	Thread   *model.CommunityThread
+	Post     *model.CommunityPost
+	Replayed bool
+}
+
 func (s *PostService) Comment(ctx context.Context, p CommentParams) (*model.CommunityThread, *model.CommunityPost, error) {
+	r, err := s.WriteComment(ctx, p, WriteKey{})
+	return r.Thread, r.Post, err
+}
+
+func (s *PostService) WriteComment(ctx context.Context, p CommentParams, k WriteKey) (CommentResult, error) {
+	if r, err := s.replayComment(ctx, p.Site, k); r.Replayed || err != nil {
+		return r, err
+	}
 	draft, err := s.draftPost(ctx, p.Site, p.AuthorID, p.BodyRaw)
 	if err != nil {
-		return nil, nil, err
+		return CommentResult{}, err
 	}
 	mentions, err := normalizeMentionIDs(p.AuthorID, p.MentionUserIDs)
 	if err != nil {
-		return nil, nil, err
+		return CommentResult{}, err
 	}
 	draft.rootPostID, draft.replyToPostID, draft.targetUserID = p.RootPostID, p.ReplyToPostID, p.TargetUserID
 	draft.mentionUserIDs = mentions
@@ -41,11 +56,18 @@ func (s *PostService) Comment(ctx context.Context, p CommentParams) (*model.Comm
 	var thread *model.CommunityThread
 	var written writtenPost
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		requestID, err := claimWriteKeyTx(tx, p.Site, k)
+		if err != nil {
+			return err
+		}
 		found, err := commentsThreadForWriteTx(tx, p)
 		if err != nil {
 			return err
 		}
 		if written, err = appendPostTx(tx, found, draft); err != nil {
+			return err
+		}
+		if err := bindWriteKeyTx(tx, requestID, written.post.ID); err != nil {
 			return err
 		}
 		// The counters moved in SQL, so the row found (or just inserted) above
@@ -58,11 +80,33 @@ func (s *PostService) Comment(ctx context.Context, p CommentParams) (*model.Comm
 		}
 		return nil
 	})
+	if errors.Is(err, errWriteKeyTaken) {
+		r, err := s.replayComment(ctx, p.Site, k)
+		if err == nil && !r.Replayed {
+			err = ErrPostNotFound
+		}
+		return r, err
+	}
 	if err != nil {
-		return nil, nil, err
+		return CommentResult{}, err
 	}
 	s.emitWrite(thread.ID, p.AuthorID, written)
-	return thread, &written.post, nil
+	return CommentResult{Thread: thread, Post: &written.post}, nil
+}
+
+func (s *PostService) replayComment(ctx context.Context, site string, k WriteKey) (CommentResult, error) {
+	post, err := s.keyedPost(ctx, site, k)
+	if post == nil || err != nil {
+		return CommentResult{}, err
+	}
+	thread, err := repository.GetThreadTx(s.db.WithContext(ctx), post.ThreadID)
+	if err != nil {
+		return CommentResult{}, err
+	}
+	if thread == nil {
+		return CommentResult{}, ErrThreadNotFound
+	}
+	return CommentResult{Thread: thread, Post: post, Replayed: true}, nil
 }
 
 func commentsThreadForWriteTx(tx *gorm.DB, p CommentParams) (*model.CommunityThread, error) {

@@ -171,6 +171,7 @@ a topic opens on a board, a feedback thread on an entity anchor `1..4`),
 `POST /comments` (comment on an anchor), `POST /threads/{id}/posts` (reply),
 `PATCH /posts/{id}` (author edit),
 `DELETE /posts/{id}` (author self-delete), `POST /posts/{id}/reaction` (toggle),
+`PUT` / `DELETE /posts/{id}/reaction` (set / unset, idempotent),
 `POST /posts/{id}/flag` (report), `POST /feedback/{id}/status`,
 `POST /feedback/{id}/merge`. Capabilities are read/post/reply/edit/delete/react/
 report/feedback — NOT a shrunken forum (edit **history** / the version surface,
@@ -205,6 +206,30 @@ transaction), so an anchor never ends up with two conversations. Everything past
 the thread is the ordinary reply path — trust level, sandbox quota, content
 check, review enqueue, auto-subscribe — and the response carries the thread as
 it stands *after* the write, together with the new post.
+
+#### Retrying a create — `Idempotency-Key` on `POST /comments` and `POST /threads/{id}/posts`
+
+A caller that times out cannot tell whether its write landed, and before this
+header a retry after a slow first write posted the comment twice (moyu's BFF
+gives up at 8 s). With `Idempotency-Key: <key>` (at most 255 bytes, unique per
+site; a UUID per user action is the intended use):
+
+- The first call writes the post and records the key **in the same
+  transaction**, so a post and its key are never committed without each other.
+- A later call with the same key and the same request answers with **that
+  post** — `200`, the same body shape, header `Idempotency-Replayed: true` —
+  and writes nothing. The request is the body plus, for a reply, the thread id.
+- The same key with a different request is `409`.
+- Two calls with the same key that race each other write once: the second to
+  reach the write waits for the first to commit, then replays it. If the first
+  fails, the second writes.
+- A call that failed wrote nothing and recorded no key, so retrying it runs the
+  whole write again.
+- Keys are scoped to the site (the tenant from §2) and kept for **24 hours**.
+- No header means no change: every call writes.
+
+The replayed post is the post as it stands now, so it carries any reactions it
+has received since.
 
 #### Post edit — `PATCH /posts/{id}`
 
@@ -254,6 +279,17 @@ trust tallies. The context lets the consuming site fan out its like notification
 click's result without one. The count arrived after the read faces did: until
 then a site that had dropped its mirror table had to re-read the post after every
 click, which is the round trip the mirror had been saving it.
+
+#### Reaction set / unset — `PUT` / `DELETE /posts/{id}/reaction`
+
+A toggle undoes itself when retried, so a caller that retries after a timeout
+turned a slow like into no like. `PUT` (body `{user_id, kind}`) adds the
+reaction and `DELETE` (`?user_id=&kind=`, body-free like the post delete) removes
+it; repeating either changes nothing. Both answer with the toggle's shape, and
+**`changed`** says whether this call moved the state: `false` means the reaction
+was already as asked, which is what a retry sees. The trust tallies and the
+like notification move only on a change, so a repeated `PUT` credits the author
+once. The toggle stays for the callers that use it, and reports `changed: true`.
 
 A reply to a board topic (`POST /threads/{id}/posts`) passes the board's gates
 too: no replies on an archived board (`409`), and `reply_min_trust_level`

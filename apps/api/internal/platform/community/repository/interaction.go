@@ -6,6 +6,7 @@ import (
 	"api/internal/platform/community/model"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type TrustRepository struct{ db *gorm.DB }
@@ -108,6 +109,18 @@ func DecrementHoldTx(tx *gorm.DB, userID int64) error {
 func ClearHoldsTx(tx *gorm.DB, userID int64) error {
 	return tx.Model(&model.CommunityTrust{}).Where("user_id = ?", userID).
 		UpdateColumn("first_posts_held_remaining", 0).Error
+}
+
+func AddReactionTx(tx *gorm.DB, postID, userID int64, kind int16) (bool, error) {
+	res := tx.Clauses(clause.OnConflict{DoNothing: true}).
+		Create(&model.CommunityReaction{PostID: postID, UserID: userID, Kind: kind})
+	return res.RowsAffected > 0, res.Error
+}
+
+func RemoveReactionTx(tx *gorm.DB, postID, userID int64, kind int16) (bool, error) {
+	res := tx.Where("post_id = ? AND user_id = ? AND kind = ?", postID, userID, kind).
+		Delete(&model.CommunityReaction{})
+	return res.RowsAffected > 0, res.Error
 }
 
 func ToggleReactionTx(tx *gorm.DB, postID, userID int64, kind int16) (bool, error) {
