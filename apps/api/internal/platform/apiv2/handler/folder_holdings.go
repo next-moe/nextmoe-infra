@@ -60,25 +60,11 @@ func (c *Catalog) ListFolderHoldings(ctx context.Context, workIDs []string) (rep
 		return empty, err
 	}
 	if len(workIDs) == 0 {
-		p := problem.New(problem.CodeInvalidParameter, "", "", "work_ids is required.")
-		p.Errors = []problem.FieldError{{
-			Parameter: "work_ids", Reason: problem.ReasonRequired,
-			Detail: "send 1 to 100 comma-separated work ids",
-		}}
-		return empty, p
+		return empty, workIDsRequired()
 	}
-	if len(workIDs) > collect.MaxBatchItems {
-		return empty, problem.New(problem.CodeTooManyIDs, "", "", "work_ids named more than 100 items.")
-	}
-	ids := make([]int64, 0, len(workIDs))
-	for _, s := range workIDs {
-		id, ok := repr.ParseID(s)
-		if !ok {
-			p := problem.New(problem.CodeInvalidParameter, "", "", "work_ids values must be decimal catalog ids.")
-			p.Errors = []problem.FieldError{{Parameter: "work_ids", Reason: problem.ReasonInvalidFormat, Detail: s}}
-			return empty, p
-		}
-		ids = append(ids, id)
+	ids, err := parseWorkIDs(workIDs)
+	if err != nil {
+		return empty, err
 	}
 	rows, lerr := c.Folders.Holdings(ctx, uid, ids)
 	if lerr != nil {

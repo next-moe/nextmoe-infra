@@ -123,6 +123,32 @@ func TestFolderHoldingsAdmitsEitherFolderScope(t *testing.T) {
 	}
 }
 
+func TestMyWorksNeedsAUserTokenWithAFolderScope(t *testing.T) {
+	app := testAppDualCredential(t, UserIdentity{
+		UID: 42, ClientID: "some-app", Scopes: []string{"openid", "profile"},
+	})
+	status, p := authGET(t, app, "/v2/me/works?work_ids=1", catalogUserToken)
+	require.Equal(t, http.StatusForbidden, status)
+	require.Equal(t, problem.CodeScopeRequired, p.Code)
+
+	status, code := walkGet(t, app, "/v2/me/works?work_ids=1", "")
+	require.Equal(t, http.StatusUnauthorized, status)
+	require.Equal(t, problem.CodeMissingCredential, code)
+
+	status, p = authGET(t, app, "/v2/me/works?work_ids=1", mustV2Key(t))
+	require.Equal(t, http.StatusUnauthorized, status)
+	require.Equal(t, problem.CodeInvalidCredential, p.Code)
+
+	for _, scope := range []string{devapi.ScopeFolderRead, devapi.ScopeFolderWrite} {
+		app := testAppDualCredential(t, UserIdentity{
+			UID: 42, ClientID: "some-app", Scopes: []string{"openid", scope},
+		})
+		status, p := authGET(t, app, "/v2/me/works?work_ids=1", catalogUserToken)
+		require.Equal(t, http.StatusServiceUnavailable, status, scope)
+		require.Equal(t, problem.CodeServiceUnavailable, p.Code, scope)
+	}
+}
+
 // The preview and the purge stand on the same permission, and neither is on a
 // scope plane: an app that never asked for a folder scope still cannot reach
 // them, because they take a user token and the standing is the person's.
