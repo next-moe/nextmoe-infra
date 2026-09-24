@@ -1405,10 +1405,10 @@ export const searchIndex: SearchEntry[] = [
   },
   {
     "r": "/docs/v2/deleteMyPlaytime",
-    "t": "删除我对某部作品的游玩时长",
+    "t": "删除本应用对某部作品的游玩时长",
     "s": "端点 · 我的",
     "d": "DELETE /v2/me/playtimes/{work_id}",
-    "b": "deleteMyPlaytime /v2/me/playtimes/{work_id} delete Delete my playtime on one work 204 with no body. Requires a user access token. Any app may call this; playtime:write is not required. 204 无响应体。需要用户访问令牌。任何应用均可调用；不要求 playtime:write。 work_id"
+    "b": "deleteMyPlaytime /v2/me/playtimes/{work_id} delete Delete this app's playtime on one work Deletes only the row the calling app reported. Rows other apps reported on the same work stay, and GET keeps answering from them. 204 with no body. Requires a user access token. Any app may call this; playtime:write is not required. 只删除调用方应用自己上报的那一行；其他应用对同一作品上报的行保留，GET 仍按它们作答。204 无响应体。需要用户访问令牌。任何应用均可调用；不要求 playtime:write。 work_id"
   },
   {
     "r": "/docs/v2/listMyProposals",

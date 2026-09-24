@@ -8020,7 +8020,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.24.0
+  version: 2.24.1
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -17339,7 +17339,7 @@ paths:
         - me
   /v2/me/playtimes/{work_id}:
     delete:
-      description: 204 with no body. Requires a user access token. Any app may call this; playtime:write is not required.
+      description: Deletes only the row the calling app reported. Rows other apps reported on the same work stay, and GET keeps answering from them. 204 with no body. Requires a user access token. Any app may call this; playtime:write is not required.
       operationId: deleteMyPlaytime
       parameters:
         - description: Catalog work id.
@@ -17405,7 +17405,7 @@ paths:
           description: Service Unavailable
       security:
         - userToken: []
-      summary: Delete my playtime on one work
+      summary: Delete this app's playtime on one work
       tags:
         - me
     get:

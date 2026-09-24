@@ -134,11 +134,11 @@ func (c *Catalog) DeletePlaytime(ctx context.Context, workID int64) error {
 	if c == nil || c.Playtime == nil {
 		return problem.New(problem.CodeServiceUnavailable, "", "", "playtimes are not bound.")
 	}
-	uid, _, err := requireUser(ctx)
+	uid, client, err := requireUser(ctx)
 	if err != nil {
 		return err
 	}
-	return playtimeErr(c.Playtime.DeleteMine(ctx, uid, workID))
+	return playtimeErr(c.Playtime.DeleteMine(ctx, uid, workID, client))
 }
 
 func (c *Catalog) BatchPlaytimes(ctx context.Context, items []struct {

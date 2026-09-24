@@ -143,15 +143,18 @@ type UserWorkPlaytime struct {
 	Clients      int
 }
 
-func (s *UserPlaytimeService) DeleteMine(ctx context.Context, uid, workID int64) error {
+func (s *UserPlaytimeService) DeleteMine(ctx context.Context, uid, workID int64, clientID string) error {
 	if uid <= 0 {
 		return ErrPlaytimeActorRequired
+	}
+	if clientID == "" {
+		return ErrPlaytimeClientRequired
 	}
 	if workID <= 0 {
 		return ErrPlaytimeWorkUnavailable
 	}
 	return s.db.WithContext(ctx).
-		Where("actor_uid = ? AND work_id = ?", uid, workID).
+		Where("actor_uid = ? AND work_id = ? AND client_id = ?", uid, workID, clientID).
 		Delete(&model.CatalogUserPlaytime{}).Error
 }
 
