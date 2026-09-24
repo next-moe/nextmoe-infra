@@ -191,6 +191,9 @@ func (v *Verifier) Parse(ctx context.Context, tokenString string) (*utils.TokenC
 	if err != nil {
 		return nil, err
 	}
+	if !utils.IsAccessTokenType(tok) {
+		return nil, utils.ErrNotAccessToken
+	}
 	if claims, ok := tok.Claims.(*utils.TokenClaims); ok && tok.Valid {
 		return claims, nil
 	}
