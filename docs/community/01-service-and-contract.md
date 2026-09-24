@@ -27,7 +27,8 @@
   authenticated client's binding: `oauth_clients.community_site` when it is set,
   and `oauth_clients.catalog_site` otherwise. A client with neither is refused on
   every write and on the site-scoped reads (`403`). This makes a client unable to
-  act outside its own site.
+  act outside its own site. Trust binds its site by the same rule, so a site's
+  comment walls and its report queue are always one tenant.
 - **Why community has its own binding.** `catalog_site` names the site a client
   files CATALOG CLAIMS under, and two properties can share that identity while
   being separate communities: moyu and the kungal forum are both

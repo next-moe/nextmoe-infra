@@ -16,6 +16,26 @@ func s2sCtx(site string) context.Context {
 	return context.WithValue(context.Background(), ctxKeyClient, &siteModel.OAuthClient{CatalogSite: site})
 }
 
+func TestSiteBindingPrefersCommunitySite(t *testing.T) {
+	cases := []struct {
+		client *siteModel.OAuthClient
+		want   string
+	}{
+		{&siteModel.OAuthClient{CatalogSite: "kungal", CommunitySite: "moyu"}, "moyu"},
+		{&siteModel.OAuthClient{CatalogSite: "kungal"}, "kungal"},
+	}
+	for _, c := range cases {
+		got, he := siteBinding(context.WithValue(context.Background(), ctxKeyClient, c.client))
+		if he != nil || got != c.want {
+			t.Fatalf("catalog_site=%q community_site=%q: want site %q, got %q (err %v)",
+				c.client.CatalogSite, c.client.CommunitySite, c.want, got, he)
+		}
+	}
+	if _, he := siteBinding(context.WithValue(context.Background(), ctxKeyClient, &siteModel.OAuthClient{})); statusOf(he) != http.StatusForbidden {
+		t.Fatalf("unbound client must be 403, got %v", he)
+	}
+}
+
 func overCapItems() []dto.EnsureSubjectKindItem {
 	items := make([]dto.EnsureSubjectKindItem, maxEnsureKinds+1)
 	for i := range items {

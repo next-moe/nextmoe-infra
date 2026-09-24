@@ -109,11 +109,11 @@ func (s *AdminServer) resolveScope(ctx context.Context) (adminScope, *houseError
 			"site-scoped moderator token is not bound to a client")
 	}
 	client, err := s.clients.FindByClientID(ctx, clientID)
-	if err != nil || client == nil || client.CatalogSite == "" {
+	if err != nil || client == nil || client.CommunityTenant() == "" {
 		return adminScope{}, apiErrMsg(http.StatusForbidden, errors.ErrForbidden,
 			"site-scoped moderator's client is not bound to a site")
 	}
-	return adminScope{site: client.CatalogSite}, nil
+	return adminScope{site: client.CommunityTenant()}, nil
 }
 
 func (s *AdminServer) requireUnrestricted(ctx context.Context) *houseError {

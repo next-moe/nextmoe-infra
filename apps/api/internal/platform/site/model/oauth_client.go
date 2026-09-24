@@ -112,6 +112,20 @@ func (OAuthClient) TableName() string {
 	return "oauth_clients"
 }
 
+// CommunityTenant is the site a client's user content lives under, which
+// community and trust both act in: community_site when set, else catalog_site.
+//
+// The fallback is not a convenience — it is what keeps every client that
+// predates community_site on the tenant it already has rows under. Trust read
+// catalog_site alone until 2026-09-24, which would have filed moyu's reports
+// in the forum's review queue.
+func (c *OAuthClient) CommunityTenant() string {
+	if c.CommunitySite != "" {
+		return c.CommunitySite
+	}
+	return c.CatalogSite
+}
+
 func (c *OAuthClient) IsActive() bool {
 	return true
 }

@@ -73,6 +73,7 @@ func statusOf(err error) int {
 func TestAdminResolveScope(t *testing.T) {
 	s := &AdminServer{clients: &fakeClients{byID: map[string]*siteModel.OAuthClient{
 		"site-client":    {CatalogSite: "otokun"},
+		"moyu-client":    {CatalogSite: "kungal", CommunitySite: "moyu"},
 		"unbound-client": {},
 	}}}
 
@@ -86,6 +87,11 @@ func TestAdminResolveScope(t *testing.T) {
 	sc, he := s.resolveScope(scopedCtx(nil, "site-client", 1))
 	if he != nil || sc.site != "otokun" {
 		t.Fatalf("site-only caller must be scoped to otokun: scope=%+v err=%v", sc, he)
+	}
+
+	sc, he = s.resolveScope(scopedCtx(nil, "moyu-client", 1))
+	if he != nil || sc.site != "moyu" {
+		t.Fatalf("a client with its own community must be scoped to it, not its catalog site: scope=%+v err=%v", sc, he)
 	}
 
 	for _, clientID := range []string{"unbound-client", "ghost", ""} {

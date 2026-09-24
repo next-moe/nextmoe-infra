@@ -42,7 +42,7 @@
 | 概念 | 含义 |
 |---|---|
 | **site(租户)** | 每个产品站一个字符串 key(`kungal` / `moyu` / `letmoe` …)。trust 所有数据按 site 分域。 |
-| **S2S client** | `oauth_clients` 表的一行,HTTP Basic(client_id:secret)认证。**你的 site 从 client 的 `catalog_site` 绑定派生,普通调用方绝不在请求体里传 site**(传了会被拒)。 |
+| **S2S client** | `oauth_clients` 表的一行,HTTP Basic(client_id:secret)认证。**你的 site 从 client 的绑定派生:设了 `community_site` 就用它,否则用 `catalog_site`**——与 community 同一条规则,所以同一个站的评论区和举报队列永远在同一个租户。**普通调用方绝不在请求体里传 site**(传了会被拒)。moyu 就是例子:认领作品要用 `catalog_site=kungal`,但它的举报和审核队列属于 `community_site=moyu`。站点版主令牌的队列范围也按同一条规则取。 |
 | **subject_kind 注册表** | `(site, kind)` 白名单,**fail-loud**:向未注册的 kind 提交 report/scan 会得 422。这是防打错站/打错类型的保险丝,不是权限系统。kind 举例:`forum_topic` / `forum_reply` / `community_post` / `galgame_comment` / `user`。 |
 | **中继型调用方(forwarder)** | 唯一例外:像 community 服务这种"一个进程服务多个站"的中继,允许在 body 带 `site`,由 trust 侧 `KUN_TRUST_FORWARDER_CLIENT_IDS` allowlist 反制。**产品站直连不需要也不该申请这个**。 |
 | **影子模式(shadow)** | scan 打分只落库不执法。表里 `mode=0` 写死;别指望 scan 会替你拦内容——拦截只发生在 check 面的 banned 词。 |
@@ -122,7 +122,7 @@ Response: { "report_id": ..., "review_item_id": ... }        # review_item_id �
 
 ## 5. 接入 checklist(新站/新内容类型,照做即可)
 
-1. **S2S client**:找 infra 在 `oauth_clients` 铸一行(id + sha256 secret + `catalog_site=<你的 site>`)。秘钥经 Dokploy 面板 env 注入你的服务,永不进 git。**你不需要 forwarder allowlist**(那是中继专用)。
+1. **S2S client**:找 infra 在 `oauth_clients` 铸一行(id + sha256 secret + `catalog_site=<你的 site>`;如果你的站和另一个站共用 `catalog_site` 但评论区、审核各自独立,再设 `community_site=<你的 site>`)。秘钥经 Dokploy 面板 env 注入你的服务,永不进 git。**你不需要 forwarder allowlist**(那是中继专用)。
 2. **注册 subject kinds(声明式 ensure,首选)**:kind 清单本就是你站的属性——把它写成你仓里的一个常量数组,**在服务启动路径(或一次性脚本)里调一次 ensure**,trust 逐 kind 收敛即止,幂等可重复跑。kind 命名用内容类型的稳定蛇形名(`forum_topic`)。
 
    ```
