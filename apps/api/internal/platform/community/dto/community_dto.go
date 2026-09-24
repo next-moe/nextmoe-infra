@@ -241,6 +241,14 @@ type PurgeResponse struct {
 	NotificationsDeleted       int64 `json:"notifications_deleted" doc:"inbox rows of this site whose recipient is this user, deleted this run"`
 }
 
+type RestoreResponse struct {
+	PostsRestored               int64 `json:"posts_restored" doc:"posts given back their status and content; a post whose status changed since the purge is left as it is"`
+	ReactionsRestored           int64 `json:"reactions_restored" doc:"reaction rows put back"`
+	ReadStatesRestored          int64 `json:"read_states_restored" doc:"read/subscription rows put back; one the user has recreated since keeps its new value"`
+	AnchorSubscriptionsRestored int64 `json:"anchor_subscriptions_restored" doc:"anchor-subscription rows put back; one the user has recreated since keeps its new value"`
+	NotificationsRestored       int64 `json:"notifications_restored" doc:"inbox rows put back"`
+}
+
 type PostResponse struct {
 	Post PostView `json:"post"`
 }

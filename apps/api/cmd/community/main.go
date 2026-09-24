@@ -125,6 +125,7 @@ func main() {
 	go notifySvc.Run(ctx)
 	slog.Info("community notification dispatcher started")
 	go runOutboxTicker(ctx, forwardSvc)
+	go runPurgeArchivePrune(ctx, postSvc)
 
 	application.Fiber.Get("/openapi.json", func(c fiber.Ctx) error {
 		b, err := json.Marshal(api.OpenAPI())
@@ -164,6 +165,23 @@ func runOutboxTicker(ctx context.Context, fwd *service.ForwardService) {
 				slog.Error("community trust-forward sweep", "err", err)
 			} else if n > 0 {
 				slog.Info("community trust-forward sweep", "forwarded", n)
+			}
+		}
+	}
+}
+
+func runPurgeArchivePrune(ctx context.Context, posts *service.PostService) {
+	t := time.NewTicker(time.Hour)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			if n, err := posts.PrunePurgeArchive(ctx); err != nil {
+				slog.Error("community purge archive prune", "err", err)
+			} else if n > 0 {
+				slog.Info("community purge archive prune", "rows", n)
 			}
 		}
 	}
