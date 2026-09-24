@@ -148648,8 +148648,8 @@ export const docsModel: DocsModel = {
               "id": "deleteMyPlaytime",
               "method": "delete",
               "path": "/v2/me/playtimes/{work_id}",
-              "summary": "Delete my playtime on one work",
-              "description": "204 with no body. Requires a user access token. Any app may call this; playtime:write is not required.",
+              "summary": "Delete this app's playtime on one work",
+              "description": "Deletes only the row the calling app reported. Rows other apps reported on the same work stay, and GET keeps answering from them. 204 with no body. Requires a user access token. Any app may call this; playtime:write is not required.",
               "scope": "",
               "auth": {
                 "kind": "user_token",

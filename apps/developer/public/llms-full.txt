@@ -5041,9 +5041,9 @@ curl -X PUT "https://api.nextmoe.dev/v2/me/playtimes/value" \
 
 ### DELETE /v2/me/playtimes/{work_id}
 
-Delete my playtime on one work
+Delete this app's playtime on one work
 
-204 with no body. Requires a user access token. Any app may call this; playtime:write is not required.
+Deletes only the row the calling app reported. Rows other apps reported on the same work stay, and GET keeps answering from them. 204 with no body. Requires a user access token. Any app may call this; playtime:write is not required.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>

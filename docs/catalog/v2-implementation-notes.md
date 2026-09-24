@@ -725,6 +725,14 @@ Decisions behind that table:
   the records written before this deploy replaying. Keys over 255 bytes are
   `400 TOO_LONG`. Every `/v2` POST now declares the header and a `409`; none
   did before, so no generated client could send the key.
+- **`DELETE /v2/me/playtimes/{work_id}` deletes only the calling app's row,
+  since 2.24.1.** Playtime is keyed `(actor_uid, work_id, client_id)` and PUT
+  writes only the caller's row, but DELETE matched `(actor_uid, work_id)`, so a
+  user withdrawing on one app erased what every other app had reported for that
+  work. It now also matches the token's client id. GET still answers the
+  largest minutes across apps, so after one app deletes, GET keeps answering
+  from the others. No rows were lost: at the fix every production row was
+  kungal's.
 - **`released` is accepted since 2.21.0** (it was deliberately absent through
   2.20.x — no caller had ever sent it). The v1 shape returned: `{y, m?, d?}`
   becomes ONE curated `catalog_release` row on the minted work, because a fresh
