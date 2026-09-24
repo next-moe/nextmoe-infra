@@ -235,7 +235,7 @@ func imageFromSlot(slot *dto.PublicCoverSlot) *repr.CoverSlot {
 		return nil
 	}
 	return slotFromImage(
-		imageFromURLMeta(slot.URL, slot.Source, slot.Width, slot.Height, slot.Thumbhash, slot.Sexual),
+		imageFromURLMeta(slot.URL, slot.Source, slot.Width, slot.Height, slot.Thumbhash, &slot.Sexual),
 		slot.Origin,
 	)
 }
@@ -252,10 +252,14 @@ func slotFromImage(img *repr.Image, origin string) *repr.CoverSlot {
 }
 
 func imageFromURL(url, source string) *repr.Image {
-	return imageFromURLMeta(url, source, 0, 0, "", 0)
+	return imageFromURLMeta(url, source, 0, 0, "", nil)
 }
 
-func imageFromURLMeta(url, source string, width, height int, thumbhash string, sexual int16) *repr.Image {
+// sexual is nil when the image was never assessed. An int16 here once made
+// "never assessed" read as 0 = safe: ungraded character art that carried a
+// size went out as "safe", which a consumer shows to SFW readers (moyu,
+// 2026-09-25).
+func imageFromURLMeta(url, source string, width, height int, thumbhash string, sexual *int16) *repr.Image {
 	h := hashFromURL(url)
 	if url == "" || h == "" {
 		return nil
@@ -273,10 +277,8 @@ func imageFromURLMeta(url, source string, width, height int, thumbhash string, s
 		th := thumbhash
 		img.Thumbhash = &th
 	}
-	if width > 0 || height > 0 || thumbhash != "" || sexual != 0 {
-		if sx, ok := repr.Sexual(&sexual); ok {
-			img.Sexual = sx
-		}
+	if sx, ok := repr.Sexual(sexual); ok {
+		img.Sexual = sx
 	}
 	return img
 }

@@ -1385,3 +1385,29 @@ cover grade is wrong. Nothing here edits them.
 operation (117). oasdiff reports no breaking change.
 
 **Zero migrations.**
+
+## Wave — an unassessed image is not safe (2026-09-25)
+
+moyu reported that character art with size metadata but no assessment came out
+as `sexual: "safe"`. `imageFromURLMeta` took the grade as an `int16`, where 0
+means both "safe" and "never assessed", and emitted a grade whenever the image
+carried a width, height or thumbhash. So every ungraded portrait, figure or
+logo that had a size claimed to be safe. A consumer that trusts `safe` shows it
+to readers who have not opted into adult content. The reverse edge was wrong as
+well: a cover graded safe but stored without a size came out `null`.
+
+The grade is now a pointer. It is emitted exactly when it is known:
+- covers, screenshots and cover slots always carry one (their column is
+  `NOT NULL`);
+- character art, credit-name photos and logos carry `PublicImageMeta.Sexual`,
+  whose nil already meant "not yet assessed";
+- a URL-only image carries none.
+
+Every `sexual` field on the wire already documented "null means not assessed";
+the code now matches it. `TestAnUnassessedImageIsNeverSafe` goes red if the
+nil is defaulted to 0 again.
+
+**Spec is 2.26.1.** No schema change; the values match what the field already
+documented.
+
+**Zero migrations.**

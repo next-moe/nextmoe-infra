@@ -211,3 +211,19 @@ func TestLocalizedFromEmpty(t *testing.T) {
 		t.Fatalf("%+v", out)
 	}
 }
+
+func TestAnUnassessedImageIsNeverSafe(t *testing.T) {
+	hash := strings.Repeat("c", 64)
+	url := "https://img.example/" + hash + ".webp"
+
+	art := imageFromPublicMeta(url, &dto.PublicImageMeta{Width: 300, Height: 400}, "")
+	if art == nil || art.Sexual != nil {
+		t.Fatalf("character art with a size but no assessment must carry sexual null, got %+v", art)
+	}
+
+	graded := int16(0)
+	cover := imageFromURLMeta(url, "vndb", 0, 0, "", &graded)
+	if cover == nil || cover.Sexual == nil || *cover.Sexual != "safe" {
+		t.Fatalf("an image graded safe must say so even without a size, got %+v", cover)
+	}
+}
