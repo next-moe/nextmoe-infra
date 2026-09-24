@@ -777,7 +777,7 @@ export const searchIndex: SearchEntry[] = [
     "r": "/docs/v2",
     "t": "Public API v2",
     "s": "端点参考",
-    "d": "/v2 · 116 个端点",
+    "d": "/v2 · 117 个端点",
     "b": "v2 /v2 API v2 Public API v2"
   },
   {
@@ -1479,6 +1479,13 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 我的",
     "d": "DELETE /v2/me/work-states/{work_id}",
     "b": "deleteMyWorkState /v2/me/work-states/{work_id} delete Delete my state on one work 204 with no body. Requires a user access token. Any app may call this; no scope is required. 204 无响应体。需要用户访问令牌。任何应用均可调用；不要求任何 scope。 work_id"
+  },
+  {
+    "r": "/docs/v2/listMyWorks",
+    "t": "我在这些作品上的收藏夹、游玩时长和游玩状态",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/works",
+    "b": "listMyWorks /v2/me/works get My folders, playtime and play state for these works What the bearer has recorded about up to 100 works, in one request: the folders holding each work, its playtime and its play state. One item per distinct work id, in the order asked. A work the bearer has recorded nothing about still gets an item, with empty folder_ids and null playtime and work_state, and so does an id that names no work. The values are the ones /v2/me/folders/holdings, /v2/me/playtimes and /v2/me/work-states answer; this face saves a client from asking all three. Cover votes are not included: they need catalog:edit, and /v2/me/cover-votes lists them. work_ids is required; this is a batch read with no pagination. Requires a user access token with folder:read (folder:write also grants reads). 一次请求答出令牌持有人在最多 100 部作品上记下的内容：收着每部作品的收藏夹、游玩时长和游玩状态。每个不同的作品 id 答一项，顺序与请求一致。持有人什么都没记的作品同样有一项，folder_ids 为空数组，playtime 与 work_state 为 null；不指向任何作品的 id 也这样回答。取值与 /v2/me/folders/holdings、/v2/me/playtimes、/v2/me/work-states 的回答一致，这个接口省去了分别调用三者。不含封面投票：它需要 catalog:edit，由 /v2/me/cover-votes 列出。work_ids 必填；这是批量读取，不分页。需要带 folder:read 的用户访问令牌（folder:write 也可读）。 folder:read 或 folder:write work_ids"
   },
   {
     "r": "/docs/v2/listModerationClaims",

@@ -1301,3 +1301,43 @@ zero value, putting every work back on the shelf its site declared.
 
 **Reindex required after the deploy**: `content_limit` reaches OpenSearch only
 through `cmd/reindex-catalog`, which runs nightly at 06:10 CST.
+
+## Wave — a work page asks once (2026-09-24)
+
+The kungal forum hit the per-user short-window bucket (`u<uid>`, 100 a minute)
+three times on 2026-09-24, each time for one signed-in person: a browser
+restoring about twenty detail tabs, or someone filing a work into a folder every
+eight seconds. A detail page cost four user-token calls:
+`/v2/catalog/works/{id}/covers` with the token, `/v2/me/folders?contains_work_id=`,
+`/v2/me/playtimes` and `/v2/me/work-states`. The first carried nothing for the
+token to change (A10: a public 200 is a function of the URL), so it only spent
+the bucket.
+
+**The fix is fewer calls, not a larger bucket for first-party clients.** The
+bucket is one per person across every app on purpose (the per-`(client, uid)`
+split was rejected above), and a first-party multiplier would hide the fan-out
+rather than remove it. `GET /v2/me/works?work_ids=` answers, for up to 100
+works, the bearer's folders holding each one, their playtime and their play
+state: one `user_work` item per distinct id, in request order. It answers the
+same values as holdings, playtimes and work-states, so a detail page asks once
+and a list page asks once for all of its works.
+
+Unlike holdings, an item comes back for every id asked: a work nobody filed, and
+an id that names no work, get empty `folder_ids` and null `playtime` and
+`work_state`. A viewer face renders every work it asked about; with holdings'
+shape the client would have to read an absent item as "nothing recorded".
+
+**It takes `folder:read`**, like `/v2/me/folders`, because its answer contains
+the caller's folders. The gate and `TestEveryMeAndModerationPathDeclaresItsScope`
+now read one list, `folderScopedPrefixes`. Cover votes are left out: they sit on
+the editing plane behind `catalog:edit`, and a client reads them once per session
+from `/v2/me/cover-votes`.
+
+It costs three `IN` queries. The `work_ids=` lanes of `/v2/me/playtimes` and
+`/v2/me/work-states` ran one query per id, up to 100 a request; they now share
+the same `ListMineFor` reads. Their answers are unchanged, including `missing`.
+
+**Spec is 2.25.0.** Additive: one new operation (116 → 117), one new schema
+(`user_work`). oasdiff reports no breaking change.
+
+**Zero migrations.**

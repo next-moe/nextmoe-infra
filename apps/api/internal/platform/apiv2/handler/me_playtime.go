@@ -22,27 +22,27 @@ func (c *Catalog) ListPlaytimes(ctx context.Context, q collect.Query, workIDs []
 		return repr.List[repr.UserPlaytime]{}, err
 	}
 	if len(workIDs) > 0 {
-		if len(workIDs) > collect.MaxBatchItems {
-			return repr.List[repr.UserPlaytime]{}, problem.New(problem.CodeTooManyIDs, "", "", "work_ids named more than 100 items.")
+		ids, perr := parseWorkIDs(workIDs)
+		if perr != nil {
+			return repr.List[repr.UserPlaytime]{}, perr
 		}
-		items := make([]repr.UserPlaytime, 0, len(workIDs))
+		rows, gerr := c.Playtime.ListMineFor(ctx, uid, ids)
+		if gerr != nil {
+			return repr.List[repr.UserPlaytime]{}, gerr
+		}
+		minutes := make(map[int64]int, len(rows))
+		for _, r := range rows {
+			minutes[r.WorkID] = r.Minutes
+		}
+		items := make([]repr.UserPlaytime, 0, len(ids))
 		var missing []string
-		for _, s := range workIDs {
-			id, ok := repr.ParseID(s)
+		for i, id := range ids {
+			m, ok := minutes[id]
 			if !ok {
-				p := problem.New(problem.CodeInvalidParameter, "", "", "work_ids values must be decimal catalog ids.")
-				p.Errors = []problem.FieldError{{Parameter: "work_ids", Reason: problem.ReasonInvalidFormat, Detail: s}}
-				return repr.List[repr.UserPlaytime]{}, p
-			}
-			row, gerr := c.Playtime.GetMine(ctx, uid, id)
-			if gerr != nil {
-				return repr.List[repr.UserPlaytime]{}, gerr
-			}
-			if row == nil {
-				missing = append(missing, s)
+				missing = append(missing, workIDs[i])
 				continue
 			}
-			items = append(items, repr.UserPlaytime{Object: "playtime", WorkID: repr.ID(row.WorkID), Minutes: row.Minutes})
+			items = append(items, repr.UserPlaytime{Object: "playtime", WorkID: repr.ID(id), Minutes: m})
 		}
 		return finishList(items, nil, int64(len(items)), collect.Query{Batch: true, IncludeTotal: q.IncludeTotal}, missing), nil
 	}
