@@ -291,7 +291,7 @@ GET /v2/catalog/works?refs=vndb:v19658,bangumi:302835
 
 - `content_rating` 是作品的**事实分级**：`all_ages` / `sensitive` / `r18`。
 - `nsfw=` 是**调用方自己控制的闸**：缺省隐藏 r18，显式 `nsfw=true` 才可见。只认 `true` / `false`，写别的是 `400` 而不是按默认值处理。
-- `content_limit`（`sfw` / `nsfw`）是**编辑展示轴**，属于认领方站点的编辑判定，不等于事实分级。
+- `content_limit`（`sfw` / `nsfw`）是**展示轴**：能不能给没选成人内容的读者看。每部作品都带（2.26.0 起）。已认领作品由认领方站点的编辑判定决定，未认领作品按事实分级；封面全部被判 explicit 的作品不论哪种都是 `nsfw`。它不等于事实分级，也不要用事实分级去推它。
 
 这三个是正交的：一部 `all_ages` 的作品可以被某个站点标成 `nsfw` 展示轴，一部 `r18` 作品在 `nsfw=false` 下会整条消失而不是发个空壳。
 
@@ -1172,7 +1172,7 @@ curl "https://api.nextmoe.dev/v2/catalog/works?refs=vndb:v19658&nsfw=true" \
 
 ## 承诺了什么
 
-凡是改动作品的 **claim 状态**、**编辑展示轴**（`content_limit` 的两个输入：`display_nsfw` 与 `content_rating`）或**作品存在性**的写路径，都会 bump 这一行的 `updated_at`，因而必然在这条 feed 里现身。
+凡是改动作品的 **claim 状态**、**展示轴**（`content_limit` 的输入：`display_nsfw`、`content_rating`，以及作品的封面是否全部被判 explicit）或**作品存在性**的写路径，都会 bump 这一行的 `updated_at`，因而必然在这条 feed 里现身。
 
 其余字段（封面 / 标签 / 标题 / 简介 / 评分）是**尽力而为**——它们多数也会连带 touch 作品行，但只有上面三项是承诺。要对某个非承诺字段做强一致的镜像，请告诉我们，那说明它该被提升成承诺。
 
@@ -1228,10 +1228,10 @@ WHERE content_limit IS NULL OR content_limit = 'sfw'
 
 这样冷启动期间未水合的行照常可见，而不是整站空白。真正的权威始终是水合时 catalog 自己的闸，本地这一列只是列表页的快筛。
 
-判定配方（和服务端同一条）：
+判定不要自己算，直接读作品上的 `content_limit`：每部作品都带（2.26.0 起），认领与否都一样。服务端除了认领方的编辑判定和事实分级，还看封面——一部作品的封面全部被判 explicit 时，不论分级都是 `nsfw`。按分级自己推算会把这类作品当成 `sfw`。
 
 ```javascript
-content_limit = claim.content_limit = content_rating === 'r18' ? 'nsfw' : 'sfw' // 已认领：用认领方的编辑判定 // 未认领：按事实分级
+const contentLimit = work.content_limit // 'sfw' | 'nsfw'，不要用 content_rating 推算
 ```
 
 ## 整条回路
@@ -3048,7 +3048,7 @@ Catalog changes feed
 
 Works updated recently, oldest first. Keyset-paginated. Requires an application key or a user access token with catalog:read. ids= is not accepted.
 
-**This is the mirror channel.** If you cache any catalog-owned fact per work — above all the editorial display axis `content_limit`, whose verdict is `claimed_by.content_limit` when the claim block is present and otherwise `nsfw` when `content_rating` is `r18`, `sfw` otherwise — poll this feed instead of sweeping the catalog. Every write that changes a work's claim state, its display axis (the editorial NSFW flag or its content rating), or its existence bumps `updated_at` and surfaces the id here.
+**This is the mirror channel.** If you cache any catalog-owned fact per work — above all the display axis `content_limit`, which every work carries (read it from the work; do not re-derive it from `content_rating`, which misses works whose every cover is graded explicit) — poll this feed instead of sweeping the catalog. Every write that changes a work's claim state, its display axis (the editorial NSFW flag, its content rating, or whether every cover it has is graded explicit), or its existence bumps `updated_at` and surfaces the id here.
 
 Bootstrap from an empty cursor: the feed enumerates the whole population oldest-updated-first, so the first drain IS the full inventory. Hydrate each page against /v2/catalog/works with ids= in batches of at most 100, with both gates open (nsfw=true and no content_limit), then keep the cursor and poll it at your own cadence.
 

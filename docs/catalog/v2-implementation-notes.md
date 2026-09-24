@@ -1341,3 +1341,47 @@ the same `ListMineFor` reads. Their answers are unchanged, including `missing`.
 (`user_work`). oasdiff reports no breaking change.
 
 **Zero migrations.**
+
+## Wave — every work carries its shelf (2026-09-24)
+
+The kungal forum showed 18 unclaimed works to readers who had not opted into
+adult content, each one with a cover graded explicit. The forum took a work's
+shelf from `claim.content_limit` and, for an unclaimed work (`claim` null), fell
+back on `content_rating == r18`. That fallback was the recipe this API
+published: the changes-feed description, `01-service-and-contract.md` §8 and
+the portal's mirror guide all gave "`claimed_by.content_limit` if present,
+otherwise nsfw iff r18". The 09-14 wave put `cover_art_all_explicit` first in
+`model.WorkShelf.NSFW` and left all three copies of the recipe as they were. So
+an unclaimed all_ages work whose every cover is explicit was nsfw to catalog and
+sfw to anyone following the docs. Reads that open the nsfw gate elect that
+explicit art as the cover and banner, which is correct for them; the forum then
+put the result in front of sfw readers.
+
+**`content_limit` is now a top-level field on every work**, claimed or not: on
+list rows, the detail, relations, series siblings, label works, and the works
+of names and characters. It sits in `view=basic` and is selectable with
+`fields=`. It is `model.DisplayLimitKey` over the same shelf facts the cover
+gate reads, so it always agrees with `claim.content_limit` and with the
+`content_limit=` filter. The three recipe copies now say to read the field and
+not to re-derive it.
+
+The name, character and label faces loaded shelf facts only for claimed works
+(`claimedByFor`). `workShelvesFor` loads them for every id and returns the claim
+alongside the verdict. The list loaded the facts only when `cover` or
+`claimed_by` was requested, so `fields=content_limit` alone would have answered
+from empty facts and said sfw for exactly these works; `content_limit` now
+triggers the load. Deleting that trigger turns
+`TestContentLimitOnEveryWorkClaimedOrNot` red, and so does dropping the cover
+clause from the verdict.
+
+The feed invariant already covered the new input: the trigger that maintains
+`cover_art_all_explicit` bumps `updated_at` when it flips.
+
+The 18 works themselves are the `cover-shelf-watch` audit's standing "needs a
+human" bucket: every cover explicit, rating not r18, so either the rating or a
+cover grade is wrong. Nothing here edits them.
+
+**Spec is 2.26.0.** Additive: one new response field on `work`. No new
+operation (117). oasdiff reports no breaking change.
+
+**Zero migrations.**

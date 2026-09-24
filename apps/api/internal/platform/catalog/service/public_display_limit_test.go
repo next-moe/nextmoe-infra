@@ -360,16 +360,88 @@ func TestClaimedByContentLimitOnEveryFace(t *testing.T) {
 		t.Fatalf("lookup brief claimed_by = %+v, want content_limit sfw", single.Work)
 	}
 
-	claims, err := svc.claimedByFor(ctx, []int64{safeR18.ID, spicySFW.ID, bodyless.ID})
+	shelves, err := svc.workShelvesFor(ctx, []int64{safeR18.ID, spicySFW.ID, bodyless.ID})
 	if err != nil {
-		t.Fatalf("claimedByFor: %v", err)
+		t.Fatalf("workShelvesFor: %v", err)
 	}
-	if len(claims) != 2 {
-		t.Fatalf("claimedByFor returned %d claims, want 2 (the bodyless row has none)", len(claims))
+	if shelves[bodyless.ID].claim != nil || shelves[bodyless.ID].limit != "sfw" {
+		t.Fatalf("bodyless shelf = %+v, want no claim and sfw", shelves[bodyless.ID])
 	}
 	for id, limit := range want {
-		if claims[id] == nil || claims[id].ContentLimit != limit {
-			t.Fatalf("batch claim %d = %+v, want content_limit %q", id, claims[id], limit)
+		if shelves[id].claim == nil || shelves[id].claim.ContentLimit != limit || shelves[id].limit != limit {
+			t.Fatalf("batch shelf %d = %+v, want content_limit %q on the claim and the work", id, shelves[id], limit)
+		}
+	}
+}
+
+// The forum gated unclaimed works on content_rating because the verdict lived
+// only on the claim block, and showed 18 works whose every cover is explicit to
+// readers who had not opted in. Every face now carries the verdict itself.
+func TestContentLimitOnEveryWorkClaimedOrNot(t *testing.T) {
+	cleanTables(t)
+	svc := newPublicSvc()
+	ctx := t.Context()
+
+	explicitAllAges := createWorkX(t, galgameMediumID, model.ContentRatingAllAges, model.WorkStatusLive, "ShelfExplicitAllAges")
+	addWorkCover(t, explicitAllAges.ID, hash64("c101"), 0, "main", false, model.SexualExplicit, srcVNDB)
+	safeR18 := createWorkX(t, galgameMediumID, model.ContentRatingR18, model.WorkStatusLive, "ShelfSafeR18")
+	addWorkCover(t, safeR18.ID, hash64("c102"), 0, "main", false, model.SexualSafe, srcVNDB)
+	safeAllAges := createWorkX(t, galgameMediumID, model.ContentRatingAllAges, model.WorkStatusLive, "ShelfSafeAllAges")
+	addWorkCover(t, safeAllAges.ID, hash64("c103"), 0, "main", false, model.SexualSafe, srcVNDB)
+	claimedExplicit := createWorkX(t, galgameMediumID, model.ContentRatingR18, model.WorkStatusLive, "ShelfClaimedExplicit")
+	addWorkCover(t, claimedExplicit.ID, hash64("c104"), 0, "main", false, model.SexualExplicit, srcVNDB)
+	claimWork(t, claimedExplicit.ID, "galgame_wiki", 9900)
+	declareDisplayLimit(t, 9900, "sfw")
+
+	want := map[int64]string{
+		explicitAllAges.ID: "nsfw",
+		safeR18.ID:         "nsfw",
+		safeAllAges.ID:     "sfw",
+		claimedExplicit.ID: "nsfw",
+	}
+
+	for _, fields := range []string{"", "id,content_limit"} {
+		page, err := svc.WorksList(ctx, WorksListFilter{Sort: "id", NSFW: true, Fields: ParsePublicFields(fields)}, "", 50)
+		if err != nil {
+			t.Fatalf("WorksList fields=%q: %v", fields, err)
+		}
+		if len(page.Items) != len(want) {
+			t.Fatalf("list fields=%q returned %d works, want %d", fields, len(page.Items), len(want))
+		}
+		for _, it := range page.Items {
+			if it.ContentLimit != want[it.ID] {
+				t.Fatalf("list fields=%q work %d content_limit = %q, want %q", fields, it.ID, it.ContentLimit, want[it.ID])
+			}
+		}
+	}
+
+	for id, limit := range want {
+		rec, found, err := svc.WorkDetail(ctx, id, PublicInclude{}, true, 0, PublicFields{})
+		if err != nil || !found {
+			t.Fatalf("WorkDetail %d: found=%v err=%v", id, found, err)
+		}
+		if rec.ContentLimit != limit {
+			t.Fatalf("detail work %d content_limit = %q, want %q", id, rec.ContentLimit, limit)
+		}
+		if rec.ClaimedBy != nil && rec.ClaimedBy.ContentLimit != rec.ContentLimit {
+			t.Fatalf("detail work %d: claim says %q, work says %q", id, rec.ClaimedBy.ContentLimit, rec.ContentLimit)
+		}
+	}
+
+	briefs, err := svc.loadWorkBriefs(ctx, []int64{explicitAllAges.ID, safeAllAges.ID}, true)
+	if err != nil {
+		t.Fatalf("loadWorkBriefs: %v", err)
+	}
+	shelves, err := svc.workShelvesFor(ctx, []int64{explicitAllAges.ID, safeAllAges.ID})
+	if err != nil {
+		t.Fatalf("workShelvesFor: %v", err)
+	}
+	for _, id := range []int64{explicitAllAges.ID, safeAllAges.ID} {
+		if briefs[id] == nil || briefs[id].ContentLimit != want[id] {
+			t.Fatalf("brief %d = %+v, want content_limit %q", id, briefs[id], want[id])
+		}
+		if shelves[id].limit != want[id] {
+			t.Fatalf("shelf %d = %q, want %q", id, shelves[id].limit, want[id])
 		}
 	}
 }

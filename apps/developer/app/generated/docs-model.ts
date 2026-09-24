@@ -4913,6 +4913,16 @@ export const docsModel: DocsModel = {
                               }
                             },
                             {
+                              "name": "content_limit",
+                              "required": true,
+                              "doc": "Display axis: whether this work may be shown to a reader who has not opted into adult content. Set on every work, claimed or not, and the value the content_limit filter selects on. It is not content_rating: an r18 game whose cover art is safe is sfw, and a work whose every cover is graded explicit is nsfw whatever its rating. A claimed work carries the same value in claim.content_limit.",
+                              "enum": [
+                                "sfw",
+                                "nsfw"
+                              ],
+                              "type": "string"
+                            },
+                            {
                               "name": "content_rating",
                               "required": true,
                               "doc": "Age axis of the work.",
@@ -7357,7 +7367,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/changes",
               "summary": "Catalog changes feed",
-              "description": "Works updated recently, oldest first. Keyset-paginated. Requires an application key or a user access token with catalog:read. ids= is not accepted.\n\n**This is the mirror channel.** If you cache any catalog-owned fact per work — above all the editorial display axis `content_limit`, whose verdict is `claimed_by.content_limit` when the claim block is present and otherwise `nsfw` when `content_rating` is `r18`, `sfw` otherwise — poll this feed instead of sweeping the catalog. Every write that changes a work's claim state, its display axis (the editorial NSFW flag or its content rating), or its existence bumps `updated_at` and surfaces the id here.\n\nBootstrap from an empty cursor: the feed enumerates the whole population oldest-updated-first, so the first drain IS the full inventory. Hydrate each page against /v2/catalog/works with ids= in batches of at most 100, with both gates open (nsfw=true and no content_limit), then keep the cursor and poll it at your own cadence.\n\ngone: an entry carrying `gone: true` has left the public population — drop the mirrored row. Merged-away ids appear here as gone AND in /v2/catalog/redirects, which names the id that replaced them; repoint rather than delete when the redirect exists.\n\nEverything else a work serves — covers, tags, titles, intros, ratings — surfaces best-effort: most of those writers touch the work too, but only claim state, the display axis and existence are promised.",
+              "description": "Works updated recently, oldest first. Keyset-paginated. Requires an application key or a user access token with catalog:read. ids= is not accepted.\n\n**This is the mirror channel.** If you cache any catalog-owned fact per work — above all the display axis `content_limit`, which every work carries (read it from the work; do not re-derive it from `content_rating`, which misses works whose every cover is graded explicit) — poll this feed instead of sweeping the catalog. Every write that changes a work's claim state, its display axis (the editorial NSFW flag, its content rating, or whether every cover it has is graded explicit), or its existence bumps `updated_at` and surfaces the id here.\n\nBootstrap from an empty cursor: the feed enumerates the whole population oldest-updated-first, so the first drain IS the full inventory. Hydrate each page against /v2/catalog/works with ids= in batches of at most 100, with both gates open (nsfw=true and no content_limit), then keep the cursor and poll it at your own cadence.\n\ngone: an entry carrying `gone: true` has left the public population — drop the mirrored row. Merged-away ids appear here as gone AND in /v2/catalog/redirects, which names the id that replaced them; repoint rather than delete when the redirect exists.\n\nEverything else a work serves — covers, tags, titles, intros, ratings — surfaces best-effort: most of those writers touch the work too, but only claim state, the display axis and existence are promised.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -13853,6 +13863,16 @@ export const docsModel: DocsModel = {
                                       }
                                     ]
                                   }
+                                },
+                                {
+                                  "name": "content_limit",
+                                  "required": true,
+                                  "doc": "Display axis: whether this work may be shown to a reader who has not opted into adult content. Set on every work, claimed or not, and the value the content_limit filter selects on. It is not content_rating: an r18 game whose cover art is safe is sfw, and a work whose every cover is graded explicit is nsfw whatever its rating. A claimed work carries the same value in claim.content_limit.",
+                                  "enum": [
+                                    "sfw",
+                                    "nsfw"
+                                  ],
+                                  "type": "string"
                                 },
                                 {
                                   "name": "content_rating",
@@ -27245,6 +27265,16 @@ export const docsModel: DocsModel = {
                                       }
                                     ]
                                   }
+                                },
+                                {
+                                  "name": "content_limit",
+                                  "required": true,
+                                  "doc": "Display axis: whether this work may be shown to a reader who has not opted into adult content. Set on every work, claimed or not, and the value the content_limit filter selects on. It is not content_rating: an r18 game whose cover art is safe is sfw, and a work whose every cover is graded explicit is nsfw whatever its rating. A claimed work carries the same value in claim.content_limit.",
+                                  "enum": [
+                                    "sfw",
+                                    "nsfw"
+                                  ],
+                                  "type": "string"
                                 },
                                 {
                                   "name": "content_rating",
@@ -64808,6 +64838,16 @@ export const docsModel: DocsModel = {
                               }
                             },
                             {
+                              "name": "content_limit",
+                              "required": true,
+                              "doc": "Display axis: whether this work may be shown to a reader who has not opted into adult content. Set on every work, claimed or not, and the value the content_limit filter selects on. It is not content_rating: an r18 game whose cover art is safe is sfw, and a work whose every cover is graded explicit is nsfw whatever its rating. A claimed work carries the same value in claim.content_limit.",
+                              "enum": [
+                                "sfw",
+                                "nsfw"
+                              ],
+                              "type": "string"
+                            },
+                            {
                               "name": "content_rating",
                               "required": true,
                               "doc": "Age axis of the work.",
@@ -68094,6 +68134,16 @@ export const docsModel: DocsModel = {
                             }
                           ]
                         }
+                      },
+                      {
+                        "name": "content_limit",
+                        "required": true,
+                        "doc": "Display axis: whether this work may be shown to a reader who has not opted into adult content. Set on every work, claimed or not, and the value the content_limit filter selects on. It is not content_rating: an r18 game whose cover art is safe is sfw, and a work whose every cover is graded explicit is nsfw whatever its rating. A claimed work carries the same value in claim.content_limit.",
+                        "enum": [
+                          "sfw",
+                          "nsfw"
+                        ],
+                        "type": "string"
                       },
                       {
                         "name": "content_rating",
@@ -83005,6 +83055,16 @@ export const docsModel: DocsModel = {
                                       }
                                     ]
                                   }
+                                },
+                                {
+                                  "name": "content_limit",
+                                  "required": true,
+                                  "doc": "Display axis: whether this work may be shown to a reader who has not opted into adult content. Set on every work, claimed or not, and the value the content_limit filter selects on. It is not content_rating: an r18 game whose cover art is safe is sfw, and a work whose every cover is graded explicit is nsfw whatever its rating. A claimed work carries the same value in claim.content_limit.",
+                                  "enum": [
+                                    "sfw",
+                                    "nsfw"
+                                  ],
+                                  "type": "string"
                                 },
                                 {
                                   "name": "content_rating",
