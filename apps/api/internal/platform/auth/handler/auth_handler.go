@@ -513,13 +513,9 @@ func rfc3339(t *time.Time) *string {
 	return &v
 }
 
-// firstPartyOnly keeps account deletion on the account console: an OAuth
-// access token held by some other application must not be able to start it.
-func firstPartyOnly(c fiber.Ctx) error {
-	if clientID, _ := c.Locals("token_client_id").(string); clientID != "" {
-		return response.Forbidden(c, errors.ErrForbidden)
-	}
-	return nil
+func heldByAnotherApp(c fiber.Ctx) bool {
+	clientID, _ := c.Locals("token_client_id").(string)
+	return clientID != ""
 }
 
 func appErrOr500(c fiber.Ctx, err error) error {
@@ -530,8 +526,8 @@ func appErrOr500(c fiber.Ctx, err error) error {
 }
 
 func (h *AuthHandler) SendDeletionCode(c fiber.Ctx) error {
-	if err := firstPartyOnly(c); err != nil {
-		return err
+	if heldByAnotherApp(c) {
+		return response.Forbidden(c, errors.ErrForbidden)
 	}
 	if err := h.authService.SendDeletionCode(c.Context(), c.Locals("user_uuid").(string)); err != nil {
 		return appErrOr500(c, err)
@@ -540,8 +536,8 @@ func (h *AuthHandler) SendDeletionCode(c fiber.Ctx) error {
 }
 
 func (h *AuthHandler) RequestDeletion(c fiber.Ctx) error {
-	if err := firstPartyOnly(c); err != nil {
-		return err
+	if heldByAnotherApp(c) {
+		return response.Forbidden(c, errors.ErrForbidden)
 	}
 	var req dto.RequestDeletionRequest
 	if err := c.Bind().JSON(&req); err != nil {
@@ -558,8 +554,8 @@ func (h *AuthHandler) RequestDeletion(c fiber.Ctx) error {
 }
 
 func (h *AuthHandler) CancelDeletion(c fiber.Ctx) error {
-	if err := firstPartyOnly(c); err != nil {
-		return err
+	if heldByAnotherApp(c) {
+		return response.Forbidden(c, errors.ErrForbidden)
 	}
 	if err := h.authService.CancelDeletion(c.Context(), c.Locals("user_uuid").(string)); err != nil {
 		return appErrOr500(c, err)

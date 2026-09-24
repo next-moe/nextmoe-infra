@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"api/internal/platform/auth/model"
@@ -86,6 +87,7 @@ func (s *AuthService) RequestDeletion(ctx context.Context, userUUID, code string
 		return time.Time{}, errors.NewWithCode(errors.ErrAuthCodeExpired)
 	}
 	if subtle.ConstantTimeCompare(raw, []byte(code)) != 1 {
+		s.countFailedDeletionCode(store, userUUID)
 		return time.Time{}, errors.NewWithCode(errors.ErrAuthCodeInvalid)
 	}
 	user, err := s.deletableUser(ctx, userUUID)
@@ -109,6 +111,24 @@ func (s *AuthService) RequestDeletion(ctx context.Context, userUUID, code string
 	return due, nil
 }
 
+const deletionCodeMaxFailures = 5
+
+func (s *AuthService) countFailedDeletionCode(store codeCache, userUUID string) {
+	key := "account_delete_failures:" + userUUID
+	n := 1
+	if raw, _ := store.Get(key); raw != nil {
+		if v, err := strconv.Atoi(string(raw)); err == nil {
+			n = v + 1
+		}
+	}
+	if n >= deletionCodeMaxFailures {
+		_ = store.Delete(deletionCodeKey(userUUID))
+		_ = store.Delete(key)
+		return
+	}
+	_ = store.Set(key, []byte(strconv.Itoa(n)), verificationCodeTTL())
+}
+
 func (s *AuthService) CancelDeletion(ctx context.Context, userUUID string) error {
 	user, err := s.userRepo.FindByUUID(ctx, userUUID)
 	if err != nil || user.IsAnonymized() {
@@ -123,15 +143,18 @@ func (s *AdminService) ExecuteDueDeletions(ctx context.Context, now time.Time) (
 		return 0, err
 	}
 	done := 0
+	var failed []uint
 	for i := range users {
 		u := &users[i]
 		if adminProtected(u) {
 			slog.Warn("account deletion: due account holds an admin role; left pending", "user_id", u.ID)
 			continue
 		}
-		erased, err := s.userRepo.EraseAccount(ctx, u.ID, now)
+		erased, err := s.userRepo.EraseAccount(ctx, u.ID, now, time.Now())
 		if err != nil {
-			return done, fmt.Errorf("erase user %d: %w", u.ID, err)
+			slog.Error("account deletion: erase failed; retried next run", "user_id", u.ID, "err", err)
+			failed = append(failed, u.ID)
+			continue
 		}
 		if !erased {
 			continue
@@ -140,6 +163,9 @@ func (s *AdminService) ExecuteDueDeletions(ctx context.Context, now time.Time) (
 		if u.AvatarImageHash != nil {
 			s.releaseAvatar(ctx, u.ID, *u.AvatarImageHash)
 		}
+	}
+	if len(failed) > 0 {
+		return done, fmt.Errorf("account deletion: %d of %d due account(s) failed: %v", len(failed), len(users), failed)
 	}
 	return done, nil
 }

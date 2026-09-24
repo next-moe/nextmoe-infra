@@ -25,6 +25,7 @@ func seedDeletable(t *testing.T, db *gorm.DB, tag string) *model.User {
 		for _, q := range []string{
 			`DELETE FROM oauth_accounts WHERE user_id = ?`, `DELETE FROM user_preferences WHERE user_id = ?`,
 			`DELETE FROM sessions WHERE user_id = ?`, `DELETE FROM user_roles WHERE user_id = ?`,
+			`DELETE FROM user_migrations WHERE user_id = ?`,
 			`DELETE FROM users WHERE id = ?`,
 		} {
 			db.Exec(q, u.ID)
@@ -65,6 +66,8 @@ func TestAccountDeletionWaitsOutTheGraceAndErasesTheAccount(t *testing.T) {
 	must(db.Create(&model.UserPreference{UserID: u.ID, Namespace: "kungal", Doc: []byte(`{}`), Version: 1}).Error)
 	must(db.Create(&model.Session{UserID: u.ID, SessionToken: "s-" + tag, RefreshToken: "r-" + tag,
 		ExpiresAt: time.Now().Add(time.Hour)}).Error)
+	must(db.Create(&model.UserMigration{UserID: u.ID, UserUUID: u.UUID, SourceDB: "kungalgame",
+		SourceUserID: 1, SourceEmail: u.Email}).Error)
 
 	auth, admin, kv := deletionServices(db)
 	must(auth.SendDeletionCode(ctx, u.UUID))
@@ -109,7 +112,7 @@ func TestAccountDeletionWaitsOutTheGraceAndErasesTheAccount(t *testing.T) {
 		gone.AnonymizedAt == nil || gone.DeletionDueAt != nil || gone.Status != 1 {
 		t.Fatalf("not erased: %+v", gone)
 	}
-	for _, table := range []string{"oauth_accounts", "user_preferences", "sessions"} {
+	for _, table := range []string{"oauth_accounts", "user_preferences", "sessions", "user_migrations"} {
 		if c := rowsOf(t, db, table, u.ID); c != 0 {
 			t.Fatalf("%s kept %d row(s) of a deleted account", table, c)
 		}
@@ -159,8 +162,6 @@ func TestAnAdminCannotStartItsOwnDeletion(t *testing.T) {
 	}
 }
 
-// An old account deleted late must still reach a consumer that has already
-// paged past its id.
 func TestTheDeletedFeedPagesInDeletionOrder(t *testing.T) {
 	db := requireDB(t)
 	ctx := context.Background()
@@ -168,14 +169,24 @@ func TestTheDeletedFeedPagesInDeletionOrder(t *testing.T) {
 	old := seedDeletable(t, db, tag+"a")
 	young := seedDeletable(t, db, tag+"b")
 	repo := repository.NewUserRepository(db)
-	base := time.Now().Add(24 * time.Hour).Truncate(time.Microsecond)
+	base := time.Now().Add(-time.Hour).Truncate(time.Microsecond)
 	for _, step := range []struct {
 		u  *model.User
 		at time.Time
 	}{{young, base}, {old, base.Add(time.Minute)}} {
-		if _, err := repo.EraseAccount(ctx, step.u.ID, step.at); err != nil {
+		if err := repo.ScheduleDeletion(ctx, step.u.ID, step.at.Add(-AccountDeletionGrace), step.at); err != nil {
 			t.Fatal(err)
 		}
+		if erased, err := repo.EraseAccount(ctx, step.u.ID, step.at, step.at); err != nil || !erased {
+			t.Fatalf("erase %d: erased=%v err=%v", step.u.ID, erased, err)
+		}
+	}
+	fresh := seedDeletable(t, db, tag+"c")
+	if err := repo.ScheduleDeletion(ctx, fresh.ID, time.Now().Add(-AccountDeletionGrace), time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.EraseAccount(ctx, fresh.ID, time.Now(), time.Now()); err != nil {
+		t.Fatal(err)
 	}
 
 	svc := NewUserBatchService(repo, nil)
@@ -191,9 +202,18 @@ func TestTheDeletedFeedPagesInDeletionOrder(t *testing.T) {
 	if len(first.Users) != 1 || first.Users[0].ID != young.ID || len(second.Users) != 1 || second.Users[0].ID != old.ID {
 		t.Fatalf("want %d then %d, got %+v then %+v", young.ID, old.ID, first.Users, second.Users)
 	}
-	last, err := svc.ListDeleted(ctx, second.NextCursor, 1)
-	if err != nil || len(last.Users) != 0 || last.NextCursor != second.NextCursor {
-		t.Fatalf("an exhausted feed must hand the same cursor back: %+v %v", last, err)
+	rest, err := svc.ListDeleted(ctx, second.NextCursor, 500)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, u := range rest.Users {
+		if u.ID == fresh.ID {
+			t.Fatal("a deletion younger than the settle margin was handed out")
+		}
+	}
+	future := strconv.FormatInt(time.Now().Add(time.Hour).UnixNano(), 10) + ".0"
+	if end, err := svc.ListDeleted(ctx, future, 10); err != nil || len(end.Users) != 0 || end.NextCursor != future {
+		t.Fatalf("an exhausted feed must hand the same cursor back: %+v %v", end, err)
 	}
 
 	batch, err := svc.GetBriefs(ctx, []uint{old.ID}, 0)
@@ -208,4 +228,55 @@ func TestTheDeletedFeedPagesInDeletionOrder(t *testing.T) {
 func isCode(err error, code int) bool {
 	var appErr *errors.AppError
 	return stderrors.As(err, &appErr) && appErr.Code == code
+}
+
+func TestFiveWrongCodesBurnTheDeletionCode(t *testing.T) {
+	db := requireDB(t)
+	ctx := context.Background()
+	u := seedDeletable(t, db, strconv.FormatInt(time.Now().UnixNano(), 36))
+	auth, _, kv := deletionServices(db)
+	if err := auth.SendDeletionCode(ctx, u.UUID); err != nil {
+		t.Fatal(err)
+	}
+	code, _ := kv.Get(deletionCodeKey(u.UUID))
+	wrong := "000000"
+	if string(code) == wrong {
+		wrong = "111111"
+	}
+	for range deletionCodeMaxFailures {
+		_, _ = auth.RequestDeletion(ctx, u.UUID, wrong)
+	}
+	if _, err := auth.RequestDeletion(ctx, u.UUID, string(code)); !isCode(err, errors.ErrAuthCodeExpired) {
+		t.Fatalf("the right code must be dead after %d wrong ones, got %v", deletionCodeMaxFailures, err)
+	}
+}
+
+func TestACancelBetweenPickAndEraseKeepsTheAccount(t *testing.T) {
+	db := requireDB(t)
+	ctx := context.Background()
+	u := seedDeletable(t, db, strconv.FormatInt(time.Now().UnixNano(), 36))
+	repo := repository.NewUserRepository(db)
+	now := time.Now()
+	if err := repo.ScheduleDeletion(ctx, u.ID, now.Add(-AccountDeletionGrace), now.Add(-time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	due, err := repo.FindDueForDeletion(ctx, now, 100)
+	if err != nil || !containsUser(due, u.ID) {
+		t.Fatalf("fixture: the account must be due, got %v %v", due, err)
+	}
+	if err := repo.CancelDeletion(ctx, u.ID); err != nil {
+		t.Fatal(err)
+	}
+	if erased, err := repo.EraseAccount(ctx, u.ID, now, now); err != nil || erased {
+		t.Fatalf("an account cancelled after the executor picked it must survive: erased=%v err=%v", erased, err)
+	}
+}
+
+func containsUser(users []model.User, id uint) bool {
+	for _, u := range users {
+		if u.ID == id {
+			return true
+		}
+	}
+	return false
 }

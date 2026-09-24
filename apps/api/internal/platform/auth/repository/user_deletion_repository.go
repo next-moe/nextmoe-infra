@@ -27,7 +27,7 @@ func (r *UserRepository) FindDueForDeletion(ctx context.Context, now time.Time, 
 	return users, err
 }
 
-func (r *UserRepository) EraseAccount(ctx context.Context, userID uint, at time.Time) (bool, error) {
+func (r *UserRepository) EraseAccount(ctx context.Context, userID uint, dueBy, at time.Time) (bool, error) {
 	erased := false
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		res := tx.Exec(`
@@ -37,7 +37,7 @@ func (r *UserRepository) EraseAccount(ctx context.Context, userID uint, at time.
 			       avatar = '', avatar_image_hash = NULL, bio = '', ip = '',
 			       original_email = NULL, adult_confirmed_at = NULL,
 			       status = 1, anonymized_at = ?, deletion_due_at = NULL, updated_at = ?
-			 WHERE id = ? AND anonymized_at IS NULL`, at, at, userID)
+			 WHERE id = ? AND anonymized_at IS NULL AND deletion_due_at <= ?`, at, at, userID, dueBy)
 		if res.Error != nil || res.RowsAffected == 0 {
 			return res.Error
 		}
@@ -55,6 +55,7 @@ func (r *UserRepository) EraseAccount(ctx context.Context, userID uint, at time.
 			{`DELETE FROM authorization_codes WHERE user_id = ?`, []any{userID}},
 			{`DELETE FROM password_resets WHERE user_id = ?`, []any{userID}},
 			{`DELETE FROM sessions WHERE user_id = ?`, []any{userID}},
+			{`DELETE FROM user_migrations WHERE user_id = ?`, []any{userID}},
 		} {
 			if err := tx.Exec(st.sql, st.args...).Error; err != nil {
 				return err
@@ -76,6 +77,7 @@ func (r *UserRepository) ListDeletedAfter(ctx context.Context, at time.Time, id 
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT id, uuid, anonymized_at FROM users
 		 WHERE anonymized_at IS NOT NULL AND (anonymized_at, id) > (?, ?)
+		   AND anonymized_at < now() - interval '2 minutes'
 		 ORDER BY anonymized_at, id LIMIT ?`, at, id, limit).Scan(&out).Error
 	return out, err
 }

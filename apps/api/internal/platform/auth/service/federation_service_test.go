@@ -50,6 +50,7 @@ func TestMain(m *testing.M) {
 			&model.UserSiteRole{},
 			&model.AuthorizationCode{},
 			&model.PasswordReset{},
+			&model.UserMigration{},
 		); err != nil {
 			fmt.Fprintf(os.Stderr, "FAIL: migrate: %v\n", err)
 			os.Exit(1)
