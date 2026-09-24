@@ -121,6 +121,8 @@ func (s *Server) register(api huma.API) {
 		Summary: "Merge a duplicate feedback thread into another (reversible)", Tags: write}, s.mergeFeedback)
 	huma.Register(api, huma.Operation{OperationID: "purgeAuthor", Method: http.MethodPost, Path: "/api/v1/community/authors/{id}/purge",
 		Summary: "Compliance purge: tombstone + scrub all of a site author's posts and delete their reactions (idempotent)", Tags: write}, s.purgeAuthor)
+	huma.Register(api, huma.Operation{OperationID: "restoreAuthor", Method: http.MethodPost, Path: "/api/v1/community/authors/{id}/purge/restore",
+		Summary: "Undo this site's purges of an author from the last 30 days: give back the scrubbed posts and the deleted rows", Tags: write}, s.restoreAuthor)
 
 	engagement := []string{"community-engagement"}
 	huma.Register(api, huma.Operation{OperationID: "markThreadRead", Method: http.MethodPost, Path: "/api/v1/community/threads/{id}/read",

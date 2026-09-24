@@ -3,11 +3,15 @@ package service
 import (
 	"context"
 	"log/slog"
+	"time"
 
+	"api/internal/platform/community/model"
 	"api/internal/platform/community/repository"
 
 	"gorm.io/gorm"
 )
+
+const PurgeArchiveRetain = 30 * 24 * time.Hour
 
 type PurgeResult struct {
 	PostsPurged                int64
@@ -91,4 +95,65 @@ func (s *PostService) PurgeAuthor(ctx context.Context, site string, authorID int
 		"notification_actors_cleared", actorsCleared, "events_deleted", eventsDeleted,
 		"pending_events_forgotten", eventsForgotten)
 	return res, nil
+}
+
+type RestoreResult struct {
+	PostsRestored               int64
+	ReactionsRestored           int64
+	ReadStatesRestored          int64
+	AnchorSubscriptionsRestored int64
+	NotificationsRestored       int64
+}
+
+func (s *PostService) RestoreAuthor(ctx context.Context, site string, authorID int64) (RestoreResult, error) {
+	var res RestoreResult
+	var actorsRestored, eventsRestored, recipientsRestored, archived int64
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var err error
+		if res.PostsRestored, err = repository.RestorePurgedPostsTx(tx, site, authorID); err != nil {
+			return err
+		}
+		for _, step := range []struct {
+			name, table string
+			n           *int64
+		}{
+			{model.PurgeStepReaction, "community_reaction", &res.ReactionsRestored},
+			{model.PurgeStepThreadUser, "community_thread_user", &res.ReadStatesRestored},
+			{model.PurgeStepAnchorUser, "community_anchor_user", &res.AnchorSubscriptionsRestored},
+			{model.PurgeStepNotification, "community_notification", &res.NotificationsRestored},
+			{model.PurgeStepEvent, "community_event", &eventsRestored},
+		} {
+			if *step.n, err = repository.ReinsertPurgedRowsTx(tx, site, authorID, step.name, step.table); err != nil {
+				return err
+			}
+		}
+		if actorsRestored, err = repository.RestoreNotificationActorsTx(tx, site, authorID); err != nil {
+			return err
+		}
+		if recipientsRestored, err = repository.RestoreEventRecipientsTx(tx, site, authorID); err != nil {
+			return err
+		}
+		if archived, err = repository.MarkPurgeRestoredTx(tx, site, authorID); err != nil {
+			return err
+		}
+		if archived == 0 {
+			return ErrNothingToRestore
+		}
+		return nil
+	})
+	if err != nil {
+		return RestoreResult{}, err
+	}
+	slog.Info("community author purge restored", "site", site, "author_id", authorID,
+		"archived_rows", archived, "posts_restored", res.PostsRestored,
+		"reactions_restored", res.ReactionsRestored, "read_states_restored", res.ReadStatesRestored,
+		"anchor_subscriptions_restored", res.AnchorSubscriptionsRestored,
+		"notifications_restored", res.NotificationsRestored,
+		"notification_actors_restored", actorsRestored, "events_restored", eventsRestored,
+		"event_recipients_restored", recipientsRestored)
+	return res, nil
+}
+
+func (s *PostService) PrunePurgeArchive(ctx context.Context) (int64, error) {
+	return repository.PrunePurgeArchive(s.db.WithContext(ctx), PurgeArchiveRetain)
 }
