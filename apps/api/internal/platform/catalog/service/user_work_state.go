@@ -86,22 +86,34 @@ func (s *UserWorkStateService) Set(ctx context.Context, uid, workID int64, state
 }
 
 func (s *UserWorkStateService) GetMine(ctx context.Context, uid, workID int64) (*WorkStateRecord, error) {
+	got, err := s.ListMineFor(ctx, uid, []int64{workID})
+	if err != nil || len(got) == 0 {
+		return nil, err
+	}
+	return &got[0], nil
+}
+
+func (s *UserWorkStateService) ListMineFor(ctx context.Context, uid int64, workIDs []int64) ([]WorkStateRecord, error) {
 	if uid <= 0 {
 		return nil, ErrWorkStateActorRequired
 	}
-	var rows []model.CatalogUserWorkState
-	if err := s.db.WithContext(ctx).
-		Where("actor_uid = ? AND work_id = ?", uid, workID).Find(&rows).Error; err != nil {
-		return nil, err
-	}
-	if len(rows) == 0 {
+	if len(workIDs) == 0 {
 		return nil, nil
 	}
-	r := rows[0]
-	return &WorkStateRecord{
-		WorkID: r.WorkID, State: r.State, Completion: r.Completion,
-		CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
-	}, nil
+	var rows []model.CatalogUserWorkState
+	if err := s.db.WithContext(ctx).
+		Where("actor_uid = ? AND work_id IN ?", uid, workIDs).
+		Order("work_id ASC").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	out := make([]WorkStateRecord, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, WorkStateRecord{
+			WorkID: r.WorkID, State: r.State, Completion: r.Completion,
+			CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
+		})
+	}
+	return out, nil
 }
 
 func (s *UserWorkStateService) ListMine(ctx context.Context, uid int64, since time.Time, sinceWorkID int64, limit int) ([]WorkStateRecord, error) {

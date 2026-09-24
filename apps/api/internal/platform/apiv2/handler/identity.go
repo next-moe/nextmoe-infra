@@ -130,9 +130,17 @@ func underPrefix(path, prefix string) bool {
 	return path == prefix || strings.HasPrefix(path, prefix+"/")
 }
 
+// folderScopedPrefixes answer from the caller's private folders.
+var folderScopedPrefixes = []string{
+	"/v2/me/folders",
+	"/v2/me/works",
+}
+
 func scopeProblem(c fiber.Ctx, path string, scopes []string) *problem.Problem {
-	if underPrefix(path, "/v2/me/folders") {
-		return folderScopeProblem(c, scopes)
+	for _, prefix := range folderScopedPrefixes {
+		if underPrefix(path, prefix) {
+			return folderScopeProblem(c, scopes)
+		}
 	}
 	for _, prefix := range editingPlanePrefixes {
 		if !underPrefix(path, prefix) {

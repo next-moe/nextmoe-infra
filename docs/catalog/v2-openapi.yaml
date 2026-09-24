@@ -4172,6 +4172,55 @@ components:
         - object
         - items
       type: object
+    ListUserWork:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ListUserWork.json
+          format: uri
+          readOnly: true
+          type: string
+        facets:
+          additionalProperties:
+            items:
+              $ref: "#/components/schemas/FacetValue"
+            type:
+              - array
+              - "null"
+          description: Named facet buckets. Present only when facets= is requested.
+          type: object
+        items:
+          description: Members of this page. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/UserWork"
+          type: array
+        missing:
+          description: ids requested but not visible. Present only on the ids=/refs= batch lane.
+          items:
+            type: string
+          type: array
+        next_cursor:
+          description: Opaque keyset cursor. Omitted on the last page.
+          maxLength: 512
+          pattern: ^cur_[A-Za-z0-9._~-]+$
+          type: string
+        object:
+          description: Type discriminant. Always list.
+          enum:
+            - list
+          type: string
+          x-vocabulary-closed: true
+        total:
+          description: Present only when include_total=true. Same visibility gate as items.
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - object
+        - items
+      type: object
     ListUserWorkState:
       additionalProperties: true
       properties:
@@ -7183,6 +7232,43 @@ components:
         - work_id
         - minutes
       type: object
+    UserWork:
+      additionalProperties: true
+      properties:
+        folder_ids:
+          description: The caller's own folders holding this work, id-ascending. Empty when none does.
+          items:
+            type: string
+          type: array
+        object:
+          description: Type discriminant. Always user_work.
+          enum:
+            - user_work
+          type: string
+          x-vocabulary-closed: true
+        playtime:
+          anyOf:
+            - $ref: "#/components/schemas/UserPlaytime"
+            - type: "null"
+          description: The caller's playtime on this work, as GET /v2/me/playtimes answers it. null when none is recorded.
+        work_id:
+          description: Catalog work id that was asked about.
+          maxLength: 20
+          minLength: 1
+          pattern: ^[0-9]+$
+          type: string
+        work_state:
+          anyOf:
+            - $ref: "#/components/schemas/UserWorkState"
+            - type: "null"
+          description: The caller's play state on this work, as GET /v2/me/work-states answers it. null when none is set.
+      required:
+        - object
+        - work_id
+        - folder_ids
+        - playtime
+        - work_state
+      type: object
     UserWorkState:
       additionalProperties: true
       properties:
@@ -8020,7 +8106,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.24.1
+  version: 2.25.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -18663,6 +18749,75 @@ paths:
       security:
         - userToken: []
       summary: Replace my state on one work
+      tags:
+        - me
+  /v2/me/works:
+    get:
+      description: "What the bearer has recorded about up to 100 works, in one request: the folders holding each work, its playtime and its play state. One item per distinct work id, in the order asked. A work the bearer has recorded nothing about still gets an item, with empty folder_ids and null playtime and work_state, and so does an id that names no work. The values are the ones /v2/me/folders/holdings, /v2/me/playtimes and /v2/me/work-states answer; this face saves a client from asking all three. Cover votes are not included: they need catalog:edit, and /v2/me/cover-votes lists them. work_ids is required; this is a batch read with no pagination. Requires a user access token with folder:read (folder:write also grants reads)."
+      operationId: listMyWorks
+      parameters:
+        - description: Comma-separated work ids, max 100. Batch read, no pagination.
+          explode: false
+          in: query
+          name: work_ids
+          schema:
+            description: Comma-separated work ids, max 100. Batch read, no pagination.
+            maxLength: 4096
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListUserWork"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: My folders, playtime and play state for these works
       tags:
         - me
   /v2/moderation/claims:

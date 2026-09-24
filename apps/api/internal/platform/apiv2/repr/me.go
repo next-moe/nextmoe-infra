@@ -158,6 +158,15 @@ type FolderHolding struct {
 	FolderIDs []string `json:"folder_ids" doc:"The caller's own folders holding this work, id-ascending. Never empty: a work no folder holds is left out of the list instead."`
 }
 
+type UserWork struct {
+	_         struct{}       `json:"-" additionalProperties:"true"`
+	Object    string         `json:"object" enum:"user_work" doc:"Type discriminant. Always user_work."`
+	WorkID    string         `json:"work_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog work id that was asked about."`
+	FolderIDs []string       `json:"folder_ids" doc:"The caller's own folders holding this work, id-ascending. Empty when none does."`
+	Playtime  *UserPlaytime  `json:"playtime" doc:"The caller's playtime on this work, as GET /v2/me/playtimes answers it. null when none is recorded."`
+	WorkState *UserWorkState `json:"work_state" doc:"The caller's play state on this work, as GET /v2/me/work-states answers it. null when none is set."`
+}
+
 type FolderHolder struct {
 	_        struct{} `json:"-" additionalProperties:"true"`
 	Object   string   `json:"object" enum:"folder_holder" doc:"Type discriminant. Always folder_holder."`

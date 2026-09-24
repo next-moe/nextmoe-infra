@@ -159,29 +159,41 @@ func (s *UserPlaytimeService) DeleteMine(ctx context.Context, uid, workID int64,
 }
 
 func (s *UserPlaytimeService) GetMine(ctx context.Context, uid, workID int64) (*UserWorkPlaytime, error) {
+	got, err := s.ListMineFor(ctx, uid, []int64{workID})
+	if err != nil || len(got) == 0 {
+		return nil, err
+	}
+	return &got[0], nil
+}
+
+// ListMineFor folds each work's per-client rows into one: the most minutes any
+// client reported, and the latest play.
+func (s *UserPlaytimeService) ListMineFor(ctx context.Context, uid int64, workIDs []int64) ([]UserWorkPlaytime, error) {
 	if uid <= 0 {
 		return nil, ErrPlaytimeActorRequired
 	}
-	var rows []model.CatalogUserPlaytime
-	if err := s.db.WithContext(ctx).
-		Where("actor_uid = ? AND work_id = ?", uid, workID).Find(&rows).Error; err != nil {
-		return nil, err
-	}
-	if len(rows) == 0 {
+	if len(workIDs) == 0 {
 		return nil, nil
 	}
-	out := UserWorkPlaytime{WorkID: workID, Clients: len(rows)}
-	best := 0
-	for i, r := range rows {
-		if r.Minutes > rows[best].Minutes {
-			best = i
+	var rows []model.CatalogUserPlaytime
+	if err := s.db.WithContext(ctx).
+		Where("actor_uid = ? AND work_id IN ?", uid, workIDs).
+		Order("work_id ASC, id ASC").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	var out []UserWorkPlaytime
+	for _, r := range rows {
+		if len(out) == 0 || out[len(out)-1].WorkID != r.WorkID {
+			out = append(out, UserWorkPlaytime{WorkID: r.WorkID})
 		}
-		if r.LastPlayedAt != nil && (out.LastPlayedAt == nil || r.LastPlayedAt.After(*out.LastPlayedAt)) {
-			out.LastPlayedAt = r.LastPlayedAt
+		cur := &out[len(out)-1]
+		cur.Clients++
+		cur.Minutes = max(cur.Minutes, r.Minutes)
+		if r.LastPlayedAt != nil && (cur.LastPlayedAt == nil || r.LastPlayedAt.After(*cur.LastPlayedAt)) {
+			cur.LastPlayedAt = r.LastPlayedAt
 		}
 	}
-	out.Minutes = rows[best].Minutes
-	return &out, nil
+	return out, nil
 }
 
 func validateReport(r PlaytimeReport) error {

@@ -89,27 +89,27 @@ func (c *Catalog) ListWorkStates(ctx context.Context, q collect.Query, workIDs [
 		return repr.List[repr.UserWorkState]{}, err
 	}
 	if len(workIDs) > 0 {
-		if len(workIDs) > collect.MaxBatchItems {
-			return repr.List[repr.UserWorkState]{}, problem.New(problem.CodeTooManyIDs, "", "", "work_ids named more than 100 items.")
+		ids, perr := parseWorkIDs(workIDs)
+		if perr != nil {
+			return repr.List[repr.UserWorkState]{}, perr
 		}
-		items := make([]repr.UserWorkState, 0, len(workIDs))
+		rows, gerr := c.WorkStates.ListMineFor(ctx, uid, ids)
+		if gerr != nil {
+			return repr.List[repr.UserWorkState]{}, gerr
+		}
+		byWork := make(map[int64]catsvc.WorkStateRecord, len(rows))
+		for _, r := range rows {
+			byWork[r.WorkID] = r
+		}
+		items := make([]repr.UserWorkState, 0, len(ids))
 		var missing []string
-		for _, s := range workIDs {
-			id, ok := repr.ParseID(s)
+		for i, id := range ids {
+			r, ok := byWork[id]
 			if !ok {
-				p := problem.New(problem.CodeInvalidParameter, "", "", "work_ids values must be decimal catalog ids.")
-				p.Errors = []problem.FieldError{{Parameter: "work_ids", Reason: problem.ReasonInvalidFormat, Detail: s}}
-				return repr.List[repr.UserWorkState]{}, p
-			}
-			row, gerr := c.WorkStates.GetMine(ctx, uid, id)
-			if gerr != nil {
-				return repr.List[repr.UserWorkState]{}, gerr
-			}
-			if row == nil {
-				missing = append(missing, s)
+				missing = append(missing, workIDs[i])
 				continue
 			}
-			items = append(items, userWorkStateRepr(*row))
+			items = append(items, userWorkStateRepr(r))
 		}
 		return finishList(items, nil, int64(len(items)), collect.Query{Batch: true, IncludeTotal: q.IncludeTotal}, missing), nil
 	}

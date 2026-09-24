@@ -109,8 +109,10 @@ func TestEveryMeAndModerationPathDeclaresItsScope(t *testing.T) {
 		classified++
 
 		hits := 0
-		if underPrefix(p, "/v2/me/folders") {
-			hits++
+		for _, prefix := range folderScopedPrefixes {
+			if underPrefix(p, prefix) {
+				hits++
+			}
 		}
 		for _, prefix := range editingPlanePrefixes {
 			if underPrefix(p, prefix) {
@@ -124,7 +126,7 @@ func TestEveryMeAndModerationPathDeclaresItsScope(t *testing.T) {
 		}
 		require.Equalf(t, 1, hits,
 			"%s matches %d scope classes; every /v2/me and /v2/moderation path must match exactly one "+
-				"(folders, editingPlanePrefixes, or personGatedMePrefixes)", specPath, hits)
+				"(folderScopedPrefixes, editingPlanePrefixes, or personGatedMePrefixes)", specPath, hits)
 	}
 	require.Greater(t, classified, 20, "the walk classified too few paths to mean anything")
 }

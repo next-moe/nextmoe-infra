@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-本文件内联全部 129 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
+本文件内联全部 130 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
 
 ## 给 AI 助手的指引
 
@@ -2877,7 +2877,7 @@ Open · 16 tokens
 
 - 路径前缀：`/v2`
 - 凭据：Authorization: Bearer nmk_live_…（v2 应用密钥,门户自助铸造,无需申请）
-- 端点数：116
+- 端点数：117
 
 > 正式公开：形状按 additive-only 演进，删除与改名由 CI 的 oasdiff 门拦下。第三方在门户自助铸 nmk_ 密钥即可调用，不需要申请。
 
@@ -2886,6 +2886,8 @@ Open · 16 tokens
 > /v2/me/work-states 与 playtimes 同款：只要用户令牌，不需要任何 scope。state 五值与 Bangumi 收藏类型一一对应，completion 表示通了多少，wish 不允许携带。
 
 > /v2/me/folders 是例外：收藏夹是私人清单，读要 folder:read（folder:write 也算），写要 folder:write，缺了是 403 SCOPE_REQUIRED。
+
+> /v2/me/works 一次答最多 100 部作品的收藏夹归属、游玩时长和游玩状态，作品详情页一次调用即可。答案里有收藏夹，所以同样要 folder:read（folder:write 也算）；封面投票要 catalog:edit，不在其中，走 /v2/me/cover-votes。
 
 > /v2/folders 是别人的公开收藏夹，只要 catalog:read —— folder:read 是「读我自己的」，与能不能看别人无关。私密收藏夹在这里一律 404（对夹主本人也是），要读自己的私密夹走 /v2/me/folders。
 
@@ -5285,6 +5287,25 @@ Delete my state on one work
 
 ```bash
 curl -X DELETE "https://api.nextmoe.dev/v2/me/work-states/value" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### GET /v2/me/works
+
+My folders, playtime and play state for these works
+
+What the bearer has recorded about up to 100 works, in one request: the folders holding each work, its playtime and its play state. One item per distinct work id, in the order asked. A work the bearer has recorded nothing about still gets an item, with empty folder_ids and null playtime and work_state, and so does an id that names no work. The values are the ones /v2/me/folders/holdings, /v2/me/playtimes and /v2/me/work-states answer; this face saves a client from asking all three. Cover votes are not included: they need catalog:edit, and /v2/me/cover-votes lists them. work_ids is required; this is a batch read with no pagination. Requires a user access token with folder:read (folder:write also grants reads).
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：folder:read 或 folder:write
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `work_ids` | query | 否 | string | Comma-separated work ids, max 100. Batch read, no pagination. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/me/works" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 

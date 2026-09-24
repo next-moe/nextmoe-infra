@@ -55,9 +55,9 @@ export const FACES = [
     specUrl: `${API_HOST}/v2/catalog/openapi.json`,
     scope: (method, path) => {
       if (!path) return 'catalog:read'
-      // The one scoped family on /v2/me: reads take either folder scope, every
-      // other method takes folder:write.
-      if (path.startsWith('/v2/me/folders')) {
+      // The scoped family on /v2/me, both answering from the caller's folders:
+      // reads take either folder scope, every other method takes folder:write.
+      if (path.startsWith('/v2/me/folders') || path === '/v2/me/works') {
         return method === 'get' ? 'folder:read 或 folder:write' : 'folder:write'
       }
       if (path.startsWith('/v2/me/') || path.startsWith('/v2/moderation/')) return ''
@@ -96,6 +96,7 @@ export const FACES = [
       '/v2/me/playtimes 只要用户令牌，不需要 playtime:read / playtime:write。任何已开通用户登录的应用都可以调用。',
       '/v2/me/work-states 与 playtimes 同款：只要用户令牌，不需要任何 scope。state 五值与 Bangumi 收藏类型一一对应，completion 表示通了多少，wish 不允许携带。',
       '/v2/me/folders 是例外：收藏夹是私人清单，读要 folder:read（folder:write 也算），写要 folder:write，缺了是 403 SCOPE_REQUIRED。',
+      '/v2/me/works 一次答最多 100 部作品的收藏夹归属、游玩时长和游玩状态，作品详情页一次调用即可。答案里有收藏夹，所以同样要 folder:read（folder:write 也算）；封面投票要 catalog:edit，不在其中，走 /v2/me/cover-votes。',
       '/v2/folders 是别人的公开收藏夹，只要 catalog:read —— folder:read 是「读我自己的」，与能不能看别人无关。私密收藏夹在这里一律 404（对夹主本人也是），要读自己的私密夹走 /v2/me/folders。',
       '错误体是 RFC 9457 application/problem+json。type URI 解析到本站 /problems/{domain}/{kebab-code}。',
       '客户端必须忽略未知字段、容忍开放词表中未见过的取值，并为未知错误 code 准备一个按 HTTP status 的兜底分支。'
@@ -168,7 +169,7 @@ export const USER_TOKEN_AUTH = {
 }
 
 export const EXPECTED_OPERATION_COUNTS = {
-  v2: 116,
+  v2: 117,
   moyu: 4,
   sticker: 9
 }
