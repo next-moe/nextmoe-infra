@@ -53,17 +53,32 @@ had to be rebuilt by hand.
 | cover-shelf-watch | daily 17:00 | daily 09:00 | 48h |
 | retire-merged-comments | daily 23:30 | daily 15:30 | 48h |
 | pg-backup | daily 02:30 | daily 18:30 (prev. day) | 48h |
+| pg-offsite | daily 04:30 | daily 20:30 (prev. day) | 48h |
 
 `source-import/test.sh`, `char-xsrc-nightly/test.sh`,
 `llm-adjudicate-nightly/test.sh`, `image-mirror/test.sh`,
-`reconcile-watch/test.sh` and `pg-backup/test.sh` are the offline tests in this directory: each
+`reconcile-watch/test.sh`, `pg-backup/test.sh` and `pg-offsite/test.sh` are the offline tests in this directory: each
 runs the `run.sh` beside it against fake `docker` / `flock` / alert stand-ins
 and asserts the call order, the ceilings and the lock/stamp rules. Run the
 matching one before redeploying any of those scripts.
 
 `pg-backup` writes `pg_dump -Fc` files to `/root/pg-backup/dumps/<CST date>/`,
 on the same disk as the cluster: it covers bad writes and purges, not the loss
-of the disk. No copy leaves the host yet.
+of the disk. `pg-offsite` encrypts them with age and copies them to a Cloudflare
+R2 bucket. One-time setup on the box, before its first run:
+
+- the bucket `nextmoe-pg-backup`, with a 30-day bucket lock rule and a 35-day
+  lifecycle delete rule, and an R2 API token scoped to that bucket with
+  Object Read & Write;
+- `/root/pg-backup/r2.env` (mode 600): `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
+  `R2_ENDPOINT`, `R2_BUCKET` — written by the owner on the box, never through a chat;
+- `/root/pg-backup/age-recipient.txt`: the owner's age public key. The private
+  key never touches this host;
+- `/root/lib/bin/age`: the static age v1.3.2 binary from its GitHub release.
+
+A restore drill — download one set, `sha256sum -c`, decrypt one dump with the
+private key and `pg_restore --list` it — is the only proof the key works;
+nothing on this host can decrypt.
 
 `lib/dsn-test.sh` runs every job's DSNSH/MTDSN snippet with a sentinel
 password: the password must travel as PGPASSWORD and never inside a DSN,
