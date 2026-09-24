@@ -6,7 +6,7 @@
 
 ## JWT Access Token Claims
 
-Header 携带 `typ: at+jwt`（RFC 9068 access token 类型标记）；claims：
+Header 携带 `typ: at+jwt`（RFC 9068 access token 类型标记）。**所有校验 Bearer 的服务都要求这个标记**：`id_token` 签名同样有效，但它不是 access token，拿它当 Bearer 一律 401（2026-09-25 起）。claims：
 
 ```json
 {

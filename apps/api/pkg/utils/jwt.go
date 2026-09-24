@@ -4,7 +4,9 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -38,7 +40,21 @@ func GenerateAccessToken(secret string, claims TokenClaims, expiry time.Duration
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	token.Header["typ"] = AccessTokenType
 	return token.SignedString([]byte(secret))
+}
+
+const AccessTokenType = "at+jwt"
+
+// ErrNotAccessToken rejects a JWT that verifies but is not an access token.
+// An OIDC id_token is signed with a published key and carries the user's uuid
+// as sub and no client_id, so it passed as a first-party session token until
+// the header was checked (review of #305, 2026-09-25).
+var ErrNotAccessToken = errors.New("jwt: not an access token")
+
+func IsAccessTokenType(tok *jwt.Token) bool {
+	typ, _ := tok.Header["typ"].(string)
+	return strings.EqualFold(typ, AccessTokenType) || strings.EqualFold(typ, "application/"+AccessTokenType)
 }
 
 func GenerateOpaqueRefreshToken() (string, error) {
@@ -78,6 +94,9 @@ func ParseToken(tokenString, secret string) (*TokenClaims, error) {
 		return nil, err
 	}
 
+	if !IsAccessTokenType(token) {
+		return nil, ErrNotAccessToken
+	}
 	if claims, ok := token.Claims.(*TokenClaims); ok && token.Valid {
 		return claims, nil
 	}

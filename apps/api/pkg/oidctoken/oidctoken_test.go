@@ -100,6 +100,7 @@ func TestAsymmetricSignVerifyRoundtrip(t *testing.T) {
 	rsClaims.RegisteredClaims = jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute))}
 	rsJWT := jwt.NewWithClaims(jwt.SigningMethodRS256, rsClaims)
 	rsJWT.Header["kid"] = rsKM.Kid
+	rsJWT.Header["typ"] = utils.AccessTokenType
 	rsTok, err := rsJWT.SignedString(rsPriv)
 	if err != nil {
 		t.Fatalf("RS256 sign: %v", err)
@@ -258,6 +259,7 @@ func TestRejectAlgorithmConfusion(t *testing.T) {
 	}
 	real := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	real.Header["kid"] = km.Kid
+	real.Header["typ"] = utils.AccessTokenType
 	realTok, err := real.SignedString(priv)
 	if err != nil {
 		t.Fatal(err)
@@ -303,5 +305,42 @@ func TestRequiringIssuer(t *testing.T) {
 	lax := NewVerifier(secret, stubResolver{})
 	if _, err := lax.Parse(context.Background(), elsewhere); err != nil {
 		t.Fatalf("positive control: a verifier with no expected issuer is unchanged: %v", err)
+	}
+}
+
+func TestAnIDTokenIsNotAnAccessToken(t *testing.T) {
+	km, err := oidckeys.Generate(oidckeys.AlgRS256)
+	if err != nil {
+		t.Fatal(err)
+	}
+	priv, err := oidckeys.ParsePrivate(km.PrivateDER)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := NewVerifier("hs-secret", stubResolver{keys: map[string]crypto.PublicKey{km.Kid: pubFromMaterial(t, km)}})
+
+	idt, err := NewIDSigner(km.Kid, oidckeys.AlgRS256, priv, "").Sign("user-uuid", "some-client", "", time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := v.Parse(context.Background(), idt); err == nil {
+		t.Fatal("an id_token must not verify as an access token")
+	}
+
+	for name, sign := range map[string]func() (string, error){
+		"hs256 signer": func() (string, error) {
+			return NewHS256Signer("hs-secret", "").SignAccess(utils.TokenClaims{UserUUID: "u"}, time.Minute)
+		},
+		"legacy helper": func() (string, error) {
+			return utils.GenerateAccessToken("hs-secret", utils.TokenClaims{UserUUID: "u"}, time.Minute)
+		},
+	} {
+		tok, err := sign()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := v.Parse(context.Background(), tok); err != nil {
+			t.Fatalf("%s: a real access token must still verify: %v", name, err)
+		}
 	}
 }
