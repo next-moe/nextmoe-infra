@@ -251,7 +251,7 @@ func (s *PublicService) WorkDetail(ctx context.Context, id int64, inc PublicIncl
 	}
 
 	var subjects []claimSubject
-	if sel.Wants("claimed_by", "cover_slots", "series_siblings", "relations") {
+	if sel.Wants("claimed_by", "content_limit", "cover_slots", "series_siblings", "relations") {
 		subjects = append(subjects, claimSubject{WorkID: w.ID})
 		for _, sb := range detail.SeriesSiblings {
 			subjects = append(subjects, claimSubject{WorkID: sb.WorkID})
@@ -273,6 +273,7 @@ func (s *PublicService) WorkDetail(ctx context.Context, id int64, inc PublicIncl
 		DisplayName:   w.DisplayName,
 		OLang:         w.OLang,
 		ContentRating: contentRatingKey(w.ContentRating),
+		ContentLimit:  shelfLimitKey(w.Site, w.ProductWorkID, limits[w.ID], w.ContentRating),
 		ReleaseDate:   earliestReleaseDate(detail.Releases),
 		Titles:        publicTitles(detail.Titles),
 		Latin:         workLatin(detail.Titles, w.DisplayName),
@@ -389,6 +390,7 @@ func (s *PublicService) publicRelations(rels []WorkRelationRow, nsfw bool, limit
 			Work: dto.PublicWorkBrief{
 				ID: r.OtherID, Medium: s.mediumKey(r.MediumID), DisplayName: r.DisplayName,
 				ContentRating: contentRatingKey(r.ContentRating),
+				ContentLimit:  shelfLimitKey(r.Site, r.ProductWorkID, limits[r.OtherID], r.ContentRating),
 				ClaimedBy:     claimedBy(r.Site, r.ProductWorkID, r.ClaimState, limits[r.OtherID], r.ContentRating),
 			},
 		})
@@ -813,7 +815,7 @@ func (s *PublicService) Label(ctx context.Context, id int64, withWorks, nsfw boo
 		for _, w := range items {
 			ids = append(ids, w.WorkID)
 		}
-		claims, err := s.claimedByFor(ctx, ids)
+		shelves, err := s.workShelvesFor(ctx, ids)
 		if err != nil {
 			return dto.PublicLabel{}, false, err
 		}
@@ -825,7 +827,8 @@ func (s *PublicService) Label(ctx context.Context, id int64, withWorks, nsfw boo
 			l.Works = append(l.Works, dto.PublicLabelWork{
 				Work: dto.PublicWorkBrief{
 					ID: w.WorkID, Medium: s.mediumKey(w.MediumID), DisplayName: w.DisplayName,
-					ContentRating: contentRatingKey(w.ContentRating), ClaimedBy: claims[w.WorkID],
+					ContentRating: contentRatingKey(w.ContentRating),
+					ContentLimit:  shelves[w.WorkID].limit, ClaimedBy: shelves[w.WorkID].claim,
 				},
 				Kind: workLabelKindKey(w.Kind),
 			})
@@ -1118,11 +1121,12 @@ func (s *PublicService) loadWorkBriefs(ctx context.Context, ids []int64, nsfw bo
 		if !nsfw && isR18(r.ContentRating) {
 			continue
 		}
+		f := shelfFacts{DisplayNSFW: r.DisplayNSFW, CoverArtAllExplicit: r.CoverArtAllExplicit}
 		out[r.ID] = &dto.PublicWorkBrief{
 			ID: r.ID, Medium: s.mediumKey(r.MediumID), DisplayName: r.DisplayName,
 			ContentRating: contentRatingKey(r.ContentRating),
-			ClaimedBy: claimedBy(r.Site, r.ProductWorkID, r.ClaimState,
-				shelfFacts{DisplayNSFW: r.DisplayNSFW, CoverArtAllExplicit: r.CoverArtAllExplicit}, r.ContentRating),
+			ContentLimit:  shelfLimitKey(r.Site, r.ProductWorkID, f, r.ContentRating),
+			ClaimedBy:     claimedBy(r.Site, r.ProductWorkID, r.ClaimState, f, r.ContentRating),
 		}
 		briefs = append(briefs, out[r.ID])
 	}
@@ -1132,40 +1136,45 @@ func (s *PublicService) loadWorkBriefs(ctx context.Context, ids []int64, nsfw bo
 	return out, nil
 }
 
-func (s *PublicService) claimEnrich(ctx context.Context, works []NameWorkDetail) (map[int64]*dto.PublicClaimedBy, error) {
+func (s *PublicService) claimEnrich(ctx context.Context, works []NameWorkDetail) (map[int64]workShelf, error) {
 	ids := make([]int64, 0, len(works))
 	for _, w := range works {
 		ids = append(ids, w.Brief.WorkID)
 	}
-	return s.claimedByFor(ctx, ids)
+	return s.workShelvesFor(ctx, ids)
 }
 
-func (s *PublicService) claimEnrichCharacter(ctx context.Context, works []CharacterWorkDetail) (map[int64]*dto.PublicClaimedBy, error) {
+func (s *PublicService) claimEnrichCharacter(ctx context.Context, works []CharacterWorkDetail) (map[int64]workShelf, error) {
 	ids := make([]int64, 0, len(works))
 	for _, w := range works {
 		ids = append(ids, w.Brief.WorkID)
 	}
-	return s.claimedByFor(ctx, ids)
+	return s.workShelvesFor(ctx, ids)
 }
 
-func (s *PublicService) briefFromRow(b WorkBriefRow, claim *dto.PublicClaimedBy, nsfw bool) *dto.PublicWorkBrief {
+func (s *PublicService) briefFromRow(b WorkBriefRow, shelf workShelf, nsfw bool) *dto.PublicWorkBrief {
 	if !nsfw && isR18(b.ContentRating) {
 		return nil
 	}
 	return &dto.PublicWorkBrief{
 		ID: b.WorkID, Medium: s.mediumKey(b.MediumID), DisplayName: b.DisplayName,
-		ContentRating: contentRatingKey(b.ContentRating), ClaimedBy: claim,
+		ContentRating: contentRatingKey(b.ContentRating), ContentLimit: shelf.limit, ClaimedBy: shelf.claim,
 	}
 }
 
-func (s *PublicService) claimedByFor(ctx context.Context, ids []int64) (map[int64]*dto.PublicClaimedBy, error) {
+type workShelf struct {
+	claim *dto.PublicClaimedBy
+	limit string
+}
+
+func (s *PublicService) workShelvesFor(ctx context.Context, ids []int64) (map[int64]workShelf, error) {
 	if len(ids) == 0 {
-		return map[int64]*dto.PublicClaimedBy{}, nil
+		return map[int64]workShelf{}, nil
 	}
 	var rows []struct {
 		ID                  int64
-		Site                string
-		ProductWorkID       int64
+		Site                *string
+		ProductWorkID       *int64
 		ClaimState          *int16 `gorm:"column:claim_state"`
 		ContentRating       int16  `gorm:"column:content_rating"`
 		DisplayNSFW         bool   `gorm:"column:display_nsfw"`
@@ -1175,19 +1184,16 @@ func (s *PublicService) claimedByFor(ctx context.Context, ids []int64) (map[int6
 		SELECT w.id, w.site, w.product_work_id, w.claim_state, w.content_rating, w.display_nsfw,
 		       w.cover_art_all_explicit
 		FROM catalog_work w
-		WHERE w.id IN ? AND w.site IS NOT NULL AND w.product_work_id IS NOT NULL AND w.deleted_at IS NULL`,
+		WHERE w.id IN ? AND w.deleted_at IS NULL`,
 		ids).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
-	out := make(map[int64]*dto.PublicClaimedBy, len(rows))
+	out := make(map[int64]workShelf, len(rows))
 	for _, r := range rows {
-		out[r.ID] = &dto.PublicClaimedBy{
-			Site: r.Site, WorkID: r.ProductWorkID,
-			State: model.ClaimStateKey(&r.Site, &r.ProductWorkID, r.ClaimState),
-			ContentLimit: model.DisplayLimitKey(model.WorkShelf{
-				Site: &r.Site, ProductWorkID: &r.ProductWorkID, DisplayNSFW: r.DisplayNSFW,
-				ContentRating: r.ContentRating, CoverArtAllExplicit: r.CoverArtAllExplicit,
-			}),
+		f := shelfFacts{DisplayNSFW: r.DisplayNSFW, CoverArtAllExplicit: r.CoverArtAllExplicit}
+		out[r.ID] = workShelf{
+			claim: claimedBy(r.Site, r.ProductWorkID, r.ClaimState, f, r.ContentRating),
+			limit: shelfLimitKey(r.Site, r.ProductWorkID, f, r.ContentRating),
 		}
 	}
 	return out, nil
@@ -1305,10 +1311,7 @@ func claimedBy(site *string, productWorkID *int64, claimState *int16, f shelfFac
 	}
 	return &dto.PublicClaimedBy{
 		Site: *site, WorkID: *productWorkID, State: state,
-		ContentLimit: model.DisplayLimitKey(model.WorkShelf{
-			Site: site, ProductWorkID: productWorkID, DisplayNSFW: f.DisplayNSFW,
-			ContentRating: contentRating, CoverArtAllExplicit: f.CoverArtAllExplicit,
-		}),
+		ContentLimit: shelfLimitKey(site, productWorkID, f, contentRating),
 	}
 }
 
@@ -1565,6 +1568,7 @@ func (s *PublicService) publicSeriesSiblings(sibs []SeriesSiblingRow, nsfw bool,
 		out = append(out, dto.PublicWorkBrief{
 			ID: sb.WorkID, Medium: s.mediumKey(sb.MediumID), DisplayName: sb.DisplayName,
 			ContentRating: contentRatingKey(sb.ContentRating),
+			ContentLimit:  shelfLimitKey(sb.Site, sb.ProductWorkID, limits[sb.WorkID], sb.ContentRating),
 			ClaimedBy:     claimedBy(sb.Site, sb.ProductWorkID, sb.ClaimState, limits[sb.WorkID], sb.ContentRating),
 		})
 	}

@@ -82,7 +82,7 @@ GET /v2/catalog/works?refs=vndb:v19658,bangumi:302835
 
 - `content_rating` 是作品的**事实分级**：`all_ages` / `sensitive` / `r18`。
 - `nsfw=` 是**调用方自己控制的闸**：缺省隐藏 r18，显式 `nsfw=true` 才可见。只认 `true` / `false`，写别的是 `400` 而不是按默认值处理。
-- `content_limit`（`sfw` / `nsfw`）是**编辑展示轴**，属于认领方站点的编辑判定，不等于事实分级。
+- `content_limit`（`sfw` / `nsfw`）是**展示轴**：能不能给没选成人内容的读者看。每部作品都带（2.26.0 起）。已认领作品由认领方站点的编辑判定决定，未认领作品按事实分级；封面全部被判 explicit 的作品不论哪种都是 `nsfw`。它不等于事实分级，也不要用事实分级去推它。
 
 这三个是正交的：一部 `all_ages` 的作品可以被某个站点标成 `nsfw` 展示轴，一部 `r18` 作品在 `nsfw=false` 下会整条消失而不是发个空壳。
 

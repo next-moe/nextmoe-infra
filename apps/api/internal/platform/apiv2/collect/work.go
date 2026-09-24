@@ -39,7 +39,7 @@ var WorkListFullSet = []string{
 
 var WorkBasicFields = []string{
 	"object", "id", "medium", "display_name", "latin", "localized", "olang",
-	"content_rating", "release_date", "release_date_precision", "release_status",
+	"content_rating", "content_limit", "release_date", "release_date_precision", "release_status",
 	"cover", "banner", "claim", "created_at", "updated_at",
 }
 

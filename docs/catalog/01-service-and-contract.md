@@ -533,14 +533,17 @@ wave 176-179 把人类的**写**搬完了;本波搬的是搬完写之后还留�
 
 产品站会把 catalog 的编辑展示判定(§1 的 `content_limit`)缓存成自己的一列,好在 SQL 里过滤列表页。此前**没有任何 feed 被声明**承载这个字段——论坛的代码里留着原话:「There is no feed for that field — the claim-event feed carries claim state only — so a full sweep is the only way an editor's flip reaches the local lists.」于是论坛与 moyu 各自退回夜间全量扫(约 300 次请求扫 ~7.8k 行),编辑翻一个标志最坏要等一整夜才到本地列表。**信道其实一直在**:`GET /v2/catalog/changes` 按 `(updated_at, id)` 升序翻 `catalog_work`。本节把它声明成契约。
 
-**不变量**:凡改动作品的 **claim 状态**、**编辑展示轴**(`display_nsfw` / `content_rating`)或**作品存在性**的写路径,都会 bump `catalog_work.updated_at`,因而必在本 feed 现身。当前这些写路径是:编辑面 `applyWorkColumn`、claim 生命周期八动作、周跑 `releasemeta` 评级泳道、合并的认领转移与来源退役、导入(只 INSERT,新行自带新时间戳),以及子资源写路径统一走的 `repository.TouchWorks`。**其余字段(封面/标签/标题/简介/评分)尽力而为**——它们多数也会 touch 作品,但只有上面三项是承诺。
+**不变量**:凡改动作品的 **claim 状态**、**编辑展示轴**(`display_nsfw` / `content_rating` / `cover_art_all_explicit`)或**作品存在性**的写路径,都会 bump `catalog_work.updated_at`,因而必在本 feed 现身。当前这些写路径是:编辑面 `applyWorkColumn`、claim 生命周期八动作、周跑 `releasemeta` 评级泳道、合并的认领转移与来源退役、导入(只 INSERT,新行自带新时间戳),以及子资源写路径统一走的 `repository.TouchWorks`。**其余字段(封面/标签/标题/简介/评分)尽力而为**——它们多数也会 touch 作品,但只有上面三项是承诺。
 
-**判定配方**(与 §1 同一条,服务端语义源 `model.DisplayLimitKey(site, product_work_id, display_nsfw, content_rating)`):
+**判定**:直接读作品顶层的 `content_limit`——2.26.0 起**每部作品都带**,认领与否;已认领作品的 `claim.content_limit` 是同一个值。服务端语义源 `model.WorkShelf.NSFW`:
 
 ```
-content_limit = claimed_by.content_limit          若 claimed_by 块存在(仅已认领作品渲染)
-              = content_rating == "r18" ? nsfw : sfw   否则
+nsfw  若 cover_art_all_explicit(有可选封面且全部被判 explicit),不论认领与分级
+      否则若已认领:display_nsfw
+      否则:content_rating == r18
 ```
+
+**下游不要重算**。2.26.0 之前这里写的配方只有后两条,论坛照抄了它:未认领作品按分级判 sfw,于是 18 部封面全 explicit、分级却不是 r18 的未认领作品(2026-09-24)被展示给没选成人内容的读者。第一条是 09-14 加进 `NSFW` 的,配方没有跟着改。`cover_art_all_explicit` 由触发器维护,翻转时 bump `updated_at`,所以同样在本 feed 现身。
 
 **镜像回路**:
 
