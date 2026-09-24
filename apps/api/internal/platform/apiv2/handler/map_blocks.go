@@ -53,7 +53,7 @@ func coversFrom(in []dto.PublicCover) []repr.Cover {
 }
 
 func coverFromPublic(c dto.PublicCover) *repr.Cover {
-	img := imageFromURLMeta(c.URL, c.Source, c.Width, c.Height, c.Thumbhash, c.Sexual)
+	img := imageFromURLMeta(c.URL, c.Source, c.Width, c.Height, c.Thumbhash, &c.Sexual)
 	if img == nil {
 		return nil
 	}
@@ -71,7 +71,7 @@ func coverFromPublic(c dto.PublicCover) *repr.Cover {
 func screenshotsFrom(in []dto.PublicScreenshot) []repr.Screenshot {
 	out := make([]repr.Screenshot, 0, len(in))
 	for _, s := range in {
-		img := imageFromURLMeta(s.URL, s.Source, s.Width, s.Height, s.Thumbhash, s.Sexual)
+		img := imageFromURLMeta(s.URL, s.Source, s.Width, s.Height, s.Thumbhash, &s.Sexual)
 		if img == nil {
 			continue
 		}
@@ -154,11 +154,7 @@ func imageFromPublicMeta(url string, meta *dto.PublicImageMeta, source string) *
 	if meta == nil {
 		return imageFromURL(url, source)
 	}
-	sexual := int16(0)
-	if meta.Sexual != nil {
-		sexual = *meta.Sexual
-	}
-	return imageFromURLMeta(url, source, meta.Width, meta.Height, meta.Thumbhash, sexual)
+	return imageFromURLMeta(url, source, meta.Width, meta.Height, meta.Thumbhash, meta.Sexual)
 }
 
 func creditGroupsFrom(in []dto.PublicCreditGroup) []repr.CreditGroup {
