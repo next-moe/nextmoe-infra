@@ -355,6 +355,7 @@ func (h *AuthHandler) Me(c fiber.Ctx) error {
 		Roles:            user.RoleNames(),
 		CreatedAt:        user.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
 		AdultConfirmedAt: adultConfirmedAt(user),
+		DeletionDueAt:    rfc3339(user.DeletionDueAt),
 		NSFWDisplay:      user.NSFWDisplay,
 		Cosmetics:        h.cosmeticsOf(c, user.ID, site),
 	})
@@ -502,6 +503,64 @@ func (h *AuthHandler) SendEmailChangeCode(c fiber.Ctx) error {
 	}
 
 	return response.SuccessWithMessage(c, "验证码已发送到当前邮箱", nil)
+}
+
+func rfc3339(t *time.Time) *string {
+	if t == nil {
+		return nil
+	}
+	v := t.UTC().Format(time.RFC3339)
+	return &v
+}
+
+func heldByAnotherApp(c fiber.Ctx) bool {
+	clientID, _ := c.Locals("token_client_id").(string)
+	return clientID != ""
+}
+
+func appErrOr500(c fiber.Ctx, err error) error {
+	if appErr, ok := err.(*errors.AppError); ok {
+		return response.BadRequest(c, appErr.Code)
+	}
+	return response.InternalError(c, errors.ErrOperationFailed)
+}
+
+func (h *AuthHandler) SendDeletionCode(c fiber.Ctx) error {
+	if heldByAnotherApp(c) {
+		return response.Forbidden(c, errors.ErrForbidden)
+	}
+	if err := h.authService.SendDeletionCode(c.Context(), c.Locals("user_uuid").(string)); err != nil {
+		return appErrOr500(c, err)
+	}
+	return response.SuccessWithMessage(c, "验证码已发送到当前邮箱", nil)
+}
+
+func (h *AuthHandler) RequestDeletion(c fiber.Ctx) error {
+	if heldByAnotherApp(c) {
+		return response.Forbidden(c, errors.ErrForbidden)
+	}
+	var req dto.RequestDeletionRequest
+	if err := c.Bind().JSON(&req); err != nil {
+		return response.BadRequest(c, errors.ErrBadRequest)
+	}
+	if err := utils.Validate(&req); err != nil {
+		return response.BadRequestMsg(c, errors.ErrValidationFailed, err.Error())
+	}
+	due, err := h.authService.RequestDeletion(c.Context(), c.Locals("user_uuid").(string), req.Code)
+	if err != nil {
+		return appErrOr500(c, err)
+	}
+	return response.Success(c, fiber.Map{"deletion_due_at": rfc3339(&due)})
+}
+
+func (h *AuthHandler) CancelDeletion(c fiber.Ctx) error {
+	if heldByAnotherApp(c) {
+		return response.Forbidden(c, errors.ErrForbidden)
+	}
+	if err := h.authService.CancelDeletion(c.Context(), c.Locals("user_uuid").(string)); err != nil {
+		return appErrOr500(c, err)
+	}
+	return response.SuccessWithMessage(c, "已撤销注销", nil)
 }
 
 func (h *AuthHandler) ChangeEmail(c fiber.Ctx) error {

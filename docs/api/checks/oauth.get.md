@@ -59,7 +59,8 @@
 
 | 路径 | 鉴权 | Handler | 状态 | 备注 |
 |---|---|---|---|---|
-| `GET /api/v1/users/batch` | ClientAuth | `userBatchH.Get` | 已审计 | 按 id 批量拉公开资料；不含 email/moemoepoint |
+| `GET /api/v1/users/batch` | ClientAuth | `userBatchH.Get` | 已审计 | 按 id 批量拉公开资料；不含 email/moemoepoint；已注销账号带 `anonymized_at` |
+| `GET /api/v1/users/deleted` | ClientAuth | `userBatchH.Deleted` | 已审计 | 已注销账号的增量流（按注销时间，游标分页），供下游清理本地数据 |
 | `GET /api/v1/users/search` | ClientAuth | `userBatchH.Search` | 已修 | 用户名子串搜索；#30 q 长度按字符(rune)计，满长 CJK 名不再误拒 400 |
 | `GET /api/v1/users/:id/moemoepoint` | ClientAuth | `moemoepointH.GetBalance` | 已审计 | 余额（统一货币）|
 | `GET /api/v1/users/:id/moemoepoint/log` | ClientAuth | `moemoepointH.GetLog` | 已审计 | 流水**精简视图**（无 note/actor）|

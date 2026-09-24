@@ -49,6 +49,7 @@ type AuthService struct {
 	ledger            *ledgerService.Ledger
 	signer            oidctoken.Signer
 	verifier          *oidctoken.Verifier
+	codes             codeCache
 }
 
 func (s *AuthService) WithLedger(l *ledgerService.Ledger) *AuthService {
