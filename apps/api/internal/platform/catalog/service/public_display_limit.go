@@ -66,6 +66,13 @@ func effectiveDisplayNSFW(site *string, productWorkID *int64, f shelfFacts, cont
 	}.NSFW()
 }
 
+func shelfLimitKey(site *string, productWorkID *int64, f shelfFacts, contentRating int16) string {
+	return model.DisplayLimitKey(model.WorkShelf{
+		Site: site, ProductWorkID: productWorkID, DisplayNSFW: f.DisplayNSFW,
+		ContentRating: contentRating, CoverArtAllExplicit: f.CoverArtAllExplicit,
+	})
+}
+
 func (s *ReadService) loadShelfFacts(ctx context.Context, subjects []claimSubject) (map[int64]shelfFacts, error) {
 	out := make(map[int64]shelfFacts, len(subjects))
 	if len(subjects) == 0 {

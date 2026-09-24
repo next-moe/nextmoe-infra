@@ -341,7 +341,7 @@ func (s *PublicService) enrichWorkListItems(ctx context.Context, rows []workList
 	if wantCovers {
 		coverSubjects = subjects
 	}
-	if wantCovers || sel.Wants("claimed_by") {
+	if wantCovers || sel.Wants("claimed_by", "content_limit") {
 		limitSubjects = subjects
 	}
 	var dates map[int64]*string
@@ -364,8 +364,9 @@ func (s *PublicService) enrichWorkListItems(ctx context.Context, rows []workList
 		out[i] = dto.PublicWorkListItem{
 			ID: r.ID, Medium: s.mediumKey(r.MediumID), DisplayName: r.DisplayName,
 			ContentRating: contentRatingKey(r.ContentRating), OLang: r.OLang,
-			ReleaseDate: dates[r.ID],
-			ClaimedBy:   claimedBy(r.Site, r.ProductWorkID, r.ClaimState, limits[r.ID], r.ContentRating),
+			ContentLimit: shelfLimitKey(r.Site, r.ProductWorkID, limits[r.ID], r.ContentRating),
+			ReleaseDate:  dates[r.ID],
+			ClaimedBy:    claimedBy(r.Site, r.ProductWorkID, r.ClaimState, limits[r.ID], r.ContentRating),
 			Cover: s.pickListCover(covers[r.ID],
 				nsfw && effectiveDisplayNSFW(r.Site, r.ProductWorkID, limits[r.ID], r.ContentRating)),
 			Created: r.CreatedAt, Updated: r.UpdatedAt,

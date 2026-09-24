@@ -26,6 +26,7 @@ func workFromListItem(it dto.PublicWorkListItem, include []string, logoURL func(
 		it.ID, it.Medium, it.DisplayName, it.OLang, it.ContentRating, releaseStatus(it.ReleaseDate),
 		created, it.Updated, optString(it.Latin), localizedFrom(it.Localized),
 		releaseDateValue(it.ReleaseDate), releasePrecision(it.ReleaseDate), cover, banner, claimFrom(it.ClaimedBy),
+		it.ContentLimit,
 	)
 	want := map[string]bool{}
 	for _, t := range include {
@@ -72,6 +73,7 @@ func workFromDetail(rec dto.PublicCatalogWork, include []string, logoURL func(st
 		rec.ID, rec.Medium, rec.DisplayName, rec.OLang, rec.ContentRating, releaseStatus(rec.ReleaseDate),
 		created, rec.Updated, optString(rec.Latin), localizedFrom(rec.Localized),
 		releaseDateValue(rec.ReleaseDate), releasePrecision(rec.ReleaseDate), cover, banner, claimFrom(rec.ClaimedBy),
+		rec.ContentLimit,
 	)
 	attachWorkIncludes(&w, rec, include, logoURL)
 	return w

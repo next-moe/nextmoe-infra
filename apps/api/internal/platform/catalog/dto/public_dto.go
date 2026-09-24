@@ -14,6 +14,7 @@ type PublicWorkBrief struct {
 	Medium        string                         `json:"medium"`
 	DisplayName   string                         `json:"display_name"`
 	ContentRating string                         `json:"content_rating"`
+	ContentLimit  string                         `json:"content_limit"`
 	OLang         string                         `json:"olang"`
 	Created       string                         `json:"created"`
 	Updated       string                         `json:"updated"`
@@ -76,6 +77,7 @@ type PublicCatalogWork struct {
 	Localized      map[string]PublicLocalizedName `json:"localized" doc:"preferred title per locale, keyed by canonically-cased BCP-47 tag; {} when none. SPARSE by design — render localized[yourLocale] ?? display_name ?? latin, never a blank"`
 	OLang          string                         `json:"olang"`
 	ContentRating  string                         `json:"content_rating"`
+	ContentLimit   string                         `json:"content_limit"`
 	ReleaseDate    *string                        `json:"release_date"`
 	Created        string                         `json:"created"`
 	Updated        string                         `json:"updated"`
@@ -473,6 +475,7 @@ type PublicWorkListItem struct {
 	Medium        string           `json:"medium"`
 	DisplayName   string           `json:"display_name"`
 	ContentRating string           `json:"content_rating"`
+	ContentLimit  string           `json:"content_limit"`
 	OLang         string           `json:"olang"`
 	ReleaseDate   *string          `json:"release_date"`
 	ClaimedBy     *PublicClaimedBy `json:"claimed_by"`

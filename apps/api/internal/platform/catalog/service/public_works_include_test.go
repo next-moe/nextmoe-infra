@@ -128,7 +128,7 @@ func TestWorksListDefaultResponseIsByteIdentical(t *testing.T) {
 		t.Fatalf("marshal: %v", err)
 	}
 	want := `{"items":[{"id":` + itoa(id) + `,"medium":"galgame","display_name":"Rich Brief",` +
-		`"content_rating":"all_ages","olang":"ja","release_date":"2021-06-04","claimed_by":null,` +
+		`"content_rating":"all_ages","content_limit":"sfw","olang":"ja","release_date":"2021-06-04","claimed_by":null,` +
 		`"cover":"` + testCDNBase + `/aa/11/` + hash64("aa11") + `.webp",` +
 		`"created":"2025-11-30T09:08:07Z","updated":"2026-01-02T03:04:05Z"}],"next_cursor":null}`
 	if string(got) != want {

@@ -15,7 +15,7 @@ func TestIDIsJSONString(t *testing.T) {
 	w, ok := NewWork(19658, "galgame", "紅殻のパンドラ", "ja", "r18", "released",
 		TimeUTC(time.Date(2024, 11, 3, 8, 12, 44, 0, time.UTC)),
 		TimeUTC(time.Date(2026, 8, 19, 2, 31, 6, 0, time.UTC)),
-		nil, nil, ptr("2011-06-24"), ptr("day"), nil, nil, nil)
+		nil, nil, ptr("2011-06-24"), ptr("day"), nil, nil, nil, "nsfw")
 	if !ok {
 		t.Fatal("NewWork")
 	}

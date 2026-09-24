@@ -15,7 +15,7 @@ Catalog changes feed
 
 Works updated recently, oldest first. Keyset-paginated. Requires an application key or a user access token with catalog:read. ids= is not accepted.
 
-**This is the mirror channel.** If you cache any catalog-owned fact per work — above all the editorial display axis `content_limit`, whose verdict is `claimed_by.content_limit` when the claim block is present and otherwise `nsfw` when `content_rating` is `r18`, `sfw` otherwise — poll this feed instead of sweeping the catalog. Every write that changes a work's claim state, its display axis (the editorial NSFW flag or its content rating), or its existence bumps `updated_at` and surfaces the id here.
+**This is the mirror channel.** If you cache any catalog-owned fact per work — above all the display axis `content_limit`, which every work carries (read it from the work; do not re-derive it from `content_rating`, which misses works whose every cover is graded explicit) — poll this feed instead of sweeping the catalog. Every write that changes a work's claim state, its display axis (the editorial NSFW flag, its content rating, or whether every cover it has is graded explicit), or its existence bumps `updated_at` and surfaces the id here.
 
 Bootstrap from an empty cursor: the feed enumerates the whole population oldest-updated-first, so the first drain IS the full inventory. Hydrate each page against /v2/catalog/works with ids= in batches of at most 100, with both gates open (nsfw=true and no content_limit), then keep the cursor and poll it at your own cadence.
 

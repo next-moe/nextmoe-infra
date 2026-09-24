@@ -48,6 +48,7 @@ type Work struct {
 	Localized            map[string]LocalizedText `json:"localized" doc:"BCP-47 keys, sparse. Empty object if none. Must not be used as a discriminant."`
 	OLang                string                   `json:"olang" maxLength:"32" format:"bcp47" doc:"Original language, BCP-47. Open vocabulary languages."`
 	ContentRating        string                   `json:"content_rating" enum:"all_ages,sensitive,r18" doc:"Age axis of the work."`
+	ContentLimit         string                   `json:"content_limit" enum:"sfw,nsfw" doc:"Display axis: whether this work may be shown to a reader who has not opted into adult content. Set on every work, claimed or not, and the value the content_limit filter selects on. It is not content_rating: an r18 game whose cover art is safe is sfw, and a work whose every cover is graded explicit is nsfw whatever its rating. A claimed work carries the same value in claim.content_limit."`
 	ReleaseDate          *string                  `json:"release_date" format:"date" maxLength:"10" doc:"Calendar date. null when release_status is announced, cancelled, or unknown."`
 	ReleaseDatePrecision *string                  `json:"release_date_precision" enum:"day,month,year" doc:"null when release_date is null. month dates sit on the 1st; year dates sit on January 1."`
 	ReleaseStatus        string                   `json:"release_status" enum:"released,dated,announced,cancelled,unknown" doc:"World state of the release, distinct from our knowledge gap."`
@@ -85,7 +86,7 @@ type ViaCompany struct {
 	Localized   map[string]LocalizedText `json:"localized" doc:"BCP-47 keys. Empty object if none. Must not be used as a discriminant."`
 }
 
-func NewWork(id int64, medium, display, olang, rating, releaseStatus, created, updated string, latin *string, localized map[string]LocalizedText, releaseDate, releasePrecision *string, cover, banner *CoverSlot, claim *Claim) (Work, bool) {
+func NewWork(id int64, medium, display, olang, rating, releaseStatus, created, updated string, latin *string, localized map[string]LocalizedText, releaseDate, releasePrecision *string, cover, banner *CoverSlot, claim *Claim, contentLimit string) (Work, bool) {
 	if _, ok := MediumFromKey(medium); !ok {
 		return Work{}, false
 	}
@@ -96,6 +97,6 @@ func NewWork(id int64, medium, display, olang, rating, releaseStatus, created, u
 		Object: "work", ID: ID(id), Medium: medium, DisplayName: display, Latin: latin,
 		Localized: localized, OLang: olang, ContentRating: rating,
 		ReleaseDate: releaseDate, ReleaseDatePrecision: releasePrecision, ReleaseStatus: releaseStatus,
-		Cover: cover, Banner: banner, Claim: claim, CreatedAt: created, UpdatedAt: updated,
+		Cover: cover, Banner: banner, Claim: claim, ContentLimit: contentLimit, CreatedAt: created, UpdatedAt: updated,
 	}, true
 }

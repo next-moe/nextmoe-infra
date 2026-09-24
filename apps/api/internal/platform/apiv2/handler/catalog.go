@@ -102,7 +102,7 @@ func (c *Catalog) GetWork(ctx context.Context, id int64, nsfw bool, spoiler int1
 }
 
 func workDetailSel(include []string) catsvc.PublicFields {
-	keys := "id,medium,display_name,latin,localized,olang,content_rating,release_date,created,updated,claimed_by,cover_slots"
+	keys := "id,medium,display_name,latin,localized,olang,content_rating,content_limit,release_date,created,updated,claimed_by,cover_slots"
 	for _, t := range include {
 		if t == "companies" {
 			t = "labels"

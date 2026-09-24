@@ -242,7 +242,7 @@ func workFromBrief(b dto.PublicWorkBrief) repr.Work {
 	w, _ := repr.NewWork(
 		b.ID, b.Medium, b.DisplayName, b.OLang, b.ContentRating, "unknown",
 		created, b.Updated, optString(b.Latin), localizedFrom(b.Localized),
-		nil, nil, nil, nil, claimFrom(b.ClaimedBy),
+		nil, nil, nil, nil, claimFrom(b.ClaimedBy), b.ContentLimit,
 	)
 	if w.Object == "" {
 		w.Object = "work"
@@ -253,6 +253,7 @@ func workFromBrief(b dto.PublicWorkBrief) repr.Work {
 		w.OLang = b.OLang
 		w.Localized = localizedFrom(b.Localized)
 		w.Claim = claimFrom(b.ClaimedBy)
+		w.ContentLimit = b.ContentLimit
 		w.ReleaseStatus = "unknown"
 		w.CreatedAt, w.UpdatedAt = created, b.Updated
 	}

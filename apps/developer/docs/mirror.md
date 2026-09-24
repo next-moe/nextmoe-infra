@@ -29,7 +29,7 @@ description: 用 /v2/catalog/changes 把 NextMoe 目录镜像进本地库的完�
 
 ## 承诺了什么 {#guarantees}
 
-凡是改动作品的 **claim 状态**、**编辑展示轴**（`content_limit` 的两个输入：`display_nsfw` 与 `content_rating`）或**作品存在性**的写路径，都会 bump 这一行的 `updated_at`，因而必然在这条 feed 里现身。
+凡是改动作品的 **claim 状态**、**展示轴**（`content_limit` 的输入：`display_nsfw`、`content_rating`，以及作品的封面是否全部被判 explicit）或**作品存在性**的写路径，都会 bump 这一行的 `updated_at`，因而必然在这条 feed 里现身。
 
 其余字段（封面 / 标签 / 标题 / 简介 / 评分）是**尽力而为**——它们多数也会连带 touch 作品行，但只有上面三项是承诺。要对某个非承诺字段做强一致的镜像，请告诉我们，那说明它该被提升成承诺。
 
@@ -85,10 +85,10 @@ WHERE content_limit IS NULL OR content_limit = 'sfw'
 
 这样冷启动期间未水合的行照常可见，而不是整站空白。真正的权威始终是水合时 catalog 自己的闸，本地这一列只是列表页的快筛。
 
-判定配方（和服务端同一条）：
+判定不要自己算，直接读作品上的 `content_limit`：每部作品都带（2.26.0 起），认领与否都一样。服务端除了认领方的编辑判定和事实分级，还看封面——一部作品的封面全部被判 explicit 时，不论分级都是 `nsfw`。按分级自己推算会把这类作品当成 `sfw`。
 
 ```javascript
-content_limit = claim.content_limit = content_rating === 'r18' ? 'nsfw' : 'sfw' // 已认领：用认领方的编辑判定 // 未认领：按事实分级
+const contentLimit = work.content_limit // 'sfw' | 'nsfw'，不要用 content_rating 推算
 ```
 
 ## 整条回路 {#loop}
