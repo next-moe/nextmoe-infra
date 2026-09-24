@@ -105,28 +105,30 @@ func (r *PostRepository) TopAuthors(site string, kind, anchorKind int16, limit i
 }
 
 func PurgeAuthorPostsTx(tx *gorm.DB, site string, authorID int64) (int64, error) {
-	res := tx.Exec(`
+	return archiveTx(tx, site, authorID, model.PurgeStepPost, `
 		UPDATE community_post AS p
 		   SET status = ?, content_raw = '', content_html = ''
-		  FROM community_thread AS t
-		 WHERE p.thread_id = t.id
-		   AND t.site = ?
-		   AND p.author_id = ?
-		   AND (p.status <> ? OR p.content_raw <> '' OR p.content_html <> '')`,
+		  FROM (SELECT p0.* FROM community_post AS p0
+		          JOIN community_thread AS t ON t.id = p0.thread_id
+		         WHERE t.site = ?
+		           AND p0.author_id = ?
+		           AND (p0.status <> ? OR p0.content_raw <> '' OR p0.content_html <> '')
+		           FOR UPDATE OF p0) AS prev
+		 WHERE p.id = prev.id
+		RETURNING prev.*`,
 		model.PostStatusDeleted, site, authorID, model.PostStatusDeleted)
-	return res.RowsAffected, res.Error
 }
 
 func DeleteAuthorReactionsTx(tx *gorm.DB, site string, authorID int64) (int64, error) {
-	res := tx.Exec(`
+	return archiveTx(tx, site, authorID, model.PurgeStepReaction, `
 		DELETE FROM community_reaction AS r
 		 USING community_post AS p, community_thread AS t
 		 WHERE r.post_id = p.id
 		   AND p.thread_id = t.id
 		   AND t.site = ?
-		   AND r.user_id = ?`,
+		   AND r.user_id = ?
+		RETURNING r.*`,
 		site, authorID)
-	return res.RowsAffected, res.Error
 }
 
 // DeleteAuthorThreadUsersTx drops the author's read/subscription rows on this
@@ -134,17 +136,17 @@ func DeleteAuthorReactionsTx(tx *gorm.DB, site string, authorID int64) (int64, e
 // compliance purge that left them behind would keep exactly the kind of trace
 // it exists to remove.
 func DeleteAuthorThreadUsersTx(tx *gorm.DB, site string, userID int64) (int64, error) {
-	res := tx.Exec(`
+	return archiveTx(tx, site, userID, model.PurgeStepThreadUser, `
 		DELETE FROM community_thread_user AS tu
 		 USING community_thread AS t
 		 WHERE tu.thread_id = t.id
 		   AND COALESCE(tu.site, t.site) = ?
-		   AND tu.user_id = ?`,
+		   AND tu.user_id = ?
+		RETURNING tu.*`,
 		site, userID)
-	return res.RowsAffected, res.Error
 }
 
 func DeleteAuthorAnchorSubscriptionsTx(tx *gorm.DB, site string, userID int64) (int64, error) {
-	res := tx.Exec(`DELETE FROM community_anchor_user WHERE site = ? AND user_id = ?`, site, userID)
-	return res.RowsAffected, res.Error
+	return archiveTx(tx, site, userID, model.PurgeStepAnchorUser,
+		`DELETE FROM community_anchor_user WHERE site = ? AND user_id = ? RETURNING *`, site, userID)
 }

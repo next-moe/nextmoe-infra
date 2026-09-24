@@ -20,4 +20,8 @@ UPDATE community_flag
   SET note = :'marker' || ' synthetic flag note.'
   WHERE note IS NOT NULL AND note <> '';
 
+-- What the author purge took, kept 30 days so a mistaken purge can be undone:
+-- content its authors had removed, so none of it leaves production.
+TRUNCATE community_purge_archive;
+
 COMMIT;

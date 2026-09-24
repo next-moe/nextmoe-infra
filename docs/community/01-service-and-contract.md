@@ -260,6 +260,25 @@ too: no replies on an archived board (`409`), and `reply_min_trust_level`
 refuses authors below it (`403`). An author can still edit and delete their
 posts on an archived board.
 
+#### Author purge — `POST /authors/{id}/purge`, `POST /authors/{id}/purge/restore`
+
+The compliance purge tombstones every post the author wrote on this site and
+blanks its content, and deletes their reactions and the rows §6 lists. In the
+same transaction it keeps every row it changed or deleted, as it was, in
+`community_purge_archive`, and the service prunes those rows 30 days later.
+Until then `POST /authors/{id}/purge/restore` undoes this site's purges of the
+author. Posts get their status and content back unless their status has changed
+since, as when a moderator approved one. Deleted rows are reinserted unless the
+user has recreated the same row since. The actor ids and event recipients the
+purge cleared are put back. The response counts mirror the purge's. The call
+returns `404` when nothing is left to restore: the author was never purged here,
+the purge was already undone, or it is older than 30 days.
+
+The purge used to keep nothing. On 2026-09-23 the forum purged two users by
+mistake; their forum rows came back from a dump that happened to exist and from
+dead tuples, and their comments here could not have come back at all. For 30 days, a purged author's content can now be recovered from this
+database, as it can for 28 days from the nightly dumps.
+
 ### Write-time content pipeline (invariant 6)
 
 Every post body is Markdown. On write it is rendered (goldmark, GFM, raw HTML

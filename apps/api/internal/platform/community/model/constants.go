@@ -142,3 +142,14 @@ const (
 	ReviewStatusApproved int16 = 1
 	ReviewStatusRejected int16 = 2
 )
+
+const (
+	PurgeStepPost              = "post"
+	PurgeStepReaction          = "reaction"
+	PurgeStepThreadUser        = "thread_user"
+	PurgeStepAnchorUser        = "anchor_user"
+	PurgeStepNotification      = "notification"
+	PurgeStepNotificationActor = "notification_actor"
+	PurgeStepEvent             = "event"
+	PurgeStepEventRecipient    = "event_recipient"
+)

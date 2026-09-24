@@ -911,6 +911,27 @@ components:
         - code
         - message
       type: object
+    EnvelopeRestoreResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeRestoreResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/RestoreResponse"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
     EnvelopeReviewListResponse:
       additionalProperties: false
       properties:
@@ -1790,6 +1811,36 @@ components:
         - author_id
         - body
       type: object
+    RestoreResponse:
+      additionalProperties: false
+      properties:
+        anchor_subscriptions_restored:
+          description: anchor-subscription rows put back; one the user has recreated since keeps its new value
+          format: int64
+          type: integer
+        notifications_restored:
+          description: inbox rows put back
+          format: int64
+          type: integer
+        posts_restored:
+          description: posts given back their status and content; a post whose status changed since the purge is left as it is
+          format: int64
+          type: integer
+        reactions_restored:
+          description: reaction rows put back
+          format: int64
+          type: integer
+        read_states_restored:
+          description: read/subscription rows put back; one the user has recreated since keeps its new value
+          format: int64
+          type: integer
+      required:
+        - posts_restored
+        - reactions_restored
+        - read_states_restored
+        - anchor_subscriptions_restored
+        - notifications_restored
+      type: object
     ReviewDecisionRequest:
       additionalProperties: false
       properties:
@@ -2500,6 +2551,32 @@ paths:
                 $ref: "#/components/schemas/HouseError"
           description: Error
       summary: "Compliance purge: tombstone + scrub all of a site author's posts and delete their reactions (idempotent)"
+      tags:
+        - community-write
+  /api/v1/community/authors/{id}/purge/restore:
+    post:
+      operationId: restoreAuthor
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeRestoreResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: "Undo this site's purges of an author from the last 30 days: give back the scrubbed posts and the deleted rows"
       tags:
         - community-write
   /api/v1/community/boards:

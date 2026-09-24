@@ -246,33 +246,41 @@ func PruneReadNotifications(db *gorm.DB, olderThan time.Duration) (int64, error)
 }
 
 func DeleteAuthorNotificationsTx(tx *gorm.DB, site string, userID int64) (int64, error) {
-	res := tx.Where("site = ? AND user_id = ?", site, userID).Delete(&model.CommunityNotification{})
-	return res.RowsAffected, res.Error
+	return archiveTx(tx, site, userID, model.PurgeStepNotification,
+		`DELETE FROM community_notification WHERE site = ? AND user_id = ? RETURNING *`, site, userID)
 }
 
 func ClearAuthorNotificationActorsTx(tx *gorm.DB, site string, userID int64) (int64, error) {
-	res := tx.Model(&model.CommunityNotification{}).
-		Where("site = ? AND actor_id = ?", site, userID).
-		Update("actor_id", gorm.Expr("NULL"))
-	return res.RowsAffected, res.Error
+	return archiveTx(tx, site, userID, model.PurgeStepNotificationActor, `
+		UPDATE community_notification AS n
+		   SET actor_id = NULL, updated_at = now()
+		  FROM (SELECT * FROM community_notification
+		         WHERE site = ? AND actor_id = ?
+		           FOR UPDATE) AS prev
+		 WHERE n.id = prev.id
+		RETURNING prev.*`,
+		site, userID)
 }
 
 func ForgetUserInPendingEventsTx(tx *gorm.DB, site string, userID int64) (int64, error) {
-	res := tx.Exec(`
-		UPDATE community_event SET
-		       target_user_id = NULLIF(target_user_id, ?),
+	return archiveTx(tx, site, userID, model.PurgeStepEventRecipient, `
+		UPDATE community_event AS ev SET
+		       target_user_id = NULLIF(ev.target_user_id, ?),
 		       mention_user_ids = (
-		           SELECT jsonb_agg(e) FROM jsonb_array_elements(mention_user_ids) AS e
+		           SELECT jsonb_agg(e) FROM jsonb_array_elements(ev.mention_user_ids) AS e
 		            WHERE e <> to_jsonb(?::bigint))
-		 WHERE site = ? AND processed_at IS NULL
-		   AND (target_user_id = ? OR mention_user_ids @> jsonb_build_array(?::bigint))`,
+		  FROM (SELECT * FROM community_event
+		         WHERE site = ? AND processed_at IS NULL
+		           AND (target_user_id = ? OR mention_user_ids @> jsonb_build_array(?::bigint))
+		           FOR UPDATE) AS prev
+		 WHERE ev.id = prev.id
+		RETURNING prev.*`,
 		userID, userID, site, userID, userID)
-	return res.RowsAffected, res.Error
 }
 
 func DeleteAuthorEventsTx(tx *gorm.DB, site string, userID int64) (int64, error) {
-	res := tx.Where("site = ? AND actor_id = ?", site, userID).Delete(&model.CommunityEvent{})
-	return res.RowsAffected, res.Error
+	return archiveTx(tx, site, userID, model.PurgeStepEvent,
+		`DELETE FROM community_event WHERE site = ? AND actor_id = ? RETURNING *`, site, userID)
 }
 
 func PostedFoldKey(threadID int64) string { return fmt.Sprintf("posted:%d", threadID) }

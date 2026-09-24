@@ -13,6 +13,8 @@ var (
 	ErrPostNotEditable = errors.New("community: post not editable")
 	ErrContentBlocked  = errors.New("community: content blocked by word list")
 
+	ErrNothingToRestore = errors.New("community: no purge of this author to restore")
+
 	ErrInvalidNotificationLevel = errors.New("community: notification level out of range")
 	ErrInvalidSearchQuery       = errors.New("community: search query must be 2-100 characters")
 )

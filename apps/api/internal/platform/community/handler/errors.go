@@ -30,6 +30,8 @@ func mapErr(op string, err error) *houseError {
 		stderrors.Is(err, service.ErrReviewNotFound),
 		stderrors.Is(err, service.ErrBoardNotFound):
 		return apiErr(http.StatusNotFound, errors.ErrNotFound)
+	case stderrors.Is(err, service.ErrNothingToRestore):
+		return apiErrMsg(http.StatusNotFound, errors.ErrNotFound, "no purge of this author in the last 30 days is left to restore")
 	case stderrors.Is(err, service.ErrThreadNotOpen):
 		return apiErrMsg(http.StatusConflict, errors.ErrOperationFailed, "thread is not open")
 	case stderrors.Is(err, service.ErrInvalidSearchQuery):

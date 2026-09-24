@@ -116,6 +116,27 @@ func (s *Server) purgeAuthor(ctx context.Context, in *authorPurgeInput) (*author
 	})}, nil
 }
 
+type authorRestoreOutput struct {
+	Body Envelope[dto.RestoreResponse]
+}
+
+func (s *Server) restoreAuthor(ctx context.Context, in *authorPurgeInput) (*authorRestoreOutput, error) {
+	site, he := siteBinding(ctx)
+	if he != nil {
+		return nil, he
+	}
+	res, err := s.posts.RestoreAuthor(ctx, site, in.ID)
+	if err != nil {
+		return nil, mapErr("restore author", err)
+	}
+	return &authorRestoreOutput{Body: okEnvelope(dto.RestoreResponse{
+		PostsRestored: res.PostsRestored, ReactionsRestored: res.ReactionsRestored,
+		ReadStatesRestored:          res.ReadStatesRestored,
+		AnchorSubscriptionsRestored: res.AnchorSubscriptionsRestored,
+		NotificationsRestored:       res.NotificationsRestored,
+	})}, nil
+}
+
 func clampAuthorLimit(limit int) int {
 	if limit <= 0 {
 		return 20
