@@ -6,7 +6,7 @@
 # a dump that happened to exist (G0 window) and from dead tuples.
 #
 # Same-disk logical dumps: they cover bad writes, purges and broken migrations,
-# not the loss of this disk. Off-host copies are a separate, still-open job.
+# not the loss of this disk. pg-offsite copies them off the host, encrypted.
 #
 # Every database in the cluster must be named in DBS or SKIP. One in neither is
 # left undumped and fails the run, so the alert names it: a new service's
@@ -14,10 +14,18 @@
 # no dump here:
 #   dlsite, getchu, howlongtobeat  primary copy on the crawler box; crawler-restage
 #                                  pulls them back every Sunday
-#   erogamescape                   its crawler on this host re-crawls it from
-#                                  ErogameScape
+#   erogamescape                   weekly instead (below); its crawler on this
+#                                  host can re-crawl it, slowly
 #   kun_galgame_wiki_retired_w1    frozen since the wiki's retirement
 #   kun_letmoe_staging, postgres   nothing first-party
+#
+# Also dumped, from their own clusters:
+#   dokploy (the panel's database)  daily, beside the others: it holds every
+#                                  service's configuration, the first thing a
+#                                  rebuild of this host needs
+#   erogamescape, umami            weekly on Sundays into dumps/weekly/, newest
+#                                  copy only: umami alone is tens of GB, and
+#                                  pg-offsite keeps the history
 #
 # Retention: 7 daily, plus Sunday dumps for 28 days.
 # Restore into a scratch database, never over the live one:
@@ -54,6 +62,7 @@ trap on_exit EXIT
 echo "=== pg-backup start $(date -u '+%F %T')Z ==="
 
 PG=kun-visual-novel-infra-vqvqbc-postgres-1
+UMAMI=kun-visual-novel-umami-fm1njw-db-1
 DBS="kungalgame kun_galgame_infra kun_catalog kun_community kun_trust kun_images kungalgame_patch kun_shortlink kun_letmoe kun_news kun_artifacts kungalgame_sticker kun_blog kun_ai"
 SKIP="dlsite getchu howlongtobeat erogamescape kun_galgame_wiki_retired_w1 kun_letmoe_staging postgres"
 
@@ -84,7 +93,7 @@ done
 
 DAY=$(date +%F)
 OUT="dumps/$DAY"
-rm -rf dumps/*.partial
+rm -rf dumps/*.partial dumps/weekly/*.partial
 mkdir -p "$OUT.partial"
 
 docker exec "$PG" pg_dumpall -U postgres --globals-only > "$OUT.partial/globals.sql"
@@ -96,9 +105,35 @@ for db in $DBS; do
   echo "$db: $(du -h "$OUT.partial/$db.dump" | cut -f1) in $(( $(date +%s) - start ))s"
 done
 
+# dump <container> <user> <db> <file>: a dump that pg_restore cannot list fails the run.
+dump() {
+  docker exec "$1" pg_dump -U "$2" -Fc -d "$3" > "$4"
+  docker exec -i "$1" pg_restore --list < "$4" > /dev/null
+}
+
+panel=$(docker ps --format '{{.Names}}' | grep '^dokploy-postgres\.' | head -n 1 || true)
+if [ -n "$panel" ]; then
+  dump "$panel" dokploy dokploy "$OUT.partial/dokploy.dump"
+else
+  echo "no dokploy-postgres container: the panel database was not dumped"
+  missing="$missing dokploy"
+fi
+
 rm -rf "$OUT"
 mv "$OUT.partial" "$OUT"
 echo "total today: $(du -sh "$OUT" | cut -f1)"
+
+weekly() {
+  start=$(date +%s)
+  dump "$1" "$2" "$3" "dumps/weekly/$3.dump.partial"
+  mv "dumps/weekly/$3.dump.partial" "dumps/weekly/$3.dump"
+  echo "weekly $3: $(du -h "dumps/weekly/$3.dump" | cut -f1) in $(( $(date +%s) - start ))s"
+}
+if [ "${PG_BACKUP_WEEKDAY:-$(date +%u)}" = 7 ] || [ ! -d dumps/weekly ]; then
+  mkdir -p dumps/weekly
+  weekly "$PG" postgres erogamescape
+  weekly "$UMAMI" umami umami
+fi
 
 now=$(date +%s)
 for dir in dumps/????-??-??; do
