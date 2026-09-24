@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"encoding/hex"
 	"fmt"
+	"html"
 	"html/template"
 	"net/smtp"
 	"strings"
@@ -203,6 +204,26 @@ func (m *Mailer) SendEmailChangeCodeEmail(to, name, code string, ttlMinutes int)
 		fmt.Sprintf(`<p style="margin:0 0 6px; font-size:13px; color:#7b8794;">验证码 %d 分钟内有效。</p>`, ttlMinutes) +
 		fmt.Sprintf(emailHintPara, "如果你没有发起此操作，请忽略本邮件，你的账号信息不会发生变化。")
 	return m.SendEmail(to, subject, kunEmailShell("邮箱变更验证", inner))
+}
+
+func (m *Mailer) SendAccountDeletionCodeEmail(to, name, code string, ttlMinutes int) error {
+	subject := "注销账号验证码 - NextMoe·未萌"
+	inner := fmt.Sprintf(emailTextPara, fmt.Sprintf("你好 <strong>%s</strong>，", html.EscapeString(name))) +
+		fmt.Sprintf(emailTextPara, "你正在申请注销 NextMoe·未萌 账号。请使用以下验证码确认：") +
+		codeChip(code) +
+		fmt.Sprintf(`<p style="margin:0 0 6px; font-size:13px; color:#7b8794;">验证码 %d 分钟内有效。</p>`, ttlMinutes) +
+		fmt.Sprintf(emailHintPara, "如果不是你本人在操作，请忽略本邮件并尽快修改密码。")
+	return m.SendEmail(to, subject, kunEmailShell("注销账号验证", inner))
+}
+
+func (m *Mailer) SendAccountDeletionScheduledEmail(to, name string, dueAt time.Time) error {
+	subject := "账号将被注销 - NextMoe·未萌"
+	due := dueAt.In(time.FixedZone("CST", 8*3600)).Format("2006-01-02 15:04")
+	inner := fmt.Sprintf(emailTextPara, fmt.Sprintf("你好 <strong>%s</strong>，", html.EscapeString(name))) +
+		fmt.Sprintf(emailTextPara, fmt.Sprintf("你的 NextMoe·未萌 账号将于 <strong>%s</strong>（北京时间）注销。注销后账号资料、第三方登录绑定和收藏等数据会被删除，且无法恢复。", due)) +
+		fmt.Sprintf(emailTextPara, "在此之前，你可以随时登录 https://account.nextmoe.com/delete-account 撤销注销。") +
+		fmt.Sprintf(emailHintPara, "如果不是你本人申请的，请立即登录撤销并修改密码。")
+	return m.SendEmail(to, subject, kunEmailShell("账号注销已排期", inner))
 }
 
 func (m *Mailer) SendWithTemplate(to, subject, tmplStr string, data any) error {

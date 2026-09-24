@@ -1,6 +1,7 @@
 package handler
 
 import (
+	stderrors "errors"
 	"log/slog"
 	"strconv"
 	"strings"
@@ -35,6 +36,26 @@ func (h *UserBatchHandler) Get(c fiber.Ctx) error {
 	resp, err := h.svc.GetBriefs(c.Context(), ids, callerSite(c))
 	if err != nil {
 		slog.Error("users batch query", "ids_len", len(ids), "err", err)
+		return response.InternalError(c, errors.ErrInternalServer)
+	}
+	return response.Success(c, resp)
+}
+
+func (h *UserBatchHandler) Deleted(c fiber.Ctx) error {
+	limit := 100
+	if v := c.Query("limit"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 1 || n > 500 {
+			return response.BadRequestMsg(c, errors.ErrInvalidParam, "limit: 1..500")
+		}
+		limit = n
+	}
+	resp, err := h.svc.ListDeleted(c.Context(), c.Query("cursor"), limit)
+	if stderrors.Is(err, service.ErrBadDeletedCursor) {
+		return response.BadRequestMsg(c, errors.ErrInvalidParam, "cursor: pass back next_cursor unchanged")
+	}
+	if err != nil {
+		slog.Error("users deleted feed", "err", err)
 		return response.InternalError(c, errors.ErrInternalServer)
 	}
 	return response.Success(c, resp)

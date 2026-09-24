@@ -13,6 +13,7 @@ type UserBrief struct {
 	Roles           []string `json:"roles"`
 	SiteRoles       []string `json:"site_roles,omitempty"`
 	CreatedAt       string   `json:"created_at"`
+	AnonymizedAt    *string  `json:"anonymized_at,omitempty"`
 
 	Cosmetics shopModel.Cosmetics `json:"cosmetics,omitempty"`
 }
@@ -28,4 +29,15 @@ type BatchGetUsersResponse struct {
 
 type SearchUsersResponse struct {
 	Users []UserBrief `json:"users"`
+}
+
+type DeletedUser struct {
+	ID        uint   `json:"id"`
+	UUID      string `json:"uuid"`
+	DeletedAt string `json:"deleted_at"`
+}
+
+type DeletedUsersResponse struct {
+	Users      []DeletedUser `json:"users"`
+	NextCursor string        `json:"next_cursor"`
 }

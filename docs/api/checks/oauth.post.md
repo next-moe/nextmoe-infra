@@ -31,6 +31,8 @@
 |---|---|---|---|---|
 | `POST /api/v1/auth/logout` | 登录 | `authH.Logout` | 已审计 | |
 | `POST /api/v1/auth/email/send-code` | 登录 | `authH.SendEmailChangeCode` | 已审计 | 改邮箱验证码 |
+| `POST /api/v1/auth/me/deletion/send-code` | 登录（仅账号站会话，OAuth token 403） | `authH.SendDeletionCode` | 已审计 | 注销验证码，发往当前邮箱；admin/ren 拒绝 |
+| `POST /api/v1/auth/me/deletion` | 登录（仅账号站会话） | `authH.RequestDeletion` | 已审计 | 凭验证码申请注销，7 天冷静期后执行（不可逆）|
 | `POST /api/v1/auth/me/avatar` | 登录 | `avatarUploadH.UploadMine` | 已审计 | 仅 image client 配置时注册 |
 
 ## 3. OAuth 2.0 协议

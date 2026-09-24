@@ -21,6 +21,7 @@
         <ProfileEmailChange />
         <ProfilePasswordChange />
         <ProfileMoemoepointLog />
+        <ProfileDeleteAccount />
       </div>
     </div>
   </div>

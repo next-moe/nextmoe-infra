@@ -20,6 +20,7 @@ export interface User {
   // has them undefined until /auth/me is read.
   adult_confirmed_at?: string | null
   nsfw_display?: NsfwDisplay
+  deletion_due_at?: string | null
   cosmetics?: ShopCosmetics
 }
 

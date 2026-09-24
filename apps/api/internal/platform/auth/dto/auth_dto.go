@@ -71,6 +71,10 @@ type SendEmailChangeCodeRequest struct {
 	NewEmail string `json:"new_email" validate:"required,email"`
 }
 
+type RequestDeletionRequest struct {
+	Code string `json:"code" validate:"required,len=6"`
+}
+
 type ChangeEmailRequest struct {
 	Code     string `json:"code" validate:"required,len=6"`
 	NewEmail string `json:"new_email" validate:"required,email"`
@@ -115,6 +119,7 @@ type UserResponse struct {
 	// the struct, so Register does hold the tag's literal. The uniformity is
 	// a choice here, not a GORM limitation.
 	AdultConfirmedAt *string `json:"adult_confirmed_at,omitempty"`
+	DeletionDueAt    *string `json:"deletion_due_at,omitempty"`
 	NSFWDisplay      string  `json:"nsfw_display,omitempty"`
 
 	Cosmetics shopModel.Cosmetics `json:"cosmetics,omitempty"`

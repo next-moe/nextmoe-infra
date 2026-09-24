@@ -33,6 +33,8 @@ const (
 	ErrAuthFederationDisabled     = 10017
 	ErrAuthFederationExpired      = 10018
 	ErrAuthFederationConflict     = 10019
+	ErrAuthDeletionProtected      = 10020
+	ErrAuthCodeTooFrequent        = 10021
 
 	ErrOAuthInvalidClient        = 15001
 	ErrOAuthInvalidRedirectURI   = 15002
@@ -179,6 +181,8 @@ var codeMessages = map[int]string{
 	ErrAuthFederationDisabled:     "该第三方登录方式未启用",
 	ErrAuthFederationExpired:      "第三方登录已过期，请重新发起",
 	ErrAuthFederationConflict:     "该第三方账号的绑定关系存在冲突，请使用密码登录",
+	ErrAuthDeletionProtected:      "管理员账号不能自助注销，请先移除管理员角色",
+	ErrAuthCodeTooFrequent:        "验证码发送过于频繁，请稍后再试",
 
 	ErrCreatorAlreadyHas:    "你已经是创作者了",
 	ErrCreatorAppPending:    "已有一份待审核的创作者申请",

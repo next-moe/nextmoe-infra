@@ -2,7 +2,12 @@ package service
 
 import (
 	"context"
+	stderrors "errors"
+	"fmt"
 	"log/slog"
+	"strconv"
+	"strings"
+	"time"
 
 	"api/internal/platform/auth/dto"
 	"api/internal/platform/auth/model"
@@ -92,7 +97,9 @@ func (s *UserBatchService) attachCosmetics(ctx context.Context, briefs []dto.Use
 		return
 	}
 	for i := range briefs {
-		briefs[i].Cosmetics = worn[briefs[i].ID]
+		if briefs[i].AnonymizedAt == nil {
+			briefs[i].Cosmetics = worn[briefs[i].ID]
+		}
 	}
 }
 
@@ -111,5 +118,46 @@ func toBrief(u *model.User) dto.UserBrief {
 		Status:          u.Status,
 		Roles:           roles,
 		CreatedAt:       u.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		AnonymizedAt:    formatUTC(u.AnonymizedAt),
 	}
+}
+
+func formatUTC(t *time.Time) *string {
+	if t == nil {
+		return nil
+	}
+	v := t.UTC().Format(time.RFC3339Nano)
+	return &v
+}
+
+func (s *UserBatchService) ListDeleted(ctx context.Context, cursor string, limit int) (*dto.DeletedUsersResponse, error) {
+	at, id, err := parseDeletedCursor(cursor)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.userRepo.ListDeletedAfter(ctx, at, id, limit)
+	if err != nil {
+		return nil, err
+	}
+	out := &dto.DeletedUsersResponse{Users: make([]dto.DeletedUser, 0, len(rows)), NextCursor: cursor}
+	for _, r := range rows {
+		out.Users = append(out.Users, dto.DeletedUser{ID: r.ID, UUID: r.UUID, DeletedAt: r.AnonymizedAt.UTC().Format(time.RFC3339Nano)})
+		out.NextCursor = fmt.Sprintf("%d.%d", r.AnonymizedAt.UnixNano(), r.ID)
+	}
+	return out, nil
+}
+
+var ErrBadDeletedCursor = stderrors.New("users: malformed deleted-users cursor")
+
+func parseDeletedCursor(cursor string) (time.Time, uint, error) {
+	if cursor == "" {
+		return time.Unix(0, 0), 0, nil
+	}
+	ns, id, ok := strings.Cut(cursor, ".")
+	n, err1 := strconv.ParseInt(ns, 10, 64)
+	u, err2 := strconv.ParseUint(id, 10, 64)
+	if !ok || err1 != nil || err2 != nil {
+		return time.Time{}, 0, ErrBadDeletedCursor
+	}
+	return time.Unix(0, n), uint(u), nil
 }

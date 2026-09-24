@@ -85,6 +85,9 @@ var invisibleNameChars = []string{
 var validNameRegex = regexp.MustCompile(`^[\pL\pN!~_@#$%^&*()+=\-]{1,17}$`)
 
 func IsValidName(name string) bool {
+	if strings.HasPrefix(name, "已注销") {
+		return false
+	}
 	for _, ch := range invisibleNameChars {
 		if strings.Contains(name, ch) {
 			return false
