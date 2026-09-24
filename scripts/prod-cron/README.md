@@ -52,13 +52,18 @@ had to be rebuilt by hand.
 | ymgal-pending-watch | daily 09:30 | daily 01:30 | 48h |
 | cover-shelf-watch | daily 17:00 | daily 09:00 | 48h |
 | retire-merged-comments | daily 23:30 | daily 15:30 | 48h |
+| pg-backup | daily 02:30 | daily 18:30 (prev. day) | 48h |
 
 `source-import/test.sh`, `char-xsrc-nightly/test.sh`,
-`llm-adjudicate-nightly/test.sh`, `image-mirror/test.sh` and
-`reconcile-watch/test.sh` are the offline tests in this directory: each
+`llm-adjudicate-nightly/test.sh`, `image-mirror/test.sh`,
+`reconcile-watch/test.sh` and `pg-backup/test.sh` are the offline tests in this directory: each
 runs the `run.sh` beside it against fake `docker` / `flock` / alert stand-ins
 and asserts the call order, the ceilings and the lock/stamp rules. Run the
 matching one before redeploying any of those scripts.
+
+`pg-backup` writes `pg_dump -Fc` files to `/root/pg-backup/dumps/<CST date>/`,
+on the same disk as the cluster: it covers bad writes and purges, not the loss
+of the disk. No copy leaves the host yet.
 
 `lib/dsn-test.sh` runs every job's DSNSH/MTDSN snippet with a sentinel
 password: the password must travel as PGPASSWORD and never inside a DSN,
