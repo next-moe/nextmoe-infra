@@ -1,5 +1,7 @@
 #!/bin/sh
-# Nightly: retire the comments threads whose catalog anchor a merge took away.
+# Nightly: move the comments threads whose catalog anchor a merge took away to
+# the survivor's page (kungal, moyu: their gid is the catalog id), or retire
+# them where the site's ids still differ (letmoe, until it conforms).
 #
 # Runs after BOTH merge lanes rather than hooking either one. work-dedup-nightly
 # (18:30 CST) and llm-adjudicate-nightly (21:00 CST) each execute proposals, and
@@ -9,8 +11,8 @@
 #
 # Exit-code contract of the tool:
 #   0  nothing was stranded
-#   3  threads were retired -> [COMMENTS] alert, and STILL a success stamp: the
-#      run was healthy and the retirement IS the finding. Every deletion is
+#   3  threads were moved or retired -> [COMMENTS] alert, and STILL a success
+#      stamp: the run was healthy and the change IS the finding. Every change is
 #      announced, because a comments thread that quietly disappears is exactly
 #      the failure this job exists to stop.
 #   *  broke -> [FAIL] alert, no stamp
@@ -62,13 +64,13 @@ MARK=$(wc -c < "$LOG")
 rc=0
 docker run --rm --name retire-merged-comments --network dokploy-network \
   --env-file "$BASE/env.tmp" "$IMG" \
-  sh -c 'exec retire-merged-comments --sites kungal,letmoe --limit 200 --apply' || rc=$?
+  sh -c 'exec retire-merged-comments --sites kungal,moyu,letmoe --limit 200 --apply' || rc=$?
 
 case "$rc" in
   0) echo "nothing stranded" ;;
-  3) echo "=== threads retired - sending alert ==="
+  3) echo "=== threads moved or retired - sending alert ==="
      tail -c "+$((MARK + 1))" "$LOG" > state/retired-last
-     /root/lib/alert.sh "[COMMENTS] comments threads retired on merged-away works" "$BASE/$LOG" \
+     /root/lib/alert.sh "[COMMENTS] comments threads on merged-away works moved or retired" "$BASE/$LOG" \
        || echo "alert delivery failed" ;;
   *) echo "FATAL: retire-merged-comments exited $rc"; exit "$rc" ;;
 esac

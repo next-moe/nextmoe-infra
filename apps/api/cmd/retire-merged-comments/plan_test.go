@@ -27,14 +27,14 @@ func TestPlanForSiteGameAnchorIDSpace(t *testing.T) {
 		}
 	}
 
-	// The catalog anchor kind is the same on every site.
+	// The catalog anchor kind is the catalog id on every site.
 	for _, site := range []string{"kungal", "moyu", "letmoe"} {
 		plan, err := planFor(site, 3)
 		if err != nil {
 			t.Fatalf("%s catalog_work: %v", site, err)
 		}
-		if plan.claimAware || plan.catalogIDs {
-			t.Fatalf("%s catalog_work must be plain, got %+v", site, plan)
+		if plan.claimAware || !plan.catalogIDs {
+			t.Fatalf("%s catalog_work carries catalog ids and no claim exclusion, got %+v", site, plan)
 		}
 	}
 
