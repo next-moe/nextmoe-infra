@@ -71,25 +71,11 @@ func clientFromCtx(ctx context.Context) *siteModel.OAuthClient {
 	return c
 }
 
-// siteBinding answers the tenant this call acts in: community_site when the
-// client declares one, and catalog_site otherwise.
-//
-// The fallback is not a convenience — it is what keeps every client that
-// predates community_site on the tenant it already has rows under. Only a site
-// that must be separated from the one it files catalog claims as sets the
-// column; see siteModel.OAuthClient.CommunitySite for the case that forced it.
 func siteBinding(ctx context.Context) (string, *houseError) {
 	client := clientFromCtx(ctx)
-	if client == nil {
+	if client == nil || client.CommunityTenant() == "" {
 		return "", apiErrMsg(http.StatusForbidden, errors.ErrForbidden,
 			"client is not bound to a site; it cannot act on the community")
 	}
-	if client.CommunitySite != "" {
-		return client.CommunitySite, nil
-	}
-	if client.CatalogSite == "" {
-		return "", apiErrMsg(http.StatusForbidden, errors.ErrForbidden,
-			"client is not bound to a site; it cannot act on the community")
-	}
-	return client.CatalogSite, nil
+	return client.CommunityTenant(), nil
 }

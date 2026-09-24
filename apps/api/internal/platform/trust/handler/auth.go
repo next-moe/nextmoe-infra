@@ -82,11 +82,11 @@ func clientFromCtx(ctx context.Context) *siteModel.OAuthClient {
 
 func siteBinding(ctx context.Context) (string, *houseError) {
 	client := clientFromCtx(ctx)
-	if client == nil || client.CatalogSite == "" {
+	if client == nil || client.CommunityTenant() == "" {
 		return "", apiErrMsg(http.StatusForbidden, errors.ErrForbidden,
 			"client is not bound to a site; it cannot submit reports")
 	}
-	return client.CatalogSite, nil
+	return client.CommunityTenant(), nil
 }
 
 func AdminBridge(ctx huma.Context, next func(huma.Context)) {
