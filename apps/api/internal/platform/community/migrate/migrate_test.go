@@ -64,7 +64,7 @@ func TestMain(m *testing.M) {
 func cleanTables(t *testing.T) {
 	t.Helper()
 	for _, table := range []string{
-		"community_purge_archive", "community_notification", "community_event",
+		"community_write_request", "community_purge_archive", "community_notification", "community_event",
 		"community_review_item", "community_flag", "community_trust",
 		"community_board", "community_anchor_user", "community_thread_user", "community_reaction",
 		"community_post", "community_thread",
@@ -487,6 +487,9 @@ func TestColumnAudit(t *testing.T) {
 		},
 		"community_purge_archive": {
 			"id", "site", "author_id", "step", "data", "restored_at", "created_at",
+		},
+		"community_write_request": {
+			"id", "site", "idempotency_key", "request_hash", "post_id", "created_at",
 		},
 	}
 	for table, cols := range want {

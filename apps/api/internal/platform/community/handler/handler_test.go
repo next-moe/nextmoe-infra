@@ -46,7 +46,7 @@ func TestMain(m *testing.M) {
 func cleanTables(t *testing.T) {
 	t.Helper()
 	for _, table := range []string{
-		"community_purge_archive", "community_notification", "community_event",
+		"community_write_request", "community_purge_archive", "community_notification", "community_event",
 		"community_review_item", "community_flag", "community_reaction",
 		"community_anchor_user", "community_thread_user", "community_board", "community_trust",
 		"community_post", "community_thread",
@@ -101,6 +101,10 @@ func TestSpecExport(t *testing.T) {
 		"name: anchor_id",
 		"name: viewer_id",
 		"reaction_count",
+		"operationId: setReaction",
+		"operationId: unsetReaction",
+		"name: Idempotency-Key",
+		"Idempotency-Replayed",
 	} {
 		if !strings.Contains(spec, want) {
 			t.Errorf("spec missing %q", want)

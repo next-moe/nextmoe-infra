@@ -1729,6 +1729,9 @@ components:
           description: the post's author
           format: int64
           type: integer
+        changed:
+          description: "whether this call changed that state: always true for the toggle; false when a PUT or DELETE found the reaction already as asked (a retry)"
+          type: boolean
         reaction_count:
           description: the post's like count after this toggle, the same number a read face reports
           format: int32
@@ -1738,6 +1741,7 @@ components:
           type: integer
       required:
         - added
+        - changed
         - reaction_count
         - author_id
         - thread_id
@@ -2821,6 +2825,14 @@ paths:
         - community-read
     post:
       operationId: comment
+      parameters:
+        - description: "Makes the call safe to retry: a later call in the same site with the same key and the same body answers with the comment the first one wrote (header Idempotency-Replayed: true) instead of writing another; the same key with a different body is 409. Keys are kept for 24 hours."
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: "Makes the call safe to retry: a later call in the same site with the same key and the same body answers with the comment the first one wrote (header Idempotency-Replayed: true) instead of writing another; the same key with a different body is 409. Keys are kept for 24 hours."
+            maxLength: 255
+            type: string
       requestBody:
         content:
           application/json:
@@ -2834,6 +2846,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/EnvelopeThreadResponse"
           description: OK
+          headers:
+            Idempotency-Replayed:
+              schema:
+                description: true when this answer replays an earlier call with the same Idempotency-Key
+                type: string
         default:
           content:
             application/json:
@@ -3199,6 +3216,48 @@ paths:
       tags:
         - community-write
   /api/v1/community/posts/{id}/reaction:
+    delete:
+      operationId: unsetReaction
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+        - description: the acting user
+          explode: false
+          in: query
+          name: user_id
+          required: true
+          schema:
+            description: the acting user
+            format: int64
+            type: integer
+        - description: reaction kind (0=like)
+          explode: false
+          in: query
+          name: kind
+          schema:
+            description: reaction kind (0=like)
+            format: int32
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeReactionToggleResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: "Remove a reaction from a post (idempotent: repeating it changes nothing)"
+      tags:
+        - community-write
     post:
       operationId: toggleReaction
       parameters:
@@ -3227,7 +3286,38 @@ paths:
               schema:
                 $ref: "#/components/schemas/HouseError"
           description: Error
-      summary: Toggle a reaction on a post
+      summary: Toggle a reaction on a post (a retried toggle undoes itself; retrying callers use PUT/DELETE)
+      tags:
+        - community-write
+    put:
+      operationId: setReaction
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReactionToggleRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeReactionToggleResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: "Add a reaction to a post (idempotent: repeating it changes nothing)"
       tags:
         - community-write
   /api/v1/community/review:
@@ -3833,6 +3923,13 @@ paths:
           schema:
             format: int64
             type: integer
+        - description: "Makes the call safe to retry: a later call in the same site with the same key and the same body answers with the reply the first one wrote (header Idempotency-Replayed: true) instead of writing another; the same key with a different body is 409. Keys are kept for 24 hours."
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: "Makes the call safe to retry: a later call in the same site with the same key and the same body answers with the reply the first one wrote (header Idempotency-Replayed: true) instead of writing another; the same key with a different body is 409. Keys are kept for 24 hours."
+            maxLength: 255
+            type: string
       requestBody:
         content:
           application/json:
@@ -3846,6 +3943,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/EnvelopePostResponse"
           description: OK
+          headers:
+            Idempotency-Replayed:
+              schema:
+                description: true when this answer replays an earlier call with the same Idempotency-Key
+                type: string
         default:
           content:
             application/json:

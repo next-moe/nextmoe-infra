@@ -15,7 +15,8 @@ type ReactionService struct{ db *gorm.DB }
 func NewReactionService(db *gorm.DB) *ReactionService { return &ReactionService{db: db} }
 
 type ToggleResult struct {
-	Added bool
+	Added   bool
+	Changed bool
 	// Count is the post's like count after this toggle, read in the same
 	// transaction. Without it a consumer that dropped its mirror table had to
 	// re-read the post after every click to show the number the click changed.
@@ -23,8 +24,30 @@ type ToggleResult struct {
 	Post  repository.PostContext
 }
 
+type reactionOp int8
+
+const (
+	reactionToggle reactionOp = iota
+	reactionAdd
+	reactionRemove
+)
+
 func (s *ReactionService) Toggle(ctx context.Context, postID, userID int64, kind int16) (ToggleResult, error) {
-	var added bool
+	return s.react(ctx, postID, userID, kind, reactionToggle)
+}
+
+// Set puts the reaction in the state asked for and is idempotent, so a retried
+// call cannot undo the first the way a retried Toggle does.
+func (s *ReactionService) Set(ctx context.Context, postID, userID int64, kind int16, on bool) (ToggleResult, error) {
+	op := reactionRemove
+	if on {
+		op = reactionAdd
+	}
+	return s.react(ctx, postID, userID, kind, op)
+}
+
+func (s *ReactionService) react(ctx context.Context, postID, userID int64, kind int16, op reactionOp) (ToggleResult, error) {
+	var added, changed bool
 	var count int32
 	var pc repository.PostContext
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -39,11 +62,19 @@ func (s *ReactionService) Toggle(ctx context.Context, postID, userID int64, kind
 			return ErrPostNotFound
 		}
 		pc = loaded
-		a, err := repository.ToggleReactionTx(tx, postID, userID, kind)
+		switch op {
+		case reactionAdd:
+			added = true
+			changed, err = repository.AddReactionTx(tx, postID, userID, kind)
+		case reactionRemove:
+			changed, err = repository.RemoveReactionTx(tx, postID, userID, kind)
+		default:
+			changed = true
+			added, err = repository.ToggleReactionTx(tx, postID, userID, kind)
+		}
 		if err != nil {
 			return err
 		}
-		added = a
 		var n int64
 		if err := tx.Model(&model.CommunityReaction{}).
 			Where("post_id = ? AND kind = ?", postID, model.ReactionKindLike).
@@ -51,7 +82,7 @@ func (s *ReactionService) Toggle(ctx context.Context, postID, userID int64, kind
 			return err
 		}
 		count = int32(n)
-		if kind != model.ReactionKindLike {
+		if kind != model.ReactionKindLike || !changed {
 			return nil
 		}
 		delta := int32(1)
@@ -85,7 +116,7 @@ func (s *ReactionService) Toggle(ctx context.Context, postID, userID int64, kind
 			AttemptAfter: time.Now(),
 		})
 	})
-	return ToggleResult{Added: added, Count: count, Post: pc}, err
+	return ToggleResult{Added: added, Changed: changed, Count: count, Post: pc}, err
 }
 
 // Counts answers how many like-reactions each post carries.

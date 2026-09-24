@@ -2,6 +2,9 @@ package handler
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"net/http"
 
 	"api/internal/platform/community/dto"
@@ -52,9 +55,16 @@ func (s *Server) getComments(ctx context.Context, in *commentsPageInput) (*comme
 	})}, nil
 }
 
-type commentInput struct{ Body dto.CommentRequest }
+type commentInput struct {
+	IdempotencyKey string `header:"Idempotency-Key" maxLength:"255" doc:"Makes the call safe to retry: a later call in the same site with the same key and the same body answers with the comment the first one wrote (header Idempotency-Replayed: true) instead of writing another; the same key with a different body is 409. Keys are kept for 24 hours."`
+	Body           dto.CommentRequest
+}
+type commentOutput struct {
+	Replayed string `header:"Idempotency-Replayed" doc:"true when this answer replays an earlier call with the same Idempotency-Key"`
+	Body     Envelope[dto.ThreadResponse]
+}
 
-func (s *Server) comment(ctx context.Context, in *commentInput) (*threadOutput, error) {
+func (s *Server) comment(ctx context.Context, in *commentInput) (*commentOutput, error) {
 	site, he := siteBinding(ctx)
 	if he != nil {
 		return nil, he
@@ -63,17 +73,41 @@ func (s *Server) comment(ctx context.Context, in *commentInput) (*threadOutput, 
 		return nil, he
 	}
 	ctx = service.WithCallerSite(ctx, site)
-	thread, post, err := s.posts.Comment(ctx, service.CommentParams{
+	res, err := s.posts.WriteComment(ctx, service.CommentParams{
 		Site: site, AnchorKind: in.Body.AnchorKind, AnchorID: in.Body.AnchorID,
 		ContentRating: in.Body.ContentRating, AuthorID: in.Body.AuthorID, BodyRaw: in.Body.Body,
 		RootPostID: in.Body.RootPostID, ReplyToPostID: in.Body.ReplyToPostID, TargetUserID: in.Body.TargetUserID,
 		MentionUserIDs: in.Body.MentionUserIDs,
-	})
+	}, writeKey(in.IdempotencyKey, "comment", in.Body))
 	if err != nil {
 		return nil, mapErr("comment", err)
 	}
-	view := toPostView(post)
-	return &threadOutput{Body: okEnvelope(dto.ThreadResponse{Thread: toThreadView(thread), Post: &view})}, nil
+	views := []dto.PostView{toPostView(res.Post)}
+	if res.Replayed {
+		if err := s.hydratePostReactions(in.Body.AuthorID, views); err != nil {
+			return nil, mapErr("hydrate replayed comment reactions", err)
+		}
+	}
+	return &commentOutput{
+		Replayed: replayedHeader(res.Replayed),
+		Body:     okEnvelope(dto.ThreadResponse{Thread: toThreadView(res.Thread), Post: &views[0]}),
+	}, nil
+}
+
+func writeKey(key string, op string, request ...any) service.WriteKey {
+	if key == "" {
+		return service.WriteKey{}
+	}
+	b, _ := json.Marshal(append([]any{op}, request...))
+	sum := sha256.Sum256(b)
+	return service.WriteKey{Key: key, RequestHash: hex.EncodeToString(sum[:])}
+}
+
+func replayedHeader(replayed bool) string {
+	if replayed {
+		return "true"
+	}
+	return ""
 }
 
 func checkEntityAnchor(anchorKind int16, anchorID string) *houseError {

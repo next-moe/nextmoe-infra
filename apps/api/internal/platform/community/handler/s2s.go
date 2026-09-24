@@ -112,7 +112,11 @@ func (s *Server) register(api huma.API) {
 	huma.Register(api, huma.Operation{OperationID: "deletePost", Method: http.MethodDelete, Path: "/api/v1/community/posts/{id}",
 		Summary: "Delete a post (author self-delete, or a site moderator via as_moderator; tombstone, post_number preserved)", Tags: write}, s.deletePost)
 	huma.Register(api, huma.Operation{OperationID: "toggleReaction", Method: http.MethodPost, Path: "/api/v1/community/posts/{id}/reaction",
-		Summary: "Toggle a reaction on a post", Tags: write}, s.toggleReaction)
+		Summary: "Toggle a reaction on a post (a retried toggle undoes itself; retrying callers use PUT/DELETE)", Tags: write}, s.toggleReaction)
+	huma.Register(api, huma.Operation{OperationID: "setReaction", Method: http.MethodPut, Path: "/api/v1/community/posts/{id}/reaction",
+		Summary: "Add a reaction to a post (idempotent: repeating it changes nothing)", Tags: write}, s.setReaction)
+	huma.Register(api, huma.Operation{OperationID: "unsetReaction", Method: http.MethodDelete, Path: "/api/v1/community/posts/{id}/reaction",
+		Summary: "Remove a reaction from a post (idempotent: repeating it changes nothing)", Tags: write}, s.unsetReaction)
 	huma.Register(api, huma.Operation{OperationID: "submitFlag", Method: http.MethodPost, Path: "/api/v1/community/posts/{id}/flag",
 		Summary: "Report a post", Tags: write}, s.submitFlag)
 	huma.Register(api, huma.Operation{OperationID: "setFeedbackStatus", Method: http.MethodPost, Path: "/api/v1/community/feedback/{id}/status",
@@ -380,31 +384,42 @@ func (s *Server) openFeedback(ctx context.Context, in *openFeedbackInput) (*thre
 }
 
 type replyInput struct {
-	ID   int64 `path:"id"`
-	Body dto.ReplyRequest
+	ID             int64  `path:"id"`
+	IdempotencyKey string `header:"Idempotency-Key" maxLength:"255" doc:"Makes the call safe to retry: a later call in the same site with the same key and the same body answers with the reply the first one wrote (header Idempotency-Replayed: true) instead of writing another; the same key with a different body is 409. Keys are kept for 24 hours."`
+	Body           dto.ReplyRequest
+}
+type replyOutput struct {
+	Replayed string `header:"Idempotency-Replayed" doc:"true when this answer replays an earlier call with the same Idempotency-Key"`
+	Body     Envelope[dto.PostResponse]
 }
 type postOutput struct {
 	Body Envelope[dto.PostResponse]
 }
 
-func (s *Server) reply(ctx context.Context, in *replyInput) (*postOutput, error) {
+func (s *Server) reply(ctx context.Context, in *replyInput) (*replyOutput, error) {
 	site, he := siteBinding(ctx)
 	if he != nil {
 		return nil, he
 	}
 	ctx = service.WithCallerSite(ctx, site)
-	post, err := s.posts.Reply(ctx, service.ReplyParams{
+	res, err := s.posts.WriteReply(ctx, service.ReplyParams{
 		ThreadID: in.ID, AuthorID: in.Body.AuthorID, BodyRaw: in.Body.Body,
 		RootPostID: in.Body.RootPostID, ReplyToPostID: in.Body.ReplyToPostID, TargetUserID: in.Body.TargetUserID,
 		MentionUserIDs: in.Body.MentionUserIDs,
-	})
+	}, writeKey(in.IdempotencyKey, "reply", in.ID, in.Body))
 	if err != nil {
 		return nil, mapErr("reply", err)
 	}
-	// No hydration: the post was inserted by this call, so nobody can have
-	// reacted to it and 0 is the true count. Every OTHER face returning a
-	// PostView has to fill it -- see editPost.
-	return &postOutput{Body: okEnvelope(dto.PostResponse{Post: toPostView(post)})}, nil
+	// A fresh post needs no hydration: it was inserted by this call, so nobody
+	// can have reacted to it and 0 is the true count. A replayed one can have
+	// been liked since, like every OTHER face returning a PostView -- see editPost.
+	views := []dto.PostView{toPostView(res.Post)}
+	if res.Replayed {
+		if err := s.hydratePostReactions(in.Body.AuthorID, views); err != nil {
+			return nil, mapErr("hydrate replayed reply reactions", err)
+		}
+	}
+	return &replyOutput{Replayed: replayedHeader(res.Replayed), Body: okEnvelope(dto.PostResponse{Post: views[0]})}, nil
 }
 
 type editPostInput struct {
@@ -470,11 +485,47 @@ func (s *Server) toggleReaction(ctx context.Context, in *toggleReactionInput) (*
 	if err != nil {
 		return nil, mapErr("toggle reaction", err)
 	}
+	return reactionAnswer(res), nil
+}
+
+func (s *Server) setReaction(ctx context.Context, in *toggleReactionInput) (*reactionOutput, error) {
+	site, he := siteBinding(ctx)
+	if he != nil {
+		return nil, he
+	}
+	ctx = service.WithCallerSite(ctx, site)
+	res, err := s.reactions.Set(ctx, in.ID, in.Body.UserID, in.Body.Kind, true)
+	if err != nil {
+		return nil, mapErr("set reaction", err)
+	}
+	return reactionAnswer(res), nil
+}
+
+type unsetReactionInput struct {
+	ID     int64 `path:"id"`
+	UserID int64 `query:"user_id" required:"true" doc:"the acting user"`
+	Kind   int16 `query:"kind" doc:"reaction kind (0=like)"`
+}
+
+func (s *Server) unsetReaction(ctx context.Context, in *unsetReactionInput) (*reactionOutput, error) {
+	site, he := siteBinding(ctx)
+	if he != nil {
+		return nil, he
+	}
+	ctx = service.WithCallerSite(ctx, site)
+	res, err := s.reactions.Set(ctx, in.ID, in.UserID, in.Kind, false)
+	if err != nil {
+		return nil, mapErr("unset reaction", err)
+	}
+	return reactionAnswer(res), nil
+}
+
+func reactionAnswer(res service.ToggleResult) *reactionOutput {
 	pc := res.Post
 	return &reactionOutput{Body: okEnvelope(dto.ReactionToggleResponse{
-		Added: res.Added, ReactionCount: res.Count, AuthorID: pc.AuthorID, ThreadID: pc.ThreadID,
+		Added: res.Added, Changed: res.Changed, ReactionCount: res.Count, AuthorID: pc.AuthorID, ThreadID: pc.ThreadID,
 		AnchorKind: pc.AnchorKind, AnchorID: pc.AnchorID,
-	})}, nil
+	})}
 }
 
 type flagInput struct {
