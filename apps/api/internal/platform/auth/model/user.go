@@ -32,12 +32,15 @@ type User struct {
 	AdultConfirmedAt *time.Time `gorm:"index" json:"adult_confirmed_at,omitempty"`
 	NSFWDisplay      string     `gorm:"column:nsfw_display;size:8;not null;default:'show'" json:"nsfw_display"`
 
-	AnonymizedAt  *time.Time     `gorm:"index" json:"anonymized_at,omitempty"`
-	OriginalEmail *string        `gorm:"size:255" json:"-"`
-	IP            string         `gorm:"size:45;default:''" json:"-"`
-	CreatedAt     time.Time      `json:"created_at"`
-	UpdatedAt     time.Time      `json:"updated_at"`
-	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
+	AnonymizedAt  *time.Time `gorm:"index" json:"anonymized_at,omitempty"`
+	OriginalEmail *string    `gorm:"size:255" json:"-"`
+
+	DeletionRequestedAt *time.Time     `json:"-"`
+	DeletionDueAt       *time.Time     `gorm:"index" json:"-"`
+	IP                  string         `gorm:"size:45;default:''" json:"-"`
+	CreatedAt           time.Time      `json:"created_at"`
+	UpdatedAt           time.Time      `json:"updated_at"`
+	DeletedAt           gorm.DeletedAt `gorm:"index" json:"-"`
 
 	SiteData      []UserSiteData   `gorm:"foreignKey:UserID" json:"site_data,omitempty"`
 	Sessions      []Session        `gorm:"foreignKey:UserID" json:"-"`

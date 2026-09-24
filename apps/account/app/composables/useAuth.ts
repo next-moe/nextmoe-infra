@@ -143,6 +143,18 @@ export const useAuth = () => {
     return api.put('/auth/email', { code, new_email: newEmail })
   }
 
+  const sendDeletionCode = async () => {
+    return api.post('/auth/me/deletion/send-code', {})
+  }
+
+  const requestDeletion = async (code: string) => {
+    return api.post<{ deletion_due_at: string }>('/auth/me/deletion', { code })
+  }
+
+  const cancelDeletion = async () => {
+    return api.delete('/auth/me/deletion')
+  }
+
   const updateProfile = async (payload: {
     name?: string
     bio?: string
@@ -174,6 +186,9 @@ export const useAuth = () => {
     changePassword,
     sendEmailChangeCode,
     changeEmail,
+    sendDeletionCode,
+    requestDeletion,
+    cancelDeletion,
     updateProfile,
   }
 }

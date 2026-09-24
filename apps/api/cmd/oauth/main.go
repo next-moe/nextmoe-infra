@@ -150,6 +150,7 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	authSvc := authService.NewAuthServiceFull(userRepo, sessionRepo, passwordResetRepo, mailer, a.Cache, cfg)
 	oauthSvc := authService.NewOAuthService(userRepo, authCodeRepo, sessionRepo, oauthClientRepo, siteRoleRepo, cfg)
 	adminSvc := authService.NewAdminService(userRepo, sessionRepo, siteRoleRepo, siteRepository, imgCli)
+	app.StartAccountDeletion(cleanupCtx, adminSvc)
 	userBatchSvc := authService.NewUserBatchService(userRepo, siteRoleRepo)
 	creatorAppSvc := authService.NewCreatorApplicationService(authRepo.NewCreatorApplicationRepository(db), userRepo, userBatchSvc)
 	ledger := ledgerService.New(a.DB.DB())
@@ -313,6 +314,9 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	authProtected.Get("/me/preferences/:namespace", noStore, prefH.Get)
 	authProtected.Put("/me/preferences/:namespace", noStore, prefH.Put)
 	authProtected.Delete("/me/preferences/:namespace", noStore, prefH.Delete)
+	authProtected.Post("/me/deletion/send-code", noStore, authH.SendDeletionCode)
+	authProtected.Post("/me/deletion", noStore, authH.RequestDeletion)
+	authProtected.Delete("/me/deletion", noStore, authH.CancelDeletion)
 	authProtected.Put("/password", authH.ChangePassword)
 	authProtected.Post("/email/send-code", authH.SendEmailChangeCode)
 	authProtected.Put("/email", authH.ChangeEmail)
@@ -344,6 +348,10 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	v1.Get("/users/batch",
 		middleware.OAuthClientBasicAuth(oauthClientRepo),
 		userBatchH.Get,
+	)
+	v1.Get("/users/deleted",
+		middleware.OAuthClientBasicAuth(oauthClientRepo),
+		userBatchH.Deleted,
 	)
 	v1.Get("/users/search",
 		middleware.OAuthClientBasicAuth(oauthClientRepo),

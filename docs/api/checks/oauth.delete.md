@@ -8,10 +8,16 @@
 
 ## 统计
 
-- 本服务 DELETE 端点：**3**（管理-用户 1 · 管理-站点/客户端 2）
+- 本服务 DELETE 端点：**4**（当前用户 1 · 管理-用户 1 · 管理-站点/客户端 2）
 - 注：`/api/v1/admin/image/:hash` 物理上也跑在本进程，归到 [image.delete.md](./image.delete.md)。
 
 ---
+
+## 0. 当前用户
+
+| 路径 | 鉴权 | Handler | 状态 | 备注 |
+|---|---|---|---|---|
+| `DELETE /api/v1/auth/me/deletion` | 登录（仅账号站会话） | `authH.CancelDeletion` | 已审计 | 冷静期内撤销注销；幂等 |
 
 ## 1. 管理 — 用户
 

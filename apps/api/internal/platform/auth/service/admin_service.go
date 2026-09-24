@@ -326,18 +326,8 @@ func (s *AdminService) AnonymizeUser(ctx context.Context, uuid string) error {
 		return err
 	}
 
-	if s.imgClient != nil && oldAvatarHash != "" {
-		others, cErr := s.userRepo.CountByAvatarHash(ctx, oldAvatarHash, user.ID)
-		switch {
-		case cErr != nil:
-			slog.Warn("anonymize: avatar ref-count failed; skipping GC", "user_id", user.ID, "err", cErr)
-		case others > 0:
-			slog.Info("anonymize: avatar hash shared, leaving binary", "user_id", user.ID, "shared_by", others)
-		default:
-			if dErr := s.imgClient.Delete(ctx, oldAvatarHash); dErr != nil {
-				slog.Warn("anonymize: avatar GC failed (reference already cleared)", "user_id", user.ID, "err", dErr)
-			}
-		}
+	if oldAvatarHash != "" {
+		s.releaseAvatar(ctx, user.ID, oldAvatarHash)
 	}
 
 	if err := s.sessionRepo.DeleteByUserID(ctx, user.ID); err != nil {
@@ -345,6 +335,23 @@ func (s *AdminService) AnonymizeUser(ctx context.Context, uuid string) error {
 			"user_id", user.ID, "err", err)
 	}
 	return nil
+}
+
+func (s *AdminService) releaseAvatar(ctx context.Context, userID uint, hash string) {
+	if s.imgClient == nil {
+		return
+	}
+	others, err := s.userRepo.CountByAvatarHash(ctx, hash, userID)
+	switch {
+	case err != nil:
+		slog.Warn("anonymize: avatar ref-count failed; skipping GC", "user_id", userID, "err", err)
+	case others > 0:
+		slog.Info("anonymize: avatar hash shared, leaving binary", "user_id", userID, "shared_by", others)
+	default:
+		if err := s.imgClient.Delete(ctx, hash); err != nil {
+			slog.Warn("anonymize: avatar GC failed (reference already cleared)", "user_id", userID, "err", err)
+		}
+	}
 }
 
 func (s *AdminService) DeleteUserSessions(ctx context.Context, uuid string) error {
