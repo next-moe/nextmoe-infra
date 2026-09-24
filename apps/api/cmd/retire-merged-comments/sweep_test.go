@@ -266,3 +266,57 @@ func TestTheClaimExclusionIsOnlyForTheSitesOwnIdSpace(t *testing.T) {
 	_, err = strandedAmong(testDB, site, 2, live)
 	assert.Error(t, err, "an anchor kind naming no catalog entity must not be guessed at")
 }
+
+// On a site whose gid is the catalog id the redirect row is the whole proof, so
+// the conversation moves to the survivor's page instead of being retired.
+func TestOnACatalogIDSiteTheConversationMoves(t *testing.T) {
+	if testDB == nil {
+		t.Skip("no test DB")
+	}
+	for _, tbl := range []string{"community_post", "community_thread", "catalog_redirect", "catalog_work"} {
+		require.NoError(t, testDB.Exec("TRUNCATE "+tbl+" RESTART IDENTITY CASCADE").Error)
+	}
+	const site = "kungal"
+	for _, w := range []struct {
+		id      int64
+		deleted bool
+	}{{930001, true}, {930002, false}} {
+		require.NoError(t, testDB.Create(&catmodel.CatalogWork{ID: w.id, MediumID: 1, OLang: "ja",
+			DisplayName: "w", Extra: []byte(`{}`), FieldProvenance: []byte(`{}`)}).Error)
+		if w.deleted {
+			require.NoError(t, testDB.Exec(`UPDATE catalog_work SET deleted_at = now() WHERE id = ?`, w.id).Error)
+		}
+	}
+	now := time.Now()
+	require.NoError(t, testDB.Create(&catmodel.CatalogRedirect{
+		EntityType: entityTypeWork, OldID: 930001, CurrentID: 930002, MergedAt: &now}).Error)
+	mk := func(anchor string) int64 {
+		th := commodel.CommunityThread{Site: site, Kind: threadKindComments, AnchorKind: 1,
+			AnchorID: anchor, Status: 0, CreatedBy: 1, PostsCount: 1, HighestPostNumber: 1}
+		require.NoError(t, testDB.Create(&th).Error)
+		require.NoError(t, testDB.Create(&commodel.CommunityPost{ThreadID: th.ID, PostNumber: 1,
+			AuthorID: 1, ContentRaw: "hi", ContentHTML: "<p>hi</p>", SanitizerVersion: 1}).Error)
+		return th.ID
+	}
+	stranded, survivor := mk("930001"), mk("930002")
+
+	found, done, err := run(testDB, testDB, []string{site}, 1, 0, false, io.Discard)
+	require.NoError(t, err)
+	assert.Equal(t, 1, found)
+	assert.Equal(t, 0, done, "a report writes nothing")
+	assertStatus(t, map[int64]int16{stranded: 0, survivor: 0})
+
+	found, done, err = run(testDB, testDB, []string{site}, 1, 0, true, io.Discard)
+	require.NoError(t, err)
+	assert.Equal(t, 1, found)
+	assert.Equal(t, 1, done)
+	var numbers []int32
+	require.NoError(t, testDB.Raw(`SELECT post_number FROM community_post WHERE thread_id = ? ORDER BY post_number`,
+		survivor).Scan(&numbers).Error)
+	assert.Equal(t, []int32{1, 2}, numbers, "the moved post follows the survivor's own")
+	assertStatus(t, map[int64]int16{stranded: threadStatusDeleted, survivor: 0})
+
+	found, done, err = run(testDB, testDB, []string{site}, 1, 0, true, io.Discard)
+	require.NoError(t, err)
+	assert.Equal(t, 0, found+done, "the emptied thread has left the sweep's input")
+}

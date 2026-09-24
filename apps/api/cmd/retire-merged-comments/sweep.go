@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	catmodel "api/internal/platform/catalog/model"
+	comrepo "api/internal/platform/community/repository"
 
 	"gorm.io/gorm"
 )
@@ -38,8 +39,8 @@ type anchorPlan struct {
 // not say which one it means. Guessing retires the wrong conversations, so an
 // unmapped kind is an error rather than a default.
 var anchorPlans = map[int16]anchorPlan{
-	1: {entityType: entityTypeWork, claimAware: true},  // site_game
-	3: {entityType: entityTypeWork, claimAware: false}, // catalog_work
+	1: {entityType: entityTypeWork, claimAware: true},                    // site_game
+	3: {entityType: entityTypeWork, claimAware: false, catalogIDs: true}, // catalog_work
 }
 
 func planFor(site string, anchorKind int16) (anchorPlan, error) {
@@ -170,6 +171,23 @@ func strandedAmong(db *gorm.DB, site string, anchorKind int16, rows []stranded) 
 		}
 	}
 	return out, nil
+}
+
+// rehome moves each conversation to its survivor's page, one transaction per
+// thread so a failure leaves every other thread where it was.
+func rehome(db *gorm.DB, rows []stranded) (int, error) {
+	n := 0
+	for _, r := range rows {
+		err := db.Transaction(func(tx *gorm.DB) error {
+			_, err := comrepo.RehomeCommentsThreadTx(tx, r.ThreadID, r.SurvivorAnchor)
+			return err
+		})
+		if err != nil {
+			return n, fmt.Errorf("thread %d -> %s: %w", r.ThreadID, r.SurvivorAnchor, err)
+		}
+		n++
+	}
+	return n, nil
 }
 
 // retire soft-deletes the threads. status 3 is the only value the partial

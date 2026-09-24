@@ -199,4 +199,6 @@ moyu's migration 040 has not run, since after that the table is theirs.
 - **`cmd/retire-merged-comments` treats moyu's site_game anchors as catalog
   ids** (铁律 3: moyu's page id IS the catalog work id), so the claim exclusion
   the forum needs is off for that site. It is a code table, not a flag — a typo
-  in a flag would be a silent wrong sweep.
+  in a flag would be a silent wrong sweep. Since 2026-09-24 the redirect row is
+  taken as proof on such a site and the conversation moves to the survivor's
+  page rather than being retired.
