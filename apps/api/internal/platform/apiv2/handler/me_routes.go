@@ -92,7 +92,7 @@ func registerMe(api huma.API, cat *Catalog) {
 	}, putMyPlaytime(cat))
 	huma.Register(api, huma.Operation{
 		OperationID: "deleteMyPlaytime", Method: http.MethodDelete, Path: "/v2/me/playtimes/{work_id}",
-		Summary: "Delete my playtime on one work", Description: "204 with no body. Requires a user access token. Any app may call this; playtime:write is not required.",
+		Summary: "Delete this app's playtime on one work", Description: "Deletes only the row the calling app reported. Rows other apps reported on the same work stay, and GET keeps answering from them. 204 with no body. Requires a user access token. Any app may call this; playtime:write is not required.",
 		Tags: me, Errors: errs, DefaultStatus: http.StatusNoContent, SkipValidateParams: true,
 	}, deleteMyPlaytime(cat))
 	huma.Register(api, huma.Operation{
