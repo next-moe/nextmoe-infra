@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"time"
 
@@ -50,20 +51,38 @@ type ReplyParams struct {
 	MentionUserIDs []int64
 }
 
+type ReplyResult struct {
+	Post     *model.CommunityPost
+	Replayed bool
+}
+
 func (s *PostService) Reply(ctx context.Context, p ReplyParams) (*model.CommunityPost, error) {
-	draft, err := s.draftPost(ctx, callerSite(ctx), p.AuthorID, p.BodyRaw)
+	r, err := s.WriteReply(ctx, p, WriteKey{})
+	return r.Post, err
+}
+
+func (s *PostService) WriteReply(ctx context.Context, p ReplyParams, k WriteKey) (ReplyResult, error) {
+	site := callerSite(ctx)
+	if r, err := s.replayReply(ctx, site, k); r.Replayed || err != nil {
+		return r, err
+	}
+	draft, err := s.draftPost(ctx, site, p.AuthorID, p.BodyRaw)
 	if err != nil {
-		return nil, err
+		return ReplyResult{}, err
 	}
 	mentions, err := normalizeMentionIDs(p.AuthorID, p.MentionUserIDs)
 	if err != nil {
-		return nil, err
+		return ReplyResult{}, err
 	}
 	draft.rootPostID, draft.replyToPostID, draft.targetUserID = p.RootPostID, p.ReplyToPostID, p.TargetUserID
 	draft.mentionUserIDs = mentions
 
 	var written writtenPost
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		requestID, err := claimWriteKeyTx(tx, site, k)
+		if err != nil {
+			return err
+		}
 		thread, err := repository.GetThreadTx(tx, p.ThreadID)
 		if err != nil {
 			return err
@@ -71,14 +90,31 @@ func (s *PostService) Reply(ctx context.Context, p ReplyParams) (*model.Communit
 		if thread == nil || crossTenantCtx(ctx, thread.Site, thread.AnchorKind) {
 			return ErrThreadNotFound
 		}
-		written, err = appendPostTx(tx, thread, draft)
-		return err
+		if written, err = appendPostTx(tx, thread, draft); err != nil {
+			return err
+		}
+		return bindWriteKeyTx(tx, requestID, written.post.ID)
 	})
+	if errors.Is(err, errWriteKeyTaken) {
+		r, err := s.replayReply(ctx, site, k)
+		if err == nil && !r.Replayed {
+			err = ErrPostNotFound
+		}
+		return r, err
+	}
 	if err != nil {
-		return nil, err
+		return ReplyResult{}, err
 	}
 	s.emitWrite(p.ThreadID, p.AuthorID, written)
-	return &written.post, nil
+	return ReplyResult{Post: &written.post}, nil
+}
+
+func (s *PostService) replayReply(ctx context.Context, site string, k WriteKey) (ReplyResult, error) {
+	post, err := s.keyedPost(ctx, site, k)
+	if post == nil || err != nil {
+		return ReplyResult{}, err
+	}
+	return ReplyResult{Post: post, Replayed: true}, nil
 }
 
 // postDraft is what a write face settles BEFORE it opens a transaction: the
