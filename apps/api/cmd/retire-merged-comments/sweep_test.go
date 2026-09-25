@@ -49,9 +49,11 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// A site whose site_game anchor is still its own product id. The forum was one
-// until its 2026-09-23 G0 renumber; see catmodel.SiteWorkIDIsCatalogID.
-const testSite = "letmoe"
+// A site whose site_game anchor is still its own product id. No live site is one
+// any more -- the forum was until its 2026-09-23 G0 renumber, and letmoe was
+// treated as one until 2026-09-25 -- so the name is made up; see
+// catmodel.SiteWorkIDIsCatalogID.
+const testSite = "own-ids"
 
 // The four threads differ from each other in one fact apiece, so a thread that
 // survives the sweep is attributable to that fact alone.
