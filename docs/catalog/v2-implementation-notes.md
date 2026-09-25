@@ -1651,3 +1651,34 @@ refusing the other seven: run `reindex-catalog -recreate` over every index
 once after deploy.
 
 **Zero SQL migrations.**
+
+## Wave — trait descriptions in Simplified Chinese (2026-09-25)
+
+Users want every trait description in natural Simplified Chinese on the
+character-filter UI. English `description` stays the VNDB markup (plain text
+on `include=description`); Chinese is a same-row column, published through
+`include=intros`.
+
+**Storage.** `catalog_character_trait` gains `description_zh` and
+`description_zh_source_hash` (NOT NULL DEFAULT '', existing rows ''). The hash
+is lowercase hex SHA-256 of the raw `description` the translation was made
+from — Go `hex.EncodeToString(sha256.Sum256([]byte(desc)))` agrees with SQL
+`encode(sha256(convert_to(description, 'UTF8')), 'hex')`. The nightly
+chartraits job upserts an explicit column list, so these columns are
+untouched. The hash is never on the API.
+
+**`include=intros`.** Present on the list, `ids=` batch, and detail, under the
+same nsfw gate as today. Items are `en` (plain text of `description`) when
+non-empty, then `zh-Hans` (`description_zh`) when recorded. Both
+`source: "vndb"`, `is_machine: false` — the Chinese is published as the
+Simplified Chinese description. `view=full` carries it (`character_count`
+stays an explicit ask). `description` is unchanged.
+
+**Spec is 2.32.0.** Additive: one new include token and the `intros` block on
+`trait`. No new operation (117).
+
+**Ops.** `migrate-catalog` adds `description_zh` and
+`description_zh_source_hash` (NOT NULL DEFAULT '', existing rows ''; the
+deploy runs it). Then `ingest-trait-zh --mt-desc --out …` → review →
+`--apply-desc-csv … --apply`. Re-running `--mt-desc` later picks up new
+traits and those whose English changed (hash mismatch).

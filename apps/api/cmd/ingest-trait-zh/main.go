@@ -16,18 +16,22 @@ import (
 
 func main() {
 	dsn := flag.String("dsn", "", "catalog DSN (REQUIRED)")
-	script := flag.String("script", "", "path to the VNDBTranslatorLib userscript (required unless --mt / --apply-csv)")
+	script := flag.String("script", "", "path to the VNDBTranslatorLib userscript (required unless --mt / --mt-desc / --apply-csv / --apply-desc-csv)")
 	apply := flag.Bool("apply", false, "write the curated renderings (default: dry — counts + samples, no writes)")
 	includeTags := flag.Bool("include-tag-vocab", false, "ALSO read the script's VN-TAG sections (a different vocabulary that shares ~365 names with the trait table) — review the diff before using")
 	mtMode := flag.Bool("mt", false, "residue lane: LLM-propose the names still empty and emit a review CSV (never writes to the DB)")
-	out := flag.String("out", "", "--mt: review CSV output path (required)")
+	mtDesc := flag.Bool("mt-desc", false, "description lane: LLM-propose Simplified Chinese descriptions and emit a review CSV (never writes to the DB)")
+	out := flag.String("out", "", "--mt / --mt-desc: review CSV output path (required)")
 	applyCSV := flag.String("apply-csv", "", "write back a REVIEWED review CSV as machine provenance")
-	limit := flag.Int("limit", 0, "--mt: propose at most N candidates (0 = all)")
+	applyDescCSV := flag.String("apply-desc-csv", "", "write back a REVIEWED description CSV")
+	limit := flag.Int("limit", 0, "--mt / --mt-desc: propose at most N candidates (0 = all)")
 	model := flag.String("model", envOr("KUN_INTRO_MT_LLM_MODEL", envOr("KUN_AI_UPSTREAM_MODEL", "glm-5.2")), "served model id")
 	llmBase := flag.String("llm-base", envOr("KUN_INTRO_MT_LLM_BASE", os.Getenv("KUN_AI_UPSTREAM_BASE_URL")), "OpenAI-compatible gateway base URL (…/v1)")
 	llmToken := flag.String("llm-token", envOr("KUN_INTRO_MT_LLM_TOKEN", os.Getenv("KUN_AI_UPSTREAM_TOKEN")), "gateway bearer token")
 	maxTokens := flag.Int("max-tokens", 256, "--mt: max_tokens (a trait name is a handful of characters)")
-	delayMS := flag.Int("delay-ms", 0, "--mt: delay between gateway calls (ms)")
+	descMaxTokens := flag.Int("desc-max-tokens", 4096, "--mt-desc: max_tokens")
+	delayMS := flag.Int("delay-ms", 0, "--mt / --mt-desc: delay between gateway calls (ms)")
+	idsFlag := flag.String("ids", "", "--mt-desc: comma-separated trait ids (forced re-translation)")
 	samples := flag.Int("samples", 10, "how many sample pairs to print")
 	flag.Parse()
 
@@ -45,6 +49,23 @@ func main() {
 	ctx := context.Background()
 
 	switch {
+	case *mtDesc:
+		if *out == "" {
+			slog.Error("--mt-desc requires --out (the review CSV path)")
+			os.Exit(2)
+		}
+		ids, perr := parseIDList(*idsFlag)
+		if perr != nil {
+			slog.Error("--ids", "error", perr)
+			os.Exit(2)
+		}
+		tr := newDescHTTPTranslator(*llmBase, *llmToken, *model, *descMaxTokens)
+		if !tr.Configured() {
+			fmt.Println("BLOCKED: LLM gateway not configured (need --llm-base + --llm-token, or KUN_INTRO_MT_LLM_* / KUN_AI_UPSTREAM_*).\n" +
+				"This is a designed precondition for --mt-desc, not a failure.")
+			os.Exit(3)
+		}
+		err = runMTDesc(ctx, db, tr, *out, *limit, time.Duration(*delayMS)*time.Millisecond, ids)
 	case *mtMode:
 		if *out == "" {
 			slog.Error("--mt requires --out (the review CSV path)")
@@ -57,6 +78,8 @@ func main() {
 			os.Exit(3)
 		}
 		err = runMT(ctx, db, tr, *out, *limit, time.Duration(*delayMS)*time.Millisecond)
+	case *applyDescCSV != "":
+		err = runApplyDescCSV(ctx, db, *applyDescCSV, *apply)
 	case *applyCSV != "":
 		err = runIngest(ctx, db, csvSource(*applyCSV), provenanceMachine, true, *samples)
 	default:

@@ -74,7 +74,7 @@ func registerCatalogEntityExtras(api huma.API, cat *Catalog) {
 		Method:             http.MethodGet,
 		Path:               "/v2/catalog/traits/{id}",
 		Summary:            "Get one trait",
-		Description:        "A character-trait vocabulary row. Without nsfw=true a sexual-family trait is 404 NOT_FOUND. include=aliases,description (and view=full) add those blocks. include=character_count is the nightly index total that GET /v2/catalog/characters?trait_id=<this id>&page=1 answers under this request's nsfw; the engine failing is 503. It is an explicit ask: view=full does not add it. is_sexual reports the sexual-family flag. Requires an application key or a user access token with catalog:read.",
+		Description:        "A character-trait vocabulary row. Without nsfw=true a sexual-family trait is 404 NOT_FOUND. include=aliases,description,intros (and view=full) add those blocks. include=character_count is the nightly index total that GET /v2/catalog/characters?trait_id=<this id>&page=1 answers under this request's nsfw; the engine failing is 503. It is an explicit ask: view=full does not add it. is_sexual reports the sexual-family flag. Requires an application key or a user access token with catalog:read.",
 		Tags:               catalog,
 		Errors:             authErrs,
 		SkipValidateParams: true,

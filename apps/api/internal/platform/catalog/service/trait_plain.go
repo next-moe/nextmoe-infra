@@ -3,6 +3,8 @@ package service
 import (
 	"regexp"
 	"strings"
+
+	"api/internal/platform/catalog/dto"
 )
 
 var (
@@ -33,4 +35,15 @@ func PlainTraitDescription(s string) string {
 	s = traitBBCode.ReplaceAllString(s, "")
 	s = traitNewlines.ReplaceAllString(s, "\n\n")
 	return strings.TrimSpace(s)
+}
+
+func traitIntros(description, descriptionZh string) []dto.PublicIntro {
+	out := []dto.PublicIntro{}
+	if d := PlainTraitDescription(description); d != "" {
+		out = append(out, dto.PublicIntro{Lang: "en", Intro: d, Source: "vndb"})
+	}
+	if descriptionZh != "" {
+		out = append(out, dto.PublicIntro{Lang: "zh-Hans", Intro: descriptionZh, Source: "vndb"})
+	}
+	return out
 }

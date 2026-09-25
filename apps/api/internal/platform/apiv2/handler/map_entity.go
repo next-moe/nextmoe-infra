@@ -248,6 +248,8 @@ func traitFromRow(it catsvc.EntityListRow, include []string) repr.Trait {
 				d = *it.TraitDescription
 			}
 			out.Description = &d
+		case "intros":
+			out.Intros = ptrSlice(introsFrom(it.Intros))
 		}
 	}
 	return out

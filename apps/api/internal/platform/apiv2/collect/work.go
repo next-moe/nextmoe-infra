@@ -191,8 +191,8 @@ func PersonSpec() Spec {
 // the search engine, and view=full would otherwise make every full read of the
 // vocabulary depend on OpenSearch.
 func TraitSpec() Spec {
-	full := []string{"aliases", "description"}
-	inc := []string{"aliases", "description", "character_count"}
+	full := []string{"aliases", "description", "intros"}
+	inc := []string{"aliases", "description", "intros", "character_count"}
 	fields := []string{
 		"object", "id", "display_name", "name_zh", "vndb_tid", "is_sexual",
 		"localized", "group_id", "group", "group_localized", "parents", "child_count", "root_order",
