@@ -49,6 +49,33 @@ func TestDescHTTPTranslatorWire(t *testing.T) {
 	assert.Equal(t, describeUserMessage("Ahoge", "This character has ahoge.\n\nSecond paragraph.", []glossPair{{"Ahoge", "呆毛"}}), user["content"])
 }
 
+func TestDescHTTPTranslatorAsksAgainWithThinkingWhenParagraphsAreDropped(t *testing.T) {
+	var bodies []map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var got map[string]any
+		body, _ := io.ReadAll(r.Body)
+		require.NoError(t, json.Unmarshal(body, &got))
+		bodies = append(bodies, got)
+		if len(bodies) == 1 {
+			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"该角色穿着连衣裙。"},"finish_reason":"stop"}]}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"该角色穿着连衣裙。\n\n连衣裙是一种服装。"},"finish_reason":"stop"}]}`))
+	}))
+	defer srv.Close()
+
+	zh, err := newDescHTTPTranslator(srv.URL, "tok", "m", 64).Translate(context.Background(), "Dress",
+		"This character wears a dress.\n\nA dress is a garment.", nil)
+	require.NoError(t, err)
+	assert.Equal(t, "该角色穿着连衣裙。\n\n连衣裙是一种服装。", zh)
+	require.Len(t, bodies, 2)
+	kw, ok := bodies[0]["chat_template_kwargs"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, false, kw["enable_thinking"])
+	_, present := bodies[1]["chat_template_kwargs"]
+	assert.False(t, present, "the second ask must leave thinking at the model default")
+}
+
 func TestDescHTTPTranslatorRetry429ThenSuccess(t *testing.T) {
 	orig := descRetryBackoff
 	descRetryBackoff = []time.Duration{time.Millisecond}

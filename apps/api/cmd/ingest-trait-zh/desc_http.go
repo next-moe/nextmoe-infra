@@ -39,16 +39,39 @@ type descChatMessage struct {
 }
 
 type descChatRequest struct {
-	Model              string            `json:"model"`
-	Messages           []descChatMessage `json:"messages"`
-	MaxTokens          int               `json:"max_tokens"`
-	Temperature        float64           `json:"temperature"`
-	ChatTemplateKwargs struct {
-		EnableThinking bool `json:"enable_thinking"`
-	} `json:"chat_template_kwargs"`
+	Model              string              `json:"model"`
+	Messages           []descChatMessage   `json:"messages"`
+	MaxTokens          int                 `json:"max_tokens"`
+	Temperature        float64             `json:"temperature"`
+	ChatTemplateKwargs *descTemplateKwargs `json:"chat_template_kwargs,omitempty"`
 }
 
+type descTemplateKwargs struct {
+	EnableThinking bool `json:"enable_thinking"`
+}
+
+// With thinking off, about 5% of the 2026-09-25 run came back as the first
+// sentence alone (Lactation, Dress, Earrings: every paragraph after it gone).
+// Asking again with thinking on restored all of them.
 func (t *descHTTPTranslator) Translate(ctx context.Context, name, prepared string, gloss []glossPair) (string, error) {
+	zh, err := t.translate(ctx, name, prepared, gloss, false)
+	if err != nil || nonEmptyLines(zh) >= nonEmptyLines(prepared) {
+		return zh, err
+	}
+	return t.translate(ctx, name, prepared, gloss, true)
+}
+
+func nonEmptyLines(s string) int {
+	n := 0
+	for _, line := range strings.Split(s, "\n") {
+		if strings.TrimSpace(line) != "" {
+			n++
+		}
+	}
+	return n
+}
+
+func (t *descHTTPTranslator) translate(ctx context.Context, name, prepared string, gloss []glossPair, thinking bool) (string, error) {
 	reqBody := descChatRequest{
 		Model:       t.model,
 		MaxTokens:   t.maxTokens,
@@ -58,7 +81,9 @@ func (t *descHTTPTranslator) Translate(ctx context.Context, name, prepared strin
 			{Role: "user", Content: describeUserMessage(name, prepared, gloss)},
 		},
 	}
-	reqBody.ChatTemplateKwargs.EnableThinking = false
+	if !thinking {
+		reqBody.ChatTemplateKwargs = &descTemplateKwargs{EnableThinking: false}
+	}
 	raw, err := json.Marshal(reqBody)
 	if err != nil {
 		return "", err

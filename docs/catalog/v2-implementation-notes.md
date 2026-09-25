@@ -1682,3 +1682,10 @@ stays an explicit ask). `description` is unchanged.
 deploy runs it). Then `ingest-trait-zh --mt-desc --out …` → review →
 `--apply-desc-csv … --apply`. Re-running `--mt-desc` later picks up new
 traits and those whose English changed (hash mismatch).
+
+**Thinking fallback.** `--mt-desc` asks with thinking off. On the first full
+run about 5% of answers came back as the first sentence alone (Lactation,
+Dress, Earrings: the encyclopedic paragraph and `Example:` lines gone), and a
+stricter completeness rule alone still missed one in thirteen. An answer with
+fewer non-empty lines than the source is now asked again with thinking on,
+which restored every sampled row.
