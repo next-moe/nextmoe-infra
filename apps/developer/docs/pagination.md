@@ -6,7 +6,7 @@ description: NextMoe API v2 的集合契约：list 信封、cur_ 游标、limit 
 
 # 集合与分页
 
-整个 API 只有一种分页：keyset 游标。所有集合共用同一个信封、同一套参数、同一条「翻到头了」的判据。
+整个 API 的默认分页是 keyset 游标。所有集合共用同一个信封、同一套参数、同一条「翻到头了」的判据。唯一的例外是两个搜索集合另有[页码模式](#page-mode)。
 
 ## list 信封 {#envelope}
 
@@ -57,7 +57,26 @@ do {
 
 要精确总数就传 `include_total=true`。它默认关闭是有代价考量的：带过滤条件的精确 `COUNT` 是对同一批数据的第二次全扫，最先在压力下超时，而且它和你刚拿到的那一页天然不一致（两次查询之间数据会变）。
 
-做「共 N 页」的分页器请三思——这个 API 的分页是游标式的，页码本来就没有稳定含义。做「加载更多」会更贴合。
+做「共 N 页」的分页器请三思——游标集合的页码本来就没有稳定含义，做「加载更多」会更贴合。确实需要「跳到第 N 页」的浏览界面，用下面的页码模式。
+
+## 页码模式 {#page-mode}
+
+`GET /v2/catalog/works` 与 `GET /v2/catalog/search` 另收 `page=`。这两个集合由搜索索引驱动，索引本来就按页取、总数精确，所以它们能兑现页码；其余集合没有 `page=`。
+
+```json
+{
+  "object": "list",
+  "items": [ … ],
+  "total": 12345,             // 页码模式下恒在，与 include_total 无关
+  "total_relation": "eq"      // eq：total 精确；gte：total 是下界
+}
+```
+
+- `page` 从 1 开始，与 `cursor`、`ids`、`refs` 互斥。
+- 响应**不带** `next_cursor`，也不带 `page_count`：用 `total` 与 `limit` 自己算。
+- **深度上限**：`page × limit ≤ 10000`。越界是 `400 INVALID_PARAMETER`，`errors[0]` 为 `{"parameter": "page", "reason": "OUT_OF_RANGE", "params": {"minimum": 1, "maximum": <最大页>}}`。最后一页可达页码是 `min(ceil(total / limit), floor(10000 / limit))`。
+- 在 `/v2/catalog/works` 上，`page=` 与 `q=`、`facets=`、搜索排序一样会切到搜索车道，所以同样不能与 `owner_uid=`、`site=`、`platform=` 同用。
+- 不要去解析游标里装的是什么，也不要自己拼游标来「模拟页码」：游标的内容随时可能改变，页码模式才是契约。
 
 ## sort {#sort}
 

@@ -214,10 +214,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - meta
         - object
@@ -2375,10 +2382,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -2424,10 +2438,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -2473,10 +2494,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -2522,10 +2550,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -2571,10 +2606,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -2620,10 +2662,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -2669,10 +2718,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -2718,10 +2774,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -2767,10 +2830,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -2816,10 +2886,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -2865,10 +2942,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -2914,10 +2998,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -2963,10 +3054,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -3012,10 +3110,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -3061,10 +3166,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -3110,10 +3222,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -3159,10 +3278,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -3208,10 +3334,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -3257,10 +3390,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -3331,10 +3471,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -3380,10 +3527,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -3429,10 +3583,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -3478,10 +3639,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -3527,10 +3695,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -3576,10 +3751,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -3625,10 +3807,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -3674,10 +3863,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -3723,10 +3919,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -3772,10 +3975,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -3821,10 +4031,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -3870,10 +4087,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -3919,10 +4143,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -3968,10 +4199,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -4017,10 +4255,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -4066,10 +4311,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -4115,10 +4367,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -4164,10 +4423,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -4213,10 +4479,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -4262,10 +4535,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -4311,10 +4591,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -4360,10 +4647,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -4409,10 +4703,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -4458,10 +4759,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -4507,10 +4815,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -4556,10 +4871,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -4605,10 +4927,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -4654,10 +4983,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -4703,10 +5039,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -8114,7 +8457,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.28.0
+  version: 2.29.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -11666,7 +12009,7 @@ paths:
         - catalog
   /v2/catalog/search:
     get:
-      description: Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Requires an application key or a user access token with catalog:read. cursor= pages the hits. ids= is not accepted.
+      description: Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Requires an application key or a user access token with catalog:read. cursor= pages the hits. ids= is not accepted. page= selects page mode (see the page parameter); every other collection is cursor-only.
       operationId: searchCatalog
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -11755,6 +12098,14 @@ paths:
           name: nsfw
           schema:
             description: true includes r18. false or absent hides r18. Only true or false.
+            maxLength: 8
+            type: string
+        - description: "1-based page number. Selects page mode: the response carries total and total_relation and no next_cursor. page times limit may not exceed 10000; the last reachable page is min(ceil(total/limit), floor(10000/limit)). Cannot be combined with cursor, ids or refs."
+          explode: false
+          in: query
+          name: page
+          schema:
+            description: "1-based page number. Selects page mode: the response carries total and total_relation and no next_cursor. page times limit may not exceed 10000; the last reachable page is min(ceil(total/limit), floor(10000/limit)). Cannot be combined with cursor, ids or refs."
             maxLength: 8
             type: string
         - description: Search string. Empty runs a popularity-ordered listing of that family.
@@ -12668,7 +13019,7 @@ paths:
         - catalog
   /v2/catalog/works:
     get:
-      description: Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. Requires an application key or a user access token with catalog:read. view/include/fields/ids/refs/facets follow the v2 collection contract. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on every lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.
+      description: Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. Requires an application key or a user access token with catalog:read. view/include/fields/ids/refs/facets follow the v2 collection contract. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on every lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE. page= selects page mode (see the page parameter); every other collection is cursor-only.
       operationId: listCatalogWorks
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -12807,12 +13158,12 @@ paths:
             description: Claiming site key. Open vocabulary; unknown values match nothing.
             maxLength: 64
             type: string
-        - description: The claiming site's own user id of the claim owner. Requires site=. Live registry filter; cannot be combined with q= or search sorts.
+        - description: The claiming site's own user id of the claim owner. Requires site=. Live registry filter; cannot be combined with q=, page= or search sorts.
           explode: false
           in: query
           name: owner_uid
           schema:
-            description: The claiming site's own user id of the claim owner. Requires site=. Live registry filter; cannot be combined with q= or search sorts.
+            description: The claiming site's own user id of the claim owner. Requires site=. Live registry filter; cannot be combined with q=, page= or search sorts.
             maxLength: 20
             type: string
         - description: Catalog company id. Live registry filter when q= is absent.
@@ -12886,6 +13237,14 @@ paths:
           schema:
             description: Comma-separated BCP-47, or all. Open vocabulary; unknown values match nothing. Absent = no language gate.
             maxLength: 64
+            type: string
+        - description: "1-based page number. Selects page mode: the response carries total and total_relation and no next_cursor. page times limit may not exceed 10000; the last reachable page is min(ceil(total/limit), floor(10000/limit)). Cannot be combined with cursor, ids or refs."
+          explode: false
+          in: query
+          name: page
+          schema:
+            description: "1-based page number. Selects page mode: the response carries total and total_relation and no next_cursor. page times limit may not exceed 10000; the last reachable page is min(ceil(total/limit), floor(10000/limit)). Cannot be combined with cursor, ids or refs."
+            maxLength: 8
             type: string
       responses:
         "200":

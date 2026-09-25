@@ -79,6 +79,7 @@ func WorkListSpec() Spec {
 		FullSet: WorkListFullSet,
 		Fields:  fields,
 		Facets:  WorkFacets,
+		Pages:   true,
 	}
 }
 
@@ -367,6 +368,7 @@ func SearchSpec() Spec {
 			"object", "target_object", "id", "display_name", "latin", "localized",
 			"sources", "content_rating", "tier", "tag_kind", "is_sexual",
 		},
+		Pages: true,
 	}
 }
 

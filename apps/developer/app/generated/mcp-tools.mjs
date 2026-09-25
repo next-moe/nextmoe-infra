@@ -810,7 +810,8 @@ export const mcpTools = [
       "platform",
       "released_after",
       "released_before",
-      "olang"
+      "olang",
+      "page"
     ]
   },
   {
@@ -911,6 +912,7 @@ export const mcpTools = [
       "facets",
       "sort",
       "nsfw",
+      "page",
       "q",
       "object",
       "locale"

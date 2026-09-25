@@ -65,6 +65,9 @@ func TestSearchWorksRequested(t *testing.T) {
 	if !searchWorksRequested(collect.Query{Facets: []string{"tag_id"}}, worksFilter{}) {
 		t.Fatal("facets")
 	}
+	if !searchWorksRequested(collect.Query{Page: 1}, worksFilter{}) {
+		t.Fatal("page")
+	}
 }
 
 func TestListWorksIncludeMapping(t *testing.T) {

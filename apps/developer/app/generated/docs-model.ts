@@ -260,9 +260,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -2411,9 +2420,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -6137,9 +6155,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -7566,9 +7593,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -9452,9 +9488,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -15063,9 +15108,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -16698,9 +16752,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -18340,9 +18403,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -23349,9 +23421,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -28465,9 +28546,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -30067,9 +30157,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -32981,9 +33080,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -36103,9 +36211,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -37851,9 +37968,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -40901,9 +41027,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -42382,9 +42517,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -45452,9 +45596,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -48482,9 +48635,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -52546,7 +52708,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/search",
               "summary": "Search catalog entities",
-              "description": "Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Requires an application key or a user access token with catalog:read. cursor= pages the hits. ids= is not accepted.",
+              "description": "Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Requires an application key or a user access token with catalog:read. cursor= pages the hits. ids= is not accepted. page= selects page mode (see the page parameter); every other collection is cursor-only.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -52625,6 +52787,13 @@ export const docsModel: DocsModel = {
                   "required": false,
                   "type": "string",
                   "doc": "true includes r18. false or absent hides r18. Only true or false."
+                },
+                {
+                  "name": "page",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "1-based page number. Selects page mode: the response carries total and total_relation and no next_cursor. page times limit may not exceed 10000; the last reachable page is min(ceil(total/limit), floor(10000/limit)). Cannot be combined with cursor, ids or refs."
                 },
                 {
                   "name": "q",
@@ -52841,9 +53010,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -54318,9 +54496,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -58104,9 +58291,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -61064,9 +61260,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -63778,7 +63983,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/works",
               "summary": "List catalog works",
-              "description": "Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. Requires an application key or a user access token with catalog:read. view/include/fields/ids/refs/facets follow the v2 collection contract. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on every lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.",
+              "description": "Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. Requires an application key or a user access token with catalog:read. view/include/fields/ids/refs/facets follow the v2 collection contract. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on every lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE. page= selects page mode (see the page parameter); every other collection is cursor-only.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -63905,7 +64110,7 @@ export const docsModel: DocsModel = {
                   "in": "query",
                   "required": false,
                   "type": "string",
-                  "doc": "The claiming site's own user id of the claim owner. Requires site=. Live registry filter; cannot be combined with q= or search sorts."
+                  "doc": "The claiming site's own user id of the claim owner. Requires site=. Live registry filter; cannot be combined with q=, page= or search sorts."
                 },
                 {
                   "name": "company_id",
@@ -63969,6 +64174,13 @@ export const docsModel: DocsModel = {
                   "required": false,
                   "type": "string",
                   "doc": "Comma-separated BCP-47, or all. Open vocabulary; unknown values match nothing. Absent = no language gate."
+                },
+                {
+                  "name": "page",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "1-based page number. Selects page mode: the response carries total and total_relation and no next_cursor. page times limit may not exceed 10000; the last reachable page is min(ceil(total/limit), floor(10000/limit)). Cannot be combined with cursor, ids or refs."
                 }
               ],
               "responses": [
@@ -66034,9 +66246,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -71344,9 +71565,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -72945,9 +73175,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -74542,9 +74781,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -76080,9 +76328,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -77615,9 +77872,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -79138,9 +79404,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -80738,9 +81013,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -84236,9 +84520,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -85841,9 +86134,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -87423,9 +87725,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -88967,9 +89278,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -90551,9 +90871,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -92324,9 +92653,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -93333,9 +93671,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -95707,9 +96054,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -97225,9 +97581,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -100140,9 +100505,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -101862,9 +102236,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -111105,9 +111488,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -119008,9 +119400,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -122219,9 +122620,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -128078,9 +128488,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -129792,9 +130211,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -134603,9 +135031,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -142188,9 +142625,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -143908,9 +144354,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -150503,9 +150958,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -160179,9 +160643,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -161931,9 +162404,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -168528,9 +169010,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -170063,9 +170554,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -178340,9 +178840,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -187211,9 +187720,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
@@ -190327,9 +190845,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }

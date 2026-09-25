@@ -2,6 +2,7 @@ package collect
 
 import (
 	"sort"
+	"strconv"
 	"strings"
 
 	"api/internal/platform/apiv2/parse"
@@ -17,6 +18,8 @@ const DefaultLimit = 20
 // one op (batch playtimes) whose entire contract is per-item partial failure.
 const MaxBatchItems = 100
 
+const MaxPageDepth = 10000
+
 type Raw struct {
 	Cursor       string
 	Limit        string
@@ -29,6 +32,7 @@ type Raw struct {
 	Facets       string
 	Sort         string
 	NSFW         string
+	Page         string
 }
 
 type Spec struct {
@@ -46,6 +50,7 @@ type Spec struct {
 	// a wrong mark here can only over-refuse a named collection, never silently
 	// break the ids= hydration every consumer runs against the catalog lanes.
 	NoBatch bool
+	Pages   bool
 }
 
 type Query struct {
@@ -61,6 +66,7 @@ type Query struct {
 	Sort         string
 	Batch        bool
 	NSFW         bool
+	Page         int
 }
 
 func Parse(raw Raw, spec Spec) (Query, *problem.Problem) {
@@ -133,6 +139,11 @@ func Parse(raw Raw, spec Spec) (Query, *problem.Problem) {
 		}}
 		return Query{}, p
 	}
+	page, err := parsePage(raw.Page, q.Limit, q.Batch, raw.Cursor, spec.Pages)
+	if err != nil {
+		return Query{}, err
+	}
+	q.Page = page
 	if raw.Cursor != "" {
 		key, err := DecodeCursor(raw.Cursor)
 		if err != nil {
@@ -186,6 +197,73 @@ func Parse(raw Raw, spec Spec) (Query, *problem.Problem) {
 		q.NSFW = v
 	}
 	return q, nil
+}
+
+func parsePage(raw string, limit int, batch bool, cursor string, pages bool) (int, *problem.Problem) {
+	if raw == "" {
+		return 0, nil
+	}
+	if !pages {
+		p := problem.New(problem.CodeInvalidParameter, "", "", "this collection does not take page.")
+		p.Errors = []problem.FieldError{{
+			Parameter: "page",
+			Reason:    problem.ReasonNotAllowedValue,
+			Detail:    "page= is accepted only on /v2/catalog/works and /v2/catalog/search; page this collection with cursor=",
+		}}
+		return 0, p
+	}
+	n, conv := strconv.Atoi(raw)
+	if conv != nil {
+		p := problem.New(problem.CodeInvalidParameter, "", "", "page is invalid.")
+		p.Errors = []problem.FieldError{{
+			Parameter: "page",
+			Reason:    problem.ReasonInvalidFormat,
+			Detail:    "expected a positive integer",
+		}}
+		return 0, p
+	}
+	if n < 1 {
+		p := problem.New(problem.CodeInvalidParameter, "", "", "page is out of range.")
+		p.Errors = []problem.FieldError{{
+			Parameter: "page",
+			Reason:    problem.ReasonOutOfRange,
+			Detail:    "page starts at 1",
+			Params:    &problem.FieldParams{Minimum: problem.Ptr(1.0)},
+		}}
+		return 0, p
+	}
+	if cursor != "" {
+		p := problem.New(problem.CodeMutuallyExclusiveParameters, "", "", "page cannot be combined with cursor.")
+		p.Errors = []problem.FieldError{{
+			Parameter: "page",
+			Reason:    problem.ReasonNotAllowedValue,
+			Detail:    "page= selects page mode and does not take cursor=",
+		}}
+		return 0, p
+	}
+	if batch {
+		p := problem.New(problem.CodeMutuallyExclusiveParameters, "", "", "page cannot be combined with ids or refs.")
+		p.Errors = []problem.FieldError{{
+			Parameter: "page",
+			Reason:    problem.ReasonNotAllowedValue,
+			Detail:    "ids= and refs= are a batch lane and do not paginate",
+		}}
+		return 0, p
+	}
+	if int64(n)*int64(limit) > int64(MaxPageDepth) {
+		p := problem.New(problem.CodeInvalidParameter, "", "", "page is out of range.")
+		p.Errors = []problem.FieldError{{
+			Parameter: "page",
+			Reason:    problem.ReasonOutOfRange,
+			Detail:    "page times limit may not exceed " + strconv.Itoa(MaxPageDepth),
+			Params: &problem.FieldParams{
+				Minimum: problem.Ptr(1.0),
+				Maximum: problem.Ptr(float64(MaxPageDepth / limit)),
+			},
+		}}
+		return 0, p
+	}
+	return n, nil
 }
 
 func tokens(raw, name string, allowed []string, code string) ([]string, *problem.Problem) {

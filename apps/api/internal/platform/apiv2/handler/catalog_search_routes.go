@@ -12,6 +12,7 @@ import (
 
 type searchInput struct {
 	CollectionInput
+	PageInput
 	Q      string `query:"q" maxLength:"512" doc:"Search string. Empty runs a popularity-ordered listing of that family."`
 	Object string `query:"object" maxLength:"32" doc:"Required family: work, character, credit_name, company, tag, series, engine, trait."`
 	Locale string `query:"locale" maxLength:"8" doc:"zh or ja. Ignored for works. Must not be used as a discriminant."`
@@ -27,7 +28,7 @@ func registerCatalogSearch(api huma.API, cat *Catalog) {
 		Method:             http.MethodGet,
 		Path:               "/v2/catalog/search",
 		Summary:            "Search catalog entities",
-		Description:        "Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Requires an application key or a user access token with catalog:read. cursor= pages the hits. ids= is not accepted.",
+		Description:        "Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Requires an application key or a user access token with catalog:read. cursor= pages the hits. ids= is not accepted. page= selects page mode (see the page parameter); every other collection is cursor-only.",
 		Tags:               []string{"catalog"},
 		Errors:             collectionErrors(http.StatusUnauthorized, http.StatusForbidden, http.StatusServiceUnavailable),
 		SkipValidateParams: true,
@@ -39,9 +40,11 @@ func searchCatalog(cat *Catalog) func(context.Context, *searchInput) (*listSearc
 		if in == nil {
 			in = &searchInput{}
 		}
-		q, err := parseCatalogList(ctx, &in.CollectionInput, collect.SearchSpec())
+		raw := rawFrom(&in.CollectionInput)
+		raw.Page = in.Page
+		q, err := collect.Parse(raw, collect.SearchSpec())
 		if err != nil {
-			return nil, err
+			return nil, withIdent(ctx, err)
 		}
 		page, lerr := cat.Search(ctx, q, in.Object, in.Q, in.Locale)
 		if lerr != nil {

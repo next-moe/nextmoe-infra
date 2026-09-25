@@ -13,7 +13,7 @@
 
 Search catalog entities
 
-Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Requires an application key or a user access token with catalog:read. cursor= pages the hits. ids= is not accepted.
+Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Requires an application key or a user access token with catalog:read. cursor= pages the hits. ids= is not accepted. page= selects page mode (see the page parameter); every other collection is cursor-only.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -32,6 +32,7 @@ Cross-entity search. object= selects the family. Hits are search_result rows wit
 | `facets` | query | 否 | string | Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. |
 | `sort` | query | 否 | string | Closed per-collection sort key. |
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
+| `page` | query | 否 | string | 1-based page number. Selects page mode: the response carries total and total_relation and no next_cursor. page times limit may not exceed 10000; the last reachable page is min(ceil(total/limit), floor(10000/limit)). Cannot be combined with cursor, ids or refs. |
 | `q` | query | 否 | string | Search string. Empty runs a popularity-ordered listing of that family. |
 | `object` | query | 否 | string | Required family: work, character, credit_name, company, tag, series, engine, trait. |
 | `locale` | query | 否 | string | zh or ja. Ignored for works. Must not be used as a discriminant. |

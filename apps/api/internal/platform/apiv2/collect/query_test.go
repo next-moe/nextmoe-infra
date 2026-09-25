@@ -149,3 +149,126 @@ func TestParseNSFW(t *testing.T) {
 		t.Fatalf("nsfw=1: %+v", err)
 	}
 }
+
+func TestParsePageMode(t *testing.T) {
+	q, err := Parse(Raw{Page: "1"}, WorkListSpec())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if q.Page != 1 || q.Limit != DefaultLimit {
+		t.Fatalf("page mode %+v", q)
+	}
+	q, err = Parse(Raw{}, WorkListSpec())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if q.Page != 0 {
+		t.Fatalf("empty page is cursor mode: %+v", q)
+	}
+	q, err = Parse(Raw{Page: "1"}, SearchSpec())
+	if err != nil || q.Page != 1 {
+		t.Fatalf("search spec page: %+v %v", q, err)
+	}
+}
+
+func TestParsePageNonInteger(t *testing.T) {
+	_, err := Parse(Raw{Page: "abc"}, WorkListSpec())
+	if err == nil || err.Code != problem.CodeInvalidParameter {
+		t.Fatalf("code: %+v", err)
+	}
+	if len(err.Errors) != 1 || err.Errors[0].Parameter != "page" || err.Errors[0].Reason != problem.ReasonInvalidFormat {
+		t.Fatalf("errors: %+v", err.Errors)
+	}
+	if err.Errors[0].Params != nil {
+		t.Fatalf("params: %+v", err.Errors[0].Params)
+	}
+}
+
+func TestParsePageLessThanOne(t *testing.T) {
+	for _, raw := range []string{"0", "-1"} {
+		_, err := Parse(Raw{Page: raw}, WorkListSpec())
+		if err == nil || err.Code != problem.CodeInvalidParameter {
+			t.Fatalf("page=%s code: %+v", raw, err)
+		}
+		if len(err.Errors) != 1 || err.Errors[0].Parameter != "page" || err.Errors[0].Reason != problem.ReasonOutOfRange {
+			t.Fatalf("page=%s errors: %+v", raw, err.Errors)
+		}
+		p := err.Errors[0].Params
+		if p == nil || p.Minimum == nil || *p.Minimum != 1 || p.Maximum != nil {
+			t.Fatalf("page=%s params: %+v", raw, p)
+		}
+	}
+}
+
+func TestParsePageWithCursor(t *testing.T) {
+	_, err := Parse(Raw{Page: "1", Cursor: EncodeCursor("3")}, WorkListSpec())
+	if err == nil || err.Code != problem.CodeMutuallyExclusiveParameters {
+		t.Fatalf("code: %+v", err)
+	}
+	if len(err.Errors) != 1 || err.Errors[0].Parameter != "page" || err.Errors[0].Reason != problem.ReasonNotAllowedValue {
+		t.Fatalf("errors: %+v", err.Errors)
+	}
+}
+
+func TestParsePageWithIDs(t *testing.T) {
+	_, err := Parse(Raw{Page: "1", IDs: "1"}, WorkListSpec())
+	if err == nil || err.Code != problem.CodeMutuallyExclusiveParameters {
+		t.Fatalf("code: %+v", err)
+	}
+	if len(err.Errors) != 1 || err.Errors[0].Parameter != "page" || err.Errors[0].Reason != problem.ReasonNotAllowedValue {
+		t.Fatalf("errors: %+v", err.Errors)
+	}
+}
+
+func TestParsePageWithRefs(t *testing.T) {
+	_, err := Parse(Raw{Page: "1", Refs: "vndb:v1"}, WorkListSpec())
+	if err == nil || err.Code != problem.CodeMutuallyExclusiveParameters {
+		t.Fatalf("code: %+v", err)
+	}
+	if len(err.Errors) != 1 || err.Errors[0].Parameter != "page" || err.Errors[0].Reason != problem.ReasonNotAllowedValue {
+		t.Fatalf("errors: %+v", err.Errors)
+	}
+}
+
+func TestParsePageTimesLimitExceedsDepth(t *testing.T) {
+	_, err := Parse(Raw{Page: "501"}, WorkListSpec())
+	if err == nil || err.Code != problem.CodeInvalidParameter {
+		t.Fatalf("default limit code: %+v", err)
+	}
+	if len(err.Errors) != 1 || err.Errors[0].Parameter != "page" || err.Errors[0].Reason != problem.ReasonOutOfRange {
+		t.Fatalf("default limit errors: %+v", err.Errors)
+	}
+	p := err.Errors[0].Params
+	if p == nil || p.Minimum == nil || *p.Minimum != 1 || p.Maximum == nil || *p.Maximum != 500 {
+		t.Fatalf("default limit params: %+v", p)
+	}
+	_, err = Parse(Raw{Page: "500"}, WorkListSpec())
+	if err != nil {
+		t.Fatalf("page*limit=10000 must be allowed: %+v", err)
+	}
+	_, err = Parse(Raw{Page: "101", Limit: "100"}, WorkListSpec())
+	if err == nil || err.Code != problem.CodeInvalidParameter {
+		t.Fatalf("limit=100 code: %+v", err)
+	}
+	p = err.Errors[0].Params
+	if p == nil || p.Maximum == nil || *p.Maximum != 100 {
+		t.Fatalf("limit=100 params: %+v", p)
+	}
+}
+
+func TestParsePageRefusedWithoutSpec(t *testing.T) {
+	_, err := Parse(Raw{Page: "1"}, VocabSpec())
+	if err == nil || err.Code != problem.CodeInvalidParameter {
+		t.Fatalf("code: %+v", err)
+	}
+	if len(err.Errors) != 1 || err.Errors[0].Parameter != "page" || err.Errors[0].Reason != problem.ReasonNotAllowedValue {
+		t.Fatalf("errors: %+v", err.Errors)
+	}
+	_, err = Parse(Raw{Page: "abc"}, WorkSpec())
+	if err == nil || err.Code != problem.CodeInvalidParameter {
+		t.Fatalf("non-integer on a no-pages spec: %+v", err)
+	}
+	if err.Errors[0].Reason != problem.ReasonNotAllowedValue {
+		t.Fatalf("spec.Pages is checked before the integer: %+v", err.Errors)
+	}
+}
