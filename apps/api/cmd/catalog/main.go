@@ -15,8 +15,10 @@ import (
 	"api/internal/infrastructure/cache"
 	"api/internal/infrastructure/database"
 	"api/internal/middleware"
+	"api/internal/platform/accountpurge"
 	v2handler "api/internal/platform/apiv2/handler"
 	"api/internal/platform/apiv2/protocol"
+	authRepo "api/internal/platform/auth/repository"
 	"api/internal/platform/catalog/editspec"
 	catHandler "api/internal/platform/catalog/handler"
 	"api/internal/platform/catalog/repository"
@@ -133,6 +135,13 @@ func main() {
 	playtimeSvc := service.NewUserPlaytimeService(catalogDB.DB())
 	workStateSvc := service.NewUserWorkStateService(catalogDB.DB())
 	folderSvc := service.NewUserFolderService(catalogDB.DB())
+	accountpurge.Start(permCtx, &accountpurge.Consumer{
+		Name: "catalog", Feed: authRepo.NewUserRepository(application.DB.DB()), DB: catalogDB.DB(),
+		Purge: func(ctx context.Context, uid int64) error {
+			_, err := service.PurgeAccount(ctx, catalogDB.DB(), uid)
+			return err
+		},
+	})
 
 	// kun_news is a SECOND database on a process whose primary job is catalog.
 	// An unreachable news database degrades the news face to 503 instead of

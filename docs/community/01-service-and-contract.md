@@ -316,6 +316,13 @@ mistake; their forum rows came back from a dump that happened to exist and from
 dead tuples, and their comments here could not have come back at all. For 30 days, a purged author's content can now be recovered from this
 database, as it can for 28 days from the nightly dumps.
 
+Account deletion runs the same purge without a caller. Every hour the service
+reads the accounts OAuth has deleted (oauth doc 17 §4, straight from the main
+database) and purges each one on every site that has rows for it, then drops
+its `community_trust` row. Its cursor is `account_purge_cursor` in this
+database, and a failed account stops the run so the next hour retries it. The
+archive and the restore above cover these purges too.
+
 ### Write-time content pipeline (invariant 6)
 
 Every post body is Markdown. On write it is rendered (goldmark, GFM, raw HTML

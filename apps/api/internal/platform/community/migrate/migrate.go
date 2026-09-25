@@ -8,6 +8,7 @@ package migrate
 import (
 	"fmt"
 
+	"api/internal/platform/accountpurge"
 	"api/internal/platform/community/model"
 
 	"gorm.io/gorm"
@@ -33,6 +34,10 @@ func Run(db *gorm.DB) error {
 		&model.CommunityReviewItem{},
 		&model.CommunityPurgeArchive{},
 		&model.CommunityWriteRequest{},
+		// 2026-09-25: how far this service has read the deleted-accounts list
+		// (oauth doc 17). A new table with no rows; the first run starts from
+		// the beginning of the list.
+		&accountpurge.Cursor{},
 	); err != nil {
 		return fmt.Errorf("community automigrate: %w", err)
 	}
