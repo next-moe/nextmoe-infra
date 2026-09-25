@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"testing"
 
@@ -179,6 +180,49 @@ func TestLiveTraitVocabulary(t *testing.T) {
 	_, hasDesc := raw["description"]
 	require.False(t, hasAliases, string(body))
 	require.False(t, hasDesc, string(body))
+}
+
+func TestLiveTraitCharacterCountFieldsAnd503(t *testing.T) {
+	env := liveCatalog(t)
+	db := env.db
+	row := &model.CatalogCharacterTrait{
+		VndbTID: "i66130", Name: "Count Root", GroupTID: "", GOrder: 96,
+		Searchable: true, Applicable: true, Alias: "", Description: "",
+	}
+	require.NoError(t, db.Create(row).Error)
+	t.Cleanup(func() {
+		db.Where("id = ?", row.ID).Delete(&model.CatalogCharacterTrait{})
+	})
+
+	orig := characterTraitCounts
+	t.Cleanup(func() { characterTraitCounts = orig })
+	characterTraitCounts = func(_ *Catalog, _ context.Context, _ bool) (map[int64]int64, error) {
+		return map[int64]int64{row.ID: 7}, nil
+	}
+
+	status, _, body := liveDo(t, env, http.MethodGet,
+		"/v2/catalog/traits?ids="+idstr(row.ID)+"&include=character_count&fields=character_count",
+		liveAppKey, "")
+	require.Equal(t, 200, status, string(body))
+	var page struct {
+		Items []map[string]any `json:"items"`
+	}
+	require.NoError(t, json.Unmarshal(body, &page), string(body))
+	require.Len(t, page.Items, 1)
+	require.Equal(t, idstr(row.ID), page.Items[0]["id"])
+	require.Equal(t, "trait", page.Items[0]["object"])
+	require.EqualValues(t, 7, page.Items[0]["character_count"])
+	_, hasName := page.Items[0]["display_name"]
+	require.False(t, hasName, string(body))
+
+	characterTraitCounts = func(_ *Catalog, _ context.Context, _ bool) (map[int64]int64, error) {
+		return nil, errors.New("engine down")
+	}
+	status, _, body = liveDo(t, env, http.MethodGet,
+		"/v2/catalog/traits?ids="+idstr(row.ID)+"&include=character_count",
+		liveAppKey, "")
+	require.Equal(t, 503, status, string(body))
+	require.Equal(t, problem.CodeServiceUnavailable, liveProblem(t, body).Code)
 }
 
 func parentIDs(v liveTraitView) []string {

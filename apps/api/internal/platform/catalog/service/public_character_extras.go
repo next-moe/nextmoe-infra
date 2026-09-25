@@ -14,9 +14,9 @@ func (s *PublicService) CharacterWorkCounts(ctx context.Context, ids []int64, ns
 		return out, nil
 	}
 	union := `SELECT wc.character_id, wc.work_id FROM catalog_work_character wc
-		WHERE wc.character_id IN ? AND ` + editspec.NotSuppressedRosterSQL("wc") + ` AND ` + liveWorkSQL("wc.work_id") + `
+		WHERE wc.character_id IN ? AND ` + editspec.NotSuppressedRosterSQL("wc") + ` AND ` + editspec.LiveWorkSQL("wc.work_id") + `
 		UNION SELECT c.character_id, c.work_id FROM catalog_credit c
-		WHERE c.character_id IN ? AND ` + editspec.NotSuppressedCreditSQL("c") + ` AND ` + liveWorkSQL("c.work_id")
+		WHERE c.character_id IN ? AND ` + editspec.NotSuppressedCreditSQL("c") + ` AND ` + editspec.LiveWorkSQL("c.work_id")
 	var rows []struct {
 		CharacterID int64 `gorm:"column:character_id"`
 		N           int   `gorm:"column:n"`

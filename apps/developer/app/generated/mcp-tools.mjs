@@ -507,6 +507,8 @@ export const mcpTools = [
       "facets",
       "sort",
       "nsfw",
+      "page",
+      "q",
       "trait_id",
       "trait_match",
       "gender"

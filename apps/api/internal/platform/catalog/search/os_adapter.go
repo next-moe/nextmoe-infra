@@ -97,3 +97,27 @@ func (a *osAdapter) SearchWorks(ctx context.Context, q spec.WorksQuery) (WorksRe
 	}
 	return out, nil
 }
+
+func (a *osAdapter) SearchCharacters(ctx context.Context, q spec.CharacterQuery) (CharactersResult, error) {
+	res, err := a.eng.SearchCharacters(ctx, q)
+	if err != nil {
+		return CharactersResult{}, err
+	}
+	out := CharactersResult{
+		IDs:   make([]int64, 0, len(res.DocIDs)),
+		Total: res.Total,
+	}
+	for _, docID := range res.DocIDs {
+		id, ok := CharacterDocIDToID(docID)
+		if !ok {
+			slog.Warn("characters search: hit with unparseable doc id dropped", "doc_id", docID)
+			continue
+		}
+		out.IDs = append(out.IDs, id)
+	}
+	return out, nil
+}
+
+func (a *osAdapter) CharacterTraitCounts(ctx context.Context, nsfw bool) (map[int64]int64, error) {
+	return a.eng.CharacterTraitCounts(ctx, nsfw)
+}

@@ -10,7 +10,7 @@ import (
 var analysisJSON []byte
 
 const (
-	SchemaVersion   = 1
+	SchemaVersion   = 2
 	maxResultWindow = 500000
 
 	IndexCreditNames = "catalog_credit_names"
@@ -91,7 +91,12 @@ func propertiesFor(uid string) (map[string]any, error) {
 	case IndexTags:
 		props["kind"] = map[string]any{"type": "integer"}
 		props["tier"] = map[string]any{"type": "integer"}
-	case IndexCharacters, IndexSeries, IndexEngines:
+	case IndexCharacters:
+		props["catalog_id"] = map[string]any{"type": "long"}
+		props["gender"] = map[string]any{"type": "integer"}
+		props["trait_ids"] = map[string]any{"type": "long"}
+		props["trait_ids_sfw"] = map[string]any{"type": "long"}
+	case IndexSeries, IndexEngines:
 	case IndexTraits:
 		props["sexual"] = map[string]any{"type": "boolean"}
 	default:

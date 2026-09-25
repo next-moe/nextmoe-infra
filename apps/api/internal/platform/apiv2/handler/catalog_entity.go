@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"slices"
 
 	"api/internal/platform/apiv2/problem"
 	"api/internal/platform/apiv2/repr"
@@ -93,7 +94,19 @@ func (c *Catalog) GetTrait(ctx context.Context, id int64, nsfw bool, include []s
 	if !found {
 		return repr.Trait{}, problem.New(problem.CodeNotFound, "", "", "No trait with this id.")
 	}
-	return traitFromRow(rec, include), nil
+	out := traitFromRow(rec, include)
+	if slices.Contains(include, "character_count") {
+		counts, cerr := characterTraitCounts(c, ctx, nsfw)
+		if cerr != nil {
+			return repr.Trait{}, traitCountUnavailable(cerr)
+		}
+		n := 0
+		if counts != nil {
+			n = int(counts[id])
+		}
+		out.CharacterCount = &n
+	}
+	return out, nil
 }
 
 func (c *Catalog) GetCompany(ctx context.Context, id int64, nsfw bool, include []string) (repr.Company, error) {

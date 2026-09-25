@@ -171,7 +171,8 @@ func (s *PublicService) CharactersList(ctx context.Context, ids []int64, cursor 
 		selectSQL: "id, display_name, latin, lang",
 		deleted:   true,
 		ids:       ids, cursor: cursor, limit: limit,
-		alias: "character",
+		alias:     "character",
+		skipTotal: !includeTotal,
 	}
 	if len(filter.Genders) > 0 {
 		spec.extraWhere = append(spec.extraWhere, "gender IN ?")
@@ -193,7 +194,6 @@ func (s *PublicService) CharactersList(ctx context.Context, ids []int64, cursor 
 		}
 		spec.extraWhere = append(spec.extraWhere, where...)
 		spec.extraArgs = append(spec.extraArgs, args...)
-		spec.skipTotal = !includeTotal
 	}
 	page, err := s.entityIDList(ctx, spec)
 	if err != nil {
