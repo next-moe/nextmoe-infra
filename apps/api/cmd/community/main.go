@@ -11,6 +11,8 @@ import (
 	"api/internal/app"
 	"api/internal/infrastructure/database"
 	"api/internal/middleware"
+	"api/internal/platform/accountpurge"
+	authRepo "api/internal/platform/auth/repository"
 	commHandler "api/internal/platform/community/handler"
 	"api/internal/platform/community/service"
 	"api/internal/platform/settings"
@@ -126,6 +128,10 @@ func main() {
 	slog.Info("community notification dispatcher started")
 	go runOutboxTicker(ctx, forwardSvc)
 	go runHourlyPrunes(ctx, postSvc)
+	accountpurge.Start(ctx, &accountpurge.Consumer{
+		Name: "community", Feed: authRepo.NewUserRepository(application.DB.DB()), DB: communityDB.DB(),
+		Purge: postSvc.PurgeAccount,
+	})
 
 	application.Fiber.Get("/openapi.json", func(c fiber.Ctx) error {
 		b, err := json.Marshal(api.OpenAPI())
