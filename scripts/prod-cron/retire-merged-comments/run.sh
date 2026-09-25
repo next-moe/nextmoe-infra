@@ -1,7 +1,8 @@
 #!/bin/sh
 # Nightly: move the comments threads whose catalog anchor a merge took away to
-# the survivor's page (kungal, moyu: their gid is the catalog id), or retire
-# them where the site's ids still differ (letmoe, until it conforms).
+# the survivor's page. On kungal, moyu and letmoe the gid is the catalog id, so
+# the redirect row proves the move; a site whose ids still differed would have
+# its threads retired instead.
 #
 # Runs after BOTH merge lanes rather than hooking either one. work-dedup-nightly
 # (18:30 CST) and llm-adjudicate-nightly (21:00 CST) each execute proposals, and

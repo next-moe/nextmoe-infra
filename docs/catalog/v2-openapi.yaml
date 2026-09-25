@@ -564,7 +564,7 @@ components:
           pattern: ^[a-z][a-z0-9_]*$
           type: string
         site_work_id:
-          description: The site's own work id. kungal and moyu number their pages by catalog id, so there it equals the work's id; other sites number their own.
+          description: The site's own work id. kungal, moyu and letmoe number their pages by catalog id, so there it equals the work's id; other sites number their own.
           maxLength: 20
           minLength: 1
           pattern: ^[0-9]+$
@@ -6628,7 +6628,7 @@ components:
           maxLength: 64
           type: string
         site_work_id:
-          description: The claiming site's own work id, which on kungal and moyu is the catalog id. null unless target_object is work and the claiming site equals site.
+          description: The claiming site's own work id, which on kungal, moyu and letmoe is the catalog id. null unless target_object is work and the claiming site equals site.
           maxLength: 20
           pattern: ^[0-9]+$
           type:

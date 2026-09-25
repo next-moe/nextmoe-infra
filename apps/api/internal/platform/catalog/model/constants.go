@@ -239,9 +239,11 @@ func ClaimStateKey(site *string, productWorkID *int64, claimState *int16) string
 // SiteWorkIDIsCatalogID names the sites whose own work id IS the catalog work
 // id, so their claim's product_work_id equals the claimed work's id: moyu since
 // its renumber (`cmd/align-patch-ids`, 2026-09-13), the forum since its G0
-// (`align-galgame-ids`, 2026-09-23). Every other site numbers its own pages.
+// (`align-galgame-ids`, 2026-09-23), letmoe since its migration 028
+// (2026-08-26, recognised here 2026-09-25). Every other site numbers its own
+// pages.
 func SiteWorkIDIsCatalogID(site string) bool {
-	return site == "moyu" || site == "kungal"
+	return site == "moyu" || site == "kungal" || site == "letmoe"
 }
 
 const (
