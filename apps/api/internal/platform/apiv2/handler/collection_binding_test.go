@@ -206,7 +206,8 @@ var batchRefusingFaces = map[string]string{
 	"/v2/me/news":               "collect.NewsSubmissionSpec is NoBatch",
 	"/v2/me/playtimes":          "collect.PlaytimeSpec is NoBatch; work_ids= is this lane's batch",
 	"/v2/me/work-states":        "collect.WorkStateSpec is NoBatch; work_ids= is this lane's batch",
-	"/v2/me/proposals":          "collect.ProposalListSpec is NoBatch; the list lane has no hydration",
+	"/v2/me/proposals":          "collect.MyProposalListSpec is NoBatch; the list lane has no hydration",
+	"/v2/me/works":              "collect.UserWorkSpec is NoBatch; work_ids= is this lane's batch",
 	"/v2/moderation/claims":     "collect.ClaimSpec is NoBatch",
 	"/v2/moderation/proposals":  "collect.ProposalListSpec is NoBatch; the list lane has no hydration",
 	"/v2/news":                  "collect.NewsSpec is NoBatch: the public feed has no hydration lane either",
@@ -260,8 +261,8 @@ func TestDeclaredIncludeTotalIsHonoured(t *testing.T) {
 // validated against the claim record's keys on a face whose items are
 // proposals: half the real keys were 400 UNKNOWN_FIELD and half the claim keys
 // were accepted and then projected to nothing. The refusal set must not move
-// with the vocabulary — ProposalListSpec keeps NoBatch, because these lanes
-// build their items with proposalFrom and have no hydration lane.
+// with the vocabulary — both list specs keep NoBatch, because these lanes have
+// no hydration lane.
 func TestProposalListFieldVocabulary(t *testing.T) {
 	env := liveCatalog(t)
 	for _, path := range []string{"/v2/me/proposals", "/v2/moderation/proposals"} {
@@ -276,17 +277,24 @@ func TestProposalListFieldVocabulary(t *testing.T) {
 			require.Equalf(t, http.StatusBadRequest, status, "%s?fields=%s is a claim key: %s", path, field, raw)
 			require.Equal(t, problem.CodeUnknownField, liveProblem(t, raw).Code, path)
 		}
-		// patch and amendments stay out: proposalFrom never fills them on a list.
-		for _, field := range []string{"patch", "effective_patch", "amendments"} {
-			status, _, raw := liveDo(t, env, http.MethodGet, path+"?fields="+field, liveUserToken, "")
-			require.Equalf(t, http.StatusBadRequest, status, "%s?fields=%s: %s", path, field, raw)
-		}
-		status, _, raw := liveDo(t, env, http.MethodGet, path+"?sort=filed_desc", liveUserToken, "")
+		status, _, raw := liveDo(t, env, http.MethodGet, path+"?fields=amendments", liveUserToken, "")
+		require.Equalf(t, http.StatusBadRequest, status, "%s?fields=amendments: %s", path, raw)
+		status, _, raw = liveDo(t, env, http.MethodGet, path+"?sort=filed_desc", liveUserToken, "")
 		require.Equalf(t, http.StatusOK, status, "%s: the one sort the lane actually applies: %s", path, raw)
 		status, _, raw = liveDo(t, env, http.MethodGet, path+"?sort=bogus", liveUserToken, "")
 		require.Equal(t, http.StatusBadRequest, status, path)
 		require.Equal(t, problem.CodeUnknownSort, liveProblem(t, raw).Code, path)
 	}
+	// Only the bearer's own list publishes patches.
+	for _, field := range []string{"patch", "effective_patch"} {
+		status, _, raw := liveDo(t, env, http.MethodGet, "/v2/me/proposals?include=patch&fields="+field, liveUserToken, "")
+		require.Equalf(t, http.StatusOK, status, "/v2/me/proposals?fields=%s: %s", field, raw)
+		status, _, raw = liveDo(t, env, http.MethodGet, "/v2/moderation/proposals?fields="+field, liveUserToken, "")
+		require.Equalf(t, http.StatusBadRequest, status, "/v2/moderation/proposals?fields=%s: %s", field, raw)
+	}
+	status, _, raw := liveDo(t, env, http.MethodGet, "/v2/moderation/proposals?include=patch", liveUserToken, "")
+	require.Equal(t, http.StatusBadRequest, status, string(raw))
+	require.Equal(t, problem.CodeUnknownInclude, liveProblem(t, raw).Code)
 }
 
 // The refusal is real in production and unreachable here: catalog_search.go
