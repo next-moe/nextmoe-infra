@@ -48,6 +48,14 @@ func (c *Catalog) GetCharacter(ctx context.Context, id int64, nsfw bool, spoiler
 		}
 	}
 	attachCharacterBlocks(&out, rec, include)
+	if characterWantsWorkCount(include) {
+		counts, cerr := c.Public.CharacterWorkCounts(ctx, []int64{id}, nsfw)
+		if cerr != nil {
+			return repr.Character{}, cerr
+		}
+		n := counts[id]
+		out.WorkCount = &n
+	}
 	return out, nil
 }
 
@@ -74,21 +82,18 @@ func (c *Catalog) GetPerson(ctx context.Context, id int64) (repr.Person, error) 
 	}, nil
 }
 
-func (c *Catalog) GetTrait(ctx context.Context, id int64) (repr.Trait, error) {
+func (c *Catalog) GetTrait(ctx context.Context, id int64, nsfw bool, include []string) (repr.Trait, error) {
 	if c == nil || c.Public == nil {
 		return repr.Trait{}, problem.New(problem.CodeServiceUnavailable, "", "", "catalog read is not bound.")
 	}
-	rec, found, err := c.Public.Trait(ctx, id)
+	rec, found, err := c.Public.Trait(ctx, id, nsfw, include)
 	if err != nil {
 		return repr.Trait{}, err
 	}
 	if !found {
 		return repr.Trait{}, problem.New(problem.CodeNotFound, "", "", "No trait with this id.")
 	}
-	return repr.Trait{
-		Object: "trait", ID: repr.ID(rec.ID), DisplayName: rec.DisplayName,
-		NameZh: rec.NameZh, VndbTID: rec.VndbTID, IsSexual: rec.Sexual,
-	}, nil
+	return traitFromRow(rec, include), nil
 }
 
 func (c *Catalog) GetCompany(ctx context.Context, id int64, nsfw bool, include []string) (repr.Company, error) {

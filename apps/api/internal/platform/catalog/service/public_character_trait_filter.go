@@ -9,14 +9,23 @@ import (
 type CharacterTraitFilter struct {
 	TraitIDs []int64
 	MatchAny bool
+	Genders  []int16
 }
 
 type SexualTraitError struct {
-	ID int64
+	ID        int64
+	Parameter string
 }
 
 func (e *SexualTraitError) Error() string {
 	return "trait is sexual; nsfw=true is required"
+}
+
+func (e *SexualTraitError) Param() string {
+	if e.Parameter == "" {
+		return "trait_id"
+	}
+	return e.Parameter
 }
 
 const characterTraitExistsSQL = `EXISTS (SELECT 1 FROM catalog_character_trait_link l WHERE l.character_id = catalog_character.id AND l.trait_id IN ? AND l.spoiler_level <= ?)`
@@ -36,7 +45,7 @@ func (s *PublicService) expandCharacterTraits(ctx context.Context, ids []int64, 
 			FROM catalog_character_trait_parent p
 			INNER JOIN tree ON p.parent_id = tree.trait_id
 		)
-		SELECT tree.root_id, tree.trait_id, t.sexual
+		SELECT tree.root_id, tree.trait_id, t.sexual_family AS sexual
 		FROM tree
 		JOIN catalog_character_trait t ON t.id = tree.trait_id`,
 		ids).Scan(&rows).Error; err != nil {

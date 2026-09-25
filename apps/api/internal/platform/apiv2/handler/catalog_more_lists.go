@@ -25,18 +25,11 @@ func (c *Catalog) ListCharacters(ctx context.Context, q collect.Query, f charact
 	}
 	data, lerr := c.Public.CharactersList(ctx, ids, q.Cursor, listLimit(q),
 		catsvc.CharacterListIncludeFrom(q.Include), q.NSFW,
-		catsvc.CharacterTraitFilter{TraitIDs: f.TraitIDs, MatchAny: f.MatchAny}, q.IncludeTotal)
+		catsvc.CharacterTraitFilter{TraitIDs: f.TraitIDs, MatchAny: f.MatchAny, Genders: f.Genders}, q.IncludeTotal)
 	if lerr != nil {
 		var se *catsvc.SexualTraitError
 		if errors.As(lerr, &se) {
-			p := problem.New(problem.CodeInvalidParameter, "", "",
-				"trait "+strconv.FormatInt(se.ID, 10)+" is sexual; nsfw=true is required")
-			p.Errors = []problem.FieldError{{
-				Parameter: "trait_id",
-				Reason:    problem.ReasonNotAllowedValue,
-				Detail:    "trait " + strconv.FormatInt(se.ID, 10) + " is sexual; nsfw=true is required",
-			}}
-			return repr.List[repr.Character]{}, p
+			return repr.List[repr.Character]{}, sexualTraitProblem(se)
 		}
 		return repr.List[repr.Character]{}, listCursorErr(lerr)
 	}
@@ -100,7 +93,7 @@ func (c *Catalog) ListPersons(ctx context.Context, q collect.Query) (repr.List[r
 	return finishList(items, data.NextCursor, data.Total, q, missing), nil
 }
 
-func (c *Catalog) ListTraits(ctx context.Context, q collect.Query) (repr.List[repr.Trait], error) {
+func (c *Catalog) ListTraits(ctx context.Context, q collect.Query, f traitFilter) (repr.List[repr.Trait], error) {
 	if c == nil || c.Public == nil {
 		return repr.List[repr.Trait]{}, problem.New(problem.CodeServiceUnavailable, "", "", "catalog read is not bound.")
 	}
@@ -111,18 +104,34 @@ func (c *Catalog) ListTraits(ctx context.Context, q collect.Query) (repr.List[re
 	if q.Batch && len(ids) == 0 {
 		return finishList([]repr.Trait{}, nil, 0, q, missing), nil
 	}
-	data, lerr := c.Public.TraitsList(ctx, ids, q.Cursor, listLimit(q))
+	data, lerr := c.Public.TraitsList(ctx, ids, q.Cursor, listLimit(q), q.NSFW,
+		catsvc.TraitListFilter{ParentID: f.ParentID, GroupID: f.GroupID, Root: f.Root}, q.Include)
 	if lerr != nil {
+		var se *catsvc.SexualTraitError
+		if errors.As(lerr, &se) {
+			return repr.List[repr.Trait]{}, sexualTraitProblem(se)
+		}
 		return repr.List[repr.Trait]{}, listCursorErr(lerr)
 	}
 	items := make([]repr.Trait, 0, len(data.Items))
 	seen := map[int64]bool{}
 	for _, it := range data.Items {
-		items = append(items, traitFromRow(it))
+		items = append(items, traitFromRow(it, q.Include))
 		seen[it.ID] = true
 	}
 	missing = appendUnseen(missing, ids, seen)
 	return finishList(items, data.NextCursor, data.Total, q, missing), nil
+}
+
+func sexualTraitProblem(se *catsvc.SexualTraitError) *problem.Problem {
+	msg := "trait " + strconv.FormatInt(se.ID, 10) + " is sexual; nsfw=true is required"
+	p := problem.New(problem.CodeInvalidParameter, "", "", msg)
+	p.Errors = []problem.FieldError{{
+		Parameter: se.Param(),
+		Reason:    problem.ReasonNotAllowedValue,
+		Detail:    msg,
+	}}
+	return p
 }
 
 func listLimit(q collect.Query) int {

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"api/internal/infrastructure/database"
+	"api/internal/platform/catalog/model"
 
 	"gorm.io/gorm"
 )
@@ -30,6 +31,8 @@ type Stats struct {
 	LinksSeen      int
 	LinksWritten   int
 	LinksUnchanged int
+
+	SexualFamilyUpdated int
 
 	Errors int
 }
@@ -57,6 +60,9 @@ func Run(ctx context.Context, opts Opts) (*Stats, error) {
 	if err := runEdges(ctx, db, opts, idByTID, st); err != nil {
 		return nil, err
 	}
+	if err := runSexualFamily(ctx, db, opts, st); err != nil {
+		return nil, err
+	}
 	if err := runLinks(ctx, db, opts, st); err != nil {
 		return nil, err
 	}
@@ -64,6 +70,7 @@ func Run(ctx context.Context, opts Opts) (*Stats, error) {
 		"vocab_total", st.VocabTotal, "vocab_written", st.VocabWritten, "vocab_unchanged", st.VocabUnchanged,
 		"edges_total", st.EdgesTotal, "edges_added", st.EdgesAdded, "edges_deleted", st.EdgesDeleted,
 		"links_seen", st.LinksSeen, "links_written", st.LinksWritten, "links_unchanged", st.LinksUnchanged,
+		"sexual_family_updated", st.SexualFamilyUpdated,
 		"errors", st.Errors)
 	return st, nil
 }
@@ -211,6 +218,23 @@ func runEdges(ctx context.Context, db *gorm.DB, opts Opts, idByTID map[string]in
 			slog.Warn("edge delete", "trait", e.trait, "parent", e.parent, "err", err)
 		}
 	}
+	return nil
+}
+
+func runSexualFamily(ctx context.Context, db *gorm.DB, opts Opts, st *Stats) error {
+	if !opts.Apply {
+		var n int64
+		if err := db.WithContext(ctx).Raw(model.TraitSexualFamilyPendingSQL).Scan(&n).Error; err != nil {
+			return fmt.Errorf("plan sexual_family: %w", err)
+		}
+		st.SexualFamilyUpdated = int(n)
+		return nil
+	}
+	res := db.WithContext(ctx).Exec(model.TraitSexualFamilySQL)
+	if res.Error != nil {
+		return fmt.Errorf("update sexual_family: %w", res.Error)
+	}
+	st.SexualFamilyUpdated = int(res.RowsAffected)
 	return nil
 }
 

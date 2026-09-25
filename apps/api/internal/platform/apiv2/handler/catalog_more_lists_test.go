@@ -23,7 +23,7 @@ func TestListNewCollectionsUnbound(t *testing.T) {
 	if p, ok = err.(*problem.Problem); !ok || p.Code != problem.CodeServiceUnavailable {
 		t.Fatalf("persons %v", err)
 	}
-	_, err = (*Catalog)(nil).ListTraits(t.Context(), collect.Query{})
+	_, err = (*Catalog)(nil).ListTraits(t.Context(), collect.Query{}, traitFilter{})
 	if p, ok = err.(*problem.Problem); !ok || p.Code != problem.CodeServiceUnavailable {
 		t.Fatalf("traits %v", err)
 	}
@@ -71,8 +71,11 @@ func TestPersonTraitMappers(t *testing.T) {
 	if p.Object != "person" || p.ID != "8" {
 		t.Fatalf("%+v", p)
 	}
-	tr := traitFromRow(catsvc.EntityListRow{ID: 1, DisplayName: "loli", NameZh: "萝莉", VndbTID: "i1", Sexual: true})
+	tr := traitFromRow(catsvc.EntityListRow{ID: 1, DisplayName: "loli", NameZh: "萝莉", VndbTID: "i1", Sexual: true}, nil)
 	if tr.Object != "trait" || !tr.IsSexual || tr.VndbTID != "i1" {
 		t.Fatalf("%+v", tr)
+	}
+	if tr.Parents == nil || tr.Localized == nil {
+		t.Fatalf("parents/localized %+v", tr)
 	}
 }

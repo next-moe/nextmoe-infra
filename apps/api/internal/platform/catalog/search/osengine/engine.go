@@ -277,6 +277,9 @@ func entitySearchBody(q spec.EntityQuery) (map[string]any, bool) {
 	if q.ContentRatingNot != nil {
 		filters = append(filters, mustNotTerm("content_rating", *q.ContentRatingNot))
 	}
+	if q.SexualNot != nil {
+		filters = append(filters, mustNotTerm("sexual", *q.SexualNot))
+	}
 	return map[string]any{
 		"query":            buildQuery(text, false, true, filters),
 		"from":             from,

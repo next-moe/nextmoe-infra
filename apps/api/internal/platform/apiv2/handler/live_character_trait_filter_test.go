@@ -30,7 +30,7 @@ func TestLiveCharacterTraitFilter(t *testing.T) {
 	trait := func(tid, name string, sexual bool) *model.CatalogCharacterTrait {
 		t.Helper()
 		row := &model.CatalogCharacterTrait{
-			VndbTID: tid, Name: name, GroupTID: "i77000", Alias: "", Description: "", Sexual: sexual,
+			VndbTID: tid, Name: name, GroupTID: "i77000", Alias: "", Description: "", Sexual: sexual, SexualFamily: sexual,
 		}
 		require.NoError(t, db.Create(row).Error)
 		return row

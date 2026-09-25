@@ -1218,7 +1218,7 @@ func (s *ReadService) CharacterByID(ctx context.Context, characterID int64, maxS
 	sortIntros(detail.Intros)
 	if err := db.Raw(`SELECT t.id, t.name, t.name_zh, t.group_tid,
 			g.name AS group_name, g.name_zh AS group_name_zh,
-			t.sexual, l.spoiler_level, l.lie
+			t.sexual_family AS sexual, l.spoiler_level, l.lie
 		FROM catalog_character_trait_link l
 		JOIN catalog_character_trait t ON t.id = l.trait_id
 		LEFT JOIN catalog_character_trait g ON g.vndb_tid = t.group_tid

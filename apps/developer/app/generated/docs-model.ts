@@ -8832,7 +8832,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/characters",
               "summary": "List characters",
-              "description": "Keyset-paginated characters. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs fills on every lane, and view=full is all of them; traits are cut at the default spoiler ceiling and follow the nsfw gate, exactly as on the detail face. trait_id= filters by trait (descendants included, max 10), combined by trait_match=all|any; a character matches under the same spoiler and nsfw gates as its traits block.",
+              "description": "Keyset-paginated characters. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs,work_count fills on every lane, and view=full is all of them; traits are cut at the default spoiler ceiling and follow the nsfw gate, exactly as on the detail face. trait_id= filters by trait (descendants included, max 10), combined by trait_match=all|any; a character matches under the same spoiler and nsfw gates as its traits block. When trait_id= is given, each item carries matched_trait_ids: this character's own traits that satisfied the filter. gender= filters by the closed vocabulary male,female,other. include=work_count is the number of distinct works the character appears in under the same nsfw gate as /v2/catalog/characters/{id}/appearances.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -8925,6 +8925,13 @@ export const docsModel: DocsModel = {
                   "required": false,
                   "type": "string",
                   "doc": "Closed: all (default), any. No effect without trait_id."
+                },
+                {
+                  "name": "gender",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Comma-separated closed vocabulary: male, female, other. OR within the parameter. Unknown token is 400."
                 }
               ],
               "responses": [
@@ -9281,6 +9288,14 @@ export const docsModel: DocsModel = {
                               }
                             },
                             {
+                              "name": "matched_trait_ids",
+                              "doc": "Present only when trait_id= is given: this character's own traits that satisfied it, which may be descendants of the requested ones.",
+                              "type": "array",
+                              "itemsOf": {
+                                "type": "string"
+                              }
+                            },
+                            {
                               "name": "measurements",
                               "type": "object",
                               "children": [
@@ -9458,6 +9473,12 @@ export const docsModel: DocsModel = {
                             {
                               "name": "weight_kg",
                               "doc": "Present on view=full. null if unrecorded.",
+                              "format": "int64",
+                              "type": "integer"
+                            },
+                            {
+                              "name": "work_count",
+                              "doc": "Present when include=work_count. Distinct works this character appears in: the number of items GET /v2/catalog/characters/{id}/appearances lists under the same nsfw.",
                               "format": "int64",
                               "type": "integer"
                             }
@@ -11086,6 +11107,14 @@ export const docsModel: DocsModel = {
                         }
                       },
                       {
+                        "name": "matched_trait_ids",
+                        "doc": "Present only when trait_id= is given: this character's own traits that satisfied it, which may be descendants of the requested ones.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
+                      },
+                      {
                         "name": "measurements",
                         "type": "object",
                         "children": [
@@ -11263,6 +11292,12 @@ export const docsModel: DocsModel = {
                       {
                         "name": "weight_kg",
                         "doc": "Present on view=full. null if unrecorded.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "work_count",
+                        "doc": "Present when include=work_count. Distinct works this character appears in: the number of items GET /v2/catalog/characters/{id}/appearances lists under the same nsfw.",
                         "format": "int64",
                         "type": "integer"
                       }
@@ -52708,7 +52743,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/search",
               "summary": "Search catalog entities",
-              "description": "Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Requires an application key or a user access token with catalog:read. cursor= pages the hits. ids= is not accepted. page= selects page mode (see the page parameter); every other collection is cursor-only.",
+              "description": "Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Requires an application key or a user access token with catalog:read. cursor= pages the hits. ids= is not accepted. page= selects page mode (see the page parameter); every other collection is cursor-only. object=trait hits carry trait_path (group and direct parents). Without nsfw=true, sexual-family trait documents are excluded from the result and from total.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -52982,6 +53017,107 @@ export const docsModel: DocsModel = {
                                 "hidden"
                               ],
                               "type": "string"
+                            },
+                            {
+                              "name": "trait_path",
+                              "required": true,
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "group",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Root trait group name. null for a root trait. Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "group_id",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Catalog trait id of the root group. null for a root trait.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "group_localized",
+                                  "required": true,
+                                  "doc": "Localized names of the root group, BCP-47 keys. Empty object if none. Must not be used as a discriminant.",
+                                  "type": "map",
+                                  "itemsOf": {
+                                    "type": "object",
+                                    "children": [
+                                      {
+                                        "name": "is_machine",
+                                        "required": true,
+                                        "doc": "Whether this value is machine-translated.",
+                                        "type": "boolean"
+                                      },
+                                      {
+                                        "name": "value",
+                                        "required": true,
+                                        "doc": "Must not be used as a discriminant.",
+                                        "type": "string"
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "name": "parents",
+                                  "required": true,
+                                  "doc": "Direct parents, ordered by id. Empty array for a root. Never null.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "object",
+                                    "children": [
+                                      {
+                                        "name": "display_name",
+                                        "required": true,
+                                        "doc": "Must not be used as a discriminant.",
+                                        "type": "string"
+                                      },
+                                      {
+                                        "name": "id",
+                                        "required": true,
+                                        "doc": "Catalog trait id.",
+                                        "type": "string"
+                                      },
+                                      {
+                                        "name": "localized",
+                                        "required": true,
+                                        "doc": "BCP-47 keys. Empty object if none. Must not be used as a discriminant.",
+                                        "type": "map",
+                                        "itemsOf": {
+                                          "type": "object",
+                                          "children": [
+                                            {
+                                              "name": "is_machine",
+                                              "required": true,
+                                              "doc": "Whether this value is machine-translated.",
+                                              "type": "boolean"
+                                            },
+                                            {
+                                              "name": "value",
+                                              "required": true,
+                                              "doc": "Must not be used as a discriminant.",
+                                              "type": "string"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      {
+                                        "name": "object",
+                                        "required": true,
+                                        "doc": "Type discriminant. Always trait.",
+                                        "enum": [
+                                          "trait"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    ]
+                                  }
+                                }
+                              ],
+                              "nullable": true,
+                              "doc": "Set on trait hits. null otherwise."
                             }
                           ]
                         }
@@ -61065,7 +61201,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/traits",
               "summary": "List traits",
-              "description": "Keyset-paginated character traits. Requires an application key or a user access token with catalog:read. ids= is a batch lane. refs= is not resolved: traits have no catalog_external_ref entity_type.",
+              "description": "Keyset-paginated character traits. Requires an application key or a user access token with catalog:read. ids= is a batch lane. refs= is not resolved: traits have no catalog_external_ref entity_type. parent_id= lists direct children; group_id= lists traits in that root group (the root excluded); root=true|false keeps only roots or only non-roots. Filters are conjunctive. Without nsfw=true, sexual-family traits are excluded from the list and land in missing[] on the ids= batch; naming one as parent_id or group_id is 400. include=aliases,description (and view=full) add those blocks. is_sexual reports the sexual-family flag.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -61144,6 +61280,27 @@ export const docsModel: DocsModel = {
                   "required": false,
                   "type": "string",
                   "doc": "true includes r18. false or absent hides r18. Only true or false."
+                },
+                {
+                  "name": "parent_id",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Catalog trait id. Direct children of this trait only. Naming a sexual-family trait without nsfw=true is 400."
+                },
+                {
+                  "name": "group_id",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Catalog trait id of a root group. Traits in that group, excluding the root itself. Naming a sexual-family trait without nsfw=true is 400."
+                },
+                {
+                  "name": "root",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "true: only root traits. false: only non-root traits. Only true or false."
                 }
               ],
               "responses": [
@@ -61195,10 +61352,67 @@ export const docsModel: DocsModel = {
                           "type": "object",
                           "children": [
                             {
+                              "name": "aliases",
+                              "doc": "Present when include=aliases. Newline-split, trimmed, de-duplicated. Empty array if none.",
+                              "type": "array",
+                              "itemsOf": {
+                                "type": "string"
+                              }
+                            },
+                            {
+                              "name": "child_count",
+                              "required": true,
+                              "doc": "Direct children visible under this request's nsfw gate.",
+                              "format": "int64",
+                              "type": "integer"
+                            },
+                            {
+                              "name": "description",
+                              "doc": "Present when include=description. Plain text with VNDB markup stripped. Empty if unrecorded. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
                               "name": "display_name",
                               "required": true,
                               "doc": "Must not be used as a discriminant.",
                               "type": "string"
+                            },
+                            {
+                              "name": "group",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "Root trait group name. null for a root trait. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "group_id",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "Catalog trait id of the root group. null for a root trait.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "group_localized",
+                              "required": true,
+                              "doc": "Localized names of the root group, BCP-47 keys. Empty object if none. Must not be used as a discriminant.",
+                              "type": "map",
+                              "itemsOf": {
+                                "type": "object",
+                                "children": [
+                                  {
+                                    "name": "is_machine",
+                                    "required": true,
+                                    "doc": "Whether this value is machine-translated.",
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "name": "value",
+                                    "required": true,
+                                    "doc": "Must not be used as a discriminant.",
+                                    "type": "string"
+                                  }
+                                ]
+                              }
                             },
                             {
                               "name": "id",
@@ -61207,10 +61421,45 @@ export const docsModel: DocsModel = {
                               "type": "string"
                             },
                             {
+                              "name": "is_applicable",
+                              "required": true,
+                              "doc": "Whether this trait is applicable to a character.",
+                              "type": "boolean"
+                            },
+                            {
+                              "name": "is_searchable",
+                              "required": true,
+                              "doc": "Whether this trait is searchable.",
+                              "type": "boolean"
+                            },
+                            {
                               "name": "is_sexual",
                               "required": true,
                               "doc": "Whether this trait is in the sexual family.",
                               "type": "boolean"
+                            },
+                            {
+                              "name": "localized",
+                              "required": true,
+                              "doc": "BCP-47 keys. Empty object if none. Must not be used as a discriminant.",
+                              "type": "map",
+                              "itemsOf": {
+                                "type": "object",
+                                "children": [
+                                  {
+                                    "name": "is_machine",
+                                    "required": true,
+                                    "doc": "Whether this value is machine-translated.",
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "name": "value",
+                                    "required": true,
+                                    "doc": "Must not be used as a discriminant.",
+                                    "type": "string"
+                                  }
+                                ]
+                              }
                             },
                             {
                               "name": "name_zh",
@@ -61226,6 +61475,69 @@ export const docsModel: DocsModel = {
                                 "trait"
                               ],
                               "type": "string"
+                            },
+                            {
+                              "name": "parents",
+                              "required": true,
+                              "doc": "Direct parents, ordered by id. Empty array for a root. Never null.",
+                              "type": "array",
+                              "itemsOf": {
+                                "type": "object",
+                                "children": [
+                                  {
+                                    "name": "display_name",
+                                    "required": true,
+                                    "doc": "Must not be used as a discriminant.",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "name": "id",
+                                    "required": true,
+                                    "doc": "Catalog trait id.",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "name": "localized",
+                                    "required": true,
+                                    "doc": "BCP-47 keys. Empty object if none. Must not be used as a discriminant.",
+                                    "type": "map",
+                                    "itemsOf": {
+                                      "type": "object",
+                                      "children": [
+                                        {
+                                          "name": "is_machine",
+                                          "required": true,
+                                          "doc": "Whether this value is machine-translated.",
+                                          "type": "boolean"
+                                        },
+                                        {
+                                          "name": "value",
+                                          "required": true,
+                                          "doc": "Must not be used as a discriminant.",
+                                          "type": "string"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  {
+                                    "name": "object",
+                                    "required": true,
+                                    "doc": "Type discriminant. Always trait.",
+                                    "enum": [
+                                      "trait"
+                                    ],
+                                    "type": "string"
+                                  }
+                                ]
+                              }
+                            },
+                            {
+                              "name": "root_order",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "gorder for a root trait (1-11). null for every non-root.",
+                              "format": "int64",
+                              "type": "integer"
                             },
                             {
                               "name": "vndb_tid",
@@ -62499,7 +62811,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/traits/{id}",
               "summary": "Get one trait",
-              "description": "A character-trait vocabulary row. Requires an application key or a user access token with catalog:read.",
+              "description": "A character-trait vocabulary row. Without nsfw=true a sexual-family trait is 404 NOT_FOUND. include=aliases,description (and view=full) add those blocks. is_sexual reports the sexual-family flag. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -62546,10 +62858,67 @@ export const docsModel: DocsModel = {
                     "type": "object",
                     "children": [
                       {
+                        "name": "aliases",
+                        "doc": "Present when include=aliases. Newline-split, trimmed, de-duplicated. Empty array if none.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
+                      },
+                      {
+                        "name": "child_count",
+                        "required": true,
+                        "doc": "Direct children visible under this request's nsfw gate.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "description",
+                        "doc": "Present when include=description. Plain text with VNDB markup stripped. Empty if unrecorded. Must not be used as a discriminant.",
+                        "type": "string"
+                      },
+                      {
                         "name": "display_name",
                         "required": true,
                         "doc": "Must not be used as a discriminant.",
                         "type": "string"
+                      },
+                      {
+                        "name": "group",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "Root trait group name. null for a root trait. Must not be used as a discriminant.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "group_id",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "Catalog trait id of the root group. null for a root trait.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "group_localized",
+                        "required": true,
+                        "doc": "Localized names of the root group, BCP-47 keys. Empty object if none. Must not be used as a discriminant.",
+                        "type": "map",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "is_machine",
+                              "required": true,
+                              "doc": "Whether this value is machine-translated.",
+                              "type": "boolean"
+                            },
+                            {
+                              "name": "value",
+                              "required": true,
+                              "doc": "Must not be used as a discriminant.",
+                              "type": "string"
+                            }
+                          ]
+                        }
                       },
                       {
                         "name": "id",
@@ -62558,10 +62927,45 @@ export const docsModel: DocsModel = {
                         "type": "string"
                       },
                       {
+                        "name": "is_applicable",
+                        "required": true,
+                        "doc": "Whether this trait is applicable to a character.",
+                        "type": "boolean"
+                      },
+                      {
+                        "name": "is_searchable",
+                        "required": true,
+                        "doc": "Whether this trait is searchable.",
+                        "type": "boolean"
+                      },
+                      {
                         "name": "is_sexual",
                         "required": true,
                         "doc": "Whether this trait is in the sexual family.",
                         "type": "boolean"
+                      },
+                      {
+                        "name": "localized",
+                        "required": true,
+                        "doc": "BCP-47 keys. Empty object if none. Must not be used as a discriminant.",
+                        "type": "map",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "is_machine",
+                              "required": true,
+                              "doc": "Whether this value is machine-translated.",
+                              "type": "boolean"
+                            },
+                            {
+                              "name": "value",
+                              "required": true,
+                              "doc": "Must not be used as a discriminant.",
+                              "type": "string"
+                            }
+                          ]
+                        }
                       },
                       {
                         "name": "name_zh",
@@ -62577,6 +62981,69 @@ export const docsModel: DocsModel = {
                           "trait"
                         ],
                         "type": "string"
+                      },
+                      {
+                        "name": "parents",
+                        "required": true,
+                        "doc": "Direct parents, ordered by id. Empty array for a root. Never null.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog trait id.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "localized",
+                              "required": true,
+                              "doc": "BCP-47 keys. Empty object if none. Must not be used as a discriminant.",
+                              "type": "map",
+                              "itemsOf": {
+                                "type": "object",
+                                "children": [
+                                  {
+                                    "name": "is_machine",
+                                    "required": true,
+                                    "doc": "Whether this value is machine-translated.",
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "name": "value",
+                                    "required": true,
+                                    "doc": "Must not be used as a discriminant.",
+                                    "type": "string"
+                                  }
+                                ]
+                              }
+                            },
+                            {
+                              "name": "object",
+                              "required": true,
+                              "doc": "Type discriminant. Always trait.",
+                              "enum": [
+                                "trait"
+                              ],
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "root_order",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "gorder for a root trait (1-11). null for every non-root.",
+                        "format": "int64",
+                        "type": "integer"
                       },
                       {
                         "name": "vndb_tid",

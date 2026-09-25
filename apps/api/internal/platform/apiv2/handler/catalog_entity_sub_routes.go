@@ -74,7 +74,7 @@ func registerCatalogEntityExtras(api huma.API, cat *Catalog) {
 		Method:             http.MethodGet,
 		Path:               "/v2/catalog/traits/{id}",
 		Summary:            "Get one trait",
-		Description:        "A character-trait vocabulary row. Requires an application key or a user access token with catalog:read.",
+		Description:        "A character-trait vocabulary row. Without nsfw=true a sexual-family trait is 404 NOT_FOUND. include=aliases,description (and view=full) add those blocks. is_sexual reports the sexual-family flag. Requires an application key or a user access token with catalog:read.",
 		Tags:               catalog,
 		Errors:             authErrs,
 		SkipValidateParams: true,
@@ -139,11 +139,11 @@ func getCatalogPerson(cat *Catalog) func(context.Context, *ResourceIDInput) (*ge
 
 func getCatalogTrait(cat *Catalog) func(context.Context, *ResourceIDInput) (*getTraitOutput, error) {
 	return func(ctx context.Context, in *ResourceIDInput) (*getTraitOutput, error) {
-		id, _, err := parseResource(ctx, in, collect.TraitSpec())
+		id, q, err := parseResource(ctx, in, collect.TraitSpec())
 		if err != nil {
 			return nil, err
 		}
-		rec, gerr := cat.GetTrait(ctx, id)
+		rec, gerr := cat.GetTrait(ctx, id, q.NSFW, q.Include)
 		if gerr != nil {
 			return nil, catalogErr(ctx, gerr)
 		}

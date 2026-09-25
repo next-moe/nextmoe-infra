@@ -1504,3 +1504,70 @@ to use did not exist. It lands now unchanged in behaviour, rebased onto
 (117). oasdiff reports no breaking change.
 
 **Zero migrations.**
+
+## Wave — trait vocabulary, sexual-family gate, character-list additions (2026-09-25)
+
+The kungal forum is building a character library and a per-trait page: browse
+by trait, drill into children, walk the tree by group, and a typeahead that
+shows where a trait sits. `/v2/catalog/characters?trait_id=` already existed;
+this wave makes the vocabulary usable and adds three things to the character
+list.
+
+**Sexual family.** `catalog_character_trait.sexual_family` is true when the
+trait is sexual itself or any ancestor through
+`catalog_character_trait_parent` is. Three upstream rows sit under a sexual
+parent or group with `sexual=false` (Off-screen Rape 2195, Off-screen Sex
+Only 2417, Naked in Front of an Audience 1551) and leaked into SFW responses
+when the gate read `sexual`. The published `is_sexual` on the trait object,
+the character_trait block, and the search hit is this family flag. Every
+read gate on a trait's sexuality uses `sexual_family`. The upstream `sexual`
+column stays the VNDB value; the chartraits job still diff-syncs it, then
+recomputes `sexual_family` after the parent edges land.
+
+Without `nsfw=true`, sexual-family traits are excluded from
+`GET /v2/catalog/traits` (and land in `missing[]` on the `ids=` batch);
+`GET /v2/catalog/traits/{id}` answers 404; `parent_id=` / `group_id=` naming
+one is 400 `NOT_ALLOWED_VALUE`. Search `object=trait` excludes those
+documents in the engine query so `total` and paging agree.
+
+**Trait representation** is identical on the list (including `ids=`) and the
+detail. New always-on fields: `localized`; the root group as `group_id`,
+`group` and `group_localized` (null, null, `{}` for a root); `parents` (direct
+parents as trait refs by id, empty for a root),
+`child_count` (direct children visible under this request's nsfw gate),
+`root_order` (`gorder` on a root, null otherwise), `is_searchable`,
+`is_applicable`. Opt-in: `include=aliases` (newline-split, trimmed,
+de-duplicated) and `include=description` (VNDB markup stripped to plain
+text). `view=full` is both. List filters: `parent_id=`, `group_id=`,
+`root=true|false`, all conjunctive, same predicate on the page and `total`.
+Trait search hits carry `trait_path` `{group_id, group, group_localized,
+parents}`; other families carry `trait_path: null`.
+
+The root group is flat on purpose. The first cut published `group` as a trait
+ref object, but `character_trait.group` has been the group's name string since
+it shipped, and gate G8 (one property name, one type) refused the second type.
+The executor added a G8 exception to make it pass; the exception was reverted
+and the trait object took `character_trait`'s existing shape instead
+(`group` + `group_localized`), adding only `group_id`.
+
+**Character list.** `gender=` is the closed vocabulary `male,female,other`
+(OR within the parameter). When `trait_id=` is given, each item carries
+`matched_trait_ids`: the character's own spoiler-none links, under the
+request's sexual-family gate, that lie in the expanded filter set.
+`include=work_count` is the number of distinct works the character appears
+in under the same nsfw gate as `GET /v2/catalog/characters/{id}/appearances`
+(roster union voice credits, live works, r18 dropped unless `nsfw=true`).
+
+**Spec is 2.30.0.** Additive on the surface: new optional parameters on
+`listCatalogTraits` and `listCatalogCharacters`, new fields on `trait` /
+`character` / `search_result`, and `include=aliases,description` on traits.
+Behaviour changes: `is_sexual` now reports the family flag, and sexual-family
+traits leave the vocabulary without `nsfw=true` (list exclusion / missing[] /
+detail 404). No new operation (117).
+
+The catalog migration adds `catalog_character_trait.sexual_family boolean
+NOT NULL DEFAULT false` via AutoMigrate and backfills it with the idempotent
+family statement on `kun_catalog`. The `migrate-catalog` deploy job runs it.
+The chartraits job recomputes the column after it syncs parent edges, so a
+nightly dump that moves a trait under a sexual parent is reflected without
+waiting for the next migrate.

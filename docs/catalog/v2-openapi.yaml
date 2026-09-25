@@ -446,6 +446,11 @@ components:
             $ref: "#/components/schemas/LocalizedText"
           description: BCP-47 keys. Empty object if none. Must not be used as a discriminant.
           type: object
+        matched_trait_ids:
+          description: "Present only when trait_id= is given: this character's own traits that satisfied it, which may be descendants of the requested ones."
+          items:
+            type: string
+          type: array
         measurements:
           $ref: "#/components/schemas/Measurements"
           description: Present on view=full. null if unrecorded.
@@ -467,6 +472,11 @@ components:
           type: array
         weight_kg:
           description: Present on view=full. null if unrecorded.
+          format: int64
+          minimum: 0
+          type: integer
+        work_count:
+          description: "Present when include=work_count. Distinct works this character appears in: the number of items GET /v2/catalog/characters/{id}/appearances lists under the same nsfw."
           format: int64
           minimum: 0
           type: integer
@@ -7003,6 +7013,11 @@ components:
             - string
             - "null"
           x-vocabulary-closed: true
+        trait_path:
+          anyOf:
+            - $ref: "#/components/schemas/TraitPath"
+            - type: "null"
+          description: Set on trait hits. null otherwise.
       required:
         - object
         - target_object
@@ -7015,6 +7030,7 @@ components:
         - tier
         - tag_kind
         - is_sexual
+        - trait_path
       type: object
     Series:
       additionalProperties: true
@@ -7390,19 +7406,62 @@ components:
           format: uri
           readOnly: true
           type: string
+        aliases:
+          description: Present when include=aliases. Newline-split, trimmed, de-duplicated. Empty array if none.
+          items:
+            type: string
+          type: array
+        child_count:
+          description: Direct children visible under this request's nsfw gate.
+          format: int64
+          minimum: 0
+          type: integer
+        description:
+          description: Present when include=description. Plain text with VNDB markup stripped. Empty if unrecorded. Must not be used as a discriminant.
+          maxLength: 8000
+          type: string
         display_name:
           description: Must not be used as a discriminant.
           maxLength: 512
           type: string
+        group:
+          description: Root trait group name. null for a root trait. Must not be used as a discriminant.
+          maxLength: 512
+          type:
+            - string
+            - "null"
+        group_id:
+          description: Catalog trait id of the root group. null for a root trait.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type:
+            - string
+            - "null"
+        group_localized:
+          additionalProperties:
+            $ref: "#/components/schemas/LocalizedText"
+          description: Localized names of the root group, BCP-47 keys. Empty object if none. Must not be used as a discriminant.
+          type: object
         id:
           description: Catalog trait id.
           maxLength: 20
           minLength: 1
           pattern: ^[0-9]+$
           type: string
+        is_applicable:
+          description: Whether this trait is applicable to a character.
+          type: boolean
+        is_searchable:
+          description: Whether this trait is searchable.
+          type: boolean
         is_sexual:
           description: Whether this trait is in the sexual family.
           type: boolean
+        localized:
+          additionalProperties:
+            $ref: "#/components/schemas/LocalizedText"
+          description: BCP-47 keys. Empty object if none. Must not be used as a discriminant.
+          type: object
         name_zh:
           description: Must not be used as a discriminant. Empty if unrecorded.
           maxLength: 512
@@ -7413,6 +7472,18 @@ components:
             - trait
           type: string
           x-vocabulary-closed: true
+        parents:
+          description: Direct parents, ordered by id. Empty array for a root. Never null.
+          items:
+            $ref: "#/components/schemas/TraitRef"
+          type: array
+        root_order:
+          description: gorder for a root trait (1-11). null for every non-root.
+          format: int64
+          minimum: 1
+          type:
+            - integer
+            - "null"
         vndb_tid:
           description: Upstream VNDB trait id. Must not be used as a discriminant.
           maxLength: 32
@@ -7424,6 +7495,77 @@ components:
         - name_zh
         - vndb_tid
         - is_sexual
+        - localized
+        - group_id
+        - group
+        - group_localized
+        - parents
+        - child_count
+        - root_order
+        - is_searchable
+        - is_applicable
+      type: object
+    TraitPath:
+      additionalProperties: true
+      properties:
+        group:
+          description: Root trait group name. null for a root trait. Must not be used as a discriminant.
+          maxLength: 512
+          type:
+            - string
+            - "null"
+        group_id:
+          description: Catalog trait id of the root group. null for a root trait.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type:
+            - string
+            - "null"
+        group_localized:
+          additionalProperties:
+            $ref: "#/components/schemas/LocalizedText"
+          description: Localized names of the root group, BCP-47 keys. Empty object if none. Must not be used as a discriminant.
+          type: object
+        parents:
+          description: Direct parents, ordered by id. Empty array for a root. Never null.
+          items:
+            $ref: "#/components/schemas/TraitRef"
+          type: array
+      required:
+        - group_id
+        - group
+        - group_localized
+        - parents
+      type: object
+    TraitRef:
+      additionalProperties: true
+      properties:
+        display_name:
+          description: Must not be used as a discriminant.
+          maxLength: 512
+          type: string
+        id:
+          description: Catalog trait id.
+          maxLength: 20
+          minLength: 1
+          pattern: ^[0-9]+$
+          type: string
+        localized:
+          additionalProperties:
+            $ref: "#/components/schemas/LocalizedText"
+          description: BCP-47 keys. Empty object if none. Must not be used as a discriminant.
+          type: object
+        object:
+          description: Type discriminant. Always trait.
+          enum:
+            - trait
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - id
+        - display_name
+        - localized
       type: object
     UserFolder:
       additionalProperties: true
@@ -8457,7 +8599,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.29.0
+  version: 2.30.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -8820,7 +8962,7 @@ paths:
         - catalog
   /v2/catalog/characters:
     get:
-      description: Keyset-paginated characters. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs fills on every lane, and view=full is all of them; traits are cut at the default spoiler ceiling and follow the nsfw gate, exactly as on the detail face. trait_id= filters by trait (descendants included, max 10), combined by trait_match=all|any; a character matches under the same spoiler and nsfw gates as its traits block.
+      description: "Keyset-paginated characters. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs,work_count fills on every lane, and view=full is all of them; traits are cut at the default spoiler ceiling and follow the nsfw gate, exactly as on the detail face. trait_id= filters by trait (descendants included, max 10), combined by trait_match=all|any; a character matches under the same spoiler and nsfw gates as its traits block. When trait_id= is given, each item carries matched_trait_ids: this character's own traits that satisfied the filter. gender= filters by the closed vocabulary male,female,other. include=work_count is the number of distinct works the character appears in under the same nsfw gate as /v2/catalog/characters/{id}/appearances."
       operationId: listCatalogCharacters
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -8926,6 +9068,14 @@ paths:
           schema:
             description: "Closed: all (default), any. No effect without trait_id."
             maxLength: 8
+            type: string
+        - description: "Comma-separated closed vocabulary: male, female, other. OR within the parameter. Unknown token is 400."
+          explode: false
+          in: query
+          name: gender
+          schema:
+            description: "Comma-separated closed vocabulary: male, female, other. OR within the parameter. Unknown token is 400."
+            maxLength: 32
             type: string
       responses:
         "200":
@@ -12009,7 +12159,7 @@ paths:
         - catalog
   /v2/catalog/search:
     get:
-      description: Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Requires an application key or a user access token with catalog:read. cursor= pages the hits. ids= is not accepted. page= selects page mode (see the page parameter); every other collection is cursor-only.
+      description: Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Requires an application key or a user access token with catalog:read. cursor= pages the hits. ids= is not accepted. page= selects page mode (see the page parameter); every other collection is cursor-only. object=trait hits carry trait_path (group and direct parents). Without nsfw=true, sexual-family trait documents are excluded from the result and from total.
       operationId: searchCatalog
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -12759,7 +12909,7 @@ paths:
         - catalog
   /v2/catalog/traits:
     get:
-      description: "Keyset-paginated character traits. Requires an application key or a user access token with catalog:read. ids= is a batch lane. refs= is not resolved: traits have no catalog_external_ref entity_type."
+      description: "Keyset-paginated character traits. Requires an application key or a user access token with catalog:read. ids= is a batch lane. refs= is not resolved: traits have no catalog_external_ref entity_type. parent_id= lists direct children; group_id= lists traits in that root group (the root excluded); root=true|false keeps only roots or only non-roots. Filters are conjunctive. Without nsfw=true, sexual-family traits are excluded from the list and land in missing[] on the ids= batch; naming one as parent_id or group_id is 400. include=aliases,description (and view=full) add those blocks. is_sexual reports the sexual-family flag."
       operationId: listCatalogTraits
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -12850,6 +13000,30 @@ paths:
             description: true includes r18. false or absent hides r18. Only true or false.
             maxLength: 8
             type: string
+        - description: Catalog trait id. Direct children of this trait only. Naming a sexual-family trait without nsfw=true is 400.
+          explode: false
+          in: query
+          name: parent_id
+          schema:
+            description: Catalog trait id. Direct children of this trait only. Naming a sexual-family trait without nsfw=true is 400.
+            maxLength: 20
+            type: string
+        - description: Catalog trait id of a root group. Traits in that group, excluding the root itself. Naming a sexual-family trait without nsfw=true is 400.
+          explode: false
+          in: query
+          name: group_id
+          schema:
+            description: Catalog trait id of a root group. Traits in that group, excluding the root itself. Naming a sexual-family trait without nsfw=true is 400.
+            maxLength: 20
+            type: string
+        - description: "true: only root traits. false: only non-root traits. Only true or false."
+          explode: false
+          in: query
+          name: root
+          schema:
+            description: "true: only root traits. false: only non-root traits. Only true or false."
+            maxLength: 8
+            type: string
       responses:
         "200":
           content:
@@ -12909,7 +13083,7 @@ paths:
         - catalog
   /v2/catalog/traits/{id}:
     get:
-      description: A character-trait vocabulary row. Requires an application key or a user access token with catalog:read.
+      description: A character-trait vocabulary row. Without nsfw=true a sexual-family trait is 404 NOT_FOUND. include=aliases,description (and view=full) add those blocks. is_sexual reports the sexual-family flag. Requires an application key or a user access token with catalog:read.
       operationId: getCatalogTrait
       parameters:
         - description: Decimal catalog id.

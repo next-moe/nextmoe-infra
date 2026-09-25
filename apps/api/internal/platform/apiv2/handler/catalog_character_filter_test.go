@@ -28,6 +28,18 @@ func TestParseCharacterFilter(t *testing.T) {
 			want: characterFilter{TraitIDs: []int64{1}, MatchAny: true},
 		},
 		{
+			name: "gender list",
+			in:   &listCharactersInput{Gender: "female,male,female"},
+			want: characterFilter{Genders: []int16{2, 1}},
+		},
+		{
+			name:    "gender bogus",
+			in:      &listCharactersInput{Gender: "bogus"},
+			code:    problem.CodeUnknownEnumValue,
+			param:   "gender",
+			allowed: []string{"male", "female", "other"},
+		},
+		{
 			name:    "bogus match",
 			in:      &listCharactersInput{TraitMatch: "bogus"},
 			code:    problem.CodeUnknownEnumValue,
@@ -71,7 +83,7 @@ func TestParseCharacterFilter(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !slices.Equal(got.TraitIDs, tc.want.TraitIDs) || got.MatchAny != tc.want.MatchAny {
+			if !slices.Equal(got.TraitIDs, tc.want.TraitIDs) || got.MatchAny != tc.want.MatchAny || !slices.Equal(got.Genders, tc.want.Genders) {
 				t.Fatalf("got %+v want %+v", got, tc.want)
 			}
 		})

@@ -50,26 +50,28 @@ type CreditName struct {
 }
 
 type Character struct {
-	_            struct{}                 `json:"-" additionalProperties:"true"`
-	Object       string                   `json:"object" enum:"character" doc:"Type discriminant. Always character."`
-	ID           string                   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog character id."`
-	DisplayName  string                   `json:"display_name" maxLength:"512" doc:"Must not be used as a discriminant."`
-	Latin        *string                  `json:"latin" maxLength:"512" doc:"null if unrecorded. Must not be used as a discriminant."`
-	Lang         *string                  `json:"lang" maxLength:"32" format:"bcp47" doc:"BCP-47 language tag of display_name. null if unrecorded. Must not be used as a discriminant."`
-	Localized    map[string]LocalizedText `json:"localized" doc:"BCP-47 keys. Empty object if none. Must not be used as a discriminant."`
-	Gender       *string                  `json:"gender,omitempty" enum:"male,female,other" doc:"Present on view=full. null if unrecorded."`
-	Birthday     *string                  `json:"birthday,omitempty" pattern:"^[0-1][0-9]-[0-3][0-9]$" maxLength:"5" doc:"MM-DD. Present on view=full. null if unrecorded. Not a date: there is no year."`
-	HeightCm     *int                     `json:"height_cm,omitempty" minimum:"0" doc:"Present on view=full. null if unrecorded."`
-	WeightKg     *int                     `json:"weight_kg,omitempty" minimum:"0" doc:"Present on view=full. null if unrecorded."`
-	Measurements *Measurements            `json:"measurements,omitempty" doc:"Present on view=full. null if unrecorded."`
-	BloodType    *string                  `json:"blood_type,omitempty" enum:"a,b,ab,o" doc:"Present on view=full. null if unrecorded."`
-	InstanceOfID *string                  `json:"instance_of_id,omitempty" pattern:"^[0-9]+$" maxLength:"20" doc:"Another character this row is an instance of. Present on view=full. null if none."`
-	Image        *Image                   `json:"image,omitempty" doc:"Present only when include=image and this character has an image; absent otherwise."`
-	Figure       *Image                   `json:"figure,omitempty" doc:"Present only when include=figure and this character has a full-body figure cutout; absent otherwise."`
-	Traits       *[]CharacterTrait        `json:"traits,omitempty" doc:"Present when include=traits. Empty array if none."`
-	Aliases      *[]EntityName            `json:"aliases,omitempty" doc:"Alternate spellings of THIS character name. Present when include=aliases. Empty array if none."`
-	Intros       *[]Intro                 `json:"intros,omitempty" doc:"Character descriptions, one per language. Present when include=intros. Empty array if none."`
-	Refs         *[]Ref                   `json:"refs,omitempty" doc:"Exact upstream anchors of this character. Present when include=refs. Empty array if none."`
+	_               struct{}                 `json:"-" additionalProperties:"true"`
+	Object          string                   `json:"object" enum:"character" doc:"Type discriminant. Always character."`
+	ID              string                   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog character id."`
+	DisplayName     string                   `json:"display_name" maxLength:"512" doc:"Must not be used as a discriminant."`
+	Latin           *string                  `json:"latin" maxLength:"512" doc:"null if unrecorded. Must not be used as a discriminant."`
+	Lang            *string                  `json:"lang" maxLength:"32" format:"bcp47" doc:"BCP-47 language tag of display_name. null if unrecorded. Must not be used as a discriminant."`
+	Localized       map[string]LocalizedText `json:"localized" doc:"BCP-47 keys. Empty object if none. Must not be used as a discriminant."`
+	Gender          *string                  `json:"gender,omitempty" enum:"male,female,other" doc:"Present on view=full. null if unrecorded."`
+	Birthday        *string                  `json:"birthday,omitempty" pattern:"^[0-1][0-9]-[0-3][0-9]$" maxLength:"5" doc:"MM-DD. Present on view=full. null if unrecorded. Not a date: there is no year."`
+	HeightCm        *int                     `json:"height_cm,omitempty" minimum:"0" doc:"Present on view=full. null if unrecorded."`
+	WeightKg        *int                     `json:"weight_kg,omitempty" minimum:"0" doc:"Present on view=full. null if unrecorded."`
+	Measurements    *Measurements            `json:"measurements,omitempty" doc:"Present on view=full. null if unrecorded."`
+	BloodType       *string                  `json:"blood_type,omitempty" enum:"a,b,ab,o" doc:"Present on view=full. null if unrecorded."`
+	InstanceOfID    *string                  `json:"instance_of_id,omitempty" pattern:"^[0-9]+$" maxLength:"20" doc:"Another character this row is an instance of. Present on view=full. null if none."`
+	Image           *Image                   `json:"image,omitempty" doc:"Present only when include=image and this character has an image; absent otherwise."`
+	Figure          *Image                   `json:"figure,omitempty" doc:"Present only when include=figure and this character has a full-body figure cutout; absent otherwise."`
+	Traits          *[]CharacterTrait        `json:"traits,omitempty" doc:"Present when include=traits. Empty array if none."`
+	Aliases         *[]EntityName            `json:"aliases,omitempty" doc:"Alternate spellings of THIS character name. Present when include=aliases. Empty array if none."`
+	Intros          *[]Intro                 `json:"intros,omitempty" doc:"Character descriptions, one per language. Present when include=intros. Empty array if none."`
+	Refs            *[]Ref                   `json:"refs,omitempty" doc:"Exact upstream anchors of this character. Present when include=refs. Empty array if none."`
+	MatchedTraitIDs *[]string                `json:"matched_trait_ids,omitempty" doc:"Present only when trait_id= is given: this character's own traits that satisfied it, which may be descendants of the requested ones."`
+	WorkCount       *int                     `json:"work_count,omitempty" minimum:"0" doc:"Present when include=work_count. Distinct works this character appears in: the number of items GET /v2/catalog/characters/{id}/appearances lists under the same nsfw."`
 }
 
 type CharacterTrait struct {
@@ -103,13 +105,32 @@ type Person struct {
 }
 
 type Trait struct {
-	_           struct{} `json:"-" additionalProperties:"true"`
-	Object      string   `json:"object" enum:"trait" doc:"Type discriminant. Always trait."`
-	ID          string   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog trait id."`
-	DisplayName string   `json:"display_name" maxLength:"512" doc:"Must not be used as a discriminant."`
-	NameZh      string   `json:"name_zh" maxLength:"512" doc:"Must not be used as a discriminant. Empty if unrecorded."`
-	VndbTID     string   `json:"vndb_tid" maxLength:"32" doc:"Upstream VNDB trait id. Must not be used as a discriminant."`
-	IsSexual    bool     `json:"is_sexual" doc:"Whether this trait is in the sexual family."`
+	_              struct{}                 `json:"-" additionalProperties:"true"`
+	Object         string                   `json:"object" enum:"trait" doc:"Type discriminant. Always trait."`
+	ID             string                   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog trait id."`
+	DisplayName    string                   `json:"display_name" maxLength:"512" doc:"Must not be used as a discriminant."`
+	NameZh         string                   `json:"name_zh" maxLength:"512" doc:"Must not be used as a discriminant. Empty if unrecorded."`
+	VndbTID        string                   `json:"vndb_tid" maxLength:"32" doc:"Upstream VNDB trait id. Must not be used as a discriminant."`
+	IsSexual       bool                     `json:"is_sexual" doc:"Whether this trait is in the sexual family."`
+	Localized      map[string]LocalizedText `json:"localized" doc:"BCP-47 keys. Empty object if none. Must not be used as a discriminant."`
+	GroupID        *string                  `json:"group_id" pattern:"^[0-9]+$" maxLength:"20" doc:"Catalog trait id of the root group. null for a root trait."`
+	Group          *string                  `json:"group" maxLength:"512" doc:"Root trait group name. null for a root trait. Must not be used as a discriminant."`
+	GroupLocalized map[string]LocalizedText `json:"group_localized" doc:"Localized names of the root group, BCP-47 keys. Empty object if none. Must not be used as a discriminant."`
+	Parents        []TraitRef               `json:"parents" doc:"Direct parents, ordered by id. Empty array for a root. Never null."`
+	ChildCount     int                      `json:"child_count" minimum:"0" doc:"Direct children visible under this request's nsfw gate."`
+	RootOrder      *int                     `json:"root_order" minimum:"1" doc:"gorder for a root trait (1-11). null for every non-root."`
+	IsSearchable   bool                     `json:"is_searchable" doc:"Whether this trait is searchable."`
+	IsApplicable   bool                     `json:"is_applicable" doc:"Whether this trait is applicable to a character."`
+	Aliases        *[]string                `json:"aliases,omitempty" doc:"Present when include=aliases. Newline-split, trimmed, de-duplicated. Empty array if none."`
+	Description    *string                  `json:"description,omitempty" maxLength:"8000" doc:"Present when include=description. Plain text with VNDB markup stripped. Empty if unrecorded. Must not be used as a discriminant."`
+}
+
+type TraitRef struct {
+	_           struct{}                 `json:"-" additionalProperties:"true"`
+	Object      string                   `json:"object" enum:"trait" doc:"Type discriminant. Always trait."`
+	ID          string                   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog trait id."`
+	DisplayName string                   `json:"display_name" maxLength:"512" doc:"Must not be used as a discriminant."`
+	Localized   map[string]LocalizedText `json:"localized" doc:"BCP-47 keys. Empty object if none. Must not be used as a discriminant."`
 }
 
 type NameCredit struct {

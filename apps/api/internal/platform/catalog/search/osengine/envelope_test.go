@@ -167,6 +167,18 @@ func TestWorksSearchBodySortLanes(t *testing.T) {
 	}), canonJSON(t, relevance["sort"]))
 }
 
+func TestEntitySearchBodySexualNot(t *testing.T) {
+	body, drop := entitySearchBody(spec.EntityQuery{Limit: 10, SexualNot: boolptr(true)})
+	require.False(t, drop)
+	bq := body["query"].(map[string]any)["bool"].(map[string]any)
+	require.NotNil(t, bq["filter"])
+	require.Equal(t, canonJSON(t, []any{mustNotTerm("sexual", true)}), canonJSON(t, bq["filter"]))
+
+	plain, _ := entitySearchBody(spec.EntityQuery{Limit: 10})
+	_, hasBool := plain["query"].(map[string]any)["bool"]
+	require.False(t, hasBool, "no sexual filter when SexualNot is unset: %v", plain["query"])
+}
+
 func TestEntitySearchBodyPagination(t *testing.T) {
 	page2, drop := entitySearchBody(spec.EntityQuery{Page: 2, Limit: 10})
 	require.False(t, drop)
