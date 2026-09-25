@@ -200,3 +200,31 @@ func TestApplyDescCSVCountsAndDryRun(t *testing.T) {
 	assert.Equal(t, 2, c2.Same)
 	assert.Equal(t, 0, c2.Write)
 }
+
+type echoDescTranslator struct{ out string }
+
+func (e echoDescTranslator) Translate(context.Context, string, string, []glossPair) (string, error) {
+	return e.out, nil
+}
+
+func (echoDescTranslator) Configured() bool { return true }
+
+func TestMTDescResolvesBareTraitRefsInTheCSV(t *testing.T) {
+	seedDescTraits(t, []descSeed{
+		{TID: "i43", Name: "Engages in (Sexual)", NameZh: "主动(性)", Desc: "root"},
+		{TID: "i568", Name: "Anal Sex", NameZh: "肛交", GroupTID: "i43", Desc: "Penetrating partner."},
+		{TID: "i709", Name: "Anal Sex", NameZh: "肛交", GroupTID: "i43", Desc: "Receiving partner; use i568 on the other."},
+	})
+	out := filepath.Join(t.TempDir(), "desc.csv")
+	tr := echoDescTranslator{out: "接受方使用此特征，插入方使用 i568。"}
+	require.NoError(t, runMTDesc(context.Background(), testDB, tr, out, 0, 0, nil))
+	rows, err := readDescCSV(out)
+	require.NoError(t, err)
+	var got string
+	for _, r := range rows {
+		if r.VndbTID == "i709" {
+			got = r.DescriptionZh
+		}
+	}
+	assert.Equal(t, "接受方使用此特征，插入方使用「肛交」（主动(性)）。", got)
+}

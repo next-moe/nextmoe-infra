@@ -1689,3 +1689,10 @@ Dress, Earrings: the encyclopedic paragraph and `Example:` lines gone), and a
 stricter completeness rule alone still missed one in thirteen. An answer with
 fewer non-empty lines than the source is now asked again with thinking on,
 which restored every sampled row.
+
+**Bare trait ids.** 82 English descriptions name another trait as a bare
+`iNNN` in running text ("use i568 on the penetrating partner"), outside any
+`[url]` tag, and the model copies the id through. `--mt-desc` now replaces
+each such id in the answer with the curated name, `「肛交」`, adding the root
+group, `「肛交」（主动(性)）`, when the named trait shares this trait's name,
+as every engages/subject pair does. Unknown ids are left as they are.
