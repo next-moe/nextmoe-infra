@@ -177,7 +177,8 @@ func rawSQL(db *gorm.DB) error {
 			    ON community_anchor_user(anchor_kind, anchor_id, site)`},
 		// One unread folded row per (site, user, fold_key). Marking it read
 		// drops it out so the next activity starts a new row; a NULL fold_key
-		// (replied / mentioned / thread_created / answer_accepted) never folds.
+		// (replied / mentioned / thread_created / answer_accepted /
+		// followee_thread_created) never folds.
 		{"uq_community_notification_fold", `
 			CREATE UNIQUE INDEX IF NOT EXISTS uq_community_notification_fold
 			    ON community_notification(site, user_id, fold_key)

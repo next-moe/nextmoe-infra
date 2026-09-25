@@ -28,6 +28,27 @@ func DeleteFollow(db *gorm.DB, followerID, followeeID int64) (bool, error) {
 	return res.RowsAffected > 0, res.Error
 }
 
+func GetFollowTx(tx *gorm.DB, followerID, followeeID int64) (*model.CommunityUserFollow, error) {
+	var row model.CommunityUserFollow
+	err := tx.Where("follower_id = ? AND followee_id = ?", followerID, followeeID).
+		Take(&row).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &row, nil
+}
+
+func ListFollowerIDsTx(tx *gorm.DB, followeeID int64) ([]int64, error) {
+	var ids []int64
+	err := tx.Model(&model.CommunityUserFollow{}).
+		Where("followee_id = ?", followeeID).
+		Pluck("follower_id", &ids).Error
+	return ids, err
+}
+
 func ListFollowers(db *gorm.DB, userID, beforeID int64, limit int) ([]model.CommunityUserFollow, error) {
 	q := db.Model(&model.CommunityUserFollow{}).Where("followee_id = ?", userID)
 	if beforeID > 0 {

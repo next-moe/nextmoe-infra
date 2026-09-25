@@ -71,16 +71,19 @@ const (
 	EventKindPostLiked             int16 = 2
 	EventKindFeedbackStatusChanged int16 = 3
 	EventKindAnswerAccepted        int16 = 4
+	EventKindUserFollowed          int16 = 5
 )
 
 const (
-	NotificationKindReplied        int16 = 1
-	NotificationKindMentioned      int16 = 2
-	NotificationKindPosted         int16 = 3
-	NotificationKindThreadCreated  int16 = 4
-	NotificationKindLiked          int16 = 5
-	NotificationKindAnswerAccepted int16 = 6
-	NotificationKindFeedbackStatus int16 = 7
+	NotificationKindReplied               int16 = 1
+	NotificationKindMentioned             int16 = 2
+	NotificationKindPosted                int16 = 3
+	NotificationKindThreadCreated         int16 = 4
+	NotificationKindLiked                 int16 = 5
+	NotificationKindAnswerAccepted        int16 = 6
+	NotificationKindFeedbackStatus        int16 = 7
+	NotificationKindFollowed              int16 = 8
+	NotificationKindFolloweeThreadCreated int16 = 9
 )
 
 const (

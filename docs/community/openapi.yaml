@@ -1526,7 +1526,7 @@ components:
           format: int64
           type: integer
         kind:
-          description: 1=replied 2=mentioned 3=posted 4=thread_created 5=liked 6=answer_accepted 7=feedback_status
+          description: 1=replied 2=mentioned 3=posted 4=thread_created 5=liked 6=answer_accepted 7=feedback_status 8=followed 9=followee_thread_created; kind 8 names no thread (thread_id 0, empty anchor)
           format: int32
           type: integer
         post_id:

@@ -20,8 +20,10 @@ type notifyCandidate struct {
 func kindPriority(kind int16) int {
 	switch kind {
 	case model.NotificationKindReplied:
-		return 4
+		return 5
 	case model.NotificationKindMentioned:
+		return 4
+	case model.NotificationKindFolloweeThreadCreated:
 		return 3
 	case model.NotificationKindThreadCreated:
 		return 2
@@ -129,6 +131,15 @@ func recipientsForEvent(tx *gorm.DB, ev *model.CommunityEvent, thread *model.Com
 				continue
 			}
 			add(notifyCandidate{site: au.Site, userID: au.UserID, kind: k, fromAnchor: true})
+		}
+		if post != nil && post.PostNumber == 1 && thread.Kind == model.ThreadKindTopic {
+			followerIDs, err := repository.ListFollowerIDsTx(tx, post.AuthorID)
+			if err != nil {
+				return nil, err
+			}
+			for _, uid := range followerIDs {
+				add(notifyCandidate{site: deliveryFor(uid), userID: uid, kind: model.NotificationKindFolloweeThreadCreated})
+			}
 		}
 	case model.EventKindPostLiked:
 		if post != nil {

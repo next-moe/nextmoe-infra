@@ -512,14 +512,14 @@ are computed at read time from indexes.
 - `GET /users/{id}/following` — who this user follows, newest first
 - `POST /follows/states` — batch follower/following counts and the viewer's relation to up to 100 users
 
-`followed_at` is null when the follow was imported from a site that never recorded when it was made. A user may follow at most 5,000 others (`422 following limit reached (max 5000)`). List pages are a keyset: `cursor` is the last row's id as a decimal string; empty means the last page.
+`followed_at` is null when the follow was imported from a site that never recorded when it was made. A user may follow at most 5,000 others (`422 following limit reached (max 5000)`). List pages are a keyset: `cursor` is the last row's id as a decimal string; empty means the last page. A new follow notifies the followee as kind 8 (`followed`); opening a topic notifies that author's followers as kind 9 (`followee_thread_created`) — see Notifications.
 
 ### Notifications
 
 Writes that should notify someone (`post_created`, `post_liked`,
-`feedback_status_changed`, `answer_accepted`) insert a `community_event` row
-**in the same transaction** as the write. A crash after commit cannot lose the
-event; the in-memory sink is not the notification path.
+`feedback_status_changed`, `answer_accepted`, `user_followed`) insert a
+`community_event` row **in the same transaction** as the write. A crash after
+commit cannot lose the event; the in-memory sink is not the notification path.
 
 A single dispatcher (`NotificationService.Run`) claims a transaction-level
 advisory lock, then processes up to 50 pending events with `FOR UPDATE SKIP
@@ -529,10 +529,11 @@ and on every fold update. One writer is what makes `seq` equal commit order, so
 a feed reader never skips a row. Marking a row read does **not** move `seq`.
 
 Recipients of one event are keyed by `(delivery site, user)` and keep the
-highest-priority kind per key: `replied` > `mentioned` > `thread_created` >
-`posted`. Delivery site is the anchor row's `site` when the source is an
-anchor subscription; otherwise `COALESCE(thread_row.site, thread.site)` when
-the user has a thread row, else the event's `site`. Then:
+highest-priority kind per key: `replied` > `mentioned` >
+`followee_thread_created` > `thread_created` > `posted`. Delivery site is the
+anchor row's `site` when the source is an anchor subscription; otherwise
+`COALESCE(thread_row.site, thread.site)` when the user has a thread row, else
+the event's `site`. Then:
 
 1. Drop the event's actor.
 2. Drop anyone whose **effective level** on the thread (for that delivery
@@ -545,7 +546,9 @@ id (`mentioned`), watching thread rows (`posted` when the post is not the
 first), and matching anchor rows: `watching` is `thread_created` on the first
 post of a non-comments thread and `posted` otherwise; `watching first post` is
 `thread_created` only on that first non-comments post (a comment wall's first
-comment is not a new thread). A like notifies the post's author (`liked`). A
+comment is not a new thread). The first post of a **topic** (not feedback, not
+a comment wall) also notifies every follower of the author
+(`followee_thread_created`). A like notifies the post's author (`liked`). A
 feedback status change notifies the thread creator (while they still have a
 thread row — a purge removes it) and watching thread rows
 (`feedback_status`); a call that leaves the status and the response as they
@@ -556,10 +559,11 @@ nothing, and an answer replaced before its event is dispatched is dropped.
 A held (hidden) post with a pending review item is **parked** and retried with
 backoff `min(2^attempts minutes, 60 minutes)`. Approve it and the next attempt
 delivers; reject it and the next attempt drops. A missing / hidden / deleted
-thread, a missing or deleted post, a hidden post with no pending review, or a
-like that has already been undone is dropped.
+thread, a missing or deleted post, a hidden post with no pending review, a
+like that has already been undone, or a follow that has been undone (or whose
+target a purge forgot, or that was re-imported without a time) is dropped.
 
-The seven kinds and their folds:
+The kinds and their folds:
 
 | kind | fold key | counts |
 |---|---|---|
@@ -570,17 +574,27 @@ The seven kinds and their folds:
 | `5` liked | `like:<post_id>` | `item_count` = `actor_count` = like reactions on the post with `created_at >= since_at` (the earliest like folded in) not by the recipient |
 | `6` answer_accepted | none | one row per event |
 | `7` feedback_status | `fb:<thread_id>` | on conflict `item_count = item_count + 1` |
+| `8` followed | `followed` | `item_count` = `actor_count` = follows of the recipient made through this row's site since `since_at` that still stand |
+| `9` followee_thread_created | none | one row per event |
+
+Kind 8 names no thread: `thread_id` is 0, `anchor_kind` is 0, `anchor_id` is
+empty, and `post_id` / `post_number` / `first_post_number` are null. Those
+zero values are the contract. A feed consumer skips kinds it does not know.
+A follow is delivered to the site it was made through, and a kind-8 row counts
+only that site's follows, so the rows of two sites never count the same
+follower twice.
 
 A fold points at its latest post and actor. A parked post delivered after the
 posts that followed it widens the fold's range back to itself rather than
 moving that pointer.
 
 Reading a thread (`POST /threads/{id}/read`) marks that user's unread
-`replied` / `mentioned` / `posted` / `thread_created` rows for the thread
-(any site) whose `post_number` is at or before the clamped watermark. Posting
-in a thread does the same up to the new post, as it already moves the author's
-watermark there. That is what resets a fold: the next activity starts a new
-row. A fold's counts leave out the recipient's own posts.
+`replied` / `mentioned` / `posted` / `thread_created` /
+`followee_thread_created` rows for the thread (any site) whose `post_number`
+is at or before the clamped watermark. Posting in a thread does the same up to
+the new post, as it already moves the author's watermark there. That is what
+resets a fold: the next activity starts a new row. A fold's counts leave out
+the recipient's own posts.
 
 Two ways to consume:
 
@@ -684,8 +698,8 @@ Two follow-ups wait on the consuming sites rather than on this service: the
 retirement of `POST /comments/resolve` (a declared breaking change), and the
 one-off sweep of the empty comments threads it minted. The sweep is safe —
 nothing but `community_post`, `community_thread_user` and the notification
-tables (`community_event`, `community_notification`, both written only for a
-post or a feedback thread) references a thread, and none of the empty rows
+tables (`community_event`, `community_notification`, written for a post or a
+feedback thread, or with `thread_id` 0 for a follow) references a thread, and none of the empty rows
 carry any of them — but it has to run *after* the sites
 stop calling resolve, or the next page view mints them straight back.
 
@@ -704,3 +718,6 @@ it in:
   other than normal.
 - **Templates and App push** (doc 02 §6 tier 3). Trigger: a first-party app
   that is not a site BFF needs rendered copy or a device push.
+- **POST /activities** — site-owned content (a moyu patch, a letmoe resource)
+  notifying the author's followers. Trigger: a site that wants follow
+  notifications for content community does not hold.

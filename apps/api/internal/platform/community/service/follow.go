@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"api/internal/platform/community/model"
 	"api/internal/platform/community/repository"
@@ -45,6 +46,13 @@ func (s *FollowService) Follow(ctx context.Context, site string, followerID, fol
 		}
 		if n > followingLimit {
 			return &InvalidError{Reason: "following limit reached (max 5000)"}
+		}
+		if err := repository.EnqueueEventTx(tx, &model.CommunityEvent{
+			Site: site, Kind: model.EventKindUserFollowed,
+			ThreadID: 0, ActorID: followerID, TargetUserID: &followeeID,
+			AttemptAfter: time.Now(),
+		}); err != nil {
+			return err
 		}
 		inserted = true
 		return nil
