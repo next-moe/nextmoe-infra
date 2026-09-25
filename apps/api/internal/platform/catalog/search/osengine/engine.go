@@ -352,7 +352,8 @@ type osHit struct {
 }
 
 type osTermsAgg struct {
-	Buckets []osBucket `json:"buckets"`
+	Buckets          []osBucket `json:"buckets"`
+	SumOtherDocCount int64      `json:"sum_other_doc_count"`
 }
 
 type osBucket struct {

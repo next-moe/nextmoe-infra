@@ -2,7 +2,7 @@
   "catalog_characters": {
     "mappings": {
       "_meta": {
-        "schema_version": 1
+        "schema_version": 2
       },
       "dynamic": false,
       "properties": {
@@ -36,8 +36,20 @@
           ],
           "type": "text"
         },
+        "catalog_id": {
+          "type": "long"
+        },
         "entity_type": {
           "type": "keyword"
+        },
+        "gender": {
+          "type": "integer"
+        },
+        "trait_ids": {
+          "type": "long"
+        },
+        "trait_ids_sfw": {
+          "type": "long"
         },
         "id": {
           "type": "keyword"
@@ -268,7 +280,7 @@
   "catalog_engines": {
     "mappings": {
       "_meta": {
-        "schema_version": 1
+        "schema_version": 2
       },
       "dynamic": false,
       "properties": {
@@ -534,7 +546,7 @@
   "catalog_series": {
     "mappings": {
       "_meta": {
-        "schema_version": 1
+        "schema_version": 2
       },
       "dynamic": false,
       "properties": {
@@ -800,7 +812,7 @@
   "catalog_traits": {
     "mappings": {
       "_meta": {
-        "schema_version": 1
+        "schema_version": 2
       },
       "dynamic": false,
       "properties": {
@@ -1069,7 +1081,7 @@
   "catalog_credit_names": {
     "mappings": {
       "_meta": {
-        "schema_version": 1
+        "schema_version": 2
       },
       "dynamic": false,
       "properties": {
@@ -1338,7 +1350,7 @@
   "catalog_labels": {
     "mappings": {
       "_meta": {
-        "schema_version": 1
+        "schema_version": 2
       },
       "dynamic": false,
       "properties": {
@@ -1607,7 +1619,7 @@
   "catalog_tags": {
     "mappings": {
       "_meta": {
-        "schema_version": 1
+        "schema_version": 2
       },
       "dynamic": false,
       "properties": {
@@ -1879,7 +1891,7 @@
   "catalog_works": {
     "mappings": {
       "_meta": {
-        "schema_version": 1
+        "schema_version": 2
       },
       "dynamic": false,
       "properties": {

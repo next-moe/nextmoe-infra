@@ -19,6 +19,8 @@ type Engine interface {
 	Health(ctx context.Context) error
 	SearchEntities(ctx context.Context, uid string, q spec.EntityQuery) (SearchResult, error)
 	SearchWorks(ctx context.Context, q spec.WorksQuery) (WorksResult, error)
+	SearchCharacters(ctx context.Context, q spec.CharacterQuery) (CharactersResult, error)
+	CharacterTraitCounts(ctx context.Context, nsfw bool) (map[int64]int64, error)
 }
 
 type Indexer struct{ engine Engine }
@@ -61,6 +63,14 @@ func (i *Indexer) SearchEntities(ctx context.Context, uid string, q spec.EntityQ
 
 func (i *Indexer) SearchWorks(ctx context.Context, q spec.WorksQuery) (WorksResult, error) {
 	return i.engine.SearchWorks(ctx, q)
+}
+
+func (i *Indexer) SearchCharacters(ctx context.Context, q spec.CharacterQuery) (CharactersResult, error) {
+	return i.engine.SearchCharacters(ctx, q)
+}
+
+func (i *Indexer) CharacterTraitCounts(ctx context.Context, nsfw bool) (map[int64]int64, error) {
+	return i.engine.CharacterTraitCounts(ctx, nsfw)
 }
 
 type indexRecreator interface {

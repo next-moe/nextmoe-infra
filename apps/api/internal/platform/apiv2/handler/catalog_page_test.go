@@ -208,7 +208,7 @@ func TestSearchCursorModeUnchanged(t *testing.T) {
 	}
 }
 
-func TestPageDeclaredOnExactlyTwoOperations(t *testing.T) {
+func TestPageDeclaredOnPageModeOperations(t *testing.T) {
 	doc := Setup(fiber.New()).OpenAPI()
 	var ops []string
 	for _, item := range doc.Paths {
@@ -228,7 +228,8 @@ func TestPageDeclaredOnExactlyTwoOperations(t *testing.T) {
 		}
 	}
 	sort.Strings(ops)
-	if len(ops) != 2 || ops[0] != "listCatalogWorks" || ops[1] != "searchCatalog" {
-		t.Fatalf("page ops=%v want [listCatalogWorks searchCatalog]", ops)
+	want := []string{"listCatalogCharacters", "listCatalogWorks", "searchCatalog"}
+	if len(ops) != len(want) || ops[0] != want[0] || ops[1] != want[1] || ops[2] != want[2] {
+		t.Fatalf("page ops=%v want %v", ops, want)
 	}
 }

@@ -123,6 +123,7 @@ type Trait struct {
 	IsApplicable   bool                     `json:"is_applicable" doc:"Whether this trait is applicable to a character."`
 	Aliases        *[]string                `json:"aliases,omitempty" doc:"Present when include=aliases. Newline-split, trimmed, de-duplicated. Empty array if none."`
 	Description    *string                  `json:"description,omitempty" maxLength:"8000" doc:"Present when include=description. Plain text with VNDB markup stripped. Empty if unrecorded. Must not be used as a discriminant."`
+	CharacterCount *int                     `json:"character_count,omitempty" minimum:"0" doc:"Present when include=character_count. The total that GET /v2/catalog/characters?trait_id=<this id>&page=1 answers under this request's nsfw (descendants included, spoiler none), from the same nightly search index."`
 }
 
 type TraitRef struct {

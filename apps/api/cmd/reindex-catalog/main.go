@@ -14,6 +14,7 @@ import (
 	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 	catalogSearch "api/internal/platform/catalog/search"
+	"api/internal/platform/catalog/search/chardocs"
 	"api/pkg/config"
 	"api/pkg/logger"
 
@@ -84,9 +85,7 @@ func main() {
 		case catalogSearch.IndexCreditNames:
 			err = reindexCreditNames(ctx, db.DB(), idx, *batch)
 		case catalogSearch.IndexCharacters:
-			err = reindexEntity(ctx, db.DB(), idx, *batch, catalogSearch.IndexCharacters, "catalog_character", "c",
-				model.EntityTypeCharacter, "character_id", "character", "catalog_character_alias", "character_id",
-				editspec.NotSuppressedCharacterAliasSQL("a"))
+			err = reindexCharacters(ctx, db.DB(), idx, *batch)
 		case catalogSearch.IndexLabels:
 			err = reindexLabels(ctx, db.DB(), idx, *batch)
 		case catalogSearch.IndexWorks:
@@ -269,59 +268,6 @@ func reindexLabels(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer,
 	return nil
 }
 
-func reindexEntity(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, batch int, uid, table, prefix string, entityType int16, popCol, etype, aliasTable, aliasCol, aliasLive string) error {
-	pop, err := loadPopularity(db, popCol)
-	if err != nil {
-		return err
-	}
-	srcs, keys, err := loadSources(db, entityType)
-	if err != nil {
-		return err
-	}
-	aliases, err := loadAliasTable(db, aliasTable, aliasCol, aliasLive)
-	if err != nil {
-		return err
-	}
-	if err := purgeSoftDeleted(ctx, db, idx, uid, table, prefix); err != nil {
-		return err
-	}
-	processed, lastID := 0, int64(0)
-	for {
-		var rows []struct {
-			ID    int64  `gorm:"column:id"`
-			Name  string `gorm:"column:display_name"`
-			Lang  string `gorm:"column:lang"`
-			Latin string `gorm:"column:latin"`
-		}
-		if err := db.Raw(fmt.Sprintf(`SELECT id, display_name, lang, coalesce(latin,'') AS latin FROM %s
-			WHERE id > ? AND deleted_at IS NULL ORDER BY id LIMIT ?`, table), lastID, batch).Scan(&rows).Error; err != nil {
-			return err
-		}
-		if len(rows) == 0 {
-			break
-		}
-		docs := make([]catalogSearch.EntityDoc, len(rows))
-		for i, r := range rows {
-			d := catalogSearch.EntityDoc{
-				ID: prefix + fmt.Sprint(r.ID), EntityType: etype, Latin: r.Latin,
-				Sources: srcs[r.ID], SourceKeys: keys[r.ID], Popularity: catalogSearch.Popularity(pop[r.ID]),
-			}
-			d.SetName(r.Lang, r.Name)
-			for _, a := range aliases[r.ID] {
-				d.AddAlias(a.lang, a.name)
-			}
-			docs[i] = d
-		}
-		if err := idx.UpsertBatch(ctx, uid, docs); err != nil {
-			return err
-		}
-		processed += len(rows)
-		lastID = rows[len(rows)-1].ID
-	}
-	slog.Info("reindexed", "index", uid, "docs", processed)
-	return nil
-}
-
 type alias struct{ lang, name string }
 
 func loadAliases(db *gorm.DB) (map[int64][]alias, error) {
@@ -369,20 +315,63 @@ func purgeSoftDeleted(ctx context.Context, db *gorm.DB, idx *catalogSearch.Index
 }
 
 func loadWorkPopularitySignal(db *gorm.DB) (map[int64]float64, error) {
-	var rows []struct {
-		WorkID int64 `gorm:"column:work_id"`
-		V      int64 `gorm:"column:v"`
-	}
-	if err := db.Raw(`SELECT work_id, max(value) AS v FROM catalog_work_popularity
-		WHERE metric IN (?, ?) GROUP BY work_id`,
-		model.PopularityMetricBgmCollect, model.PopularityMetricDownloads).Scan(&rows).Error; err != nil {
+	raw, err := chardocs.LoadWorkPopularityRaw(db)
+	if err != nil {
 		return nil, err
 	}
-	m := make(map[int64]float64, len(rows))
-	for _, r := range rows {
-		m[r.WorkID] = math.Log1p(float64(r.V))
+	m := make(map[int64]float64, len(raw))
+	for id, v := range raw {
+		m[id] = math.Log1p(v)
 	}
 	return m, nil
+}
+
+func reindexCharacters(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, batch int) error {
+	charCtx, err := chardocs.Load(ctx, db)
+	if err != nil {
+		return err
+	}
+	srcs, keys, err := loadSources(db, model.EntityTypeCharacter)
+	if err != nil {
+		return err
+	}
+	aliases, err := loadAliasTable(db, "catalog_character_alias", "character_id",
+		editspec.NotSuppressedCharacterAliasSQL("a"))
+	if err != nil {
+		return err
+	}
+	if err := purgeSoftDeleted(ctx, db, idx, catalogSearch.IndexCharacters, "catalog_character", "c"); err != nil {
+		return err
+	}
+	processed, lastID := 0, int64(0)
+	for {
+		var rows []chardocs.Row
+		if err := db.Raw(`SELECT id, display_name, lang, coalesce(latin,'') AS latin, gender FROM catalog_character
+			WHERE id > ? AND deleted_at IS NULL ORDER BY id LIMIT ?`, lastID, batch).Scan(&rows).Error; err != nil {
+			return err
+		}
+		if len(rows) == 0 {
+			break
+		}
+		docs, err := charCtx.Build(ctx, db, rows)
+		if err != nil {
+			return err
+		}
+		for i, r := range rows {
+			docs[i].Sources = srcs[r.ID]
+			docs[i].SourceKeys = keys[r.ID]
+			for _, a := range aliases[r.ID] {
+				docs[i].AddAlias(a.lang, a.name)
+			}
+		}
+		if err := idx.UpsertBatch(ctx, catalogSearch.IndexCharacters, docs); err != nil {
+			return err
+		}
+		processed += len(rows)
+		lastID = rows[len(rows)-1].ID
+	}
+	slog.Info("reindexed", "index", catalogSearch.IndexCharacters, "docs", processed)
+	return nil
 }
 
 type workTitle struct {
