@@ -6,6 +6,7 @@ import (
 	"api/internal/platform/apiv2/collect"
 	"api/internal/platform/apiv2/problem"
 	"api/internal/platform/apiv2/repr"
+	"api/internal/platform/catalog/dto"
 	catsvc "api/internal/platform/catalog/service"
 )
 
@@ -77,5 +78,34 @@ func TestPersonTraitMappers(t *testing.T) {
 	}
 	if tr.Parents == nil || tr.Localized == nil {
 		t.Fatalf("parents/localized %+v", tr)
+	}
+}
+
+func TestTraitFromRowIntros(t *testing.T) {
+	row := catsvc.EntityListRow{
+		ID: 1, DisplayName: "Ahoge",
+		Intros: []dto.PublicIntro{
+			{Lang: "en", Intro: "A strand of hair.", Source: "vndb"},
+			{Lang: "zh-Hans", Intro: "一缕呆毛。", Source: "vndb"},
+		},
+	}
+	got := traitFromRow(row, []string{"intros"})
+	if got.Intros == nil || len(*got.Intros) != 2 {
+		t.Fatalf("%+v", got.Intros)
+	}
+	en, zh := (*got.Intros)[0], (*got.Intros)[1]
+	if en.Lang != "en" || en.Value != "A strand of hair." || en.IsMachine || en.Source != "vndb" {
+		t.Fatalf("en %+v", en)
+	}
+	if zh.Lang != "zh-Hans" || zh.Value != "一缕呆毛。" || zh.IsMachine || zh.Source != "vndb" {
+		t.Fatalf("zh %+v", zh)
+	}
+	absent := traitFromRow(row, nil)
+	if absent.Intros != nil {
+		t.Fatalf("absent %+v", absent.Intros)
+	}
+	empty := traitFromRow(catsvc.EntityListRow{ID: 2, DisplayName: "x", Intros: []dto.PublicIntro{}}, []string{"intros"})
+	if empty.Intros == nil || len(*empty.Intros) != 0 {
+		t.Fatalf("empty %+v", empty.Intros)
 	}
 }

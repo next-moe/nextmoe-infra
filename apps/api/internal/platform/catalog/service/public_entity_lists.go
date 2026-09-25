@@ -43,6 +43,7 @@ type EntityListRow struct {
 	GroupTID            string
 	Alias               string
 	Description         string
+	DescriptionZh       string
 	Group               *TraitRefRow
 	Parents             []TraitRefRow
 	ChildCount          int
@@ -75,6 +76,7 @@ type entityListScan struct {
 	GroupTID            string `gorm:"column:group_tid"`
 	Alias               string
 	Description         string
+	DescriptionZh       string `gorm:"column:description_zh"`
 	PrimaryCreditNameID *int64
 	Gender              *int16
 }
@@ -87,7 +89,7 @@ func entityListRows(scanned []entityListScan) []EntityListRow {
 			PersonID: r.PersonID, VndbTID: r.VndbTID, NameZh: r.NameZh, NameZhProv: r.NameZhProv,
 			Sexual: r.Sexual, Searchable: r.Searchable, Applicable: r.Applicable,
 			GOrder: r.GOrder, GroupTID: r.GroupTID, Alias: r.Alias, Description: r.Description,
-			PrimaryCreditNameID: r.PrimaryCreditNameID, Gender: r.Gender,
+			DescriptionZh: r.DescriptionZh, PrimaryCreditNameID: r.PrimaryCreditNameID, Gender: r.Gender,
 		}
 	}
 	return rows

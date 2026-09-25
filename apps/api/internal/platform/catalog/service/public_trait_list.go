@@ -35,7 +35,7 @@ func (s *PublicService) TraitsList(ctx context.Context, ids []int64, cursor stri
 		lane:  taxonomyLaneTraits,
 		table: "catalog_character_trait",
 		selectSQL: "id, name AS display_name, name_zh, name_zh_provenance, vndb_tid, " +
-			"sexual_family AS sexual, searchable, applicable, gorder, group_tid, alias, description",
+			"sexual_family AS sexual, searchable, applicable, gorder, group_tid, alias, description, description_zh",
 		ids: ids, cursor: cursor, limit: limit,
 	}
 	if !nsfw {
@@ -110,12 +110,16 @@ func (s *PublicService) attachTraitGraph(ctx context.Context, rows []EntityListR
 		}
 		wantAliases := slices.Contains(include, "aliases")
 		wantDesc := slices.Contains(include, "description")
+		wantIntros := slices.Contains(include, "intros")
 		if wantAliases {
 			rows[i].TraitAliases = SplitTraitAliases(r.Alias)
 		}
 		if wantDesc {
 			d := PlainTraitDescription(r.Description)
 			rows[i].TraitDescription = &d
+		}
+		if wantIntros {
+			rows[i].Intros = traitIntros(r.Description, r.DescriptionZh)
 		}
 	}
 	groups, parents, err := s.traitParentGroupRows(ctx, ids)

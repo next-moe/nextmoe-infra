@@ -276,3 +276,16 @@ func TestParsePageRefusedWithoutSpec(t *testing.T) {
 		t.Fatalf("spec.Pages is checked before the integer: %+v", err.Errors)
 	}
 }
+
+func TestTraitSpecIntros(t *testing.T) {
+	s := TraitSpec()
+	if !contains(s.Include, "intros") || !contains(s.FullSet, "intros") {
+		t.Fatalf("include=%v full=%v", s.Include, s.FullSet)
+	}
+	if contains(s.FullSet, "character_count") {
+		t.Fatal("character_count must stay out of FullSet")
+	}
+	if !contains(s.Fields, "intros") {
+		t.Fatalf("fields=%v", s.Fields)
+	}
+}

@@ -225,6 +225,101 @@ func TestLiveTraitCharacterCountFieldsAnd503(t *testing.T) {
 	require.Equal(t, problem.CodeServiceUnavailable, liveProblem(t, body).Code)
 }
 
+func TestLiveTraitIntros(t *testing.T) {
+	env := liveCatalog(t)
+	db := env.db
+	withZh := &model.CatalogCharacterTrait{
+		VndbTID: "i66240", Name: "Intro With Zh", GroupTID: "", GOrder: 95,
+		Searchable: true, Applicable: true,
+		Description:   "This character has [b]ahoge[/b].\n\nSecond paragraph.",
+		DescriptionZh: "该角色有呆毛。\n\n第二段。",
+	}
+	noZh := &model.CatalogCharacterTrait{
+		VndbTID: "i66241", Name: "Intro No Zh", GroupTID: "", GOrder: 94,
+		Searchable: true, Applicable: true,
+		Description: "Plain English only.",
+	}
+	require.NoError(t, db.Create(withZh).Error)
+	require.NoError(t, db.Create(noZh).Error)
+	t.Cleanup(func() {
+		db.Where("id IN ?", []int64{withZh.ID, noZh.ID}).Delete(&model.CatalogCharacterTrait{})
+	})
+
+	type intro struct {
+		Lang      string `json:"lang"`
+		Value     string `json:"value"`
+		IsMachine bool   `json:"is_machine"`
+		Source    string `json:"source"`
+	}
+	type traitView struct {
+		ID          string   `json:"id"`
+		Intros      *[]intro `json:"intros"`
+		Description *string  `json:"description"`
+	}
+	decode := func(body []byte) traitView {
+		t.Helper()
+		var v traitView
+		require.NoError(t, json.Unmarshal(body, &v), string(body))
+		return v
+	}
+	hasIntros := func(body []byte) bool {
+		t.Helper()
+		var raw map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(body, &raw), string(body))
+		_, ok := raw["intros"]
+		return ok
+	}
+
+	status, _, body := liveDo(t, env, http.MethodGet,
+		"/v2/catalog/traits/"+idstr(withZh.ID)+"?include=intros", liveAppKey, "")
+	require.Equal(t, 200, status, string(body))
+	got := decode(body)
+	require.NotNil(t, got.Intros)
+	require.Equal(t, []intro{
+		{Lang: "en", Value: "This character has ahoge.\n\nSecond paragraph.", Source: "vndb"},
+		{Lang: "zh-Hans", Value: "该角色有呆毛。\n\n第二段。", Source: "vndb"},
+	}, *got.Intros)
+
+	status, _, body = liveDo(t, env, http.MethodGet,
+		"/v2/catalog/traits/"+idstr(noZh.ID)+"?include=intros", liveAppKey, "")
+	require.Equal(t, 200, status, string(body))
+	got = decode(body)
+	require.NotNil(t, got.Intros)
+	require.Equal(t, []intro{
+		{Lang: "en", Value: "Plain English only.", Source: "vndb"},
+	}, *got.Intros)
+
+	status, _, body = liveDo(t, env, http.MethodGet,
+		"/v2/catalog/traits?ids="+idstr(withZh.ID)+","+idstr(noZh.ID)+"&include=intros", liveAppKey, "")
+	require.Equal(t, 200, status, string(body))
+	var page struct {
+		Items []traitView `json:"items"`
+	}
+	require.NoError(t, json.Unmarshal(body, &page), string(body))
+	require.Len(t, page.Items, 2)
+	byID := map[string]traitView{}
+	for _, it := range page.Items {
+		byID[it.ID] = it
+	}
+	require.NotNil(t, byID[idstr(withZh.ID)].Intros)
+	require.Len(t, *byID[idstr(withZh.ID)].Intros, 2)
+	require.NotNil(t, byID[idstr(noZh.ID)].Intros)
+	require.Len(t, *byID[idstr(noZh.ID)].Intros, 1)
+
+	status, _, body = liveDo(t, env, http.MethodGet,
+		"/v2/catalog/traits/"+idstr(withZh.ID)+"?view=full", liveAppKey, "")
+	require.Equal(t, 200, status, string(body))
+	got = decode(body)
+	require.NotNil(t, got.Intros)
+	require.Len(t, *got.Intros, 2)
+	require.NotNil(t, got.Description)
+
+	status, _, body = liveDo(t, env, http.MethodGet,
+		"/v2/catalog/traits/"+idstr(withZh.ID), liveAppKey, "")
+	require.Equal(t, 200, status, string(body))
+	require.False(t, hasIntros(body), string(body))
+}
+
 func parentIDs(v liveTraitView) []string {
 	out := make([]string, 0, len(v.Parents))
 	for _, p := range v.Parents {
