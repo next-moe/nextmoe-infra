@@ -52,6 +52,10 @@ func (c *Catalog) Search(ctx context.Context, q collect.Query, object, query, lo
 		r18 := catmodel.ContentRatingR18
 		eq.ContentRatingNot = &r18
 	}
+	if object == "trait" && !q.NSFW {
+		sexual := true
+		eq.SexualNot = &sexual
+	}
 	res, serr := searchEntities(c, ctx, uid, eq)
 	if serr != nil {
 		return repr.List[repr.SearchHit]{}, serr
@@ -90,6 +94,7 @@ func (c *Catalog) Search(ctx context.Context, q collect.Query, object, query, lo
 		}
 		if object == "trait" {
 			hit.IsSexual = d.Sexual
+			hit.TraitPath = &repr.TraitPath{Parents: []repr.TraitRef{}, GroupLocalized: map[string]repr.LocalizedText{}}
 		}
 		items = append(items, hit)
 		ids = append(ids, id)
@@ -97,6 +102,11 @@ func (c *Catalog) Search(ctx context.Context, q collect.Query, object, query, lo
 	if c.Public != nil {
 		if fillErr := c.fillSearchLocalized(ctx, v1Type, ids, items); fillErr != nil {
 			return repr.List[repr.SearchHit]{}, fillErr
+		}
+		if object == "trait" {
+			if fillErr := c.fillSearchTraitPaths(ctx, ids, items); fillErr != nil {
+				return repr.List[repr.SearchHit]{}, fillErr
+			}
 		}
 	}
 	if q.Page > 0 {
@@ -135,6 +145,24 @@ func (c *Catalog) fillSearchLocalized(ctx context.Context, v1Type string, ids []
 			id, _ := repr.ParseID(items[i].ID)
 			items[i].Localized = localizedFrom(loc[id])
 		}
+	}
+	return nil
+}
+
+func (c *Catalog) fillSearchTraitPaths(ctx context.Context, ids []int64, items []repr.SearchHit) error {
+	paths, err := c.Public.TraitPaths(ctx, ids)
+	if err != nil {
+		return err
+	}
+	for i := range items {
+		id, _ := repr.ParseID(items[i].ID)
+		path := paths[id]
+		tp := repr.TraitPath{Parents: make([]repr.TraitRef, 0, len(path.Parents))}
+		tp.GroupID, tp.Group, tp.GroupLocalized = traitGroupFrom(path.Group)
+		for _, p := range path.Parents {
+			tp.Parents = append(tp.Parents, traitRefFrom(p))
+		}
+		items[i].TraitPath = &tp
 	}
 	return nil
 }

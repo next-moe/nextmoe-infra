@@ -137,6 +137,7 @@ func TestImportCharacterTraits(t *testing.T) {
 	var trait model.CatalogCharacterTrait
 	require.NoError(t, testDB.Where("vndb_tid = 'i50'").First(&trait).Error)
 	assert.True(t, trait.Sexual)
+	assert.True(t, trait.SexualFamily)
 	assert.Equal(t, "i43", trait.GroupTID)
 
 	st, err = Run(ctx, opts)

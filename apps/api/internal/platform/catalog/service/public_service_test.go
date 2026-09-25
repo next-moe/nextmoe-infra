@@ -309,7 +309,7 @@ func TestPublicLookupTypedNSFWParity(t *testing.T) {
 	addExternalRef(t, model.EntityTypeCharacter, ch.ID, srcVNDB, "c777", model.LinkKindExact)
 	for _, tr := range []model.CatalogCharacterTrait{
 		{VndbTID: "i1", Name: "Long Hair", Sexual: false, Searchable: true, Applicable: true},
-		{VndbTID: "i2", Name: "Sexual Trait", Sexual: true, Searchable: true, Applicable: true},
+		{VndbTID: "i2", Name: "Sexual Trait", Sexual: true, SexualFamily: true, Searchable: true, Applicable: true},
 	} {
 		trait := tr
 		if err := testDB.Create(&trait).Error; err != nil {
@@ -775,7 +775,7 @@ func TestPublicCharacterTraits(t *testing.T) {
 		t.Fatalf("create character: %v", err)
 	}
 	mkTrait := func(tid, gid, name, nameZh string, sexual bool) int64 {
-		tr := &model.CatalogCharacterTrait{VndbTID: tid, Name: name, NameZh: nameZh, GroupTID: gid, Sexual: sexual, Searchable: true, Applicable: true}
+		tr := &model.CatalogCharacterTrait{VndbTID: tid, Name: name, NameZh: nameZh, GroupTID: gid, Sexual: sexual, SexualFamily: sexual, Searchable: true, Applicable: true}
 		if err := testDB.Create(tr).Error; err != nil {
 			t.Fatalf("create trait %s: %v", name, err)
 		}

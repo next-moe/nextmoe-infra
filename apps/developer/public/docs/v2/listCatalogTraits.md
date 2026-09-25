@@ -13,7 +13,7 @@
 
 List traits
 
-Keyset-paginated character traits. Requires an application key or a user access token with catalog:read. ids= is a batch lane. refs= is not resolved: traits have no catalog_external_ref entity_type.
+Keyset-paginated character traits. Requires an application key or a user access token with catalog:read. ids= is a batch lane. refs= is not resolved: traits have no catalog_external_ref entity_type. parent_id= lists direct children; group_id= lists traits in that root group (the root excluded); root=true|false keeps only roots or only non-roots. Filters are conjunctive. Without nsfw=true, sexual-family traits are excluded from the list and land in missing[] on the ids= batch; naming one as parent_id or group_id is 400. include=aliases,description (and view=full) add those blocks. is_sexual reports the sexual-family flag.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -32,6 +32,9 @@ Keyset-paginated character traits. Requires an application key or a user access 
 | `facets` | query | 否 | string | Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. |
 | `sort` | query | 否 | string | Closed per-collection sort key. |
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
+| `parent_id` | query | 否 | string | Catalog trait id. Direct children of this trait only. Naming a sexual-family trait without nsfw=true is 400. |
+| `group_id` | query | 否 | string | Catalog trait id of a root group. Traits in that group, excluding the root itself. Naming a sexual-family trait without nsfw=true is 400. |
+| `root` | query | 否 | string | true: only root traits. false: only non-root traits. Only true or false. |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/traits" \

@@ -36,6 +36,21 @@ type EntityListRow struct {
 	Intros              []dto.PublicIntro
 	Refs                []dto.PublicCatalogRef
 	Traits              []dto.PublicCharacterTrait
+	NameZhProv          int16
+	Searchable          bool
+	Applicable          bool
+	GOrder              int16
+	GroupTID            string
+	Alias               string
+	Description         string
+	Group               *TraitRefRow
+	Parents             []TraitRefRow
+	ChildCount          int
+	RootOrder           *int
+	TraitAliases        []string
+	TraitDescription    *string
+	MatchedTraitIDs     *[]string
+	WorkCount           *int
 }
 
 // entityListScan is the Scan destination behind EntityListRow: column-backed
@@ -52,7 +67,14 @@ type entityListScan struct {
 	// every /v2/catalog/traits row shipped vndb_tid:"" until 2026-08-28.
 	VndbTID             string `gorm:"column:vndb_tid"`
 	NameZh              string
+	NameZhProv          int16 `gorm:"column:name_zh_provenance"`
 	Sexual              bool
+	Searchable          bool
+	Applicable          bool
+	GOrder              int16  `gorm:"column:gorder"`
+	GroupTID            string `gorm:"column:group_tid"`
+	Alias               string
+	Description         string
 	PrimaryCreditNameID *int64
 	Gender              *int16
 }
@@ -62,7 +84,9 @@ func entityListRows(scanned []entityListScan) []EntityListRow {
 	for i, r := range scanned {
 		rows[i] = EntityListRow{
 			ID: r.ID, DisplayName: r.DisplayName, Latin: r.Latin, Lang: r.Lang,
-			PersonID: r.PersonID, VndbTID: r.VndbTID, NameZh: r.NameZh, Sexual: r.Sexual,
+			PersonID: r.PersonID, VndbTID: r.VndbTID, NameZh: r.NameZh, NameZhProv: r.NameZhProv,
+			Sexual: r.Sexual, Searchable: r.Searchable, Applicable: r.Applicable,
+			GOrder: r.GOrder, GroupTID: r.GroupTID, Alias: r.Alias, Description: r.Description,
 			PrimaryCreditNameID: r.PrimaryCreditNameID, Gender: r.Gender,
 		}
 	}
@@ -96,15 +120,6 @@ type PersonRow struct {
 	Gender              *int16
 }
 
-type TraitRow struct {
-	ID          int64
-	DisplayName string
-	NameZh      string
-	VndbTID     string `gorm:"column:vndb_tid"`
-	Sexual      bool
-	Description string
-}
-
 // CharacterListInclude is the character list lane's half of collect.CharacterSpec.
 // The spec has declared every one of these tokens since wave 3 and the lane
 // filled none of them: include=traits answered 200 with no block and view=full
@@ -117,6 +132,7 @@ type CharacterListInclude struct {
 	Aliases    bool
 	Intros     bool
 	Refs       bool
+	WorkCount  bool
 }
 
 func CharacterListIncludeFrom(tokens []string) CharacterListInclude {
@@ -137,13 +153,15 @@ func CharacterListIncludeFrom(tokens []string) CharacterListInclude {
 			inc.Intros = true
 		case "refs":
 			inc.Refs = true
+		case "work_count":
+			inc.WorkCount = true
 		}
 	}
 	return inc
 }
 
 func (inc CharacterListInclude) any() bool {
-	return inc.Attributes || inc.Image || inc.Figure || inc.Traits || inc.Aliases || inc.Intros || inc.Refs
+	return inc.Attributes || inc.Image || inc.Figure || inc.Traits || inc.Aliases || inc.Intros || inc.Refs || inc.WorkCount
 }
 
 func (s *PublicService) CharactersList(ctx context.Context, ids []int64, cursor string, limit int, inc CharacterListInclude, nsfw bool, filter CharacterTraitFilter, includeTotal bool) (EntityListPage, error) {
@@ -155,6 +173,11 @@ func (s *PublicService) CharactersList(ctx context.Context, ids []int64, cursor 
 		ids:       ids, cursor: cursor, limit: limit,
 		alias: "character",
 	}
+	if len(filter.Genders) > 0 {
+		spec.extraWhere = append(spec.extraWhere, "gender IN ?")
+		spec.extraArgs = append(spec.extraArgs, filter.Genders)
+	}
+	var traitSets [][]int64
 	if len(filter.TraitIDs) > 0 {
 		if _, err := decodePublicCursor(cursor, taxonomyLaneCharacters); err != nil {
 			return EntityListPage{}, err
@@ -163,20 +186,33 @@ func (s *PublicService) CharactersList(ctx context.Context, ids []int64, cursor 
 		if err != nil {
 			return EntityListPage{}, err
 		}
+		traitSets = sets
 		where, args, empty := characterTraitWhere(sets, filter.MatchAny)
 		if empty {
 			return EntityListPage{Items: []EntityListRow{}}, nil
 		}
-		spec.extraWhere = where
-		spec.extraArgs = args
+		spec.extraWhere = append(spec.extraWhere, where...)
+		spec.extraArgs = append(spec.extraArgs, args...)
 		spec.skipTotal = !includeTotal
 	}
 	page, err := s.entityIDList(ctx, spec)
-	if err != nil || !inc.any() {
+	if err != nil {
 		return page, err
 	}
-	if err := s.attachCharacterListBlocks(ctx, page.Items, inc, nsfw); err != nil {
-		return EntityListPage{}, err
+	if inc.any() {
+		if err := s.attachCharacterListBlocks(ctx, page.Items, inc, nsfw); err != nil {
+			return EntityListPage{}, err
+		}
+	}
+	if len(filter.TraitIDs) > 0 {
+		if err := s.attachMatchedTraitIDs(ctx, page.Items, traitSets, nsfw); err != nil {
+			return EntityListPage{}, err
+		}
+	}
+	if inc.WorkCount {
+		if err := s.attachCharacterWorkCounts(ctx, page.Items, nsfw); err != nil {
+			return EntityListPage{}, err
+		}
 	}
 	return page, nil
 }
@@ -200,15 +236,6 @@ func (s *PublicService) PersonsList(ctx context.Context, ids []int64, cursor str
 		table:     "catalog_person",
 		selectSQL: "id, display_name, primary_credit_name_id, gender",
 		deleted:   true,
-		ids:       ids, cursor: cursor, limit: limit,
-	})
-}
-
-func (s *PublicService) TraitsList(ctx context.Context, ids []int64, cursor string, limit int) (EntityListPage, error) {
-	return s.entityIDList(ctx, entityListSpec{
-		lane:      taxonomyLaneTraits,
-		table:     "catalog_character_trait",
-		selectSQL: "id, name AS display_name, name_zh, vndb_tid, sexual",
 		ids:       ids, cursor: cursor, limit: limit,
 	})
 }
@@ -343,20 +370,6 @@ func (s *PublicService) PersonNames(ctx context.Context, personID int64) ([]Enti
 		rows[i].Localized = loc[rows[i].ID]
 	}
 	return rows, true, nil
-}
-
-func (s *PublicService) Trait(ctx context.Context, id int64) (TraitRow, bool, error) {
-	var row TraitRow
-	err := s.db.WithContext(ctx).Raw(
-		`SELECT id, name AS display_name, name_zh, vndb_tid, sexual, description
-		 FROM catalog_character_trait WHERE id = ?`, id).Scan(&row).Error
-	if err != nil {
-		return TraitRow{}, false, err
-	}
-	if row.ID == 0 {
-		return TraitRow{}, false, nil
-	}
-	return row, true, nil
 }
 
 func NormalizeNameQuery(q string) string {
@@ -542,11 +555,11 @@ func (s *PublicService) characterTraitsBatch(ctx context.Context, ids []int64, n
 	if err := s.db.WithContext(ctx).Raw(`SELECT l.character_id, t.id, t.name, t.name_zh, t.name_zh_provenance,
 			g.name AS group_name, g.name_zh AS group_name_zh,
 			g.name_zh_provenance AS group_name_zh_provenance,
-			t.sexual, l.spoiler_level, l.lie
+			t.sexual_family AS sexual, l.spoiler_level, l.lie
 		FROM catalog_character_trait_link l
 		JOIN catalog_character_trait t ON t.id = l.trait_id
 		LEFT JOIN catalog_character_trait g ON g.vndb_tid = t.group_tid
-		WHERE l.character_id IN ? AND l.spoiler_level <= ? AND (? OR NOT t.sexual)
+		WHERE l.character_id IN ? AND l.spoiler_level <= ? AND (? OR NOT t.sexual_family)
 		ORDER BY l.character_id, t.group_tid, t.gorder, t.name`,
 		ids, model.SpoilerNone, nsfw).Scan(&rows).Error; err != nil {
 		return nil, err

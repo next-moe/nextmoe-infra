@@ -1405,11 +1405,11 @@ func (s *PublicService) characterTraits(ctx context.Context, characterID int64, 
 	if err := s.db.WithContext(ctx).Raw(`SELECT t.id, t.name, t.name_zh, t.name_zh_provenance,
 			g.name AS group_name, g.name_zh AS group_name_zh,
 			g.name_zh_provenance AS group_name_zh_provenance,
-			t.sexual, l.spoiler_level, l.lie
+			t.sexual_family AS sexual, l.spoiler_level, l.lie
 		FROM catalog_character_trait_link l
 		JOIN catalog_character_trait t ON t.id = l.trait_id
 		LEFT JOIN catalog_character_trait g ON g.vndb_tid = t.group_tid
-		WHERE l.character_id = ? AND l.spoiler_level <= ? AND (? OR NOT t.sexual)
+		WHERE l.character_id = ? AND l.spoiler_level <= ? AND (? OR NOT t.sexual_family)
 		ORDER BY t.group_tid, t.gorder, t.name`, characterID, spoilers, nsfw).
 		Scan(&rows).Error; err != nil {
 		return nil, err

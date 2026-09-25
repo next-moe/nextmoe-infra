@@ -103,6 +103,7 @@ type CatalogCharacterTrait struct {
 	GOrder           int16     `gorm:"column:gorder;not null" json:"gorder"`
 	DefaultSpoil     int16     `gorm:"column:default_spoil;not null" json:"default_spoil"`
 	Sexual           bool      `gorm:"not null" json:"sexual"`
+	SexualFamily     bool      `gorm:"column:sexual_family;not null;default:false" json:"sexual_family"`
 	Searchable       bool      `gorm:"not null" json:"searchable"`
 	Applicable       bool      `gorm:"not null" json:"applicable"`
 	Alias            string    `gorm:"type:text;not null" json:"alias"`

@@ -164,9 +164,9 @@ func CreditNameSpec() Spec {
 func CharacterSpec() Spec {
 	full := []string{
 		"gender", "birthday", "height_cm", "weight_kg", "measurements", "blood_type", "instance_of_id",
-		"image", "figure", "traits", "aliases", "intros", "refs",
+		"image", "figure", "traits", "aliases", "intros", "refs", "work_count",
 	}
-	fields := []string{"object", "id", "display_name", "latin", "lang", "localized"}
+	fields := []string{"object", "id", "display_name", "latin", "lang", "localized", "matched_trait_ids"}
 	fields = append(fields, full...)
 	return Spec{
 		Sort:    []string{"id"},
@@ -186,11 +186,18 @@ func PersonSpec() Spec {
 }
 
 func TraitSpec() Spec {
+	inc := []string{"aliases", "description"}
+	fields := []string{
+		"object", "id", "display_name", "name_zh", "vndb_tid", "is_sexual",
+		"localized", "group_id", "group", "group_localized", "parents", "child_count", "root_order",
+		"is_searchable", "is_applicable",
+	}
+	fields = append(fields, inc...)
 	return Spec{
 		Sort:    []string{"id"},
-		Include: []string{},
-		FullSet: []string{},
-		Fields:  []string{"object", "id", "display_name", "name_zh", "vndb_tid", "is_sexual"},
+		Include: append([]string{}, inc...),
+		FullSet: append([]string{}, inc...),
+		Fields:  fields,
 	}
 }
 

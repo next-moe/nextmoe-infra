@@ -508,7 +508,8 @@ export const mcpTools = [
       "sort",
       "nsfw",
       "trait_id",
-      "trait_match"
+      "trait_match",
+      "gender"
     ]
   },
   {
@@ -774,7 +775,10 @@ export const mcpTools = [
       "include_total",
       "facets",
       "sort",
-      "nsfw"
+      "nsfw",
+      "parent_id",
+      "group_id",
+      "root"
     ]
   },
   {

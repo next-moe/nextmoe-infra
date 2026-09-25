@@ -179,6 +179,33 @@ func TestSeriesEngineTraitSearchable(t *testing.T) {
 	assert.Equal(t, IndexTraits, uid)
 }
 
+func TestTraitSearchNSFWFilter(t *testing.T) {
+	idx := ensureSearchIndexes(t, IndexTraits)
+	sexual := true
+	putDocs(t, IndexTraits, []EntityDoc{
+		{ID: "f10", EntityType: "trait", NameOther: "SafeTrait", Popularity: 2},
+		{ID: "f11", EntityType: "trait", NameOther: "SexTrait", Sexual: &sexual, Popularity: 1},
+	})
+	exclude := true
+	res, err := idx.SearchEntities(t.Context(), IndexTraits, spec.EntityQuery{Limit: 20, SexualNot: &exclude})
+	require.NoError(t, err)
+	ids := make([]string, 0, len(res.Hits))
+	for _, h := range res.Hits {
+		ids = append(ids, h.ID)
+	}
+	assert.Contains(t, ids, "f10")
+	assert.NotContains(t, ids, "f11")
+
+	res, err = idx.SearchEntities(t.Context(), IndexTraits, spec.EntityQuery{Limit: 20})
+	require.NoError(t, err)
+	ids = ids[:0]
+	for _, h := range res.Hits {
+		ids = append(ids, h.ID)
+	}
+	assert.Contains(t, ids, "f10")
+	assert.Contains(t, ids, "f11")
+}
+
 func TestEntitySearchPagination(t *testing.T) {
 	idx := ensureSearchIndexes(t, IndexSeries)
 

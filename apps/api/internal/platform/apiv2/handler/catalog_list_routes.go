@@ -61,6 +61,14 @@ type listCharactersInput struct {
 	CollectionInput
 	TraitID    string `query:"trait_id" maxLength:"256" doc:"Comma-separated catalog trait ids, max 10. Descendants included. Matches under the same spoiler and nsfw gates as the traits block. Naming a sexual trait without nsfw=true is 400. Unknown ids match nothing."`
 	TraitMatch string `query:"trait_match" maxLength:"8" doc:"Closed: all (default), any. No effect without trait_id."`
+	Gender     string `query:"gender" maxLength:"32" doc:"Comma-separated closed vocabulary: male, female, other. OR within the parameter. Unknown token is 400."`
+}
+
+type listTraitsInput struct {
+	CollectionInput
+	ParentID string `query:"parent_id" maxLength:"20" doc:"Catalog trait id. Direct children of this trait only. Naming a sexual-family trait without nsfw=true is 400."`
+	GroupID  string `query:"group_id" maxLength:"20" doc:"Catalog trait id of a root group. Traits in that group, excluding the root itself. Naming a sexual-family trait without nsfw=true is 400."`
+	Root     string `query:"root" maxLength:"8" doc:"true: only root traits. false: only non-root traits. Only true or false."`
 }
 
 func registerCatalogLists(api huma.API, cat *Catalog) {
@@ -131,7 +139,7 @@ func registerCatalogLists(api huma.API, cat *Catalog) {
 		Method:             http.MethodGet,
 		Path:               "/v2/catalog/characters",
 		Summary:            "List characters",
-		Description:        "Keyset-paginated characters. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs fills on every lane, and view=full is all of them; traits are cut at the default spoiler ceiling and follow the nsfw gate, exactly as on the detail face. trait_id= filters by trait (descendants included, max 10), combined by trait_match=all|any; a character matches under the same spoiler and nsfw gates as its traits block.",
+		Description:        "Keyset-paginated characters. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs,work_count fills on every lane, and view=full is all of them; traits are cut at the default spoiler ceiling and follow the nsfw gate, exactly as on the detail face. trait_id= filters by trait (descendants included, max 10), combined by trait_match=all|any; a character matches under the same spoiler and nsfw gates as its traits block. When trait_id= is given, each item carries matched_trait_ids: this character's own traits that satisfied the filter. gender= filters by the closed vocabulary male,female,other. include=work_count is the number of distinct works the character appears in under the same nsfw gate as /v2/catalog/characters/{id}/appearances.",
 		Tags:               catalog,
 		Errors:             errs,
 		SkipValidateParams: true,
@@ -161,7 +169,7 @@ func registerCatalogLists(api huma.API, cat *Catalog) {
 		Method:             http.MethodGet,
 		Path:               "/v2/catalog/traits",
 		Summary:            "List traits",
-		Description:        "Keyset-paginated character traits. Requires an application key or a user access token with catalog:read. ids= is a batch lane. refs= is not resolved: traits have no catalog_external_ref entity_type.",
+		Description:        "Keyset-paginated character traits. Requires an application key or a user access token with catalog:read. ids= is a batch lane. refs= is not resolved: traits have no catalog_external_ref entity_type. parent_id= lists direct children; group_id= lists traits in that root group (the root excluded); root=true|false keeps only roots or only non-roots. Filters are conjunctive. Without nsfw=true, sexual-family traits are excluded from the list and land in missing[] on the ids= batch; naming one as parent_id or group_id is 400. include=aliases,description (and view=full) add those blocks. is_sexual reports the sexual-family flag.",
 		Tags:               catalog,
 		Errors:             errs,
 		SkipValidateParams: true,
@@ -326,13 +334,20 @@ func listCatalogPersons(cat *Catalog) func(context.Context, *CollectionInput) (*
 	}
 }
 
-func listCatalogTraits(cat *Catalog) func(context.Context, *CollectionInput) (*listTraitsOutput, error) {
-	return func(ctx context.Context, in *CollectionInput) (*listTraitsOutput, error) {
-		q, err := parseCatalogList(ctx, in, collect.TraitSpec())
+func listCatalogTraits(cat *Catalog) func(context.Context, *listTraitsInput) (*listTraitsOutput, error) {
+	return func(ctx context.Context, in *listTraitsInput) (*listTraitsOutput, error) {
+		if in == nil {
+			in = &listTraitsInput{}
+		}
+		q, err := parseCatalogList(ctx, &in.CollectionInput, collect.TraitSpec())
 		if err != nil {
 			return nil, err
 		}
-		page, lerr := cat.ListTraits(ctx, q)
+		f, ferr := parseTraitFilter(in)
+		if ferr != nil {
+			return nil, withIdent(ctx, ferr)
+		}
+		page, lerr := cat.ListTraits(ctx, q, f)
 		if lerr != nil {
 			return nil, catalogErr(ctx, lerr)
 		}

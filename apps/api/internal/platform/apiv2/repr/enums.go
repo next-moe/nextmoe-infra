@@ -258,6 +258,19 @@ func Gender(v *int16) (*string, bool) {
 	}
 }
 
+func GenderFromKey(key string) (int16, bool) {
+	switch key {
+	case "male":
+		return model.GenderMale, true
+	case "female":
+		return model.GenderFemale, true
+	case "other":
+		return model.GenderOther, true
+	default:
+		return 0, false
+	}
+}
+
 func BloodType(v *int16) (*string, bool) {
 	if v == nil {
 		return nil, true
