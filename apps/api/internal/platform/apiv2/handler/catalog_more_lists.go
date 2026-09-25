@@ -2,6 +2,8 @@ package handler
 
 import (
 	"context"
+	"errors"
+	"strconv"
 
 	"api/internal/platform/apiv2/collect"
 	"api/internal/platform/apiv2/problem"
@@ -10,7 +12,7 @@ import (
 	catsvc "api/internal/platform/catalog/service"
 )
 
-func (c *Catalog) ListCharacters(ctx context.Context, q collect.Query) (repr.List[repr.Character], error) {
+func (c *Catalog) ListCharacters(ctx context.Context, q collect.Query, f characterFilter) (repr.List[repr.Character], error) {
 	if c == nil || c.Public == nil {
 		return repr.List[repr.Character]{}, problem.New(problem.CodeServiceUnavailable, "", "", "catalog read is not bound.")
 	}
@@ -22,8 +24,20 @@ func (c *Catalog) ListCharacters(ctx context.Context, q collect.Query) (repr.Lis
 		return finishList([]repr.Character{}, nil, 0, q, missing), nil
 	}
 	data, lerr := c.Public.CharactersList(ctx, ids, q.Cursor, listLimit(q),
-		catsvc.CharacterListIncludeFrom(q.Include), q.NSFW)
+		catsvc.CharacterListIncludeFrom(q.Include), q.NSFW,
+		catsvc.CharacterTraitFilter{TraitIDs: f.TraitIDs, MatchAny: f.MatchAny}, q.IncludeTotal)
 	if lerr != nil {
+		var se *catsvc.SexualTraitError
+		if errors.As(lerr, &se) {
+			p := problem.New(problem.CodeInvalidParameter, "", "",
+				"trait "+strconv.FormatInt(se.ID, 10)+" is sexual; nsfw=true is required")
+			p.Errors = []problem.FieldError{{
+				Parameter: "trait_id",
+				Reason:    problem.ReasonNotAllowedValue,
+				Detail:    "trait " + strconv.FormatInt(se.ID, 10) + " is sexual; nsfw=true is required",
+			}}
+			return repr.List[repr.Character]{}, p
+		}
 		return repr.List[repr.Character]{}, listCursorErr(lerr)
 	}
 	items := make([]repr.Character, 0, len(data.Items))

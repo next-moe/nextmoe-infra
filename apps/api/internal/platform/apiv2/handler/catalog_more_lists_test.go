@@ -10,7 +10,7 @@ import (
 )
 
 func TestListNewCollectionsUnbound(t *testing.T) {
-	_, err := (*Catalog)(nil).ListCharacters(t.Context(), collect.Query{})
+	_, err := (*Catalog)(nil).ListCharacters(t.Context(), collect.Query{}, characterFilter{})
 	p, ok := err.(*problem.Problem)
 	if !ok || p.Code != problem.CodeServiceUnavailable {
 		t.Fatalf("characters %v", err)

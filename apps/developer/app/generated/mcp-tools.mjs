@@ -506,7 +506,9 @@ export const mcpTools = [
       "include_total",
       "facets",
       "sort",
-      "nsfw"
+      "nsfw",
+      "trait_id",
+      "trait_match"
     ]
   },
   {

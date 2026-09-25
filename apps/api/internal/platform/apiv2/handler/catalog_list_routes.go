@@ -57,6 +57,12 @@ type listTagsInput struct {
 	HasWorks string `query:"has_works" maxLength:"8" doc:"true keeps only tags whose work_count is > 0 under the same nsfw gate. Only true or false. Absent = every tag."`
 }
 
+type listCharactersInput struct {
+	CollectionInput
+	TraitID    string `query:"trait_id" maxLength:"256" doc:"Comma-separated catalog trait ids, max 10. Descendants included. Matches under the same spoiler and nsfw gates as the traits block. Naming a sexual trait without nsfw=true is 400. Unknown ids match nothing."`
+	TraitMatch string `query:"trait_match" maxLength:"8" doc:"Closed: all (default), any. No effect without trait_id."`
+}
+
 func registerCatalogLists(api huma.API, cat *Catalog) {
 	catalog := []string{"catalog"}
 	errs := collectionErrors(http.StatusUnauthorized, http.StatusForbidden, http.StatusServiceUnavailable)
@@ -125,7 +131,7 @@ func registerCatalogLists(api huma.API, cat *Catalog) {
 		Method:             http.MethodGet,
 		Path:               "/v2/catalog/characters",
 		Summary:            "List characters",
-		Description:        "Keyset-paginated characters. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs fills on every lane, and view=full is all of them; traits are cut at the default spoiler ceiling and follow the nsfw gate, exactly as on the detail face.",
+		Description:        "Keyset-paginated characters. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs fills on every lane, and view=full is all of them; traits are cut at the default spoiler ceiling and follow the nsfw gate, exactly as on the detail face. trait_id= filters by trait (descendants included, max 10), combined by trait_match=all|any; a character matches under the same spoiler and nsfw gates as its traits block.",
 		Tags:               catalog,
 		Errors:             errs,
 		SkipValidateParams: true,
@@ -268,13 +274,20 @@ func listCatalogReleases(cat *Catalog) func(context.Context, *CollectionInput) (
 	}
 }
 
-func listCatalogCharacters(cat *Catalog) func(context.Context, *CollectionInput) (*listCharactersOutput, error) {
-	return func(ctx context.Context, in *CollectionInput) (*listCharactersOutput, error) {
-		q, err := parseCatalogList(ctx, in, collect.CharacterSpec())
+func listCatalogCharacters(cat *Catalog) func(context.Context, *listCharactersInput) (*listCharactersOutput, error) {
+	return func(ctx context.Context, in *listCharactersInput) (*listCharactersOutput, error) {
+		if in == nil {
+			in = &listCharactersInput{}
+		}
+		q, err := parseCatalogList(ctx, &in.CollectionInput, collect.CharacterSpec())
 		if err != nil {
 			return nil, err
 		}
-		page, lerr := cat.ListCharacters(ctx, q)
+		f, ferr := parseCharacterFilter(in)
+		if ferr != nil {
+			return nil, withIdent(ctx, ferr)
+		}
+		page, lerr := cat.ListCharacters(ctx, q, f)
 		if lerr != nil {
 			return nil, catalogErr(ctx, lerr)
 		}

@@ -532,6 +532,13 @@ func rawSQL(db *gorm.DB) error {
 			CREATE INDEX IF NOT EXISTS idx_catalog_work_relation_series_b
 			    ON catalog_work_relation (b_work_id) INCLUDE (a_work_id)
 			    WHERE relation_type_id = 7`},
+		// GET /v2/catalog/characters?trait_id= EXISTS probe. Without it a rare
+		// trait walks all ~200k characters by primary key (measured ~750 ms for
+		// a 5-character trait on a production-sized copy); with it the probe is
+		// driven from the trait side and stays index-only.
+		{"idx_catalog_character_trait_link_trait_char", `
+			CREATE INDEX IF NOT EXISTS idx_catalog_character_trait_link_trait_char
+			    ON catalog_character_trait_link (trait_id, character_id) INCLUDE (spoiler_level)`},
 	} {
 		if err := db.Exec(ix.stmt).Error; err != nil {
 			return fmt.Errorf("create index %s: %w", ix.name, err)
