@@ -235,6 +235,11 @@ func NotSuppressedRosterSQL(alias string) string {
 		TypeWork, FieldWorkRoster, alias, RosterIdentitySQL(alias))
 }
 
+func LiveWorkSQL(workCol string) string {
+	return fmt.Sprintf(`EXISTS (SELECT 1 FROM catalog_work lw WHERE lw.id = %s AND lw.deleted_at IS NULL AND lw.status = %d)`,
+		workCol, catmodel.WorkStatusLive)
+}
+
 func rosterKeyCheck(key string) error {
 	parts := strings.Split(key, ":")
 	if len(parts) != 2 || parts[0] != "roster" {

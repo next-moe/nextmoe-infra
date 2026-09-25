@@ -59,6 +59,8 @@ type listTagsInput struct {
 
 type listCharactersInput struct {
 	CollectionInput
+	PageInput
+	Q          string `query:"q" maxLength:"512" doc:"Character name search. Switches this collection to the search index; sort defaults to relevance. Must not be used as a discriminant."`
 	TraitID    string `query:"trait_id" maxLength:"256" doc:"Comma-separated catalog trait ids, max 10. Descendants included. Matches under the same spoiler and nsfw gates as the traits block. Naming a sexual trait without nsfw=true is 400. Unknown ids match nothing."`
 	TraitMatch string `query:"trait_match" maxLength:"8" doc:"Closed: all (default), any. No effect without trait_id."`
 	Gender     string `query:"gender" maxLength:"32" doc:"Comma-separated closed vocabulary: male, female, other. OR within the parameter. Unknown token is 400."`
@@ -139,7 +141,7 @@ func registerCatalogLists(api huma.API, cat *Catalog) {
 		Method:             http.MethodGet,
 		Path:               "/v2/catalog/characters",
 		Summary:            "List characters",
-		Description:        "Keyset-paginated characters. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs,work_count fills on every lane, and view=full is all of them; traits are cut at the default spoiler ceiling and follow the nsfw gate, exactly as on the detail face. trait_id= filters by trait (descendants included, max 10), combined by trait_match=all|any; a character matches under the same spoiler and nsfw gates as its traits block. When trait_id= is given, each item carries matched_trait_ids: this character's own traits that satisfied the filter. gender= filters by the closed vocabulary male,female,other. include=work_count is the number of distinct works the character appears in under the same nsfw gate as /v2/catalog/characters/{id}/appearances.",
+		Description:        "Characters from one of two lanes. The index lane is used when q= is non-empty, page= is present, or sort is popularity, relevance or newest; otherwise the registry lane (sort=id, live SQL). The index lane reflects the nightly search index; the registry lane is live. q= with no sort defaults to relevance. sort=relevance requires q=. Popularity is log1p of the character's live roster, with main appearances at full work popularity and every other kind at half. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate; it cannot be combined with q= or a search sort. include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs,work_count fills on every lane, and view=full is all of them; traits are cut at the default spoiler ceiling and follow the nsfw gate, exactly as on the detail face. trait_id= filters by trait (descendants included, max 10), combined by trait_match=all|any; a character matches under the same spoiler and nsfw gates as its traits block. When trait_id= is given, each item carries matched_trait_ids: this character's own traits that satisfied the filter. gender= filters by the closed vocabulary male,female,other. include=work_count is the number of distinct works the character appears in under the same nsfw gate as /v2/catalog/characters/{id}/appearances. page= selects page mode on the index lane.",
 		Tags:               catalog,
 		Errors:             errs,
 		SkipValidateParams: true,
@@ -169,7 +171,7 @@ func registerCatalogLists(api huma.API, cat *Catalog) {
 		Method:             http.MethodGet,
 		Path:               "/v2/catalog/traits",
 		Summary:            "List traits",
-		Description:        "Keyset-paginated character traits. Requires an application key or a user access token with catalog:read. ids= is a batch lane. refs= is not resolved: traits have no catalog_external_ref entity_type. parent_id= lists direct children; group_id= lists traits in that root group (the root excluded); root=true|false keeps only roots or only non-roots. Filters are conjunctive. Without nsfw=true, sexual-family traits are excluded from the list and land in missing[] on the ids= batch; naming one as parent_id or group_id is 400. include=aliases,description (and view=full) add those blocks. is_sexual reports the sexual-family flag.",
+		Description:        "Keyset-paginated character traits. Requires an application key or a user access token with catalog:read. ids= is a batch lane. refs= is not resolved: traits have no catalog_external_ref entity_type. parent_id= lists direct children; group_id= lists traits in that root group (the root excluded); root=true|false keeps only roots or only non-roots. Filters are conjunctive. Without nsfw=true, sexual-family traits are excluded from the list and land in missing[] on the ids= batch; naming one as parent_id or group_id is 400. include=aliases,description (and view=full) add those blocks. include=character_count is the nightly index total that GET /v2/catalog/characters?trait_id=<this id>&page=1 answers under this request's nsfw; the engine failing is 503. It is an explicit ask: view=full does not add it. is_sexual reports the sexual-family flag.",
 		Tags:               catalog,
 		Errors:             errs,
 		SkipValidateParams: true,
@@ -287,9 +289,11 @@ func listCatalogCharacters(cat *Catalog) func(context.Context, *listCharactersIn
 		if in == nil {
 			in = &listCharactersInput{}
 		}
-		q, err := parseCatalogList(ctx, &in.CollectionInput, collect.CharacterSpec())
+		raw := rawFrom(&in.CollectionInput)
+		raw.Page = in.Page
+		q, err := collect.Parse(raw, collect.CharacterSpec())
 		if err != nil {
-			return nil, err
+			return nil, withIdent(ctx, err)
 		}
 		f, ferr := parseCharacterFilter(in)
 		if ferr != nil {

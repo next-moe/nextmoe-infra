@@ -58,7 +58,7 @@ func TestParseCharacterFilter(t *testing.T) {
 			code:  problem.CodeInvalidParameter,
 			param: "trait_id",
 		},
-		{name: "match without id", in: &listCharactersInput{TraitMatch: "any"}},
+		{name: "match without id", in: &listCharactersInput{TraitMatch: "any"}, want: characterFilter{MatchAny: true}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

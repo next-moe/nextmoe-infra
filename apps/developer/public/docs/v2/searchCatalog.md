@@ -13,7 +13,7 @@
 
 Search catalog entities
 
-Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Requires an application key or a user access token with catalog:read. cursor= pages the hits. ids= is not accepted. page= selects page mode (see the page parameter); every other collection is cursor-only. object=trait hits carry trait_path (group and direct parents). Without nsfw=true, sexual-family trait documents are excluded from the result and from total.
+Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Requires an application key or a user access token with catalog:read. cursor= pages the hits. ids= is not accepted. page= selects page mode (see the page parameter). object=trait hits carry trait_path (group and direct parents). Without nsfw=true, sexual-family trait documents are excluded from the result and from total.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…

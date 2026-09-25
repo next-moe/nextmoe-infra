@@ -208,7 +208,7 @@ func parsePage(raw string, limit int, batch bool, cursor string, pages bool) (in
 		p.Errors = []problem.FieldError{{
 			Parameter: "page",
 			Reason:    problem.ReasonNotAllowedValue,
-			Detail:    "page= is accepted only on /v2/catalog/works and /v2/catalog/search; page this collection with cursor=",
+			Detail:    "page= is accepted only on /v2/catalog/works, /v2/catalog/search and /v2/catalog/characters; page this collection with cursor=",
 		}}
 		return 0, p
 	}

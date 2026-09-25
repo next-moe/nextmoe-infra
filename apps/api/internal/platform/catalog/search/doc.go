@@ -35,6 +35,11 @@ type EntityDoc struct {
 	Tier         *int16  `json:"tier,omitempty"`
 	Sexual       *bool   `json:"sexual,omitempty"`
 
+	CatalogID   int64   `json:"catalog_id,omitempty"`
+	Gender      *int16  `json:"gender,omitempty"`
+	TraitIDs    []int64 `json:"trait_ids,omitempty"`
+	TraitIDsSFW []int64 `json:"trait_ids_sfw,omitempty"`
+
 	IntroJa    string `json:"intro_ja,omitempty"`
 	IntroZh    string `json:"intro_zh,omitempty"`
 	IntroOther string `json:"intro_other,omitempty"`

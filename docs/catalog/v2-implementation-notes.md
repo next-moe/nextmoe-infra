@@ -1571,3 +1571,60 @@ family statement on `kun_catalog`. The `migrate-catalog` deploy job runs it.
 The chartraits job recomputes the column after it syncs parent edges, so a
 nightly dump that moves a trait under a sexual parent is reflected without
 waiting for the next migrate.
+
+## Wave — character index lane and trait character_count (2026-09-25)
+
+The kungal forum pages the character library with `page=` and combines `q=`
+with trait filters, gender, and popularity order. Name search lived on
+`GET /v2/catalog/search?object=character` and could not take those filters, so
+the forum switched engines when a filter happened to be empty.
+
+`GET /v2/catalog/characters` now has two lanes on one face. The **index lane**
+is used when `q=` is non-empty, `page=` is present, or `sort` is `popularity`,
+`relevance`, or `newest`. Otherwise the existing SQL **registry lane**
+(`sort=id`) is unchanged. A client that always sends `page=` therefore always
+gets the same engine. `q=` with no sort defaults to `relevance`.
+`sort=relevance` without `q=` is 400. `ids=`/`refs=` together with `q=` or a
+search sort is 400 `MUTUALLY_EXCLUSIVE_PARAMETERS`. The index lane reflects
+the nightly search index; the registry lane is live. A cursor from the other
+lane is 400 `INVALID_CURSOR`. `page=` omits `next_cursor` and always carries
+`total` + `total_relation: "eq"`.
+
+**Documents** (`catalog_characters`). Each character carries `catalog_id`,
+`gender`, `trait_ids` (ancestors ∪ self of spoiler-none links), and
+`trait_ids_sfw` (the same union over links whose trait is not
+`sexual_family`). `trait_id=X` on the index lane is membership in
+`trait_ids` / `trait_ids_sfw`, which equals the registry lane's descendant
+expansion. Hydration loads live SQL rows in engine order and drops ids the
+SQL no longer returns (a page may be short; `total` stays the engine's;
+those ids are not `missing[]`).
+
+**Popularity** for characters is `log1p(Σ_main P(w) + 0.5 × Σ_other P(w))`
+over live, not-suppressed roster edges, where `P(w)` is the raw
+`max(value)` of BgmCollect and Downloads on the work — the same raw signal
+the works index log1p's.
+
+`include=character_count` on `GET /v2/catalog/traits` (list, `ids=` batch)
+and `GET /v2/catalog/traits/{id}` is the nightly index total that
+`GET /v2/catalog/characters?trait_id=<this id>&page=1` answers under this
+request's nsfw. The engine failing is 503; when the token is not asked, the
+engine is not called. It is an explicit ask, out of `view=full` (the works
+list's `credits` precedent): the executor's first cut put it in the trait
+`FullSet`, which would have made every `view=full` read of the vocabulary
+depend on OpenSearch. The registry lane now skips its COUNT whenever
+`include_total` is not asked, which also stops the index lane's hydration
+from counting the id set it just loaded.
+
+**Spec is 2.31.0.** Additive: `q=` / `page=` / `sort=popularity|relevance|newest`
+on `listCatalogCharacters`, `include=character_count` (and `fields=`) on
+traits. The character search face's ordering changes because `popularity` is
+redefined for characters. No new operation (117).
+
+**Ops.** Search `schema_version` 2 is one global version stamped on all eight
+indexes, so recreating only `catalog_characters` leaves `EnsureIndexes`
+refusing the other seven: run `reindex-catalog -recreate` over every index
+once after deploy. Until then the nightly job refuses and the index lane
+answers from stale documents without the new fields (trait and gender filters
+match nothing).
+
+**Zero SQL migrations.**

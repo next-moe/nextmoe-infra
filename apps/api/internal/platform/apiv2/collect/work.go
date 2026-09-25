@@ -169,10 +169,11 @@ func CharacterSpec() Spec {
 	fields := []string{"object", "id", "display_name", "latin", "lang", "localized", "matched_trait_ids"}
 	fields = append(fields, full...)
 	return Spec{
-		Sort:    []string{"id"},
+		Sort:    []string{"id", "popularity", "relevance", "newest"},
 		Include: append([]string{}, full...),
 		FullSet: append([]string{}, full...),
 		Fields:  fields,
+		Pages:   true,
 	}
 }
 
@@ -185,8 +186,13 @@ func PersonSpec() Spec {
 	}
 }
 
+// character_count is out of FullSet for the reason credits is out of the works
+// list FullSet: it is an explicit ask. It is also the one trait block read from
+// the search engine, and view=full would otherwise make every full read of the
+// vocabulary depend on OpenSearch.
 func TraitSpec() Spec {
-	inc := []string{"aliases", "description"}
+	full := []string{"aliases", "description"}
+	inc := []string{"aliases", "description", "character_count"}
 	fields := []string{
 		"object", "id", "display_name", "name_zh", "vndb_tid", "is_sexual",
 		"localized", "group_id", "group", "group_localized", "parents", "child_count", "root_order",
@@ -196,7 +202,7 @@ func TraitSpec() Spec {
 	return Spec{
 		Sort:    []string{"id"},
 		Include: append([]string{}, inc...),
-		FullSet: append([]string{}, inc...),
+		FullSet: full,
 		Fields:  fields,
 	}
 }

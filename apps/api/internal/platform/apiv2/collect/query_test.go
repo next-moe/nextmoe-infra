@@ -169,6 +169,10 @@ func TestParsePageMode(t *testing.T) {
 	if err != nil || q.Page != 1 {
 		t.Fatalf("search spec page: %+v %v", q, err)
 	}
+	q, err = Parse(Raw{Page: "1"}, CharacterSpec())
+	if err != nil || q.Page != 1 {
+		t.Fatalf("character spec page: %+v %v", q, err)
+	}
 }
 
 func TestParsePageNonInteger(t *testing.T) {

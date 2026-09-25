@@ -56,3 +56,14 @@ type EntityQuery struct {
 	ContentRatingNot *int16
 	SexualNot        *bool
 }
+
+type CharacterQuery struct {
+	Q             string
+	Page          int
+	Limit         int
+	Sort          string
+	TraitIDs      []int64
+	TraitMatchAny bool
+	NSFW          bool
+	Genders       []int16
+}

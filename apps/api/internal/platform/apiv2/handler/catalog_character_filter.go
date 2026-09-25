@@ -3,12 +3,14 @@ package handler
 import (
 	"strings"
 
+	"api/internal/platform/apiv2/collect"
 	"api/internal/platform/apiv2/problem"
 	"api/internal/platform/apiv2/repr"
 	"api/internal/platform/apiv2/vocab"
 )
 
 type characterFilter struct {
+	Q        string
 	TraitIDs []int64
 	MatchAny bool
 	Genders  []int16
@@ -18,18 +20,18 @@ func parseCharacterFilter(in *listCharactersInput) (characterFilter, *problem.Pr
 	if in == nil {
 		return characterFilter{}, nil
 	}
+	f := characterFilter{Q: strings.TrimSpace(in.Q)}
 	ids, err := idList(in.TraitID, "trait_id", 10)
 	if err != nil {
 		return characterFilter{}, err
 	}
-	ids = uniqueInt64(ids)
+	f.TraitIDs = uniqueInt64(ids)
 	match := strings.TrimSpace(in.TraitMatch)
-	matchAny := false
 	if match != "" {
 		switch match {
 		case "all":
 		case "any":
-			matchAny = true
+			f.MatchAny = true
 		default:
 			return characterFilter{}, closedParam("trait_match", "all, any")
 		}
@@ -38,18 +40,27 @@ func parseCharacterFilter(in *listCharactersInput) (characterFilter, *problem.Pr
 	if err != nil {
 		return characterFilter{}, err
 	}
-	var genders []int16
 	for _, tok := range tokens {
 		code, ok := repr.GenderFromKey(tok)
 		if !ok {
 			return characterFilter{}, closedParam("gender", strings.Join(vocab.Tokens("gender"), ", "))
 		}
-		genders = append(genders, code)
+		f.Genders = append(f.Genders, code)
 	}
-	if len(ids) == 0 && len(genders) == 0 {
-		return characterFilter{}, nil
+	return f, nil
+}
+
+func characterSearchSort(sort string) bool {
+	switch sort {
+	case "popularity", "relevance", "newest":
+		return true
+	default:
+		return false
 	}
-	return characterFilter{TraitIDs: ids, MatchAny: matchAny, Genders: genders}, nil
+}
+
+func characterIndexLane(q collect.Query, nameQ string) bool {
+	return strings.TrimSpace(nameQ) != "" || q.Page > 0 || characterSearchSort(q.Sort)
 }
 
 func uniqueInt64(ids []int64) []int64 {

@@ -28,7 +28,7 @@ func registerCatalogSearch(api huma.API, cat *Catalog) {
 		Method:             http.MethodGet,
 		Path:               "/v2/catalog/search",
 		Summary:            "Search catalog entities",
-		Description:        "Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Requires an application key or a user access token with catalog:read. cursor= pages the hits. ids= is not accepted. page= selects page mode (see the page parameter); every other collection is cursor-only. object=trait hits carry trait_path (group and direct parents). Without nsfw=true, sexual-family trait documents are excluded from the result and from total.",
+		Description:        "Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Requires an application key or a user access token with catalog:read. cursor= pages the hits. ids= is not accepted. page= selects page mode (see the page parameter). object=trait hits carry trait_path (group and direct parents). Without nsfw=true, sexual-family trait documents are excluded from the result and from total.",
 		Tags:               []string{"catalog"},
 		Errors:             collectionErrors(http.StatusUnauthorized, http.StatusForbidden, http.StatusServiceUnavailable),
 		SkipValidateParams: true,

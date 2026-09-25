@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	stderrors "errors"
-	"fmt"
 	"sort"
 	"strings"
 
@@ -871,12 +870,7 @@ type SiblingNameRow struct {
 // nameWorkScope is shared by NameWorks' total and its page: a total of 40 that
 // pages out 38 is a defect on its own.
 var nameWorkScope = `FROM catalog_credit c WHERE c.credit_name_id = ? AND ` +
-	editspec.NotSuppressedCreditSQL("c") + ` AND ` + liveWorkSQL("c.work_id")
-
-func liveWorkSQL(workCol string) string {
-	return fmt.Sprintf(`EXISTS (SELECT 1 FROM catalog_work lw WHERE lw.id = %s AND lw.deleted_at IS NULL AND lw.status = %d)`,
-		workCol, model.WorkStatusLive)
-}
+	editspec.NotSuppressedCreditSQL("c") + ` AND ` + editspec.LiveWorkSQL("c.work_id")
 
 type NameWorkRoleRow struct {
 	WorkID      int64   `gorm:"column:work_id"`
@@ -977,9 +971,9 @@ func (s *ReadService) NameWorks(ctx context.Context, nameID int64, limit, offset
 // carries the character: charter ruling 2 (read paths exclude suppressed rows
 // uniformly) is not given an exemption for the union's existence half.
 var unionWorks = `SELECT wc.work_id FROM catalog_work_character wc WHERE wc.character_id = ? AND ` +
-	editspec.NotSuppressedRosterSQL("wc") + ` AND ` + liveWorkSQL("wc.work_id") + `
+	editspec.NotSuppressedRosterSQL("wc") + ` AND ` + editspec.LiveWorkSQL("wc.work_id") + `
 	UNION SELECT c.work_id FROM catalog_credit c WHERE c.character_id = ? AND ` +
-	editspec.NotSuppressedCreditSQL("c") + ` AND ` + liveWorkSQL("c.work_id")
+	editspec.NotSuppressedCreditSQL("c") + ` AND ` + editspec.LiveWorkSQL("c.work_id")
 
 type CharacterHeadRow struct {
 	ID          int64  `gorm:"column:id"`
