@@ -55,6 +55,7 @@ type descItem struct {
 	Prepared string
 	Hash     string
 	Glossary []glossPair
+	RefLabel map[string]string
 }
 
 type descTranslator interface {
@@ -290,7 +291,79 @@ func prepareDescItem(row descRow, byTID map[string]traitLex, names map[string]st
 		Prepared: catsvc.PlainTraitDescription(rewritten),
 		Hash:     sourceHash(row.Description),
 		Glossary: buildGlossary(traitLex{Name: row.Name, NameZh: row.NameZh}, group, parents, linked),
+		RefLabel: bareRefLabels(row, byTID),
 	}
+}
+
+var traitIDToken = regexp.MustCompile(`i\d+`)
+
+func isRefBoundary(b byte) bool {
+	return !(b >= '0' && b <= '9' || b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b == '/')
+}
+
+// bareTraitRefs yields the byte spans of iNNN tokens that stand alone in
+// running text, not inside a URL or a longer word.
+func bareTraitRefs(s string) [][]int {
+	var out [][]int
+	for _, m := range traitIDToken.FindAllStringIndex(s, -1) {
+		if m[0] > 0 && !isRefBoundary(s[m[0]-1]) {
+			continue
+		}
+		if m[1] < len(s) && !isRefBoundary(s[m[1]]) {
+			continue
+		}
+		out = append(out, m)
+	}
+	return out
+}
+
+func bareRefLabels(row descRow, byTID map[string]traitLex) map[string]string {
+	labels := map[string]string{}
+	for _, m := range bareTraitRefs(row.Description) {
+		tid := row.Description[m[0]:m[1]]
+		t, ok := byTID[tid]
+		if !ok {
+			continue
+		}
+		name := t.NameZh
+		if name == "" {
+			name = t.Name
+		}
+		label := "「" + name + "」"
+		if t.Name == row.Name || (t.NameZh != "" && t.NameZh == row.NameZh) {
+			if g, ok := byTID[t.GroupTID]; ok {
+				gname := g.NameZh
+				if gname == "" {
+					gname = g.Name
+				}
+				label += "（" + gname + "）"
+			}
+		}
+		labels[tid] = label
+	}
+	return labels
+}
+
+func replaceBareTraitRefs(zh string, labels map[string]string) string {
+	if len(labels) == 0 {
+		return zh
+	}
+	var b strings.Builder
+	last := 0
+	for _, m := range bareTraitRefs(zh) {
+		label, ok := labels[zh[m[0]:m[1]]]
+		if !ok {
+			continue
+		}
+		b.WriteString(strings.TrimRight(zh[last:m[0]], " \t"))
+		b.WriteString(label)
+		last = m[1]
+		for last < len(zh) && (zh[last] == ' ' || zh[last] == '\t') {
+			last++
+		}
+	}
+	b.WriteString(zh[last:])
+	return b.String()
 }
 
 func runMTDesc(ctx context.Context, db *gorm.DB, tr descTranslator, out string, limit int, delay time.Duration, ids []int64) error {
@@ -311,6 +384,7 @@ func runMTDesc(ctx context.Context, db *gorm.DB, tr descTranslator, out string, 
 			slog.Warn("describe failed", "trait", c.Row.Name, "id", c.Row.ID, "error", err)
 			zh = ""
 		}
+		zh = replaceBareTraitRefs(zh, c.RefLabel)
 		rows = append(rows, descCSVRow{
 			TraitID:       c.Row.ID,
 			VndbTID:       c.Row.VndbTID,

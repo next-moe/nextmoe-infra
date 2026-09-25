@@ -82,3 +82,24 @@ func TestParseIDList(t *testing.T) {
 	_, err = parseIDList("1,x")
 	require.Error(t, err)
 }
+
+func TestBareTraitRefsBecomeCuratedNames(t *testing.T) {
+	byTID := map[string]traitLex{
+		"i568":  {VndbTID: "i568", Name: "Anal Sex", NameZh: "肛交", GroupTID: "i43"},
+		"i18":   {VndbTID: "i18", Name: "Ponytail", NameZh: "马尾辫", GroupTID: "i1"},
+		"i43":   {VndbTID: "i43", Name: "Engages in (Sexual)", NameZh: "主动(性)"},
+		"i1":    {VndbTID: "i1", Name: "Hair", NameZh: "毛发"},
+		"i1597": {VndbTID: "i1597", Name: "Anal Fingering", NameZh: "肛门指交"},
+	}
+	row := descRow{Name: "Anal Sex", NameZh: "肛交", Description: "Use this on the receiver and i568 on the other. Not for i18 (see [url=/i1597]i1597[/url]), nor i99999 or vi568."}
+	labels := bareRefLabels(row, byTID)
+	assert.Equal(t, "「肛交」（主动(性)）", labels["i568"])
+	assert.Equal(t, "「马尾辫」", labels["i18"])
+	_, unknown := labels["i99999"]
+	assert.False(t, unknown)
+
+	zh := "此特征用于接受方，插入方使用 i568。\n\n扎马尾辫请使用 i18。未知 i99999 保留。"
+	assert.Equal(t, "此特征用于接受方，插入方使用「肛交」（主动(性)）。\n\n扎马尾辫请使用「马尾辫」。未知 i99999 保留。",
+		replaceBareTraitRefs(zh, labels))
+	assert.Equal(t, "见 https://vndb.org/i568 与 vi568", replaceBareTraitRefs("见 https://vndb.org/i568 与 vi568", labels))
+}
