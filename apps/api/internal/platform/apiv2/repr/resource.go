@@ -9,7 +9,7 @@ type Ref struct {
 type Claim struct {
 	_            struct{} `json:"-" additionalProperties:"true"`
 	Site         string   `json:"site" maxLength:"64" pattern:"^[a-z][a-z0-9_]*$" doc:"Claiming site key."`
-	SiteWorkID   string   `json:"site_work_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"The site's own work id. kungal and moyu number their pages by catalog id, so there it equals the work's id; other sites number their own."`
+	SiteWorkID   string   `json:"site_work_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"The site's own work id. kungal, moyu and letmoe number their pages by catalog id, so there it equals the work's id; other sites number their own."`
 	State        string   `json:"state" enum:"live,draft,pending,declined,hidden" doc:"Claim lifecycle state."`
 	ContentLimit string   `json:"content_limit" enum:"sfw,nsfw" doc:"Editorial display axis for this claim."`
 }

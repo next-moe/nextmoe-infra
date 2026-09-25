@@ -201,4 +201,5 @@ moyu's migration 040 has not run, since after that the table is theirs.
   the forum needs is off for that site. It is a code table, not a flag — a typo
   in a flag would be a silent wrong sweep. Since 2026-09-24 the redirect row is
   taken as proof on such a site and the conversation moves to the survivor's
-  page rather than being retired.
+  page rather than being retired. letmoe joined that code table on 2026-09-25
+  (its game id has been the catalog work id since its migration 028).

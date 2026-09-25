@@ -13,8 +13,9 @@
 // conversation, while a wrong re-anchor files it under an unrelated game, where
 // it looks correct. Since the forum's G0 renumber a kungal gid IS the catalog id
 // (as a moyu one always was), so the redirect row is the proof, and on those
-// sites the conversation now moves to the survivor's page (2026-09-24). A site
-// whose ids still differ keeps the retirement until it conforms.
+// sites the conversation now moves to the survivor's page (2026-09-24); letmoe
+// joined them on 2026-09-25. A site whose ids still differ keeps the retirement
+// until it conforms.
 package main
 
 import (
