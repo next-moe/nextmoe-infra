@@ -733,6 +733,19 @@ Decisions behind that table:
   largest minutes across apps, so after one app deletes, GET keeps answering
   from the others. No rows were lost: at the fix every production row was
   kungal's.
+- **Page mode on the two search-backed collections, since 2.29.0.**
+  `GET /v2/catalog/works` and `GET /v2/catalog/search` take `page=` (1-based,
+  `page × limit ≤ 10000`, exclusive with `cursor`/`ids`/`refs`). The response
+  omits `next_cursor`, always carries `total`, and carries `total_relation`
+  (`eq`; the enum also has `gte` because the forum's page collections can
+  emit it). On works, `page=` selects the search lane like `q=`/`facets=` do.
+  This is a named exception to B17, not a second platform style: these two
+  collections are served by the search index, which pages by `from + size`
+  and counts exactly, and their cursor already carried a page number. The
+  forum's `/galgame` paginator forged that cursor (`cur_` + base64 of a page
+  number, plus `facets=` to force the search lane) because no page mode
+  existed; it should switch to `page=`. Every other collection stays
+  cursor-only.
 - **`released` is accepted since 2.21.0** (it was deliberately absent through
   2.20.x — no caller had ever sent it). The v1 shape returned: `{y, m?, d?}`
   becomes ONE curated `catalog_release` row on the minted work, because a fresh
@@ -1476,3 +1489,18 @@ primary key (~750 ms on a production-sized copy); with it every page measured
 under 13 ms and the heaviest `include_total` count ~70 ms. The build took
 0.7 s on that copy (116 MB), so a plain `CREATE INDEX` holds the link table's
 write lock only briefly.
+
+## Wave — page mode lands (2026-09-25)
+
+Page mode on `/v2/catalog/works` and `/v2/catalog/search` (the bullet under
+binds above) was accepted on 2026-09-18 as PR #268 with every check green,
+and then never merged. Its version, 2.25.0, was reused by a different wave,
+and the forum kept faking page cursors because the parameter it had been told
+to use did not exist. It lands now unchanged in behaviour, rebased onto
+2.28.0.
+
+**Spec is 2.29.0.** Additive: `page=` on `listCatalogWorks` and
+`searchCatalog`, `total_relation` on the list envelope. No new operation
+(117). oasdiff reports no breaking change.
+
+**Zero migrations.**
