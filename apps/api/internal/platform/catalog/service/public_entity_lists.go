@@ -146,15 +146,32 @@ func (inc CharacterListInclude) any() bool {
 	return inc.Attributes || inc.Image || inc.Figure || inc.Traits || inc.Aliases || inc.Intros || inc.Refs
 }
 
-func (s *PublicService) CharactersList(ctx context.Context, ids []int64, cursor string, limit int, inc CharacterListInclude, nsfw bool) (EntityListPage, error) {
-	page, err := s.entityIDList(ctx, entityListSpec{
+func (s *PublicService) CharactersList(ctx context.Context, ids []int64, cursor string, limit int, inc CharacterListInclude, nsfw bool, filter CharacterTraitFilter, includeTotal bool) (EntityListPage, error) {
+	spec := entityListSpec{
 		lane:      taxonomyLaneCharacters,
 		table:     "catalog_character",
 		selectSQL: "id, display_name, latin, lang",
 		deleted:   true,
 		ids:       ids, cursor: cursor, limit: limit,
 		alias: "character",
-	})
+	}
+	if len(filter.TraitIDs) > 0 {
+		if _, err := decodePublicCursor(cursor, taxonomyLaneCharacters); err != nil {
+			return EntityListPage{}, err
+		}
+		sets, err := s.expandCharacterTraits(ctx, filter.TraitIDs, nsfw)
+		if err != nil {
+			return EntityListPage{}, err
+		}
+		where, args, empty := characterTraitWhere(sets, filter.MatchAny)
+		if empty {
+			return EntityListPage{Items: []EntityListRow{}}, nil
+		}
+		spec.extraWhere = where
+		spec.extraArgs = args
+		spec.skipTotal = !includeTotal
+	}
+	page, err := s.entityIDList(ctx, spec)
 	if err != nil || !inc.any() {
 		return page, err
 	}
@@ -201,6 +218,9 @@ type entityListSpec struct {
 	deleted                                        bool
 	ids                                            []int64
 	limit                                          int
+	extraWhere                                     []string
+	extraArgs                                      []any
+	skipTotal                                      bool
 }
 
 func (s *PublicService) entityIDList(ctx context.Context, spec entityListSpec) (EntityListPage, error) {
@@ -221,6 +241,10 @@ func (s *PublicService) entityIDList(ctx context.Context, spec entityListSpec) (
 	if spec.q != "" && spec.qCol != "" {
 		where = append(where, spec.qCol+` ILIKE ? ESCAPE '\'`)
 		args = append(args, "%"+escapeLikePattern(spec.q)+"%")
+	}
+	if len(spec.extraWhere) > 0 {
+		where = append(where, spec.extraWhere...)
+		args = append(args, spec.extraArgs...)
 	}
 	filterWhere, filterArgs := append([]string(nil), where...), append([]any(nil), args...)
 	if cur.ID > 0 {
@@ -252,8 +276,10 @@ func (s *PublicService) entityIDList(ctx context.Context, spec entityListSpec) (
 		}
 	}
 	out := EntityListPage{Items: rows, NextCursor: taxonomyNextCursor(spec.lane, ids, more)}
-	if out.Total, err = s.taxonomyTotal(ctx, spec.table, filterWhere, filterArgs); err != nil {
-		return EntityListPage{}, err
+	if !spec.skipTotal {
+		if out.Total, err = s.taxonomyTotal(ctx, spec.table, filterWhere, filterArgs); err != nil {
+			return EntityListPage{}, err
+		}
 	}
 	return out, nil
 }

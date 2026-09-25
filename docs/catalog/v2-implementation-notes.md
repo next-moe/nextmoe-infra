@@ -1444,3 +1444,35 @@ new `include` token on `listMyProposals`. No new operation (117). oasdiff
 reports no breaking change.
 
 **Zero migrations.**
+
+## Wave — characters by trait (2026-09-25)
+
+Downstream sites want to find characters by trait tags (Boots, Cheerful,
+Magician), one or several at a time. `GET /v2/catalog/characters` now takes
+`trait_id=` (comma-separated catalog trait ids, max 10) and `trait_match=`
+(`all` default, or `any`). A character matches trait X iff the `include=traits`
+block of this same request would list X or a descendant of X: descendants are
+included transitively through `catalog_character_trait_parent`, links above the
+none spoiler ceiling do not count, and sexual traits are dropped unless
+`nsfw=true`. Naming a sexual trait without `nsfw=true` is 400. Unknown ids
+match nothing. `ids=` combines conjunctively; ids that exist but are filtered
+out land in `missing[]`. `total` counts the same filtered set, and is not
+computed at all unless `include_total=true`.
+
+The `character` schema still said `image`, `figure`, `traits`, `aliases`,
+`intros` and `refs` were "detail face only", though the list lane has filled
+all six since it learned `include=`. A consumer building a trait-filtered list
+would have read that as "fetch every hit's detail", so the clause is gone.
+
+**Spec is 2.28.0.** Additive: two new optional parameters on
+`listCatalogCharacters`. No new operation (117). oasdiff reports no breaking
+change.
+
+The catalog migration adds `idx_catalog_character_trait_link_trait_char`
+`(trait_id, character_id) INCLUDE (spoiler_level)` on `kun_catalog` via
+`go run ./cmd/migrate catalog`. Additive; the `migrate-catalog` deploy job runs
+it automatically. Without it a rare trait walked all ~200k characters by
+primary key (~750 ms on a production-sized copy); with it every page measured
+under 13 ms and the heaviest `include_total` count ~70 ms. The build took
+0.7 s on that copy (116 MB), so a plain `CREATE INDEX` holds the link table's
+write lock only briefly.

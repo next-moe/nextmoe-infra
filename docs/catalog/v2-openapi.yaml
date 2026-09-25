@@ -364,7 +364,7 @@ components:
           readOnly: true
           type: string
         aliases:
-          description: Alternate spellings of THIS character name. Present when include=aliases, detail face only. Empty array if none.
+          description: Alternate spellings of THIS character name. Present when include=aliases. Empty array if none.
           items:
             $ref: "#/components/schemas/EntityName"
           type: array
@@ -388,7 +388,7 @@ components:
           type: string
         figure:
           $ref: "#/components/schemas/Image"
-          description: Present only when include=figure and this character has a full-body figure cutout; absent otherwise. Detail face only.
+          description: Present only when include=figure and this character has a full-body figure cutout; absent otherwise.
         gender:
           description: Present on view=full. null if unrecorded.
           enum:
@@ -410,14 +410,14 @@ components:
           type: string
         image:
           $ref: "#/components/schemas/Image"
-          description: Present only when include=image and this character has an image; absent otherwise. Detail face only.
+          description: Present only when include=image and this character has an image; absent otherwise.
         instance_of_id:
           description: Another character this row is an instance of. Present on view=full. null if none.
           maxLength: 20
           pattern: ^[0-9]+$
           type: string
         intros:
-          description: Character descriptions, one per language. Present when include=intros, detail face only. Empty array if none.
+          description: Character descriptions, one per language. Present when include=intros. Empty array if none.
           items:
             $ref: "#/components/schemas/Intro"
           type: array
@@ -449,12 +449,12 @@ components:
           type: string
           x-vocabulary-closed: true
         refs:
-          description: Exact upstream anchors of this character. Present when include=refs, detail face only. Empty array if none.
+          description: Exact upstream anchors of this character. Present when include=refs. Empty array if none.
           items:
             $ref: "#/components/schemas/Ref"
           type: array
         traits:
-          description: Present when include=traits, detail face only. Empty array if none.
+          description: Present when include=traits. Empty array if none.
           items:
             $ref: "#/components/schemas/CharacterTrait"
           type: array
@@ -8114,7 +8114,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.27.0
+  version: 2.28.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -8477,7 +8477,7 @@ paths:
         - catalog
   /v2/catalog/characters:
     get:
-      description: Keyset-paginated characters. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs fills on every lane, and view=full is all of them; traits are cut at the default spoiler ceiling and follow the nsfw gate, exactly as on the detail face.
+      description: Keyset-paginated characters. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs fills on every lane, and view=full is all of them; traits are cut at the default spoiler ceiling and follow the nsfw gate, exactly as on the detail face. trait_id= filters by trait (descendants included, max 10), combined by trait_match=all|any; a character matches under the same spoiler and nsfw gates as its traits block.
       operationId: listCatalogCharacters
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -8566,6 +8566,22 @@ paths:
           name: nsfw
           schema:
             description: true includes r18. false or absent hides r18. Only true or false.
+            maxLength: 8
+            type: string
+        - description: Comma-separated catalog trait ids, max 10. Descendants included. Matches under the same spoiler and nsfw gates as the traits block. Naming a sexual trait without nsfw=true is 400. Unknown ids match nothing.
+          explode: false
+          in: query
+          name: trait_id
+          schema:
+            description: Comma-separated catalog trait ids, max 10. Descendants included. Matches under the same spoiler and nsfw gates as the traits block. Naming a sexual trait without nsfw=true is 400. Unknown ids match nothing.
+            maxLength: 256
+            type: string
+        - description: "Closed: all (default), any. No effect without trait_id."
+          explode: false
+          in: query
+          name: trait_match
+          schema:
+            description: "Closed: all (default), any. No effect without trait_id."
             maxLength: 8
             type: string
       responses:
