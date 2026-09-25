@@ -1628,3 +1628,26 @@ answers from stale documents without the new fields (trait and gender filters
 match nothing).
 
 **Zero SQL migrations.**
+
+## Wave — character popularity respects the nsfw gate (2026-09-25)
+
+The forum reported that under `nsfw=false`, `sort=popularity` puts
+characters who appear only in r18 works at the top of page 1, where they
+show `work_count: 0`, because `popularity` counted r18 works.
+
+Character documents now carry `popularity_sfw`: the same
+`log1p(Σ_main P(w) + 0.5 × Σ_other P(w))` over live, not-suppressed roster
+edges whose work is not r18 — the predicate `include=work_count` already
+uses. `popularity` is unchanged. On the character index lane, when `nsfw`
+is not true, `sort=popularity` and the `relevance` tie-break read
+`popularity_sfw`; `nsfw=true` keeps `popularity`. The `catalog_id` tie-break
+stays last.
+
+**Spec is 2.31.1.** Behaviour fix; no parameter or response-shape change.
+
+**Ops.** Search `schema_version` 3 is one global version stamped on all eight
+indexes, so recreating only `catalog_characters` leaves `EnsureIndexes`
+refusing the other seven: run `reindex-catalog -recreate` over every index
+once after deploy.
+
+**Zero SQL migrations.**

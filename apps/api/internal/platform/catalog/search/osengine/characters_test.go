@@ -52,21 +52,25 @@ func TestCharactersSearchBodySortClauses(t *testing.T) {
 	idAsc := map[string]any{"catalog_id": map[string]any{"order": "asc"}}
 	idDesc := map[string]any{"catalog_id": map[string]any{"order": "desc"}}
 	popDesc := map[string]any{"popularity": map[string]any{"order": "desc"}}
+	popSFWDesc := map[string]any{"popularity_sfw": map[string]any{"order": "desc"}}
 	cases := []struct {
 		sort string
+		nsfw bool
 		want []any
 	}{
-		{"popularity", []any{popDesc, idAsc}},
-		{"relevance", []any{"_score", popDesc, idAsc}},
-		{"newest", []any{idDesc}},
-		{"id", []any{idAsc}},
-		{"", []any{idAsc}},
+		{"popularity", false, []any{popSFWDesc, idAsc}},
+		{"popularity", true, []any{popDesc, idAsc}},
+		{"relevance", false, []any{"_score", popSFWDesc, idAsc}},
+		{"relevance", true, []any{"_score", popDesc, idAsc}},
+		{"newest", false, []any{idDesc}},
+		{"id", false, []any{idAsc}},
+		{"", false, []any{idAsc}},
 	}
 	for _, tc := range cases {
-		body, _ := charactersSearchBody(spec.CharacterQuery{Sort: tc.sort, Limit: 20, Page: 1})
+		body, _ := charactersSearchBody(spec.CharacterQuery{Sort: tc.sort, NSFW: tc.nsfw, Limit: 20, Page: 1})
 		got, _ := body["sort"].([]any)
 		if !reflect.DeepEqual(got, tc.want) {
-			t.Fatalf("sort=%q got %#v want %#v", tc.sort, got, tc.want)
+			t.Fatalf("sort=%q nsfw=%v got %#v want %#v", tc.sort, tc.nsfw, got, tc.want)
 		}
 	}
 }

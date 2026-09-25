@@ -83,13 +83,15 @@ func (c *Context) Build(ctx context.Context, db *gorm.DB, rows []Row) ([]catsear
 		return nil, err
 	}
 	for i, r := range rows {
+		pop, popSFW := characterPopularity(roster[r.ID], c.workPop)
 		d := catsearch.EntityDoc{
-			ID:         catsearch.CharacterDocID(r.ID),
-			EntityType: "character",
-			Latin:      r.Latin,
-			CatalogID:  r.ID,
-			Gender:     r.Gender,
-			Popularity: characterPopularity(roster[r.ID], c.workPop),
+			ID:            catsearch.CharacterDocID(r.ID),
+			EntityType:    "character",
+			Latin:         r.Latin,
+			CatalogID:     r.ID,
+			Gender:        r.Gender,
+			Popularity:    pop,
+			PopularitySFW: &popSFW,
 		}
 		d.SetName(r.Lang, r.DisplayName)
 		d.TraitIDs, d.TraitIDsSFW = c.traitUnions(links[r.ID])
@@ -139,17 +141,19 @@ func (c *Context) ancestors(id int64) []int64 {
 	return out
 }
 
-func characterPopularity(edges []rosterEdge, workPop map[int64]float64) float64 {
-	var sum float64
+func characterPopularity(edges []rosterEdge, workPop map[int64]float64) (all, sfw float64) {
+	var sumAll, sumSFW float64
 	for _, e := range edges {
 		p := workPop[e.WorkID]
-		if e.Kind == model.WorkCharacterKindMain {
-			sum += p
-		} else {
-			sum += 0.5 * p
+		if e.Kind != model.WorkCharacterKindMain {
+			p *= 0.5
+		}
+		sumAll += p
+		if e.ContentRating != model.ContentRatingR18 {
+			sumSFW += p
 		}
 	}
-	return math.Log1p(sum)
+	return math.Log1p(sumAll), math.Log1p(sumSFW)
 }
 
 func loadParents(ctx context.Context, db *gorm.DB) (map[int64][]int64, error) {
@@ -203,17 +207,21 @@ func loadLinks(ctx context.Context, db *gorm.DB, ids []int64) (map[int64][]int64
 }
 
 type rosterEdge struct {
-	WorkID int64
-	Kind   int16
+	WorkID        int64
+	Kind          int16
+	ContentRating int16
 }
 
 func loadRoster(ctx context.Context, db *gorm.DB, ids []int64) (map[int64][]rosterEdge, error) {
 	var rows []struct {
-		CharacterID int64 `gorm:"column:character_id"`
-		WorkID      int64 `gorm:"column:work_id"`
-		Kind        int16 `gorm:"column:kind"`
+		CharacterID   int64 `gorm:"column:character_id"`
+		WorkID        int64 `gorm:"column:work_id"`
+		Kind          int16 `gorm:"column:kind"`
+		ContentRating int16 `gorm:"column:content_rating"`
 	}
-	q := `SELECT wc.character_id, wc.work_id, wc.kind FROM catalog_work_character wc
+	q := `SELECT wc.character_id, wc.work_id, wc.kind, w.content_rating
+		FROM catalog_work_character wc
+		JOIN catalog_work w ON w.id = wc.work_id
 		WHERE wc.character_id IN ? AND ` + editspec.NotSuppressedRosterSQL("wc") +
 		` AND ` + editspec.LiveWorkSQL("wc.work_id")
 	if err := db.WithContext(ctx).Raw(q, ids).Scan(&rows).Error; err != nil {
@@ -221,7 +229,9 @@ func loadRoster(ctx context.Context, db *gorm.DB, ids []int64) (map[int64][]rost
 	}
 	m := map[int64][]rosterEdge{}
 	for _, r := range rows {
-		m[r.CharacterID] = append(m[r.CharacterID], rosterEdge{WorkID: r.WorkID, Kind: r.Kind})
+		m[r.CharacterID] = append(m[r.CharacterID], rosterEdge{
+			WorkID: r.WorkID, Kind: r.Kind, ContentRating: r.ContentRating,
+		})
 	}
 	return m, nil
 }

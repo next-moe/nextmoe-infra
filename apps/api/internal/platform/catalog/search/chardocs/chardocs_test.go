@@ -180,6 +180,116 @@ func TestBuildTraitClosureGenderPopularity(t *testing.T) {
 	if d.Popularity != wantPop {
 		t.Fatalf("popularity %v want log1p(125)=%v", d.Popularity, wantPop)
 	}
+	if d.PopularitySFW == nil || *d.PopularitySFW != wantPop {
+		t.Fatalf("popularity_sfw %+v want log1p(125)=%v (both works are not r18)", d.PopularitySFW, wantPop)
+	}
+}
+
+func TestBuildPopularitySFW(t *testing.T) {
+	empty := datatypes.JSON([]byte("{}"))
+	for _, table := range []string{
+		"catalog_work_character", "catalog_work_popularity",
+		"catalog_character", "catalog_work",
+	} {
+		if err := testDB.Exec("TRUNCATE " + table + " RESTART IDENTITY CASCADE").Error; err != nil {
+			t.Fatalf("truncate %s: %v", table, err)
+		}
+	}
+
+	mixed := &model.CatalogCharacter{
+		DisplayName: "mixed-pop", Lang: "ja", Extra: empty, FieldProvenance: empty,
+	}
+	r18Only := &model.CatalogCharacter{
+		DisplayName: "r18-only-pop", Lang: "ja", Extra: empty, FieldProvenance: empty,
+	}
+	if err := testDB.Create(mixed).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := testDB.Create(r18Only).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	wR18 := &model.CatalogWork{
+		MediumID: 1, OLang: "ja", DisplayName: "r18-pop",
+		ContentRating: model.ContentRatingR18, Status: model.WorkStatusLive,
+		Extra: empty, FieldProvenance: empty,
+	}
+	wSFW := &model.CatalogWork{
+		MediumID: 1, OLang: "ja", DisplayName: "sfw-pop",
+		ContentRating: model.ContentRatingAllAges, Status: model.WorkStatusLive,
+		Extra: empty, FieldProvenance: empty,
+	}
+	if err := testDB.Create(wR18).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := testDB.Create(wSFW).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := testDB.Create(&model.CatalogWorkPopularity{
+		WorkID: wR18.ID, SourceID: 2, Metric: model.PopularityMetricBgmCollect, Value: 100,
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := testDB.Create(&model.CatalogWorkPopularity{
+		WorkID: wSFW.ID, SourceID: 2, Metric: model.PopularityMetricDownloads, Value: 50,
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := testDB.Create(&model.CatalogWorkCharacter{
+		WorkID: wR18.ID, CharacterID: mixed.ID, Kind: model.WorkCharacterKindMain, Spoiler: model.SpoilerNone,
+		MatchedBy: "import:test", FieldProvenance: empty,
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := testDB.Create(&model.CatalogWorkCharacter{
+		WorkID: wSFW.ID, CharacterID: mixed.ID, Kind: model.WorkCharacterKindSecondary, Spoiler: model.SpoilerNone,
+		MatchedBy: "import:test", FieldProvenance: empty,
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := testDB.Create(&model.CatalogWorkCharacter{
+		WorkID: wR18.ID, CharacterID: r18Only.ID, Kind: model.WorkCharacterKindMain, Spoiler: model.SpoilerNone,
+		MatchedBy: "import:test", FieldProvenance: empty,
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := t.Context()
+	loaded, err := Load(ctx, testDB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	docs, err := loaded.Build(ctx, testDB, []Row{
+		{ID: mixed.ID, DisplayName: mixed.DisplayName, Lang: mixed.Lang},
+		{ID: r18Only.ID, DisplayName: r18Only.DisplayName, Lang: r18Only.Lang},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(docs) != 2 {
+		t.Fatalf("docs %d", len(docs))
+	}
+
+	wantAll := math.Log1p(125)
+	wantSFW := math.Log1p(25)
+	d := docs[0]
+	if d.Popularity != wantAll {
+		t.Fatalf("mixed popularity %v want log1p(125)=%v", d.Popularity, wantAll)
+	}
+	if d.PopularitySFW == nil || *d.PopularitySFW != wantSFW {
+		t.Fatalf("mixed popularity_sfw %+v want log1p(25)=%v", d.PopularitySFW, wantSFW)
+	}
+
+	only := docs[1]
+	if only.Popularity != math.Log1p(100) {
+		t.Fatalf("r18-only popularity %v want log1p(100)", only.Popularity)
+	}
+	if only.PopularitySFW == nil {
+		t.Fatal("r18-only popularity_sfw must be present")
+	}
+	if *only.PopularitySFW != 0 {
+		t.Fatalf("r18-only popularity_sfw %v want 0", *only.PopularitySFW)
+	}
 }
 
 func setOf(ids []int64) map[int64]struct{} {

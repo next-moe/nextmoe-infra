@@ -2,7 +2,7 @@
   "catalog_characters": {
     "mappings": {
       "_meta": {
-        "schema_version": 2
+        "schema_version": 3
       },
       "dynamic": false,
       "properties": {
@@ -94,6 +94,9 @@
           "type": "text"
         },
         "popularity": {
+          "type": "float"
+        },
+        "popularity_sfw": {
           "type": "float"
         },
         "source_keys": {
@@ -280,7 +283,7 @@
   "catalog_engines": {
     "mappings": {
       "_meta": {
-        "schema_version": 2
+        "schema_version": 3
       },
       "dynamic": false,
       "properties": {
@@ -546,7 +549,7 @@
   "catalog_series": {
     "mappings": {
       "_meta": {
-        "schema_version": 2
+        "schema_version": 3
       },
       "dynamic": false,
       "properties": {
@@ -812,7 +815,7 @@
   "catalog_traits": {
     "mappings": {
       "_meta": {
-        "schema_version": 2
+        "schema_version": 3
       },
       "dynamic": false,
       "properties": {
@@ -1081,7 +1084,7 @@
   "catalog_credit_names": {
     "mappings": {
       "_meta": {
-        "schema_version": 2
+        "schema_version": 3
       },
       "dynamic": false,
       "properties": {
@@ -1350,7 +1353,7 @@
   "catalog_labels": {
     "mappings": {
       "_meta": {
-        "schema_version": 2
+        "schema_version": 3
       },
       "dynamic": false,
       "properties": {
@@ -1619,7 +1622,7 @@
   "catalog_tags": {
     "mappings": {
       "_meta": {
-        "schema_version": 2
+        "schema_version": 3
       },
       "dynamic": false,
       "properties": {
@@ -1891,7 +1894,7 @@
   "catalog_works": {
     "mappings": {
       "_meta": {
-        "schema_version": 2
+        "schema_version": 3
       },
       "dynamic": false,
       "properties": {

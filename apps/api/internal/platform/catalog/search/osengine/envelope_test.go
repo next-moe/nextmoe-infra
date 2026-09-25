@@ -454,7 +454,7 @@ func TestEnsureIndexesCreateAndSchemaMismatch(t *testing.T) {
 				w.Header().Set("Content-Type", "application/json")
 				_, _ = io.WriteString(w, `{
 					"catalog_works": {
-						"mappings": {"_meta": {"schema_version": 2}}
+						"mappings": {"_meta": {"schema_version": 3}}
 					}
 				}`)
 			case http.MethodPut:

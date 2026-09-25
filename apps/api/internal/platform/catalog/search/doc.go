@@ -21,6 +21,7 @@ type EntityDoc struct {
 	Kind          *int16   `json:"kind,omitempty"`
 	ContentRating *int16   `json:"content_rating,omitempty"`
 	Popularity    float64  `json:"popularity"`
+	PopularitySFW *float64 `json:"popularity_sfw,omitempty"`
 
 	Claimed      *bool   `json:"claimed,omitempty"`
 	ClaimState   string  `json:"claim_state,omitempty"`
