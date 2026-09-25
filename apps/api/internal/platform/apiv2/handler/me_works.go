@@ -12,7 +12,8 @@ import (
 )
 
 type listMyWorksInput struct {
-	WorkIDs string `query:"work_ids" maxLength:"4096" doc:"Comma-separated work ids, max 100. Batch read, no pagination."`
+	CollectionInput
+	WorkIDs string `query:"work_ids" maxLength:"4096" doc:"Comma-separated work ids, max 100. Batch read, no pagination. Absent walks every work the bearer has recorded anything about."`
 }
 
 type listMyWorksOutput struct {
@@ -22,12 +23,12 @@ type listMyWorksOutput struct {
 func registerMeWorks(api huma.API, cat *Catalog) {
 	huma.Register(api, huma.Operation{
 		OperationID: "listMyWorks", Method: http.MethodGet, Path: "/v2/me/works",
-		Summary: "My folders, playtime and play state for these works",
-		Description: "What the bearer has recorded about up to 100 works, in one request: the folders holding each work, its playtime and its play state. " +
-			"One item per distinct work id, in the order asked. A work the bearer has recorded nothing about still gets an item, with empty folder_ids and null playtime and work_state, and so does an id that names no work. " +
+		Summary: "My folders, playtime and play state, per work",
+		Description: "What the bearer has recorded about works: the folders holding each work, its playtime and its play state. " +
+			"With work_ids, up to 100 works in one request with no pagination: one item per distinct work id, in the order asked. A work the bearer has recorded nothing about still gets an item, with empty folder_ids and null playtime and work_state, and so does an id that names no work. " +
+			"Without work_ids, every work the bearer holds in a folder of their own, has a playtime on, or has a play state on, one item per work in ascending work id, paged with cursor and limit; include_total counts them. " +
 			"The values are the ones /v2/me/folders/holdings, /v2/me/playtimes and /v2/me/work-states answer; this face saves a client from asking all three. " +
 			"Cover votes are not included: they need catalog:edit, and /v2/me/cover-votes lists them. " +
-			"work_ids is required; this is a batch read with no pagination. " +
 			"Requires a user access token with folder:read (folder:write also grants reads).",
 		Tags:               []string{"me"},
 		Errors:             collectionErrors(http.StatusUnauthorized, http.StatusForbidden, http.StatusServiceUnavailable),
@@ -40,7 +41,11 @@ func listMyWorks(cat *Catalog) func(context.Context, *listMyWorksInput) (*listMy
 		if in == nil {
 			in = &listMyWorksInput{}
 		}
-		page, err := cat.ListMyWorks(ctx, splitWorkIDs(in.WorkIDs))
+		q, err := parseCatalogList(ctx, &in.CollectionInput, collect.UserWorkSpec())
+		if err != nil {
+			return nil, err
+		}
+		page, err := cat.ListMyWorks(ctx, q, splitWorkIDs(in.WorkIDs))
 		if err != nil {
 			return nil, catalogErr(ctx, err)
 		}
@@ -48,7 +53,7 @@ func listMyWorks(cat *Catalog) func(context.Context, *listMyWorksInput) (*listMy
 	}
 }
 
-func (c *Catalog) ListMyWorks(ctx context.Context, workIDs []string) (repr.List[repr.UserWork], error) {
+func (c *Catalog) ListMyWorks(ctx context.Context, q collect.Query, workIDs []string) (repr.List[repr.UserWork], error) {
 	var empty repr.List[repr.UserWork]
 	if c == nil || c.Folders == nil || c.Playtime == nil || c.WorkStates == nil {
 		return empty, problem.New(problem.CodeServiceUnavailable, "", "", "my works are not bound.")
@@ -57,24 +62,65 @@ func (c *Catalog) ListMyWorks(ctx context.Context, workIDs []string) (repr.List[
 	if err != nil {
 		return empty, err
 	}
-	if len(workIDs) == 0 {
-		return empty, workIDsRequired()
+	if len(workIDs) > 0 {
+		ids, err := parseWorkIDs(workIDs)
+		if err != nil {
+			return empty, err
+		}
+		items, err := c.userWorks(ctx, uid, ids)
+		if err != nil {
+			return empty, err
+		}
+		return finishList(items, nil, int64(len(items)), collect.Query{Batch: true, IncludeTotal: q.IncludeTotal}, nil), nil
 	}
-	ids, err := parseWorkIDs(workIDs)
-	if err != nil {
-		return empty, err
+
+	var after int64
+	if q.Cursor != "" {
+		id, ok := repr.ParseID(q.Cursor)
+		if !ok {
+			return empty, collectInvalidCursor()
+		}
+		after = id
 	}
-	holdings, err := c.Folders.Holdings(ctx, uid, ids)
+	limit := q.Limit
+	if limit <= 0 {
+		limit = collect.DefaultLimit
+	}
+	ids, err := c.Folders.RecordedWorkIDs(ctx, uid, after, limit+1)
 	if err != nil {
 		return empty, folderErr(err)
 	}
-	playtimes, err := c.Playtime.ListMineFor(ctx, uid, ids)
+	var next *string
+	if len(ids) > limit {
+		ids = ids[:limit]
+		s := repr.ID(ids[len(ids)-1])
+		next = &s
+	}
+	items, err := c.userWorks(ctx, uid, ids)
 	if err != nil {
 		return empty, err
 	}
+	var total int64
+	if q.IncludeTotal {
+		if total, err = c.Folders.CountRecordedWorks(ctx, uid); err != nil {
+			return empty, folderErr(err)
+		}
+	}
+	return finishList(items, next, total, q, nil), nil
+}
+
+func (c *Catalog) userWorks(ctx context.Context, uid int64, ids []int64) ([]repr.UserWork, error) {
+	holdings, err := c.Folders.Holdings(ctx, uid, ids)
+	if err != nil {
+		return nil, folderErr(err)
+	}
+	playtimes, err := c.Playtime.ListMineFor(ctx, uid, ids)
+	if err != nil {
+		return nil, err
+	}
 	states, err := c.WorkStates.ListMineFor(ctx, uid, ids)
 	if err != nil {
-		return empty, err
+		return nil, err
 	}
 
 	folders := make(map[int64][]string, len(holdings))
@@ -106,7 +152,7 @@ func (c *Catalog) ListMyWorks(ctx context.Context, workIDs []string) (repr.List[
 			Playtime: playtime[id], WorkState: state[id],
 		})
 	}
-	return finishList(items, nil, int64(len(items)), collect.Query{Batch: true}, nil), nil
+	return items, nil
 }
 
 func workIDsRequired() error {

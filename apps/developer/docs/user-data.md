@@ -67,7 +67,7 @@ POST   /v2/me/proposals/{id}/amendments   # 追加一条修正，需要 If-Match
 POST   /v2/me/edit-images            # 提案里要用的图先传这里
 ```
 
-提案是「我想把这个字段改成那个值」。可改哪些字段由 `GET /v2/catalog/schemas/{object}` 的 `fields` 给出。提案与修订历史是**公开只读**的（`/v2/catalog/proposals`、`/v2/catalog/revisions`）——目录的每一次改动都留痕。
+提案是「我想把这个字段改成那个值」。可改哪些字段由 `GET /v2/catalog/schemas/{object}` 的 `fields` 给出。列表带 `include=patch`（2.27.0 起）时每一行都有 `patch` 与 `effective_patch`，与详情面一致，列表页不必逐条再读详情。提案与修订历史是**公开只读**的（`/v2/catalog/proposals`、`/v2/catalog/revisions`）——目录的每一次改动都留痕。
 
 ### 封面投票
 

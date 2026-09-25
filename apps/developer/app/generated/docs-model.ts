@@ -28,7 +28,7 @@ export const docsModel: DocsModel = {
         "/v2/me/playtimes 只要用户令牌，不需要 playtime:read / playtime:write。任何已开通用户登录的应用都可以调用。",
         "/v2/me/work-states 与 playtimes 同款：只要用户令牌，不需要任何 scope。state 五值与 Bangumi 收藏类型一一对应，completion 表示通了多少，wish 不允许携带。",
         "/v2/me/folders 是例外：收藏夹是私人清单，读要 folder:read（folder:write 也算），写要 folder:write，缺了是 403 SCOPE_REQUIRED。",
-        "/v2/me/works 一次答最多 100 部作品的收藏夹归属、游玩时长和游玩状态，作品详情页一次调用即可。答案里有收藏夹，所以同样要 folder:read（folder:write 也算）；封面投票要 catalog:edit，不在其中，走 /v2/me/cover-votes。",
+        "/v2/me/works 带 work_ids 时一次答最多 100 部作品的收藏夹归属、游玩时长和游玩状态，作品详情页一次调用即可；不带 work_ids 时按作品 id 升序分页走完持有人记过的全部作品（进了自己的收藏夹、有游玩时长或有游玩状态的都算）。答案里有收藏夹，所以同样要 folder:read（folder:write 也算）；封面投票要 catalog:edit，不在其中，走 /v2/me/cover-votes。",
         "/v2/folders 是别人的公开收藏夹，只要 catalog:read —— folder:read 是「读我自己的」，与能不能看别人无关。私密收藏夹在这里一律 404（对夹主本人也是），要读自己的私密夹走 /v2/me/folders。",
         "错误体是 RFC 9457 application/problem+json。type URI 解析到本站 /problems/{domain}/{kebab-code}。",
         "客户端必须忽略未知字段、容忍开放词表中未见过的取值，并为未知错误 code 准备一个按 HTTP status 的兜底分支。"
@@ -122175,7 +122175,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "work_id",
                               "required": true,
-                              "doc": "Catalog work id that was asked about.",
+                              "doc": "Catalog work id.",
                               "type": "string"
                             }
                           ]
@@ -150124,7 +150124,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/me/proposals",
               "summary": "List my proposals",
-              "description": "The bearer's own proposals. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. Requires a user access token. The token must carry the catalog:edit scope.",
+              "description": "The bearer's own proposals. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch and effective_patch, the same pair GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. Requires a user access token. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -168226,8 +168226,8 @@ export const docsModel: DocsModel = {
               "id": "listMyWorks",
               "method": "get",
               "path": "/v2/me/works",
-              "summary": "My folders, playtime and play state for these works",
-              "description": "What the bearer has recorded about up to 100 works, in one request: the folders holding each work, its playtime and its play state. One item per distinct work id, in the order asked. A work the bearer has recorded nothing about still gets an item, with empty folder_ids and null playtime and work_state, and so does an id that names no work. The values are the ones /v2/me/folders/holdings, /v2/me/playtimes and /v2/me/work-states answer; this face saves a client from asking all three. Cover votes are not included: they need catalog:edit, and /v2/me/cover-votes lists them. work_ids is required; this is a batch read with no pagination. Requires a user access token with folder:read (folder:write also grants reads).",
+              "summary": "My folders, playtime and play state, per work",
+              "description": "What the bearer has recorded about works: the folders holding each work, its playtime and its play state. With work_ids, up to 100 works in one request with no pagination: one item per distinct work id, in the order asked. A work the bearer has recorded nothing about still gets an item, with empty folder_ids and null playtime and work_state, and so does an id that names no work. Without work_ids, every work the bearer holds in a folder of their own, has a playtime on, or has a play state on, one item per work in ascending work id, paged with cursor and limit; include_total counts them. The values are the ones /v2/me/folders/holdings, /v2/me/playtimes and /v2/me/work-states answer; this face saves a client from asking all three. Cover votes are not included: they need catalog:edit, and /v2/me/cover-votes lists them. Requires a user access token with folder:read (folder:write also grants reads).",
               "scope": "folder:read 或 folder:write",
               "auth": {
                 "kind": "user_token",
@@ -168237,11 +168237,88 @@ export const docsModel: DocsModel = {
               },
               "params": [
                 {
+                  "name": "cursor",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Opaque keyset cursor from a prior next_cursor. Must start with cur_."
+                },
+                {
+                  "name": "limit",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Page size 1-100, default 20. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped."
+                },
+                {
+                  "name": "view",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "basic (default) or full. Closed vocabulary."
+                },
+                {
+                  "name": "include",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Comma-separated blocks. Unknown token is 400 UNKNOWN_INCLUDE."
+                },
+                {
+                  "name": "fields",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Comma-separated top-level keys after view/include. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept."
+                },
+                {
+                  "name": "ids",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Comma-separated ids, max 100. Batch lane: no pagination."
+                },
+                {
+                  "name": "refs",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Comma-separated source:external_id, max 100. Batch lane: no pagination."
+                },
+                {
+                  "name": "include_total",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "true to include total. Only true or false."
+                },
+                {
+                  "name": "facets",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET."
+                },
+                {
+                  "name": "sort",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Closed per-collection sort key."
+                },
+                {
+                  "name": "nsfw",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "true includes r18. false or absent hides r18. Only true or false."
+                },
+                {
                   "name": "work_ids",
                   "in": "query",
                   "required": false,
                   "type": "string",
-                  "doc": "Comma-separated work ids, max 100. Batch read, no pagination."
+                  "doc": "Comma-separated work ids, max 100. Batch read, no pagination. Absent walks every work the bearer has recorded anything about."
                 }
               ],
               "responses": [
@@ -168344,7 +168421,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "work_id",
                               "required": true,
-                              "doc": "Catalog work id that was asked about.",
+                              "doc": "Catalog work id.",
                               "type": "string"
                             },
                             {

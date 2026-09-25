@@ -221,9 +221,25 @@ func (c *Catalog) ListMyProposals(ctx context.Context, q collect.Query, f propos
 		s := strconv.FormatInt(rows[len(rows)-1].ID, 10)
 		next = &s
 	}
+	var effective map[int64]map[string]any
+	withPatch := hasToken(q.Include, "patch")
+	if withPatch {
+		if effective, lerr = c.Engine.EffectivePatches(ctx, rows); lerr != nil {
+			return repr.List[repr.ProposalRecord]{}, lerr
+		}
+	}
 	items := make([]repr.ProposalRecord, 0, len(rows))
 	for i := range rows {
-		items = append(items, proposalFrom(&rows[i]))
+		rec := proposalFrom(&rows[i])
+		if withPatch {
+			patch := decodeJSONObject(rows[i].Patch)
+			eff := effective[rows[i].ID]
+			if eff == nil {
+				eff = map[string]any{}
+			}
+			rec.Patch, rec.EffectivePatch = &patch, &eff
+		}
+		items = append(items, rec)
 	}
 	return finishList(items, next, total, q, nil), nil
 }

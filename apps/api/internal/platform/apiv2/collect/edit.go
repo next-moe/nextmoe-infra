@@ -50,19 +50,29 @@ func PublicProposalSpec() Spec {
 	}
 }
 
-// ProposalListSpec is the me/moderation LIST lanes, which parsed with
-// ClaimSpec: fields=note and fields=entity_id were 400 UNKNOWN_FIELD on a face
-// whose items are proposals, while fields=acted_count and fields=product_work_id
-// were accepted and then projected away to nothing. Neither sibling fits —
-// ProposalSpec is the detail spec and advertises include=patch/amendments, which
-// these lanes build with proposalFrom and never populate, and it is not NoBatch,
-// which would open a hydration lane they do not have.
+// ProposalListSpec is the moderation LIST lane, which parsed with ClaimSpec:
+// fields=note and fields=entity_id were 400 UNKNOWN_FIELD on a face whose items
+// are proposals, while fields=acted_count and fields=product_work_id were
+// accepted and then projected away to nothing. ProposalSpec is the detail spec
+// and is not NoBatch, which would open a hydration lane this list does not have.
 func ProposalListSpec() Spec {
 	return Spec{
 		Sort:    []string{"filed_desc"},
 		Include: []string{},
 		FullSet: []string{},
 		Fields:  append([]string{}, ProposalBasicFields...),
+		NoBatch: true,
+	}
+}
+
+func MyProposalListSpec() Spec {
+	fields := append([]string{}, ProposalBasicFields...)
+	fields = append(fields, "patch", "effective_patch")
+	return Spec{
+		Sort:    []string{"filed_desc"},
+		Include: []string{"patch"},
+		FullSet: []string{"patch"},
+		Fields:  fields,
 		NoBatch: true,
 	}
 }

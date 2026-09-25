@@ -3,10 +3,12 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
 
+	"api/internal/platform/apiv2/collect"
 	"api/internal/platform/apiv2/problem"
 	"api/internal/platform/catalog/model"
 
@@ -33,6 +35,7 @@ type myWorksPage struct {
 		} `json:"work_state"`
 	} `json:"items"`
 	NextCursor *string `json:"next_cursor"`
+	Total      *int64  `json:"total"`
 }
 
 func seedPlaytime(t *testing.T, db *gorm.DB, uid, workID int64, clientID string, minutes int) {
@@ -145,14 +148,114 @@ func TestLiveMyWorksBatchBound(t *testing.T) {
 	require.Equal(t, 400, status, string(raw))
 	require.Equal(t, problem.CodeTooManyIDs, liveProblem(t, raw).Code)
 
-	status, _, raw = liveDo(t, env, http.MethodGet, "/v2/me/works", liveUserToken, "")
-	require.Equal(t, 400, status, string(raw))
-	p := liveProblem(t, raw)
-	require.Equal(t, problem.CodeInvalidParameter, p.Code)
-	require.NotEmpty(t, p.Errors)
-	require.Equal(t, "work_ids", p.Errors[0].Parameter)
-
 	status, _, raw = liveDo(t, env, http.MethodGet, "/v2/me/works?work_ids=abc", liveUserToken, "")
 	require.Equal(t, 400, status, string(raw))
 	require.Equal(t, problem.CodeInvalidParameter, liveProblem(t, raw).Code)
+}
+
+func TestLiveMyWorksWalksEveryRecordedWork(t *testing.T) {
+	env := liveCatalog(t)
+
+	folderOnly := seedHoldableWork(t, env.db, "Walk Folder Only")
+	shelf := seedFolderHolding(t, env.db, liveWalkerUID, folderOnly, model.FolderVisibilityPrivate, "Walk Shelf")
+	playOnly := seedHoldableWork(t, env.db, "Walk Playtime Only")
+	seedPlaytime(t, env.db, liveWalkerUID, playOnly, "desktop", 12)
+	stateOnly := seedHoldableWork(t, env.db, "Walk State Only")
+	seedWorkState(t, env.db, liveWalkerUID, stateOnly, model.WorkStateWish, nil)
+	everything := seedHoldableWork(t, env.db, "Walk Everything")
+	both := seedFolderHolding(t, env.db, liveWalkerUID, everything, model.FolderVisibilityPublic, "Walk Both")
+	seedPlaytime(t, env.db, liveWalkerUID, everything, "phone", 75)
+	seedWorkState(t, env.db, liveWalkerUID, everything, model.WorkStateDone, nil)
+
+	strangers := seedHoldableWork(t, env.db, "Walk Stranger")
+	seedFolderHolding(t, env.db, livePlainUID, strangers, model.FolderVisibilityPublic, "Stranger's Walk")
+	seedPlaytime(t, env.db, livePlainUID, strangers, "desktop", 45)
+	seedWorkState(t, env.db, livePlainUID, strangers, model.WorkStateDoing, nil)
+
+	// A membership is the folder owner's, whatever the item row's copy says.
+	planted := seedHoldableWork(t, env.db, "Walk Planted")
+	theirs := seedFolderHolding(t, env.db, livePlainUID, planted, model.FolderVisibilityPublic, "Planted In")
+	require.NoError(t, env.db.Model(&model.CatalogUserFolderItem{}).
+		Where("folder_id = ?", theirs).Update("owner_uid", liveWalkerUID).Error)
+
+	want := []int64{folderOnly, playOnly, stateOnly, everything}
+	slices.Sort(want)
+
+	get := func(url string) myWorksPage {
+		t.Helper()
+		status, _, raw := liveDo(t, env, http.MethodGet, url, liveWalkerToken, "")
+		require.Equal(t, 200, status, string(raw))
+		var page myWorksPage
+		require.NoError(t, json.Unmarshal(raw, &page), string(raw))
+		return page
+	}
+
+	whole := get("/v2/me/works?limit=100&include_total=true")
+	require.Nil(t, whole.NextCursor)
+	require.NotNil(t, whole.Total)
+	require.Equal(t, int64(len(want)), *whole.Total)
+	var got []string
+	for _, it := range whole.Items {
+		got = append(got, it.WorkID)
+	}
+	var wantIDs []string
+	for _, id := range want {
+		wantIDs = append(wantIDs, idstr(id))
+	}
+	require.Equal(t, wantIDs, got, "every recorded work once, ascending; nobody else's")
+
+	byID := map[string]int{}
+	for i, it := range whole.Items {
+		byID[it.WorkID] = i
+	}
+	e := whole.Items[byID[idstr(everything)]]
+	require.Equal(t, []string{idstr(both)}, e.FolderIDs)
+	require.NotNil(t, e.Playtime)
+	require.Equal(t, 75, e.Playtime.Minutes)
+	require.NotNil(t, e.WorkState)
+	require.Equal(t, "done", e.WorkState.State)
+	f := whole.Items[byID[idstr(folderOnly)]]
+	require.Equal(t, []string{idstr(shelf)}, f.FolderIDs)
+	require.Nil(t, f.Playtime)
+	require.Nil(t, f.WorkState)
+	p := whole.Items[byID[idstr(playOnly)]]
+	require.NotNil(t, p.FolderIDs)
+	require.Empty(t, p.FolderIDs)
+	require.Equal(t, 12, p.Playtime.Minutes)
+	require.Nil(t, p.WorkState)
+	s := whole.Items[byID[idstr(stateOnly)]]
+	require.Empty(t, s.FolderIDs)
+	require.Nil(t, s.Playtime)
+	require.Equal(t, "wish", s.WorkState.State)
+
+	batch := get("/v2/me/works?work_ids=" + strings.Join(wantIDs, ","))
+	require.Equal(t, whole.Items, batch.Items, "the walk answers what the batch lane answers")
+
+	var walked []string
+	url := "/v2/me/works?limit=1"
+	for pages := 0; ; pages++ {
+		require.Less(t, pages, len(want)+1, "the walk must end")
+		page := get(url)
+		require.LessOrEqual(t, len(page.Items), 1)
+		for _, it := range page.Items {
+			walked = append(walked, it.WorkID)
+		}
+		if page.NextCursor == nil {
+			break
+		}
+		url = "/v2/me/works?limit=1&cursor=" + *page.NextCursor
+	}
+	require.Equal(t, wantIDs, walked, "limit=1 pages add up to the whole walk, no repeat and no gap")
+
+	first := get("/v2/me/works?limit=2&include_total=true")
+	require.Len(t, first.Items, 2)
+	require.NotNil(t, first.NextCursor)
+	require.Equal(t, int64(len(want)), *first.Total, "total counts the collection, not the page")
+
+	status, _, raw := liveDo(t, env, http.MethodGet, "/v2/me/works?cursor="+collect.EncodeCursor("not-a-work"), liveWalkerToken, "")
+	require.Equal(t, 400, status, string(raw))
+	require.Equal(t, problem.CodeInvalidCursor, liveProblem(t, raw).Code)
+
+	status, _, raw = liveDo(t, env, http.MethodGet, "/v2/me/works?ids="+idstr(everything), liveWalkerToken, "")
+	require.Equal(t, 400, status, "work_ids= is this face's batch lane, not ids=: %s", raw)
 }

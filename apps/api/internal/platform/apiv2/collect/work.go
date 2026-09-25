@@ -213,6 +213,16 @@ func WorkStateSpec() Spec {
 	}
 }
 
+func UserWorkSpec() Spec {
+	return Spec{
+		Sort:    []string{"work_id"},
+		Include: []string{},
+		FullSet: []string{},
+		Fields:  []string{"object", "work_id", "folder_ids", "playtime", "work_state"},
+		NoBatch: true,
+	}
+}
+
 func FolderSpec() Spec {
 	return Spec{
 		Sort:    []string{"id"},
