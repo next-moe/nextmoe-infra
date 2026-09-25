@@ -669,6 +669,17 @@ func rawSQL(db *gorm.DB) error {
 			return fmt.Errorf("heal %s.lang %q: %w", fix.table, fix.bad, err)
 		}
 	}
+
+	// catalog_character_trait.sexual_family is the published is_sexual gate: a
+	// trait is in the sexual family when it is sexual itself or any ancestor
+	// through catalog_character_trait_parent is. Three upstream rows sit under a
+	// sexual parent or group with sexual=false (Off-screen Rape 2195, Off-screen
+	// Sex Only 2417, Naked in Front of an Audience 1551) and leaked into SFW
+	// responses when the gate read `sexual`. The statement is idempotent: a
+	// second run updates no rows.
+	if err := db.Exec(model.TraitSexualFamilySQL).Error; err != nil {
+		return fmt.Errorf("backfill catalog_character_trait.sexual_family: %w", err)
+	}
 	return nil
 }
 

@@ -126,7 +126,7 @@ func reindexTraits(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer,
 			Alias   string `gorm:"column:alias"`
 			Sexual  bool   `gorm:"column:sexual"`
 		}
-		if err := db.Raw(`SELECT id, vndb_tid, name, name_zh, alias, sexual
+		if err := db.Raw(`SELECT id, vndb_tid, name, name_zh, alias, sexual_family AS sexual
 			FROM catalog_character_trait WHERE id > ? AND searchable = true ORDER BY id LIMIT ?`,
 			lastID, batch).Scan(&rows).Error; err != nil {
 			return err

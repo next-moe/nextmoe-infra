@@ -4,11 +4,14 @@ import (
 	"strings"
 
 	"api/internal/platform/apiv2/problem"
+	"api/internal/platform/apiv2/repr"
+	"api/internal/platform/apiv2/vocab"
 )
 
 type characterFilter struct {
 	TraitIDs []int64
 	MatchAny bool
+	Genders  []int16
 }
 
 func parseCharacterFilter(in *listCharactersInput) (characterFilter, *problem.Problem) {
@@ -31,10 +34,22 @@ func parseCharacterFilter(in *listCharactersInput) (characterFilter, *problem.Pr
 			return characterFilter{}, closedParam("trait_match", "all, any")
 		}
 	}
-	if len(ids) == 0 {
+	tokens, err := closedCSV(in.Gender, "gender", vocab.Tokens("gender"))
+	if err != nil {
+		return characterFilter{}, err
+	}
+	var genders []int16
+	for _, tok := range tokens {
+		code, ok := repr.GenderFromKey(tok)
+		if !ok {
+			return characterFilter{}, closedParam("gender", strings.Join(vocab.Tokens("gender"), ", "))
+		}
+		genders = append(genders, code)
+	}
+	if len(ids) == 0 && len(genders) == 0 {
 		return characterFilter{}, nil
 	}
-	return characterFilter{TraitIDs: ids, MatchAny: matchAny}, nil
+	return characterFilter{TraitIDs: ids, MatchAny: matchAny, Genders: genders}, nil
 }
 
 func uniqueInt64(ids []int64) []int64 {

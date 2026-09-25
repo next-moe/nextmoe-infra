@@ -54,4 +54,5 @@ type EntityQuery struct {
 	Limit            int
 	Locales          []string
 	ContentRatingNot *int16
+	SexualNot        *bool
 }

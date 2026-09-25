@@ -194,6 +194,8 @@ func characterFromRow(it catsvc.EntityListRow, include []string) repr.Character 
 			out.Refs = ptrSlice(refsFrom(it.Refs))
 		}
 	}
+	out.MatchedTraitIDs = it.MatchedTraitIDs
+	out.WorkCount = it.WorkCount
 	return out
 }
 
@@ -223,10 +225,46 @@ func personFromRow(it catsvc.EntityListRow) repr.Person {
 	}
 }
 
-func traitFromRow(it catsvc.EntityListRow) repr.Trait {
-	return repr.Trait{
+func traitFromRow(it catsvc.EntityListRow, include []string) repr.Trait {
+	parents := make([]repr.TraitRef, 0, len(it.Parents))
+	for _, p := range it.Parents {
+		parents = append(parents, traitRefFrom(p))
+	}
+	out := repr.Trait{
 		Object: "trait", ID: repr.ID(it.ID), DisplayName: it.DisplayName,
 		NameZh: it.NameZh, VndbTID: it.VndbTID, IsSexual: it.Sexual,
+		Localized: localizedFrom(it.Localized), Parents: parents,
+		ChildCount: it.ChildCount, RootOrder: it.RootOrder,
+		IsSearchable: it.Searchable, IsApplicable: it.Applicable,
+	}
+	out.GroupID, out.Group, out.GroupLocalized = traitGroupFrom(it.Group)
+	for _, t := range include {
+		switch t {
+		case "aliases":
+			out.Aliases = ptrSlice(it.TraitAliases)
+		case "description":
+			d := ""
+			if it.TraitDescription != nil {
+				d = *it.TraitDescription
+			}
+			out.Description = &d
+		}
+	}
+	return out
+}
+
+func traitGroupFrom(g *catsvc.TraitRefRow) (*string, *string, map[string]repr.LocalizedText) {
+	if g == nil {
+		return nil, nil, map[string]repr.LocalizedText{}
+	}
+	id, name := repr.ID(g.ID), g.DisplayName
+	return &id, &name, localizedFrom(g.Localized)
+}
+
+func traitRefFrom(r catsvc.TraitRefRow) repr.TraitRef {
+	return repr.TraitRef{
+		Object: "trait", ID: repr.ID(r.ID), DisplayName: r.DisplayName,
+		Localized: localizedFrom(r.Localized),
 	}
 }
 
@@ -274,6 +312,15 @@ func characterWantsAttrs(include []string) bool {
 	for _, t := range include {
 		switch t {
 		case "gender", "birthday", "height_cm", "weight_kg", "measurements", "blood_type", "instance_of_id":
+			return true
+		}
+	}
+	return false
+}
+
+func characterWantsWorkCount(include []string) bool {
+	for _, t := range include {
+		if t == "work_count" {
 			return true
 		}
 	}
