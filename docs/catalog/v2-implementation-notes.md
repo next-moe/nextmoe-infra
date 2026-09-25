@@ -1411,3 +1411,36 @@ nil is defaulted to 0 again.
 documented.
 
 **Zero migrations.**
+
+## Wave — the whole shelf in one walk, and patches on my proposal list (2026-09-25)
+
+Two asks from moyu (kun-galgame-patch), after its infra-integration rebuild.
+
+**`GET /v2/me/works` without `work_ids` walks the shelf.** moyu caches each
+reader's shelf for ten minutes, and every fill walked every folder: one list
+call plus one per folder. With `work_ids` the face is unchanged (up to 100 ids,
+one item per distinct id, request order, no pagination). Without it the face
+pages, in ascending work id, every work the bearer holds in a folder of their
+own, has a playtime on, or has a play state on, each item filled exactly as
+the batch lane fills it. The cursor is the last work id; `include_total`
+counts the union. Ownership is read from `catalog_user_folder.owner_uid`, as
+`Holdings` reads it, never from the item row's copy. The input now embeds
+`CollectionInput`, so the face declares the shared collection parameters;
+`ids=`/`refs=` are refused (`UserWorkSpec` is `NoBatch`) because `work_ids=`
+is this face's batch lane. `include_total` is now honoured on the batch lane
+too, as on `/v2/me/work-states`.
+
+**`GET /v2/me/proposals?include=patch`** (or `view=full`) puts `patch` and
+`effective_patch` on every row: the same pair the detail face answers under
+`include=patch`. moyu's edit page read the list and then each row's detail to
+show which fields a proposal changes. The amendments for the page are read in
+one query (`Engine.EffectivePatches`) and folded by the same `effectivePatch`
+the detail face uses. The moderation list keeps `ProposalListSpec` and still
+refuses `include=`; publishing another contributor's patch there needs the
+per-entity review check the detail face makes.
+
+**Spec is 2.27.0.** Additive: new optional parameters on `listMyWorks`, and a
+new `include` token on `listMyProposals`. No new operation (117). oasdiff
+reports no breaking change.
+
+**Zero migrations.**

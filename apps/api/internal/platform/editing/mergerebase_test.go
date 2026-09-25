@@ -357,3 +357,54 @@ func TestCreateEdgeCases(t *testing.T) {
 		t.Fatalf("missing proposal: %v", err)
 	}
 }
+
+func TestEffectivePatchesMatchGetProposal(t *testing.T) {
+	e := newEngine(t)
+	createWidget(t, 1)
+	createWidget(t, 2)
+	amended, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
+		EntityType: "test.widget", EntityID: 1,
+		Patch: map[string]any{fName: "A", fOLang: "en"},
+		Actor: editorActor(100),
+	})
+	if err != nil {
+		t.Fatalf("create amended: %v", err)
+	}
+	plain, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
+		EntityType: "test.widget", EntityID: 2,
+		Patch: map[string]any{fName: "P"},
+		Actor: editorActor(100),
+	})
+	if err != nil {
+		t.Fatalf("create plain: %v", err)
+	}
+	if _, err := e.AmendProposal(testCtx, amended.ID, editing.AmendInput{
+		Set: map[string]any{fName: "B"}, Actor: reviewerActor(200),
+	}); err != nil {
+		t.Fatalf("amend 1: %v", err)
+	}
+	if _, err := e.AmendProposal(testCtx, amended.ID, editing.AmendInput{
+		Unset: []string{fOLang}, Actor: reviewerActor(200),
+	}); err != nil {
+		t.Fatalf("amend 2: %v", err)
+	}
+
+	got, err := e.EffectivePatches(testCtx, []editing.Proposal{*plain, *amended})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []int64{amended.ID, plain.ID} {
+		_, _, want, err := e.GetProposal(testCtx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		a, _ := json.Marshal(want)
+		b, _ := json.Marshal(got[id])
+		if string(a) != string(b) {
+			t.Fatalf("proposal %d: batch %s, detail %s", id, b, a)
+		}
+	}
+	if got[amended.ID][fName] != "B" || len(got[amended.ID]) != 1 {
+		t.Fatalf("both amendments folded, in order: %v", got[amended.ID])
+	}
+}

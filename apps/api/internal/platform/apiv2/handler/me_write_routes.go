@@ -60,7 +60,7 @@ func registerMeWrite(api huma.API, cat *Catalog) {
 	huma.Register(api, huma.Operation{
 		OperationID: "listMyProposals", Method: http.MethodGet, Path: "/v2/me/proposals",
 		Summary:     "List my proposals",
-		Description: "The bearer's own proposals. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. Requires a user access token.",
+		Description: "The bearer's own proposals. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch and effective_patch, the same pair GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. Requires a user access token.",
 		Tags:        me, Errors: errs, SkipValidateParams: true,
 	}, listMyProposals(cat))
 	huma.Register(api, huma.Operation{
@@ -381,7 +381,7 @@ func listMyProposals(cat *Catalog) func(context.Context, *listProposalsInput) (*
 		if in == nil {
 			in = &listProposalsInput{}
 		}
-		q, err := parseCatalogList(ctx, &in.CollectionInput, collect.ProposalListSpec())
+		q, err := parseCatalogList(ctx, &in.CollectionInput, collect.MyProposalListSpec())
 		if err != nil {
 			return nil, err
 		}

@@ -67,6 +67,11 @@ var (
 	liveThirdPartyClient = "portal-app-client"
 	liveSecondPlainToken = "user-live-second-plain-token"
 	liveSecondPlainUID   = int64(12)
+
+	// Owns nothing the fixture seeds, so a walk of everything it recorded is
+	// exactly what the test puts there.
+	liveWalkerToken = "user-live-walker-token"
+	liveWalkerUID   = int64(7070)
 )
 
 // liveUnlimitedStore never rate-limits, but it does remember: without a real
@@ -278,6 +283,9 @@ func liveCatalog(t *testing.T) *liveEnv {
 				case liveSecondPlainToken:
 					return UserIdentity{UID: liveSecondPlainUID, ClientID: liveClient, Roles: []string{"user"},
 						Scopes: []string{devapi.ScopeCatalogEdit}}, nil
+				case liveWalkerToken:
+					return UserIdentity{UID: liveWalkerUID, ClientID: liveClient, Roles: []string{"user"},
+						Scopes: []string{devapi.ScopeFolderRead}}, nil
 				case liveOtherSiteToken:
 					return UserIdentity{UID: liveOtherSiteUID, ClientID: liveOtherClient, Roles: []string{"admin"},
 						Scopes: []string{devapi.ScopeCatalogEdit}}, nil

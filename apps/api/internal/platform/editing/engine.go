@@ -111,6 +111,34 @@ func (e *Engine) GetProposal(ctx context.Context, id int64) (*Proposal, []Propos
 	return &p, amendments, eff, nil
 }
 
+func (e *Engine) EffectivePatches(ctx context.Context, props []Proposal) (map[int64]map[string]any, error) {
+	if len(props) == 0 {
+		return map[int64]map[string]any{}, nil
+	}
+	ids := make([]int64, 0, len(props))
+	for i := range props {
+		ids = append(ids, props[i].ID)
+	}
+	var rows []ProposalAmendment
+	if err := e.db.WithContext(ctx).Where("proposal_id IN ?", ids).
+		Order("proposal_id ASC, seq ASC").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	byProposal := make(map[int64][]ProposalAmendment, len(props))
+	for _, r := range rows {
+		byProposal[r.ProposalID] = append(byProposal[r.ProposalID], r)
+	}
+	out := make(map[int64]map[string]any, len(props))
+	for i := range props {
+		eff, _, err := effectivePatch(&props[i], byProposal[props[i].ID])
+		if err != nil {
+			return nil, err
+		}
+		out[props[i].ID] = eff
+	}
+	return out, nil
+}
+
 type ProposalFilter struct {
 	EntityType  string
 	EntityID    int64
