@@ -61215,7 +61215,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/traits",
               "summary": "List traits",
-              "description": "Keyset-paginated character traits. Requires an application key or a user access token with catalog:read. ids= is a batch lane. refs= is not resolved: traits have no catalog_external_ref entity_type. parent_id= lists direct children; group_id= lists traits in that root group (the root excluded); root=true|false keeps only roots or only non-roots. Filters are conjunctive. Without nsfw=true, sexual-family traits are excluded from the list and land in missing[] on the ids= batch; naming one as parent_id or group_id is 400. include=aliases,description (and view=full) add those blocks. include=character_count is the nightly index total that GET /v2/catalog/characters?trait_id=<this id>&page=1 answers under this request's nsfw; the engine failing is 503. It is an explicit ask: view=full does not add it. is_sexual reports the sexual-family flag.",
+              "description": "Keyset-paginated character traits. Requires an application key or a user access token with catalog:read. ids= is a batch lane. refs= is not resolved: traits have no catalog_external_ref entity_type. parent_id= lists direct children; group_id= lists traits in that root group (the root excluded); root=true|false keeps only roots or only non-roots. Filters are conjunctive. Without nsfw=true, sexual-family traits are excluded from the list and land in missing[] on the ids= batch; naming one as parent_id or group_id is 400. include=aliases,description,intros (and view=full) add those blocks. include=character_count is the nightly index total that GET /v2/catalog/characters?trait_id=<this id>&page=1 answers under this request's nsfw; the engine failing is 503. It is an explicit ask: view=full does not add it. is_sexual reports the sexual-family flag.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -61439,6 +61439,41 @@ export const docsModel: DocsModel = {
                               "required": true,
                               "doc": "Catalog trait id.",
                               "type": "string"
+                            },
+                            {
+                              "name": "intros",
+                              "doc": "Present when include=intros. Trait descriptions, one per language: en (the plain text of description) and zh-Hans when recorded. Empty array if none.",
+                              "type": "array",
+                              "itemsOf": {
+                                "type": "object",
+                                "children": [
+                                  {
+                                    "name": "is_machine",
+                                    "required": true,
+                                    "doc": "Whether this intro is machine-translated.",
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "name": "lang",
+                                    "required": true,
+                                    "doc": "BCP-47 language tag.",
+                                    "format": "bcp47",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "name": "source",
+                                    "required": true,
+                                    "doc": "Open vocabulary sources. Must not be used as a discriminant.",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "name": "value",
+                                    "required": true,
+                                    "doc": "Must not be used as a discriminant.",
+                                    "type": "string"
+                                  }
+                                ]
+                              }
                             },
                             {
                               "name": "is_applicable",
@@ -62831,7 +62866,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/traits/{id}",
               "summary": "Get one trait",
-              "description": "A character-trait vocabulary row. Without nsfw=true a sexual-family trait is 404 NOT_FOUND. include=aliases,description (and view=full) add those blocks. include=character_count is the nightly index total that GET /v2/catalog/characters?trait_id=<this id>&page=1 answers under this request's nsfw; the engine failing is 503. It is an explicit ask: view=full does not add it. is_sexual reports the sexual-family flag. Requires an application key or a user access token with catalog:read.",
+              "description": "A character-trait vocabulary row. Without nsfw=true a sexual-family trait is 404 NOT_FOUND. include=aliases,description,intros (and view=full) add those blocks. include=character_count is the nightly index total that GET /v2/catalog/characters?trait_id=<this id>&page=1 answers under this request's nsfw; the engine failing is 503. It is an explicit ask: view=full does not add it. is_sexual reports the sexual-family flag. Requires an application key or a user access token with catalog:read.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -62951,6 +62986,41 @@ export const docsModel: DocsModel = {
                         "required": true,
                         "doc": "Catalog trait id.",
                         "type": "string"
+                      },
+                      {
+                        "name": "intros",
+                        "doc": "Present when include=intros. Trait descriptions, one per language: en (the plain text of description) and zh-Hans when recorded. Empty array if none.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "is_machine",
+                              "required": true,
+                              "doc": "Whether this intro is machine-translated.",
+                              "type": "boolean"
+                            },
+                            {
+                              "name": "lang",
+                              "required": true,
+                              "doc": "BCP-47 language tag.",
+                              "format": "bcp47",
+                              "type": "string"
+                            },
+                            {
+                              "name": "source",
+                              "required": true,
+                              "doc": "Open vocabulary sources. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "value",
+                              "required": true,
+                              "doc": "Must not be used as a discriminant.",
+                              "type": "string"
+                            }
+                          ]
+                        }
                       },
                       {
                         "name": "is_applicable",
