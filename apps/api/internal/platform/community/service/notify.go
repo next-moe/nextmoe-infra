@@ -125,6 +125,9 @@ const (
 )
 
 func (s *NotificationService) dispatchEvent(tx *gorm.DB, ev *model.CommunityEvent) (eventOutcome, error) {
+	if ev.Kind == model.EventKindUserFollowed {
+		return s.dispatchFollow(tx, ev)
+	}
 	switch ev.Kind {
 	case model.EventKindPostCreated, model.EventKindPostLiked, model.EventKindFeedbackStatusChanged, model.EventKindAnswerAccepted:
 	default:

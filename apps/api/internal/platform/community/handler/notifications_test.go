@@ -249,3 +249,34 @@ func TestNotificationFeed(t *testing.T) {
 		t.Fatalf("fold update must reappear after the cursor with the same id %d, got %+v", foldID, feed2.Body.Data.Notifications)
 	}
 }
+
+func TestNotificationFeedFollowedHasNoThread(t *testing.T) {
+	cleanTables(t)
+	s := newTenantServer()
+	s.follows = service.NewFollowService(testDB)
+	ctx := clientCtx("letmoe")
+
+	if _, err := s.followUser(ctx, &followUserInput{ID: 1, TargetID: 2}); err != nil {
+		t.Fatalf("follow: %v", err)
+	}
+	processNotifications(t)
+
+	feed, err := s.notificationFeed(ctx, &notificationFeedInput{Limit: 100})
+	if err != nil {
+		t.Fatalf("feed: %v", err)
+	}
+	var found *dto.NotificationView
+	for i := range feed.Body.Data.Notifications {
+		n := &feed.Body.Data.Notifications[i]
+		if n.Kind == model.NotificationKindFollowed && n.UserID == 2 {
+			found = n
+			break
+		}
+	}
+	if found == nil {
+		t.Fatalf("feed must include the kind-8 row, got %+v", feed.Body.Data.Notifications)
+	}
+	if found.ThreadID != 0 || found.AnchorID != "" || found.BoardID != nil {
+		t.Fatalf("kind 8 names no thread: thread_id=%d anchor_id=%q board_id=%v", found.ThreadID, found.AnchorID, found.BoardID)
+	}
+}

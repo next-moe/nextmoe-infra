@@ -176,12 +176,29 @@ func RecomputeLikedFoldTx(tx *gorm.DB, id int64) error {
 		model.ReactionKindLike, model.ReactionKindLike, id).Error
 }
 
+func RecomputeFollowedFoldTx(tx *gorm.DB, id int64) error {
+	return tx.Exec(`
+		UPDATE community_notification AS n SET
+			item_count = (
+				SELECT COUNT(*) FROM community_user_follow f
+				 WHERE f.followee_id = n.user_id
+				   AND f.origin_site = n.site
+				   AND f.created_at >= n.since_at),
+			actor_count = (
+				SELECT COUNT(*) FROM community_user_follow f
+				 WHERE f.followee_id = n.user_id
+				   AND f.origin_site = n.site
+				   AND f.created_at >= n.since_at)
+		 WHERE n.id = ?`, id).Error
+}
+
 func MarkThreadNotificationsReadTx(tx *gorm.DB, userID, threadID int64, lastRead int32) error {
 	return tx.Model(&model.CommunityNotification{}).
 		Where("user_id = ? AND thread_id = ? AND read_at IS NULL", userID, threadID).
 		Where("kind IN ?", []int16{
 			model.NotificationKindReplied, model.NotificationKindMentioned,
 			model.NotificationKindPosted, model.NotificationKindThreadCreated,
+			model.NotificationKindFolloweeThreadCreated,
 		}).
 		Where("post_number <= ?", lastRead).
 		Update("read_at", gorm.Expr("now()")).Error
@@ -288,3 +305,5 @@ func PostedFoldKey(threadID int64) string { return fmt.Sprintf("posted:%d", thre
 func LikedFoldKey(postID int64) string { return fmt.Sprintf("like:%d", postID) }
 
 func FeedbackFoldKey(threadID int64) string { return fmt.Sprintf("fb:%d", threadID) }
+
+func FollowedFoldKey() string { return "followed" }

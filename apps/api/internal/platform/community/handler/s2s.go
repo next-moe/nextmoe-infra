@@ -31,6 +31,7 @@ type Server struct {
 	search     *service.SearchService
 	boards     *service.BoardService
 	notify     *service.NotificationService
+	follows    *service.FollowService
 }
 
 // Services is what the S2S face is wired from; the spec generator passes an
@@ -47,6 +48,7 @@ type Services struct {
 	Search     *service.SearchService
 	Boards     *service.BoardService
 	Notify     *service.NotificationService
+	Follows    *service.FollowService
 }
 
 func Setup(app *fiber.App, svc Services) huma.API {
@@ -63,7 +65,7 @@ func Setup(app *fiber.App, svc Services) huma.API {
 	s := &Server{
 		threads: svc.Threads, posts: svc.Posts, reactions: svc.Reactions, feedback: svc.Feedback,
 		flags: svc.Flags, trust: svc.Trust, review: svc.Review, engagement: svc.Engagement, search: svc.Search,
-		boards: svc.Boards, notify: svc.Notify,
+		boards: svc.Boards, notify: svc.Notify, follows: svc.Follows,
 	}
 	s.register(api)
 	return api
@@ -152,6 +154,7 @@ func (s *Server) register(api huma.API) {
 		Summary: "Reject a queue item (remove the content; tombstone the post)", Tags: review}, s.rejectReview)
 
 	s.registerAnchors(api)
+	s.registerFollows(api)
 	s.registerBoards(api)
 	s.registerThreadModeration(api)
 	s.registerNotifications(api)

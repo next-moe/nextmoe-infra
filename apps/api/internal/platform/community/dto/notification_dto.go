@@ -5,7 +5,7 @@ import "time"
 type NotificationView struct {
 	ID              int64      `json:"id"`
 	UserID          int64      `json:"user_id"`
-	Kind            int16      `json:"kind" doc:"1=replied 2=mentioned 3=posted 4=thread_created 5=liked 6=answer_accepted 7=feedback_status"`
+	Kind            int16      `json:"kind" doc:"1=replied 2=mentioned 3=posted 4=thread_created 5=liked 6=answer_accepted 7=feedback_status 8=followed 9=followee_thread_created; kind 8 names no thread (thread_id 0, empty anchor)"`
 	ThreadID        int64      `json:"thread_id"`
 	AnchorKind      int16      `json:"anchor_kind"`
 	AnchorID        string     `json:"anchor_id"`
