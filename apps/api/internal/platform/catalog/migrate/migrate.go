@@ -8,6 +8,7 @@ package migrate
 import (
 	"fmt"
 
+	"api/internal/platform/accountpurge"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/editing"
 
@@ -133,6 +134,11 @@ func Run(db *gorm.DB) error {
 
 		// Credit edges (step 05).
 		&model.CatalogCredit{},
+
+		// 2026-09-25: how far this service has read the deleted-accounts list
+		// (oauth doc 17). A new table with no rows; the first run starts from
+		// the beginning of the list.
+		&accountpurge.Cursor{},
 	); err != nil {
 		return fmt.Errorf("catalog automigrate: %w", err)
 	}
