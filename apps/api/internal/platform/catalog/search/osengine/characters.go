@@ -86,7 +86,7 @@ func charactersSearchBody(q spec.CharacterQuery) (map[string]any, bool) {
 		"query":            buildQuery(text, false, true, characterFilterClauses(q)),
 		"from":             from,
 		"size":             size,
-		"sort":             characterSearchSort(q.Sort),
+		"sort":             characterSearchSort(q.Sort, q.NSFW),
 		"track_total_hits": true,
 		"_source":          false,
 	}, dropHits
@@ -113,10 +113,14 @@ func characterFilterClauses(q spec.CharacterQuery) []any {
 	return filters
 }
 
-func characterSearchSort(sort string) []any {
+func characterSearchSort(sort string, nsfw bool) []any {
 	idAsc := map[string]any{"catalog_id": map[string]any{"order": "asc"}}
 	idDesc := map[string]any{"catalog_id": map[string]any{"order": "desc"}}
-	popDesc := map[string]any{"popularity": map[string]any{"order": "desc"}}
+	popField := "popularity_sfw"
+	if nsfw {
+		popField = "popularity"
+	}
+	popDesc := map[string]any{popField: map[string]any{"order": "desc"}}
 	switch sort {
 	case "popularity":
 		return []any{popDesc, idAsc}

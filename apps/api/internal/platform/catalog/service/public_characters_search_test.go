@@ -54,7 +54,7 @@ type charParity struct {
 	p, q, a, s                      int64
 	chain, pq, onlyQ, spoil         int64
 	sex, femaleG, male, multi, dead int64
-	popHi, popMid, popLo            int64
+	popHi, popMid, popLo, popR18    int64
 }
 
 func seedCharacterParity(t *testing.T) charParity {
@@ -131,6 +131,7 @@ func seedCharacterParity(t *testing.T) charParity {
 	cMale := character("parity-male", &male)
 	cMulti := character("parity-multi", nil)
 	cDead := character("parity-dead", nil)
+	cR18 := character("parity-r18-only", nil)
 	link(cChain.ID, g.ID, model.SpoilerNone)
 	link(cPQ.ID, p.ID, model.SpoilerNone)
 	link(cPQ.ID, q.ID, model.SpoilerNone)
@@ -156,6 +157,20 @@ func seedCharacterParity(t *testing.T) charParity {
 	createWorkCharacter(t, wHi.ID, cFemaleG.ID, model.WorkCharacterKindMain, model.SpoilerNone)
 	createWorkCharacter(t, wMid.ID, cChain.ID, model.WorkCharacterKindMain, model.SpoilerNone)
 	createWorkCharacter(t, wMid.ID, cDead.ID, model.WorkCharacterKindMain, model.SpoilerNone)
+
+	wR18 := &model.CatalogWork{
+		MediumID: 1, OLang: "ja", DisplayName: "pop-r18",
+		ContentRating: model.ContentRatingR18, Status: model.WorkStatusLive,
+	}
+	if err := testDB.Create(wR18).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := testDB.Create(&model.CatalogWorkPopularity{
+		WorkID: wR18.ID, SourceID: 2, Metric: model.PopularityMetricBgmCollect, Value: 100000,
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	createWorkCharacter(t, wR18.ID, cR18.ID, model.WorkCharacterKindMain, model.SpoilerNone)
 
 	var rows []chardocs.Row
 	if err := testDB.Raw(`SELECT id, display_name, lang, coalesce(latin,'') AS latin, gender
@@ -187,7 +202,7 @@ func seedCharacterParity(t *testing.T) charParity {
 		p: p.ID, q: q.ID, a: a.ID, s: s.ID,
 		chain: cChain.ID, pq: cPQ.ID, onlyQ: cQ.ID, spoil: cSpoil.ID,
 		sex: cSex.ID, femaleG: cFemaleG.ID, male: cMale.ID, multi: cMulti.ID, dead: cDead.ID,
-		popHi: cFemaleG.ID, popMid: cChain.ID, popLo: cDead.ID,
+		popHi: cFemaleG.ID, popMid: cChain.ID, popLo: cDead.ID, popR18: cR18.ID,
 	}
 }
 
@@ -288,10 +303,10 @@ func TestCharactersSearchParityWithRegistry(t *testing.T) {
 	for i, it := range pop.Items {
 		got[i] = it.ID
 	}
-	if len(got) < 2 || got[0] != c.popHi || got[1] != c.popMid {
-		t.Fatalf("popularity order %v, want %d then %d then id-asc zeros", got, c.popHi, c.popMid)
+	if len(got) < 3 || got[0] != c.popR18 || got[1] != c.popHi || got[2] != c.popMid {
+		t.Fatalf("nsfw popularity order %v, want %d then %d then %d then id-asc zeros", got, c.popR18, c.popHi, c.popMid)
 	}
-	for i := 2; i < len(got)-1; i++ {
+	for i := 3; i < len(got)-1; i++ {
 		if got[i] > got[i+1] {
 			t.Fatalf("id tie-break broken at %v", got[i:])
 		}
@@ -300,5 +315,17 @@ func TestCharactersSearchParityWithRegistry(t *testing.T) {
 		if id == c.dead {
 			t.Fatal("soft-deleted character hydrated")
 		}
+	}
+
+	popSFW := indexCharPage(t, c.svc, false, CharacterTraitFilter{}, "popularity")
+	sfwGot := make([]int64, len(popSFW.Items))
+	for i, it := range popSFW.Items {
+		sfwGot[i] = it.ID
+	}
+	if len(sfwGot) < 2 || sfwGot[0] == c.popR18 {
+		t.Fatalf("sfw popularity first %v, r18-only %d must not lead", sfwGot, c.popR18)
+	}
+	if sfwGot[0] != c.popHi || sfwGot[1] != c.popMid {
+		t.Fatalf("sfw popularity order %v, want %d then %d", sfwGot, c.popHi, c.popMid)
 	}
 }
