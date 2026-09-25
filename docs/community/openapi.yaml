@@ -701,6 +701,69 @@ components:
         - code
         - message
       type: object
+    EnvelopeFollowListResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeFollowListResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/FollowListResponse"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeFollowResult:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeFollowResult.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/FollowResult"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeFollowStatesResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeFollowStatesResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/FollowStatesResponse"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
     EnvelopeMarkNotificationsReadResponse:
       additionalProperties: false
       properties:
@@ -1079,6 +1142,27 @@ components:
         - code
         - message
       type: object
+    EnvelopeUnfollowResult:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeUnfollowResult.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/UnfollowResult"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
     EnvelopeUnreadListResponse:
       additionalProperties: false
       properties:
@@ -1158,6 +1242,122 @@ components:
           type: integer
       required:
         - flagger_id
+      type: object
+    FollowListResponse:
+      additionalProperties: false
+      properties:
+        next_cursor:
+          description: pass as cursor for the next (older) page; empty = last page
+          type: string
+        users:
+          items:
+            $ref: "#/components/schemas/FollowView"
+          type:
+            - array
+            - "null"
+      required:
+        - users
+      type: object
+    FollowResult:
+      additionalProperties: false
+      properties:
+        created:
+          description: false when the follow already existed
+          type: boolean
+        followee_id:
+          format: int64
+          type: integer
+        follower_id:
+          format: int64
+          type: integer
+        following:
+          description: always true after this call
+          type: boolean
+      required:
+        - follower_id
+        - followee_id
+        - following
+        - created
+      type: object
+    FollowStateView:
+      additionalProperties: false
+      properties:
+        followers_count:
+          format: int64
+          type: integer
+        following_count:
+          format: int64
+          type: integer
+        follows_viewer:
+          description: this user follows viewer_id
+          type: boolean
+        user_id:
+          format: int64
+          type: integer
+        viewer_follows:
+          description: viewer_id follows this user
+          type: boolean
+      required:
+        - user_id
+        - followers_count
+        - following_count
+        - viewer_follows
+        - follows_viewer
+      type: object
+    FollowStatesRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/FollowStatesRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        user_ids:
+          description: users to report on (max 100); answered in request order, deduplicated
+          items:
+            format: int64
+            type: integer
+          maxItems: 100
+          type:
+            - array
+            - "null"
+        viewer_id:
+          description: the signed-in user the relation flags are about; 0 = anonymous
+          format: int64
+          type: integer
+      required:
+        - user_ids
+      type: object
+    FollowStatesResponse:
+      additionalProperties: false
+      properties:
+        states:
+          items:
+            $ref: "#/components/schemas/FollowStateView"
+          type:
+            - array
+            - "null"
+      required:
+        - states
+      type: object
+    FollowView:
+      additionalProperties: false
+      properties:
+        followed_at:
+          description: null when the follow was imported from a site that never recorded when it was made
+          format: date-time
+          type:
+            - string
+            - "null"
+        user_id:
+          description: the follower (on a followers list) or the followed user (on a following list)
+          format: int64
+          type: integer
+      required:
+        - user_id
+        - followed_at
       type: object
     HouseError:
       additionalProperties: false
@@ -2219,6 +2419,27 @@ components:
         - level
         - first_posts_held_remaining
       type: object
+    UnfollowResult:
+      additionalProperties: false
+      properties:
+        deleted:
+          description: false when there was no follow to remove
+          type: boolean
+        followee_id:
+          format: int64
+          type: integer
+        follower_id:
+          format: int64
+          type: integer
+        following:
+          description: always false after this call
+          type: boolean
+      required:
+        - follower_id
+        - followee_id
+        - following
+        - deleted
+      type: object
     UnreadListResponse:
       additionalProperties: false
       properties:
@@ -2975,6 +3196,31 @@ paths:
       summary: Set a feedback thread's status and official response
       tags:
         - community-write
+  /api/v1/community/follows/states:
+    post:
+      operationId: followStates
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FollowStatesRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeFollowStatesResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Batch follower/following counts and the viewer's relation to up to 100 users
+      tags:
+        - community-follows
   /api/v1/community/notifications/feed:
     get:
       operationId: notificationFeed
@@ -4114,6 +4360,157 @@ paths:
       summary: List a user's anchor subscriptions on this site, newest first
       tags:
         - community-engagement
+  /api/v1/community/users/{id}/followers:
+    get:
+      operationId: listFollowers
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+        - description: opaque cursor from the previous page
+          explode: false
+          in: query
+          name: cursor
+          schema:
+            description: opaque cursor from the previous page
+            type: string
+        - description: page size (max 100, default 50)
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: page size (max 100, default 50)
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeFollowListResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: List who follows a user, newest follow first
+      tags:
+        - community-follows
+  /api/v1/community/users/{id}/following:
+    get:
+      operationId: listFollowing
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+        - description: opaque cursor from the previous page
+          explode: false
+          in: query
+          name: cursor
+          schema:
+            description: opaque cursor from the previous page
+            type: string
+        - description: page size (max 100, default 50)
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: page size (max 100, default 50)
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeFollowListResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: List who a user follows, newest follow first
+      tags:
+        - community-follows
+  /api/v1/community/users/{id}/following/{target_id}:
+    delete:
+      operationId: unfollowUser
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+        - in: path
+          name: target_id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeUnfollowResult"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Stop following a user (idempotent; deleted says whether a follow was removed)
+      tags:
+        - community-follows
+    put:
+      operationId: followUser
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+        - in: path
+          name: target_id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeFollowResult"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Follow a user network-wide (idempotent; created says whether the follow is new)
+      tags:
+        - community-follows
   /api/v1/community/users/{id}/notifications:
     get:
       operationId: listNotifications

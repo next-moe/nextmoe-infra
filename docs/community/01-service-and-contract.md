@@ -321,7 +321,10 @@ reads the accounts OAuth has deleted (oauth doc 17 §4, straight from the main
 database) and purges each one on every site that has rows for it, then drops
 its `community_trust` row. Its cursor is `account_purge_cursor` in this
 database, and a failed account stops the run so the next hour retries it. The
-archive and the restore above cover these purges too.
+archive and the restore above cover these purges too. The account purge also
+deletes every follow naming the account, in either direction; a site's author
+purge leaves follows alone because a follow belongs to the account, not to a
+site.
 
 ### Write-time content pipeline (invariant 6)
 
@@ -493,6 +496,23 @@ gets no `posted`).
 A catalog-anchored thread can be watched from several sites; the column says
 which site that interaction came through. A NULL (the one-off importers still
 insert without it) falls back to the thread's site.
+
+### User follows
+
+The follow graph is network-wide and community is its only writer. Following
+someone on any site shows on every site. `origin_site` records which site a
+follow was made on, for provenance only; no face filters by it. Every follow
+face still requires the caller's site binding (`403` without one), like every
+other community face. Community does not check that a uid exists (§2). Counts
+are computed at read time from indexes.
+
+- `PUT /users/{id}/following/{target_id}` — follow (idempotent; `created` says whether it is new)
+- `DELETE /users/{id}/following/{target_id}` — unfollow (idempotent; `deleted` says whether a follow was removed)
+- `GET /users/{id}/followers` — who follows this user, newest first
+- `GET /users/{id}/following` — who this user follows, newest first
+- `POST /follows/states` — batch follower/following counts and the viewer's relation to up to 100 users
+
+`followed_at` is null when the follow was imported from a site that never recorded when it was made. A user may follow at most 5,000 others (`422 following limit reached (max 5000)`). List pages are a keyset: `cursor` is the last row's id as a decimal string; empty means the last page.
 
 ### Notifications
 

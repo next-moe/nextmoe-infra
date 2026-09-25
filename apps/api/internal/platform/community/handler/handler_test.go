@@ -46,7 +46,7 @@ func TestMain(m *testing.M) {
 func cleanTables(t *testing.T) {
 	t.Helper()
 	for _, table := range []string{
-		"community_write_request", "community_purge_archive", "community_notification", "community_event",
+		"community_user_follow", "community_write_request", "community_purge_archive", "community_notification", "community_event",
 		"community_review_item", "community_flag", "community_reaction",
 		"community_anchor_user", "community_thread_user", "community_board", "community_trust",
 		"community_post", "community_thread",
@@ -95,6 +95,11 @@ func TestSpecExport(t *testing.T) {
 		"operationId: listNotifications",
 		"operationId: markNotificationsRead",
 		"operationId: notificationFeed",
+		"operationId: followUser",
+		"operationId: unfollowUser",
+		"operationId: listFollowers",
+		"operationId: listFollowing",
+		"operationId: followStates",
 		"mention_user_ids",
 		"name: board_id",
 		"name: pinned",
