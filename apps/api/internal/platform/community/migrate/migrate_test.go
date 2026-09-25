@@ -64,7 +64,7 @@ func TestMain(m *testing.M) {
 func cleanTables(t *testing.T) {
 	t.Helper()
 	for _, table := range []string{
-		"community_write_request", "community_purge_archive", "community_notification", "community_event",
+		"community_user_follow", "community_write_request", "community_purge_archive", "community_notification", "community_event",
 		"community_review_item", "community_flag", "community_trust",
 		"community_board", "community_anchor_user", "community_thread_user", "community_reaction",
 		"community_post", "community_thread",
@@ -308,6 +308,9 @@ func TestIndexColumnOrder(t *testing.T) {
 		{"idx_community_anchor_user_anchor", "(anchor_kind, anchor_id, site)"},
 		{"idx_community_notification_inbox", "(site, user_id, seq DESC)"},
 		{"idx_community_notification_feed", "(site, seq)"},
+		{"uq_community_user_follow", "(follower_id, followee_id)"},
+		{"idx_community_user_follow_followee", "(followee_id, id DESC)"},
+		{"idx_community_user_follow_follower", "(follower_id, id DESC)"},
 	}
 	for _, c := range cases {
 		def := indexDef(t, c.name)
@@ -491,6 +494,9 @@ func TestColumnAudit(t *testing.T) {
 		"community_write_request": {
 			"id", "site", "idempotency_key", "request_hash", "post_id", "created_at",
 		},
+		"community_user_follow": {
+			"id", "follower_id", "followee_id", "origin_site", "created_at", "imported_at",
+		},
 	}
 	for table, cols := range want {
 		got := columnNames(t, table)
@@ -661,5 +667,58 @@ func TestThreadUserSiteBackfill(t *testing.T) {
 	}
 	if got[2] == nil || *got[2] != "kungal" {
 		t.Fatalf("an already-set site must be kept, got %v", got[2])
+	}
+}
+
+func TestMigrateCreatesUserFollow(t *testing.T) {
+	cleanTables(t)
+
+	var tables int
+	if err := testDB.Raw(`SELECT COUNT(*) FROM information_schema.tables
+		WHERE table_schema = 'public' AND table_name = 'community_user_follow'`).Scan(&tables).Error; err != nil {
+		t.Fatalf("table exists: %v", err)
+	}
+	if tables != 1 {
+		t.Fatal("community_user_follow must exist")
+	}
+	for _, col := range []string{"created_at", "imported_at"} {
+		var nullable string
+		if err := testDB.Raw(`SELECT is_nullable FROM information_schema.columns
+			WHERE table_schema = 'public' AND table_name = 'community_user_follow' AND column_name = ?`, col).
+			Scan(&nullable).Error; err != nil {
+			t.Fatalf("nullability %s: %v", col, err)
+		}
+		if nullable != "YES" {
+			t.Fatalf("%s must be nullable, is_nullable=%s", col, nullable)
+		}
+	}
+
+	self := testDB.Exec(`INSERT INTO community_user_follow (follower_id, followee_id, origin_site) VALUES (1, 1, 'kungal')`).Error
+	if self == nil || !strings.Contains(self.Error(), "chk_community_user_follow_self") {
+		t.Fatalf("self-follow must fail the check, got: %v", self)
+	}
+	if err := testDB.Exec(`INSERT INTO community_user_follow (follower_id, followee_id, origin_site) VALUES (1, 2, 'kungal')`).Error; err != nil {
+		t.Fatalf("first pair: %v", err)
+	}
+	dup := testDB.Exec(`INSERT INTO community_user_follow (follower_id, followee_id, origin_site) VALUES (1, 2, 'moyu')`).Error
+	if !isDuplicate(dup) {
+		t.Fatalf("duplicate pair must fail the unique, got: %v", dup)
+	}
+
+	followee := indexDef(t, "idx_community_user_follow_followee")
+	if !strings.Contains(followee, "(followee_id, id DESC)") {
+		t.Fatalf("followee index:\n  %s", followee)
+	}
+	follower := indexDef(t, "idx_community_user_follow_follower")
+	if !strings.Contains(follower, "(follower_id, id DESC)") {
+		t.Fatalf("follower index:\n  %s", follower)
+	}
+	uq := indexDef(t, "uq_community_user_follow")
+	if !strings.Contains(uq, "(follower_id, followee_id)") {
+		t.Fatalf("unique:\n  %s", uq)
+	}
+
+	if err := Run(testDB); err != nil {
+		t.Fatalf("second migrate.Run: %v", err)
 	}
 }

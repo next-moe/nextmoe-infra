@@ -31,6 +31,7 @@ func TestRouting_EveryNewPathResolves(t *testing.T) {
 		Search:     service.NewSearchService(testDB),
 		Boards:     service.NewBoardService(testDB),
 		Notify:     service.NewNotificationService(testDB),
+		Follows:    service.NewFollowService(testDB),
 	})
 
 	cases := []struct {
@@ -48,6 +49,11 @@ func TestRouting_EveryNewPathResolves(t *testing.T) {
 		{http.MethodGet, "/api/v1/community/search/threads?q=%E6%B1%89%E5%8C%96", "", http.StatusOK},
 		{http.MethodGet, "/api/v1/community/users/1/unread", "", http.StatusOK},
 		{http.MethodGet, "/api/v1/community/users/1/anchor-subscriptions", "", http.StatusOK},
+		{http.MethodPut, "/api/v1/community/users/1/following/2", "", http.StatusOK},
+		{http.MethodGet, "/api/v1/community/users/1/following", "", http.StatusOK},
+		{http.MethodGet, "/api/v1/community/users/1/followers", "", http.StatusOK},
+		{http.MethodDelete, "/api/v1/community/users/1/following/2", "", http.StatusOK},
+		{http.MethodPost, "/api/v1/community/follows/states", `{"viewer_id":1,"user_ids":[2]}`, http.StatusOK},
 		{http.MethodGet, "/api/v1/community/users/1/notifications", "", http.StatusOK},
 		{http.MethodPost, "/api/v1/community/users/1/notifications/read", `{"all":true}`, http.StatusOK},
 		{http.MethodGet, "/api/v1/community/notifications/feed", "", http.StatusOK},

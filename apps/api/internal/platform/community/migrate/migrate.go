@@ -38,6 +38,10 @@ func Run(db *gorm.DB) error {
 		// (oauth doc 17). A new table with no rows; the first run starts from
 		// the beginning of the list.
 		&accountpurge.Cursor{},
+		// 2026-09-25: the network-wide follow graph (plan 12). A new table
+		// with no rows; cmd/import-follows fills it per source site at that
+		// site's cutover.
+		&model.CommunityUserFollow{},
 	); err != nil {
 		return fmt.Errorf("community automigrate: %w", err)
 	}
@@ -173,7 +177,8 @@ func rawSQL(db *gorm.DB) error {
 			    ON community_anchor_user(anchor_kind, anchor_id, site)`},
 		// One unread folded row per (site, user, fold_key). Marking it read
 		// drops it out so the next activity starts a new row; a NULL fold_key
-		// (replied / mentioned / thread_created / answer_accepted) never folds.
+		// (replied / mentioned / thread_created / answer_accepted /
+		// followee_thread_created) never folds.
 		{"uq_community_notification_fold", `
 			CREATE UNIQUE INDEX IF NOT EXISTS uq_community_notification_fold
 			    ON community_notification(site, user_id, fold_key)
@@ -204,6 +209,14 @@ func rawSQL(db *gorm.DB) error {
 			CREATE INDEX IF NOT EXISTS idx_community_event_processed
 			    ON community_event(processed_at)
 			    WHERE processed_at IS NOT NULL`},
+		// Followers of a user, newest first; also serves follower counts.
+		{"idx_community_user_follow_followee", `
+			CREATE INDEX IF NOT EXISTS idx_community_user_follow_followee
+			    ON community_user_follow(followee_id, id DESC)`},
+		// Who a user follows, newest first; also serves following counts.
+		{"idx_community_user_follow_follower", `
+			CREATE INDEX IF NOT EXISTS idx_community_user_follow_follower
+			    ON community_user_follow(follower_id, id DESC)`},
 	} {
 		if err := db.Exec(ix.stmt).Error; err != nil {
 			return fmt.Errorf("create index %s: %w", ix.name, err)

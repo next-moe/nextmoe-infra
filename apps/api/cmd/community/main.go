@@ -105,6 +105,7 @@ func main() {
 	searchSvc := service.NewSearchService(communityDB.DB())
 	boardSvc := service.NewBoardService(communityDB.DB())
 	notifySvc := service.NewNotificationService(communityDB.DB())
+	followSvc := service.NewFollowService(communityDB.DB())
 
 	application.Fiber.Use(middleware.RequestID())
 	application.Fiber.Use(middleware.Logger())
@@ -121,7 +122,7 @@ func main() {
 	api := commHandler.Setup(application.Fiber, commHandler.Services{
 		Threads: threadSvc, Posts: postSvc, Reactions: reactionSvc, Feedback: feedbackSvc,
 		Flags: flagSvc, Trust: trustSvc, Review: reviewSvc, Engagement: engagementSvc, Search: searchSvc,
-		Boards: boardSvc, Notify: notifySvc,
+		Boards: boardSvc, Notify: notifySvc, Follows: followSvc,
 	})
 
 	go notifySvc.Run(ctx)
