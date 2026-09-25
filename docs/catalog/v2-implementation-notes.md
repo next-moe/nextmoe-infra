@@ -1489,3 +1489,18 @@ primary key (~750 ms on a production-sized copy); with it every page measured
 under 13 ms and the heaviest `include_total` count ~70 ms. The build took
 0.7 s on that copy (116 MB), so a plain `CREATE INDEX` holds the link table's
 write lock only briefly.
+
+## Wave — page mode lands (2026-09-25)
+
+Page mode on `/v2/catalog/works` and `/v2/catalog/search` (the bullet under
+binds above) was accepted on 2026-09-18 as PR #268 with every check green,
+and then never merged. Its version, 2.25.0, was reused by a different wave,
+and the forum kept faking page cursors because the parameter it had been told
+to use did not exist. It lands now unchanged in behaviour, rebased onto
+2.28.0.
+
+**Spec is 2.29.0.** Additive: `page=` on `listCatalogWorks` and
+`searchCatalog`, `total_relation` on the list envelope. No new operation
+(117). oasdiff reports no breaking change.
+
+**Zero migrations.**

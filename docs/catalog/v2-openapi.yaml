@@ -4479,10 +4479,17 @@ components:
           type: string
           x-vocabulary-closed: true
         total:
-          description: Present only when include_total=true. Same visibility gate as items.
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
           format: int64
           minimum: 0
           type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
       required:
         - object
         - items
@@ -8450,7 +8457,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.28.0
+  version: 2.29.0
   x-stability: stable
 openapi: 3.1.0
 paths:

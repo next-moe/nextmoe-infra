@@ -1,6 +1,5 @@
 {
   "1 to 100. Over 100 is `LIMIT_TOO_LARGE`; the value is not clamped.": "1 到 100。超过 100 是 `LIMIT_TOO_LARGE`，不会被夹到上限。",
-  "1-based page number, 1-1000.": "从 1 开始的页码，1-1000。",
   "1-based page number. Selects page mode: the response carries total and total_relation and no next_cursor. page times limit may not exceed 10000; the last reachable page is min(ceil(total/limit), floor(10000/limit)). Cannot be combined with cursor, ids or refs.": "从 1 开始的页码。选择 page 模式：响应携带 total 与 total_relation，且无 next_cursor。page 乘 limit 不得超过 10000；最后可到达的页为 min(ceil(total/limit), floor(10000/limit))。不能与 cursor、ids 或 refs 组合。",
   "1-based, unique within the pack.": "从 1 开始，在同一个表情包内唯一。",
   "204 with no body, also when the work was not in the folder. Requires a user access token with folder:write.": "204 无响应体；作品本来就不在夹内时同样如此。需要带 folder:write 的用户访问令牌。",

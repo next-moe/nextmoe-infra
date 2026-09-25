@@ -169010,9 +169010,18 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "total",
-                        "doc": "Present only when include_total=true. Same visibility gate as items.",
+                        "doc": "Present when include_total=true, and always in page mode (page=). Same visibility gate as items.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "total_relation",
+                        "doc": "Present in page mode only. eq: total is exact. gte: total is a lower bound.",
+                        "enum": [
+                          "eq",
+                          "gte"
+                        ],
+                        "type": "string"
                       }
                     ]
                   }
