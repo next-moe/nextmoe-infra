@@ -64,12 +64,12 @@ type Character struct {
 	Measurements *Measurements            `json:"measurements,omitempty" doc:"Present on view=full. null if unrecorded."`
 	BloodType    *string                  `json:"blood_type,omitempty" enum:"a,b,ab,o" doc:"Present on view=full. null if unrecorded."`
 	InstanceOfID *string                  `json:"instance_of_id,omitempty" pattern:"^[0-9]+$" maxLength:"20" doc:"Another character this row is an instance of. Present on view=full. null if none."`
-	Image        *Image                   `json:"image,omitempty" doc:"Present only when include=image and this character has an image; absent otherwise. Detail face only."`
-	Figure       *Image                   `json:"figure,omitempty" doc:"Present only when include=figure and this character has a full-body figure cutout; absent otherwise. Detail face only."`
-	Traits       *[]CharacterTrait        `json:"traits,omitempty" doc:"Present when include=traits, detail face only. Empty array if none."`
-	Aliases      *[]EntityName            `json:"aliases,omitempty" doc:"Alternate spellings of THIS character name. Present when include=aliases, detail face only. Empty array if none."`
-	Intros       *[]Intro                 `json:"intros,omitempty" doc:"Character descriptions, one per language. Present when include=intros, detail face only. Empty array if none."`
-	Refs         *[]Ref                   `json:"refs,omitempty" doc:"Exact upstream anchors of this character. Present when include=refs, detail face only. Empty array if none."`
+	Image        *Image                   `json:"image,omitempty" doc:"Present only when include=image and this character has an image; absent otherwise."`
+	Figure       *Image                   `json:"figure,omitempty" doc:"Present only when include=figure and this character has a full-body figure cutout; absent otherwise."`
+	Traits       *[]CharacterTrait        `json:"traits,omitempty" doc:"Present when include=traits. Empty array if none."`
+	Aliases      *[]EntityName            `json:"aliases,omitempty" doc:"Alternate spellings of THIS character name. Present when include=aliases. Empty array if none."`
+	Intros       *[]Intro                 `json:"intros,omitempty" doc:"Character descriptions, one per language. Present when include=intros. Empty array if none."`
+	Refs         *[]Ref                   `json:"refs,omitempty" doc:"Exact upstream anchors of this character. Present when include=refs. Empty array if none."`
 }
 
 type CharacterTrait struct {

@@ -8796,7 +8796,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/characters",
               "summary": "List characters",
-              "description": "Keyset-paginated characters. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs fills on every lane, and view=full is all of them; traits are cut at the default spoiler ceiling and follow the nsfw gate, exactly as on the detail face.",
+              "description": "Keyset-paginated characters. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs fills on every lane, and view=full is all of them; traits are cut at the default spoiler ceiling and follow the nsfw gate, exactly as on the detail face. trait_id= filters by trait (descendants included, max 10), combined by trait_match=all|any; a character matches under the same spoiler and nsfw gates as its traits block.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -8875,6 +8875,20 @@ export const docsModel: DocsModel = {
                   "required": false,
                   "type": "string",
                   "doc": "true includes r18. false or absent hides r18. Only true or false."
+                },
+                {
+                  "name": "trait_id",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Comma-separated catalog trait ids, max 10. Descendants included. Matches under the same spoiler and nsfw gates as the traits block. Naming a sexual trait without nsfw=true is 400. Unknown ids match nothing."
+                },
+                {
+                  "name": "trait_match",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Closed: all (default), any. No effect without trait_id."
                 }
               ],
               "responses": [
@@ -8927,7 +8941,7 @@ export const docsModel: DocsModel = {
                           "children": [
                             {
                               "name": "aliases",
-                              "doc": "Alternate spellings of THIS character name. Present when include=aliases, detail face only. Empty array if none.",
+                              "doc": "Alternate spellings of THIS character name. Present when include=aliases. Empty array if none.",
                               "type": "array",
                               "itemsOf": {
                                 "type": "object",
@@ -9159,7 +9173,7 @@ export const docsModel: DocsModel = {
                             },
                             {
                               "name": "intros",
-                              "doc": "Character descriptions, one per language. Present when include=intros, detail face only. Empty array if none.",
+                              "doc": "Character descriptions, one per language. Present when include=intros. Empty array if none.",
                               "type": "array",
                               "itemsOf": {
                                 "type": "object",
@@ -9278,7 +9292,7 @@ export const docsModel: DocsModel = {
                             },
                             {
                               "name": "refs",
-                              "doc": "Exact upstream anchors of this character. Present when include=refs, detail face only. Empty array if none.",
+                              "doc": "Exact upstream anchors of this character. Present when include=refs. Empty array if none.",
                               "type": "array",
                               "itemsOf": {
                                 "type": "object",
@@ -9300,7 +9314,7 @@ export const docsModel: DocsModel = {
                             },
                             {
                               "name": "traits",
-                              "doc": "Present when include=traits, detail face only. Empty array if none.",
+                              "doc": "Present when include=traits. Empty array if none.",
                               "type": "array",
                               "itemsOf": {
                                 "type": "object",
@@ -10723,7 +10737,7 @@ export const docsModel: DocsModel = {
                     "children": [
                       {
                         "name": "aliases",
-                        "doc": "Alternate spellings of THIS character name. Present when include=aliases, detail face only. Empty array if none.",
+                        "doc": "Alternate spellings of THIS character name. Present when include=aliases. Empty array if none.",
                         "type": "array",
                         "itemsOf": {
                           "type": "object",
@@ -10955,7 +10969,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "intros",
-                        "doc": "Character descriptions, one per language. Present when include=intros, detail face only. Empty array if none.",
+                        "doc": "Character descriptions, one per language. Present when include=intros. Empty array if none.",
                         "type": "array",
                         "itemsOf": {
                           "type": "object",
@@ -11074,7 +11088,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "refs",
-                        "doc": "Exact upstream anchors of this character. Present when include=refs, detail face only. Empty array if none.",
+                        "doc": "Exact upstream anchors of this character. Present when include=refs. Empty array if none.",
                         "type": "array",
                         "itemsOf": {
                           "type": "object",
@@ -11096,7 +11110,7 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "traits",
-                        "doc": "Present when include=traits, detail face only. Empty array if none.",
+                        "doc": "Present when include=traits. Empty array if none.",
                         "type": "array",
                         "itemsOf": {
                           "type": "object",
