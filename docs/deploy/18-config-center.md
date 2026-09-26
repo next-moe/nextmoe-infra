@@ -89,7 +89,7 @@ path style、PG 连接池、OIDC 签名算法、aff URL 模板等启动期接线
 原代码常量收编,无环境变量地板、无公开/站点覆盖;改了 30 秒内在请求路径生效:
 
 - `apiv2.*`:`default_rate_per_minute` / `default_quota_per_day` / `auth_fail_per_minute` / `auth_fail_block_seconds`
-- `auth.*`:`ip_rate_per_minute` / `token_endpoint_rate_per_minute` / `strict_rate_per_minute` / `allowed_email_domains` / `verification_resend_cooldown_seconds` / `register_gift_points` / `name_change_cost`
+- `auth.*`:`ip_rate_per_minute` / `token_endpoint_rate_per_minute` / `strict_rate_per_minute` / `allowed_email_domains` / `verification_resend_cooldown_seconds` / `register_gift_points` / `name_change_cost`(公开,随读面下发给站点展示改名价格)
 - `trust.*`:`report_rate_window_minutes` / `report_rate_max_per_window` / `aggregate_threshold` / `new_account_age_days` / `new_account_reporter_weight` / `policy_cache_ttl_seconds` / `term_cache_ttl_seconds`
 - `ai.moderate_max_tokens`
 - `community.*`:`sandbox_max_links` / `sandbox_max_images` / `sandbox_max_mentions` / `sandbox_max_topics_per_day` / `sandbox_max_replies_per_day` / `sandbox_window_hours` / `flag_hide_threshold`
