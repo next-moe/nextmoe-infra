@@ -123,6 +123,7 @@ var AuthNameChangeCost = settings.Int(settings.Meta{
 	Name:   "auth.name_change_cost",
 	DescEN: "Moemoepoints charged when a user changes their username; 0 makes renaming free.",
 	DescZH: "用户修改用户名时扣除的萌萌点数量;0 表示免费。",
+	Public: true,
 	Min:    settings.F(0),
 	Max:    settings.F(10000),
 }, 17)
