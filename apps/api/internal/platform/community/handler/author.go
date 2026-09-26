@@ -113,6 +113,7 @@ func (s *Server) purgeAuthor(ctx context.Context, in *authorPurgeInput) (*author
 		ReadStatesDeleted:          res.ReadStatesDeleted,
 		AnchorSubscriptionsDeleted: res.AnchorSubscriptionsDeleted,
 		NotificationsDeleted:       res.NotificationsDeleted,
+		ActivitiesDeleted:          res.ActivitiesDeleted,
 	})}, nil
 }
 

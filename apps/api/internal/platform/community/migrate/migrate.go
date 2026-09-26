@@ -40,8 +40,18 @@ func Run(db *gorm.DB) error {
 		&accountpurge.Cursor{},
 		// 2026-09-25: the network-wide follow graph (plan 12). A new table
 		// with no rows; cmd/import-follows fills it per source site at that
-		// site's cutover.
+		// site's cutover. 2026-09-26 (plan 13) adds notify_level NOT NULL
+		// DEFAULT 0, so every existing edge takes 0 = notify on everything,
+		// the default both sides chose; the default makes it a metadata-only
+		// change. community_event and community_notification gain a nullable
+		// activity_id (NULL on every existing row).
 		&model.CommunityUserFollow{},
+		// 2026-09-26: the following feed (plan 13). New tables with no rows;
+		// sites fill community_activity through POST /activities, and the
+		// group and seen tables follow from it.
+		&model.CommunityActivity{},
+		&model.CommunityActivityGroup{},
+		&model.CommunityFeedSeen{},
 	); err != nil {
 		return fmt.Errorf("community automigrate: %w", err)
 	}
@@ -95,6 +105,14 @@ func rawSQL(db *gorm.DB) error {
 	// AutoMigrate cannot express a sequence that is not a column default.
 	if err := db.Exec(`CREATE SEQUENCE IF NOT EXISTS community_notification_seq`).Error; err != nil {
 		return fmt.Errorf("create community_notification_seq: %w", err)
+	}
+	// Plan 13: an activity's feed group is its Beijing calendar day. A stored
+	// generated column keeps that bucket from ever disagreeing with
+	// occurred_at; AutoMigrate cannot declare one, so the model only reads it.
+	if err := db.Exec(`
+		ALTER TABLE community_activity ADD COLUMN IF NOT EXISTS bucket_date date
+		    GENERATED ALWAYS AS ((occurred_at AT TIME ZONE 'Asia/Shanghai')::date) STORED`).Error; err != nil {
+		return fmt.Errorf("add community_activity.bucket_date: %w", err)
 	}
 	for _, ix := range []struct{ name, stmt string }{
 		{"idx_community_post_content_trgm", `
@@ -217,6 +235,40 @@ func rawSQL(db *gorm.DB) error {
 		{"idx_community_user_follow_follower", `
 			CREATE INDEX IF NOT EXISTS idx_community_user_follow_follower
 			    ON community_user_follow(follower_id, id DESC)`},
+		// A site's own rows in id order: the reconciliation read.
+		{"idx_community_activity_site_id", `
+			CREATE INDEX IF NOT EXISTS idx_community_activity_site_id
+			    ON community_activity(site, id)`},
+		// One group's members newest first: the group recompute, the group's
+		// items, and (by its site, actor_id prefix) a purge.
+		{"idx_community_activity_member", `
+			CREATE INDEX IF NOT EXISTS idx_community_activity_member
+			    ON community_activity(site, actor_id, verb, object_kind, bucket_date, occurred_at DESC, id DESC)`},
+		// An author's live notified activities on a site: the kind-10 fold count.
+		{"idx_community_activity_notified", `
+			CREATE INDEX IF NOT EXISTS idx_community_activity_notified
+			    ON community_activity(site, actor_id, occurred_at DESC, id DESC)
+			    WHERE removed_at IS NULL AND notified_at IS NOT NULL`},
+		{"idx_community_activity_removed", `
+			CREATE INDEX IF NOT EXISTS idx_community_activity_removed
+			    ON community_activity(removed_at)
+			    WHERE removed_at IS NOT NULL`},
+		// The feed reads one author's groups newest first, in the all or the
+		// SFW view; a view's empty groups are not indexed.
+		{"idx_community_activity_group_all", `
+			CREATE INDEX IF NOT EXISTS idx_community_activity_group_all
+			    ON community_activity_group(actor_id, latest_all_at DESC, id DESC)
+			    WHERE count_all > 0`},
+		{"idx_community_activity_group_sfw", `
+			CREATE INDEX IF NOT EXISTS idx_community_activity_group_sfw
+			    ON community_activity_group(actor_id, latest_sfw_at DESC, id DESC)
+			    WHERE count_sfw > 0`},
+		// Every unread fold of one key on a site: a kind-10 recount after an
+		// author's activity leaves or re-enters the live set.
+		{"idx_community_notification_fold_key", `
+			CREATE INDEX IF NOT EXISTS idx_community_notification_fold_key
+			    ON community_notification(site, fold_key)
+			    WHERE read_at IS NULL AND fold_key IS NOT NULL`},
 	} {
 		if err := db.Exec(ix.stmt).Error; err != nil {
 			return fmt.Errorf("create index %s: %w", ix.name, err)

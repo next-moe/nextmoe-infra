@@ -28,8 +28,11 @@ func mapErr(op string, err error) *houseError {
 	case stderrors.Is(err, service.ErrThreadNotFound),
 		stderrors.Is(err, service.ErrPostNotFound),
 		stderrors.Is(err, service.ErrReviewNotFound),
-		stderrors.Is(err, service.ErrBoardNotFound):
+		stderrors.Is(err, service.ErrBoardNotFound),
+		stderrors.Is(err, service.ErrActivityGroupNotFound):
 		return apiErr(http.StatusNotFound, errors.ErrNotFound)
+	case stderrors.Is(err, service.ErrNotFollowing):
+		return apiErrMsg(http.StatusNotFound, errors.ErrNotFound, "not following")
 	case stderrors.Is(err, service.ErrNothingToRestore):
 		return apiErrMsg(http.StatusNotFound, errors.ErrNotFound, "no purge of this author in the last 30 days is left to restore")
 	case stderrors.Is(err, service.ErrThreadNotOpen):

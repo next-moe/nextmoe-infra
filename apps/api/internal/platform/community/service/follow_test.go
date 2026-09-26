@@ -221,6 +221,9 @@ func TestFollowStates(t *testing.T) {
 	mustFollow(1, 3)
 	mustFollow(2, 1)
 	mustFollow(4, 2)
+	if err := s.SetNotifyLevel(ctx, 1, 3, model.FollowNotifyFeed); err != nil {
+		t.Fatalf("feed-only 1→3: %v", err)
+	}
 
 	states, err := s.States(1, []int64{2, 5, 3, 2, 1})
 	if err != nil {
@@ -235,9 +238,15 @@ func TestFollowStates(t *testing.T) {
 		{UserID: 3, FollowersCount: 1, FollowingCount: 0, ViewerFollows: true},
 		{UserID: 1, FollowersCount: 1, FollowingCount: 2},
 	}
+	wantNotify := []*int16{new(model.FollowNotifyAll), nil, new(model.FollowNotifyFeed), nil}
 	for i, st := range states {
+		gotNotify := st.ViewerNotify
+		st.ViewerNotify = nil
 		if st != want[i] {
 			t.Errorf("state[%d]=%+v, want %+v", i, st, want[i])
+		}
+		if (gotNotify == nil) != (wantNotify[i] == nil) || (gotNotify != nil && *gotNotify != *wantNotify[i]) {
+			t.Errorf("state[%d] viewer_notify=%v, want %v", i, gotNotify, wantNotify[i])
 		}
 	}
 

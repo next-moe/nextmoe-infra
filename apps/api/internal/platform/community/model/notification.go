@@ -15,6 +15,7 @@ type CommunityEvent struct {
 	ActorID        int64          `gorm:"not null;column:actor_id" json:"actor_id"`
 	TargetUserID   *int64         `gorm:"column:target_user_id" json:"target_user_id"`
 	MentionUserIDs datatypes.JSON `gorm:"type:jsonb;column:mention_user_ids" json:"mention_user_ids"`
+	ActivityID     *int64         `gorm:"column:activity_id" json:"activity_id"`
 	Attempts       int            `gorm:"not null;default:0;column:attempts" json:"attempts"`
 	AttemptAfter   time.Time      `gorm:"not null;column:attempt_after" json:"attempt_after"`
 	ProcessedAt    *time.Time     `gorm:"column:processed_at" json:"processed_at"`
@@ -39,6 +40,7 @@ type CommunityNotification struct {
 	ActorCount      int        `gorm:"not null;column:actor_count" json:"actor_count"`
 	ItemCount       int        `gorm:"not null;column:item_count" json:"item_count"`
 	FoldKey         *string    `gorm:"column:fold_key" json:"fold_key"`
+	ActivityID      *int64     `gorm:"column:activity_id" json:"activity_id"`
 	ReadAt          *time.Time `gorm:"column:read_at" json:"read_at"`
 	Seq             int64      `gorm:"not null;column:seq" json:"seq"`
 	CreatedAt       time.Time  `json:"created_at"`

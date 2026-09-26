@@ -133,7 +133,7 @@ func recipientsForEvent(tx *gorm.DB, ev *model.CommunityEvent, thread *model.Com
 			add(notifyCandidate{site: au.Site, userID: au.UserID, kind: k, fromAnchor: true})
 		}
 		if post != nil && post.PostNumber == 1 && thread.Kind == model.ThreadKindTopic {
-			followerIDs, err := repository.ListFollowerIDsTx(tx, post.AuthorID)
+			followerIDs, err := repository.ListNotifiedFollowerIDsTx(tx, post.AuthorID)
 			if err != nil {
 				return nil, err
 			}

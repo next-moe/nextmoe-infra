@@ -106,6 +106,7 @@ func main() {
 	boardSvc := service.NewBoardService(communityDB.DB())
 	notifySvc := service.NewNotificationService(communityDB.DB())
 	followSvc := service.NewFollowService(communityDB.DB())
+	activitySvc := service.NewActivityService(communityDB.DB())
 
 	application.Fiber.Use(middleware.RequestID())
 	application.Fiber.Use(middleware.Logger())
@@ -122,13 +123,13 @@ func main() {
 	api := commHandler.Setup(application.Fiber, commHandler.Services{
 		Threads: threadSvc, Posts: postSvc, Reactions: reactionSvc, Feedback: feedbackSvc,
 		Flags: flagSvc, Trust: trustSvc, Review: reviewSvc, Engagement: engagementSvc, Search: searchSvc,
-		Boards: boardSvc, Notify: notifySvc, Follows: followSvc,
+		Boards: boardSvc, Notify: notifySvc, Follows: followSvc, Activities: activitySvc,
 	})
 
 	go notifySvc.Run(ctx)
 	slog.Info("community notification dispatcher started")
 	go runOutboxTicker(ctx, forwardSvc)
-	go runHourlyPrunes(ctx, postSvc)
+	go runHourlyPrunes(ctx, postSvc, activitySvc)
 	accountpurge.Start(ctx, &accountpurge.Consumer{
 		Name: "community", Feed: authRepo.NewUserRepository(application.DB.DB()), DB: communityDB.DB(),
 		Purge: postSvc.PurgeAccount,
@@ -177,7 +178,7 @@ func runOutboxTicker(ctx context.Context, fwd *service.ForwardService) {
 	}
 }
 
-func runHourlyPrunes(ctx context.Context, posts *service.PostService) {
+func runHourlyPrunes(ctx context.Context, posts *service.PostService, activities *service.ActivityService) {
 	t := time.NewTicker(time.Hour)
 	defer t.Stop()
 	for {
@@ -194,6 +195,11 @@ func runHourlyPrunes(ctx context.Context, posts *service.PostService) {
 				slog.Error("community write key prune", "err", err)
 			} else if n > 0 {
 				slog.Info("community write key prune", "rows", n)
+			}
+			if n, err := activities.Prune(ctx); err != nil {
+				slog.Error("community activity tombstone prune", "err", err)
+			} else if n > 0 {
+				slog.Info("community activity tombstone prune", "rows", n)
 			}
 		}
 	}
