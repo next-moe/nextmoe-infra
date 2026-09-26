@@ -72,6 +72,8 @@ const (
 	EventKindFeedbackStatusChanged int16 = 3
 	EventKindAnswerAccepted        int16 = 4
 	EventKindUserFollowed          int16 = 5
+	EventKindActivityPublished     int16 = 6
+	EventKindActivityChanged       int16 = 7
 )
 
 const (
@@ -84,6 +86,35 @@ const (
 	NotificationKindFeedbackStatus        int16 = 7
 	NotificationKindFollowed              int16 = 8
 	NotificationKindFolloweeThreadCreated int16 = 9
+	NotificationKindFolloweeActivity      int16 = 10
+)
+
+const (
+	FollowNotifyAll  int16 = 0
+	FollowNotifyFeed int16 = 1
+)
+
+var FollowNotifyNames = []string{"all", "feed"}
+
+const (
+	ActivityVerbPublish int16 = 0
+	ActivityVerbReply   int16 = 1
+	ActivityVerbComment int16 = 2
+	ActivityVerbRate    int16 = 3
+	ActivityVerbLike    int16 = 4
+	ActivityVerbEdit    int16 = 5
+)
+
+var ActivityVerbNames = []string{"publish", "reply", "comment", "rate", "like", "edit"}
+
+func ActivityVerbByName(name string) (int16, bool) {
+	i := slices.Index(ActivityVerbNames, name)
+	return int16(i), i >= 0
+}
+
+const (
+	ContentLimitSFW  int16 = 0
+	ContentLimitNSFW int16 = 1
 )
 
 const (

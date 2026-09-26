@@ -13,10 +13,10 @@ import (
 // purges the account on every tenant. The sites come from every table the
 // author purge scopes by site, not from community_thread alone: a reply
 // delivered through one tenant onto another tenant's thread records the
-// delivering site. community_trust has no site and is dropped once; flags the
-// account filed stay, as moderation records. Follow edges naming the account
-// are deleted in both directions; a site's author purge leaves them alone
-// because a follow is account-level.
+// delivering site. community_trust and the feed's seen mark have no site and
+// are dropped once; flags the account filed stay, as moderation records.
+// Follow edges naming the account are deleted in both directions; a site's
+// author purge leaves them alone because a follow is account-level.
 func (s *PostService) PurgeAccount(ctx context.Context, uid int64) error {
 	var sites []string
 	if err := s.db.WithContext(ctx).Raw(`
@@ -25,6 +25,7 @@ func (s *PostService) PurgeAccount(ctx context.Context, uid int64) error {
 		UNION SELECT site FROM community_anchor_user
 		UNION SELECT site FROM community_notification
 		UNION SELECT site FROM community_event
+		UNION SELECT site FROM community_activity
 		ORDER BY site`).Scan(&sites).Error; err != nil {
 		return err
 	}
@@ -34,6 +35,9 @@ func (s *PostService) PurgeAccount(ctx context.Context, uid int64) error {
 		}
 	}
 	if err := s.db.WithContext(ctx).Where("user_id = ?", uid).Delete(&model.CommunityTrust{}).Error; err != nil {
+		return err
+	}
+	if err := repository.DeleteFeedSeen(s.db.WithContext(ctx), uid); err != nil {
 		return err
 	}
 	return repository.DeleteUserFollows(s.db.WithContext(ctx), uid)

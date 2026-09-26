@@ -205,7 +205,7 @@ func MarkThreadNotificationsReadTx(tx *gorm.DB, userID, threadID int64, lastRead
 }
 
 func ListNotifications(db *gorm.DB, site string, userID, beforeSeq int64, unreadOnly bool, limit int) ([]model.CommunityNotification, error) {
-	q := db.Model(&model.CommunityNotification{}).Where("site = ? AND user_id = ?", site, userID)
+	q := db.Model(&model.CommunityNotification{}).Where("site = ? AND user_id = ? AND item_count > 0", site, userID)
 	if unreadOnly {
 		q = q.Where("read_at IS NULL")
 	}

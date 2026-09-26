@@ -1,5 +1,139 @@
 components:
   schemas:
+    ActivityGroupListResponse:
+      additionalProperties: false
+      properties:
+        groups:
+          items:
+            $ref: "#/components/schemas/ActivityGroupView"
+          type:
+            - array
+            - "null"
+        next_cursor:
+          description: pass as cursor for the next (older) page; empty = last page
+          type: string
+      required:
+        - groups
+      type: object
+    ActivityGroupView:
+      additionalProperties: false
+      properties:
+        actor_id:
+          format: int64
+          type: integer
+        day:
+          description: the Beijing calendar day the group covers, YYYY-MM-DD
+          type: string
+        id:
+          format: int64
+          type: integer
+        item_count:
+          description: live items in the group, in the requested content_limit view
+          format: int64
+          type: integer
+        items:
+          description: the newest items, at most 3; the rest via /activity-groups/{id}/items
+          items:
+            $ref: "#/components/schemas/ActivityItemView"
+          type:
+            - array
+            - "null"
+        latest_at:
+          description: occurred_at of the group's newest item; a group moves to the top when it gains one
+          format: date-time
+          type: string
+        object_kind:
+          type: string
+        object_label:
+          type: string
+        site:
+          type: string
+        verb:
+          type: string
+      required:
+        - id
+        - site
+        - actor_id
+        - verb
+        - object_kind
+        - object_label
+        - day
+        - item_count
+        - latest_at
+        - items
+      type: object
+    ActivityItemListResponse:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: "#/components/schemas/ActivityItemView"
+          type:
+            - array
+            - "null"
+        next_cursor:
+          type: string
+      required:
+        - items
+      type: object
+    ActivityItemView:
+      additionalProperties: false
+      properties:
+        actor_id:
+          format: int64
+          type: integer
+        content_limit:
+          enum:
+            - sfw
+            - nsfw
+          type: string
+        cover_image_hash:
+          type:
+            - string
+            - "null"
+        excerpt:
+          type: string
+        id:
+          format: int64
+          type: integer
+        key:
+          type: string
+        object_kind:
+          type: string
+        object_label:
+          type: string
+        occurred_at:
+          format: date-time
+          type: string
+        site:
+          type: string
+        title:
+          type: string
+        url:
+          type: string
+        verb:
+          type: string
+        work_id:
+          format: int64
+          type:
+            - integer
+            - "null"
+      required:
+        - id
+        - site
+        - key
+        - actor_id
+        - verb
+        - object_kind
+        - object_label
+        - title
+        - excerpt
+        - url
+        - cover_image_hash
+        - work_id
+        - content_limit
+        - occurred_at
+      type: object
     ActivityReceiptRequest:
       additionalProperties: false
       properties:
@@ -34,6 +168,159 @@ components:
         - posts_read
         - read_time_s
         - days_visited
+      type: object
+    ActivitySeenRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ActivitySeenRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        at:
+          description: the latest_at of the first group in the response the user was shown, before the site filtered anything out; omitted = now. Clamped to now; the mark never moves back
+          format: date-time
+          type: string
+      type: object
+    ActivitySeenResponse:
+      additionalProperties: false
+      properties:
+        seen_at:
+          format: date-time
+          type: string
+      required:
+        - seen_at
+      type: object
+    ActivityUnseenResponse:
+      additionalProperties: false
+      properties:
+        seen_at:
+          description: null until the first mark
+          format: date-time
+          type:
+            - string
+            - "null"
+        unseen_count:
+          description: groups that moved since the later of seen_at and when the follow began; counted to 100, and 100 means 100 or more
+          format: int64
+          type: integer
+      required:
+        - unseen_count
+        - seen_at
+      type: object
+    ActivityWriteItem:
+      additionalProperties: false
+      properties:
+        actor_id:
+          description: the author's NextMoe uid
+          format: int64
+          type: integer
+        content_limit:
+          description: sfw | nsfw, the site's judgement of this item; missing = nsfw
+          type: string
+        cover_image_hash:
+          description: image service hash (64 lowercase hex)
+          type: string
+        excerpt:
+          description: plain text, at most 300 characters
+          type: string
+        key:
+          description: "stable key of this activity within the site, e.g. topic:123; 1-128 of A-Z a-z 0-9 . _ : -"
+          type: string
+        notify:
+          description: notify the author's followers (kind 10); only with verb publish. Sent only when the key is new, the item is live and occurred_at is within 24 hours
+          type: boolean
+        object_kind:
+          description: the site's own type name, 1-32 of a-z 0-9 _; community does not interpret it
+          type: string
+        object_label:
+          description: display name of the type for any site to render, at most 16 characters, e.g. Galgame 资源
+          type: string
+        occurred_at:
+          description: when the content was made (not when it is pushed); required unless removed
+          format: date-time
+          type: string
+        removed:
+          description: "true sends a tombstone: the content was hidden, deleted, made non-public or its author purged. A tombstone needs only key, actor_id and revision"
+          type: boolean
+        revision:
+          description: unix microseconds at which the site read the state it is sending; a write whose revision is not greater than the stored one is ignored (stale)
+          format: int64
+          type: integer
+        title:
+          description: at most 200 characters; the site truncates
+          type: string
+        url:
+          description: absolute https URL on one of the calling client's registered redirect hosts
+          type: string
+        verb:
+          description: publish | reply | comment | rate | like | edit
+          type: string
+        work_id:
+          description: the catalog work this activity is about
+          format: int64
+          type: integer
+      required:
+        - key
+        - actor_id
+        - revision
+      type: object
+    ActivityWriteOutcome:
+      additionalProperties: false
+      properties:
+        key:
+          type: string
+        outcome:
+          enum:
+            - created
+            - updated
+            - removed
+            - restored
+            - stale
+            - invalid
+          type: string
+        reason:
+          description: why an item is invalid
+          type: string
+      required:
+        - key
+        - outcome
+      type: object
+    ActivityWriteRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ActivityWriteRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        items:
+          items:
+            $ref: "#/components/schemas/ActivityWriteItem"
+          maxItems: 100
+          minItems: 1
+          type:
+            - array
+            - "null"
+      required:
+        - items
+      type: object
+    ActivityWriteResponse:
+      additionalProperties: false
+      properties:
+        results:
+          description: one per item, in request order
+          items:
+            $ref: "#/components/schemas/ActivityWriteOutcome"
+          type:
+            - array
+            - "null"
+      required:
+        - results
       type: object
     AnchorNotificationRequest:
       additionalProperties: false
@@ -533,6 +820,111 @@ components:
         - author_id
         - body
       type: object
+    EnvelopeActivityGroupListResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeActivityGroupListResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/ActivityGroupListResponse"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeActivityItemListResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeActivityItemListResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/ActivityItemListResponse"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeActivitySeenResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeActivitySeenResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/ActivitySeenResponse"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeActivityUnseenResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeActivityUnseenResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/ActivityUnseenResponse"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeActivityWriteResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeActivityWriteResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/ActivityWriteResponse"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
     EnvelopeAnchorStatesResponse:
       additionalProperties: false
       properties:
@@ -716,6 +1108,27 @@ components:
           type: integer
         data:
           $ref: "#/components/schemas/FollowListResponse"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeFollowNotifyResult:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeFollowNotifyResult.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/FollowNotifyResult"
         message:
           type: string
       required:
@@ -1016,6 +1429,27 @@ components:
         - code
         - message
       type: object
+    EnvelopeSiteActivityListResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeSiteActivityListResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/SiteActivityListResponse"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
     EnvelopeThreadListResponse:
       additionalProperties: false
       properties:
@@ -1258,6 +1692,44 @@ components:
       required:
         - users
       type: object
+    FollowNotifyRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/FollowNotifyRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        notify:
+          description: all = notifications and the feed; feed = the feed only
+          enum:
+            - all
+            - feed
+          type: string
+      required:
+        - notify
+      type: object
+    FollowNotifyResult:
+      additionalProperties: false
+      properties:
+        followee_id:
+          format: int64
+          type: integer
+        follower_id:
+          format: int64
+          type: integer
+        notify:
+          enum:
+            - all
+            - feed
+          type: string
+      required:
+        - follower_id
+        - followee_id
+        - notify
+      type: object
     FollowResult:
       additionalProperties: false
       properties:
@@ -1273,11 +1745,18 @@ components:
         following:
           description: always true after this call
           type: boolean
+        notify:
+          description: "how the follower hears about the followee's new work: all = notifications and the feed, feed = the feed only"
+          enum:
+            - all
+            - feed
+          type: string
       required:
         - follower_id
         - followee_id
         - following
         - created
+        - notify
       type: object
     FollowStateView:
       additionalProperties: false
@@ -1297,12 +1776,21 @@ components:
         viewer_follows:
           description: viewer_id follows this user
           type: boolean
+        viewer_notify:
+          description: how viewer_id hears about this user's new work; null when viewer_id does not follow them
+          enum:
+            - all
+            - feed
+          type:
+            - string
+            - "null"
       required:
         - user_id
         - followers_count
         - following_count
         - viewer_follows
         - follows_viewer
+        - viewer_notify
       type: object
     FollowStatesRequest:
       additionalProperties: false
@@ -1459,6 +1947,46 @@ components:
         - actor_id
         - board_id
       type: object
+    NotificationActivityView:
+      additionalProperties: false
+      properties:
+        content_limit:
+          enum:
+            - sfw
+            - nsfw
+          type: string
+        id:
+          format: int64
+          type: integer
+        key:
+          type: string
+        object_kind:
+          type: string
+        object_label:
+          type: string
+        occurred_at:
+          format: date-time
+          type: string
+        site:
+          type: string
+        title:
+          type: string
+        url:
+          type: string
+        verb:
+          type: string
+      required:
+        - id
+        - site
+        - key
+        - verb
+        - object_kind
+        - object_label
+        - title
+        - url
+        - content_limit
+        - occurred_at
+      type: object
     NotificationFeedResponse:
       additionalProperties: false
       properties:
@@ -1496,6 +2024,9 @@ components:
     NotificationView:
       additionalProperties: false
       properties:
+        activity:
+          $ref: "#/components/schemas/NotificationActivityView"
+          description: "kind 10 only: the newest live activity the row counts. Absent when item_count is 0, which retracts the row"
         actor_count:
           format: int64
           type: integer
@@ -1526,7 +2057,7 @@ components:
           format: int64
           type: integer
         kind:
-          description: 1=replied 2=mentioned 3=posted 4=thread_created 5=liked 6=answer_accepted 7=feedback_status 8=followed 9=followee_thread_created; kind 8 names no thread (thread_id 0, empty anchor)
+          description: 1=replied 2=mentioned 3=posted 4=thread_created 5=liked 6=answer_accepted 7=feedback_status 8=followed 9=followee_thread_created 10=followee_activity; kinds 8 and 10 name no thread (thread_id 0, empty anchor)
           format: int32
           type: integer
         post_id:
@@ -1866,6 +2397,10 @@ components:
     PurgeResponse:
       additionalProperties: false
       properties:
+        activities_deleted:
+          description: this site's feed activities by this user, tombstones included, deleted this run; the notifications they raised are retracted
+          format: int64
+          type: integer
         anchor_subscriptions_deleted:
           description: anchor-subscription rows of this site deleted this run
           format: int64
@@ -1892,6 +2427,7 @@ components:
         - read_states_deleted
         - anchor_subscriptions_deleted
         - notifications_deleted
+        - activities_deleted
       type: object
     ReactionToggleRequest:
       additionalProperties: false
@@ -2127,6 +2663,101 @@ components:
       required:
         - user_id
         - boost
+      type: object
+    SiteActivityListResponse:
+      additionalProperties: false
+      properties:
+        activities:
+          items:
+            $ref: "#/components/schemas/SiteActivityView"
+          type:
+            - array
+            - "null"
+        next_cursor:
+          description: pass as cursor for the next page; empty = last page
+          type: string
+      required:
+        - activities
+      type: object
+    SiteActivityView:
+      additionalProperties: false
+      properties:
+        actor_id:
+          format: int64
+          type: integer
+        content_limit:
+          enum:
+            - sfw
+            - nsfw
+          type: string
+        cover_image_hash:
+          type:
+            - string
+            - "null"
+        created_at:
+          format: date-time
+          type: string
+        excerpt:
+          type: string
+        id:
+          format: int64
+          type: integer
+        key:
+          type: string
+        notify:
+          type: boolean
+        object_kind:
+          type: string
+        object_label:
+          type: string
+        occurred_at:
+          format: date-time
+          type: string
+        removed:
+          description: a tombstone; its title, excerpt, url, cover_image_hash and work_id are cleared
+          type: boolean
+        removed_at:
+          format: date-time
+          type:
+            - string
+            - "null"
+        revision:
+          format: int64
+          type: integer
+        title:
+          type: string
+        updated_at:
+          format: date-time
+          type: string
+        url:
+          type: string
+        verb:
+          type: string
+        work_id:
+          format: int64
+          type:
+            - integer
+            - "null"
+      required:
+        - id
+        - key
+        - actor_id
+        - verb
+        - object_kind
+        - object_label
+        - title
+        - excerpt
+        - url
+        - cover_image_hash
+        - work_id
+        - content_limit
+        - notify
+        - occurred_at
+        - revision
+        - removed
+        - created_at
+        - updated_at
+        - removed_at
       type: object
     ThreadListResponse:
       additionalProperties: false
@@ -2552,6 +3183,116 @@ info:
   version: 1.0.0
 openapi: 3.1.0
 paths:
+  /api/v1/community/activities:
+    get:
+      operationId: listSiteActivities
+      parameters:
+        - description: opaque cursor from the previous page
+          explode: false
+          in: query
+          name: cursor
+          schema:
+            description: opaque cursor from the previous page
+            type: string
+        - description: page size (max 1000, default 1000)
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: page size (max 1000, default 1000)
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSiteActivityListResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: "This site's stored activities in id order, tombstones included, every stored field: the reconciliation read"
+      tags:
+        - community-activities
+    post:
+      operationId: writeActivities
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActivityWriteRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeActivityWriteResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Push up to 100 of this site's activities (upserts and tombstones under the revision rule; one outcome per item)
+      tags:
+        - community-activities
+  /api/v1/community/activity-groups/{id}/items:
+    get:
+      operationId: listActivityGroupItems
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+        - description: opaque cursor from the previous page
+          explode: false
+          in: query
+          name: cursor
+          schema:
+            description: opaque cursor from the previous page
+            type: string
+        - description: page size (max 50, default 20)
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: page size (max 50, default 20)
+            format: int64
+            type: integer
+        - explode: false
+          in: query
+          name: content_limit
+          schema:
+            default: all
+            enum:
+              - all
+              - sfw
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeActivityItemListResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Every live item of one activity group, newest first
+      tags:
+        - community-activities
   /api/v1/community/anchors/notification:
     post:
       operationId: setAnchorNotification
@@ -4310,6 +5051,73 @@ paths:
       summary: Declare a starter boost (veteran/creator/staff) for a user
       tags:
         - community-trust
+  /api/v1/community/users/{id}/activities:
+    get:
+      operationId: listUserActivities
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+        - description: opaque cursor from the previous page
+          explode: false
+          in: query
+          name: cursor
+          schema:
+            description: opaque cursor from the previous page
+            type: string
+        - description: page size (max 50, default 20)
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: page size (max 50, default 20)
+            format: int64
+            type: integer
+        - description: sfw = only SFW items, filtered here so a page is never thinned by the caller
+          explode: false
+          in: query
+          name: content_limit
+          schema:
+            default: all
+            description: sfw = only SFW items, filtered here so a page is never thinned by the caller
+            enum:
+              - all
+              - sfw
+            type: string
+        - description: comma-separated sites to keep, e.g. kungal; empty = every site
+          explode: false
+          in: query
+          name: sites
+          schema:
+            description: comma-separated sites to keep, e.g. kungal; empty = every site
+            type: string
+        - description: comma-separated verbs to keep (publish,reply,comment,rate,like,edit); empty = all
+          explode: false
+          in: query
+          name: verbs
+          schema:
+            description: comma-separated verbs to keep (publish,reply,comment,rate,like,edit); empty = all
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeActivityGroupListResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: One user's own activity groups across every site, newest first
+      tags:
+        - community-activities
   /api/v1/community/users/{id}/anchor-subscriptions:
     get:
       operationId: listAnchorSubscriptions
@@ -4444,6 +5252,156 @@ paths:
       summary: List who a user follows, newest follow first
       tags:
         - community-follows
+  /api/v1/community/users/{id}/following/activities:
+    get:
+      operationId: listFollowingActivities
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+        - description: opaque cursor from the previous page
+          explode: false
+          in: query
+          name: cursor
+          schema:
+            description: opaque cursor from the previous page
+            type: string
+        - description: page size (max 50, default 20)
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: page size (max 50, default 20)
+            format: int64
+            type: integer
+        - description: sfw = only SFW items, filtered here so a page is never thinned by the caller
+          explode: false
+          in: query
+          name: content_limit
+          schema:
+            default: all
+            description: sfw = only SFW items, filtered here so a page is never thinned by the caller
+            enum:
+              - all
+              - sfw
+            type: string
+        - description: comma-separated sites to keep, e.g. kungal; empty = every site
+          explode: false
+          in: query
+          name: sites
+          schema:
+            description: comma-separated sites to keep, e.g. kungal; empty = every site
+            type: string
+        - description: comma-separated verbs to keep (publish,reply,comment,rate,like,edit); empty = all
+          explode: false
+          in: query
+          name: verbs
+          schema:
+            description: comma-separated verbs to keep (publish,reply,comment,rate,like,edit); empty = all
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeActivityGroupListResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: "The following feed: activity groups of everyone the user follows, across every site, newest first"
+      tags:
+        - community-activities
+  /api/v1/community/users/{id}/following/activities/seen:
+    post:
+      operationId: markFollowingActivitiesSeen
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActivitySeenRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeActivitySeenResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Move the user's account-wide feed mark forward (never back, never past now)
+      tags:
+        - community-activities
+  /api/v1/community/users/{id}/following/activities/unseen:
+    get:
+      operationId: getFollowingActivitiesUnseen
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: content_limit
+          schema:
+            default: all
+            enum:
+              - all
+              - sfw
+            type: string
+        - description: comma-separated sites to keep; empty = every site
+          explode: false
+          in: query
+          name: sites
+          schema:
+            description: comma-separated sites to keep; empty = every site
+            type: string
+        - description: comma-separated verbs to keep; empty = all
+          explode: false
+          in: query
+          name: verbs
+          schema:
+            description: comma-separated verbs to keep; empty = all
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeActivityUnseenResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: How many feed groups moved since the user last looked (the red dot)
+      tags:
+        - community-activities
   /api/v1/community/users/{id}/following/{target_id}:
     delete:
       operationId: unfollowUser
@@ -4476,6 +5434,45 @@ paths:
                 $ref: "#/components/schemas/HouseError"
           description: Error
       summary: Stop following a user (idempotent; deleted says whether a follow was removed)
+      tags:
+        - community-follows
+    patch:
+      operationId: setFollowNotify
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+        - in: path
+          name: target_id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FollowNotifyRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeFollowNotifyResult"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Change how a follower hears about the followee's new work (all or feed only); never creates the follow
       tags:
         - community-follows
     put:

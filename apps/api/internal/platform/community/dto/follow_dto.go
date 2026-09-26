@@ -3,10 +3,21 @@ package dto
 import "time"
 
 type FollowResult struct {
-	FollowerID int64 `json:"follower_id"`
-	FolloweeID int64 `json:"followee_id"`
-	Following  bool  `json:"following" doc:"always true after this call"`
-	Created    bool  `json:"created" doc:"false when the follow already existed"`
+	FollowerID int64  `json:"follower_id"`
+	FolloweeID int64  `json:"followee_id"`
+	Following  bool   `json:"following" doc:"always true after this call"`
+	Created    bool   `json:"created" doc:"false when the follow already existed"`
+	Notify     string `json:"notify" enum:"all,feed" doc:"how the follower hears about the followee's new work: all = notifications and the feed, feed = the feed only"`
+}
+
+type FollowNotifyRequest struct {
+	Notify string `json:"notify" enum:"all,feed" doc:"all = notifications and the feed; feed = the feed only"`
+}
+
+type FollowNotifyResult struct {
+	FollowerID int64  `json:"follower_id"`
+	FolloweeID int64  `json:"followee_id"`
+	Notify     string `json:"notify" enum:"all,feed"`
 }
 
 type UnfollowResult struct {
@@ -32,11 +43,12 @@ type FollowStatesRequest struct {
 }
 
 type FollowStateView struct {
-	UserID         int64 `json:"user_id"`
-	FollowersCount int64 `json:"followers_count"`
-	FollowingCount int64 `json:"following_count"`
-	ViewerFollows  bool  `json:"viewer_follows" doc:"viewer_id follows this user"`
-	FollowsViewer  bool  `json:"follows_viewer" doc:"this user follows viewer_id"`
+	UserID         int64   `json:"user_id"`
+	FollowersCount int64   `json:"followers_count"`
+	FollowingCount int64   `json:"following_count"`
+	ViewerFollows  bool    `json:"viewer_follows" doc:"viewer_id follows this user"`
+	FollowsViewer  bool    `json:"follows_viewer" doc:"this user follows viewer_id"`
+	ViewerNotify   *string `json:"viewer_notify" enum:"all,feed" doc:"how viewer_id hears about this user's new work; null when viewer_id does not follow them"`
 }
 
 type FollowStatesResponse struct {

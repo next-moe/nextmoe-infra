@@ -46,7 +46,10 @@ func (s *Server) listNotifications(ctx context.Context, in *listNotificationsInp
 	if err != nil {
 		return nil, mapErr("list notifications", err)
 	}
-	views := toNotificationViews(rows)
+	views, err := s.notificationViews(rows)
+	if err != nil {
+		return nil, mapErr("list notification activities", err)
+	}
 	return &listNotificationsOutput{Body: okEnvelope(dto.NotificationListResponse{
 		Notifications: views, NextCursor: notificationsCursor(rows, limit), UnreadCount: unread,
 	})}, nil
@@ -91,8 +94,12 @@ func (s *Server) notificationFeed(ctx context.Context, in *notificationFeedInput
 	if err != nil {
 		return nil, mapErr("notification feed", err)
 	}
+	views, err := s.notificationViews(rows)
+	if err != nil {
+		return nil, mapErr("notification feed activities", err)
+	}
 	return &notificationFeedOutput{Body: okEnvelope(dto.NotificationFeedResponse{
-		Notifications: toNotificationViews(rows), NextAfter: next,
+		Notifications: views, NextAfter: next,
 	})}, nil
 }
 
@@ -124,10 +131,24 @@ func toNotificationView(n *model.CommunityNotification) dto.NotificationView {
 	}
 }
 
-func toNotificationViews(rows []model.CommunityNotification) []dto.NotificationView {
+func (s *Server) notificationViews(rows []model.CommunityNotification) ([]dto.NotificationView, error) {
+	activities, err := s.notify.Activities(rows)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]dto.NotificationView, len(rows))
 	for i := range rows {
 		out[i] = toNotificationView(&rows[i])
+		if rows[i].ActivityID == nil {
+			continue
+		}
+		if a, ok := activities[*rows[i].ActivityID]; ok {
+			out[i].Activity = &dto.NotificationActivityView{
+				ID: a.ID, Site: a.Site, Key: a.Key, Verb: verbName(a.Verb), ObjectKind: a.ObjectKind,
+				ObjectLabel: a.ObjectLabel, Title: a.Title, URL: a.URL,
+				ContentLimit: contentLimitName(a.ContentLimit), OccurredAt: a.OccurredAt,
+			}
+		}
 	}
-	return out
+	return out, nil
 }

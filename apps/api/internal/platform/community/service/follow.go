@@ -22,6 +22,7 @@ type FollowState struct {
 	FollowingCount int64
 	ViewerFollows  bool
 	FollowsViewer  bool
+	ViewerNotify   *int16
 }
 
 func (s *FollowService) Follow(ctx context.Context, site string, followerID, followeeID int64) (created bool, err error) {
@@ -70,6 +71,27 @@ func (s *FollowService) Unfollow(ctx context.Context, followerID, followeeID int
 	return repository.DeleteFollow(s.db.WithContext(ctx), followerID, followeeID)
 }
 
+func (s *FollowService) SetNotifyLevel(ctx context.Context, followerID, followeeID int64, level int16) error {
+	if err := validateFollowIDs(followerID, followeeID); err != nil {
+		return err
+	}
+	if level != model.FollowNotifyAll && level != model.FollowNotifyFeed {
+		return &InvalidError{Reason: "notify must be all or feed"}
+	}
+	found, err := repository.UpdateFollowNotifyLevel(s.db.WithContext(ctx), followerID, followeeID, level)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return ErrNotFollowing
+	}
+	return nil
+}
+
+func (s *FollowService) NotifyLevel(ctx context.Context, followerID, followeeID int64) (int16, bool, error) {
+	return repository.GetFollowNotifyLevel(s.db.WithContext(ctx), followerID, followeeID)
+}
+
 func (s *FollowService) ListFollowers(userID, beforeID int64, limit int) ([]model.CommunityUserFollow, error) {
 	return repository.ListFollowers(s.db, userID, beforeID, clampLimit(limit))
 }
@@ -108,16 +130,14 @@ func (s *FollowService) States(viewerID int64, userIDs []int64) ([]FollowState, 
 	if err != nil {
 		return nil, err
 	}
-	viewerFollows := map[int64]struct{}{}
+	viewerFollows := map[int64]int16{}
 	followsViewer := map[int64]struct{}{}
 	if viewerID > 0 {
 		followed, err := repository.FollowingAmong(s.db, viewerID, ids)
 		if err != nil {
 			return nil, err
 		}
-		for _, id := range followed {
-			viewerFollows[id] = struct{}{}
-		}
+		viewerFollows = followed
 		followersOfViewer, err := repository.FollowersAmong(s.db, viewerID, ids)
 		if err != nil {
 			return nil, err
@@ -128,7 +148,7 @@ func (s *FollowService) States(viewerID int64, userIDs []int64) ([]FollowState, 
 	}
 	out := make([]FollowState, len(ids))
 	for i, id := range ids {
-		_, viewerFollowsID := viewerFollows[id]
+		level, viewerFollowsID := viewerFollows[id]
 		_, idFollowsViewer := followsViewer[id]
 		out[i] = FollowState{
 			UserID:         id,
@@ -136,6 +156,9 @@ func (s *FollowService) States(viewerID int64, userIDs []int64) ([]FollowState, 
 			FollowingCount: following[id],
 			ViewerFollows:  viewerFollowsID,
 			FollowsViewer:  idFollowsViewer,
+		}
+		if viewerFollowsID {
+			out[i].ViewerNotify = &level
 		}
 	}
 	return out, nil

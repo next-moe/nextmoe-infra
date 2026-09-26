@@ -506,18 +506,66 @@ face still requires the caller's site binding (`403` without one), like every
 other community face. Community does not check that a uid exists (§2). Counts
 are computed at read time from indexes.
 
-- `PUT /users/{id}/following/{target_id}` — follow (idempotent; `created` says whether it is new)
+- `PUT /users/{id}/following/{target_id}` — follow (idempotent; `created` says whether it is new; `notify` echoes the follow's level)
+- `PATCH /users/{id}/following/{target_id}` — change the follow's level, `{"notify": "all" | "feed"}`; `404 not following` when there is no follow
 - `DELETE /users/{id}/following/{target_id}` — unfollow (idempotent; `deleted` says whether a follow was removed)
 - `GET /users/{id}/followers` — who follows this user, newest first
 - `GET /users/{id}/following` — who this user follows, newest first
-- `POST /follows/states` — batch follower/following counts and the viewer's relation to up to 100 users
+- `POST /follows/states` — batch follower/following counts and the viewer's relation to up to 100 users; `viewer_notify` is the viewer's level toward each user, null when the viewer does not follow them
 
-`followed_at` is null when the follow was imported from a site that never recorded when it was made. A user may follow at most 5,000 others (`422 following limit reached (max 5000)`). List pages are a keyset: `cursor` is the last row's id as a decimal string; empty means the last page. A new follow notifies the followee as kind 8 (`followed`); opening a topic notifies that author's followers as kind 9 (`followee_thread_created`) — see Notifications.
+`followed_at` is null when the follow was imported from a site that never recorded when it was made. A user may follow at most 5,000 others (`422 following limit reached (max 5000)`). List pages are a keyset: `cursor` is the last row's id as a decimal string; empty means the last page. A new follow notifies the followee as kind 8 (`followed`); opening a topic notifies that author's followers as kind 9 (`followee_thread_created`), and a site's new publication notifies them as kind 10 (`followee_activity`) — see Notifications.
+
+Every follow has a **level**: `all` (the default for every follow, old and new) or `feed`. It decides only who kinds 9 and 10 go to: a `feed` follower still sees the author in the following feed and still counts as a follower, and kind 8 is unaffected. Changing the level never creates or re-announces a follow — the bell is a `PATCH`, so a stale click cannot bring back a follow another tab removed. The level is the follower's own business and appears on no public list.
+
+### Activities and the following feed
+
+A site pushes its users' public activity into community; the following feed reads it back across every site. The store is a projection of each site's own content — the site stays the source of truth, and community keeps whatever the site last said about each item.
+
+**Writing** — `POST /activities` takes `{items: [...]}`, 1–100 items, and answers one outcome per item in request order: `created`, `updated`, `removed`, `restored`, `stale` or `invalid` (with a `reason`). An invalid item is skipped; the others commit. Only malformed JSON, a wrong type, or more than 100 items fails the whole request.
+
+| field | rule |
+|---|---|
+| `key` | the item's stable id within the site, `^[A-Za-z0-9._:-]{1,128}$`, e.g. `topic:123`; `(site, key)` is unique and `site` is the caller's binding |
+| `actor_id` | the author's uid |
+| `revision` | Unix **microseconds** at which the pusher read the state it is sending. Not in the future (5-minute skew allowed) |
+| `verb` | `publish` · `reply` · `comment` · `rate` · `like` · `edit` — closed, so every site can render every other site's items |
+| `object_kind` / `object_label` | the site's own type name (`^[a-z0-9_]{1,32}$`, not interpreted) and its display name (≤ 16 characters, e.g. `Galgame 资源`) |
+| `title` / `excerpt` | plain text, ≤ 200 / ≤ 300 characters; the site truncates |
+| `url` | absolute `https`, on one of the hosts in the calling client's registered `redirect_uris` |
+| `cover_image_hash` / `work_id` | optional: an image service hash (64 lowercase hex) and the catalog work the item is about |
+| `content_limit` | `sfw` or `nsfw`, the site's judgement; missing means `nsfw` |
+| `notify` | notify the author's followers (kind 10); allowed only with `publish` |
+| `occurred_at` | when the content was made, not when it is pushed; not in the future |
+| `removed` | `true` sends a tombstone, which needs only `key`, `actor_id` and `revision` |
+
+**The revision rule.** A write changes the stored item only when its `revision` is greater than the stored one; otherwise it is `stale` and changes nothing, so a retried batch is harmless. The pusher must stamp `revision` when it **reads the state it sends** — not from the row's update time: an item can change visibility without its row changing (a resource taken down by a filter the pusher applies), and a tombstone carrying the old revision would be refused forever. Send current state, not the change.
+
+**Tombstones.** Hidden, deleted, made non-public, author purged: the site sends `removed`. A tombstone keeps only the item's identity and revision (`title`, `excerpt`, `url`, `cover_image_hash`, `work_id` are cleared) and blocks every older write, so a late retry cannot bring deleted content back. A tombstone for a key never seen is stored the same way. A later write with a greater revision restores the item. Tombstones are pruned 30 days after removal.
+
+**Reconciling.** `GET /activities?cursor=&limit=` (≤ 1000, id order) returns every stored field of the caller's own items, tombstones included. A site should reconcile daily by comparing **every field**, not only the revision: a field derived from elsewhere — a work's content limit in the catalog — changes without the site's row changing. Stored but missing or different locally → push again with a new revision; live here but gone locally → tombstone.
+
+**Notifying.** An item notifies the author's followers only when, at the time of the write, the key has never been seen (a tombstone counts as seen), it is live, `publish` with `notify`, and `occurred_at` is within the last 24 hours. A backfill, an update, a restore and a late push after an outage never notify. The notification is queued in the same transaction (event `activity_published`) and sent as kind 10.
+
+**Groups.** The feed's unit is a group: one author's items of one `verb` and `object_kind` on one site on one **Beijing calendar day**. A bulk uploader's 2,000 resources in a day are one entry, "X published 2,000 resources", not 2,000. A group keeps two counts and two newest items — over all its live items and over its SFW ones — so a `content_limit=sfw` reader sees a group counting only what they may see.
+
+**Reading.**
+
+- `GET /users/{id}/following/activities?cursor=&limit=&content_limit=&sites=&verbs=` — groups of everyone the user follows **now** (the follow graph is joined at read time, so a follow or unfollow shows at once), `latest_at` then `id` descending. `limit` ≤ 50 (default 20); `content_limit` is `all` (default) or `sfw`, filtered here so a page is never thinned by the reader; `sites` and `verbs` are comma-separated filters. A follow's level does not matter here.
+- `GET /users/{id}/activities?…` — one user's own groups, same parameters.
+- `GET /activity-groups/{id}/items?cursor=&limit=&content_limit=` — every live item of a group, newest first.
+
+A group is `{id, site, actor_id, verb, object_kind, object_label, day, item_count, latest_at, items}`, where `items` holds its newest items (at most 3). An item is `{id, site, key, actor_id, verb, object_kind, object_label, title, excerpt, url, cover_image_hash, work_id, content_limit, occurred_at}`. A group that gains an item moves to the top, so a group can move above a reader's cursor mid-scroll and not reappear on later pages; a refresh shows it — the usual contract of a newest-first feed. Community knows nothing of site-level bans: the reading site drops what it cannot render, so a page may come back shorter than `limit`. Cursors are opaque.
+
+**The red dot.**
+
+- `GET /users/{id}/following/activities/unseen?content_limit=&sites=&verbs=` → `{unseen_count, seen_at}`: the followed groups whose `latest_at` is after the later of the user's `seen_at` and the moment that follow began (an imported follow with no time counts from its import). Following someone never lights up their history. The count stops at 100: `100` means 100 or more.
+- `POST /users/{id}/following/activities/seen {at?}` → `{seen_at}`. The mark is account-wide — seen on one site is seen on all — moves forward only, and never past now. Send the `latest_at` of the **first group in the response**, before the site filters anything out, or omit `at` for now. Never send the first group the site *rendered*: if the newest group belongs to an author the site hides, marking up to the rendered one leaves that group unseen forever and the dot never clears.
 
 ### Notifications
 
 Writes that should notify someone (`post_created`, `post_liked`,
-`feedback_status_changed`, `answer_accepted`, `user_followed`) insert a
+`feedback_status_changed`, `answer_accepted`, `user_followed`,
+`activity_published`, `activity_changed`) insert a
 `community_event` row **in the same transaction** as the write. A crash after
 commit cannot lose the event; the in-memory sink is not the notification path.
 
@@ -576,10 +624,28 @@ The kinds and their folds:
 | `7` feedback_status | `fb:<thread_id>` | on conflict `item_count = item_count + 1` |
 | `8` followed | `followed` | `item_count` = `actor_count` = follows of the recipient made through this row's site since `since_at` that still stand |
 | `9` followee_thread_created | none | one row per event |
+| `10` followee_activity | `followee:<actor_id>` | `item_count` = the author's live notified activities on this row's site since `since_at` (the earliest folded in), counted to 100 — `100` means 100 or more; `actor_count` = 1 |
 
-Kind 8 names no thread: `thread_id` is 0, `anchor_kind` is 0, `anchor_id` is
-empty, and `post_id` / `post_number` / `first_post_number` are null. Those
-zero values are the contract. A feed consumer skips kinds it does not know.
+Kinds 8 and 10 name no thread: `thread_id` is 0, `anchor_kind` is 0,
+`anchor_id` is empty, and `post_id` / `post_number` / `first_post_number` are
+null. Those zero values are the contract. A feed consumer skips kinds it does
+not know.
+
+Kind 10 goes to the author's followers whose level is `all` at dispatch time,
+never to the author, and is delivered to the **activity's** site, not the site
+the follow was made on. One unread row per (site, recipient, author) folds
+that author's publications; it carries `activity` — `{id, site, key, verb,
+object_kind, object_label, title, url, content_limit, occurred_at}`, the
+newest live activity it counts (only kind 10 carries it). The dispatcher takes
+every pending publication of one author on one site in one pass, so a burst of
+uploads is one fan-out. When a notified activity is removed (or restored), an
+`activity_changed` event recounts the author's unread rows on that site; a row
+that moved takes a new `seq`. A row left with nothing is **retracted**:
+`item_count` 0, no `activity`, marked read, under a new `seq`. A mirroring site
+deletes its copy when it sees `item_count` 0; the inbox face leaves such rows
+out. An activity removed before its event is dispatched, or a follower who
+went `feed` or unfollowed by then, is not notified. Kind 9 follows the same
+level rule.
 A follow is delivered to the site it was made through, and a kind-8 row counts
 only that site's follows, so the rows of two sites never count the same
 follower twice.
@@ -616,7 +682,12 @@ site's notifications whose recipient is the user (`notifications_deleted`),
 nulls `actor_id` on that site's rows whose actor is the user, deletes that
 site's events whose actor is the user, and removes the user as reply target and
 mention from that site's pending events (the last three are logged, not
-reported). The purge waits for a running dispatch batch, so no batch can
+reported). It also deletes that site's activities by the user, tombstones
+included, and their groups (`activities_deleted`), and retracts the kind-10
+rows they raised. Activities are a projection of the site's content, so the
+purge archive does not keep them: a site that restores the author's content
+pushes them again. The account purge does all this on every site and drops the
+user's seen mark. The purge waits for a running dispatch batch, so no batch can
 deliver to the user after the purge has cleared their rows.
 
 ## 7. Trust engine (doc 11 §6)
@@ -718,6 +789,16 @@ it in:
   other than normal.
 - **Templates and App push** (doc 02 §6 tier 3). Trigger: a first-party app
   that is not a site BFF needs rendered copy or a device push.
-- **POST /activities** — site-owned content (a moyu patch, a letmoe resource)
-  notifying the author's followers. Trigger: a site that wants follow
-  notifications for content community does not hold.
+The following feed leaves these out on purpose, each with the condition that
+brings it in:
+
+- **Community's own threads and posts in the feed** (a letmoe board topic, a
+  comment). Planned next: community writes them in the same transaction as the
+  post, and kind 9 gives way to kind 10. Until then kind 9 covers board topics.
+- **Fan-out on write** (a precomputed timeline per reader). The feed reads each
+  followed author's newest groups and merges them, costing at most following ×
+  limit index entries a page. Trigger: readers following several hundred
+  people with a feed page over 100 ms.
+- **Push for the red dot.** Trigger: a site needs lower latency than polling.
+- **"Hide my activity."** Trigger: a user asks; it would be a read-time filter.
+- **Ranking.** The following feed is newest-first by design.

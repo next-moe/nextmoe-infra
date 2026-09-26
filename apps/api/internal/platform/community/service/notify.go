@@ -86,7 +86,7 @@ func (s *NotificationService) ProcessBatch(ctx context.Context) (delivered, park
 				continue
 			}
 			switch outcome {
-			case eventDelivered:
+			case eventDelivered, eventAlreadyDelivered:
 				delivered++
 			case eventParked:
 				parked++
@@ -122,11 +122,17 @@ const (
 	eventDelivered eventOutcome = iota
 	eventParked
 	eventDropped
+	eventAlreadyDelivered
 )
 
 func (s *NotificationService) dispatchEvent(tx *gorm.DB, ev *model.CommunityEvent) (eventOutcome, error) {
-	if ev.Kind == model.EventKindUserFollowed {
+	switch ev.Kind {
+	case model.EventKindUserFollowed:
 		return s.dispatchFollow(tx, ev)
+	case model.EventKindActivityPublished:
+		return s.dispatchActivityPublished(tx, ev)
+	case model.EventKindActivityChanged:
+		return s.dispatchActivityChanged(tx, ev)
 	}
 	switch ev.Kind {
 	case model.EventKindPostCreated, model.EventKindPostLiked, model.EventKindFeedbackStatusChanged, model.EventKindAnswerAccepted:
@@ -260,6 +266,16 @@ func (s *NotificationService) MarkRead(site string, userID int64, ids []int64, a
 		return 0, 0, err
 	}
 	return marked, unread, nil
+}
+
+func (s *NotificationService) Activities(rows []model.CommunityNotification) (map[int64]repository.NotificationActivityRow, error) {
+	var ids []int64
+	for i := range rows {
+		if rows[i].ActivityID != nil {
+			ids = append(ids, *rows[i].ActivityID)
+		}
+	}
+	return repository.LiveActivitiesByID(s.db, ids)
 }
 
 func (s *NotificationService) Feed(site string, after int64, limit int) ([]model.CommunityNotification, int64, error) {
