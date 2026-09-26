@@ -12,6 +12,9 @@ var (
 	ErrNotAuthor       = errors.New("community: not the post author")
 	ErrPostNotEditable = errors.New("community: post not editable")
 	ErrContentBlocked  = errors.New("community: content blocked by word list")
+	ErrNotFollowing    = errors.New("community: not following")
+
+	ErrActivityGroupNotFound = errors.New("community: activity group not found")
 
 	ErrNothingToRestore = errors.New("community: no purge of this author to restore")
 

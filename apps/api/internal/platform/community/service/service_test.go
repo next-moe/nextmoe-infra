@@ -43,6 +43,7 @@ func TestMain(m *testing.M) {
 func cleanTables(t *testing.T) {
 	t.Helper()
 	for _, table := range []string{
+		"community_feed_seen", "community_activity_group", "community_activity",
 		"community_user_follow", "community_write_request", "community_purge_archive", "community_notification", "community_event",
 		"community_review_item", "community_flag", "community_reaction",
 		"community_anchor_user", "community_thread_user", "community_board", "community_trust",

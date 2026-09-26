@@ -19,6 +19,7 @@ type PurgeResult struct {
 	ReadStatesDeleted          int64
 	AnchorSubscriptionsDeleted int64
 	NotificationsDeleted       int64
+	ActivitiesDeleted          int64
 }
 
 func (s *PostService) ListAuthorPosts(site string, authorID, after int64, anchorKind int16, limit int) ([]repository.AuthorPostRow, error) {
@@ -78,9 +79,20 @@ func (s *PostService) PurgeAuthor(ctx context.Context, site string, authorID int
 		if err != nil {
 			return err
 		}
+		// Activities are the site's projection of its own content, so they are
+		// not archived: a site that restores the author's content pushes them
+		// again.
+		activities, err := repository.DeleteAuthorActivitiesTx(tx, site, authorID)
+		if err != nil {
+			return err
+		}
+		if _, err := repository.RetractFolloweeFoldsTx(tx, site, authorID); err != nil {
+			return err
+		}
 		res = PurgeResult{
 			PostsPurged: posts, ReactionsDeleted: reactions, ReadStatesDeleted: readStates,
 			AnchorSubscriptionsDeleted: anchorSubs, NotificationsDeleted: notifs,
+			ActivitiesDeleted: activities,
 		}
 		return nil
 	})
@@ -91,7 +103,7 @@ func (s *PostService) PurgeAuthor(ctx context.Context, site string, authorID int
 		"posts_purged", res.PostsPurged, "reactions_deleted", res.ReactionsDeleted,
 		"read_states_deleted", res.ReadStatesDeleted,
 		"anchor_subscriptions_deleted", res.AnchorSubscriptionsDeleted,
-		"notifications_deleted", res.NotificationsDeleted,
+		"notifications_deleted", res.NotificationsDeleted, "activities_deleted", res.ActivitiesDeleted,
 		"notification_actors_cleared", actorsCleared, "events_deleted", eventsDeleted,
 		"pending_events_forgotten", eventsForgotten)
 	return res, nil

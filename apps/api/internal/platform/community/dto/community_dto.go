@@ -239,6 +239,7 @@ type PurgeResponse struct {
 	ReadStatesDeleted          int64 `json:"read_states_deleted" doc:"read/subscription rows (which threads they opened, how far they read) deleted this run"`
 	AnchorSubscriptionsDeleted int64 `json:"anchor_subscriptions_deleted" doc:"anchor-subscription rows of this site deleted this run"`
 	NotificationsDeleted       int64 `json:"notifications_deleted" doc:"inbox rows of this site whose recipient is this user, deleted this run"`
+	ActivitiesDeleted          int64 `json:"activities_deleted" doc:"this site's feed activities by this user, tombstones included, deleted this run; the notifications they raised are retracted"`
 }
 
 type RestoreResponse struct {

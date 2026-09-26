@@ -64,6 +64,7 @@ func TestMain(m *testing.M) {
 func cleanTables(t *testing.T) {
 	t.Helper()
 	for _, table := range []string{
+		"community_feed_seen", "community_activity_group", "community_activity",
 		"community_user_follow", "community_write_request", "community_purge_archive", "community_notification", "community_event",
 		"community_review_item", "community_flag", "community_trust",
 		"community_board", "community_anchor_user", "community_thread_user", "community_reaction",
@@ -311,6 +312,15 @@ func TestIndexColumnOrder(t *testing.T) {
 		{"uq_community_user_follow", "(follower_id, followee_id)"},
 		{"idx_community_user_follow_followee", "(followee_id, id DESC)"},
 		{"idx_community_user_follow_follower", "(follower_id, id DESC)"},
+		{"uq_community_activity_key", "(site, key)"},
+		{"idx_community_activity_site_id", "(site, id)"},
+		{"idx_community_activity_member", "(site, actor_id, verb, object_kind, bucket_date, occurred_at DESC, id DESC)"},
+		{"idx_community_activity_notified", "(site, actor_id, occurred_at DESC, id DESC) WHERE ((removed_at IS NULL) AND (notified_at IS NOT NULL))"},
+		{"idx_community_activity_removed", "(removed_at) WHERE (removed_at IS NOT NULL)"},
+		{"uq_community_activity_group", "(site, actor_id, verb, object_kind, bucket_date)"},
+		{"idx_community_activity_group_all", "(actor_id, latest_all_at DESC, id DESC) WHERE (count_all > 0)"},
+		{"idx_community_activity_group_sfw", "(actor_id, latest_sfw_at DESC, id DESC) WHERE (count_sfw > 0)"},
+		{"idx_community_notification_fold_key", "(site, fold_key) WHERE ((read_at IS NULL) AND (fold_key IS NOT NULL))"},
 	}
 	for _, c := range cases {
 		def := indexDef(t, c.name)
@@ -480,12 +490,12 @@ func TestColumnAudit(t *testing.T) {
 		},
 		"community_event": {
 			"id", "site", "kind", "thread_id", "post_id", "actor_id", "target_user_id",
-			"mention_user_ids", "attempts", "attempt_after", "processed_at", "created_at",
+			"mention_user_ids", "activity_id", "attempts", "attempt_after", "processed_at", "created_at",
 		},
 		"community_notification": {
 			"id", "site", "user_id", "kind", "thread_id", "anchor_kind", "anchor_id",
 			"post_id", "post_number", "first_post_number", "since_at", "actor_id",
-			"actor_count", "item_count", "fold_key", "read_at", "seq", "created_at",
+			"actor_count", "item_count", "fold_key", "activity_id", "read_at", "seq", "created_at",
 			"updated_at",
 		},
 		"community_purge_archive": {
@@ -495,8 +505,20 @@ func TestColumnAudit(t *testing.T) {
 			"id", "site", "idempotency_key", "request_hash", "post_id", "created_at",
 		},
 		"community_user_follow": {
-			"id", "follower_id", "followee_id", "origin_site", "created_at", "imported_at",
+			"id", "follower_id", "followee_id", "origin_site", "created_at", "imported_at", "notify_level",
 		},
+		"community_activity": {
+			"id", "site", "key", "actor_id", "verb", "object_kind", "object_label", "title",
+			"excerpt", "url", "cover_image_hash", "work_id", "content_limit", "notify",
+			"occurred_at", "bucket_date", "revision", "notified_at", "removed_at",
+			"created_at", "updated_at",
+		},
+		"community_activity_group": {
+			"id", "site", "actor_id", "verb", "object_kind", "bucket_date", "object_label",
+			"count_all", "latest_all_id", "latest_all_at", "count_sfw", "latest_sfw_id",
+			"latest_sfw_at", "created_at", "updated_at",
+		},
+		"community_feed_seen": {"user_id", "seen_at", "updated_at"},
 	}
 	for table, cols := range want {
 		got := columnNames(t, table)
@@ -716,6 +738,53 @@ func TestMigrateCreatesUserFollow(t *testing.T) {
 	uq := indexDef(t, "uq_community_user_follow")
 	if !strings.Contains(uq, "(follower_id, followee_id)") {
 		t.Fatalf("unique:\n  %s", uq)
+	}
+
+	if err := Run(testDB); err != nil {
+		t.Fatalf("second migrate.Run: %v", err)
+	}
+}
+
+func TestMigrateCreatesActivityTables(t *testing.T) {
+	cleanTables(t)
+
+	var gen struct {
+		IsGenerated string `gorm:"column:is_generated"`
+		Expression  string `gorm:"column:generation_expression"`
+	}
+	if err := testDB.Raw(`SELECT is_generated, generation_expression FROM information_schema.columns
+		WHERE table_schema = 'public' AND table_name = 'community_activity' AND column_name = 'bucket_date'`).
+		Scan(&gen).Error; err != nil {
+		t.Fatalf("bucket_date: %v", err)
+	}
+	if gen.IsGenerated != "ALWAYS" || !strings.Contains(gen.Expression, "Asia/Shanghai") {
+		t.Fatalf("bucket_date must be generated from occurred_at in Beijing time: %+v", gen)
+	}
+	if err := testDB.Exec(`INSERT INTO community_activity (site, key, actor_id, verb, object_kind, object_label,
+		title, excerpt, url, content_limit, notify, occurred_at, revision, created_at, updated_at)
+		VALUES ('kungal', 'k', 1, 0, 'topic', 'l', 't', '', 'https://x', 0, false,
+		        '2026-09-25T16:30:00Z', 1, now(), now())`).Error; err != nil {
+		t.Fatalf("insert activity: %v", err)
+	}
+	var day string
+	testDB.Raw(`SELECT bucket_date::text FROM community_activity WHERE key = 'k'`).Scan(&day)
+	if day != "2026-09-26" {
+		t.Fatalf("16:30 UTC on the 25th is the 26th in Beijing, got %s", day)
+	}
+	dup := testDB.Exec(`INSERT INTO community_activity (site, key, actor_id, verb, object_kind, object_label,
+		title, excerpt, url, content_limit, notify, occurred_at, revision, created_at, updated_at)
+		VALUES ('kungal', 'k', 2, 0, 'topic', 'l', 't', '', 'https://x', 0, false, now(), 2, now(), now())`).Error
+	if !isDuplicate(dup) {
+		t.Fatalf("(site, key) must be unique, got: %v", dup)
+	}
+
+	if err := testDB.Exec(`INSERT INTO community_user_follow (follower_id, followee_id, origin_site) VALUES (1, 2, 'moyu')`).Error; err != nil {
+		t.Fatalf("edge: %v", err)
+	}
+	var level int
+	testDB.Raw(`SELECT notify_level FROM community_user_follow WHERE follower_id = 1`).Scan(&level)
+	if level != 0 {
+		t.Fatalf("an edge written without a level notifies on everything, got %d", level)
 	}
 
 	if err := Run(testDB); err != nil {

@@ -106,7 +106,9 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:17-alpine
+        # Prod's major (docker-compose.prod.yml). Community's activity writes
+        # read the pre-update row through RETURNING old.*, which is PG18-only.
+        image: postgres:18-alpine
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: galtest

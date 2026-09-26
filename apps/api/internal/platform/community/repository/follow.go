@@ -41,12 +41,30 @@ func GetFollowTx(tx *gorm.DB, followerID, followeeID int64) (*model.CommunityUse
 	return &row, nil
 }
 
-func ListFollowerIDsTx(tx *gorm.DB, followeeID int64) ([]int64, error) {
+func ListNotifiedFollowerIDsTx(tx *gorm.DB, followeeID int64) ([]int64, error) {
 	var ids []int64
 	err := tx.Model(&model.CommunityUserFollow{}).
-		Where("followee_id = ?", followeeID).
+		Where("followee_id = ? AND notify_level = ?", followeeID, model.FollowNotifyAll).
 		Pluck("follower_id", &ids).Error
 	return ids, err
+}
+
+func GetFollowNotifyLevel(db *gorm.DB, followerID, followeeID int64) (int16, bool, error) {
+	var levels []int16
+	err := db.Model(&model.CommunityUserFollow{}).
+		Where("follower_id = ? AND followee_id = ?", followerID, followeeID).
+		Pluck("notify_level", &levels).Error
+	if err != nil || len(levels) == 0 {
+		return 0, false, err
+	}
+	return levels[0], true, nil
+}
+
+func UpdateFollowNotifyLevel(db *gorm.DB, followerID, followeeID int64, level int16) (bool, error) {
+	res := db.Model(&model.CommunityUserFollow{}).
+		Where("follower_id = ? AND followee_id = ?", followerID, followeeID).
+		Update("notify_level", level)
+	return res.RowsAffected > 0, res.Error
 }
 
 func ListFollowers(db *gorm.DB, userID, beforeID int64, limit int) ([]model.CommunityUserFollow, error) {
@@ -98,12 +116,16 @@ func groupedFollowCounts(db *gorm.DB, column string, userIDs []int64) (map[int64
 	return out, nil
 }
 
-func FollowingAmong(db *gorm.DB, followerID int64, userIDs []int64) ([]int64, error) {
-	var ids []int64
-	err := db.Model(&model.CommunityUserFollow{}).
+func FollowingAmong(db *gorm.DB, followerID int64, userIDs []int64) (map[int64]int16, error) {
+	var rows []model.CommunityUserFollow
+	err := db.Select("followee_id", "notify_level").
 		Where("follower_id = ? AND followee_id IN ?", followerID, userIDs).
-		Pluck("followee_id", &ids).Error
-	return ids, err
+		Find(&rows).Error
+	out := make(map[int64]int16, len(rows))
+	for _, r := range rows {
+		out[r.FolloweeID] = r.NotifyLevel
+	}
+	return out, err
 }
 
 func FollowersAmong(db *gorm.DB, followeeID int64, userIDs []int64) ([]int64, error) {

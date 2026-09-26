@@ -5,7 +5,7 @@ import "time"
 type NotificationView struct {
 	ID              int64      `json:"id"`
 	UserID          int64      `json:"user_id"`
-	Kind            int16      `json:"kind" doc:"1=replied 2=mentioned 3=posted 4=thread_created 5=liked 6=answer_accepted 7=feedback_status 8=followed 9=followee_thread_created; kind 8 names no thread (thread_id 0, empty anchor)"`
+	Kind            int16      `json:"kind" doc:"1=replied 2=mentioned 3=posted 4=thread_created 5=liked 6=answer_accepted 7=feedback_status 8=followed 9=followee_thread_created 10=followee_activity; kinds 8 and 10 name no thread (thread_id 0, empty anchor)"`
 	ThreadID        int64      `json:"thread_id"`
 	AnchorKind      int16      `json:"anchor_kind"`
 	AnchorID        string     `json:"anchor_id"`
@@ -20,6 +20,21 @@ type NotificationView struct {
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       time.Time  `json:"updated_at"`
 	Seq             int64      `json:"seq"`
+
+	Activity *NotificationActivityView `json:"activity,omitempty" doc:"kind 10 only: the newest live activity the row counts. Absent when item_count is 0, which retracts the row"`
+}
+
+type NotificationActivityView struct {
+	ID           int64     `json:"id"`
+	Site         string    `json:"site"`
+	Key          string    `json:"key"`
+	Verb         string    `json:"verb"`
+	ObjectKind   string    `json:"object_kind"`
+	ObjectLabel  string    `json:"object_label"`
+	Title        string    `json:"title"`
+	URL          string    `json:"url"`
+	ContentLimit string    `json:"content_limit" enum:"sfw,nsfw"`
+	OccurredAt   time.Time `json:"occurred_at"`
 }
 
 type NotificationListResponse struct {

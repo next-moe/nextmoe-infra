@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"net/http"
+	"slices"
 	"strconv"
 
 	"api/internal/platform/community/dto"
@@ -16,6 +17,8 @@ func (s *Server) registerFollows(api huma.API) {
 	tags := []string{"community-follows"}
 	huma.Register(api, huma.Operation{OperationID: "followUser", Method: http.MethodPut, Path: "/api/v1/community/users/{id}/following/{target_id}",
 		Summary: "Follow a user network-wide (idempotent; created says whether the follow is new)", Tags: tags}, s.followUser)
+	huma.Register(api, huma.Operation{OperationID: "setFollowNotify", Method: http.MethodPatch, Path: "/api/v1/community/users/{id}/following/{target_id}",
+		Summary: "Change how a follower hears about the followee's new work (all or feed only); never creates the follow", Tags: tags}, s.setFollowNotify)
 	huma.Register(api, huma.Operation{OperationID: "unfollowUser", Method: http.MethodDelete, Path: "/api/v1/community/users/{id}/following/{target_id}",
 		Summary: "Stop following a user (idempotent; deleted says whether a follow was removed)", Tags: tags}, s.unfollowUser)
 	huma.Register(api, huma.Operation{OperationID: "listFollowers", Method: http.MethodGet, Path: "/api/v1/community/users/{id}/followers",
@@ -43,8 +46,35 @@ func (s *Server) followUser(ctx context.Context, in *followUserInput) (*followUs
 	if err != nil {
 		return nil, mapErr("follow user", err)
 	}
+	level, _, err := s.follows.NotifyLevel(ctx, in.ID, in.TargetID)
+	if err != nil {
+		return nil, mapErr("follow user level", err)
+	}
 	return &followUserOutput{Body: okEnvelope(dto.FollowResult{
 		FollowerID: in.ID, FolloweeID: in.TargetID, Following: true, Created: created,
+		Notify: followNotifyName(level),
+	})}, nil
+}
+
+type setFollowNotifyInput struct {
+	ID       int64 `path:"id" minimum:"1"`
+	TargetID int64 `path:"target_id" minimum:"1"`
+	Body     dto.FollowNotifyRequest
+}
+type setFollowNotifyOutput struct {
+	Body Envelope[dto.FollowNotifyResult]
+}
+
+func (s *Server) setFollowNotify(ctx context.Context, in *setFollowNotifyInput) (*setFollowNotifyOutput, error) {
+	if _, he := siteBinding(ctx); he != nil {
+		return nil, he
+	}
+	level := int16(slices.Index(model.FollowNotifyNames, in.Body.Notify))
+	if err := s.follows.SetNotifyLevel(ctx, in.ID, in.TargetID, level); err != nil {
+		return nil, mapErr("set follow notify", err)
+	}
+	return &setFollowNotifyOutput{Body: okEnvelope(dto.FollowNotifyResult{
+		FollowerID: in.ID, FolloweeID: in.TargetID, Notify: in.Body.Notify,
 	})}, nil
 }
 
@@ -144,6 +174,10 @@ func toFollowStateViews(rows []service.FollowState) []dto.FollowStateView {
 		out[i] = dto.FollowStateView{
 			UserID: st.UserID, FollowersCount: st.FollowersCount, FollowingCount: st.FollowingCount,
 			ViewerFollows: st.ViewerFollows, FollowsViewer: st.FollowsViewer,
+		}
+		if st.ViewerNotify != nil {
+			name := followNotifyName(*st.ViewerNotify)
+			out[i].ViewerNotify = &name
 		}
 	}
 	return out
