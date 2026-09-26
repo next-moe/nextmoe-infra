@@ -521,7 +521,7 @@ Every follow has a **level**: `all` (the default for every follow, old and new) 
 
 A site pushes its users' public activity into community; the following feed reads it back across every site. The store is a projection of each site's own content — the site stays the source of truth, and community keeps whatever the site last said about each item.
 
-**Writing** — `POST /activities` takes `{items: [...]}`, 1–100 items, and answers one outcome per item in request order: `created`, `updated`, `removed`, `restored`, `stale` or `invalid` (with a `reason`). An invalid item is skipped; the others commit. Only malformed JSON, a wrong type, or more than 100 items fails the whole request.
+**Writing** — `POST /activities` takes `{items: [...]}`, 1–100 items, and answers one outcome per item in request order: `created`, `updated`, `removed`, `restored`, `stale` or `invalid` (with a `reason`). An invalid item is skipped; the others commit. Only a malformed request fails the whole batch with `422`: bad JSON, a wrong type, an item without `key`, `actor_id` or `revision`, a field this contract does not name (items are closed, so a typo such as `notfy` is caught instead of silently dropped), or more than 100 items. A server error fails the whole batch too; resend it, since the revision rule makes a resend harmless.
 
 | field | rule |
 |---|---|

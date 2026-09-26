@@ -1,8 +1,6 @@
 package service
 
 import (
-	"slices"
-
 	"api/internal/platform/community/model"
 	"api/internal/platform/community/repository"
 
@@ -14,7 +12,7 @@ func (s *NotificationService) dispatchActivityPublished(tx *gorm.DB, ev *model.C
 	if err != nil {
 		return 0, err
 	}
-	if !slices.Contains(eventIDs, ev.ID) {
+	if len(eventIDs) == 0 {
 		return eventAlreadyDelivered, nil
 	}
 	since, err := repository.EarliestLiveNotifiedTx(tx, activityIDs)

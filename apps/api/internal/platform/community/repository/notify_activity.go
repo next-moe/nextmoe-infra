@@ -109,14 +109,22 @@ func recountFolloweeFoldsSQL(seq, target, changed string) string {
 		 WHERE n.id = c.id%s`, seq, target, changed)
 }
 
+// RetractFolloweeFoldsTx is the purge's half: besides retracting the author's
+// unread folds it drops the fold key from their read ones, which would
+// otherwise keep naming the purged uid after actor_id was cleared.
 func RetractFolloweeFoldsTx(tx *gorm.DB, site string, actorID int64) (int64, error) {
 	res := tx.Exec(`
 		UPDATE community_notification SET
-		    item_count = 0, activity_id = NULL, read_at = now(),
+		    item_count = 0, activity_id = NULL, read_at = now(), fold_key = NULL,
 		    seq = nextval('community_notification_seq'), updated_at = now()
 		 WHERE site = ? AND fold_key = ? AND read_at IS NULL`,
 		site, FolloweeFoldKey(actorID))
-	return res.RowsAffected, res.Error
+	if res.Error != nil {
+		return 0, res.Error
+	}
+	err := tx.Exec(`UPDATE community_notification SET fold_key = NULL WHERE site = ? AND fold_key = ?`,
+		site, FolloweeFoldKey(actorID)).Error
+	return res.RowsAffected, err
 }
 
 type NotificationActivityRow struct {

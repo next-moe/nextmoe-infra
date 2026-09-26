@@ -182,13 +182,20 @@ func PruneActivityTombstones(db *gorm.DB, olderThan time.Duration) (int64, error
 	return res.RowsAffected, res.Error
 }
 
+// A site write locks activity rows in key order and then their groups; a
+// purge that took the author's groups first deadlocked with a concurrent write
+// of the same author, so it follows the same order.
 func DeleteAuthorActivitiesTx(tx *gorm.DB, site string, actorID int64) (int64, error) {
-	if err := tx.Where("site = ? AND actor_id = ?", site, actorID).
-		Delete(&model.CommunityActivityGroup{}).Error; err != nil {
+	if err := tx.Exec(`SELECT 1 FROM community_activity WHERE site = ? AND actor_id = ? ORDER BY key FOR UPDATE`,
+		site, actorID).Error; err != nil {
 		return 0, err
 	}
 	res := tx.Where("site = ? AND actor_id = ?", site, actorID).Delete(&model.CommunityActivity{})
-	return res.RowsAffected, res.Error
+	if res.Error != nil {
+		return 0, res.Error
+	}
+	err := tx.Where("site = ? AND actor_id = ?", site, actorID).Delete(&model.CommunityActivityGroup{}).Error
+	return res.RowsAffected, err
 }
 
 func DeleteFeedSeen(db *gorm.DB, userID int64) error {

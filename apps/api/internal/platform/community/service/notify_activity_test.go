@@ -8,6 +8,8 @@ import (
 
 	"api/internal/platform/community/model"
 	"api/internal/platform/community/repository"
+
+	"gorm.io/gorm"
 )
 
 func notifyingPublish(key string, actor int64, at time.Time, rev int64) ActivityInput {
@@ -275,7 +277,8 @@ func TestPurgeTakesActivities(t *testing.T) {
 	if _, err := NewActivityService(testDB).MarkSeen(gone, nil); err != nil {
 		t.Fatalf("seen: %v", err)
 	}
-	seqBefore := followeeRows(t, "kungal", follower)[0].Seq
+	var goneRow model.CommunityNotification
+	testDB.Where("site = 'kungal' AND user_id = ? AND fold_key = ?", follower, "followee:7").Take(&goneRow)
 
 	res, err := ps.PurgeAuthor(ctx, "kungal", gone)
 	if err != nil {
@@ -300,9 +303,10 @@ func TestPurgeTakesActivities(t *testing.T) {
 		t.Fatal("a site purge touches only that site's rows of that author")
 	}
 	var retracted model.CommunityNotification
-	testDB.Where("site = 'kungal' AND user_id = ? AND fold_key = ?", follower, "followee:7").Take(&retracted)
-	if retracted.ItemCount != 0 || retracted.ReadAt == nil || retracted.Seq <= seqBefore {
-		t.Fatalf("the notifications the author's activities raised are retracted: %+v", retracted)
+	testDB.Where("id = ?", goneRow.ID).Take(&retracted)
+	if goneRow.ID == 0 || retracted.ItemCount != 0 || retracted.ReadAt == nil || retracted.Seq <= goneRow.Seq ||
+		retracted.FoldKey != nil {
+		t.Fatalf("the notifications the author's activities raised are retracted and stop naming them: %+v", retracted)
 	}
 
 	var moyuRows int64
@@ -318,5 +322,91 @@ func TestPurgeTakesActivities(t *testing.T) {
 	}
 	if count(`SELECT count(*) FROM community_feed_seen WHERE user_id = ?`, gone) != 0 {
 		t.Fatal("an account purge drops the feed's seen mark")
+	}
+}
+
+func TestFolloweeActivityClaimsWhatArrivedMidBatch(t *testing.T) {
+	cleanTables(t)
+	const author, follower int64 = 7, 1
+	mustFollow(t, "kungal", follower, author)
+	processBatch(t)
+	at := time.Now().Add(-time.Hour)
+	writeActivities(t, "kungal", notifyingPublish("early", author, at, 1))
+	writeActivities(t, "kungal", notifyingPublish("late", author, at.Add(time.Minute), 1))
+	pending := pendingEvents(t)
+	early := pending[0]
+	// An earlier event of the same batch already claimed "early"; "late" was
+	// committed after that claim.
+	if err := testDB.Model(&model.CommunityEvent{}).Where("id = ?", early.ID).
+		Update("processed_at", time.Now()).Error; err != nil {
+		t.Fatalf("mark claimed: %v", err)
+	}
+
+	svc := NewNotificationService(testDB)
+	if err := testDB.Transaction(func(tx *gorm.DB) error {
+		_, err := svc.dispatchActivityPublished(tx, &early)
+		return err
+	}); err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	if left := pendingEvents(t); len(left) != 0 {
+		t.Fatalf("the late event must be claimed: %+v", left)
+	}
+	late := getActivity(t, "kungal", "late")
+	rows := followeeRows(t, "kungal", follower)
+	if len(rows) != 1 || rows[0].ActivityID == nil || *rows[0].ActivityID != late.ID {
+		t.Fatalf("what a claim takes it must deliver: %+v", rows)
+	}
+}
+
+func TestPurgeDoesNotDeadlockWithAWriteOfTheSameAuthor(t *testing.T) {
+	cleanTables(t)
+	at := time.Now().Add(-time.Hour)
+	writeActivities(t, "kungal", publishInput("k", 7, at, 1))
+
+	w := testDB.Begin()
+	defer w.Rollback()
+	next := publishInput("k", 7, at, 2)
+	write, reason := validateActivity(next, kungalHosts, time.Now())
+	if reason != "" {
+		t.Fatalf("valid write: %s", reason)
+	}
+	res, err := repository.UpsertActivityTx(w, "kungal", write, false)
+	if err != nil {
+		t.Fatalf("hold the activity row: %v", err)
+	}
+
+	purged := make(chan error, 1)
+	go func() {
+		_, err := NewPostService(testDB, NoopSink{}).PurgeAuthor(context.Background(), "kungal", 7)
+		purged <- err
+	}()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		var waiting int64
+		testDB.Raw(`SELECT count(*) FROM pg_stat_activity
+			WHERE datname = current_database() AND wait_event IN ('transactionid', 'tuple')`).Scan(&waiting)
+		if waiting > 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the purge never waited on the held row")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	if err := repository.RefreshActivityGroupTx(w, res.NewGroup); err != nil {
+		t.Fatalf("the write's group recount must not deadlock with the purge: %v", err)
+	}
+	if err := w.Commit().Error; err != nil {
+		t.Fatalf("commit write: %v", err)
+	}
+	if err := <-purged; err != nil {
+		t.Fatalf("the purge must finish after the write: %v", err)
+	}
+	var left int64
+	testDB.Model(&model.CommunityActivity{}).Where("actor_id = 7").Count(&left)
+	if left != 0 {
+		t.Fatalf("the purge still removes the author's activities, left %d", left)
 	}
 }

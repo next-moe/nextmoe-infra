@@ -15,9 +15,14 @@ import (
 // delivered through one tenant onto another tenant's thread records the
 // delivering site. community_trust and the feed's seen mark have no site and
 // are dropped once; flags the account filed stay, as moderation records.
-// Follow edges naming the account are deleted in both directions; a site's
-// author purge leaves them alone because a follow is account-level.
+// Follow edges naming the account are deleted in both directions, and first:
+// while they stand, the dispatcher keeps delivering kinds 9 and 10 to the
+// account between one site's purge and the next. A site's author purge leaves
+// them alone because a follow is account-level.
 func (s *PostService) PurgeAccount(ctx context.Context, uid int64) error {
+	if err := repository.DeleteUserFollows(s.db.WithContext(ctx), uid); err != nil {
+		return err
+	}
 	var sites []string
 	if err := s.db.WithContext(ctx).Raw(`
 		SELECT site FROM community_thread
@@ -37,8 +42,5 @@ func (s *PostService) PurgeAccount(ctx context.Context, uid int64) error {
 	if err := s.db.WithContext(ctx).Where("user_id = ?", uid).Delete(&model.CommunityTrust{}).Error; err != nil {
 		return err
 	}
-	if err := repository.DeleteFeedSeen(s.db.WithContext(ctx), uid); err != nil {
-		return err
-	}
-	return repository.DeleteUserFollows(s.db.WithContext(ctx), uid)
+	return repository.DeleteFeedSeen(s.db.WithContext(ctx), uid)
 }
