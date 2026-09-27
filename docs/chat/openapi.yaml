@@ -179,6 +179,13 @@ components:
           type:
             - string
             - "null"
+        pinned_messages:
+          description: the pinned messages themselves, in the order of pinned_seqs, as the caller sees them
+          items:
+            $ref: "#/components/schemas/Message"
+          type:
+            - array
+            - "null"
         pinned_seqs:
           description: pinned messages, most recently pinned first
           items:
@@ -201,6 +208,7 @@ components:
         - users
         - members
         - pinned_seqs
+        - pinned_messages
         - object
         - id
         - kind

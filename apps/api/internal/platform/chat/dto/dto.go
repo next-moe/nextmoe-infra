@@ -169,8 +169,9 @@ type Member struct {
 
 type ConversationDetail struct {
 	Conversation
-	Members    []Member `json:"members"`
-	PinnedSeqs []int64  `json:"pinned_seqs" doc:"pinned messages, most recently pinned first"`
+	Members        []Member  `json:"members"`
+	PinnedSeqs     []int64   `json:"pinned_seqs" doc:"pinned messages, most recently pinned first"`
+	PinnedMessages []Message `json:"pinned_messages" doc:"the pinned messages themselves, in the order of pinned_seqs, as the caller sees them"`
 }
 
 type User struct {

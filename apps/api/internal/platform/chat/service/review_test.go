@@ -307,4 +307,7 @@ func TestPinnedSeqsSkipWhatTheViewerHid(t *testing.T) {
 	if len(view.Conversation.PinnedSeqs) != 0 {
 		t.Fatalf("pinned_seqs lists a message the viewer hid: %v", view.Conversation.PinnedSeqs)
 	}
+	if len(view.Conversation.PinnedMessages) != 0 {
+		t.Fatalf("pinned_messages shows a message the viewer hid: %+v", view.Conversation.PinnedMessages)
+	}
 }

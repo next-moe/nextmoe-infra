@@ -362,9 +362,21 @@ func TestPinPostsServiceMessage(t *testing.T) {
 	if svc.Kind != model.MessageKindService || svc.ServiceAction == nil || svc.ServiceAction.Type != "message_pinned" || *svc.ServiceAction.Seq != m.Seq {
 		t.Fatalf("service message: %+v", svc)
 	}
+	later := r.send(t, 2, conv, "also important")
+	r.advance(time.Second)
+	if err := r.svc.SetPinned(ctx, actor(1), conv, later.Seq, true); err != nil {
+		t.Fatal(err)
+	}
 	view, _ := r.svc.Conversation(ctx, actor(1), conv)
-	if len(view.Conversation.PinnedSeqs) != 1 || view.Conversation.PinnedSeqs[0] != m.Seq {
-		t.Fatalf("pinned: %v", view.Conversation.PinnedSeqs)
+	if len(view.Conversation.PinnedSeqs) != 2 || view.Conversation.PinnedSeqs[0] != later.Seq || view.Conversation.PinnedSeqs[1] != m.Seq {
+		t.Fatalf("pinned, most recent first: %v", view.Conversation.PinnedSeqs)
+	}
+	pm := view.Conversation.PinnedMessages
+	if len(pm) != 2 || pm[0].Seq != later.Seq || pm[0].Text != "also important" || pm[1].Text != "important" || pm[0].PinnedAt == nil {
+		t.Fatalf("pinned messages follow pinned_seqs: %+v", pm)
+	}
+	if err := r.svc.SetPinned(ctx, actor(1), conv, later.Seq, false); err != nil {
+		t.Fatal(err)
 	}
 	if err := r.svc.SetPinned(ctx, actor(1), conv, m.Seq, false); err != nil {
 		t.Fatal(err)
