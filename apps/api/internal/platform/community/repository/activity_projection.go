@@ -15,11 +15,9 @@ import (
 func ClaimActivityProjectionsTx(tx *gorm.DB, limit int) ([]model.CommunityActivityProjection, error) {
 	var rows []model.CommunityActivityProjection
 	err := tx.Raw(`
-		SELECT q.post_id, q.enqueued_at FROM community_activity_projection q
-		 WHERE q.post_id IN (SELECT post_id FROM community_activity_projection
-		                      ORDER BY enqueued_at, post_id LIMIT ?)
-		 ORDER BY q.post_id
-		   FOR UPDATE SKIP LOCKED`, limit).Scan(&rows).Error
+		SELECT post_id, enqueued_at FROM community_activity_projection
+		 ORDER BY enqueued_at, post_id
+		 LIMIT ? FOR UPDATE SKIP LOCKED`, limit).Scan(&rows).Error
 	return rows, err
 }
 

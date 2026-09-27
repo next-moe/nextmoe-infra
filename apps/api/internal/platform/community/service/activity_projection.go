@@ -4,10 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"html"
 	"log/slog"
 	"maps"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -38,17 +36,6 @@ const (
 	RoleComment       = "comment"
 	RoleFeedback      = "feedback"
 	RoleFeedbackReply = "feedback_reply"
-)
-
-const spoilerMask = "███"
-
-var (
-	htmlTagPattern        = regexp.MustCompile(`<[^>]*>`)
-	spoilerOpenPattern    = regexp.MustCompile(`:{3,}[ \t]*spoiler`)
-	spoilerClosePattern   = regexp.MustCompile(`^[ \t>*+\-\d.]*(:{3,})[ \t]*$`)
-	spoilerInlinePattern  = regexp.MustCompile(`\|\|(?:[^\n]|\n[^\n])*\|\|`)
-	referenceTokenPattern = regexp.MustCompile(`\[[@#][^\]]*\]\([a-z0-9-]+:\d+\)`)
-	replyHeaderPattern    = regexp.MustCompile(`(?m)^\s*>\s*回复\s*`)
 )
 
 type ProjectionRule struct {
@@ -218,49 +205,8 @@ func projectPost(p repository.ProjectedPostRow, site projectionSite, rev int64) 
 	return w, true
 }
 
-// Every site writes spoilers as ||inline|| and :::spoiler blocks, which
-// community's renderer does not know: unmasked here, they reach the feed in
-// the clear. The masks are wider than the sites' parsers on purpose — a block
-// runs from a fence anywhere on a line to a closing fence at least as long, or
-// the end, and inline from a paragraph's first || to its last — because
-// narrower patterns leaked in review: a block opened inside a list or quote, a
-// nested longer fence, a code span holding ||.
 func plainExcerpt(markdown string, maxRunes int) string {
-	s := maskSpoilerBlocks(markdown)
-	s = spoilerInlinePattern.ReplaceAllString(s, spoilerMask)
-	s = referenceTokenPattern.ReplaceAllString(s, "")
-	s = replyHeaderPattern.ReplaceAllString(s, "")
-	text := html.UnescapeString(htmlTagPattern.ReplaceAllString(sanitize.Cook(s).HTML, " "))
-	return cutRunes(strings.Join(strings.Fields(stripControl(text)), " "), maxRunes)
-}
-
-func maskSpoilerBlocks(s string) string {
-	var out []string
-	var fences []int
-	for _, line := range strings.Split(s, "\n") {
-		if len(fences) == 0 {
-			loc := spoilerOpenPattern.FindStringIndex(line)
-			if loc == nil {
-				out = append(out, line)
-				continue
-			}
-			out = append(out, line[:loc[0]]+spoilerMask)
-			fences = append(fences, colonRun(line[loc[0]:]))
-			continue
-		}
-		if m := spoilerClosePattern.FindStringSubmatch(line); m != nil && len(m[1]) >= fences[len(fences)-1] {
-			fences = fences[:len(fences)-1]
-			continue
-		}
-		if loc := spoilerOpenPattern.FindStringIndex(line); loc != nil {
-			fences = append(fences, colonRun(line[loc[0]:]))
-		}
-	}
-	return strings.Join(out, "\n")
-}
-
-func colonRun(s string) int {
-	return len(s) - len(strings.TrimLeft(s, ":"))
+	return cutRunes(stripControl(sanitize.PlainText(markdown)), maxRunes)
 }
 
 func stripControl(s string) string {

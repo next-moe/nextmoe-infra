@@ -114,7 +114,7 @@ func TestProjectionRulePicksTheLongestPrefix(t *testing.T) {
 		{"- 列表\n- :::spoiler\n  列表里的\n  :::\n- 后", "列表 ███ 后"},
 		{"> :::spoiler\n> 引用里的\n> :::\n\n后", "███ 后"},
 		{"::::spoiler\n外层秘密\n:::spoiler\n内层\n:::\n外层还有\n::::\n后", "███ 后"},
-		{":::spoiler\n一\n:::spoiler\n二\n:::\n三\n:::\n后", "███ 后"},
+		{":::spoiler\n一\n:::spoiler\n二\n:::\n三\n:::\n后", "███ 三 ::: 后"},
 		{"::::spoiler\n秘密\n:::\n还是秘密\n::::\n后", "███ 后"},
 		{"||use `a || b` here secret||", "███"},
 		{"||看 [链接](https://x/a||b) 秘密||", "███"},
@@ -127,6 +127,24 @@ func TestProjectionRulePicksTheLongestPrefix(t *testing.T) {
 		}
 		if got := plainExcerpt(c.in, limit); got != c.want {
 			t.Errorf("excerpt of %q: got %q, want %q", c.in, got, c.want)
+		}
+	}
+	for _, in := range []string{
+		":::spoiler\nA\n- :::\nsecret\n:::",
+		":::spoiler\nA\n1. :::\nsecret\n:::",
+		"- :::spoiler\n  > :::\n  secret\n  :::",
+		":::spoiler\nA\n    :::\nsecret\n:::",
+		":::spoiler\nA\n\t:::\nsecret\n:::",
+		"> :::spoiler\n> A\n:::\nsecret\n> :::",
+		"||secret :::spoiler more||",
+		"||secret\nmore :::spoiler x||",
+		"前 <span class=\"kun-spoiler text-transparent\">secret</span> 后",
+		"<details><summary>点开</summary>secret</details>",
+		":::spoiler\r\nsecret\r\n:::\r\n",
+		"||use `a || b` here secret||",
+	} {
+		if got := plainExcerpt(in, 300); strings.Contains(got, "secret") {
+			t.Errorf("spoiler leaked from %q: %q", in, got)
 		}
 	}
 }
