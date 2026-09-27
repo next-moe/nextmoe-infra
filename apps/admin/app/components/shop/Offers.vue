@@ -84,8 +84,10 @@ const formatDate = (s: string | null) =>
                   ? `${o.rewards[0].duration_days} 天`
                   : '永久'
               }}
-              · 已售 {{ o.sold }}{{ o.stock !== null ? ` / ${o.stock}` : '' }} ·
-              每人限购 {{ o.per_user_limit || '不限' }}
+              · 已售 {{ o.sold }}{{ o.stock !== null ? ` / ${o.stock}` : '' }}
+              {{ o.remaining !== null ? `· 剩 ${o.remaining}` : '' }} ·
+              {{ o.limit_period === 'month' ? '每人每月限购' : '每人限购' }}
+              {{ o.per_user_limit || '不限' }}
             </p>
             <p class="text-default-400 text-xs">
               {{ formatDate(o.starts_at) }} — {{ formatDate(o.ends_at) }}

@@ -30,6 +30,13 @@ const openEdit = (item: ShopItem) => {
   modalOpen.value = true
 }
 
+const codesOpen = ref(false)
+const codesItem = ref<ShopItem | null>(null)
+const openCodes = (item: ShopItem) => {
+  codesItem.value = item
+  codesOpen.value = true
+}
+
 const act = async (item: ShopItem, action: string, label: string) => {
   busy.value = `${item.id}:${action}`
   try {
@@ -72,7 +79,7 @@ const remove = async (item: ShopItem) => {
       />
     </div>
     <KunCard v-else-if="items.length === 0" class-name="py-12 text-center">
-      <p class="text-default-400">还没有物品，先新建一个头像框或主页背景吧</p>
+      <p class="text-default-400">还没有物品，先新建一件吧</p>
     </KunCard>
     <div v-else class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       <KunCard v-for="item in items" :key="item.id" class="flex flex-col p-5">
@@ -101,6 +108,14 @@ const remove = async (item: ShopItem) => {
           {{ item.description }}
         </p>
         <div class="mt-auto flex flex-wrap justify-end gap-2 pt-4">
+          <KunButton
+            v-if="item.kind === 'redeem_code'"
+            size="sm"
+            variant="flat"
+            @click="openCodes(item)"
+          >
+            码池
+          </KunButton>
           <KunButton
             size="sm"
             variant="light"
@@ -140,5 +155,6 @@ const remove = async (item: ShopItem) => {
     </div>
 
     <ShopItemModal v-model="modalOpen" :item="editing" @saved="load" />
+    <ShopCodesModal v-model="codesOpen" :item="codesItem" />
   </div>
 </template>

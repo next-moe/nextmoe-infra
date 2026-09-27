@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { resolveAvatarUrl } from '~~/shared/utils/resolveImage'
+import { PROFILE_ABOUT_MAX } from '~/constants/shop'
 
 const auth = useAuth()
 const user = auth.user
@@ -7,6 +8,7 @@ const userStore = useUserStore()
 
 const name = ref('')
 const bio = ref('')
+const about = ref('')
 const error = ref('')
 const success = ref('')
 const isLoading = ref(false)
@@ -43,13 +45,20 @@ watchEffect(() => {
   if (!user.value) return
   name.value = user.value.name ?? ''
   bio.value = user.value.bio ?? ''
+  about.value = user.value.about ?? ''
 })
+
+const canWriteAbout = computed(
+  () => user.value?.perks?.includes('profile_about') ?? false
+)
+const aboutChanged = computed(() => about.value !== (user.value?.about ?? ''))
 
 const dirty = computed(
   () =>
     !!user.value &&
     (name.value !== (user.value.name ?? '') ||
-      bio.value !== (user.value.bio ?? ''))
+      bio.value !== (user.value.bio ?? '') ||
+      aboutChanged.value)
 )
 
 const handleSubmit = async () => {
@@ -65,14 +74,19 @@ const handleSubmit = async () => {
     error.value = '个人简介不能超过 107 个字符'
     return
   }
+  if (about.value.length > PROFILE_ABOUT_MAX) {
+    error.value = `主页介绍不能超过 ${PROFILE_ABOUT_MAX} 个字符`
+    return
+  }
   if (!dirty.value) {
     error.value = '没有任何改动'
     return
   }
 
-  const payload: { name?: string; bio?: string } = {}
+  const payload: { name?: string; bio?: string; about?: string } = {}
   if (name.value !== (user.value?.name ?? '')) payload.name = name.value.trim()
   if (bio.value !== (user.value?.bio ?? '')) payload.bio = bio.value
+  if (aboutChanged.value) payload.about = about.value
 
   isLoading.value = true
   try {
@@ -143,6 +157,32 @@ const handleSubmit = async () => {
         placeholder="一句话介绍自己（≤107 字）"
         :rows="3"
       />
+
+      <KunTextarea
+        v-if="canWriteAbout"
+        v-model="about"
+        label="主页介绍"
+        placeholder="支持 Markdown：**加粗**、*斜体*、[链接](https://…)、列表、引用"
+        description="显示在你的个人主页上，支持 Markdown"
+        :rows="6"
+        :maxlength="PROFILE_ABOUT_MAX"
+        show-char-count
+        auto-grow
+        max-height="24rem"
+      />
+      <div
+        v-if="!canWriteAbout"
+        class="border-default-200 flex items-center justify-between gap-3 rounded-lg border p-3 text-sm"
+      >
+        <span class="text-default-500">
+          {{
+            about
+              ? '主页介绍的权益已失效，介绍暂时不会对其他人显示'
+              : '想在主页写一段更长的介绍？'
+          }}
+        </span>
+        <KunButton href="/shop" size="sm" variant="flat">去商店</KunButton>
+      </div>
 
       <div v-if="error" class="rounded-lg bg-danger-50 p-3 text-sm text-danger">
         {{ error }}

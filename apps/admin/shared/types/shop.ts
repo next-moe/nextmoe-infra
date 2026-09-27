@@ -1,6 +1,8 @@
 export type ShopItemStatus = 'draft' | 'review' | 'published' | 'retired'
 export type ShopOfferStatus = 'draft' | 'active' | 'retired'
-export type ShopKind = 'avatar_frame' | 'profile_background'
+export type ShopKind =
+  'avatar_frame' | 'profile_background' | 'profile_about' | 'redeem_code'
+export type ShopLimitPeriod = '' | 'month'
 
 export interface ShopSite {
   id: number
@@ -34,7 +36,7 @@ export interface ShopItem {
   status: ShopItemStatus
   name: string
   description: string
-  render: { static: string; animated?: string }
+  render: { static?: string; animated?: string }
   preview?: ShopDecoration
   published_at: string | null
   created_at: string
@@ -55,8 +57,10 @@ export interface ShopOffer {
   starts_at: string | null
   ends_at: string | null
   per_user_limit: number
+  limit_period: ShopLimitPeriod
   stock: number | null
   sold: number
+  remaining: number | null
   sort_order: number
   created_at: string
 }
@@ -67,8 +71,28 @@ export interface ShopOrder {
   price: number
   status: 'completed' | 'refunded'
   rewards: { item: ShopItem; duration_days?: number }[]
+  codes?: { item_id: number; code: string; expires_on: string | null }[]
   created_at: string
   refunded_at: string | null
+}
+
+export interface ShopCode {
+  id: number
+  item_id: number
+  code: string
+  expires_on: string | null
+  order_id: number | null
+  user_id: number | null
+  sold_at: string | null
+  created_at: string
+}
+
+export interface ShopCodePool {
+  total: number
+  sellable: number
+  sold: number
+  shelf_days: number
+  codes: ShopCode[]
 }
 
 export interface ShopEntitlement {

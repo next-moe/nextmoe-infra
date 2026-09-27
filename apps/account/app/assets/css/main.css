@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 @import '@kungal/ui-tokens'; /* design tokens (colors, rounded-kun-*, dark variant) + base layer */
 @import '@kungal/ui-vue/style.css'; /* scoped component styles (modal/drawer/lightbox transitions, spoiler, toasts) */
+@import '@kungal/ui-vue/prose.css'; /* typography for KunContent (the profile intro) */
 
 /*
  * Tailwind v4 ignores node_modules by default, so it must be told to scan the

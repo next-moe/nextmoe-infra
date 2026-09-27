@@ -85,6 +85,7 @@ type UpdateProfileRequest struct {
 	Avatar          *string `json:"avatar,omitempty"            validate:"omitempty,max=255"`
 	AvatarImageHash *string `json:"avatar_image_hash,omitempty" validate:"omitempty,max=64"`
 	Bio             *string `json:"bio,omitempty"               validate:"omitempty,max=107"`
+	About           *string `json:"about,omitempty"             validate:"omitempty,max=500"`
 }
 
 type TokenPair struct {
@@ -123,6 +124,10 @@ type UserResponse struct {
 	NSFWDisplay      string  `json:"nsfw_display,omitempty"`
 
 	Cosmetics shopModel.Cosmetics `json:"cosmetics,omitempty"`
+
+	About     string   `json:"about,omitempty"`
+	AboutHTML string   `json:"about_html,omitempty"`
+	Perks     []string `json:"perks,omitempty"`
 }
 
 type LoginResponse struct {

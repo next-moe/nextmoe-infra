@@ -125,6 +125,9 @@ func (s *Shop) UploadAsset(ctx context.Context, kind string, data []byte, upload
 	if err != nil {
 		return nil, err
 	}
+	if spec.class != classCosmetic {
+		return nil, invalidAsset(spec.label + "不需要素材")
+	}
 	meta, err := inspectAsset(spec, data)
 	if err != nil {
 		return nil, err

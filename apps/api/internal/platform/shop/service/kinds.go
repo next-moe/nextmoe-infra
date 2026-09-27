@@ -16,7 +16,16 @@ type assetRule struct {
 	pixels   func(img image.Image) error
 }
 
+type kindClass int
+
+const (
+	classCosmetic kindClass = iota
+	classPerk
+	classCode
+)
+
 type kindSpec struct {
+	class    kindClass
 	slot     string
 	label    string
 	static   assetRule
@@ -42,6 +51,8 @@ var kinds = map[string]kindSpec{
 		},
 		animated: assetRule{maxBytes: 3 << 20, fits: wideBetween(960, 3840)},
 	},
+	model.KindProfileAbout: {class: classPerk, label: "主页介绍"},
+	model.KindRedeemCode:   {class: classCode, label: "兑换码"},
 }
 
 const MaxUploadBytes = 3 << 20
@@ -56,7 +67,21 @@ func specOf(kind string) (kindSpec, error) {
 
 func slotOf(kind string) (string, bool) {
 	spec, ok := kinds[kind]
-	return spec.slot, ok
+	return spec.slot, ok && spec.class == classCosmetic
+}
+
+func classOf(kind string) kindClass {
+	return kinds[kind].class
+}
+
+func perkKinds() []string {
+	var out []string
+	for kind, spec := range kinds {
+		if spec.class == classPerk {
+			out = append(out, kind)
+		}
+	}
+	return out
 }
 
 func (r assetRule) accepts(contentType string) bool {

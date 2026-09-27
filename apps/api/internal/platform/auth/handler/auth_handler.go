@@ -2,9 +2,11 @@ package handler
 
 import (
 	"log/slog"
+	"slices"
 	"time"
 
 	"api/internal/platform/auth/dto"
+	"api/internal/platform/auth/model"
 	"api/internal/platform/auth/service"
 	shopModel "api/internal/platform/shop/model"
 	"api/pkg/config"
@@ -39,6 +41,13 @@ func (h *AuthHandler) cosmeticsOf(c fiber.Ctx, userID, siteID uint) shopModel.Co
 		return nil
 	}
 	return worn[userID]
+}
+
+func (h *AuthHandler) publicAbout(c fiber.Ctx, user *model.User) string {
+	if user.AboutHTML == "" || !slices.Contains(h.authService.Perks(c.Context(), user.ID), shopModel.KindProfileAbout) {
+		return ""
+	}
+	return user.AboutHTML
 }
 
 func NewAuthHandler(authService *service.AuthService, cfg *config.Config) *AuthHandler {
@@ -358,6 +367,9 @@ func (h *AuthHandler) Me(c fiber.Ctx) error {
 		DeletionDueAt:    rfc3339(user.DeletionDueAt),
 		NSFWDisplay:      user.NSFWDisplay,
 		Cosmetics:        h.cosmeticsOf(c, user.ID, site),
+		About:            user.About,
+		AboutHTML:        user.AboutHTML,
+		Perks:            h.authService.Perks(c.Context(), user.ID),
 	})
 }
 
@@ -399,6 +411,9 @@ func (h *AuthHandler) UpdateProfile(c fiber.Ctx) error {
 		CreatedAt:        user.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
 		AdultConfirmedAt: adultConfirmedAt(user),
 		NSFWDisplay:      user.NSFWDisplay,
+		About:            user.About,
+		AboutHTML:        user.AboutHTML,
+		Perks:            h.authService.Perks(c.Context(), user.ID),
 	})
 }
 
@@ -480,6 +495,7 @@ func (h *AuthHandler) GetProfile(c fiber.Ctx) error {
 		Roles:           user.RoleNames(),
 		CreatedAt:       user.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
 		Cosmetics:       h.cosmeticsOf(c, user.ID, shopModel.EverySite),
+		AboutHTML:       h.publicAbout(c, user),
 	})
 }
 

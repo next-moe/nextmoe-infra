@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { SHOP_KINDS } from '~/constants/shop'
+
 const props = defineProps<{
   kind: ShopKind
   staticUrl?: string
@@ -11,6 +13,7 @@ const bannerSrc = computed(() =>
     ? props.animatedUrl
     : (props.staticUrl ?? '')
 )
+const icon = computed(() => SHOP_KINDS[props.kind]?.icon)
 </script>
 
 <template>
@@ -25,6 +28,13 @@ const bannerSrc = computed(() =>
       class-name="size-full"
       object-fit="cover"
     />
+  </div>
+  <div v-else-if="icon" class="flex justify-center">
+    <div
+      class="bg-primary-50 text-primary-600 flex size-24 items-center justify-center rounded-2xl"
+    >
+      <KunIcon :name="icon" class="size-10" />
+    </div>
   </div>
   <div v-else class="flex justify-center">
     <KunAvatar

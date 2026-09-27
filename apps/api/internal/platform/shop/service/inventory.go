@@ -159,3 +159,28 @@ func (s *Shop) CosmeticsFor(ctx context.Context, userIDs []uint, siteID uint) (m
 	}
 	return out, nil
 }
+
+func (s *Shop) PerksFor(ctx context.Context, userIDs []uint) (map[uint][]string, error) {
+	out := make(map[uint][]string, len(userIDs))
+	if len(userIDs) == 0 {
+		return out, nil
+	}
+	var rows []struct {
+		UserID uint
+		Kind   string
+	}
+	err := s.db.WithContext(ctx).Raw(`
+		SELECT DISTINCT e.user_id, i.kind
+		FROM shop_entitlements e
+		JOIN shop_items i ON i.id = e.item_id AND i.kind IN ? AND i.status IN ?
+		WHERE e.user_id IN ? AND e.revoked_at IS NULL AND (e.expires_at IS NULL OR e.expires_at > ?)
+		ORDER BY i.kind`,
+		perkKinds(), []string{model.ItemPublished, model.ItemRetired}, userIDs, s.now()).Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range rows {
+		out[r.UserID] = append(out[r.UserID], r.Kind)
+	}
+	return out, nil
+}

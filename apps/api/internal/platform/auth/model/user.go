@@ -26,6 +26,8 @@ type User struct {
 	AvatarImageHash *string `gorm:"size:64;index" json:"avatar_image_hash,omitempty"`
 
 	Bio         string `gorm:"size:107;default:''" json:"bio"`
+	About       string `gorm:"size:500;not null;default:''" json:"about"`
+	AboutHTML   string `gorm:"column:about_html;type:text;not null;default:''" json:"about_html"`
 	Moemoepoint int    `gorm:"default:0" json:"moemoepoint"`
 	Status      int    `gorm:"default:0" json:"status"`
 

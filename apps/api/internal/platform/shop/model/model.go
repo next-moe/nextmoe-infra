@@ -9,6 +9,8 @@ import (
 const (
 	KindAvatarFrame       = "avatar_frame"
 	KindProfileBackground = "profile_background"
+	KindProfileAbout      = "profile_about"
+	KindRedeemCode        = "redeem_code"
 
 	SlotAvatarFrame       = "avatar_frame"
 	SlotProfileBackground = "profile_background"
@@ -25,6 +27,11 @@ const (
 	OfferDraft   = "draft"
 	OfferActive  = "active"
 	OfferRetired = "retired"
+)
+
+const (
+	LimitLifetime = ""
+	LimitMonth    = "month"
 )
 
 const (
@@ -91,6 +98,7 @@ type Offer struct {
 	StartsAt     *time.Time     `json:"starts_at"`
 	EndsAt       *time.Time     `json:"ends_at"`
 	PerUserLimit int            `gorm:"not null;default:0" json:"per_user_limit"`
+	LimitPeriod  string         `gorm:"size:16;not null;default:''" json:"limit_period"`
 	Stock        *int           `json:"stock"`
 	Sold         int            `gorm:"not null;default:0" json:"sold"`
 	SortOrder    int            `gorm:"not null;default:0" json:"sort_order"`
@@ -169,6 +177,20 @@ type Decoration struct {
 
 type Cosmetics map[string]*Decoration
 
+type Code struct {
+	ID        int64      `gorm:"primaryKey" json:"id"`
+	ItemID    int64      `gorm:"not null;index" json:"item_id"`
+	Code      string     `gorm:"size:200;not null;uniqueIndex" json:"code"`
+	ExpiresOn *string    `gorm:"size:10" json:"expires_on"`
+	OrderID   *int64     `gorm:"index" json:"order_id"`
+	UserID    *uint      `gorm:"index" json:"user_id"`
+	SoldAt    *time.Time `json:"sold_at"`
+	AddedBy   uint       `gorm:"not null" json:"added_by"`
+	CreatedAt time.Time  `json:"created_at"`
+}
+
+func (Code) TableName() string { return "shop_codes" }
+
 func AllModels() []any {
-	return []any{&Asset{}, &Item{}, &Offer{}, &Order{}, &Entitlement{}, &Loadout{}}
+	return []any{&Asset{}, &Item{}, &Offer{}, &Order{}, &Entitlement{}, &Loadout{}, &Code{}}
 }

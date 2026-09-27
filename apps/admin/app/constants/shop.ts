@@ -2,6 +2,7 @@ import type { KunUIColor } from '@kungal/ui-core'
 import type {
   ShopItemStatus,
   ShopKind,
+  ShopLimitPeriod,
   ShopOfferStatus
 } from '~~/shared/types/shop'
 
@@ -42,7 +43,7 @@ export const SHOP_OFFER_STATUS: Record<
 
 export const SHOP_KINDS: Record<
   ShopKind,
-  { label: string; hint: string; staticAccept: string }
+  { label: string; hint: string; staticAccept: string; icon?: string }
 > = {
   avatar_frame: {
     label: '头像框',
@@ -53,8 +54,28 @@ export const SHOP_KINDS: Record<
     label: '主页背景',
     hint: '显示在用户主页顶部的横幅。宽 960–3840 像素，宽高比 2:1 到 4:1，推荐 1500×500（3:1）；各站会按自己的比例居中裁切，重要内容放在中间。静态图用 PNG 或 JPEG（≤ 1 MB），动图用动态 WebP（≤ 3 MB，和静态图同尺寸）。',
     staticAccept: 'image/png,image/jpeg'
+  },
+  profile_about: {
+    label: '主页介绍',
+    hint: '功能权益：拥有后可以在个人主页写 500 字以内的 Markdown 介绍。不需要素材，不能穿戴。',
+    staticAccept: '',
+    icon: 'lucide:notebook-pen'
+  },
+  redeem_code: {
+    label: '兑换码',
+    hint: '每卖出一份，从这件物品的码池里发出一个码（先发最早过期的）。不需要素材；发布后在物品卡片的「码池」里添加兑换码。简介会在用户买到码时一起显示，写上使用方法。',
+    staticAccept: '',
+    icon: 'lucide:ticket'
   }
 }
+
+export const SHOP_LIMIT_PERIOD_OPTIONS: {
+  value: ShopLimitPeriod
+  label: string
+}[] = [
+  { value: '', label: '不分周期' },
+  { value: 'month', label: '每月' }
+]
 
 export const SHOP_KIND_OPTIONS = (Object.keys(SHOP_KINDS) as ShopKind[]).map(
   (value) => ({ value, label: SHOP_KINDS[value].label })

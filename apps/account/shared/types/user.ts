@@ -22,6 +22,9 @@ export interface User {
   nsfw_display?: NsfwDisplay
   deletion_due_at?: string | null
   cosmetics?: ShopCosmetics
+  about?: string
+  about_html?: string
+  perks?: string[]
 }
 
 export interface UserSiteData {
