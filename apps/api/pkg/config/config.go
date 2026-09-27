@@ -47,6 +47,7 @@ type Config struct {
 	CatalogImageClient ImageClientConfig
 
 	NewsImageClient ImageClientConfig
+	ChatImageClient ImageClientConfig
 
 	NewsModeration NewsModerationConfig
 
@@ -59,6 +60,9 @@ type Config struct {
 	CatalogService   CatalogServiceConfig
 	CommunityService CommunityServiceConfig
 	TrustService     TrustServiceConfig
+
+	ChatDatabase DatabaseConfig
+	ChatService  ChatServiceConfig
 
 	AIService  AIServiceConfig
 	AIUpstream AIUpstreamConfig
@@ -125,6 +129,15 @@ type TrustServiceConfig struct {
 type CommunityServiceConfig struct {
 	Host string
 	Port int
+}
+
+type ChatServiceConfig struct {
+	Host                string
+	Port                int
+	RealtimeURL         string
+	CentrifugoAPIURL    string
+	CentrifugoAPIKey    string
+	RealtimeTokenSecret string
 }
 
 type CatalogServiceConfig struct {
@@ -325,6 +338,16 @@ func Load() (*Config, error) {
 		Timezone: getEnv("KUN_COMMUNITY_PG_TIMEZONE", cfg.Database.Timezone),
 	}
 
+	cfg.ChatDatabase = DatabaseConfig{
+		Host:     getEnv("KUN_CHAT_PG_HOST", cfg.Database.Host),
+		Port:     getEnv("KUN_CHAT_PG_PORT", cfg.Database.Port),
+		User:     getEnv("KUN_CHAT_PG_USER", cfg.Database.User),
+		Password: getEnv("KUN_CHAT_PG_PASSWORD", cfg.Database.Password),
+		DBName:   getEnv("KUN_CHAT_PG_DATABASE", "kun_chat"),
+		SSLMode:  getEnv("KUN_CHAT_PG_SSLMODE", cfg.Database.SSLMode),
+		Timezone: getEnv("KUN_CHAT_PG_TIMEZONE", cfg.Database.Timezone),
+	}
+
 	cfg.TrustDatabase = DatabaseConfig{
 		Host:     getEnv("KUN_TRUST_PG_HOST", cfg.Database.Host),
 		Port:     getEnv("KUN_TRUST_PG_PORT", cfg.Database.Port),
@@ -472,6 +495,12 @@ func Load() (*Config, error) {
 		ClientSecret: getEnv("KUN_CATALOG_IMAGE_CLIENT_SECRET", ""),
 	}
 
+	cfg.ChatImageClient = ImageClientConfig{
+		BaseURL:      getEnv("KUN_CHAT_IMAGE_CLIENT_BASE_URL", cfg.ImageClient.BaseURL),
+		ClientID:     getEnv("KUN_CHAT_IMAGE_CLIENT_ID", ""),
+		ClientSecret: getEnv("KUN_CHAT_IMAGE_CLIENT_SECRET", ""),
+	}
+
 	cfg.NewsImageClient = ImageClientConfig{
 		BaseURL:      getEnv("KUN_NEWS_IMAGE_CLIENT_BASE_URL", cfg.ImageClient.BaseURL),
 		ClientID:     getEnv("KUN_NEWS_IMAGE_CLIENT_ID", ""),
@@ -497,7 +526,7 @@ func Load() (*Config, error) {
 	pool := loadPoolConfig()
 	for _, d := range []*DatabaseConfig{
 		&cfg.Database, &cfg.GalgameDatabase, &cfg.CatalogDatabase, &cfg.CommunityDatabase,
-		&cfg.TrustDatabase, &cfg.AIDatabase, &cfg.NewsDatabase, &cfg.ImagesDatabase,
+		&cfg.ChatDatabase, &cfg.TrustDatabase, &cfg.AIDatabase, &cfg.NewsDatabase, &cfg.ImagesDatabase,
 		&cfg.ArtifactsDatabase,
 	} {
 		d.Pool = pool
@@ -531,6 +560,16 @@ func Load() (*Config, error) {
 	cfg.CommunityService = CommunityServiceConfig{
 		Host: getEnv("KUN_COMMUNITY_HOST", "127.0.0.1"),
 		Port: communityPort,
+	}
+
+	chatPort, _ := strconv.Atoi(getEnv("KUN_CHAT_PORT", "9285"))
+	cfg.ChatService = ChatServiceConfig{
+		Host:                getEnv("KUN_CHAT_HOST", "127.0.0.1"),
+		Port:                chatPort,
+		RealtimeURL:         getEnv("KUN_CHAT_REALTIME_URL", ""),
+		CentrifugoAPIURL:    getEnv("KUN_CHAT_CENTRIFUGO_API_URL", ""),
+		CentrifugoAPIKey:    getEnv("KUN_CHAT_CENTRIFUGO_API_KEY", ""),
+		RealtimeTokenSecret: getEnv("KUN_CHAT_REALTIME_TOKEN_SECRET", ""),
 	}
 
 	trustPort, _ := strconv.Atoi(getEnv("KUN_TRUST_PORT", "9283"))

@@ -63,7 +63,7 @@ echo "=== pg-backup start $(date -u '+%F %T')Z ==="
 
 PG=kun-visual-novel-infra-vqvqbc-postgres-1
 UMAMI=kun-visual-novel-umami-fm1njw-db-1
-DBS="kungalgame kun_galgame_infra kun_catalog kun_community kun_trust kun_images kungalgame_patch kun_shortlink kun_letmoe kun_news kun_artifacts kungalgame_sticker kun_blog kun_ai"
+DBS="kungalgame kun_galgame_infra kun_catalog kun_community kun_chat kun_trust kun_images kungalgame_patch kun_shortlink kun_letmoe kun_news kun_artifacts kungalgame_sticker kun_blog kun_ai"
 SKIP="dlsite getchu howlongtobeat erogamescape kun_galgame_wiki_retired_w1 kun_letmoe_staging postgres"
 
 # The dumps share the disk with the database itself; filling it would take

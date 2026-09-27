@@ -5,7 +5,7 @@
 # rebuilding every image on each push burned billed minutes even fully cached.
 # This workflow builds ONLY the images whose inputs changed (path-filtered
 # dynamic matrix):
-#   - go images (oauth/image/artifact/catalog/community/trust/ai + migrate)  ← apps/api/** + Dockerfiles
+#   - go images (oauth/image/artifact/catalog/community/chat/trust/ai + migrate)  ← apps/api/** + Dockerfiles
 #   - account / admin                              ← apps/account/** / apps/admin/** + root manifests + nuxt.Dockerfile
 #   - tools (infra-tools)                          ← apps/api/** + docker/tools.Dockerfile
 # A docs-only push therefore builds nothing and costs ~1 min (the `changes` job).
@@ -128,6 +128,7 @@ jobs:
             {"name":"infra-migrate","file":"docker/go.Dockerfile","args":"CMD=migrate","group":"go"},
             {"name":"infra-catalog","file":"docker/go.Dockerfile","args":"CMD=catalog","group":"go"},
             {"name":"infra-community","file":"docker/go.Dockerfile","args":"CMD=community","group":"go"},
+            {"name":"infra-chat","file":"docker/go.Dockerfile","args":"CMD=chat","group":"go"},
             {"name":"infra-trust","file":"docker/go.Dockerfile","args":"CMD=trust","group":"go"},
             {"name":"infra-ai","file":"docker/go.Dockerfile","args":"CMD=ai","group":"go"},
             {"name":"infra-mcp","file":"docker/go.Dockerfile","args":"CMD=mcp","group":"go"},

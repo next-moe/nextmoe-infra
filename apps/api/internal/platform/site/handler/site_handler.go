@@ -18,7 +18,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-var renOnlyScopes = []string{"image:upload", "artifact:upload"}
+var renOnlyScopes = []string{"image:upload", "artifact:upload", "chat:read", "chat:write"}
 
 func addsRenOnlyScope(scopes []string) bool {
 	for _, s := range scopes {
@@ -38,7 +38,7 @@ func addsNewRenOnlyScope(reqScopes, curScopes []string) bool {
 	return false
 }
 
-const renSensitiveFieldMsg = "仅 ren（莲）可授予 image:upload / artifact:upload scope 或开启自动同意"
+const renSensitiveFieldMsg = "仅 ren（莲）可授予 image:upload / artifact:upload / chat:read / chat:write scope 或开启自动同意"
 
 type SiteHandler struct {
 	siteService *service.SiteService

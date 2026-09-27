@@ -132,6 +132,18 @@ func (c *Client) Resolve(ctx context.Context, trustItemID int64, outcome, actorR
 	return env.Data.Closed, nil
 }
 
+type StatusError struct {
+	Path   string
+	Status int
+	Body   string
+}
+
+func (e *StatusError) Error() string {
+	return fmt.Sprintf("trust %s: status %d: %s", e.Path, e.Status, e.Body)
+}
+
+func (e *StatusError) StatusCode() int { return e.Status }
+
 func (c *Client) post(ctx context.Context, path string, body, out any) error {
 	payload, err := json.Marshal(body)
 	if err != nil {
@@ -153,7 +165,7 @@ func (c *Client) post(ctx context.Context, path string, body, out any) error {
 		return fmt.Errorf("read trust response: %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("trust %s: status %d: %s", path, resp.StatusCode, strings.TrimSpace(string(raw)))
+		return &StatusError{Path: path, Status: resp.StatusCode, Body: strings.TrimSpace(string(raw))}
 	}
 	var head struct {
 		Code    int    `json:"code"`

@@ -67,8 +67,10 @@ export const SCOPE_LABELS: Record<string, string> = {
   'image:upload': '以你的名义上传图片',
   'artifact:upload': '以你的名义上传文件',
   preferences: '读写你在本应用里的界面偏好（以及全站通用偏好）',
+  'chat:read': '读取你的私信和群聊',
+  'chat:write': '以你的身份收发私信和群聊消息',
 }
 
 export const KNOWN_SCOPES: readonly string[] = Object.keys(SCOPE_LABELS)
 
-export const REN_ONLY_SCOPES: readonly string[] = ['image:upload', 'artifact:upload']
+export const REN_ONLY_SCOPES: readonly string[] = ['image:upload', 'artifact:upload', 'chat:read', 'chat:write']
