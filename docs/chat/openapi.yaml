@@ -75,7 +75,9 @@ components:
             - group
           type: string
         last_message:
-          $ref: "#/components/schemas/Message"
+          anyOf:
+            - $ref: "#/components/schemas/Message"
+            - type: "null"
           description: the newest message the caller can see
         last_seq:
           format: int64
@@ -146,7 +148,9 @@ components:
             - group
           type: string
         last_message:
-          $ref: "#/components/schemas/Message"
+          anyOf:
+            - $ref: "#/components/schemas/Message"
+            - type: "null"
           description: the newest message the caller can see
         last_seq:
           format: int64
@@ -159,9 +163,7 @@ components:
         members:
           items:
             $ref: "#/components/schemas/Member"
-          type:
-            - array
-            - "null"
+          type: array
         object:
           enum:
             - conversation
@@ -183,17 +185,13 @@ components:
           description: the pinned messages themselves, in the order of pinned_seqs, as the caller sees them
           items:
             $ref: "#/components/schemas/Message"
-          type:
-            - array
-            - "null"
+          type: array
         pinned_seqs:
           description: pinned messages, most recently pinned first
           items:
             format: int64
             type: integer
-          type:
-            - array
-            - "null"
+          type: array
         title:
           type:
             - string
@@ -201,9 +199,7 @@ components:
         users:
           items:
             $ref: "#/components/schemas/User"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - users
         - members
@@ -236,9 +232,7 @@ components:
         items:
           items:
             $ref: "#/components/schemas/Conversation"
-          type:
-            - array
-            - "null"
+          type: array
         next_cursor:
           type: string
         object:
@@ -248,9 +242,7 @@ components:
         users:
           items:
             $ref: "#/components/schemas/User"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - object
         - items
@@ -303,9 +295,7 @@ components:
           items:
             format: int64
             type: integer
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - object
         - seqs
@@ -330,7 +320,9 @@ components:
           format: int64
           type: integer
         draft:
-          $ref: "#/components/schemas/Draft"
+          anyOf:
+            - $ref: "#/components/schemas/Draft"
+            - type: "null"
         last_read_seq:
           format: int64
           type: integer
@@ -415,7 +407,9 @@ components:
           format: int64
           type: integer
         draft:
-          $ref: "#/components/schemas/Draft"
+          anyOf:
+            - $ref: "#/components/schemas/Draft"
+            - type: "null"
         last_read_seq:
           format: int64
           type: integer
@@ -464,9 +458,7 @@ components:
         entities:
           items:
             $ref: "#/components/schemas/Entity"
-          type:
-            - array
-            - "null"
+          type: array
         reply_to_seq:
           format: int64
           type:
@@ -494,7 +486,9 @@ components:
           readOnly: true
           type: string
         draft:
-          $ref: "#/components/schemas/Draft"
+          anyOf:
+            - $ref: "#/components/schemas/Draft"
+            - type: "null"
           description: null when the draft was cleared
         object:
           enum:
@@ -597,64 +591,83 @@ components:
         - offset
         - length
       type: object
-    ErrorDetail:
-      additionalProperties: false
+    FieldError:
+      additionalProperties: true
       properties:
-        location:
-          description: Where the error occurred, e.g. 'body.items[3].tags' or 'path.thing-id'
-          type: string
-        message:
-          description: Error message text
-          type: string
-        value:
-          description: The value at the given location
-      type: object
-    ErrorModel:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://api.nextmoe.dev/ErrorModel.json
-          format: uri
-          readOnly: true
-          type: string
         detail:
-          description: A human-readable explanation specific to this occurrence of the problem.
-          examples:
-            - Property foo is required but is missing.
+          description: English, request-specific. Must not be used as a discriminant.
+          maxLength: 2048
           type: string
-        errors:
-          description: Optional list of individual error details
+        header:
+          description: Request header name. Exactly one of pointer, parameter, or header is set.
+          maxLength: 64
+          pattern: ^[A-Za-z0-9-]+$
+          type: string
+        parameter:
+          description: Query or path parameter name. Exactly one of pointer, parameter, or header is set.
+          maxLength: 64
+          pattern: ^[A-Za-z_][A-Za-z0-9_]*$
+          type: string
+        params:
+          $ref: "#/components/schemas/FieldParams"
+          description: Constraint values for this reason. Omitted when the reason carries none.
+        pointer:
+          description: JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.
+          maxLength: 256
+          pattern: ^/
+          type: string
+        reason:
+          description: Field-level reason from the closed reason registry.
+          maxLength: 63
+          pattern: ^[A-Z][A-Z0-9_]*[A-Z0-9]$
+          type: string
+      required:
+        - reason
+        - detail
+      type: object
+    FieldParams:
+      additionalProperties: false
+      properties:
+        allowed:
+          description: Closed vocabulary members that were expected.
           items:
-            $ref: "#/components/schemas/ErrorDetail"
-          type:
-            - array
-            - "null"
-        instance:
-          description: A URI reference that identifies the specific occurrence of the problem.
-          examples:
-            - https://example.com/error-log/abc123
-          format: uri
-          type: string
-        status:
-          description: HTTP status code
-          examples:
-            - 400
+            maxLength: 128
+            pattern: ^[\x20-\x7E]+$
+            type: string
+          maxItems: 256
+          type: array
+        max_items:
+          description: Maximum array length the value exceeded.
           format: int64
+          minimum: 0
           type: integer
-        title:
-          description: A short, human-readable summary of the problem type. This value should not change between occurrences of the error.
-          examples:
-            - Bad Request
-          type: string
-        type:
-          default: about:blank
-          description: A URI reference to human-readable documentation for the error.
-          examples:
-            - https://example.com/errors/example
-          format: uri
-          type: string
+        max_length:
+          description: Maximum string length the value exceeded.
+          format: int64
+          minimum: 0
+          type: integer
+        maximum:
+          description: Inclusive numeric upper bound the value missed.
+          format: double
+          maximum: 9007199254740991
+          minimum: -9007199254740991
+          type: number
+        min_items:
+          description: Minimum array length the value failed.
+          format: int64
+          minimum: 0
+          type: integer
+        min_length:
+          description: Minimum string length the value failed.
+          format: int64
+          minimum: 0
+          type: integer
+        minimum:
+          description: Inclusive numeric lower bound the value missed.
+          format: double
+          maximum: 9007199254740991
+          minimum: -9007199254740991
+          type: number
       type: object
     ImageBody:
       additionalProperties: false
@@ -765,7 +778,9 @@ components:
             - string
             - "null"
         context:
-          $ref: "#/components/schemas/ContextCard"
+          anyOf:
+            - $ref: "#/components/schemas/ContextCard"
+            - type: "null"
         conversation_id:
           type: string
         created_at:
@@ -779,9 +794,7 @@ components:
         entities:
           items:
             $ref: "#/components/schemas/Entity"
-          type:
-            - array
-            - "null"
+          type: array
         id:
           type: string
         kind:
@@ -790,7 +803,9 @@ components:
             - service
           type: string
         media:
-          $ref: "#/components/schemas/Media"
+          anyOf:
+            - $ref: "#/components/schemas/Media"
+            - type: "null"
         media_group_id:
           description: "an album: the messages sent together share it"
           type:
@@ -809,13 +824,15 @@ components:
           description: count descending, then first reacted first
           items:
             $ref: "#/components/schemas/ReactionCount"
-          type:
-            - array
-            - "null"
+          type: array
         reply_quote:
-          $ref: "#/components/schemas/Quote"
+          anyOf:
+            - $ref: "#/components/schemas/Quote"
+            - type: "null"
         reply_to:
-          $ref: "#/components/schemas/ReplyPreview"
+          anyOf:
+            - $ref: "#/components/schemas/ReplyPreview"
+            - type: "null"
         sender_id:
           type: string
         seq:
@@ -823,7 +840,9 @@ components:
           format: int64
           type: integer
         service_action:
-          $ref: "#/components/schemas/ServiceAction"
+          anyOf:
+            - $ref: "#/components/schemas/ServiceAction"
+            - type: "null"
         silent:
           type: boolean
         text:
@@ -866,7 +885,9 @@ components:
             - string
             - "null"
         context:
-          $ref: "#/components/schemas/ContextCard"
+          anyOf:
+            - $ref: "#/components/schemas/ContextCard"
+            - type: "null"
         conversation_id:
           type: string
         created_at:
@@ -880,9 +901,7 @@ components:
         entities:
           items:
             $ref: "#/components/schemas/Entity"
-          type:
-            - array
-            - "null"
+          type: array
         id:
           type: string
         kind:
@@ -891,7 +910,9 @@ components:
             - service
           type: string
         media:
-          $ref: "#/components/schemas/Media"
+          anyOf:
+            - $ref: "#/components/schemas/Media"
+            - type: "null"
         media_group_id:
           description: "an album: the messages sent together share it"
           type:
@@ -910,13 +931,15 @@ components:
           description: count descending, then first reacted first
           items:
             $ref: "#/components/schemas/ReactionCount"
-          type:
-            - array
-            - "null"
+          type: array
         reply_quote:
-          $ref: "#/components/schemas/Quote"
+          anyOf:
+            - $ref: "#/components/schemas/Quote"
+            - type: "null"
         reply_to:
-          $ref: "#/components/schemas/ReplyPreview"
+          anyOf:
+            - $ref: "#/components/schemas/ReplyPreview"
+            - type: "null"
         sender_id:
           type: string
         seq:
@@ -924,7 +947,9 @@ components:
           format: int64
           type: integer
         service_action:
-          $ref: "#/components/schemas/ServiceAction"
+          anyOf:
+            - $ref: "#/components/schemas/ServiceAction"
+            - type: "null"
         silent:
           type: boolean
         text:
@@ -932,9 +957,7 @@ components:
         users:
           items:
             $ref: "#/components/schemas/User"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - users
         - object
@@ -975,9 +998,7 @@ components:
         items:
           items:
             $ref: "#/components/schemas/Message"
-          type:
-            - array
-            - "null"
+          type: array
         object:
           enum:
             - list
@@ -985,9 +1006,7 @@ components:
         users:
           items:
             $ref: "#/components/schemas/User"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - object
         - items
@@ -995,15 +1014,82 @@ components:
         - has_more_before
         - has_more_after
       type: object
+    Problem:
+      additionalProperties: true
+      properties:
+        code:
+          description: Top-level error code from the closed registry. UPPER_SNAKE.
+          maxLength: 63
+          pattern: ^[A-Z][A-Z0-9_]*[A-Z0-9]$
+          type: string
+        current_id:
+          description: Canonical id when code is ENTITY_MERGED.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+        detail:
+          description: English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.
+          maxLength: 2048
+          type: string
+        errors:
+          description: Field-level failures. Empty array when this is not a field-level error.
+          items:
+            $ref: "#/components/schemas/FieldError"
+          type: array
+        instance:
+          description: Request path and query string that failed. Empty only if the path is unknown.
+          maxLength: 2048
+          pattern: ^(/.*)?$
+          type: string
+        object:
+          description: Entity family when code is ENTITY_MERGED.
+          maxLength: 32
+          pattern: ^[a-z][a-z0-9_]*$
+          type: string
+        request_id:
+          description: Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.
+          maxLength: 30
+          minLength: 30
+          pattern: ^req_[0-9A-HJKMNP-TV-Z]{26}$
+          type: string
+        status:
+          description: HTTP status. Matches the response status line.
+          format: int64
+          maximum: 599
+          minimum: 400
+          type: integer
+        suspects:
+          description: Live works sharing a submitted title when code is DUPLICATE_SUSPECTS.
+          items:
+            $ref: "#/components/schemas/Suspect"
+          type: array
+        title:
+          description: Stable English phrase for this type. Does not vary per request.
+          maxLength: 128
+          pattern: ^[ -~]+$
+          type: string
+        type:
+          description: Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.
+          format: uri
+          maxLength: 256
+          type: string
+      required:
+        - type
+        - title
+        - status
+        - detail
+        - instance
+        - code
+        - request_id
+        - errors
+      type: object
     Quote:
       additionalProperties: false
       properties:
         entities:
           items:
             $ref: "#/components/schemas/Entity"
-          type:
-            - array
-            - "null"
+          type: array
         offset:
           description: where the quote starts in the replied message, in UTF-16 code units
           format: int64
@@ -1078,9 +1164,7 @@ components:
         items:
           items:
             $ref: "#/components/schemas/ReactionOption"
-          type:
-            - array
-            - "null"
+          type: array
         object:
           enum:
             - list
@@ -1122,9 +1206,7 @@ components:
         reactions:
           items:
             $ref: "#/components/schemas/ReactionCount"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - object
         - message_id
@@ -1214,9 +1296,7 @@ components:
           description: only the entities that fall entirely inside text
           items:
             $ref: "#/components/schemas/Entity"
-          type:
-            - array
-            - "null"
+          type: array
         media_type:
           type:
             - string
@@ -1356,9 +1436,7 @@ components:
         user_ids:
           items:
             type: string
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - type
       type: object
@@ -1460,6 +1538,22 @@ components:
         - unread_message_count
         - request_count
       type: object
+    Suspect:
+      additionalProperties: true
+      properties:
+        display_name:
+          description: The live work's display name. Must not be used as a discriminant.
+          maxLength: 512
+          type: string
+        id:
+          description: Catalog work id.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+      required:
+        - id
+        - display_name
+      type: object
     Update:
       additionalProperties: false
       properties:
@@ -1515,9 +1609,7 @@ components:
           description: the conversations the updates name
           items:
             $ref: "#/components/schemas/Conversation"
-          type:
-            - array
-            - "null"
+          type: array
         has_more:
           description: more updates follow; ask again after the last one
           type: boolean
@@ -1528,9 +1620,7 @@ components:
           description: the messages new_message and edit_message updates name, as the caller sees them now
           items:
             $ref: "#/components/schemas/Message"
-          type:
-            - array
-            - "null"
+          type: array
         object:
           enum:
             - update_list
@@ -1541,15 +1631,11 @@ components:
         updates:
           items:
             $ref: "#/components/schemas/Update"
-          type:
-            - array
-            - "null"
+          type: array
         users:
           items:
             $ref: "#/components/schemas/User"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - object
         - updates
@@ -1586,7 +1672,7 @@ components:
 info:
   description: "Direct messages and groups shared by every NextMoe site and app. First-party clients only: a user access token with chat:read (reads) or chat:write (everything; also grants reads)."
   title: NextMoe Chat API
-  version: 1.0.0
+  version: 1.0.1
 openapi: 3.1.0
 paths:
   /v2/chat/conversations:
@@ -1633,31 +1719,31 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unauthorized
         "403":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Forbidden
         "404":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Not Found
         "422":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unprocessable Entity
         "500":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Internal Server Error
       summary: One folder of the caller's conversations, newest activity first; the inbox's first page starts with the pinned ones
       tags:
@@ -1686,31 +1772,31 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unauthorized
         "403":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Forbidden
         "404":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Not Found
         "422":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unprocessable Entity
         "500":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Internal Server Error
       summary: One conversation with its members and pinned messages
       tags:
@@ -1735,43 +1821,43 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unauthorized
         "403":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Forbidden
         "404":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Not Found
         "409":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Conflict
         "422":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unprocessable Entity
         "429":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Too Many Requests
         "500":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Internal Server Error
       summary: Move a message request into the inbox
       tags:
@@ -1801,43 +1887,43 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unauthorized
         "403":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Forbidden
         "404":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Not Found
         "409":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Conflict
         "422":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unprocessable Entity
         "429":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Too Many Requests
         "500":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Internal Server Error
       summary: Hide everything so far from the caller alone; with remove, the conversation also leaves the caller's lists until the next message (this is also how a request is deleted)
       tags:
@@ -1872,43 +1958,43 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unauthorized
         "403":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Forbidden
         "404":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Not Found
         "409":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Conflict
         "422":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unprocessable Entity
         "429":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Too Many Requests
         "500":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Internal Server Error
       summary: Save what the caller is typing for their other devices; empty text and no reply clears it
       tags:
@@ -1943,43 +2029,43 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unauthorized
         "403":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Forbidden
         "404":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Not Found
         "409":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Conflict
         "422":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unprocessable Entity
         "429":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Too Many Requests
         "500":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Internal Server Error
       summary: "Change the caller's own state of a conversation: mute, archive, pin, mark unread"
       tags:
@@ -2045,31 +2131,31 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unauthorized
         "403":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Forbidden
         "404":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Not Found
         "422":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unprocessable Entity
         "500":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Internal Server Error
       summary: A page of the messages the caller can see, oldest first within the page; the newest page when no position is given
       tags:
@@ -2103,43 +2189,43 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unauthorized
         "403":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Forbidden
         "404":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Not Found
         "409":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Conflict
         "422":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unprocessable Entity
         "429":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Too Many Requests
         "500":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Internal Server Error
       summary: Send a message; resending the same client_message_id returns the first attempt's message and writes nothing
       tags:
@@ -2174,43 +2260,43 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unauthorized
         "403":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Forbidden
         "404":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Not Found
         "409":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Conflict
         "422":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unprocessable Entity
         "429":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Too Many Requests
         "500":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Internal Server Error
       summary: Delete the caller's own messages for everyone, or hide any messages from the caller alone
       tags:
@@ -2244,43 +2330,43 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unauthorized
         "403":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Forbidden
         "404":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Not Found
         "409":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Conflict
         "422":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unprocessable Entity
         "429":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Too Many Requests
         "500":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Internal Server Error
       summary: Unpin a message
       tags:
@@ -2313,43 +2399,43 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unauthorized
         "403":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Forbidden
         "404":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Not Found
         "409":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Conflict
         "422":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unprocessable Entity
         "429":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Too Many Requests
         "500":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Internal Server Error
       summary: Pin a message for everyone in the conversation; posts a service message
       tags:
@@ -2384,43 +2470,43 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unauthorized
         "403":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Forbidden
         "404":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Not Found
         "409":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Conflict
         "422":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unprocessable Entity
         "429":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Too Many Requests
         "500":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Internal Server Error
       summary: Move the caller's read position forward and clear a manual unread mark
       tags:
@@ -2445,43 +2531,43 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unauthorized
         "403":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Forbidden
         "404":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Not Found
         "409":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Conflict
         "422":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unprocessable Entity
         "429":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Too Many Requests
         "500":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Internal Server Error
       summary: Tell the other members the caller is typing; repeat every 5 seconds while typing, receivers drop it after 6
       tags:
@@ -2511,43 +2597,43 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unauthorized
         "403":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Forbidden
         "404":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Not Found
         "409":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Conflict
         "422":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unprocessable Entity
         "429":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Too Many Requests
         "500":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Internal Server Error
       summary: Get or create the caller's direct conversation with a user
       tags:
@@ -2584,43 +2670,43 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unauthorized
         "403":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Forbidden
         "404":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Not Found
         "409":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Conflict
         "422":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unprocessable Entity
         "429":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Too Many Requests
         "500":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Internal Server Error
       summary: Upload a photo for a message; send its image_hash as media.image_hash
       tags:
@@ -2655,43 +2741,43 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unauthorized
         "403":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Forbidden
         "404":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Not Found
         "409":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Conflict
         "422":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unprocessable Entity
         "429":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Too Many Requests
         "500":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Internal Server Error
       summary: Edit the caller's own message within 48 hours of sending
       tags:
@@ -2726,43 +2812,43 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unauthorized
         "403":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Forbidden
         "404":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Not Found
         "409":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Conflict
         "422":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unprocessable Entity
         "429":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Too Many Requests
         "500":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Internal Server Error
       summary: Set the caller's reaction to a message, replacing any earlier one; null removes it
       tags:
@@ -2797,43 +2883,43 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unauthorized
         "403":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Forbidden
         "404":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Not Found
         "409":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Conflict
         "422":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unprocessable Entity
         "429":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Too Many Requests
         "500":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Internal Server Error
       summary: Report someone else's message; the message and up to 10 before it go to moderators
       tags:
@@ -2852,31 +2938,31 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unauthorized
         "403":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Forbidden
         "404":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Not Found
         "422":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unprocessable Entity
         "500":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Internal Server Error
       summary: The reaction vocabulary (the forum's, which is Telegram's default set)
       tags:
@@ -2896,43 +2982,43 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unauthorized
         "403":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Forbidden
         "404":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Not Found
         "409":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Conflict
         "422":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unprocessable Entity
         "429":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Too Many Requests
         "500":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Internal Server Error
       summary: A short-lived token for the realtime connection
       tags:
@@ -2951,31 +3037,31 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unauthorized
         "403":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Forbidden
         "404":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Not Found
         "422":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unprocessable Entity
         "500":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Internal Server Error
       summary: The caller's chat privacy settings
       tags:
@@ -2999,43 +3085,43 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unauthorized
         "403":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Forbidden
         "404":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Not Found
         "409":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Conflict
         "422":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unprocessable Entity
         "429":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Too Many Requests
         "500":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Internal Server Error
       summary: Change the caller's chat privacy settings
       tags:
@@ -3054,31 +3140,31 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unauthorized
         "403":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Forbidden
         "404":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Not Found
         "422":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unprocessable Entity
         "500":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Internal Server Error
       summary: Unread counts and the caller's update-stream position; fetch once when a page opens
       tags:
@@ -3118,31 +3204,31 @@ paths:
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unauthorized
         "403":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Forbidden
         "404":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Not Found
         "422":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Unprocessable Entity
         "500":
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorModel"
+                $ref: "#/components/schemas/Problem"
           description: Internal Server Error
       summary: The caller's update stream after a position, with the messages, conversations and users it names
       tags:
