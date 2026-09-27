@@ -158,12 +158,13 @@ export const useAuth = () => {
   const updateProfile = async (payload: {
     name?: string
     bio?: string
+    about?: string
     avatar?: string
     avatar_image_hash?: string
   }) => {
     const response = await api.patch<User>('/auth/me', payload)
     if (response.code === 0 && response.data) {
-      userStore.setUser(response.data)
+      userStore.setUser({ ...userStore.user, ...response.data })
     }
     return response
   }

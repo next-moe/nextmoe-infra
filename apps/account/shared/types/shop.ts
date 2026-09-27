@@ -5,7 +5,9 @@ export interface ShopDecoration {
   animated_url?: string
 }
 
-export type ShopKind = 'avatar_frame' | 'profile_background'
+export type ShopSlot = 'avatar_frame' | 'profile_background'
+
+export type ShopKind = ShopSlot | 'profile_about' | 'redeem_code'
 
 export interface ShopCosmetics {
   avatar_frame?: ShopDecoration
@@ -42,8 +44,10 @@ export interface ShopOffer {
   starts_at: string | null
   ends_at: string | null
   per_user_limit: number
+  limit_period: '' | 'month'
   stock: number | null
   sold: number
+  remaining: number | null
 }
 
 export interface ShopOwnedItem {
@@ -55,9 +59,15 @@ export interface ShopOwnedItem {
 }
 
 export interface ShopLoadout {
-  slot: ShopKind
+  slot: ShopSlot
   site_id: number
   item_id: number
+}
+
+export interface ShopCode {
+  item_id: number
+  code: string
+  expires_on: string | null
 }
 
 export interface ShopOrder {
@@ -65,6 +75,7 @@ export interface ShopOrder {
   price: number
   status: 'completed' | 'refunded'
   rewards: ShopReward[]
+  codes?: ShopCode[]
   created_at: string
 }
 

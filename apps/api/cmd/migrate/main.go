@@ -272,6 +272,8 @@ func runPlatform(cfg *config.Config, args []string) {
 func getAllModels() []any {
 	return []any{
 		// Auth models
+		// 2026-09-27: users.about / about_html, the purchasable profile intro;
+		// existing rows get '' and nothing is backfilled.
 		&authModel.User{},
 		&authModel.Session{},
 		&authModel.OAuthAccount{},
@@ -303,12 +305,16 @@ func getAllModels() []any {
 		// The moemoepoint shop (2026-09-23). Six brand-new tables, no rows to
 		// convert: decoration assets, items, offers, orders, entitlements and
 		// what each user wears per slot and site.
+		// 2026-09-27: shop_codes, the pools behind redeem-code items, and
+		// shop_offers.limit_period, whose default '' is the lifetime limit
+		// every existing offer already had.
 		&shopModel.Asset{},
 		&shopModel.Item{},
 		&shopModel.Offer{},
 		&shopModel.Order{},
 		&shopModel.Entitlement{},
 		&shopModel.Loadout{},
+		&shopModel.Code{},
 
 		// Site models
 		&siteModel.Site{},

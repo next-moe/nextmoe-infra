@@ -34,7 +34,7 @@ func (r *UserRepository) EraseAccount(ctx context.Context, userID uint, dueBy, a
 			UPDATE users
 			   SET name = '已注销#' || id, email = 'deleted-' || id || '@anonymized.invalid',
 			       password = NULL, kungal_password = NULL, moyu_password = NULL,
-			       avatar = '', avatar_image_hash = NULL, bio = '', ip = '',
+			       avatar = '', avatar_image_hash = NULL, bio = '', about = '', about_html = '', ip = '',
 			       original_email = NULL, adult_confirmed_at = NULL,
 			       status = 1, anonymized_at = ?, deletion_due_at = NULL, updated_at = ?
 			 WHERE id = ? AND anonymized_at IS NULL AND deletion_due_at <= ?`, at, at, userID, dueBy)

@@ -162,7 +162,8 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 		decorationStore = s3
 	}
 	shop := shopService.New(a.DB.DB(), ledger, decorationStore, cfg.ImageService.CDNBase)
-	userBatchSvc.WithCosmetics(shop)
+	userBatchSvc.WithCosmetics(shop).WithPerks(shop)
+	authSvc.WithPerks(shop)
 	prefSvc := authService.NewPreferenceService(userRepo, authRepo.NewUserPreferenceRepository(db))
 
 	fedReg := federation.NewRegistry(cfg)
@@ -413,6 +414,9 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	admin.Post("/shop/offers", shopManage, shopH.CreateOffer)
 	admin.Put("/shop/offers/:id", shopManage, shopH.UpdateOffer)
 	admin.Post("/shop/offers/:id/:action", shopManage, shopH.TransitionOffer)
+	admin.Get("/shop/codes", shopManage, shopH.CodePool)
+	admin.Post("/shop/codes", shopManage, shopH.AddCodes)
+	admin.Delete("/shop/codes/:id", shopManage, shopH.DeleteCode)
 	admin.Get("/shop/users/:uuid", shopGrant, shopH.UserShop)
 	admin.Post("/shop/users/:uuid/grants", shopGrant, shopH.Grant)
 	admin.Post("/shop/entitlements/:id/revoke", shopGrant, shopH.Revoke)
