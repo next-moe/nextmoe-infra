@@ -78,21 +78,13 @@ type ActivityResult struct {
 	Reason  string
 }
 
-// Items are written in key order and their groups recounted afterwards in
-// group order, so two concurrent batches take row locks in one global order
-// and cannot deadlock.
 func (s *ActivityService) Write(ctx context.Context, site string, urlHosts []string, items []ActivityInput) ([]ActivityResult, error) {
 	if len(items) == 0 || len(items) > activityBatchMax {
 		return nil, &InvalidError{Reason: "items must hold 1-100 activities"}
 	}
 	now := time.Now()
 	results := make([]ActivityResult, len(items))
-	type accepted struct {
-		idx      int
-		write    repository.ActivityWrite
-		eligible bool
-	}
-	var todo []accepted
+	var jobs []activityJob
 	inBatch := make(map[string]bool, len(items))
 	for i, in := range items {
 		results[i].Key = in.Key
@@ -105,59 +97,75 @@ func (s *ActivityService) Write(ctx context.Context, site string, urlHosts []str
 			continue
 		}
 		inBatch[in.Key] = true
-		todo = append(todo, accepted{idx: i, write: w, eligible: !w.Removed && w.Notify})
+		jobs = append(jobs, activityJob{idx: i, write: w, eligible: !w.Removed && w.Notify})
 	}
-	slices.SortFunc(todo, func(a, b accepted) int { return strings.Compare(a.write.Key, b.write.Key) })
-
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		actors := make([]int64, 0, len(todo))
-		for _, a := range todo {
-			if a.eligible {
-				actors = append(actors, a.write.ActorID)
-			}
-		}
-		hidden, err := repository.HiddenActorsTx(tx, actors)
-		if err != nil {
-			return err
-		}
-		groups := map[string]repository.ActivityGroupKey{}
-		for _, a := range todo {
-			res, err := repository.UpsertActivityTx(tx, site, a.write, a.eligible && !hidden[a.write.ActorID])
-			if err != nil {
-				return err
-			}
-			results[a.idx].Outcome = activityOutcome(res)
-			if !res.Applied {
-				continue
-			}
-			groups[res.NewGroup.String()] = res.NewGroup
-			if res.OldGroup != nil {
-				groups[res.OldGroup.String()] = *res.OldGroup
-			}
-			if err := enqueueActivityEventTx(tx, site, res); err != nil {
-				return err
-			}
-		}
-		for _, k := range slices.Sorted(maps.Keys(groups)) {
-			if err := repository.RefreshActivityGroupTx(tx, groups[k]); err != nil {
-				return err
-			}
-		}
-		return nil
+		return writeActivitiesTx(tx, site, jobs, results)
 	})
 	if err != nil {
 		return nil, err
 	}
+	logActivityWrites(site, results, time.Since(now))
+	return results, nil
+}
+
+type activityJob struct {
+	idx      int
+	write    repository.ActivityWrite
+	eligible bool
+}
+
+// Items are written in key order and their groups recounted afterwards in
+// group order, so two concurrent batches take row locks in one global order
+// and cannot deadlock.
+func writeActivitiesTx(tx *gorm.DB, site string, jobs []activityJob, results []ActivityResult) error {
+	slices.SortFunc(jobs, func(a, b activityJob) int { return strings.Compare(a.write.Key, b.write.Key) })
+	actors := make([]int64, 0, len(jobs))
+	for _, j := range jobs {
+		if j.eligible {
+			actors = append(actors, j.write.ActorID)
+		}
+	}
+	hidden, err := repository.HiddenActorsTx(tx, actors)
+	if err != nil {
+		return err
+	}
+	groups := map[string]repository.ActivityGroupKey{}
+	for _, j := range jobs {
+		res, err := repository.UpsertActivityTx(tx, site, j.write, j.eligible && !hidden[j.write.ActorID])
+		if err != nil {
+			return err
+		}
+		results[j.idx].Outcome = activityOutcome(res)
+		if !res.Applied {
+			continue
+		}
+		groups[res.NewGroup.String()] = res.NewGroup
+		if res.OldGroup != nil {
+			groups[res.OldGroup.String()] = *res.OldGroup
+		}
+		if err := enqueueActivityEventTx(tx, site, res); err != nil {
+			return err
+		}
+	}
+	for _, k := range slices.Sorted(maps.Keys(groups)) {
+		if err := repository.RefreshActivityGroupTx(tx, groups[k]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func logActivityWrites(site string, results []ActivityResult, took time.Duration) {
 	counts := map[string]int{}
 	for _, r := range results {
 		counts[r.Outcome]++
 	}
-	slog.Info("community activities written", "site", site, "items", len(items),
+	slog.Info("community activities written", "site", site, "items", len(results),
 		"created", counts[ActivityCreated], "updated", counts[ActivityUpdated],
 		"removed", counts[ActivityRemoved], "restored", counts[ActivityRestored],
 		"stale", counts[ActivityStale], "invalid", counts[ActivityInvalid],
-		"took", time.Since(now))
-	return results, nil
+		"took", took)
 }
 
 func activityOutcome(res repository.ActivityWriteResult) string {
@@ -198,6 +206,8 @@ func validateActivity(in ActivityInput, urlHosts []string, now time.Time) (repos
 	switch {
 	case in.Key == "" || len(in.Key) > activityKeyMax || !activityKeyPattern.MatchString(in.Key):
 		return w, "key must be 1-128 characters of A-Z a-z 0-9 . _ : -"
+	case strings.HasPrefix(in.Key, OwnActivityKeyPrefix):
+		return w, "the community: key prefix is reserved for the posts community holds"
 	case in.ActorID <= 0:
 		return w, "actor_id must be positive"
 	case in.Revision <= 0 || in.Revision > now.Add(activityClockSkew).UnixMicro():
@@ -316,5 +326,10 @@ func (s *ActivityService) ListOwn(site string, afterID int64, limit int) ([]mode
 }
 
 func (s *ActivityService) Prune(ctx context.Context) (int64, error) {
-	return repository.PruneActivityTombstones(s.db.WithContext(ctx), activityTombstoneKeep)
+	n, err := repository.PruneActivityTombstones(s.db.WithContext(ctx), activityTombstoneKeep)
+	if err != nil {
+		return n, err
+	}
+	m, err := repository.PruneAnchorPresentationTombstones(s.db.WithContext(ctx), activityTombstoneKeep)
+	return n + m, err
 }

@@ -389,6 +389,166 @@ components:
         - anchor_id
         - level
       type: object
+    AnchorPresentationItem:
+      additionalProperties: false
+      properties:
+        anchor_id:
+          description: the anchor id exactly as the site sends it on POST /comments, e.g. 123 or rating:45; 1-128 characters
+          type: string
+        anchor_kind:
+          description: "1 = site_game, 2 = site_resource: the anchor this site's comment walls hang on"
+          enum:
+            - 1
+            - 2
+          format: int32
+          type: integer
+        content_limit:
+          description: sfw | nsfw, the site's judgement of the page; missing = nsfw. A comment is nsfw when its page or its own rating is
+          type: string
+        removed:
+          description: "true: the page is gone or no longer public, and every comment on it leaves the feed. Needs only anchor_kind, anchor_id and revision"
+          type: boolean
+        revision:
+          description: unix microseconds at which the site read the state it is sending; a write whose revision is not greater than the stored one is ignored (stale)
+          format: int64
+          type: integer
+        title:
+          description: the page's display name, e.g. the game's title; at most 200 characters. Becomes the title of every comment activity on the anchor
+          type: string
+        url:
+          description: the page's canonical absolute https URL on one of the calling client's registered redirect hosts
+          type: string
+        work_id:
+          description: the catalog work the page is about
+          format: int64
+          type: integer
+      required:
+        - anchor_kind
+        - anchor_id
+        - revision
+      type: object
+    AnchorPresentationListResponse:
+      additionalProperties: false
+      properties:
+        next_cursor:
+          description: pass as cursor for the next page; empty = last page
+          type: string
+        presentations:
+          items:
+            $ref: "#/components/schemas/AnchorPresentationView"
+          type:
+            - array
+            - "null"
+      required:
+        - presentations
+      type: object
+    AnchorPresentationOutcome:
+      additionalProperties: false
+      properties:
+        anchor_id:
+          type: string
+        anchor_kind:
+          format: int32
+          type: integer
+        outcome:
+          enum:
+            - created
+            - updated
+            - removed
+            - restored
+            - stale
+            - invalid
+          type: string
+        reason:
+          description: why an item is invalid
+          type: string
+      required:
+        - anchor_kind
+        - anchor_id
+        - outcome
+      type: object
+    AnchorPresentationView:
+      additionalProperties: false
+      properties:
+        anchor_id:
+          type: string
+        anchor_kind:
+          format: int32
+          type: integer
+        content_limit:
+          enum:
+            - sfw
+            - nsfw
+          type: string
+        removed:
+          description: a tombstone; its title, url and work_id are cleared
+          type: boolean
+        removed_at:
+          format: date-time
+          type:
+            - string
+            - "null"
+        revision:
+          format: int64
+          type: integer
+        title:
+          type: string
+        updated_at:
+          format: date-time
+          type: string
+        url:
+          type: string
+        work_id:
+          format: int64
+          type:
+            - integer
+            - "null"
+      required:
+        - anchor_kind
+        - anchor_id
+        - title
+        - url
+        - work_id
+        - content_limit
+        - revision
+        - removed
+        - updated_at
+        - removed_at
+      type: object
+    AnchorPresentationWriteRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/AnchorPresentationWriteRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        items:
+          items:
+            $ref: "#/components/schemas/AnchorPresentationItem"
+          maxItems: 100
+          minItems: 1
+          type:
+            - array
+            - "null"
+      required:
+        - items
+      type: object
+    AnchorPresentationWriteResponse:
+      additionalProperties: false
+      properties:
+        results:
+          description: one per item, in request order
+          items:
+            $ref: "#/components/schemas/AnchorPresentationOutcome"
+          type:
+            - array
+            - "null"
+      required:
+        - results
+      type: object
     AnchorRef:
       additionalProperties: false
       properties:
@@ -978,6 +1138,48 @@ components:
           type: integer
         data:
           $ref: "#/components/schemas/ActivityWriteResponse"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeAnchorPresentationListResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeAnchorPresentationListResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/AnchorPresentationListResponse"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeAnchorPresentationWriteResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeAnchorPresentationWriteResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/AnchorPresentationWriteResponse"
         message:
           type: string
       required:
@@ -3358,6 +3560,65 @@ paths:
                 $ref: "#/components/schemas/HouseError"
           description: Error
       summary: Every live item of one activity group, newest first
+      tags:
+        - community-activities
+  /api/v1/community/anchor-presentations:
+    get:
+      operationId: listAnchorPresentations
+      parameters:
+        - description: opaque cursor from the previous page
+          explode: false
+          in: query
+          name: cursor
+          schema:
+            description: opaque cursor from the previous page
+            type: string
+        - description: page size (max 1000, default 1000)
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: page size (max 1000, default 1000)
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAnchorPresentationListResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: "This site's stored anchor presentations in anchor order, tombstones included: the reconciliation read"
+      tags:
+        - community-activities
+    put:
+      operationId: writeAnchorPresentations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnchorPresentationWriteRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAnchorPresentationWriteResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Push up to 100 of this site's comment-wall pages (title, URL, work, content limit) under the revision rule; one outcome per item
       tags:
         - community-activities
   /api/v1/community/anchors/notification:
