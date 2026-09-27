@@ -61,6 +61,7 @@ printf '\n'
 printf '%boauth%b      :9277\n'    "$BLUE"    "$NC"
 printf '%bcatalog%b    :9281\n'    "$GREEN"   "$NC"
 printf '%bcommunity%b  :9282\n'    "$BRIGHT_BLUE" "$NC"
+printf '%bchat%b       :9285\n'    "$BRIGHT_BLUE" "$NC"
 printf '%bartifact%b   :9279\n'    "$YELLOW"  "$NC"
 printf '%btrust%b      :9283\n'    "$MAGENTA" "$NC"
 printf '%bimage%b      :9278\n'    "$CYAN"    "$NC"
@@ -69,6 +70,7 @@ printf '\n'
 start "$BLUE"    "oauth     " ./tmp/oauth      core || { cleanup; exit 1; }
 start "$GREEN"   "catalog   " ./tmp/catalog    core || { cleanup; exit 1; }
 start "$BRIGHT_BLUE" "community " ./tmp/community  core || { cleanup; exit 1; }
+start "$BRIGHT_BLUE" "chat      " ./tmp/chat       core || { cleanup; exit 1; }
 start "$MAGENTA" "trust     " ./tmp/trust      core || { cleanup; exit 1; }
 start "$CYAN"    "image     " ./tmp/image      core || { cleanup; exit 1; }
 

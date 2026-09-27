@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-## 错误码注册表（顶层 `code`，共 44 个）
+## 错误码注册表（顶层 `code`，共 49 个）
 
 `code` 是封闭注册表里的稳定标识；`errors[].reason` 是另一套互不重叠的字段级词表。认不得的 `code` 一律按 `status` 兜底——我们会往注册表里加新成员。
 
@@ -86,6 +86,16 @@
 | --- | --- | --- | --- |
 | `STORE_QUOTA_EXCEEDED` | 403 | Store quota exceeded | The application has minted the maximum number of purchase links. |
 | `STORE_LINK_UNAVAILABLE` | 502 | Store link unavailable | The link shortener is unavailable; no link was issued — there is deliberately no fallback to a bare affiliate URL. |
+
+### chat
+
+| code | HTTP | title | description |
+| --- | --- | --- | --- |
+| `CHAT_BLOCKED` | 403 | Blocked | One of the two users has blocked the other, so no direct message can pass between them. Which side blocked is not said. |
+| `CHAT_NOT_ACCEPTING` | 403 | Not accepting messages | The recipient's settings do not let the caller reach their inbox or send a message request, or the caller's account is too new to send requests. detail says which. |
+| `CHAT_REQUEST_LIMIT` | 403 | Message request limit | The recipient has not accepted the conversation yet. Until they do, the caller may send at most 3 plain-text messages, with no links and no media. |
+| `CHAT_EDIT_WINDOW_CLOSED` | 409 | Edit window closed | A message can be edited for 48 hours after it was sent. |
+| `CHAT_NOT_PERMITTED` | 403 | Not permitted | The caller's place in the conversation does not allow this: deleting someone else's message for everyone, editing someone else's message, or pinning in a group as a plain member. |
 
 ---
 本页来源 · NextMoe 开发者平台 · https://developer.nextmoe.dev/problems

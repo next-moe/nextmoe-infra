@@ -3,7 +3,7 @@
 //
 //	migrate              # the platform database (cfg.Database): auth, sites, devapi…
 //	migrate -drop        # …dropping every table first (DANGEROUS)
-//	migrate <domain>     # one domain database — catalog | community | trust | ai | news
+//	migrate <domain>     # one domain database — catalog | chat | community | trust | ai | news
 //
 // The per-domain targets used to be five near-identical cmd/migrate-* binaries
 // shipped as five separate images; they are table-driven in domain.go now.

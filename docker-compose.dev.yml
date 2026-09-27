@@ -63,6 +63,7 @@ x-dev-env: &dev-env
   KUN_IMAGES_PG_DATABASE: kun_images
   KUN_CATALOG_PG_DATABASE: kun_catalog
   KUN_COMMUNITY_PG_DATABASE: kun_community
+  KUN_CHAT_PG_DATABASE: kun_chat
   KUN_TRUST_PG_DATABASE: kun_trust
   KUN_AI_PG_DATABASE: kun_ai
   KUN_NEWS_PG_DATABASE: kun_news
@@ -273,6 +274,29 @@ services:
     environment: { <<: *dev-env }
     restart: "no"
 
+  migrate-chat:
+    image: ghcr.io/next-moe/infra-migrate:${INFRA_IMAGE_TAG:-latest}
+    command: ["chat"]
+    network_mode: host
+    environment: { <<: *dev-env }
+    restart: "no"
+
+  # Realtime pushes for chat (plan 17). The air-run chat on :9285 publishes to
+  # it at http://127.0.0.1:8000 and clients connect to
+  # ws://127.0.0.1:8000/connection/websocket. The dev key and secret below are
+  # the ones apps/api/.env.example gives chat.
+  centrifugo:
+    image: centrifugo/centrifugo:v6.9.6
+    command: ["centrifugo"]
+    network_mode: host
+    environment:
+      CENTRIFUGO_CLIENT_TOKEN_HMAC_SECRET_KEY: dev-chat-realtime-secret
+      CENTRIFUGO_HTTP_API_KEY: dev-chat-centrifugo-key
+      CENTRIFUGO_CLIENT_ALLOWED_ORIGINS: "http://localhost:3000 http://127.0.0.1:3000 http://localhost:5173 http://127.0.0.1:5173"
+      CENTRIFUGO_CHANNEL_NAMESPACES: '[{"name":"user"}]'
+      CENTRIFUGO_HEALTH_ENABLED: "true"
+    restart: unless-stopped
+
   # ai's schema is `full`-profile only: nothing a bare `pnpm dev` runs dials
   # :9284 (trust has empty AI creds so it never dials), and its consumers are
   # the PRODUCT repos — which is what `pnpm dev:full` is for.
@@ -433,6 +457,28 @@ services:
     depends_on:
       migrate: { condition: service_completed_successfully }            # reads oauth_clients
       migrate-community: { condition: service_completed_successfully }  # kun_community schema
+    healthcheck:
+      test: ["CMD", "/app", "healthcheck"]
+      <<: *svc-health
+    restart: unless-stopped
+
+  chat:
+    image: ghcr.io/next-moe/infra-chat:${INFRA_IMAGE_TAG:-latest}
+    # `full` like community: air hot-reloads :9285 from source.
+    profiles: ["full"]
+    network_mode: host
+    environment:
+      <<: *dev-env
+      KUN_CHAT_HOST: 0.0.0.0
+      KUN_CHAT_PORT: "9285"
+      KUN_CHAT_REALTIME_URL: ws://127.0.0.1:8000/connection/websocket
+      KUN_CHAT_CENTRIFUGO_API_URL: http://127.0.0.1:8000
+      KUN_CHAT_CENTRIFUGO_API_KEY: dev-chat-centrifugo-key
+      KUN_CHAT_REALTIME_TOKEN_SECRET: dev-chat-realtime-secret
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      migrate-community: { condition: service_completed_successfully }
+      migrate-chat: { condition: service_completed_successfully }
     healthcheck:
       test: ["CMD", "/app", "healthcheck"]
       <<: *svc-health

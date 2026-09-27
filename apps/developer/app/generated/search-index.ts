@@ -2017,6 +2017,41 @@ export const searchIndex: SearchEntry[] = [
     "b": "STORE_LINK_UNAVAILABLE Store link unavailable The link shortener is unavailable; no link was issued — there is deliberately no fallback to a bare affiliate URL. 短链服务不可用，没有签发任何链接——这里有意不回退到裸的联盟 URL。 store"
   },
   {
+    "r": "/problems/chat/chat-blocked",
+    "t": "已拉黑",
+    "s": "错误码 · 私信",
+    "d": "CHAT_BLOCKED · HTTP 403",
+    "b": "CHAT_BLOCKED Blocked One of the two users has blocked the other, so no direct message can pass between them. Which side blocked is not said. 两人中有一方拉黑了另一方，彼此之间无法再发私信。不会说明是哪一方拉黑的。 chat"
+  },
+  {
+    "r": "/problems/chat/chat-not-accepting",
+    "t": "对方不接收私信",
+    "s": "错误码 · 私信",
+    "d": "CHAT_NOT_ACCEPTING · HTTP 403",
+    "b": "CHAT_NOT_ACCEPTING Not accepting messages The recipient's settings do not let the caller reach their inbox or send a message request, or the caller's account is too new to send requests. detail says which. 对方的设置不允许调用者直接进入收件箱，也不接受消息请求；或者调用者的账号太新，还不能发消息请求。detail 会说明是哪一种。 chat"
+  },
+  {
+    "r": "/problems/chat/chat-request-limit",
+    "t": "消息请求受限",
+    "s": "错误码 · 私信",
+    "d": "CHAT_REQUEST_LIMIT · HTTP 403",
+    "b": "CHAT_REQUEST_LIMIT Message request limit The recipient has not accepted the conversation yet. Until they do, the caller may send at most 3 plain-text messages, with no links and no media. 对方还没有接受这段对话。在对方接受之前，调用者最多只能发 3 条纯文本消息，不能带链接和媒体。 chat"
+  },
+  {
+    "r": "/problems/chat/chat-edit-window-closed",
+    "t": "已过编辑时限",
+    "s": "错误码 · 私信",
+    "d": "CHAT_EDIT_WINDOW_CLOSED · HTTP 409",
+    "b": "CHAT_EDIT_WINDOW_CLOSED Edit window closed A message can be edited for 48 hours after it was sent. 消息发出后 48 小时内可以编辑。 chat"
+  },
+  {
+    "r": "/problems/chat/chat-not-permitted",
+    "t": "无权操作",
+    "s": "错误码 · 私信",
+    "d": "CHAT_NOT_PERMITTED · HTTP 403",
+    "b": "CHAT_NOT_PERMITTED Not permitted The caller's place in the conversation does not allow this: deleting someone else's message for everyone, editing someone else's message, or pinning in a group as a plain member. 调用者在这段对话里的身份不允许这样做：替别人把消息对所有人删除、编辑别人的消息，或者在群里以普通成员身份置顶。 chat"
+  },
+  {
     "r": "/docs/vocabularies/medium",
     "t": "媒介",
     "s": "词表 · 封闭",

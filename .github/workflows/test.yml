@@ -82,6 +82,7 @@ jobs:
           go run ./cmd/gen-openapi -catalog-admin -o ../../docs/catalog/admin-openapi.yaml
           go run ./cmd/gen-openapi -catalog-v2 -o ../../docs/catalog/v2-openapi.yaml
           go run ./cmd/gen-openapi -community -o ../../docs/community/openapi.yaml
+          go run ./cmd/gen-openapi -chat -o ../../docs/chat/openapi.yaml
           go run ./cmd/gen-openapi -trust -o ../../docs/trust/openapi.yaml
           go run ./cmd/gen-openapi -trust-admin -o ../../docs/trust/admin-openapi.yaml
           go run ./cmd/gen-openapi -ai -o ../../docs/ai/openapi.yaml
@@ -99,7 +100,7 @@ jobs:
           # other Go-side exports. Every file this generator writes belongs in the
           # diff below.
           go run ./cmd/gen-v2-portal -o ../developer/app/generated
-          git diff --exit-code -- ../../docs/artifact/ ../../docs/catalog/ ../../docs/community/ ../../docs/trust/ ../../docs/ai/ ../developer/app/generated/mcp-tools.mjs ../developer/app/generated/problems.ts ../developer/app/generated/vocabularies.ts
+          git diff --exit-code -- ../../docs/artifact/ ../../docs/catalog/ ../../docs/chat/ ../../docs/community/ ../../docs/trust/ ../../docs/ai/ ../developer/app/generated/mcp-tools.mjs ../developer/app/generated/problems.ts ../developer/app/generated/vocabularies.ts
 
   integration:
     name: integration (postgres + opensearch)

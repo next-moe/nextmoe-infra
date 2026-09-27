@@ -125,6 +125,10 @@ run_assertions() {
       assert_zero "held posts content synthetic" kun_community \
         "SELECT count(*) FROM community_post WHERE status=1 AND (content_raw NOT LIKE '%${MK}%' OR content_html NOT LIKE '%${MK}%')"
       content_col_synthetic kun_community community_flag note ;;
+    kun_chat)
+      assert_zero "live chat text synthetic" kun_chat \
+        "SELECT count(*) FROM chat_message WHERE deleted_at IS NULL AND kind = 'message' AND text NOT LIKE '%${MK}%'"
+      assert_zero "drafts cleared" kun_chat "SELECT count(*) FROM chat_member WHERE draft IS NOT NULL" ;;
     kun_images)
       assert_zero "first_uploader_ip cleared" kun_images "SELECT count(*) FROM images WHERE first_uploader_ip IS NOT NULL AND first_uploader_ip <> ''" ;;
     kun_news)

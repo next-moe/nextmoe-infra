@@ -34,6 +34,7 @@
 | `artifact` | 9279 | 大文件(补丁)服务(纯 Go) |
 | `catalog` | 9281 | 跨媒介目录 + **galgame-wiki API**(纯 Go;:9280 独立 galgame 服务已于 wiki 退役 W3/W5 退休) |
 | `community` | 9282 | 社区原语服务(纯 Go) |
+| `chat` | 9285 | 全网私聊与群组(纯 Go;实时推送经 Centrifugo) |
 | `trust` | 9283 | Trust & Safety 平台(纯 Go) |
 | `ai` | 9284 | AI 网关语义层(纯 Go) |
 | `web` | 3000 | 管理端前端(Nuxt 4) |

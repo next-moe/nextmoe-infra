@@ -11,7 +11,8 @@ export const problemDomainsZh: Record<string, string> = {
   "me": "用户面",
   "moderation": "审核面",
   "news": "资讯面",
-  "store": "商店面"
+  "store": "商店面",
+  "chat": "私信"
 }
 
 export const problemsZh: Record<string, { title: string; description: string }> = {
@@ -190,5 +191,25 @@ export const problemsZh: Record<string, { title: string; description: string }> 
   "STORE_LINK_UNAVAILABLE": {
     "title": "无法签发购买链接",
     "description": "短链服务不可用，没有签发任何链接——这里有意不回退到裸的联盟 URL。"
+  },
+  "CHAT_BLOCKED": {
+    "title": "已拉黑",
+    "description": "两人中有一方拉黑了另一方，彼此之间无法再发私信。不会说明是哪一方拉黑的。"
+  },
+  "CHAT_NOT_ACCEPTING": {
+    "title": "对方不接收私信",
+    "description": "对方的设置不允许调用者直接进入收件箱，也不接受消息请求；或者调用者的账号太新，还不能发消息请求。detail 会说明是哪一种。"
+  },
+  "CHAT_REQUEST_LIMIT": {
+    "title": "消息请求受限",
+    "description": "对方还没有接受这段对话。在对方接受之前，调用者最多只能发 3 条纯文本消息，不能带链接和媒体。"
+  },
+  "CHAT_EDIT_WINDOW_CLOSED": {
+    "title": "已过编辑时限",
+    "description": "消息发出后 48 小时内可以编辑。"
+  },
+  "CHAT_NOT_PERMITTED": {
+    "title": "无权操作",
+    "description": "调用者在这段对话里的身份不允许这样做：替别人把消息对所有人删除、编辑别人的消息，或者在群里以普通成员身份置顶。"
   }
 }

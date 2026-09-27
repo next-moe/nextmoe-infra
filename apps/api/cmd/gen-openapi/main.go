@@ -10,6 +10,7 @@ import (
 	artHandler "api/internal/platform/artifact/handler"
 	"api/internal/platform/artifact/service"
 	catHandler "api/internal/platform/catalog/handler"
+	chatHandler "api/internal/platform/chat/handler"
 	commHandler "api/internal/platform/community/handler"
 	trustHandler "api/internal/platform/trust/handler"
 
@@ -24,6 +25,7 @@ func main() {
 	catalogAdmin := flag.Bool("catalog-admin", false, "emit the catalog admin review-queue spec (/api/v1/admin/catalog/*)")
 	catalogV2 := flag.Bool("catalog-v2", false, "emit the NextMoe public API v2 spec (/v2/problems, /v2/vocabularies, …)")
 	community := flag.Bool("community", false, "emit the community S2S embed spec (/api/v1/community/*)")
+	chat := flag.Bool("chat", false, "emit the chat spec (/v2/chat/*)")
 	trust := flag.Bool("trust", false, "emit the trust S2S intake spec (/api/v1/trust/*)")
 	trustAdmin := flag.Bool("trust-admin", false, "emit the trust admin review-inbox spec (/api/v1/admin/trust/*)")
 	ai := flag.Bool("ai", false, "emit the AI-gateway S2S spec (/api/v1/ai/*)")
@@ -39,6 +41,8 @@ func main() {
 		api = v2handler.Setup(app)
 	case *community:
 		api = commHandler.Setup(app, commHandler.Services{})
+	case *chat:
+		api = chatHandler.Setup(app, chatHandler.Options{})
 	case *trust:
 		api = trustHandler.Setup(app, nil, nil, nil, nil, nil)
 	case *trustAdmin:

@@ -34,6 +34,7 @@ CORE_DBS=(
   kungalgame
   kungalgame_patch
   kun_community
+  kun_chat
   kun_catalog
   kun_images
   kun_artifacts
@@ -48,6 +49,7 @@ SCRUB_DBS=(
   kungalgame
   kungalgame_patch
   kun_community
+  kun_chat
   kun_images
   kun_news
 )

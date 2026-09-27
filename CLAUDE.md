@@ -48,10 +48,10 @@ English, and short. When in doubt, delete it — a wrong comment costs more than
 ## Local development (one command)
 
 `pnpm dev` starts **everything an infra session needs**: it brings up the
-platform base from `docker-compose.dev.yml` (redis / minio / opensearch / mailpit +
+platform base from `docker-compose.dev.yml` (redis / minio / opensearch / mailpit / centrifugo +
 the migrations, all from the single `infra-migrate` image — one binary, one
-target per invocation) and then runs `air` for the six frequently-edited Go services
-(**oauth / catalog / community / image / artifact / trust**, hot-reloaded from
+target per invocation) and then runs `air` for the seven frequently-edited Go services
+(**oauth / catalog / community / chat / image / artifact / trust**, hot-reloaded from
 source) plus the Nuxt frontends. catalog (:9281) hosts the catalog faces and the
 `/v1/galgame` **410 tombstone only** (`galgameapp.MountRetiredPublic`); the
 standalone galgame service (:9280) and every live galgame face are retired,
@@ -69,14 +69,14 @@ was starting a second copy of one that was already up.
   image pull and an idle container. Need it (product-repo work, or editing it)?
   `pnpm dev:full`, or `docker compose -f docker-compose.dev.yml --profile full
   up -d ai`. community (:9282) is **not** in that group — it is hot-reloaded
-  from source like the other five, and a bare `up` migrates `kun_community` for
+  from source like the other six, and a bare `up` migrates `kun_community` for
   it.
 - `pnpm dev:full` = the whole platform from images with no source build (for
   developing a **product** repo, not infra). `pnpm dev:down` tears the base down.
 - Ports match prod (9277-9284); Postgres is the box's own `127.0.0.1:5432`, not
   a compose service — its host/port/user/password are `${VAR:-default}` in the
   dev compose, so override them from a root `.env` instead of editing the file.
-  Create the 12 databases with `pnpm dev:db` (idempotent): `docker/initdb.d` runs
+  Create the 13 databases with `pnpm dev:db` (idempotent): `docker/initdb.d` runs
   only when Postgres itself initialises an empty data dir, which on the box's own
   server is never. Full model: `docs/dev-environment.md`.
 - `pnpm dev` preflights with `pnpm dev:doctor` (read-only, ~2s; `SKIP_DOCTOR=1`
@@ -145,7 +145,7 @@ was starting a second copy of one that was already up.
 Deployment **does** run migrations, for the main DB as well as catalog: `docker-compose.prod.yml` carries one-shot `migrate*` jobs (`ghcr.io/next-moe/infra-migrate:latest`, `pull_policy: always`, `restart: "no"`) that execute on every `up` and gate the services through `depends_on: { condition: service_completed_successfully }`, so no service serves an un-migrated schema.
 
 - Main database `kun_galgame_infra` (oauth + the various site models) → `go run ./cmd/migrate`; on prod that is the `migrate` job, and it **runs automatically on every infra redeploy** — verified 2026-09-22, when `kun-visual-novel-infra-vqvqbc-migrate-1` executed both #283's and #286's migrations within minutes of each merge.
-- Catalog models → `go run ./cmd/migrate catalog` against `KUN_CATALOG_PG_DATABASE`, the `migrate-catalog` job on prod. Wave 161 removed the galgame family from this binary; it must not be recreated after the retirement DROP. (`migrate-community` / `migrate-trust` / `migrate-ai` / `migrate-news` are the same one-shot shape for their own databases.)
+- Catalog models → `go run ./cmd/migrate catalog` against `KUN_CATALOG_PG_DATABASE`, the `migrate-catalog` job on prod. Wave 161 removed the galgame family from this binary; it must not be recreated after the retirement DROP. (`migrate-community` / `migrate-chat` / `migrate-trust` / `migrate-ai` / `migrate-news` are the same one-shot shape for their own databases.)
 - **Outage-class changes still follow the manual migrate-first order.** The job and the new image go out together, so anything destructive or non-additive must be run by hand first. What makes the automatic per-deploy re-run safe is that `cmd/migrate` is idempotent and additive-only (`AutoMigrate`, `CREATE INDEX IF NOT EXISTS`, existence-guarded seeds); a change that breaks that property does not belong in the deploy.
 - `cmd/image` / `cmd/artifact` → ship with `AutoMigrate` at service startup (no job, no manual step).
 - Manual production execution: the `infra-tools` image — **`ghcr.io/next-moe/infra-tools`**; the old `ghcr.io/kunmoe` org is dead and its `:latest` is stale — plus an env-file dumped from the corresponding container's `.Config.Env` (see the prod ops notes). A one-off `docker compose -f docker-compose.prod.yml run --rm migrate` also still works.

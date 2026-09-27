@@ -396,5 +396,50 @@ export const problems = [
     "title": "Store link unavailable",
     "description": "The link shortener is unavailable; no link was issued — there is deliberately no fallback to a bare affiliate URL.",
     "type": "https://developer.nextmoe.dev/problems/store/store-link-unavailable"
+  },
+  {
+    "code": "CHAT_BLOCKED",
+    "domain": "chat",
+    "kebab": "chat-blocked",
+    "status": 403,
+    "title": "Blocked",
+    "description": "One of the two users has blocked the other, so no direct message can pass between them. Which side blocked is not said.",
+    "type": "https://developer.nextmoe.dev/problems/chat/chat-blocked"
+  },
+  {
+    "code": "CHAT_NOT_ACCEPTING",
+    "domain": "chat",
+    "kebab": "chat-not-accepting",
+    "status": 403,
+    "title": "Not accepting messages",
+    "description": "The recipient's settings do not let the caller reach their inbox or send a message request, or the caller's account is too new to send requests. detail says which.",
+    "type": "https://developer.nextmoe.dev/problems/chat/chat-not-accepting"
+  },
+  {
+    "code": "CHAT_REQUEST_LIMIT",
+    "domain": "chat",
+    "kebab": "chat-request-limit",
+    "status": 403,
+    "title": "Message request limit",
+    "description": "The recipient has not accepted the conversation yet. Until they do, the caller may send at most 3 plain-text messages, with no links and no media.",
+    "type": "https://developer.nextmoe.dev/problems/chat/chat-request-limit"
+  },
+  {
+    "code": "CHAT_EDIT_WINDOW_CLOSED",
+    "domain": "chat",
+    "kebab": "chat-edit-window-closed",
+    "status": 409,
+    "title": "Edit window closed",
+    "description": "A message can be edited for 48 hours after it was sent.",
+    "type": "https://developer.nextmoe.dev/problems/chat/chat-edit-window-closed"
+  },
+  {
+    "code": "CHAT_NOT_PERMITTED",
+    "domain": "chat",
+    "kebab": "chat-not-permitted",
+    "status": 403,
+    "title": "Not permitted",
+    "description": "The caller's place in the conversation does not allow this: deleting someone else's message for everyone, editing someone else's message, or pinning in a group as a plain member.",
+    "type": "https://developer.nextmoe.dev/problems/chat/chat-not-permitted"
   }
 ] as const

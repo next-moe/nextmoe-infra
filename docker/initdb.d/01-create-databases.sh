@@ -13,6 +13,8 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-'
 	-- (a historical gap): existing deployments already created it out of band, so
 	-- this only affects a fresh local init.
 	CREATE DATABASE kun_community;
+	-- Direct messages shared by every site, see cmd/migrate chat.
+	CREATE DATABASE kun_chat;
 	-- Trust & Safety platform (reports + review inbox), see cmd/migrate trust.
 	CREATE DATABASE kun_trust;
 	-- AI-gateway semantic layer (usage ledger + budget fuse), see cmd/migrate ai.
