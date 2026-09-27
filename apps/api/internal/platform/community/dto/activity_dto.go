@@ -116,7 +116,7 @@ type ActivitySeenResponse struct {
 }
 
 type ActivitySettingRequest struct {
-	Hidden bool `json:"hidden" doc:"true hides the user's activities from everyone else: they leave followers' feeds and unseen counts, kind 10 stops, the kind-10 rows already delivered are retracted, and /users/{id}/activities shows them only to the user. false shows them again; retracted notifications do not come back"`
+	Hidden bool `json:"hidden" doc:"true hides the user's activities from everyone else: they leave followers' feeds and unseen counts, kinds 9 and 10 stop, the kind-10 rows already delivered are retracted, and /users/{id}/activities shows them only to the user. false shows them again; retracted notifications do not come back"`
 }
 
 type ActivitySettingView struct {

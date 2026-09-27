@@ -218,6 +218,12 @@ func rawSQL(db *gorm.DB) error {
 			CREATE INDEX IF NOT EXISTS idx_community_notification_thread_unread
 			    ON community_notification(thread_id, user_id)
 			    WHERE read_at IS NULL`},
+		// 2026-09-27: hiding one's activities retracts their kind-10 rows while
+		// holding the dispatch lock; this keeps that UPDATE off a full scan.
+		{"idx_community_notification_followee", `
+			CREATE INDEX IF NOT EXISTS idx_community_notification_followee
+			    ON community_notification(actor_id)
+			    WHERE kind = 10`},
 		{"idx_community_notification_read", `
 			CREATE INDEX IF NOT EXISTS idx_community_notification_read
 			    ON community_notification(read_at)

@@ -133,12 +133,18 @@ func recipientsForEvent(tx *gorm.DB, ev *model.CommunityEvent, thread *model.Com
 			add(notifyCandidate{site: au.Site, userID: au.UserID, kind: k, fromAnchor: true})
 		}
 		if post != nil && post.PostNumber == 1 && thread.Kind == model.ThreadKindTopic {
-			followerIDs, err := repository.ListNotifiedFollowerIDsTx(tx, post.AuthorID)
+			hidden, err := repository.ActivitiesHidden(tx, post.AuthorID)
 			if err != nil {
 				return nil, err
 			}
-			for _, uid := range followerIDs {
-				add(notifyCandidate{site: deliveryFor(uid), userID: uid, kind: model.NotificationKindFolloweeThreadCreated})
+			if !hidden {
+				followerIDs, err := repository.ListNotifiedFollowerIDsTx(tx, post.AuthorID)
+				if err != nil {
+					return nil, err
+				}
+				for _, uid := range followerIDs {
+					add(notifyCandidate{site: deliveryFor(uid), userID: uid, kind: model.NotificationKindFolloweeThreadCreated})
+				}
 			}
 		}
 	case model.EventKindPostLiked:

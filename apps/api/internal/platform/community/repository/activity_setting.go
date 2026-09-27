@@ -24,6 +24,20 @@ func ActivitiesHidden(db *gorm.DB, userID int64) (bool, error) {
 	return s != nil && s.Hidden, err
 }
 
+func HiddenActorsTx(tx *gorm.DB, userIDs []int64) (map[int64]bool, error) {
+	out := map[int64]bool{}
+	if len(userIDs) == 0 {
+		return out, nil
+	}
+	var ids []int64
+	err := tx.Model(&model.CommunityActivitySetting{}).
+		Where("user_id IN ? AND hidden", userIDs).Pluck("user_id", &ids).Error
+	for _, id := range ids {
+		out[id] = true
+	}
+	return out, err
+}
+
 func UpsertActivitySettingTx(tx *gorm.DB, userID int64, hidden bool) (time.Time, error) {
 	var at time.Time
 	err := tx.Raw(`
@@ -37,7 +51,7 @@ func UpsertActivitySettingTx(tx *gorm.DB, userID int64, hidden bool) (time.Time,
 func RetractFolloweeActivityTx(tx *gorm.DB, actorID int64) (int64, error) {
 	res := tx.Exec(`
 		UPDATE community_notification SET
-		    item_count = 0, activity_id = NULL, read_at = COALESCE(read_at, now()),
+		    item_count = 0, activity_id = NULL, read_at = now(),
 		    seq = nextval('community_notification_seq'), updated_at = now()
 		 WHERE kind = ? AND actor_id = ? AND item_count > 0`,
 		model.NotificationKindFolloweeActivity, actorID)

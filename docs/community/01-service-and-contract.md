@@ -566,7 +566,7 @@ A group is `{id, site, actor_id, verb, object_kind, object_label, day, item_coun
 - `GET /users/{id}/activity-settings` → `{user_id, hidden, updated_at}` (`updated_at` null until first set; no setting reads as `hidden: false`).
 - `PUT /users/{id}/activity-settings {hidden}` → the same shape. `hidden` is required.
 
-While hidden, the user's groups leave every follower's feed and unseen count (the switch is read at read time, like the follow graph), `GET /users/{id}/activities` answers `{groups: [], hidden: true}` to any `viewer_id` but the user's own, and `GET /activity-groups/{id}/items` answers `404` for their groups to anyone but them. The site keeps pushing as before: hiding changes who sees the activities, not what is stored, so `GET /activities` still lists them. Turning it on also retracts every kind-10 row the user raised, on every site, read ones included, and stops new ones (see Notifications). Turning it off shows everything again at once; the retracted notifications do not come back, and nothing published while hidden notifies.
+While hidden, the user's groups leave every follower's feed and unseen count (the switch is read at read time, like the follow graph), `GET /users/{id}/activities` answers `{groups: [], hidden: true}` to any `viewer_id` but the user's own, and `GET /activity-groups/{id}/items` answers `404` for their groups to anyone but them. The site keeps pushing as before: hiding changes who sees the activities, not what is stored, so `GET /activities` still lists them. Turning it on also retracts every kind-10 row the user raised, on every site, read ones included, and stops new kind 9 and kind 10 notifications (see Notifications); kind-9 rows already delivered stay, since the topic they point at stays public on its board. Turning it off shows everything again at once; the retracted notifications do not come back, and nothing published while hidden ever notifies — an activity written while its author is hidden is never marked notified, and one whose event is dispatched while they are hidden loses the mark.
 
 ### Notifications
 
@@ -653,8 +653,8 @@ deletes its copy when it sees `item_count` 0; the inbox face leaves such rows
 out. An activity removed before its event is dispatched, a follower who
 went `feed` or unfollowed by then, or an author who hid their activities by
 then, is not notified. Hiding retracts, under the same `seq` rule, every
-kind-10 row naming the author on every site, read or unread. Kind 9 follows
-the same level rule.
+kind-10 row naming the author on every site, read or unread, and marks each
+read now. Kind 9 follows the same level and hiding rules.
 A follow is delivered to the site it was made through, and a kind-8 row counts
 only that site's follows, so the rows of two sites never count the same
 follower twice.

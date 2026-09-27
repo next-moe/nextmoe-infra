@@ -20,7 +20,7 @@ func (s *NotificationService) dispatchActivityPublished(tx *gorm.DB, ev *model.C
 		return 0, err
 	}
 	if hidden {
-		return eventDropped, nil
+		return eventDropped, repository.ForgetActivityNotificationsTx(tx, activityIDs)
 	}
 	since, err := repository.EarliestLiveNotifiedTx(tx, activityIDs)
 	if err != nil {

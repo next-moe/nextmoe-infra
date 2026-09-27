@@ -93,6 +93,7 @@ func TestHidingRetractsAndStopsFolloweeNotifications(t *testing.T) {
 	if _, _, err := ns.MarkRead("kungal", read, []int64{readRows[0].ID}, false); err != nil {
 		t.Fatalf("mark read: %v", err)
 	}
+	readRows = followeeRows(t, "kungal", read)
 
 	setHidden(t, author, true)
 	after := append(followeeRows(t, "kungal", unread), followeeRows(t, "moyu", unread)...)
@@ -107,6 +108,9 @@ func TestHidingRetractsAndStopsFolloweeNotifications(t *testing.T) {
 	for _, r := range after {
 		if r.ItemCount != 0 || r.ActivityID != nil || r.ReadAt == nil || r.Seq <= byID[r.ID].Seq {
 			t.Fatalf("every fold naming the author is retracted on every site, read ones too: %+v", r)
+		}
+		if was := byID[r.ID].ReadAt; was != nil && !r.ReadAt.After(*was) {
+			t.Fatalf("a retracted read row is read again now, so the 90-day prune cannot take it before mirrors see it: %+v", r)
 		}
 	}
 
@@ -142,5 +146,72 @@ func TestAccountPurgeDropsTheActivitySetting(t *testing.T) {
 	testDB.Raw(`SELECT count(*) FROM community_activity_setting WHERE user_id = ?`, gone).Scan(&n)
 	if n != 0 {
 		t.Fatal("an account purge drops the activity setting")
+	}
+}
+
+func TestNothingPublishedWhileHiddenNotifies(t *testing.T) {
+	cleanTables(t)
+	const author, follower int64 = 7, 1
+	mustFollow(t, "kungal", follower, author)
+	processBatch(t)
+	now := time.Now()
+
+	setHidden(t, author, true)
+	writeActivities(t, "kungal", notifyingPublish("hidden", author, now.Add(-10*time.Minute), 1))
+	setHidden(t, author, false)
+	processBatch(t)
+	if rows := followeeRows(t, "kungal", follower); len(rows) != 0 {
+		t.Fatalf("written while hidden, shown again before the dispatch: %+v", rows)
+	}
+	if a := getActivity(t, "kungal", "hidden"); a.NotifiedAt != nil {
+		t.Fatalf("an activity written while hidden is never notified: %+v", a)
+	}
+
+	writeActivities(t, "kungal", notifyingPublish("raced", author, now.Add(-5*time.Minute), 1))
+	setHidden(t, author, true)
+	processBatch(t)
+	if a := getActivity(t, "kungal", "raced"); a.NotifiedAt != nil {
+		t.Fatalf("an event dropped for a hidden author forgets its notification: %+v", a)
+	}
+	setHidden(t, author, false)
+
+	writeActivities(t, "kungal", notifyingPublish("late", author, now.Add(-20*time.Minute), 1))
+	processBatch(t)
+	rows := followeeRows(t, "kungal", follower)
+	late := getActivity(t, "kungal", "late")
+	if len(rows) != 1 || rows[0].ItemCount != 1 || rows[0].ActivityID == nil || *rows[0].ActivityID != late.ID {
+		t.Fatalf("a fold reaching back past the hidden stretch counts none of it: %+v", rows)
+	}
+}
+
+func TestHiddenAuthorsTopicNotifiesNoFollower(t *testing.T) {
+	cleanTables(t)
+	ts := NewThreadService(testDB, NoopSink{})
+	ctx := letmoeCtx()
+	const follower, author int64 = 10, 20
+	boardID := testBoard(t, "letmoe", "b1")
+	mustFollow(t, "letmoe", follower, author)
+	processBatch(t)
+	seedTrust(t, author, model.TrustLevelBasic, 0)
+	open := func(title string) {
+		t.Helper()
+		if _, _, err := ts.OpenTopic(ctx, OpenTopicParams{
+			Site: "letmoe", AuthorID: author, BoardID: boardID,
+			Title: title, ContentRating: model.ContentRatingAll, BodyRaw: "opening",
+		}); err != nil {
+			t.Fatalf("open topic: %v", err)
+		}
+		processBatch(t)
+	}
+
+	setHidden(t, author, true)
+	open("while hidden")
+	if rows := notifsOf(t, follower); len(rows) != 0 {
+		t.Fatalf("a hidden author's topic raises no kind 9: %+v", rows)
+	}
+	setHidden(t, author, false)
+	open("shown")
+	if rows := notifsOf(t, follower); len(rows) != 1 || rows[0].Kind != model.NotificationKindFolloweeThreadCreated {
+		t.Fatalf("shown again, the next topic notifies: %+v", rows)
 	}
 }
