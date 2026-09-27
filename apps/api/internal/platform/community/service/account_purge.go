@@ -24,6 +24,9 @@ func (s *PostService) PurgeAccount(ctx context.Context, uid int64) error {
 	if err := repository.DeleteUserFollows(s.db.WithContext(ctx), uid); err != nil {
 		return err
 	}
+	if err := repository.DeleteUserBlocks(s.db.WithContext(ctx), uid); err != nil {
+		return err
+	}
 	var sites []string
 	if err := s.db.WithContext(ctx).Raw(`
 		SELECT site FROM community_thread

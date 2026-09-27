@@ -322,9 +322,9 @@ database) and purges each one on every site that has rows for it, then drops
 its `community_trust` row. Its cursor is `account_purge_cursor` in this
 database, and a failed account stops the run so the next hour retries it. The
 archive and the restore above cover these purges too. The account purge also
-deletes every follow naming the account, in either direction; a site's author
-purge leaves follows alone because a follow belongs to the account, not to a
-site.
+deletes every follow and every block naming the account, in either direction;
+a site's author purge leaves them alone because follows and blocks belong to
+the account, not to a site.
 
 ### Write-time content pipeline (invariant 6)
 
@@ -511,11 +511,32 @@ are computed at read time from indexes.
 - `DELETE /users/{id}/following/{target_id}` — unfollow (idempotent; `deleted` says whether a follow was removed)
 - `GET /users/{id}/followers` — who follows this user, newest first
 - `GET /users/{id}/following` — who this user follows, newest first
-- `POST /follows/states` — batch follower/following counts and the viewer's relation to up to 100 users; `viewer_notify` is the viewer's level toward each user, null when the viewer does not follow them
+- `POST /follows/states` — batch follower/following counts and the viewer's relation to up to 100 users; `viewer_notify` is the viewer's level toward each user, null when the viewer does not follow them; `viewer_blocks` / `blocks_viewer` say whether the viewer has blocked the user or the user has blocked the viewer
 
 `followed_at` is null when the follow was imported from a site that never recorded when it was made. A user may follow at most 5,000 others (`422 following limit reached (max 5000)`). List pages are a keyset: `cursor` is the last row's id as a decimal string; empty means the last page. A new follow notifies the followee as kind 8 (`followed`); opening a topic notifies that author's followers as kind 9 (`followee_thread_created`), and a site's new publication notifies them as kind 10 (`followee_activity`) — see Notifications.
 
 Every follow has a **level**: `all` (the default for every follow, old and new) or `feed`. It decides only who kinds 9 and 10 go to: a `feed` follower still sees the author in the following feed and still counts as a follower, and kind 8 is unaffected. Changing the level never creates or re-announces a follow — the bell is a `PATCH`, so a stale click cannot bring back a follow another tab removed. The level is the follower's own business and appears on no public list.
+
+### User blocks
+
+A block is account-level and network-wide, like a follow, and community is its
+only writer. `origin_site` is provenance only. Every face requires the caller's
+site binding.
+
+- `PUT /users/{id}/blocking/{target_id}` — block (idempotent; `created` says whether it is new)
+- `DELETE /users/{id}/blocking/{target_id}` — unblock (idempotent; `deleted` says whether a block was removed)
+- `GET /users/{id}/blocking` — who this user has blocked, newest first, with the follow lists' keyset cursor. Only the blocker's own list exists: who has blocked a user is never listed, and reaches a site only as `blocks_viewer` on `POST /follows/states`.
+
+What a block does:
+
+- It deletes the follow edges between the two users, **in both directions**, in the same transaction. Unblocking does not restore them.
+- While it stands, neither user can follow the other: `PUT /following` answers `403 one of the two users has blocked the other`, whichever of the two blocked.
+- No notification of any kind reaches the blocker when the blocked user is the actor — replies, mentions, likes, watched-thread posts, board and followee notifications alike. The other direction is not filtered: blocking someone does not stop your own mentions of them from notifying them.
+- The block itself notifies nobody.
+- A user may block at most 10,000 others (`422 blocking limit reached (max 10000)`).
+- The chat service reads blocks to refuse direct messages and group invites between the two users (plan 17).
+
+Blocks do not hide content: whether a site collapses a blocked user's posts is the site's rendering choice, using `viewer_blocks`.
 
 ### Activities and the following feed
 
