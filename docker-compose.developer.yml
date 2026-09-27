@@ -2,8 +2,8 @@
 # Compose `name:` is frozen: volumes, networks and container names hang off it.
 #
 # This is the developer portal split OUT of docker-compose.prod.yml into its OWN
-# Dokploy "Compose" project, so portal deploys are triggered MANUALLY and stay
-# independent of the main infra stack's webhook cadence (push → CI → auto-redeploy).
+# Dokploy "Compose" project. build-and-push redeploys it (DOKPLOY_WEBHOOK_DEVELOPER)
+# only when infra-developer was rebuilt, so main-stack pushes leave it alone.
 #
 # Routing: the developer.nextmoe.dev domain is managed in the Dokploy DOMAINS
 # PANEL of this project — the Dokploy-native form for a single-service,
@@ -17,8 +17,8 @@
 # /api/** relay forwards SERVER-side to the oauth service (NUXT_OAUTH_API_BASE), so
 # there is ZERO CORS and no backend change.
 #
-# Deploy = the Deploy button of this Dokploy project (panel injects the domain
-# labels at deploy time; a bare server-side `docker compose up` would NOT).
+# Deploy = that webhook or the Deploy button of this Dokploy project (panel injects
+# the domain labels at deploy time; a bare server-side `docker compose up` would NOT).
 name: kun-galgame-infra-developer
 
 services:

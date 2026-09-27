@@ -20,6 +20,10 @@
 # `tools` is the only group Dokploy does not deploy, so a `tools`-only build does
 # not trigger a redeploy; Actions → Run workflow → scope=tools rebuilds it alone.
 #
+# Three Dokploy projects deploy from this repo, and each is redeployed only when
+# an image it runs was rebuilt: the main stack (go/account/admin), the developer
+# portal (infra-developer) and the MCP server (infra-mcp).
+#
 # Images publish to ghcr.io/<repo owner>/* (today: next-moe). The first push
 # creates the package and links it to this repo — that is how GHCR "new
 # package" works; there is no UI create button. The KunMoe user packages
@@ -57,7 +61,9 @@ jobs:
     outputs:
       matrix: ${{ steps.set.outputs.matrix }}
       any: ${{ steps.set.outputs.any }}        # is there anything to build?
-      deploy: ${{ steps.set.outputs.deploy }}  # did a *deployable* (non-tool) image change?
+      deploy_infra: ${{ steps.set.outputs.deploy_infra }}
+      deploy_developer: ${{ steps.set.outputs.deploy_developer }}
+      deploy_mcp: ${{ steps.set.outputs.deploy_mcp }}
     steps:
       - uses: actions/checkout@v7
       # Diffing against event.before loses whatever a cancelled run was about to
@@ -150,7 +156,9 @@ jobs:
           fi
           n=$(jq -n --argjson s "$sel" '$s | length')
           echo "any=$([ "$n" -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-          echo "deploy=$(jq -n --argjson s "$sel" '$s | any(.[]; .group != "tools")')" >> "$GITHUB_OUTPUT"
+          echo "deploy_infra=$(jq -n --argjson s "$sel" '$s | any(.[]; .group == "go" or .group == "account" or .group == "admin")')" >> "$GITHUB_OUTPUT"
+          echo "deploy_developer=$(jq -n --argjson s "$sel" '$s | any(.[]; .group == "developer")')" >> "$GITHUB_OUTPUT"
+          echo "deploy_mcp=$(jq -n --argjson s "$sel" '$s | any(.[]; .name == "infra-mcp")')" >> "$GITHUB_OUTPUT"
           printf 'matrix={"include":%s}\n' "$sel" >> "$GITHUB_OUTPUT"
           echo "Selected $n image(s) to build:"
           jq -rn --argjson s "$sel" '$s[].name' | sed 's/^/  - /'
@@ -185,20 +193,25 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
 
-  deploy:                    # only when a deployable (non-tool) image was built
+  deploy:                    # each Dokploy project that runs a rebuilt image
     needs: [changes, build]
-    if: needs.changes.outputs.deploy == 'true'
+    if: >-
+      needs.changes.outputs.deploy_infra == 'true' ||
+      needs.changes.outputs.deploy_developer == 'true' ||
+      needs.changes.outputs.deploy_mcp == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Dokploy redeploy
+      - name: Trigger Dokploy redeploys
         env:
-          WEBHOOK: ${{ secrets.DOKPLOY_WEBHOOK_INFRA }}
+          DEPLOY_INFRA: ${{ needs.changes.outputs.deploy_infra }}
+          DEPLOY_DEVELOPER: ${{ needs.changes.outputs.deploy_developer }}
+          DEPLOY_MCP: ${{ needs.changes.outputs.deploy_mcp }}
+          WEBHOOK_INFRA: ${{ secrets.DOKPLOY_WEBHOOK_INFRA }}
+          WEBHOOK_DEVELOPER: ${{ secrets.DOKPLOY_WEBHOOK_DEVELOPER }}
+          WEBHOOK_MCP: ${{ secrets.DOKPLOY_WEBHOOK_MCP }}
           TITLE: ${{ github.event.head_commit.message || github.sha }}
         run: |
-          if [ -z "$WEBHOOK" ]; then
-            echo "DOKPLOY_WEBHOOK_INFRA not set — images pushed to GHCR, skipping redeploy trigger."
-            exit 0
-          fi
+          set -uo pipefail
           # Dokploy's compose webhook is not a bare trigger: the compose is
           # sourceType=github, so the handler branch-matches the request as if it
           # were a GitHub push event. A bodyless `curl -X POST` gets 301 "Branch
@@ -208,8 +221,21 @@ jobs:
           # require an actual 200.
           body=$(jq -n --arg ref "$GITHUB_REF" --arg sha "$GITHUB_SHA" --arg title "$TITLE" \
             '{ref: $ref, head_commit: {id: $sha, message: $title}}')
-          code=$(curl -sS -o response.json -w '%{http_code}' -X POST "$WEBHOOK" \
-            -H 'content-type: application/json' -H 'x-github-event: push' \
-            --data-raw "$body")
-          cat response.json; echo
-          [ "$code" = "200" ]
+          failed=0
+          redeploy() {
+            local project=$1 wanted=$2 webhook=$3
+            [ "$wanted" = "true" ] || return 0
+            if [ -z "$webhook" ]; then
+              echo "$project: webhook secret not set — image pushed to GHCR, redeploy skipped."
+              return 0
+            fi
+            code=$(curl -sS -o response.json -w '%{http_code}' -X POST "$webhook" \
+              -H 'content-type: application/json' -H 'x-github-event: push' \
+              --data-raw "$body")
+            echo "$project: HTTP $code $(cat response.json)"
+            [ "$code" = "200" ] || failed=1
+          }
+          redeploy infra "$DEPLOY_INFRA" "$WEBHOOK_INFRA"
+          redeploy developer "$DEPLOY_DEVELOPER" "$WEBHOOK_DEVELOPER"
+          redeploy mcp "$DEPLOY_MCP" "$WEBHOOK_MCP"
+          exit $failed
