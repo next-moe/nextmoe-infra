@@ -52,6 +52,9 @@ func Run(db *gorm.DB) error {
 		&model.CommunityActivity{},
 		&model.CommunityActivityGroup{},
 		&model.CommunityFeedSeen{},
+		// 2026-09-27: a user's switch to hide their activities from everyone
+		// else (plan 13). A new table with no rows; no row = not hidden.
+		&model.CommunityActivitySetting{},
 	); err != nil {
 		return fmt.Errorf("community automigrate: %w", err)
 	}

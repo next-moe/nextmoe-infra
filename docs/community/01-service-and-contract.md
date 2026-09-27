@@ -551,8 +551,8 @@ A site pushes its users' public activity into community; the following feed read
 **Reading.**
 
 - `GET /users/{id}/following/activities?cursor=&limit=&content_limit=&sites=&verbs=` — groups of everyone the user follows **now** (the follow graph is joined at read time, so a follow or unfollow shows at once), `latest_at` then `id` descending. `limit` ≤ 50 (default 20); `content_limit` is `all` (default) or `sfw`, filtered here so a page is never thinned by the reader; `sites` and `verbs` are comma-separated filters. A follow's level does not matter here.
-- `GET /users/{id}/activities?…` — one user's own groups, same parameters.
-- `GET /activity-groups/{id}/items?cursor=&limit=&content_limit=` — every live item of a group, newest first.
+- `GET /users/{id}/activities?viewer_id=&…` — one user's own groups, same parameters. `viewer_id` is the signed-in reader (0 or absent = anonymous); see Hiding.
+- `GET /activity-groups/{id}/items?viewer_id=&cursor=&limit=&content_limit=` — every live item of a group, newest first.
 
 A group is `{id, site, actor_id, verb, object_kind, object_label, day, item_count, latest_at, items}`, where `items` holds its newest items (at most 3). An item is `{id, site, key, actor_id, verb, object_kind, object_label, title, excerpt, url, cover_image_hash, work_id, content_limit, occurred_at}`. A group that gains an item moves to the top, so a group can move above a reader's cursor mid-scroll and not reappear on later pages; a refresh shows it — the usual contract of a newest-first feed. Community knows nothing of site-level bans: the reading site drops what it cannot render, so a page may come back shorter than `limit`. Cursors are opaque.
 
@@ -560,6 +560,13 @@ A group is `{id, site, actor_id, verb, object_kind, object_label, day, item_coun
 
 - `GET /users/{id}/following/activities/unseen?content_limit=&sites=&verbs=` → `{unseen_count, seen_at}`: the followed groups whose `latest_at` is after the later of the user's `seen_at` and the moment that follow began (an imported follow with no time counts from its import). Following someone never lights up their history. The count stops at 100: `100` means 100 or more.
 - `POST /users/{id}/following/activities/seen {at?}` → `{seen_at}`. The mark is account-wide — seen on one site is seen on all — moves forward only, and never past now. Send the `latest_at` of the **first group in the response**, before the site filters anything out, or omit `at` for now. Never send the first group the site *rendered*: if the newest group belongs to an author the site hides, marking up to the rendered one leaves that group unseen forever and the dot never clears.
+
+**Hiding.** A user can hide their activities from everyone else, account-wide:
+
+- `GET /users/{id}/activity-settings` → `{user_id, hidden, updated_at}` (`updated_at` null until first set; no setting reads as `hidden: false`).
+- `PUT /users/{id}/activity-settings {hidden}` → the same shape. `hidden` is required.
+
+While hidden, the user's groups leave every follower's feed and unseen count (the switch is read at read time, like the follow graph), `GET /users/{id}/activities` answers `{groups: [], hidden: true}` to any `viewer_id` but the user's own, and `GET /activity-groups/{id}/items` answers `404` for their groups to anyone but them. The site keeps pushing as before: hiding changes who sees the activities, not what is stored, so `GET /activities` still lists them. Turning it on also retracts every kind-10 row the user raised, on every site, read ones included, and stops new ones (see Notifications). Turning it off shows everything again at once; the retracted notifications do not come back, and nothing published while hidden notifies.
 
 ### Notifications
 
@@ -643,9 +650,11 @@ uploads is one fan-out. When a notified activity is removed (or restored), an
 that moved takes a new `seq`. A row left with nothing is **retracted**:
 `item_count` 0, no `activity`, marked read, under a new `seq`. A mirroring site
 deletes its copy when it sees `item_count` 0; the inbox face leaves such rows
-out. An activity removed before its event is dispatched, or a follower who
-went `feed` or unfollowed by then, is not notified. Kind 9 follows the same
-level rule.
+out. An activity removed before its event is dispatched, a follower who
+went `feed` or unfollowed by then, or an author who hid their activities by
+then, is not notified. Hiding retracts, under the same `seq` rule, every
+kind-10 row naming the author on every site, read or unread. Kind 9 follows
+the same level rule.
 A follow is delivered to the site it was made through, and a kind-8 row counts
 only that site's follows, so the rows of two sites never count the same
 follower twice.
@@ -687,7 +696,7 @@ included, and their groups (`activities_deleted`), and retracts the kind-10
 rows they raised. Activities are a projection of the site's content, so the
 purge archive does not keep them: a site that restores the author's content
 pushes them again. The account purge does all this on every site and drops the
-user's seen mark. The purge waits for a running dispatch batch, so no batch can
+user's seen mark and activity setting. The purge waits for a running dispatch batch, so no batch can
 deliver to the user after the purge has cleared their rows.
 
 ## 7. Trust engine (doc 11 §6)

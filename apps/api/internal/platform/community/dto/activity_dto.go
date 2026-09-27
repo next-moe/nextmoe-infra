@@ -94,6 +94,7 @@ type ActivityGroupView struct {
 type ActivityGroupListResponse struct {
 	Groups     []ActivityGroupView `json:"groups"`
 	NextCursor string              `json:"next_cursor,omitempty" doc:"pass as cursor for the next (older) page; empty = last page"`
+	Hidden     bool                `json:"hidden,omitempty" doc:"only on /users/{id}/activities: the user hides their activities and viewer_id is not them, so groups is empty"`
 }
 
 type ActivityItemListResponse struct {
@@ -112,4 +113,14 @@ type ActivitySeenRequest struct {
 
 type ActivitySeenResponse struct {
 	SeenAt time.Time `json:"seen_at"`
+}
+
+type ActivitySettingRequest struct {
+	Hidden bool `json:"hidden" doc:"true hides the user's activities from everyone else: they leave followers' feeds and unseen counts, kind 10 stops, the kind-10 rows already delivered are retracted, and /users/{id}/activities shows them only to the user. false shows them again; retracted notifications do not come back"`
+}
+
+type ActivitySettingView struct {
+	UserID    int64      `json:"user_id"`
+	Hidden    bool       `json:"hidden"`
+	UpdatedAt *time.Time `json:"updated_at" doc:"null until the user first sets it"`
 }

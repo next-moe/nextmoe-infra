@@ -55,3 +55,11 @@ type CommunityFeedSeen struct {
 }
 
 func (CommunityFeedSeen) TableName() string { return "community_feed_seen" }
+
+type CommunityActivitySetting struct {
+	UserID    int64     `gorm:"primaryKey;autoIncrement:false;column:user_id" json:"user_id"`
+	Hidden    bool      `gorm:"not null;column:hidden" json:"hidden"`
+	UpdatedAt time.Time `gorm:"not null;column:updated_at;autoUpdateTime:false" json:"updated_at"`
+}
+
+func (CommunityActivitySetting) TableName() string { return "community_activity_setting" }

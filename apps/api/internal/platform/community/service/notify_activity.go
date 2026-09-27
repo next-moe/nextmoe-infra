@@ -15,6 +15,13 @@ func (s *NotificationService) dispatchActivityPublished(tx *gorm.DB, ev *model.C
 	if len(eventIDs) == 0 {
 		return eventAlreadyDelivered, nil
 	}
+	hidden, err := repository.ActivitiesHidden(tx, ev.ActorID)
+	if err != nil {
+		return 0, err
+	}
+	if hidden {
+		return eventDropped, nil
+	}
 	since, err := repository.EarliestLiveNotifiedTx(tx, activityIDs)
 	if err != nil {
 		return 0, err
