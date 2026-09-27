@@ -521,10 +521,10 @@ func TestColumnAudit(t *testing.T) {
 		"community_feed_seen":        {"user_id", "seen_at", "updated_at"},
 		"community_activity_setting": {"user_id", "hidden", "updated_at"},
 		"community_anchor_presentation": {
-			"site", "anchor_kind", "anchor_id", "title", "url", "work_id", "content_limit", "revision",
+			"site", "anchor_kind", "anchor_id", "title", "url", "work_id", "cover_image_hash", "content_limit", "revision",
 			"removed_at", "created_at", "updated_at",
 		},
-		"community_activity_site":       {"site", "enabled", "thread_url", "post_fragment", "rules", "updated_at"},
+		"community_activity_site":       {"site", "enabled", "thread_url", "rules", "updated_at"},
 		"community_activity_projection": {"post_id", "backfill", "enqueued_at"},
 	}
 	for table, cols := range want {

@@ -14,6 +14,7 @@ type AnchorPresentationWrite struct {
 	Title        string
 	URL          string
 	WorkID       *int64
+	CoverHash    *string
 	ContentLimit int16
 	Revision     int64
 	Removed      bool
@@ -32,17 +33,18 @@ func UpsertAnchorPresentationTx(tx *gorm.DB, site string, w AnchorPresentationWr
 		WasRemoved bool `gorm:"column:was_removed"`
 		IsRemoved  bool `gorm:"column:is_removed"`
 	}
-	title, url, workID := w.Title, w.URL, w.WorkID
+	title, url, workID, cover := w.Title, w.URL, w.WorkID, w.CoverHash
 	if w.Removed {
-		title, url, workID = "", "", nil
+		title, url, workID, cover = "", "", nil, nil
 	}
 	err := tx.Raw(`
 		INSERT INTO community_anchor_presentation AS a (
-		    site, anchor_kind, anchor_id, title, url, work_id, content_limit, revision,
+		    site, anchor_kind, anchor_id, title, url, work_id, cover_image_hash, content_limit, revision,
 		    removed_at, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? THEN now() END, now(), now())
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? THEN now() END, now(), now())
 		ON CONFLICT (site, anchor_kind, anchor_id) DO UPDATE SET
 		    title = EXCLUDED.title, url = EXCLUDED.url, work_id = EXCLUDED.work_id,
+		    cover_image_hash = EXCLUDED.cover_image_hash,
 		    content_limit = EXCLUDED.content_limit, revision = EXCLUDED.revision,
 		    removed_at = CASE WHEN EXCLUDED.removed_at IS NULL THEN NULL
 		                      ELSE COALESCE(a.removed_at, EXCLUDED.removed_at) END,
@@ -50,7 +52,7 @@ func UpsertAnchorPresentationTx(tx *gorm.DB, site string, w AnchorPresentationWr
 		  WHERE a.revision < EXCLUDED.revision
 		RETURNING old.site IS NOT NULL AS existed, old.removed_at IS NOT NULL AS was_removed,
 		          new.removed_at IS NOT NULL AS is_removed`,
-		site, w.AnchorKind, w.AnchorID, title, url, workID, w.ContentLimit, w.Revision, w.Removed,
+		site, w.AnchorKind, w.AnchorID, title, url, workID, cover, w.ContentLimit, w.Revision, w.Removed,
 	).Scan(&rows).Error
 	if err != nil || len(rows) == 0 {
 		return AnchorPresentationResult{}, err

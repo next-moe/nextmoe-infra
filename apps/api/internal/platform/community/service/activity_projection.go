@@ -17,6 +17,7 @@ import (
 
 	"api/internal/platform/community/model"
 	"api/internal/platform/community/repository"
+	"api/internal/platform/community/sanitize"
 
 	"gorm.io/gorm"
 )
@@ -38,7 +39,15 @@ const (
 	RoleFeedbackReply = "feedback_reply"
 )
 
-var htmlTagPattern = regexp.MustCompile(`<[^>]*>`)
+const spoilerMask = "███"
+
+var (
+	htmlTagPattern        = regexp.MustCompile(`<[^>]*>`)
+	spoilerBlockPattern   = regexp.MustCompile(`(?ms)^[ \t]*:::spoiler.*?(?:^[ \t]*:::[ \t]*$|\z)`)
+	spoilerInlinePattern  = regexp.MustCompile(`\|\|(?:[^|\n]|\|[^|]|\n[^\n])*?\|\|`)
+	referenceTokenPattern = regexp.MustCompile(`\[[@#][^\]]*\]\([a-z0-9-]+:\d+\)`)
+	replyHeaderPattern    = regexp.MustCompile(`(?m)^\s*>\s*回复\s*`)
+)
 
 type ProjectionRule struct {
 	AnchorKind  int16  `json:"anchor_kind"`
@@ -48,17 +57,18 @@ type ProjectionRule struct {
 	ObjectKind  string `json:"object_kind"`
 	ObjectLabel string `json:"object_label"`
 	Notify      bool   `json:"notify,omitempty"`
+	Fragment    string `json:"fragment,omitempty"`
+	NoExcerpt   bool   `json:"no_excerpt,omitempty"`
 }
 
 type projectionSite struct {
-	enabled      bool
-	threadURL    string
-	postFragment string
-	rules        []ProjectionRule
+	enabled   bool
+	threadURL string
+	rules     []ProjectionRule
 }
 
 func parseProjectionSite(row model.CommunityActivitySite) (projectionSite, error) {
-	s := projectionSite{enabled: row.Enabled, threadURL: row.ThreadURL, postFragment: row.PostFragment}
+	s := projectionSite{enabled: row.Enabled, threadURL: row.ThreadURL}
 	if err := json.Unmarshal(row.Rules, &s.rules); err != nil {
 		return s, fmt.Errorf("site %s rules: %w", row.Site, err)
 	}
@@ -153,7 +163,7 @@ func projectPost(p repository.ProjectedPostRow, site projectionSite, rev int64) 
 		url = p.AnchorURL
 	}
 	if role != RoleTopic {
-		url += strings.ReplaceAll(site.postFragment, "{post_id}", strconv.FormatInt(p.PostID, 10))
+		url += strings.ReplaceAll(rule.Fragment, "{post_id}", strconv.FormatInt(p.PostID, 10))
 	}
 	title := ""
 	if p.ThreadTitle != nil {
@@ -169,7 +179,7 @@ func projectPost(p repository.ProjectedPostRow, site projectionSite, rev int64) 
 	w = repository.ActivityWrite{
 		Key: ownActivityKey(p.PostID), ActorID: p.AuthorID, Verb: verb,
 		ObjectKind: rule.ObjectKind, ObjectLabel: rule.ObjectLabel,
-		Title: title, Excerpt: plainExcerpt(p.ContentHTML, activityExcerptMax), URL: url,
+		Title: title, URL: url,
 		ContentLimit: model.ContentLimitSFW, Notify: rule.Notify && verb == model.ActivityVerbPublish,
 		OccurredAt: p.CreatedAt, Revision: rev,
 	}
@@ -178,13 +188,23 @@ func projectPost(p repository.ProjectedPostRow, site projectionSite, rev int64) 
 		w.ContentLimit = model.ContentLimitNSFW
 	}
 	if p.AnchorLive {
-		w.WorkID = p.AnchorWorkID
+		w.WorkID, w.CoverImageHash = p.AnchorWorkID, p.AnchorCover
+	}
+	if !rule.NoExcerpt {
+		w.Excerpt = plainExcerpt(p.ContentRaw, activityExcerptMax)
 	}
 	return w, true
 }
 
-func plainExcerpt(content string, maxRunes int) string {
-	text := html.UnescapeString(htmlTagPattern.ReplaceAllString(content, " "))
+// Every site writes spoilers as ||inline|| and :::spoiler blocks, which
+// community's renderer does not know: unmasked here, they reach the feed in
+// the clear.
+func plainExcerpt(markdown string, maxRunes int) string {
+	s := spoilerBlockPattern.ReplaceAllString(markdown, spoilerMask)
+	s = spoilerInlinePattern.ReplaceAllString(s, spoilerMask)
+	s = referenceTokenPattern.ReplaceAllString(s, "")
+	s = replyHeaderPattern.ReplaceAllString(s, "")
+	text := html.UnescapeString(htmlTagPattern.ReplaceAllString(sanitize.Cook(s).HTML, " "))
 	return cutRunes(strings.Join(strings.Fields(stripControl(text)), " "), maxRunes)
 }
 

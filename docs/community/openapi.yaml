@@ -405,6 +405,9 @@ components:
         content_limit:
           description: sfw | nsfw, the site's judgement of the page; missing = nsfw. A comment is nsfw when its page or its own rating is
           type: string
+        cover_image_hash:
+          description: image service hash (64 lowercase hex) of the page's cover; every comment activity on the anchor carries it
+          type: string
         removed:
           description: "true: the page is gone or no longer public, and every comment on it leaves the feed. Needs only anchor_kind, anchor_id and revision"
           type: boolean
@@ -480,6 +483,10 @@ components:
             - sfw
             - nsfw
           type: string
+        cover_image_hash:
+          type:
+            - string
+            - "null"
         removed:
           description: a tombstone; its title, url and work_id are cleared
           type: boolean
@@ -509,6 +516,7 @@ components:
         - title
         - url
         - work_id
+        - cover_image_hash
         - content_limit
         - revision
         - removed

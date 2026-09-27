@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,24 +14,25 @@ import (
 
 var letmoeRules = []ProjectionRule{
 	{AnchorKind: model.AnchorKindBoard, Role: RoleTopic, Verb: "publish", ObjectKind: "topic", ObjectLabel: "话题", Notify: true},
-	{AnchorKind: model.AnchorKindBoard, Role: RoleReply, Verb: "reply", ObjectKind: "topic_reply", ObjectLabel: "回复"},
+	{AnchorKind: model.AnchorKindBoard, Role: RoleReply, Verb: "reply", ObjectKind: "topic_reply", ObjectLabel: "回复", Fragment: "#post-{post_id}"},
 }
 
 var kungalRules = []ProjectionRule{
-	{AnchorKind: model.AnchorKindSiteGame, Role: RoleComment, Verb: "comment", ObjectKind: "galgame_comment", ObjectLabel: "Galgame 评论"},
+	{AnchorKind: model.AnchorKindSiteGame, Role: RoleComment, Verb: "comment", ObjectKind: "galgame_comment", ObjectLabel: "Galgame 评论", Fragment: "?comment={post_id}"},
 	{AnchorKind: model.AnchorKindSiteResource, Role: RoleComment, Verb: "comment", ObjectKind: "galgame_resource_comment", ObjectLabel: "资源评论"},
 	{AnchorKind: model.AnchorKindSiteResource, Prefix: "rating:", Role: RoleComment, Verb: "comment", ObjectKind: "galgame_rating_comment", ObjectLabel: "评分评论"},
+	{AnchorKind: model.AnchorKindSiteResource, Prefix: "quiz:", Role: RoleComment, Verb: "comment", ObjectKind: "galgame_quiz_comment", ObjectLabel: "题目评论", NoExcerpt: true},
 }
 
-func enableSite(t *testing.T, site, threadURL, fragment string, rules []ProjectionRule) {
+func enableSite(t *testing.T, site, threadURL string, rules []ProjectionRule) {
 	t.Helper()
 	raw, _ := json.Marshal(rules)
 	if err := testDB.Exec(`
-		INSERT INTO community_activity_site (site, enabled, thread_url, post_fragment, rules, updated_at)
-		VALUES (?, true, ?, ?, ?, now())
+		INSERT INTO community_activity_site (site, enabled, thread_url, rules, updated_at)
+		VALUES (?, true, ?, ?, now())
 		ON CONFLICT (site) DO UPDATE SET enabled = true, thread_url = EXCLUDED.thread_url,
-		    post_fragment = EXCLUDED.post_fragment, rules = EXCLUDED.rules, updated_at = now()`,
-		site, threadURL, fragment, string(raw)).Error; err != nil {
+		    rules = EXCLUDED.rules, updated_at = now()`,
+		site, threadURL, string(raw)).Error; err != nil {
 		t.Fatalf("enable %s: %v", site, err)
 	}
 }
@@ -103,11 +105,22 @@ func TestProjectionRulePicksTheLongestPrefix(t *testing.T) {
 	if _, ok := site.rule(model.AnchorKindBoard, "1", RoleTopic); ok {
 		t.Fatal("no rule, no activity")
 	}
-	if got := plainExcerpt("<p>hello <strong>world</strong></p>\n<p>a &amp; b\x01</p>", 300); got != "hello world a & b" {
-		t.Fatalf("excerpt: %q", got)
-	}
-	if got := plainExcerpt("<p>一二三四五</p>", 3); got != "一二三" {
-		t.Fatalf("excerpt cuts by rune: %q", got)
+	for _, c := range []struct{ in, want string }{
+		{"hello **world**\n\na & b\x01 ![cover](https://x/y.webp) [link](https://x)", "hello world a & b link"},
+		{"凶手是 ||犯人A|| 对吧", "凶手是 ███ 对吧"},
+		{"||跨\n行|| 还有", "███ 还有"},
+		{"前\n:::spoiler\n第一段\n\n第二段\n:::\n后", "前 ███ 后"},
+		{":::spoiler\n没有结尾", "███"},
+		{"> 回复 [#3楼](kungal-reply:12)\n[@kun](kungal-user:1) 同意", "同意"},
+		{"一二三四五", "一二三"},
+	} {
+		limit := 300
+		if c.want == "一二三" {
+			limit = 3
+		}
+		if got := plainExcerpt(c.in, limit); got != c.want {
+			t.Errorf("excerpt of %q: got %q, want %q", c.in, got, c.want)
+		}
 	}
 }
 
@@ -116,7 +129,7 @@ func TestBoardTopicsProjectAndNotifyAsKind10(t *testing.T) {
 	const author, replier, follower int64 = 20, 21, 10
 	ts := NewThreadService(testDB, NoopSink{})
 	ps := NewPostService(testDB, NoopSink{})
-	enableSite(t, "letmoe", "https://www.letmoe.com/community/{thread_id}", "#post-{post_id}", letmoeRules)
+	enableSite(t, "letmoe", "https://www.letmoe.com/community/{thread_id}", letmoeRules)
 	mustFollow(t, "letmoe", follower, author)
 	processBatch(t)
 
@@ -176,9 +189,10 @@ func TestBoardTopicsProjectAndNotifyAsKind10(t *testing.T) {
 
 func TestCommentWallsWaitForTheirPresentation(t *testing.T) {
 	cleanTables(t)
-	enableSite(t, "kungal", "", "#comment-{post_id}", kungalRules)
+	enableSite(t, "kungal", "", kungalRules)
 	const author int64 = 30
 	work := int64(9001)
+	cover := strings.Repeat("ab", 32)
 	now := time.Now()
 
 	game := kungalComment(t, model.AnchorKindSiteGame, "123", author, "nice game")
@@ -197,7 +211,7 @@ func TestCommentWallsWaitForTheirPresentation(t *testing.T) {
 	}
 	wantPresented(present(t,
 		AnchorPresentationInput{AnchorKind: model.AnchorKindSiteGame, AnchorID: "123", Title: "千恋＊万花",
-			URL: "https://www.kungal.com/galgame/123", WorkID: &work, ContentLimit: "nsfw", Revision: now.UnixMicro()},
+			URL: "https://www.kungal.com/galgame/123", WorkID: &work, CoverImageHash: cover, ContentLimit: "nsfw", Revision: now.UnixMicro()},
 		AnchorPresentationInput{AnchorKind: model.AnchorKindSiteResource, AnchorID: "rating:45", Title: "千恋＊万花 的评分",
 			URL: "https://www.kungal.com/galgame-rating/45", ContentLimit: "sfw", Revision: now.UnixMicro()},
 		AnchorPresentationInput{AnchorKind: model.AnchorKindSiteGame, AnchorID: "124", Title: "x",
@@ -208,15 +222,24 @@ func TestCommentWallsWaitForTheirPresentation(t *testing.T) {
 	project(t)
 	a := ownActivity(t, "kungal", game.ID)
 	if a == nil || a.Verb != model.ActivityVerbComment || a.ObjectKind != "galgame_comment" || a.Title != "千恋＊万花" ||
-		a.URL != fmt.Sprintf("https://www.kungal.com/galgame/123#comment-%d", game.ID) || a.WorkID == nil || *a.WorkID != work ||
+		a.URL != fmt.Sprintf("https://www.kungal.com/galgame/123?comment=%d", game.ID) || a.CoverImageHash == nil || *a.CoverImageHash != cover || a.WorkID == nil || *a.WorkID != work ||
 		a.ContentLimit != model.ContentLimitNSFW || a.Excerpt != "nice game" || a.Notify {
 		t.Fatalf("the presentation arriving projects the wall's comments: %+v", a)
 	}
 
 	rating := kungalComment(t, model.AnchorKindSiteResource, "rating:45", author, "agree")
 	project(t)
-	if r := ownActivity(t, "kungal", rating.ID); r == nil || r.ObjectKind != "galgame_rating_comment" || r.ContentLimit != model.ContentLimitSFW {
-		t.Fatalf("the prefixed rule wins and an sfw page stays sfw: %+v", r)
+	if r := ownActivity(t, "kungal", rating.ID); r == nil || r.ObjectKind != "galgame_rating_comment" ||
+		r.ContentLimit != model.ContentLimitSFW || r.URL != "https://www.kungal.com/galgame-rating/45" || r.CoverImageHash != nil {
+		t.Fatalf("the prefixed rule wins, an sfw page stays sfw, and a rule without a fragment adds none: %+v", r)
+	}
+
+	wantPresented(present(t, AnchorPresentationInput{AnchorKind: model.AnchorKindSiteResource, AnchorID: "quiz:7", Title: "题目",
+		URL: "https://www.kungal.com/galgame-quiz/7", ContentLimit: "sfw", Revision: now.UnixMicro()}), ActivityCreated)
+	quiz := kungalComment(t, model.AnchorKindSiteResource, "quiz:7", author, "the answer is B")
+	project(t)
+	if q := ownActivity(t, "kungal", quiz.ID); q == nil || q.Excerpt != "" || q.ObjectKind != "galgame_quiz_comment" {
+		t.Fatalf("a quiz wall's comments carry no excerpt, it would give the answer away: %+v", q)
 	}
 
 	wantPresented(present(t, AnchorPresentationInput{AnchorKind: model.AnchorKindSiteGame, AnchorID: "123", Title: "千恋＊万花 Renewal",
@@ -243,7 +266,7 @@ func TestCommentWallsWaitForTheirPresentation(t *testing.T) {
 	}
 	rest, _, err := NewActivityService(testDB).ListPresentations("kungal",
 		&repository.AnchorPresentationCursor{AnchorKind: stored[0].AnchorKind, AnchorID: stored[0].AnchorID}, 10)
-	if err != nil || len(rest) != 1 || rest[0].AnchorID != "rating:45" {
+	if err != nil || len(rest) != 2 || rest[0].AnchorID != "quiz:7" || rest[1].AnchorID != "rating:45" {
 		t.Fatalf("reconciliation read, second page: %+v %v", rest, err)
 	}
 }
@@ -262,7 +285,7 @@ func TestEnablingASiteBackfillsWithoutNotifying(t *testing.T) {
 		t.Fatalf("a site without a row projects nothing: %+v", a)
 	}
 
-	enableSite(t, "letmoe", "https://www.letmoe.com/community/{thread_id}", "#post-{post_id}", letmoeRules)
+	enableSite(t, "letmoe", "https://www.letmoe.com/community/{thread_id}", letmoeRules)
 	project(t)
 	a := ownActivity(t, "letmoe", opening.ID)
 	if a == nil || a.RemovedAt != nil || a.NotifiedAt != nil {
@@ -287,8 +310,8 @@ func TestEnablingASiteBackfillsWithoutNotifying(t *testing.T) {
 func TestAMovedThreadTakesItsActivitiesAlong(t *testing.T) {
 	cleanTables(t)
 	ts := NewThreadService(testDB, NoopSink{})
-	enableSite(t, "letmoe", "https://www.letmoe.com/community/{thread_id}", "#post-{post_id}", letmoeRules)
-	enableSite(t, "moyu", "https://www.moyu.moe/community/{thread_id}", "#post-{post_id}", letmoeRules)
+	enableSite(t, "letmoe", "https://www.letmoe.com/community/{thread_id}", letmoeRules)
+	enableSite(t, "moyu", "https://www.moyu.moe/community/{thread_id}", letmoeRules)
 	th := openTopic(t, ts, "letmoe", 20, "b1", "moving")
 	project(t)
 	opening := openingPost(t, th.ID)
@@ -310,7 +333,7 @@ func TestPurgedAuthorsPostsStayOutOfTheFeed(t *testing.T) {
 	const author int64 = 20
 	ts := NewThreadService(testDB, NoopSink{})
 	ps := NewPostService(testDB, NoopSink{})
-	enableSite(t, "letmoe", "https://www.letmoe.com/community/{thread_id}", "#post-{post_id}", letmoeRules)
+	enableSite(t, "letmoe", "https://www.letmoe.com/community/{thread_id}", letmoeRules)
 	th := openTopic(t, ts, "letmoe", 99, "b1", "host")
 	reply := visibleReply(t, ps, th.ID, author)
 	project(t)

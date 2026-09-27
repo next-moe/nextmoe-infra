@@ -40,7 +40,7 @@ func projectionSQL(db *gorm.DB) error {
 			$$`},
 		{"post trigger", `
 			CREATE OR REPLACE TRIGGER trg_community_activity_project_post
-			    AFTER INSERT OR DELETE OR UPDATE OF status, content_html, content_rating, thread_id, author_id
+			    AFTER INSERT OR DELETE OR UPDATE OF status, content_raw, content_rating, thread_id, author_id
 			    ON community_post FOR EACH ROW EXECUTE FUNCTION community_activity_project_post()`},
 		{"thread trigger function", `
 			CREATE OR REPLACE FUNCTION community_activity_project_thread()
@@ -66,9 +66,9 @@ func projectionSQL(db *gorm.DB) error {
 			RETURNS trigger LANGUAGE plpgsql AS $$
 			BEGIN
 			    IF TG_OP = 'UPDATE' AND
-			       (OLD.title, OLD.url, OLD.work_id, OLD.content_limit, OLD.removed_at IS NULL)
+			       (OLD.title, OLD.url, OLD.work_id, OLD.cover_image_hash, OLD.content_limit, OLD.removed_at IS NULL)
 			       IS NOT DISTINCT FROM
-			       (NEW.title, NEW.url, NEW.work_id, NEW.content_limit, NEW.removed_at IS NULL) THEN
+			       (NEW.title, NEW.url, NEW.work_id, NEW.cover_image_hash, NEW.content_limit, NEW.removed_at IS NULL) THEN
 			        RETURN NULL;
 			    END IF;
 			    PERFORM community_activity_enqueue(ARRAY(
@@ -90,9 +90,9 @@ func projectionSQL(db *gorm.DB) error {
 			        RETURN NULL;
 			    END IF;
 			    IF TG_OP = 'UPDATE' AND
-			       (OLD.enabled, OLD.thread_url, OLD.post_fragment, OLD.rules)
+			       (OLD.enabled, OLD.thread_url, OLD.rules)
 			       IS NOT DISTINCT FROM
-			       (NEW.enabled, NEW.thread_url, NEW.post_fragment, NEW.rules) THEN
+			       (NEW.enabled, NEW.thread_url, NEW.rules) THEN
 			        RETURN NULL;
 			    END IF;
 			    PERFORM community_activity_enqueue(ARRAY(

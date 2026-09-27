@@ -39,7 +39,8 @@ func (s *Server) writeAnchorPresentations(ctx context.Context, in *writeAnchorPr
 	for i, it := range in.Body.Items {
 		items[i] = service.AnchorPresentationInput{
 			AnchorKind: it.AnchorKind, AnchorID: it.AnchorID, Title: it.Title, URL: it.URL,
-			WorkID: it.WorkID, ContentLimit: it.ContentLimit, Revision: it.Revision, Removed: it.Removed,
+			WorkID: it.WorkID, CoverImageHash: it.CoverImageHash, ContentLimit: it.ContentLimit,
+			Revision: it.Revision, Removed: it.Removed,
 		}
 	}
 	results, err := s.activities.WritePresentations(ctx, site, activityURLHosts(clientFromCtx(ctx)), items)
@@ -79,7 +80,8 @@ func (s *Server) listAnchorPresentations(ctx context.Context, in *listAnchorPres
 		r := &rows[i]
 		views[i] = dto.AnchorPresentationView{
 			AnchorKind: r.AnchorKind, AnchorID: r.AnchorID, Title: r.Title, URL: r.URL, WorkID: r.WorkID,
-			ContentLimit: contentLimitName(r.ContentLimit), Revision: r.Revision, Removed: r.RemovedAt != nil,
+			CoverImageHash: r.CoverImageHash,
+			ContentLimit:   contentLimitName(r.ContentLimit), Revision: r.Revision, Removed: r.RemovedAt != nil,
 			UpdatedAt: r.UpdatedAt, RemovedAt: r.RemovedAt,
 		}
 	}

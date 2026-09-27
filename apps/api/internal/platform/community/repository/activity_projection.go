@@ -33,7 +33,7 @@ type ProjectedPostRow struct {
 	PostNumber         int32     `gorm:"column:post_number"`
 	PostStatus         int16     `gorm:"column:post_status"`
 	PostRating         int16     `gorm:"column:post_rating"`
-	ContentHTML        string    `gorm:"column:content_html"`
+	ContentRaw         string    `gorm:"column:content_raw"`
 	CreatedAt          time.Time `gorm:"column:created_at"`
 	ThreadID           int64     `gorm:"column:thread_id"`
 	Site               string    `gorm:"column:site"`
@@ -48,6 +48,7 @@ type ProjectedPostRow struct {
 	AnchorTitle        string    `gorm:"column:anchor_title"`
 	AnchorURL          string    `gorm:"column:anchor_url"`
 	AnchorWorkID       *int64    `gorm:"column:anchor_work_id"`
+	AnchorCover        *string   `gorm:"column:anchor_cover"`
 	AnchorContentLimit int16     `gorm:"column:anchor_content_limit"`
 }
 
@@ -59,13 +60,13 @@ func ProjectedPostsTx(tx *gorm.DB, postIDs []int64) (map[int64]ProjectedPostRow,
 	var rows []ProjectedPostRow
 	err := tx.Raw(`
 		SELECT p.id AS post_id, p.author_id, p.post_number, p.status AS post_status,
-		       p.content_rating AS post_rating, p.content_html, p.created_at,
+		       p.content_rating AS post_rating, p.content_raw, p.created_at,
 		       t.id AS thread_id, t.site, t.kind AS thread_kind, t.anchor_kind, t.anchor_id,
 		       t.title AS thread_title, t.content_rating AS thread_rating, t.status AS thread_status,
 		       t.merged_into_id IS NOT NULL AS merged,
 		       (ap.site IS NOT NULL AND ap.removed_at IS NULL) AS anchor_live,
 		       COALESCE(ap.title, '') AS anchor_title, COALESCE(ap.url, '') AS anchor_url,
-		       ap.work_id AS anchor_work_id, COALESCE(ap.content_limit, ?) AS anchor_content_limit
+		       ap.work_id AS anchor_work_id, ap.cover_image_hash AS anchor_cover, COALESCE(ap.content_limit, ?) AS anchor_content_limit
 		  FROM community_post p
 		  JOIN community_thread t ON t.id = p.thread_id
 		  LEFT JOIN community_anchor_presentation ap

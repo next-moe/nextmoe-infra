@@ -17,14 +17,15 @@ import (
 const anchorIDMax = 128
 
 type AnchorPresentationInput struct {
-	AnchorKind   int16
-	AnchorID     string
-	Title        string
-	URL          string
-	WorkID       *int64
-	ContentLimit string
-	Revision     int64
-	Removed      bool
+	AnchorKind     int16
+	AnchorID       string
+	Title          string
+	URL            string
+	WorkID         *int64
+	CoverImageHash string
+	ContentLimit   string
+	Revision       int64
+	Removed        bool
 }
 
 type AnchorPresentationResult struct {
@@ -119,6 +120,13 @@ func validatePresentation(in AnchorPresentationInput, urlHosts []string, now tim
 	}
 	if in.WorkID != nil && *in.WorkID <= 0 {
 		return w, "work_id must be positive"
+	}
+	if in.CoverImageHash != "" {
+		if !imageHashPattern.MatchString(in.CoverImageHash) {
+			return w, "cover_image_hash must be an image service hash (64 lowercase hex)"
+		}
+		hash := in.CoverImageHash
+		w.CoverHash = &hash
 	}
 	switch in.ContentLimit {
 	case "sfw":
