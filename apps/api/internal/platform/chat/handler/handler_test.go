@@ -141,6 +141,7 @@ func call(t *testing.T, app *fiber.App, method, path, token, body string) (int, 
 	}
 	defer resp.Body.Close()
 	raw, _ := io.ReadAll(resp.Body)
+	conforms(t, method, path, resp.StatusCode, resp.Header.Get("Content-Type"), raw)
 	var out map[string]any
 	_ = json.Unmarshal(raw, &out)
 	return resp.StatusCode, out, resp.Header
