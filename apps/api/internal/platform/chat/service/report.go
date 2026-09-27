@@ -115,7 +115,7 @@ func (s *Service) ForwardReports(ctx context.Context, fwd Forwarder) (int, error
 		return 0, nil
 	}
 	var pending []model.ChatReport
-	if err := s.db.WithContext(ctx).Where("status = ?", model.ReportPending).Order("id").Limit(50).Find(&pending).Error; err != nil {
+	if err := s.db.WithContext(ctx).Where("status = ? AND resolution IS NULL", model.ReportPending).Order("id").Limit(50).Find(&pending).Error; err != nil {
 		return 0, err
 	}
 	sent := 0

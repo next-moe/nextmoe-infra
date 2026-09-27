@@ -102,6 +102,8 @@ func main() {
 	})
 	application.Fiber.Use(middleware.CORS(cfg.Server.CORSOrigin))
 
+	application.Fiber.Post("/trust/callback", chatHandler.TrustCallback(cfg.TrustCallbackSecret, svc))
+
 	api := chatHandler.Setup(application.Fiber, chatHandler.Options{
 		Chat:        svc,
 		Tokens:      realtime.NewTokenIssuer(cfg.ChatService.RealtimeTokenSecret, realtimeTokenTTL),

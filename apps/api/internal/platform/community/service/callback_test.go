@@ -4,36 +4,9 @@ import (
 	"context"
 	"strconv"
 	"testing"
-	"time"
 
 	"api/internal/platform/community/model"
 )
-
-const cbSecret = "trust-callback-secret"
-
-func TestVerifyTrustSignature(t *testing.T) {
-	body := []byte(`{"disposition_id":1,"action":1}`)
-	now := time.Now()
-	ts := strconv.FormatInt(now.Unix(), 10)
-	sig := signTrustPayload(cbSecret, ts, body)
-
-	if !VerifyTrustSignature(cbSecret, ts, sig, body, now) {
-		t.Fatal("a valid signature must verify")
-	}
-	if VerifyTrustSignature(cbSecret, ts, "deadbeef", body, now) {
-		t.Fatal("a bad signature must fail")
-	}
-	stale := strconv.FormatInt(now.Add(-10*time.Minute).Unix(), 10)
-	if VerifyTrustSignature(cbSecret, stale, signTrustPayload(cbSecret, stale, body), body, now) {
-		t.Fatal("a stale timestamp must fail")
-	}
-	if VerifyTrustSignature("", ts, sig, body, now) {
-		t.Fatal("an empty secret must fail closed")
-	}
-	if VerifyTrustSignature(cbSecret, "", "", body, now) {
-		t.Fatal("missing headers must fail")
-	}
-}
 
 func enqueuePending(t *testing.T, site string, postID int64) int64 {
 	t.Helper()

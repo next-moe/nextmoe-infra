@@ -8,6 +8,7 @@ import (
 	"api/internal/platform/community/service"
 	"api/pkg/errors"
 	"api/pkg/response"
+	"api/pkg/trustclient"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -15,7 +16,7 @@ import (
 func TrustCallback(secret string, svc *service.CallbackService) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		body := c.Body()
-		if !service.VerifyTrustSignature(secret, c.Get("X-Trust-Timestamp"), c.Get("X-Trust-Signature"), body, time.Now()) {
+		if !trustclient.VerifyCallback(secret, c.Get("X-Trust-Timestamp"), c.Get("X-Trust-Signature"), body, time.Now()) {
 			return response.Unauthorized(c, errors.ErrAuthUnauthorized)
 		}
 		var cb service.TrustCallback

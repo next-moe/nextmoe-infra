@@ -71,7 +71,8 @@ func TestColumnAudit(t *testing.T) {
 		"chat_hidden_message": {"user_id", "message_id", "created_at"},
 		"chat_update":         {"user_id", "update_seq", "kind", "conversation_id", "data", "created_at"},
 		"chat_report": {"id", "message_id", "conversation_id", "reporter_id", "reported_user_id", "reason", "note", "snapshot",
-			"origin_site", "status", "trust_review_item_id", "forward_attempts", "forward_error", "created_at", "forwarded_at"},
+			"origin_site", "status", "trust_review_item_id", "forward_attempts", "forward_error", "created_at", "forwarded_at",
+			"resolution", "trust_disposition_id", "resolved_at"},
 	}
 	for table, cols := range want {
 		sort.Strings(cols)

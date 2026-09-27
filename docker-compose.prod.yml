@@ -700,7 +700,10 @@ services:
   # deleted-accounts feed) and kun_community (follows, blocks, trust level).
   # Public on api.nextmoe.dev/v2/chat; pushes go through centrifugo below.
   # Report forwarding to trust stays off until the chat_message subject kind
-  # is registered for each site: until then reports wait in chat_report.
+  # is registered for each site (callback http://chat:9285/trust/callback,
+  # secret = KUN_CHAT_TRUST_CALLBACK_SECRET): until then reports wait in
+  # chat_report. Chat forwards for every site, so its trust client must also be
+  # in trust's KUN_TRUST_FORWARDER_CLIENT_IDS.
   chat:
     image: ghcr.io/next-moe/infra-chat:latest
     pull_policy: always
@@ -719,6 +722,9 @@ services:
       KUN_CHAT_IMAGE_CLIENT_ID: ${KUN_CHAT_IMAGE_CLIENT_ID:-}
       KUN_CHAT_IMAGE_CLIENT_SECRET: ${KUN_CHAT_IMAGE_CLIENT_SECRET:-}
       KUN_CHAT_IMAGE_CLIENT_BASE_URL: http://image:9278
+      KUN_TRUST_CLIENT_ID: ${KUN_CHAT_TRUST_CLIENT_ID:-}
+      KUN_TRUST_CLIENT_SECRET: ${KUN_CHAT_TRUST_CLIENT_SECRET:-}
+      KUN_TRUST_CALLBACK_SECRET: ${KUN_CHAT_TRUST_CALLBACK_SECRET:-}
     expose: ["9285"]
     labels:
       # OWNED HERE like every api.nextmoe.dev face. The explicit priority keeps
@@ -795,7 +801,7 @@ services:
       # `site` + this allowlist as the counterweight). Set 2026-07-16 (Tier0
       # power-on) to the community service's client id — the same value as the
       # community block's KUN_TRUST_CLIENT_ID.
-      KUN_TRUST_FORWARDER_CLIENT_IDS: "ac2b8856594baed9c9ee6792eec082e3"
+      KUN_TRUST_FORWARDER_CLIENT_IDS: "ac2b8856594baed9c9ee6792eec082e3,${KUN_CHAT_TRUST_CLIENT_ID:-}"
       # AI shadow-scoring pipeline (step 03; wired 2026-07-16 AI-tier power-on):
       # the scan worker scores pending trust_scan_result rows via the AI gateway's
       # moderate-text route over S2S Basic. The client is the purpose-built
