@@ -72,6 +72,8 @@ CI 按各仓**现有 Dockerfile**(参数化)构建以下镜像并推到 `ghcr.io
 每仓放一个 `.github/workflows/build.yml`。下面是 **infra(最复杂,cgo + 2×Nuxt + Go)** 的完整示例;kungal/moyu **同构**,仅 `matrix` 列表不同。
 
 > **省额度:infra 的实际 workflow 已改为「路径过滤 + 动态 matrix」**(下面这段是说明结构的简化示例,不是逐字现状)。GitHub 按 job 数×分钟计费且每 job 向上取整到 1 分钟,全量 matrix 即使全缓存每次 push 也要 ~10 分钟。现状:`changes` job 用 `dorny/paths-filter` 算出哪些组变了,只构建变更的镜像 —— `go`(oauth/image/artifact/catalog/community/trust/ai + 单一 `migrate`,与服务同 sha 锁步 ← `apps/api/**`)、`account`(← `apps/account/**`+根 manifest)、`admin`(← `apps/admin/**`+根 manifest)、`developer`(← `apps/developer/**`)、`tools`(`infra-tools`,与 go 组同源锁步 ← `apps/api/**` + `docker/tools.Dockerfile`)。docs-only 的 push 不构建任何镜像(~1 分钟)。`tools` 是唯一不触发 Dokploy redeploy 的组;要单独重建它,Actions → Run workflow → `scope=tools`。
+>
+> **三个 Dokploy 项目各按自己的镜像部署**(2026-09-27 起):`deploy` job 分别判定——主栈(go/account/admin 组有构建)打 `DOKPLOY_WEBHOOK_INFRA`,developer 门户(`infra-developer` 有构建)打 `DOKPLOY_WEBHOOK_DEVELOPER`,MCP(`infra-mcp` 有构建,即 go 组)打 `DOKPLOY_WEBHOOK_MCP`。三个 compose 在面板上都是 **Auto Deploy=ON、Trigger Type=Tag**:Tag 让 GitHub App 的 push 事件不抢在构建前部署,ON 让伪装成 push 的 webhook 被接受(关着会回 400)。
 
 ```yaml
 # nextmoe-infra/.github/workflows/build.yml
