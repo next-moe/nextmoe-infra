@@ -22,6 +22,9 @@ context card; `origin_site` in storage) for provenance only.
 
 ## 2. Authentication
 
+A token whose account has since been deleted still verifies until it expires;
+chat refuses every write from it (`401 INVALID_CREDENTIAL`).
+
 A user access token (`Authorization: Bearer …`) on every operation except the
 spec. Application keys (`nmk_…`) are refused.
 
@@ -145,7 +148,11 @@ reaching the other side.
 - Replies: `reply_to_seq`, optionally `reply_quote` `{text, offset}` quoting part
   of the replied message; the server checks the quote is really there and
   attaches its entities. Messages carry a `reply_to` preview (text cut to 120
-  UTF-16 code units, `deleted` when the original is gone).
+  UTF-16 code units). `deleted: true` with empty text means the original is
+  gone for the caller: deleted for everyone, or hidden or cleared by the
+  caller themselves. When a message is deleted for everyone, the quotes other
+  messages took from it are removed too, and those messages get an
+  `edit_message` update.
 - Photos: upload the bytes first with `POST /v2/chat/images` (multipart, one
   part named `file`; 20 a minute) and send the returned `image_hash` as
   `media {type: "photo", image_hash}`. Width, height and thumbhash come from the
@@ -176,7 +183,8 @@ message; a different key replaces it, `null` removes it. The vocabulary is
 `GET /v2/chat/reactions`, the forum's set (Telegram's defaults), stored as keys.
 
 Pins (`PUT` / `DELETE /conversations/{id}/pins/{seq}`): several messages can be
-pinned; pinning posts a `message_pinned` service message.
+pinned; pinning posts a `message_pinned` service message. 10 pin changes a
+minute per user.
 
 ## 7. Sync: the update stream
 
@@ -231,7 +239,8 @@ Each push is one of:
 
 An `update` push carries the same update the sync face would return;
 `new_message` and `edit_message` pushes also carry the member's own view of the
-message, and `message_reactions` pushes carry the member's view of the counts.
+message (left out for a member who hid or cleared that message), and
+`message_reactions` pushes carry the member's view of the counts.
 Pushes are best effort — apply them with the rule in §7 and a lost one is
 recovered from the stream.
 
@@ -262,7 +271,9 @@ erased account every message it sent is deleted for everyone (erased, kept as a
 tombstone), its reactions, drafts, hidden marks, update stream and settings are
 removed, and it leaves its conversations; the others get `delete_messages` and
 `member {action: "deleted"}`. A conversation nobody is left in is removed.
-Report snapshots of the account's words are erased. This differs from Telegram,
+The account's words are erased from every report snapshot, its own reports lose
+their note, and the quotes other messages took from its messages are removed.
+This differs from Telegram,
 which keeps a deleted account's messages; it matches community's purge.
 
 ## 11. Retention
