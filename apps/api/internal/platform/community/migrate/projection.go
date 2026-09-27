@@ -15,9 +15,8 @@ import (
 // follower's feed. Existing rows are not queued here: a site's posts are
 // queued when its community_activity_site row is enabled, and notify_after,
 // stamped then, keeps every post written before it from notifying — those
-// already raised kind 9. Every multi-row enqueue takes rows in post id order,
-// the order the worker locks its claims in. Every statement is CREATE OR
-// REPLACE, so a rerun changes nothing.
+// already raised kind 9. Every statement is CREATE OR REPLACE, so a rerun
+// changes nothing.
 func projectionSQL(db *gorm.DB) error {
 	for _, st := range []struct{ name, stmt string }{
 		{"projection enqueue function", `
@@ -87,7 +86,8 @@ func projectionSQL(db *gorm.DB) error {
 			CREATE OR REPLACE FUNCTION community_activity_site_stamp()
 			RETURNS trigger LANGUAGE plpgsql AS $$
 			BEGIN
-			    IF TG_OP = 'INSERT' OR (NEW.enabled AND NOT OLD.enabled) OR NEW.rules IS DISTINCT FROM OLD.rules THEN
+			    IF TG_OP = 'INSERT' OR (NEW.enabled AND NOT OLD.enabled)
+			       OR NEW.rules IS DISTINCT FROM OLD.rules OR NEW.thread_url IS DISTINCT FROM OLD.thread_url THEN
 			        NEW.notify_after := now();
 			    END IF;
 			    NEW.updated_at := now();

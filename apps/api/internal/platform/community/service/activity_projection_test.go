@@ -111,6 +111,13 @@ func TestProjectionRulePicksTheLongestPrefix(t *testing.T) {
 		{"||跨\n行|| 还有", "███ 还有"},
 		{"前\n:::spoiler\n第一段\n\n第二段\n:::\n后", "前 ███ 后"},
 		{":::spoiler\n没有结尾", "███"},
+		{"- 列表\n- :::spoiler\n  列表里的\n  :::\n- 后", "列表 ███ 后"},
+		{"> :::spoiler\n> 引用里的\n> :::\n\n后", "███ 后"},
+		{"::::spoiler\n外层秘密\n:::spoiler\n内层\n:::\n外层还有\n::::\n后", "███ 后"},
+		{":::spoiler\n一\n:::spoiler\n二\n:::\n三\n:::\n后", "███ 后"},
+		{"::::spoiler\n秘密\n:::\n还是秘密\n::::\n后", "███ 后"},
+		{"||use `a || b` here secret||", "███"},
+		{"||看 [链接](https://x/a||b) 秘密||", "███"},
 		{"> 回复 [#3楼](kungal-reply:12)\n[@kun](kungal-user:1) 同意", "同意"},
 		{"一二三四五", "一二三"},
 	} {
@@ -390,6 +397,18 @@ func TestKind9StaysWhenNoActivityWillNotify(t *testing.T) {
 		if got := kinds(notifsOfSite(t, "letmoe", follower)); len(got) != 1 || got[0] != model.NotificationKindFolloweeThreadCreated {
 			t.Fatalf("kind 9 must stay when no kind 10 will come: %v", got)
 		}
+
+		if err := testDB.Exec(`UPDATE community_activity_site SET thread_url = 'https://www.letmoe.com/community/{thread_id}'`).Error; err != nil {
+			t.Fatal(err)
+		}
+		project(t)
+		processBatch(t)
+		if a := ownActivity(t, "letmoe", openingPost(t, th.ID).ID); a == nil || a.NotifiedAt != nil {
+			t.Fatalf("fixing the URL projects the topic, without notifying: %+v", a)
+		}
+		if got := kinds(notifsOfSite(t, "letmoe", follower)); len(got) != 1 {
+			t.Fatalf("a topic announced by kind 9 is not announced again by kind 10: %v", got)
+		}
 	})
 
 	t.Run("the topic is over a day old when it is dispatched", func(t *testing.T) {
@@ -473,5 +492,32 @@ func TestProjectionEdges(t *testing.T) {
 	project(t)
 	if a := ownActivity(t, "letmoe", opening.ID); a == nil || a.RemovedAt == nil {
 		t.Fatalf("deleting a site's row takes its items out, like switching it off: %+v", a)
+	}
+}
+
+func TestAClaimSkipsARowAWriterHolds(t *testing.T) {
+	cleanTables(t)
+	ts := NewThreadService(testDB, NoopSink{})
+	enableSite(t, "letmoe", "https://www.letmoe.com/community/{thread_id}", letmoeRules)
+	th := openTopic(t, ts, "letmoe", 20, "b1", "held")
+	opening := openingPost(t, th.ID)
+
+	writer := testDB.Begin()
+	defer writer.Rollback()
+	if err := writer.Exec(`SELECT 1 FROM community_activity_projection WHERE post_id = ? FOR UPDATE`, opening.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if _, err := NewActivityService(testDB).ProjectBatch(ctx); err != nil {
+		t.Fatalf("a claim must not wait on a row a writer holds: %v", err)
+	}
+	if a := ownActivity(t, "letmoe", opening.ID); a != nil {
+		t.Fatalf("the held row is left for the next batch: %+v", a)
+	}
+	writer.Rollback()
+	project(t)
+	if a := ownActivity(t, "letmoe", opening.ID); a == nil {
+		t.Fatal("the next batch takes it")
 	}
 }

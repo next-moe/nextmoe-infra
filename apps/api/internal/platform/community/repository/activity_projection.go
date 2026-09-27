@@ -8,9 +8,10 @@ import (
 	"gorm.io/gorm"
 )
 
-// ClaimActivityProjectionsTx takes the oldest queued posts and locks them in
-// post id order, the order every trigger enqueues in, so a claim and a
-// concurrent enqueue cannot deadlock.
+// ClaimActivityProjectionsTx takes and locks the oldest queued posts, skipping
+// any row a writer holds: a statement that re-enqueues several posts locks
+// them in whatever order it touches them, and waiting on one here while
+// holding another deadlocked (40P01) in review.
 func ClaimActivityProjectionsTx(tx *gorm.DB, limit int) ([]model.CommunityActivityProjection, error) {
 	var rows []model.CommunityActivityProjection
 	err := tx.Raw(`
@@ -18,7 +19,7 @@ func ClaimActivityProjectionsTx(tx *gorm.DB, limit int) ([]model.CommunityActivi
 		 WHERE q.post_id IN (SELECT post_id FROM community_activity_projection
 		                      ORDER BY enqueued_at, post_id LIMIT ?)
 		 ORDER BY q.post_id
-		   FOR UPDATE`, limit).Scan(&rows).Error
+		   FOR UPDATE SKIP LOCKED`, limit).Scan(&rows).Error
 	return rows, err
 }
 
