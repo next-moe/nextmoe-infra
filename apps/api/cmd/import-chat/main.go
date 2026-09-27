@@ -82,7 +82,7 @@ func main() {
 			fatal("images", fmt.Errorf("KUN_CHAT_IMAGE_CLIENT_* must be set to re-host %d images", len(refs)))
 		}
 		cli := imageclient.New(imageclient.Config{BaseURL: ic.BaseURL, CDNBase: cfg.ImageService.CDNBase, ClientID: ic.ClientID, ClientSecret: ic.ClientSecret})
-		return rehost(ctx, cli, ic.BaseURL, refs)
+		return rehost(ctx, cli, refs)
 	}
 	rep, err := run(ctx, d)
 	if err != nil {
