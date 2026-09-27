@@ -2,9 +2,8 @@
 # Compose `name:` is frozen: volumes, networks and container names hang off it.
 #
 # This is the MCP (Model Context Protocol) server split OUT into its OWN Dokploy
-# "Compose" project, so its deploys are triggered MANUALLY and stay independent
-# of the main infra stack's webhook cadence (push → CI → auto-redeploy) — the
-# same panel-domain posture as docker-compose.developer.yml.
+# "Compose" project — the same panel-domain posture as docker-compose.developer.yml.
+# build-and-push redeploys it (DOKPLOY_WEBHOOK_MCP) only when infra-mcp was rebuilt.
 #
 # What it is: a THIN, STATELESS protocol adapter that re-exposes the already-
 # public /v1 read faces as MCP tools for AI agents. It holds NO state — no
@@ -22,8 +21,8 @@
 # would silently take the domain down on the next deploy. Point the panel domain
 # at container port 9285, path /mcp (the MCP endpoint; /healthz is the probe).
 #
-# Deploy = the Deploy button of this Dokploy project (panel injects the domain
-# labels at deploy time; a bare server-side `docker compose up` would NOT).
+# Deploy = that webhook or the Deploy button of this Dokploy project (panel injects
+# the domain labels at deploy time; a bare server-side `docker compose up` would NOT).
 name: kun-galgame-infra-mcp
 
 services:
