@@ -118,7 +118,7 @@ func TestProjectionRulePicksTheLongestPrefix(t *testing.T) {
 		{"::::spoiler\n秘密\n:::\n还是秘密\n::::\n后", "███ 后"},
 		{"||use `a || b` here secret||", "███"},
 		{"||看 [链接](https://x/a||b) 秘密||", "███"},
-		{"> 回复 [#3楼](kungal-reply:12)\n[@kun](kungal-user:1) 同意", "同意"},
+		{"> 回复 [#3楼](kungal-reply:12)\n[@kun](kungal-user:1) 同意", "回复 #3楼 @kun 同意"},
 		{"一二三四五", "一二三"},
 	} {
 		limit := 300
@@ -146,6 +146,12 @@ func TestProjectionRulePicksTheLongestPrefix(t *testing.T) {
 		"||a $$x||y$$ secret||",
 		`<p>a<div class="kun-spoiler">s</p> secret</div>`,
 		"<noscript>secret</noscript>",
+		"> :::spoiler\n> 回复 secret\n> :::",
+		"- :::spoiler\n  > 回复 x\n  secret\n  :::",
+		`<span class="kun-spoiler-hidden">secret</span>`,
+		`<div class="kun-spoiler-hidden">secret</div>`,
+		`<span class="text-transparent">secret</span>`,
+		`<p class="sr-only">secret</p>`,
 		`<span class="kun-spoiler"><table><tr><td></div>secret</td></tr></table></span>`,
 	} {
 		if got := plainExcerpt(in, 300); strings.Contains(got, "secret") {

@@ -2,7 +2,6 @@ package sanitize
 
 import (
 	"bytes"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -31,24 +30,24 @@ var (
 		return p
 	}()
 
-	referenceTokenPattern = regexp.MustCompile(`\[[@#][^\]]*\]\([a-z0-9-]+:\d+\)`)
-	replyHeaderPattern    = regexp.MustCompile(`(?m)^\s*>\s*回复\s*`)
-
 	hiddenTags = []string{"details", "script", "style", "template", "noscript", "img"}
-	blockTags  = []string{"p", "br", "div", "li", "tr", "td", "th", "pre", "blockquote", "hr",
+	// Classes the sites' CSS hides; any class is allowed through, so raw HTML
+	// can use them.
+	hiddenClasses = []string{"hidden", "invisible", "sr-only", "text-transparent"}
+	blockTags     = []string{"p", "br", "div", "li", "tr", "td", "th", "pre", "blockquote", "hr",
 		"h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "table"}
 )
 
 // PlainText is a post's Markdown as the text a reader sees without opening
-// anything: every spoiler becomes SpoilerMask, collapsed blocks and images are
-// left out, mention and quote tokens are dropped, and whitespace collapses to
-// single spaces. The HTML is read as a browser builds it (html.Parse), so a
-// stray end tag cannot end a spoiler early.
+// anything: every spoiler becomes SpoilerMask, collapsed blocks, images and
+// CSS-hidden text are left out, and whitespace collapses to single spaces. The
+// source is rendered untouched — editing it first (stripping a "> 回复"
+// header) moved lines out of the quote holding a spoiler, and leaked them — and
+// the HTML is read as a browser builds it (html.Parse), so a stray end tag
+// cannot end a spoiler early.
 func PlainText(markdown string) string {
-	src := referenceTokenPattern.ReplaceAllString(markdown, "")
-	src = replyHeaderPattern.ReplaceAllString(src, "")
 	var buf bytes.Buffer
-	if err := excerptMarkdown.Convert([]byte(src), &buf); err != nil {
+	if err := excerptMarkdown.Convert([]byte(markdown), &buf); err != nil {
 		return ""
 	}
 	root, err := html.Parse(excerptPolicy.SanitizeReader(&buf))
@@ -63,8 +62,11 @@ func PlainText(markdown string) string {
 			b.WriteString(n.Data)
 			return
 		case html.ElementNode:
-			if hasSpoilerClass(n) || n.Data == "details" {
+			if isSpoiler(n) || n.Data == "details" {
 				b.WriteString(" " + SpoilerMask + " ")
+				return
+			}
+			if hasHiddenClass(n) {
 				return
 			}
 			if slices.Contains(hiddenTags, n.Data) {
@@ -83,11 +85,19 @@ func PlainText(markdown string) string {
 	return strings.Join(strings.Fields(b.String()), " ")
 }
 
-func hasSpoilerClass(n *html.Node) bool {
+func classes(n *html.Node) []string {
 	for _, a := range n.Attr {
-		if a.Key == "class" && slices.Contains(strings.Fields(a.Val), spoilerClass) {
-			return true
+		if a.Key == "class" {
+			return strings.Fields(a.Val)
 		}
 	}
-	return false
+	return nil
+}
+
+func isSpoiler(n *html.Node) bool {
+	return slices.ContainsFunc(classes(n), func(c string) bool { return strings.HasPrefix(c, spoilerClass) })
+}
+
+func hasHiddenClass(n *html.Node) bool {
+	return slices.ContainsFunc(classes(n), func(c string) bool { return slices.Contains(hiddenClasses, c) })
 }
