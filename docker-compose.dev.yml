@@ -292,7 +292,9 @@ services:
     environment:
       CENTRIFUGO_CLIENT_TOKEN_HMAC_SECRET_KEY: dev-chat-realtime-secret
       CENTRIFUGO_HTTP_API_KEY: dev-chat-centrifugo-key
-      CENTRIFUGO_CLIENT_ALLOWED_ORIGINS: "http://localhost:3000 http://127.0.0.1:3000 http://localhost:5173 http://127.0.0.1:5173"
+      # Every product repo runs its web on its own port (moyu :6969, kungal, letmoe …);
+      # listing ports made each new site's socket fail its origin check.
+      CENTRIFUGO_CLIENT_ALLOWED_ORIGINS: "http://localhost:* http://127.0.0.1:*"
       CENTRIFUGO_CHANNEL_NAMESPACES: '[{"name":"user"}]'
       CENTRIFUGO_HEALTH_ENABLED: "true"
     restart: unless-stopped
