@@ -230,7 +230,7 @@ func TestRequestLimitsUntilAccepted(t *testing.T) {
 	_, err = r.svc.Send(ctx, actor(1), conv, SendInput{Text: "one more"})
 	wantErr(t, err, ErrRequestLimit)
 
-	if st, _ := r.svc.State(ctx, actor(2)); st.RequestCount != 1 || st.UnreadMessageCount != 0 {
+	if st, _ := r.svc.State(ctx, actor(2)); st.Object != "chat_state" || st.RequestCount != 1 || st.UnreadMessageCount != 0 {
 		t.Fatalf("recipient state: %+v", st)
 	}
 	r.send(t, 2, conv, "hi back")
