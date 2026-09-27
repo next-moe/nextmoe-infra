@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	authModel "api/internal/platform/auth/model"
+	"api/internal/platform/shop/model"
 	"api/internal/platform/shop/perm"
 	"api/internal/platform/shop/service"
 	"api/pkg/errors"
@@ -71,7 +72,7 @@ func (h *Handler) Purchase(c fiber.Ctx) error {
 	if err := c.Bind().JSON(&req); err != nil || req.OfferID == 0 {
 		return response.BadRequest(c, errors.ErrBadRequest)
 	}
-	out, err := h.shop.Purchase(c.Context(), userID, req.OfferID, req.IdempotencyKey)
+	out, err := h.shop.Purchase(c.Context(), userID, req.OfferID, req.IdempotencyKey, model.EverySite)
 	if err != nil {
 		return respondErr(c, err)
 	}
@@ -93,6 +94,10 @@ func (h *Handler) Equip(c fiber.Ctx) error {
 	if err := c.Bind().JSON(&req); err != nil || req.Slot == "" {
 		return response.BadRequest(c, errors.ErrBadRequest)
 	}
+	return h.equip(c, userID, req)
+}
+
+func (h *Handler) equip(c fiber.Ctx, userID uint, req equipRequest) error {
 	if err := h.shop.Equip(c.Context(), userID, req.Slot, req.SiteID, req.ItemID); err != nil {
 		return respondErr(c, err)
 	}

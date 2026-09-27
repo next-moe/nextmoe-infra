@@ -164,7 +164,7 @@ func (f *fixture) offer(in OfferInput) int64 {
 }
 
 func (f *fixture) buy(user uint, offer int64, key string) (*Purchased, error) {
-	return f.shop.Purchase(context.Background(), user, offer, key)
+	return f.shop.Purchase(context.Background(), user, offer, key, model.EverySite)
 }
 
 func (f *fixture) balance(user uint) int64 {

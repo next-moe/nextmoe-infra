@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { SHOP_KIND_LABEL } from '~/constants/shop'
-
 const props = defineProps<{
   offer: ShopOffer
   userName: string
   avatar: string
   balance: number
   owned: boolean
+  used: number
 }>()
 
 const emit = defineEmits<{ buy: [] }>()
@@ -15,71 +14,94 @@ const lead = computed(() => props.offer.rewards[0])
 const title = computed(() =>
   props.offer.rewards.map((r) => r.item.name).join(' + ')
 )
-const affordable = computed(() => props.balance >= props.offer.price)
-const soldOut = computed(() => props.offer.remaining === 0)
-const limit = computed(() => {
-  const n = props.offer.per_user_limit
-  if (!n) return ''
-  return props.offer.limit_period === 'month'
-    ? `每人每月限购 ${n} 次`
-    : `每人限购 ${n} 次`
+const isCode = computed(() => lead.value?.item.kind === 'redeem_code')
+const unit = computed(() => (isCode.value ? '张' : '份'))
+
+const facts = computed(() => {
+  const o = props.offer
+  const out: string[] = []
+  if (o.stock !== null) out.push(`限量 ${o.stock} 份`)
+  if (o.remaining !== null && o.remaining > 0)
+    out.push(`还剩 ${o.remaining} ${unit.value}`)
+  if (o.per_user_limit) {
+    const period = o.limit_period === 'month' ? '每月' : '每人'
+    out.push(
+      props.used
+        ? `${period}限购 ${o.per_user_limit}，已买 ${props.used}`
+        : `${period}限购 ${o.per_user_limit}`
+    )
+  }
+  return out
+})
+
+const action = computed(() => {
+  const o = props.offer
+  if (o.remaining === 0) return { label: '已售罄', disabled: true }
+  if (o.per_user_limit && props.used >= o.per_user_limit)
+    return {
+      label: o.limit_period === 'month' ? '本月已买满' : '已达限购',
+      disabled: true
+    }
+  const short = o.price - props.balance
+  if (short > 0) return { label: `还差 ${short} 点`, disabled: true }
+  return { label: '购买', disabled: false }
 })
 </script>
 
 <template>
-  <KunCard class="flex flex-col p-5">
-    <div class="flex min-h-36 items-center py-4">
-      <ShopItemPreview
-        :item="lead?.item"
-        :user-name="userName"
-        :avatar="avatar"
-        class="w-full"
-      />
-    </div>
-
-    <div class="flex items-start justify-between gap-2">
-      <div class="min-w-0">
-        <h3 class="text-foreground font-semibold">{{ title }}</h3>
-        <p class="text-default-400 text-xs">
-          {{ SHOP_KIND_LABEL[lead?.item.kind ?? 'avatar_frame'] }}
-        </p>
-      </div>
-      <KunChip v-if="lead?.duration_days" size="sm" color="info">
+  <KunCard
+    padding="none"
+    :is-hoverable="true"
+    class-name="gap-0 overflow-hidden"
+    content-class="gap-0"
+  >
+    <ShopStage
+      :item="lead?.item"
+      :user-name="userName"
+      :avatar="avatar"
+      class-name="h-52"
+    >
+      <KunChip
+        v-if="lead?.duration_days"
+        size="sm"
+        color="info"
+        variant="solid"
+        class-name="absolute top-3 right-3"
+      >
         {{ lead.duration_days }} 天
       </KunChip>
-    </div>
-    <p v-if="lead?.item.description" class="text-default-500 mt-1 text-sm">
-      {{ lead.item.description }}
-    </p>
-    <p
-      v-if="offer.remaining !== null || limit"
-      class="text-default-400 mt-1 text-xs"
-    >
-      <template v-if="offer.stock !== null">
-        限量 {{ offer.stock }} 份，还剩 {{ offer.remaining }} 份
-      </template>
-      <template v-else-if="offer.remaining !== null">
-        本期还剩 {{ offer.remaining }} 张
-      </template>
-      <template v-if="limit">
-        {{ offer.remaining !== null ? ' · ' : '' }}{{ limit }}
-      </template>
-    </p>
+    </ShopStage>
 
-    <div class="mt-auto flex items-center justify-between gap-3 pt-4">
-      <span class="text-foreground flex items-center gap-1 font-semibold">
-        <KunIcon name="lucide:star" class="text-warning size-4" />
-        {{ offer.price }}
-      </span>
-      <KunChip v-if="owned" color="success" size="sm">已拥有</KunChip>
-      <KunButton
-        v-else
-        size="sm"
-        :disabled="!affordable || soldOut"
-        @click="emit('buy')"
+    <div class="flex flex-1 flex-col p-5">
+      <h3 class="text-foreground leading-snug font-semibold">{{ title }}</h3>
+      <p
+        v-if="lead?.item.description"
+        class="text-default-500 mt-1.5 line-clamp-2 text-sm"
       >
-        {{ soldOut ? '已售罄' : affordable ? '购买' : '萌萌点不足' }}
-      </KunButton>
+        {{ lead.item.description }}
+      </p>
+      <p v-if="facts.length" class="text-default-400 mt-3 text-xs">
+        {{ facts.join(' · ') }}
+      </p>
+
+      <div class="mt-auto flex items-center justify-between gap-3 pt-5">
+        <ShopPrice :amount="offer.price" class-name="text-xl" />
+        <KunChip v-if="owned" color="success" size="md">
+          <span class="flex items-center gap-1">
+            <KunIcon name="lucide:check" class="size-4" />
+            已拥有
+          </span>
+        </KunChip>
+        <KunButton
+          v-else
+          :color="action.disabled ? 'default' : 'primary'"
+          :variant="action.disabled ? 'flat' : 'solid'"
+          :disabled="action.disabled"
+          @click="emit('buy')"
+        >
+          {{ action.label }}
+        </KunButton>
+      </div>
     </div>
   </KunCard>
 </template>

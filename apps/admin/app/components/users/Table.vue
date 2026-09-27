@@ -166,7 +166,7 @@ const isProtected = (user: User) =>
                   class="flex w-full items-center gap-2 px-3 py-2 text-sm text-default-500 hover:bg-default-100 hover:text-foreground"
                   @click="emit('moemoepoint', { uuid: user.uuid, name: user.name, moemoepoint: user.moemoepoint })"
                 >
-                  <KunIcon name="lucide:sparkles" class="size-4" />
+                  <KunIcon name="lucide:lollipop" class="size-4" />
                   萌萌点
                 </button>
                 <button
