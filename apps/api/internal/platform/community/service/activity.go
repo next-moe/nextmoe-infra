@@ -28,6 +28,7 @@ const (
 	activityURLMax         = 2048
 	activityClockSkew      = 5 * time.Minute
 	activityTombstoneKeep  = 30 * 24 * time.Hour
+	activityNotifyWindow   = 24 * time.Hour
 	activityFeedDefault    = 20
 	activityFeedMax        = 50
 	activityPreviewItems   = 3

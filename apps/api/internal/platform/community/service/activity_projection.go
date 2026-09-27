@@ -62,13 +62,14 @@ type ProjectionRule struct {
 }
 
 type projectionSite struct {
-	enabled   bool
-	threadURL string
-	rules     []ProjectionRule
+	enabled     bool
+	threadURL   string
+	notifyAfter time.Time
+	rules       []ProjectionRule
 }
 
 func parseProjectionSite(row model.CommunityActivitySite) (projectionSite, error) {
-	s := projectionSite{enabled: row.Enabled, threadURL: row.ThreadURL}
+	s := projectionSite{enabled: row.Enabled, threadURL: row.ThreadURL, notifyAfter: row.NotifyAfter}
 	if err := json.Unmarshal(row.Rules, &s.rules); err != nil {
 		return s, fmt.Errorf("site %s rules: %w", row.Site, err)
 	}
@@ -88,24 +89,38 @@ func (c projectionSite) rule(anchorKind int16, anchorID, role string) (Projectio
 	return out, best >= 0
 }
 
-func (c projectionSite) notifiesTopics(anchorKind int16, anchorID string) bool {
-	r, ok := c.rule(anchorKind, anchorID, RoleTopic)
-	return c.enabled && ok && r.Notify
+// notifies reports whether a projected post may notify followers as kind 10.
+// Posts written before the site was switched on, or before its rules last
+// changed, already raised kind 9.
+func (c projectionSite) notifies(w repository.ActivityWrite, createdAt time.Time) bool {
+	return w.Notify && !createdAt.Before(c.notifyAfter)
 }
 
-// topicsNotifyAsActivities reports whether a topic opened on this thread's
-// site notifies followers as kind 10, through its projected activity, instead
-// of kind 9.
-func topicsNotifyAsActivities(tx *gorm.DB, thread *model.CommunityThread) (bool, error) {
-	row, err := repository.ActivitySiteTx(tx, thread.Site)
+// topicNotifiesAsActivity reports whether a new topic's projected activity
+// will notify its author's followers as kind 10, in which case kind 9 stands
+// down. It mirrors the projection and the write path's 24-hour window, so a
+// topic the projection cannot shape, or one approved from the review queue a
+// day late, still raises kind 9. A rules document that does not parse keeps
+// kind 9.
+func topicNotifiesAsActivity(tx *gorm.DB, site string, postID int64) (bool, error) {
+	row, err := repository.ActivitySiteTx(tx, site)
 	if err != nil || row == nil {
 		return false, err
 	}
-	site, err := parseProjectionSite(*row)
+	cfg, err := parseProjectionSite(*row)
+	if err != nil {
+		return false, nil
+	}
+	posts, err := repository.ProjectedPostsTx(tx, []int64{postID})
 	if err != nil {
 		return false, err
 	}
-	return site.notifiesTopics(thread.AnchorKind, thread.AnchorID), nil
+	p, ok := posts[postID]
+	if !ok || p.Site != site {
+		return false, nil
+	}
+	w, ok := projectPost(p, cfg, 0)
+	return ok && cfg.notifies(w, p.CreatedAt) && time.Since(p.CreatedAt) < activityNotifyWindow, nil
 }
 
 func postRole(threadKind int16, postNumber int32) string {
@@ -172,7 +187,10 @@ func projectPost(p repository.ProjectedPostRow, site projectionSite, rev int64) 
 	if title == "" && p.AnchorLive {
 		title = p.AnchorTitle
 	}
-	if title = cutRunes(stripControl(title), activityTitleMax); title == "" {
+	if title = cutRunes(strings.Join(strings.Fields(stripControl(title)), " "), activityTitleMax); title == "" {
+		return w, false
+	}
+	if len(url) > activityURLMax {
 		return w, false
 	}
 
@@ -279,10 +297,12 @@ func (s *ActivityService) ProjectBatch(ctx context.Context) (int, error) {
 			return err
 		}
 		sites := map[string]projectionSite{}
+		broken := map[string]bool{}
 		for name, row := range siteRows {
 			site, err := parseProjectionSite(row)
 			if err != nil {
-				slog.Error("community activity projection: bad site config", "err", err)
+				slog.Error("community activity projection: site rules do not parse; its items are left as they are", "site", name, "err", err)
+				broken[name] = true
 				continue
 			}
 			sites[name] = site
@@ -291,20 +311,26 @@ func (s *ActivityService) ProjectBatch(ctx context.Context) (int, error) {
 		bySite := map[string][]activityJob{}
 		for _, c := range claims {
 			key := ownActivityKey(c.PostID)
+			p, found := posts[c.PostID]
+			// A wall-clock step back must not make a real change stale.
+			itemRev := rev
+			for _, row := range stored[key] {
+				itemRev = max(itemRev, row.Revision+1)
+			}
 			liveSite := ""
-			if p, ok := posts[c.PostID]; ok {
-				if w, ok := projectPost(p, sites[p.Site], rev); ok {
+			if found {
+				if w, ok := projectPost(p, sites[p.Site], itemRev); ok {
 					liveSite = p.Site
-					bySite[p.Site] = append(bySite[p.Site], activityJob{write: w, eligible: w.Notify && !c.Backfill})
+					bySite[p.Site] = append(bySite[p.Site], activityJob{write: w, eligible: sites[p.Site].notifies(w, p.CreatedAt)})
 				}
 			}
 			for _, row := range stored[key] {
-				if row.Removed || row.Site == liveSite {
+				if row.Removed || row.Site == liveSite || broken[row.Site] {
 					continue
 				}
 				bySite[row.Site] = append(bySite[row.Site], activityJob{write: repository.ActivityWrite{
 					Key: key, ActorID: row.ActorID, Verb: row.Verb, ObjectKind: row.ObjectKind,
-					Revision: rev, Removed: true, OccurredAt: time.Now(),
+					Revision: itemRev, Removed: true, OccurredAt: time.Now(),
 				}})
 			}
 		}

@@ -286,9 +286,14 @@ func TestEnablingASiteBackfillsWithoutNotifying(t *testing.T) {
 	}
 
 	enableSite(t, "letmoe", "https://www.letmoe.com/community/{thread_id}", letmoeRules)
+	// Touched before the backfill drained: still written before the switch,
+	// and its followers already had kind 9 for it.
+	if err := testDB.Exec(`UPDATE community_post SET content_raw = 'edited' WHERE id = ?`, opening.ID).Error; err != nil {
+		t.Fatal(err)
+	}
 	project(t)
 	a := ownActivity(t, "letmoe", opening.ID)
-	if a == nil || a.RemovedAt != nil || a.NotifiedAt != nil {
+	if a == nil || a.RemovedAt != nil || a.NotifiedAt != nil || a.Excerpt != "edited" {
 		t.Fatalf("enabling backfills the site's posts, without notifying, even a fresh topic: %+v", a)
 	}
 	processBatch(t)
@@ -356,5 +361,117 @@ func TestSitesCannotWriteCommunityKeys(t *testing.T) {
 	res := writeActivities(t, "kungal", publishInput("community:post:1", 7, time.Now().Add(-time.Hour), 1))
 	if res[0].Outcome != ActivityInvalid {
 		t.Fatalf("a site write under the reserved prefix is refused: %+v", res)
+	}
+}
+
+func kinds(rows []model.CommunityNotification) []int16 {
+	out := make([]int16, len(rows))
+	for i, r := range rows {
+		out[i] = r.Kind
+	}
+	return out
+}
+
+func TestKind9StaysWhenNoActivityWillNotify(t *testing.T) {
+	const author, follower int64 = 20, 10
+	ts := NewThreadService(testDB, NoopSink{})
+
+	t.Run("the projection cannot shape the topic", func(t *testing.T) {
+		cleanTables(t)
+		enableSite(t, "letmoe", "", letmoeRules)
+		mustFollow(t, "letmoe", follower, author)
+		processBatch(t)
+		th := openTopic(t, ts, "letmoe", author, "b1", "no url")
+		processBatch(t)
+		project(t)
+		if a := ownActivity(t, "letmoe", openingPost(t, th.ID).ID); a != nil {
+			t.Fatalf("setup: no thread URL, no activity: %+v", a)
+		}
+		if got := kinds(notifsOfSite(t, "letmoe", follower)); len(got) != 1 || got[0] != model.NotificationKindFolloweeThreadCreated {
+			t.Fatalf("kind 9 must stay when no kind 10 will come: %v", got)
+		}
+	})
+
+	t.Run("the topic is over a day old when it is dispatched", func(t *testing.T) {
+		cleanTables(t)
+		enableSite(t, "letmoe", "https://www.letmoe.com/community/{thread_id}", letmoeRules)
+		mustFollow(t, "letmoe", follower, author)
+		processBatch(t)
+		if err := testDB.Exec(`UPDATE community_activity_site SET notify_after = now() - interval '40 hours'`).Error; err != nil {
+			t.Fatal(err)
+		}
+		th := openTopic(t, ts, "letmoe", author, "b1", "approved late")
+		opening := openingPost(t, th.ID)
+		if err := testDB.Exec(`UPDATE community_post SET created_at = now() - interval '30 hours' WHERE id = ?`, opening.ID).Error; err != nil {
+			t.Fatal(err)
+		}
+		processBatch(t)
+		project(t)
+		processBatch(t)
+		if a := ownActivity(t, "letmoe", opening.ID); a == nil || a.NotifiedAt != nil {
+			t.Fatalf("setup: a day-old topic is projected without notifying: %+v", a)
+		}
+		if got := kinds(notifsOfSite(t, "letmoe", follower)); len(got) != 1 || got[0] != model.NotificationKindFolloweeThreadCreated {
+			t.Fatalf("a topic approved a day late still raises kind 9, and only that: %v", got)
+		}
+	})
+
+	t.Run("the site's rules do not parse", func(t *testing.T) {
+		cleanTables(t)
+		enableSite(t, "letmoe", "https://www.letmoe.com/community/{thread_id}", letmoeRules)
+		mustFollow(t, "letmoe", follower, author)
+		processBatch(t)
+		first := openTopic(t, ts, "letmoe", author, "b1", "before the typo")
+		processBatch(t)
+		project(t)
+		if err := testDB.Exec(`UPDATE community_activity_site SET rules = '[{"anchor_kind":"board"}]' WHERE site = 'letmoe'`).Error; err != nil {
+			t.Fatal(err)
+		}
+		project(t)
+		if a := ownActivity(t, "letmoe", openingPost(t, first.ID).ID); a == nil || a.RemovedAt != nil {
+			t.Fatalf("a typo in the rules must not tombstone the site's items: %+v", a)
+		}
+		openTopic(t, ts, "letmoe", author, "b1", "after the typo")
+		processBatch(t)
+		got := kinds(notifsOfSite(t, "letmoe", follower))
+		if len(got) != 2 || got[1] != model.NotificationKindFolloweeThreadCreated {
+			t.Fatalf("with rules that do not parse, kind 9 carries topics: %v", got)
+		}
+	})
+}
+
+func TestProjectionEdges(t *testing.T) {
+	cleanTables(t)
+	ts := NewThreadService(testDB, NoopSink{})
+	enableSite(t, "letmoe", "https://www.letmoe.com/community/{thread_id}", letmoeRules)
+	th := openTopic(t, ts, "letmoe", 20, "b1", "edges")
+	opening := openingPost(t, th.ID)
+	project(t)
+
+	if err := testDB.Exec(`UPDATE community_thread SET title = E'line1\nline2\tend' WHERE id = ?`, th.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	project(t)
+	if a := ownActivity(t, "letmoe", opening.ID); a == nil || a.Title != "line1 line2 end" {
+		t.Fatalf("a title is one line, as the site API requires: %+v", a)
+	}
+
+	if err := testDB.Exec(`UPDATE community_activity SET revision = revision + 1000000000000 WHERE key = ?`, ownActivityKey(opening.ID)).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := testDB.Exec(`UPDATE community_post SET content_raw = 'after a clock step' WHERE id = ?`, opening.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	project(t)
+	if a := ownActivity(t, "letmoe", opening.ID); a == nil || a.Excerpt != "after a clock step" {
+		t.Fatalf("a stored revision ahead of the clock does not make a real change stale: %+v", a)
+	}
+
+	if err := testDB.Exec(`DELETE FROM community_activity_site WHERE site = 'letmoe'`).Error; err != nil {
+		t.Fatal(err)
+	}
+	project(t)
+	if a := ownActivity(t, "letmoe", opening.ID); a == nil || a.RemovedAt == nil {
+		t.Fatalf("deleting a site's row takes its items out, like switching it off: %+v", a)
 	}
 }

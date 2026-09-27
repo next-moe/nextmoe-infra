@@ -24,18 +24,18 @@ type CommunityAnchorPresentation struct {
 func (CommunityAnchorPresentation) TableName() string { return "community_anchor_presentation" }
 
 type CommunityActivitySite struct {
-	Site      string         `gorm:"primaryKey;column:site" json:"site"`
-	Enabled   bool           `gorm:"not null;column:enabled" json:"enabled"`
-	ThreadURL string         `gorm:"not null;column:thread_url" json:"thread_url"`
-	Rules     datatypes.JSON `gorm:"type:jsonb;not null;column:rules" json:"rules"`
-	UpdatedAt time.Time      `gorm:"not null;column:updated_at;autoUpdateTime:false" json:"updated_at"`
+	Site        string         `gorm:"primaryKey;column:site" json:"site"`
+	Enabled     bool           `gorm:"not null;column:enabled" json:"enabled"`
+	ThreadURL   string         `gorm:"not null;column:thread_url" json:"thread_url"`
+	Rules       datatypes.JSON `gorm:"type:jsonb;not null;column:rules" json:"rules"`
+	NotifyAfter time.Time      `gorm:"not null;column:notify_after" json:"notify_after"`
+	UpdatedAt   time.Time      `gorm:"not null;column:updated_at;autoUpdateTime:false" json:"updated_at"`
 }
 
 func (CommunityActivitySite) TableName() string { return "community_activity_site" }
 
 type CommunityActivityProjection struct {
 	PostID     int64     `gorm:"primaryKey;autoIncrement:false;column:post_id" json:"post_id"`
-	Backfill   bool      `gorm:"not null;column:backfill" json:"backfill"`
 	EnqueuedAt time.Time `gorm:"not null;column:enqueued_at" json:"enqueued_at"`
 }
 

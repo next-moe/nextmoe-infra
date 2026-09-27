@@ -8,9 +8,17 @@ import (
 	"gorm.io/gorm"
 )
 
+// ClaimActivityProjectionsTx takes the oldest queued posts and locks them in
+// post id order, the order every trigger enqueues in, so a claim and a
+// concurrent enqueue cannot deadlock.
 func ClaimActivityProjectionsTx(tx *gorm.DB, limit int) ([]model.CommunityActivityProjection, error) {
 	var rows []model.CommunityActivityProjection
-	err := tx.Order("enqueued_at, post_id").Limit(limit).Find(&rows).Error
+	err := tx.Raw(`
+		SELECT q.post_id, q.enqueued_at FROM community_activity_projection q
+		 WHERE q.post_id IN (SELECT post_id FROM community_activity_projection
+		                      ORDER BY enqueued_at, post_id LIMIT ?)
+		 ORDER BY q.post_id
+		   FOR UPDATE`, limit).Scan(&rows).Error
 	return rows, err
 }
 
@@ -84,6 +92,7 @@ type OwnActivityRow struct {
 	ActorID    int64  `gorm:"column:actor_id"`
 	Verb       int16  `gorm:"column:verb"`
 	ObjectKind string `gorm:"column:object_kind"`
+	Revision   int64  `gorm:"column:revision"`
 	Removed    bool   `gorm:"column:removed"`
 }
 
@@ -94,7 +103,7 @@ func OwnActivitiesByKeyTx(tx *gorm.DB, keys []string) (map[string][]OwnActivityR
 	}
 	var rows []OwnActivityRow
 	err := tx.Raw(`
-		SELECT site, key, actor_id, verb, object_kind, removed_at IS NOT NULL AS removed
+		SELECT site, key, actor_id, verb, object_kind, revision, removed_at IS NOT NULL AS removed
 		  FROM community_activity
 		 WHERE key LIKE 'community:%' AND key IN ?`, keys).Scan(&rows).Error
 	for _, r := range rows {

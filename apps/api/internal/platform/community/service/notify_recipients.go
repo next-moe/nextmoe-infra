@@ -137,7 +137,7 @@ func recipientsForEvent(tx *gorm.DB, ev *model.CommunityEvent, thread *model.Com
 			if err != nil {
 				return nil, err
 			}
-			superseded, err := topicsNotifyAsActivities(tx, thread)
+			superseded, err := topicNotifiesAsActivity(tx, thread.Site, post.ID)
 			if err != nil {
 				return nil, err
 			}

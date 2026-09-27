@@ -524,8 +524,8 @@ func TestColumnAudit(t *testing.T) {
 			"site", "anchor_kind", "anchor_id", "title", "url", "work_id", "cover_image_hash", "content_limit", "revision",
 			"removed_at", "created_at", "updated_at",
 		},
-		"community_activity_site":       {"site", "enabled", "thread_url", "rules", "updated_at"},
-		"community_activity_projection": {"post_id", "backfill", "enqueued_at"},
+		"community_activity_site":       {"site", "enabled", "thread_url", "rules", "notify_after", "updated_at"},
+		"community_activity_projection": {"post_id", "enqueued_at"},
 	}
 	for table, cols := range want {
 		got := columnNames(t, table)
