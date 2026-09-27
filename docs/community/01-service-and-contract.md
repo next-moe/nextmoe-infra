@@ -540,9 +540,11 @@ A site pushes its users' public activity into community; the following feed read
 
 **The revision rule.** A write changes the stored item only when its `revision` is greater than the stored one; otherwise it is `stale` and changes nothing, so a retried batch is harmless. The pusher must stamp `revision` when it **reads the state it sends** — not from the row's update time: an item can change visibility without its row changing (a resource taken down by a filter the pusher applies), and a tombstone carrying the old revision would be refused forever. Send current state, not the change.
 
-**Tombstones.** Hidden, deleted, made non-public, author purged: the site sends `removed`. A tombstone keeps only the item's identity and revision (`title`, `excerpt`, `url`, `cover_image_hash`, `work_id` are cleared) and blocks every older write, so a late retry cannot bring deleted content back. A tombstone for a key never seen is stored the same way. A later write with a greater revision restores the item. Tombstones are pruned 30 days after removal.
+**Keys.** The `community:` prefix is reserved for the posts community holds itself (below); a site item under it is `invalid`.
 
-**Reconciling.** `GET /activities?cursor=&limit=` (≤ 1000, id order) returns every stored field of the caller's own items, tombstones included. A site should reconcile daily by comparing **every field**, not only the revision: a field derived from elsewhere — a work's content limit in the catalog — changes without the site's row changing. Stored but missing or different locally → push again with a new revision; live here but gone locally → tombstone.
+**Tombstones.** Hidden, deleted, made non-public, author purged: the site sends `removed`. A tombstone keeps only the item's identity and revision (`title`, `excerpt`, `url`, `cover_image_hash`, `work_id` are cleared) and blocks every older write, so a late retry cannot bring deleted content back. A tombstone for a key never seen is stored the same way. A later write with a greater revision restores the item. Tombstones are pruned 30 days after removal. Never tombstone a key community has not accepted: the tombstone makes the key seen, so its first real publication would never notify.
+
+**Reconciling.** `GET /activities?cursor=&limit=` (≤ 1000, id order) returns every stored field of the caller's own items, tombstones included. A site should reconcile daily by comparing **every field**, not only the revision: a field derived from elsewhere — a work's content limit in the catalog — changes without the site's row changing. Stored but missing or different locally → push again with a new revision; live here but gone locally → tombstone. Stamp a reconcile tombstone's revision **before** reading the local state that condemned it, never when sending it: a scan takes minutes, and an item made public again in between is pushed live by the drainer at its own read time, which a later-stamped tombstone would outrank. The listing leaves out community's own items.
 
 **Notifying.** An item notifies the author's followers only when, at the time of the write, the key has never been seen (a tombstone counts as seen), it is live, `publish` with `notify`, and `occurred_at` is within the last 24 hours. A backfill, an update, a restore and a late push after an outage never notify. The notification is queued in the same transaction (event `activity_published`) and sent as kind 10.
 
@@ -567,6 +569,18 @@ A group is `{id, site, actor_id, verb, object_kind, object_label, day, item_coun
 - `PUT /users/{id}/activity-settings {hidden}` → the same shape. `hidden` is required.
 
 While hidden, the user's groups leave every follower's feed and unseen count (the switch is read at read time, like the follow graph), `GET /users/{id}/activities` answers `{groups: [], hidden: true}` to any `viewer_id` but the user's own, and `GET /activity-groups/{id}/items` answers `404` for their groups to anyone but them. The site keeps pushing as before: hiding changes who sees the activities, not what is stored, so `GET /activities` still lists them. Turning it on also retracts every kind-10 row the user raised, on every site, read ones included, and stops new kind 9 and kind 10 notifications (see Notifications); kind-9 rows already delivered stay, since the topic they point at stays public on its board. Turning it off shows everything again at once; the retracted notifications do not come back, and nothing published while hidden ever notifies — an activity written while its author is hidden is never marked notified, and one whose event is dispatched while they are hidden loses the mark.
+
+### Community's own posts in the feed
+
+Topics, replies and comment-wall comments are held by community, so community writes their activities itself; a site pushes them neither through `POST /activities` nor through its own keys. Each post is one item, key `community:post:<post_id>`, under the thread's site, authored by the post's author, `occurred_at` its creation. It is live while the post is visible and its thread open or closed (not hidden, deleted or merged), and the rules below give it a shape; otherwise it is tombstoned. Every change of a post, its thread, its anchor's presentation or the site's rules is re-projected within seconds, so moderation, purge and restore, rehome and merge need nothing from the site.
+
+**A site's switch and rules** are set by the platform operator (SQL, `community_activity_site`), not through the API. A site without a row, or switched off, gets no such items; switching it on backfills its existing posts, and switching it off (or deleting the row) tombstones them. A post written before the site was switched on, or before its rules last changed, never notifies: its followers had kind 9 for it. A rules document that does not parse leaves the site's items as they are and keeps kind 9. Each rule maps an anchor kind (with an optional anchor id prefix, longest wins), and a role — `topic` (a board topic's opening post), `reply`, `comment` (any post of a comments thread), `feedback`, `feedback_reply` — to a `verb`, `object_kind`, `object_label`, whether a topic notifies, a `fragment` template (`{post_id}`) that points the URL at the post — `#post-{post_id}`, `?comment={post_id}` — and whether to leave the excerpt out (a quiz wall, whose comments would give the answers away). The rules each site has agreed are in the site's integration brief.
+
+**Anchor presentation** (comment walls). Community knows a wall only by its anchor id, so the site says what the page is: `PUT /anchor-presentations {items: [{anchor_kind, anchor_id, title, url, work_id?, cover_image_hash?, content_limit, revision, removed?}]}`, 1–100 items, one outcome each, under the same revision, tombstone and URL-host rules as activities. `anchor_kind` is `1` (site_game) or `2` (site_resource); `anchor_id` is exactly what the site sends on `POST /comments`. Push a page when it is created and whenever its title, URL, work, cover or content limit changes, and tombstone it when it is deleted or stops being public: its comments leave the feed with it. `GET /anchor-presentations?cursor=&limit=` (≤ 1000, anchor order, tombstones included) is the daily reconciliation read — compare every field, as with activities. A comment on a wall with no live presentation produces no item; the item appears when the presentation arrives.
+
+An item's fields: title — the thread's title, else the presentation's; url — a board thread's URL from the site's template, or the presentation's URL, plus the rule's fragment for anything but a topic's opening post; excerpt — the post's Markdown as plain text with every spoiler (`||…||`, `:::spoiler … :::`) masked as `███`, mention and quote tokens dropped, cut to 300 characters, or empty when the rule leaves it out; content limit — nsfw when the post, its thread or its page is; work and cover — the presentation's.
+
+**Kind 9 gives way to kind 10.** A topic whose projected activity will notify — its site's topic rule notifies and shapes it, it was written after the switch, and it is under 24 hours old when its event is dispatched — no longer raises kind 9; the activity notifies followers as kind 10 (new key, author not hidden). Any other topic raises kind 9 as before, so a topic approved from the review queue a day late is still announced.
 
 ### Notifications
 
@@ -801,9 +815,9 @@ it in:
 The following feed leaves these out on purpose, each with the condition that
 brings it in:
 
-- **Community's own threads and posts in the feed** (a letmoe board topic, a
-  comment). Planned next: community writes them in the same transaction as the
-  post, and kind 9 gives way to kind 10. Until then kind 9 covers board topics.
+- **Posts on network-wide anchors** (catalog_work, catalog_person). Their
+  threads are shared across sites, so no one site's presentation fits. Trigger:
+  a site opens comment walls on catalog anchors.
 - **Fan-out on write** (a precomputed timeline per reader). The feed reads each
   followed author's newest groups and merges them, costing at most following ×
   limit index entries a page. Trigger: readers following several hundred

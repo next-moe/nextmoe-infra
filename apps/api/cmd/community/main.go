@@ -128,6 +128,7 @@ func main() {
 
 	go notifySvc.Run(ctx)
 	slog.Info("community notification dispatcher started")
+	go activitySvc.RunProjection(ctx)
 	go runOutboxTicker(ctx, forwardSvc)
 	go runHourlyPrunes(ctx, postSvc, activitySvc)
 	accountpurge.Start(ctx, &accountpurge.Consumer{
