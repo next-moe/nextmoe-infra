@@ -20,11 +20,11 @@ func followEdge(t *testing.T, follower, followee int64, createdAt time.Time) {
 
 func feed(t *testing.T, p ActivityFeedParams) []ActivityGroup {
 	t.Helper()
-	groups, _, err := NewActivityService(testDB).FollowingFeed(p)
+	page, err := NewActivityService(testDB).FollowingFeed(p)
 	if err != nil {
 		t.Fatalf("following feed: %v", err)
 	}
-	return groups
+	return page.Groups
 }
 
 func TestFollowingFeed(t *testing.T) {
@@ -130,22 +130,22 @@ func TestFollowingFeed(t *testing.T) {
 		}
 	}
 
-	items2, _, err := NewActivityService(testDB).GroupItems(bobGroup.ID, false, nil, 2)
+	items2, _, err := NewActivityService(testDB).GroupItems(bobGroup.ID, viewer, false, nil, 2)
 	if err != nil || len(items2) != 2 || items2[0].Key != "b:4" {
 		t.Fatalf("group items page 1: %+v %v", items2, err)
 	}
-	rest, _, err := NewActivityService(testDB).GroupItems(bobGroup.ID, false,
+	rest, _, err := NewActivityService(testDB).GroupItems(bobGroup.ID, viewer, false,
 		&repository.ActivityCursor{At: items2[1].OccurredAt, ID: items2[1].ID}, 50)
 	if err != nil || len(rest) != 3 || rest[0].Key != "b:2" {
 		t.Fatalf("group items page 2: %+v %v", rest, err)
 	}
-	if _, _, err := NewActivityService(testDB).GroupItems(99999, false, nil, 10); err != ErrActivityGroupNotFound {
+	if _, _, err := NewActivityService(testDB).GroupItems(99999, viewer, false, nil, 10); err != ErrActivityGroupNotFound {
 		t.Fatalf("missing group: %v", err)
 	}
 
-	own, _, err := NewActivityService(testDB).ActorFeed(ActivityFeedParams{UserID: alice, Limit: 50})
-	if err != nil || len(own) != 5 {
-		t.Fatalf("an author's own groups: %d %v", len(own), err)
+	own, err := NewActivityService(testDB).ActorFeed(ActivityFeedParams{UserID: alice, Limit: 50})
+	if err != nil || len(own.Groups) != 5 || own.Hidden {
+		t.Fatalf("an author's own groups: %+v %v", own, err)
 	}
 }
 
@@ -235,7 +235,7 @@ func TestTombstonesLeaveGroupPreviewsAndItems(t *testing.T) {
 	if len(groups) != 1 || groups[0].ItemCount != 2 || len(groups[0].Items) != 2 || groups[0].Items[0].Key != "r:2" {
 		t.Fatalf("a tombstone leaves the group's preview: %+v", groups)
 	}
-	items, _, err := NewActivityService(testDB).GroupItems(groups[0].ID, false, nil, 50)
+	items, _, err := NewActivityService(testDB).GroupItems(groups[0].ID, viewer, false, nil, 50)
 	if err != nil || len(items) != 2 || items[0].Key != "r:2" {
 		t.Fatalf("a tombstone leaves the group's items: %+v %v", items, err)
 	}

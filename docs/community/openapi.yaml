@@ -9,6 +9,9 @@ components:
           type:
             - array
             - "null"
+        hidden:
+          description: "only on /users/{id}/activities: the user hides their activities and viewer_id is not them, so groups is empty"
+          type: boolean
         next_cursor:
           description: pass as cursor for the next (older) page; empty = last page
           type: string
@@ -192,6 +195,41 @@ components:
           type: string
       required:
         - seen_at
+      type: object
+    ActivitySettingRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ActivitySettingRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        hidden:
+          description: "true hides the user's activities from everyone else: they leave followers' feeds and unseen counts, kinds 9 and 10 stop, the kind-10 rows already delivered are retracted, and /users/{id}/activities shows them only to the user. false shows them again; retracted notifications do not come back"
+          type: boolean
+      required:
+        - hidden
+      type: object
+    ActivitySettingView:
+      additionalProperties: false
+      properties:
+        hidden:
+          type: boolean
+        updated_at:
+          description: null until the user first sets it
+          format: date-time
+          type:
+            - string
+            - "null"
+        user_id:
+          format: int64
+          type: integer
+      required:
+        - user_id
+        - hidden
+        - updated_at
       type: object
     ActivityUnseenResponse:
       additionalProperties: false
@@ -877,6 +915,27 @@ components:
           type: integer
         data:
           $ref: "#/components/schemas/ActivitySeenResponse"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeActivitySettingView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeActivitySettingView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/ActivitySettingView"
         message:
           type: string
       required:
@@ -3253,6 +3312,14 @@ paths:
             format: int64
             minimum: 1
             type: integer
+        - description: the signed-in user; a group of a user who hides their activities is 404 to everyone but them. 0 = anonymous
+          explode: false
+          in: query
+          name: viewer_id
+          schema:
+            description: the signed-in user; a group of a user who hides their activities is 404 to everyone but them. 0 = anonymous
+            format: int64
+            type: integer
         - description: opaque cursor from the previous page
           explode: false
           in: query
@@ -5062,6 +5129,14 @@ paths:
             format: int64
             minimum: 1
             type: integer
+        - description: the signed-in user; a user who hides their activities still sees their own here. 0 = anonymous
+          explode: false
+          in: query
+          name: viewer_id
+          schema:
+            description: the signed-in user; a user who hides their activities still sees their own here. 0 = anonymous
+            format: int64
+            type: integer
         - description: opaque cursor from the previous page
           explode: false
           in: query
@@ -5116,6 +5191,65 @@ paths:
                 $ref: "#/components/schemas/HouseError"
           description: Error
       summary: One user's own activity groups across every site, newest first
+      tags:
+        - community-activities
+  /api/v1/community/users/{id}/activity-settings:
+    get:
+      operationId: getActivitySetting
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeActivitySettingView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Whether the user hides their activities from everyone else
+      tags:
+        - community-activities
+    put:
+      operationId: setActivitySetting
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActivitySettingRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeActivitySettingView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Hide or show the user's activities to everyone else; hiding also retracts the kind-10 notifications they raised
       tags:
         - community-activities
   /api/v1/community/users/{id}/anchor-subscriptions:

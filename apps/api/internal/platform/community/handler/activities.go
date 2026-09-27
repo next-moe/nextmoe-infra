@@ -41,6 +41,10 @@ func (s *Server) registerActivities(api huma.API) {
 		Summary: "One user's own activity groups across every site, newest first", Tags: tags}, s.listUserActivities)
 	huma.Register(api, huma.Operation{OperationID: "listActivityGroupItems", Method: http.MethodGet, Path: "/api/v1/community/activity-groups/{id}/items",
 		Summary: "Every live item of one activity group, newest first", Tags: tags}, s.listActivityGroupItems)
+	huma.Register(api, huma.Operation{OperationID: "getActivitySetting", Method: http.MethodGet, Path: "/api/v1/community/users/{id}/activity-settings",
+		Summary: "Whether the user hides their activities from everyone else", Tags: tags}, s.getActivitySetting)
+	huma.Register(api, huma.Operation{OperationID: "setActivitySetting", Method: http.MethodPut, Path: "/api/v1/community/users/{id}/activity-settings",
+		Summary: "Hide or show the user's activities to everyone else; hiding also retracts the kind-10 notifications they raised", Tags: tags}, s.setActivitySetting)
 }
 
 type writeActivitiesInput struct{ Body dto.ActivityWriteRequest }
@@ -143,16 +147,17 @@ type activityGroupsOutput struct {
 	Body Envelope[dto.ActivityGroupListResponse]
 }
 
+type userActivitiesInput struct {
+	ID           int64  `path:"id" minimum:"1"`
+	ViewerID     int64  `query:"viewer_id" doc:"the signed-in user; a user who hides their activities still sees their own here. 0 = anonymous"`
+	Cursor       string `query:"cursor" doc:"opaque cursor from the previous page"`
+	Limit        int    `query:"limit" doc:"page size (max 50, default 20)"`
+	ContentLimit string `query:"content_limit" default:"all" enum:"all,sfw" doc:"sfw = only SFW items, filtered here so a page is never thinned by the caller"`
+	Sites        string `query:"sites" doc:"comma-separated sites to keep, e.g. kungal; empty = every site"`
+	Verbs        string `query:"verbs" doc:"comma-separated verbs to keep (publish,reply,comment,rate,like,edit); empty = all"`
+}
+
 func (s *Server) listFollowingActivities(ctx context.Context, in *activityFeedInput) (*activityGroupsOutput, error) {
-	return s.activityGroups(ctx, in, s.activities.FollowingFeed)
-}
-
-func (s *Server) listUserActivities(ctx context.Context, in *activityFeedInput) (*activityGroupsOutput, error) {
-	return s.activityGroups(ctx, in, s.activities.ActorFeed)
-}
-
-func (s *Server) activityGroups(ctx context.Context, in *activityFeedInput,
-	read func(service.ActivityFeedParams) ([]service.ActivityGroup, int, error)) (*activityGroupsOutput, error) {
 	if _, he := siteBinding(ctx); he != nil {
 		return nil, he
 	}
@@ -160,10 +165,26 @@ func (s *Server) activityGroups(ctx context.Context, in *activityFeedInput,
 	if he != nil {
 		return nil, he
 	}
-	groups, limit, err := read(p)
+	return activityGroups(s.activities.FollowingFeed(p))
+}
+
+func (s *Server) listUserActivities(ctx context.Context, in *userActivitiesInput) (*activityGroupsOutput, error) {
+	if _, he := siteBinding(ctx); he != nil {
+		return nil, he
+	}
+	p, he := feedParams(in.ID, in.ContentLimit, in.Sites, in.Verbs, in.Cursor, in.Limit)
+	if he != nil {
+		return nil, he
+	}
+	p.ViewerID = in.ViewerID
+	return activityGroups(s.activities.ActorFeed(p))
+}
+
+func activityGroups(page service.ActivityFeedPage, err error) (*activityGroupsOutput, error) {
 	if err != nil {
 		return nil, mapErr("list activity groups", err)
 	}
+	groups := page.Groups
 	views := make([]dto.ActivityGroupView, len(groups))
 	for i := range groups {
 		g := &groups[i]
@@ -174,15 +195,16 @@ func (s *Server) activityGroups(ctx context.Context, in *activityFeedInput,
 		}
 	}
 	next := ""
-	if len(groups) == limit {
+	if len(groups) > 0 && len(groups) == page.Limit {
 		last := groups[len(groups)-1]
 		next = encodeFeedCursor(last.LatestAt, last.ID)
 	}
-	return &activityGroupsOutput{Body: okEnvelope(dto.ActivityGroupListResponse{Groups: views, NextCursor: next})}, nil
+	return &activityGroupsOutput{Body: okEnvelope(dto.ActivityGroupListResponse{Groups: views, NextCursor: next, Hidden: page.Hidden})}, nil
 }
 
 type activityGroupItemsInput struct {
 	ID           int64  `path:"id" minimum:"1"`
+	ViewerID     int64  `query:"viewer_id" doc:"the signed-in user; a group of a user who hides their activities is 404 to everyone but them. 0 = anonymous"`
 	Cursor       string `query:"cursor" doc:"opaque cursor from the previous page"`
 	Limit        int    `query:"limit" doc:"page size (max 50, default 20)"`
 	ContentLimit string `query:"content_limit" default:"all" enum:"all,sfw"`
@@ -199,7 +221,7 @@ func (s *Server) listActivityGroupItems(ctx context.Context, in *activityGroupIt
 	if he != nil {
 		return nil, he
 	}
-	items, limit, err := s.activities.GroupItems(in.ID, in.ContentLimit == "sfw", before, in.Limit)
+	items, limit, err := s.activities.GroupItems(in.ID, in.ViewerID, in.ContentLimit == "sfw", before, in.Limit)
 	if err != nil {
 		return nil, mapErr("list activity group items", err)
 	}
