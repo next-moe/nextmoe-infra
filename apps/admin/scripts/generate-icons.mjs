@@ -67,6 +67,19 @@ const loadCollection = (c) => {
   return data
 }
 
+// Renamed icons stay in the set as aliases: lucide:trash-2 is {parent: 'trash'}.
+// Reading only `icons` left every delete button in the console blank and
+// mismatched on hydration. Aliases that carry a transform are not followed.
+const resolveIcon = (set, icon) => {
+  let name = icon
+  for (let hops = 0; set && !set.icons?.[name] && hops < 5; hops++) {
+    const alias = set.aliases?.[name]
+    if (!alias || Object.keys(alias).length > 1) return null
+    name = alias.parent
+  }
+  return set?.icons?.[name] ?? null
+}
+
 async function main() {
   const wanted = new Set()
   for await (const file of walk(SCAN_DIR)) {
@@ -84,7 +97,7 @@ async function main() {
   for (const name of names) {
     const [collection, icon] = name.split(':')
     const set = loadCollection(collection)
-    const def = set?.icons?.[icon]
+    const def = resolveIcon(set, icon)
     if (!def || typeof def.body !== 'string') {
       missing.push(name)
       continue

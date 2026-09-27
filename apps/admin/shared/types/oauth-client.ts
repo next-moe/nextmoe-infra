@@ -14,6 +14,10 @@ export interface OAuthClient {
   tagline?: string
   display_order?: number
   created_at: string
+  created_by_user_id?: number
+  owner_user_id?: number
+  dev_enabled: boolean
+  mine: boolean
   storage?: OAuthClientStorageConfig
 }
 

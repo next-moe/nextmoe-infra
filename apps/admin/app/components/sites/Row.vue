@@ -1,5 +1,5 @@
 <script setup lang="ts">
-defineProps<{ site: Site }>()
+defineProps<{ site: Site; clientCount: number }>()
 const emit = defineEmits<{
   edit: []
   delete: []
@@ -27,7 +27,15 @@ const emit = defineEmits<{
         创建于 {{ new Date(site.created_at).toLocaleDateString('zh-CN') }}
       </span>
 
-      <div class="flex shrink-0 gap-1">
+      <div class="flex shrink-0 items-center gap-1">
+        <KunButton
+          variant="flat"
+          size="sm"
+          @click="navigateTo({ path: '/oauth-clients', query: { site: site.id } })"
+        >
+          <KunIcon name="lucide:key" class="mr-1 size-4" />
+          客户端 {{ clientCount }}
+        </KunButton>
         <KunButton
           variant="light"
           size="sm"

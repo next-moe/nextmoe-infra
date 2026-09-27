@@ -25,7 +25,6 @@ export const SIDEBAR_MENU: SidebarItem[] = [
     children: [
       { icon: 'lucide:chart-pie', label: '用量概览', to: '/artifacts', adminOnly: true },
       { icon: 'lucide:files', label: '文件列表', to: '/artifacts/list', renOnly: true },
-      { icon: 'lucide:sliders-horizontal', label: '存储配置', to: '/artifacts/config', renOnly: true },
     ],
   },
   {
