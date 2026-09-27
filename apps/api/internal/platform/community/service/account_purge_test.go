@@ -41,6 +41,16 @@ func TestPurgeAccountReachesEveryTenant(t *testing.T) {
 	if _, err := fs.Follow(kungal, "kungal", bystander, opener); err != nil {
 		t.Fatalf("bystander follows opener: %v", err)
 	}
+	const blockedByGone, blocksGone, blockedByBystander int64 = 4, 5, 6
+	if _, err := fs.Block(kungal, "kungal", gone, blockedByGone); err != nil {
+		t.Fatalf("gone blocks someone: %v", err)
+	}
+	if _, err := fs.Block(kungal, "kungal", blocksGone, gone); err != nil {
+		t.Fatalf("someone blocks gone: %v", err)
+	}
+	if _, err := fs.Block(kungal, "kungal", bystander, blockedByBystander); err != nil {
+		t.Fatalf("bystander blocks someone: %v", err)
+	}
 	processBatch(t)
 	if got := threadUserSite(t, kungalWall.ID, gone); got != "letmoe" {
 		t.Fatalf("setup: the letmoe reply must leave a letmoe row, got %q", got)
@@ -77,6 +87,12 @@ func TestPurgeAccountReachesEveryTenant(t *testing.T) {
 	}
 	if n := count(`SELECT count(*) FROM community_user_follow WHERE follower_id = ? OR followee_id = ?`, gone, gone); n != 0 {
 		t.Fatalf("%d follow edges naming the account survived", n)
+	}
+	if n := count(`SELECT count(*) FROM community_user_block WHERE blocker_id = ? OR blocked_id = ?`, gone, gone); n != 0 {
+		t.Fatalf("%d blocks naming the account survived", n)
+	}
+	if n := count(`SELECT count(*) FROM community_user_block WHERE blocker_id = ? AND blocked_id = ?`, bystander, blockedByBystander); n != 1 {
+		t.Fatal("a block between two other users was touched")
 	}
 	if n := count(`SELECT count(*) FROM community_user_follow`); n != 1 {
 		t.Fatal("the bystander's follow was touched")

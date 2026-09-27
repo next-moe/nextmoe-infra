@@ -48,9 +48,35 @@ type FollowStateView struct {
 	FollowingCount int64   `json:"following_count"`
 	ViewerFollows  bool    `json:"viewer_follows" doc:"viewer_id follows this user"`
 	FollowsViewer  bool    `json:"follows_viewer" doc:"this user follows viewer_id"`
+	ViewerBlocks   bool    `json:"viewer_blocks" doc:"viewer_id has blocked this user"`
+	BlocksViewer   bool    `json:"blocks_viewer" doc:"this user has blocked viewer_id"`
 	ViewerNotify   *string `json:"viewer_notify" enum:"all,feed" doc:"how viewer_id hears about this user's new work; null when viewer_id does not follow them"`
 }
 
 type FollowStatesResponse struct {
 	States []FollowStateView `json:"states"`
+}
+
+type BlockResult struct {
+	BlockerID int64 `json:"blocker_id"`
+	BlockedID int64 `json:"blocked_id"`
+	Blocking  bool  `json:"blocking" doc:"always true after this call"`
+	Created   bool  `json:"created" doc:"false when the block already existed"`
+}
+
+type UnblockResult struct {
+	BlockerID int64 `json:"blocker_id"`
+	BlockedID int64 `json:"blocked_id"`
+	Blocking  bool  `json:"blocking" doc:"always false after this call"`
+	Deleted   bool  `json:"deleted" doc:"false when there was no block to remove"`
+}
+
+type BlockView struct {
+	UserID    int64     `json:"user_id" doc:"the blocked user"`
+	BlockedAt time.Time `json:"blocked_at"`
+}
+
+type BlockListResponse struct {
+	Users      []BlockView `json:"users"`
+	NextCursor string      `json:"next_cursor,omitempty" doc:"pass as cursor for the next (older) page; empty = last page"`
 }

@@ -698,6 +698,56 @@ components:
       required:
         - stats
       type: object
+    BlockListResponse:
+      additionalProperties: false
+      properties:
+        next_cursor:
+          description: pass as cursor for the next (older) page; empty = last page
+          type: string
+        users:
+          items:
+            $ref: "#/components/schemas/BlockView"
+          type:
+            - array
+            - "null"
+      required:
+        - users
+      type: object
+    BlockResult:
+      additionalProperties: false
+      properties:
+        blocked_id:
+          format: int64
+          type: integer
+        blocker_id:
+          format: int64
+          type: integer
+        blocking:
+          description: always true after this call
+          type: boolean
+        created:
+          description: false when the block already existed
+          type: boolean
+      required:
+        - blocker_id
+        - blocked_id
+        - blocking
+        - created
+      type: object
+    BlockView:
+      additionalProperties: false
+      properties:
+        blocked_at:
+          format: date-time
+          type: string
+        user_id:
+          description: the blocked user
+          format: int64
+          type: integer
+      required:
+        - user_id
+        - blocked_at
+      type: object
     BoardListResponse:
       additionalProperties: false
       properties:
@@ -1299,6 +1349,48 @@ components:
         - code
         - message
       type: object
+    EnvelopeBlockListResponse:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeBlockListResponse.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/BlockListResponse"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeBlockResult:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeBlockResult.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/BlockResult"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
     EnvelopeBoardListResponse:
       additionalProperties: false
       properties:
@@ -1845,6 +1937,27 @@ components:
         - code
         - message
       type: object
+    EnvelopeUnblockResult:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeUnblockResult.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/UnblockResult"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
     EnvelopeUnfollowResult:
       additionalProperties: false
       properties:
@@ -2030,6 +2143,9 @@ components:
     FollowStateView:
       additionalProperties: false
       properties:
+        blocks_viewer:
+          description: this user has blocked viewer_id
+          type: boolean
         followers_count:
           format: int64
           type: integer
@@ -2042,6 +2158,9 @@ components:
         user_id:
           format: int64
           type: integer
+        viewer_blocks:
+          description: viewer_id has blocked this user
+          type: boolean
         viewer_follows:
           description: viewer_id follows this user
           type: boolean
@@ -2059,6 +2178,8 @@ components:
         - following_count
         - viewer_follows
         - follows_viewer
+        - viewer_blocks
+        - blocks_viewer
         - viewer_notify
       type: object
     FollowStatesRequest:
@@ -3318,6 +3439,27 @@ components:
         - user_id
         - level
         - first_posts_held_remaining
+      type: object
+    UnblockResult:
+      additionalProperties: false
+      properties:
+        blocked_id:
+          format: int64
+          type: integer
+        blocker_id:
+          format: int64
+          type: integer
+        blocking:
+          description: always false after this call
+          type: boolean
+        deleted:
+          description: false when there was no block to remove
+          type: boolean
+      required:
+        - blocker_id
+        - blocked_id
+        - blocking
+        - deleted
       type: object
     UnfollowResult:
       additionalProperties: false
@@ -5571,6 +5713,115 @@ paths:
       summary: List a user's anchor subscriptions on this site, newest first
       tags:
         - community-engagement
+  /api/v1/community/users/{id}/blocking:
+    get:
+      operationId: listBlocking
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+        - description: opaque cursor from the previous page
+          explode: false
+          in: query
+          name: cursor
+          schema:
+            description: opaque cursor from the previous page
+            type: string
+        - description: page size (max 100, default 50)
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: page size (max 100, default 50)
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeBlockListResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: List who a user has blocked, newest block first; only the blocker's own list exists (who blocked me is never listed)
+      tags:
+        - community-blocks
+  /api/v1/community/users/{id}/blocking/{target_id}:
+    delete:
+      operationId: unblockUser
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+        - in: path
+          name: target_id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeUnblockResult"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Remove a block (idempotent; deleted says whether a block was removed); removed follows are not restored
+      tags:
+        - community-blocks
+    put:
+      operationId: blockUser
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+        - in: path
+          name: target_id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeBlockResult"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Block a user network-wide (idempotent); also removes the follows between the two, and neither can follow the other while it stands
+      tags:
+        - community-blocks
   /api/v1/community/users/{id}/followers:
     get:
       operationId: listFollowers

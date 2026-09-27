@@ -65,7 +65,7 @@ func cleanTables(t *testing.T) {
 	t.Helper()
 	for _, table := range []string{
 		"community_activity_projection", "community_activity_site", "community_anchor_presentation", "community_activity_setting", "community_feed_seen", "community_activity_group", "community_activity",
-		"community_user_follow", "community_write_request", "community_purge_archive", "community_notification", "community_event",
+		"community_user_block", "community_user_follow", "community_write_request", "community_purge_archive", "community_notification", "community_event",
 		"community_review_item", "community_flag", "community_trust",
 		"community_board", "community_anchor_user", "community_thread_user", "community_reaction",
 		"community_post", "community_thread",
@@ -312,6 +312,9 @@ func TestIndexColumnOrder(t *testing.T) {
 		{"uq_community_user_follow", "(follower_id, followee_id)"},
 		{"idx_community_user_follow_followee", "(followee_id, id DESC)"},
 		{"idx_community_user_follow_follower", "(follower_id, id DESC)"},
+		{"uq_community_user_block", "(blocker_id, blocked_id)"},
+		{"idx_community_user_block_blocker", "(blocker_id, id DESC)"},
+		{"idx_community_user_block_blocked", "(blocked_id)"},
 		{"uq_community_activity_key", "(site, key)"},
 		{"idx_community_activity_site_id", "(site, id)"},
 		{"idx_community_activity_member", "(site, actor_id, verb, object_kind, bucket_date, occurred_at DESC, id DESC)"},
@@ -507,6 +510,7 @@ func TestColumnAudit(t *testing.T) {
 		"community_user_follow": {
 			"id", "follower_id", "followee_id", "origin_site", "created_at", "imported_at", "notify_level",
 		},
+		"community_user_block": {"id", "blocker_id", "blocked_id", "origin_site", "created_at"},
 		"community_activity": {
 			"id", "site", "key", "actor_id", "verb", "object_kind", "object_label", "title",
 			"excerpt", "url", "cover_image_hash", "work_id", "content_limit", "notify",
@@ -747,6 +751,28 @@ func TestMigrateCreatesUserFollow(t *testing.T) {
 		t.Fatalf("unique:\n  %s", uq)
 	}
 
+	if err := Run(testDB); err != nil {
+		t.Fatalf("second migrate.Run: %v", err)
+	}
+}
+
+func TestMigrateCreatesUserBlock(t *testing.T) {
+	cleanTables(t)
+
+	self := testDB.Exec(`INSERT INTO community_user_block (blocker_id, blocked_id, origin_site, created_at) VALUES (1, 1, 'kungal', now())`).Error
+	if self == nil || !strings.Contains(self.Error(), "chk_community_user_block_self") {
+		t.Fatalf("self-block must fail the check, got: %v", self)
+	}
+	if err := testDB.Exec(`INSERT INTO community_user_block (blocker_id, blocked_id, origin_site, created_at) VALUES (1, 2, 'kungal', now())`).Error; err != nil {
+		t.Fatalf("first pair: %v", err)
+	}
+	dup := testDB.Exec(`INSERT INTO community_user_block (blocker_id, blocked_id, origin_site, created_at) VALUES (1, 2, 'moyu', now())`).Error
+	if !isDuplicate(dup) {
+		t.Fatalf("duplicate pair must fail the unique, got: %v", dup)
+	}
+	if err := testDB.Exec(`INSERT INTO community_user_block (blocker_id, blocked_id, origin_site, created_at) VALUES (2, 1, 'moyu', now())`).Error; err != nil {
+		t.Fatalf("the reverse direction is its own block: %v", err)
+	}
 	if err := Run(testDB); err != nil {
 		t.Fatalf("second migrate.Run: %v", err)
 	}

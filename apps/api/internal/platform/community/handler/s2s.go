@@ -157,6 +157,7 @@ func (s *Server) register(api huma.API) {
 
 	s.registerAnchors(api)
 	s.registerFollows(api)
+	s.registerBlocks(api)
 	s.registerActivities(api)
 	s.registerAnchorPresentations(api)
 	s.registerBoards(api)

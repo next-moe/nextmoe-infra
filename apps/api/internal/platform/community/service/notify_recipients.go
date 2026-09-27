@@ -180,9 +180,27 @@ func recipientsForEvent(tx *gorm.DB, ev *model.CommunityEvent, thread *model.Com
 		return model.NotificationLevelNormal
 	}
 
+	candidateIDs := make([]int64, 0, len(cands))
+	for _, c := range cands {
+		candidateIDs = append(candidateIDs, c.userID)
+	}
+	blockers := map[int64]struct{}{}
+	if len(candidateIDs) > 0 {
+		ids, err := repository.BlockersAmong(tx, ev.ActorID, candidateIDs)
+		if err != nil {
+			return nil, err
+		}
+		for _, id := range ids {
+			blockers[id] = struct{}{}
+		}
+	}
+
 	out := make([]notifyCandidate, 0, len(cands))
 	for _, c := range cands {
 		if c.userID == ev.ActorID {
+			continue
+		}
+		if _, ok := blockers[c.userID]; ok {
 			continue
 		}
 		if effective(c.userID, c.site) == model.NotificationLevelMuted {

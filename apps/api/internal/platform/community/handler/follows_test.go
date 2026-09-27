@@ -146,3 +146,63 @@ func TestFollowFacesRequireSiteBinding(t *testing.T) {
 	}
 	_ = states.Body.Close()
 }
+
+func TestBlockFacesThroughRouter(t *testing.T) {
+	cleanTables(t)
+	app := followRouter(true)
+
+	if r := doFollowReq(t, app, http.MethodPut, "/api/v1/community/users/1/following/2", ""); r.StatusCode != http.StatusOK {
+		t.Fatalf("seed follow: %d", r.StatusCode)
+	}
+	put := doFollowReq(t, app, http.MethodPut, "/api/v1/community/users/2/blocking/1", "")
+	if put.StatusCode != http.StatusOK {
+		t.Fatalf("PUT blocking: want 200, got %d", put.StatusCode)
+	}
+	var putEnv Envelope[dto.BlockResult]
+	if err := json.NewDecoder(put.Body).Decode(&putEnv); err != nil {
+		t.Fatalf("decode PUT: %v", err)
+	}
+	_ = put.Body.Close()
+	if !putEnv.Data.Blocking || !putEnv.Data.Created || putEnv.Data.BlockerID != 2 || putEnv.Data.BlockedID != 1 {
+		t.Fatalf("PUT body: %+v", putEnv.Data)
+	}
+
+	if r := doFollowReq(t, app, http.MethodPut, "/api/v1/community/users/1/following/2", ""); r.StatusCode != http.StatusForbidden {
+		t.Fatalf("follow across a block: want 403, got %d", r.StatusCode)
+	}
+
+	states := doFollowReq(t, app, http.MethodPost, "/api/v1/community/follows/states", `{"viewer_id":1,"user_ids":[2]}`)
+	var stEnv Envelope[dto.FollowStatesResponse]
+	if err := json.NewDecoder(states.Body).Decode(&stEnv); err != nil {
+		t.Fatalf("decode states: %v", err)
+	}
+	_ = states.Body.Close()
+	if st := stEnv.Data.States[0]; !st.BlocksViewer || st.ViewerBlocks || st.ViewerFollows {
+		t.Fatalf("states after block: %+v", st)
+	}
+
+	list := doFollowReq(t, app, http.MethodGet, "/api/v1/community/users/2/blocking", "")
+	var listEnv Envelope[dto.BlockListResponse]
+	if err := json.NewDecoder(list.Body).Decode(&listEnv); err != nil {
+		t.Fatalf("decode list: %v", err)
+	}
+	_ = list.Body.Close()
+	if len(listEnv.Data.Users) != 1 || listEnv.Data.Users[0].UserID != 1 || listEnv.Data.NextCursor != "" {
+		t.Fatalf("list: %+v", listEnv.Data)
+	}
+
+	del := doFollowReq(t, app, http.MethodDelete, "/api/v1/community/users/2/blocking/1", "")
+	var delEnv Envelope[dto.UnblockResult]
+	if err := json.NewDecoder(del.Body).Decode(&delEnv); err != nil {
+		t.Fatalf("decode DELETE: %v", err)
+	}
+	_ = del.Body.Close()
+	if delEnv.Data.Blocking || !delEnv.Data.Deleted {
+		t.Fatalf("DELETE body: %+v", delEnv.Data)
+	}
+
+	noSite := followRouter(false)
+	if r := doFollowReq(t, noSite, http.MethodPut, "/api/v1/community/users/2/blocking/1", ""); r.StatusCode == http.StatusOK {
+		t.Fatal("a client with no site binding must not block")
+	}
+}

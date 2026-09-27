@@ -22,6 +22,8 @@ type FollowState struct {
 	FollowingCount int64
 	ViewerFollows  bool
 	FollowsViewer  bool
+	ViewerBlocks   bool
+	BlocksViewer   bool
 	ViewerNotify   *int16
 }
 
@@ -34,6 +36,16 @@ func (s *FollowService) Follow(ctx context.Context, site string, followerID, fol
 	}
 	var inserted bool
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := repository.LockUserPairTx(tx, followerID, followeeID); err != nil {
+			return err
+		}
+		blocked, err := repository.BlockedEitherWay(tx, followerID, followeeID)
+		if err != nil {
+			return err
+		}
+		if blocked {
+			return &ForbiddenError{Reason: "one of the two users has blocked the other"}
+		}
 		id, err := repository.InsertFollow(tx, site, followerID, followeeID)
 		if err != nil {
 			return err
@@ -132,6 +144,8 @@ func (s *FollowService) States(viewerID int64, userIDs []int64) ([]FollowState, 
 	}
 	viewerFollows := map[int64]int16{}
 	followsViewer := map[int64]struct{}{}
+	viewerBlocks := map[int64]struct{}{}
+	blocksViewer := map[int64]struct{}{}
 	if viewerID > 0 {
 		followed, err := repository.FollowingAmong(s.db, viewerID, ids)
 		if err != nil {
@@ -145,17 +159,35 @@ func (s *FollowService) States(viewerID int64, userIDs []int64) ([]FollowState, 
 		for _, id := range followersOfViewer {
 			followsViewer[id] = struct{}{}
 		}
+		blocked, err := repository.BlockedAmong(s.db, viewerID, ids)
+		if err != nil {
+			return nil, err
+		}
+		for _, id := range blocked {
+			viewerBlocks[id] = struct{}{}
+		}
+		blockers, err := repository.BlockersAmong(s.db, viewerID, ids)
+		if err != nil {
+			return nil, err
+		}
+		for _, id := range blockers {
+			blocksViewer[id] = struct{}{}
+		}
 	}
 	out := make([]FollowState, len(ids))
 	for i, id := range ids {
 		level, viewerFollowsID := viewerFollows[id]
 		_, idFollowsViewer := followsViewer[id]
+		_, viewerBlocksID := viewerBlocks[id]
+		_, idBlocksViewer := blocksViewer[id]
 		out[i] = FollowState{
 			UserID:         id,
 			FollowersCount: followers[id],
 			FollowingCount: following[id],
 			ViewerFollows:  viewerFollowsID,
 			FollowsViewer:  idFollowsViewer,
+			ViewerBlocks:   viewerBlocksID,
+			BlocksViewer:   idBlocksViewer,
 		}
 		if viewerFollowsID {
 			out[i].ViewerNotify = &level

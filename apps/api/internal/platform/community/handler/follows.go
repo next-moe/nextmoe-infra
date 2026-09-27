@@ -174,6 +174,7 @@ func toFollowStateViews(rows []service.FollowState) []dto.FollowStateView {
 		out[i] = dto.FollowStateView{
 			UserID: st.UserID, FollowersCount: st.FollowersCount, FollowingCount: st.FollowingCount,
 			ViewerFollows: st.ViewerFollows, FollowsViewer: st.FollowsViewer,
+			ViewerBlocks: st.ViewerBlocks, BlocksViewer: st.BlocksViewer,
 		}
 		if st.ViewerNotify != nil {
 			name := followNotifyName(*st.ViewerNotify)
