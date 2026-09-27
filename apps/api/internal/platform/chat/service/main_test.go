@@ -176,8 +176,9 @@ func newRig(t *testing.T, uids ...int64) *rig {
 	}
 	r.svc = New(testDB, Options{
 		Users: r.users, Relationships: r.rel, Publisher: r.pub,
-		Counter: &memCounter{m: map[string]int64{}},
-		Now:     func() time.Time { return *r.clock },
+		Counter:      &memCounter{m: map[string]int64{}},
+		Now:          func() time.Time { return *r.clock },
+		ImageBaseURL: "https://img.example/",
 	})
 	return r
 }

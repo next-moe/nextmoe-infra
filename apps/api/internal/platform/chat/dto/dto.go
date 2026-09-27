@@ -62,6 +62,8 @@ type Media struct {
 	Width     int    `json:"width"`
 	Height    int    `json:"height"`
 	Thumbhash string `json:"thumbhash,omitempty"`
+	// Stored message rows hold Media too; url is derived when a message is read and is never stored.
+	URL string `json:"url,omitempty" required:"true" doc:"where the image is served; never build it from image_hash"`
 }
 
 type ReplyPreview struct {
@@ -152,6 +154,7 @@ type Conversation struct {
 	Title          *string     `json:"title"`
 	About          *string     `json:"about"`
 	PhotoImageHash *string     `json:"photo_image_hash"`
+	PhotoURL       *string     `json:"photo_url" doc:"where photo_image_hash is served"`
 	PeerID         *string     `json:"peer_id" doc:"direct only: the other person"`
 	MemberCount    int32       `json:"member_count"`
 	LastSeq        int64       `json:"last_seq"`

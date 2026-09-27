@@ -70,6 +70,7 @@ func main() {
 	opts := service.Options{
 		Users:         users,
 		Relationships: source.NewRelationships(communityDB.DB()),
+		ImageBaseURL:  cfg.ImageService.CDNBase,
 	}
 	if rc, err := cache.NewRedisCache(cfg.Redis); err != nil {
 		slog.Warn("chat: redis unavailable; rate limits are off", "err", err)

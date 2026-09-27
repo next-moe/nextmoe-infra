@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"api/internal/platform/chat/dto"
+	"api/pkg/imageclient"
 )
 
 const (
@@ -15,7 +16,6 @@ const (
 
 type ImageResult struct {
 	Media dto.Media
-	URL   string
 }
 
 func (s *Service) UploadImage(ctx context.Context, a Actor, filename string, r io.Reader) (*ImageResult, error) {
@@ -29,11 +29,11 @@ func (s *Service) UploadImage(ctx context.Context, a Actor, filename string, r i
 	if err != nil {
 		return nil, err
 	}
-	return &ImageResult{
-		Media: dto.Media{Type: "photo", ImageHash: img.Hash, Width: img.Width, Height: img.Height, Thumbhash: img.Thumbhash},
-		URL:   img.URL,
-	}, nil
+	return &ImageResult{Media: dto.Media{Type: "photo", ImageHash: img.Hash, Width: img.Width, Height: img.Height,
+		Thumbhash: img.Thumbhash, URL: s.imageURL(img.Hash)}}, nil
 }
+
+func (s *Service) imageURL(hash string) string { return imageclient.MainURL(s.imageBase, hash, "webp") }
 
 // Reference pings are scoped to the image client that uploaded, so only
 // chat's own client can keep chat's photos out of the image GC.

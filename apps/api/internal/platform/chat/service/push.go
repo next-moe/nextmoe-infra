@@ -177,7 +177,7 @@ func viewsFor(s *Service, ctx context.Context, msg model.ChatMessage, viewers []
 				reply = unavailablePreview(*target)
 			}
 		}
-		out[v] = messageView(msg, v, reactions[v], reply)
+		out[v] = s.messageView(msg, v, reactions[v], reply)
 	}
 	return out, nil
 }

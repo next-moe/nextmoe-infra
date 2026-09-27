@@ -28,7 +28,7 @@ func (uploadOnly) Upload(_ context.Context, r io.Reader, name, sub string) (*ser
 	if string(b) != "png-bytes" || name != "cat.png" || sub != "chat:1" {
 		return nil, service.ErrImageRejected
 	}
-	return &service.UploadedImage{Hash: strings.Repeat("f", 64), URL: "https://img.example/f", Width: 3, Height: 4}, nil
+	return &service.UploadedImage{Hash: strings.Repeat("f", 64), Width: 3, Height: 4}, nil
 }
 
 func (uploadOnly) Ping(context.Context, []string) (int64, int, error) { return 0, 0, nil }

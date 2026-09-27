@@ -33,7 +33,7 @@ func (r *recordingImages) Upload(_ context.Context, body io.Reader, filename, su
 	r.mu.Lock()
 	r.uploads = append(r.uploads, filename+"|"+sub+"|"+string(b))
 	r.mu.Unlock()
-	return &UploadedImage{Hash: strings.Repeat("a", 64), URL: "https://img.example/a", Width: 640, Height: 480, Thumbhash: "th"}, nil
+	return &UploadedImage{Hash: strings.Repeat("a", 64), Width: 640, Height: 480, Thumbhash: "th"}, nil
 }
 
 func (r *recordingImages) Ping(_ context.Context, hashes []string) (int64, int, error) {
@@ -51,7 +51,7 @@ func TestUploadImageNamesTheUploader(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Media.Type != "photo" || res.Media.Width != 640 || res.URL == "" {
+	if res.Media.Type != "photo" || res.Media.Width != 640 || res.Media.URL != "https://img.example/aa/aa/"+strings.Repeat("a", 64)+".webp" {
 		t.Fatalf("result: %+v", res)
 	}
 	if len(imgs.uploads) != 1 || imgs.uploads[0] != "cat.png|chat:1|bytes" {

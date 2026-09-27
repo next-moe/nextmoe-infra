@@ -375,7 +375,7 @@ func (s *Service) appendMessage(tx *gorm.DB, conv *model.ChatConversation, membe
 }
 
 func (s *Service) messageResult(ctx context.Context, viewer int64, m model.ChatMessage) (*MessageResult, error) {
-	views, err := hydrate(s.db.WithContext(ctx), viewer, []model.ChatMessage{m})
+	views, err := s.hydrate(s.db.WithContext(ctx), viewer, []model.ChatMessage{m})
 	if err != nil {
 		return nil, err
 	}
