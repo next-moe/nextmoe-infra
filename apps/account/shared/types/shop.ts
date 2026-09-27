@@ -84,6 +84,7 @@ export interface ShopInventory {
   items: ShopOwnedItem[]
   loadout: ShopLoadout[]
   orders: ShopOrder[]
+  limit_used: Record<string, number>
 }
 
 export interface ShopPurchased {

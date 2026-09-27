@@ -21,10 +21,11 @@ type OwnedItem struct {
 }
 
 type Inventory struct {
-	Balance int64           `json:"balance"`
-	Items   []OwnedItem     `json:"items"`
-	Loadout []model.Loadout `json:"loadout"`
-	Orders  []OrderView     `json:"orders"`
+	Balance   int64           `json:"balance"`
+	Items     []OwnedItem     `json:"items"`
+	Loadout   []model.Loadout `json:"loadout"`
+	Orders    []OrderView     `json:"orders"`
+	LimitUsed map[int64]int   `json:"limit_used"`
 }
 
 func (s *Shop) Inventory(ctx context.Context, userID uint) (*Inventory, error) {
@@ -63,6 +64,9 @@ func (s *Shop) Inventory(ctx context.Context, userID uint) (*Inventory, error) {
 			return nil, err
 		}
 		inv.Orders = append(inv.Orders, *v)
+	}
+	if inv.LimitUsed, err = s.limitUsed(db, userID); err != nil {
+		return nil, err
 	}
 	return inv, nil
 }

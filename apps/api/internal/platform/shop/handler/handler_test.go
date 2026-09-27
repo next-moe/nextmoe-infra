@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
+	"api/internal/middleware"
 	authModel "api/internal/platform/auth/model"
 	"api/internal/platform/auth/repository"
 	"api/internal/platform/ledger/ledgertest"
@@ -24,7 +26,7 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-func newApp(t *testing.T) (*fiber.App, uint) {
+func newApp(t *testing.T) (*fiber.App, uint, *gorm.DB) {
 	t.Helper()
 	dsn, ok := dbtest.DSN()
 	if !ok {
@@ -56,13 +58,28 @@ func newApp(t *testing.T) (*fiber.App, uint) {
 		c.Locals("user_id", u.ID)
 		c.Locals("token_client_id", c.Get("X-Test-Client"))
 		c.Locals("user_roles", []string{c.Get("X-Test-Role")})
+		if v := c.Get("X-Test-OAuth-Client"); v != "" {
+			client := &siteModel.OAuthClient{ID: v}
+			if rest, ok := strings.CutPrefix(v, "awarder:"); ok {
+				client.MoemoepointAwarder = true
+				if n, err := strconv.ParseUint(rest, 10, 64); err == nil {
+					site := uint(n)
+					client.SiteID = &site
+				}
+			}
+			c.Locals(middleware.LocalOAuthClient, client)
+		}
 		return c.Next()
 	})
 	app.Get("/shop/me", h.Inventory)
 	app.Post("/shop/orders", h.Purchase)
 	app.Post("/admin/shop/items/:id/:action", h.TransitionItem)
 	app.Post("/admin/shop/assets", h.UploadAsset)
-	return app, u.ID
+	app.Get("/shop/storefront", h.Storefront)
+	app.Get("/users/:id/shop", h.CustomerInventory)
+	app.Post("/users/:id/shop/orders", h.CustomerPurchase)
+	app.Put("/users/:id/shop/loadout", h.CustomerEquip)
+	return app, u.ID, db
 }
 
 func call(t *testing.T, app *fiber.App, method, path, client, role string, body any) (int, int) {
@@ -87,7 +104,7 @@ func call(t *testing.T, app *fiber.App, method, path, client, role string, body 
 }
 
 func TestTheShopSpendsOnlyForTheAccountCenter(t *testing.T) {
-	app, _ := newApp(t)
+	app, _, _ := newApp(t)
 	if status, code := call(t, app, "GET", "/shop/me", "", "", nil); status != 200 || code != 0 {
 		t.Fatalf("first-party inventory: HTTP %d code %d", status, code)
 	}
@@ -100,7 +117,7 @@ func TestTheShopSpendsOnlyForTheAccountCenter(t *testing.T) {
 }
 
 func TestPublishingNeedsThePublishPermission(t *testing.T) {
-	app, _ := newApp(t)
+	app, _, _ := newApp(t)
 	if status, _ := call(t, app, "POST", "/admin/shop/items/1/publish", "", "moderator", nil); status != 403 {
 		t.Fatalf("a moderator publishing: HTTP %d, want 403", status)
 	}
@@ -110,4 +127,57 @@ func TestPublishingNeedsThePublishPermission(t *testing.T) {
 	if status, code := call(t, app, "POST", "/admin/shop/items/1/explode", "", "admin", nil); status != 400 || code != errors.ErrShopInvalidTransition {
 		t.Fatalf("an unknown action: HTTP %d code %d", status, code)
 	}
+}
+
+func TestOnlyASiteThatMaySpendRunsAStorefront(t *testing.T) {
+	app, user, db := newApp(t)
+	site := siteModel.Site{Name: "店面", Domain: "shop-" + strconv.FormatInt(time.Now().UnixNano(), 36) + ".test.local"}
+	if err := db.Create(&site).Error; err != nil {
+		t.Fatalf("create site: %v", err)
+	}
+	t.Cleanup(func() { db.Exec(`DELETE FROM sites WHERE id = ?`, site.ID) })
+	sid := strconv.FormatUint(uint64(site.ID), 10)
+	inv := "/users/" + strconv.FormatUint(uint64(user), 10) + "/shop"
+
+	for _, client := range []string{"reader", "awarder:"} {
+		for _, r := range [][2]string{{"GET", "/shop/storefront"}, {"GET", inv}, {"POST", inv + "/orders"}, {"PUT", inv + "/loadout"}} {
+			status, code := callAs(t, app, r[0], r[1], client, map[string]any{"offer_id": 1, "idempotency_key": "k", "slot": "avatar_frame"})
+			if status != 403 || code != errors.ErrShopNotStorefront {
+				t.Fatalf("%s %s as %q: HTTP %d code %d, want 403/%d", r[0], r[1], client, status, code, errors.ErrShopNotStorefront)
+			}
+		}
+	}
+	shop := "awarder:" + sid
+	if status, code := callAs(t, app, "GET", "/shop/storefront", shop, nil); status != 200 || code != 0 {
+		t.Fatalf("storefront: HTTP %d code %d", status, code)
+	}
+	if status, code := callAs(t, app, "GET", inv, shop, nil); status != 200 || code != 0 {
+		t.Fatalf("customer inventory: HTTP %d code %d", status, code)
+	}
+	if status, code := callAs(t, app, "PUT", inv+"/loadout", shop, map[string]any{"slot": "avatar_frame", "site_id": site.ID + 1}); status != 403 || code != errors.ErrForbidden {
+		t.Fatalf("wearing for another site: HTTP %d code %d, want 403", status, code)
+	}
+	if status, code := callAs(t, app, "PUT", inv+"/loadout", shop, map[string]any{"slot": "avatar_frame", "site_id": site.ID}); status != 200 || code != 0 {
+		t.Fatalf("taking off at this site: HTTP %d code %d", status, code)
+	}
+}
+
+func callAs(t *testing.T, app *fiber.App, method, path, client string, body any) (int, int) {
+	t.Helper()
+	var buf bytes.Buffer
+	if body != nil {
+		_ = json.NewEncoder(&buf).Encode(body)
+	}
+	req := httptest.NewRequest(method, path, &buf)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Test-OAuth-Client", client)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("%s %s: %v", method, path, err)
+	}
+	var out struct {
+		Code int `json:"code"`
+	}
+	_ = json.NewDecoder(resp.Body).Decode(&out)
+	return resp.StatusCode, out.Code
 }

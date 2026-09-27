@@ -72,6 +72,7 @@ const (
 	ErrShopIdemConflict       = 19014
 	ErrShopPriceBelowMinimum  = 19015
 	ErrShopPerkRequired       = 19016
+	ErrShopNotStorefront      = 19017
 
 	ErrCreatorAlreadyHas    = 17001
 	ErrCreatorAppPending    = 17002
@@ -235,6 +236,7 @@ var codeMessages = map[int]string{
 	ErrShopIdemConflict:         "幂等键已用于另一笔订单",
 	ErrShopPriceBelowMinimum:    "价格低于商店最低价",
 	ErrShopPerkRequired:         "需要先在商店购买「主页介绍」",
+	ErrShopNotStorefront:        "该客户端没有开设萌萌点商店",
 	ErrMoemoepointNotReversible: "撤销记录不能再被撤销",
 
 	ErrGalgameNotFound:           "Galgame 不存在",

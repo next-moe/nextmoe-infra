@@ -64,6 +64,8 @@
 | `GET /api/v1/users/search` | ClientAuth | `userBatchH.Search` | 已修 | 用户名子串搜索；#30 q 长度按字符(rune)计，满长 CJK 名不再误拒 400 |
 | `GET /api/v1/users/:id/moemoepoint` | ClientAuth | `moemoepointH.GetBalance` | 已审计 | 余额（统一货币）|
 | `GET /api/v1/users/:id/moemoepoint/log` | ClientAuth | `moemoepointH.GetLog` | 已审计 | 流水**精简视图**（无 note/actor）|
+| `GET /api/v1/shop/storefront` | ClientAuth（萌萌点白名单 + 有站点）| `shopH.Storefront` | 新增 | 本站店面：站点信息 + 全站商品 + 本站专区商品 |
+| `GET /api/v1/users/:id/shop` | ClientAuth（萌萌点白名单 + 有站点）| `shopH.CustomerInventory` | 新增 | 用户的余额、物品、穿戴、订单（含兑换码）与限购计数，形状同 `/shop/me` |
 | `GET /api/v1/users/:uuid` | 登录 | `authH.GetProfile` | 已修 | 按 uuid 取 profile；#12 去除 PII(email/status)；#29 预载 roles；#01 hash |
 
 ## 4. 管理 — 用户

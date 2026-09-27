@@ -1,5 +1,10 @@
 <script setup lang="ts">
 import type { KunTabItem } from '@kungal/ui-vue'
+import {
+  SHOP_KIND_SHELF,
+  SHOP_SHELVES,
+  SHOP_SITE_SHELF_TINT
+} from '~/constants/shop'
 import { resolveAvatarUrl } from '~~/shared/utils/resolveImage'
 
 const api = useApi()
@@ -44,8 +49,20 @@ const ownedForever = computed(
         .map((o) => o.item.id)
     )
 )
-const sections = computed(() => {
-  const global = offers.value.filter((o) => !o.site)
+const isOwned = (offer: ShopOffer) =>
+  offer.rewards.every((r) => ownedForever.value.has(r.item.id))
+const usedOf = (offer: ShopOffer) =>
+  inventory.value?.limit_used?.[offer.id] ?? 0
+
+const shelves = computed(() => {
+  const shared = offers.value.filter((o) => !o.site)
+  const byKind = SHOP_SHELVES.map((shelf) => ({
+    ...shelf,
+    offers: shared.filter(
+      (o) =>
+        SHOP_KIND_SHELF[o.rewards[0]?.item.kind ?? 'avatar_frame'] === shelf.key
+    )
+  }))
   const bySite = new Map<number, { site: ShopSite; offers: ShopOffer[] }>()
   for (const o of offers.value) {
     if (!o.site) continue
@@ -53,17 +70,15 @@ const sections = computed(() => {
     group.offers.push(o)
     bySite.set(o.site.id, group)
   }
-  return [
-    ...(global.length
-      ? [{ key: 'all', title: '全站', note: '', offers: global }]
-      : []),
-    ...[...bySite.values()].map((g) => ({
-      key: `site-${g.site.id}`,
-      title: `${g.site.name} 专区`,
-      note: `${g.site.domain} 独家`,
-      offers: g.offers
-    }))
-  ]
+  const zones = [...bySite.values()].map((g) => ({
+    key: `site-${g.site.id}`,
+    title: `${g.site.name} 专区`,
+    note: `${g.site.domain} 独家，买到后所有站点都能用`,
+    icon: 'lucide:store',
+    tint: SHOP_SITE_SHELF_TINT,
+    offers: g.offers
+  }))
+  return [...byKind, ...zones].filter((s) => s.offers.length)
 })
 
 const buying = ref<ShopOffer | null>(null)
@@ -84,64 +99,73 @@ const onEquipped = async () => {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <div class="flex flex-wrap items-end justify-between gap-4">
-      <div>
+  <div class="space-y-8">
+    <div class="flex flex-wrap items-end justify-between gap-6">
+      <div class="max-w-xl">
         <h1
           class="text-foreground text-[1.75rem] leading-tight font-semibold tracking-tight"
         >
           萌萌点商店
         </h1>
-        <p class="text-default-500 mt-2 text-sm">
-          用萌萌点换装扮、功能和福利，在所有 NextMoe·未萌 站点通用
+        <p class="text-default-500 mt-2 text-sm leading-relaxed">
+          用萌萌点换装扮、功能和福利。买到的东西属于你的 NextMoe·未萌
+          账号，在所有站点通用。
         </p>
       </div>
-      <KunChip color="warning" variant="flat" size="md">
-        <span class="flex items-center gap-1.5">
-          <KunIcon name="lucide:star" class="size-4" />
-          {{ balance }} 萌萌点
-        </span>
-      </KunChip>
+      <ShopWallet :balance="balance" class="w-full sm:w-auto" />
     </div>
 
     <KunTab v-model="tab" :items="tabs" />
 
-    <div v-if="loading" class="flex justify-center py-16">
-      <KunIcon
-        name="lucide:loader-circle"
-        class="text-primary size-6 animate-spin"
-      />
+    <div
+      v-if="loading"
+      class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+      aria-busy="true"
+    >
+      <KunCard
+        v-for="n in 3"
+        :key="n"
+        padding="none"
+        class-name="gap-0 overflow-hidden"
+      >
+        <KunSkeleton height="13rem" rounded="none" />
+        <div class="space-y-3 p-5">
+          <KunSkeleton variant="text" width="50%" />
+          <KunSkeleton variant="text" />
+          <KunSkeleton variant="text" width="30%" />
+        </div>
+      </KunCard>
     </div>
 
     <template v-else-if="tab === 'store'">
       <div
-        v-if="offers.length === 0"
+        v-if="shelves.length === 0"
         class="text-default-400 flex flex-col items-center gap-3 py-16 text-sm"
       >
         <KunIcon name="lucide:gift" class="size-8" />
         商店还在准备中，过几天再来看看吧
       </div>
-      <div v-else class="space-y-8">
-        <section v-for="sec in sections" :key="sec.key" class="space-y-3">
-          <div v-if="sections.length > 1" class="flex items-baseline gap-2">
-            <h2 class="text-foreground font-semibold">{{ sec.title }}</h2>
-            <span v-if="sec.note" class="text-default-400 text-xs">{{
-              sec.note
-            }}</span>
-          </div>
-          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <ShopOfferCard
-              v-for="offer in sec.offers"
-              :key="offer.id"
-              :offer="offer"
-              :user-name="user?.name ?? ''"
-              :avatar="avatarSrc"
-              :balance="balance"
-              :owned="offer.rewards.every((r) => ownedForever.has(r.item.id))"
-              @buy="openPurchase(offer)"
-            />
-          </div>
-        </section>
+      <div v-else class="space-y-12">
+        <ShopShelf
+          v-for="shelf in shelves"
+          :key="shelf.key"
+          :title="shelf.title"
+          :note="shelf.note"
+          :icon="shelf.icon"
+          :tint="shelf.tint"
+        >
+          <ShopOfferCard
+            v-for="offer in shelf.offers"
+            :key="offer.id"
+            :offer="offer"
+            :user-name="user?.name ?? ''"
+            :avatar="avatarSrc"
+            :balance="balance"
+            :owned="isOwned(offer)"
+            :used="usedOf(offer)"
+            @buy="openPurchase(offer)"
+          />
+        </ShopShelf>
       </div>
     </template>
 

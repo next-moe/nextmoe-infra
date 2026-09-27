@@ -19,6 +19,12 @@
 | `PUT /api/v1/auth/password` | 登录 | `authH.ChangePassword` | 已审计 | 改密码 |
 | `PUT /api/v1/auth/email` | 登录 | `authH.ChangeEmail` | 已审计 | 改邮箱（需验证码）|
 
+## 1.1 用户（服务到服务）
+
+| 路径 | 鉴权 | Handler | 状态 | 备注 |
+|---|---|---|---|---|
+| `PUT /api/v1/users/:id/shop/loadout` | ClientAuth（萌萌点白名单 + 有站点）| `shopH.CustomerEquip` | 新增 | 站点店面代用户穿戴；`site_id` 只能是 0 或本站 |
+
 ## 2. 管理 — 站点 / OAuth 客户端
 
 | 路径 | 鉴权 | Handler | 状态 | 备注 |

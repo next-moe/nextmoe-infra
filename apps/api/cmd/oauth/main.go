@@ -373,6 +373,13 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	v1.Get("/shop/me", middleware.Auth(authSvc), middleware.NoStore(), shopH.Inventory)
 	v1.Put("/shop/me/loadout", middleware.Auth(authSvc), middleware.NoStore(), shopH.Equip)
 	v1.Post("/shop/orders", middleware.Auth(authSvc), middleware.NoStore(), shopH.Purchase)
+	v1.Get("/shop/storefront", middleware.OAuthClientBasicAuth(oauthClientRepo), shopH.Storefront)
+	v1.Get("/users/:id/shop",
+		middleware.OAuthClientBasicAuth(oauthClientRepo), middleware.NoStore(), shopH.CustomerInventory)
+	v1.Post("/users/:id/shop/orders",
+		middleware.OAuthClientBasicAuth(oauthClientRepo), middleware.NoStore(), shopH.CustomerPurchase)
+	v1.Put("/users/:id/shop/loadout",
+		middleware.OAuthClientBasicAuth(oauthClientRepo), middleware.NoStore(), shopH.CustomerEquip)
 
 	users := v1.Group("/users", middleware.Auth(authSvc))
 	users.Get("/:uuid", authH.GetProfile)

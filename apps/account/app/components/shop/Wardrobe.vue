@@ -97,35 +97,43 @@ const formatDate = (s: string) =>
           <KunCard
             v-for="owned in ownedIn(s.slot)"
             :key="owned.item.id"
-            class="flex flex-col p-5"
+            padding="none"
+            class-name="gap-0 overflow-hidden"
+            content-class="gap-0"
           >
-            <div class="flex min-h-36 items-center py-4">
-              <ShopItemPreview
-                :item="owned.item"
-                :user-name="userName"
-                :avatar="avatar"
-                class="w-full"
-              />
-            </div>
-            <h3 class="text-foreground font-semibold">{{ owned.item.name }}</h3>
-            <p class="text-default-400 mt-1 text-xs">
-              {{
-                owned.expires_at
-                  ? `${formatDate(owned.expires_at)} 到期`
-                  : '永久'
-              }}
-              · {{ owned.source === 'grant' ? '赠予' : '购买' }}于
-              {{ formatDate(owned.acquired_at) }}
-            </p>
-            <div class="mt-auto flex justify-end pt-4">
+            <ShopStage
+              :item="owned.item"
+              :user-name="userName"
+              :avatar="avatar"
+              class-name="h-44"
+            >
               <KunChip
                 v-if="wornIn(s.slot) === owned.item.id"
                 color="success"
+                variant="solid"
                 size="sm"
-                >使用中</KunChip
+                class-name="absolute top-3 right-3"
               >
+                使用中
+              </KunChip>
+            </ShopStage>
+            <div class="flex flex-1 items-end justify-between gap-3 p-5">
+              <div class="min-w-0">
+                <h3 class="text-foreground font-semibold">
+                  {{ owned.item.name }}
+                </h3>
+                <p class="text-default-400 mt-1 text-xs">
+                  {{
+                    owned.expires_at
+                      ? `${formatDate(owned.expires_at)} 到期`
+                      : '永久'
+                  }}
+                  · {{ owned.source === 'grant' ? '赠予' : '购买' }}于
+                  {{ formatDate(owned.acquired_at) }}
+                </p>
+              </div>
               <KunButton
-                v-else
+                v-if="wornIn(s.slot) !== owned.item.id"
                 size="sm"
                 :loading="pending === `${s.slot}:${owned.item.id}`"
                 @click="wear(s.slot, owned.item.id)"
@@ -175,14 +183,16 @@ const formatDate = (s: string) =>
         <KunCard
           v-for="c in codes"
           :key="c.code"
-          class="flex flex-col gap-3 p-5"
+          padding="md"
+          class-name="border-warning-300 border-dashed"
         >
           <div class="flex items-center gap-2">
-            <KunIcon
-              :name="SHOP_KIND_ICON.redeem_code!"
-              class="text-primary-600 size-5"
-            />
-            <h3 class="text-foreground font-semibold">{{ c.name }}</h3>
+            <div
+              class="bg-warning-100 text-warning-600 flex size-8 shrink-0 items-center justify-center rounded-lg"
+            >
+              <KunIcon :name="SHOP_KIND_ICON.redeem_code!" class="size-4" />
+            </div>
+            <h3 class="text-foreground truncate font-semibold">{{ c.name }}</h3>
           </div>
           <KunCopy :text="c.code" variant="flat" class-name="font-mono" />
           <p class="text-default-400 text-xs">

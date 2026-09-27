@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { resolveAvatarUrl } from '~~/shared/utils/resolveImage'
+import { MOEMOEPOINT_ICON } from '~/constants/moemoepoint'
 import { roleColor, roleLabel } from '~/constants/roles'
 
 const auth = useAuth()
@@ -83,7 +84,7 @@ const formattedDate = computed(() => {
       <div class="border-default-200 mt-6 space-y-3 border-t pt-5 text-sm">
         <div class="flex items-center justify-between gap-3">
           <span class="text-default-400 flex items-center gap-1.5">
-            <KunIcon name="lucide:star" class="size-4" />
+            <KunIcon :name="MOEMOEPOINT_ICON" class="size-4" />
             萌萌点
           </span>
           <span class="text-foreground font-medium">{{
