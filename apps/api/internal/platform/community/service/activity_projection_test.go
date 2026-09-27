@@ -142,6 +142,11 @@ func TestProjectionRulePicksTheLongestPrefix(t *testing.T) {
 		"<details><summary>点开</summary>secret</details>",
 		":::spoiler\r\nsecret\r\n:::\r\n",
 		"||use `a || b` here secret||",
+		"||secret $x||y$ more||",
+		"||a $$x||y$$ secret||",
+		`<p>a<div class="kun-spoiler">s</p> secret</div>`,
+		"<noscript>secret</noscript>",
+		`<span class="kun-spoiler"><table><tr><td></div>secret</td></tr></table></span>`,
 	} {
 		if got := plainExcerpt(in, 300); strings.Contains(got, "secret") {
 			t.Errorf("spoiler leaked from %q: %q", in, got)
