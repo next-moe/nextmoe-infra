@@ -176,7 +176,7 @@ func replyPreview(r model.ChatMessage) *dto.ReplyPreview {
 	return p
 }
 
-func messageView(m model.ChatMessage, viewer int64, reactions []dto.ReactionCount, reply *dto.ReplyPreview) dto.Message {
+func (s *Service) messageView(m model.ChatMessage, viewer int64, reactions []dto.ReactionCount, reply *dto.ReplyPreview) dto.Message {
 	v := dto.Message{
 		Object: "message", ID: dto.ID(m.ID), ConversationID: dto.ID(m.ConversationID), Seq: m.Seq,
 		SenderID: dto.ID(m.SenderID), Kind: m.Kind, Text: m.Text, Entities: dto.EntitiesOut(decodeEntities(m.Entities)),
@@ -187,6 +187,9 @@ func messageView(m model.ChatMessage, viewer int64, reactions []dto.ReactionCoun
 	}
 	if v.Reactions == nil {
 		v.Reactions = []dto.ReactionCount{}
+	}
+	if v.Media != nil {
+		v.Media.URL = s.imageURL(v.Media.ImageHash)
 	}
 	if q := decodeJSON[storedQuote](m.ReplyQuote); q != nil {
 		v.ReplyQuote = &dto.Quote{Text: q.Text, Entities: dto.EntitiesOut(q.Entities), Offset: q.Offset}
@@ -199,7 +202,7 @@ func messageView(m model.ChatMessage, viewer int64, reactions []dto.ReactionCoun
 	return v
 }
 
-func hydrate(db *gorm.DB, viewer int64, msgs []model.ChatMessage) ([]dto.Message, error) {
+func (s *Service) hydrate(db *gorm.DB, viewer int64, msgs []model.ChatMessage) ([]dto.Message, error) {
 	out := make([]dto.Message, 0, len(msgs))
 	if len(msgs) == 0 {
 		return out, nil
@@ -236,7 +239,7 @@ func hydrate(db *gorm.DB, viewer int64, msgs []model.ChatMessage) ([]dto.Message
 				}
 			}
 		}
-		out = append(out, messageView(m, viewer, reactions[m.ID], reply))
+		out = append(out, s.messageView(m, viewer, reactions[m.ID], reply))
 	}
 	return out, nil
 }
@@ -335,7 +338,7 @@ type dialogRow struct {
 	Conv   model.ChatConversation
 }
 
-func conversationViews(db *gorm.DB, viewer int64, rows []dialogRow) ([]dto.Conversation, []int64, error) {
+func (s *Service) conversationViews(db *gorm.DB, viewer int64, rows []dialogRow) ([]dto.Conversation, []int64, error) {
 	convs := make([]model.ChatConversation, len(rows))
 	ids := make([]int64, len(rows))
 	for i, r := range rows {
@@ -356,7 +359,7 @@ func conversationViews(db *gorm.DB, viewer int64, rows []dialogRow) ([]dto.Conve
 			lastMsgs = append(lastMsgs, m)
 		}
 	}
-	views, err := hydrate(db, viewer, lastMsgs)
+	views, err := s.hydrate(db, viewer, lastMsgs)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -375,6 +378,10 @@ func conversationViews(db *gorm.DB, viewer int64, rows []dialogRow) ([]dto.Conve
 			PhotoImageHash: c.PhotoImageHash, PeerID: dto.IDPtr(peer), MemberCount: c.MemberCount, LastSeq: c.LastSeq,
 			PeerReadSeq: reads[c.ID], CreatedAt: c.CreatedAt, Me: dialogView(r.Member),
 			LastMessage: byConv[c.ID],
+		}
+		if c.PhotoImageHash != nil {
+			u := s.imageURL(*c.PhotoImageHash)
+			out[i].PhotoURL = &u
 		}
 		if peer != nil {
 			userIDs = append(userIDs, *peer)

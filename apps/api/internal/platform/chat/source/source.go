@@ -96,7 +96,7 @@ func (i *Images) Upload(ctx context.Context, r io.Reader, filename, uploaderSub 
 	case err != nil:
 		return nil, err
 	}
-	return &service.UploadedImage{Hash: res.Hash, URL: res.URL, Width: res.Width, Height: res.Height, Thumbhash: res.Thumbhash}, nil
+	return &service.UploadedImage{Hash: res.Hash, Width: res.Width, Height: res.Height, Thumbhash: res.Thumbhash}, nil
 }
 
 func (i *Images) Ping(ctx context.Context, hashes []string) (int64, int, error) {

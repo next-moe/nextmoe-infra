@@ -112,7 +112,7 @@ func (s *Service) ListConversations(ctx context.Context, a Actor, folder, cursor
 	if err != nil {
 		return nil, err
 	}
-	views, userIDs, err := conversationViews(db, a.UserID, rows)
+	views, userIDs, err := s.conversationViews(db, a.UserID, rows)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +175,7 @@ func (s *Service) Conversation(ctx context.Context, a Actor, conversationID int6
 	if len(rows) == 0 {
 		return nil, ErrNotFound
 	}
-	views, userIDs, err := conversationViews(db, a.UserID, rows)
+	views, userIDs, err := s.conversationViews(db, a.UserID, rows)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +194,7 @@ func (s *Service) Conversation(ctx context.Context, a Actor, conversationID int6
 		return nil, err
 	}
 	if len(pinned) > 0 {
-		pinnedViews, err := hydrate(db, a.UserID, pinned)
+		pinnedViews, err := s.hydrate(db, a.UserID, pinned)
 		if err != nil {
 			return nil, err
 		}
@@ -294,7 +294,7 @@ func (s *Service) Messages(ctx context.Context, a Actor, conversationID int64, q
 		return nil, err
 	}
 	all := append(older, newer...)
-	views, err := hydrate(db, a.UserID, all)
+	views, err := s.hydrate(db, a.UserID, all)
 	if err != nil {
 		return nil, err
 	}
@@ -379,14 +379,14 @@ func (s *Service) Updates(ctx context.Context, a Actor, after int64, limit int) 
 		}
 		msgs = append(msgs, got...)
 	}
-	if page.Messages, err = hydrate(db, a.UserID, msgs); err != nil {
+	if page.Messages, err = s.hydrate(db, a.UserID, msgs); err != nil {
 		return nil, err
 	}
 	dialogs, err := s.dialogRows(db, members)
 	if err != nil {
 		return nil, err
 	}
-	convViews, userIDs, err := conversationViews(db, a.UserID, dialogs)
+	convViews, userIDs, err := s.conversationViews(db, a.UserID, dialogs)
 	if err != nil {
 		return nil, err
 	}
