@@ -55,7 +55,7 @@ func monthStart(now time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, limitZone)
 }
 
-func (s *Shop) Purchase(ctx context.Context, userID uint, offerID int64, idemKey string) (*Purchased, error) {
+func (s *Shop) Purchase(ctx context.Context, userID uint, offerID int64, idemKey string, storefront uint) (*Purchased, error) {
 	idemKey = strings.TrimSpace(idemKey)
 	if idemKey == "" || len(idemKey) > 64 {
 		return nil, errors.NewWithCode(errors.ErrMissingParam)
@@ -86,7 +86,7 @@ func (s *Shop) Purchase(ctx context.Context, userID uint, offerID int64, idemKey
 			return nil
 		}
 		now := s.now()
-		if offer.Status != model.OfferActive ||
+		if offer.Status != model.OfferActive || !sellsAt(offer.SiteID, storefront) ||
 			(offer.StartsAt != nil && offer.StartsAt.After(now)) || (offer.EndsAt != nil && !offer.EndsAt.After(now)) {
 			return errors.NewWithCode(errors.ErrShopOfferUnavailable)
 		}
@@ -146,7 +146,7 @@ func (s *Shop) Purchase(ctx context.Context, userID uint, offerID int64, idemKey
 		}
 
 		order := model.Order{
-			UserID: userID, IdempotencyKey: idemKey, RecipientUserID: userID, OfferID: offer.ID,
+			UserID: userID, IdempotencyKey: idemKey, RecipientUserID: userID, OfferID: offer.ID, SiteID: storefront,
 			Costs: offer.Costs, Rewards: offer.Rewards, Prior: datatypes.JSON(mustJSON(holdings)),
 			Status: model.OrderCompleted, CreatedAt: now,
 		}

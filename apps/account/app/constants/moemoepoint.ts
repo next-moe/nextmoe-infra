@@ -1,3 +1,4 @@
+export const MOEMOEPOINT_ICON = 'lucide:lollipop'
 
 const STATIC_REASON_LABEL: Record<string, string> = {
   admin_grant: '管理员发放',

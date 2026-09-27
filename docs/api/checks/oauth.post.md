@@ -51,6 +51,7 @@
 | `POST /api/v1/users/:id/moemoepoint/charges` | ClientAuth | `moemoepointH.Charge` | 新增 | 扣费（幂等）；服务端校验余额，不足 400/16006 且不扣 |
 | `POST /api/v1/users/:id/moemoepoint/reversals` | ClientAuth | `moemoepointH.Reverse` | 新增 | 按原幂等键撤销本 client 的一笔记录（每笔至多一次）|
 | `POST /api/v1/shop/orders` | 登录（第一方）| `shopH.Purchase` | 新增 | 商店购买：一个事务内扣费 + 发放，幂等键按用户唯一 |
+| `POST /api/v1/users/:id/shop/orders` | ClientAuth（萌萌点白名单 + 有站点）| `shopH.CustomerPurchase` | 新增 | 站点店面代用户购买：只卖全站商品和本站专区，订单记本站 `site_id` |
 
 ## 5. 管理 — 用户
 
