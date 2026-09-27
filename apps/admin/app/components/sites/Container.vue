@@ -2,7 +2,15 @@
 const api = useApi()
 
 const { data: sitesData, status, refresh } = await useApiFetch<Site[]>('/sites')
+const { data: clientsData } = await useApiFetch<OAuthClient[]>('/oauth/clients')
 const sites = computed(() => sitesData.value ?? [])
+const clientCount = computed(() => {
+  const m = new Map<number, number>()
+  for (const c of clientsData.value ?? []) {
+    if (c.site_id) m.set(c.site_id, (m.get(c.site_id) ?? 0) + 1)
+  }
+  return m
+})
 const isLoading = computed(() => status.value === 'pending')
 
 const showCreateModal = ref(false)
@@ -24,8 +32,16 @@ const handleUpdated = () => {
   refresh()
 }
 
-const handleDelete = async (id: number) => {
-  const response = await api.delete(`/sites/${id}`)
+const handleDelete = async (site: Site) => {
+  const confirmed = await useKunAlert({
+    title: `删除站点「${site.name}」？`,
+    message: '删除后无法恢复。',
+    type: 'danger',
+    confirmText: '删除',
+    confirmColor: 'danger'
+  })
+  if (!confirmed) return
+  const response = await api.delete(`/sites/${site.id}`)
   if (response.code === 0) {
     useKunMessage('站点已删除', 'success')
     refresh()
@@ -62,8 +78,9 @@ const handleDelete = async (id: number) => {
         v-for="site in sites"
         :key="site.id"
         :site="site"
+        :client-count="clientCount.get(site.id) ?? 0"
         @edit="openEdit(site)"
-        @delete="handleDelete(site.id)"
+        @delete="handleDelete(site)"
       />
     </div>
 

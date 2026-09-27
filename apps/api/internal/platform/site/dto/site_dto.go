@@ -62,6 +62,10 @@ type OAuthClientResponse struct {
 	Tagline                string                   `json:"tagline"`
 	DisplayOrder           int                      `json:"display_order"`
 	CreatedAt              string                   `json:"created_at"`
+	CreatedByUserID        *uint                    `json:"created_by_user_id,omitempty"`
+	OwnerUserID            *uint                    `json:"owner_user_id,omitempty"`
+	DevEnabled             bool                     `json:"dev_enabled"`
+	Mine                   bool                     `json:"mine"`
 	Storage                OAuthClientStorageConfig `json:"storage"`
 }
 

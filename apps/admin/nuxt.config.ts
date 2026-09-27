@@ -50,7 +50,8 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
 
   routeRules: {
-    '/**': { headers: { 'X-Robots-Tag': 'noindex, nofollow' } }
+    '/**': { headers: { 'X-Robots-Tag': 'noindex, nofollow' } },
+    '/artifacts/config': { redirect: '/oauth-clients?view=storage' }
   },
 
   modules: [
