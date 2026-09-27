@@ -62,6 +62,9 @@ func Run(db *gorm.DB) error {
 		&model.CommunityAnchorPresentation{},
 		&model.CommunityActivitySite{},
 		&model.CommunityActivityProjection{},
+		// 2026-09-27: account-level blocks (plan 17 W1). A new table with no
+		// rows; a block also deletes the follow edges between the two users.
+		&model.CommunityUserBlock{},
 	); err != nil {
 		return fmt.Errorf("community automigrate: %w", err)
 	}
@@ -251,6 +254,14 @@ func rawSQL(db *gorm.DB) error {
 		{"idx_community_user_follow_follower", `
 			CREATE INDEX IF NOT EXISTS idx_community_user_follow_follower
 			    ON community_user_follow(follower_id, id DESC)`},
+		// Who a user has blocked, newest first.
+		{"idx_community_user_block_blocker", `
+			CREATE INDEX IF NOT EXISTS idx_community_user_block_blocker
+			    ON community_user_block(blocker_id, id DESC)`},
+		// Who has blocked a user: the notification filter and blocks_viewer.
+		{"idx_community_user_block_blocked", `
+			CREATE INDEX IF NOT EXISTS idx_community_user_block_blocked
+			    ON community_user_block(blocked_id)`},
 		// A site's own rows in id order: the reconciliation read.
 		{"idx_community_activity_site_id", `
 			CREATE INDEX IF NOT EXISTS idx_community_activity_site_id
