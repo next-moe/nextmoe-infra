@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -137,9 +138,17 @@ func main() {
 		slog.Error("marshal chat spec", "error", err)
 		os.Exit(1)
 	}
+	specETag := fmt.Sprintf(`"%x"`, sha256.Sum256(spec))
 	application.Fiber.Get(chatHandler.SpecPath, func(c fiber.Ctx) error {
+		// Under max-age=3600 Cloudflare kept serving 1.0.1 after 1.1.0 was deployed
+		// and rewrote the browser max-age to 14400; kungal-apps fetched the live
+		// spec minutes after the deploy and got the old version.
+		c.Set("Cache-Control", "no-cache")
+		c.Set("ETag", specETag)
+		if c.Get("If-None-Match") == specETag {
+			return c.SendStatus(fiber.StatusNotModified)
+		}
 		c.Set("Content-Type", "application/json")
-		c.Set("Cache-Control", "public, max-age=3600")
 		return c.Send(spec)
 	})
 
