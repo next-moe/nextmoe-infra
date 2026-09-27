@@ -22,7 +22,7 @@ const (
 
 func (s *Service) State(ctx context.Context, a Actor) (*dto.State, error) {
 	db := s.db.WithContext(ctx)
-	st := dto.State{Object: "chat_state"}
+	var st dto.State
 	if err := db.Raw(`
 		SELECT count(*) FILTER (WHERE accepted_at IS NOT NULL AND (unread_count > 0 OR marked_unread)
 		                          AND (muted_until IS NULL OR muted_until <= ?)) AS unread_conversation_count,
@@ -41,6 +41,7 @@ func (s *Service) State(ctx context.Context, a Actor) (*dto.State, error) {
 	if len(seqs) > 0 {
 		st.LastUpdateSeq = seqs[0]
 	}
+	st.Object = "chat_state"
 	return &st, nil
 }
 
@@ -182,14 +183,26 @@ func (s *Service) Conversation(ctx context.Context, a Actor, conversationID int6
 	if err := db.Where("conversation_id = ? AND left_at IS NULL", conversationID).Order("joined_at, user_id").Find(&members).Error; err != nil {
 		return nil, err
 	}
-	detail := dto.ConversationDetail{Conversation: views[0], Members: make([]dto.Member, 0, len(members)), PinnedSeqs: []int64{}}
+	detail := dto.ConversationDetail{Conversation: views[0], Members: make([]dto.Member, 0, len(members)), PinnedSeqs: []int64{}, PinnedMessages: []dto.Message{}}
 	for _, m := range members {
 		detail.Members = append(detail.Members, dto.Member{UserID: dto.ID(m.UserID), Role: m.Role, JoinedAt: m.JoinedAt})
 		userIDs = append(userIDs, m.UserID)
 	}
+	var pinned []model.ChatMessage
 	if err := visibleTo(db, me).Where("pinned_at IS NOT NULL").
-		Order("pinned_at DESC").Limit(100).Pluck("seq", &detail.PinnedSeqs).Error; err != nil {
+		Order("pinned_at DESC, seq DESC").Limit(100).Find(&pinned).Error; err != nil {
 		return nil, err
+	}
+	if len(pinned) > 0 {
+		pinnedViews, err := hydrate(db, a.UserID, pinned)
+		if err != nil {
+			return nil, err
+		}
+		for _, m := range pinnedViews {
+			detail.PinnedSeqs = append(detail.PinnedSeqs, m.Seq)
+		}
+		detail.PinnedMessages = pinnedViews
+		userIDs = append(userIDs, messageUserIDs(pinnedViews)...)
 	}
 	users, err := s.userViews(ctx, userIDs)
 	if err != nil {

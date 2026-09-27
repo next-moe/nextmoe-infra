@@ -184,7 +184,10 @@ message; a different key replaces it, `null` removes it. The vocabulary is
 
 Pins (`PUT` / `DELETE /conversations/{id}/pins/{seq}`): several messages can be
 pinned; pinning posts a `message_pinned` service message. 10 pin changes a
-minute per user.
+minute per user. `GET /conversations/{id}` carries `pinned_seqs` and
+`pinned_messages`, the messages themselves in the same order (most recently
+pinned first, at most 100, as the caller sees them), so a pinned bar can show
+a message that is not in the loaded page.
 
 ## 7. Sync: the update stream
 
