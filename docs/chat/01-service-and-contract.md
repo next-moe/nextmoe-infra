@@ -315,8 +315,9 @@ service code a send uses.
   moyu replies point at the new `seq`; moyu reactions map onto the vocabulary
   and unknown ones are dropped. Read positions come from kungal's read
   receipts; moyu kept none, so its messages count as read.
-- Markdown becomes text and entities. Uploaded images are re-hosted through
-  chat's image client, so `KUN_CHAT_IMAGE_CLIENT_*` must be set; stickers
+- Markdown becomes text and entities. Uploaded images are fetched from the
+  image CDN and re-hosted through chat's image client, so
+  `KUN_CHAT_IMAGE_CLIENT_*` must be set; stickers
   (`![sticker](/image/<hash>_320)`) keep their hash; an image hosted elsewhere
   becomes a `[图片]` link. An album of photos from one old message shares a
   `media_group_id`.
@@ -327,6 +328,10 @@ service code a send uses.
   A pair that has already talked natively in chat is left out
   (`ErrNativeHistory`): old messages cannot go in before existing ones.
 
-Run it with the chat container's environment on the docker network; without
-`-apply` it only prints the plan (production dry run, 2026-09-27: 2,683 pairs,
-11,241 messages, 517 tombstones, 422 photos, 164 stickers, 1 external image).
+Run it with the chat container's environment on `dokploy-network`, not in the
+chat container's network namespace: that namespace dies when chat is
+redeployed, which stranded the first production run mid-way. Without `-apply`
+it only prints the plan. The production import ran on 2026-09-27: 2,684 pairs,
+11,763 messages (517 of them tombstones), 419 photos re-hosted, 164 stickers,
+1 external image; 4 photos were already gone from the image service and were
+dropped.

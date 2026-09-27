@@ -7,7 +7,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"strings"
 	"time"
 
 	"api/internal/platform/chat/dto"
@@ -29,11 +28,11 @@ func (r resolvedImages) resolve(ref imageRef) (dto.Media, bool) {
 }
 
 // rehost gives every old image the hash chat will reference. Stickers keep
-// theirs; an upload is fetched from the image service and uploaded again
-// through chat's own client, which dedups by content and records chat as a
+// theirs; an upload is fetched from the CDN and uploaded again through chat's
+// own client, which dedups by content and records chat as a
 // user of the image, so chat's daily reference ping keeps it alive after the
 // old site stops pinging.
-func rehost(ctx context.Context, cli *imageclient.Client, baseURL string, refs map[imageRef]bool) (resolvedImages, int) {
+func rehost(ctx context.Context, cli *imageclient.Client, refs map[imageRef]bool) (resolvedImages, int) {
 	out := resolvedImages{}
 	failed := 0
 	var stickers []string
@@ -54,12 +53,11 @@ func rehost(ctx context.Context, cli *imageclient.Client, baseURL string, refs m
 		}
 	}
 	httpc := &http.Client{Timeout: 60 * time.Second}
-	base := strings.TrimRight(baseURL, "/")
 	for ref := range refs {
 		if ref.Sticker {
 			continue
 		}
-		res, err := reupload(ctx, httpc, cli, base, ref.Hash)
+		res, err := reupload(ctx, httpc, cli, ref.Hash)
 		if err != nil {
 			failed++
 			slog.Warn("re-host image", "hash", ref.Hash, "err", err)
@@ -70,8 +68,10 @@ func rehost(ctx context.Context, cli *imageclient.Client, baseURL string, refs m
 	return out, failed
 }
 
-func reupload(ctx context.Context, httpc *http.Client, cli *imageclient.Client, base, hash string) (*imageclient.UploadResult, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/image/"+hash, nil)
+// The image service's GET /image/:hash is the authenticated metadata endpoint,
+// not the bytes: the first production run fetched it and got a 401 JSON body.
+func reupload(ctx context.Context, httpc *http.Client, cli *imageclient.Client, hash string) (*imageclient.UploadResult, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, cli.MainURL(hash), nil)
 	if err != nil {
 		return nil, err
 	}
