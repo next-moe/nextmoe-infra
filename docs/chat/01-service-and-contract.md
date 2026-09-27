@@ -47,6 +47,10 @@ The same as the rest of `/v2`:
   lengths are numbers;
 - every resource carries `object`; lists are `{object: "list", items, …}` and
   never null;
+- a field the document marks nullable (`anyOf: [$ref, {type: null}]` for an
+  object, `type: [T, "null"]` for a scalar) is always present and may be
+  `null`; every other field in a response is never null. The route tests hold
+  each response they see to the document, so the two cannot drift apart;
 - errors are RFC 9457 problems. Chat's own codes live under
   `https://developer.nextmoe.dev/problems/chat/`: `CHAT_BLOCKED`,
   `CHAT_NOT_ACCEPTING`, `CHAT_REQUEST_LIMIT`, `CHAT_EDIT_WINDOW_CLOSED`,

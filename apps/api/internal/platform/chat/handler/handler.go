@@ -72,7 +72,7 @@ func Setup(app *fiber.App, opt Options) huma.API {
 	})
 	app.Use("/v2/chat", problem.RequestIDMiddleware, authenticate(opt))
 
-	cfg := huma.DefaultConfig("NextMoe Chat API", "1.0.0")
+	cfg := huma.DefaultConfig("NextMoe Chat API", "1.0.1")
 	cfg.OpenAPIPath = ""
 	cfg.DocsPath = ""
 	cfg.SchemasPath = ""
@@ -91,6 +91,7 @@ func Setup(app *fiber.App, opt Options) huma.API {
 	})
 	h := &Handler{opt: opt}
 	h.register(api)
+	publishWireShapes(api.OpenAPI())
 	return api
 }
 
