@@ -13,7 +13,10 @@ import (
 	"api/internal/platform/chat/service"
 )
 
-var imagePath = regexp.MustCompile(`^/image/([0-9a-f]{64})(?:\.[a-z]+)?$`)
+// The old sites embed stickers as a width variant of the image, e.g.
+// ![sticker](/image/<hash>_320). A pattern that expected the bare hash read
+// none of the 164 in production's direct messages as images.
+var imagePath = regexp.MustCompile(`^/image/([0-9a-f]{64})(?:_[0-9]+)?(?:\.[a-z]+)?$`)
 
 type pair struct{ low, high int64 }
 

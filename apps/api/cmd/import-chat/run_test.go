@@ -80,7 +80,7 @@ func seedLegacy(t *testing.T) (chat, main, kungal, moyu *gorm.DB) {
 	must(t, kungal, `INSERT INTO chat_room_participant VALUES (10, 1), (10, 2), (11, 1), (11, 4), (12, 3)`)
 	must(t, kungal, `INSERT INTO chat_message VALUES
 		(100, 10, 1, 'hi **2**', false, NULL, '2025-01-01 10:00'),
-		(101, 10, 2, '![image.png](/image/`+hashA+`) look ![sticker](/image/`+hashS+`)', false, NULL, '2025-01-01 10:02'),
+		(101, 10, 2, '![image.png](/image/`+hashA+`) look ![sticker](/image/`+hashS+`_320)', false, NULL, '2025-01-01 10:02'),
 		(102, 10, 1, 'regret', true, NULL, '2025-01-01 10:04'),
 		(103, 10, 2, 'unread for 1', false, NULL, '2025-01-01 10:06'),
 		(110, 11, 1, 'to a deleted account', false, NULL, '2025-01-01 10:00')`)
@@ -128,7 +128,8 @@ func TestRunImportsBothSitesIntoOneConversation(t *testing.T) {
 	if n != 0 {
 		t.Fatal("a dry run writes nothing")
 	}
-	if dry.Stats.Pairs != 1 || dry.Stats.MergedPairs != 1 || dry.Stats.SkippedDeletedUsers != 1 || dry.Stats.SkippedRooms != 1 || dry.Images != 2 {
+	if dry.Stats.Pairs != 1 || dry.Stats.MergedPairs != 1 || dry.Stats.SkippedDeletedUsers != 1 || dry.Stats.SkippedRooms != 1 || dry.Images != 2 ||
+		dry.Stats.Photos != 1 || dry.Stats.Stickers != 1 || dry.Stats.ExternalImages != 0 {
 		t.Fatalf("plan: %+v images %d", dry.Stats, dry.Images)
 	}
 
