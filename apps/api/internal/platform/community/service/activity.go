@@ -110,9 +110,19 @@ func (s *ActivityService) Write(ctx context.Context, site string, urlHosts []str
 	slices.SortFunc(todo, func(a, b accepted) int { return strings.Compare(a.write.Key, b.write.Key) })
 
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		actors := make([]int64, 0, len(todo))
+		for _, a := range todo {
+			if a.eligible {
+				actors = append(actors, a.write.ActorID)
+			}
+		}
+		hidden, err := repository.HiddenActorsTx(tx, actors)
+		if err != nil {
+			return err
+		}
 		groups := map[string]repository.ActivityGroupKey{}
 		for _, a := range todo {
-			res, err := repository.UpsertActivityTx(tx, site, a.write, a.eligible)
+			res, err := repository.UpsertActivityTx(tx, site, a.write, a.eligible && !hidden[a.write.ActorID])
 			if err != nil {
 				return err
 			}

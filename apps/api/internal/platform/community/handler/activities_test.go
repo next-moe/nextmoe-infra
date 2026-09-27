@@ -204,6 +204,58 @@ func TestNotificationFeedCarriesTheActivity(t *testing.T) {
 	}
 }
 
+func TestActivitySettingFacesThroughRouter(t *testing.T) {
+	cleanTables(t)
+	app := activityRouter(true)
+	_ = doFollowReq(t, app, http.MethodPut, "/api/v1/community/users/1/following/7", "").Body.Close()
+	_ = doFollowReq(t, app, http.MethodPost, "/api/v1/community/activities",
+		`{"items":[`+activityJSON("topic:1", 7, time.Now().Add(-time.Hour), "")+`]}`).Body.Close()
+
+	fresh := decodeData[dto.ActivitySettingView](t, doFollowReq(t, app, http.MethodGet, "/api/v1/community/users/7/activity-settings", ""))
+	if fresh.UserID != 7 || fresh.Hidden || fresh.UpdatedAt != nil {
+		t.Fatalf("unset: %+v", fresh)
+	}
+	set := decodeData[dto.ActivitySettingView](t, doFollowReq(t, app, http.MethodPut, "/api/v1/community/users/7/activity-settings", `{"hidden":true}`))
+	if !set.Hidden || set.UpdatedAt == nil {
+		t.Fatalf("PUT echoes the setting: %+v", set)
+	}
+	if got := decodeData[dto.ActivitySettingView](t, doFollowReq(t, app, http.MethodGet, "/api/v1/community/users/7/activity-settings", "")); !got.Hidden {
+		t.Fatalf("GET after PUT: %+v", got)
+	}
+
+	feed := decodeData[dto.ActivityGroupListResponse](t, doFollowReq(t, app, http.MethodGet, "/api/v1/community/users/1/following/activities", ""))
+	if len(feed.Groups) != 0 || feed.Hidden {
+		t.Fatalf("the follower's feed drops the author and says nothing about why: %+v", feed)
+	}
+	others := doFollowReq(t, app, http.MethodGet, "/api/v1/community/users/7/activities?viewer_id=1", "")
+	raw := decodeData[json.RawMessage](t, others)
+	if !strings.Contains(string(raw), `"hidden":true`) || !strings.Contains(string(raw), `"groups":[]`) {
+		t.Fatalf("someone else gets an empty, hidden page: %s", raw)
+	}
+	own := decodeData[dto.ActivityGroupListResponse](t, doFollowReq(t, app, http.MethodGet, "/api/v1/community/users/7/activities?viewer_id=7", ""))
+	if len(own.Groups) != 1 || own.Hidden {
+		t.Fatalf("the author reads their own: %+v", own)
+	}
+	groupPath := fmt.Sprintf("/api/v1/community/activity-groups/%d/items", own.Groups[0].ID)
+	if r := doFollowReq(t, app, http.MethodGet, groupPath+"?viewer_id=1", ""); r.StatusCode != http.StatusNotFound {
+		t.Errorf("someone else expanding a hidden author's group: want 404, got %d", r.StatusCode)
+	}
+	if items := decodeData[dto.ActivityItemListResponse](t, doFollowReq(t, app, http.MethodGet, groupPath+"?viewer_id=7", "")); len(items.Items) != 1 {
+		t.Fatalf("the author expands their own group: %+v", items)
+	}
+
+	if r := doFollowReq(t, app, http.MethodPut, "/api/v1/community/users/7/activity-settings", `{}`); r.StatusCode != http.StatusUnprocessableEntity {
+		t.Errorf("PUT without hidden: want 422, got %d", r.StatusCode)
+	}
+	shown := decodeData[dto.ActivitySettingView](t, doFollowReq(t, app, http.MethodPut, "/api/v1/community/users/7/activity-settings", `{"hidden":false}`))
+	if shown.Hidden {
+		t.Fatalf("PUT false: %+v", shown)
+	}
+	if feed := decodeData[dto.ActivityGroupListResponse](t, doFollowReq(t, app, http.MethodGet, "/api/v1/community/users/1/following/activities", "")); len(feed.Groups) != 1 {
+		t.Fatalf("shown again: %+v", feed)
+	}
+}
+
 func TestActivityFacesRequireSiteBinding(t *testing.T) {
 	cleanTables(t)
 	app := activityRouter(false)
@@ -212,6 +264,8 @@ func TestActivityFacesRequireSiteBinding(t *testing.T) {
 		{http.MethodGet, "/api/v1/community/activities", ""},
 		{http.MethodGet, "/api/v1/community/users/1/following/activities", ""},
 		{http.MethodPatch, "/api/v1/community/users/1/following/2", `{"notify":"feed"}`},
+		{http.MethodGet, "/api/v1/community/users/1/activity-settings", ""},
+		{http.MethodPut, "/api/v1/community/users/1/activity-settings", `{"hidden":true}`},
 	} {
 		r := doFollowReq(t, app, c.method, c.path, c.body)
 		if r.StatusCode != http.StatusForbidden {

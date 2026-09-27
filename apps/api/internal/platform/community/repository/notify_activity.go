@@ -32,6 +32,13 @@ func ClaimActivityPublishedEventsTx(tx *gorm.DB, site string, actorID int64) (ev
 	return eventIDs, activityIDs, err
 }
 
+func ForgetActivityNotificationsTx(tx *gorm.DB, ids []int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	return tx.Exec(`UPDATE community_activity SET notified_at = NULL WHERE id IN ?`, ids).Error
+}
+
 func EarliestLiveNotifiedTx(tx *gorm.DB, ids []int64) (*time.Time, error) {
 	if len(ids) == 0 {
 		return nil, nil

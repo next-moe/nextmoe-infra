@@ -65,6 +65,10 @@ func (q ActivityGroupQuery) groupFilter(v activityGroupView) (string, []any) {
 	return b.String(), args
 }
 
+const followeeShown = `
+		   AND NOT EXISTS (SELECT 1 FROM community_activity_setting h
+		                    WHERE h.user_id = f.followee_id AND h.hidden)`
+
 func groupColumns(v activityGroupView) string {
 	return fmt.Sprintf(`g.id, g.site, g.actor_id, g.verb, g.object_kind, g.object_label,
 		g.bucket_date::text AS bucket_date, g.%s AS item_count, g.%s AS latest_at`, v.count, v.at)
@@ -80,9 +84,9 @@ func ListFollowingActivityGroups(db *gorm.DB, q ActivityGroupQuery) ([]ActivityG
 		     WHERE g.actor_id = f.followee_id%s
 		     ORDER BY g.%s DESC, g.id DESC
 		     LIMIT ?) g
-		 WHERE f.follower_id = ?
+		 WHERE f.follower_id = ?%s
 		 ORDER BY g.latest_at DESC, g.id DESC
-		 LIMIT ?`, groupColumns(v), filter, v.at)
+		 LIMIT ?`, groupColumns(v), filter, v.at, followeeShown)
 	args = append(args, q.Limit, q.FollowerID, q.Limit)
 	var rows []ActivityGroupRow
 	err := db.Raw(sql, args...).Scan(&rows).Error
@@ -195,8 +199,8 @@ func CountUnseenActivityGroups(db *gorm.DB, q ActivityGroupQuery, limit int) (in
 		         WHERE g.actor_id = f.followee_id%s
 		           AND g.%s > GREATEST(s.seen_at, COALESCE(f.created_at, f.imported_at))
 		         LIMIT ?) g
-		     WHERE f.follower_id = ?
-		     LIMIT ?) unseen`, filter, v.at)
+		     WHERE f.follower_id = ?%s
+		     LIMIT ?) unseen`, filter, v.at, followeeShown)
 	args = append(args, limit, q.FollowerID, limit)
 	var n int
 	err := db.Raw(sql, args...).Scan(&n).Error
