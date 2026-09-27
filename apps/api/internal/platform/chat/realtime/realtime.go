@@ -1,6 +1,3 @@
-// Package realtime talks to Centrifugo: it mints the connection tokens
-// clients connect with, and publishes chat events to each user's personal
-// channel through Centrifugo's server API.
 package realtime
 
 import (
@@ -68,8 +65,7 @@ func NewCentrifugo(apiURL, apiKey string) *Centrifugo {
 	}
 }
 
-// One background sender keeps a user's events in commit order. A full queue
-// drops the batch; clients recover it from their update stream.
+// A full queue drops the batch; clients recover it from their update stream.
 func (c *Centrifugo) Publish(_ context.Context, deliveries []service.Delivery) {
 	if len(deliveries) == 0 {
 		return
@@ -107,7 +103,7 @@ func (c *Centrifugo) send(ctx context.Context, batch []service.Delivery) error {
 		cmds[i].Publish.Channel = Channel(d.UserID)
 		cmds[i].Publish.Data = d.Data
 	}
-	body, err := json.Marshal(map[string]any{"commands": cmds, "parallel": true})
+	body, err := json.Marshal(map[string]any{"commands": cmds})
 	if err != nil {
 		return err
 	}

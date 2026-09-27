@@ -187,8 +187,7 @@ func (s *Service) Conversation(ctx context.Context, a Actor, conversationID int6
 		detail.Members = append(detail.Members, dto.Member{UserID: dto.ID(m.UserID), Role: m.Role, JoinedAt: m.JoinedAt})
 		userIDs = append(userIDs, m.UserID)
 	}
-	if err := db.Model(&model.ChatMessage{}).
-		Where("conversation_id = ? AND pinned_at IS NOT NULL AND deleted_at IS NULL AND seq >= ?", conversationID, me.VisibleFromSeq).
+	if err := visibleTo(db, me).Where("pinned_at IS NOT NULL").
 		Order("pinned_at DESC").Limit(100).Pluck("seq", &detail.PinnedSeqs).Error; err != nil {
 		return nil, err
 	}

@@ -69,9 +69,10 @@ func (s *Service) Report(ctx context.Context, a Actor, messageID int64, reason s
 		return nil, &InvalidError{Field: "message", Reason: "only someone else's message can be reported"}
 	}
 	var context_ []model.ChatMessage
-	if err := visibleTo(db, me).Where("seq <= ?", target.Seq).Order("seq DESC").Limit(reportContextMessages + 1).Find(&context_).Error; err != nil {
+	if err := visibleTo(db, me).Where("seq < ?", target.Seq).Order("seq DESC").Limit(reportContextMessages).Find(&context_).Error; err != nil {
 		return nil, err
 	}
+	context_ = append([]model.ChatMessage{target}, context_...)
 	snap := make([]snapshotMessage, 0, len(context_))
 	for i := len(context_) - 1; i >= 0; i-- {
 		m := context_[i]

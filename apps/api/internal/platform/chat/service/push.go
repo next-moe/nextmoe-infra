@@ -142,23 +142,42 @@ func reactionsPerViewer(s *Service, ctx context.Context, messageID int64, viewer
 	return out, nil
 }
 
+// Each recipient gets the message only if they can see it (an edit of a
+// message they hid or cleared is not theirs to read), and the reply preview
+// as they would see it.
 func viewsFor(s *Service, ctx context.Context, msg model.ChatMessage, viewers []int64) (map[int64]dto.Message, error) {
-	base, err := hydrate(s.db.WithContext(ctx), msg.SenderID, []model.ChatMessage{msg})
+	db := s.db.WithContext(ctx)
+	reactions, err := reactionsPerViewer(s, ctx, msg.ID, viewers)
 	if err != nil {
 		return nil, err
 	}
-	reactions, err := reactionsPerViewer(s, ctx, msg.ID, viewers)
+	var target *model.ChatMessage
+	ids := []int64{msg.ID}
+	if msg.ReplyToSeq != nil {
+		var t model.ChatMessage
+		if err := db.Where("conversation_id = ? AND seq = ?", msg.ConversationID, *msg.ReplyToSeq).Take(&t).Error; err == nil {
+			target = &t
+			ids = append(ids, t.ID)
+		}
+	}
+	vis, err := loadVisibility(db, []int64{msg.ConversationID}, viewers, ids)
 	if err != nil {
 		return nil, err
 	}
 	out := make(map[int64]dto.Message, len(viewers))
 	for _, v := range viewers {
-		m := base[0]
-		m.Reactions = reactions[v]
-		if v != msg.SenderID {
-			m.ClientMessageID = nil
+		if !vis.sees(v, msg) {
+			continue
 		}
-		out[v] = m
+		var reply *dto.ReplyPreview
+		if target != nil {
+			if vis.sees(v, *target) {
+				reply = replyPreview(*target)
+			} else {
+				reply = unavailablePreview(*target)
+			}
+		}
+		out[v] = messageView(msg, v, reactions[v], reply)
 	}
 	return out, nil
 }

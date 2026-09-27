@@ -22,9 +22,11 @@ func TestSendBatchesOnePublishPerUser(t *testing.T) {
 		} `json:"commands"`
 	}
 	var key, path string
+	var rawBody []byte
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		key, path = r.Header.Get("X-API-Key"), r.URL.Path
 		raw, _ := io.ReadAll(r.Body)
+		rawBody = raw
 		_ = json.Unmarshal(raw, &got)
 		_, _ = w.Write([]byte(`{"replies":[{"publish":{}},{"publish":{}}]}`))
 	}))
@@ -37,6 +39,9 @@ func TestSendBatchesOnePublishPerUser(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if strings.Contains(string(rawBody), "parallel") {
+		t.Fatal("a batch must run in order: parallel lets one user's updates arrive reversed")
 	}
 	if key != "k" || path != "/api/batch" {
 		t.Fatalf("key %q path %q", key, path)

@@ -122,16 +122,18 @@ back to requests.
 
 While a request is pending:
 
-- the requester may send at most 3 plain-text messages with no links and no
-  media (`403 CHAT_REQUEST_LIMIT`), and an edit may not add a link;
+- the requester may send at most 3 plain-text messages with no links, no media
+  and no context card (`403 CHAT_REQUEST_LIMIT`), and an edit may not add a link;
+- neither side can pin (`403 CHAT_REQUEST_LIMIT`);
 - the requester sees `peer_read_seq = 0` and receives no `read_outbox`, and
   neither side sees typing;
 - the recipient accepts with `POST /conversations/{id}/accept` or by replying;
   after acceptance the requester learns the read position.
 
 A block in either direction (community, `PUT /users/{id}/blocking/{target}`)
-refuses creating the conversation and every send: `403 CHAT_BLOCKED`, without
-saying which side blocked.
+refuses creating the conversation, sending, editing, reacting and pinning
+(`403 CHAT_BLOCKED`, without saying which side blocked), and typing stops
+reaching the other side.
 
 ## 6. Messages
 

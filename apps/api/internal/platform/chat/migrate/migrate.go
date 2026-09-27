@@ -16,8 +16,7 @@ import (
 func Run(db *gorm.DB) error {
 	if err := db.AutoMigrate(
 		// 2026-09-27: the chat service's first schema (plan 17 W2). Every table
-		// is new and empty; cmd/import-chat fills them from the kungal and moyu
-		// chat tables at each site's cutover.
+		// is new and empty.
 		&model.ChatUser{},
 		&model.ChatConversation{},
 		&model.ChatMember{},

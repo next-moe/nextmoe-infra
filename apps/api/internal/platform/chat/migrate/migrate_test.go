@@ -150,6 +150,17 @@ func TestConstraintsHold(t *testing.T) {
 	}
 }
 
+// A conversation removed from under a member who left it earlier would cut
+// holes in that member's update stream if the stream cascaded.
+func TestUpdateStreamsDoNotCascade(t *testing.T) {
+	var n int64
+	testDB.Raw(`SELECT count(*) FROM information_schema.table_constraints
+		WHERE table_name = 'chat_update' AND constraint_type = 'FOREIGN KEY'`).Scan(&n)
+	if n != 0 {
+		t.Fatalf("chat_update has %d foreign keys", n)
+	}
+}
+
 func TestRunIsIdempotent(t *testing.T) {
 	if err := Run(testDB); err != nil {
 		t.Fatalf("second run: %v", err)

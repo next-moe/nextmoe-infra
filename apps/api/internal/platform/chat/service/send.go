@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -196,7 +197,7 @@ func (s *Service) Send(ctx context.Context, a Actor, conversationID int64, in Se
 		if err != nil {
 			return err
 		}
-		extra, err := s.admitSend(ctx, tx, conv, members, me, entities, media)
+		extra, err := s.admitSend(ctx, tx, conv, members, me, entities, media, card)
 		if err != nil {
 			return err
 		}
@@ -247,8 +248,13 @@ func (s *Service) Send(ctx context.Context, a Actor, conversationID int64, in Se
 	})
 	if errors.Is(err, errDuplicateClientID) {
 		m, ferr := s.existingByClientID(s.db.WithContext(ctx), a.UserID, in.ClientMessageID)
-		if ferr != nil || m == nil {
+		switch {
+		case ferr != nil:
 			return nil, ferr
+		case m == nil:
+			return nil, fmt.Errorf("chat: client_message_id %s collided but no message holds it", *in.ClientMessageID)
+		case m.ConversationID != conversationID:
+			return nil, &InvalidError{Field: "client_message_id", Reason: "already used in another conversation"}
 		}
 		return s.messageResult(ctx, a.UserID, *m)
 	}
@@ -275,13 +281,8 @@ func memberIDs(ms []model.ChatMember) []int64 {
 	return ids
 }
 
-func (s *Service) admitSend(ctx context.Context, tx *gorm.DB, conv *model.ChatConversation, members []model.ChatMember, me *model.ChatMember,
-	entities []content.Entity, media *dto.Media) ([]pendingUpdate, error) {
-	if conv.Kind != model.KindDirect {
-		return nil, nil
-	}
-	peerID := peerOf(*conv, me.UserID)
-	peer := findMember(members, *peerID)
+func (s *Service) directPeer(ctx context.Context, conv *model.ChatConversation, members []model.ChatMember, me *model.ChatMember) (*model.ChatMember, error) {
+	peer := findMember(members, *peerOf(*conv, me.UserID))
 	if peer == nil {
 		return nil, &NotAcceptingError{Reason: "the other account no longer exists"}
 	}
@@ -294,8 +295,20 @@ func (s *Service) admitSend(ctx context.Context, tx *gorm.DB, conv *model.ChatCo
 			return nil, ErrBlocked
 		}
 	}
+	return peer, nil
+}
+
+func (s *Service) admitSend(ctx context.Context, tx *gorm.DB, conv *model.ChatConversation, members []model.ChatMember, me *model.ChatMember,
+	entities []content.Entity, media *dto.Media, card *dto.ContextCard) ([]pendingUpdate, error) {
+	if conv.Kind != model.KindDirect {
+		return nil, nil
+	}
+	peer, err := s.directPeer(ctx, conv, members, me)
+	if err != nil {
+		return nil, err
+	}
 	if peer.AcceptedAt == nil {
-		if media != nil || content.HasLink(entities) {
+		if media != nil || card != nil || content.HasLink(entities) {
 			return nil, ErrRequestLimit
 		}
 		var sent int64
@@ -410,7 +423,11 @@ func (s *Service) Edit(ctx context.Context, a Actor, messageID int64, text strin
 			return &InvalidError{Field: "text", Reason: "a message needs text or media"}
 		}
 		if conv.Kind == model.KindDirect {
-			if peer := findMember(members, *peerOf(*conv, me.UserID)); peer != nil && peer.AcceptedAt == nil && content.HasLink(entities) {
+			peer, err := s.directPeer(ctx, conv, members, me)
+			if err != nil {
+				return err
+			}
+			if peer.AcceptedAt == nil && content.HasLink(entities) {
 				return ErrRequestLimit
 			}
 		}

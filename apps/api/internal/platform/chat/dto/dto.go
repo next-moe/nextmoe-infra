@@ -1,6 +1,3 @@
-// Package dto is the /v2/chat wire format. It follows the rest of /v2: ids
-// are decimal strings, positions and counts are numbers, every resource
-// carries an object discriminant, and lists never come back null.
 package dto
 
 import (
@@ -43,8 +40,6 @@ func EntitiesOut(es []content.Entity) []Entity {
 	return out
 }
 
-// EntitiesIn converts request entities; a mention whose user_id is not an id
-// is kept with no user so that validation rejects it.
 func EntitiesIn(es []Entity) []content.Entity {
 	if es == nil {
 		return nil
@@ -75,7 +70,7 @@ type ReplyPreview struct {
 	Text      string   `json:"text" doc:"cut to 120 UTF-16 code units"`
 	Entities  []Entity `json:"entities" doc:"only the entities that fall entirely inside text"`
 	MediaType *string  `json:"media_type"`
-	Deleted   bool     `json:"deleted" doc:"the replied message was deleted for everyone; text is empty"`
+	Deleted   bool     `json:"deleted" doc:"the replied message is gone for the caller: deleted for everyone, or hidden or cleared by the caller; text is empty"`
 }
 
 type Quote struct {

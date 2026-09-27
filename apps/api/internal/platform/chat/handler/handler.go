@@ -44,6 +44,9 @@ type Options struct {
 	RealtimeURL string
 	Identify    func(ctx context.Context, rawToken string) (Identity, error)
 	Client      func(ctx context.Context, clientID string) (ClientInfo, error)
+	// Access tokens outlive account deletion by up to their lifetime; a write
+	// in that window would land after the hourly purge and never be erased.
+	AccountActive func(ctx context.Context, uid int64) (bool, error)
 }
 
 type ctxKey string
@@ -154,14 +157,25 @@ func authenticate(opt Options) fiber.Handler {
 				return fail(problem.CodeScopeRequired, "this operation requires the chat:write scope.")
 			}
 		}
+		if c.Method() != fiber.MethodGet && c.Method() != fiber.MethodHead && opt.AccountActive != nil {
+			active, err := opt.AccountActive(c.Context(), ident.UID)
+			if err != nil {
+				return fail(problem.CodeServiceUnavailable, "the account could not be checked.")
+			}
+			if !active {
+				return fail(problem.CodeInvalidCredential, "the account behind this token has been deleted.")
+			}
+		}
 		actor := service.Actor{UserID: ident.UID, Site: ident.ClientID}
 		if opt.Client != nil && ident.ClientID != "" {
-			if info, err := opt.Client(c.Context(), ident.ClientID); err == nil {
-				if info.Site != "" {
-					actor.Site = info.Site
-				}
-				actor.Hosts = info.Hosts
+			info, err := opt.Client(c.Context(), ident.ClientID)
+			if err != nil {
+				return fail(problem.CodeServiceUnavailable, "the token's client could not be looked up.")
 			}
+			if info.Site != "" {
+				actor.Site = info.Site
+			}
+			actor.Hosts = info.Hosts
 		}
 		c.Locals(localsActor, actor)
 		return c.Next()

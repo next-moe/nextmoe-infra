@@ -1200,7 +1200,7 @@ components:
       additionalProperties: false
       properties:
         deleted:
-          description: the replied message was deleted for everyone; text is empty
+          description: "the replied message is gone for the caller: deleted for everyone, or hidden or cleared by the caller; text is empty"
           type: boolean
         entities:
           description: only the entities that fall entirely inside text

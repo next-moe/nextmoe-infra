@@ -204,8 +204,6 @@ func findMember(ms []model.ChatMember, uid int64) *model.ChatMember {
 	return nil
 }
 
-// A conversation the actor is not in is reported as not found, so ids
-// cannot be probed.
 func lockAsMember(tx *gorm.DB, conversationID, uid int64) (*model.ChatConversation, []model.ChatMember, *model.ChatMember, error) {
 	c, err := lockConversation(tx, conversationID)
 	if err != nil {
@@ -240,6 +238,14 @@ func defaultChatUser(uid int64, now time.Time) model.ChatUser {
 		UserID: uid, AllowIncoming: model.AllowFollowing, AcceptRequests: true,
 		AllowGroupInvites: model.AllowFollowing, CreatedAt: now, UpdatedAt: now,
 	}
+}
+
+func lockChatUser(tx *gorm.DB, uid int64, now time.Time) error {
+	if err := ensureChatUsers(tx, []int64{uid}, now); err != nil {
+		return err
+	}
+	var u model.ChatUser
+	return tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("user_id = ?", uid).Take(&u).Error
 }
 
 type pendingUpdate struct {

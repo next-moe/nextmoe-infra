@@ -36,8 +36,11 @@ func (s *Service) PurgeAccount(ctx context.Context, uid int64) error {
 		if err := tx.Where("user_id = ?", uid).Delete(&model.ChatUpdate{}).Error; err != nil {
 			return err
 		}
-		if err := tx.Model(&model.ChatReport{}).Where("reported_user_id = ?", uid).
-			Update("snapshot", jsonOf(map[string]any{"erased": true})).Error; err != nil {
+		if err := tx.Model(&model.ChatReport{}).Where("reported_user_id = ? OR reporter_id = ?", uid, uid).
+			Updates(map[string]any{"snapshot": jsonOf(map[string]any{"erased": true}), "note": nil}).Error; err != nil {
+			return err
+		}
+		if err := scrubReportSnapshots(tx, uid); err != nil {
 			return err
 		}
 		return tx.Where("user_id = ?", uid).Delete(&model.ChatUser{}).Error
@@ -74,6 +77,10 @@ func (s *Service) purgeFromConversation(ctx context.Context, conversationID, uid
 			WHERE r.message_id = x.id AND x.conversation_id = ? AND (r.user_id = ? OR x.deleted_at IS NOT NULL)`, conv.ID, uid).Error; err != nil {
 			return err
 		}
+		stripped, err := stripQuotesTx(tx, conv.ID, deleted)
+		if err != nil {
+			return err
+		}
 		var others []int64
 		for _, m := range members {
 			if m.UserID != uid {
@@ -94,7 +101,13 @@ func (s *Service) purgeFromConversation(ctx context.Context, conversationID, uid
 		if _, err := recountUnread(tx, conv.ID, others, now); err != nil {
 			return err
 		}
-		var ups []pendingUpdate
+		var remaining []model.ChatMember
+		for _, m := range members {
+			if m.UserID != uid {
+				remaining = append(remaining, m)
+			}
+		}
+		ups := quoteEditUpdates(conv.ID, remaining, stripped)
 		for _, id := range others {
 			if len(deleted) > 0 {
 				ups = append(ups, pendingUpdate{userID: id, kind: model.UpdateDeleteMessages, conversationID: conv.ID, data: map[string]any{"seqs": deleted}})

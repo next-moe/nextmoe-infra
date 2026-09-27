@@ -1,6 +1,3 @@
-// Package source adapts the databases and services chat reads but does not
-// own: account names from the main database, the follow graph, blocks and
-// trust from kun_community, and image metadata from the image service.
 package source
 
 import (

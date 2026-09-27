@@ -313,3 +313,22 @@ func TestRealtimeTokenClaims(t *testing.T) {
 		t.Fatal("no secret, no issuer")
 	}
 }
+
+func TestDeletedAccountsCannotWriteAndLookupsFailClosed(t *testing.T) {
+	clean(t)
+	svc := service.New(testDB, service.Options{Users: users{1: {ID: 1, CreatedAt: time.Unix(0, 0)}}})
+	app := fiber.New()
+	Setup(app, Options{Chat: svc, Identify: identify,
+		AccountActive: func(_ context.Context, uid int64) (bool, error) { return uid != 9, nil },
+		Client: func(_ context.Context, id string) (ClientInfo, error) {
+			return ClientInfo{}, errors.New("database down")
+		}})
+	status, out, _ := call(t, app, http.MethodPatch, "/v2/chat/settings", "write:9", `{"accept_requests":false}`)
+	if status != http.StatusUnauthorized || out["code"] != "INVALID_CREDENTIAL" {
+		t.Fatalf("a deleted account's token must not write: %d %v", status, out)
+	}
+	status, out, _ = call(t, app, http.MethodGet, "/v2/chat/settings", "read:1", "")
+	if status != http.StatusServiceUnavailable {
+		t.Fatalf("an unreadable client must fail closed: %d %v", status, out)
+	}
+}

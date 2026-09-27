@@ -66,8 +66,9 @@ func main() {
 	}
 	mainDB := application.DB.DB()
 
+	users := source.NewUsers(mainDB)
 	opts := service.Options{
-		Users:         source.NewUsers(mainDB),
+		Users:         users,
 		Relationships: source.NewRelationships(communityDB.DB()),
 	}
 	if rc, err := cache.NewRedisCache(cfg.Redis); err != nil {
@@ -111,6 +112,14 @@ func main() {
 				return chatHandler.Identity{}, err
 			}
 			return chatHandler.Identity{UID: int64(claims.ID), ClientID: claims.ClientID, Scopes: strings.Fields(claims.Scope)}, nil
+		},
+		AccountActive: func(ctx context.Context, uid int64) (bool, error) {
+			profiles, err := users.Profiles(ctx, []int64{uid})
+			if err != nil {
+				return false, err
+			}
+			p, ok := profiles[uid]
+			return ok && !p.Deleted, nil
 		},
 		Client: func(ctx context.Context, clientID string) (chatHandler.ClientInfo, error) {
 			cl, err := clients.FindByClientID(ctx, clientID)

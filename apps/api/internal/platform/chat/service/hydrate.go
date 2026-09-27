@@ -122,6 +122,45 @@ func loadReplyTargets(db *gorm.DB, msgs []model.ChatMessage) (map[seqKey]model.C
 	return out, nil
 }
 
+type visibility struct {
+	members map[[2]int64]model.ChatMember
+	hidden  map[[2]int64]bool
+}
+
+func loadVisibility(db *gorm.DB, conversationIDs, users, messageIDs []int64) (*visibility, error) {
+	v := &visibility{members: map[[2]int64]model.ChatMember{}, hidden: map[[2]int64]bool{}}
+	if len(conversationIDs) == 0 || len(users) == 0 {
+		return v, nil
+	}
+	var ms []model.ChatMember
+	if err := db.Where("conversation_id IN ? AND user_id IN ?", conversationIDs, users).Find(&ms).Error; err != nil {
+		return nil, err
+	}
+	for _, m := range ms {
+		v.members[[2]int64{m.ConversationID, m.UserID}] = m
+	}
+	if len(messageIDs) > 0 {
+		var hs []model.ChatHiddenMessage
+		if err := db.Where("user_id IN ? AND message_id IN ?", users, messageIDs).Find(&hs).Error; err != nil {
+			return nil, err
+		}
+		for _, h := range hs {
+			v.hidden[[2]int64{h.UserID, h.MessageID}] = true
+		}
+	}
+	return v, nil
+}
+
+func (v *visibility) sees(uid int64, m model.ChatMessage) bool {
+	mem, ok := v.members[[2]int64{m.ConversationID, uid}]
+	return ok && mem.LeftAt == nil && m.DeletedAt == nil &&
+		m.Seq >= mem.VisibleFromSeq && m.Seq > mem.ClearedThroughSeq && !v.hidden[[2]int64{uid, m.ID}]
+}
+
+func unavailablePreview(r model.ChatMessage) *dto.ReplyPreview {
+	return &dto.ReplyPreview{Seq: r.Seq, SenderID: dto.ID(r.SenderID), Deleted: true, Entities: []dto.Entity{}}
+}
+
 func replyPreview(r model.ChatMessage) *dto.ReplyPreview {
 	p := &dto.ReplyPreview{Seq: r.Seq, SenderID: dto.ID(r.SenderID), Deleted: r.DeletedAt != nil, Entities: []dto.Entity{}}
 	if r.DeletedAt != nil {
@@ -137,7 +176,7 @@ func replyPreview(r model.ChatMessage) *dto.ReplyPreview {
 	return p
 }
 
-func messageView(m model.ChatMessage, viewer int64, reactions []dto.ReactionCount, reply *model.ChatMessage) dto.Message {
+func messageView(m model.ChatMessage, viewer int64, reactions []dto.ReactionCount, reply *dto.ReplyPreview) dto.Message {
 	v := dto.Message{
 		Object: "message", ID: dto.ID(m.ID), ConversationID: dto.ID(m.ConversationID), Seq: m.Seq,
 		SenderID: dto.ID(m.SenderID), Kind: m.Kind, Text: m.Text, Entities: dto.EntitiesOut(decodeEntities(m.Entities)),
@@ -152,9 +191,7 @@ func messageView(m model.ChatMessage, viewer int64, reactions []dto.ReactionCoun
 	if q := decodeJSON[storedQuote](m.ReplyQuote); q != nil {
 		v.ReplyQuote = &dto.Quote{Text: q.Text, Entities: dto.EntitiesOut(q.Entities), Offset: q.Offset}
 	}
-	if reply != nil {
-		v.ReplyTo = replyPreview(*reply)
-	}
+	v.ReplyTo = reply
 	if m.SenderID == viewer && m.ClientMessageID != nil {
 		id := *m.ClientMessageID
 		v.ClientMessageID = &id
@@ -179,11 +216,24 @@ func hydrate(db *gorm.DB, viewer int64, msgs []model.ChatMessage) ([]dto.Message
 	if err != nil {
 		return nil, err
 	}
+	var convIDs, targetIDs []int64
+	for _, r := range replies {
+		convIDs = append(convIDs, r.ConversationID)
+		targetIDs = append(targetIDs, r.ID)
+	}
+	vis, err := loadVisibility(db, convIDs, []int64{viewer}, targetIDs)
+	if err != nil {
+		return nil, err
+	}
 	for _, m := range msgs {
-		var reply *model.ChatMessage
+		var reply *dto.ReplyPreview
 		if m.ReplyToSeq != nil {
 			if r, ok := replies[seqKey{m.ConversationID, *m.ReplyToSeq}]; ok {
-				reply = &r
+				if vis.sees(viewer, r) {
+					reply = replyPreview(r)
+				} else {
+					reply = unavailablePreview(r)
+				}
 			}
 		}
 		out = append(out, messageView(m, viewer, reactions[m.ID], reply))
@@ -262,14 +312,16 @@ func lastVisible(db *gorm.DB, viewer int64, ids []int64) (map[int64]model.ChatMe
 	}
 	var rows []model.ChatMessage
 	if err := db.Raw(`
-		SELECT DISTINCT ON (x.conversation_id) x.*
-		  FROM chat_message x
-		  JOIN chat_member m ON m.conversation_id = x.conversation_id AND m.user_id = ?
-		 WHERE x.conversation_id IN ?
-		   AND x.seq > m.cleared_through_seq AND x.seq >= m.visible_from_seq
-		   AND x.deleted_at IS NULL
-		   AND NOT EXISTS (SELECT 1 FROM chat_hidden_message h WHERE h.user_id = ? AND h.message_id = x.id)
-		 ORDER BY x.conversation_id, x.seq DESC`, viewer, ids, viewer).Scan(&rows).Error; err != nil {
+		SELECT x.*
+		  FROM chat_member m
+		  JOIN LATERAL (
+		        SELECT * FROM chat_message x
+		         WHERE x.conversation_id = m.conversation_id
+		           AND x.seq > m.cleared_through_seq AND x.seq >= m.visible_from_seq
+		           AND x.deleted_at IS NULL
+		           AND NOT EXISTS (SELECT 1 FROM chat_hidden_message h WHERE h.user_id = m.user_id AND h.message_id = x.id)
+		         ORDER BY x.seq DESC LIMIT 1) x ON true
+		 WHERE m.user_id = ? AND m.conversation_id IN ?`, viewer, ids).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	for _, r := range rows {

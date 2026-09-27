@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"api/internal/platform/chat/content"
 	"api/internal/platform/chat/dto"
 	"api/internal/platform/chat/model"
 
@@ -15,6 +14,7 @@ import (
 const (
 	maxSeqsPerCall  = 100
 	draftsPerMinute = 30
+	pinsPerMinute   = 10
 	typingWindow    = 5 * time.Second
 )
 
@@ -47,6 +47,32 @@ func recountUnread(tx *gorm.DB, conversationID int64, userIDs []int64, now time.
 		out[r.UserID] = r.UnreadCount
 	}
 	return out, nil
+}
+
+// stripQuotesTx drops the quotes other messages took from erased ones: a quote
+
+// is a copy of the words, and it outlived the delete until a review caught it.
+
+func stripQuotesTx(tx *gorm.DB, conversationID int64, erased []int64) ([]int64, error) {
+	var seqs []int64
+	if len(erased) == 0 {
+		return nil, nil
+	}
+	err := tx.Raw(`
+		UPDATE chat_message SET reply_quote = NULL
+		 WHERE conversation_id = ? AND reply_to_seq IN ? AND reply_quote IS NOT NULL
+		RETURNING seq`, conversationID, erased).Scan(&seqs).Error
+	return seqs, err
+}
+
+func quoteEditUpdates(conversationID int64, members []model.ChatMember, seqs []int64) []pendingUpdate {
+	var ups []pendingUpdate
+	for _, seq := range seqs {
+		for _, m := range members {
+			ups = append(ups, pendingUpdate{userID: m.UserID, kind: model.UpdateEditMessage, conversationID: conversationID, data: map[string]any{"seq": seq}})
+		}
+	}
+	return ups
 }
 
 func checkSeqs(seqs []int64) error {
@@ -102,6 +128,10 @@ func (s *Service) DeleteMessages(ctx context.Context, a Actor, conversationID in
 			if err := tx.Where("message_id IN ?", ids).Delete(&model.ChatReaction{}).Error; err != nil {
 				return err
 			}
+			stripped, err := stripQuotesTx(tx, conv.ID, done)
+			if err != nil {
+				return err
+			}
 			others := make([]int64, 0, len(members))
 			for _, m := range members {
 				if m.UserID != a.UserID {
@@ -115,6 +145,7 @@ func (s *Service) DeleteMessages(ctx context.Context, a Actor, conversationID in
 			for _, m := range members {
 				ups = append(ups, pendingUpdate{userID: m.UserID, kind: model.UpdateDeleteMessages, conversationID: conv.ID, data: map[string]any{"seqs": done}})
 			}
+			ups = append(ups, quoteEditUpdates(conv.ID, members, stripped)...)
 			updates, err = appendUpdates(tx, now, ups)
 			return err
 		}
@@ -163,6 +194,11 @@ func (s *Service) React(ctx context.Context, a Actor, messageID int64, reaction 
 		conv, members, me, err := lockAsMember(tx, conversationID, a.UserID)
 		if err != nil {
 			return err
+		}
+		if conv.Kind == model.KindDirect {
+			if _, err := s.directPeer(ctx, conv, members, me); err != nil {
+				return err
+			}
 		}
 		if err := tx.Where("id = ? AND deleted_at IS NULL AND seq >= ?", messageID, me.VisibleFromSeq).Take(&msg).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -216,275 +252,14 @@ func (s *Service) React(ctx context.Context, a Actor, messageID int64, reaction 
 	return out, nil
 }
 
-type ReadResult struct {
-	LastReadSeq int64
-	UnreadCount int32
-}
-
-func (s *Service) Read(ctx context.Context, a Actor, conversationID, maxSeq int64) (*ReadResult, error) {
-	var (
-		res     ReadResult
-		updates []model.ChatUpdate
-	)
-	err := s.withRetry(ctx, func(tx *gorm.DB) error {
-		conv, _, me, err := lockAsMember(tx, conversationID, a.UserID)
-		if err != nil {
-			return err
-		}
-		if maxSeq > conv.LastSeq {
-			maxSeq = conv.LastSeq
-		}
-		old := me.LastReadSeq
-		next := old
-		if maxSeq > next {
-			next = maxSeq
-		}
-		res = ReadResult{LastReadSeq: next, UnreadCount: me.UnreadCount}
-		if next == old && !me.MarkedUnread {
-			return nil
-		}
-		now := s.now()
-		if err := tx.Model(&model.ChatMember{}).Where("conversation_id = ? AND user_id = ?", conv.ID, a.UserID).
-			Updates(map[string]any{"last_read_seq": next, "marked_unread": false, "updated_at": now}).Error; err != nil {
-			return err
-		}
-		counts, err := recountUnread(tx, conv.ID, []int64{a.UserID}, now)
-		if err != nil {
-			return err
-		}
-		res.UnreadCount = counts[a.UserID]
-		ups := []pendingUpdate{{userID: a.UserID, kind: model.UpdateReadInbox, conversationID: conv.ID,
-			data: map[string]any{"max_seq": next, "unread_count": res.UnreadCount}}}
-		if next > old && me.AcceptedAt != nil {
-			var senders []int64
-			if err := tx.Model(&model.ChatMessage{}).Distinct("sender_id").
-				Where("conversation_id = ? AND seq > ? AND seq <= ? AND sender_id <> ? AND kind = ?", conv.ID, old, next, a.UserID, model.MessageKindMessage).
-				Pluck("sender_id", &senders).Error; err != nil {
-				return err
-			}
-			for _, id := range senders {
-				ups = append(ups, pendingUpdate{userID: id, kind: model.UpdateReadOutbox, conversationID: conv.ID, data: map[string]any{"max_seq": next}})
-			}
-		}
-		updates, err = appendUpdates(tx, now, ups)
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-	s.publishUpdates(ctx, updates, nil)
-	return &res, nil
-}
-
-func (s *Service) Accept(ctx context.Context, a Actor, conversationID int64) error {
-	var updates []model.ChatUpdate
-	err := s.withRetry(ctx, func(tx *gorm.DB) error {
-		conv, members, me, err := lockAsMember(tx, conversationID, a.UserID)
-		if err != nil {
-			return err
-		}
-		if me.AcceptedAt != nil {
-			return nil
-		}
-		now := s.now()
-		if err := tx.Model(&model.ChatMember{}).Where("conversation_id = ? AND user_id = ?", conv.ID, a.UserID).
-			Updates(map[string]any{"accepted_at": now, "updated_at": now}).Error; err != nil {
-			return err
-		}
-		ups := []pendingUpdate{{userID: a.UserID, kind: model.UpdateDialog, conversationID: conv.ID, data: map[string]any{"accepted": true}}}
-		if me.LastReadSeq > 0 {
-			for _, m := range members {
-				if m.UserID != a.UserID {
-					ups = append(ups, pendingUpdate{userID: m.UserID, kind: model.UpdateReadOutbox, conversationID: conv.ID, data: map[string]any{"max_seq": me.LastReadSeq}})
-				}
-			}
-		}
-		updates, err = appendUpdates(tx, now, ups)
-		return err
-	})
-	if err != nil {
-		return err
-	}
-	s.publishUpdates(ctx, updates, nil)
-	return nil
-}
-
-type DialogPatch struct {
-	Muted        *bool
-	MutedUntil   *time.Time
-	Archived     *bool
-	Pinned       *bool
-	MarkedUnread *bool
-}
-
 // Muted until unmuted is a real far-future timestamp, never Postgres'
+
 // infinity, which time.Time and pgx cannot carry.
-var MutedForever = time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC)
-
-func (s *Service) UpdateDialog(ctx context.Context, a Actor, conversationID int64, p DialogPatch) (*dto.DialogState, error) {
-	var (
-		state   dto.DialogState
-		updates []model.ChatUpdate
-	)
-	err := s.withRetry(ctx, func(tx *gorm.DB) error {
-		conv, _, me, err := lockAsMember(tx, conversationID, a.UserID)
-		if err != nil {
-			return err
-		}
-		now := s.now()
-		set := map[string]any{}
-		data := map[string]any{}
-		if p.Muted != nil {
-			var until *time.Time
-			if *p.Muted {
-				t := MutedForever
-				if p.MutedUntil != nil {
-					if !p.MutedUntil.After(now) {
-						return &InvalidError{Field: "muted_until", Reason: "must be in the future"}
-					}
-					t = p.MutedUntil.UTC()
-				}
-				until = &t
-			}
-			set["muted_until"] = until
-			me.MutedUntil = until
-			data["muted_until"] = until
-		}
-		if p.Archived != nil {
-			var at *time.Time
-			if *p.Archived {
-				at = &now
-				if me.ArchivedAt != nil {
-					at = me.ArchivedAt
-				}
-			}
-			set["archived_at"] = at
-			me.ArchivedAt = at
-			data["archived"] = *p.Archived
-		}
-		if p.Pinned != nil {
-			var rank *int16
-			if *p.Pinned {
-				if me.PinnedRank != nil {
-					rank = me.PinnedRank
-				} else {
-					var ranks []int16
-					if err := tx.Model(&model.ChatMember{}).
-						Where("user_id = ? AND left_at IS NULL AND pinned_rank IS NOT NULL", a.UserID).
-						Pluck("pinned_rank", &ranks).Error; err != nil {
-						return err
-					}
-					if len(ranks) >= maxPinnedDialogs {
-						return &InvalidError{Field: "pinned", Reason: "at most 5 conversations can be pinned"}
-					}
-					next := int16(1)
-					for _, r := range ranks {
-						if r >= next {
-							next = r + 1
-						}
-					}
-					rank = &next
-				}
-			}
-			set["pinned_rank"] = rank
-			me.PinnedRank = rank
-			data["pinned_rank"] = rank
-		}
-		if p.MarkedUnread != nil {
-			set["marked_unread"] = *p.MarkedUnread
-			me.MarkedUnread = *p.MarkedUnread
-			data["marked_unread"] = *p.MarkedUnread
-		}
-		state = dialogView(*me)
-		if len(set) == 0 {
-			return nil
-		}
-		set["updated_at"] = now
-		if err := tx.Model(&model.ChatMember{}).Where("conversation_id = ? AND user_id = ?", conv.ID, a.UserID).Updates(set).Error; err != nil {
-			return err
-		}
-		updates, err = appendUpdates(tx, now, []pendingUpdate{{userID: a.UserID, kind: model.UpdateDialog, conversationID: conv.ID, data: data}})
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-	s.publishUpdates(ctx, updates, nil)
-	return &state, nil
-}
-
-func (s *Service) SaveDraft(ctx context.Context, a Actor, conversationID int64, text string, entities []content.Entity, replyToSeq *int64) (*dto.Draft, error) {
-	text, entities, err := content.Normalize(text, entities)
-	if err != nil {
-		return nil, contentErr(err)
-	}
-	if err := s.allow(ctx, "draft:"+itoa(a.UserID), draftsPerMinute, time.Minute); err != nil {
-		return nil, err
-	}
-	var (
-		draft   *dto.Draft
-		updates []model.ChatUpdate
-	)
-	err = s.withRetry(ctx, func(tx *gorm.DB) error {
-		conv, _, _, err := lockAsMember(tx, conversationID, a.UserID)
-		if err != nil {
-			return err
-		}
-		now := s.now()
-		var stored any
-		draft = nil
-		if text != "" || replyToSeq != nil {
-			d := storedDraft{Text: text, Entities: entities, ReplyToSeq: replyToSeq, UpdatedAt: now}
-			stored = d
-			draft = draftView(jsonOf(d))
-		}
-		if err := tx.Model(&model.ChatMember{}).Where("conversation_id = ? AND user_id = ?", conv.ID, a.UserID).
-			Updates(map[string]any{"draft": jsonOf(stored), "updated_at": now}).Error; err != nil {
-			return err
-		}
-		updates, err = appendUpdates(tx, now, []pendingUpdate{{userID: a.UserID, kind: model.UpdateDialog, conversationID: conv.ID, data: map[string]any{"draft": draft}}})
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-	s.publishUpdates(ctx, updates, nil)
-	return draft, nil
-}
-
-func (s *Service) ClearHistory(ctx context.Context, a Actor, conversationID int64, remove bool) error {
-	var updates []model.ChatUpdate
-	err := s.withRetry(ctx, func(tx *gorm.DB) error {
-		conv, _, _, err := lockAsMember(tx, conversationID, a.UserID)
-		if err != nil {
-			return err
-		}
-		now := s.now()
-		set := map[string]any{
-			"cleared_through_seq": conv.LastSeq, "last_read_seq": conv.LastSeq,
-			"unread_count": 0, "marked_unread": false, "updated_at": now,
-		}
-		if remove {
-			set["last_message_at"] = nil
-			set["pinned_rank"] = nil
-			set["archived_at"] = nil
-			set["draft"] = nil
-		}
-		if err := tx.Model(&model.ChatMember{}).Where("conversation_id = ? AND user_id = ?", conv.ID, a.UserID).Updates(set).Error; err != nil {
-			return err
-		}
-		updates, err = appendUpdates(tx, now, []pendingUpdate{{userID: a.UserID, kind: model.UpdateClearHistory, conversationID: conv.ID,
-			data: map[string]any{"through_seq": conv.LastSeq, "removed": remove}}})
-		return err
-	})
-	if err != nil {
-		return err
-	}
-	s.publishUpdates(ctx, updates, nil)
-	return nil
-}
 
 func (s *Service) SetPinned(ctx context.Context, a Actor, conversationID, seq int64, pinned bool) error {
+	if err := s.allow(ctx, "pin:"+itoa(a.UserID), pinsPerMinute, time.Minute); err != nil {
+		return err
+	}
 	var (
 		updates    []model.ChatUpdate
 		service    *model.ChatMessage
@@ -497,6 +272,15 @@ func (s *Service) SetPinned(ctx context.Context, a Actor, conversationID, seq in
 		}
 		if conv.Kind == model.KindGroup && me.Role == model.RoleMember {
 			return ErrNotPermitted
+		}
+		if conv.Kind == model.KindDirect {
+			peer, err := s.directPeer(ctx, conv, members, me)
+			if err != nil {
+				return err
+			}
+			if peer.AcceptedAt == nil || me.AcceptedAt == nil {
+				return ErrRequestLimit
+			}
 		}
 		var target model.ChatMessage
 		if err := tx.Where("conversation_id = ? AND seq = ? AND deleted_at IS NULL AND kind = ? AND seq >= ?", conv.ID, seq, model.MessageKindMessage, me.VisibleFromSeq).
@@ -561,7 +345,16 @@ func (s *Service) Typing(ctx context.Context, a Actor, conversationID int64) err
 	if me.AcceptedAt == nil || s.pub == nil {
 		return nil
 	}
-	event := map[string]any{"type": "typing", "conversation_id": conversationID, "user_id": a.UserID}
+	var conv model.ChatConversation
+	if err := s.db.WithContext(ctx).Take(&conv, conversationID).Error; err != nil {
+		return err
+	}
+	if conv.Kind == model.KindDirect {
+		if _, err := s.directPeer(ctx, &conv, members, me); err != nil {
+			return nil
+		}
+	}
+	event := map[string]any{"type": "typing", "conversation_id": dto.ID(conversationID), "user_id": dto.ID(a.UserID)}
 	var out []Delivery
 	for _, m := range members {
 		if m.UserID != a.UserID && m.AcceptedAt != nil {
