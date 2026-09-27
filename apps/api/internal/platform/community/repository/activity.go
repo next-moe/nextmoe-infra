@@ -172,7 +172,7 @@ func RefreshActivityGroupTx(tx *gorm.DB, k ActivityGroupKey) error {
 
 func ListSiteActivities(db *gorm.DB, site string, afterID int64, limit int) ([]model.CommunityActivity, error) {
 	var rows []model.CommunityActivity
-	err := db.Where("site = ? AND id > ?", site, afterID).Order("id ASC").Limit(limit).Find(&rows).Error
+	err := db.Where("site = ? AND id > ? AND key NOT LIKE ?", site, afterID, "community:%").Order("id ASC").Limit(limit).Find(&rows).Error
 	return rows, err
 }
 

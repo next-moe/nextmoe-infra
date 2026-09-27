@@ -137,7 +137,11 @@ func recipientsForEvent(tx *gorm.DB, ev *model.CommunityEvent, thread *model.Com
 			if err != nil {
 				return nil, err
 			}
-			if !hidden {
+			superseded, err := topicNotifiesAsActivity(tx, thread.Site, post.ID)
+			if err != nil {
+				return nil, err
+			}
+			if !hidden && !superseded {
 				followerIDs, err := repository.ListNotifiedFollowerIDsTx(tx, post.AuthorID)
 				if err != nil {
 					return nil, err

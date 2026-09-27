@@ -55,6 +55,13 @@ func Run(db *gorm.DB) error {
 		// 2026-09-27: a user's switch to hide their activities from everyone
 		// else (plan 13). A new table with no rows; no row = not hidden.
 		&model.CommunityActivitySetting{},
+		// 2026-09-27: community writes the activities of the posts it holds
+		// (plan 13 D5). New tables with no rows: sites push anchor
+		// presentations, a site's row in community_activity_site switches it
+		// on, and projectionSQL's triggers fill the projection queue.
+		&model.CommunityAnchorPresentation{},
+		&model.CommunityActivitySite{},
+		&model.CommunityActivityProjection{},
 	); err != nil {
 		return fmt.Errorf("community automigrate: %w", err)
 	}
@@ -296,7 +303,10 @@ func rawSQL(db *gorm.DB) error {
 		 WHERE tu.thread_id = t.id AND tu.site IS NULL`).Error; err != nil {
 		return fmt.Errorf("backfill community_thread_user.site: %w", err)
 	}
-	return boardsSQL(db)
+	if err := boardsSQL(db); err != nil {
+		return err
+	}
+	return projectionSQL(db)
 }
 
 // boardsSQL (wave 15) turns community_board, which no face had ever written,
