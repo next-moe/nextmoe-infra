@@ -6,6 +6,7 @@ export interface User {
   avatar: string                  // legacy URL string (kungal/moyu old WebP)
   avatar_image_hash?: string | null  // image_service hash, set on new uploads
   bio: string
+  about?: string
   moemoepoint: number
   status: number
   is_anonymized?: boolean // PII irreversibly scrubbed (terminal); shows 已注销

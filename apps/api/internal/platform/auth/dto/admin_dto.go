@@ -41,6 +41,7 @@ type UpdateUserRequest struct {
 	Email  *string `json:"email" validate:"omitempty,email"`
 	Avatar *string `json:"avatar" validate:"omitempty,url"`
 	Bio    *string `json:"bio" validate:"omitempty,max=107"`
+	About  *string `json:"about" validate:"omitempty,max=500"`
 	Status *int    `json:"status" validate:"omitempty,oneof=0 1"`
 }
 

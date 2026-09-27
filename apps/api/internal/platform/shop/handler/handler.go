@@ -266,6 +266,42 @@ func (h *Handler) TransitionOffer(c fiber.Ctx) error {
 	return response.Success(c, out)
 }
 
+func (h *Handler) CodePool(c fiber.Ctx) error {
+	id, err := strconv.ParseInt(c.Query("item_id"), 10, 64)
+	if err != nil {
+		return response.BadRequest(c, errors.ErrInvalidID)
+	}
+	pool, err := h.shop.CodePool(c.Context(), id)
+	if err != nil {
+		return respondErr(c, err)
+	}
+	return response.Success(c, pool)
+}
+
+func (h *Handler) AddCodes(c fiber.Ctx) error {
+	var in service.AddCodesInput
+	if err := c.Bind().JSON(&in); err != nil || in.ItemID == 0 {
+		return response.BadRequest(c, errors.ErrBadRequest)
+	}
+	by, _ := c.Locals("user_id").(uint)
+	out, err := h.shop.AddCodes(c.Context(), in, by)
+	if err != nil {
+		return respondErr(c, err)
+	}
+	return response.Success(c, out)
+}
+
+func (h *Handler) DeleteCode(c fiber.Ctx) error {
+	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return response.BadRequest(c, errors.ErrInvalidID)
+	}
+	if err := h.shop.DeleteCode(c.Context(), id); err != nil {
+		return respondErr(c, err)
+	}
+	return response.Success(c, nil)
+}
+
 func canPublish(c fiber.Ctx) bool {
 	roles, _ := c.Locals("user_roles").([]string)
 	return perm.Resolver.Can(roles, perm.Publish)

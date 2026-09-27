@@ -12,7 +12,11 @@ const grantNote = ref('')
 
 const itemOptions = computed(() =>
   items.value
-    .filter((i) => i.status === 'published' || i.status === 'retired')
+    .filter(
+      (i) =>
+        (i.status === 'published' || i.status === 'retired') &&
+        i.kind !== 'redeem_code'
+    )
     .map((i) => ({ value: i.id, label: i.name }))
 )
 
@@ -120,8 +124,10 @@ const formatDate = (s: string | null) => (s ? new Date(s).toLocaleString('zh-CN'
           <div>
             <span class="text-foreground">#{{ o.id }} {{ o.rewards.map((r) => r.item.name).join(' + ') }}</span>
             <span class="text-default-400 ml-2 text-xs">{{ o.price }} 萌萌点 · {{ formatDate(o.created_at) }}</span>
+            <p v-for="c in o.codes ?? []" :key="c.code" class="text-default-500 font-mono text-xs">{{ c.code }}</p>
           </div>
           <KunChip v-if="o.status === 'refunded'" size="sm">已退款</KunChip>
+          <KunChip v-else-if="o.codes?.length" size="sm">兑换码已发出</KunChip>
           <KunButton v-else size="sm" variant="flat" color="danger" :loading="busy === `refund:${o.id}`" @click="refund(o)">
             退款
           </KunButton>

@@ -1,10 +1,17 @@
 export const SHOP_KIND_LABEL: Record<ShopKind, string> = {
   avatar_frame: '头像框',
-  profile_background: '主页背景'
+  profile_background: '主页背景',
+  profile_about: '主页介绍',
+  redeem_code: '兑换码'
+}
+
+export const SHOP_KIND_ICON: Partial<Record<ShopKind, string>> = {
+  profile_about: 'lucide:notebook-pen',
+  redeem_code: 'lucide:ticket'
 }
 
 export const SHOP_SLOTS: {
-  slot: ShopKind
+  slot: ShopSlot
   label: string
   empty: string
   worn: string
@@ -22,3 +29,5 @@ export const SHOP_SLOTS: {
     worn: '取下主页背景'
   }
 ]
+
+export const PROFILE_ABOUT_MAX = 500

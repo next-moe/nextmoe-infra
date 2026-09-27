@@ -16,12 +16,14 @@ import (
 
 	"api/internal/infrastructure/cache"
 	"api/internal/infrastructure/mail"
+	"api/internal/platform/auth/about"
 	"api/internal/platform/auth/dto"
 	"api/internal/platform/auth/model"
 	"api/internal/platform/auth/repository"
 	ledgerModel "api/internal/platform/ledger/model"
 	ledgerService "api/internal/platform/ledger/service"
 	"api/internal/platform/settings/keys"
+	shopModel "api/internal/platform/shop/model"
 	"api/pkg/config"
 	"api/pkg/errors"
 	"api/pkg/oidctoken"
@@ -50,11 +52,35 @@ type AuthService struct {
 	signer            oidctoken.Signer
 	verifier          *oidctoken.Verifier
 	codes             codeCache
+	perks             PerkSource
 }
 
 func (s *AuthService) WithLedger(l *ledgerService.Ledger) *AuthService {
 	s.ledger = l
 	return s
+}
+
+func (s *AuthService) WithPerks(src PerkSource) *AuthService {
+	s.perks = src
+	return s
+}
+
+func (s *AuthService) Perks(ctx context.Context, userID uint) []string {
+	return heldPerks(ctx, s.perks, []uint{userID})[userID]
+}
+
+func (s *AuthService) requirePerk(ctx context.Context, userID uint, perk string) error {
+	if s.perks == nil {
+		return errors.NewWithCode(errors.ErrShopPerkRequired)
+	}
+	held, err := s.perks.PerksFor(ctx, []uint{userID})
+	if err != nil {
+		return err
+	}
+	if !slices.Contains(held[userID], perk) {
+		return errors.NewWithCode(errors.ErrShopPerkRequired)
+	}
+	return nil
 }
 
 func (s *AuthService) grantRegisterGift(ctx context.Context, user *model.User) {
@@ -752,6 +778,19 @@ func (s *AuthService) UpdateProfile(ctx context.Context, userUUID string, req *d
 	}
 	if req.Bio != nil {
 		fields["bio"] = *req.Bio
+	}
+	if req.About != nil {
+		if *req.About != "" {
+			user, err := s.userRepo.FindByUUID(ctx, userUUID)
+			if err != nil {
+				return nil, mapUserErr(err)
+			}
+			if err := s.requirePerk(ctx, user.ID, shopModel.KindProfileAbout); err != nil {
+				return nil, err
+			}
+		}
+		fields["about"] = *req.About
+		fields["about_html"] = about.Cook(*req.About)
 	}
 
 	if req.Name == nil {

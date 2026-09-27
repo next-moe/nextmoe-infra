@@ -68,6 +68,9 @@ func (s *Shop) Grant(ctx context.Context, userID uint, itemID int64, days int, n
 		if it.Status != model.ItemPublished && it.Status != model.ItemRetired {
 			return errors.New(errors.ErrShopInvalidTransition, "只能发放已发布的物品")
 		}
+		if classOf(it.Kind) == classCode {
+			return errors.New(errors.ErrShopInvalidItem, "兑换码只能通过购买发出")
+		}
 		return grantTx(tx, grant{
 			userID: userID, itemID: itemID, days: days, source: model.SourceGrant,
 			grantedBy: by, note: note, now: s.now(),
@@ -141,6 +144,13 @@ func (s *Shop) Refund(ctx context.Context, orderID int64, by uint, note string) 
 		}
 		if o.Status != model.OrderCompleted {
 			return errors.New(errors.ErrShopInvalidTransition, "这笔订单已经退过款了")
+		}
+		var codes int64
+		if err := tx.Model(&model.Code{}).Where("order_id = ?", o.ID).Count(&codes).Error; err != nil {
+			return err
+		}
+		if codes > 0 {
+			return errors.New(errors.ErrShopInvalidTransition, "兑换码已经发给用户,这笔订单不能退款")
 		}
 		if _, err := s.loadOffer(tx, o.OfferID, true); err != nil && !errors.Is(err, errors.ErrShopOfferUnavailable) {
 			return err

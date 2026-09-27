@@ -26,6 +26,7 @@ const frozen = computed(
   () => props.item?.status === 'published' || props.item?.status === 'retired'
 )
 const spec = computed(() => SHOP_KINDS[kind.value])
+const needsArt = computed(() => !spec.value.icon)
 
 watch(open, (v) => {
   if (!v) return
@@ -86,8 +87,8 @@ const clearAnimated = () => {
 
 const save = async () => {
   error.value = ''
-  if (!name.value.trim() || !staticKey.value) {
-    error.value = '名称和静态图是必填的'
+  if (!name.value.trim() || (needsArt.value && !staticKey.value)) {
+    error.value = needsArt.value ? '名称和静态图是必填的' : '名称是必填的'
     return
   }
   saving.value = true
@@ -97,10 +98,14 @@ const save = async () => {
       site_id: siteId.value === '' ? null : siteId.value,
       name: name.value.trim(),
       description: description.value.trim(),
-      render: {
-        static: staticKey.value,
-        ...(animatedKey.value ? { animated: animatedKey.value } : {})
-      }
+      ...(needsArt.value
+        ? {
+            render: {
+              static: staticKey.value,
+              ...(animatedKey.value ? { animated: animatedKey.value } : {})
+            }
+          }
+        : {})
     }
     const res = props.item
       ? await api.put(`/admin/shop/items/${props.item.id}`, body)
@@ -160,7 +165,13 @@ const save = async () => {
         :rows="2"
       />
 
-      <div class="border-default-200 space-y-3 rounded-lg border p-4">
+      <p
+        v-if="!needsArt"
+        class="border-default-200 text-default-500 rounded-lg border p-4 text-xs"
+      >
+        {{ spec.hint }}
+      </p>
+      <div v-else class="border-default-200 space-y-3 rounded-lg border p-4">
         <p class="text-default-500 text-xs">
           {{ spec.hint }}{{ frozen ? '已发布的物品不能更换素材。' : '' }}
         </p>

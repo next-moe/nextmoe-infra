@@ -133,6 +133,13 @@ const fmt = (s?: string | null) => (s ? new Date(s).toLocaleString('zh-CN') : '�
         </p>
       </div>
 
+      <div v-if="detail.about">
+        <p class="text-default-400 mb-1 text-xs">主页介绍（Markdown 原文）</p>
+        <p class="text-foreground text-sm whitespace-pre-line">
+          {{ detail.about }}
+        </p>
+      </div>
+
       <div>
         <p class="text-default-400 mb-1 text-xs">全局角色</p>
         <div class="flex flex-wrap gap-1">

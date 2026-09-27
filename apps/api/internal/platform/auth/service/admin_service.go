@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"api/internal/platform/auth/about"
 	"api/internal/platform/auth/dto"
 	"api/internal/platform/auth/model"
 	"api/internal/platform/auth/repository"
@@ -83,6 +84,7 @@ func (s *AdminService) ListUsers(ctx context.Context, req *dto.UserListRequest, 
 			Avatar:          user.Avatar,
 			AvatarImageHash: user.AvatarImageHash,
 			Bio:             user.Bio,
+			About:           user.About,
 			Moemoepoint:     user.Moemoepoint,
 			Status:          user.Status,
 			IsAnonymized:    user.IsAnonymized(),
@@ -125,6 +127,7 @@ func (s *AdminService) GetUser(ctx context.Context, uuid string, canSeePII bool)
 			Avatar:          user.Avatar,
 			AvatarImageHash: user.AvatarImageHash,
 			Bio:             user.Bio,
+			About:           user.About,
 			Moemoepoint:     user.Moemoepoint,
 			Status:          user.Status,
 			IsAnonymized:    user.IsAnonymized(),
@@ -225,6 +228,9 @@ func (s *AdminService) UpdateUser(ctx context.Context, uuid string, req *dto.Upd
 	if req.Bio != nil {
 		user.Bio = *req.Bio
 	}
+	if req.About != nil {
+		user.About, user.AboutHTML = *req.About, about.Cook(*req.About)
+	}
 	if req.Status != nil {
 		user.Status = *req.Status
 	}
@@ -246,6 +252,7 @@ func (s *AdminService) UpdateUser(ctx context.Context, uuid string, req *dto.Upd
 		Avatar:          user.Avatar,
 		AvatarImageHash: user.AvatarImageHash,
 		Bio:             user.Bio,
+		About:           user.About,
 		Moemoepoint:     user.Moemoepoint,
 		Status:          user.Status,
 		IsAnonymized:    user.IsAnonymized(),
@@ -317,6 +324,7 @@ func (s *AdminService) AnonymizeUser(ctx context.Context, uuid string) error {
 	user.Avatar = ""
 	user.AvatarImageHash = nil
 	user.Bio = ""
+	user.About, user.AboutHTML = "", ""
 	user.IP = ""
 	user.Status = 1
 	now := time.Now()

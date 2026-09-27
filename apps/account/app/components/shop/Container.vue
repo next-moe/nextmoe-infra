@@ -14,7 +14,7 @@ const avatarSrc = computed(() =>
 const tab = ref('store')
 const tabs: KunTabItem[] = [
   { value: 'store', textValue: '商店' },
-  { value: 'wardrobe', textValue: '我的装扮' }
+  { value: 'wardrobe', textValue: '我的物品' }
 ]
 
 const offers = ref<ShopOffer[]>([])
@@ -93,7 +93,7 @@ const onEquipped = async () => {
           萌萌点商店
         </h1>
         <p class="text-default-500 mt-2 text-sm">
-          用萌萌点换头像框和主页背景，装扮在所有 NextMoe·未萌 站点通用
+          用萌萌点换装扮、功能和福利，在所有 NextMoe·未萌 站点通用
         </p>
       </div>
       <KunChip color="warning" variant="flat" size="md">
@@ -149,6 +149,7 @@ const onEquipped = async () => {
       v-else
       :items="inventory?.items ?? []"
       :loadout="inventory?.loadout ?? []"
+      :orders="inventory?.orders ?? []"
       :user-name="user?.name ?? ''"
       :avatar="avatarSrc"
       @equipped="onEquipped"

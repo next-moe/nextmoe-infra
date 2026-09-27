@@ -8,7 +8,13 @@ const api = useApi()
 const name = ref('')
 const email = ref('')
 const bio = ref('')
-const initial = ref<{ name: string; email: string; bio: string } | null>(null)
+const about = ref('')
+const initial = ref<{
+  name: string
+  email: string
+  bio: string
+  about: string
+} | null>(null)
 
 // The API blanks the email for a caller without `oauth.users.pii_view`, and the
 // same permission now gates writing it. An empty string here means "redacted
@@ -32,8 +38,9 @@ const load = async (uuid: string) => {
   name.value = ''
   email.value = ''
   bio.value = ''
+  about.value = ''
 
-  const res = await api.get<Pick<User, 'name' | 'email' | 'bio'>>(
+  const res = await api.get<Pick<User, 'name' | 'email' | 'bio' | 'about'>>(
     `/admin/users/${uuid}`
   )
   if (token !== loadToken) return
@@ -42,7 +49,13 @@ const load = async (uuid: string) => {
     name.value = res.data.name ?? ''
     email.value = res.data.email ?? ''
     bio.value = res.data.bio ?? ''
-    initial.value = { name: name.value, email: email.value, bio: bio.value }
+    about.value = res.data.about ?? ''
+    initial.value = {
+      name: name.value,
+      email: email.value,
+      bio: bio.value,
+      about: about.value
+    }
   } else {
     error.value = res.message || '加载用户信息失败'
     loadFailed.value = true
@@ -56,7 +69,8 @@ watch([open, () => props.user?.uuid], () => {
 
 const dirtyPatch = computed(() => {
   if (!initial.value) return null
-  const patch: { name?: string; email?: string; bio?: string } = {}
+  const patch: { name?: string; email?: string; bio?: string; about?: string } =
+    {}
   if (name.value.trim() !== initial.value.name) {
     patch.name = name.value.trim()
   }
@@ -65,6 +79,9 @@ const dirtyPatch = computed(() => {
   }
   if (bio.value !== initial.value.bio) {
     patch.bio = bio.value
+  }
+  if (about.value !== initial.value.about) {
+    patch.about = about.value
   }
   return Object.keys(patch).length ? patch : null
 })
@@ -84,6 +101,10 @@ const handleSubmit = async () => {
   }
   if (patch.bio !== undefined && patch.bio.length > 107) {
     error.value = '个人简介不能超过 107 个字符'
+    return
+  }
+  if (patch.about !== undefined && patch.about.length > 500) {
+    error.value = '主页介绍不能超过 500 个字符'
     return
   }
   if (patch.email !== undefined && !patch.email.includes('@')) {
@@ -156,6 +177,15 @@ const handleSubmit = async () => {
           label="个人简介"
           placeholder="一句话介绍（≤107 字）"
           :rows="3"
+        />
+
+        <KunTextarea
+          v-if="initial?.about"
+          v-model="about"
+          label="主页介绍（Markdown）"
+          description="用户用萌萌点买来的主页介绍；违规时清空即可"
+          :rows="4"
+          :maxlength="500"
         />
 
         <p v-if="error" class="rounded-lg bg-danger-50 p-3 text-sm text-danger">

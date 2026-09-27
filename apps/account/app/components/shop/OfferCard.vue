@@ -16,9 +16,14 @@ const title = computed(() =>
   props.offer.rewards.map((r) => r.item.name).join(' + ')
 )
 const affordable = computed(() => props.balance >= props.offer.price)
-const soldOut = computed(
-  () => props.offer.stock !== null && props.offer.sold >= props.offer.stock
-)
+const soldOut = computed(() => props.offer.remaining === 0)
+const limit = computed(() => {
+  const n = props.offer.per_user_limit
+  if (!n) return ''
+  return props.offer.limit_period === 'month'
+    ? `每人每月限购 ${n} 次`
+    : `每人限购 ${n} 次`
+})
 </script>
 
 <template>
@@ -46,9 +51,19 @@ const soldOut = computed(
     <p v-if="lead?.item.description" class="text-default-500 mt-1 text-sm">
       {{ lead.item.description }}
     </p>
-    <p v-if="offer.stock !== null" class="text-default-400 mt-1 text-xs">
-      限量 {{ offer.stock }} 份，还剩
-      {{ Math.max(offer.stock - offer.sold, 0) }} 份
+    <p
+      v-if="offer.remaining !== null || limit"
+      class="text-default-400 mt-1 text-xs"
+    >
+      <template v-if="offer.stock !== null">
+        限量 {{ offer.stock }} 份，还剩 {{ offer.remaining }} 份
+      </template>
+      <template v-else-if="offer.remaining !== null">
+        本期还剩 {{ offer.remaining }} 张
+      </template>
+      <template v-if="limit">
+        {{ offer.remaining !== null ? ' · ' : '' }}{{ limit }}
+      </template>
     </p>
 
     <div class="mt-auto flex items-center justify-between gap-3 pt-4">

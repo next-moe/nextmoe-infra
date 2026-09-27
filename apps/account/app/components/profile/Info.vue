@@ -73,6 +73,13 @@ const formattedDate = computed(() => {
         </p>
       </div>
 
+      <KunContent
+        v-if="user.about_html"
+        :content="user.about_html"
+        compact
+        class="border-default-200 mt-6 border-t pt-5 text-sm"
+      />
+
       <div class="border-default-200 mt-6 space-y-3 border-t pt-5 text-sm">
         <div class="flex items-center justify-between gap-3">
           <span class="text-default-400 flex items-center gap-1.5">

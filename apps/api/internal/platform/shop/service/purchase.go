@@ -30,6 +30,7 @@ type OrderView struct {
 	model.Order
 	Rewards []RewardView `json:"rewards"`
 	Price   int64        `json:"price"`
+	Codes   []CodeView   `json:"codes,omitempty"`
 }
 
 type Purchased struct {
@@ -46,6 +47,13 @@ func sinkFor(offer *model.Offer) string {
 }
 
 func orderTransferKey(orderID int64) string { return fmt.Sprintf("order:%d", orderID) }
+
+var limitZone = time.FixedZone("Asia/Shanghai", 8*3600)
+
+func monthStart(now time.Time) time.Time {
+	t := now.In(limitZone)
+	return time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, limitZone)
+}
 
 func (s *Shop) Purchase(ctx context.Context, userID uint, offerID int64, idemKey string) (*Purchased, error) {
 	idemKey = strings.TrimSpace(idemKey)
@@ -86,10 +94,13 @@ func (s *Shop) Purchase(ctx context.Context, userID uint, offerID int64, idemKey
 			return errors.NewWithCode(errors.ErrShopSoldOut)
 		}
 		if offer.PerUserLimit > 0 {
+			q := tx.Model(&model.Order{}).
+				Where("user_id = ? AND offer_id = ? AND status = ?", userID, offer.ID, model.OrderCompleted)
+			if offer.LimitPeriod == model.LimitMonth {
+				q = q.Where("created_at >= ?", monthStart(now))
+			}
 			var bought int64
-			if err := tx.Model(&model.Order{}).
-				Where("user_id = ? AND offer_id = ? AND status = ?", userID, offer.ID, model.OrderCompleted).
-				Count(&bought).Error; err != nil {
+			if err := q.Count(&bought).Error; err != nil {
 				return err
 			}
 			if bought >= int64(offer.PerUserLimit) {
@@ -104,6 +115,8 @@ func (s *Shop) Purchase(ctx context.Context, userID uint, offerID int64, idemKey
 		price := priceOf(costs)
 		names := make([]string, 0, len(rewards))
 		holdings := make([]model.PriorHolding, 0, len(rewards))
+		var grants []model.Reward
+		var codeItems []int64
 		for _, r := range rewards {
 			it, err := s.loadItem(tx, r.ItemID, false)
 			if err != nil {
@@ -111,6 +124,11 @@ func (s *Shop) Purchase(ctx context.Context, userID uint, offerID int64, idemKey
 			}
 			if it.Status != model.ItemPublished {
 				return errors.NewWithCode(errors.ErrShopOfferUnavailable)
+			}
+			names = append(names, it.Name)
+			if classOf(it.Kind) == classCode {
+				codeItems = append(codeItems, it.ID)
+				continue
 			}
 			owned, err := activeEntitlement(tx, userID, it.ID, now, false)
 			if err != nil {
@@ -124,7 +142,7 @@ func (s *Shop) Purchase(ctx context.Context, userID uint, offerID int64, idemKey
 				h.ExpiresAt = owned.ExpiresAt
 			}
 			holdings = append(holdings, h)
-			names = append(names, it.Name)
+			grants = append(grants, r)
 		}
 
 		order := model.Order{
@@ -158,7 +176,12 @@ func (s *Shop) Purchase(ctx context.Context, userID uint, offerID int64, idemKey
 		if err := tx.Model(&order).Update("transfer_id", posted.TransferID).Error; err != nil {
 			return err
 		}
-		for _, r := range rewards {
+		for _, itemID := range codeItems {
+			if err := s.claimCode(tx, itemID, userID, order.ID, now); err != nil {
+				return err
+			}
+		}
+		for _, r := range grants {
 			if err := grantTx(tx, grant{
 				userID: userID, itemID: r.ItemID, days: r.DurationDays, source: model.SourcePurchase,
 				orderID: &order.ID, now: now,
@@ -251,7 +274,11 @@ func (s *Shop) orderView(tx *gorm.DB, o model.Order) (*OrderView, error) {
 	var rewards []model.Reward
 	_ = json.Unmarshal(o.Costs, &costs)
 	_ = json.Unmarshal(o.Rewards, &rewards)
-	v := &OrderView{Order: o, Price: priceOf(costs)}
+	codes, err := orderCodes(tx, o.ID)
+	if err != nil {
+		return nil, err
+	}
+	v := &OrderView{Order: o, Price: priceOf(costs), Codes: codes}
 	for _, r := range rewards {
 		var it model.Item
 		if err := tx.First(&it, r.ItemID).Error; err != nil && !stderrors.Is(err, gorm.ErrRecordNotFound) {

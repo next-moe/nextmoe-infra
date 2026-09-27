@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { SHOP_KINDS } from '~/constants/shop'
+import { SHOP_KINDS, SHOP_LIMIT_PERIOD_OPTIONS } from '~/constants/shop'
 
 const props = defineProps<{ offer: ShopOffer | null }>()
 const open = defineModel<boolean>({ required: true })
@@ -14,6 +14,7 @@ const price = ref('100')
 const durationDays = ref('0')
 const stock = ref('')
 const perUserLimit = ref('0')
+const limitPeriod = ref<ShopLimitPeriod>('')
 const sortOrder = ref('0')
 const startsAt = ref('')
 const endsAt = ref('')
@@ -42,6 +43,7 @@ watch(open, async (v) => {
   stock.value =
     o?.stock !== null && o?.stock !== undefined ? String(o.stock) : ''
   perUserLimit.value = String(o?.per_user_limit ?? 0)
+  limitPeriod.value = o?.limit_period ?? ''
   sortOrder.value = String(o?.sort_order ?? 0)
   startsAt.value = toLocalInput(o?.starts_at ?? null)
   endsAt.value = toLocalInput(o?.ends_at ?? null)
@@ -56,6 +58,10 @@ const itemOptions = computed(() =>
     }))
 )
 
+const isCode = computed(
+  () => items.value.find((i) => i.id === itemId.value)?.kind === 'redeem_code'
+)
+
 const save = async () => {
   error.value = ''
   if (itemId.value === '') {
@@ -64,15 +70,16 @@ const save = async () => {
   }
   saving.value = true
   try {
-    const days = Number(durationDays.value) || 0
+    const days = isCode.value ? 0 : Number(durationDays.value) || 0
     const body = {
       site_id: siteId.value === '' ? null : siteId.value,
       price: Number(price.value),
       rewards: [
         { item_id: itemId.value, ...(days > 0 ? { duration_days: days } : {}) }
       ],
-      stock: stock.value === '' ? null : Number(stock.value),
+      stock: isCode.value || stock.value === '' ? null : Number(stock.value),
       per_user_limit: Number(perUserLimit.value) || 0,
+      limit_period: limitPeriod.value,
       sort_order: Number(sortOrder.value) || 0,
       starts_at: startsAt.value ? new Date(startsAt.value).toISOString() : null,
       ends_at: endsAt.value ? new Date(endsAt.value).toISOString() : null
@@ -118,23 +125,31 @@ const save = async () => {
           label="价格（萌萌点）"
           description="不能低于商店最低价（默认 100）"
         />
-        <KunInput
-          v-model="durationDays"
-          type="number"
-          label="有效期（天）"
-          description="0 表示永久"
-        />
-        <KunInput
-          v-model="stock"
-          type="number"
-          label="库存"
-          description="留空表示不限量"
-        />
+        <template v-if="!isCode">
+          <KunInput
+            v-model="durationDays"
+            type="number"
+            label="有效期（天）"
+            description="0 表示永久"
+          />
+          <KunInput
+            v-model="stock"
+            type="number"
+            label="库存"
+            description="留空表示不限量"
+          />
+        </template>
         <KunInput
           v-model="perUserLimit"
           type="number"
           label="每人限购"
           description="0 表示不限"
+        />
+        <KunSelect
+          v-model="limitPeriod"
+          label="限购周期"
+          :options="SHOP_LIMIT_PERIOD_OPTIONS"
+          description="每月按北京时间的自然月重新计数"
         />
         <KunInput
           v-model="startsAt"
@@ -155,6 +170,9 @@ const save = async () => {
           description="越大越靠前"
         />
       </div>
+      <p v-if="isCode" class="text-default-500 text-xs">
+        兑换码商品的库存就是码池里可售的码，售完即显示售罄；在「物品」页的码池里补码。
+      </p>
       <div v-if="error" class="bg-danger-50 text-danger rounded-lg p-3 text-sm">
         {{ error }}
       </div>

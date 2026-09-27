@@ -5,6 +5,7 @@ import (
 	stderrors "errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -19,10 +20,15 @@ type CosmeticsSource interface {
 	CosmeticsFor(ctx context.Context, userIDs []uint, siteID uint) (map[uint]shopModel.Cosmetics, error)
 }
 
+type PerkSource interface {
+	PerksFor(ctx context.Context, userIDs []uint) (map[uint][]string, error)
+}
+
 type UserBatchService struct {
 	userRepo     *repository.UserRepository
 	siteRoleRepo *repository.UserSiteRoleRepository
 	cosmetics    CosmeticsSource
+	perks        PerkSource
 }
 
 func NewUserBatchService(userRepo *repository.UserRepository, siteRoleRepo *repository.UserSiteRoleRepository) *UserBatchService {
@@ -31,6 +37,11 @@ func NewUserBatchService(userRepo *repository.UserRepository, siteRoleRepo *repo
 
 func (s *UserBatchService) WithCosmetics(src CosmeticsSource) *UserBatchService {
 	s.cosmetics = src
+	return s
+}
+
+func (s *UserBatchService) WithPerks(src PerkSource) *UserBatchService {
+	s.perks = src
 	return s
 }
 
@@ -56,6 +67,7 @@ func (s *UserBatchService) GetBriefs(ctx context.Context, ids []uint, siteID uin
 	}
 
 	s.attachCosmetics(ctx, briefs, siteID)
+	s.gateAbout(ctx, briefs)
 
 	notFound := make([]uint, 0)
 	for _, id := range ids {
@@ -80,6 +92,7 @@ func (s *UserBatchService) SearchByName(ctx context.Context, query string, limit
 		briefs = append(briefs, toBrief(&users[i]))
 	}
 	s.attachCosmetics(ctx, briefs, siteID)
+	s.gateAbout(ctx, briefs)
 	return &dto.SearchUsersResponse{Users: briefs}, nil
 }
 
@@ -103,6 +116,36 @@ func (s *UserBatchService) attachCosmetics(ctx context.Context, briefs []dto.Use
 	}
 }
 
+func (s *UserBatchService) gateAbout(ctx context.Context, briefs []dto.UserBrief) {
+	var ids []uint
+	for i := range briefs {
+		if briefs[i].AboutHTML != "" {
+			ids = append(ids, briefs[i].ID)
+		}
+	}
+	if len(ids) == 0 {
+		return
+	}
+	held := heldPerks(ctx, s.perks, ids)
+	for i := range briefs {
+		if !slices.Contains(held[briefs[i].ID], shopModel.KindProfileAbout) {
+			briefs[i].AboutHTML = ""
+		}
+	}
+}
+
+func heldPerks(ctx context.Context, src PerkSource, ids []uint) map[uint][]string {
+	if src == nil {
+		return nil
+	}
+	held, err := src.PerksFor(ctx, ids)
+	if err != nil {
+		slog.Warn("users: perk lookup failed; answering without perk-gated fields", "err", err)
+		return nil
+	}
+	return held
+}
+
 func toBrief(u *model.User) dto.UserBrief {
 	roles := make([]string, 0, len(u.Roles))
 	for _, r := range u.Roles {
@@ -115,6 +158,7 @@ func toBrief(u *model.User) dto.UserBrief {
 		Avatar:          u.Avatar,
 		AvatarImageHash: u.AvatarImageHash,
 		Bio:             u.Bio,
+		AboutHTML:       u.AboutHTML,
 		Status:          u.Status,
 		Roles:           roles,
 		CreatedAt:       u.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),

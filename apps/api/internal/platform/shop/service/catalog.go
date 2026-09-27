@@ -58,6 +58,9 @@ func (s *Shop) validateRender(tx *gorm.DB, kind string, raw json.RawMessage) (da
 	if err != nil {
 		return nil, err
 	}
+	if spec.class != classCosmetic {
+		return datatypes.JSON("{}"), nil
+	}
 	var r model.Render
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
@@ -250,6 +253,9 @@ func (s *Shop) DeleteItem(ctx context.Context, id int64) error {
 		if offers > 0 {
 			return errors.New(errors.ErrShopInvalidTransition, "还有商品引用这件物品")
 		}
+		if err := tx.Where("item_id = ?", id).Delete(&model.Code{}).Error; err != nil {
+			return err
+		}
 		return tx.Delete(&model.Item{}, id).Error
 	})
 }
@@ -277,6 +283,7 @@ type OfferInput struct {
 	StartsAt     *time.Time     `json:"starts_at"`
 	EndsAt       *time.Time     `json:"ends_at"`
 	PerUserLimit int            `json:"per_user_limit"`
+	LimitPeriod  string         `json:"limit_period"`
 	Stock        *int           `json:"stock"`
 	SortOrder    int            `json:"sort_order"`
 }
@@ -303,8 +310,10 @@ type OfferView struct {
 	StartsAt     *time.Time   `json:"starts_at"`
 	EndsAt       *time.Time   `json:"ends_at"`
 	PerUserLimit int          `json:"per_user_limit"`
+	LimitPeriod  string       `json:"limit_period"`
 	Stock        *int         `json:"stock"`
 	Sold         int          `json:"sold"`
+	Remaining    *int         `json:"remaining"`
 	SortOrder    int          `json:"sort_order"`
 	CreatedAt    time.Time    `json:"created_at"`
 }
@@ -324,6 +333,15 @@ func (s *Shop) validateOffer(tx *gorm.DB, in OfferInput) ([]model.Item, error) {
 	}
 	if in.PerUserLimit < 0 || (in.Stock != nil && *in.Stock < 0) {
 		return nil, invalidOffer("限购和库存不能为负数")
+	}
+	switch in.LimitPeriod {
+	case model.LimitLifetime:
+	case model.LimitMonth:
+		if in.PerUserLimit == 0 {
+			return nil, invalidOffer("按月限购需要填写每人限购数量")
+		}
+	default:
+		return nil, invalidOffer("未知的限购周期")
 	}
 	items := make([]model.Item, 0, len(in.Rewards))
 	seen := map[int64]bool{}
@@ -345,6 +363,14 @@ func (s *Shop) validateOffer(tx *gorm.DB, in OfferInput) ([]model.Item, error) {
 		if it.SiteID != nil && (in.SiteID == nil || *in.SiteID != *it.SiteID) {
 			return nil, invalidOffer("站点独有的物品只能在它自己的站点出售")
 		}
+		if classOf(it.Kind) == classCode {
+			if len(in.Rewards) != 1 || r.DurationDays != 0 {
+				return nil, invalidOffer("兑换码商品只能包含这一件物品,并且没有有效期")
+			}
+			if in.Stock != nil {
+				return nil, invalidOffer("兑换码商品的库存就是码池里可售的码,不能另填库存")
+			}
+		}
 		items = append(items, *it)
 	}
 	return items, nil
@@ -363,7 +389,7 @@ func (s *Shop) CreateOffer(ctx context.Context, in OfferInput, by uint) (*OfferV
 		o := model.Offer{
 			SiteID: in.SiteID, Status: model.OfferDraft, Costs: offerCosts(in.Price),
 			Rewards: datatypes.JSON(mustJSON(in.Rewards)), StartsAt: in.StartsAt, EndsAt: in.EndsAt,
-			PerUserLimit: in.PerUserLimit, Stock: in.Stock, SortOrder: in.SortOrder, CreatedBy: by,
+			PerUserLimit: in.PerUserLimit, LimitPeriod: in.LimitPeriod, Stock: in.Stock, SortOrder: in.SortOrder, CreatedBy: by,
 		}
 		if err := tx.Create(&o).Error; err != nil {
 			return err
@@ -413,7 +439,8 @@ func (s *Shop) UpdateOffer(ctx context.Context, id int64, in OfferInput, canPubl
 			}
 		}
 		o.SiteID, o.Costs, o.Rewards = in.SiteID, offerCosts(in.Price), datatypes.JSON(mustJSON(in.Rewards))
-		o.StartsAt, o.EndsAt, o.PerUserLimit, o.Stock, o.SortOrder = in.StartsAt, in.EndsAt, in.PerUserLimit, in.Stock, in.SortOrder
+		o.StartsAt, o.EndsAt, o.PerUserLimit, o.LimitPeriod = in.StartsAt, in.EndsAt, in.PerUserLimit, in.LimitPeriod
+		o.Stock, o.SortOrder = in.Stock, in.SortOrder
 		if err := tx.Save(o).Error; err != nil {
 			return err
 		}
@@ -541,20 +568,37 @@ func (s *Shop) offerViews(tx *gorm.DB, offers []model.Offer) ([]OfferView, error
 	if err != nil {
 		return nil, err
 	}
+	var codeItems []int64
+	for _, it := range items {
+		if classOf(it.Kind) == classCode {
+			codeItems = append(codeItems, it.ID)
+		}
+	}
+	codesLeft, err := s.sellableCodes(tx, codeItems)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]OfferView, len(offers))
 	for i, o := range offers {
 		var costs []model.Cost
 		_ = json.Unmarshal(o.Costs, &costs)
 		v := OfferView{
 			ID: o.ID, SiteID: o.SiteID, Status: o.Status, Price: priceOf(costs), Costs: costs,
-			StartsAt: o.StartsAt, EndsAt: o.EndsAt, PerUserLimit: o.PerUserLimit, Stock: o.Stock,
-			Sold: o.Sold, SortOrder: o.SortOrder, CreatedAt: o.CreatedAt,
+			StartsAt: o.StartsAt, EndsAt: o.EndsAt, PerUserLimit: o.PerUserLimit, LimitPeriod: o.LimitPeriod,
+			Stock: o.Stock, Sold: o.Sold, SortOrder: o.SortOrder, CreatedAt: o.CreatedAt,
+		}
+		if o.Stock != nil {
+			left := max(*o.Stock-o.Sold, 0)
+			v.Remaining = &left
 		}
 		if o.SiteID != nil {
 			v.Site = sites[*o.SiteID]
 		}
 		for _, r := range rewardsOf[i] {
 			v.Rewards = append(v.Rewards, RewardView{Item: s.itemView(items[r.ItemID]), DurationDays: r.DurationDays})
+			if left, ok := codesLeft[r.ItemID]; ok {
+				v.Remaining = &left
+			}
 		}
 		out[i] = v
 	}

@@ -9,6 +9,7 @@ type UserBrief struct {
 	Avatar          string   `json:"avatar"`
 	AvatarImageHash *string  `json:"avatar_image_hash,omitempty"`
 	Bio             string   `json:"bio"`
+	AboutHTML       string   `json:"about_html,omitempty"`
 	Status          int      `json:"status"`
 	Roles           []string `json:"roles"`
 	SiteRoles       []string `json:"site_roles,omitempty"`
