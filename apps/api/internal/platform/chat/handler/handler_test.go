@@ -56,7 +56,7 @@ func TestMain(m *testing.M) {
 
 func clean(t *testing.T) {
 	t.Helper()
-	if err := testDB.Exec(`TRUNCATE chat_report, chat_update, chat_hidden_message, chat_reaction, chat_message,
+	if err := testDB.Exec(`TRUNCATE chat_import_message, chat_report, chat_update, chat_hidden_message, chat_reaction, chat_message,
 		chat_member, chat_conversation, chat_user RESTART IDENTITY CASCADE`).Error; err != nil {
 		t.Fatal(err)
 	}

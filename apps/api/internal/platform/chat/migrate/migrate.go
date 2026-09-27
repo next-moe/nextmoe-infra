@@ -26,6 +26,8 @@ func Run(db *gorm.DB) error {
 		&model.ChatUpdate{},
 		&model.ChatReport{},
 		&accountpurge.Cursor{},
+		// The import ledger of cmd/import-chat (plan 17 W4); new and empty.
+		&model.ChatImportMessage{},
 	); err != nil {
 		return fmt.Errorf("chat automigrate: %w", err)
 	}

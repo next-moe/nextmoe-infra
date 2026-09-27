@@ -67,7 +67,7 @@ func TestMain(m *testing.M) {
 func cleanTables(t *testing.T) {
 	t.Helper()
 	for _, table := range []string{
-		"chat_report", "chat_update", "chat_hidden_message", "chat_reaction", "chat_message",
+		"chat_import_message", "chat_report", "chat_update", "chat_hidden_message", "chat_reaction", "chat_message",
 		"chat_member", "chat_conversation", "chat_user", "account_purge_cursor",
 	} {
 		if err := testDB.Exec("TRUNCATE " + table + " RESTART IDENTITY CASCADE").Error; err != nil {

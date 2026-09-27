@@ -296,3 +296,34 @@ which keeps a deleted account's messages; it matches community's purge.
 ## 11. Retention
 
 Messages are kept until deleted. The update stream keeps 30 days.
+
+## 12. History from kungal and moyu
+
+`cmd/import-chat` copies the old sites' direct messages into chat, so a pair
+that talked on kungal or moyu finds that history in their one conversation.
+It reads the forum's and moyu's `chat_*` tables and writes through the same
+service code a send uses.
+
+- One conversation per pair. A pair that talked on both sites gets both
+  histories interleaved by time (9 pairs in production), which is why both
+  sources are imported in one run before any site opens chat.
+- Both people are accepted: a history is consent. Messages keep their time,
+  edited mark and origin site; recalled or deleted ones become tombstones;
+  moyu replies point at the new `seq`; moyu reactions map onto the vocabulary
+  and unknown ones are dropped. Read positions come from kungal's read
+  receipts; moyu kept none, so its messages count as read.
+- Markdown becomes text and entities. Uploaded images are re-hosted through
+  chat's image client, so `KUN_CHAT_IMAGE_CLIENT_*` must be set; stickers
+  (`![sticker](/image/<hash>_320)`) keep their hash; an image hosted elsewhere
+  becomes a `[图片]` link. An album of photos from one old message shares a
+  `media_group_id`.
+- Pairs with a deleted account are left out: the purge would erase them.
+- Every message is keyed by its source (`chat_import_message`), so a re-run
+  imports only what is new. The first import writes no updates; a later run
+  (a sweep while a site is cutting over) appends and announces what it adds.
+  A pair that has already talked natively in chat is left out
+  (`ErrNativeHistory`): old messages cannot go in before existing ones.
+
+Run it with the chat container's environment on the docker network; without
+`-apply` it only prints the plan (production dry run, 2026-09-27: 2,683 pairs,
+11,241 messages, 517 tombstones, 422 photos, 164 stickers, 1 external image).

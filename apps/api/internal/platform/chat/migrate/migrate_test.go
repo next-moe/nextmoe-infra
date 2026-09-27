@@ -70,6 +70,7 @@ func TestColumnAudit(t *testing.T) {
 		"chat_reaction":       {"message_id", "user_id", "reaction", "created_at"},
 		"chat_hidden_message": {"user_id", "message_id", "created_at"},
 		"chat_update":         {"user_id", "update_seq", "kind", "conversation_id", "data", "created_at"},
+		"chat_import_message": {"source_key", "message_id", "conversation_id", "imported_at"},
 		"chat_report": {"id", "message_id", "conversation_id", "reporter_id", "reported_user_id", "reason", "note", "snapshot",
 			"origin_site", "status", "trust_review_item_id", "forward_attempts", "forward_error", "created_at", "forwarded_at",
 			"resolution", "trust_disposition_id", "resolved_at"},
@@ -84,16 +85,17 @@ func TestColumnAudit(t *testing.T) {
 
 func TestIndexDefinitions(t *testing.T) {
 	for name, want := range map[string]string{
-		"uq_chat_conversation_direct": "(direct_user_low_id, direct_user_high_id) WHERE (kind = 'direct'::text)",
-		"idx_chat_member_dialogs":     "(user_id, last_message_at DESC, conversation_id DESC) WHERE (left_at IS NULL)",
-		"uq_chat_message_seq":         "(conversation_id, seq)",
-		"uq_chat_message_client":      "(sender_id, client_message_id)",
-		"idx_chat_message_sender":     "(sender_id)",
-		"idx_chat_message_pinned":     "(conversation_id, pinned_at DESC) WHERE (pinned_at IS NOT NULL)",
-		"idx_chat_reaction_user":      "(user_id)",
-		"idx_chat_update_created":     "(created_at)",
-		"uq_chat_report":              "(reporter_id, message_id)",
-		"idx_chat_report_pending":     "(id) WHERE (status = 'pending'::text)",
+		"uq_chat_conversation_direct":          "(direct_user_low_id, direct_user_high_id) WHERE (kind = 'direct'::text)",
+		"idx_chat_member_dialogs":              "(user_id, last_message_at DESC, conversation_id DESC) WHERE (left_at IS NULL)",
+		"uq_chat_message_seq":                  "(conversation_id, seq)",
+		"uq_chat_message_client":               "(sender_id, client_message_id)",
+		"idx_chat_message_sender":              "(sender_id)",
+		"idx_chat_message_pinned":              "(conversation_id, pinned_at DESC) WHERE (pinned_at IS NOT NULL)",
+		"idx_chat_reaction_user":               "(user_id)",
+		"idx_chat_update_created":              "(created_at)",
+		"uq_chat_report":                       "(reporter_id, message_id)",
+		"idx_chat_report_pending":              "(id) WHERE (status = 'pending'::text)",
+		"idx_chat_import_message_conversation": "(conversation_id)",
 	} {
 		var def string
 		testDB.Raw(`SELECT indexdef FROM pg_indexes WHERE indexname = ?`, name).Scan(&def)
