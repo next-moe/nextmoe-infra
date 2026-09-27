@@ -185,3 +185,15 @@ type ChatReport struct {
 }
 
 func (ChatReport) TableName() string { return "chat_report" }
+
+// One row per message cmd/import-chat wrote; the key is the source message
+// ("kungal:123", "moyu:45", "kungal:123#2" for the second photo split out of
+// one old message). It makes a re-run import only what is new.
+type ChatImportMessage struct {
+	SourceKey      string    `gorm:"primaryKey;column:source_key" json:"source_key"`
+	MessageID      int64     `gorm:"not null;column:message_id" json:"message_id"`
+	ConversationID int64     `gorm:"not null;index:idx_chat_import_message_conversation;column:conversation_id" json:"conversation_id"`
+	ImportedAt     time.Time `gorm:"not null;column:imported_at" json:"imported_at"`
+}
+
+func (ChatImportMessage) TableName() string { return "chat_import_message" }
