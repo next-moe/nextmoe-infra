@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { OAuthClient } from '~~/shared/types/oauth-client'
+import { IMAGE_PRESET_LABELS } from '~/constants/oauth-client'
 
 const props = defineProps<{ client: OAuthClient | null }>()
 const emit = defineEmits<{ updated: [] }>()
@@ -18,7 +18,7 @@ const artifactQuotaBytesDaily = ref(0)
 const imageEnabled = ref(false)
 const imageSiteKey = ref('')
 const imageCdnBase = ref('')
-const imagePresets = ref('')
+const imagePresets = ref<string[]>([])
 const imageMaxFileSize = ref(0)
 const imageQuotaDaily = ref(0)
 const imageQuotaBytesDaily = ref(0)
@@ -39,12 +39,21 @@ watch(open, (v) => {
   imageEnabled.value = s?.image_enabled ?? false
   imageSiteKey.value = s?.image_site_key ?? ''
   imageCdnBase.value = s?.image_cdn_base ?? ''
-  imagePresets.value = (s?.image_allowed_presets ?? []).join(', ')
+  imagePresets.value = [...(s?.image_allowed_presets ?? [])]
   imageMaxFileSize.value = s?.image_max_file_size ?? 0
   imageQuotaDaily.value = s?.image_quota_daily ?? 0
   imageQuotaBytesDaily.value = s?.image_quota_bytes_daily ?? 0
   error.value = ''
 })
+
+const presetOptions = computed(() =>
+  [
+    ...new Set([...Object.keys(IMAGE_PRESET_LABELS), ...imagePresets.value])
+  ].map((p) => ({
+    value: p,
+    label: IMAGE_PRESET_LABELS[p] ? `${IMAGE_PRESET_LABELS[p]} (${p})` : p
+  }))
+)
 
 const splitList = (v: string) =>
   v
@@ -69,7 +78,7 @@ const handleSubmit = async () => {
       image_enabled: imageEnabled.value,
       image_site_key: imageSiteKey.value,
       image_cdn_base: imageCdnBase.value,
-      image_allowed_presets: splitList(imagePresets.value),
+      image_allowed_presets: imagePresets.value,
       image_max_file_size: Number(imageMaxFileSize.value) || 0,
       image_quota_daily: Number(imageQuotaDaily.value) || 0,
       image_quota_bytes_daily: Number(imageQuotaBytesDaily.value) || 0
@@ -86,11 +95,12 @@ const handleSubmit = async () => {
 </script>
 
 <template>
-  <KunModal v-model="open" size="lg" aria-label="存储配置">
+  <KunModal v-model="open" size="lg" aria-label="存储能力">
     <div class="space-y-4">
-      <h2 class="text-foreground text-xl font-bold">
-        存储配置 — {{ client?.name }}
-      </h2>
+      <div>
+        <h2 class="text-foreground text-xl font-bold">存储能力</h2>
+        <p class="text-default-500 text-sm">{{ client?.name }}</p>
+      </div>
 
       <div class="border-default-200 space-y-3 rounded-lg border p-3">
         <KunCheckBox
@@ -159,10 +169,12 @@ const handleSubmit = async () => {
             label="CDN (cdn_base)"
             placeholder="https://image.kungal.iloveren.link"
           />
-          <KunInput
+          <KunCheckBoxGroup
             v-model="imagePresets"
-            label="允许的 presets（逗号分隔）"
-            placeholder="avatar, banner"
+            :options="presetOptions"
+            label="允许的 presets"
+            variant="pill"
+            orientation="horizontal"
           />
           <div>
             <KunInput

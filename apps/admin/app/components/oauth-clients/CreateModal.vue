@@ -2,7 +2,7 @@
 import { ALL_GRANTS, KNOWN_SCOPES, REN_ONLY_SCOPES, DEFAULT_REFRESH_TOKEN_TTL_SECONDS } from '~~/shared/types/oauth-client'
 
 const show = defineModel<boolean>({ required: true })
-const props = defineProps<{ sites: Site[] }>()
+const props = defineProps<{ sites: Site[]; defaultSiteId?: number }>()
 const emit = defineEmits<{ created: [client: OAuthClientCreated] }>()
 
 const api = useApi()
@@ -42,6 +42,10 @@ const onLogoPicked = async (blob: Blob) => {
     logoUploadKey.value++
   }
 }
+
+watch(show, (v) => {
+  if (v && props.defaultSiteId) siteId.value = props.defaultSiteId
+})
 
 const siteOptions = computed(() =>
   props.sites.map((s) => ({ value: s.id, label: `${s.name} (${s.domain})` }))

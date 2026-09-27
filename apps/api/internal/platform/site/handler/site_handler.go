@@ -69,6 +69,11 @@ func mayManage(managesAll bool, callerID uint, createdBy *uint) bool {
 	return callerID != 0 && createdBy != nil && *createdBy == callerID
 }
 
+func isMine(callerID uint, cl *siteModel.OAuthClient) bool {
+	is := func(id *uint) bool { return callerID != 0 && id != nil && *id == callerID }
+	return is(cl.CreatedByUserID) || is(cl.OwnerUserID)
+}
+
 const notOwnerMsg = "只能查看和管理自己创建的站点 / 客户端"
 
 func (h *SiteHandler) List(c fiber.Ctx) error {
@@ -245,7 +250,7 @@ func (h *SiteHandler) ListClients(c fiber.Ctx) error {
 
 	result := make([]dto.OAuthClientResponse, len(clients))
 	for i, cl := range clients {
-		result[i] = toOAuthClientResponse(&cl)
+		result[i] = toOAuthClientResponse(&cl, callerUserID(c))
 	}
 
 	return response.Success(c, result)
@@ -279,7 +284,7 @@ func (h *SiteHandler) GetSiteClients(c fiber.Ctx) error {
 
 	result := make([]dto.OAuthClientResponse, len(clients))
 	for i, cl := range clients {
-		result[i] = toOAuthClientResponse(&cl)
+		result[i] = toOAuthClientResponse(&cl, callerUserID(c))
 	}
 
 	return response.Success(c, result)
@@ -349,7 +354,7 @@ func (h *SiteHandler) CreateClient(c fiber.Ctx) error {
 	}
 
 	return response.Success(c, dto.OAuthClientCreatedResponse{
-		OAuthClientResponse: toOAuthClientResponse(client),
+		OAuthClientResponse: toOAuthClientResponse(client, callerUserID(c)),
 		Secret:              secret,
 	})
 }
@@ -418,7 +423,7 @@ func (h *SiteHandler) UpdateClient(c fiber.Ctx) error {
 		return response.InternalError(c, errors.ErrOperationFailed)
 	}
 
-	return response.Success(c, toOAuthClientResponse(client))
+	return response.Success(c, toOAuthClientResponse(client, callerUserID(c)))
 }
 
 func (h *SiteHandler) UpdateClientStorage(c fiber.Ctx) error {
@@ -467,7 +472,7 @@ func (h *SiteHandler) UpdateClientStorage(c fiber.Ctx) error {
 	if err != nil {
 		return response.InternalError(c, errors.ErrOperationFailed)
 	}
-	return response.Success(c, toOAuthClientResponse(client))
+	return response.Success(c, toOAuthClientResponse(client, callerUserID(c)))
 }
 
 func (h *SiteHandler) DeleteClient(c fiber.Ctx) error {
@@ -498,7 +503,7 @@ func (h *SiteHandler) DeleteClient(c fiber.Ctx) error {
 	return response.Success(c, nil)
 }
 
-func toOAuthClientResponse(cl *siteModel.OAuthClient) dto.OAuthClientResponse {
+func toOAuthClientResponse(cl *siteModel.OAuthClient, callerID uint) dto.OAuthClientResponse {
 	var redirectURIs []string
 	_ = json.Unmarshal(cl.RedirectURIs, &redirectURIs)
 
@@ -534,6 +539,10 @@ func toOAuthClientResponse(cl *siteModel.OAuthClient) dto.OAuthClientResponse {
 		Tagline:                cl.Tagline,
 		DisplayOrder:           cl.DisplayOrder,
 		CreatedAt:              cl.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		CreatedByUserID:        cl.CreatedByUserID,
+		OwnerUserID:            cl.OwnerUserID,
+		DevEnabled:             cl.DevEnabled,
+		Mine:                   isMine(callerID, cl),
 		Storage: dto.OAuthClientStorageConfig{
 			ArtifactEnabled:         cl.ArtifactEnabled,
 			ArtifactSiteKey:         cl.ArtifactSiteKey,
