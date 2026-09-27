@@ -712,6 +712,13 @@ services:
       KUN_CHAT_CENTRIFUGO_API_URL: http://centrifugo:8000
       KUN_CHAT_CENTRIFUGO_API_KEY: ${KUN_CHAT_CENTRIFUGO_API_KEY:-}
       KUN_CHAT_REALTIME_TOKEN_SECRET: ${KUN_CHAT_REALTIME_TOKEN_SECRET:-}
+      # Chat's own image client (image_site_key 'chat', presets ["message"]):
+      # reference pings are scoped to the uploading client, so photos sent in
+      # chat must be uploaded through chat to be kept alive. Empty = photo
+      # messages answer 503.
+      KUN_CHAT_IMAGE_CLIENT_ID: ${KUN_CHAT_IMAGE_CLIENT_ID:-}
+      KUN_CHAT_IMAGE_CLIENT_SECRET: ${KUN_CHAT_IMAGE_CLIENT_SECRET:-}
+      KUN_CHAT_IMAGE_CLIENT_BASE_URL: http://image:9278
     expose: ["9285"]
     labels:
       # OWNED HERE like every api.nextmoe.dev face. The explicit priority keeps

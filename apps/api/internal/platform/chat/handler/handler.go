@@ -203,6 +203,12 @@ func fail(ctx context.Context, op string, err error) error {
 		return stamp(ctx, problem.New(problem.CodeChatNotPermitted, "", "", ""))
 	case errors.Is(err, service.ErrImagesDisabled):
 		return stamp(ctx, problem.New(problem.CodeServiceUnavailable, "", "", "image messages are not available."))
+	case errors.Is(err, service.ErrImageQuota):
+		return stamp(ctx, problem.New(problem.CodeQuotaExceeded, "", "", "the chat image quota is exhausted."))
+	case errors.Is(err, service.ErrImageRejected):
+		pr := stamp(ctx, problem.New(problem.CodeValidationFailed, "", "", "these bytes were rejected: not an accepted image, or refused by moderation."))
+		pr.Errors = []problem.FieldError{{Pointer: "/file", Reason: problem.ReasonNotAllowedValue, Detail: "rejected by the image service"}}
+		return pr
 	case errors.As(err, &invalid):
 		pr := stamp(ctx, problem.New(problem.CodeValidationFailed, "", "", invalid.Field+": "+invalid.Reason))
 		pr.Errors = []problem.FieldError{{Pointer: "/" + strings.ReplaceAll(strings.ReplaceAll(invalid.Field, "[", "/"), "]", ""),

@@ -75,13 +75,12 @@ func main() {
 	} else {
 		opts.Counter = devapi.NewRedisStore(rc)
 	}
-	if cfg.ImageClient.ClientID != "" && cfg.ImageClient.ClientSecret != "" {
+	if ic := cfg.ChatImageClient; ic.ClientID != "" && ic.ClientSecret != "" {
 		opts.Images = source.NewImages(imageclient.New(imageclient.Config{
-			BaseURL: cfg.ImageClient.BaseURL, CDNBase: cfg.ImageService.CDNBase,
-			ClientID: cfg.ImageClient.ClientID, ClientSecret: cfg.ImageClient.ClientSecret,
+			BaseURL: ic.BaseURL, CDNBase: cfg.ImageService.CDNBase, ClientID: ic.ClientID, ClientSecret: ic.ClientSecret,
 		}))
 	} else {
-		slog.Info("chat: image messages disabled (KUN_IMAGE_CLIENT_* unset)")
+		slog.Info("chat: image messages disabled (KUN_CHAT_IMAGE_CLIENT_* unset)")
 	}
 	if pub := realtime.NewCentrifugo(cfg.ChatService.CentrifugoAPIURL, cfg.ChatService.CentrifugoAPIKey); pub != nil {
 		opts.Publisher = pub
@@ -180,6 +179,7 @@ func redirectHosts(raw []byte) []string {
 func runHourly(ctx context.Context, svc *service.Service) {
 	t := time.NewTicker(time.Hour)
 	defer t.Stop()
+	var lastPing time.Time
 	for {
 		select {
 		case <-ctx.Done():
@@ -189,6 +189,15 @@ func runHourly(ctx context.Context, svc *service.Service) {
 				slog.Error("chat update prune", "err", err)
 			} else if n > 0 {
 				slog.Info("chat update prune", "rows", n)
+			}
+			if time.Since(lastPing) >= 24*time.Hour {
+				updated, missing, err := svc.PingImages(ctx)
+				if err != nil {
+					slog.Error("chat image refping", "err", err)
+					continue
+				}
+				lastPing = time.Now()
+				slog.Info("chat image refping", "updated", updated, "not_found", missing)
 			}
 		}
 	}

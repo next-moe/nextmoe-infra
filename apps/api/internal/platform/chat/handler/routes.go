@@ -62,6 +62,10 @@ func (h *Handler) register(api huma.API) {
 	huma.Register(api, huma.Operation{OperationID: "sendChatTyping", Method: http.MethodPost, Path: "/v2/chat/conversations/{id}/typing", Tags: tag, Errors: writeErrs,
 		DefaultStatus: http.StatusNoContent,
 		Summary:       "Tell the other members the caller is typing; repeat every 5 seconds while typing, receivers drop it after 6"}, h.typing)
+	huma.Register(api, huma.Operation{OperationID: "uploadChatImage", Method: http.MethodPost, Path: "/v2/chat/images", Tags: tag, Errors: writeErrs,
+		DefaultStatus: http.StatusCreated,
+		Summary:       "Upload a photo for a message; send its image_hash as media.image_hash",
+		Description:   "multipart/form-data with one part named file. Chat keeps the photos it hosts alive; a hash from anywhere else is refused when sent."}, h.uploadImage)
 	huma.Register(api, huma.Operation{OperationID: "reportChatMessage", Method: http.MethodPost, Path: "/v2/chat/messages/{id}/report", Tags: tag, Errors: writeErrs,
 		Summary: "Report someone else's message; the message and up to 10 before it go to moderators"}, h.report)
 	huma.Register(api, huma.Operation{OperationID: "getChatSettings", Method: http.MethodGet, Path: "/v2/chat/settings", Tags: tag, Errors: readErrs,

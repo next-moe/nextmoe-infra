@@ -47,6 +47,7 @@ type Config struct {
 	CatalogImageClient ImageClientConfig
 
 	NewsImageClient ImageClientConfig
+	ChatImageClient ImageClientConfig
 
 	NewsModeration NewsModerationConfig
 
@@ -492,6 +493,12 @@ func Load() (*Config, error) {
 		BaseURL:      getEnv("KUN_CATALOG_IMAGE_CLIENT_BASE_URL", cfg.ImageClient.BaseURL),
 		ClientID:     getEnv("KUN_CATALOG_IMAGE_CLIENT_ID", ""),
 		ClientSecret: getEnv("KUN_CATALOG_IMAGE_CLIENT_SECRET", ""),
+	}
+
+	cfg.ChatImageClient = ImageClientConfig{
+		BaseURL:      getEnv("KUN_CHAT_IMAGE_CLIENT_BASE_URL", cfg.ImageClient.BaseURL),
+		ClientID:     getEnv("KUN_CHAT_IMAGE_CLIENT_ID", ""),
+		ClientSecret: getEnv("KUN_CHAT_IMAGE_CLIENT_SECRET", ""),
 	}
 
 	cfg.NewsImageClient = ImageClientConfig{

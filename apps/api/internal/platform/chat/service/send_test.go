@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"io"
 	"testing"
 	"time"
 
@@ -157,6 +158,12 @@ func (f fakeImages) Meta(_ context.Context, hashes []string) (map[string]ImageMe
 	}
 	return out, nil
 }
+
+func (f fakeImages) Upload(context.Context, io.Reader, string, string) (*UploadedImage, error) {
+	return nil, errors.New("fakeImages does not upload")
+}
+
+func (f fakeImages) Ping(context.Context, []string) (int64, int, error) { return 0, 0, nil }
 
 func TestSendPhotoTakesServerDimensions(t *testing.T) {
 	r := newRig(t, 1, 2)

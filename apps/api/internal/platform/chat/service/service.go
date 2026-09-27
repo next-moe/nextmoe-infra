@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"sort"
 	"time"
@@ -46,9 +47,24 @@ type ImageMeta struct {
 	Thumbhash string
 }
 
+type UploadedImage struct {
+	Hash      string
+	URL       string
+	Width     int
+	Height    int
+	Thumbhash string
+}
+
 type Images interface {
 	Meta(ctx context.Context, hashes []string) (map[string]ImageMeta, error)
+	Upload(ctx context.Context, r io.Reader, filename, uploaderSub string) (*UploadedImage, error)
+	Ping(ctx context.Context, hashes []string) (updated int64, notFound int, err error)
 }
+
+var (
+	ErrImageQuota    = errors.New("chat: the chat image quota is exhausted")
+	ErrImageRejected = errors.New("chat: the image was rejected")
+)
 
 type Delivery struct {
 	UserID int64

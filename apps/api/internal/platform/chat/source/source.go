@@ -5,6 +5,8 @@ package source
 
 import (
 	"context"
+	"errors"
+	"io"
 	"time"
 
 	"api/internal/platform/chat/service"
@@ -85,6 +87,27 @@ func NewImages(cli *imageclient.Client) *Images {
 		return nil
 	}
 	return &Images{cli: cli}
+}
+
+func (i *Images) Upload(ctx context.Context, r io.Reader, filename, uploaderSub string) (*service.UploadedImage, error) {
+	res, err := i.cli.UploadWithSub(ctx, r, filename, "message", uploaderSub)
+	switch {
+	case errors.Is(err, imageclient.ErrQuotaExceeded):
+		return nil, service.ErrImageQuota
+	case err != nil && imageclient.IsPermanent(err):
+		return nil, service.ErrImageRejected
+	case err != nil:
+		return nil, err
+	}
+	return &service.UploadedImage{Hash: res.Hash, URL: res.URL, Width: res.Width, Height: res.Height, Thumbhash: res.Thumbhash}, nil
+}
+
+func (i *Images) Ping(ctx context.Context, hashes []string) (int64, int, error) {
+	res, err := i.cli.ReferencePing(ctx, hashes)
+	if err != nil {
+		return 0, 0, err
+	}
+	return res.Updated, len(res.NotFound), nil
 }
 
 func (i *Images) Meta(ctx context.Context, hashes []string) (map[string]service.ImageMeta, error) {

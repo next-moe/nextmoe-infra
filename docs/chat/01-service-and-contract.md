@@ -144,9 +144,14 @@ saying which side blocked.
   of the replied message; the server checks the quote is really there and
   attaches its entities. Messages carry a `reply_to` preview (text cut to 120
   UTF-16 code units, `deleted` when the original is gone).
-- Photos: `media {type: "photo", image_hash}` for an image already in the image
-  service; width, height and thumbhash come from the image service, not the
-  client. An album is several photo messages sharing a `media_group_id`.
+- Photos: upload the bytes first with `POST /v2/chat/images` (multipart, one
+  part named `file`; 20 a minute) and send the returned `image_hash` as
+  `media {type: "photo", image_hash}`. Width, height and thumbhash come from the
+  image service, not the client. An album is several photo messages sharing a
+  `media_group_id`. Chat stores its photos under its own image client (preset
+  `message`) and pings their references daily: image-service reference pings
+  are scoped to the uploading client, so a photo uploaded through a site's own
+  image client would not be kept alive by chat.
 - `context {kind, id, title, url}`: a card for the page a conversation is about.
   The URL must be https on one of the calling client's hosts; `site` is set by
   the server.
