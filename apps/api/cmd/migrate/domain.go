@@ -12,6 +12,7 @@ import (
 	aimigrate "api/internal/platform/ai/migrate"
 	catalogmigrate "api/internal/platform/catalog/migrate"
 	catalogseed "api/internal/platform/catalog/seed"
+	chatmigrate "api/internal/platform/chat/migrate"
 	communitymigrate "api/internal/platform/community/migrate"
 	newsmigrate "api/internal/platform/news/migrate"
 	trustmigrate "api/internal/platform/trust/migrate"
@@ -47,6 +48,10 @@ var domains = map[string]domain{
 	"community": {
 		db:  func(c *config.Config) config.DatabaseConfig { return c.CommunityDatabase },
 		run: communitymigrate.Run,
+	},
+	"chat": {
+		db:  func(c *config.Config) config.DatabaseConfig { return c.ChatDatabase },
+		run: chatmigrate.Run,
 	},
 	"trust": {
 		db:  func(c *config.Config) config.DatabaseConfig { return c.TrustDatabase },

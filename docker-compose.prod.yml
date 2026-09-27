@@ -61,6 +61,7 @@ x-infra-env: &infra-env
   KUN_IMAGES_PG_DATABASE: kun_images
   KUN_CATALOG_PG_DATABASE: kun_catalog
   KUN_COMMUNITY_PG_DATABASE: kun_community
+  KUN_CHAT_PG_DATABASE: kun_chat
   KUN_TRUST_PG_DATABASE: kun_trust
   KUN_AI_PG_DATABASE: kun_ai
   KUN_NEWS_PG_DATABASE: kun_news
@@ -694,6 +695,80 @@ services:
       <<: *svc-health
     restart: unless-stopped
 
+  # Chat (kun_chat): direct messages every site and app share (plan 17). It
+  # reads kun_galgame_infra (tokens, oauth_clients, user names, the
+  # deleted-accounts feed) and kun_community (follows, blocks, trust level).
+  # Public on api.nextmoe.dev/v2/chat; pushes go through centrifugo below.
+  # Report forwarding to trust stays off until the chat_message subject kind
+  # is registered for each site: until then reports wait in chat_report.
+  chat:
+    image: ghcr.io/next-moe/infra-chat:latest
+    pull_policy: always
+    environment:
+      <<: *infra-env
+      KUN_CHAT_HOST: 0.0.0.0
+      KUN_CHAT_PORT: "9285"
+      KUN_CHAT_REALTIME_URL: wss://api.nextmoe.dev/connection/websocket
+      KUN_CHAT_CENTRIFUGO_API_URL: http://centrifugo:8000
+      KUN_CHAT_CENTRIFUGO_API_KEY: ${KUN_CHAT_CENTRIFUGO_API_KEY:-}
+      KUN_CHAT_REALTIME_TOKEN_SECRET: ${KUN_CHAT_REALTIME_TOKEN_SECRET:-}
+    expose: ["9285"]
+    labels:
+      # OWNED HERE like every api.nextmoe.dev face. The explicit priority keeps
+      # /v2/chat off catalog's PathPrefix(`/v2`) router regardless of rule length.
+      traefik.enable: "true"
+      traefik.docker.network: dokploy-network
+      traefik.http.routers.infra-chat-pub.rule: Host(`api.nextmoe.dev`) && PathPrefix(`/v2/chat`)
+      traefik.http.routers.infra-chat-pub.priority: "200"
+      traefik.http.routers.infra-chat-pub.entrypoints: websecure
+      traefik.http.routers.infra-chat-pub.tls.certresolver: letsencrypt
+      traefik.http.routers.infra-chat-pub.service: infra-chat-pub
+      traefik.http.routers.infra-chat-pub-http.rule: Host(`api.nextmoe.dev`) && PathPrefix(`/v2/chat`)
+      traefik.http.routers.infra-chat-pub-http.priority: "200"
+      traefik.http.routers.infra-chat-pub-http.entrypoints: web
+      traefik.http.routers.infra-chat-pub-http.middlewares: redirect-to-https@file
+      traefik.http.routers.infra-chat-pub-http.service: infra-chat-pub
+      traefik.http.services.infra-chat-pub.loadbalancer.server.port: "9285"
+    depends_on:
+      postgres: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+      migrate-community: { condition: service_completed_successfully }
+      migrate-chat: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "/app", "healthcheck"]
+      <<: *svc-health
+    restart: unless-stopped
+
+  # Realtime delivery for chat. Clients connect to
+  # wss://api.nextmoe.dev/connection/websocket with a token chat issues; only
+  # /connection/ is routed, so the server API (/api, used by chat over the
+  # docker network) is never reachable from outside. Memory broker, one node:
+  # nothing is lost with it, clients recover missed pushes from chat's update
+  # stream.
+  centrifugo:
+    image: centrifugo/centrifugo:v6.9.6
+    command: ["centrifugo"]
+    environment:
+      CENTRIFUGO_CLIENT_TOKEN_HMAC_SECRET_KEY: ${KUN_CHAT_REALTIME_TOKEN_SECRET:-}
+      CENTRIFUGO_HTTP_API_KEY: ${KUN_CHAT_CENTRIFUGO_API_KEY:-}
+      CENTRIFUGO_CLIENT_ALLOWED_ORIGINS: "https://www.kungal.com https://kungal.com https://www.moyu.moe https://moyu.moe https://www.letmoe.com https://letmoe.com"
+      CENTRIFUGO_CHANNEL_NAMESPACES: '[{"name":"user"}]'
+      CENTRIFUGO_HEALTH_ENABLED: "true"
+    expose: ["8000"]
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: dokploy-network
+      traefik.http.routers.infra-realtime.rule: Host(`api.nextmoe.dev`) && PathPrefix(`/connection/`)
+      traefik.http.routers.infra-realtime.priority: "200"
+      traefik.http.routers.infra-realtime.entrypoints: websecure
+      traefik.http.routers.infra-realtime.tls.certresolver: letsencrypt
+      traefik.http.routers.infra-realtime.service: infra-realtime
+      traefik.http.services.infra-realtime.loadbalancer.server.port: "8000"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8000/health"]
+      <<: *svc-health
+    restart: unless-stopped
+
   # Trust & Safety platform (kun_trust). Universal report intake + the unified
   # review inbox; product backends (kungal first) reach it over S2S. It reads
   # oauth_clients from kun_galgame_infra for S2S Basic auth + the per-client
@@ -956,6 +1031,18 @@ services:
   migrate-community:
     image: ghcr.io/next-moe/infra-migrate:latest
     command: ["community"]
+    pull_policy: always
+    environment: { <<: *infra-env }
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+
+  # Auto-applied on every deploy (chat waits for it); kun_chat must exist
+  # before the first deploy that carries it (created by hand, like every
+  # database on the box's own Postgres).
+  migrate-chat:
+    image: ghcr.io/next-moe/infra-migrate:latest
+    command: ["chat"]
     pull_policy: always
     environment: { <<: *infra-env }
     depends_on:

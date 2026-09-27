@@ -17,10 +17,11 @@ const (
 	DomainModeration Domain = "moderation"
 	DomainNews       Domain = "news"
 	DomainStore      Domain = "store"
+	DomainChat       Domain = "chat"
 )
 
 var DomainOrder = []Domain{
-	DomainPlatform, DomainCatalog, DomainMe, DomainModeration, DomainNews, DomainStore,
+	DomainPlatform, DomainCatalog, DomainMe, DomainModeration, DomainNews, DomainStore, DomainChat,
 }
 
 type Def struct {
@@ -83,6 +84,11 @@ const (
 	CodeSourceInactive               = "SOURCE_INACTIVE"
 	CodeStoreQuotaExceeded           = "STORE_QUOTA_EXCEEDED"
 	CodeStoreLinkUnavailable         = "STORE_LINK_UNAVAILABLE"
+	CodeChatBlocked                  = "CHAT_BLOCKED"
+	CodeChatNotAccepting             = "CHAT_NOT_ACCEPTING"
+	CodeChatRequestLimit             = "CHAT_REQUEST_LIMIT"
+	CodeChatEditWindowClosed         = "CHAT_EDIT_WINDOW_CLOSED"
+	CodeChatNotPermitted             = "CHAT_NOT_PERMITTED"
 )
 
 const (
@@ -157,6 +163,11 @@ var Codes = []Def{
 	{CodeSourceInactive, DomainNews, http.StatusUnprocessableEntity, "Source inactive", "The news source is bound correctly but has been deactivated. detail names who to ask to restore it."},
 	{CodeStoreQuotaExceeded, DomainStore, http.StatusForbidden, "Store quota exceeded", "The application has minted the maximum number of purchase links."},
 	{CodeStoreLinkUnavailable, DomainStore, http.StatusBadGateway, "Store link unavailable", "The link shortener is unavailable; no link was issued — there is deliberately no fallback to a bare affiliate URL."},
+	{CodeChatBlocked, DomainChat, http.StatusForbidden, "Blocked", "One of the two users has blocked the other, so no direct message can pass between them. Which side blocked is not said."},
+	{CodeChatNotAccepting, DomainChat, http.StatusForbidden, "Not accepting messages", "The recipient's settings do not let the caller reach their inbox or send a message request, or the caller's account is too new to send requests. detail says which."},
+	{CodeChatRequestLimit, DomainChat, http.StatusForbidden, "Message request limit", "The recipient has not accepted the conversation yet. Until they do, the caller may send at most 3 plain-text messages, with no links and no media."},
+	{CodeChatEditWindowClosed, DomainChat, http.StatusConflict, "Edit window closed", "A message can be edited for 48 hours after it was sent."},
+	{CodeChatNotPermitted, DomainChat, http.StatusForbidden, "Not permitted", "The caller's place in the conversation does not allow this: deleting someone else's message for everyone, editing someone else's message, or pinning in a group as a plain member."},
 }
 
 var Reasons = []ReasonDef{
