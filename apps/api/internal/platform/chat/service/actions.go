@@ -50,9 +50,7 @@ func recountUnread(tx *gorm.DB, conversationID int64, userIDs []int64, now time.
 }
 
 // stripQuotesTx drops the quotes other messages took from erased ones: a quote
-
 // is a copy of the words, and it outlived the delete until a review caught it.
-
 func stripQuotesTx(tx *gorm.DB, conversationID int64, erased []int64) ([]int64, error) {
 	var seqs []int64
 	if len(erased) == 0 {
@@ -73,6 +71,41 @@ func quoteEditUpdates(conversationID int64, members []model.ChatMember, seqs []i
 		}
 	}
 	return ups
+}
+
+func eraseTx(tx *gorm.DB, conversationID int64, members []model.ChatMember, targets []model.ChatMessage, now time.Time) ([]model.ChatUpdate, error) {
+	if len(targets) == 0 {
+		return nil, nil
+	}
+	ids := make([]int64, len(targets))
+	seqs := make([]int64, len(targets))
+	for i, t := range targets {
+		ids[i], seqs[i] = t.ID, t.Seq
+	}
+	if err := tx.Exec(`
+		UPDATE chat_message SET deleted_at = ?, text = '', entities = NULL, media = NULL,
+		       reply_quote = NULL, context = NULL, pinned_at = NULL
+		 WHERE id IN ?`, now, ids).Error; err != nil {
+		return nil, err
+	}
+	if err := tx.Where("message_id IN ?", ids).Delete(&model.ChatReaction{}).Error; err != nil {
+		return nil, err
+	}
+	stripped, err := stripQuotesTx(tx, conversationID, seqs)
+	if err != nil {
+		return nil, err
+	}
+	uids := make([]int64, len(members))
+	ups := make([]pendingUpdate, 0, len(members))
+	for i, m := range members {
+		uids[i] = m.UserID
+		ups = append(ups, pendingUpdate{userID: m.UserID, kind: model.UpdateDeleteMessages, conversationID: conversationID, data: map[string]any{"seqs": seqs}})
+	}
+	if _, err := recountUnread(tx, conversationID, uids, now); err != nil {
+		return nil, err
+	}
+	ups = append(ups, quoteEditUpdates(conversationID, members, stripped)...)
+	return appendUpdates(tx, now, ups)
 }
 
 func checkSeqs(seqs []int64) error {
@@ -108,45 +141,13 @@ func (s *Service) DeleteMessages(ctx context.Context, a Actor, conversationID in
 		}
 		done = done[:0]
 		if forEveryone {
-			ids := make([]int64, 0, len(targets))
 			for _, t := range targets {
 				if t.SenderID != a.UserID {
 					return ErrNotPermitted
 				}
-				ids = append(ids, t.ID)
 				done = append(done, t.Seq)
 			}
-			if len(ids) == 0 {
-				return nil
-			}
-			if err := tx.Exec(`
-				UPDATE chat_message SET deleted_at = ?, text = '', entities = NULL, media = NULL,
-				       reply_quote = NULL, context = NULL, pinned_at = NULL
-				 WHERE id IN ?`, now, ids).Error; err != nil {
-				return err
-			}
-			if err := tx.Where("message_id IN ?", ids).Delete(&model.ChatReaction{}).Error; err != nil {
-				return err
-			}
-			stripped, err := stripQuotesTx(tx, conv.ID, done)
-			if err != nil {
-				return err
-			}
-			others := make([]int64, 0, len(members))
-			for _, m := range members {
-				if m.UserID != a.UserID {
-					others = append(others, m.UserID)
-				}
-			}
-			if _, err := recountUnread(tx, conv.ID, others, now); err != nil {
-				return err
-			}
-			ups := make([]pendingUpdate, 0, len(members))
-			for _, m := range members {
-				ups = append(ups, pendingUpdate{userID: m.UserID, kind: model.UpdateDeleteMessages, conversationID: conv.ID, data: map[string]any{"seqs": done}})
-			}
-			ups = append(ups, quoteEditUpdates(conv.ID, members, stripped)...)
-			updates, err = appendUpdates(tx, now, ups)
+			updates, err = eraseTx(tx, conv.ID, members, targets, now)
 			return err
 		}
 		rows := make([]model.ChatHiddenMessage, 0, len(targets))

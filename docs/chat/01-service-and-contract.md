@@ -258,11 +258,28 @@ message by the same person returns the first.
 
 Reports are forwarded to trust's unified inbox under the site they were filed
 on, as subject kind `chat_message` (subject id = message id), with the snapshot
-in the context note. Forwarding is switched on by giving chat trust client
-credentials, which must wait until `chat_message` is registered for each site:
-until then reports wait as `pending`. Trust refusing a report outright marks it
-`failed` and it is not retried. Moderators see only reported snapshots; there
-is no face for reading anyone's conversations.
+in the context note. Chat relays for every site, so its trust client is a
+forwarder (in trust's `KUN_TRUST_FORWARDER_CLIENT_IDS`). Forwarding is switched
+on by giving chat those credentials, which must wait until `chat_message` is
+registered for each site: until then reports wait as `pending`. Trust refusing
+a report outright marks it `failed` and it is not retried. Moderators see only
+reported snapshots; there is no face for reading anyone's conversations.
+
+Trust's decision comes back to `POST /trust/callback` on chat (internal only,
+signed with `X-Trust-Timestamp` / `X-Trust-Signature` like every trust
+callback), so each site registers `chat_message` with callback
+`http://chat:9285/trust/callback`, the secret chat holds in
+`KUN_TRUST_CALLBACK_SECRET`, and `notify_on_dismiss` on.
+
+| trust action | chat does | open reports of the message |
+|---|---|---|
+| remove (2) or hide (1) | deletes it for everyone, exactly as its sender could: tombstone, quotes of it removed, `delete_messages` to every member | `removed` |
+| none (0) | nothing | `dismissed` |
+
+Hide is a removal because a conversation has nothing to restore a hidden
+message into. A removal is final: a later dismissal leaves `removed` in place,
+and a removal after a dismissal replaces it. Resolved reports are never
+forwarded again.
 
 ## 10. Account deletion
 

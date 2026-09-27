@@ -2,34 +2,23 @@ package service
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
 	"log/slog"
 	"strconv"
-	"time"
 
 	"api/internal/platform/community/model"
 	"api/internal/platform/community/repository"
+	"api/pkg/trustclient"
 
 	"gorm.io/gorm"
 )
 
 const (
-	trustActionNone   int16 = 0
-	trustActionHide   int16 = 1
-	trustActionRemove int16 = 2
+	trustActionNone   = trustclient.ActionNone
+	trustActionHide   = trustclient.ActionHide
+	trustActionRemove = trustclient.ActionRemove
 )
 
-const callbackWindow = 5 * time.Minute
-
-type TrustCallback struct {
-	DispositionID int64  `json:"disposition_id"`
-	SubjectKind   string `json:"subject_kind"`
-	SubjectID     string `json:"subject_id"`
-	Action        int16  `json:"action"`
-	ReasonCode    string `json:"reason_code"`
-}
+type TrustCallback = trustclient.Callback
 
 type CallbackResult int
 
@@ -85,28 +74,4 @@ func (s *CallbackService) Handle(ctx context.Context, cb TrustCallback) (Callbac
 		}
 		return repository.CloseReviewItemsForPostTx(tx, postID, closeStatus)
 	})
-}
-
-func VerifyTrustSignature(secret, timestamp, signature string, body []byte, now time.Time) bool {
-	if secret == "" || timestamp == "" || signature == "" {
-		return false
-	}
-	ts, err := strconv.ParseInt(timestamp, 10, 64)
-	if err != nil {
-		return false
-	}
-	skew := now.Sub(time.Unix(ts, 0))
-	if skew < -callbackWindow || skew > callbackWindow {
-		return false
-	}
-	expected := signTrustPayload(secret, timestamp, body)
-	return hmac.Equal([]byte(expected), []byte(signature))
-}
-
-func signTrustPayload(secret, timestamp string, body []byte) string {
-	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write([]byte(timestamp))
-	mac.Write([]byte("."))
-	mac.Write(body)
-	return hex.EncodeToString(mac.Sum(nil))
 }
