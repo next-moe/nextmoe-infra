@@ -20,7 +20,6 @@ type uploadImageInput struct {
 type ImageBody struct {
 	Object string `json:"object" enum:"chat_image"`
 	dto.Media
-	URL string `json:"url" doc:"where the stored image is served"`
 }
 
 type uploadImageOutput struct{ Body ImageBody }
@@ -41,5 +40,5 @@ func (h *Handler) uploadImage(ctx context.Context, in *uploadImageInput) (*uploa
 	if err != nil {
 		return nil, fail(ctx, "upload image", err)
 	}
-	return &uploadImageOutput{Body: ImageBody{Object: "chat_image", Media: res.Media, URL: res.URL}}, nil
+	return &uploadImageOutput{Body: ImageBody{Object: "chat_image", Media: res.Media}}, nil
 }

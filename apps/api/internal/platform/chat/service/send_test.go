@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -182,6 +183,16 @@ func TestSendPhotoTakesServerDimensions(t *testing.T) {
 	}
 	if m.MediaGroupID == nil || *m.MediaGroupID != "77" {
 		t.Fatalf("media_group_id: %v", m.MediaGroupID)
+	}
+	if want := "https://img.example/01/23/" + hash + ".webp"; m.Media.URL != want {
+		t.Fatalf("media url %q, want %q", m.Media.URL, want)
+	}
+	var stored string
+	if err := testDB.Raw(`SELECT media::text FROM chat_message WHERE id = ?`, m.ID).Scan(&stored).Error; err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(stored, "url") {
+		t.Fatalf("the url is derived on read and never stored: %s", stored)
 	}
 	other := "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
 	_, err = r.svc.Send(context.Background(), actor(1), conv, SendInput{Media: &MediaInput{Type: "photo", ImageHash: other}})

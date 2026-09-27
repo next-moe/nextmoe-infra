@@ -49,7 +49,6 @@ type ImageMeta struct {
 
 type UploadedImage struct {
 	Hash      string
-	URL       string
 	Width     int
 	Height    int
 	Thumbhash string
@@ -80,13 +79,14 @@ type Counter interface {
 }
 
 type Service struct {
-	db      *gorm.DB
-	users   Users
-	rel     Relationships
-	images  Images
-	pub     Publisher
-	counter Counter
-	now     func() time.Time
+	db        *gorm.DB
+	users     Users
+	rel       Relationships
+	images    Images
+	imageBase string
+	pub       Publisher
+	counter   Counter
+	now       func() time.Time
 }
 
 type Options struct {
@@ -96,10 +96,12 @@ type Options struct {
 	Publisher     Publisher
 	Counter       Counter
 	Now           func() time.Time
+	ImageBaseURL  string
 }
 
 func New(db *gorm.DB, o Options) *Service {
-	s := &Service{db: db, users: o.Users, rel: o.Relationships, images: o.Images, pub: o.Publisher, counter: o.Counter, now: o.Now}
+	s := &Service{db: db, users: o.Users, rel: o.Relationships, images: o.Images, pub: o.Publisher, counter: o.Counter, now: o.Now,
+		imageBase: o.ImageBaseURL}
 	if s.now == nil {
 		s.now = time.Now
 	}

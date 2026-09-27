@@ -160,8 +160,13 @@ reaching the other side.
 - Photos: upload the bytes first with `POST /v2/chat/images` (multipart, one
   part named `file`; 20 a minute) and send the returned `image_hash` as
   `media {type: "photo", image_hash}`. Width, height and thumbhash come from the
-  image service, not the client. An album is several photo messages sharing a
-  `media_group_id`. Chat stores its photos under its own image client (preset
+  image service, not the client. Every `media` the server sends carries `url`,
+  the full address of the image, and a conversation's photo comes with
+  `photo_url`: show those and never build an address from a hash. A
+  conversation is the same on every site and app, so no site's own image host
+  is the right one to guess. The `message` preset has no size variants; use
+  width, height and thumbhash for layout and the placeholder. An album is
+  several photo messages sharing a `media_group_id`. Chat stores its photos under its own image client (preset
   `message`) and pings their references daily: image-service reference pings
   are scoped to the uploading client, so a photo uploaded through a site's own
   image client would not be kept alive by chat.

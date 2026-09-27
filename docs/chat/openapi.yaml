@@ -104,6 +104,11 @@ components:
           type:
             - string
             - "null"
+        photo_url:
+          description: where photo_image_hash is served
+          type:
+            - string
+            - "null"
         title:
           type:
             - string
@@ -115,6 +120,7 @@ components:
         - title
         - about
         - photo_image_hash
+        - photo_url
         - peer_id
         - member_count
         - last_seq
@@ -181,6 +187,11 @@ components:
           type:
             - string
             - "null"
+        photo_url:
+          description: where photo_image_hash is served
+          type:
+            - string
+            - "null"
         pinned_messages:
           description: the pinned messages themselves, in the order of pinned_seqs, as the caller sees them
           items:
@@ -211,6 +222,7 @@ components:
         - title
         - about
         - photo_image_hash
+        - photo_url
         - peer_id
         - member_count
         - last_seq
@@ -697,18 +709,18 @@ components:
             - photo
           type: string
         url:
-          description: where the stored image is served
+          description: where the image is served; never build it from image_hash
           type: string
         width:
           format: int64
           type: integer
       required:
         - object
-        - url
         - type
         - image_hash
         - width
         - height
+        - url
       type: object
     Media:
       additionalProperties: false
@@ -726,6 +738,9 @@ components:
           enum:
             - photo
           type: string
+        url:
+          description: where the image is served; never build it from image_hash
+          type: string
         width:
           format: int64
           type: integer
@@ -734,6 +749,7 @@ components:
         - image_hash
         - width
         - height
+        - url
       type: object
     MediaInput:
       additionalProperties: false
@@ -1672,7 +1688,7 @@ components:
 info:
   description: "Direct messages and groups shared by every NextMoe site and app. First-party clients only: a user access token with chat:read (reads) or chat:write (everything; also grants reads)."
   title: NextMoe Chat API
-  version: 1.0.1
+  version: 1.1.0
 openapi: 3.1.0
 paths:
   /v2/chat/conversations:
