@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -69,5 +70,41 @@ func TestCalendarWindow(t *testing.T) {
 	_, err = calendarWindow("", "", "", "tbd", now)
 	if err == nil || err.Code != problem.CodeUnknownEnumValue {
 		t.Fatalf("bad status %v", err)
+	}
+}
+
+func TestCalendarDefaultsToJapaneseCommercialWorks(t *testing.T) {
+	for _, tc := range []struct {
+		raw  string
+		want catsvc.PublicOLang
+	}{
+		{"", catsvc.PublicOLang{Values: []string{"ja"}}},
+		{" , ", catsvc.PublicOLang{Values: []string{"ja"}}},
+		{"all", catsvc.PublicOLang{All: true}},
+		{"ja,zh", catsvc.PublicOLang{Values: []string{"ja", "zh"}}},
+	} {
+		if got := calendarOLang(tc.raw); !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("calendarOLang(%q) = %+v, want %+v", tc.raw, got, tc.want)
+		}
+	}
+
+	for _, tc := range []struct {
+		raw  string
+		want []string
+	}{
+		{"", []string{"doujin_circle"}},
+		{"none", nil},
+		{" none ", nil},
+		{"game_brand,doujin_circle", []string{"game_brand", "doujin_circle"}},
+	} {
+		got, err := calendarExcludedKinds(tc.raw)
+		if err != nil || !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("calendarExcludedKinds(%q) = %v, %v, want %v", tc.raw, got, err, tc.want)
+		}
+	}
+	for _, raw := range []string{"none,doujin_circle", "circle"} {
+		if _, err := calendarExcludedKinds(raw); err == nil || err.Code != problem.CodeUnknownEnumValue {
+			t.Errorf("calendarExcludedKinds(%q) err = %v, want UNKNOWN_ENUM_VALUE", raw, err)
+		}
 	}
 }

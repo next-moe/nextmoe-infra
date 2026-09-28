@@ -268,11 +268,17 @@ func TestLiveCalendarExcludeCompanyKind(t *testing.T) {
 	require.Equal(t, 400, status, string(body))
 	require.Contains(t, string(body), "exclude_company_kind")
 
-	page := liveCalendar(t, env, "month=2024-01&exclude_company_kind=doujin_circle")
-	require.Len(t, page.Items, 1, "the dated work's companies are game brands; excluding circles keeps it")
-	require.Equal(t, idstr(env.fx.Work), page.Items[0].ID)
+	status, _, body = liveDo(t, env, http.MethodGet,
+		"/v2/catalog/calendar?month=2024-01&exclude_company_kind=none,doujin_circle", liveAppKey, "")
+	require.Equal(t, 400, status, "none only stands alone: %s", body)
 
-	page = liveCalendar(t, env, "month=2024-01&exclude_company_kind=game_brand,doujin_circle")
+	for _, q := range []string{"month=2024-01", "month=2024-01&exclude_company_kind=doujin_circle", "month=2024-01&exclude_company_kind=none"} {
+		page := liveCalendar(t, env, q)
+		require.Len(t, page.Items, 1, "%s: the dated work's companies are game brands, so no circle rule drops it", q)
+		require.Equal(t, idstr(env.fx.Work), page.Items[0].ID)
+	}
+
+	page := liveCalendar(t, env, "month=2024-01&exclude_company_kind=game_brand,doujin_circle")
 	require.Empty(t, page.Items, "every company of the only dated work is an excluded kind")
 	require.NotNil(t, page.Meta)
 	require.Nil(t, page.Meta.MinMonth, "month navigation must follow the excluded population")

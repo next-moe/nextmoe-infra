@@ -1743,3 +1743,29 @@ row back as `max_month`.
 
 **Spec is 2.33.0.** Additive: one query parameter on one operation (117). No
 schema change and no migration.
+
+## Wave — the calendar defaults to Japanese commercial works (2026-09-28)
+
+Owner decision, the same day as 2.33.0: the calendar's own default, not only
+the forum's, lists Japanese commercial works. **This is a behaviour change for
+every caller that sends neither parameter**, moyu's `/calendar` among them
+(it sends neither), and it was taken knowing that.
+
+- Absent `olang=` now means `ja`; it meant `ja` plus `zh%` (deviation 42's home
+  population). `olang=all` and explicit lists are unchanged. The handler spells
+  the default out (`PublicOLang{Values: ["ja"]}`) instead of passing the zero
+  `PublicOLang`, which still means `ja` plus `zh%` to every other caller of it.
+  The old default is `olang=ja,zh-Hans,zh-Hant`: an explicit list is matched
+  exactly, and the production copy stores Chinese only as `zh-Hans` (1,817
+  works) and `zh-Hant` (340), never a bare `zh`, so `olang=ja,zh` would
+  match Japanese alone.
+- Absent `exclude_company_kind=` now means `doujin_circle`. The new token
+  `none`, alone, excludes nothing; `none` beside another value is 400
+  `UNKNOWN_ENUM_VALUE`, because it is outside the vocabulary `closedCSV`
+  checks.
+
+On the 2026-09-26 production copy, 2026-06 goes from 615 to 60 works with
+the nsfw gate open, and from 76 to 15 without it.
+
+**Spec is 2.34.0.** The schema is unchanged (one new accepted token); the
+defaults are not, which is why this is a minor bump and not a patch.
