@@ -50,7 +50,7 @@ const ownedForever = computed(
     )
 )
 const isOwned = (offer: ShopOffer) =>
-  offer.rewards.every((r) => ownedForever.value.has(r.item.id))
+  offer.rewards.some((r) => ownedForever.value.has(r.item.id))
 const usedOf = (offer: ShopOffer) =>
   inventory.value?.limit_used?.[offer.id] ?? 0
 
