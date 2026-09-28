@@ -104,31 +104,38 @@ func TestHLTBChainVerifiesAOneToOneSteamAnchor(t *testing.T) {
 	require.Equal(t, float64(1), got.Confidence)
 }
 
-// jobs/hltbrefs also refuses an appid that more than one work claims, and the
-// verifier keeps that branch for parity — but on the catalog side the state is
-// not reachable: uq_catalog_external_ref_exact admits one exact holder per
-// (source, external_id, entity_type), so a second release cannot take an appid
-// another release already holds. Only the mirror side of the ambiguity test can
-// actually fire, which is what the next test covers.
-func TestASecondWorkCannotClaimTheSameSteamAppid(t *testing.T) {
+func TestHLTBChainRefusesAnAppidTwoWorksHold(t *testing.T) {
 	f := newHLTBFixture(t)
-	f.steamAnchoredWork(t, "first", "787480")
+	w := f.steamAnchoredWork(t, "release grain", "787480")
+	second := f.steamAnchoredWork(t, "second", "999999")
+	require.NoError(t, f.db.Create(&model.CatalogExternalRef{
+		EntityType: model.EntityTypeWork, EntityID: second, SourceID: f.steam,
+		ExternalID: "787480", LinkKind: model.LinkKindExact, MatchedBy: "rule:eg-steam",
+	}).Error)
+	f.mirrorRecord(t, 9001, "787480")
 
+	got := f.verify(t, w, "9001")
+	require.Equal(t, VerdictChainUnproven, got.Verdict)
+	require.Contains(t, got.Reason, "steam_appid_ambiguous")
+}
+
+func TestHLTBChainAcceptsAWorkGrainSteamAnchor(t *testing.T) {
+	f := newHLTBFixture(t)
 	var medium int16
 	require.NoError(t, f.db.Raw(`SELECT id FROM catalog_medium WHERE key = 'galgame'`).Scan(&medium).Error)
 	w := &model.CatalogWork{
-		MediumID: medium, OLang: "ja", DisplayName: "second",
+		MediumID: medium, OLang: "ja", DisplayName: "work grain",
 		ContentRating: model.ContentRatingAllAges, Status: model.WorkStatusLive,
 	}
 	require.NoError(t, f.db.Create(w).Error)
-	rel := &model.CatalogRelease{WorkID: w.ID, Kind: model.ReleaseKindDefault}
-	require.NoError(t, f.db.Create(rel).Error)
+	require.NoError(t, f.db.Create(&model.CatalogExternalRef{
+		EntityType: model.EntityTypeWork, EntityID: w.ID, SourceID: f.steam,
+		ExternalID: "787480", LinkKind: model.LinkKindExact, MatchedBy: "rule:eg-steam",
+	}).Error)
+	f.mirrorRecord(t, 9001, "787480")
 
-	err := f.db.Create(&model.CatalogExternalRef{
-		EntityType: model.EntityTypeRelease, EntityID: rel.ID, SourceID: f.steam,
-		ExternalID: "787480", LinkKind: model.LinkKindExact, MatchedBy: "test:steam",
-	}).Error
-	require.ErrorContains(t, err, "uq_catalog_external_ref_exact")
+	got := f.verify(t, w.ID, "9001")
+	require.Equal(t, VerdictChainVerified, got.Verdict, got.Reason)
 }
 
 func TestHLTBChainRefusesAnAppidTwoMirrorRecordsClaim(t *testing.T) {

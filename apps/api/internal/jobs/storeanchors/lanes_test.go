@@ -3,6 +3,8 @@ package storeanchors
 import (
 	"testing"
 
+	"api/internal/platform/catalog/model"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -76,8 +78,8 @@ func TestDecideFilters(t *testing.T) {
 		{ReleaseID: 7, WorkID: 70, RawValue: "777"},
 		{ReleaseID: 7, WorkID: 70, RawValue: "777"},
 	}
-	taken := map[string]struct{}{"444": {}}
-	rejected := map[string]struct{}{rejKey(3, "333"): {}}
+	taken := takenExact{release: map[string]struct{}{"444": {}}, work: map[string]int64{}}
+	rejected := map[string]struct{}{rejKey(model.EntityTypeRelease, 3, "333"): {}}
 
 	ls := &LaneStats{Candidates: len(cands)}
 	plan := decide(cands, l, taken, rejected, ls)
@@ -89,8 +91,8 @@ func TestDecideFilters(t *testing.T) {
 	assert.Equal(t, 1, ls.SkippedDedup)
 	require.Len(t, plan, 2)
 	assert.Equal(t, []plannedRef{
-		{releaseID: 1, workID: 10, externalID: "111"},
-		{releaseID: 7, workID: 70, externalID: "777"},
+		{entityType: model.EntityTypeRelease, entityID: 1, workID: 10, externalID: "111"},
+		{entityType: model.EntityTypeRelease, entityID: 7, workID: 70, externalID: "777"},
 	}, plan)
 
 	accounted := len(plan) + ls.SkippedMalformed + ls.SkippedRejection +
@@ -105,9 +107,47 @@ func TestAmbiguityBeatsOrdering(t *testing.T) {
 		{ReleaseID: 8, WorkID: 80, RawValue: "www.dmm.co.jp/mono/pcgame/-/detail/=/cid=next_0352/"},
 	}
 	ls := &LaneStats{}
-	plan := decide(cands, l, map[string]struct{}{}, map[string]struct{}{}, ls)
+	plan := decide(cands, l, noneTaken(), map[string]struct{}{}, ls)
 	assert.Empty(t, plan)
 	assert.Equal(t, 2, ls.SkippedAmbiguous)
 	assert.Contains(t, ls.AmbiguousSamples, "next_0352",
 		"both URL shapes normalize to the same cid, which is what makes them ambiguous")
+}
+
+func noneTaken() takenExact {
+	return takenExact{release: map[string]struct{}{}, work: map[string]int64{}}
+}
+
+func TestSameWorkGroupGoesToTheWork(t *testing.T) {
+	l := laneByName(t, LaneSteam)
+	cands := []candidate{
+		{ReleaseID: 11, WorkID: 100, RawValue: "900"},
+		{ReleaseID: 12, WorkID: 100, RawValue: "900"},
+		{ReleaseID: 13, WorkID: 100, RawValue: "900"},
+		{ReleaseID: 21, WorkID: 200, RawValue: "901"},
+		{ReleaseID: 22, WorkID: 200, RawValue: "901"},
+		{ReleaseID: 31, WorkID: 300, RawValue: "902"},
+		{ReleaseID: 32, WorkID: 300, RawValue: "902"},
+		{ReleaseID: 41, WorkID: 400, RawValue: "903"},
+		{ReleaseID: 42, WorkID: 400, RawValue: "903"},
+	}
+	taken := takenExact{release: map[string]struct{}{}, work: map[string]int64{"901": 200, "902": 999}}
+	rejected := map[string]struct{}{rejKey(model.EntityTypeWork, 400, "903"): {}}
+
+	ls := &LaneStats{Candidates: len(cands)}
+	plan := decide(cands, l, taken, rejected, ls)
+
+	assert.Equal(t, []plannedRef{
+		{entityType: model.EntityTypeWork, entityID: 100, workID: 100, externalID: "900"},
+	}, plan)
+	assert.Equal(t, 1, ls.PlannedWorkGrain)
+	assert.Equal(t, 1, ls.SkippedWorkHeld, "the work already holds the id")
+	assert.Equal(t, 1, ls.SkippedValueTaken, "another work holds the id at work grain")
+	assert.Equal(t, 1, ls.SkippedRejection, "a human rejected the pair at work grain")
+	assert.Equal(t, 5, ls.SkippedSibling)
+	assert.Zero(t, ls.SkippedAmbiguous)
+
+	accounted := len(plan) + ls.SkippedMalformed + ls.SkippedRejection + ls.SkippedValueTaken +
+		ls.SkippedAmbiguous + ls.SkippedDedup + ls.SkippedSibling + ls.SkippedWorkHeld
+	assert.Equal(t, len(cands), accounted, "every candidate is accounted for exactly once")
 }

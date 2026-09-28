@@ -17,7 +17,13 @@ type Opts struct {
 	Apply bool
 	DSN   string
 	EGDSN string
+	Only  string
 }
+
+const (
+	LaneEG  = "eg"
+	LaneBgm = "bgm"
+)
 
 type Stats struct {
 	Anchored     int
@@ -27,35 +33,83 @@ type Stats struct {
 	DmmPlanned   int
 	DmmWritten   int
 	DmmExists    int
-	Rejected     int
-	Errors       int
+
+	BgmAnchored  int
+	BgmStated    int
+	BgmAmbiguous int
+	BgmHasSteam  int
+	BgmPlanned   int
+	BgmWritten   int
+	BgmExists    int
+
+	Rejected int
+	Errors   int
 }
 
 func Run(ctx context.Context, opts Opts) (*Stats, error) {
-	if opts.DSN == "" || opts.EGDSN == "" {
-		return nil, fmt.Errorf("both --dsn and --eg-dsn are required")
+	runEG, runBgm := opts.Only == "" || opts.Only == LaneEG, opts.Only == "" || opts.Only == LaneBgm
+	if !runEG && !runBgm {
+		return nil, fmt.Errorf("unknown lane %q (want %s, %s, or empty for both)", opts.Only, LaneEG, LaneBgm)
+	}
+	if opts.DSN == "" || (runEG && opts.EGDSN == "") {
+		return nil, fmt.Errorf("--dsn is required, and --eg-dsn for the eg lane")
 	}
 	db, err := openGorm(opts.DSN)
 	if err != nil {
 		return nil, fmt.Errorf("connect catalog db: %w", err)
 	}
 	defer closeGorm(db)
+
+	ids, err := resolveIDs(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+	rejected, err := loadRejections(ctx, db, []int16{ids.steamSource, ids.dmmSource})
+	if err != nil {
+		return nil, err
+	}
+
+	st := &Stats{}
+	var touched []int64
+	if runEG {
+		t, err := runEGLane(ctx, db, opts, ids, rejected, st)
+		if err != nil {
+			return nil, err
+		}
+		touched = append(touched, t...)
+	}
+	if runBgm {
+		t, err := runBgmLane(ctx, db, opts, ids, rejected, st)
+		if err != nil {
+			return nil, err
+		}
+		touched = append(touched, t...)
+	}
+	if err := repository.TouchWorks(ctx, db, touched); err != nil {
+		return nil, fmt.Errorf("touch works: %w", err)
+	}
+	slog.Info("storerefs done", "apply", opts.Apply, "lane", opts.Only, "anchored", st.Anchored,
+		"steam_planned", st.SteamPlanned, "steam_written", st.SteamWritten, "steam_exists", st.SteamExists,
+		"dmm_planned", st.DmmPlanned, "dmm_written", st.DmmWritten, "dmm_exists", st.DmmExists,
+		"bgm_anchored", st.BgmAnchored, "bgm_stated", st.BgmStated, "bgm_ambiguous", st.BgmAmbiguous,
+		"bgm_has_steam", st.BgmHasSteam, "bgm_planned", st.BgmPlanned,
+		"bgm_written", st.BgmWritten, "bgm_exists", st.BgmExists,
+		"rejected", st.Rejected, "errors", st.Errors)
+	return st, nil
+}
+
+func runEGLane(ctx context.Context, db *gorm.DB, opts Opts, ids registryIDs, rejected map[string]struct{}, st *Stats) ([]int64, error) {
 	egDB, err := openGorm(opts.EGDSN)
 	if err != nil {
 		return nil, fmt.Errorf("connect eg mirror: %w", err)
 	}
 	defer closeGorm(egDB)
 
-	ids, err := resolveIDs(ctx, db)
-	if err != nil {
-		return nil, err
-	}
-
 	anchors, err := loadAnchors(ctx, db, ids.galgameMedium, ids.egSource)
 	if err != nil {
 		return nil, fmt.Errorf("load eg anchors: %w", err)
 	}
-	st := &Stats{Anchored: len(anchors)}
+	st.Anchored = len(anchors)
 
 	gameIDs := make([]int64, 0, len(anchors))
 	for _, a := range anchors {
@@ -85,11 +139,6 @@ func Run(ctx context.Context, opts Opts) (*Stats, error) {
 		}
 	}
 
-	rejected, err := loadRejections(ctx, db, []int16{ids.steamSource, ids.dmmSource})
-	if err != nil {
-		return nil, err
-	}
-
 	var touched []int64
 	for _, a := range anchors {
 		n, err := strconv.ParseInt(a.ExternalID, 10, 64)
@@ -115,14 +164,7 @@ func Run(ctx context.Context, opts Opts) (*Stats, error) {
 			}
 		}
 	}
-	if err := repository.TouchWorks(ctx, db, touched); err != nil {
-		return nil, fmt.Errorf("touch works: %w", err)
-	}
-	slog.Info("storerefs done", "apply", opts.Apply, "anchored", st.Anchored,
-		"steam_planned", st.SteamPlanned, "steam_written", st.SteamWritten, "steam_exists", st.SteamExists,
-		"dmm_planned", st.DmmPlanned, "dmm_written", st.DmmWritten, "dmm_exists", st.DmmExists,
-		"rejected", st.Rejected, "errors", st.Errors)
-	return st, nil
+	return touched, nil
 }
 
 func writeRef(ctx context.Context, db *gorm.DB, apply bool, workID int64, sourceID int16,
@@ -157,6 +199,7 @@ func writeRef(ctx context.Context, db *gorm.DB, apply bool, workID int64, source
 type registryIDs struct {
 	galgameMedium int16
 	egSource      int16
+	bgmSource     int16
 	steamSource   int16
 	dmmSource     int16
 }
@@ -164,7 +207,7 @@ type registryIDs struct {
 func resolveIDs(ctx context.Context, db *gorm.DB) (registryIDs, error) {
 	var r registryIDs
 	for key, dst := range map[string]*int16{
-		"erogamescape": &r.egSource, "steam": &r.steamSource, "dmm": &r.dmmSource,
+		"erogamescape": &r.egSource, "bangumi": &r.bgmSource, "steam": &r.steamSource, "dmm": &r.dmmSource,
 	} {
 		if err := db.WithContext(ctx).Raw(`SELECT id FROM catalog_source WHERE key = ?`, key).Scan(dst).Error; err != nil {
 			return r, fmt.Errorf("resolve source %q: %w", key, err)
@@ -173,9 +216,9 @@ func resolveIDs(ctx context.Context, db *gorm.DB) (registryIDs, error) {
 	if err := db.WithContext(ctx).Raw(`SELECT id FROM catalog_medium WHERE key = 'galgame'`).Scan(&r.galgameMedium).Error; err != nil {
 		return r, fmt.Errorf("resolve galgame medium: %w", err)
 	}
-	if r.galgameMedium == 0 || r.egSource == 0 || r.steamSource == 0 || r.dmmSource == 0 {
-		return r, fmt.Errorf("registry not seeded (medium=%d eg=%d steam=%d dmm=%d)",
-			r.galgameMedium, r.egSource, r.steamSource, r.dmmSource)
+	if r.galgameMedium == 0 || r.egSource == 0 || r.bgmSource == 0 || r.steamSource == 0 || r.dmmSource == 0 {
+		return r, fmt.Errorf("registry not seeded (medium=%d eg=%d bangumi=%d steam=%d dmm=%d)",
+			r.galgameMedium, r.egSource, r.bgmSource, r.steamSource, r.dmmSource)
 	}
 	return r, nil
 }

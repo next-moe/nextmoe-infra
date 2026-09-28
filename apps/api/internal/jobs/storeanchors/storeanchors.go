@@ -25,6 +25,7 @@ type Opts struct {
 type LaneStats struct {
 	Candidates        int
 	Planned           int
+	PlannedWorkGrain  int
 	Written           int
 	Conflict          int
 	Errors            int
@@ -33,6 +34,8 @@ type LaneStats struct {
 	SkippedValueTaken int
 	SkippedAmbiguous  int
 	SkippedDedup      int
+	SkippedSibling    int
+	SkippedWorkHeld   int
 	TakenSamples      []string
 	AmbiguousSamples  []string
 }
@@ -76,7 +79,8 @@ func RunWithDB(ctx context.Context, db *gorm.DB, opts Opts) (*Stats, error) {
 }
 
 type plannedRef struct {
-	releaseID  int64
+	entityType int16
+	entityID   int64
 	workID     int64
 	externalID string
 }
@@ -110,13 +114,18 @@ func runLane(ctx context.Context, db *gorm.DB, opts Opts, l lane, vndbSource int
 	return nil
 }
 
-func decide(cands []candidate, l lane, taken, rejected map[string]struct{}, ls *LaneStats) []plannedRef {
+// decide gives an id that several candidate releases carry to their work when
+// they all belong to one: a Steam page VNDB lists on the Japanese, English and
+// Chinese releases of one title sold none of them on its own, and skipping the
+// group left 373 works with no Steam anchor at all on the 2026-09-26 copy. An
+// id spread over releases of different works stays skipped.
+func decide(cands []candidate, l lane, taken takenExact, rejected map[string]struct{}, ls *LaneStats) []plannedRef {
 	type normalized struct {
 		candidate
 		ext string
 	}
 	norm := make([]normalized, 0, len(cands))
-	holders := map[string]map[int64]struct{}{}
+	holders := map[string]map[int64]int64{}
 	for _, c := range cands {
 		ext := l.normalize(c.RawValue)
 		if ext == "" {
@@ -125,15 +134,16 @@ func decide(cands []candidate, l lane, taken, rejected map[string]struct{}, ls *
 		}
 		norm = append(norm, normalized{candidate: c, ext: ext})
 		if holders[ext] == nil {
-			holders[ext] = map[int64]struct{}{}
+			holders[ext] = map[int64]int64{}
 		}
-		holders[ext][c.ReleaseID] = struct{}{}
+		holders[ext][c.ReleaseID] = c.WorkID
 	}
 
 	seen := map[string]struct{}{}
+	grouped := map[string]struct{}{}
 	plan := make([]plannedRef, 0, len(norm))
 	for _, n := range norm {
-		key := rejKey(n.ReleaseID, n.ext)
+		key := rejKey(model.EntityTypeRelease, n.ReleaseID, n.ext)
 		if _, dup := seen[key]; dup {
 			ls.SkippedDedup++
 			continue
@@ -143,33 +153,74 @@ func decide(cands []candidate, l lane, taken, rejected map[string]struct{}, ls *
 			ls.SkippedRejection++
 			continue
 		}
-		if _, hit := taken[n.ext]; hit {
+		if _, hit := taken.release[n.ext]; hit {
 			ls.SkippedValueTaken++
 			addSample(&ls.TakenSamples, n.ext)
 			continue
 		}
-		if len(holders[n.ext]) > 1 {
+		if len(holders[n.ext]) == 1 {
+			plan = append(plan, plannedRef{
+				entityType: model.EntityTypeRelease, entityID: n.ReleaseID,
+				workID: n.WorkID, externalID: n.ext,
+			})
+			continue
+		}
+		if !oneWork(holders[n.ext]) {
 			ls.SkippedAmbiguous++
 			addSample(&ls.AmbiguousSamples, n.ext)
 			continue
 		}
-		plan = append(plan, plannedRef{releaseID: n.ReleaseID, workID: n.WorkID, externalID: n.ext})
+		if _, done := grouped[n.ext]; done {
+			ls.SkippedSibling++
+			continue
+		}
+		grouped[n.ext] = struct{}{}
+		if _, hit := rejected[rejKey(model.EntityTypeWork, n.WorkID, n.ext)]; hit {
+			ls.SkippedRejection++
+			continue
+		}
+		if holder, held := taken.work[n.ext]; held {
+			if holder == n.WorkID {
+				ls.SkippedWorkHeld++
+			} else {
+				ls.SkippedValueTaken++
+				addSample(&ls.TakenSamples, n.ext)
+			}
+			continue
+		}
+		ls.PlannedWorkGrain++
+		plan = append(plan, plannedRef{
+			entityType: model.EntityTypeWork, entityID: n.WorkID,
+			workID: n.WorkID, externalID: n.ext,
+		})
 	}
 	return plan
+}
+
+func oneWork(holders map[int64]int64) bool {
+	var first int64
+	for _, w := range holders {
+		if first == 0 {
+			first = w
+		} else if w != first {
+			return false
+		}
+	}
+	return true
 }
 
 func writePlan(ctx context.Context, db *gorm.DB, plan []plannedRef, laneSource int16, matchedBy string, ls *LaneStats) {
 	var touched []int64
 	for _, p := range plan {
 		wrote, err := repository.InsertRefIfAbsent(db.WithContext(ctx), model.CatalogExternalRef{
-			EntityType: model.EntityTypeRelease, EntityID: p.releaseID,
+			EntityType: p.entityType, EntityID: p.entityID,
 			SourceID: laneSource, ExternalID: p.externalID,
 			LinkKind: model.LinkKindExact, MatchedBy: matchedBy,
 		})
 		switch {
 		case err != nil:
 			ls.Errors++
-			slog.Warn("write store anchor", "release", p.releaseID,
+			slog.Warn("write store anchor", "entity_type", p.entityType, "entity", p.entityID,
 				"source", laneSource, "ext", p.externalID, "err", err)
 		case wrote:
 			ls.Written++
@@ -200,7 +251,10 @@ func logLane(name string, apply bool, ls *LaneStats) {
 		"skipped_rejection", ls.SkippedRejection,
 		"skipped_value_taken", ls.SkippedValueTaken,
 		"skipped_ambiguous", ls.SkippedAmbiguous,
-		"skipped_dedup", ls.SkippedDedup)
+		"skipped_dedup", ls.SkippedDedup,
+		"skipped_sibling", ls.SkippedSibling,
+		"skipped_work_held", ls.SkippedWorkHeld,
+		"planned_work_grain", ls.PlannedWorkGrain)
 }
 
 func unknownLaneError(only string) error {

@@ -42,11 +42,11 @@ func report(st *storeanchors.Stats, apply bool) {
 		totalPlanned += ls.Planned
 		totalWritten += ls.Written
 		totalErrors += ls.Errors
-		fmt.Printf("%-10s candidates=%d planned=%d written=%d conflict=%d errors=%d\n",
-			name, ls.Candidates, ls.Planned, ls.Written, ls.Conflict, ls.Errors)
-		fmt.Printf("%-10s skipped: malformed=%d rejection=%d value_taken=%d ambiguous=%d dedup=%d\n",
+		fmt.Printf("%-10s candidates=%d planned=%d (work_grain=%d) written=%d conflict=%d errors=%d\n",
+			name, ls.Candidates, ls.Planned, ls.PlannedWorkGrain, ls.Written, ls.Conflict, ls.Errors)
+		fmt.Printf("%-10s skipped: malformed=%d rejection=%d value_taken=%d ambiguous=%d dedup=%d sibling=%d work_held=%d\n",
 			"", ls.SkippedMalformed, ls.SkippedRejection,
-			ls.SkippedValueTaken, ls.SkippedAmbiguous, ls.SkippedDedup)
+			ls.SkippedValueTaken, ls.SkippedAmbiguous, ls.SkippedDedup, ls.SkippedSibling, ls.SkippedWorkHeld)
 		if len(ls.TakenSamples) > 0 {
 			fmt.Printf("%-10s value_taken e.g. %s\n", "", strings.Join(ls.TakenSamples, ", "))
 		}
