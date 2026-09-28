@@ -10,6 +10,7 @@ import (
 	"api/internal/platform/community/repository"
 	"api/internal/platform/community/service"
 	"api/pkg/errors"
+	"api/pkg/wireshape"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humafiber"
@@ -56,7 +57,7 @@ type Services struct {
 func Setup(app *fiber.App, svc Services) huma.API {
 	InstallErrorEnvelope()
 
-	cfg := huma.DefaultConfig("KUN Community Service", "1.0.0")
+	cfg := huma.DefaultConfig("KUN Community Service", "1.0.1")
 	cfg.OpenAPIPath = ""
 	cfg.DocsPath = ""
 	cfg.SchemasPath = ""
@@ -70,6 +71,7 @@ func Setup(app *fiber.App, svc Services) huma.API {
 		boards: svc.Boards, notify: svc.Notify, follows: svc.Follows, activities: svc.Activities,
 	}
 	s.register(api)
+	wireshape.Publish(api.OpenAPI())
 	return api
 }
 

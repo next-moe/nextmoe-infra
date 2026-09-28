@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -42,6 +43,10 @@ func doFollowReq(t *testing.T, app *fiber.App, method, path, body string) *http.
 	if err != nil {
 		t.Fatalf("%s %s: %v", method, path, err)
 	}
+	raw, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	publishedSpec(t).Conforms(t, method, path, resp.StatusCode, resp.Header.Get("Content-Type"), raw)
+	resp.Body = io.NopCloser(bytes.NewReader(raw))
 	return resp
 }
 

@@ -37,9 +37,7 @@ components:
           description: the matched normalized terms ([] when none)
           items:
             type: string
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - decision
         - matched
@@ -105,9 +103,7 @@ components:
         results:
           items:
             $ref: "#/components/schemas/EnsureSubjectKindResultView"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - results
       type: object
@@ -416,9 +412,7 @@ components:
         reasons:
           items:
             $ref: "#/components/schemas/ReasonView"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - reasons
       type: object
@@ -556,15 +550,13 @@ components:
         kinds:
           items:
             $ref: "#/components/schemas/SubjectKindView"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - kinds
       type: object
 info:
   title: KUN Trust Service
-  version: 1.0.0
+  version: 1.0.1
 openapi: 3.1.0
 paths:
   /api/v1/trust/check:
