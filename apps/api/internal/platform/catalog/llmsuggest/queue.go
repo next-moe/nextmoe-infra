@@ -20,6 +20,7 @@ const (
 	matchedByEGDMM               = "rule:eg-dmm"
 	matchedByEGSteam             = "rule:eg-steam"
 	matchedByHLTBSteam           = "rule:hltb-steam"
+	matchedByBgmSteam            = "rule:bgm-steam"
 	matchedByBgmTitleOnly        = "rule:bgm-title-only"
 	matchedByTitleYearStrict     = "rule:title-year-strict"
 	matchedByCurated             = "curated"
@@ -268,7 +269,7 @@ func derefStr(p *string) string {
 
 func chainFamily(matchedBy string) bool {
 	switch matchedBy {
-	case matchedByVNDBReleaseBackfill, matchedByEGDMM, matchedByEGSteam, matchedByHLTBSteam:
+	case matchedByVNDBReleaseBackfill, matchedByEGDMM, matchedByEGSteam, matchedByHLTBSteam, matchedByBgmSteam:
 		return true
 	default:
 		return false

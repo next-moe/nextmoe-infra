@@ -82,6 +82,17 @@ func mkWorkWithSteamRelease(t *testing.T, medium, steam int16, name, appid strin
 	return w.ID
 }
 
+func mkWorkWithSteamWorkRef(t *testing.T, medium, steam int16, name, appid string) int64 {
+	t.Helper()
+	w := model.CatalogWork{MediumID: medium, OLang: "ja", DisplayName: name}
+	require.NoError(t, testDB.Create(&w).Error)
+	require.NoError(t, testDB.Create(&model.CatalogExternalRef{
+		EntityType: model.EntityTypeWork, EntityID: w.ID, SourceID: steam,
+		ExternalID: appid, LinkKind: model.LinkKindExact, MatchedBy: "rule:eg-steam",
+	}).Error)
+	return w.ID
+}
+
 func mkMirrorGame(t *testing.T, id int64, status, appid string) {
 	t.Helper()
 	require.NoError(t, testDB.Exec(`INSERT INTO hltbrefs_hltb.games (hltb_id, title, status, raw)
@@ -106,13 +117,16 @@ func TestHltbRefs(t *testing.T) {
 
 	mkWorkWithSteamRelease(t, r.galgameMedium, r.steamSource, "no-mirror", "111")
 
-	// Works-side ambiguity cannot exist: uq_catalog_external_ref_exact keys
-	// (source_id, external_id, entity_type) for link_kind=0, so one appid holds
-	// at most one exact release anchor. The ambiguous case is mirror-side —
-	// two HLTB games claiming the same appid.
 	wAmb := mkWorkWithSteamRelease(t, r.galgameMedium, r.steamSource, "shared-appid", "222")
 	mkMirrorGame(t, 200, "fetched", "222")
 	mkMirrorGame(t, 201, "fetched", "222")
+
+	wWorkGrain := mkWorkWithSteamWorkRef(t, r.galgameMedium, r.steamSource, "work-grain", "666")
+	mkMirrorGame(t, 600, "fetched", "666")
+
+	mkWorkWithSteamRelease(t, r.galgameMedium, r.steamSource, "two-works-a", "777")
+	mkWorkWithSteamWorkRef(t, r.galgameMedium, r.steamSource, "two-works-b", "777")
+	mkMirrorGame(t, 700, "fetched", "777")
 
 	wRej := mkWorkWithSteamRelease(t, r.galgameMedium, r.steamSource, "rejected", "333")
 	mkMirrorGame(t, 300, "fetched", "333")
@@ -126,15 +140,20 @@ func TestHltbRefs(t *testing.T) {
 
 	st, err := Run(ctx, Opts{DSN: testDSN, HltbDSN: hltbTestDSN, Apply: true})
 	require.NoError(t, err)
-	assert.Equal(t, 1, st.AmbiguousSteam)
+	assert.Equal(t, 2, st.AmbiguousSteam)
 	assert.Equal(t, 1, st.Rejected)
-	assert.Equal(t, 1, st.Planned)
-	assert.Equal(t, 1, st.Written)
+	assert.Equal(t, 2, st.Planned)
+	assert.Equal(t, 2, st.Written)
 	assert.Zero(t, st.Errors)
 
 	assert.Equal(t, int64(1), refCount(t,
 		`WHERE entity_type = ? AND entity_id = ? AND source_id = ? AND external_id = '1736' AND link_kind = ? AND matched_by = 'rule:hltb-steam'`,
 		model.EntityTypeWork, wMatch, r.hltbSource, model.LinkKindProbable))
+	assert.Equal(t, int64(1), refCount(t,
+		`WHERE entity_type = ? AND entity_id = ? AND source_id = ? AND external_id = '600'`,
+		model.EntityTypeWork, wWorkGrain, r.hltbSource), "a work-grain steam anchor bridges to HLTB too")
+	assert.Zero(t, refCount(t, `WHERE source_id = ? AND external_id = '700'`, r.hltbSource),
+		"an appid anchored to two works is ambiguous whichever grain each anchor sits at")
 	assert.Zero(t, refCount(t, `WHERE source_id = ? AND entity_id = ? AND entity_type = ?`,
 		r.hltbSource, wAmb, model.EntityTypeWork))
 	assert.Zero(t, refCount(t, `WHERE source_id = ? AND entity_id = ? AND entity_type = ?`,
@@ -143,7 +162,7 @@ func TestHltbRefs(t *testing.T) {
 	st2, err := Run(ctx, Opts{DSN: testDSN, HltbDSN: hltbTestDSN, Apply: true})
 	require.NoError(t, err)
 	assert.Zero(t, st2.Written)
-	assert.Equal(t, 1, st2.Exists)
+	assert.Equal(t, 2, st2.Exists)
 }
 
 func TestHltbRefsDry(t *testing.T) {

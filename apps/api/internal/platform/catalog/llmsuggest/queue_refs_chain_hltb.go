@@ -1,15 +1,16 @@
 package llmsuggest
 
 import (
+	"context"
 	"fmt"
 
-	"api/internal/platform/catalog/model"
+	"api/internal/platform/catalog/repository"
 
 	"gorm.io/gorm"
 )
 
 // verifyHLTBSteamChain re-proves at confirm time exactly what the importer
-// asserted at write time: the work owns a release anchored to a Steam appid,
+// asserted at write time: the work is anchored to a Steam appid,
 // the HowLongToBeat record names that same appid, and the appid maps to one
 // work and one HLTB record and nothing else. jobs/hltbrefs skips every
 // ambiguous appid rather than guessing, so a row that survives this check
@@ -32,7 +33,7 @@ func verifyHLTBSteamChain(db *gorm.DB, up StagingDBs, reg sourceReg, items []ref
 		return fmt.Errorf("source registry has no steam entry")
 	}
 
-	worksByAppid, err := loadSteamAnchoredWorks(db, steamID)
+	worksByAppid, err := repository.SteamAnchoredWorks(context.Background(), db, steamID)
 	if err != nil {
 		return err
 	}
@@ -69,36 +70,10 @@ func verifyHLTBSteamChain(db *gorm.DB, up StagingDBs, reg sourceReg, items []ref
 			{Name: "hltb_appid", OK: true,
 				Detail: fmt.Sprintf("hltb %s names steam appid %s", it.ExternalID, appid)},
 			{Name: "steam_anchor", OK: true,
-				Detail: fmt.Sprintf("steam appid %s anchors a release of work %d and of nothing else", appid, it.EntityID)},
+				Detail: fmt.Sprintf("steam appid %s anchors work %d and nothing else", appid, it.EntityID)},
 		})
 	}
 	return nil
-}
-
-// Scoped to the galgame medium, matching jobs/hltbrefs: the ambiguity test has
-// to see the same population the importer saw, or it would call a pair
-// ambiguous that the importer had already cleared.
-func loadSteamAnchoredWorks(db *gorm.DB, steamSource int16) (map[string][]int64, error) {
-	var rows []struct {
-		WorkID int64  `gorm:"column:work_id"`
-		Appid  string `gorm:"column:appid"`
-	}
-	if err := db.Raw(`
-		SELECT DISTINCT w.id AS work_id, r.external_id AS appid
-		FROM catalog_work w
-		JOIN catalog_release rel ON rel.work_id = w.id AND rel.deleted_at IS NULL
-		JOIN catalog_external_ref r ON r.entity_type = ? AND r.entity_id = rel.id
-			AND r.source_id = ? AND r.link_kind = ? AND r.dead_at IS NULL
-		WHERE w.medium_id = (SELECT id FROM catalog_medium WHERE key = 'galgame')
-		  AND w.deleted_at IS NULL`,
-		model.EntityTypeRelease, steamSource, model.LinkKindExact).Scan(&rows).Error; err != nil {
-		return nil, err
-	}
-	out := make(map[string][]int64, len(rows))
-	for _, r := range rows {
-		out[r.Appid] = append(out[r.Appid], r.WorkID)
-	}
-	return out, nil
 }
 
 func loadHLTBSteamAppids(hltb *gorm.DB) (map[string][]string, error) {

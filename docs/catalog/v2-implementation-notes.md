@@ -314,7 +314,7 @@ The first two are the same defect shape in a different env var. They are deliber
 
 103. **Listing `total` values are served through a 60-second in-process cache** (2026-09-01). Works list, labels/tags/engines/series, and the entity list faces all go through `taxonomyTotal`. That helper now caches by the full filter signature (table + WHERE clauses + bound args) for 60s, so `total` may lag writes by up to 60 seconds. Cursor predicates stay outside the key: the pre-existing "total counted before the cursor" property is preserved and strengthened — the total is now also stable across pages within the TTL.
 
-104. **`GET /v2/store/prices/{id}` and `GET /v2/store/prices?ids=`** (2026-09-01). Storefront price quotes live in the store domain (`store_price_quotes` in the infra database), not the catalog registry. The catalog side only answers which exact live release-level DLsite/Steam anchors a visible galgame work has. Quotes are cached observations: a cold miss is fetched lazily, batched and coalesced per (storefront, region); the single-work face waits up to 1.5s, the batch face never waits. TTL is 6h, capped by a published sale end when that is sooner; a not-found row lasts 24h; a transport error writes `unavailable` for 15m so a down storefront is not hammered; a background loop refreshes rows requested in the last 7 days. The face is keyless (`v2Security` returns empty before the `/v2/store/` arm) and does not opt into `isPublicPath`, so Cache-Control stays the v2 default `private, no-store`. Visibility is the work-sub predicate minus nsfw: prices are content-neutral numbers, so an r18 work's quotes are served to everyone. Money is stored as int64 minor units (×100, including JPY) and published as a two-fraction decimal string (`amount`) plus ISO 4217 `currency`. FANZA/DMM and Getchu are out of this wave: the platform holds no FANZA affiliate credentials, and Getchu is HTML-only; anchors of a source without a fetcher are dropped and produce no quote row.
+104. **`GET /v2/store/prices/{id}` and `GET /v2/store/prices?ids=`** (2026-09-01). Storefront price quotes live in the store domain (`store_price_quotes` in the infra database), not the catalog registry. The catalog side only answers which exact live release-level DLsite/Steam anchors a visible galgame work has. **Amended 2026-09-28:** work-level exact anchors count too, so the Steam ids EG and Bangumi state about a title (and the ids VNDB lists on several editions of one title) are priced; see the Steam anchors wave below. Quotes are cached observations: a cold miss is fetched lazily, batched and coalesced per (storefront, region); the single-work face waits up to 1.5s, the batch face never waits. TTL is 6h, capped by a published sale end when that is sooner; a not-found row lasts 24h; a transport error writes `unavailable` for 15m so a down storefront is not hammered; a background loop refreshes rows requested in the last 7 days. The face is keyless (`v2Security` returns empty before the `/v2/store/` arm) and does not opt into `isPublicPath`, so Cache-Control stays the v2 default `private, no-store`. Visibility is the work-sub predicate minus nsfw: prices are content-neutral numbers, so an r18 work's quotes are served to everyone. Money is stored as int64 minor units (×100, including JPY) and published as a two-fraction decimal string (`amount`) plus ISO 4217 `currency`. FANZA/DMM and Getchu are out of this wave: the platform holds no FANZA affiliate credentials, and Getchu is HTML-only; anchors of a source without a fetcher are dropped and produce no quote row.
 
 105. **Getchu joins the price face** (2026-09-05). Third storefront lane beside DLsite and Steam: `internal/platform/store/price/getchu.go` scrapes `https://www.getchu.com/item/{id}/` (the old `soft.phtml?id=` URLs 301 there), decoding EUC-JP and reading the cart block's tax-inclusive price plus the `定価` row's `税込` amount; discount is derived from the two, since Getchu publishes no rate. The page is served only with the `getchu_adalt_flag=getchu.com` cookie — a cookieless request is 302 → the age-gate attestation page, so the fetcher refuses redirects and turns them into loud fetch errors instead of parsing the gate page into `unavailable` rows. There is no batch endpoint: `Batch()=1` with a 2s gap makes the lane one page every two seconds, serial per the shared batcher. JPY only, `converted` stays empty (the Steam shape), region is `jp`. A dead item id is a clean 404 → not-found negative cache, which is common here: most of the ~14.9k release-level Getchu anchors are out-of-print titles whose cart says `ご注文の受付は停止中です` → `unavailable`. The anchor query in `public_store_anchors.go` now includes `'getchu'`; no config, no migration, no relay (Getchu serves the prod egress directly).
 
@@ -1769,3 +1769,33 @@ the nsfw gate open, and from 76 to 15 without it.
 
 **Spec is 2.34.0.** The schema is unchanged (one new accepted token); the
 defaults are not, which is why this is a minor bump and not a patch.
+
+## Wave — Steam anchors reach the work (2026-09-28)
+
+On the 2026-09-26 production copy 8,737 of 115,031 live galgame works held a
+Steam appid, and three gaps kept known appids off the ones that mattered:
+
+- **The store faces read only release-level anchors.** `/v2/store/prices`
+  (`StoreAnchorsFor`) and the HLTB bridge (`jobs/hltbrefs`, and the chain
+  verifier that confirms its refs) joined through `catalog_release`, so the
+  1,726 work-level appids EG states were invisible to both — 758 works had a
+  Steam id and no Steam price. All three now read `model.WorkExactRefsSQL`,
+  exact refs at either grain, and the importer and the verifier share
+  `repository.SteamAnchoredWorks` so they cannot see different populations.
+- **An appid VNDB lists on several releases of one title was skipped.**
+  `import-store-anchors` refused any id held by more than one candidate
+  release. 514 of the 526 ids it refused belonged to one work each (the JA,
+  EN and ZH releases of a title share one Steam page); only 12 spanned
+  different works. Such a group is now written as one exact **work-level**
+  anchor, which states only what the evidence proves. Ids spanning works are
+  still skipped. Every lane of the job applies the rule (dmm and dlsite too).
+- **Bangumi's infobox was never read for Steam.** `import-store-refs --only
+  bgm` (the job's new lane; it runs with the EG lane by default) writes a
+  probable `rule:bgm-steam` work ref for a work whose exact Bangumi subject
+  names exactly one appid, when the work holds no Steam ref of any grain or
+  tier. The nightly adjudication confirms it through a chain join: the subject
+  still names that appid and no other work holds it exact. An appid another
+  work holds stays probable for review — 274 of the 1,103 candidate pairs on
+  the copy.
+
+No schema change; the spec stays 2.34.0.
