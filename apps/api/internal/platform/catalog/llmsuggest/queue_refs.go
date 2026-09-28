@@ -45,7 +45,7 @@ func RunQueueRefs(ctx context.Context, db *gorm.DB, up StagingDBs, c *Client, op
 				st.add("skipped_family_filter", 1)
 				continue
 			}
-			if it.MatchedBy == matchedByHLTBSteam && up.HLTB == nil {
+			if (it.MatchedBy == matchedByHLTBSteam || it.MatchedBy == matchedByHLTBTitleDate) && up.HLTB == nil {
 				st.add("skipped_hltb_unavailable", 1)
 				continue
 			}
