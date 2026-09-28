@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"sync/atomic"
 	"time"
+	"unicode"
 
 	"api/internal/platform/catalog/model"
 
@@ -152,8 +153,14 @@ func loadCreditNameQueue(db *gorm.DB) ([]creditNameItem, error) {
 }
 
 type creditApplyFacts struct {
-	Guard    string
-	SameName bool
+	Guard         string
+	SameName      bool
+	ExclusiveName bool
+	Declared      bool
+	BothLinked    bool
+	Company       bool
+	Contested     bool
+	Placeholder   bool
 }
 
 // creditNameFacts is re-read at apply time because a verdict outlives the
@@ -164,12 +171,52 @@ func creditNameFacts(db *gorm.DB) (map[[2]int64]creditApplyFacts, error) {
 	if err != nil {
 		return nil, err
 	}
+	var names []string
+	if err := db.Raw(`SELECT name FROM catalog_credit_name`).Scan(&names).Error; err != nil {
+		return nil, err
+	}
+	holders := creditNameHolders(names)
+	contested := contestedIDs(items)
 	out := make(map[[2]int64]creditApplyFacts, len(items))
 	for _, it := range items {
+		a, b := it.Dossier.A, it.Dossier.B
+		fold := foldCreditName(a.Name)
+		same := fold == foldCreditName(b.Name)
 		out[[2]int64{it.AID, it.BID}] = creditApplyFacts{
-			Guard:    it.Guard,
-			SameName: foldCreditName(it.Dossier.A.Name) == foldCreditName(it.Dossier.B.Name),
+			Guard:         it.Guard,
+			SameName:      same,
+			ExclusiveName: same && holders[fold] == 2,
+			Declared:      it.Dossier.WhyPaired == "alias_declared",
+			BothLinked:    a.personID != nil && b.personID != nil,
+			Company:       companySide(a) || companySide(b),
+			Contested:     contested[it.AID] || contested[it.BID],
+			Placeholder:   placeholderCreditName(a.Name) || placeholderCreditName(b.Name),
 		}
 	}
 	return out, nil
+}
+
+var placeholderCreditFolds = map[string]bool{
+	"匿名希望": true, "匿名": true, "未定": true, "unknown": true, "anonymous": true,
+}
+
+func placeholderCreditName(name string) bool {
+	f := foldCreditName(name)
+	if placeholderCreditFolds[f] {
+		return true
+	}
+	for _, r := range f {
+		if unicode.IsLetter(r) {
+			return false
+		}
+	}
+	return true
+}
+
+func creditNameHolders(names []string) map[string]int {
+	out := make(map[string]int, len(names))
+	for _, n := range names {
+		out[foldCreditName(n)]++
+	}
+	return out
 }

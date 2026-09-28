@@ -190,8 +190,8 @@ func TestApplySelectionIsWiderThanEitherBar(t *testing.T) {
 
 	opts.Queue = QueueCreditName
 	minConf, verdicts = applySelection(opts)
-	assert.Equal(t, 0.7, minConf)
-	assert.NotContains(t, verdicts, VerdictUnsure)
+	assert.Zero(t, minConf, "the structural accept does not read confidence")
+	assert.Contains(t, verdicts, VerdictUnsure)
 
 	// Different below the reject bar is stamped held, so the ref lane loads
 	// every verdict the rules can decide, including those under the confirm bar.
