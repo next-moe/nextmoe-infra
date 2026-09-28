@@ -466,7 +466,8 @@ export const mcpTools = [
       "precision",
       "status",
       "content_limit",
-      "olang"
+      "olang",
+      "exclude_company_kind"
     ]
   },
   {

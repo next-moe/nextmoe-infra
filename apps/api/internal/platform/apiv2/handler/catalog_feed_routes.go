@@ -24,12 +24,13 @@ type listRedirectsInput struct {
 
 type calendarInput struct {
 	CollectionInput
-	Month        string `query:"month" maxLength:"7" doc:"Dated month window YYYY-MM. Default: current month in Asia/Tokyo."`
-	Year         string `query:"year" maxLength:"4" doc:"Year-only window YYYY (v1 pending). Default with precision=year: current year in Asia/Tokyo."`
-	Precision    string `query:"precision" maxLength:"8" doc:"day, month, or year. year selects the year-only window. day and month use the dated month window."`
-	Status       string `query:"status" maxLength:"16" doc:"released, dated, announced, cancelled, unknown. announced and unknown select the undated window. cancelled is empty until the catalog records cancellations."`
-	ContentLimit string `query:"content_limit" maxLength:"32" doc:"Comma-separated closed editorial axis: sfw, nsfw."`
-	OLang        string `query:"olang" maxLength:"64" doc:"Comma-separated BCP-47, or all. Open vocabulary; unknown values match nothing. Absent = the calendar's home population, ja plus zh."`
+	Month              string `query:"month" maxLength:"7" doc:"Dated month window YYYY-MM. Default: current month in Asia/Tokyo."`
+	Year               string `query:"year" maxLength:"4" doc:"Year-only window YYYY (v1 pending). Default with precision=year: current year in Asia/Tokyo."`
+	Precision          string `query:"precision" maxLength:"8" doc:"day, month, or year. year selects the year-only window. day and month use the dated month window."`
+	Status             string `query:"status" maxLength:"16" doc:"released, dated, announced, cancelled, unknown. announced and unknown select the undated window. cancelled is empty until the catalog records cancellations."`
+	ContentLimit       string `query:"content_limit" maxLength:"32" doc:"Comma-separated closed editorial axis: sfw, nsfw."`
+	OLang              string `query:"olang" maxLength:"64" doc:"Comma-separated BCP-47, or all. Open vocabulary; unknown values match nothing. Absent = the calendar's home population, ja plus zh."`
+	ExcludeCompanyKind string `query:"exclude_company_kind" maxLength:"96" doc:"Comma-separated closed company_kind values: game_brand, bunko, publisher, anime_studio, doujin_circle, group. Drops a work only when it has at least one company and every one of its companies is of an excluded kind; a work that also carries a company of another kind stays, and so does a work with no company. Applies to the page, total, and the month navigation in meta. Absent = no exclusion."`
 }
 
 type listCalendarOutput struct {
@@ -68,7 +69,7 @@ func registerCatalogFeeds(api huma.API, cat *Catalog) {
 		Method:             http.MethodGet,
 		Path:               "/v2/catalog/calendar",
 		Summary:            "Release calendar",
-		Description:        "One collection. month=/year= pick a window; precision= and status= select among the dated month, year-only, and undated views that were three v1 routes. content_limit= gates on the editorial display axis and olang= on the original language (absent = ja plus zh). meta carries today plus, on the dated month window, min_month/max_month/has_prev/has_next for month navigation. Requires an application key or a user access token with catalog:read. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.",
+		Description:        "One collection. month=/year= pick a window; precision= and status= select among the dated month, year-only, and undated views that were three v1 routes. content_limit= gates on the editorial display axis, olang= on the original language (absent = ja plus zh), and exclude_company_kind= drops works whose every company is of an excluded kind (doujin_circle leaves the commercial calendar). meta carries today plus, on the dated month window, min_month/max_month/has_prev/has_next for month navigation. Requires an application key or a user access token with catalog:read. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.",
 		Tags:               catalog,
 		Errors:             errs,
 		SkipValidateParams: true,
@@ -117,7 +118,7 @@ func listCatalogCalendar(cat *Catalog) func(context.Context, *calendarInput) (*l
 		}
 		page, lerr := cat.ListCalendar(ctx, q, calendarParams{
 			Month: in.Month, Year: in.Year, Precision: in.Precision, Status: in.Status,
-			ContentLimit: in.ContentLimit, OLang: in.OLang,
+			ContentLimit: in.ContentLimit, OLang: in.OLang, ExcludeCompanyKind: in.ExcludeCompanyKind,
 		})
 		if lerr != nil {
 			return nil, catalogErr(ctx, lerr)

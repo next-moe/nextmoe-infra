@@ -259,3 +259,25 @@ func TestLiveWorksBatchHonorsNSFWGate(t *testing.T) {
 		"/v2/catalog/works/"+idstr(env.fx.NSFWMember)+"?nsfw=true", liveAppKey, "")
 	require.Equal(t, 200, status)
 }
+
+func TestLiveCalendarExcludeCompanyKind(t *testing.T) {
+	env := liveCatalog(t)
+
+	status, _, body := liveDo(t, env, http.MethodGet,
+		"/v2/catalog/calendar?month=2024-01&exclude_company_kind=circle", liveAppKey, "")
+	require.Equal(t, 400, status, string(body))
+	require.Contains(t, string(body), "exclude_company_kind")
+
+	page := liveCalendar(t, env, "month=2024-01&exclude_company_kind=doujin_circle")
+	require.Len(t, page.Items, 1, "the dated work's companies are game brands; excluding circles keeps it")
+	require.Equal(t, idstr(env.fx.Work), page.Items[0].ID)
+
+	page = liveCalendar(t, env, "month=2024-01&exclude_company_kind=game_brand,doujin_circle")
+	require.Empty(t, page.Items, "every company of the only dated work is an excluded kind")
+	require.NotNil(t, page.Meta)
+	require.Nil(t, page.Meta.MinMonth, "month navigation must follow the excluded population")
+	require.NotNil(t, page.Meta.HasPrev)
+	require.False(t, *page.Meta.HasPrev)
+	require.NotNil(t, page.Meta.HasNext)
+	require.False(t, *page.Meta.HasNext)
+}

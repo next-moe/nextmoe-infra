@@ -3927,7 +3927,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/calendar",
               "summary": "Release calendar",
-              "description": "One collection. month=/year= pick a window; precision= and status= select among the dated month, year-only, and undated views that were three v1 routes. content_limit= gates on the editorial display axis and olang= on the original language (absent = ja plus zh). meta carries today plus, on the dated month window, min_month/max_month/has_prev/has_next for month navigation. Requires an application key or a user access token with catalog:read. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.",
+              "description": "One collection. month=/year= pick a window; precision= and status= select among the dated month, year-only, and undated views that were three v1 routes. content_limit= gates on the editorial display axis, olang= on the original language (absent = ja plus zh), and exclude_company_kind= drops works whose every company is of an excluded kind (doujin_circle leaves the commercial calendar). meta carries today plus, on the dated month window, min_month/max_month/has_prev/has_next for month navigation. Requires an application key or a user access token with catalog:read. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.",
               "scope": "catalog:read",
               "params": [
                 {
@@ -4048,6 +4048,13 @@ export const docsModel: DocsModel = {
                   "required": false,
                   "type": "string",
                   "doc": "Comma-separated BCP-47, or all. Open vocabulary; unknown values match nothing. Absent = the calendar's home population, ja plus zh."
+                },
+                {
+                  "name": "exclude_company_kind",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Comma-separated closed company_kind values: game_brand, bunko, publisher, anime_studio, doujin_circle, group. Drops a work only when it has at least one company and every one of its companies is of an excluded kind; a work that also carries a company of another kind stays, and so does a work with no company. Applies to the page, total, and the month navigation in meta. Absent = no exclusion."
                 }
               ],
               "responses": [

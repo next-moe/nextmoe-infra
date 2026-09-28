@@ -1696,3 +1696,50 @@ which restored every sampled row.
 each such id in the answer with the curated name, `「肛交」`, adding the root
 group, `「肛交」（主动(性)）`, when the named trait shares this trait's name,
 as every engages/subject pair does. Unknown ids are left as they are.
+
+## Wave — the calendar can leave doujin circles out (2026-09-28)
+
+The forum's release calendar ran 500–600 works a month (615 for 2026-06 under
+the default ja+zh). `olang=ja` alone removes 3–5%; the bulk is DLsite doujin
+(the forum's count on the same copy: 502 of June's 585 Japanese works carry
+only an RJ id, about 90% of them attributed to a `doujin_circle` company). The
+forum asked for a commercial view, on by default, with a switch to include
+doujin works.
+
+**`exclude_company_kind=`** on `GET /v2/catalog/calendar`: comma-separated,
+closed over the `company_kind` vocabulary (`closedCSV`, unknown value → 400
+`UNKNOWN_ENUM_VALUE`, as `content_limit=`). A work is dropped only when it has
+at least one company and every one of them is of an excluded kind. A work that
+also carries a company of another kind stays, because some commercial works also
+carry a circle: Miel (a brand beside 「Norn/Miel/Cybele」 as a circle),
+わるきゅ〜れ, and circle works published by Sekai Project would all vanish
+under "any circle". A work with no company (10–30 a month) stays too.
+Companies are the ones `include=companies` serves: `catalog_work_label` joined
+to a live `catalog_label`, so a soft-deleted label neither drops nor keeps a
+work.
+
+It applies to the page, `total`, and all three windows (dated month,
+year-only, undated), and to `meta.min_month`/`max_month`/`has_prev`/`has_next`,
+so month navigation never steps onto a month the filter empties.
+`CalendarFilter.PopulationKey()` carries it. On the 2026-09-26 production copy
+June goes from 615 to 76 (57 with a company of another kind, 19 with none).
+
+**Query shape.** The rule is one `NOT EXISTS (excluded company AND NOT EXISTS
+other company)`, which the planner can run as an anti-join after the release
+joins. The `NOT EXISTS(excluded) OR EXISTS(other)` form was probed per work
+ahead of them: the undated window went from 54 ms to 321 ms (125 ms as the
+anti-join), with no difference on a month page (40 ms).
+
+**Bounds are cached.** `CalendarBounds` keeps its `min`/`max` shape with the rule
+added: 294 ms filtered against 99 ms unfiltered, and every month view asks for
+it. It is one answer per population, so it now goes through the totals cache
+(`catalog.totals_cache_ttl_seconds`, 60 s by default) keyed by
+`PopulationKey()`. The unfiltered population is cached too, so month navigation
+can lag a new first or last month by up to that TTL. The first cut walked in
+from each end instead (`ORDER BY ord OFFSET 0` in a subquery, the rule as an
+outer filter, `LIMIT 1`): it was faster, but nothing keeps the subquery's order
+once the planner runs the rule as a hash anti-join, and CI got an arbitrary kept
+row back as `max_month`.
+
+**Spec is 2.33.0.** Additive: one query parameter on one operation (117). No
+schema change and no migration.
