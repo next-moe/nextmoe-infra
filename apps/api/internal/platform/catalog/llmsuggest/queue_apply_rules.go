@@ -216,6 +216,23 @@ func (p applyPlan) recordOnly() bool { return p.Action == "" && p.Stamp != "" }
 // stays in catalog_match_candidate where it can be read back. Holding both to
 // the accept bar is what left 811 judged-different pairs sitting in
 // needs_manual on 2026-09-14, none of which the nightly lane could ever clear.
+const structuralCreditReason = "structural: identical name no other credit name carries, alias declared by the source"
+
+// Approved by the user on 2026-09-28 over the pending alias-declared pairs.
+// 369 of them spell one name that no third credit name carries, and the judge
+// left 185 of those at unsure and 123 at same below the bar, because the only
+// evidence is the name itself. The name is the whole question here, and its
+// uniqueness answers the homonym risk the short-name and no-career guards
+// stand for. Company and both-linked still hold: the first is not a person,
+// the second would merge two persons. Contested is read on its own because
+// the guard string only names the first reason it found. A placeholder is not
+// a name at all: the first dry run on production would have joined the two
+// 匿名希望 and the two ？？？ credits, each pair being different unknown people.
+func structuralCreditAccept(verdict string, f creditApplyFacts) bool {
+	return verdict != VerdictDifferent && f.SameName && f.ExclusiveName && f.Declared &&
+		!f.BothLinked && !f.Company && !f.Contested && !f.Placeholder
+}
+
 func planCreditName(verdict string, conf, minAccept, minReject float64) applyPlan {
 	switch verdict {
 	case VerdictSame:
