@@ -346,3 +346,77 @@ func TestScanAttemptsBackfillOnPopulatedTable(t *testing.T) {
 		}
 	}
 }
+
+// TestSubjectAuthorBackfillOnPopulatedTable replays the production upgrade: review
+// items that predate subject_author_id, with the author known only from their
+// subject's scan rows.
+func TestSubjectAuthorBackfillOnPopulatedTable(t *testing.T) {
+	db := testDB
+	if err := db.Exec("ALTER TABLE trust_review_item DROP COLUMN IF EXISTS subject_author_id").Error; err != nil {
+		t.Fatalf("drop column: %v", err)
+	}
+	for _, table := range []string{"trust_review_item", "trust_scan_result"} {
+		if err := db.Exec("TRUNCATE " + table + " RESTART IDENTITY CASCADE").Error; err != nil {
+			t.Fatalf("truncate %s: %v", table, err)
+		}
+	}
+	if err := db.Exec(
+		`INSERT INTO trust_review_item (site, subject_kind, subject_id, source, priority, status, created_at)
+		 VALUES ('kungal','forum_topic','scanned',1,1,3,now()),
+		        ('kungal','forum_topic','late-author',0,1,2,now()),
+		        ('kungal','forum_topic','unscanned',0,1,0,now()),
+		        ('kungal','forum_topic','other-site',0,1,0,now())`).Error; err != nil {
+		t.Fatalf("seed items: %v", err)
+	}
+	if err := db.Exec(
+		`INSERT INTO trust_scan_result (site, subject_kind, subject_id, author_id, content_text, status, mode)
+		 VALUES ('kungal','forum_topic','scanned',101,'t',1,0),
+		        ('kungal','forum_topic','scanned',102,'t',1,0),
+		        ('kungal','forum_topic','late-author',NULL,'t',1,0),
+		        ('kungal','forum_topic','late-author',201,'t',1,0),
+		        ('moyu','forum_topic','other-site',301,'t',1,0)`).Error; err != nil {
+		t.Fatalf("seed scans: %v", err)
+	}
+
+	if err := Run(db); err != nil {
+		t.Fatalf("migration failed on a populated table: %v", err)
+	}
+
+	author := func(subject string) *int64 {
+		t.Helper()
+		var got *int64
+		if err := db.Raw("SELECT subject_author_id FROM trust_review_item WHERE subject_id = ?", subject).
+			Scan(&got).Error; err != nil {
+			t.Fatalf("reload %s: %v", subject, err)
+		}
+		return got
+	}
+	for _, tc := range []struct {
+		subject string
+		want    int64
+		why     string
+	}{
+		{"scanned", 101, "the earliest scan names the author"},
+		{"late-author", 201, "a scan without an author is skipped, not adopted as NULL"},
+		{"unscanned", 0, "no scan, no author"},
+		{"other-site", 0, "another site's scan of the same id is a different subject"},
+	} {
+		got := author(tc.subject)
+		switch {
+		case tc.want == 0 && got != nil:
+			t.Errorf("%s subject_author_id = %d, want NULL — %s", tc.subject, *got, tc.why)
+		case tc.want != 0 && (got == nil || *got != tc.want):
+			t.Errorf("%s subject_author_id = %v, want %d — %s", tc.subject, got, tc.want, tc.why)
+		}
+	}
+
+	if err := db.Exec("UPDATE trust_review_item SET subject_author_id = 999 WHERE subject_id = 'scanned'").Error; err != nil {
+		t.Fatalf("set author: %v", err)
+	}
+	if err := Run(db); err != nil {
+		t.Fatalf("re-run: %v", err)
+	}
+	if got := author("scanned"); got == nil || *got != 999 {
+		t.Errorf("a re-run overwrote an author already set: got %v, want 999", got)
+	}
+}

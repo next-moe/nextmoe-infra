@@ -19,6 +19,12 @@ func (s *Server) registerThreadModeration(api huma.API) {
 		Summary: "Pin a topic on its board or site-wide, optionally until a time; scope 0 unpins", Tags: tags}, s.pinTopic)
 	huma.Register(api, huma.Operation{OperationID: "closeThread", Method: http.MethodPost, Path: "/api/v1/community/threads/{id}/close",
 		Summary: "Close a thread to new posts, or reopen it", Tags: tags}, s.closeThread)
+	huma.Register(api, huma.Operation{OperationID: "moderationResolvePosts", Method: http.MethodPost, Path: "/api/v1/community/moderation/posts/resolve",
+		Summary: "Resolve a batch of posts by id in any status (visible, hidden, deleted) with thread context, for a moderator reviewing them",
+		Description: "The moderation twin of POST /posts/resolve, which returns visible posts only because it feeds rendered pages. " +
+			"Call this one only behind the site's own moderator check: it hands back content the site has hidden or its author deleted. " +
+			"A purged author's posts come back deleted with empty content.",
+		Tags: tags}, s.moderationResolvePosts)
 	huma.Register(api, huma.Operation{OperationID: "markAnswer", Method: http.MethodPost, Path: "/api/v1/community/threads/{id}/answer",
 		Summary: "Mark the reply that answers a Q&A-board topic or a feedback thread (the thread's author, or a moderator)", Tags: tags}, s.markAnswer)
 }

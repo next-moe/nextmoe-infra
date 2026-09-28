@@ -38,6 +38,10 @@ func (s *PostService) ResolvePosts(site string, ids []int64) ([]repository.Autho
 	return s.posts.ResolveVisiblePosts(site, ids)
 }
 
+func (s *PostService) ResolvePostsForModeration(site string, ids []int64) ([]repository.AuthorPostRow, error) {
+	return s.posts.ResolvePostsAnyStatus(site, ids)
+}
+
 func (s *PostService) PurgeAuthor(ctx context.Context, site string, authorID int64) (PurgeResult, error) {
 	var res PurgeResult
 	var actorsCleared, eventsDeleted, eventsForgotten int64

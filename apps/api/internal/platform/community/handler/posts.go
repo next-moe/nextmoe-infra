@@ -36,6 +36,32 @@ func (s *Server) resolvePosts(ctx context.Context, in *resolvePostsInput) (*reso
 	})}, nil
 }
 
+type moderationResolvePostsInput struct {
+	Body dto.ModerationPostsResolveRequest
+}
+
+func (s *Server) moderationResolvePosts(ctx context.Context, in *moderationResolvePostsInput) (*resolvePostsOutput, error) {
+	site, he := siteBinding(ctx)
+	if he != nil {
+		return nil, he
+	}
+	ids, he := dedupeIDs(in.Body.IDs)
+	if he != nil {
+		return nil, he
+	}
+	rows, err := s.posts.ResolvePostsForModeration(site, ids)
+	if err != nil {
+		return nil, mapErr("moderation resolve posts", err)
+	}
+	views := orderResolvedPosts(rows, ids)
+	if err := s.hydrateAuthorPostReactions(0, views); err != nil {
+		return nil, mapErr("hydrate moderation reactions", err)
+	}
+	return &resolvePostsOutput{Body: okEnvelope(dto.PostsResolveResponse{
+		Posts: views,
+	})}, nil
+}
+
 func dedupeIDs(ids []int64) ([]int64, *houseError) {
 	if len(ids) > 100 {
 		return nil, apiErrMsg(http.StatusUnprocessableEntity, errors.ErrValidationFailed, "too many ids (max 100)")

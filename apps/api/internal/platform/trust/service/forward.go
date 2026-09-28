@@ -33,6 +33,7 @@ type ForwardParams struct {
 	WeightSum      *float32
 	ContextNote    *string
 	SubjectReach   *int64
+	AuthorID       *int64
 }
 
 type ForwardResult struct {
@@ -71,6 +72,9 @@ func (s *ForwardService) Forward(ctx context.Context, p ForwardParams) (ForwardR
 				updates["context_note"] = gorm.Expr(
 					"CASE WHEN context_note IS NULL OR context_note = '' THEN ? ELSE context_note END", *p.ContextNote)
 			}
+			if p.AuthorID != nil {
+				updates["subject_author_id"] = gorm.Expr("COALESCE(subject_author_id, ?)", *p.AuthorID)
+			}
 			if reach := maxReach(open.SubjectReach, p.SubjectReach); reach != nil {
 				updates["subject_reach"] = *reach
 				updates["priority"] = repriceForReach(open.Priority, open.SubjectReach, reach)
@@ -88,7 +92,7 @@ func (s *ForwardService) Forward(ctx context.Context, p ForwardParams) (ForwardR
 
 		item := model.TrustReviewItem{
 			Site: p.Site, SubjectKind: p.SubjectKind, SubjectID: p.SubjectID,
-			Source: model.ReviewSourceCommunityForward, Severity: p.Severity,
+			SubjectAuthorID: p.AuthorID, Source: model.ReviewSourceCommunityForward, Severity: p.Severity,
 			ReportWeightSum: p.WeightSum, ContextNote: p.ContextNote,
 			SubjectReach: p.SubjectReach,
 			Priority:     rankPriority(forwardPriority(p.Severity), p.SubjectReach),
@@ -102,6 +106,9 @@ func (s *ForwardService) Forward(ctx context.Context, p ForwardParams) (ForwardR
 			if err := tx.Where("site = ? AND subject_kind = ? AND subject_id = ? AND status IN ?",
 				p.Site, p.SubjectKind, p.SubjectID, []int16{model.ReviewStatusPending, model.ReviewStatusClaimed}).
 				Limit(1).Take(&item).Error; err != nil {
+				return err
+			}
+			if err := adoptSubjectAuthor(tx, item.ID, p.AuthorID); err != nil {
 				return err
 			}
 			result = ForwardResult{ReviewItemID: item.ID, Created: false}

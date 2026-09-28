@@ -83,6 +83,9 @@ func (w *ScanWorker) openScanReviewItem(tx *gorm.DB, r *model.TrustScanResult, v
 		}
 		updates["context_note"] = gorm.Expr(
 			"CASE WHEN context_note IS NULL OR context_note = '' THEN ? ELSE context_note END", note)
+		if r.AuthorID != nil {
+			updates["subject_author_id"] = gorm.Expr("COALESCE(subject_author_id, ?)", *r.AuthorID)
+		}
 		if reach := maxReach(open.SubjectReach, r.SubjectReach); reach != nil {
 			updates["subject_reach"] = *reach
 			updates["priority"] = repriceForReach(open.Priority, open.SubjectReach, reach)
@@ -97,7 +100,7 @@ func (w *ScanWorker) openScanReviewItem(tx *gorm.DB, r *model.TrustScanResult, v
 
 	item := model.TrustReviewItem{
 		Site: r.Site, SubjectKind: r.SubjectKind, SubjectID: r.SubjectID,
-		Source: model.ReviewSourceAIText, ClassifierScore: v.Score,
+		SubjectAuthorID: r.AuthorID, Source: model.ReviewSourceAIText, ClassifierScore: v.Score,
 		ContextNote: &note, SubjectReach: r.SubjectReach,
 		Priority: rankPriority(scanPriority(v.Score), r.SubjectReach),
 		Status:   model.ReviewStatusPending,
@@ -110,6 +113,9 @@ func (w *ScanWorker) openScanReviewItem(tx *gorm.DB, r *model.TrustScanResult, v
 		if err := tx.Where("site = ? AND subject_kind = ? AND subject_id = ? AND status IN ?",
 			r.Site, r.SubjectKind, r.SubjectID, openStates).
 			Limit(1).Take(&item).Error; err != nil {
+			return 0, false, err
+		}
+		if err := adoptSubjectAuthor(tx, item.ID, r.AuthorID); err != nil {
 			return 0, false, err
 		}
 		return item.ID, false, nil
@@ -137,7 +143,7 @@ func (w *ScanWorker) maybeSampleClean(tx *gorm.DB, r *model.TrustScanResult, v G
 	note := scanSampleNote(r, v)
 	item := model.TrustReviewItem{
 		Site: r.Site, SubjectKind: r.SubjectKind, SubjectID: r.SubjectID,
-		Source: model.ReviewSourceAISample, ClassifierScore: v.Score,
+		SubjectAuthorID: r.AuthorID, Source: model.ReviewSourceAISample, ClassifierScore: v.Score,
 		ContextNote: &note, SubjectReach: r.SubjectReach,
 		Priority: scanSamplePriority, Status: model.ReviewStatusPending,
 	}

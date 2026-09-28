@@ -142,3 +142,65 @@ func TestPostsResolve_CrossTenant(t *testing.T) {
 		}
 	}
 }
+
+func TestModerationResolvePosts_EveryStatusOwnSiteOnly(t *testing.T) {
+	cleanTables(t)
+	s := newTenantServer()
+	ctx := clientCtx("letmoe")
+	seedTL1(t, 500)
+
+	th := resolve(t, s, ctx, model.AnchorKindSiteGame, "g1")
+	posts := replyN(t, s, ctx, th, 500, 3)
+	visible, hidden, deleted := posts[0], posts[1], posts[2]
+	if err := testDB.Exec("UPDATE community_post SET status = ? WHERE id = ?", model.PostStatusHidden, hidden).Error; err != nil {
+		t.Fatalf("hide: %v", err)
+	}
+	if _, err := s.deletePost(ctx, &deletePostInput{ID: deleted, AuthorID: 500}); err != nil {
+		t.Fatalf("self-delete: %v", err)
+	}
+
+	ctxOther := clientCtx("siteB")
+	thB := resolve(t, s, ctxOther, model.AnchorKindSiteGame, "g1")
+	otherPost := replyN(t, s, ctxOther, thB, 500, 1)[0]
+
+	out, err := s.moderationResolvePosts(ctx, &moderationResolvePostsInput{Body: dto.ModerationPostsResolveRequest{
+		IDs: []int64{deleted, otherPost, hidden, 9_999_999, visible, hidden},
+	}})
+	if err != nil {
+		t.Fatalf("moderationResolvePosts: %v", err)
+	}
+	got := out.Body.Data.Posts
+	want := []struct {
+		id     int64
+		status int16
+	}{
+		{deleted, model.PostStatusDeleted},
+		{hidden, model.PostStatusHidden},
+		{visible, model.PostStatusVisible},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("want %d posts (own site, every status, deduped), got %d (%+v)", len(want), len(got), got)
+	}
+	for i, w := range want {
+		if got[i].Post.ID != w.id || got[i].Post.Status != w.status {
+			t.Fatalf("[%d] = post %d status %d, want post %d status %d", i, got[i].Post.ID, got[i].Post.Status, w.id, w.status)
+		}
+		if got[i].Post.AuthorID != 500 || got[i].Thread.ThreadID != th || got[i].Thread.AnchorID != "g1" {
+			t.Fatalf("[%d] author/thread context wrong: %+v", i, got[i])
+		}
+	}
+	if got[1].Post.ContentRaw == "" {
+		t.Fatal("a hidden post must come back with its content; that is what the moderator is judging")
+	}
+
+	if render := resolvePosts(t, s, ctx, []int64{hidden, deleted}); len(render) != 0 {
+		t.Fatalf("the render face must still drop hidden and deleted posts, got %d", len(render))
+	}
+
+	ids101 := make([]int64, 101)
+	for i := range ids101 {
+		ids101[i] = int64(1000 + i)
+	}
+	_, e := s.moderationResolvePosts(ctx, &moderationResolvePostsInput{Body: dto.ModerationPostsResolveRequest{IDs: ids101}})
+	wantStatus(t, e, 422)
+}

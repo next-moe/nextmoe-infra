@@ -82,13 +82,15 @@ Response: { "scan_id": 456, "truncated": false }
 
 ```
 Request:  { "subject_kind": "...", "subject_id": "...", "reason_key": "...", "note": "...",
-            "snapshot": "<举报时点内容快照>", "subject_url": "https://...", "reporter_id": 123 }
+            "snapshot": "<举报时点内容快照>", "subject_url": "https://...",
+            "author_id": 456, "reporter_id": 123 }
 Response: { "report_id": ..., "review_item_id": ... }        # review_item_id 非零 = 已聚合进收件箱
 ```
 
 - 去重(同人同 subject 一票)/ 限速 / 举报人信誉加权(新号 ×0.5、staff 单票即入队)在 trust 侧,你只管转发。
 - 可用 reason 列表:`GET /api/v1/trust/report-reasons`(全局基底 + 你站扩展);kind 列表:`GET /api/v1/trust/subject-kinds`。
 - `snapshot` 请务必带(内容可能事后被编辑,收件箱审的是举报时点)。
+- `author_id` 知道就带:被举报内容作者的全局 user id(`user` 类 subject 就是该用户本人),语义同 scan 的 `author_id`,不是举报人也不是租户;不知道就省略(传 0 会 422)。review item 取第一个带作者的 report / scan / forward,存为 `subject_author_id`;管理端 `GET /api/v1/admin/trust/review-items?subject_author_id=<id>` 按作者筛(照常受站点范围约束),配 `status=2` / `status=3` + `limit=1` 读 `total` 即该作者在本站被处置 / 驳回的条数。
 
 ### 3.4 `POST /api/v1/trust/forward` + `/forward/resolve` — 本地审核队列 → 统一收件箱
 

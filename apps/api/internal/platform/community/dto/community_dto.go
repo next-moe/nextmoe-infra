@@ -41,7 +41,7 @@ type PostView struct {
 	ContentRaw        string     `json:"content_raw"`
 	ContentHTML       string     `json:"content_html"`
 	ContentRating     int16      `json:"content_rating"`
-	Status            int16      `json:"status"`
+	Status            int16      `json:"status" doc:"0=visible 1=hidden 2=deleted"`
 	EditedAt          *time.Time `json:"edited_at,omitempty"`
 	EditedByModerator bool       `json:"edited_by_moderator,omitempty" doc:"true when the latest edit was a mod-actor edit (as_moderator)"`
 	CreatedAt         time.Time  `json:"created_at"`
@@ -71,6 +71,10 @@ type CommentRequest struct {
 type PostsResolveRequest struct {
 	IDs      []int64 `json:"ids" doc:"post ids to hydrate (max 100; deduped; only visible posts return)"`
 	ViewerID int64   `json:"viewer_id,omitempty" doc:"fill viewer_reacted for this user; 0 = no viewer"`
+}
+
+type ModerationPostsResolveRequest struct {
+	IDs []int64 `json:"ids" doc:"post ids to hydrate (max 100; deduped); every status returns, ids of another site or of no post are simply absent"`
 }
 
 type OpenTopicRequest struct {
