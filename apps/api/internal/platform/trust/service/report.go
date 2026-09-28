@@ -47,6 +47,7 @@ type ReportParams struct {
 	Note        *string
 	Snapshot    *string
 	SubjectURL  *string
+	AuthorID    *int64
 	ReporterID  int64
 }
 
@@ -104,8 +105,8 @@ func (s *ReportService) Submit(ctx context.Context, p ReportParams) (ReportResul
 		report := model.TrustReport{
 			Site: p.Site, SubjectKind: p.SubjectKind, SubjectID: p.SubjectID,
 			ReporterID: p.ReporterID, ReasonID: reason.ID, Note: p.Note,
-			SubjectSnapshot: p.Snapshot, SubjectURL: p.SubjectURL, Weight: weight.Weight,
-			Status: model.ReportStatusReceived,
+			SubjectSnapshot: p.Snapshot, SubjectURL: p.SubjectURL, SubjectAuthorID: p.AuthorID,
+			Weight: weight.Weight, Status: model.ReportStatusReceived,
 		}
 		res := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&report)
 		if res.Error != nil {
@@ -151,6 +152,9 @@ func (s *ReportService) aggregate(tx *gorm.DB, p ReportParams, reportID int64, w
 			Update("report_weight_sum", gorm.Expr("COALESCE(report_weight_sum, 0) + ?", weight.Weight)).Error; err != nil {
 			return nil, err
 		}
+		if err := adoptSubjectAuthor(tx, open.ID, p.AuthorID); err != nil {
+			return nil, err
+		}
 		return &open.ID, nil
 	} else if err != gorm.ErrRecordNotFound {
 		return nil, err
@@ -165,25 +169,39 @@ func (s *ReportService) aggregate(tx *gorm.DB, p ReportParams, reportID int64, w
 			Updates(map[string]any{"review_item_id": dismissed.ID, "status": model.ReportStatusFolded}).Error; err != nil {
 			return nil, err
 		}
+		if err := adoptSubjectAuthor(tx, dismissed.ID, p.AuthorID); err != nil {
+			return nil, err
+		}
 		return &dismissed.ID, nil
 	} else if err != gorm.ErrRecordNotFound {
 		return nil, err
 	}
 
+	unlinked := func() *gorm.DB {
+		return tx.Model(&model.TrustReport{}).
+			Where("site = ? AND subject_kind = ? AND subject_id = ? AND status <> ? AND review_item_id IS NULL",
+				p.Site, p.SubjectKind, p.SubjectID, model.ReportStatusFolded)
+	}
 	var sum float32
-	if err := tx.Model(&model.TrustReport{}).
-		Where("site = ? AND subject_kind = ? AND subject_id = ? AND status <> ? AND review_item_id IS NULL",
-			p.Site, p.SubjectKind, p.SubjectID, model.ReportStatusFolded).
-		Select("COALESCE(SUM(weight), 0)").Scan(&sum).Error; err != nil {
+	if err := unlinked().Select("COALESCE(SUM(weight), 0)").Scan(&sum).Error; err != nil {
 		return nil, err
 	}
 	if !weight.Staff && sum < s.aggregateThresholdFor(p.Site) {
 		return nil, nil
 	}
+	var authors []int64
+	if err := unlinked().Where("subject_author_id IS NOT NULL").
+		Order("id").Limit(1).Pluck("subject_author_id", &authors).Error; err != nil {
+		return nil, err
+	}
+	var author *int64
+	if len(authors) > 0 {
+		author = &authors[0]
+	}
 
 	item := model.TrustReviewItem{
 		Site: p.Site, SubjectKind: p.SubjectKind, SubjectID: p.SubjectID,
-		Source: model.ReviewSourceReports, Severity: &severity,
+		SubjectAuthorID: author, Source: model.ReviewSourceReports, Severity: &severity,
 		ReportWeightSum: &sum,
 		Priority:        rankPriority(float32(severity), nil),
 		Status:          model.ReviewStatusPending,
@@ -198,10 +216,11 @@ func (s *ReportService) aggregate(tx *gorm.DB, p ReportParams, reportID int64, w
 			Limit(1).Take(&item).Error; err != nil {
 			return nil, err
 		}
+		if err := adoptSubjectAuthor(tx, item.ID, author); err != nil {
+			return nil, err
+		}
 	}
-	if err := tx.Model(&model.TrustReport{}).
-		Where("site = ? AND subject_kind = ? AND subject_id = ? AND status <> ? AND review_item_id IS NULL",
-			p.Site, p.SubjectKind, p.SubjectID, model.ReportStatusFolded).
+	if err := unlinked().
 		Updates(map[string]any{"review_item_id": item.ID, "status": model.ReportStatusLinked}).Error; err != nil {
 		return nil, err
 	}
@@ -220,6 +239,15 @@ func validateSubjectURL(raw *string) error {
 		return ErrInvalidSubjectURL
 	}
 	return nil
+}
+
+func adoptSubjectAuthor(tx *gorm.DB, itemID int64, author *int64) error {
+	if author == nil {
+		return nil
+	}
+	return tx.Model(&model.TrustReviewItem{}).
+		Where("id = ? AND subject_author_id IS NULL", itemID).
+		Update("subject_author_id", *author).Error
 }
 
 func (s *ReportService) linkReport(tx *gorm.DB, reportID, itemID int64) error {

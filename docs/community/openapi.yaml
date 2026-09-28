@@ -2315,6 +2315,27 @@ components:
         - marked
         - unread_count
       type: object
+    ModerationPostsResolveRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ModerationPostsResolveRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        ids:
+          description: post ids to hydrate (max 100; deduped); every status returns, ids of another site or of no post are simply absent
+          items:
+            format: int64
+            type: integer
+          type:
+            - array
+            - "null"
+      required:
+        - ids
+      type: object
     MoveTopicRequest:
       additionalProperties: false
       properties:
@@ -2724,6 +2745,7 @@ components:
           format: int64
           type: integer
         status:
+          description: 0=visible 1=hidden 2=deleted
           format: int32
           type: integer
         target_user_id:
@@ -4440,6 +4462,32 @@ paths:
       summary: Batch follower/following counts and the viewer's relation to up to 100 users
       tags:
         - community-follows
+  /api/v1/community/moderation/posts/resolve:
+    post:
+      description: "The moderation twin of POST /posts/resolve, which returns visible posts only because it feeds rendered pages. Call this one only behind the site's own moderator check: it hands back content the site has hidden or its author deleted. A purged author's posts come back deleted with empty content."
+      operationId: moderationResolvePosts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModerationPostsResolveRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePostsResolveResponse"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Resolve a batch of posts by id in any status (visible, hidden, deleted) with thread context, for a moderator reviewing them
+      tags:
+        - community-moderation
   /api/v1/community/notifications/feed:
     get:
       operationId: notificationFeed

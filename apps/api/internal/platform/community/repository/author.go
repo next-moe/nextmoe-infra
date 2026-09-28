@@ -31,6 +31,16 @@ func (r *PostRepository) ListAuthorVisiblePosts(site string, authorID, after int
 }
 
 func (r *PostRepository) ResolveVisiblePosts(site string, ids []int64) ([]AuthorPostRow, error) {
+	return r.resolvePosts(site, ids, func(q *gorm.DB) *gorm.DB {
+		return q.Where("community_post.status = ?", model.PostStatusVisible)
+	})
+}
+
+func (r *PostRepository) ResolvePostsAnyStatus(site string, ids []int64) ([]AuthorPostRow, error) {
+	return r.resolvePosts(site, ids, func(q *gorm.DB) *gorm.DB { return q })
+}
+
+func (r *PostRepository) resolvePosts(site string, ids []int64, scope func(*gorm.DB) *gorm.DB) ([]AuthorPostRow, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
@@ -38,8 +48,8 @@ func (r *PostRepository) ResolveVisiblePosts(site string, ids []int64) ([]Author
 	err := r.db.Model(&model.CommunityPost{}).
 		Select(threadContextSelect).
 		Joins("JOIN community_thread ON community_thread.id = community_post.thread_id").
-		Where("community_post.id IN ? AND community_thread.site = ? AND community_post.status = ?",
-			ids, site, model.PostStatusVisible).
+		Where("community_post.id IN ? AND community_thread.site = ?", ids, site).
+		Scopes(scope).
 		Scan(&rows).Error
 	return rows, err
 }

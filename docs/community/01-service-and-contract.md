@@ -118,7 +118,7 @@
   title through search either. `%` and `_` in a query are characters the user
   typed, not wildcards. Both follow the **id-addressed guard**, like `GET /posts`
   and the unread faces: the caller's own site plus catalog-anchored threads.
-  Only `GET /authors/*` and `POST /posts/resolve` are strictly `site = ?`, so a
+  Only `GET /authors/*` and the two `/posts/resolve` faces are strictly `site = ?`, so a
   consumer that renders results as its own pages still has to drop anchors it
   does not own from the other four — and a page can arrive shorter than `limit`.
   **Why Postgres and not a search engine**: `pg_trgm` is the only CJK-capable
@@ -145,6 +145,14 @@
   filter), a batch hydrate of <=100 post ids in request order, and visible-post
   counts for <=100 named authors (`kind` / `anchor_kind` filters, `-1` = every).
   All three are site-scoped.
+- `POST /moderation/posts/resolve` — the same batch hydrate for a moderator
+  reviewing posts: every status comes back (`status` 0 visible / 1 hidden /
+  2 deleted), still strictly `site = ?` and <=100 ids. `/posts/resolve` keeps
+  dropping hidden and deleted posts because it feeds rendered pages; widening it
+  would put hidden posts back on them. kungal's trust review detail needed the
+  post a moderator was judging after an action or the AI had already hidden it,
+  and an appeal needs it after that too. A site calls this face only behind its
+  own moderator check; a purged author's posts come back deleted and empty.
 - `GET /authors/top` — the site's most-posted-in authors, most first, with
   `kind` / `anchor_kind` filters and a `limit`. `GET /authors/stats` answers a
   caller that already knows which authors it means; a leaderboard is the question

@@ -135,7 +135,7 @@ func (s *ForwardService) buildRequest(ft *repository.ForwardTarget) trustclient.
 	ref := strconv.FormatInt(ft.ItemID, 10)
 	return trustclient.ForwardRequest{
 		Site: ft.Site, SubjectKind: forwardSubjectKind, SubjectID: strconv.FormatInt(ft.PostID, 10),
-		ContextNote: &note, ForwarderRef: &ref,
+		AuthorID: &ft.AuthorID, ContextNote: &note, ForwarderRef: &ref,
 	}
 }
 

@@ -16,11 +16,12 @@ type ReviewService struct{ db *gorm.DB }
 func NewReviewService(db *gorm.DB) *ReviewService { return &ReviewService{db: db} }
 
 type ReviewFilters struct {
-	Site   string
-	Status *int16
-	Source *int16
-	Page   int
-	Limit  int
+	Site            string
+	Status          *int16
+	Source          *int16
+	SubjectAuthorID int64
+	Page            int
+	Limit           int
 }
 
 func (s *ReviewService) List(ctx context.Context, f ReviewFilters) ([]model.TrustReviewItem, int64, error) {
@@ -33,6 +34,9 @@ func (s *ReviewService) List(ctx context.Context, f ReviewFilters) ([]model.Trus
 	}
 	if f.Source != nil {
 		q = q.Where("source = ?", *f.Source)
+	}
+	if f.SubjectAuthorID != 0 {
+		q = q.Where("subject_author_id = ?", f.SubjectAuthorID)
 	}
 	var total int64
 	if err := q.Count(&total).Error; err != nil {

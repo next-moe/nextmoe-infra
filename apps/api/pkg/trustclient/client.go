@@ -48,6 +48,7 @@ type ForwardRequest struct {
 	Severity     *int16   `json:"severity,omitempty"`
 	WeightSum    *float32 `json:"weight_sum,omitempty"`
 	ContextNote  *string  `json:"context_note,omitempty"`
+	AuthorID     *int64   `json:"author_id,omitempty"`
 	ForwarderRef *string  `json:"forwarder_ref,omitempty"`
 }
 

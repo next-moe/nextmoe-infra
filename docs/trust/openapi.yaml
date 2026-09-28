@@ -289,6 +289,11 @@ components:
           format: uri
           readOnly: true
           type: string
+        author_id:
+          description: optional global id of the user who wrote the subject; the review item keeps the first one it is given as subject_author_id
+          format: int64
+          minimum: 1
+          type: integer
         context_note:
           description: reviewer-facing evidence excerpt
           type: string
@@ -432,6 +437,11 @@ components:
           format: uri
           readOnly: true
           type: string
+        author_id:
+          description: optional global id of the user who wrote the reported content (for a user subject, that user); the repeat-offender key the review item carries as subject_author_id. Not the tenant, not the reporter; omit when unknown
+          format: int64
+          minimum: 1
+          type: integer
         note:
           type: string
         reason_key:

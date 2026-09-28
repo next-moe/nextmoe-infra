@@ -135,6 +135,9 @@ func TestForwardSweep(t *testing.T) {
 			if req.ContextNote == nil || !strings.HasPrefix(*req.ContextNote, "[first_post_hold] post #"+strconv.FormatInt(p2.ID, 10)) {
 				t.Fatalf("context note = %v", req.ContextNote)
 			}
+			if req.AuthorID == nil || *req.AuthorID != 701 {
+				t.Fatalf("author_id = %v, want the post's author 701", req.AuthorID)
+			}
 		}
 	}
 	if !found {

@@ -12,6 +12,7 @@ type TrustReport struct {
 	Note            *string   `gorm:"column:note" json:"note"`
 	SubjectSnapshot *string   `gorm:"column:subject_snapshot" json:"subject_snapshot"`
 	SubjectURL      *string   `gorm:"column:subject_url" json:"subject_url"`
+	SubjectAuthorID *int64    `gorm:"column:subject_author_id" json:"subject_author_id"`
 	Weight          float32   `gorm:"type:real;not null;column:weight" json:"weight"`
 	ReviewItemID    *int64    `gorm:"column:review_item_id" json:"review_item_id"`
 	Status          int16     `gorm:"not null;column:status" json:"status"`
@@ -27,6 +28,7 @@ type TrustReviewItem struct {
 	Site            string     `gorm:"not null;column:site" json:"site"`
 	SubjectKind     string     `gorm:"not null;column:subject_kind" json:"subject_kind"`
 	SubjectID       string     `gorm:"not null;column:subject_id" json:"subject_id"`
+	SubjectAuthorID *int64     `gorm:"column:subject_author_id" json:"subject_author_id"`
 	Source          int16      `gorm:"not null;column:source" json:"source"`
 	Severity        *int16     `gorm:"column:severity" json:"severity"`
 	ClassifierScore *float32   `gorm:"type:real;column:classifier_score" json:"classifier_score"`
