@@ -9,6 +9,7 @@ import (
 	"api/internal/platform/trust/dto"
 	"api/internal/platform/trust/service"
 	"api/pkg/errors"
+	"api/pkg/wireshape"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humafiber"
@@ -26,7 +27,7 @@ type Server struct {
 func Setup(app *fiber.App, reports *service.ReportService, registry *service.RegistryService, forward *service.ForwardService, scan *service.ScanService, terms *service.TermService) huma.API {
 	InstallErrorEnvelope()
 
-	cfg := huma.DefaultConfig("KUN Trust Service", "1.0.0")
+	cfg := huma.DefaultConfig("KUN Trust Service", "1.0.1")
 	cfg.OpenAPIPath = ""
 	cfg.DocsPath = ""
 	cfg.SchemasPath = ""
@@ -36,6 +37,7 @@ func Setup(app *fiber.App, reports *service.ReportService, registry *service.Reg
 
 	s := &Server{reports: reports, registry: registry, forward: forward, scan: scan, terms: terms}
 	s.register(api)
+	wireshape.Publish(api.OpenAPI())
 	return api
 }
 

@@ -78,7 +78,7 @@ export interface components {
         DailySeries: {
             /** Format: int64 */
             days: number;
-            points: components["schemas"]["DailyPoint"][] | null;
+            points: components["schemas"]["DailyPoint"][];
         };
         EnvelopeBudgetView: {
             /**
@@ -113,7 +113,7 @@ export interface components {
             readonly $schema?: string;
             /** Format: int64 */
             code: number;
-            data?: components["schemas"]["BudgetView"][] | null;
+            data?: components["schemas"]["BudgetView"][];
             message: string;
         };
         EnvelopeUsageSummary: {
@@ -203,7 +203,7 @@ export interface components {
         };
         UsageSummary: {
             overview: components["schemas"]["UsageOverview"];
-            rows: components["schemas"]["SummaryRow"][] | null;
+            rows: components["schemas"]["SummaryRow"][];
             window: string;
         };
     };

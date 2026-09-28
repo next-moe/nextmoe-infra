@@ -13,6 +13,9 @@
 - Code-first OpenAPI 3.1 via Huma on Fiber v3. House envelope on every response:
   `{ "code": 0, "message": "成功", "data": … }`; errors use the same envelope
   with a non-zero `code` and the appropriate HTTP status.
+- A response list is never null: an empty one is `[]`, and an optional one
+  (`header_image_hashes`) is left out. Only a field the spec marks nullable is
+  ever null. Requests may still send null for a list.
 - Base path `/api/v1/community`. Bind port **9282** (`KUN_COMMUNITY_PORT`).
 - `GET /openapi.json` (unauthenticated) serves the live spec; `GET /healthz`.
 - Migrations are NOT run at startup — `cmd/migrate community` is the single entry

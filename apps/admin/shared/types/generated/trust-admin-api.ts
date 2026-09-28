@@ -458,7 +458,7 @@ export interface components {
             result: "created" | "updated" | "unchanged" | "deprecated_skipped";
         };
         EnsureSubjectKindsResponse: {
-            results: components["schemas"]["EnsureSubjectKindResultView"][] | null;
+            results: components["schemas"]["EnsureSubjectKindResultView"][];
         };
         EnvelopeDecideData: {
             /**
@@ -493,7 +493,7 @@ export interface components {
             readonly $schema?: string;
             /** Format: int64 */
             code: number;
-            data?: components["schemas"]["ReasonView"][] | null;
+            data?: components["schemas"]["ReasonView"][];
             message: string;
         };
         EnvelopeListSubjectKindView: {
@@ -505,7 +505,7 @@ export interface components {
             readonly $schema?: string;
             /** Format: int64 */
             code: number;
-            data?: components["schemas"]["SubjectKindView"][] | null;
+            data?: components["schemas"]["SubjectKindView"][];
             message: string;
         };
         EnvelopeOKResponse: {
@@ -643,12 +643,12 @@ export interface components {
             ok: boolean;
         };
         PageDispositionView: {
-            items: components["schemas"]["DispositionView"][] | null;
+            items: components["schemas"]["DispositionView"][];
             /** Format: int64 */
             total: number;
         };
         PageReviewItemView: {
-            items: components["schemas"]["ReviewItemView"][] | null;
+            items: components["schemas"]["ReviewItemView"][];
             /** Format: int64 */
             total: number;
         };
@@ -728,7 +728,7 @@ export interface components {
         };
         ReviewItemDetail: {
             item: components["schemas"]["ReviewItemView"];
-            reports: components["schemas"]["ReportView"][] | null;
+            reports: components["schemas"]["ReportView"][];
         };
         ReviewItemView: {
             /** Format: date-time */
@@ -779,7 +779,7 @@ export interface components {
         };
         SitePoliciesResponse: {
             defaults: components["schemas"]["PlatformDefaultsView"];
-            policies: components["schemas"]["SitePolicyView"][] | null;
+            policies: components["schemas"]["SitePolicyView"][];
         };
         SitePolicyView: {
             /**
@@ -846,7 +846,7 @@ export interface components {
             term_norm: string;
         };
         TermsResponse: {
-            terms: components["schemas"]["TermView"][] | null;
+            terms: components["schemas"]["TermView"][];
             /** Format: int64 */
             total: number;
         };

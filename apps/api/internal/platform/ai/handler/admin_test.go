@@ -60,9 +60,8 @@ func TestAdminGate(t *testing.T) {
 		if auth != "" {
 			req.Header.Set("Authorization", "Bearer "+auth)
 		}
-		resp, err := app.Test(req)
-		require.NoError(t, err)
-		return resp.StatusCode
+		status, _ := send(t, app, publishedAdminSpec(t), req)
+		return status
 	}
 
 	assert.Equal(t, fiber.StatusUnauthorized, get(""), "anonymous → 401")
@@ -165,9 +164,8 @@ func TestBudgetUpsertOverHTTP(t *testing.T) {
 	req := httptest.NewRequest("PUT", "/api/v1/admin/ai/budgets", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+adminToken(t, "admin"))
-	resp, err := app.Test(req)
-	require.NoError(t, err)
-	require.Equal(t, fiber.StatusOK, resp.StatusCode)
+	status, raw := send(t, app, publishedAdminSpec(t), req)
+	require.Equal(t, fiber.StatusOK, status)
 
 	var env struct {
 		Code int `json:"code"`
@@ -177,7 +175,7 @@ func TestBudgetUpsertOverHTTP(t *testing.T) {
 			DailyCostCapMicro *int64 `json:"daily_cost_cap_micro"`
 		} `json:"data"`
 	}
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(&env))
+	require.NoError(t, json.Unmarshal(raw, &env))
 	assert.Equal(t, 0, env.Code)
 	assert.Equal(t, "moderate-text", env.Data.Route)
 	require.NotNil(t, env.Data.DailyCostCapMicro)

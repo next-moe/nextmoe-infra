@@ -231,9 +231,7 @@ components:
         results:
           items:
             $ref: "#/components/schemas/EnsureSubjectKindResultView"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - results
       type: object
@@ -295,9 +293,7 @@ components:
         data:
           items:
             $ref: "#/components/schemas/ReasonView"
-          type:
-            - array
-            - "null"
+          type: array
         message:
           type: string
       required:
@@ -320,9 +316,7 @@ components:
         data:
           items:
             $ref: "#/components/schemas/SubjectKindView"
-          type:
-            - array
-            - "null"
+          type: array
         message:
           type: string
       required:
@@ -572,9 +566,7 @@ components:
         items:
           items:
             $ref: "#/components/schemas/DispositionView"
-          type:
-            - array
-            - "null"
+          type: array
         total:
           format: int64
           type: integer
@@ -588,9 +580,7 @@ components:
         items:
           items:
             $ref: "#/components/schemas/ReviewItemView"
-          type:
-            - array
-            - "null"
+          type: array
         total:
           format: int64
           type: integer
@@ -740,9 +730,7 @@ components:
         reports:
           items:
             $ref: "#/components/schemas/ReportView"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - item
         - reports
@@ -823,9 +811,7 @@ components:
         policies:
           items:
             $ref: "#/components/schemas/SitePolicyView"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - policies
         - defaults
@@ -953,9 +939,7 @@ components:
         terms:
           items:
             $ref: "#/components/schemas/TermView"
-          type:
-            - array
-            - "null"
+          type: array
         total:
           format: int64
           type: integer
@@ -997,7 +981,7 @@ components:
       type: object
 info:
   title: KUN Trust Admin API
-  version: 1.0.0
+  version: 1.0.1
 openapi: 3.1.0
 paths:
   /api/v1/admin/trust/dispositions:

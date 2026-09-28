@@ -31,7 +31,7 @@ func resolveWindow(window string) (string, string) {
 func (s *StatsService) Summary(ctx context.Context, window string) (dto.UsageSummary, error) {
 	resolved, interval := resolveWindow(window)
 
-	var rows []dto.SummaryRow
+	rows := []dto.SummaryRow{}
 	err := s.db.WithContext(ctx).
 		Table("ai_usage").
 		Select(`site, route, channel,
@@ -80,7 +80,7 @@ func (s *StatsService) Daily(ctx context.Context, days int) (dto.DailySeries, er
 	if days < 1 {
 		days = 1
 	}
-	var points []dto.DailyPoint
+	points := []dto.DailyPoint{}
 	err := s.db.WithContext(ctx).
 		Table("ai_usage").
 		Select(`to_char(date_trunc('day', created_at), 'YYYY-MM-DD') AS day, route,

@@ -48,9 +48,7 @@ components:
         points:
           items:
             $ref: "#/components/schemas/DailyPoint"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - days
         - points
@@ -113,9 +111,7 @@ components:
         data:
           items:
             $ref: "#/components/schemas/BudgetView"
-          type:
-            - array
-            - "null"
+          type: array
         message:
           type: string
       required:
@@ -289,9 +285,7 @@ components:
         rows:
           items:
             $ref: "#/components/schemas/SummaryRow"
-          type:
-            - array
-            - "null"
+          type: array
         window:
           type: string
       required:
@@ -301,7 +295,7 @@ components:
       type: object
 info:
   title: KUN AI Admin API
-  version: 1.0.0
+  version: 1.0.1
 openapi: 3.1.0
 paths:
   /api/v1/admin/ai/budgets:
