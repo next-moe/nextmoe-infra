@@ -56,7 +56,13 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	if err := describe(ctx, db, p); err != nil {
+	resolve := service.NewResolveService(repository.NewRedirectRepository(db))
+	survivor, _, err := resolve.Resolve(ctx, model.EntityTypeWork, p.TargetEntityID)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	if err := describe(ctx, db, p, survivor); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -66,7 +72,6 @@ func main() {
 		return
 	}
 
-	resolve := service.NewResolveService(repository.NewRedirectRepository(db))
 	merge := service.NewMergeService(db, resolve,
 		repository.NewProposalRepository(db), repository.NewRevisionRepository(db))
 	newID, err := merge.Unmerge(ctx, p.ID, actor)
@@ -76,7 +81,7 @@ func main() {
 	}
 	fmt.Printf("APPLIED proposal %d: work %d rebuilt as %d (titles only; refs, releases, credits, "+
 		"tags, covers and characters are still on %d and need a separate pass)\n",
-		p.ID, p.SourceEntityID, newID, p.TargetEntityID)
+		p.ID, p.SourceEntityID, newID, survivor)
 }
 
 func loadExecuted(ctx context.Context, db *gorm.DB, id int64) (*model.CatalogMergeProposal, error) {
@@ -97,7 +102,7 @@ func loadExecuted(ctx context.Context, db *gorm.DB, id int64) (*model.CatalogMer
 // merge that should never have happened shows up here as two upstream
 // identities under one work, and the operator redistributes by those ids —
 // there is nothing else to key the split on once the children have moved.
-func describe(ctx context.Context, db *gorm.DB, p *model.CatalogMergeProposal) error {
+func describe(ctx context.Context, db *gorm.DB, p *model.CatalogMergeProposal, survivor int64) error {
 	var refs []struct {
 		Key        string `gorm:"column:key"`
 		ExternalID string `gorm:"column:external_id"`
@@ -108,7 +113,7 @@ func describe(ctx context.Context, db *gorm.DB, p *model.CatalogMergeProposal) e
 		FROM catalog_external_ref r JOIN catalog_source s ON s.id = r.source_id
 		WHERE r.entity_type = ? AND r.entity_id = ? AND r.dead_at IS NULL
 		ORDER BY s.key, r.external_id`,
-		model.EntityTypeWork, p.TargetEntityID).Scan(&refs).Error; err != nil {
+		model.EntityTypeWork, survivor).Scan(&refs).Error; err != nil {
 		return err
 	}
 	var rels []struct {
@@ -123,12 +128,12 @@ func describe(ctx context.Context, db *gorm.DB, p *model.CatalogMergeProposal) e
 		LEFT JOIN catalog_external_ref r ON r.entity_type = ? AND r.entity_id = rl.id
 		LEFT JOIN catalog_source s ON s.id = r.source_id
 		WHERE rl.work_id = ? ORDER BY rl.released_y NULLS LAST, rl.id`,
-		model.EntityTypeRelease, p.TargetEntityID).Scan(&rels).Error; err != nil {
+		model.EntityTypeRelease, survivor).Scan(&rels).Error; err != nil {
 		return err
 	}
 
 	fmt.Printf("proposal %d: work %d was merged into %d\n", p.ID, p.SourceEntityID, p.TargetEntityID)
-	fmt.Printf("survivor %d now holds %d live refs and %d releases:\n", p.TargetEntityID, len(refs), len(rels))
+	fmt.Printf("survivor %d now holds %d live refs and %d releases:\n", survivor, len(refs), len(rels))
 	for _, r := range refs {
 		fmt.Printf("  ref      %-14s %-24s link_kind=%d\n", r.Key, r.ExternalID, r.LinkKind)
 	}
