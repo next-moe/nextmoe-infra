@@ -10,6 +10,7 @@ import (
 	"api/internal/platform/apiv2/parse"
 	"api/internal/platform/apiv2/problem"
 	"api/internal/platform/apiv2/repr"
+	"api/internal/platform/apiv2/vocab"
 	catmodel "api/internal/platform/catalog/model"
 	catsvc "api/internal/platform/catalog/service"
 )
@@ -22,6 +23,7 @@ var calendarStatus = []string{"released", "dated", "announced", "cancelled", "un
 type calendarParams struct {
 	Month, Year, Precision, Status string
 	ContentLimit, OLang            string
+	ExcludeCompanyKind             string
 }
 
 func (c *Catalog) ListCalendar(ctx context.Context, q collect.Query, p calendarParams) (repr.CalendarList, error) {
@@ -37,13 +39,17 @@ func (c *Catalog) ListCalendar(ctx context.Context, q collect.Query, p calendarP
 	if err != nil {
 		return repr.CalendarList{}, err
 	}
+	excluded, err := closedCSV(p.ExcludeCompanyKind, "exclude_company_kind", vocab.Tokens("company_kind"))
+	if err != nil {
+		return repr.CalendarList{}, err
+	}
 	win, werr := calendarWindow(p.Month, p.Year, p.Precision, p.Status, time.Now())
 	if werr != nil {
 		return repr.CalendarList{}, werr
 	}
 	f := catsvc.CalendarFilter{
 		NSFW: q.NSFW, Include: listWorksInclude(q.Include),
-		DisplayLimits: limits, OLang: calendarOLang(p.OLang),
+		DisplayLimits: limits, OLang: calendarOLang(p.OLang), ExcludeCompanyKinds: excluded,
 	}
 	meta := &repr.CalendarMeta{Today: time.Now().In(calendarJST).Format("2006-01-02")}
 	if win.empty {
