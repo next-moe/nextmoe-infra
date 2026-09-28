@@ -332,6 +332,15 @@ func creditNameGuard(d creditPairDossier) string {
 // two different people, and SONOMAKERSfromSHOTMUSIC was declared by both SONO
 // MAKERS and SHOT MUSIC; the judge accepted each pair on its own.
 func markContested(items []creditNameItem) {
+	contested := contestedIDs(items)
+	for i := range items {
+		if items[i].Guard == "" && (contested[items[i].AID] || contested[items[i].BID]) {
+			items[i].Guard = guardContested
+		}
+	}
+}
+
+func contestedIDs(items []creditNameItem) map[int64]bool {
 	sides := map[int64]creditSideDossier{}
 	partners := map[int64][]int64{}
 	for _, it := range items {
@@ -359,11 +368,7 @@ func markContested(items []creditNameItem) {
 			contested[id] = true
 		}
 	}
-	for i := range items {
-		if items[i].Guard == "" && (contested[items[i].AID] || contested[items[i].BID]) {
-			items[i].Guard = guardContested
-		}
-	}
+	return contested
 }
 
 func shortCreditName(name string) bool {

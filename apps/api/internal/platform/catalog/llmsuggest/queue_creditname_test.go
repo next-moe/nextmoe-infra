@@ -374,8 +374,9 @@ func TestQueueCreditNameJudgesOnADossier(t *testing.T) {
 		Queue: QueueCreditName, Actor: 1, MinConfidence: 0.95, MinConfidenceReject: 0.7, Model: "mock-model",
 	})
 	require.NoError(t, err)
-	assert.Equal(t, 6, st.Applied, "counts: %v", st.Counts)
-	assert.Equal(t, 1, st.Counts[skipHeldByGuard], "a verdict judged before the pair became contested is held: %v", st.Counts)
+	assert.Equal(t, 7, st.Applied, "counts: %v", st.Counts)
+	assert.Equal(t, 5, st.Counts[skipHeldByGuard],
+		"short-name, company, both-linked and both contested pairs are held, including a verdict judged before the pair became contested: %v", st.Counts)
 	assert.Equal(t, 1, st.Counts[skipSameNameDifferent], "an identical spelling judged different waits for a person: %v", st.Counts)
 	assert.Equal(t, 1, st.Counts["applied_"+applyReject], "a differently spelled pair judged different is rejected: %v", st.Counts)
 	var statuses []struct {
@@ -399,13 +400,15 @@ func TestQueueCreditNameJudgesOnADossier(t *testing.T) {
 	for _, c := range all {
 		k := [2]int64{c.AID, c.BID}
 		switch k {
-		case key(yuraV, yuraB), key(whiteV, whiteB), key(linkedV, linkedB), key(bareV, bareB),
+		case key(yuraV, yuraB), key(whiteV, whiteB), key(linkedV, linkedB),
 			key(nickname, claimA), key(nickname, claimB), key(ozawaV, ozawaD):
 			assert.Equal(t, model.CandidateStatusPending, c.Status, "a guarded pair waits for a person: %v", k)
 			pending++
 		}
 	}
-	assert.Equal(t, 7, pending)
+	assert.Equal(t, 6, pending)
+	assert.Equal(t, model.CandidateStatusAccepted, got[min(bareV, bareB)],
+		"no-career does not hold an identical name no third credit name carries")
 	assert.Equal(t, model.CandidateStatusRejected, got[min(takoV, takoB)])
 	assert.Equal(t, model.CandidateStatusAccepted, got[min(declarer, aliasOne)])
 	var linked int64

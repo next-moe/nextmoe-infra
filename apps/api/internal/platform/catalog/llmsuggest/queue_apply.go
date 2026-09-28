@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"strings"
 	"time"
 
@@ -161,14 +160,13 @@ func RunApply(ctx context.Context, db *gorm.DB, up StagingDBs, queues *service.A
 // catalog, not about the verdict - so an unsure row at confidence 0 is still
 // actionable. Filtering on the accept bar here is what kept that screen away
 // from the 960 unsure and 811 below-bar rows it exists to decide: the rules
-// were right and never saw a row.
+// were right and never saw a row. The credit-name bar kept 590 unsure and
+// guarded rows away from structuralCreditAccept the same way.
 func applySelection(opts Options) (minConf float64, verdicts []string) {
 	verdicts = []string{VerdictSame, VerdictDifferent, VerdictChainVerified}
 	switch opts.Queue {
-	case QueueWorkPair:
+	case QueueWorkPair, QueueCreditName:
 		return 0, append(verdicts, VerdictUnsure)
-	case QueueCreditName:
-		return math.Min(opts.MinConfidence, opts.MinConfidenceReject), verdicts
 	default:
 		// Different below the reject bar is stamped held_probable_disputed, so
 		// the loop has to see those rows even when they sit under the confirm bar.
@@ -189,6 +187,9 @@ type applyEvidence struct {
 func planFor(queue string, row QueueVerdict, sides map[int64]workPairSides, opts Options, slotTaken bool, ev applyEvidence) applyPlan {
 	switch queue {
 	case QueueCreditName:
+		if structuralCreditAccept(row.Verdict, ev.Credit) {
+			return applyPlan{Action: applyAccept, Reason: structuralCreditReason}
+		}
 		if ev.Credit.Guard != "" {
 			return applyPlan{Skip: skipHeldByGuard}
 		}
