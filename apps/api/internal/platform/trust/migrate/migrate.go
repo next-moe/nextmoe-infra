@@ -56,7 +56,38 @@ func Run(db *gorm.DB) error {
 	if err := backfillGatewayFlagged(db); err != nil {
 		return err
 	}
-	return backfillScanAttempts(db)
+	if err := backfillScanAttempts(db); err != nil {
+		return err
+	}
+	return backfillSubjectAuthor(db)
+}
+
+// backfillSubjectAuthor gives review items opened before subject_author_id
+// existed the author their subject's scans recorded; until then the author
+// reached trust only on scan rows, so every author's moderation history would
+// have started empty. 448 of production's 513 items had a matching scan when
+// this was written; the rest (report- and forward-only subjects) stay NULL until
+// a new signal names their author.
+//
+// The earliest scan wins, the first-signal rule the live paths apply. Only NULL
+// rows are written, so the per-deploy re-run picks up items whose subject has
+// been scanned since and never overrides an author a signal already set.
+func backfillSubjectAuthor(db *gorm.DB) error {
+	if err := db.Exec(`
+		UPDATE trust_review_item AS i
+		   SET subject_author_id = s.author_id
+		  FROM (SELECT DISTINCT ON (site, subject_kind, subject_id)
+		               site, subject_kind, subject_id, author_id
+		          FROM trust_scan_result
+		         WHERE author_id IS NOT NULL
+		         ORDER BY site, subject_kind, subject_id, id) AS s
+		 WHERE i.subject_author_id IS NULL
+		   AND i.site = s.site
+		   AND i.subject_kind = s.subject_kind
+		   AND i.subject_id = s.subject_id`).Error; err != nil {
+		return fmt.Errorf("backfill subject_author_id: %w", err)
+	}
+	return nil
 }
 
 // backfillScanAttempts makes the new counter honest about the past. Every row
@@ -210,6 +241,11 @@ func rawSQL(db *gorm.DB) error {
 		{"idx_trust_review_item_site_status_priority", `
 			CREATE INDEX IF NOT EXISTS idx_trust_review_item_site_status_priority
 			    ON trust_review_item(site, status, priority DESC)`},
+		// An author's moderation history: the inbox filtered to one
+		// subject_author_id.
+		{"idx_trust_review_item_subject_author", `
+			CREATE INDEX IF NOT EXISTS idx_trust_review_item_subject_author
+			    ON trust_review_item(subject_author_id)`},
 		// Dispatch worker claim: pending dispositions whose next_attempt_at is
 		// due (章程 ruling 9).
 		{"idx_trust_disposition_callback", `

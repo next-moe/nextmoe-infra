@@ -73,7 +73,7 @@ func (s *Server) forwardReviewItem(ctx context.Context, in *forwardInput) (*forw
 		CallerClientID: callerClientID(ctx),
 		Site:           in.Body.Site, SubjectKind: in.Body.SubjectKind, SubjectID: in.Body.SubjectID,
 		Severity: in.Body.Severity, WeightSum: in.Body.WeightSum, ContextNote: in.Body.ContextNote,
-		SubjectReach: in.Body.SubjectReach,
+		SubjectReach: in.Body.SubjectReach, AuthorID: in.Body.AuthorID,
 	})
 	if err != nil {
 		return nil, mapForwardErr("forward", err)
@@ -137,7 +137,7 @@ func (s *Server) submitReport(ctx context.Context, in *submitReportInput) (*subm
 	res, err := s.reports.Submit(ctx, service.ReportParams{
 		Site: site, SubjectKind: in.Body.SubjectKind, SubjectID: in.Body.SubjectID,
 		ReasonKey: in.Body.ReasonKey, Note: in.Body.Note, Snapshot: in.Body.Snapshot,
-		SubjectURL: in.Body.SubjectURL,
+		SubjectURL: in.Body.SubjectURL, AuthorID: in.Body.AuthorID,
 		ReporterID: in.Body.ReporterID,
 	})
 	if err != nil {

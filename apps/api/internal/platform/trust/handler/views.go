@@ -62,7 +62,7 @@ func toReviewItemView(it model.TrustReviewItem) dto.ReviewItemView {
 	return dto.ReviewItemView{
 		ID: it.ID, Site: it.Site, SubjectKind: it.SubjectKind, SubjectID: it.SubjectID,
 		Source: it.Source, Severity: it.Severity, ClassifierScore: it.ClassifierScore,
-		ReportWeightSum: it.ReportWeightSum, SubjectReach: it.SubjectReach,
+		ReportWeightSum: it.ReportWeightSum, SubjectReach: it.SubjectReach, SubjectAuthorID: it.SubjectAuthorID,
 		Priority: it.Priority, ContextNote: it.ContextNote, Status: it.Status,
 		ClaimedBy: it.ClaimedBy, ClaimedAt: it.ClaimedAt,
 		DecidedBy: it.DecidedBy, DecidedAt: it.DecidedAt, CreatedAt: it.CreatedAt,
@@ -81,7 +81,8 @@ func toReportView(r model.TrustReport) dto.ReportView {
 	return dto.ReportView{
 		ID: r.ID, Site: r.Site, SubjectKind: r.SubjectKind, SubjectID: r.SubjectID,
 		ReporterID: r.ReporterID, ReasonID: r.ReasonID, Note: r.Note,
-		SubjectSnapshot: r.SubjectSnapshot, SubjectURL: r.SubjectURL, Weight: r.Weight,
+		SubjectSnapshot: r.SubjectSnapshot, SubjectURL: r.SubjectURL,
+		SubjectAuthorID: r.SubjectAuthorID, Weight: r.Weight,
 		ReviewItemID: r.ReviewItemID, Status: r.Status, CreatedAt: r.CreatedAt,
 	}
 }

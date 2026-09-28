@@ -14,6 +14,7 @@ type ReportRequest struct {
 	Note        *string `json:"note,omitempty"`
 	Snapshot    *string `json:"snapshot,omitempty" doc:"reporter-carried content snapshot at report time"`
 	SubjectURL  *string `json:"subject_url,omitempty" doc:"deep link to the reported content in its product context (http/https, ≤512 chars); carried by the submitter because sub-entity subjects have no page derivable from subject_id alone"`
+	AuthorID    *int64  `json:"author_id,omitempty" minimum:"1" doc:"optional global id of the user who wrote the reported content (for a user subject, that user); the repeat-offender key the review item carries as subject_author_id. Not the tenant, not the reporter; omit when unknown"`
 	ReporterID  int64   `json:"reporter_id" doc:"the reporting user's global id (P0 requires login)"`
 }
 
@@ -80,6 +81,7 @@ type ReviewItemView struct {
 	Site            string     `json:"site"`
 	SubjectKind     string     `json:"subject_kind"`
 	SubjectID       string     `json:"subject_id"`
+	SubjectAuthorID *int64     `json:"subject_author_id,omitempty" doc:"global id of the user who wrote the subject, from the first report, scan or forward that named one; absent = no signal has named an author yet"`
 	Source          int16      `json:"source" doc:"0=reports 1=ai_text 2=ai_image 3=community_forward 4=mislabel 5=manual 6=ai_sample (a clean verdict drawn at random for calibration — never enforced)"`
 	Severity        *int16     `json:"severity,omitempty"`
 	ClassifierScore *float32   `json:"classifier_score,omitempty"`
@@ -105,6 +107,7 @@ type ReportView struct {
 	Note            *string   `json:"note,omitempty"`
 	SubjectSnapshot *string   `json:"subject_snapshot,omitempty"`
 	SubjectURL      *string   `json:"subject_url,omitempty" doc:"submitter-carried deep link to the content in its product context"`
+	SubjectAuthorID *int64    `json:"subject_author_id,omitempty" doc:"the author_id this report was submitted with"`
 	Weight          float32   `json:"weight"`
 	ReviewItemID    *int64    `json:"review_item_id,omitempty"`
 	Status          int16     `json:"status" doc:"0=received 1=linked 2=folded"`
@@ -185,6 +188,7 @@ type ForwardRequest struct {
 	WeightSum    *float32 `json:"weight_sum,omitempty" doc:"accumulated signal weight (idempotent update takes the max)"`
 	ContextNote  *string  `json:"context_note,omitempty" doc:"reviewer-facing evidence excerpt"`
 	SubjectReach *int64   `json:"subject_reach,omitempty" doc:"optional audience the content has reached (views or nearest equivalent); ranks the review queue and re-ranks an already-open item upward as the number grows"`
+	AuthorID     *int64   `json:"author_id,omitempty" minimum:"1" doc:"optional global id of the user who wrote the subject; the review item keeps the first one it is given as subject_author_id"`
 	ForwarderRef *string  `json:"forwarder_ref,omitempty" doc:"caller-side trace ref (informational)"`
 }
 
