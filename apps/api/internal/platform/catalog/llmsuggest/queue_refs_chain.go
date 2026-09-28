@@ -79,7 +79,7 @@ func chainRow(it refItem, queue string) QueueVerdict {
 
 func verifyChainBatch(db *gorm.DB, up StagingDBs, reg sourceReg, items []refItem) (map[string]chainResult, error) {
 	out := map[string]chainResult{}
-	var vndbRel, egDMM, egSteam, hltbSteam, bgmSteam []refItem
+	var vndbRel, egDMM, egSteam, hltbSteam, hltbTitleDate, bgmSteam []refItem
 	for _, it := range items {
 		switch it.MatchedBy {
 		case matchedByVNDBReleaseBackfill:
@@ -90,6 +90,8 @@ func verifyChainBatch(db *gorm.DB, up StagingDBs, reg sourceReg, items []refItem
 			egSteam = append(egSteam, it)
 		case matchedByHLTBSteam:
 			hltbSteam = append(hltbSteam, it)
+		case matchedByHLTBTitleDate:
+			hltbTitleDate = append(hltbTitleDate, it)
 		case matchedByBgmSteam:
 			bgmSteam = append(bgmSteam, it)
 		default:
@@ -113,6 +115,11 @@ func verifyChainBatch(db *gorm.DB, up StagingDBs, reg sourceReg, items []refItem
 	}
 	if err := verifyHLTBSteamChain(db, up, reg, hltbSteam, out); err != nil {
 		for _, it := range hltbSteam {
+			out[it.Hash] = chainResult{Reason: err.Error()}
+		}
+	}
+	if err := verifyHLTBTitleDateChain(db, up, reg, hltbTitleDate, out); err != nil {
+		for _, it := range hltbTitleDate {
 			out[it.Hash] = chainResult{Reason: err.Error()}
 		}
 	}
