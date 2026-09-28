@@ -22,6 +22,9 @@ func (s *PublicService) publicWorkReleases(rows []ReleaseDetail) []dto.PublicRel
 			Platform: derefStrPub(r.Platform), Platforms: publicPlatformsFromExtra(r.Extra),
 			Refs: make([]dto.PublicCatalogRef, 0, len(rd.Anchors)),
 		}
+		if r.EngineID != nil {
+			pr.Engine = &dto.PublicEngineRef{ID: *r.EngineID, Name: rd.EngineName}
+		}
 		for _, a := range rd.Anchors {
 			if a.LinkKind != model.LinkKindExact {
 				continue

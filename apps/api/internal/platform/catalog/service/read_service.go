@@ -164,8 +164,9 @@ type RefDetail struct {
 }
 
 type ReleaseDetail struct {
-	Release model.CatalogRelease
-	Anchors []AnchorDetail
+	Release    model.CatalogRelease
+	Anchors    []AnchorDetail
+	EngineName string
 }
 
 type AnchorDetail struct {
@@ -451,9 +452,42 @@ func (s *ReadService) loadWorkReleases(ctx context.Context, workID int64, includ
 		anchorsByRelease[a.EntityID] = append(anchorsByRelease[a.EntityID],
 			AnchorDetail{Source: a.Source, ExternalID: a.ExternalID, LinkKind: a.LinkKind, MatchedBy: a.MatchedBy})
 	}
+	var engineIDs []int64
+	for _, r := range releases {
+		if r.EngineID != nil {
+			engineIDs = append(engineIDs, *r.EngineID)
+		}
+	}
+	engines, err := engineNames(ctx, s.db, engineIDs)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]ReleaseDetail, 0, len(releases))
 	for _, r := range releases {
-		out = append(out, ReleaseDetail{Release: r, Anchors: anchorsByRelease[r.ID]})
+		rd := ReleaseDetail{Release: r, Anchors: anchorsByRelease[r.ID]}
+		if r.EngineID != nil {
+			rd.EngineName = engines[*r.EngineID]
+		}
+		out = append(out, rd)
+	}
+	return out, nil
+}
+
+func engineNames(ctx context.Context, db *gorm.DB, ids []int64) (map[int64]string, error) {
+	out := make(map[int64]string, len(ids))
+	if len(ids) == 0 {
+		return out, nil
+	}
+	var rows []struct {
+		ID   int64  `gorm:"column:id"`
+		Name string `gorm:"column:name"`
+	}
+	if err := db.WithContext(ctx).Raw(`SELECT id, name FROM catalog_engine WHERE id IN ?`, ids).
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, r := range rows {
+		out[r.ID] = r.Name
 	}
 	return out, nil
 }

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"api/internal/platform/catalog/model"
 	catalogSearch "api/internal/platform/catalog/search"
 
 	"gorm.io/gorm"
@@ -75,7 +76,7 @@ func reindexSeries(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer,
 }
 
 func reindexEngines(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, batch int) error {
-	pop, err := loadGroupedCount(db, "catalog_work_engine", "engine_id")
+	pop, err := loadGroupedCount(db, model.WorkEnginesSQL+" x", "engine_id")
 	if err != nil {
 		return err
 	}

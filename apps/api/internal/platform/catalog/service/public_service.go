@@ -1011,7 +1011,7 @@ func (s *PublicService) workEngines(ctx context.Context, workID int64) ([]dto.Pu
 		Name string `gorm:"column:name"`
 	}
 	if err := s.db.WithContext(ctx).Raw(`
-		SELECT e.id, e.name FROM catalog_work_engine we
+		SELECT e.id, e.name FROM `+model.WorkEnginesSQL+` we
 		JOIN catalog_engine e ON e.id = we.engine_id
 		WHERE we.work_id = ? ORDER BY e.name, e.id`, workID).Scan(&rows).Error; err != nil {
 		return nil, err

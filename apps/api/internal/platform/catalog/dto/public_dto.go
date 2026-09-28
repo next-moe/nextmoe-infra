@@ -455,8 +455,14 @@ type PublicRelease struct {
 	Lang      string             `json:"lang,omitempty"`
 	Platform  string             `json:"platform,omitempty"`
 	Platforms []string           `json:"platforms,omitempty"`
+	Engine    *PublicEngineRef   `json:"engine,omitempty"`
 	Refs      []PublicCatalogRef `json:"refs"`
 	Labels    []PublicWorkLabel  `json:"labels"`
+}
+
+type PublicEngineRef struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
 }
 
 type PublicCharacterTrait struct {
@@ -649,6 +655,7 @@ type PublicReleaseFeedItem struct {
 	Lang      string             `json:"lang,omitempty"`
 	Platform  string             `json:"platform,omitempty"`
 	Platforms []string           `json:"platforms,omitempty"`
+	Engine    *PublicEngineRef   `json:"engine,omitempty"`
 	Refs      []PublicCatalogRef `json:"refs"`
 	Labels    []PublicWorkLabel  `json:"labels"`
 	IsFirst   bool               `json:"is_first"`
