@@ -51,11 +51,19 @@ func (s *MergeService) Unmerge(ctx context.Context, proposalID int64, actorID *i
 		if err := writeRevision(tx, et, newID, model.RevisionActionReverted, rebuiltSnap, nil, actorID, note); err != nil {
 			return err
 		}
-		targetSnap, err := takeSnapshot(tx, et, p.TargetEntityID)
+		// The proposal names the target as it stood when the merge ran. On
+		// 2026-09-28 five of twelve cross-medium unmerges failed with "record
+		// not found" because that target had since been merged on into another
+		// work; the children to redistribute live on the current survivor.
+		target, _, err := s.resolve.Resolve(ctx, et, p.TargetEntityID)
 		if err != nil {
 			return err
 		}
-		if err := writeRevision(tx, et, p.TargetEntityID, model.RevisionActionReverted, targetSnap, nil, actorID, note); err != nil {
+		targetSnap, err := takeSnapshot(tx, et, target)
+		if err != nil {
+			return err
+		}
+		if err := writeRevision(tx, et, target, model.RevisionActionReverted, targetSnap, nil, actorID, note); err != nil {
 			return err
 		}
 

@@ -320,6 +320,39 @@ func TestMergeUnmergeDrill(t *testing.T) {
 	}
 }
 
+func TestUnmergeAfterTargetWasMergedOn(t *testing.T) {
+	cleanTables(t)
+	ctx := t.Context()
+
+	a := createPerson(t, "A")
+	b := createPerson(t, "B")
+	c := createPerson(t, "C")
+
+	ab, err := testMerge.ProposeMerge(ctx, model.EntityTypePerson, a.ID, b.ID, 7, "a into b")
+	require.NoError(t, err)
+	approveAndForceExecutable(t, ab.ID)
+	require.NoError(t, testMerge.ExecuteMerge(ctx, ab.ID, nil))
+
+	bc, err := testMerge.ProposeMerge(ctx, model.EntityTypePerson, b.ID, c.ID, 7, "b into c")
+	require.NoError(t, err)
+	approveAndForceExecutable(t, bc.ID)
+	require.NoError(t, testMerge.ExecuteMerge(ctx, bc.ID, nil))
+
+	newID, err := testMerge.Unmerge(ctx, ab.ID, nil)
+	require.NoError(t, err, "the recorded target B is merged away; the survivor is C")
+
+	canonical, redirected, err := testResolve.Resolve(ctx, model.EntityTypePerson, a.ID)
+	require.NoError(t, err)
+	assert.True(t, redirected)
+	assert.Equal(t, newID, canonical)
+
+	var count int64
+	testDB.Model(&model.CatalogRevision{}).
+		Where("entity_type = ? AND entity_id = ? AND action = ?", model.EntityTypePerson, c.ID, model.RevisionActionReverted).
+		Count(&count)
+	assert.Equal(t, int64(1), count, "the reverted revision lands on the current survivor")
+}
+
 func TestRedirectFlattenAndSentinel(t *testing.T) {
 	cleanTables(t)
 	ctx := t.Context()
