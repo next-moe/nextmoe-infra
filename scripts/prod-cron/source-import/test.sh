@@ -48,13 +48,14 @@ reconcile-eg-works --apply --limit 250
 import-character-roster --source eg --apply
 import-galgame-credits --source eg --apply
 import-galgame-credits --source eg-music --apply
-import-store-refs --apply
+import-store-refs --only eg --apply
 backfill-work-playtime --source eg --apply
 expand-bgm-type4-gated --apply --limit 250
 import-character-roster --source bangumi --apply
 backfill-bgm-zh-names --lane character --apply
 backfill-bgm-zh-names --lane person --apply
 backfill-bgm-zh-names --lane label --apply
+import-store-refs --only bgm --apply
 import-entity-aliases --hints --run
 import-entity-aliases --candidates --run
 person-link-batch --rule-set alias --actor 1 --run
@@ -346,6 +347,8 @@ case "$1" in
       *"--only dlsite-en"*) only=dlsite-en ;;
       *"--only dlsite"*) only=dlsite ;;
       *"--only dmm"*) only=dmm ;;
+      *"--only eg"*) only=eg ;;
+      *"--only bgm"*) only=bgm ;;
     esac
     case "$toolcmd" in
       *"--lane character"*) lane=character ;;
@@ -651,7 +654,7 @@ grep -v -F \
   -e 'import-character-roster --source eg --apply' \
   -e 'import-galgame-credits --source eg --apply' \
   -e 'import-galgame-credits --source eg-music --apply' \
-  -e 'import-store-refs --apply' \
+  -e 'import-store-refs --only eg --apply' \
   -e 'backfill-work-playtime --source eg --apply' \
   "$td/ctl/t1" > "$td/ctl/expected"
 expect_apply "$td" "$td/ctl/expected"
@@ -673,7 +676,7 @@ grep -v -F \
   -e 'import-character-roster --source eg --apply' \
   -e 'import-galgame-credits --source eg --apply' \
   -e 'import-galgame-credits --source eg-music --apply' \
-  -e 'import-store-refs --apply' \
+  -e 'import-store-refs --only eg --apply' \
   -e 'backfill-work-playtime --source eg --apply' \
   "$td/ctl/t1" > "$td/ctl/expected"
 expect_apply "$td" "$td/ctl/expected"
@@ -859,6 +862,7 @@ grep -v -F \
   -e 'backfill-bgm-zh-names --lane character --apply' \
   -e 'backfill-bgm-zh-names --lane person --apply' \
   -e 'backfill-bgm-zh-names --lane label --apply' \
+  -e 'import-store-refs --only bgm --apply' \
   -e 'import-entity-aliases --hints --run' \
   -e 'import-entity-aliases --candidates --run' \
   -e 'person-link-batch --rule-set alias --actor 1 --run' \
@@ -1008,7 +1012,7 @@ grep -v -F \
   -e 'import-character-roster --source eg --apply' \
   -e 'import-galgame-credits --source eg --apply' \
   -e 'import-galgame-credits --source eg-music --apply' \
-  -e 'import-store-refs --apply' \
+  -e 'import-store-refs --only eg --apply' \
   -e 'backfill-work-playtime --source eg --apply' \
   "$td/ctl/t1" > "$td/ctl/expected"
 expect_apply "$td" "$td/ctl/expected"
@@ -1031,7 +1035,7 @@ grep -v -F \
   -e 'import-character-roster --source eg --apply' \
   -e 'import-galgame-credits --source eg --apply' \
   -e 'import-galgame-credits --source eg-music --apply' \
-  -e 'import-store-refs --apply' \
+  -e 'import-store-refs --only eg --apply' \
   -e 'backfill-work-playtime --source eg --apply' \
   "$td/ctl/t1" > "$td/ctl/expected"
 expect_apply "$td" "$td/ctl/expected"
@@ -1171,7 +1175,7 @@ grep -v -F \
   -e 'import-character-roster --source eg --apply' \
   -e 'import-galgame-credits --source eg --apply' \
   -e 'import-galgame-credits --source eg-music --apply' \
-  -e 'import-store-refs --apply' \
+  -e 'import-store-refs --only eg --apply' \
   -e 'backfill-work-playtime --source eg --apply' \
   "$td/ctl/t1" > "$td/ctl/expected"
 expect_apply "$td" "$td/ctl/expected"

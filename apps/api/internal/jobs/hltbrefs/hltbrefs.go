@@ -52,7 +52,7 @@ func Run(ctx context.Context, opts Opts) (*Stats, error) {
 		return nil, err
 	}
 
-	worksByAppid, err := loadSteamWorks(ctx, db, ids)
+	worksByAppid, err := repository.SteamAnchoredWorks(ctx, db, ids.steamSource)
 	if err != nil {
 		return nil, fmt.Errorf("load steam-anchored works: %w", err)
 	}
@@ -146,29 +146,6 @@ func resolveIDs(ctx context.Context, db *gorm.DB) (registryIDs, error) {
 			r.galgameMedium, r.steamSource, r.hltbSource)
 	}
 	return r, nil
-}
-
-func loadSteamWorks(ctx context.Context, db *gorm.DB, ids registryIDs) (map[string][]int64, error) {
-	var rows []struct {
-		WorkID int64  `gorm:"column:work_id"`
-		Appid  string `gorm:"column:appid"`
-	}
-	if err := db.WithContext(ctx).Raw(`
-		SELECT DISTINCT w.id AS work_id, r.external_id AS appid
-		FROM catalog_work w
-		JOIN catalog_release rel ON rel.work_id = w.id AND rel.deleted_at IS NULL
-		JOIN catalog_external_ref r ON r.entity_type = ? AND r.entity_id = rel.id
-			AND r.source_id = ? AND r.link_kind = ? AND r.dead_at IS NULL
-		WHERE w.medium_id = ? AND w.deleted_at IS NULL`,
-		model.EntityTypeRelease, ids.steamSource, model.LinkKindExact, ids.galgameMedium).
-		Scan(&rows).Error; err != nil {
-		return nil, err
-	}
-	out := make(map[string][]int64, len(rows))
-	for _, r := range rows {
-		out[r.Appid] = append(out[r.Appid], r.WorkID)
-	}
-	return out, nil
 }
 
 func loadMirrorSteam(ctx context.Context, hltbDB *gorm.DB) (map[string][]string, error) {

@@ -43,41 +43,56 @@ func loadCandidates(ctx context.Context, db *gorm.DB, vndbSource, laneSource int
 	return out, nil
 }
 
-func loadTakenExact(ctx context.Context, db *gorm.DB, laneSource int16) (map[string]struct{}, error) {
-	var vals []string
-	if err := db.WithContext(ctx).Raw(`
-		SELECT external_id FROM catalog_external_ref
-		WHERE entity_type = ? AND source_id = ? AND link_kind = ?`,
-		model.EntityTypeRelease, laneSource, model.LinkKindExact).Scan(&vals).Error; err != nil {
-		return nil, fmt.Errorf("load exact-held ids: %w", err)
+type takenExact struct {
+	release map[string]struct{}
+	work    map[string]int64
+}
+
+func loadTakenExact(ctx context.Context, db *gorm.DB, laneSource int16) (takenExact, error) {
+	var rows []struct {
+		EntityType int16  `gorm:"column:entity_type"`
+		EntityID   int64  `gorm:"column:entity_id"`
+		ExternalID string `gorm:"column:external_id"`
 	}
-	out := make(map[string]struct{}, len(vals))
-	for _, v := range vals {
-		out[v] = struct{}{}
+	if err := db.WithContext(ctx).Raw(`
+		SELECT entity_type, entity_id, external_id FROM catalog_external_ref
+		WHERE entity_type IN ? AND source_id = ? AND link_kind = ?`,
+		[]int16{model.EntityTypeRelease, model.EntityTypeWork}, laneSource, model.LinkKindExact).
+		Scan(&rows).Error; err != nil {
+		return takenExact{}, fmt.Errorf("load exact-held ids: %w", err)
+	}
+	out := takenExact{release: map[string]struct{}{}, work: map[string]int64{}}
+	for _, r := range rows {
+		if r.EntityType == model.EntityTypeRelease {
+			out.release[r.ExternalID] = struct{}{}
+		} else {
+			out.work[r.ExternalID] = r.EntityID
+		}
 	}
 	return out, nil
 }
 
 func loadRejections(ctx context.Context, db *gorm.DB, laneSource int16) (map[string]struct{}, error) {
 	var rows []struct {
+		EntityType int16  `gorm:"column:entity_type"`
 		EntityID   int64  `gorm:"column:entity_id"`
 		ExternalID string `gorm:"column:external_id"`
 	}
 	if err := db.WithContext(ctx).Raw(`
-		SELECT entity_id, external_id FROM catalog_match_rejection
-		WHERE entity_type = ? AND source_id = ?`,
-		model.EntityTypeRelease, laneSource).Scan(&rows).Error; err != nil {
+		SELECT entity_type, entity_id, external_id FROM catalog_match_rejection
+		WHERE entity_type IN ? AND source_id = ?`,
+		[]int16{model.EntityTypeRelease, model.EntityTypeWork}, laneSource).Scan(&rows).Error; err != nil {
 		return nil, fmt.Errorf("load rejections: %w", err)
 	}
 	out := make(map[string]struct{}, len(rows))
 	for _, r := range rows {
-		out[rejKey(r.EntityID, r.ExternalID)] = struct{}{}
+		out[rejKey(r.EntityType, r.EntityID, r.ExternalID)] = struct{}{}
 	}
 	return out, nil
 }
 
-func rejKey(releaseID int64, externalID string) string {
-	return fmt.Sprintf("%d\x00%s", releaseID, externalID)
+func rejKey(entityType int16, entityID int64, externalID string) string {
+	return fmt.Sprintf("%d\x00%d\x00%s", entityType, entityID, externalID)
 }
 
 func resolveSource(ctx context.Context, db *gorm.DB, key string) (int16, error) {

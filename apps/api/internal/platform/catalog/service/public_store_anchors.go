@@ -34,14 +34,11 @@ func (s *PublicService) StoreAnchorsFor(ctx context.Context, workIDs []int64) (a
 		ExternalID string `gorm:"column:external_id"`
 	}
 	if err := s.db.WithContext(ctx).Raw(`
-		SELECT DISTINCT rel.work_id, src.key AS source, r.external_id
-		FROM catalog_external_ref r
-		JOIN catalog_release rel ON rel.id = r.entity_id AND rel.deleted_at IS NULL
-		JOIN catalog_source src ON src.id = r.source_id
-		WHERE r.entity_type = ? AND r.link_kind = ? AND r.dead_at IS NULL
-			AND rel.work_id IN ? AND src.key IN ('dlsite','steam','getchu')
-		ORDER BY rel.work_id, src.key, r.external_id`,
-		model.EntityTypeRelease, model.LinkKindExact, ids,
+		SELECT DISTINCT a.work_id, src.key AS source, a.external_id
+		FROM `+model.WorkExactRefsSQL+` a
+		JOIN catalog_source src ON src.id = a.source_id
+		WHERE a.work_id IN ? AND src.key IN ('dlsite','steam','getchu')
+		ORDER BY a.work_id, src.key, a.external_id`, ids,
 	).Scan(&rows).Error; err != nil {
 		return nil, nil, err
 	}

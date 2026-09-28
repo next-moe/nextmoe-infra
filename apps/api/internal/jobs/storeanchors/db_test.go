@@ -300,3 +300,36 @@ func TestMultipleIdsOnOneRelease(t *testing.T) {
 	assert.Equal(t, "next_0031", got[0].ExternalID)
 	assert.Equal(t, "next_0031dl", got[1].ExternalID)
 }
+
+func TestSameWorkEditionsAnchorTheWork(t *testing.T) {
+	db := requireDB(t)
+	steam := sourceID(t, "steam")
+	relJA, work := fixture(t, "one-title", "r980", model.LinkKindExact, map[string]string{"steam": "515151"})
+	relEN := model.CatalogRelease{WorkID: work, Kind: 0}
+	require.NoError(t, db.Create(&relEN).Error)
+	require.NoError(t, db.Create(&model.CatalogExternalRef{
+		EntityType: model.EntityTypeRelease, EntityID: relEN.ID, SourceID: sourceID(t, "vndb"),
+		ExternalID: "r981", LinkKind: model.LinkKindExact, MatchedBy: "import:test"}).Error)
+	addLink(t, "r981", "steam", "515151")
+
+	st, err := RunWithDB(context.Background(), db, Opts{Apply: true, Only: LaneSteam})
+	require.NoError(t, err)
+	ls := st.Lanes[LaneSteam]
+	assert.Equal(t, 1, ls.PlannedWorkGrain)
+	assert.Equal(t, 1, ls.Written)
+	assert.Equal(t, 1, ls.SkippedSibling)
+	assert.Empty(t, refsFor(t, relJA, steam))
+	assert.Empty(t, refsFor(t, relEN.ID, steam))
+
+	var got []model.CatalogExternalRef
+	require.NoError(t, db.Where("entity_type = ? AND entity_id = ? AND source_id = ?",
+		model.EntityTypeWork, work, steam).Find(&got).Error)
+	require.Len(t, got, 1)
+	assert.Equal(t, "515151", got[0].ExternalID)
+	assert.Equal(t, model.LinkKindExact, got[0].LinkKind)
+
+	st, err = RunWithDB(context.Background(), db, Opts{Apply: true, Only: LaneSteam})
+	require.NoError(t, err)
+	assert.Zero(t, st.Lanes[LaneSteam].Written)
+	assert.Equal(t, 1, st.Lanes[LaneSteam].SkippedWorkHeld)
+}

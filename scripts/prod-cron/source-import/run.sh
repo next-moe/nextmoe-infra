@@ -243,7 +243,7 @@ if [ "$GROUP_FAIL" -eq 0 ]; then
     ceiling_failed
   fi
 fi
-gstep sh -c "$DSNSH"'; import-store-refs --dsn "$CAT" --eg-dsn "$EG" --apply'
+gstep sh -c "$DSNSH"'; import-store-refs --dsn "$CAT" --eg-dsn "$EG" --only eg --apply'
 gstep sh -c "$DSNSH"'; backfill-work-playtime --dsn "$CAT" --eg-dsn "$EG" --source eg --apply'
 
 begin_group bangumi
@@ -271,6 +271,10 @@ fi
 gstep sh -c "$DSNSH"'; backfill-bgm-zh-names --dsn "$CAT" --lane character --apply'
 gstep sh -c "$DSNSH"'; backfill-bgm-zh-names --dsn "$CAT" --lane person --apply'
 gstep sh -c "$DSNSH"'; backfill-bgm-zh-names --dsn "$CAT" --lane label --apply'
+# Probable work refs for the Steam appid a work's Bangumi subject names; the
+# nightly adjudication confirms them. Its own step here, not a lane of the eg
+# invocation above, so a failed EG group does not take it down.
+gstep sh -c "$DSNSH"'; import-store-refs --dsn "$CAT" --only bgm --apply'
 # --run is the apply flag of import-entity-aliases, person-link-batch and
 # import-bangumi-xmedia: Go's flag package treats --apply as undefined and exits
 # 2, the same class of invocation break as bgm-refresh's --wiki-dsn on
