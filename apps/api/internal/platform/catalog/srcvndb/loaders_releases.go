@@ -96,3 +96,14 @@ func newReleaseExtlinkLoader(tx *gorm.DB, _ time.Time) tableLoader {
 		return ReleaseExtlink{ID: id, Link: getInt(get, "link")}, true
 	})
 }
+
+func newEngineLoader(tx *gorm.DB, _ time.Time) tableLoader {
+	return newLoader(tx, func(get getter) (Engine, bool) {
+		id, _ := get("id")
+		name := getStr(get, "name")
+		if id == "" || name == "" {
+			return Engine{}, false
+		}
+		return Engine{ID: id, Name: name, Description: getStr(get, "description")}, true
+	})
+}

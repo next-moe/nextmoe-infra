@@ -52,6 +52,7 @@ func TestReleaseSchemaProjection(t *testing.T) {
 		editspec.FieldReleaseTitle:    editing.KindText,
 		editspec.FieldReleaseLang:     editing.KindEnum,
 		editspec.FieldReleasePlatform: editing.KindEnum,
+		editspec.FieldReleaseEngine:   editing.KindRef,
 		editspec.FieldReleaseReleased: editing.KindDate,
 		editspec.FieldReleaseHidden:   editing.KindEnum,
 	}
@@ -366,5 +367,57 @@ func TestReleaseValidatorsAndMissing(t *testing.T) {
 		Patch: map[string]any{editspec.FieldReleaseTitle: "ghost"}, Actor: editor,
 	}); !errors.Is(err, editing.ErrEntityNotFound) {
 		t.Fatalf("missing release: %v", err)
+	}
+}
+
+func TestReleaseEngineEdit(t *testing.T) {
+	e := newReleaseEngine(t)
+	if err := testDB.Exec("TRUNCATE catalog_engine RESTART IDENTITY CASCADE").Error; err != nil {
+		t.Fatalf("truncate catalog_engine: %v", err)
+	}
+	engine := model.CatalogEngine{Name: "KiriKiri", Aliases: []byte("[]")}
+	if err := testDB.Create(&engine).Error; err != nil {
+		t.Fatalf("create engine: %v", err)
+	}
+	work := createWork(t, "エンジンの主")
+	rel := createReleaseOn(t, work.ID)
+
+	snap := mergeOn(t, e, editspec.TypeRelease, rel.ID, map[string]any{
+		editspec.FieldReleaseEngine: float64(engine.ID),
+	})
+	if snap[editspec.FieldReleaseEngine] != engine.ID {
+		t.Fatalf("snapshot engine_id = %#v, want %d", snap[editspec.FieldReleaseEngine], engine.ID)
+	}
+	got := reloadRelease(t, rel.ID)
+	if got.EngineID == nil || *got.EngineID != engine.ID {
+		t.Fatalf("release engine_id = %v, want %d", got.EngineID, engine.ID)
+	}
+	if head := provenance.FirstSource(got.FieldProvenance, "engine_id"); head != provenance.SourceCurated {
+		t.Fatalf("field_provenance[engine_id] head = %q, want %q: the importer must see a person's choice", head, provenance.SourceCurated)
+	}
+
+	editor := realActor(100, "admin")
+	var valErr *editing.ValidationError
+	for name, value := range map[string]any{
+		"unknown engine": float64(engine.ID + 1000),
+		"not an integer": 1.5,
+		"not positive":   float64(0),
+		"a string":       "KiriKiri",
+	} {
+		prop, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
+			EntityType: editspec.TypeRelease, EntityID: rel.ID,
+			Patch: map[string]any{editspec.FieldReleaseEngine: value}, Actor: editor,
+		})
+		if err == nil {
+			_, err = e.MergeProposal(testCtx, prop.ID, realActor(200, "ren"), "")
+		}
+		if !errors.As(err, &valErr) {
+			t.Errorf("%s: want ValidationError, got %v", name, err)
+		}
+	}
+
+	mergeOn(t, e, editspec.TypeRelease, rel.ID, map[string]any{editspec.FieldReleaseEngine: nil})
+	if cleared := reloadRelease(t, rel.ID); cleared.EngineID != nil {
+		t.Fatalf("clearing the engine left %d", *cleared.EngineID)
 	}
 }

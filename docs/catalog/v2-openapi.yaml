@@ -1939,6 +1939,30 @@ components:
         - description
         - aliases
       type: object
+    EngineRef:
+      additionalProperties: true
+      properties:
+        display_name:
+          description: Must not be used as a discriminant.
+          maxLength: 512
+          type: string
+        id:
+          description: Catalog engine id.
+          maxLength: 20
+          minLength: 1
+          pattern: ^[0-9]+$
+          type: string
+        object:
+          description: Type discriminant. Always engine.
+          enum:
+            - engine
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - id
+        - display_name
+      type: object
     EntityName:
       additionalProperties: true
       properties:
@@ -6453,6 +6477,9 @@ components:
           type:
             - string
             - "null"
+        engine:
+          $ref: "#/components/schemas/EngineRef"
+          description: The engine this release runs on. Absent when unrecorded.
         id:
           description: Catalog release id.
           maxLength: 20
@@ -8609,7 +8636,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.34.0
+  version: 2.35.0
   x-stability: stable
 openapi: 3.1.0
 paths:

@@ -680,6 +680,34 @@ func rawSQL(db *gorm.DB) error {
 	if err := db.Exec(model.TraitSexualFamilySQL).Error; err != nil {
 		return fmt.Errorf("backfill catalog_character_trait.sexual_family: %w", err)
 	}
+
+	// (10) Engines at release grain (2026-09-28). VNDB records an engine per
+	// release, and the only engine layer the catalog had was the 2,755 work
+	// edges migrated from the wiki. catalog_release.engine_id is nullable, so
+	// AutoMigrate adds it to the populated table without a rewrite and every
+	// existing row starts unrecorded; import-work-engines fills it from VNDB.
+	// The FK is declared here like the vote FK in (7); ON DELETE SET NULL
+	// because a deleted engine leaves a release unrecorded, not gone.
+	// catalog_work_engine's unique key grows source_id
+	// (uq_catalog_work_engine_source, created by AutoMigrate) so a curated row
+	// and a Bangumi row may name the same engine; the old two-column key is
+	// dropped. Every existing row satisfies the wider key.
+	releaseEngineFK, err := constraintExists(db, "catalog_release", "fk_catalog_release_engine")
+	if err != nil {
+		return err
+	}
+	if !releaseEngineFK {
+		if err := db.Exec(`
+			ALTER TABLE catalog_release
+			    ADD CONSTRAINT fk_catalog_release_engine
+			    FOREIGN KEY (engine_id) REFERENCES catalog_engine(id) ON DELETE SET NULL
+		`).Error; err != nil {
+			return fmt.Errorf("add release engine FK: %w", err)
+		}
+	}
+	if err := db.Exec(`DROP INDEX IF EXISTS uq_catalog_work_engine`).Error; err != nil {
+		return fmt.Errorf("drop uq_catalog_work_engine: %w", err)
+	}
 	return nil
 }
 

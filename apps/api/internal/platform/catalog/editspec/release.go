@@ -19,6 +19,7 @@ const (
 	FieldReleaseTitle    = "catalog.release.title"
 	FieldReleaseLang     = "catalog.release.lang"
 	FieldReleasePlatform = "catalog.release.platform"
+	FieldReleaseEngine   = "catalog.release.engine_id"
 	FieldReleaseReleased = "catalog.release.released"
 	FieldReleaseHidden   = "catalog.release.hidden"
 )
@@ -144,6 +145,13 @@ func releaseFieldSpecs() []editing.FieldSpec {
 			Provenance: releaseProvenance("platform"),
 		},
 		{
+			Key: FieldReleaseEngine, Kind: editing.KindRef, DiffHint: editing.DiffHintInline,
+			Value:      &editing.ValueSpec{Nullable: true},
+			Validate:   validateReleaseEngine,
+			Apply:      applyReleaseEngine,
+			Provenance: releaseProvenance("engine_id"),
+		},
+		{
 			Key: FieldReleaseReleased, Kind: editing.KindDate, DiffHint: editing.DiffHintInline,
 			Value:    &editing.ValueSpec{Nullable: true},
 			Validate: validateReleased,
@@ -228,6 +236,36 @@ func validateReleasePlatform(v any) error {
 		return fmt.Errorf("%q is not an allowed platform", s)
 	}
 	return nil
+}
+
+func parseReleaseEngine(v any) (*int64, error) {
+	if v == nil {
+		return nil, nil
+	}
+	f, ok := v.(float64)
+	if !ok || f != float64(int64(f)) || f <= 0 {
+		return nil, fmt.Errorf("must be a positive integer engine id or null")
+	}
+	id := int64(f)
+	return &id, nil
+}
+
+func validateReleaseEngine(v any) error {
+	_, err := parseReleaseEngine(v)
+	return err
+}
+
+func applyReleaseEngine(ctx context.Context, tx *gorm.DB, entityID int64, value any) error {
+	id, err := parseReleaseEngine(value)
+	if err != nil {
+		return fmt.Errorf("editspec: engine_id: %w", err)
+	}
+	if id != nil {
+		if err := assertEntitiesExist(ctx, tx, &catmodel.CatalogEngine{}, []int64{*id}, FieldReleaseEngine); err != nil {
+			return err
+		}
+	}
+	return applyReleaseColumn("engine_id", func(any) (any, error) { return id, nil })(ctx, tx, entityID, value)
 }
 
 func validateReleased(v any) error {
@@ -349,7 +387,7 @@ func loadReleaseSnapshot(db *gorm.DB) func(context.Context, int64) (map[string]a
 	return func(ctx context.Context, entityID int64) (map[string]any, error) {
 		var r catmodel.CatalogRelease
 		err := db.WithContext(ctx).Unscoped().
-			Select("id", "kind", "title", "lang", "platform", "released_y", "released_m", "released_d", "deleted_at").
+			Select("id", "kind", "title", "lang", "platform", "engine_id", "released_y", "released_m", "released_d", "deleted_at").
 			First(&r, entityID).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, editing.ErrEntityNotFound
@@ -362,6 +400,7 @@ func loadReleaseSnapshot(db *gorm.DB) func(context.Context, int64) (map[string]a
 			FieldReleaseTitle:    nullableString(r.Title),
 			FieldReleaseLang:     nullableString(r.Lang),
 			FieldReleasePlatform: nullableString(r.Platform),
+			FieldReleaseEngine:   nullableInt64(r.EngineID),
 			FieldReleaseReleased: releasedSnapshot(r.ReleasedY, r.ReleasedM, r.ReleasedD),
 			FieldReleaseHidden:   r.DeletedAt.Valid,
 		}, nil

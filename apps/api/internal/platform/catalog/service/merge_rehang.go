@@ -331,7 +331,7 @@ func workFacetStmts(src, dst int64) []mergeStmt {
 		{"catalog_work_playtime", []string{"source_id"}},
 		{"catalog_user_playtime", []string{"actor_uid", "client_id"}},
 		{"catalog_work_platform", []string{"platform", "source_id"}},
-		{"catalog_work_engine", []string{"engine_id"}},
+		{"catalog_work_engine", []string{"engine_id", "source_id"}},
 		{"catalog_series_member", []string{"series_id"}},
 		{"catalog_work_label", []string{"label_id", "kind"}},
 		{"catalog_work_character", []string{"character_id"}},

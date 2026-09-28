@@ -5697,6 +5697,33 @@ export const docsModel: DocsModel = {
                                     "type": "string"
                                   },
                                   {
+                                    "name": "engine",
+                                    "type": "object",
+                                    "children": [
+                                      {
+                                        "name": "display_name",
+                                        "required": true,
+                                        "doc": "Must not be used as a discriminant.",
+                                        "type": "string"
+                                      },
+                                      {
+                                        "name": "id",
+                                        "required": true,
+                                        "doc": "Catalog engine id.",
+                                        "type": "string"
+                                      },
+                                      {
+                                        "name": "object",
+                                        "required": true,
+                                        "doc": "Type discriminant. Always engine.",
+                                        "enum": [
+                                          "engine"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    ]
+                                  },
+                                  {
                                     "name": "id",
                                     "required": true,
                                     "doc": "Catalog release id.",
@@ -14737,6 +14764,33 @@ export const docsModel: DocsModel = {
                                         "doc": "Calendar date. null if undated.",
                                         "format": "date",
                                         "type": "string"
+                                      },
+                                      {
+                                        "name": "engine",
+                                        "type": "object",
+                                        "children": [
+                                          {
+                                            "name": "display_name",
+                                            "required": true,
+                                            "doc": "Must not be used as a discriminant.",
+                                            "type": "string"
+                                          },
+                                          {
+                                            "name": "id",
+                                            "required": true,
+                                            "doc": "Catalog engine id.",
+                                            "type": "string"
+                                          },
+                                          {
+                                            "name": "object",
+                                            "required": true,
+                                            "doc": "Type discriminant. Always engine.",
+                                            "enum": [
+                                              "engine"
+                                            ],
+                                            "type": "string"
+                                          }
+                                        ]
                                       },
                                       {
                                         "name": "id",
@@ -28175,6 +28229,33 @@ export const docsModel: DocsModel = {
                                         "doc": "Calendar date. null if undated.",
                                         "format": "date",
                                         "type": "string"
+                                      },
+                                      {
+                                        "name": "engine",
+                                        "type": "object",
+                                        "children": [
+                                          {
+                                            "name": "display_name",
+                                            "required": true,
+                                            "doc": "Must not be used as a discriminant.",
+                                            "type": "string"
+                                          },
+                                          {
+                                            "name": "id",
+                                            "required": true,
+                                            "doc": "Catalog engine id.",
+                                            "type": "string"
+                                          },
+                                          {
+                                            "name": "object",
+                                            "required": true,
+                                            "doc": "Type discriminant. Always engine.",
+                                            "enum": [
+                                              "engine"
+                                            ],
+                                            "type": "string"
+                                          }
+                                        ]
                                       },
                                       {
                                         "name": "id",
@@ -42460,6 +42541,33 @@ export const docsModel: DocsModel = {
                               "type": "string"
                             },
                             {
+                              "name": "engine",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "display_name",
+                                  "required": true,
+                                  "doc": "Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "id",
+                                  "required": true,
+                                  "doc": "Catalog engine id.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "object",
+                                  "required": true,
+                                  "doc": "Type discriminant. Always engine.",
+                                  "enum": [
+                                    "engine"
+                                  ],
+                                  "type": "string"
+                                }
+                              ]
+                            },
+                            {
                               "name": "id",
                               "required": true,
                               "doc": "Catalog release id.",
@@ -43865,6 +43973,33 @@ export const docsModel: DocsModel = {
                         "doc": "Calendar date. null if undated.",
                         "format": "date",
                         "type": "string"
+                      },
+                      {
+                        "name": "engine",
+                        "type": "object",
+                        "children": [
+                          {
+                            "name": "display_name",
+                            "required": true,
+                            "doc": "Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "id",
+                            "required": true,
+                            "doc": "Catalog engine id.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "object",
+                            "required": true,
+                            "doc": "Type discriminant. Always engine.",
+                            "enum": [
+                              "engine"
+                            ],
+                            "type": "string"
+                          }
+                        ]
                       },
                       {
                         "name": "id",
@@ -66393,6 +66528,33 @@ export const docsModel: DocsModel = {
                                     "type": "string"
                                   },
                                   {
+                                    "name": "engine",
+                                    "type": "object",
+                                    "children": [
+                                      {
+                                        "name": "display_name",
+                                        "required": true,
+                                        "doc": "Must not be used as a discriminant.",
+                                        "type": "string"
+                                      },
+                                      {
+                                        "name": "id",
+                                        "required": true,
+                                        "doc": "Catalog engine id.",
+                                        "type": "string"
+                                      },
+                                      {
+                                        "name": "object",
+                                        "required": true,
+                                        "doc": "Type discriminant. Always engine.",
+                                        "enum": [
+                                          "engine"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    ]
+                                  },
+                                  {
                                     "name": "id",
                                     "required": true,
                                     "doc": "Catalog release id.",
@@ -69698,6 +69860,33 @@ export const docsModel: DocsModel = {
                               "doc": "Calendar date. null if undated.",
                               "format": "date",
                               "type": "string"
+                            },
+                            {
+                              "name": "engine",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "display_name",
+                                  "required": true,
+                                  "doc": "Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "id",
+                                  "required": true,
+                                  "doc": "Catalog engine id.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "object",
+                                  "required": true,
+                                  "doc": "Type discriminant. Always engine.",
+                                  "enum": [
+                                    "engine"
+                                  ],
+                                  "type": "string"
+                                }
+                              ]
                             },
                             {
                               "name": "id",
@@ -84665,6 +84854,33 @@ export const docsModel: DocsModel = {
                                         "type": "string"
                                       },
                                       {
+                                        "name": "engine",
+                                        "type": "object",
+                                        "children": [
+                                          {
+                                            "name": "display_name",
+                                            "required": true,
+                                            "doc": "Must not be used as a discriminant.",
+                                            "type": "string"
+                                          },
+                                          {
+                                            "name": "id",
+                                            "required": true,
+                                            "doc": "Catalog engine id.",
+                                            "type": "string"
+                                          },
+                                          {
+                                            "name": "object",
+                                            "required": true,
+                                            "doc": "Type discriminant. Always engine.",
+                                            "enum": [
+                                              "engine"
+                                            ],
+                                            "type": "string"
+                                          }
+                                        ]
+                                      },
+                                      {
                                         "name": "id",
                                         "required": true,
                                         "doc": "Catalog release id.",
@@ -86589,6 +86805,33 @@ export const docsModel: DocsModel = {
                               "doc": "Calendar date. null if undated.",
                               "format": "date",
                               "type": "string"
+                            },
+                            {
+                              "name": "engine",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "display_name",
+                                  "required": true,
+                                  "doc": "Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "id",
+                                  "required": true,
+                                  "doc": "Catalog engine id.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "object",
+                                  "required": true,
+                                  "doc": "Type discriminant. Always engine.",
+                                  "enum": [
+                                    "engine"
+                                  ],
+                                  "type": "string"
+                                }
+                              ]
                             },
                             {
                               "name": "id",

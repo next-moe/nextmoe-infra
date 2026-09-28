@@ -90,3 +90,11 @@ type ReleaseExtlink struct {
 }
 
 func (ReleaseExtlink) TableName() string { return "src_vndb.releases_extlinks" }
+
+type Engine struct {
+	ID          string `gorm:"primaryKey" json:"id"`
+	Name        string `gorm:"not null" json:"name"`
+	Description string `gorm:"not null" json:"description"`
+}
+
+func (Engine) TableName() string { return "src_vndb.engines" }

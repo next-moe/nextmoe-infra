@@ -200,6 +200,7 @@ type CatalogRelease struct {
 	ReleasedM       *int16         `json:"released_m"`
 	ReleasedD       *int16         `json:"released_d"`
 	EventID         *int64         `json:"event_id"`
+	EngineID        *int64         `gorm:"index:idx_catalog_release_engine,where:engine_id IS NOT NULL" json:"engine_id"`
 	Extra           datatypes.JSON `gorm:"type:jsonb;not null;default:'{}'" json:"extra"`
 	FieldProvenance datatypes.JSON `gorm:"type:jsonb;not null;default:'{}'" json:"-"`
 	CreatedAt       time.Time      `json:"created_at"`

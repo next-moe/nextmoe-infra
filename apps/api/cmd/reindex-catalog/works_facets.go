@@ -36,9 +36,10 @@ const (
 		FROM catalog_work_tag wt
 		JOIN catalog_tag_source_map m ON m.source_id = wt.source_id AND m.source_name = wt.name) e`
 	reindexLabelEdge  = `(SELECT label_id AS key_id, work_id FROM catalog_work_label) e`
-	reindexEngineEdge = `(SELECT engine_id AS key_id, work_id FROM catalog_work_engine) e`
 	reindexSeriesEdge = `(SELECT series_id AS key_id, work_id FROM catalog_series_member) e`
 )
+
+var reindexEngineEdge = `(SELECT engine_id AS key_id, work_id FROM ` + model.WorkEnginesSQL + ` x) e`
 
 func loadEarliestReleaseOrd(db *gorm.DB) (map[int64]int64, error) {
 	var rows []struct {

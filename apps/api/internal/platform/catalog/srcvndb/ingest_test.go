@@ -220,7 +220,10 @@ func TestIngestFixtureAndIdempotency(t *testing.T) {
 	assert.True(t, *r2.Uncensored)
 	assert.Equal(t, 99999999, r2.Released, "TBA sentinel")
 	assert.Equal(t, "Note\nline", r2.Notes)
-	assert.Equal(t, "Ren'Py", r2.Engine)
+	assert.Equal(t, "47", r2.Engine)
+	var e Engine
+	require.NoError(t, testDB.First(&e, "id = ?", r2.Engine).Error)
+	assert.Equal(t, "Ren'Py", e.Name)
 
 	var rt ReleaseTitle
 	require.NoError(t, testDB.Where("id = ? AND lang = ?", "r2", "en").First(&rt).Error)

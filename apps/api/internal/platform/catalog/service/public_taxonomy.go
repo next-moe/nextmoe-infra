@@ -391,7 +391,7 @@ type taxonomyEdge struct {
 
 var (
 	labelWorkEdge  = taxonomyEdge{sql: `(SELECT label_id AS key_id, work_id FROM catalog_work_label) e`}
-	engineWorkEdge = taxonomyEdge{sql: `(SELECT engine_id AS key_id, work_id FROM catalog_work_engine) e`}
+	engineWorkEdge = taxonomyEdge{sql: `(SELECT engine_id AS key_id, work_id FROM ` + model.WorkEnginesSQL + ` x) e`}
 	seriesWorkEdge = taxonomyEdge{sql: `(SELECT series_id AS key_id, work_id FROM catalog_series_member) e`}
 	tagWorkEdge    = taxonomyEdge{
 		sql: `(SELECT m.tag_id AS key_id, wt.work_id

@@ -1799,3 +1799,48 @@ Steam appid, and three gaps kept known appids off the ones that mattered:
   the copy.
 
 No schema change; the spec stays 2.34.0.
+
+## Wave — engines at release grain (2026-09-28)
+
+Before this wave the only engine data was the 2,755 work edges migrated from
+the wiki (2,537 works). VNDB publishes an engine per release, and the dump's
+`engines` table (id, name, description) was never staged, so
+`src_vndb.releases.engine` held bare ids nothing could name. On the
+2026-09-26 production copy VNDB had an engine for 40,453 anchored works;
+where both sides had one, the wiki edges agreed with VNDB 98.8% of the time.
+
+- **Model.** `catalog_release.engine_id` (nullable, FK to `catalog_engine`,
+  `ON DELETE SET NULL`) holds the engine of one release. It is an editable
+  release field, `catalog.release.engine_id` (`field_type: ref`, nullable),
+  with row provenance like the other release columns. `catalog_work_engine`
+  stays the work-level layer — curated edits and the Bangumi fallback — and
+  its unique key grows `source_id`.
+- **A work's engines** are its work-level edges plus the engines of its live,
+  non-patch releases that are not flagged unofficial (`model.WorkEnginesSQL`).
+  Fan ports and patches keep their engine on the release but do not speak for
+  the work. The work `engines` block, `works?engine_id=`, engine `work_count`,
+  the search index and engine popularity all read that one definition.
+- **Release faces** carry `engine` (`EngineRef`: object, id, display_name)
+  when one is recorded, absent otherwise — the work `releases` block, the
+  release sub-resource and the release feed.
+- **Importer.** `ingest-vndb` now stages the dump's `engines` table, and
+  `import-work-engines --lane vndb` maps each VNDB engine to a catalog engine through an exact `catalog_external_ref` (entity_type engine,
+  source vndb), matching an existing engine by normalized name before it
+  creates one, and folds VNDB's own duplicates and spelling variants
+  (Ren'py/Renpy, Tyranobuilder, RPG Maker MV, KRKR2/KAG3…) into one engine.
+  It never renames or re-describes an existing engine and never overwrites an
+  engine a person set on a release. `--lane bgm` fills works that no release
+  and no person covers from Bangumi's `游戏引擎` field through the same
+  vocabulary plus a spelling table, and removes those rows once something
+  else covers the work. On the copy: 407 engines created, 71,109 releases
+  filled, 4,869 works filled from Bangumi; works with an engine went from
+  2,537 to about 44,400 of 115,031.
+
+**Rollout.** The first pass is by hand, right after the deploy: `ingest-vndb
+--only engines`, then `import-work-engines --lane vndb --apply`, then `--lane
+bgm --apply` — in that order, or the Bangumi lane fills works VNDB is about to
+cover and the next pass drops them. The weekly Bangumi step's 1,000-row
+add/drop ceilings are sized for the steady state, not for the first fill.
+
+**Spec is 2.35.0.** Additive: `Release.engine` and the `EngineRef` schema.
+
