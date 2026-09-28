@@ -73,9 +73,7 @@ components:
           description: upstream category labels when flagged
           items:
             type: string
-          type:
-            - array
-            - "null"
+          type: array
         channel:
           description: the upstream channel/model that scored; '' when degraded
           type: string
@@ -100,7 +98,7 @@ components:
       type: object
 info:
   title: KUN AI Gateway
-  version: 1.0.0
+  version: 1.0.1
 openapi: 3.1.0
 paths:
   /api/v1/ai/moderate-text:

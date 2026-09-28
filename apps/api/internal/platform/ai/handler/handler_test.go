@@ -116,11 +116,8 @@ func TestS2SAuthHTTP(t *testing.T) {
 		if auth != "" {
 			req.Header.Set("Authorization", auth)
 		}
-		resp, err := app.Test(req)
-		if err != nil {
-			t.Fatalf("request: %v", err)
-		}
-		return resp.StatusCode
+		status, _ := send(t, app, publishedSpec(t), req)
+		return status
 	}
 
 	if code := post(basicAuth("ai-test-bound", "s3cr3t")); code != 200 {

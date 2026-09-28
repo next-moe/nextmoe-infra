@@ -10,6 +10,7 @@ import (
 	trustPerm "api/internal/platform/trust/perm"
 	"api/internal/platform/trust/service"
 	"api/pkg/errors"
+	"api/pkg/wireshape"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humafiber"
@@ -28,7 +29,7 @@ type AdminServer struct {
 func SetupAdmin(app *fiber.App, review *service.ReviewService, registry *service.RegistryService, dispositions *service.DispositionService, terms *service.TermService, policies *service.PolicyService, clients clientSiteLookup) huma.API {
 	InstallErrorEnvelope()
 
-	cfg := huma.DefaultConfig("KUN Trust Admin API", "1.0.0")
+	cfg := huma.DefaultConfig("KUN Trust Admin API", "1.0.1")
 	cfg.OpenAPIPath = ""
 	cfg.DocsPath = ""
 	cfg.SchemasPath = ""
@@ -38,6 +39,7 @@ func SetupAdmin(app *fiber.App, review *service.ReviewService, registry *service
 
 	s := &AdminServer{review: review, registry: registry, dispositions: dispositions, terms: terms, policies: policies, clients: clients}
 	s.register(api)
+	wireshape.Publish(api.OpenAPI())
 	return api
 }
 

@@ -9,6 +9,7 @@ import (
 	"api/internal/platform/ai/dto"
 	"api/internal/platform/ai/service"
 	"api/pkg/errors"
+	"api/pkg/wireshape"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humafiber"
@@ -23,7 +24,7 @@ type AdminServer struct {
 func SetupAdmin(app *fiber.App, stats *service.StatsService, budgets *service.BudgetService) huma.API {
 	InstallErrorEnvelope()
 
-	cfg := huma.DefaultConfig("KUN AI Admin API", "1.0.0")
+	cfg := huma.DefaultConfig("KUN AI Admin API", "1.0.1")
 	cfg.OpenAPIPath = ""
 	cfg.DocsPath = ""
 	cfg.SchemasPath = ""
@@ -32,6 +33,7 @@ func SetupAdmin(app *fiber.App, stats *service.StatsService, budgets *service.Bu
 
 	s := &AdminServer{stats: stats, budgets: budgets}
 	s.register(api)
+	wireshape.Publish(api.OpenAPI())
 	return api
 }
 

@@ -8,6 +8,7 @@ import (
 	"api/internal/platform/ai/dto"
 	"api/internal/platform/ai/service"
 	"api/pkg/errors"
+	"api/pkg/wireshape"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humafiber"
@@ -21,7 +22,7 @@ type Server struct {
 func Setup(app *fiber.App, moderation *service.ModerationService) huma.API {
 	InstallErrorEnvelope()
 
-	cfg := huma.DefaultConfig("KUN AI Gateway", "1.0.0")
+	cfg := huma.DefaultConfig("KUN AI Gateway", "1.0.1")
 	cfg.OpenAPIPath = ""
 	cfg.DocsPath = ""
 	cfg.SchemasPath = ""
@@ -31,6 +32,7 @@ func Setup(app *fiber.App, moderation *service.ModerationService) huma.API {
 
 	s := &Server{moderation: moderation}
 	s.register(api)
+	wireshape.Publish(api.OpenAPI())
 	return api
 }
 

@@ -6,9 +6,7 @@ components:
         groups:
           items:
             $ref: "#/components/schemas/ActivityGroupView"
-          type:
-            - array
-            - "null"
+          type: array
         hidden:
           description: "only on /users/{id}/activities: the user hides their activities and viewer_id is not them, so groups is empty"
           type: boolean
@@ -38,9 +36,7 @@ components:
           description: the newest items, at most 3; the rest via /activity-groups/{id}/items
           items:
             $ref: "#/components/schemas/ActivityItemView"
-          type:
-            - array
-            - "null"
+          type: array
         latest_at:
           description: occurred_at of the group's newest item; a group moves to the top when it gains one
           format: date-time
@@ -71,9 +67,7 @@ components:
         items:
           items:
             $ref: "#/components/schemas/ActivityItemView"
-          type:
-            - array
-            - "null"
+          type: array
         next_cursor:
           type: string
       required:
@@ -354,9 +348,7 @@ components:
           description: one per item, in request order
           items:
             $ref: "#/components/schemas/ActivityWriteOutcome"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - results
       type: object
@@ -439,9 +431,7 @@ components:
         presentations:
           items:
             $ref: "#/components/schemas/AnchorPresentationView"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - presentations
       type: object
@@ -551,9 +541,7 @@ components:
           description: one per item, in request order
           items:
             $ref: "#/components/schemas/AnchorPresentationOutcome"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - results
       type: object
@@ -600,9 +588,7 @@ components:
         states:
           items:
             $ref: "#/components/schemas/AnchorSubscriptionView"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - states
       type: object
@@ -615,9 +601,7 @@ components:
         subscriptions:
           items:
             $ref: "#/components/schemas/AnchorSubscriptionView"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - subscriptions
       type: object
@@ -667,9 +651,7 @@ components:
         posts:
           items:
             $ref: "#/components/schemas/AuthorPostView"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - posts
       type: object
@@ -692,9 +674,7 @@ components:
         stats:
           items:
             $ref: "#/components/schemas/AuthorStat"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - stats
       type: object
@@ -707,9 +687,7 @@ components:
         users:
           items:
             $ref: "#/components/schemas/BlockView"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - users
       type: object
@@ -755,9 +733,7 @@ components:
           description: "display order: each top-level board followed by its sub-boards, each group by position"
           items:
             $ref: "#/components/schemas/BoardView"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - boards
       type: object
@@ -946,9 +922,7 @@ components:
         posts:
           items:
             $ref: "#/components/schemas/PostView"
-          type:
-            - array
-            - "null"
+          type: array
         thread:
           $ref: "#/components/schemas/ThreadView"
           description: absent until the anchor's first comment creates the thread; posts is then empty too
@@ -2068,9 +2042,7 @@ components:
         users:
           items:
             $ref: "#/components/schemas/FollowView"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - users
       type: object
@@ -2169,6 +2141,7 @@ components:
           enum:
             - all
             - feed
+            - null
           type:
             - string
             - "null"
@@ -2214,9 +2187,7 @@ components:
         states:
           items:
             $ref: "#/components/schemas/FollowStateView"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - states
       type: object
@@ -2407,9 +2378,7 @@ components:
         notifications:
           items:
             $ref: "#/components/schemas/NotificationView"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - notifications
         - next_after
@@ -2422,9 +2391,7 @@ components:
         notifications:
           items:
             $ref: "#/components/schemas/NotificationView"
-          type:
-            - array
-            - "null"
+          type: array
         unread_count:
           format: int64
           type: integer
@@ -2654,9 +2621,7 @@ components:
         posts:
           items:
             $ref: "#/components/schemas/AuthorPostView"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - posts
       type: object
@@ -2668,9 +2633,7 @@ components:
         posts:
           items:
             $ref: "#/components/schemas/PostView"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - posts
       type: object
@@ -2800,9 +2763,7 @@ components:
         posts:
           items:
             $ref: "#/components/schemas/AuthorPostView"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - posts
       type: object
@@ -3049,9 +3010,7 @@ components:
         items:
           items:
             $ref: "#/components/schemas/ReviewItemView"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - items
       type: object
@@ -3082,9 +3041,7 @@ components:
         activities:
           items:
             $ref: "#/components/schemas/SiteActivityView"
-          type:
-            - array
-            - "null"
+          type: array
         next_cursor:
           description: pass as cursor for the next page; empty = last page
           type: string
@@ -3179,9 +3136,7 @@ components:
         threads:
           items:
             $ref: "#/components/schemas/ThreadView"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - threads
       type: object
@@ -3269,9 +3224,7 @@ components:
         states:
           items:
             $ref: "#/components/schemas/ThreadUserView"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - states
       type: object
@@ -3339,9 +3292,7 @@ components:
           description: Header image hashes as accepted at topic creation; empty for none
           items:
             type: string
-          type:
-            - array
-            - "null"
+          type: array
         highest_post_number:
           format: int32
           type: integer
@@ -3409,9 +3360,7 @@ components:
         posts:
           items:
             $ref: "#/components/schemas/PostView"
-          type:
-            - array
-            - "null"
+          type: array
         thread:
           $ref: "#/components/schemas/ThreadView"
       required:
@@ -3512,9 +3461,7 @@ components:
         threads:
           items:
             $ref: "#/components/schemas/UnreadThreadView"
-          type:
-            - array
-            - "null"
+          type: array
         total:
           description: the user's threads carrying unread posts on this site, muted excluded — the red-dot number
           format: int64
@@ -3613,7 +3560,7 @@ components:
       type: object
 info:
   title: KUN Community Service
-  version: 1.0.0
+  version: 1.0.1
 openapi: 3.1.0
 paths:
   /api/v1/community/activities:
