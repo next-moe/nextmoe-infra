@@ -39,7 +39,7 @@ func (c *Catalog) ListCalendar(ctx context.Context, q collect.Query, p calendarP
 	if err != nil {
 		return repr.CalendarList{}, err
 	}
-	excluded, err := closedCSV(p.ExcludeCompanyKind, "exclude_company_kind", vocab.Tokens("company_kind"))
+	excluded, err := calendarExcludedKinds(p.ExcludeCompanyKind)
 	if err != nil {
 		return repr.CalendarList{}, err
 	}
@@ -105,13 +105,14 @@ func calendarMonthOfOrdinal(ord int64) string {
 	return fmt.Sprintf("%04d-%02d", ord/10000, (ord/100)%100)
 }
 
-// Not parseOLang: the calendar's home population is ja+zh (the zero
-// PublicOLang), matching v1, while the works lane defaults to all languages.
+// Not parseOLang: the calendar's home population is Japanese, while the works
+// lane defaults to all languages. Spelled out rather than left to the zero
+// PublicOLang, which means ja plus zh to every other caller of it.
 func calendarOLang(raw string) catsvc.PublicOLang {
 	raw = strings.TrimSpace(raw)
 	switch raw {
 	case "":
-		return catsvc.PublicOLang{}
+		return catsvc.PublicOLang{Values: []string{"ja"}}
 	case "all":
 		return catsvc.PublicOLang{All: true}
 	}
@@ -126,9 +127,19 @@ func calendarOLang(raw string) catsvc.PublicOLang {
 		vals = append(vals, tok)
 	}
 	if len(vals) == 0 {
-		return catsvc.PublicOLang{}
+		return catsvc.PublicOLang{Values: []string{"ja"}}
 	}
 	return catsvc.PublicOLang{Values: vals}
+}
+
+func calendarExcludedKinds(raw string) ([]string, *problem.Problem) {
+	switch strings.TrimSpace(raw) {
+	case "":
+		return []string{"doujin_circle"}, nil
+	case "none":
+		return nil, nil
+	}
+	return closedCSV(raw, "exclude_company_kind", vocab.Tokens("company_kind"))
 }
 
 type calendarWin struct {
