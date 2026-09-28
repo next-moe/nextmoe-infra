@@ -29,7 +29,7 @@ func runApprove(ctx context.Context, db *gorm.DB, w io.Writer, merge *service.Me
 		return err
 	}
 
-	var approved, conflicted, superseded, errs int
+	var approved, conflicted, crossMedium, superseded, errs int
 	for _, p := range props {
 		src, _, err := resolve.Resolve(ctx, p.EntityType, p.SourceEntityID)
 		if err != nil {
@@ -70,6 +70,30 @@ func runApprove(ctx context.Context, db *gorm.DB, w io.Writer, merge *service.Me
 			continue
 		}
 
+		// The census stopped pairing across mediums on 2026-09-02, but a
+		// hand-filed pair still reached execute: on 2026-09-19 an OVA was
+		// merged into the game it adapts. Twelve such merges were unmerged on
+		// 2026-09-28 (novels, a manga and that OVA folded into galgames, and a
+		// game into a novel). A same-product pair filed under two mediums gets
+		// its medium fixed first; then it passes here.
+		mediums, err := differentMediums(ctx, db, src, tgt)
+		if err != nil {
+			fmt.Fprintf(w, "  proposal %d: medium screen ERROR %v\n", p.ID, err)
+			errs++
+			continue
+		}
+		if mediums != "" {
+			crossMedium++
+			if run {
+				if err := merge.RejectMerge(ctx, p.ID, actor, "cross-medium: "+mediums); err != nil {
+					fmt.Fprintf(w, "  proposal %d: reject ERROR %v\n", p.ID, err)
+					crossMedium--
+					errs++
+				}
+			}
+			continue
+		}
+
 		if run {
 			if err := merge.ApproveMerge(ctx, p.ID, actor); err != nil {
 				fmt.Fprintf(w, "  proposal %d: approve ERROR %v\n", p.ID, err)
@@ -84,12 +108,29 @@ func runApprove(ctx context.Context, db *gorm.DB, w io.Writer, merge *service.Me
 	if run {
 		mode = "APPLIED"
 	}
-	fmt.Fprintf(w, "%s [approve] note=%s open=%d approved=%d ref_conflict=%d superseded=%d errors=%d\n",
-		mode, note, len(props), approved, conflicted, superseded, errs)
+	fmt.Fprintf(w, "%s [approve] note=%s open=%d approved=%d ref_conflict=%d cross_medium=%d superseded=%d errors=%d\n",
+		mode, note, len(props), approved, conflicted, crossMedium, superseded, errs)
 	if errs > 0 {
 		return fmt.Errorf("%d approvals failed", errs)
 	}
 	return nil
+}
+
+func differentMediums(ctx context.Context, db *gorm.DB, a, b int64) (string, error) {
+	var rows []struct {
+		ID  int64  `gorm:"column:id"`
+		Key string `gorm:"column:key"`
+	}
+	if err := db.WithContext(ctx).Raw(`
+		SELECT w.id, m.key FROM catalog_work w JOIN catalog_medium m ON m.id = w.medium_id
+		WHERE w.id IN ?`, []int64{a, b}).Scan(&rows).Error; err != nil {
+		return "", err
+	}
+	if len(rows) != 2 || rows[0].Key == rows[1].Key {
+		return "", nil
+	}
+	by := map[int64]string{rows[0].ID: rows[0].Key, rows[1].ID: rows[1].Key}
+	return fmt.Sprintf("%s %d vs %s %d", by[a], a, by[b], b), nil
 }
 
 // contradictingExactRef returns a human-readable description of one exact-tier

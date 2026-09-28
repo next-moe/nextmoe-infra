@@ -101,3 +101,27 @@ func TestApproveRecordsTheConflictingIdsInTheNote(t *testing.T) {
 	require.NoError(t, testDB.Raw(`SELECT note FROM catalog_merge_proposal WHERE id = ?`, id).Scan(&note).Error)
 	require.Contains(t, note, "ref-conflict: vndb x1 vs x2")
 }
+
+func TestApproveRejectsACrossMediumPair(t *testing.T) {
+	requireDB(t)
+	cleanPipeline(t)
+	ctx := context.Background()
+	merge := newMerge(t)
+	resolve := service.NewResolveService(repository.NewRedirectRepository(testDB))
+
+	var novel int16
+	require.NoError(t, testDB.Raw(`SELECT id FROM catalog_medium WHERE key = 'novel'`).Scan(&novel).Error)
+	require.NotZero(t, novel)
+	game := mkWork(t, galgameMedium(t), "紅樓夢", nil)
+	book := mkWork(t, novel, "紅樓夢", nil)
+
+	p, err := merge.ProposeMerge(ctx, model.EntityTypeWork, book, game, 1, "manual-pairs:test")
+	require.NoError(t, err)
+	var out bytes.Buffer
+	require.NoError(t, runApprove(ctx, testDB, &out, merge, resolve, 1, "manual-pairs", 0, true))
+	require.Contains(t, out.String(), "cross_medium=1")
+
+	var status int16
+	require.NoError(t, testDB.Raw(`SELECT status FROM catalog_merge_proposal WHERE id = ?`, p.ID).Scan(&status).Error)
+	require.Equal(t, model.ProposalStatusRejected, status, "a novel and the game adapted from it are two works")
+}

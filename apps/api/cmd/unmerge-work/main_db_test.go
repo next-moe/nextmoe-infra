@@ -104,7 +104,7 @@ func TestUnmergeRebuildsTheRowAndLeavesTheChildrenOnTheSurvivor(t *testing.T) {
 
 	p, err := loadExecuted(t.Context(), testDB, proposalID)
 	require.NoError(t, err)
-	require.NoError(t, describe(t.Context(), testDB, p))
+	require.NoError(t, describe(t.Context(), testDB, p, target))
 
 	newID, err := merge.Unmerge(t.Context(), proposalID, &[]int64{1}[0])
 	require.NoError(t, err)
