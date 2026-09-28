@@ -195,8 +195,15 @@ func releaseFromFeed(it dto.PublicReleaseFeedItem) repr.Release {
 	return repr.Release{
 		Object: "release", ID: repr.ID(it.ID), WorkID: workID, ReleaseKind: kind, Date: it.Date,
 		Title: optString(it.Title), Lang: it.Lang, Platform: it.Platform, Platforms: plats,
-		Refs: refsFrom(it.Refs),
+		Engine: engineRefFrom(it.Engine), Refs: refsFrom(it.Refs),
 	}
+}
+
+func engineRefFrom(e *dto.PublicEngineRef) *repr.EngineRef {
+	if e == nil {
+		return nil
+	}
+	return &repr.EngineRef{Object: "engine", ID: repr.ID(e.ID), DisplayName: e.Name}
 }
 
 func releasesFrom(in []dto.PublicRelease) []repr.Release {
@@ -213,7 +220,7 @@ func releasesFrom(in []dto.PublicRelease) []repr.Release {
 		out = append(out, repr.Release{
 			Object: "release", ID: repr.ID(r.ID), ReleaseKind: kind, Date: r.Date,
 			Title: optString(r.Title), Lang: r.Lang, Platform: r.Platform, Platforms: plats,
-			Refs: refsFrom(r.Refs),
+			Engine: engineRefFrom(r.Engine), Refs: refsFrom(r.Refs),
 		})
 	}
 	return out

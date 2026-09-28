@@ -215,7 +215,7 @@ func worksListWhere(f WorksListFilter) ([]string, []any) {
 		args = append(args, f.SeriesID)
 	}
 	if f.EngineID > 0 {
-		where = append(where, "EXISTS (SELECT 1 FROM catalog_work_engine we WHERE we.work_id = w.id AND we.engine_id = ?)")
+		where = append(where, "EXISTS (SELECT 1 FROM "+model.WorkEnginesSQL+" we WHERE we.work_id = w.id AND we.engine_id = ?)")
 		args = append(args, f.EngineID)
 	}
 	if f.Platform != "" {

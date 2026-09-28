@@ -56,6 +56,7 @@ backfill-bgm-zh-names --lane character --apply
 backfill-bgm-zh-names --lane person --apply
 backfill-bgm-zh-names --lane label --apply
 import-store-refs --only bgm --apply
+import-work-engines --lane bgm --apply
 import-entity-aliases --hints --run
 import-entity-aliases --candidates --run
 person-link-batch --rule-set alias --actor 1 --run
@@ -120,6 +121,7 @@ extract_tool_cmd() {
     backfill-dlsite-media \
     import-work-aliases \
     import-work-platforms \
+    import-work-engines \
     import-work-series \
     reconcile-eg-anchors \
     reconcile-eg-works \
@@ -188,6 +190,9 @@ emit_out() {
       ;;
     import-dlsite-games+dry|import-dlsite-games+apply)
       echo '2026/09/18 12:31:50 INFO dlsite-games wave summary population=0 total_groups=0 pack_products=0 edition_groups=0 declared_groups=0 split_groups=0 title_attached_groups=0 rejected_skips=0 quarantined_groups=0 minted_groups=0 folded_groups=0 releases_planned=0 refs_planned=0 candidates_planned=0 limited_groups=0 written=0 errors=0'
+      ;;
+    import-work-engines+bgm+dry|import-work-engines+bgm+apply)
+      echo '2026/09/28 12:00:00 INFO workengines done apply=false lane=bgm engines_created=0 engines_linked=0 releases=0 same=0 human=0 filled=0 changed=0 cleared=0 written=0 lost=0 unknown_vndb_engine=0 bgm_stated=10301 bgm_covered=5432 bgm_works=4869 bgm_add=12 bgm_drop=3 unmapped_values=208'
       ;;
     import-work-series+dry)
       echo '2026/09/16 13:28:23 INFO workseries done apply=false anchored_works=19709 series_eligible=887 members_wanted=3178 series_created=10 series_renamed=0 series_deleted=0 members_added=1100 members_stale=0 order_changed=288 errors=0'
@@ -321,6 +326,8 @@ case "$1" in
       backfill-dlsite-media \
       import-work-aliases \
       import-work-platforms \
+      import-work-engines \
+    import-work-engines \
       import-work-series \
       reconcile-eg-anchors \
       reconcile-eg-works \
@@ -354,6 +361,7 @@ case "$1" in
       *"--lane character"*) lane=character ;;
       *"--lane person"*) lane=person ;;
       *"--lane label"*) lane=label ;;
+      *"--lane bgm"*) lane=bgm ;;
     esac
     case "$toolcmd" in
       *"--population all"*) pop=all ;;
@@ -863,6 +871,7 @@ grep -v -F \
   -e 'backfill-bgm-zh-names --lane person --apply' \
   -e 'backfill-bgm-zh-names --lane label --apply' \
   -e 'import-store-refs --only bgm --apply' \
+  -e 'import-work-engines --lane bgm --apply' \
   -e 'import-entity-aliases --hints --run' \
   -e 'import-entity-aliases --candidates --run' \
   -e 'person-link-batch --rule-set alias --actor 1 --run' \
@@ -1177,6 +1186,28 @@ grep -v -F \
   -e 'import-galgame-credits --source eg-music --apply' \
   -e 'import-store-refs --only eg --apply' \
   -e 'backfill-work-playtime --source eg --apply' \
+  "$td/ctl/t1" > "$td/ctl/expected"
+expect_apply "$td" "$td/ctl/expected"
+tend
+rm -rf "$td"
+
+# --- T32: a Bangumi engine pass that would drop past its ceiling writes nothing, and the rest of the group stands down ---
+tstart 32
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' '2026/09/28 12:00:00 INFO workengines done apply=false lane=bgm bgm_stated=10301 bgm_covered=5432 bgm_works=0 bgm_add=0 bgm_drop=4869 unmapped_values=208' \
+  > "$td/ctl/out/import-work-engines+bgm+dry"
+run_job "$td"
+expect_exit_nonzero "$td"
+if has_stamp "$td"; then fail "stamp written"; fi
+if ! has_alert "$td"; then fail "no alert"; fi
+write_t1_expected "$td/ctl/t1"
+grep -v -F \
+  -e 'import-work-engines --lane bgm --apply' \
+  -e 'import-entity-aliases --hints --run' \
+  -e 'import-entity-aliases --candidates --run' \
+  -e 'person-link-batch --rule-set alias --actor 1 --run' \
+  -e 'import-bangumi-xmedia --run' \
   "$td/ctl/t1" > "$td/ctl/expected"
 expect_apply "$td" "$td/ctl/expected"
 tend

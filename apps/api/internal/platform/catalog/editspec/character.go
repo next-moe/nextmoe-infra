@@ -387,3 +387,10 @@ func nullableI16(p *int16) any {
 	}
 	return int64(*p)
 }
+
+func nullableInt64(p *int64) any {
+	if p == nil {
+		return nil
+	}
+	return *p
+}

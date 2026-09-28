@@ -59,17 +59,25 @@ type CreditEntry struct {
 }
 
 type Release struct {
+	_           struct{}   `json:"-" additionalProperties:"true"`
+	Object      string     `json:"object" enum:"release" doc:"Type discriminant. Always release."`
+	ID          string     `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog release id."`
+	WorkID      *string    `json:"work_id" pattern:"^[0-9]+$" maxLength:"20" doc:"Parent catalog work id. null on a work sub-resource, where the work is the URL."`
+	ReleaseKind string     `json:"release_kind" enum:"default,digital,physical,trial,patch" doc:"Release class."`
+	Date        *string    `json:"date" format:"date" maxLength:"10" doc:"Calendar date. null if undated."`
+	Title       *string    `json:"title" maxLength:"512" doc:"Must not be used as a discriminant."`
+	Lang        string     `json:"lang" maxLength:"32" format:"bcp47" doc:"BCP-47. Empty if unrecorded."`
+	Platform    string     `json:"platform" maxLength:"64" doc:"Must not be used as a discriminant."`
+	Platforms   []string   `json:"platforms" doc:"Every platform on this release. Empty array, never null."`
+	Engine      *EngineRef `json:"engine,omitempty" doc:"The engine this release runs on. Absent when unrecorded."`
+	Refs        []Ref      `json:"refs" doc:"Exact upstream anchors. Empty array, never null."`
+}
+
+type EngineRef struct {
 	_           struct{} `json:"-" additionalProperties:"true"`
-	Object      string   `json:"object" enum:"release" doc:"Type discriminant. Always release."`
-	ID          string   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog release id."`
-	WorkID      *string  `json:"work_id" pattern:"^[0-9]+$" maxLength:"20" doc:"Parent catalog work id. null on a work sub-resource, where the work is the URL."`
-	ReleaseKind string   `json:"release_kind" enum:"default,digital,physical,trial,patch" doc:"Release class."`
-	Date        *string  `json:"date" format:"date" maxLength:"10" doc:"Calendar date. null if undated."`
-	Title       *string  `json:"title" maxLength:"512" doc:"Must not be used as a discriminant."`
-	Lang        string   `json:"lang" maxLength:"32" format:"bcp47" doc:"BCP-47. Empty if unrecorded."`
-	Platform    string   `json:"platform" maxLength:"64" doc:"Must not be used as a discriminant."`
-	Platforms   []string `json:"platforms" doc:"Every platform on this release. Empty array, never null."`
-	Refs        []Ref    `json:"refs" doc:"Exact upstream anchors. Empty array, never null."`
+	Object      string   `json:"object" enum:"engine" doc:"Type discriminant. Always engine."`
+	ID          string   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog engine id."`
+	DisplayName string   `json:"display_name" maxLength:"512" doc:"Must not be used as a discriminant."`
 }
 
 type Relation struct {

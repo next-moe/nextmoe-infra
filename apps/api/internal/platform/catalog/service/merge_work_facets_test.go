@@ -75,7 +75,7 @@ func TestMergeWorkCarriesEveryFacet(t *testing.T) {
 		&model.CatalogWorkPlatform{WorkID: source.ID, Platform: "psv", SourceID: 3},
 	)
 	create(
-		&model.CatalogWorkEngine{WorkID: target.ID, EngineID: engineA.ID, SourceID: 2},
+		&model.CatalogWorkEngine{WorkID: target.ID, EngineID: engineA.ID, SourceID: 3},
 		&model.CatalogWorkEngine{WorkID: source.ID, EngineID: engineA.ID, SourceID: 3},
 		&model.CatalogWorkEngine{WorkID: source.ID, EngineID: engineB.ID, SourceID: 3},
 	)

@@ -122,6 +122,7 @@ type releaseFeedRow struct {
 	Title     *string
 	Lang      *string
 	Platform  *string
+	EngineID  *int64 `gorm:"column:engine_id"`
 	ReleasedY *int16 `gorm:"column:released_y"`
 	ReleasedM *int16 `gorm:"column:released_m"`
 	ReleasedD *int16 `gorm:"column:released_d"`
@@ -166,7 +167,7 @@ func (s *PublicService) ReleaseFeed(ctx context.Context, f ReleaseFeedFilter, cu
 		dir = "ASC"
 	}
 
-	q := `SELECT r.id, r.kind, r.title, r.lang, r.platform,
+	q := `SELECT r.id, r.kind, r.title, r.lang, r.platform, r.engine_id,
 			r.released_y, r.released_m, r.released_d, r.extra,
 			` + ord + ` AS ord,
 			(` + ord + `) = (SELECT min(` + releaseOrd("r2") + `) FROM catalog_release r2
@@ -223,6 +224,16 @@ func (s *PublicService) buildReleaseFeedItems(ctx context.Context, rows []releas
 	if err != nil {
 		return nil, err
 	}
+	var engineIDs []int64
+	for _, r := range rows {
+		if r.EngineID != nil {
+			engineIDs = append(engineIDs, *r.EngineID)
+		}
+	}
+	engines, err := engineNames(ctx, s.db, engineIDs)
+	if err != nil {
+		return nil, err
+	}
 	works, err := s.enrichWorkListItems(ctx, src, f.NSFW, f.Include, PublicFields{})
 	if err != nil {
 		return nil, err
@@ -244,6 +255,9 @@ func (s *PublicService) buildReleaseFeedItems(ctx context.Context, rows []releas
 		if r.ReleasedY != nil {
 			d := partialISOFromOrdinal(r.Ord)
 			item.Date = &d
+		}
+		if r.EngineID != nil {
+			item.Engine = &dto.PublicEngineRef{ID: *r.EngineID, Name: engines[*r.EngineID]}
 		}
 		if item.Refs == nil {
 			item.Refs = []dto.PublicCatalogRef{}

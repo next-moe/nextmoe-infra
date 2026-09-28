@@ -105,7 +105,7 @@ echo "dump timestamp: $(cat dump/TIMESTAMP 2>/dev/null || echo unknown)"
 FILES="vn vn_titles chars chars_names chars_vns images vn_relations staff staff_alias
 vn_staff vn_seiyuu traits traits_parents chars_traits tags tags_parents tags_vn
 producers releases releases_vn releases_producers releases_platforms
-releases_titles extlinks releases_extlinks vn_extlinks producers_extlinks
+releases_titles engines extlinks releases_extlinks vn_extlinks producers_extlinks
 staff_extlinks producers_relations"
 for f in $FILES; do
   [ -s "dump/db/$f" ] && [ -s "dump/db/$f.header" ] || { echo "FATAL: dump/db/$f (or .header) missing/empty"; exit 1; }
@@ -274,6 +274,13 @@ run import-galgame-credits --source vndb --apply
 #      r-ids whose anchor sits under a work upstream no longer maps them to.
 #      It blocks nothing; a non-empty file means there is adjudication waiting.
 run import-vndb-releases --apply --stale-anchors-out /w/stale-anchors.tsv
+
+# 6a2b. Release engines from the releases 6a2 just refreshed and the engines
+#       table step 4 reloaded. Creates a catalog engine for a VNDB engine no
+#       catalog engine answers to yet, and never overwrites an engine a person
+#       set on a release. A release whose engine id the staged table lacks is
+#       left as it is, so a short engines file cannot clear anything.
+run sh -c "$DSNSH"'; import-work-engines --dsn "$CAT" --lane vndb --apply'
 
 # 6a3. Chinese source titles. It reads the release titles 6a2 just refreshed and
 #      fills the zh slot of any work that has no SOURCE Chinese title yet, which
