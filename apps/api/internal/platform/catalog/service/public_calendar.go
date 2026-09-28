@@ -87,10 +87,11 @@ func (o PublicOLang) Key() string {
 }
 
 type CalendarFilter struct {
-	NSFW          bool
-	OLang         PublicOLang
-	DisplayLimits []string
-	Include       WorksListInclude
+	NSFW                bool
+	OLang               PublicOLang
+	DisplayLimits       []string
+	ExcludeCompanyKinds []string
+	Include             WorksListInclude
 }
 
 func (f CalendarFilter) PopulationKey() string {
@@ -102,7 +103,50 @@ func (f CalendarFilter) PopulationKey() string {
 	if len(f.DisplayLimits) > 0 {
 		limit = strings.Join(f.DisplayLimits, "+")
 	}
-	return gate + "-" + f.OLang.Key() + "-" + limit
+	key := gate + "-" + f.OLang.Key() + "-" + limit
+	if len(f.ExcludeCompanyKinds) > 0 {
+		key += "-xck-" + strings.Join(f.ExcludeCompanyKinds, "+")
+	}
+	return key
+}
+
+func (f CalendarFilter) population() (where []string, args []any) {
+	where = []string{"w.deleted_at IS NULL", "w.status = ?", "w.medium_id = ?"}
+	args = []any{model.WorkStatusLive, galgameMediumID}
+	if !f.NSFW {
+		where = append(where, "w.content_rating <> ?")
+		args = append(args, model.ContentRatingR18)
+	}
+	if pred, pargs := f.OLang.predicate(); pred != "" {
+		where = append(where, pred)
+		args = append(args, pargs...)
+	}
+	if pred, pargs := displayLimitWhere(f.DisplayLimits); pred != "" {
+		where = append(where, pred)
+		args = append(args, pargs...)
+	}
+	return where, args
+}
+
+// One NOT EXISTS, not NOT EXISTS(excluded) OR EXISTS(other): the OR form is
+// probed per work ahead of the release joins and took the undated bucket from
+// 54 ms to 321 ms on a production copy; as an anti-join it is 125 ms.
+func (f CalendarFilter) companyKindExclusion(workID string) (string, []any) {
+	kinds := make([]int16, 0, len(f.ExcludeCompanyKinds))
+	for _, k := range f.ExcludeCompanyKinds {
+		if v, ok := LabelKindFromKey(k); ok {
+			kinds = append(kinds, v)
+		}
+	}
+	if len(kinds) == 0 {
+		return "", nil
+	}
+	return `NOT EXISTS (SELECT 1 FROM catalog_work_label xwl
+		JOIN catalog_label xl ON xl.id = xwl.label_id AND xl.deleted_at IS NULL
+		WHERE xwl.work_id = ` + workID + ` AND xl.kind IN ?
+		  AND NOT EXISTS (SELECT 1 FROM catalog_work_label kwl
+			JOIN catalog_label kl ON kl.id = kwl.label_id AND kl.deleted_at IS NULL
+			WHERE kwl.work_id = ` + workID + ` AND kl.kind NOT IN ?))`, []any{kinds, kinds}
 }
 
 func (s *PublicService) CalendarMeta(ctx context.Context, b CalendarBucket, f CalendarFilter) (int64, time.Time, error) {
@@ -199,17 +243,9 @@ func calendarSource(b CalendarBucket, f CalendarFilter) (from string, where []st
 		args = append(args, lo, hi, lo, hi)
 	}
 
-	where = []string{"w.deleted_at IS NULL", "w.status = ?", "w.medium_id = ?"}
-	args = append(args, model.WorkStatusLive, galgameMediumID)
-	if !f.NSFW {
-		where = append(where, "w.content_rating <> ?")
-		args = append(args, model.ContentRatingR18)
-	}
-	if pred, pargs := f.OLang.predicate(); pred != "" {
-		where = append(where, pred)
-		args = append(args, pargs...)
-	}
-	if pred, pargs := displayLimitWhere(f.DisplayLimits); pred != "" {
+	where, pargs := f.population()
+	args = append(args, pargs...)
+	if pred, pargs := f.companyKindExclusion("w.id"); pred != "" {
 		where = append(where, pred)
 		args = append(args, pargs...)
 	}
@@ -225,18 +261,20 @@ func releaseOrd(alias string) string {
 	return alias + ".released_y::int * 10000 + coalesce(" + alias + ".released_m,0)::int * 100 + coalesce(" + alias + ".released_d,0)::int"
 }
 
+// Walking in from each end (ORDER BY ord OFFSET 0 in a subquery, the rule as an
+// outer filter, LIMIT 1) was faster and wrong: nothing keeps the subquery's
+// order once the planner runs the rule as a hash anti-join, and CI got an
+// arbitrary kept row back as max_month. The bounds are one population-wide
+// answer shared by every month, so they are cached for the totals TTL instead.
 func (s *PublicService) CalendarBounds(ctx context.Context, f CalendarFilter) (minOrd, maxOrd int64, found bool, err error) {
-	where := []string{"w.deleted_at IS NULL", "w.status = ?", "w.medium_id = ?"}
-	args := []any{model.WorkStatusLive, galgameMediumID}
-	if !f.NSFW {
-		where = append(where, "w.content_rating <> ?")
-		args = append(args, model.ContentRatingR18)
+	key := "calendar-bounds\x00" + f.PopulationKey()
+	if lo, ok := s.totals.get(key + "\x00min"); ok {
+		if hi, ok := s.totals.get(key + "\x00max"); ok {
+			return lo, hi, lo != 0, nil
+		}
 	}
-	if pred, pargs := f.OLang.predicate(); pred != "" {
-		where = append(where, pred)
-		args = append(args, pargs...)
-	}
-	if pred, pargs := displayLimitWhere(f.DisplayLimits); pred != "" {
+	where, args := f.population()
+	if pred, pargs := f.companyKindExclusion("w.id"); pred != "" {
 		where = append(where, pred)
 		args = append(args, pargs...)
 	}
@@ -254,10 +292,12 @@ func (s *PublicService) CalendarBounds(ctx context.Context, f CalendarFilter) (m
 	if err := s.db.WithContext(ctx).Raw(q, args...).Scan(&row).Error; err != nil {
 		return 0, 0, false, err
 	}
-	if row.MinOrd == nil || row.MaxOrd == nil {
-		return 0, 0, false, nil
+	if row.MinOrd != nil && row.MaxOrd != nil {
+		minOrd, maxOrd, found = (*row.MinOrd/100)*100, (*row.MaxOrd/100)*100, true
 	}
-	return (*row.MinOrd / 100) * 100, (*row.MaxOrd / 100) * 100, true, nil
+	s.totals.put(key+"\x00min", minOrd)
+	s.totals.put(key+"\x00max", maxOrd)
+	return minOrd, maxOrd, found, nil
 }
 
 func CalendarETag(bucketKey, populationKey string, count int64, maxUpdated time.Time) string {

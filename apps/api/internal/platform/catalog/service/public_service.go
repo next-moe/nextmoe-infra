@@ -1230,6 +1230,25 @@ func titleKindKey(k int16) (string, bool) {
 	}
 }
 
+func LabelKindFromKey(key string) (int16, bool) {
+	switch key {
+	case "game_brand":
+		return model.LabelKindGameBrand, true
+	case "bunko":
+		return model.LabelKindBunko, true
+	case "publisher":
+		return model.LabelKindPublisher, true
+	case "anime_studio":
+		return model.LabelKindAnimeStudio, true
+	case "doujin_circle":
+		return model.LabelKindDoujinCircle, true
+	case "group":
+		return model.LabelKindGroup, true
+	default:
+		return 0, false
+	}
+}
+
 func labelKindKey(k int16) string {
 	switch k {
 	case model.LabelKindGameBrand:
