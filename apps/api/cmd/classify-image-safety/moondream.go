@@ -15,6 +15,7 @@ import (
 )
 
 type moondreamClient struct {
+	apiRoot   string
 	accountID string
 	token     string
 	model     string
@@ -26,6 +27,7 @@ type moondreamClient struct {
 
 func newMoondreamClient(accountID, token, model string) *moondreamClient {
 	return &moondreamClient{
+		apiRoot:   "https://api.cloudflare.com",
 		accountID: accountID,
 		token:     token,
 		model:     model,
@@ -67,7 +69,7 @@ func (c *moondreamClient) ask(ctx context.Context, dataURI, question string) (st
 	if err != nil {
 		return "", err
 	}
-	url := fmt.Sprintf("https://api.cloudflare.com/client/v4/accounts/%s/ai/run/%s", c.accountID, c.model)
+	url := fmt.Sprintf("%s/client/v4/accounts/%s/ai/run/%s", c.apiRoot, c.accountID, c.model)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(raw))
 	if err != nil {
 		return "", err
@@ -85,6 +87,9 @@ func (c *moondreamClient) ask(ctx context.Context, dataURI, question string) (st
 	// fault, not a rejection of the request, and it reappears under concurrency.
 	if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusConflict || resp.StatusCode >= 500 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		if resp.StatusCode == http.StatusTooManyRequests && strings.Contains(string(body), "daily free allocation") {
+			return "", errDailyQuota
+		}
 		return "", retryable{fmt.Errorf("workers-ai http %d: %s", resp.StatusCode, truncate(string(body), 200))}
 	}
 	// Under sustained concurrency the gateway sheds load as 401 code 10000
