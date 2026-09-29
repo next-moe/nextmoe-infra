@@ -32,8 +32,9 @@ const (
 // which is the correct end state: a human still decides.
 const ModerationAttemptCeiling = 5
 
-// SystemActorUID marks a decision no human made. The only machine decision this
-// track allows is the Tier0 auto-reject, and it is reversible by hand.
+// SystemActorUID marks a decision no human made: the Tier0 auto-reject, and the
+// scheduled standing release of a source the user ruled needs no review. Both
+// are reversible by hand.
 const SystemActorUID int64 = 0
 
 // Fingerprint identifies the exact text a verdict judged. It lives on the model

@@ -19,7 +19,7 @@ import (
 func main() {
 	lanes := flag.String("lanes", "news,column", "which upstream lanes to ingest: news, column, or both")
 	pages := flag.Int("pages", 1, "pages to walk per lane (10 items per page); stops early on an empty page or a full page of known unchanged rows")
-	apply := flag.Bool("apply", false, "write to kun_news (default: dry-run forecast only)")
+	apply := flag.Bool("apply", false, "write to kun_news and publish the source's pending rows, per the 2026-09-29 standing release (default: dry-run forecast only)")
 	gap := flag.Duration("gap", time.Second, "delay between page requests; raise if the run reports rate_limited > 0")
 	noImages := flag.Bool("no-images", false, "skip banner download/upload entirely (text rows only)")
 	markDead := flag.Bool("mark-dead", false, "actually hide rows the scan proves are gone upstream (default: report only)")

@@ -8,6 +8,7 @@ import (
 
 	"api/internal/infrastructure/database"
 	"api/internal/platform/news/model"
+	"api/internal/platform/news/service"
 	"api/pkg/config"
 
 	"gorm.io/gorm"
@@ -22,6 +23,8 @@ const (
 // by hand, a few rows at a time; a run that wants to bury more than this has
 // almost certainly mis-read the upstream rather than found a purge.
 const deadCandidateCeiling = 5
+
+const releaseReason = "ymgal standing release: trusted partner feed, no review (user adjudication 2026-09-29)"
 
 type Opts struct {
 	Lanes     []string
@@ -51,6 +54,7 @@ type stats struct {
 	wouldCreate int
 	wouldUpdate int
 	markedDead  int
+	released    int
 }
 
 func (s *stats) summary(c *Client, lanes []string, deadCandidates []string, opts Opts) map[string]any {
@@ -82,6 +86,9 @@ func (s *stats) summary(c *Client, lanes []string, deadCandidates []string, opts
 	}
 	if s.markedDead > 0 {
 		out["marked_dead"] = s.markedDead
+	}
+	if opts.Apply {
+		out["released"] = s.released
 	}
 	return out
 }
@@ -172,6 +179,14 @@ func Run(ctx context.Context, cfg *config.Config, opts Opts) (map[string]any, er
 				}
 			}
 		}
+	}
+
+	if opts.Apply {
+		n, err := service.ReleasePendingImports(ctx, db, model.SourceKeyYmgal, model.SystemActorUID, releaseReason)
+		if err != nil {
+			return nil, fmt.Errorf("standing release: %w", err)
+		}
+		st.released = n
 	}
 
 	deadCandidates, err := w.livenessCandidates(ctx, complete, oldestSeen, seen)
