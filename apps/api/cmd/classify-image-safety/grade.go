@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -25,6 +26,9 @@ type gradeOptions struct {
 	MaxNeurons  float64
 	GuardDSN    string
 	GuardShare  float64
+	QuotaWait   time.Duration
+	QuotaProbe  time.Duration
+	CarryMax    int64
 	Client      *moondreamClient
 }
 
@@ -99,10 +103,11 @@ func runGrade(ctx context.Context, o gradeOptions, w io.Writer) error {
 
 	fetch := &http.Client{Timeout: 60 * time.Second}
 	var (
-		mu      sync.Mutex
-		ok, bad int
-		started = time.Now()
+		mu               sync.Mutex
+		ok, bad, carried int
+		started          = time.Now()
 	)
+	gate := &quotaGate{wait: o.QuotaWait, probe: o.QuotaProbe}
 	work := make(chan imageRow)
 	var wg sync.WaitGroup
 	for i := 0; i < o.Concurrency; i++ {
@@ -110,14 +115,17 @@ func runGrade(ctx context.Context, o gradeOptions, w io.Writer) error {
 		go func() {
 			defer wg.Done()
 			for r := range work {
-				err := gradeOne(ctx, db, o, fetch, r)
+				err := gradeWithQuota(ctx, gate, func() error { return gradeOne(ctx, db, o, fetch, r) })
 				mu.Lock()
-				if err != nil {
+				switch {
+				case errors.Is(err, errDailyQuota):
+					carried++
+				case err != nil:
 					bad++
 					if bad%20 == 1 {
 						fmt.Fprintf(w, "error hash=%s: %v\n", r.Hash, err)
 					}
-				} else {
+				default:
 					ok++
 				}
 				if n := ok + bad; n%500 == 0 {
@@ -158,6 +166,9 @@ feed:
 		cursor = rows[len(rows)-1].Hash
 
 		for _, r := range rows {
+			if gate.exhausted() {
+				break feed
+			}
 			if o.Limit > 0 && processed >= o.Limit {
 				break feed
 			}
@@ -180,6 +191,19 @@ feed:
 		ok, bad, o.Client.neurons(), o.Client.neurons()*0.011/1000, time.Since(started).Truncate(time.Second))
 	if cause := context.Cause(ctx); cause != nil && cause != context.Canceled {
 		return cause
+	}
+	if gate.exhausted() {
+		var remaining int64
+		if err := db.WithContext(ctx).
+			Raw(`SELECT count(*) FROM images WHERE review_labels -> 'grade' IS NULL`).
+			Scan(&remaining).Error; err != nil {
+			return fmt.Errorf("daily allocation used up; count remaining: %w", err)
+		}
+		fmt.Fprintf(w, "daily allocation used up after waiting %s: graded=%d carried=%d pending=%d — the next run resumes\n",
+			o.QuotaWait, ok, carried, remaining)
+		if o.CarryMax > 0 && remaining > o.CarryMax {
+			return fmt.Errorf("%d images wait for a grade, over -carry-max %d", remaining, o.CarryMax)
+		}
 	}
 	// A budget stop used to exit 0, which made a capped night in the
 	// image-grade-nightly cron look clean while an unknown number of images
