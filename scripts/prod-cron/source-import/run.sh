@@ -260,9 +260,13 @@ if [ "$GROUP_FAIL" -eq 0 ]; then
     ceiling_failed
   fi
 fi
+# The ceiling follows the works the step above may mint: up to 150 live works a
+# week at 6-10 characters each. At 300 it tripped on the 2026-09-27 run
+# (characters_created=1449, the cast of the works bgm-type4 had minted) and
+# would have tripped every week after it.
 if [ "$GROUP_FAIL" -eq 0 ]; then
   if dry_ok bangumi-roster import-character-roster --source bangumi \
-     && check_counters bangumi-roster "$last_dry_log" characters_created=300; then
+     && check_counters bangumi-roster "$last_dry_log" characters_created=1500; then
     gstep import-character-roster --source bangumi --apply
   else
     ceiling_failed
