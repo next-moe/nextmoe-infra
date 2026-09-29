@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"api/internal/platform/ai/dto"
+	aiPerm "api/internal/platform/ai/perm"
 	"api/internal/platform/ai/service"
 	"api/pkg/errors"
 	"api/pkg/wireshape"
@@ -15,6 +16,22 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humafiber"
 	"github.com/gofiber/fiber/v3"
 )
+
+type adminCtxKey string
+
+const ctxKeyAdminRoles adminCtxKey = "ai_admin:roles"
+
+func adminAuthBridge(ctx huma.Context, next func(huma.Context)) {
+	if roles, ok := humafiber.Unwrap(ctx).Locals("user_roles").([]string); ok {
+		ctx = huma.WithValue(ctx, ctxKeyAdminRoles, roles)
+	}
+	next(ctx)
+}
+
+func adminRoles(ctx context.Context) []string {
+	roles, _ := ctx.Value(ctxKeyAdminRoles).([]string)
+	return roles
+}
 
 type AdminServer struct {
 	stats   *service.StatsService
@@ -30,6 +47,7 @@ func SetupAdmin(app *fiber.App, stats *service.StatsService, budgets *service.Bu
 	cfg.SchemasPath = ""
 
 	api := humafiber.New(app, cfg)
+	api.UseMiddleware(adminAuthBridge)
 
 	s := &AdminServer{stats: stats, budgets: budgets}
 	s.register(api)
@@ -47,7 +65,8 @@ func (s *AdminServer) register(api huma.API) {
 	huma.Register(api, huma.Operation{OperationID: "listAIBudgets", Method: http.MethodGet, Path: "/api/v1/admin/ai/budgets",
 		Summary: "List the per-route (optionally per-site) daily budget-fuse config", Tags: tags}, s.listBudgets)
 	huma.Register(api, huma.Operation{OperationID: "upsertAIBudget", Method: http.MethodPut, Path: "/api/v1/admin/ai/budgets",
-		Summary: "Set or clear a per-route (optionally per-site) daily cost cap (null cap = clear)", Tags: tags}, s.upsertBudget)
+		Summary: "Set or clear a per-route (optionally per-site) daily cost cap (null cap = clear)", Tags: tags,
+		Description: "Needs ai.budget_manage (ren); the rest of this surface needs only ai.usage_view."}, s.upsertBudget)
 }
 
 type usageSummaryInput struct {
@@ -101,6 +120,9 @@ type upsertBudgetOutput struct {
 }
 
 func (s *AdminServer) upsertBudget(ctx context.Context, in *upsertBudgetInput) (*upsertBudgetOutput, error) {
+	if !aiPerm.Resolver.Can(adminRoles(ctx), aiPerm.BudgetManage) {
+		return nil, apiErrMsg(http.StatusForbidden, errors.ErrForbidden, "setting a budget requires ai.budget_manage (ren)")
+	}
 	view, err := s.budgets.Upsert(ctx, in.Body.Route, in.Body.Site, in.Body.DailyCostCapMicro)
 	if err != nil {
 		return nil, mapAdminErr("upsert ai budget", err)

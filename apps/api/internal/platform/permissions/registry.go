@@ -118,6 +118,8 @@ var live = NewRegistry(
 		Keys: []Key{
 			{sitePerm.AdminAccess, "Reach the admin console at all (the page/list gate).", "进入管理控制台(页面与列表门)"},
 			{sitePerm.UsersPIIView, "See user PII — email in the list, email and IP in the detail — and change a user's email.", "查看用户 PII(列表邮箱、详情邮箱与 IP),并修改用户邮箱"},
+			{sitePerm.UsersAnonymize, "Anonymize a user — irreversibly scrub their password, email, avatar and profile.", "注销并匿名化用户(不可逆地清除密码、邮箱、头像与资料)"},
+			{sitePerm.MoemoepointAdjust, "Grant or deduct a user's moemoepoints by hand. Points buy coupons in the shop.", "手动发放/扣除用户萌萌点(萌萌点可在商店兑换优惠券)"},
 			{sitePerm.RolesGrantBasic, "Grant and revoke the below-admin roles (moderator, creator).", "授予/撤销 admin 以下角色(moderator、creator)"},
 			{sitePerm.RolesGrantSite, "Grant and revoke site-scoped roles.", "授予/撤销站点作用域角色"},
 			{sitePerm.RolesGrantAdmin, "Grant and revoke admin.", "授予/撤销 admin 角色"},
@@ -173,12 +175,14 @@ var live = NewRegistry(
 		},
 	},
 	Domain{
-		Name:    "ai",
-		TitleZH: "AI 网关",
-		Bundles: aiPerm.Bundles,
-		Holder:  aiPerm.Resolver,
+		Name:         "ai",
+		TitleZH:      "AI 网关",
+		Bundles:      aiPerm.Bundles,
+		Holder:       aiPerm.Resolver,
+		NonDelegable: aiPerm.NonDelegable,
 		Keys: []Key{
 			{aiPerm.UsageView, "Reach the AI-gateway usage / cost / budget dashboard.", "查看 AI 网关用量/成本/预算看板"},
+			{aiPerm.BudgetManage, "Set or clear a route's daily cost cap.", "设置/清除路由每日成本上限(预算保险丝)"},
 		},
 	},
 	Domain{
@@ -202,14 +206,15 @@ var live = NewRegistry(
 		},
 	},
 	Domain{
-		Name:    "shop",
-		TitleZH: "萌萌点商店",
-		Bundles: shopPerm.Bundles,
-		Holder:  shopPerm.Resolver,
+		Name:         "shop",
+		TitleZH:      "萌萌点商店",
+		Bundles:      shopPerm.Bundles,
+		Holder:       shopPerm.Resolver,
+		NonDelegable: shopPerm.NonDelegable,
 		Keys: []Key{
-			{shopPerm.Manage, "Upload decoration assets and create or edit shop items and offers.", "上传装扮素材,创建/编辑商店物品与商品"},
+			{shopPerm.Manage, "Upload decoration assets, create or edit shop items and offers, and run the redeem-code pool.", "上传装扮素材,创建/编辑商店物品与商品,管理兑换码池"},
 			{shopPerm.Publish, "Publish, reject and retire items, and put offers on sale or take them off.", "发布/驳回/下架物品,上架/下架商品"},
-			{shopPerm.Grant, "Grant and revoke a user's items, and refund a shop order.", "发放/收回用户物品,退款商店订单"},
+			{shopPerm.Grant, "Grant and revoke a user's items, refund a shop order, and see a user's orders with their codes.", "发放/收回用户物品,退款商店订单,查看用户订单(含兑换码)"},
 		},
 	},
 	Domain{

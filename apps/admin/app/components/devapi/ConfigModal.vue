@@ -11,6 +11,7 @@ const emit = defineEmits<{ updated: [] }>()
 
 const open = defineModel<boolean>('open', { required: true })
 const api = useApi()
+const { isRen } = useAuth()
 
 const tier = ref<DevTier>('free')
 const ratePerMin = ref<number | null>(null)
@@ -40,8 +41,10 @@ const handleSubmit = async () => {
       dev_tier: tier.value,
       dev_rate_per_min: ratePerMin.value ?? 0,
       dev_quota_daily: quotaDaily.value ?? 0,
-      owner_user_id: ownerUserId.value ?? 0,
-      store_settlement_eligible: settlementEligible.value,
+    }
+    if (isRen.value) {
+      body.owner_user_id = ownerUserId.value ?? 0
+      body.store_settlement_eligible = settlementEligible.value
     }
     const res = await api.patch(`/admin/devapi/apps/${app.client_id}`, body)
     if (res.code === 0) {
@@ -91,12 +94,14 @@ const handleSubmit = async () => {
         v-model="ownerUserId"
         label="归属用户 ID（owner）"
         :min="0"
-        description="第三方开发者应用的所有者用户 ID；0 = 不指定"
+        :disabled="!isRen"
+        :description="isRen ? '第三方开发者应用的所有者用户 ID；0 = 不指定' : '归属决定 DLsite 分券给谁，仅 ren 可改'"
       />
 
       <div class="rounded-lg border border-default-200 p-3">
         <KunSwitch
           v-model="settlementEligible"
+          :disabled="!isRen"
           label="DLsite 结算名单（分成资格）"
           description="新建的应用默认参与分成。每月的优惠券池是固定的一份，按用户（名下参与分成的应用合并）的去重点击占比切分、向下取整——名单里每多一个参与者，其余人分到的就更少。关掉后，这个应用的点击不再计入分成，但照样可以铸链。"
         />

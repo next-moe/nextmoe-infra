@@ -161,10 +161,20 @@ func TestBudgetUpsertOverHTTP(t *testing.T) {
 	app := buildAdminApp()
 
 	body := `{"route":"moderate-text","site":"","daily_cost_cap_micro":123456}`
-	req := httptest.NewRequest("PUT", "/api/v1/admin/ai/budgets", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+adminToken(t, "admin"))
-	status, raw := send(t, app, publishedAdminSpec(t), req)
+	put := func(role string) (int, []byte) {
+		req := httptest.NewRequest("PUT", "/api/v1/admin/ai/budgets", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+adminToken(t, role))
+		return send(t, app, publishedAdminSpec(t), req)
+	}
+
+	status, _ := put("admin")
+	require.Equal(t, fiber.StatusForbidden, status, "admin reads the dashboard but cannot move the fuse")
+	var n int64
+	require.NoError(t, testDB.Raw("SELECT count(*) FROM ai_route_budget").Scan(&n).Error)
+	require.Zero(t, n, "a refused upsert writes nothing")
+
+	status, raw := put("ren")
 	require.Equal(t, fiber.StatusOK, status)
 
 	var env struct {

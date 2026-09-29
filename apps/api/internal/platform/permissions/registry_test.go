@@ -4,9 +4,11 @@ import (
 	"strings"
 	"testing"
 
+	aiPerm "api/internal/platform/ai/perm"
 	"api/internal/platform/authz"
 	devapiPerm "api/internal/platform/devapi/perm"
 	"api/internal/platform/permissions"
+	shopPerm "api/internal/platform/shop/perm"
 	sitePerm "api/internal/platform/site/perm"
 )
 
@@ -65,7 +67,10 @@ func TestNonDelegableKeysAreRegistered(t *testing.T) {
 	reg := permissions.Live()
 	for _, p := range []authz.Permission{
 		sitePerm.RolesGrantAdmin, sitePerm.PermissionsManage, sitePerm.SitesManageAll,
+		sitePerm.MoemoepointAdjust, sitePerm.UsersAnonymize,
 		devapiPerm.PolicyManage,
+		shopPerm.Manage, shopPerm.Publish, shopPerm.Grant,
+		aiPerm.BudgetManage,
 	} {
 		if !reg.IsNonDelegable(p) {
 			t.Errorf("%q must be non-delegable", p)

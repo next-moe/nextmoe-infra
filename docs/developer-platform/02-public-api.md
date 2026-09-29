@@ -686,7 +686,7 @@ archived ──admin DELETE──> 行消失（须零引用 + 从不具备登录
 | 端点 | 权限 | 说明 |
 |---|---|---|
 | `GET /admin/devapi/apps?status=` | `devapi.manage` | `enabled`(缺省,兼容旧行为)/ `pending` / `declined` / `disabled` / **`archived`(2026-08-29 新增)** / `all`;**除 `all` 与 `archived` 外每个过滤器都排除已归档行**——owner 删掉的应用不是待审、不是「停用待决」、更不是活应用,留在工作标签页里只会往运营队列塞没人等的行。列表项带 owner、`review_status`、`review_note`、**`archived_at`**(未归档时整键缺席)、**`store_settlement_eligible`**、`created_at` |
-| `PATCH /admin/devapi/apps/:client_id` | `devapi.manage` | body 全可选:`owner_user_id` / `dev_enabled` / `dev_tier` / `dev_rate_per_min` / `dev_quota_daily` / **`store_settlement_eligible`**(2026-08-29 新增,见 §3.11)。**`dev_enabled=true` 同时写 `approved` 并清空 `dev_archived_at`——这是平台上唯一的解归档动作**:一个被放回服务的应用必须重新出现在 owner 的列表里,否则他持有一个自己看不见的活应用 |
+| `PATCH /admin/devapi/apps/:client_id` | `devapi.manage`;改 owner / 分成资格另需 `devapi.policy_manage` | body 全可选:`owner_user_id` / `dev_enabled` / `dev_tier` / `dev_rate_per_min` / `dev_quota_daily` / **`store_settlement_eligible`**(2026-08-29 新增,见 §3.11)。**`owner_user_id` 或 `store_settlement_eligible` 与现值不同时需要 `devapi.policy_manage`(ren),否则 403**:DLsite 券按「owner 名下参与分成的应用」分,改归属再开分成就能把券引到自己名下;原样回传(控制台配置弹窗每次都带)不算改动,`owner_user_id=0` 与未设 owner 视为相同。**`dev_enabled=true` 同时写 `approved` 并清空 `dev_archived_at`——这是平台上唯一的解归档动作**:一个被放回服务的应用必须重新出现在 owner 的列表里,否则他持有一个自己看不见的活应用 |
 | `POST /admin/devapi/apps/:client_id/approve` | `devapi.manage` | 仅 pending,否则 **409** |
 | `POST /admin/devapi/apps/:client_id/decline` | `devapi.manage` | body `{reason}` 必填(**rune** 计数 ≤2000),否则 **400**;仅 pending,否则 **409** |
 | `POST /admin/devapi/apps/:client_id/archive` | `devapi.manage` | 运营侧归档:吊销全部活钥匙 + `dev_enabled=false` + 盖 `dev_archived_at` + 清 `store_settlement_eligible`。**它永不删行**(与门户 DELETE 的差别),且是下一行的前置 |

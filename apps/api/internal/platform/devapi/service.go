@@ -88,6 +88,22 @@ func (s *AdminService) UpdateAppConfig(ctx context.Context, clientID string, cfg
 	return s.repo.GetApp(ctx, clientID)
 }
 
+func (s *AdminService) MovesSettlement(ctx context.Context, clientID string, cfg AppConfig) (bool, error) {
+	if cfg.OwnerUserID == nil && cfg.StoreSettlementEligible == nil {
+		return false, nil
+	}
+	cur, err := s.repo.GetApp(ctx, clientID)
+	if err != nil {
+		return false, err
+	}
+	var owner uint
+	if cur.OwnerUserID != nil {
+		owner = *cur.OwnerUserID
+	}
+	return (cfg.OwnerUserID != nil && *cfg.OwnerUserID != owner) ||
+		(cfg.StoreSettlementEligible != nil && *cfg.StoreSettlementEligible != cur.StoreSettlementEligible), nil
+}
+
 func (s *AdminService) bustAppCredentials(ctx context.Context, clientID string) {
 	keys, err := s.repo.ListKeysByClient(ctx, clientID)
 	if err != nil {
