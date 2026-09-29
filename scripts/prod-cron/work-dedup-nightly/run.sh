@@ -95,9 +95,10 @@ chmod 600 env.tmp
 # a tuning knob here: it is the line between a lane that fails and a box that
 # fills. Raise it only with a measurement that says a healthy run needs more.
 # Raising work_mem does not fix it: a read-only rerun at work_mem=32MB spilled at
-# the same ~85 MB/s and hit the same 20 GB cap, 8 minutes sooner. The cure is in
-# the query — the per-pair EXISTS over the materialized wanchor/ranchor CTEs have
-# to become one pre-aggregated join — not in these GUCs.
+# the same ~85 MB/s and hit the same 20 GB cap, 8 minutes sooner. The cure was in
+# the query: since 2026-09-29 the census aggregates once per work instead of
+# running per-pair EXISTS over the materialized wanchor/ranchor CTEs, and on a
+# production-sized copy under these GUCs it takes ~14 s and 0.8 GB of temp.
 DSNSH='U="${KUN_CATALOG_PG_USER:-$KUN_PG_USER}"; export PGPASSWORD="${KUN_CATALOG_PG_PASSWORD:-$KUN_PG_PASSWORD}"; CAT="host=127.0.0.1 port=5432 user=$U dbname=${KUN_CATALOG_PG_DATABASE:-kun_catalog} sslmode=disable options='"'"'-c max_parallel_workers_per_gather=0 -c work_mem=8MB -c hash_mem_multiplier=1 -c jit=off -c temp_file_limit=20971520'"'"'"'
 
 # Yield guard, from the 2026-08-29 lock convoy (same day as the OOM above):

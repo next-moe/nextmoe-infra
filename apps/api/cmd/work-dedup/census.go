@@ -41,6 +41,11 @@ type pairRow struct {
 // the dlsite lane and the release-level conflict/overlap read through
 // catalog_release — a work-level-only read files the whole dlsite family
 // under 'other' and misses every edition split.
+//
+// Every per-pair fact reads the pair's two wk rows, aggregated once per work.
+// It used to be correlated EXISTS against materialized CTEs, which have no
+// index to probe; once the 2026-09-18 drain added 39k works, the nightly
+// census hit temp_file_limit (20GB) every night.
 func pairQuerySQL() string {
 	return `
 WITH lw AS (
@@ -56,10 +61,68 @@ pairs AS (
   WHERE ` + service.WorkDupeNormEligibleSQL("a.n") + `
   GROUP BY a.work_id, b.work_id
 ),
-wanchor AS (
-  SELECT entity_id AS work_id, source_id, external_id
+wref AS (
+  SELECT entity_id AS work_id,
+    count(*) FILTER (WHERE link_kind = 0) AS anchors,
+    bool_or(link_kind = 0 AND source_id = 2) AS vndb,
+    bool_or(link_kind = 0 AND source_id = 3) AS bgm,
+    bool_or(link_kind = 0 AND source_id = 5) AS eg,
+    array_agg(source_id || ':' || external_id) FILTER (WHERE link_kind = 0) AS anchor_keys,
+    array_agg(source_id || ':' || external_id) FILTER (WHERE link_kind IN (0, 1)) AS ref_keys,
+    array_agg(source_id || ':' || lower(external_id)) AS ref_keys_ci
   FROM catalog_external_ref
-  WHERE entity_type = 5 AND link_kind = 0 AND dead_at IS NULL
+  WHERE entity_type = 5 AND dead_at IS NULL
+  GROUP BY entity_id
+),
+rref AS (
+  SELECT rel.work_id,
+    bool_or(r.source_id = 4) AS dlsite,
+    array_agg(r.source_id || ':' || r.external_id) AS keys,
+    array_agg(r.source_id || ':' || lower(r.external_id)) AS keys_ci
+  FROM catalog_external_ref r
+  JOIN catalog_release rel ON rel.id = r.entity_id AND rel.deleted_at IS NULL
+  WHERE r.entity_type = 6 AND r.link_kind = 0 AND r.dead_at IS NULL
+  GROUP BY rel.work_id
+),
+wlabel AS (
+  SELECT work_id, array_agg(label_id) AS label_ids FROM catalog_work_label GROUP BY work_id
+),
+wdate AS (
+  SELECT work_id, min(make_date(released_y, coalesce(nullif(released_m,0),1), coalesce(nullif(released_d,0),1))) AS d
+  FROM catalog_release
+  WHERE deleted_at IS NULL AND released_y IS NOT NULL
+  GROUP BY work_id
+),
+bgmdate AS (
+  SELECT r.entity_id AS work_id, min(s.date::date) AS d
+  FROM catalog_external_ref r
+  JOIN src_bangumi.subject s ON s.id = r.external_id::bigint
+  WHERE r.entity_type = 5 AND r.link_kind = 0 AND r.dead_at IS NULL AND r.source_id = 3
+    AND s.date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+  GROUP BY r.entity_id
+),
+wk AS (
+  SELECT lw.id, lw.site, lw.display_name, lw.medium_id,
+    CASE WHEN lw.site IS NOT NULL AND lw.site <> '' THEN 'kungal'
+         WHEN w.vndb THEN 'vndb'
+         WHEN w.bgm THEN 'bgm'
+         WHEN w.eg THEN 'eg'
+         WHEN r.dlsite THEN 'dlsite'
+         ELSE 'other' END AS lane,
+    coalesce(w.anchors, 0) AS anchors,
+    coalesce(w.anchor_keys, '{}') AS anchor_keys,
+    coalesce(w.ref_keys, '{}') AS ref_keys,
+    coalesce(w.ref_keys_ci, '{}') AS ref_keys_ci,
+    coalesce(r.keys, '{}') AS rel_keys,
+    coalesce(r.keys_ci, '{}') AS rel_keys_ci,
+    coalesce(l.label_ids, '{}') AS label_ids,
+    coalesce(d.d, b.d) AS released
+  FROM lw
+  LEFT JOIN wref w ON w.work_id = lw.id
+  LEFT JOIN rref r ON r.work_id = lw.id
+  LEFT JOIN wlabel l ON l.work_id = lw.id
+  LEFT JOIN wdate d ON d.work_id = lw.id
+  LEFT JOIN bgmdate b ON b.work_id = lw.id
 ),
 refpairs AS (
   SELECT x.entity_id AS a, y.entity_id AS b
@@ -83,14 +146,12 @@ refpairs AS (
     ON y.source_id = x.source_id
    AND lower(y.external_id) = lower(x.external_id)
    AND x.entity_id < y.entity_id
-  JOIN lw ON lw.id = x.entity_id
-  JOIN lw lw_b ON lw_b.id = y.entity_id
+  JOIN wk ka ON ka.id = x.entity_id
+  JOIN wk kb ON kb.id = y.entity_id
   WHERE x.entity_type = 5 AND y.entity_type = 5
     AND x.dead_at IS NULL AND y.dead_at IS NULL
     AND x.link_kind = 2 AND y.link_kind = 2
-    AND NOT EXISTS (
-      SELECT 1 FROM wanchor p JOIN wanchor q ON q.source_id = p.source_id AND q.external_id <> p.external_id
-      WHERE p.work_id = x.entity_id AND q.work_id = y.entity_id)
+    AND NOT ` + sameSourceOtherIDSQL("ka.anchor_keys", "kb.anchor_keys") + `
   GROUP BY x.entity_id, y.entity_id
 ),
 universe AS (
@@ -100,75 +161,29 @@ universe AS (
     coalesce(p.shared_official, 0) AS shared_official
   FROM pairs p
   FULL OUTER JOIN refpairs r ON r.a = p.a AND r.b = p.b
-),
-ranchor AS (
-  SELECT rel.work_id, r.source_id, r.external_id
-  FROM catalog_external_ref r
-  JOIN catalog_release rel ON rel.id = r.entity_id AND rel.deleted_at IS NULL
-  WHERE r.entity_type = 6 AND r.link_kind = 0 AND r.dead_at IS NULL
-),
-lane AS (
-  SELECT lw.id,
-    CASE WHEN lw.site IS NOT NULL AND lw.site <> '' THEN 'kungal'
-         WHEN EXISTS (SELECT 1 FROM wanchor x WHERE x.work_id = lw.id AND x.source_id = 2) THEN 'vndb'
-         WHEN EXISTS (SELECT 1 FROM wanchor x WHERE x.work_id = lw.id AND x.source_id = 3) THEN 'bgm'
-         WHEN EXISTS (SELECT 1 FROM wanchor x WHERE x.work_id = lw.id AND x.source_id = 5) THEN 'eg'
-         WHEN EXISTS (SELECT 1 FROM ranchor x WHERE x.work_id = lw.id AND x.source_id = 4) THEN 'dlsite'
-         ELSE 'other' END AS lane,
-    (SELECT count(*) FROM wanchor x WHERE x.work_id = lw.id) AS anchors
-  FROM lw
-),
-wdate AS (
-  SELECT work_id, min(make_date(released_y, coalesce(nullif(released_m,0),1), coalesce(nullif(released_d,0),1))) AS d
-  FROM catalog_release
-  WHERE deleted_at IS NULL AND released_y IS NOT NULL
-  GROUP BY work_id
-),
-bgmdate AS (
-  SELECT r.work_id, min(s.date::date) AS d
-  FROM wanchor r
-  JOIN src_bangumi.subject s ON s.id = r.external_id::bigint
-  WHERE r.source_id = 3 AND s.date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
-  GROUP BY r.work_id
 )
 SELECT p.a, p.b, p.shared_norm, p.shared_norms, p.shared_official,
-  la.lane AS lane_a, lb.lane AS lane_b,
-  la.anchors AS anchors_a, lb.anchors AS anchors_b,
+  wa.lane AS lane_a, wb.lane AS lane_b,
+  wa.anchors AS anchors_a, wb.anchors AS anchors_b,
   wa.site AS site_a, wb.site AS site_b,
   wa.display_name AS name_a, wb.display_name AS name_b,
-  EXISTS (SELECT 1 FROM wanchor x JOIN wanchor y ON y.source_id = x.source_id AND y.external_id <> x.external_id
-          WHERE x.work_id = p.a AND y.work_id = p.b) AS anchor_conflict,
-  (EXISTS (SELECT 1 FROM ranchor x JOIN ranchor y ON y.source_id = x.source_id AND y.external_id <> x.external_id
-           WHERE x.work_id = p.a AND y.work_id = p.b)
-   AND NOT EXISTS (SELECT 1 FROM ranchor x JOIN ranchor y ON y.source_id = x.source_id AND y.external_id = x.external_id
-                   WHERE x.work_id = p.a AND y.work_id = p.b)) AS release_conflict,
-  (EXISTS (SELECT 1 FROM catalog_external_ref x
-           JOIN catalog_external_ref y ON y.source_id = x.source_id AND y.external_id = x.external_id
-           WHERE x.entity_type = 5 AND x.entity_id = p.a AND x.dead_at IS NULL
-             AND y.entity_type = 5 AND y.entity_id = p.b AND y.dead_at IS NULL
-             AND x.link_kind IN (0, 1) AND y.link_kind IN (0, 1))
-   OR EXISTS (SELECT 1 FROM ranchor x JOIN ranchor y ON y.source_id = x.source_id AND y.external_id = x.external_id
-              WHERE x.work_id = p.a AND y.work_id = p.b)) AS ref_overlap,
-  (EXISTS (SELECT 1 FROM catalog_external_ref x
-           JOIN catalog_external_ref y ON y.source_id = x.source_id AND lower(y.external_id) = lower(x.external_id)
-           WHERE x.entity_type = 5 AND x.entity_id = p.a AND x.dead_at IS NULL
-             AND y.entity_type = 5 AND y.entity_id = p.b AND y.dead_at IS NULL)
-   OR EXISTS (SELECT 1 FROM ranchor x JOIN ranchor y ON y.source_id = x.source_id AND lower(y.external_id) = lower(x.external_id)
-              WHERE x.work_id = p.a AND y.work_id = p.b)) AS ref_overlap_ci,
-  coalesce(da.d, ba.d) AS date_a,
-  coalesce(dbb.d, bb.d) AS date_b,
-  EXISTS (SELECT 1 FROM catalog_work_label x JOIN catalog_work_label y ON y.label_id = x.label_id
-          WHERE x.work_id = p.a AND y.work_id = p.b) AS label_overlap
+  ` + sameSourceOtherIDSQL("wa.anchor_keys", "wb.anchor_keys") + ` AS anchor_conflict,
+  (` + sameSourceOtherIDSQL("wa.rel_keys", "wb.rel_keys") + `
+   AND NOT (wa.rel_keys && wb.rel_keys)) AS release_conflict,
+  (wa.ref_keys && wb.ref_keys OR wa.rel_keys && wb.rel_keys) AS ref_overlap,
+  (wa.ref_keys_ci && wb.ref_keys_ci OR wa.rel_keys_ci && wb.rel_keys_ci) AS ref_overlap_ci,
+  wa.released AS date_a,
+  wb.released AS date_b,
+  wa.label_ids && wb.label_ids AS label_overlap
 FROM universe p
-JOIN lane la ON la.id = p.a
-JOIN lane lb ON lb.id = p.b
-JOIN lw wa ON wa.id = p.a
-JOIN lw wb ON wb.id = p.b AND wb.medium_id = wa.medium_id
-LEFT JOIN wdate da ON da.work_id = p.a
-LEFT JOIN wdate dbb ON dbb.work_id = p.b
-LEFT JOIN bgmdate ba ON ba.work_id = p.a
-LEFT JOIN bgmdate bb ON bb.work_id = p.b
+JOIN wk wa ON wa.id = p.a
+JOIN wk wb ON wb.id = p.b AND wb.medium_id = wa.medium_id
 ORDER BY p.a, p.b`
+}
+
+func sameSourceOtherIDSQL(xs, ys string) string {
+	return `EXISTS (SELECT 1 FROM unnest(` + xs + `) u(k) JOIN unnest(` + ys + `) v(k)
+    ON split_part(v.k, ':', 1) = split_part(u.k, ':', 1) AND v.k <> u.k)`
 }
 
 type census struct {

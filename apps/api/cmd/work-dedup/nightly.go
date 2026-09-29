@@ -11,8 +11,8 @@ import (
 )
 
 // runNightly is seed -> propose -> execute over ONE census. Running the three
-// modes back to back from cron would build it three times, and the census is a
-// ~1h ACCESS SHARE self-join over every live work title on prod — the same
+// modes back to back from cron would build it three times, and the census is an
+// ACCESS SHARE self-join over every live work title on prod — the same
 // query whose second concurrent copy is what the wrapper's yield guard exists
 // to cancel.
 //
