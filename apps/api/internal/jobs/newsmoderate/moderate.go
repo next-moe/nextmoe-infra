@@ -12,7 +12,9 @@
 //
 //	a degraded verdict NEVER advances an item, and never counts as "scored".
 //
-// Nothing in this package may set status=published. Publishing is a human act.
+// Nothing in this package may set status=published. Publishing is a human act,
+// or an importer's standing release for a source the user ruled needs no review
+// (月幕 since 2026-09-29, 批评 since 2026-09-05) — those rows never wait here.
 package newsmoderate
 
 import (

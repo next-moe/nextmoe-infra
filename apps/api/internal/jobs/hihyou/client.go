@@ -18,6 +18,7 @@ const (
 	SpaceMID = 2072586344
 
 	apiBase   = "https://api.bilibili.com"
+	homeURL   = "https://www.bilibili.com/"
 	indexPath = "/x/space/article"
 	viewPath  = "/x/article/view"
 
@@ -35,7 +36,9 @@ const (
 var ErrRateLimited = fmt.Errorf("bilibili: %d 请求过于频繁", codeRateLimited)
 
 type Client struct {
-	http *http.Client
+	http    *http.Client
+	apiBase string
+	homeURL string
 
 	rateLimited int
 }
@@ -48,7 +51,8 @@ func NewClient() (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Client{http: &http.Client{Jar: jar, Timeout: 60 * time.Second}}, nil
+	return &Client{http: &http.Client{Jar: jar, Timeout: 60 * time.Second},
+		apiBase: apiBase, homeURL: homeURL}, nil
 }
 
 func (c *Client) RateLimitedCount() int { return c.rateLimited }
@@ -56,7 +60,7 @@ func (c *Client) RateLimitedCount() int { return c.rateLimited }
 // Warm fetches the homepage for its buvid3 cookie. Without it every API call
 // returns -509 unconditionally; with it the code appears only intermittently.
 func (c *Client) Warm(ctx context.Context) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.bilibili.com/", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.homeURL, nil)
 	if err != nil {
 		return err
 	}
@@ -71,7 +75,7 @@ func (c *Client) Warm(ctx context.Context) error {
 }
 
 func (c *Client) get(ctx context.Context, path string, q url.Values, referer string) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiBase+path+"?"+q.Encode(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.apiBase+path+"?"+q.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -112,8 +116,9 @@ func (c *Client) get(ctx context.Context, path string, q url.Values, referer str
 // which is where the Gal周报 filter and the issue number come from — there is no
 // need to fetch a review or a translation just to discover it is not a weekly.
 type IndexEntry struct {
-	ID    int64  `json:"id"`
-	Title string `json:"title"`
+	ID          int64  `json:"id"`
+	Title       string `json:"title"`
+	PublishTime int64  `json:"publish_time"`
 }
 
 type indexPage struct {

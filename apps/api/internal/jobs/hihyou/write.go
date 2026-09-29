@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"api/internal/platform/news/model"
+	"api/internal/platform/news/service"
 	"api/pkg/config"
 	"api/pkg/imageclient"
 	"api/pkg/imageshrink"
@@ -302,26 +303,25 @@ func (w *writer) upload(ctx context.Context, src string) (string, error) {
 
 const releaseReason = "hihyou standing release: column already moderated by bilibili (user adjudication 2026-09-05)"
 
-// releasePending publishes every still-pending 批评 row and writes the audit
-// line from the rows the UPDATE actually moved — one decision per item, the
-// same shape the console's Decide writes. Source-scoped on purpose: ymgal rows
-// answer a different promise (苍麟's 广告哥 warning) and must never ride along.
-func (w *writer) releasePending(ctx context.Context) (int, error) {
-	const stmt = `
-		WITH moved AS (
-			UPDATE news_item SET status = ?, updated_at = now()
-			WHERE source_key = ? AND status = ?
-			RETURNING id
-		)
-		INSERT INTO news_moderation_decision (item_id, actor_uid, from_status, to_status, reason)
-		SELECT id, ?, ?, ?, ? FROM moved`
-	res := w.db.WithContext(ctx).Exec(stmt,
-		model.StatusPublished, model.SourceKeyHihyou, model.StatusPending,
-		w.opts.PublishActor, model.StatusPending, model.StatusPublished, releaseReason)
-	if res.Error != nil {
-		return 0, res.Error
+func (w *writer) release(ctx context.Context, actorUID int64) (int, error) {
+	return service.ReleasePendingImports(ctx, w.db, model.SourceKeyHihyou, actorUID, releaseReason)
+}
+
+// applyIssue writes one issue that passed the gate.
+func (w *writer) applyIssue(ctx context.Context, seg Segmentation, published time.Time, st *stats) error {
+	if w.opts.Apply {
+		var urls []string
+		for _, it := range seg.Items {
+			urls = append(urls, it.Pictures...)
+		}
+		w.warm(ctx, urls, st)
 	}
-	return int(res.RowsAffected), nil
+	for _, it := range seg.Items {
+		if err := w.applyItem(ctx, seg.CV, published, it, st); err != nil {
+			return fmt.Errorf("issue %d item %d: %w", seg.IssueNo, it.Ordinal, err)
+		}
+	}
+	return nil
 }
 
 // seedSource writes 批评's news_source row. 01 波 deliberately left it out: the
