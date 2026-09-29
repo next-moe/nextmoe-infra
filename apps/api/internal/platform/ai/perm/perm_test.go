@@ -8,7 +8,8 @@ import (
 )
 
 var goldenGrants = map[authz.Permission][]string{
-	perm.UsageView: {"admin", "ren"},
+	perm.UsageView:    {"admin", "ren"},
+	perm.BudgetManage: {"ren"},
 }
 
 var allRoles = []string{"user", "creator", "moderator", "admin", "ren"}
@@ -51,5 +52,14 @@ func TestManagementAxisContainment(t *testing.T) {
 		if perm.Resolver.Can([]string{"admin"}, p) && !perm.Resolver.Can([]string{"ren"}, p) {
 			t.Errorf("ren must grant everything admin grants; missing %q", p)
 		}
+	}
+}
+
+func TestBudgetManageIsNonDelegable(t *testing.T) {
+	if !perm.NonDelegable.Has(perm.BudgetManage) {
+		t.Errorf("%q must be non-delegable", perm.BudgetManage)
+	}
+	if perm.NonDelegable.Has(perm.UsageView) {
+		t.Errorf("%q must stay delegable", perm.UsageView)
 	}
 }

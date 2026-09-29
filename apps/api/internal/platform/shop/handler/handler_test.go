@@ -121,10 +121,13 @@ func TestPublishingNeedsThePublishPermission(t *testing.T) {
 	if status, _ := call(t, app, "POST", "/admin/shop/items/1/publish", "", "moderator", nil); status != 403 {
 		t.Fatalf("a moderator publishing: HTTP %d, want 403", status)
 	}
-	if status, code := call(t, app, "POST", "/admin/shop/items/999999999/publish", "", "admin", nil); status != 404 || code != errors.ErrShopItemNotFound {
-		t.Fatalf("an admin publishing a missing item: HTTP %d code %d, want 404", status, code)
+	if status, _ := call(t, app, "POST", "/admin/shop/items/1/publish", "", "admin", nil); status != 403 {
+		t.Fatalf("an admin publishing: HTTP %d, want 403 — the shop is ren's alone", status)
 	}
-	if status, code := call(t, app, "POST", "/admin/shop/items/1/explode", "", "admin", nil); status != 400 || code != errors.ErrShopInvalidTransition {
+	if status, code := call(t, app, "POST", "/admin/shop/items/999999999/publish", "", "ren", nil); status != 404 || code != errors.ErrShopItemNotFound {
+		t.Fatalf("ren publishing a missing item: HTTP %d code %d, want 404", status, code)
+	}
+	if status, code := call(t, app, "POST", "/admin/shop/items/1/explode", "", "ren", nil); status != 400 || code != errors.ErrShopInvalidTransition {
 		t.Fatalf("an unknown action: HTTP %d code %d", status, code)
 	}
 }

@@ -12,6 +12,8 @@ const (
 	ClientsPrivilegedConfig authz.Permission = "oauth.clients.privileged_config"
 	SitesManageAll          authz.Permission = "oauth.sites.manage_all"
 	PermissionsManage       authz.Permission = "oauth.permissions.manage"
+	MoemoepointAdjust       authz.Permission = "oauth.moemoepoint.adjust"
+	UsersAnonymize          authz.Permission = "oauth.users.anonymize"
 )
 
 const (
@@ -27,6 +29,8 @@ var NonDelegable = authz.NonDelegable{
 	RolesGrantAdmin:   true,
 	PermissionsManage: true,
 	SitesManageAll:    true,
+	MoemoepointAdjust: true,
+	UsersAnonymize:    true,
 }
 
 var adminPerms = []authz.Permission{
@@ -48,6 +52,8 @@ var renPerms = append(append([]authz.Permission{}, adminPerms...),
 	ClientsPrivilegedConfig,
 	SitesManageAll,
 	PermissionsManage,
+	MoemoepointAdjust,
+	UsersAnonymize,
 )
 
 var Bundles = authz.Bundles{

@@ -116,8 +116,11 @@ type NonDelegable map[Permission]bool      // 叠加层永不可授予的键(§7
 | `catalog.claim.trusted` | admin, ren | 建档投稿(`POST /v2/me/claims` 铸造车道)直接落 `live`、免认领审核;**不触编辑引擎**——从 `catalog.edit.trusted` 拆出(2026-09-09),因为单键下「投稿免审、编辑照审」无法表达(论坛要给 moderator 的正是这个组合,走权限台叠加层授予)。两键互不蕴含;第三方应用封顶同样适用 |
 | `trust.queue_access` | moderator, admin, ren | T&S 统一审核收件箱队列 |
 | `trust.term_manage` | admin, ren | Tier0 词表增改/退役(站域封禁权,比 queue_access 敏感;**不含 moderator**) |
-| `ai.usage_view` | admin, ren | AI 网关用量/成本/预算看板(**不含 moderator**——运营面) |
+| `ai.usage_view` | admin, ren | AI 网关用量/成本/预算看板(**不含 moderator**——运营面);只读,改预算要 `ai.budget_manage` |
+| `ai.budget_manage` | ren | 设置/清除路由每日成本上限(`PUT /admin/ai/budgets`);2026-09 从 `usage_view` 拆出,此前读键兼管写入;**不可委派** |
 | `oauth.admin_access` | admin, ren | 控制台四组门(/admin、/sites、/oauth/clients、/admin/artifact) |
+| `oauth.users.anonymize` | ren | 运营「注销并匿名化」(`POST /admin/users/:uuid/anonymize`,不可逆);2026-09 前只挡 `admin_access`;**不可委派** |
+| `oauth.moemoepoint.adjust` | ren | 手动发放/扣除萌萌点(`POST /admin/users/:uuid/moemoepoint`);萌萌点能在商店换优惠券,2026-09 前只挡 `admin_access`,生产上已有非 ren 的 admin 给自己发过点;读流水仍只要 `admin_access`;**不可委派** |
 | `oauth.users.pii_view` | ren | 看用户 PII(邮箱/IP);**也是改邮箱的键**——`PATCH /admin/users/:uuid` 的 `email` 字段只对持键者开放(不许写自己读不到的字段),响应里的 email 同样按此键脱敏 |
 | `oauth.roles.grant_basic` | admin, ren | 授予/撤销 moderator、creator |
 | `oauth.roles.grant_site` | admin, ren | 授予/撤销站点作用域角色(契约 12-site-roles;站点角色恒低于全局 moderator,故 admin 可授) |
@@ -134,7 +137,10 @@ type NonDelegable map[Permission]bool      // 叠加层永不可授予的键(§7
 | `oauth.sites.manage_all` | ren | 跨创建者管理站点与 OAuth 客户端;**没有此键的 admin 只看得见、只改得动自己创建的行**(`sites.created_by_user_id` / `oauth_clients.created_by_user_id`;NULL 归属者=历史行与开发者门户应用,仅 ren 可及);**不可委派** |
 | `artifact.files.manage` | ren | artifact 文件浏览/删除/回收 |
 | `devapi.manage` | admin, ren | 开发者平台管理面(启用应用 / tier / 铸·轮换·吊销 key / 审 scope 申请与应用申请) |
-| `devapi.policy_manage` | ren | 改开发者平台策略矩阵(自助创建/需审批/关闭,以及自助管理应用与密钥);矩阵对 admin 只读可见;**不可委派** |
+| `devapi.policy_manage` | ren | 改开发者平台策略矩阵(自助创建/需审批/关闭,以及自助管理应用与密钥);矩阵对 admin 只读可见;DLsite 券批次;改应用的 `owner_user_id` / `store_settlement_eligible`(与现值不同时);**不可委派** |
+| `shop.manage` | ren | 萌萌点商店:素材、物品、商品的增改,兑换码池(明文,含已售);**不可委派** |
+| `shop.publish` | ren | 发布/驳回/下架物品,上架/下架商品;**不可委派** |
+| `shop.grant` | ren | 发放/收回物品,退款,查看用户订单(含明文兑换码);**不可委派**。三把 shop 键 2026-09 前在 admin 捆里,而生产有 48 个全局 admin,码池被 ren 以外的 admin 读过 |
 
 > **`edit.*` 命名段说明**:编辑引擎的字段策略键以 `edit.<entity 全名>` 起头
 > (`edit.galgame.game.*` / `edit.catalog.work*` / `edit.catalog.taxonomy*`),
@@ -281,11 +287,15 @@ DROP DEFAULT),与 `devapi.AddOAuthClientDevColumns` 同形;加完 AutoMigrate �
 2. **行必须可编辑**:`creator` / `moderator` / `admin` 三行,**grant 与 deny 同一套**。`user` 排
    除是因为它**根本不会生效**(普通用户 JWT 的 `roles` 是空数组,永不进 `Can`);`ren` 排除有两个
    理由——它是包含性不变量的**上界**,也是 §7.1 那条恢复保险。
-3. **不可委派键任何人都授不出去**:`oauth.roles.grant_admin` / `oauth.permissions.manage` /
-   `oauth.sites.manage_all`。这三把键的持有者本可借此绕开控制台自身的护栏(铸管理员 / 改写授权表
-   本身 / 逃出归属作用域),故只能改代码捆并部署。持 `oauth.permissions.manage` 也照拒。
+3. **不可委派键任何人都授不出去**,分两类,都只能改代码捆并部署,持 `oauth.permissions.manage` 也照拒:
+   - 根键 `oauth.roles.grant_admin` / `oauth.permissions.manage` / `oauth.sites.manage_all` /
+     `devapi.policy_manage`:持有者本可借此绕开控制台自身的护栏(铸管理员 / 改写授权表本身 / 逃出
+     归属作用域 / 改平台策略)。
+   - 钱与不可逆操作 `shop.*` / `oauth.moemoepoint.adjust` / `oauth.users.anonymize` /
+     `ai.budget_manage`:兑换码、萌萌点、DLsite 分成都折算成真实优惠券,匿名化无法撤回。生产的全局
+     admin 有几十个,「admin 可持」并不是一个小圈子。
    **这条只管 grant**:「不肯把键发出去」是一条关于提权的规则,而 deny 是反方向。deny 也不需要单
-   独一条——三把键没有任何可编辑角色持有,规则 5 的「没有可撤销的权限」自然就挡住了。
+   独一条——这些键没有任何可编辑角色持有,规则 5 的「没有可撤销的权限」自然就挡住了。
 4. **委派规则**(不持 `oauth.permissions.manage` 的调用者):目标角色须**严格低于**自己在管理轴
    上的层级,且自己**确实持有**该权限,`creator` 列仅 ren 可编辑(creator 不在管理轴上,层级比较
    对它无意义)。**grant 与 deny 完全同规则**:从同侪手里收走一把键,并不比递给他一把更无害。

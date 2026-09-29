@@ -2,7 +2,7 @@
 import { formatCount, formatShare } from '~/constants/store'
 import type { StoreUsageApp } from '~~/shared/types/store'
 
-defineProps<{ apps: StoreUsageApp[] }>()
+defineProps<{ apps: StoreUsageApp[]; editable: boolean }>()
 const emit = defineEmits<{ changed: [] }>()
 
 const api = useApi()
@@ -69,7 +69,7 @@ const td = 'whitespace-nowrap px-4 py-3 text-sm'
             <td :class="td">
               <KunSwitch
                 :model-value="app.settlement_eligible"
-                :disabled="saving === app.client_id"
+                :disabled="!editable || saving === app.client_id"
                 size="sm"
                 @update:model-value="(v: boolean) => setEligible(app, v)"
               />

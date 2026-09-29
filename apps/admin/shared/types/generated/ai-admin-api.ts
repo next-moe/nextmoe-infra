@@ -13,7 +13,10 @@ export interface paths {
         };
         /** List the per-route (optionally per-site) daily budget-fuse config */
         get: operations["listAIBudgets"];
-        /** Set or clear a per-route (optionally per-site) daily cost cap (null cap = clear) */
+        /**
+         * Set or clear a per-route (optionally per-site) daily cost cap (null cap = clear)
+         * @description Needs ai.budget_manage (ren); the rest of this surface needs only ai.usage_view.
+         */
         put: operations["upsertAIBudget"];
         post?: never;
         delete?: never;

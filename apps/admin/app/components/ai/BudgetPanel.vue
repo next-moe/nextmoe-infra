@@ -3,6 +3,7 @@ import { AI_ROUTE_MODERATE_TEXT } from '~/constants/ai'
 import type { AiBudget } from '~~/shared/types/ai'
 
 const api = useApi('ai')
+const { isRen } = useAuth()
 
 const { data, refresh } = await useApiFetch<AiBudget[]>(
   '/admin/ai/budgets',
@@ -68,7 +69,7 @@ const clearRow = (b: AiBudget) => upsert(b.route, b.site, null)
     <h2 class="text-foreground text-lg font-semibold">预算保险丝</h2>
 
     <div class="bg-content1 space-y-4 rounded-xl p-4 shadow-sm">
-      <div class="flex flex-wrap items-end gap-2">
+      <div v-if="isRen" class="flex flex-wrap items-end gap-2">
         <div class="flex flex-col gap-1">
           <span class="text-default-500 text-xs">路由</span>
           <KunInput
@@ -146,7 +147,7 @@ const clearRow = (b: AiBudget) => upsert(b.route, b.site, null)
               </td>
               <td class="px-3 py-2 text-right">
                 <KunButton
-                  v-if="b.daily_cost_cap_micro != null"
+                  v-if="isRen && b.daily_cost_cap_micro != null"
                   color="danger"
                   variant="light"
                   size="sm"

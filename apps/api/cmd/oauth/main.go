@@ -394,7 +394,8 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	admin.Patch("/users/:uuid", adminH.UpdateUser)
 	admin.Post("/users/:uuid/ban", adminH.BanUser)
 	admin.Post("/users/:uuid/unban", adminH.UnbanUser)
-	admin.Post("/users/:uuid/anonymize", adminH.AnonymizeUser)
+	admin.Post("/users/:uuid/anonymize",
+		middleware.RequirePermission(sitePerm.Resolver, sitePerm.UsersAnonymize), adminH.AnonymizeUser)
 	admin.Delete("/users/:uuid/sessions", adminH.DeleteUserSessions)
 	admin.Post("/users/:uuid/roles", adminH.AssignRole)
 	admin.Delete("/users/:uuid/roles/:role", adminH.RevokeRole)
@@ -405,7 +406,8 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	admin.Get("/creator/applications", creatorAppH.AdminList)
 	admin.Post("/creator/applications/:id/approve", creatorAppH.AdminApprove)
 	admin.Post("/creator/applications/:id/decline", creatorAppH.AdminDecline)
-	admin.Post("/users/:uuid/moemoepoint", moemoepointH.AdminAdjust)
+	admin.Post("/users/:uuid/moemoepoint",
+		middleware.RequirePermission(sitePerm.Resolver, sitePerm.MoemoepointAdjust), moemoepointH.AdminAdjust)
 	admin.Get("/users/:uuid/moemoepoint/log", moemoepointH.AdminGetLog)
 	shopManage := middleware.RequirePermission(shopPerm.Resolver, shopPerm.Manage)
 	shopGrant := middleware.RequirePermission(shopPerm.Resolver, shopPerm.Grant)

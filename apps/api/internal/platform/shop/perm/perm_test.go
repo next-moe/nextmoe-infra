@@ -8,9 +8,9 @@ import (
 )
 
 var goldenGrants = map[authz.Permission][]string{
-	perm.Manage:  {"admin", "ren"},
-	perm.Publish: {"admin", "ren"},
-	perm.Grant:   {"admin", "ren"},
+	perm.Manage:  {"ren"},
+	perm.Publish: {"ren"},
+	perm.Grant:   {"ren"},
 }
 
 var allRoles = []string{"user", "creator", "moderator", "admin", "ren"}
@@ -25,6 +25,14 @@ func TestGoldenBundles(t *testing.T) {
 			if got := perm.Resolver.Can([]string{role}, p); got != grantedSet[role] {
 				t.Errorf("Can([%q], %q) = %v, want %v", role, p, got, grantedSet[role])
 			}
+		}
+	}
+}
+
+func TestEveryShopKeyIsNonDelegable(t *testing.T) {
+	for p := range goldenGrants {
+		if !perm.NonDelegable.Has(p) {
+			t.Errorf("%q must be non-delegable: the console must not hand coupon codes to a role below ren", p)
 		}
 	}
 }

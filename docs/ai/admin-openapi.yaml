@@ -318,6 +318,7 @@ paths:
       tags:
         - ai-admin
     put:
+      description: Needs ai.budget_manage (ren); the rest of this surface needs only ai.usage_view.
       operationId: upsertAIBudget
       requestBody:
         content:
