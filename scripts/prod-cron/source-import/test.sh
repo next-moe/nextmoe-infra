@@ -1205,11 +1205,11 @@ expect_apply "$td" "$td/ctl/expected"
 tend
 rm -rf "$td"
 
-# --- T33: the 2026-09-27 run — a roster past its ceiling stands the bangumi group down, and the two Bangumi-derived lanes still run ---
+# --- T33: a roster past its ceiling stands the bangumi group down, and the two Bangumi-derived lanes still run ---
 tstart 33
 td=$(mktemp -d)
 install_fakes "$td"
-printf '%s\n' '2026/09/27 10:01:16 INFO roster import summary source=bangumi characters_created=1449 attached_existing=0 aliases_created=0 edges_written=44103 already=0 skipped_no_work_anchor=0 skipped_no_name=0 skipped_claimed_probable=0 skipped_retired_exact_squat=0 portrait_candidates=0 errors=0' \
+printf '%s\n' '2026/09/27 10:01:16 INFO roster import summary source=bangumi characters_created=1501 attached_existing=0 aliases_created=0 edges_written=44103 already=0 skipped_no_work_anchor=0 skipped_no_name=0 skipped_claimed_probable=0 skipped_retired_exact_squat=0 portrait_candidates=0 errors=0' \
   > "$td/ctl/out/import-character-roster+bangumi+dry"
 run_job "$td"
 expect_exit_nonzero "$td"
@@ -1227,6 +1227,21 @@ grep -v -F \
   -e 'import-bangumi-xmedia --run' \
   "$td/ctl/t1" > "$td/ctl/expected"
 expect_apply "$td" "$td/ctl/expected"
+tend
+rm -rf "$td"
+
+# --- T34: the 2026-09-27 roster (1,449 characters for the works bgm-type4 minted) is inside the ceiling ---
+tstart 34
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' '2026/09/27 10:01:16 INFO roster import summary source=bangumi characters_created=1449 attached_existing=0 aliases_created=0 edges_written=44103 already=0 skipped_no_work_anchor=0 skipped_no_name=0 skipped_claimed_probable=0 skipped_retired_exact_squat=0 portrait_candidates=0 errors=0' \
+  > "$td/ctl/out/import-character-roster+bangumi+dry"
+run_job "$td"
+expect_exit "$td" 0
+if ! has_stamp "$td"; then fail "missing stamp"; fi
+if has_alert "$td"; then fail "unexpected alert"; fi
+write_t1_expected "$td/ctl/t1"
+expect_apply "$td" "$td/ctl/t1"
 tend
 rm -rf "$td"
 
