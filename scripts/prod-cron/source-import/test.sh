@@ -55,12 +55,12 @@ import-character-roster --source bangumi --apply
 backfill-bgm-zh-names --lane character --apply
 backfill-bgm-zh-names --lane person --apply
 backfill-bgm-zh-names --lane label --apply
-import-store-refs --only bgm --apply
-import-work-engines --lane bgm --apply
 import-entity-aliases --hints --run
 import-entity-aliases --candidates --run
 person-link-batch --rule-set alias --actor 1 --run
 import-bangumi-xmedia --run
+import-store-refs --only bgm --apply
+import-work-engines --lane bgm --apply
 import-eg-dlsite-releases --run
 import-dlsite-games --run --limit 250
 backfill-dlsite-genres --apply
@@ -870,8 +870,6 @@ grep -v -F \
   -e 'backfill-bgm-zh-names --lane character --apply' \
   -e 'backfill-bgm-zh-names --lane person --apply' \
   -e 'backfill-bgm-zh-names --lane label --apply' \
-  -e 'import-store-refs --only bgm --apply' \
-  -e 'import-work-engines --lane bgm --apply' \
   -e 'import-entity-aliases --hints --run' \
   -e 'import-entity-aliases --candidates --run' \
   -e 'person-link-batch --rule-set alias --actor 1 --run' \
@@ -1191,7 +1189,7 @@ expect_apply "$td" "$td/ctl/expected"
 tend
 rm -rf "$td"
 
-# --- T32: a Bangumi engine pass that would drop past its ceiling writes nothing, and the rest of the group stands down ---
+# --- T32: a Bangumi engine pass that would drop past its ceiling writes nothing, and the bangumi group before it is untouched ---
 tstart 32
 td=$(mktemp -d)
 install_fakes "$td"
@@ -1202,8 +1200,27 @@ expect_exit_nonzero "$td"
 if has_stamp "$td"; then fail "stamp written"; fi
 if ! has_alert "$td"; then fail "no alert"; fi
 write_t1_expected "$td/ctl/t1"
+grep -v -F -e 'import-work-engines --lane bgm --apply' "$td/ctl/t1" > "$td/ctl/expected"
+expect_apply "$td" "$td/ctl/expected"
+tend
+rm -rf "$td"
+
+# --- T33: the 2026-09-27 run — a roster past its ceiling stands the bangumi group down, and the two Bangumi-derived lanes still run ---
+tstart 33
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' '2026/09/27 10:01:16 INFO roster import summary source=bangumi characters_created=1449 attached_existing=0 aliases_created=0 edges_written=44103 already=0 skipped_no_work_anchor=0 skipped_no_name=0 skipped_claimed_probable=0 skipped_retired_exact_squat=0 portrait_candidates=0 errors=0' \
+  > "$td/ctl/out/import-character-roster+bangumi+dry"
+run_job "$td"
+expect_exit_nonzero "$td"
+if has_stamp "$td"; then fail "stamp written"; fi
+if ! has_alert "$td"; then fail "no alert"; fi
+write_t1_expected "$td/ctl/t1"
 grep -v -F \
-  -e 'import-work-engines --lane bgm --apply' \
+  -e 'import-character-roster --source bangumi --apply' \
+  -e 'backfill-bgm-zh-names --lane character --apply' \
+  -e 'backfill-bgm-zh-names --lane person --apply' \
+  -e 'backfill-bgm-zh-names --lane label --apply' \
   -e 'import-entity-aliases --hints --run' \
   -e 'import-entity-aliases --candidates --run' \
   -e 'person-link-batch --rule-set alias --actor 1 --run' \

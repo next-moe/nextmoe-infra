@@ -271,21 +271,6 @@ fi
 gstep sh -c "$DSNSH"'; backfill-bgm-zh-names --dsn "$CAT" --lane character --apply'
 gstep sh -c "$DSNSH"'; backfill-bgm-zh-names --dsn "$CAT" --lane person --apply'
 gstep sh -c "$DSNSH"'; backfill-bgm-zh-names --dsn "$CAT" --lane label --apply'
-# Probable work refs for the Steam appid a work's Bangumi subject names; the
-# nightly adjudication confirms them. Its own step here, not a lane of the eg
-# invocation above, so a failed EG group does not take it down.
-gstep sh -c "$DSNSH"'; import-store-refs --dsn "$CAT" --only bgm --apply'
-# Bangumi's 游戏引擎 field is the engine of a work only while no release and no
-# person names one; the lane adds those rows and removes them once something
-# else covers the work. The ceilings watch both directions.
-if [ "$GROUP_FAIL" -eq 0 ]; then
-  if dry_ok work-engines-bgm sh -c "$DSNSH"'; import-work-engines --dsn "$CAT" --lane bgm' \
-     && check_counters work-engines-bgm "$last_dry_log" bgm_add=1000 bgm_drop=1000; then
-    gstep sh -c "$DSNSH"'; import-work-engines --dsn "$CAT" --lane bgm --apply'
-  else
-    ceiling_failed
-  fi
-fi
 # --run is the apply flag of import-entity-aliases, person-link-batch and
 # import-bangumi-xmedia: Go's flag package treats --apply as undefined and exits
 # 2, the same class of invocation break as bgm-refresh's --wiki-dsn on
@@ -317,6 +302,26 @@ if [ "$GROUP_FAIL" -eq 0 ]; then
   if dry_ok bangumi-xmedia import-bangumi-xmedia \
      && check_counters bangumi-xmedia "$last_dry_log" registered_anime=200 registered_manga=200 registered_novel=200; then
     gstep import-bangumi-xmedia --run
+  else
+    ceiling_failed
+  fi
+fi
+
+begin_group bangumi-derived
+# Two lanes that read only src_bangumi and the anchors, in a group of their own.
+# They sat at the tail of the bangumi group until the 2026-09-27 run, where the
+# roster ceiling (characters_created=1449 > 300) stood that group down and would
+# have skipped them every week the roster backlog stayed undrained.
+# Probable work refs for the Steam appid a work's Bangumi subject names; the
+# nightly adjudication confirms them.
+gstep sh -c "$DSNSH"'; import-store-refs --dsn "$CAT" --only bgm --apply'
+# Bangumi's 游戏引擎 field is the engine of a work only while no release and no
+# person names one; the lane adds those rows and removes them once something
+# else covers the work. The ceilings watch both directions.
+if [ "$GROUP_FAIL" -eq 0 ]; then
+  if dry_ok work-engines-bgm sh -c "$DSNSH"'; import-work-engines --dsn "$CAT" --lane bgm' \
+     && check_counters work-engines-bgm "$last_dry_log" bgm_add=1000 bgm_drop=1000; then
+    gstep sh -c "$DSNSH"'; import-work-engines --dsn "$CAT" --lane bgm --apply'
   else
     ceiling_failed
   fi
