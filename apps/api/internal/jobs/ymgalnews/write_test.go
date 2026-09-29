@@ -110,7 +110,7 @@ func TestNewItemLandsPending(t *testing.T) {
 	}
 	r := row(t, "100")
 	if r.Status != model.StatusPending {
-		t.Errorf("new item status = %d, want pending (%d) — the moderation gate is a promise, not a default",
+		t.Errorf("new item status = %d, want pending (%d) — publishing is the run's standing release, which writes the decision row",
 			r.Status, model.StatusPending)
 	}
 	if r.Lane != LaneNews || r.UpstreamCategory != "资讯" {

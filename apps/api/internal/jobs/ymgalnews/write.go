@@ -181,11 +181,11 @@ func (w *writer) apply(ctx context.Context, lane string, t Topic, st *stats) (ou
 		"last_seen_at":      time.Now(),
 		"updated_at":        time.Now(),
 	}
-	// A published item whose text changed goes back to the queue: this is
-	// third-party content going out under our name, so the charter's conservative
-	// direction applies and an unreviewed edit must not stay visible. rejected and
-	// withdrawn are left alone — a human decided those, and re-seeing the article
-	// upstream is not new information about that decision.
+	// A published item whose text changed goes back to pending, and the run's
+	// standing release puts it out again: that release's decision row is the only
+	// record that the text changed after it was published. rejected and withdrawn
+	// are left alone — a human decided those, and re-seeing the article upstream
+	// is not new information about that decision.
 	if existing.Status == model.StatusPublished {
 		updates["status"] = model.StatusPending
 	}

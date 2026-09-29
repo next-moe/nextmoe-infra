@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"time"
 
+	"api/internal/jobs/hihyou"
 	"api/internal/jobs/newsmoderate"
 	"api/internal/jobs/storestats"
 	"api/internal/jobs/ymgalnews"
@@ -108,6 +109,14 @@ func RegisterAll(r *Registry) {
 	})
 
 	r.Register(Job{
+		Name: "hihyou-weekly-poll",
+		Desc: "Galgame 批评《Gal周报》每日检查（专栏索引第 1 页，近 28 天各期幂等导入并按常设裁定放行）",
+		Run: func(ctx context.Context, cfg *config.Config) (Summary, error) {
+			return hihyou.Poll(ctx, cfg, hihyou.DefaultPollOpts())
+		},
+	})
+
+	r.Register(Job{
 		Name: "store-stats-sync",
 		Desc: "DLsite 分销短链点击同步（JST 日桶，最近 3 日窗口；首轮从最早铸链日全量补齐）",
 		Run: func(ctx context.Context, cfg *config.Config) (Summary, error) {
@@ -125,12 +134,11 @@ func RegisterAll(r *Registry) {
 		},
 	})
 
-	// Faster than ingestion (10 min) so a freshly ingested item is gradeable by
-	// the time a moderator opens the queue. Nothing here can publish: the gate
-	// only ever auto-REJECTS, and only on a deterministic Tier0 word match.
+	// Nothing here can publish: the gate only ever auto-REJECTS, and only on a
+	// deterministic Tier0 word match.
 	r.Register(Job{
 		Name: "news-moderate",
-		Desc: "情报审核评分（Tier0 + AI 顾问；降级不推进，只有人能发布）",
+		Desc: "情报审核评分（Tier0 + AI 顾问；降级不推进，本任务从不发布）",
 		Run: func(ctx context.Context, cfg *config.Config) (Summary, error) {
 			return runNewsModerate(ctx, cfg, newsmoderate.Opts{
 				Apply: true, Limit: 50, Gap: 200 * time.Millisecond,

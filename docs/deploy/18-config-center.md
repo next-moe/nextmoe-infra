@@ -110,7 +110,7 @@ path style、PG 连接池、OIDC 签名算法、aff URL 模板等启动期接线
 **例外:`store.price_steam_regions` 与 `store.price_dlsite_currencies` 在 catalog 启动时读一次**,
 改了要重启 catalog 才生效(fetcher 构造期定型);其余 89 个键都是使用时读。
 
-### 后台任务(`jobs`,W2,12 × 2)
+### 后台任务(`jobs`,W2,14 × 2)
 
 oauth 上的调度器(`internal/jobs`)每个任务两把键,没有环境变量地板,默认值就是迁入前 `all.go`
 里写死的时刻;详见 18.6。
@@ -127,6 +127,7 @@ oauth 上的调度器(`internal/jobs`)每个任务两把键,没有环境变量�
 | `prune-developer-usage` | true | `daily@06:00` |
 | `ymgal-news-poll` | true | `every:10m` |
 | `ymgal-news-sweep` | true | `daily@04:05` |
+| `hihyou-weekly-poll` | true | `daily@13:00` |
 | `store-stats-sync` | true | `every:1h` |
 | `store-stats-resync` | true | `daily@05:10` |
 | `news-moderate` | true | `every:5m` |
