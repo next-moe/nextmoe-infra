@@ -27,6 +27,7 @@ const emit = defineEmits<{
 }>()
 
 const api = useApi()
+const { isRen } = useAuth()
 
 const balance = ref(0)
 const amount = ref('') // bound to KunInput (string); parsed on submit
@@ -117,7 +118,7 @@ const adjust = async (sign: 1 | -1) => {
         <span class="text-primary text-2xl font-bold">{{ balance }}</span>
       </div>
 
-      <div class="space-y-2">
+      <div v-if="isRen" class="space-y-2">
         <KunInput
           v-model="amount"
           type="number"

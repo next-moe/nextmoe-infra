@@ -79,7 +79,11 @@ const cards = computed(() => [
 
     <template v-else-if="usage">
       <DevapiStoreTrend :daily="usage.daily" />
-      <DevapiStoreApps :apps="usage.by_app" @changed="refresh" />
+      <DevapiStoreApps
+        :apps="usage.by_app"
+        :editable="usage.can_manage_coupons"
+        @changed="refresh"
+      />
       <DevapiStoreLinks :links="usage.top_links" />
     </template>
 

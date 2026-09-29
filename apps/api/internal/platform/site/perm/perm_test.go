@@ -17,6 +17,8 @@ var goldenGrants = map[authz.Permission][]string{
 	perm.ClientsPrivilegedConfig: {"ren"},
 	perm.SitesManageAll:          {"ren"},
 	perm.PermissionsManage:       {"ren"},
+	perm.MoemoepointAdjust:       {"ren"},
+	perm.UsersAnonymize:          {"ren"},
 	perm.SitesCreate:             {"admin", "ren"},
 	perm.SitesUpdate:             {"admin", "ren"},
 	perm.SitesDelete:             {"admin", "ren"},
@@ -31,7 +33,10 @@ func TestNonDelegableAreDeclaredKeys(t *testing.T) {
 			t.Errorf("non-delegable %q is not a declared console permission", p)
 		}
 	}
-	for _, want := range []authz.Permission{perm.RolesGrantAdmin, perm.PermissionsManage, perm.SitesManageAll} {
+	for _, want := range []authz.Permission{
+		perm.RolesGrantAdmin, perm.PermissionsManage, perm.SitesManageAll,
+		perm.MoemoepointAdjust, perm.UsersAnonymize,
+	} {
 		if !perm.NonDelegable.Has(want) {
 			t.Errorf("%q must be non-delegable", want)
 		}

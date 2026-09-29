@@ -9,6 +9,7 @@ import (
 	apperr "api/pkg/errors"
 	"api/pkg/response"
 
+	devapiPerm "api/internal/platform/devapi/perm"
 	siteModel "api/internal/platform/site/model"
 
 	"github.com/gofiber/fiber/v3"
@@ -148,14 +149,28 @@ func (h *AdminHandler) PatchApp(c fiber.Ctx) error {
 	if err := c.Bind().JSON(&req); err != nil {
 		return response.BadRequest(c, apperr.ErrBadRequest)
 	}
-	app, err := h.svc.UpdateAppConfig(c.Context(), clientID, AppConfig{
+	cfg := AppConfig{
 		OwnerUserID:             req.OwnerUserID,
 		DevEnabled:              req.DevEnabled,
 		DevTier:                 req.DevTier,
 		DevRatePerMin:           req.DevRatePerMin,
 		DevQuotaDaily:           req.DevQuotaDaily,
 		StoreSettlementEligible: req.StoreSettlementEligible,
-	})
+	}
+	roles, _ := c.Locals("user_roles").([]string)
+	if !devapiPerm.Resolver.Can(roles, devapiPerm.PolicyManage) {
+		moves, err := h.svc.MovesSettlement(c.Context(), clientID, cfg)
+		if goerrors.Is(err, gorm.ErrRecordNotFound) {
+			return response.NotFound(c, apperr.ErrNotFound)
+		}
+		if err != nil {
+			return response.InternalError(c, apperr.ErrOperationFailed)
+		}
+		if moves {
+			return response.ForbiddenMsg(c, apperr.ErrForbidden, "改应用归属或 DLsite 分成资格需要 devapi.policy_manage（ren）")
+		}
+	}
+	app, err := h.svc.UpdateAppConfig(c.Context(), clientID, cfg)
 	if goerrors.Is(err, ErrInvalidTier) {
 		return response.BadRequestMsg(c, apperr.ErrValidationFailed, "invalid tier (want free|trusted|internal)")
 	}

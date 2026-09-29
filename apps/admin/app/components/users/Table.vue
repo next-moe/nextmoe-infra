@@ -17,6 +17,7 @@ const emit = defineEmits<{
 }>()
 
 const cdnBase = useRuntimeConfig().public.imageCdnBase as string
+const { isRen } = useAuth()
 
 const avatarSrc = (user: User) =>
   resolveAvatarUrl(user, { cdnBase, variant: '256' }, '')
@@ -153,7 +154,7 @@ const isProtected = (user: User) =>
                 </button>
 
                 <button
-                  v-if="!user.is_anonymized && !isProtected(user)"
+                  v-if="isRen && !user.is_anonymized && !isProtected(user)"
                   class="flex w-full items-center gap-2 px-3 py-2 text-sm text-danger hover:bg-danger-50"
                   @click="emit('anonymize', { uuid: user.uuid, name: user.name })"
                 >
