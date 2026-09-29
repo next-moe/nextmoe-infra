@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"api/pkg/logger"
 )
@@ -39,6 +40,9 @@ func main() {
 	maxNeurons := flag.Float64("max-neurons", 0, "grade: stop once this many neurons are spent (0 = no cap)")
 	guardDSN := flag.String("guard-dsn", "", "grade: kun_ai DSN watched for live fail-open (empty disables the guard)")
 	guardShare := flag.Float64("guard-share", 0.106, "grade: abort when the live ai_usage failure share exceeds this")
+	quotaWait := flag.Duration("quota-wait", time.Hour, "grade: how long to wait for a used-up Workers AI daily allocation to free before carrying the rest to the next run")
+	quotaProbe := flag.Duration("quota-probe", 2*time.Minute, "grade: how often a held worker re-asks while the daily allocation is used up")
+	carryMax := flag.Int64("carry-max", 0, "grade: fail when a run carries more than this many ungraded images to the next one (0 = never)")
 	flag.Parse()
 
 	logger.Init("production")
@@ -84,6 +88,9 @@ func main() {
 			MaxNeurons:  *maxNeurons,
 			GuardDSN:    *guardDSN,
 			GuardShare:  *guardShare,
+			QuotaWait:   *quotaWait,
+			QuotaProbe:  *quotaProbe,
+			CarryMax:    *carryMax,
 			Client:      newMoondreamClient(*cfAccount, *cfToken, *cfModel),
 		}, os.Stdout)
 	case "report":
