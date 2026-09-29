@@ -781,7 +781,7 @@ export const searchIndex: SearchEntry[] = [
     "r": "/docs/v2",
     "t": "Public API v2",
     "s": "端点参考",
-    "d": "/v2 · 117 个端点",
+    "d": "/v2 · 122 个端点",
     "b": "v2 /v2 API v2 Public API v2"
   },
   {
@@ -1212,6 +1212,13 @@ export const searchIndex: SearchEntry[] = [
     "b": "listPublicFolderItems /v2/folders/{id}/items get List a public folder's items Keyset-paginated by updated_at, the same shape /v2/me/folders/{id}/items answers. The list carries every work the folder holds and applies no editorial gate, so item_count matches what is returned; a caller that hides r18 applies its own gate when it hydrates the works. Requires an application key or a user access token with catalog:read. 按 updated_at 做 keyset 分页，与 /v2/me/folders/{id}/items 的形状相同。列表返回收藏夹里的全部作品、不做分级过滤，因此 item_count 与返回内容一致；要屏蔽 r18 的调用方在补全作品详情时按自己的口径过滤。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id cursor limit view include fields ids refs include_total facets sort nsfw"
   },
   {
+    "r": "/docs/v2/listMyCalendar",
+    "t": "我的发售月历",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/calendar",
+    "b": "listMyCalendar /v2/me/calendar get My release calendar The bearer's release calendar: the works of the companies they follow, with the same windows, parameters and meta as /v2/catalog/calendar. Absent olang means all languages and absent exclude_company_kind excludes nothing, because the population is already the bearer's choice; the public calendar's defaults (Japanese, commercial only) would hide a followed doujin circle or a Chinese company. A user who follows no company gets an empty window. Requires a user access token. Any app may call this; no scope is required. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE. 持有者的发售月历：他们所关注公司的作品，窗口、参数与 meta 与 /v2/catalog/calendar 相同。缺席的 olang 表示全部语言，缺席的 exclude_company_kind 不排除任何类别，因为人口已是持有者自己的选择；公开日历的缺省（仅日语、仅商业）会藏起已关注的同人社团或一家中国公司。没有关注任何公司的用户得到一个空窗口。需要用户访问令牌。任何应用均可调用；不要求任何 scope。不接受 ids=。include=titles,refs,intros,covers,companies,ratings,tags,credits 在此车道填充；view=full 即它们全部，credits 除外，须显式请求。在集合车道上，titles 选出 latin/localized，covers 选出给基础 cover 分级的两个封面槽——完整的 titles[] 与 covers[] 数组，以及 relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links，是单条记录块，位于 /v2/catalog/works/{id} 及其子资源；在此请求其中之一为 400 UNKNOWN_INCLUDE。 cursor limit view include fields ids refs include_total facets sort nsfw month year precision status content_limit olang exclude_company_kind"
+  },
+  {
     "r": "/docs/v2/listMyClaims",
     "t": "列出我的认领",
     "s": "端点 · 我的",
@@ -1350,6 +1357,34 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 我的",
     "d": "DELETE /v2/me/folders/{id}/items/{work_id}",
     "b": "deleteMyFolderItem /v2/me/folders/{id}/items/{work_id} delete Remove a work from a folder 204 with no body, also when the work was not in the folder. Requires a user access token with folder:write. 204 无响应体；作品本来就不在夹内时同样如此。需要带 folder:write 的用户访问令牌。 folder:write id work_id"
+  },
+  {
+    "r": "/docs/v2/listMyCompanyFollows",
+    "t": "列出我关注的公司",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/followed-companies",
+    "b": "listMyCompanyFollows /v2/me/followed-companies get List my followed companies The bearer user's followed companies, newest follow first. Items carry ids only and are hydrated with /v2/catalog/companies?ids=. company_ids= is a batch read. The list is private to its owner; only the count is public (follower_count on /v2/catalog/companies/{id}). Requires a user access token. Any app may call this; no scope is required. 持有者用户关注的公司，最近关注的在前。条目只带 id，用 /v2/catalog/companies?ids= 补全。company_ids= 是批量读取。这份列表只对其所有者可见；公开的只有计数（/v2/catalog/companies/{id} 上的 follower_count）。需要用户访问令牌。任何应用均可调用；不要求任何 scope。 cursor limit view include fields ids refs include_total facets sort nsfw company_ids"
+  },
+  {
+    "r": "/docs/v2/getMyCompanyFollow",
+    "t": "读取我对某家公司的关注",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/followed-companies/{company_id}",
+    "b": "getMyCompanyFollow /v2/me/followed-companies/{company_id} get Get my follow on one company 404 when the bearer is not following this company. Requires a user access token. Any app may call this; no scope is required. 持有者未关注该公司时为 404。需要用户访问令牌。任何应用均可调用；不要求任何 scope。 company_id"
+  },
+  {
+    "r": "/docs/v2/putMyCompanyFollow",
+    "t": "关注一家公司",
+    "s": "端点 · 我的",
+    "d": "PUT /v2/me/followed-companies/{company_id}",
+    "b": "putMyCompanyFollow /v2/me/followed-companies/{company_id} put Follow a company No request body. Idempotent: following an already-followed company answers the stored row and writes nothing. Unknown or deleted companies are 404, or the merged-entity problem when the id was merged away. At most 1000 followed companies. Requires a user access token. Any app may call this; no scope is required. 无请求体。天然幂等：再次关注一家已关注的公司会返回已存的那一行，且不写入任何内容。未知或已删除的公司返回 404；该 id 已被合并时返回合并实体问题。一名用户最多关注 1000 家公司。需要用户访问令牌。任何应用均可调用；不要求任何 scope。 company_id"
+  },
+  {
+    "r": "/docs/v2/deleteMyCompanyFollow",
+    "t": "取消关注一家公司",
+    "s": "端点 · 我的",
+    "d": "DELETE /v2/me/followed-companies/{company_id}",
+    "b": "deleteMyCompanyFollow /v2/me/followed-companies/{company_id} delete Unfollow a company 204 with no body, also when the bearer was not following. Requires a user access token. Any app may call this; no scope is required. 204 无响应体；持有者本来就未关注时同样如此。需要用户访问令牌。任何应用均可调用；不要求任何 scope。 company_id"
   },
   {
     "r": "/docs/v2/listMyNews",

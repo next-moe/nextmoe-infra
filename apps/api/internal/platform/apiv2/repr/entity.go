@@ -13,19 +13,20 @@ type Tag struct {
 }
 
 type Company struct {
-	_           struct{}                 `json:"-" additionalProperties:"true"`
-	Object      string                   `json:"object" enum:"company" doc:"Type discriminant. Always company."`
-	ID          string                   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog company id."`
-	DisplayName string                   `json:"display_name" maxLength:"512" doc:"Must not be used as a discriminant."`
-	Latin       *string                  `json:"latin" maxLength:"512" doc:"null if unrecorded. Must not be used as a discriminant."`
-	Lang        *string                  `json:"lang" maxLength:"32" format:"bcp47" doc:"BCP-47 language tag of display_name. null if unrecorded. Must not be used as a discriminant."`
-	Localized   map[string]LocalizedText `json:"localized" doc:"BCP-47 keys. Empty object if none. Must not be used as a discriminant."`
-	CompanyKind string                   `json:"company_kind" enum:"game_brand,bunko,publisher,anime_studio,doujin_circle,group" doc:"Company registry class. No other."`
-	WorkCount   int                      `json:"work_count" minimum:"0" doc:"Works visible under the same NSFW gate."`
-	Aliases     *[]EntityName            `json:"aliases,omitempty" doc:"Present when include=aliases. Empty array if none."`
-	Logo        *Image                   `json:"logo,omitempty" doc:"Present only when include=logo and this company has a logo; absent otherwise."`
-	Intros      *[]Intro                 `json:"intros,omitempty" doc:"Present when include=intros on the detail and batch lanes; the cursor list lane does not carry it. Empty array if none."`
-	Links       *[]WorkLink              `json:"links,omitempty" doc:"Present when include=links on the detail and batch lanes; the cursor list lane does not carry it. Empty array if none."`
+	_             struct{}                 `json:"-" additionalProperties:"true"`
+	Object        string                   `json:"object" enum:"company" doc:"Type discriminant. Always company."`
+	ID            string                   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog company id."`
+	DisplayName   string                   `json:"display_name" maxLength:"512" doc:"Must not be used as a discriminant."`
+	Latin         *string                  `json:"latin" maxLength:"512" doc:"null if unrecorded. Must not be used as a discriminant."`
+	Lang          *string                  `json:"lang" maxLength:"32" format:"bcp47" doc:"BCP-47 language tag of display_name. null if unrecorded. Must not be used as a discriminant."`
+	Localized     map[string]LocalizedText `json:"localized" doc:"BCP-47 keys. Empty object if none. Must not be used as a discriminant."`
+	CompanyKind   string                   `json:"company_kind" enum:"game_brand,bunko,publisher,anime_studio,doujin_circle,group" doc:"Company registry class. No other."`
+	WorkCount     int                      `json:"work_count" minimum:"0" doc:"Works visible under the same NSFW gate."`
+	FollowerCount *int                     `json:"follower_count,omitempty" minimum:"0" doc:"Users following this company. Present on the detail face, /v2/catalog/companies/{id}, only; absent on list, batch and embedded company objects."`
+	Aliases       *[]EntityName            `json:"aliases,omitempty" doc:"Present when include=aliases. Empty array if none."`
+	Logo          *Image                   `json:"logo,omitempty" doc:"Present only when include=logo and this company has a logo; absent otherwise."`
+	Intros        *[]Intro                 `json:"intros,omitempty" doc:"Present when include=intros on the detail and batch lanes; the cursor list lane does not carry it. Empty array if none."`
+	Links         *[]WorkLink              `json:"links,omitempty" doc:"Present when include=links on the detail and batch lanes; the cursor list lane does not carry it. Empty array if none."`
 }
 
 type CreditName struct {

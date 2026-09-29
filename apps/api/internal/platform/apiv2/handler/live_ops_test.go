@@ -105,6 +105,8 @@ var liveReadPaths = []string{
 	"/v2/folders/{id}/items",
 	"/v2/me/playtimes",
 	"/v2/me/work-states",
+	"/v2/me/followed-companies",
+	"/v2/me/calendar",
 	"/v2/me/folders",
 	"/v2/me/folders/holdings",
 	"/v2/me/works",
@@ -127,17 +129,18 @@ var liveReadPaths = []string{
 // is out. A new read route belongs in liveReadPaths or here; the completeness
 // test refuses both "in neither" and "in both".
 var liveReadsNotSwept = map[string]string{
-	"/v2/catalog/proposals/{id}":            "no proposal survives seedLiveFixtures; TestLiveWrites200 creates the only one",
-	"/v2/catalog/revisions/{id}":            "no revision survives seedLiveFixtures",
-	"/v2/me/proposals/{id}":                 "same: no proposal id to address",
-	"/v2/moderation/proposals/{id}":         "same: no proposal id to address",
-	"/v2/me/playtimes/{work_id}":            "404 until a playtime is written, which is TestLiveWrites200's job",
-	"/v2/me/work-states/{work_id}":          "404 until a state is written, which is TestLiveWorkStateLifecycle's job",
-	"/v2/catalog/search":                    "the live env binds no OpenSearch, so this face is 503 here",
-	"/v2/store/purchase-links/{product_id}": "the live env binds no store service",
-	"/v2/store/stats":                       "the live env binds no store service",
-	"/v2/store/prices/{id}":                 "the live env binds no price service; live_wave_prices_test.go mounts one over fake fetchers",
-	"/v2/store/prices":                      "the live env binds no price service; live_wave_prices_test.go mounts one over fake fetchers",
+	"/v2/catalog/proposals/{id}":             "no proposal survives seedLiveFixtures; TestLiveWrites200 creates the only one",
+	"/v2/catalog/revisions/{id}":             "no revision survives seedLiveFixtures",
+	"/v2/me/proposals/{id}":                  "same: no proposal id to address",
+	"/v2/moderation/proposals/{id}":          "same: no proposal id to address",
+	"/v2/me/playtimes/{work_id}":             "404 until a playtime is written, which is TestLiveWrites200's job",
+	"/v2/me/work-states/{work_id}":           "404 until a state is written, which is TestLiveWorkStateLifecycle's job",
+	"/v2/me/followed-companies/{company_id}": "404 until a follow is written, which is TestLiveCompanyFollowLifecycle's job",
+	"/v2/catalog/search":                     "the live env binds no OpenSearch, so this face is 503 here",
+	"/v2/store/purchase-links/{product_id}":  "the live env binds no store service",
+	"/v2/store/stats":                        "the live env binds no store service",
+	"/v2/store/prices/{id}":                  "the live env binds no price service; live_wave_prices_test.go mounts one over fake fetchers",
+	"/v2/store/prices":                       "the live env binds no price service; live_wave_prices_test.go mounts one over fake fetchers",
 }
 
 // A face whose contract makes a filter mandatory would answer the bare sweep

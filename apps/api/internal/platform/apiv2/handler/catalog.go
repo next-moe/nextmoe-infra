@@ -19,23 +19,24 @@ import (
 )
 
 type Catalog struct {
-	Public      *catsvc.PublicService
-	Resolve     *catsvc.ResolveService
-	StatsSvc    *catsvc.StatsService
-	News        *newssvc.PublicService
-	NewsWrite   *newssvc.SubmissionService
-	Searcher    *catsearch.Indexer
-	EditTypes   *editing.Registry
-	Playtime    *catsvc.UserPlaytimeService
-	WorkStates  *catsvc.UserWorkStateService
-	Folders     *catsvc.UserFolderService
-	CoverVotes  *catsvc.CoverVoteService
-	Claims      *catsvc.ClaimLifecycleService
-	Engine      *editing.Engine
-	EditHistory *catsvc.EditHistoryService
-	Uploads     EditImageUpload
-	Store       *storesvc.Service
-	Prices      *price.Service
+	Public         *catsvc.PublicService
+	Resolve        *catsvc.ResolveService
+	StatsSvc       *catsvc.StatsService
+	News           *newssvc.PublicService
+	NewsWrite      *newssvc.SubmissionService
+	Searcher       *catsearch.Indexer
+	EditTypes      *editing.Registry
+	Playtime       *catsvc.UserPlaytimeService
+	WorkStates     *catsvc.UserWorkStateService
+	CompanyFollows *catsvc.UserEntityFollowService
+	Folders        *catsvc.UserFolderService
+	CoverVotes     *catsvc.CoverVoteService
+	Claims         *catsvc.ClaimLifecycleService
+	Engine         *editing.Engine
+	EditHistory    *catsvc.EditHistoryService
+	Uploads        EditImageUpload
+	Store          *storesvc.Service
+	Prices         *price.Service
 	// oauth_clients lives in the infra database, which no catalog service can
 	// reach, so the moderation fence takes its client -> site resolver here.
 	SiteOfAppClient func(ctx context.Context, clientID string) (string, error)
