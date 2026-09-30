@@ -227,18 +227,19 @@ func liveCatalog(t *testing.T) *liveEnv {
 			return
 		}
 		cat := &Catalog{
-			Public:     pub,
-			Resolve:    resolve,
-			StatsSvc:   catsvc.NewStatsService(db),
-			EditTypes:  reg,
-			Playtime:   catsvc.NewUserPlaytimeService(db),
-			WorkStates: catsvc.NewUserWorkStateService(db),
-			Folders:    catsvc.NewUserFolderService(db),
-			CoverVotes: catsvc.NewCoverVoteService(db),
-			Claims:     catsvc.NewClaimLifecycleService(db),
-			Engine:     editing.NewEngine(db, reg),
-			News:       newssvc.NewPublicService(db, liveNewsCDNBase),
-			NewsWrite:  newssvc.NewSubmissionService(db, liveNewsCDNBase),
+			Public:         pub,
+			Resolve:        resolve,
+			StatsSvc:       catsvc.NewStatsService(db),
+			EditTypes:      reg,
+			Playtime:       catsvc.NewUserPlaytimeService(db),
+			WorkStates:     catsvc.NewUserWorkStateService(db),
+			CompanyFollows: catsvc.NewUserEntityFollowService(db),
+			Folders:        catsvc.NewUserFolderService(db),
+			CoverVotes:     catsvc.NewCoverVoteService(db),
+			Claims:         catsvc.NewClaimLifecycleService(db),
+			Engine:         editing.NewEngine(db, reg),
+			News:           newssvc.NewPublicService(db, liveNewsCDNBase),
+			NewsWrite:      newssvc.NewSubmissionService(db, liveNewsCDNBase),
 		}
 		cat.EditHistory = catsvc.NewEditHistoryService(db)
 		app := fiber.New(fiber.Config{ErrorHandler: problem.WriteFiberError})
@@ -335,7 +336,7 @@ func seedLiveFixtures(db *gorm.DB, claims *catsvc.ClaimLifecycleService) (liveFi
 		catalog_name_alias, catalog_credit, catalog_work_tag, catalog_label_relation,
 		catalog_character_alias, catalog_character_intro,
 		catalog_work_character, catalog_tag_source_map, catalog_redirect,
-		catalog_user_folder_item, catalog_user_folder,
+		catalog_user_folder_item, catalog_user_folder, catalog_user_entity_follow,
 		edit_revision, edit_proposal, edit_proposal_amendment
 		RESTART IDENTITY CASCADE`).Error; err != nil {
 		return liveFix{}, err
@@ -1131,6 +1132,7 @@ func liveSubstitute(path string, fx liveFix) string {
 	path = strings.ReplaceAll(path, "{name}", "medium")
 	path = strings.ReplaceAll(path, "{object}", "work")
 	path = strings.ReplaceAll(path, "{work_id}", idstr(fx.Work))
+	path = strings.ReplaceAll(path, "{company_id}", idstr(fx.Company))
 	path = strings.ReplaceAll(path, "{cover_id}", idstr(fx.Cover))
 	path = strings.ReplaceAll(path, "{product_id}", "RJ01000000")
 	path = strings.ReplaceAll(path, "{uid}", idstr(liveEmptyUID))

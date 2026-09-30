@@ -27,6 +27,18 @@ type calendarParams struct {
 }
 
 func (c *Catalog) ListCalendar(ctx context.Context, q collect.Query, p calendarParams) (repr.CalendarList, error) {
+	return c.listCalendar(ctx, q, p, 0, calendarOLang, calendarExcludedKinds)
+}
+
+func (c *Catalog) ListMyCalendar(ctx context.Context, q collect.Query, p calendarParams) (repr.CalendarList, error) {
+	uid, _, err := requireUser(ctx)
+	if err != nil {
+		return repr.CalendarList{}, err
+	}
+	return c.listCalendar(ctx, q, p, uid, myCalendarOLang, myCalendarExcludedKinds)
+}
+
+func (c *Catalog) listCalendar(ctx context.Context, q collect.Query, p calendarParams, followedBy int64, olang func(string) catsvc.PublicOLang, kinds func(string) ([]string, *problem.Problem)) (repr.CalendarList, error) {
 	if c == nil || c.Public == nil {
 		return repr.CalendarList{}, problem.New(problem.CodeServiceUnavailable, "", "", "catalog read is not bound.")
 	}
@@ -39,9 +51,9 @@ func (c *Catalog) ListCalendar(ctx context.Context, q collect.Query, p calendarP
 	if err != nil {
 		return repr.CalendarList{}, err
 	}
-	excluded, err := calendarExcludedKinds(p.ExcludeCompanyKind)
-	if err != nil {
-		return repr.CalendarList{}, err
+	excluded, kerr := kinds(p.ExcludeCompanyKind)
+	if kerr != nil {
+		return repr.CalendarList{}, kerr
 	}
 	win, werr := calendarWindow(p.Month, p.Year, p.Precision, p.Status, time.Now())
 	if werr != nil {
@@ -49,7 +61,8 @@ func (c *Catalog) ListCalendar(ctx context.Context, q collect.Query, p calendarP
 	}
 	f := catsvc.CalendarFilter{
 		NSFW: q.NSFW, Include: listWorksInclude(q.Include),
-		DisplayLimits: limits, OLang: calendarOLang(p.OLang), ExcludeCompanyKinds: excluded,
+		DisplayLimits: limits, OLang: olang(p.OLang), ExcludeCompanyKinds: excluded,
+		FollowedBy: followedBy,
 	}
 	meta := &repr.CalendarMeta{Today: time.Now().In(calendarJST).Format("2006-01-02")}
 	if win.empty {
@@ -140,6 +153,20 @@ func calendarExcludedKinds(raw string) ([]string, *problem.Problem) {
 		return nil, nil
 	}
 	return closedCSV(raw, "exclude_company_kind", vocab.Tokens("company_kind"))
+}
+
+func myCalendarOLang(raw string) catsvc.PublicOLang {
+	if strings.TrimSpace(raw) == "" {
+		return catsvc.PublicOLang{All: true}
+	}
+	return calendarOLang(raw)
+}
+
+func myCalendarExcludedKinds(raw string) ([]string, *problem.Problem) {
+	if strings.TrimSpace(raw) == "" {
+		return nil, nil
+	}
+	return calendarExcludedKinds(raw)
 }
 
 type calendarWin struct {

@@ -1844,3 +1844,20 @@ add/drop ceilings are sized for the steady state, not for the first fill.
 
 **Spec is 2.35.0.** Additive: `Release.engine` and the `EngineRef` schema.
 
+## Wave — company follows (2026-09-29)
+
+A user follows a catalog company in order to track what that company releases. This wave is the follow edge, the owner's face over it, the public count, and a personal release calendar. Notifications are a later wave.
+
+- **Storage.** `catalog_user_entity_follow` lives in `kun_catalog`, beside `catalog_user_work_state`, playtime and the folder tables. A follow is not a folder item and not a community row. The key is `(actor_uid, entity_type, entity_id)`. The shape is generic, but the CHECK `entity_type IN (3)` admits only companies (`model.EntityTypeLabel`). Opening a person lane later means widening that CHECK and adding that lane's merge rehang in the same change. One user may follow at most 1,000 companies.
+- **Privacy.** The list is private to its owner. There is no public follow list. Items carry ids only; a client hydrates them with `/v2/catalog/companies?ids=`. The only public signal is `follower_count` on the company detail face, `GET /v2/catalog/companies/{id}`. List, batch and embedded company objects omit it.
+- **No scope.** Same rule as `/v2/me/work-states` and `/v2/me/playtimes` (D38, D39): any application may call these with a user access token. A new scope would freeze grants that already exist into 403s.
+- **Operations.** `listMyCompanyFollows` (`GET /v2/me/followed-companies`), `getMyCompanyFollow`, `putMyCompanyFollow`, `deleteMyCompanyFollow` (`/v2/me/followed-companies/{company_id}`), and `listMyCalendar` (`GET /v2/me/calendar`). PUT has no body and is idempotent: following a company the bearer already follows returns the stored row and writes nothing. DELETE is 204 even when the bearer was not following. An unknown or deleted company is 404, or the merged-entity problem when that id was merged away.
+- **Personal calendar.** `/v2/me/calendar` runs the public calendar's query over a narrower population: works with at least one company, through `catalog_work_label`, that the bearer follows. Absent `olang` means all languages and absent `exclude_company_kind` excludes nothing. The population is already the bearer's choice, and the public defaults (Japanese, commercial only) would hide a followed doujin circle or a Chinese company. The public face's behaviour, defaults and doc strings are unchanged. A user who follows no company gets an empty window.
+- **Totals cache.** `PublicService.CalendarBounds` caches by `CalendarFilter.PopulationKey()` in `totalsCache` (8,192 entries, flushed whole when full). A per-user key would churn that cache and flush the entries that protect the forum's server-to-server traffic, which overloaded production on 2026-09-01. When the filter is user-scoped (`FollowedBy > 0`), bounds are computed live: no cache get and no cache put.
+- **Merge.** Merging a company moves a follow onto the target only when that user does not already follow the target, then deletes every follow still pointing at the source. A user who followed both sides keeps the target's original row, id unchanged.
+- **Account purge.** `PurgeAccount` deletes that user's rows from `catalog_user_entity_follow` and reports the count as `AccountPurged.EntityFollows`.
+
+**Migration required**: `go run ./cmd/migrate catalog` against `kun_catalog` creates `catalog_user_entity_follow`, its unique key, the `(entity_type, entity_id)` index and the CHECK. Additive: no backfill, no existing row touched. On deploy this runs as the `migrate-catalog` job.
+
+**Spec is 2.36.0.** Additive: `listMyCompanyFollows`, `getMyCompanyFollow`, `putMyCompanyFollow`, `deleteMyCompanyFollow`, `listMyCalendar`, and `Company.follower_count` on the detail face.
+

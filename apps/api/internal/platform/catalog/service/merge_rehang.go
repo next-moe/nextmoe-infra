@@ -122,6 +122,12 @@ func rehangEntity(tx *gorm.DB, reg *editing.Registry, entityType int16, src, dst
 			                     WHERE x.work_id = e.work_id AND x.label_id = ? AND x.kind = e.kind)
 			  RETURNING e.work_id`, []any{dst, src, dst}, true},
 			{`DELETE FROM catalog_work_label WHERE label_id = ? RETURNING work_id`, []any{src}, true},
+			{`UPDATE catalog_user_entity_follow f SET entity_id = ? WHERE f.entity_type = ? AND f.entity_id = ?
+			    AND NOT EXISTS (SELECT 1 FROM catalog_user_entity_follow x
+			                     WHERE x.actor_uid = f.actor_uid AND x.entity_type = ? AND x.entity_id = ?)`,
+				[]any{dst, model.EntityTypeLabel, src, model.EntityTypeLabel, dst}, false},
+			{`DELETE FROM catalog_user_entity_follow WHERE entity_type = ? AND entity_id = ?`,
+				[]any{model.EntityTypeLabel, src}, false},
 		}
 		stmts = append(stmts, labelRelationStmts(src, dst)...)
 		stmts = append(stmts, identityFollowStmts(reg, editspec.TagLabel, src, dst)...)

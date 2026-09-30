@@ -12,7 +12,7 @@ import (
 func TestPurgeAccountTakesEveryPersonalRowAndNothingElse(t *testing.T) {
 	folders := newFolderSvc(t)
 	require.NoError(t, testDB.Exec(
-		"TRUNCATE catalog_user_playtime, catalog_user_work_state, catalog_user_folder_import RESTART IDENTITY").Error)
+		"TRUNCATE catalog_user_playtime, catalog_user_work_state, catalog_user_folder_import, catalog_user_entity_follow RESTART IDENTITY").Error)
 	workID, coverID := seedVoteWork(t)
 	playtime := NewUserPlaytimeService(testDB)
 	states := NewUserWorkStateService(testDB)
@@ -36,11 +36,14 @@ func TestPurgeAccountTakesEveryPersonalRowAndNothingElse(t *testing.T) {
 		require.NoError(t, err)
 		_, err = votes.Vote(ctx, CoverVoteParams{WorkID: workID, CoverID: coverID, ActorUID: uid, Site: "kungal"})
 		require.NoError(t, err)
+		require.NoError(t, testDB.Create(&model.CatalogUserEntityFollow{
+			ActorUID: uid, EntityType: model.EntityTypeLabel, EntityID: 1, ClientID: "kungal", Site: "kungal",
+		}).Error)
 	}
 
 	got, err := PurgeAccount(ctx, testDB, gone)
 	require.NoError(t, err)
-	require.Equal(t, AccountPurged{Folders: 1, FolderItems: 1, Playtimes: 2, WorkStates: 1, CoverVotes: 1}, got)
+	require.Equal(t, AccountPurged{Folders: 1, FolderItems: 1, Playtimes: 2, WorkStates: 1, CoverVotes: 1, EntityFollows: 1}, got)
 
 	count := func(table, col string, uid int64) int64 {
 		var n int64
@@ -54,6 +57,7 @@ func TestPurgeAccountTakesEveryPersonalRowAndNothingElse(t *testing.T) {
 		{"catalog_user_playtime", "actor_uid"},
 		{"catalog_user_work_state", "actor_uid"},
 		{"catalog_cover_vote", "actor_uid"},
+		{"catalog_user_entity_follow", "actor_uid"},
 	} {
 		require.Zerof(t, count(tc.table, tc.col, gone), "%s still names the deleted account", tc.table)
 		require.NotZerof(t, count(tc.table, tc.col, bystander), "%s lost the bystander's rows", tc.table)
