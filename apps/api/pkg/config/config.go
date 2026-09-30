@@ -18,6 +18,7 @@ type Config struct {
 	CommunityDatabase       DatabaseConfig
 	TrustDatabase           DatabaseConfig
 	AIDatabase              DatabaseConfig
+	TelemetryDatabase       DatabaseConfig
 	NewsDatabase            DatabaseConfig
 	ImagesDatabase          DatabaseConfig
 	Redis                   RedisConfig
@@ -64,9 +65,10 @@ type Config struct {
 	ChatDatabase DatabaseConfig
 	ChatService  ChatServiceConfig
 
-	AIService  AIServiceConfig
-	AIUpstream AIUpstreamConfig
-	AIOmni     AIOmniConfig
+	AIService        AIServiceConfig
+	TelemetryService TelemetryServiceConfig
+	AIUpstream       AIUpstreamConfig
+	AIOmni           AIOmniConfig
 
 	AIClient AIClientConfig
 
@@ -107,6 +109,11 @@ type NewsModerationConfig struct {
 }
 
 type AIServiceConfig struct {
+	Host string
+	Port int
+}
+
+type TelemetryServiceConfig struct {
 	Host string
 	Port int
 }
@@ -368,6 +375,16 @@ func Load() (*Config, error) {
 		Timezone: getEnv("KUN_AI_PG_TIMEZONE", cfg.Database.Timezone),
 	}
 
+	cfg.TelemetryDatabase = DatabaseConfig{
+		Host:     getEnv("KUN_TELEMETRY_PG_HOST", cfg.Database.Host),
+		Port:     getEnv("KUN_TELEMETRY_PG_PORT", cfg.Database.Port),
+		User:     getEnv("KUN_TELEMETRY_PG_USER", cfg.Database.User),
+		Password: getEnv("KUN_TELEMETRY_PG_PASSWORD", cfg.Database.Password),
+		DBName:   getEnv("KUN_TELEMETRY_PG_DATABASE", "kun_telemetry"),
+		SSLMode:  getEnv("KUN_TELEMETRY_PG_SSLMODE", cfg.Database.SSLMode),
+		Timezone: getEnv("KUN_TELEMETRY_PG_TIMEZONE", cfg.Database.Timezone),
+	}
+
 	cfg.NewsDatabase = DatabaseConfig{
 		Host:     getEnv("KUN_NEWS_PG_HOST", cfg.Database.Host),
 		Port:     getEnv("KUN_NEWS_PG_PORT", cfg.Database.Port),
@@ -526,7 +543,7 @@ func Load() (*Config, error) {
 	pool := loadPoolConfig()
 	for _, d := range []*DatabaseConfig{
 		&cfg.Database, &cfg.GalgameDatabase, &cfg.CatalogDatabase, &cfg.CommunityDatabase,
-		&cfg.ChatDatabase, &cfg.TrustDatabase, &cfg.AIDatabase, &cfg.NewsDatabase, &cfg.ImagesDatabase,
+		&cfg.ChatDatabase, &cfg.TrustDatabase, &cfg.AIDatabase, &cfg.TelemetryDatabase, &cfg.NewsDatabase, &cfg.ImagesDatabase,
 		&cfg.ArtifactsDatabase,
 	} {
 		d.Pool = pool
@@ -582,6 +599,12 @@ func Load() (*Config, error) {
 	cfg.AIService = AIServiceConfig{
 		Host: getEnv("KUN_AI_HOST", "127.0.0.1"),
 		Port: aiPort,
+	}
+
+	telemetryPort, _ := strconv.Atoi(getEnv("KUN_TELEMETRY_PORT", "9285"))
+	cfg.TelemetryService = TelemetryServiceConfig{
+		Host: getEnv("KUN_TELEMETRY_HOST", "127.0.0.1"),
+		Port: telemetryPort,
 	}
 	cfg.AIUpstream = AIUpstreamConfig{
 		BaseURL: getEnv("KUN_AI_UPSTREAM_BASE_URL", ""),
