@@ -44,7 +44,13 @@ const SystemActorUID int64 = 0
 // are graded. The separator is NUL so that moving a character across a field
 // boundary cannot produce the same digest.
 func (i NewsItem) Fingerprint() string {
-	sum := sha256.Sum256([]byte(i.Title + "\x00" + i.Preview + "\x00" + i.Lane))
+	text := i.Title + "\x00" + i.Preview + "\x00" + i.Lane
+	if i.Body != "" {
+		// Appended only when present, so every verdict graded before bodies
+		// existed still describes its item.
+		text += "\x00" + i.Body
+	}
+	sum := sha256.Sum256([]byte(text))
 	return hex.EncodeToString(sum[:])
 }
 

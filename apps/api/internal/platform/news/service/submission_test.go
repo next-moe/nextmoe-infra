@@ -200,7 +200,7 @@ func TestWithdrawOnlyFromPublished(t *testing.T) {
 	}
 }
 
-func TestTextIsEditableOnlyWhilePending(t *testing.T) {
+func TestTextIsEditableWhilePendingOrPublished(t *testing.T) {
 	svc := newSubmissionFixture(t)
 	ctx := context.Background()
 
@@ -212,7 +212,29 @@ func TestTextIsEditableOnlyWhilePending(t *testing.T) {
 	if _, err := svc.Update(ctx, minePublisher, sub.ID, UpdateParams{Title: &title}); err != nil {
 		t.Fatalf("pending edit: %v", err)
 	}
-	for _, status := range []int16{model.StatusPublished, model.StatusRejected, model.StatusWithdrawn} {
+
+	// A published item that is edited leaves the feed until it is reviewed again.
+	if err := testDB.Model(&model.NewsItem{}).Where("id = ?", sub.ID).
+		Update("status", model.StatusPublished).Error; err != nil {
+		t.Fatal(err)
+	}
+	again := "edited twice"
+	got, err := svc.Update(ctx, minePublisher, sub.ID, UpdateParams{Title: &again})
+	if err != nil {
+		t.Fatalf("published edit: %v", err)
+	}
+	if got.Status != model.StatusPending || got.Title != again {
+		t.Fatalf("after a published edit: status=%d title=%q, want pending/%q", got.Status, got.Title, again)
+	}
+	var d model.NewsModerationDecision
+	if err := testDB.Where("item_id = ?", sub.ID).Order("id DESC").Take(&d).Error; err != nil {
+		t.Fatalf("decision: %v", err)
+	}
+	if d.ActorUID != minePublisher || d.FromStatus != model.StatusPublished || d.ToStatus != model.StatusPending {
+		t.Errorf("decision = %+v", d)
+	}
+
+	for _, status := range []int16{model.StatusRejected, model.StatusWithdrawn} {
 		if err := testDB.Model(&model.NewsItem{}).Where("id = ?", sub.ID).
 			Update("status", status).Error; err != nil {
 			t.Fatalf("set status %d: %v", status, err)

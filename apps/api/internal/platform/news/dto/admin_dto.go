@@ -46,6 +46,7 @@ type AdminNewsItem struct {
 	DeadAt           *time.Time `json:"dead_at"`
 	FirstSeenAt      time.Time  `json:"first_seen_at"`
 	LastSeenAt       time.Time  `json:"last_seen_at"`
+	SubmitterUID     *int64     `json:"submitter_uid"`
 	// Verdict is the newest verdict for the item's CURRENT text, absent only when
 	// that text has never been graded at all. It may itself be degraded, which is
 	// not a judgement — see Degraded.
@@ -57,6 +58,7 @@ type AdminNewsItem struct {
 
 type AdminNewsItemDetail struct {
 	AdminNewsItem
+	Body      string          `json:"body"`
 	Verdicts  []AdminVerdict  `json:"verdicts"`
 	Decisions []AdminDecision `json:"decisions"`
 }

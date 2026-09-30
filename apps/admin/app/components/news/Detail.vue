@@ -62,6 +62,12 @@ const decide = async (action: string, needsReason?: boolean) => {
       <span class="text-default-500 text-sm">
         {{ NEWS_SOURCE_LABELS[detail.source_key] ?? detail.source_key }}
       </span>
+      <span
+        v-if="detail.submitter_uid != null"
+        class="text-default-400 text-sm"
+      >
+        投稿人 uid {{ detail.submitter_uid }}
+      </span>
     </div>
 
     <h2 class="text-foreground text-xl font-bold">{{ detail.title }}</h2>
@@ -77,7 +83,15 @@ const decide = async (action: string, needsReason?: boolean) => {
       {{ detail.preview }}
     </p>
 
+    <div
+      v-if="detail.body"
+      class="border-default-200 text-foreground max-h-96 overflow-y-auto rounded-lg border p-3 text-sm whitespace-pre-wrap"
+    >
+      {{ detail.body }}
+    </div>
+
     <KunButton
+      v-if="detail.source_url"
       size="sm"
       variant="flat"
       @click="

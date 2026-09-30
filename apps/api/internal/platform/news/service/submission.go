@@ -21,7 +21,15 @@ var (
 	ErrSourceNotYours = stderrors.New("news: source is not bound to this publisher")
 	ErrSourceInactive = stderrors.New("news: source is deactivated")
 	ErrPreviewTooLong = stderrors.New("news: preview exceeds the rune ceiling")
-	ErrNotEditable    = stderrors.New("news: text is editable only while pending")
+	ErrBodyTooLong    = stderrors.New("news: body exceeds the rune ceiling")
+	ErrBodyNotAllowed = stderrors.New("news: only community submissions carry a body")
+	ErrNotEditable    = stderrors.New("news: text is editable only while pending or published")
+)
+
+const (
+	reasonTrustedSubmission  = "trusted source: published on submission (user adjudication 2026-09-29)"
+	reasonEditedAfterPublish = "edited after publication; back to review"
+	reasonAccountErased      = "submitter account erased"
 )
 
 // nativeExternalIDPrefix keeps API submissions out of both importers' id spaces.
@@ -57,6 +65,8 @@ type Submission struct {
 	Status            int16
 	UpdatedAt         time.Time
 	WorkIDs           []int64
+	Body              string
+	SubmitterUID      *int64
 }
 
 type CreateParams struct {
@@ -65,6 +75,7 @@ type CreateParams struct {
 	Lane         string
 	Title        string
 	Preview      string
+	Body         string
 	SourceURL    string
 	BannerHash   string
 	PublishedAt  time.Time
@@ -74,6 +85,7 @@ type CreateParams struct {
 type UpdateParams struct {
 	Title      *string
 	Preview    *string
+	Body       *string
 	SourceURL  *string
 	BannerHash *string
 	WorkIDs    *[]int64
@@ -84,33 +96,50 @@ func (s *SubmissionService) Create(ctx context.Context, p CreateParams) (Submiss
 	if err != nil {
 		return Submission{}, err
 	}
-	if src.PublisherUID != p.PublisherUID {
+	community := src.Key == model.SourceKeyCommunity
+	if !community && src.PublisherUID != p.PublisherUID {
 		return Submission{}, ErrSourceNotYours
 	}
 	if !src.Active {
 		return Submission{}, ErrSourceInactive
 	}
-	if utf8.RuneCountInString(p.Preview) > model.PreviewMaxRunes {
-		return Submission{}, ErrPreviewTooLong
+	if err := checkText(community, p.Preview, p.Body); err != nil {
+		return Submission{}, err
 	}
 	published := p.PublishedAt
 	if published.IsZero() {
 		published = time.Now()
 	}
+	status := model.StatusPending
+	if src.AutoPublish {
+		status = model.StatusPublished
+	}
+	uid := p.PublisherUID
 	item := model.NewsItem{
-		SourceKey:   src.Key,
-		Lane:        p.Lane,
-		ExternalID:  mintExternalID(),
-		Title:       p.Title,
-		Preview:     p.Preview,
-		SourceURL:   p.SourceURL,
-		BannerHash:  p.BannerHash,
-		PublishedAt: published.UTC(),
-		Status:      model.StatusPending,
+		SourceKey:    src.Key,
+		Lane:         p.Lane,
+		ExternalID:   mintExternalID(),
+		Title:        p.Title,
+		Preview:      p.Preview,
+		Body:         p.Body,
+		SourceURL:    p.SourceURL,
+		BannerHash:   p.BannerHash,
+		PublishedAt:  published.UTC(),
+		Status:       status,
+		SubmitterUID: &uid,
 	}
 	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&item).Error; err != nil {
 			return err
+		}
+		if status == model.StatusPublished {
+			if err := tx.Create(&model.NewsModerationDecision{
+				ItemID: item.ID, ActorUID: model.SystemActorUID,
+				FromStatus: model.StatusPending, ToStatus: model.StatusPublished,
+				Reason: reasonTrustedSubmission,
+			}).Error; err != nil {
+				return err
+			}
 		}
 		return replaceWorks(tx, item.ID, p.WorkIDs)
 	}); err != nil {
@@ -119,8 +148,29 @@ func (s *SubmissionService) Create(ctx context.Context, p CreateParams) (Submiss
 	return s.load(ctx, item.ID)
 }
 
+func (s *SubmissionService) CountCommunitySince(ctx context.Context, uid int64, since time.Time) (int64, error) {
+	var n int64
+	err := s.db.WithContext(ctx).Model(&model.NewsItem{}).
+		Where("submitter_uid = ? AND source_key = ? AND created_at > ?", uid, model.SourceKeyCommunity, since).
+		Count(&n).Error
+	return n, err
+}
+
+func checkText(community bool, preview, body string) error {
+	if utf8.RuneCountInString(preview) > model.PreviewMaxRunes {
+		return ErrPreviewTooLong
+	}
+	if body != "" && !community {
+		return ErrBodyNotAllowed
+	}
+	if utf8.RuneCountInString(body) > model.BodyMaxRunes {
+		return ErrBodyTooLong
+	}
+	return nil
+}
+
 func (s *SubmissionService) List(ctx context.Context, publisherUID, beforeID int64, limit int) ([]Submission, error) {
-	q := s.db.WithContext(ctx).Model(&model.NewsItem{}).Where(ownedBySQL, publisherUID)
+	q := s.db.WithContext(ctx).Model(&model.NewsItem{}).Where(ownedBySQL, publisherUID, publisherUID)
 	if beforeID > 0 {
 		q = q.Where("id < ?", beforeID)
 	}
@@ -134,14 +184,14 @@ func (s *SubmissionService) List(ctx context.Context, publisherUID, beforeID int
 func (s *SubmissionService) Count(ctx context.Context, publisherUID int64) (int64, error) {
 	var n int64
 	err := s.db.WithContext(ctx).Model(&model.NewsItem{}).
-		Where(ownedBySQL, publisherUID).Count(&n).Error
+		Where(ownedBySQL, publisherUID, publisherUID).Count(&n).Error
 	return n, err
 }
 
 func (s *SubmissionService) Get(ctx context.Context, publisherUID, itemID int64) (Submission, error) {
 	var rows []model.NewsItem
 	if err := s.db.WithContext(ctx).
-		Where("id = ?", itemID).Where(ownedBySQL, publisherUID).
+		Where("id = ?", itemID).Where(ownedBySQL, publisherUID, publisherUID).
 		Limit(1).Find(&rows).Error; err != nil {
 		return Submission{}, err
 	}
@@ -155,13 +205,16 @@ func (s *SubmissionService) Get(ctx context.Context, publisherUID, itemID int64)
 	return subs[0], nil
 }
 
+// Update edits a pending or published item. A published item leaves the feed
+// for review again unless its source is trusted; either way the text a reader
+// sees next has passed the same gate as a new submission.
 func (s *SubmissionService) Update(ctx context.Context, publisherUID, itemID int64, p UpdateParams) (Submission, error) {
 	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		item, err := lockOwned(tx, publisherUID, itemID)
 		if err != nil {
 			return err
 		}
-		if item.Status != model.StatusPending {
+		if item.Status != model.StatusPending && item.Status != model.StatusPublished {
 			return ErrNotEditable
 		}
 		src, err := sourceRow(tx, item.SourceKey)
@@ -171,21 +224,34 @@ func (s *SubmissionService) Update(ctx context.Context, publisherUID, itemID int
 		if !src.Active {
 			return ErrSourceInactive
 		}
-		fields := map[string]any{"updated_at": time.Now()}
+		preview, body := item.Preview, item.Body
+		if p.Preview != nil {
+			preview = *p.Preview
+		}
+		if p.Body != nil {
+			body = *p.Body
+		}
+		if err := checkText(src.Key == model.SourceKeyCommunity, preview, body); err != nil {
+			return err
+		}
+		fields := map[string]any{"updated_at": time.Now(), "preview": preview, "body": body}
 		if p.Title != nil {
 			fields["title"] = *p.Title
-		}
-		if p.Preview != nil {
-			if utf8.RuneCountInString(*p.Preview) > model.PreviewMaxRunes {
-				return ErrPreviewTooLong
-			}
-			fields["preview"] = *p.Preview
 		}
 		if p.SourceURL != nil {
 			fields["source_url"] = *p.SourceURL
 		}
 		if p.BannerHash != nil {
 			fields["banner_hash"] = *p.BannerHash
+		}
+		if item.Status == model.StatusPublished && !src.AutoPublish {
+			fields["status"] = model.StatusPending
+			if err := tx.Create(&model.NewsModerationDecision{
+				ItemID: itemID, ActorUID: publisherUID, FromStatus: model.StatusPublished,
+				ToStatus: model.StatusPending, Reason: reasonEditedAfterPublish,
+			}).Error; err != nil {
+				return err
+			}
 		}
 		if err := tx.Model(&model.NewsItem{}).Where("id = ?", itemID).Updates(fields).Error; err != nil {
 			return err
@@ -212,7 +278,7 @@ func (s *SubmissionService) Withdraw(ctx context.Context, publisherUID, itemID i
 		}
 		if err := tx.Create(&model.NewsModerationDecision{
 			ItemID: itemID, ActorUID: publisherUID, FromStatus: item.Status, ToStatus: to,
-			Reason: "withdrawn by the publisher",
+			Reason: "withdrawn by the submitter",
 		}).Error; err != nil {
 			return err
 		}
@@ -224,12 +290,14 @@ func (s *SubmissionService) Withdraw(ctx context.Context, publisherUID, itemID i
 	return s.load(ctx, itemID)
 }
 
-const ownedBySQL = "source_key IN (SELECT key FROM news_source WHERE publisher_uid = ?)"
+// ownedBySQL takes the caller's uid twice: an account owns what it submitted,
+// and a partner publisher also owns everything its source imported.
+const ownedBySQL = "(submitter_uid = ? OR source_key IN (SELECT key FROM news_source WHERE publisher_uid = ? AND publisher_uid <> 0))"
 
 func lockOwned(tx *gorm.DB, publisherUID, itemID int64) (model.NewsItem, error) {
 	var rows []model.NewsItem
 	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-		Where("id = ?", itemID).Where(ownedBySQL, publisherUID).
+		Where("id = ?", itemID).Where(ownedBySQL, publisherUID, publisherUID).
 		Limit(1).Find(&rows).Error; err != nil {
 		return model.NewsItem{}, err
 	}
@@ -328,6 +396,7 @@ func (s *SubmissionService) decorate(ctx context.Context, rows []model.NewsItem)
 			BannerHash: r.BannerHash, BannerURL: s.imageURL(r.BannerHash),
 			PublishedAt: r.PublishedAt.UTC(), Status: r.Status,
 			UpdatedAt: r.UpdatedAt.UTC(), WorkIDs: works[r.ID],
+			Body: r.Body, SubmitterUID: r.SubmitterUID,
 		})
 	}
 	return out, nil

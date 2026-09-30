@@ -88,7 +88,7 @@ type Stats struct {
 // moderationText is what both graders see. The title is included because a
 // 广告哥 post is very often nothing but a title.
 func moderationText(it model.NewsItem) string {
-	return strings.TrimSpace(it.Title + "\n" + it.Preview)
+	return strings.TrimSpace(it.Title + "\n" + it.Preview + "\n" + it.Body)
 }
 
 type scorer interface {

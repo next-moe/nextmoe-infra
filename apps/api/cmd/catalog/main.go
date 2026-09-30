@@ -163,6 +163,13 @@ func main() {
 		newsSvc = newsService.NewPublicService(newsDB.DB(), cfg.ImageService.CDNBase)
 		newsAdminSvc = newsService.NewAdminService(newsDB.DB(), cfg.ImageService.CDNBase)
 		newsWriteSvc = newsService.NewSubmissionService(newsDB.DB(), cfg.ImageService.CDNBase)
+		accountpurge.Start(permCtx, &accountpurge.Consumer{
+			Name: "news", Feed: authRepo.NewUserRepository(application.DB.DB()), DB: newsDB.DB(),
+			Purge: func(ctx context.Context, uid int64) error {
+				_, err := newsService.PurgeAccount(ctx, newsDB.DB(), uid)
+				return err
+			},
+		})
 	}
 
 	// The moderation face is the human half of the gate 月幕 asked for. It is a

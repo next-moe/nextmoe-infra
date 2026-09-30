@@ -215,13 +215,27 @@ func collectInvalidCursor() *problem.Problem {
 }
 
 func newsFromDTO(rec newsdto.PublicNewsItem) repr.NewsItem {
-	return repr.NewsItem{
+	out := repr.NewsItem{
 		Object: "news_item", ID: repr.ID(rec.ID), Title: rec.Title, Summary: rec.Preview,
 		Source: newsSourceFromDTO(rec.Source), SourceURL: rec.SourceURL,
-		Lane:        rec.Lane,
-		Banner:      newsBanner(rec.BannerHash, rec.BannerURL),
-		PublishedAt: rec.PublishedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		Lane:         rec.Lane,
+		Banner:       newsBanner(rec.BannerHash, rec.BannerURL),
+		PublishedAt:  rec.PublishedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		SubmitterUID: newsSubmitter(rec.SubmitterUID),
+		HasBody:      rec.HasBody,
 	}
+	if rec.Body != "" {
+		out.Body = &rec.Body
+	}
+	return out
+}
+
+func newsSubmitter(uid *int64) *string {
+	if uid == nil {
+		return nil
+	}
+	s := repr.ID(*uid)
+	return &s
 }
 
 // The news service already built the URL off the same cdnBase, so this reuses

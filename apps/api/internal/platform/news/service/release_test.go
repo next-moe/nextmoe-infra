@@ -8,8 +8,16 @@ import (
 	"api/internal/platform/news/model"
 )
 
+const otherTrustedSource = "release_other"
+
 func TestReleasePendingImportsMovesOnlyImportedPendingRowsOfOneSource(t *testing.T) {
 	newFixture(t)
+	if err := testDB.Exec(`
+		INSERT INTO news_source (key, display_name, homepage_url, attribution, publisher_uid, column_url, active, auto_publish)
+		VALUES (?, 'other', 'https://x', 'attr', 1, '', true, true)
+		ON CONFLICT (key) DO NOTHING`, otherTrustedSource).Error; err != nil {
+		t.Fatal(err)
+	}
 	now := time.Now().UTC().Truncate(time.Second)
 	fresh := insert(t, "1001", model.StatusPending, now, false)
 	rejected := insert(t, "1002", model.StatusRejected, now, false)
@@ -18,7 +26,7 @@ func TestReleasePendingImportsMovesOnlyImportedPendingRowsOfOneSource(t *testing
 	draft := insert(t, nativeExternalIDPrefix+"0123456789abcdef0123456789abcdef", model.StatusPending, now, false)
 	other := insert(t, "cv1#1", model.StatusPending, now, false)
 	if err := testDB.Exec(`UPDATE news_item SET source_key = ? WHERE id = ?`,
-		model.SourceKeyHihyou, other).Error; err != nil {
+		otherTrustedSource, other).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -57,5 +65,25 @@ func TestReleasePendingImportsMovesOnlyImportedPendingRowsOfOneSource(t *testing
 	if d.ItemID != fresh || d.ActorUID != model.SystemActorUID ||
 		d.FromStatus != model.StatusPending || d.ToStatus != model.StatusPublished || d.Reason != "standing release" {
 		t.Errorf("decision = %+v", d)
+	}
+}
+
+func TestReleasePendingImportsHonoursAutoPublishOff(t *testing.T) {
+	newFixture(t)
+	fresh := insert(t, "1101", model.StatusPending, time.Now().UTC().Truncate(time.Second), false)
+	if err := testDB.Exec(`UPDATE news_source SET auto_publish = false WHERE key = ?`, model.SourceKeyYmgal).Error; err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		testDB.Exec(`UPDATE news_source SET auto_publish = true WHERE key = ?`, model.SourceKeyYmgal)
+	})
+	n, err := ReleasePendingImports(context.Background(), testDB, model.SourceKeyYmgal, model.SystemActorUID, "standing release")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var status int16
+	testDB.Raw(`SELECT status FROM news_item WHERE id = ?`, fresh).Scan(&status)
+	if n != 0 || status != model.StatusPending {
+		t.Errorf("released=%d status=%d with auto_publish off, want 0/pending", n, status)
 	}
 }
