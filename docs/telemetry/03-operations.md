@@ -28,7 +28,23 @@
 1. 生产 Postgres 执行 `CREATE DATABASE kun_telemetry`（`initdb` 只在空数据目录时运行）。
 2. 在 Dokploy 环境里填入上面四个 S3 变量。
 3. DNS：`telemetry.nextmoe.dev` 开启 Cloudflare 代理，指向与 `api.nextmoe.dev` 相同的源站。
-4. Traefik 文件配置加一条兜底路由：`Host(telemetry.nextmoe.dev)`、优先级 1、指向一个健康检查永远失败的后端，使容器重建期间回 503 而不是 404（客户端会重试 503，遇到 404 则丢弃）。
+4. Traefik 文件配置加一条兜底路由，使容器重建期间回 503 而不是 404（客户端会重试 503，遇到 404 则丢弃）。服务器上的文件是 `/etc/dokploy/traefik/dynamic/telemetry-fallback.yml`：规则与 compose 里的路由相同、优先级 1，后端 `servers` 为空，Traefik 对它回 `503 no available server`。真实路由的默认优先级是规则长度，在时总是先匹配。
+   ```yaml
+   http:
+     routers:
+       telemetry-fallback:
+         rule: Host(`telemetry.nextmoe.dev`) && (Path(`/v1/logs`) || Path(`/v1/symbols`))
+         priority: 1
+         entryPoints:
+           - websecure
+         service: telemetry-fallback
+         tls:
+           certResolver: letsencrypt
+     services:
+       telemetry-fallback:
+         loadBalancer:
+           servers: []
+   ```
 5. 合并部署后，更新服务器上的 `pg-backup/run.sh`（`scripts/prod-cron` 的脚本是手工安装的副本），否则新库不会按规则备份。
 6. 在一次重新部署期间持续探测 `/v1/logs`，确认只出现 503（偶有 502），没有 404。
 
