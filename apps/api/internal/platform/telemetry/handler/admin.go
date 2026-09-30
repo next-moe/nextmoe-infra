@@ -36,7 +36,7 @@ func adminRoles(ctx context.Context) []string {
 }
 
 type invalidator interface {
-	Invalidate()
+	Invalidate() error
 }
 
 type AdminServer struct {
@@ -84,7 +84,7 @@ func (s *AdminServer) requireManage(ctx context.Context) error {
 
 func (s *AdminServer) invalidate() {
 	if s.keys != nil {
-		s.keys.Invalidate()
+		_ = s.keys.Invalidate()
 	}
 }
 

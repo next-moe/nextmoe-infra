@@ -22,7 +22,7 @@ const adminTestSecret = "telemetry-admin-test-secret"
 
 type recordingInv struct{ n int }
 
-func (r *recordingInv) Invalidate() { r.n++ }
+func (r *recordingInv) Invalidate() error { r.n++; return nil }
 
 func buildAdminApp() (*fiber.App, *recordingInv) {
 	inv := &recordingInv{}

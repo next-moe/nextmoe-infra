@@ -2,7 +2,9 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -19,6 +21,7 @@ import (
 var (
 	testDB *gorm.DB
 	st     *Store
+	recUID atomic.Uint64
 )
 
 func TestMain(m *testing.M) {
@@ -38,6 +41,10 @@ func TestMain(m *testing.M) {
 	}
 	testDB = db
 	st = New(db)
+	if err := st.EnsurePartitions(context.Background(), receiptNow()); err != nil {
+		release()
+		dbtest.SkipMainf("telemetry/store", "ensure partitions: %v", err)
+	}
 	code := m.Run()
 	release()
 	os.Exit(code)
@@ -59,13 +66,19 @@ func rec(name, sid, version, env string, ts time.Time, attrs map[string]any) otl
 		attrs = map[string]any{}
 	}
 	receipt := receiptNow()
+	day, keep := otlp.ClassifyDay(ts, receipt)
+	if !keep {
+		day = otlp.DateUTC(ts)
+	}
+	n := recUID.Add(1)
 	return otlp.Record{
 		ServiceVersion: version,
 		Environment:    env,
 		EventName:      name,
 		EventTime:      ts,
-		EventDay:       otlp.DayOf(ts, receipt),
+		EventDay:       day,
 		SessionID:      sid,
+		RecordUID:      fmt.Sprintf("%032x", n),
 		Attributes:     attrs,
 	}
 }

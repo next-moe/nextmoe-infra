@@ -25,26 +25,22 @@ func (s *Store) Write(ctx context.Context, appID int64, receivedAt time.Time, ba
 	}
 	receivedAt = receivedAt.UTC()
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := ensureDayPartition(tx, receivedAt); err != nil {
-			return err
-		}
-		if err := insertEvents(tx, appID, receivedAt, batch.Records); err != nil {
+		if err := insertEvents(tx, appID, batch.Records); err != nil {
 			return err
 		}
 		return upsertSessions(tx, appID, receivedAt, batch.Records)
 	})
 }
 
-func insertEvents(tx *gorm.DB, appID int64, receivedAt time.Time, recs []otlp.Record) error {
+func insertEvents(tx *gorm.DB, appID int64, recs []otlp.Record) error {
 	var b strings.Builder
 	b.WriteString(`INSERT INTO telemetry_event (
-		received_on, event_day, app_id, service_version, environment,
+		record_uid, event_day, app_id, service_version, environment,
 		event_name, severity, event_time, session_id,
 		os_name, os_version, api_level, device_model, device_manufacturer,
 		host_arch, sdk_version, attributes, body
 	) VALUES `)
 	args := make([]any, 0, len(recs)*18)
-	recvd := otlp.DateUTC(receivedAt).Format("2006-01-02")
 	for i, r := range recs {
 		if i > 0 {
 			b.WriteByte(',')
@@ -77,12 +73,13 @@ func insertEvents(tx *gorm.DB, appID int64, receivedAt time.Time, recs []otlp.Re
 			body = *r.Body
 		}
 		args = append(args,
-			recvd, r.EventDay.Format("2006-01-02"), appID, r.ServiceVersion, r.Environment,
+			r.RecordUID, r.EventDay.Format("2006-01-02"), appID, r.ServiceVersion, r.Environment,
 			r.EventName, r.Severity, r.EventTime, sid,
 			r.OSName, r.OSVersion, api, r.DeviceModel, r.DeviceManufacturer,
 			r.HostArch, r.SDKVersion, string(attr), body,
 		)
 	}
+	b.WriteString(` ON CONFLICT (event_day, record_uid) DO NOTHING`)
 	if err := tx.Exec(b.String(), args...).Error; err != nil {
 		return fmt.Errorf("insert events: %w", err)
 	}

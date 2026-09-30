@@ -19,15 +19,19 @@ import (
 	"api/internal/platform/telemetry/otlp"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 const testKey = "0123456789abcdef0123456789abcdef"
 
 type staticKeys map[string]AppInfo
 
-func (s staticKeys) Lookup(k string) (AppInfo, bool) {
+func (s staticKeys) Lookup(k string) (AppInfo, LookupResult) {
 	a, ok := s[k]
-	return a, ok
+	if !ok {
+		return AppInfo{}, LookupUnknown
+	}
+	return a, LookupFound
 }
 
 type memWriter struct {
@@ -238,7 +242,7 @@ func TestZeroAcceptedNoWrite(t *testing.T) {
 
 func TestWriteSlotUnavailable(t *testing.T) {
 	h := newHarness(enabledApp())
-	h.h.writeTimeout = 30 * time.Millisecond
+	h.h.slotWait = 30 * time.Millisecond
 	for i := 0; i < 8; i++ {
 		h.h.writeSem <- struct{}{}
 	}
@@ -361,10 +365,16 @@ func TestIdleBucketsEvicted(t *testing.T) {
 }
 
 type memApps struct {
-	apps []AppInfo
+	apps  []AppInfo
+	err   error
+	calls int
 }
 
 func (m *memApps) ListApps(context.Context) ([]AppInfo, error) {
+	m.calls++
+	if m.err != nil {
+		return nil, m.err
+	}
 	out := make([]AppInfo, len(m.apps))
 	copy(out, m.apps)
 	return out, nil
@@ -374,16 +384,143 @@ func TestKeyCacheInvalidate(t *testing.T) {
 	clk := &frozenClock{t: time.Now()}
 	src := &memApps{}
 	c := NewKeyCache(src, clk, slog.New(slog.NewTextHandler(io.Discard, nil)))
-	if _, ok := c.Lookup("abc"); ok {
-		t.Fatal("unknown key present")
+	if _, res := c.Lookup("abc"); res != LookupNotReady {
+		t.Fatalf("unloaded lookup result=%v", res)
 	}
 	src.apps = []AppInfo{{ID: 1, ServiceName: "a", Enabled: true, IngestKey: "abc"}}
-	if _, ok := c.Lookup("abc"); ok {
+	if _, res := c.Lookup("abc"); res == LookupFound {
 		t.Fatal("cache served a key before invalidate")
 	}
-	c.Invalidate()
-	got, ok := c.Lookup("abc")
-	if !ok || got.ID != 1 {
-		t.Fatalf("after invalidate: ok=%v got=%+v", ok, got)
+	if err := c.Invalidate(); err != nil {
+		t.Fatal(err)
+	}
+	got, res := c.Lookup("abc")
+	if res != LookupFound || got.ID != 1 {
+		t.Fatalf("after invalidate: res=%v got=%+v", res, got)
+	}
+}
+
+func TestUnstorableBatchIs400(t *testing.T) {
+	h := newHarness(enabledApp())
+	h.writer.err = fmt.Errorf("insert events: %w", &pgconn.PgError{Code: "22P05"})
+	st, body, hdr := h.postGZ(t, validJSON())
+	if st != 400 {
+		t.Fatalf("status=%d body=%s", st, body)
+	}
+	if body != `{"message":"unstorable batch"}` {
+		t.Fatalf("body=%s", body)
+	}
+	if hdr.Get("Retry-After") != "" {
+		t.Fatalf("Retry-After=%q", hdr.Get("Retry-After"))
+	}
+	if strings.Contains(h.logBuf.String(), "10.0.0.1") {
+		t.Fatalf("IP in logs: %s", h.logBuf.String())
+	}
+}
+
+func TestOtherWriteErrorIs503(t *testing.T) {
+	cases := []error{
+		fmt.Errorf("insert events: %w", &pgconn.PgError{Code: "23505"}),
+		fmt.Errorf("insert events: %w", &pgconn.PgError{Code: "40001"}),
+		errors.New("db down"),
+	}
+	for i, err := range cases {
+		h := newHarness(enabledApp())
+		h.writer.err = err
+		st, _, hdr := h.postGZ(t, validJSON())
+		if st != 503 {
+			t.Errorf("case %d status=%d", i, st)
+		}
+		if hdr.Get("Retry-After") != "30" {
+			t.Errorf("case %d Retry-After=%q", i, hdr.Get("Retry-After"))
+		}
+	}
+}
+
+type waitWriter struct{}
+
+func (waitWriter) Write(ctx context.Context, _ int64, _ time.Time, _ otlp.Batch) error {
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+func TestWriteTimeout(t *testing.T) {
+	h := newHarness(enabledApp())
+	h.h.writer = waitWriter{}
+	h.h.writeTimeout = 50 * time.Millisecond
+	start := time.Now()
+	st, _, hdr := h.postGZ(t, validJSON())
+	elapsed := time.Since(start)
+	if st != 503 {
+		t.Fatalf("status=%d", st)
+	}
+	if hdr.Get("Retry-After") != "30" {
+		t.Fatalf("Retry-After=%q", hdr.Get("Retry-After"))
+	}
+	if elapsed > 2*time.Second {
+		t.Fatalf("elapsed %s", elapsed)
+	}
+}
+
+func TestKeyCacheNotReadyIs503(t *testing.T) {
+	src := &memApps{}
+	c := NewKeyCache(src, &frozenClock{t: time.Now()}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	h := newHarness(c)
+	st, _, hdr := h.postGZ(t, validJSON())
+	if st != 503 {
+		t.Fatalf("status=%d", st)
+	}
+	if hdr.Get("Retry-After") != "30" {
+		t.Fatalf("Retry-After=%q", hdr.Get("Retry-After"))
+	}
+}
+
+func TestKeyCacheKeepsMapOnFailedReload(t *testing.T) {
+	src := &memApps{apps: []AppInfo{{ID: 1, ServiceName: "a", Enabled: true, IngestKey: "abc"}}}
+	c := NewKeyCache(src, &frozenClock{t: time.Now()}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err := c.Reload(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	src.err = errors.New("down")
+	if err := c.Reload(context.Background()); err == nil {
+		t.Fatal("expected reload error")
+	}
+	got, res := c.Lookup("abc")
+	if res != LookupFound || got.ID != 1 {
+		t.Fatalf("res=%v got=%+v", res, got)
+	}
+}
+
+func TestLookupNeverCallsSource(t *testing.T) {
+	src := &memApps{apps: []AppInfo{{ID: 1, ServiceName: "a", Enabled: true, IngestKey: "abc"}}}
+	c := NewKeyCache(src, &frozenClock{t: time.Now()}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err := c.Reload(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	n := src.calls
+	_, _ = c.Lookup("abc")
+	_, _ = c.Lookup("missing")
+	if src.calls != n {
+		t.Fatalf("lookups called source %d times (want %d)", src.calls-n, 0)
+	}
+}
+
+func TestInvalidateReloads(t *testing.T) {
+	src := &memApps{apps: []AppInfo{{ID: 1, ServiceName: "a", Enabled: true, IngestKey: "abc"}}}
+	c := NewKeyCache(src, &frozenClock{t: time.Now()}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err := c.Reload(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	n := src.calls
+	src.apps = []AppInfo{{ID: 2, ServiceName: "b", Enabled: true, IngestKey: "abc"}}
+	if err := c.Invalidate(); err != nil {
+		t.Fatal(err)
+	}
+	if src.calls != n+1 {
+		t.Fatalf("calls=%d want %d", src.calls, n+1)
+	}
+	got, res := c.Lookup("abc")
+	if res != LookupFound || got.ID != 2 {
+		t.Fatalf("res=%v got=%+v", res, got)
 	}
 }

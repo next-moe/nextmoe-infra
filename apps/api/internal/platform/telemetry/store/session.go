@@ -2,6 +2,7 @@ package store
 
 import (
 	"fmt"
+	"sort"
 	"time"
 
 	"api/internal/platform/telemetry/otlp"
@@ -19,6 +20,8 @@ type sessionDelta struct {
 	errors         *int
 	anr            bool
 }
+
+var sessionUpsertObserver func(sessionID string)
 
 func foldSessions(receipt time.Time, recs []otlp.Record) map[string]sessionDelta {
 	type acc struct {
@@ -63,15 +66,29 @@ func foldSessions(receipt time.Time, recs []otlp.Record) map[string]sessionDelta
 	}
 	result := make(map[string]sessionDelta, len(out))
 	for id, a := range out {
+		var t time.Time
 		if a.delta.startedAt != nil {
-			a.delta.day = otlp.DayOf(*a.delta.startedAt, receipt)
+			t = *a.delta.startedAt
 		} else {
-			earliest := earliestEvent(recs, id)
-			a.delta.day = otlp.DayOf(earliest, receipt)
+			t = earliestEvent(recs, id)
 		}
+		day, keep := otlp.ClassifyDay(t, receipt)
+		if !keep {
+			continue
+		}
+		a.delta.day = day
 		result[id] = a.delta
 	}
 	return result
+}
+
+func orderedSessionIDs(deltas map[string]sessionDelta) []string {
+	ids := make([]string, 0, len(deltas))
+	for id := range deltas {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids
 }
 
 func earliestEvent(recs []otlp.Record, sessionID string) time.Time {
@@ -117,7 +134,11 @@ ON CONFLICT (app_id, session_id) DO UPDATE SET
 		WHEN telemetry_session.started_at IS NULL AND EXCLUDED.started_at IS NOT NULL THEN EXCLUDED.day
 		ELSE telemetry_session.day
 	END`
-	for sid, d := range deltas {
+	for _, sid := range orderedSessionIDs(deltas) {
+		if sessionUpsertObserver != nil {
+			sessionUpsertObserver(sid)
+		}
+		d := deltas[sid]
 		if err := tx.Exec(q,
 			appID, sid, d.serviceVersion, d.environment, d.day.Format("2006-01-02"),
 			d.startedAt, d.endedAt, d.status, d.errors, d.anr,

@@ -3,6 +3,7 @@ package otlp
 import (
 	"encoding/json"
 	"math"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -358,27 +359,37 @@ func TestEventTimeFallbacks(t *testing.T) {
 	}
 }
 
-func TestDayOf(t *testing.T) {
+func TestClassifyDay(t *testing.T) {
 	receipt := time.Date(2026, 9, 29, 15, 0, 0, 0, time.UTC)
+	floor := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	minus30 := receipt.AddDate(0, 0, -30)
+	plus24 := receipt.Add(24 * time.Hour)
 	inside := receipt.Add(-10 * 24 * time.Hour)
-	if got := DayOf(inside, receipt); !got.Equal(DateUTC(inside)) {
-		t.Errorf("inside window: got %s", got)
+
+	cases := []struct {
+		name    string
+		event   time.Time
+		wantDay time.Time
+		keep    bool
+	}{
+		{"pre-floor", floor.Add(-time.Second), DateUTC(receipt), true},
+		{"future", plus24.Add(time.Second), DateUTC(receipt), true},
+		{"expired", minus30.Add(-time.Nanosecond), time.Time{}, false},
+		{"older than 31 days", receipt.AddDate(0, 0, -31), time.Time{}, false},
+		{"inside window", inside, DateUTC(inside), true},
+		{"exact -30d", minus30, DateUTC(minus30), true},
+		{"exact +24h", plus24, DateUTC(plus24), true},
 	}
-	old := receipt.Add(-31 * 24 * time.Hour)
-	if got := DayOf(old, receipt); !got.Equal(DateUTC(receipt)) {
-		t.Errorf("31 days old: got %s want receipt date", got)
-	}
-	future := receipt.Add(48 * time.Hour)
-	if got := DayOf(future, receipt); !got.Equal(DateUTC(receipt)) {
-		t.Errorf("2 days future: got %s want receipt date", got)
-	}
-	lo := receipt.Add(-30 * 24 * time.Hour)
-	if got := DayOf(lo, receipt); !got.Equal(DateUTC(lo)) {
-		t.Errorf("exact -30d boundary: got %s", got)
-	}
-	hi := receipt.Add(24 * time.Hour)
-	if got := DayOf(hi, receipt); !got.Equal(DateUTC(hi)) {
-		t.Errorf("exact +24h boundary: got %s", got)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			day, keep := ClassifyDay(c.event, receipt)
+			if keep != c.keep {
+				t.Errorf("keep=%v want %v", keep, c.keep)
+			}
+			if !day.Equal(c.wantDay) {
+				t.Errorf("day=%s want %s", day, c.wantDay)
+			}
+		})
 	}
 }
 
@@ -403,5 +414,264 @@ func TestBodyString(t *testing.T) {
 	}
 	if batch.Records[2].Body != nil {
 		t.Errorf("missing body: %#v", batch.Records[2].Body)
+	}
+}
+
+func TestRecordUIDExtracted(t *testing.T) {
+	uid := "0123456789abcdef0123456789abcdef"
+	raw := resourceJSON("app", "", `{"eventName":"x","timeUnixNano":"1","attributes":[
+		{"key":"log.record.uid","value":{"stringValue":"`+uid+`"}},
+		{"key":"keep","value":{"stringValue":"yes"}}
+	]}`)
+	req, err := Decode(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	batch := Normalise(req, "app", time.Now())
+	if len(batch.Records) != 1 {
+		t.Fatalf("records=%d", len(batch.Records))
+	}
+	r := batch.Records[0]
+	if r.RecordUID != uid {
+		t.Errorf("uid=%q", r.RecordUID)
+	}
+	if _, ok := r.Attributes["log.record.uid"]; ok {
+		t.Fatal("log.record.uid stored in attributes")
+	}
+}
+
+func TestRecordUIDGenerated(t *testing.T) {
+	raw := resourceJSON("app", "", strings.Join([]string{
+		`{"eventName":"a","timeUnixNano":"1"}`,
+		`{"eventName":"b","timeUnixNano":"2","attributes":[{"key":"log.record.uid","value":{"stringValue":"0123456789ABCDEF0123456789ABCDEF"}}]}`,
+		`{"eventName":"c","timeUnixNano":"3","attributes":[{"key":"log.record.uid","value":{"stringValue":"0123456789abcdef0123456789abcde"}}]}`,
+		`{"eventName":"d","timeUnixNano":"4","attributes":[{"key":"log.record.uid","value":{"intValue":"1"}}]}`,
+	}, ","))
+	req, err := Decode(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	batch := Normalise(req, "app", time.Now())
+	if len(batch.Records) != 4 {
+		t.Fatalf("records=%d", len(batch.Records))
+	}
+	seen := map[string]bool{}
+	for i, r := range batch.Records {
+		if !recordUIDRe.MatchString(r.RecordUID) {
+			t.Errorf("record %d uid %q not 32 lowercase hex", i, r.RecordUID)
+		}
+		if _, ok := r.Attributes["log.record.uid"]; ok {
+			t.Errorf("record %d kept log.record.uid in attributes", i)
+		}
+		if seen[r.RecordUID] {
+			t.Errorf("duplicate generated uid %q", r.RecordUID)
+		}
+		seen[r.RecordUID] = true
+	}
+	if batch.Records[0].RecordUID == batch.Records[1].RecordUID {
+		t.Fatal("two generated uids were equal")
+	}
+}
+
+func TestExpiredRecordsRejected(t *testing.T) {
+	receipt := time.Date(2026, 9, 29, 15, 0, 0, 0, time.UTC)
+	keptNano := receipt.UnixNano()
+	expired := receipt.AddDate(0, 0, -31)
+	raw := []byte(`{"resourceLogs":[{"resource":{"attributes":[
+		{"key":"service.name","value":{"stringValue":"app"}}]},
+		"scopeLogs":[{"logRecords":[
+			{"eventName":"kept","timeUnixNano":"` + strconv.FormatInt(keptNano, 10) + `"},
+			{"eventName":"old","timeUnixNano":"` + strconv.FormatInt(expired.UnixNano(), 10) + `"}
+		]}]}]}`)
+	req, err := Decode(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	batch := Normalise(req, "app", receipt)
+	if batch.Rejected != 1 {
+		t.Errorf("rejected=%d want 1", batch.Rejected)
+	}
+	if batch.Reason != "expired" {
+		t.Errorf("reason=%q", batch.Reason)
+	}
+	if len(batch.Records) != 1 || batch.Records[0].EventName != "kept" {
+		t.Fatalf("records=%+v", batch.Records)
+	}
+}
+
+func TestNULStripped(t *testing.T) {
+	raw := []byte(`{"resourceLogs":[{"resource":{"attributes":[
+		{"key":"service.name","value":{"stringValue":"app"}},
+		{"key":"device.model.identifier","value":{"stringValue":"Pix\u0000el"}}
+	]},"scopeLogs":[{"logRecords":[{
+		"eventName":"x","timeUnixNano":"1",
+		"body":{"stringValue":"hel\u0000lo"},
+		"attributes":[
+			{"key":"arr","value":{"arrayValue":{"values":[{"stringValue":"a\u0000b"}]}}},
+			{"key":"kv","value":{"kvlistValue":{"values":[{"key":"n\u0000k","value":{"stringValue":"v\u0000v"}}]}}},
+			{"key":"k\u0000ey","value":{"stringValue":"x"}}
+		]
+	}]}]}]}`)
+	req, err := Decode(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	batch := Normalise(req, "app", time.Now())
+	if len(batch.Records) != 1 {
+		t.Fatalf("records=%d", len(batch.Records))
+	}
+	r := batch.Records[0]
+	if r.DeviceModel != "Pixel" {
+		t.Errorf("device model=%q", r.DeviceModel)
+	}
+	if r.Body == nil || *r.Body != "hello" {
+		t.Errorf("body=%#v", r.Body)
+	}
+	arr, _ := r.Attributes["arr"].([]any)
+	if len(arr) != 1 || arr[0] != "ab" {
+		t.Errorf("arr=%#v", r.Attributes["arr"])
+	}
+	kv, _ := r.Attributes["kv"].(map[string]any)
+	if kv["nk"] != "vv" {
+		t.Errorf("kv=%#v", kv)
+	}
+	if r.Attributes["key"] != "x" {
+		t.Errorf("map key=%#v", r.Attributes)
+	}
+	blob, _ := json.Marshal(r)
+	if strings.Contains(string(blob), "\x00") {
+		t.Fatalf("NUL leaked: %s", blob)
+	}
+}
+
+func TestAPILevelBounds(t *testing.T) {
+	receipt := time.Now()
+	cases := []struct {
+		extra string
+		want  *int
+	}{
+		{`{"key":"android.os.api_level","value":{"intValue":"0"}}`, intPtr(0)},
+		{`{"key":"android.os.api_level","value":{"intValue":"2147483647"}}`, intPtr(2147483647)},
+		{`{"key":"android.os.api_level","value":{"intValue":"-1"}}`, nil},
+		{`{"key":"android.os.api_level","value":{"intValue":"2147483648"}}`, nil},
+		{`{"key":"android.os.api_level","value":{"doubleValue":3.5}}`, nil},
+	}
+	for i, c := range cases {
+		req, err := Decode(resourceJSON("app", c.extra, `{"eventName":"x","timeUnixNano":"1"}`))
+		if err != nil {
+			t.Fatalf("case %d: %v", i, err)
+		}
+		batch := Normalise(req, "app", receipt)
+		got := batch.Records[0].APILevel
+		if (got == nil) != (c.want == nil) || (got != nil && *got != *c.want) {
+			t.Errorf("case %d api_level=%v want %v", i, got, c.want)
+		}
+	}
+}
+
+func intPtr(n int) *int { return &n }
+
+func TestIntegerAttributeBounds(t *testing.T) {
+	raw := resourceJSON("app", "", `{"eventName":"x","timeUnixNano":"1","attributes":[
+		{"key":"app.startup.ttid_ms","value":{"doubleValue":3.5}},
+		{"key":"app.jank.frame_count","value":{"intValue":"-1"}},
+		{"key":"app.jank.frames","value":{"intValue":"2147483648"}},
+		{"key":"app.session.errors","value":{"stringValue":"12"}},
+		{"key":"http.response.status_code","value":{"doubleValue":12.0}}
+	]}`)
+	req, err := Decode(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := Normalise(req, "app", time.Now()).Records[0].Attributes
+	if _, ok := a["app.startup.ttid_ms"]; ok {
+		t.Errorf("3.5 kept: %#v", a["app.startup.ttid_ms"])
+	}
+	if _, ok := a["app.jank.frame_count"]; ok {
+		t.Errorf("-1 kept: %#v", a["app.jank.frame_count"])
+	}
+	if _, ok := a["app.jank.frames"]; ok {
+		t.Errorf("2147483648 kept: %#v", a["app.jank.frames"])
+	}
+	if a["app.session.errors"] != int64(12) {
+		t.Errorf(`"12": %#v`, a["app.session.errors"])
+	}
+	if a["http.response.status_code"] != int64(12) {
+		t.Errorf("12.0: %#v", a["http.response.status_code"])
+	}
+}
+
+func TestJankThreshold(t *testing.T) {
+	raw := resourceJSON("app", "", strings.Join([]string{
+		`{"eventName":"a","timeUnixNano":"1","attributes":[{"key":"app.jank.threshold","value":{"doubleValue":0.25}}]}`,
+		`{"eventName":"b","timeUnixNano":"2","attributes":[{"key":"app.jank.threshold","value":{"intValue":"-1"}}]}`,
+		`{"eventName":"c","timeUnixNano":"3","attributes":[{"key":"app.jank.threshold","value":{"stringValue":"NaN"}}]}`,
+	}, ","))
+	req, err := Decode(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	batch := Normalise(req, "app", time.Now())
+	if batch.Records[0].Attributes["app.jank.threshold"] != 0.25 {
+		t.Errorf("0.25: %#v", batch.Records[0].Attributes["app.jank.threshold"])
+	}
+	if _, ok := batch.Records[1].Attributes["app.jank.threshold"]; ok {
+		t.Errorf("-1 kept: %#v", batch.Records[1].Attributes["app.jank.threshold"])
+	}
+	if _, ok := batch.Records[2].Attributes["app.jank.threshold"]; ok {
+		t.Errorf("NaN kept: %#v", batch.Records[2].Attributes["app.jank.threshold"])
+	}
+}
+
+func TestSeverityBounds(t *testing.T) {
+	raw := []byte(`{"resourceLogs":[{"resource":{"attributes":[
+		{"key":"service.name","value":{"stringValue":"app"}}]},
+		"scopeLogs":[{"logRecords":[
+			{"eventName":"a","timeUnixNano":"1","severityNumber":25},
+			{"eventName":"b","timeUnixNano":"2","severityNumber":-1},
+			{"eventName":"c","timeUnixNano":"3","severityNumber":0},
+			{"eventName":"d","timeUnixNano":"4","severityNumber":24},
+			{"eventName":"e","timeUnixNano":"5","severityNumber":9}
+		]}]}]}`)
+	req, err := Decode(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	batch := Normalise(req, "app", time.Now())
+	want := []int16{0, 0, 0, 24, 9}
+	if len(batch.Records) != len(want) {
+		t.Fatalf("records=%d", len(batch.Records))
+	}
+	for i, w := range want {
+		if batch.Records[i].Severity != w {
+			t.Errorf("record %d severity=%d want %d", i, batch.Records[i].Severity, w)
+		}
+	}
+}
+
+func TestPerResourceVersion(t *testing.T) {
+	raw := []byte(`{"resourceLogs":[
+		{"resource":{"attributes":[
+			{"key":"service.name","value":{"stringValue":"app"}},
+			{"key":"service.version","value":{"stringValue":"0.1.0"}}
+		]},"scopeLogs":[{"logRecords":[{"eventName":"old","timeUnixNano":"1"}]}]},
+		{"resource":{"attributes":[
+			{"key":"service.name","value":{"stringValue":"app"}},
+			{"key":"service.version","value":{"stringValue":"0.1.1"}}
+		]},"scopeLogs":[{"logRecords":[{"eventName":"new","timeUnixNano":"2"}]}]}
+	]}`)
+	req, err := Decode(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	batch := Normalise(req, "app", time.Now())
+	if len(batch.Records) != 2 {
+		t.Fatalf("records=%d", len(batch.Records))
+	}
+	if batch.Records[0].EventName != "old" || batch.Records[0].ServiceVersion != "0.1.0" {
+		t.Errorf("first=%+v", batch.Records[0])
+	}
+	if batch.Records[1].EventName != "new" || batch.Records[1].ServiceVersion != "0.1.1" {
+		t.Errorf("second=%+v", batch.Records[1])
 	}
 }

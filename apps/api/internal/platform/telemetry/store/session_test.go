@@ -3,6 +3,8 @@ package store
 import (
 	"testing"
 	"time"
+
+	"api/internal/platform/telemetry/otlp"
 )
 
 func loadSession(t *testing.T, id string) (started, ended *time.Time, status *string, errors *int, anr bool, day time.Time, version, env string) {
@@ -132,5 +134,34 @@ func TestProvisionalDayReplaced(t *testing.T) {
 	_, _, _, _, _, day2, _, _ := loadSession(t, id)
 	if day2.Format("2006-01-02") != "2026-09-29" {
 		t.Fatalf("replaced day %s", day2)
+	}
+}
+
+func TestSessionUpsertOrder(t *testing.T) {
+	truncate(t)
+	var got []string
+	sessionUpsertObserver = func(id string) { got = append(got, id) }
+	t.Cleanup(func() { sessionUpsertObserver = nil })
+	t0 := time.Date(2026, 9, 29, 10, 0, 0, 0, time.UTC)
+	write(t, 1,
+		rec("session.start", sid(3), "1.0", "direct", t0, nil),
+		rec("session.start", sid(1), "1.0", "direct", t0.Add(time.Second), nil),
+		rec("session.start", sid(2), "1.0", "direct", t0.Add(2*time.Second), nil),
+	)
+	want := []string{sid(1), sid(2), sid(3)}
+	if len(got) != len(want) {
+		t.Fatalf("upserts=%v want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("upserts=%v want %v", got, want)
+		}
+	}
+	ids := orderedSessionIDs(foldSessions(receiptNow(), []otlp.Record{
+		rec("session.start", sid(3), "1.0", "direct", t0, nil),
+		rec("session.start", sid(1), "1.0", "direct", t0, nil),
+	}))
+	if len(ids) != 2 || ids[0] != sid(1) || ids[1] != sid(3) {
+		t.Fatalf("ordered=%v", ids)
 	}
 }

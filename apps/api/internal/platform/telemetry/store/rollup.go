@@ -52,8 +52,7 @@ ev AS (
 	           WHERE event_name = 'app.jank' AND jsonb_typeof(attributes->'app.jank.frames') = 'number'
 	       ), 0) AS jank_frames_total
 	  FROM telemetry_event
-	 WHERE received_on >= ?::date
-	   AND event_day BETWEEN ?::date AND ?::date
+	 WHERE event_day BETWEEN ?::date AND ?::date
 	 GROUP BY 1, 2, 3, 4
 )
 INSERT INTO telemetry_daily_metric (
@@ -105,7 +104,7 @@ ON CONFLICT (app_id, service_version, environment, day) DO UPDATE SET
 	jank_frames_over = EXCLUDED.jank_frames_over,
 	jank_frames_total = EXCLUDED.jank_frames_total,
 	updated_at = EXCLUDED.updated_at`
-	if err := s.db.WithContext(ctx).Exec(q, fromS, toS, fromS, fromS, toS).Error; err != nil {
+	if err := s.db.WithContext(ctx).Exec(q, fromS, toS, fromS, toS).Error; err != nil {
 		return fmt.Errorf("rollup: %w", err)
 	}
 	return nil

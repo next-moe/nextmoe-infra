@@ -3,7 +3,7 @@ package ingest
 import (
 	"context"
 	"log/slog"
-	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -14,22 +14,32 @@ type AppInfo struct {
 	IngestKey   string
 }
 
+type LookupResult int
+
+const (
+	LookupFound LookupResult = iota + 1
+	LookupUnknown
+	LookupNotReady
+)
+
 type KeyLookup interface {
-	Lookup(key string) (AppInfo, bool)
+	Lookup(key string) (AppInfo, LookupResult)
 }
 
 type AppsSource interface {
 	ListApps(ctx context.Context) ([]AppInfo, error)
 }
 
-type KeyCache struct {
-	src      AppsSource
-	clock    Clock
-	log      *slog.Logger
-	mu       sync.Mutex
+type keyMap struct {
 	byKey    map[string]AppInfo
 	loadedAt time.Time
-	loaded   bool
+}
+
+type KeyCache struct {
+	src   AppsSource
+	clock Clock
+	log   *slog.Logger
+	cur   atomic.Pointer[keyMap]
 }
 
 func NewKeyCache(src AppsSource, clock Clock, log *slog.Logger) *KeyCache {
@@ -39,37 +49,57 @@ func NewKeyCache(src AppsSource, clock Clock, log *slog.Logger) *KeyCache {
 	if log == nil {
 		log = slog.Default()
 	}
-	return &KeyCache{src: src, clock: clock, log: log, byKey: map[string]AppInfo{}}
+	return &KeyCache{src: src, clock: clock, log: log}
 }
 
-func (c *KeyCache) Lookup(key string) (AppInfo, bool) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	now := c.clock.Now()
-	if !c.loaded || now.Sub(c.loadedAt) >= 60*time.Second {
-		c.reloadLocked()
+func (c *KeyCache) Lookup(key string) (AppInfo, LookupResult) {
+	snap := c.cur.Load()
+	if snap == nil {
+		return AppInfo{}, LookupNotReady
 	}
-	a, ok := c.byKey[key]
-	return a, ok
+	a, ok := snap.byKey[key]
+	if !ok {
+		return AppInfo{}, LookupUnknown
+	}
+	return a, LookupFound
 }
 
-func (c *KeyCache) Invalidate() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.reloadLocked()
-}
-
-func (c *KeyCache) reloadLocked() {
-	apps, err := c.src.ListApps(context.Background())
+func (c *KeyCache) Reload(ctx context.Context) error {
+	apps, err := c.src.ListApps(ctx)
 	if err != nil {
-		c.log.Error("telemetry key cache reload", "err", err)
-		return
+		return err
 	}
 	next := make(map[string]AppInfo, len(apps))
 	for _, a := range apps {
 		next[a.IngestKey] = a
 	}
-	c.byKey = next
-	c.loadedAt = c.clock.Now()
-	c.loaded = true
+	c.cur.Store(&keyMap{byKey: next, loadedAt: c.clock.Now()})
+	return nil
+}
+
+func (c *KeyCache) Invalidate() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	return c.Reload(ctx)
+}
+
+func (c *KeyCache) Run(ctx context.Context) {
+	t := time.NewTicker(5 * time.Second)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			if snap := c.cur.Load(); snap != nil && c.clock.Now().Sub(snap.loadedAt) < 60*time.Second {
+				continue
+			}
+			rctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+			err := c.Reload(rctx)
+			cancel()
+			if err != nil {
+				c.log.Error("telemetry key cache reload", "err", err)
+			}
+		}
+	}
 }

@@ -59,7 +59,12 @@ func main() {
 	}
 
 	cache := ingest.NewKeyCache(st, nil, slog.Default())
-	cache.Invalidate()
+	loadCtx, cancelLoad := context.WithTimeout(permCtx, 3*time.Second)
+	if err := cache.Reload(loadCtx); err != nil {
+		slog.Error("telemetry key cache initial load", "error", err)
+	}
+	cancelLoad()
+	go cache.Run(permCtx)
 	lim := ingest.NewLimiter(nil)
 	ing := ingest.NewHandler(cache, lim, st, nil, slog.Default())
 

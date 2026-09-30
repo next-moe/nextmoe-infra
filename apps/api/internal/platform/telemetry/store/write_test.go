@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
+	"api/internal/platform/telemetry/otlp"
+	"api/internal/platform/telemetry/partition"
 )
 
 func TestWriteStoresEvents(t *testing.T) {
@@ -36,8 +38,7 @@ func TestWriteStoresEvents(t *testing.T) {
 	write(t, 1, r1, r2)
 
 	var rows []struct {
-		ID                 string
-		ReceivedOn         time.Time
+		RecordUID          string
 		EventDay           time.Time
 		AppID              int64
 		ServiceVersion     string
@@ -56,7 +57,7 @@ func TestWriteStoresEvents(t *testing.T) {
 		Attributes         []byte
 		Body               *string
 	}
-	if err := testDB.Raw(`SELECT id::text, received_on, event_day, app_id, service_version, environment,
+	if err := testDB.Raw(`SELECT record_uid, event_day, app_id, service_version, environment,
 		event_name, severity, event_time, session_id, os_name, os_version, api_level,
 		device_model, device_manufacturer, host_arch, sdk_version, attributes, body
 		FROM telemetry_event ORDER BY event_time`).Scan(&rows).Error; err != nil {
@@ -88,22 +89,11 @@ func TestWriteStoresEvents(t *testing.T) {
 	if string(rows[0].Attributes) != "" && contains(string(rows[0].Attributes), prev) {
 		t.Fatal("previous_id value stored")
 	}
-	id0, err := uuid.Parse(rows[0].ID)
-	if err != nil {
-		t.Fatal(err)
+	if rows[0].RecordUID == "" || rows[0].RecordUID == rows[1].RecordUID {
+		t.Fatalf("record_uid: %q %q", rows[0].RecordUID, rows[1].RecordUID)
 	}
-	id1, err := uuid.Parse(rows[1].ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if id0 == id1 {
-		t.Fatal("duplicate uuid")
-	}
-	if id0.Version() != 4 || id1.Version() != 4 {
-		t.Errorf("expected random v4 uuids, got %d and %d", id0.Version(), id1.Version())
-	}
-	if id0 == uuid.Nil || id1 == uuid.Nil {
-		t.Fatal("nil uuid")
+	if len(rows[0].RecordUID) != 32 || len(rows[1].RecordUID) != 32 {
+		t.Errorf("record_uid length: %q %q", rows[0].RecordUID, rows[1].RecordUID)
 	}
 }
 
@@ -166,15 +156,15 @@ func TestNoSharedWriteInstant(t *testing.T) {
 	}
 
 	var events []struct {
-		ID        string
+		RecordUID string
 		SessionID string
 		EventTime time.Time
 	}
-	if err := testDB.Raw(`SELECT id::text, session_id, event_time FROM telemetry_event ORDER BY session_id`).Scan(&events).Error; err != nil {
+	if err := testDB.Raw(`SELECT record_uid, session_id, event_time FROM telemetry_event ORDER BY session_id`).Scan(&events).Error; err != nil {
 		t.Fatal(err)
 	}
-	if len(events) != 2 || events[0].ID == events[1].ID {
-		t.Fatalf("event ids: %+v", events)
+	if len(events) != 2 || events[0].RecordUID == events[1].RecordUID {
+		t.Fatalf("event uids: %+v", events)
 	}
 	if events[0].EventTime.Equal(events[1].EventTime) {
 		t.Fatal("event_time shared")
@@ -185,7 +175,7 @@ func TestNoSharedWriteInstant(t *testing.T) {
 		"ended_at": true, "status": true, "errors": true,
 	}
 	eventAllow := map[string]bool{
-		"received_on": true, "app_id": true, "service_version": true, "environment": true,
+		"app_id": true, "service_version": true, "environment": true,
 		"event_name": true, "severity": true, "event_day": true,
 		"os_name": true, "os_version": true, "api_level": true, "device_model": true,
 		"device_manufacturer": true, "host_arch": true, "sdk_version": true, "attributes": true, "body": true,
@@ -339,4 +329,117 @@ func TestMultiVersionRequest(t *testing.T) {
 		t.Fatal("missing 0.1.0 metric")
 	}
 	_ = foundNew
+}
+
+func TestResendIsDeduplicated(t *testing.T) {
+	truncate(t)
+	t0 := time.Date(2026, 9, 29, 10, 0, 0, 0, time.UTC)
+	r := rec("exception", sid(1), "1.0", "direct", t0, map[string]any{"exception.type": "A"})
+	write(t, 1, r)
+	write(t, 1, r)
+	var n int64
+	if err := testDB.Raw(`SELECT COUNT(*) FROM telemetry_event`).Scan(&n).Error; err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("rows=%d want 1", n)
+	}
+	if err := st.Rollup(context.Background(), receiptNow().AddDate(0, 0, -1), receiptNow()); err != nil {
+		t.Fatal(err)
+	}
+	m := metric(t, "1.0", "direct")
+	if m.Exceptions != 1 {
+		t.Errorf("exceptions=%d", m.Exceptions)
+	}
+}
+
+func TestDuplicateUIDInOneRequest(t *testing.T) {
+	truncate(t)
+	t0 := time.Date(2026, 9, 29, 10, 0, 0, 0, time.UTC)
+	r1 := rec("exception", sid(1), "1.0", "direct", t0, nil)
+	r2 := rec("exception", sid(1), "1.0", "direct", t0, nil)
+	r2.RecordUID = r1.RecordUID
+	r2.EventDay = r1.EventDay
+	write(t, 1, r1, r2)
+	var n int64
+	if err := testDB.Raw(`SELECT COUNT(*) FROM telemetry_event`).Scan(&n).Error; err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("rows=%d want 1", n)
+	}
+}
+
+func TestMissingUIDNotDeduplicated(t *testing.T) {
+	truncate(t)
+	nano := strconv.FormatInt(receiptNow().UnixNano(), 10)
+	raw := []byte(`{"resourceLogs":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"app"}}]},"scopeLogs":[{"logRecords":[{"eventName":"exception","timeUnixNano":"` + nano + `"}]}]}]}`)
+	req, err := otlp.Decode(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b1 := otlp.Normalise(req, "app", receiptNow())
+	b2 := otlp.Normalise(req, "app", receiptNow())
+	if len(b1.Records) != 1 || len(b2.Records) != 1 {
+		t.Fatal(b1.Records, b2.Records)
+	}
+	if b1.Records[0].RecordUID == b2.Records[0].RecordUID {
+		t.Fatal("generated uids collided")
+	}
+	if err := st.Write(context.Background(), 1, receiptNow(), b1); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Write(context.Background(), 1, receiptNow(), b2); err != nil {
+		t.Fatal(err)
+	}
+	var n int64
+	if err := testDB.Raw(`SELECT COUNT(*) FROM telemetry_event`).Scan(&n).Error; err != nil {
+		t.Fatal(err)
+	}
+	if n != 2 {
+		t.Fatalf("rows=%d want 2", n)
+	}
+}
+
+func TestOldEventDayLandsInItsPartition(t *testing.T) {
+	truncate(t)
+	t0 := receiptNow().AddDate(0, 0, -20)
+	r := rec("exception", sid(1), "1.0", "direct", t0, nil)
+	write(t, 1, r)
+	name := partition.Name(r.EventDay)
+	var n int64
+	if err := testDB.Raw(`SELECT COUNT(*) FROM ` + name).Scan(&n).Error; err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("partition %s count=%d", name, n)
+	}
+	var parent int64
+	if err := testDB.Raw(`SELECT COUNT(*) FROM telemetry_event WHERE event_day = ?::date`, r.EventDay.Format("2006-01-02")).Scan(&parent).Error; err != nil {
+		t.Fatal(err)
+	}
+	if parent != 1 {
+		t.Fatalf("parent count=%d", parent)
+	}
+}
+
+func TestNULStoredStripped(t *testing.T) {
+	truncate(t)
+	nano := strconv.FormatInt(receiptNow().UnixNano(), 10)
+	raw := []byte(`{"resourceLogs":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"app"}}]},"scopeLogs":[{"logRecords":[{"eventName":"exception","timeUnixNano":"` + nano + `","body":{"stringValue":"hel\u0000lo"}}]}]}]}`)
+	req, err := otlp.Decode(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	batch := otlp.Normalise(req, "app", receiptNow())
+	if err := st.Write(context.Background(), 1, receiptNow(), batch); err != nil {
+		t.Fatal(err)
+	}
+	var body *string
+	if err := testDB.Raw(`SELECT body FROM telemetry_event`).Scan(&body).Error; err != nil {
+		t.Fatal(err)
+	}
+	if body == nil || *body != "hello" {
+		t.Fatalf("body=%#v", body)
+	}
 }

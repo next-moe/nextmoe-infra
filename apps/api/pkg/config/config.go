@@ -601,7 +601,7 @@ func Load() (*Config, error) {
 		Port: aiPort,
 	}
 
-	telemetryPort, _ := strconv.Atoi(getEnv("KUN_TELEMETRY_PORT", "9285"))
+	telemetryPort, _ := strconv.Atoi(getEnv("KUN_TELEMETRY_PORT", "9286"))
 	cfg.TelemetryService = TelemetryServiceConfig{
 		Host: getEnv("KUN_TELEMETRY_HOST", "127.0.0.1"),
 		Port: telemetryPort,

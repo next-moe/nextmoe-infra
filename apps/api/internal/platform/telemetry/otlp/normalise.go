@@ -1,25 +1,37 @@
 package otlp
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"math"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
-var sessionIDRe = regexp.MustCompile(`^[0-9a-f]{32}$`)
+var recordUIDRe = regexp.MustCompile(`^[0-9a-f]{32}$`)
 
-var numericAttrKeys = map[string]bool{
+var sessionIDRe = recordUIDRe
+
+const recordUIDKey = "log.record.uid"
+
+var integerAttrKeys = map[string]bool{
 	"app.startup.ttid_ms":       true,
 	"app.jank.frame_count":      true,
 	"app.jank.frames":           true,
-	"app.jank.threshold":        true,
 	"app.session.errors":        true,
 	"android.exit.reason":       true,
 	"http.response.status_code": true,
 }
 
-const androidStartReason = "android.start.reason"
+const (
+	androidStartReason = "android.start.reason"
+	jankThresholdKey   = "app.jank.threshold"
+	maxIntAttr         = 2147483647
+)
+
+var clockFloor = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
 type Record struct {
 	ServiceVersion     string
@@ -36,6 +48,7 @@ type Record struct {
 	EventTime          time.Time
 	EventDay           time.Time
 	SessionID          string
+	RecordUID          string
 	Attributes         map[string]any
 	Body               *string
 }
@@ -51,15 +64,19 @@ func DateUTC(t time.Time) time.Time {
 	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
 }
 
-func DayOf(eventTime, receipt time.Time) time.Time {
+func ClassifyDay(eventTime, receipt time.Time) (day time.Time, keep bool) {
 	eventTime = eventTime.UTC()
 	receipt = receipt.UTC()
-	lo := receipt.Add(-30 * 24 * time.Hour)
-	hi := receipt.Add(24 * time.Hour)
-	if !eventTime.Before(lo) && !eventTime.After(hi) {
-		return DateUTC(eventTime)
+	if eventTime.Before(clockFloor) {
+		return DateUTC(receipt), true
 	}
-	return DateUTC(receipt)
+	if eventTime.After(receipt.Add(24 * time.Hour)) {
+		return DateUTC(receipt), true
+	}
+	if eventTime.Before(receipt.AddDate(0, 0, -30)) {
+		return time.Time{}, false
+	}
+	return DateUTC(eventTime), true
 }
 
 func eventTimeOf(rec LogRecord, receipt time.Time) time.Time {
@@ -79,7 +96,7 @@ func Normalise(req *ExportLogsServiceRequest, serviceName string, receipt time.T
 	}
 	reasons := map[string]int{}
 	for _, rl := range req.ResourceLogs {
-		res := attributesMap(rl.Resource.Attributes)
+		res := stripNULMap(attributesMap(rl.Resource.Attributes))
 		if attrString(res, "service.name") != serviceName {
 			n := countLogRecords(rl)
 			out.Rejected += n
@@ -102,25 +119,34 @@ func Normalise(req *ExportLogsServiceRequest, serviceName string, receipt time.T
 		}
 		for _, sl := range rl.ScopeLogs {
 			for _, lr := range sl.LogRecords {
-				if lr.EventName == "" {
+				eventName := stripNUL(lr.EventName)
+				if eventName == "" {
 					out.Rejected++
 					reasons["empty eventName"]++
 					continue
 				}
+				eventTime := eventTimeOf(lr, receipt)
+				day, keep := ClassifyDay(eventTime, receipt)
+				if !keep {
+					out.Rejected++
+					reasons["expired"]++
+					continue
+				}
 				rec := base
-				rec.EventName = lr.EventName
-				rec.Severity = int16(lr.SeverityNumber)
-				rec.EventTime = eventTimeOf(lr, receipt)
-				rec.EventDay = DayOf(rec.EventTime, receipt)
-				attrs := attributesMap(lr.Attributes)
+				rec.EventName = eventName
+				rec.Severity = clampSeverity(int16(lr.SeverityNumber))
+				rec.EventTime = eventTime
+				rec.EventDay = day
+				attrs := stripNULMap(attributesMap(lr.Attributes))
 				delete(attrs, "session.previous_id")
+				rec.RecordUID = takeRecordUID(attrs)
 				if sid, ok := attrs["session.id"].(string); ok && sessionIDRe.MatchString(sid) {
 					rec.SessionID = sid
 				}
 				delete(attrs, "session.id")
 				rec.Attributes = normaliseNumericAttrs(attrs)
 				if lr.Body != nil && lr.Body.StringValue != nil {
-					s := *lr.Body.StringValue
+					s := stripNUL(*lr.Body.StringValue)
 					rec.Body = &s
 				}
 				out.Records = append(out.Records, rec)
@@ -129,6 +155,32 @@ func Normalise(req *ExportLogsServiceRequest, serviceName string, receipt time.T
 	}
 	out.Reason = summariseReasons(reasons)
 	return out
+}
+
+func clampSeverity(n int16) int16 {
+	if n < 0 || n > 24 {
+		return 0
+	}
+	return n
+}
+
+func takeRecordUID(attrs map[string]any) string {
+	raw, ok := attrs[recordUIDKey]
+	delete(attrs, recordUIDKey)
+	if ok {
+		if s, isStr := raw.(string); isStr && recordUIDRe.MatchString(s) {
+			return s
+		}
+	}
+	return newRecordUID()
+}
+
+func newRecordUID() string {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		panic("otlp: record uid: " + err.Error())
+	}
+	return hex.EncodeToString(b[:])
 }
 
 func countLogRecords(rl ResourceLogs) int {
@@ -152,31 +204,12 @@ func summariseReasons(reasons map[string]int) string {
 }
 
 func parseAPILevel(v any) *int {
-	if v == nil {
+	n, ok := coerceBoundedInt(v)
+	if !ok {
 		return nil
 	}
-	switch x := v.(type) {
-	case int64:
-		n := int(x)
-		if int64(n) != x {
-			return nil
-		}
-		return &n
-	case float64:
-		if x != math.Trunc(x) || x < math.MinInt32 || x > math.MaxInt32 {
-			return nil
-		}
-		n := int(x)
-		return &n
-	case string:
-		n, err := strconv.Atoi(x)
-		if err != nil {
-			return nil
-		}
-		return &n
-	default:
-		return nil
-	}
+	i := int(n)
+	return &i
 }
 
 func normaliseNumericAttrs(attrs map[string]any) map[string]any {
@@ -190,8 +223,14 @@ func normaliseNumericAttrs(attrs map[string]any) map[string]any {
 			}
 			continue
 		}
-		if numericAttrKeys[k] {
-			if n, ok := coerceFiniteNumber(v); ok {
+		if k == jankThresholdKey {
+			if n, ok := coerceFiniteNumber(v); ok && numberAtLeastZero(n) {
+				out[k] = n
+			}
+			continue
+		}
+		if integerAttrKeys[k] {
+			if n, ok := coerceBoundedInt(v); ok {
 				out[k] = n
 			}
 			continue
@@ -199,6 +238,58 @@ func normaliseNumericAttrs(attrs map[string]any) map[string]any {
 		out[k] = v
 	}
 	return out
+}
+
+func numberAtLeastZero(v any) bool {
+	switch x := v.(type) {
+	case int64:
+		return x >= 0
+	case int:
+		return x >= 0
+	case float64:
+		return x >= 0
+	default:
+		return false
+	}
+}
+
+func coerceBoundedInt(v any) (int64, bool) {
+	n, ok := coerceIntegral(v)
+	if !ok || n < 0 || n > maxIntAttr {
+		return 0, false
+	}
+	return n, true
+}
+
+func coerceIntegral(v any) (int64, bool) {
+	switch x := v.(type) {
+	case int64:
+		return x, true
+	case int:
+		return int64(x), true
+	case float64:
+		if math.IsNaN(x) || math.IsInf(x, 0) || x != math.Trunc(x) {
+			return 0, false
+		}
+		if x < float64(math.MinInt64) || x > float64(math.MaxInt64) {
+			return 0, false
+		}
+		return int64(x), true
+	case string:
+		if n, err := strconv.ParseInt(x, 10, 64); err == nil {
+			return n, true
+		}
+		f, err := strconv.ParseFloat(x, 64)
+		if err != nil || math.IsNaN(f) || math.IsInf(f, 0) || f != math.Trunc(f) {
+			return 0, false
+		}
+		if f < float64(math.MinInt64) || f > float64(math.MaxInt64) {
+			return 0, false
+		}
+		return int64(f), true
+	default:
+		return 0, false
+	}
 }
 
 func coerceFiniteNumber(v any) (any, bool) {
@@ -230,4 +321,39 @@ func coerceFiniteNumber(v any) (any, bool) {
 	default:
 		return nil, false
 	}
+}
+
+func stripNUL(s string) string {
+	if !strings.ContainsRune(s, 0) {
+		return s
+	}
+	return strings.ReplaceAll(s, "\x00", "")
+}
+
+func stripNULAny(v any) any {
+	switch x := v.(type) {
+	case string:
+		return stripNUL(x)
+	case []any:
+		out := make([]any, len(x))
+		for i, item := range x {
+			out[i] = stripNULAny(item)
+		}
+		return out
+	case map[string]any:
+		return stripNULMap(x)
+	default:
+		return v
+	}
+}
+
+func stripNULMap(m map[string]any) map[string]any {
+	if m == nil {
+		return map[string]any{}
+	}
+	out := make(map[string]any, len(m))
+	for k, v := range m {
+		out[stripNUL(k)] = stripNULAny(v)
+	}
+	return out
 }

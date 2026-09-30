@@ -3,6 +3,7 @@ package ingest
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"strconv"
 	"sync"
@@ -12,6 +13,7 @@ import (
 	"api/internal/platform/telemetry/otlp"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type Writer interface {
@@ -31,6 +33,7 @@ type Handler struct {
 	clock        Clock
 	log          *slog.Logger
 	writeSem     chan struct{}
+	slotWait     time.Duration
 	writeTimeout time.Duration
 	mu           sync.Mutex
 	stats        map[int64]*minuteCounters
@@ -55,7 +58,8 @@ func NewHandler(keys KeyLookup, limiter *Limiter, writer Writer, clock Clock, lo
 		clock:        clock,
 		log:          log,
 		writeSem:     make(chan struct{}, 8),
-		writeTimeout: 2 * time.Second,
+		slotWait:     2 * time.Second,
+		writeTimeout: 10 * time.Second,
 		stats:        make(map[int64]*minuteCounters),
 	}
 }
@@ -68,8 +72,12 @@ func (h *Handler) Logs(c fiber.Ctx) error {
 	if key == "" {
 		return h.err(c, 0, fiber.StatusUnauthorized, "missing ingest key", 0)
 	}
-	app, ok := h.keys.Lookup(key)
-	if !ok {
+	app, result := h.keys.Lookup(key)
+	switch result {
+	case LookupNotReady:
+		return h.err(c, 0, fiber.StatusServiceUnavailable, "ingest not ready", 30)
+	case LookupFound:
+	default:
 		return h.err(c, 0, fiber.StatusUnauthorized, "unknown ingest key", 0)
 	}
 	if !app.Enabled {
@@ -108,21 +116,38 @@ func (h *Handler) Logs(c fiber.Ctx) error {
 		return h.success(c, app.ID, batch)
 	}
 
-	ctx, cancel := context.WithTimeout(c.Context(), h.writeTimeout)
-	defer cancel()
+	slotCtx, cancelSlot := context.WithTimeout(c.Context(), h.slotWait)
+	defer cancelSlot()
 	select {
 	case h.writeSem <- struct{}{}:
 		defer func() { <-h.writeSem }()
-	case <-ctx.Done():
+	case <-slotCtx.Done():
 		h.log.Error("telemetry write slot timeout", "app_id", app.ID)
 		return h.finish(c, app.ID, fiber.StatusServiceUnavailable, `{"message":"write overloaded"}`, 30, batch.Rejected, 0)
 	}
 
-	if err := h.writer.Write(c.Context(), app.ID, now, batch); err != nil {
+	ctx, cancel := context.WithTimeout(c.Context(), h.writeTimeout)
+	defer cancel()
+	if err := h.writer.Write(ctx, app.ID, now, batch); err != nil {
+		if sqlstate, ok := dataExceptionSQLSTATE(err); ok {
+			h.log.Error("telemetry unstorable batch", "app_id", app.ID, "sqlstate", sqlstate)
+			return h.finish(c, app.ID, fiber.StatusBadRequest, `{"message":"unstorable batch"}`, 0, batch.Rejected, 0)
+		}
 		h.log.Error("telemetry write failed", "app_id", app.ID, "err", err)
 		return h.finish(c, app.ID, fiber.StatusServiceUnavailable, `{"message":"write failed"}`, 30, batch.Rejected, 0)
 	}
 	return h.success(c, app.ID, batch)
+}
+
+func dataExceptionSQLSTATE(err error) (string, bool) {
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) {
+		return "", false
+	}
+	if len(pgErr.Code) < 2 || pgErr.Code[:2] != "22" {
+		return "", false
+	}
+	return pgErr.Code, true
 }
 
 type partialSuccess struct {

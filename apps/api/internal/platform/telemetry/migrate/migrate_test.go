@@ -58,13 +58,12 @@ func TestPartitionedTableShape(t *testing.T) {
 		t.Errorf("telemetry_event relkind=%q want p (partitioned)", kind)
 	}
 
-	today := "telemetry_event_p" + time.Now().UTC().Format("20060102")
-	var n int64
-	if err := testDB.Raw(`SELECT COUNT(*) FROM pg_class WHERE relname = ?`, today).Scan(&n).Error; err != nil {
-		t.Fatalf("today partition: %v", err)
+	var partkey string
+	if err := testDB.Raw(`SELECT pg_get_partkeydef('telemetry_event'::regclass)`).Scan(&partkey).Error; err != nil {
+		t.Fatalf("partkey: %v", err)
 	}
-	if n != 1 {
-		t.Errorf("today's partition %s missing", today)
+	if !strings.Contains(partkey, "event_day") {
+		t.Errorf("partition key %q does not contain event_day", partkey)
 	}
 
 	var cols string
@@ -75,10 +74,43 @@ func TestPartitionedTableShape(t *testing.T) {
 		 WHERE i.indrelid = 'telemetry_event'::regclass AND i.indisprimary`).Scan(&cols).Error; err != nil {
 		t.Fatalf("pk: %v", err)
 	}
-	if cols != "received_on,id" && !strings.Contains(cols, "received_on") {
-		t.Errorf("primary key columns = %q want received_on,id", cols)
+	if cols != "event_day,record_uid" {
+		t.Errorf("primary key columns = %q want event_day,record_uid", cols)
 	}
-	if cols != "received_on,id" {
-		t.Errorf("primary key columns = %q want received_on,id", cols)
+
+	var colNames []string
+	if err := testDB.Raw(`
+		SELECT column_name FROM information_schema.columns
+		 WHERE table_name = 'telemetry_event' ORDER BY ordinal_position`).Scan(&colNames).Error; err != nil {
+		t.Fatalf("columns: %v", err)
+	}
+	wantCols := map[string]bool{
+		"record_uid": true, "event_day": true, "app_id": true, "service_version": true,
+		"environment": true, "event_name": true, "severity": true, "event_time": true,
+		"session_id": true, "os_name": true, "os_version": true, "api_level": true,
+		"device_model": true, "device_manufacturer": true, "host_arch": true,
+		"sdk_version": true, "attributes": true, "body": true,
+	}
+	for _, c := range colNames {
+		if !wantCols[c] {
+			t.Errorf("unexpected column %s", c)
+		}
+		delete(wantCols, c)
+	}
+	if len(wantCols) > 0 {
+		t.Errorf("missing columns %v", wantCols)
+	}
+
+	today := time.Now().UTC()
+	base := time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, time.UTC)
+	for i := -30; i <= 3; i++ {
+		name := "telemetry_event_p" + base.AddDate(0, 0, i).Format("20060102")
+		var n int64
+		if err := testDB.Raw(`SELECT COUNT(*) FROM pg_class WHERE relname = ?`, name).Scan(&n).Error; err != nil {
+			t.Fatalf("partition %s: %v", name, err)
+		}
+		if n != 1 {
+			t.Errorf("missing partition %s", name)
+		}
 	}
 }

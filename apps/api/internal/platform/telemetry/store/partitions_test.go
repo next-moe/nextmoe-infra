@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	"api/internal/platform/telemetry/partition"
 )
 
 func TestEnsurePartitions(t *testing.T) {
@@ -12,8 +14,8 @@ func TestEnsurePartitions(t *testing.T) {
 		t.Fatal(err)
 	}
 	today := time.Date(2026, 9, 29, 0, 0, 0, 0, time.UTC)
-	for i := -1; i <= 3; i++ {
-		name := partitionName(today.AddDate(0, 0, i))
+	for i := -30; i <= 3; i++ {
+		name := partition.Name(today.AddDate(0, 0, i))
 		var n int64
 		if err := testDB.Raw(`SELECT COUNT(*) FROM pg_class WHERE relname = ?`, name).Scan(&n).Error; err != nil {
 			t.Fatal(err)
@@ -31,10 +33,10 @@ func TestDropExpiredPartitions(t *testing.T) {
 	}
 	old := now.AddDate(0, 0, -31)
 	keepEdge := now.AddDate(0, 0, -30)
-	if err := ensureDayPartition(testDB, old); err != nil {
+	if err := partition.EnsureDay(testDB, old); err != nil {
 		t.Fatal(err)
 	}
-	if err := ensureDayPartition(testDB, keepEdge); err != nil {
+	if err := partition.EnsureDay(testDB, keepEdge); err != nil {
 		t.Fatal(err)
 	}
 	if err := testDB.Exec(`CREATE TABLE IF NOT EXISTS telemetry_event_legacy PARTITION OF telemetry_event FOR VALUES FROM ('1990-01-01') TO ('1990-01-02')`).Error; err != nil {
@@ -53,10 +55,10 @@ func TestDropExpiredPartitions(t *testing.T) {
 			t.Errorf("%s count=%d want %d", name, n, want)
 		}
 	}
-	assertRel(partitionName(old), 0)
-	assertRel(partitionName(keepEdge), 1)
+	assertRel(partition.Name(old), 0)
+	assertRel(partition.Name(keepEdge), 1)
 	assertRel("telemetry_event_legacy", 1)
-	assertRel(partitionName(now), 1)
+	assertRel(partition.Name(now), 1)
 	if err := testDB.Exec(`DROP TABLE telemetry_event_legacy`).Error; err != nil {
 		t.Fatal(err)
 	}
