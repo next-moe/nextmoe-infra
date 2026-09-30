@@ -28,6 +28,11 @@ type PublicNewsItem struct {
 	Images      []string         `json:"images,omitempty"`
 	PublishedAt time.Time        `json:"published_at"`
 	WorkIDs     []int64          `json:"work_ids,omitempty"`
+	// Body is loaded by Item only; Feed reports HasBody so a list page never
+	// carries up to twenty thousand runes per row.
+	Body         string `json:"body,omitempty"`
+	HasBody      bool   `json:"has_body"`
+	SubmitterUID *int64 `json:"submitter_uid,omitempty"`
 }
 
 type PublicNewsFeedData struct {

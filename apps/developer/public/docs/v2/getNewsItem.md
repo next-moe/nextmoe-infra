@@ -13,7 +13,7 @@
 
 Get one news item
 
-A published news item. A withdrawn item is 410 GONE, not 404: a mirror that only sees the item leave the list never learns the copy it took was pulled. An item that never existed, or is still pending, is 404. Unauthenticated. source and source_url are always present.
+A published news item. A withdrawn item is 410 GONE, not 404: a mirror that only sees the item leave the list never learns the copy it took was pulled. An item that never existed, or is still pending, is 404. Unauthenticated. source and source_url are always present; source_url is the empty string for an original community submission, which carries body instead.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：无需凭据

@@ -39,11 +39,13 @@ export interface NewsAdminItem {
   dead_at: string | null
   first_seen_at: string
   last_seen_at: string
+  submitter_uid: number | null
   verdict: NewsVerdict | null
   attempts: number
 }
 
 export interface NewsAdminItemDetail extends NewsAdminItem {
+  body: string
   verdicts: NewsVerdict[]
   decisions: NewsDecision[]
 }

@@ -4,12 +4,14 @@ import (
 	"context"
 	"strconv"
 	"strings"
+	"time"
 
 	"api/internal/platform/apiv2/collect"
 	"api/internal/platform/apiv2/problem"
 	"api/internal/platform/apiv2/repr"
 	newsmodel "api/internal/platform/news/model"
 	newssvc "api/internal/platform/news/service"
+	"api/internal/platform/settings/keys"
 )
 
 type newsSubmissionBody struct {
@@ -17,6 +19,7 @@ type newsSubmissionBody struct {
 	Lane        string
 	Title       string
 	Summary     string
+	Body        string
 	SourceURL   string
 	PublishedAt string
 	BannerHash  string
@@ -27,6 +30,7 @@ type newsPatchBody struct {
 	Status     *string
 	Title      *string
 	Summary    *string
+	Body       *string
 	SourceURL  *string
 	BannerHash *string
 	WorkIDs    *[]string
@@ -87,9 +91,11 @@ func (c *Catalog) CreateMyNews(ctx context.Context, in newsSubmissionBody) (repr
 		return repr.NewsSubmission{}, "", err
 	}
 	p := problem.New(problem.CodeValidationFailed, "", "", "the submission is not acceptable.")
-	if strings.TrimSpace(in.Source) == "" {
-		p.Errors = append(p.Errors, problem.FieldError{Pointer: "/source", Reason: problem.ReasonRequired, Detail: "name one of your news sources"})
+	source := strings.TrimSpace(in.Source)
+	if source == "" {
+		source = newsmodel.SourceKeyCommunity
 	}
+	community := source == newsmodel.SourceKeyCommunity
 	lane := strings.TrimSpace(in.Lane)
 	if lane == "" {
 		lane = newsmodel.LaneNews
@@ -102,7 +108,8 @@ func (c *Catalog) CreateMyNews(ctx context.Context, in newsSubmissionBody) (repr
 		p.Errors = append(p.Errors, problem.FieldError{Pointer: "/title", Reason: problem.ReasonRequired, Detail: "a news item needs a title"})
 	}
 	p.Errors = append(p.Errors, newsSummaryErrors("/summary", in.Summary)...)
-	p.Errors = append(p.Errors, newsSourceURLErrors("/source_url", in.SourceURL)...)
+	p.Errors = append(p.Errors, newsBodyErrors("/body", in.Body, community)...)
+	p.Errors = append(p.Errors, newsSourceURLErrors("/source_url", in.SourceURL, community)...)
 	p.Errors = append(p.Errors, newsBannerErrors("/banner_hash", in.BannerHash)...)
 	published, perrs := newsPublishedAt(in.PublishedAt)
 	p.Errors = append(p.Errors, perrs...)
@@ -111,9 +118,14 @@ func (c *Catalog) CreateMyNews(ctx context.Context, in newsSubmissionBody) (repr
 	if len(p.Errors) > 0 {
 		return repr.NewsSubmission{}, "", p
 	}
+	if community {
+		if qerr := c.checkNewsQuota(ctx, uid); qerr != nil {
+			return repr.NewsSubmission{}, "", qerr
+		}
+	}
 	row, cerr := c.NewsWrite.Create(ctx, newssvc.CreateParams{
-		PublisherUID: uid, SourceKey: strings.TrimSpace(in.Source), Lane: lane,
-		Title: in.Title, Preview: in.Summary, SourceURL: in.SourceURL,
+		PublisherUID: uid, SourceKey: source, Lane: lane,
+		Title: in.Title, Preview: in.Summary, Body: in.Body, SourceURL: in.SourceURL,
 		BannerHash: in.BannerHash, PublishedAt: published, WorkIDs: workIDs,
 	})
 	if cerr != nil {
@@ -132,16 +144,16 @@ func (c *Catalog) PatchMyNews(ctx context.Context, id int64, in newsPatchBody, i
 		return repr.NewsSubmission{}, "", newsWriteErr(gerr)
 	}
 	etag := newsETag(cur)
-	edits := in.Title != nil || in.Summary != nil || in.SourceURL != nil || in.BannerHash != nil || in.WorkIDs != nil
+	edits := in.Title != nil || in.Summary != nil || in.Body != nil || in.SourceURL != nil || in.BannerHash != nil || in.WorkIDs != nil
 	if in.Status == nil && !edits {
 		p := problem.New(problem.CodeValidationFailed, "", "", "this patch changes nothing.")
-		p.Errors = []problem.FieldError{{Pointer: "/status", Reason: problem.ReasonRequired, Detail: "send status=withdrawn, or at least one of title, summary, source_url, banner_hash, work_ids"}}
+		p.Errors = []problem.FieldError{{Pointer: "/status", Reason: problem.ReasonRequired, Detail: "send status=withdrawn, or at least one of title, summary, body, source_url, banner_hash, work_ids"}}
 		return repr.NewsSubmission{}, "", p
 	}
 	if in.Status != nil {
 		if edits {
 			p := problem.New(problem.CodeValidationFailed, "", "", "a withdrawal cannot carry a text edit.")
-			p.Errors = []problem.FieldError{{Pointer: "/status", Reason: problem.ReasonInconsistentWith, Detail: "withdraw on its own; the other members of this body edit text and are only legal while pending"}}
+			p.Errors = []problem.FieldError{{Pointer: "/status", Reason: problem.ReasonInconsistentWith, Detail: "withdraw on its own; the other members of this body edit the item"}}
 			return repr.NewsSubmission{}, "", p
 		}
 		if *in.Status != "withdrawn" {
@@ -162,7 +174,7 @@ func (c *Catalog) PatchMyNews(ctx context.Context, id int64, in newsPatchBody, i
 		}
 		return newsSubmissionRecord(row), newsETag(row), nil
 	}
-	if cur.Status != newsmodel.StatusPending {
+	if cur.Status != newsmodel.StatusPending && cur.Status != newsmodel.StatusPublished {
 		return repr.NewsSubmission{}, "", newsTransitionRefusal(cur.Status)
 	}
 	if strings.TrimSpace(ifMatch) != "" {
@@ -174,17 +186,21 @@ func (c *Catalog) PatchMyNews(ctx context.Context, id int64, in newsPatchBody, i
 	if in.Title != nil && strings.TrimSpace(*in.Title) == "" {
 		p.Errors = append(p.Errors, problem.FieldError{Pointer: "/title", Reason: problem.ReasonRequired, Detail: "a news item needs a title"})
 	}
+	community := cur.SourceKey == newsmodel.SourceKeyCommunity
 	if in.Summary != nil {
 		p.Errors = append(p.Errors, newsSummaryErrors("/summary", *in.Summary)...)
 	}
+	if in.Body != nil {
+		p.Errors = append(p.Errors, newsBodyErrors("/body", *in.Body, community)...)
+	}
 	if in.SourceURL != nil {
-		p.Errors = append(p.Errors, newsSourceURLErrors("/source_url", *in.SourceURL)...)
+		p.Errors = append(p.Errors, newsSourceURLErrors("/source_url", *in.SourceURL, community)...)
 	}
 	if in.BannerHash != nil {
 		p.Errors = append(p.Errors, newsBannerErrors("/banner_hash", *in.BannerHash)...)
 	}
 	params := newssvc.UpdateParams{
-		Title: in.Title, Preview: in.Summary, SourceURL: in.SourceURL, BannerHash: in.BannerHash,
+		Title: in.Title, Preview: in.Summary, Body: in.Body, SourceURL: in.SourceURL, BannerHash: in.BannerHash,
 	}
 	if in.WorkIDs != nil {
 		ids, werrs := newsWorkIDs(*in.WorkIDs)
@@ -210,4 +226,17 @@ func (c *Catalog) newsActor(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	return uid, nil
+}
+
+func (c *Catalog) checkNewsQuota(ctx context.Context, uid int64) error {
+	limit := keys.CatalogNewsSubmissionsPerDay.Get()
+	window := quotaWindow()
+	used, err := c.NewsWrite.CountCommunitySince(ctx, uid, time.Now().Add(-window))
+	if err != nil {
+		return err
+	}
+	if used >= limit {
+		return quotaExceeded("the community news submission limit for this account is exhausted", used, limit, window)
+	}
+	return nil
 }

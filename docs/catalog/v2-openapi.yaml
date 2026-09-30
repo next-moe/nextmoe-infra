@@ -1454,6 +1454,10 @@ components:
           maxLength: 64
           pattern: ^([0-9a-f]{64})?$
           type: string
+        body:
+          description: The item's own text, CommonMark Markdown, at most 20000 runes (longer is 422 TOO_LONG). Only a community submission may carry one. Must not be used as a discriminant.
+          maxLength: 80000
+          type: string
         lane:
           description: Section of the source. Defaults to news.
           enum:
@@ -1467,21 +1471,18 @@ components:
           maxLength: 32
           type: string
         source:
-          description: News source key. Must be a source bound to the bearer and active.
+          description: News source key. Omit it for community, which any signed-in user may submit to. Any other source must be bound to the bearer as its publisher and active.
           maxLength: 64
-          minLength: 1
           pattern: ^[a-z][a-z0-9_]*$
           type: string
           x-vocabulary: sources
           x-vocabulary-closed: false
         source_url:
-          description: Canonical link to the original item. Attribution always carries a link.
-          format: uri
+          description: Canonical link to the original item, an absolute http(s) URL. Required for a partner source, whose attribution always carries a link; optional for an original community submission. Must not be used as a discriminant.
           maxLength: 1024
-          minLength: 1
           type: string
         summary:
-          description: The lede the source wrote. At most 200 runes; longer is 422 VALIDATION_FAILED with reason TOO_LONG. Must not be used as a discriminant.
+          description: The lede. At most 200 runes; longer is 422 VALIDATION_FAILED with reason TOO_LONG. Must not be used as a discriminant.
           maxLength: 2000
           minLength: 1
           type: string
@@ -1497,10 +1498,8 @@ components:
           maxItems: 100
           type: array
       required:
-        - source
         - title
         - summary
-        - source_url
       type: object
     CreateProposalInputBody:
       additionalProperties: true
@@ -5315,6 +5314,13 @@ components:
             - $ref: "#/components/schemas/Image"
             - type: "null"
           description: Lead image. null when the item has none.
+        body:
+          description: "The item's own text, CommonMark Markdown, at most 20000 runes. Only on GET /v2/news/{id}, and only when has_body is true; the list omits it. Render it as untrusted user content: raw HTML must not be rendered. Must not be used as a discriminant."
+          maxLength: 20000
+          type: string
+        has_body:
+          description: Whether the item carries a body of its own. Only community submissions do; a partner item is its summary plus source_url.
+          type: boolean
         id:
           description: News item id.
           maxLength: 20
@@ -5343,10 +5349,18 @@ components:
           $ref: "#/components/schemas/NewsSource"
           description: Attribution. Required on view=basic.
         source_url:
-          description: Canonical link to the original item.
+          description: Canonical link to the original item. Empty string for an original community submission, which has no original elsewhere.
           format: uri
           maxLength: 1024
           type: string
+        submitter_uid:
+          description: "The account that submitted the item through /v2/me/news: the central sign-in user id shared by every NextMoe site. null for items imported from a partner."
+          maxLength: 20
+          minLength: 1
+          pattern: ^[0-9]+$
+          type:
+            - string
+            - "null"
         summary:
           description: Source-provided lede. Must not be used as a discriminant.
           maxLength: 8000
@@ -5365,6 +5379,8 @@ components:
         - lane
         - banner
         - published_at
+        - submitter_uid
+        - has_body
       type: object
     NewsSource:
       additionalProperties: true
@@ -5421,6 +5437,10 @@ components:
             - $ref: "#/components/schemas/Image"
             - type: "null"
           description: "Lead image. null when there is none. B10: never a bare hash."
+        body:
+          description: The item's own text, CommonMark Markdown. Only community submissions carry one; empty string otherwise. Must not be used as a discriminant.
+          maxLength: 20000
+          type: string
         id:
           description: News item id. Same id space as /v2/news.
           maxLength: 20
@@ -5449,7 +5469,7 @@ components:
           $ref: "#/components/schemas/NewsSource"
           description: The source row that grants this submission.
         source_url:
-          description: Canonical link to the original item.
+          description: Canonical link to the original item. Empty string for an original community submission.
           format: uri
           maxLength: 1024
           type: string
@@ -5462,6 +5482,14 @@ components:
             - withdrawn
           type: string
           x-vocabulary-closed: true
+        submitter_uid:
+          description: "The account that submitted the item: the central sign-in user id shared by every NextMoe site. null for an item a partner source imported."
+          maxLength: 20
+          minLength: 1
+          pattern: ^[0-9]+$
+          type:
+            - string
+            - "null"
         summary:
           description: Lede, at most 200 runes. Must not be used as a discriminant.
           maxLength: 200
@@ -5487,6 +5515,8 @@ components:
         - banner
         - published_at
         - work_ids
+        - body
+        - submitter_uid
       type: object
     ObjectSchema:
       additionalProperties: true
@@ -5660,11 +5690,13 @@ components:
           maxLength: 64
           pattern: ^([0-9a-f]{64})?$
           type: string
+        body:
+          description: At most 20000 runes. Only a community submission may carry one; the empty string clears it. Must not be used as a discriminant.
+          maxLength: 80000
+          type: string
         source_url:
-          description: Canonical link to the original item.
-          format: uri
+          description: Canonical link to the original item, an absolute http(s) URL. The empty string clears it, which only a community submission may do. Must not be used as a discriminant.
           maxLength: 1024
-          minLength: 1
           type: string
         status:
           description: Only withdrawn. Publishing and rejection happen in the moderation queue, never here.
@@ -8729,7 +8761,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.36.0
+  version: 2.37.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -18025,7 +18057,7 @@ paths:
         - me
   /v2/me/news:
     get:
-      description: Items under the sources bound to the bearer, pending included. Keyset-paginated. Requires a user access token.
+      description: Items the bearer submitted, plus every item under a partner source bound to the bearer, pending included. Keyset-paginated. Requires a user access token.
       operationId: listMyNews
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -18179,7 +18211,7 @@ paths:
       tags:
         - me
     post:
-      description: "Always lands on pending: publishing is a human step. source must be bound to the bearer and active. Requires a user access token."
+      description: "Any signed-in user may submit to source community (the default): the item lands on pending and goes out once a moderator publishes it, and an account that has used up catalog.news_submissions_per_day inside the sliding window is refused 429 QUOTA_EXCEEDED. A partner source must be bound to the bearer and active; its item lands on pending, or straight on published when the source is trusted. Requires a user access token."
       operationId: createMyNews
       parameters:
         - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
@@ -18363,7 +18395,7 @@ paths:
       tags:
         - me
     patch:
-      description: While pending, edits title/summary/source_url/banner_hash/work_ids and sends the item back for machine scoring. Once published the only legal transition is {"status":"withdrawn"} with If-Match. rejected is terminal.
+      description: A pending or published item may be edited (title/summary/body/source_url/banner_hash/work_ids). A pending edit is scored again; a published edit takes the item off the feed and back to pending until a moderator publishes it again, unless its source is trusted. A published item may be withdrawn with {"status":"withdrawn"} and If-Match. rejected and withdrawn are terminal.
       operationId: patchMyNewsItem
       parameters:
         - description: News item id.
@@ -21750,7 +21782,7 @@ paths:
         - news
   /v2/news/{id}:
     get:
-      description: "A published news item. A withdrawn item is 410 GONE, not 404: a mirror that only sees the item leave the list never learns the copy it took was pulled. An item that never existed, or is still pending, is 404. Unauthenticated. source and source_url are always present."
+      description: "A published news item. A withdrawn item is 410 GONE, not 404: a mirror that only sees the item leave the list never learns the copy it took was pulled. An item that never existed, or is still pending, is 404. Unauthenticated. source and source_url are always present; source_url is the empty string for an original community submission, which carries body instead."
       operationId: getNewsItem
       parameters:
         - description: Decimal news item id.

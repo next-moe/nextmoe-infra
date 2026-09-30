@@ -329,8 +329,8 @@ func (w *writer) applyIssue(ctx context.Context, seg Segmentation, published tim
 // homepage_url would put a wrong link under the one condition she set.
 func (w *writer) seedSource(ctx context.Context) error {
 	const stmt = `
-		INSERT INTO news_source (key, display_name, homepage_url, attribution, publisher_uid, column_url, active)
-		VALUES (?, ?, ?, ?, ?, ?, true)
+		INSERT INTO news_source (key, display_name, homepage_url, attribution, publisher_uid, column_url, active, auto_publish)
+		VALUES (?, ?, ?, ?, ?, ?, true, true)
 		ON CONFLICT (key) DO NOTHING`
 	return w.db.WithContext(ctx).Exec(stmt,
 		model.SourceKeyHihyou,

@@ -75,7 +75,7 @@ func registerNews(api huma.API, cat *Catalog) {
 		Method:             http.MethodGet,
 		Path:               "/v2/news/{id}",
 		Summary:            "Get one news item",
-		Description:        "A published news item. A withdrawn item is 410 GONE, not 404: a mirror that only sees the item leave the list never learns the copy it took was pulled. An item that never existed, or is still pending, is 404. Unauthenticated. source and source_url are always present.",
+		Description:        "A published news item. A withdrawn item is 410 GONE, not 404: a mirror that only sees the item leave the list never learns the copy it took was pulled. An item that never existed, or is still pending, is 404. Unauthenticated. source and source_url are always present; source_url is the empty string for an original community submission, which carries body instead.",
 		Tags:               news,
 		Errors:             collectionErrors(http.StatusNotFound, http.StatusGone, http.StatusServiceUnavailable),
 		SkipValidateParams: true,

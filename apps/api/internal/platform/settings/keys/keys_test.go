@@ -70,6 +70,7 @@ var goldenNames = []string{
 	"catalog.claim_writes_per_day_trusted",
 	"catalog.proposals_per_day",
 	"catalog.proposals_per_day_trusted",
+	"catalog.news_submissions_per_day",
 	"community.sandbox_max_links",
 	"community.sandbox_max_images",
 	"community.sandbox_max_mentions",

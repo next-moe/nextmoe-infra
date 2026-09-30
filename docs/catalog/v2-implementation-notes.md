@@ -379,17 +379,17 @@ The first two are the same defect shape in a different env var. They are deliber
 | `GET /v2/catalog/proposals` `/{id}` | public, application key; no `patch`, no `decision_note`; `include=amendments` |
 | `POST /v2/moderation/reverts` | `revision_id` loads `edit_revision` then `Revert` |
 | `GET /v2/moderation/snapshots/{object}/{id}` | `CurrentSnapshot` |
-| `GET /v2/me/news` | Items under `news_source.publisher_uid = caller`, pending included. Keyset on `news_item.id` DESC |
-| `POST /v2/me/news` | `SubmissionService.Create` → always `status = pending`. 201 + `Location` + full body + `ETag`. `Idempotency-Key` via the shared POST middleware |
+| `GET /v2/me/news` | Items with `submitter_uid = caller`, plus items under `news_source.publisher_uid = caller`, pending included. Keyset on `news_item.id` DESC |
+| `POST /v2/me/news` | `SubmissionService.Create`. `source` defaults to `community` (any user, always `pending`, `catalog.news_submissions_per_day` quota); a partner source lands `pending`, or `published` when `news_source.auto_publish`. 201 + `Location` + full body + `ETag`. `Idempotency-Key` via the shared POST middleware |
 | `GET /v2/me/news/{id}` | `{id}` is the news item id; carries the `If-Match` ETag |
-| `PATCH /v2/me/news/{id}` | Pending: edits `title`/`summary`/`source_url`/`banner_hash`/`work_ids`. Published: only `{"status":"withdrawn"}`, `If-Match` mandatory (428 without) |
+| `PATCH /v2/me/news/{id}` | Pending or published: edits `title`/`summary`/`body`/`source_url`/`banner_hash`/`work_ids`; a published edit goes back to `pending` unless the source is trusted. Published: `{"status":"withdrawn"}`, `If-Match` mandatory (428 without) |
 
 `content_limit` on claim POST is not stored (no column on the claim row). Omit it.
 
 News write specifics:
 
 - **Zero schema change.** `upstream_category` and `banner_origin_url` are importer-only and are written as `''`; `news_item_work.confidence` is `0` (manual).
-- **Re-moderation is inherited, not rebuilt.** `newsmoderate.Runner` selects `status = pending`, recomputes `NewsItem.Fingerprint()` (title + preview + lane) per row, and re-scores whenever no settled verdict exists for that exact digest. A pending text edit therefore re-enters the machine queue with no new code; a `source_url` / `banner_hash` / `work_ids` edit correctly does not.
+- **Re-moderation is inherited, not rebuilt.** `newsmoderate.Runner` selects `status = pending`, recomputes `NewsItem.Fingerprint()` (title + preview + lane, + body when non-empty) per row, and re-scores whenever no settled verdict exists for that exact digest. A pending text edit therefore re-enters the machine queue with no new code; a `source_url` / `banner_hash` / `work_ids` edit correctly does not.
 - **`banner_hash` is a format check only** (`^[0-9a-f]{64}$`, the image service's sha256 hex). No call to the image service, so a syntactically valid hash for bytes that do not exist is accepted and renders as a broken banner in the moderation queue.
 - **Refping tolerates native rows.** `news/imagerefs` collects `banner_hash <> ''` and never reads `banner_origin_url`, so an API-submitted banner with an empty origin is inside the daily sweep. ⚠️ The sweep authenticates as the **news** image client and is site-scoped: bytes a publisher uploaded under a different site's client will `not_found` on every ping and rot at the image service's TTL.
 
@@ -1861,3 +1861,19 @@ A user follows a catalog company in order to track what that company releases. T
 
 **Spec is 2.36.0.** Additive: `listMyCompanyFollows`, `getMyCompanyFollow`, `putMyCompanyFollow`, `deleteMyCompanyFollow`, `listMyCalendar`, and `Company.follower_count` on the detail face.
 
+## Wave — community news submissions (2026-09-29)
+
+The user ruled that every signed-in account may submit news, with original body text, and that editing a published item sends it back to review. Before this wave `/v2/me/news` was open only to the two partner publishers bound through `news_source.publisher_uid`, and nobody had used it (0 native rows in production).
+
+- **Community source.** A seeded `news_source` row `community` (publisher_uid 0, `auto_publish = false`) takes submissions from any user token; `source` defaults to it. A community item always lands `pending` and goes out only when a moderator publishes it in the console; the existing Tier0 + AI scoring runs on it like any pending item, now over title + summary + body.
+- **Ownership.** `news_item.submitter_uid` records the author of every native submission (NULL on importer rows). "Mine" is `submitter_uid = caller OR source bound to caller`, so a partner publisher still sees everything its source imported. Another account's item is `404`, as before.
+- **Body.** `news_item.body`, CommonMark Markdown, at most 20,000 runes. A DB CHECK allows it only on the community source: 月幕 granted a preview and a link, never the article, and 批评's grant is the weekly split into items — the migration test that used to pin "no body column" now pins that constraint. `source_url` becomes optional for community items (an original has no original elsewhere) and stays required, http(s) only, for partner sources.
+- **Read face.** `/v2/news` items gain `submitter_uid` (null for imports) and `has_body`. `body` appears only on `GET /v2/news/{id}`; the list never carries it.
+- **Edits after publication.** A pending or published item is editable; a published edit moves it back to `pending` (one `news_moderation_decision` row, actor = the submitter) and off the public face until a moderator publishes it again. rejected and withdrawn stay terminal.
+- **Trusted sources.** `news_source.auto_publish` is the single review switch. It is true for `ymgal` and `galgame_hihyou` (set once, in the migration that adds the column, per the 2026-09-05 and 2026-09-29 adjudications). A partner's own submission then publishes on creation (decision row, actor 0) and an edit keeps it published; the importers' standing release (`service.ReleasePendingImports`) also acts only while the flag is on, so turning it off puts a source back behind the console without a deploy.
+- **Quota.** `catalog.news_submissions_per_day` (default 10) over the shared `catalog.write_quota_window_hours` window; 429 `QUOTA_EXCEEDED`. `0` closes community submission. Partner sources are not counted.
+- **Account erasure.** The catalog process runs a third `accountpurge` consumer, `news`, with its cursor in `kun_news.account_purge_cursor`: an erased account's items are withdrawn and their summary and body cleared (the title stays for the audit trail), one decision row each.
+
+**Migration required**: `go run ./cmd/migrate news` against `kun_news` (the `migrate-news` job on deploy) adds `news_item.submitter_uid`, `news_item.body` (NOT NULL DEFAULT ''), `news_source.auto_publish` (backfilled true for the two partners on the run that adds it), the `news_item_body_community` CHECK, the `news_item_submitter` index, the `community` source row and `account_purge_cursor`. Additive; existing rows keep their values.
+
+**Spec is 2.37.0.** Additive: `NewsItem.submitter_uid` / `has_body` / `body`, `NewsSubmission.body` / `submitter_uid`, request `body`; `source` and `source_url` become optional on `createMyNews`.

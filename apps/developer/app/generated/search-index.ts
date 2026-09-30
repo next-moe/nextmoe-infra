@@ -1181,7 +1181,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "获取一条资讯",
     "s": "端点 · 资讯",
     "d": "GET /v2/news/{id}",
-    "b": "getNewsItem /v2/news/{id} get Get one news item A published news item. A withdrawn item is 410 GONE, not 404: a mirror that only sees the item leave the list never learns the copy it took was pulled. An item that never existed, or is still pending, is 404. Unauthenticated. source and source_url are always present. 一条已发布的情报。已撤回的条目返回 410 GONE 而非 404：只看到条目从列表里消失的镜像，永远不会知道它已经取走的副本被撤下了。从不存在的 id、以及仍在待审的条目，返回 404。无需凭证。source 与 source_url 永远存在。 id"
+    "b": "getNewsItem /v2/news/{id} get Get one news item A published news item. A withdrawn item is 410 GONE, not 404: a mirror that only sees the item leave the list never learns the copy it took was pulled. An item that never existed, or is still pending, is 404. Unauthenticated. source and source_url are always present; source_url is the empty string for an original community submission, which carries body instead. 一条已发布的情报。已撤回的条目返回 410 GONE 而非 404：只看到条目从列表里消失的镜像，永远不会知道它已经取走的副本被撤下了。从不存在的 id、以及仍在待审的条目，返回 404。无需凭证。source 与 source_url 永远存在；原创社区投稿的 source_url 为空字符串，改由 body 承载正文。 id"
   },
   {
     "r": "/docs/v2/listPublicFolders",
@@ -1391,14 +1391,14 @@ export const searchIndex: SearchEntry[] = [
     "t": "列出我的资讯条目",
     "s": "端点 · 我的",
     "d": "GET /v2/me/news",
-    "b": "listMyNews /v2/me/news get List my news items Items under the sources bound to the bearer, pending included. Keyset-paginated. Requires a user access token. 绑定到持有者的来源下的条目，含 pending。keyset 分页。需要用户访问令牌。 cursor limit view include fields ids refs include_total facets sort nsfw"
+    "b": "listMyNews /v2/me/news get List my news items Items the bearer submitted, plus every item under a partner source bound to the bearer, pending included. Keyset-paginated. Requires a user access token. 持有者投稿的条目，外加绑定到持有者的合作方来源下的全部条目，含 pending。keyset 分页。需要用户访问令牌。 cursor limit view include fields ids refs include_total facets sort nsfw"
   },
   {
     "r": "/docs/v2/createMyNews",
     "t": "提交资讯",
     "s": "端点 · 我的",
     "d": "POST /v2/me/news",
-    "b": "createMyNews /v2/me/news post Submit a news item Always lands on pending: publishing is a human step. source must be bound to the bearer and active. Requires a user access token. 始终落入 pending：发布是人工步骤。source 必须绑定到持有者且为 active。需要用户访问令牌。 Idempotency-Key"
+    "b": "createMyNews /v2/me/news post Submit a news item Any signed-in user may submit to source community (the default): the item lands on pending and goes out once a moderator publishes it, and an account that has used up catalog.news_submissions_per_day inside the sliding window is refused 429 QUOTA_EXCEEDED. A partner source must be bound to the bearer and active; its item lands on pending, or straight on published when the source is trusted. Requires a user access token. 任何已登录用户都可以投稿到 community 来源(缺省值)：条目落入 pending，由审核员发布后才上线；在滑动窗口内用满 catalog.news_submissions_per_day 的账号会被拒以 429 QUOTA_EXCEEDED。合作方来源必须绑定到持有者且为 active；其条目落入 pending，来源受信任时直接落为 published。需要用户访问令牌。 Idempotency-Key"
   },
   {
     "r": "/docs/v2/getMyNewsItem",
@@ -1412,7 +1412,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "编辑或撤回我的一条资讯",
     "s": "端点 · 我的",
     "d": "PATCH /v2/me/news/{id}",
-    "b": "patchMyNewsItem /v2/me/news/{id} patch Edit or withdraw one of my news items While pending, edits title/summary/source_url/banner_hash/work_ids and sends the item back for machine scoring. Once published the only legal transition is {\"status\":\"withdrawn\"} with If-Match. rejected is terminal. 处于 pending 时，可编辑 title/summary/source_url/banner_hash/work_ids 并把条目送回机器打分。一旦 published，唯一合法迁移是带 If-Match 的 {\"status\":\"withdrawn\"}。rejected 为终态。 id If-Match"
+    "b": "patchMyNewsItem /v2/me/news/{id} patch Edit or withdraw one of my news items A pending or published item may be edited (title/summary/body/source_url/banner_hash/work_ids). A pending edit is scored again; a published edit takes the item off the feed and back to pending until a moderator publishes it again, unless its source is trusted. A published item may be withdrawn with {\"status\":\"withdrawn\"} and If-Match. rejected and withdrawn are terminal. pending 或 published 的条目都可以编辑(title/summary/body/source_url/banner_hash/work_ids)。pending 的编辑会重新打分；published 的编辑会让条目从列表下线、回到 pending，直到审核员再次发布，来源受信任时除外。published 的条目可以带 If-Match 用 {\"status\":\"withdrawn\"} 撤回。rejected 与 withdrawn 为终态。 id If-Match"
   },
   {
     "r": "/docs/v2/listMyPlaytimes",

@@ -31,7 +31,8 @@ export const NEWS_LANE_LABELS: Record<string, string> = {
 
 export const NEWS_SOURCE_LABELS: Record<string, string> = {
   ymgal: '月幕 Galgame',
-  galgame_hihyou: 'Galgame 批评'
+  galgame_hihyou: 'Galgame 批评',
+  community: '用户投稿'
 }
 
 // The transition table mirrors service/admin.go. It is duplicated rather than

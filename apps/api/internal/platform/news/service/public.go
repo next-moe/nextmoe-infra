@@ -135,7 +135,11 @@ type itemRow struct {
 	BannerHash  string `gorm:"column:banner_hash"`
 	PublishedAt time.Time
 	// Only Item() selects this; Feed already filters on status in SQL.
-	Status int16
+	Status       int16
+	SubmitterUID *int64 `gorm:"column:submitter_uid"`
+	HasBody      bool   `gorm:"column:has_body"`
+	// Only Item() selects the body itself.
+	Body string
 }
 
 func (s *PublicService) Feed(ctx context.Context, f FeedFilter, cursor string, limit int) (dto.PublicNewsFeedData, error) {
@@ -154,7 +158,8 @@ func (s *PublicService) Feed(ctx context.Context, f FeedFilter, cursor string, l
 	}
 	args = append(args, limit)
 
-	q := `SELECT i.id, i.source_key, i.lane, i.title, i.preview, i.source_url, i.banner_hash, i.published_at
+	q := `SELECT i.id, i.source_key, i.lane, i.title, i.preview, i.source_url, i.banner_hash, i.published_at,
+			i.submitter_uid, i.body <> '' AS has_body
 		FROM news_item i WHERE ` + strings.Join(where, " AND ") + `
 		ORDER BY i.published_at DESC, i.id DESC LIMIT ?`
 
@@ -177,7 +182,8 @@ func (s *PublicService) Feed(ctx context.Context, f FeedFilter, cursor string, l
 
 func (s *PublicService) Item(ctx context.Context, id int64) (dto.PublicNewsItem, error) {
 	var rows []itemRow
-	q := `SELECT i.id, i.source_key, i.lane, i.title, i.preview, i.source_url, i.banner_hash, i.published_at, i.status
+	q := `SELECT i.id, i.source_key, i.lane, i.title, i.preview, i.source_url, i.banner_hash, i.published_at, i.status,
+			i.submitter_uid, i.body <> '' AS has_body, i.body
 		FROM news_item i WHERE i.id = ? AND i.dead_at IS NULL`
 	if err := s.db.WithContext(ctx).Raw(q, id).Scan(&rows).Error; err != nil {
 		return dto.PublicNewsItem{}, err
@@ -240,17 +246,20 @@ func (s *PublicService) buildItems(ctx context.Context, rows []itemRow) ([]dto.P
 	out := make([]dto.PublicNewsItem, len(rows))
 	for i, r := range rows {
 		out[i] = dto.PublicNewsItem{
-			ID:          r.ID,
-			Source:      sources[r.SourceKey],
-			Lane:        r.Lane,
-			SourceURL:   r.SourceURL,
-			Title:       r.Title,
-			Preview:     r.Preview,
-			BannerURL:   s.imageURL(r.BannerHash),
-			BannerHash:  r.BannerHash,
-			Images:      images[r.ID],
-			PublishedAt: r.PublishedAt.UTC(),
-			WorkIDs:     works[r.ID],
+			ID:           r.ID,
+			Source:       sources[r.SourceKey],
+			Lane:         r.Lane,
+			SourceURL:    r.SourceURL,
+			Title:        r.Title,
+			Preview:      r.Preview,
+			BannerURL:    s.imageURL(r.BannerHash),
+			BannerHash:   r.BannerHash,
+			Images:       images[r.ID],
+			PublishedAt:  r.PublishedAt.UTC(),
+			WorkIDs:      works[r.ID],
+			Body:         r.Body,
+			HasBody:      r.HasBody,
+			SubmitterUID: r.SubmitterUID,
 		}
 	}
 	return out, nil
