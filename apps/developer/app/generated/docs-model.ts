@@ -93354,6 +93354,17 @@ export const docsModel: DocsModel = {
                               "doc": "Lead image. null when the item has none."
                             },
                             {
+                              "name": "body",
+                              "doc": "The item's own text, CommonMark Markdown, at most 20000 runes. Only on GET /v2/news/{id}, and only when has_body is true; the list omits it. Render it as untrusted user content: raw HTML must not be rendered. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "has_body",
+                              "required": true,
+                              "doc": "Whether the item carries a body of its own. Only community submissions do; a partner item is its summary plus source_url.",
+                              "type": "boolean"
+                            },
+                            {
                               "name": "id",
                               "required": true,
                               "doc": "News item id.",
@@ -93436,8 +93447,15 @@ export const docsModel: DocsModel = {
                             {
                               "name": "source_url",
                               "required": true,
-                              "doc": "Canonical link to the original item.",
+                              "doc": "Canonical link to the original item. Empty string for an original community submission, which has no original elsewhere.",
                               "format": "uri",
+                              "type": "string"
+                            },
+                            {
+                              "name": "submitter_uid",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "The account that submitted the item through /v2/me/news: the central sign-in user id shared by every NextMoe site. null for items imported from a partner.",
                               "type": "string"
                             },
                             {
@@ -95217,7 +95235,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/news/{id}",
               "summary": "Get one news item",
-              "description": "A published news item. A withdrawn item is 410 GONE, not 404: a mirror that only sees the item leave the list never learns the copy it took was pulled. An item that never existed, or is still pending, is 404. Unauthenticated. source and source_url are always present.",
+              "description": "A published news item. A withdrawn item is 410 GONE, not 404: a mirror that only sees the item leave the list never learns the copy it took was pulled. An item that never existed, or is still pending, is 404. Unauthenticated. source and source_url are always present; source_url is the empty string for an original community submission, which carries body instead.",
               "scope": "",
               "auth": {
                 "kind": "none",
@@ -95317,6 +95335,17 @@ export const docsModel: DocsModel = {
                         "doc": "Lead image. null when the item has none."
                       },
                       {
+                        "name": "body",
+                        "doc": "The item's own text, CommonMark Markdown, at most 20000 runes. Only on GET /v2/news/{id}, and only when has_body is true; the list omits it. Render it as untrusted user content: raw HTML must not be rendered. Must not be used as a discriminant.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "has_body",
+                        "required": true,
+                        "doc": "Whether the item carries a body of its own. Only community submissions do; a partner item is its summary plus source_url.",
+                        "type": "boolean"
+                      },
+                      {
                         "name": "id",
                         "required": true,
                         "doc": "News item id.",
@@ -95399,8 +95428,15 @@ export const docsModel: DocsModel = {
                       {
                         "name": "source_url",
                         "required": true,
-                        "doc": "Canonical link to the original item.",
+                        "doc": "Canonical link to the original item. Empty string for an original community submission, which has no original elsewhere.",
                         "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "submitter_uid",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "The account that submitted the item through /v2/me/news: the central sign-in user id shared by every NextMoe site. null for items imported from a partner.",
                         "type": "string"
                       },
                       {
@@ -145083,7 +145119,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/me/news",
               "summary": "List my news items",
-              "description": "Items under the sources bound to the bearer, pending included. Keyset-paginated. Requires a user access token.",
+              "description": "Items the bearer submitted, plus every item under a partner source bound to the bearer, pending included. Keyset-paginated. Requires a user access token.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -145294,6 +145330,12 @@ export const docsModel: DocsModel = {
                               "doc": "Lead image. null when there is none. B10: never a bare hash."
                             },
                             {
+                              "name": "body",
+                              "required": true,
+                              "doc": "The item's own text, CommonMark Markdown. Only community submissions carry one; empty string otherwise. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
                               "name": "id",
                               "required": true,
                               "doc": "News item id. Same id space as /v2/news.",
@@ -145376,7 +145418,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "source_url",
                               "required": true,
-                              "doc": "Canonical link to the original item.",
+                              "doc": "Canonical link to the original item. Empty string for an original community submission.",
                               "format": "uri",
                               "type": "string"
                             },
@@ -145390,6 +145432,13 @@ export const docsModel: DocsModel = {
                                 "rejected",
                                 "withdrawn"
                               ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "submitter_uid",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "The account that submitted the item: the central sign-in user id shared by every NextMoe site. null for an item a partner source imported.",
                               "type": "string"
                             },
                             {
@@ -146852,7 +146901,7 @@ export const docsModel: DocsModel = {
               "method": "post",
               "path": "/v2/me/news",
               "summary": "Submit a news item",
-              "description": "Always lands on pending: publishing is a human step. source must be bound to the bearer and active. Requires a user access token.",
+              "description": "Any signed-in user may submit to source community (the default): the item lands on pending and goes out once a moderator publishes it, and an account that has used up catalog.news_submissions_per_day inside the sliding window is refused 429 QUOTA_EXCEEDED. A partner source must be bound to the bearer and active; its item lands on pending, or straight on published when the source is trusted. Requires a user access token.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -146878,6 +146927,11 @@ export const docsModel: DocsModel = {
                     "type": "string"
                   },
                   {
+                    "name": "body",
+                    "doc": "The item's own text, CommonMark Markdown, at most 20000 runes (longer is 422 TOO_LONG). Only a community submission may carry one. Must not be used as a discriminant.",
+                    "type": "string"
+                  },
+                  {
                     "name": "lane",
                     "doc": "Section of the source. Defaults to news.",
                     "enum": [
@@ -146894,21 +146948,18 @@ export const docsModel: DocsModel = {
                   },
                   {
                     "name": "source",
-                    "required": true,
-                    "doc": "News source key. Must be a source bound to the bearer and active.",
+                    "doc": "News source key. Omit it for community, which any signed-in user may submit to. Any other source must be bound to the bearer as its publisher and active.",
                     "type": "string"
                   },
                   {
                     "name": "source_url",
-                    "required": true,
-                    "doc": "Canonical link to the original item. Attribution always carries a link.",
-                    "format": "uri",
+                    "doc": "Canonical link to the original item, an absolute http(s) URL. Required for a partner source, whose attribution always carries a link; optional for an original community submission. Must not be used as a discriminant.",
                     "type": "string"
                   },
                   {
                     "name": "summary",
                     "required": true,
-                    "doc": "The lede the source wrote. At most 200 runes; longer is 422 VALIDATION_FAILED with reason TOO_LONG. Must not be used as a discriminant.",
+                    "doc": "The lede. At most 200 runes; longer is 422 VALIDATION_FAILED with reason TOO_LONG. Must not be used as a discriminant.",
                     "type": "string"
                   },
                   {
@@ -147010,6 +147061,12 @@ export const docsModel: DocsModel = {
                         "doc": "Lead image. null when there is none. B10: never a bare hash."
                       },
                       {
+                        "name": "body",
+                        "required": true,
+                        "doc": "The item's own text, CommonMark Markdown. Only community submissions carry one; empty string otherwise. Must not be used as a discriminant.",
+                        "type": "string"
+                      },
+                      {
                         "name": "id",
                         "required": true,
                         "doc": "News item id. Same id space as /v2/news.",
@@ -147092,7 +147149,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "source_url",
                         "required": true,
-                        "doc": "Canonical link to the original item.",
+                        "doc": "Canonical link to the original item. Empty string for an original community submission.",
                         "format": "uri",
                         "type": "string"
                       },
@@ -147106,6 +147163,13 @@ export const docsModel: DocsModel = {
                           "rejected",
                           "withdrawn"
                         ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "submitter_uid",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "The account that submitted the item: the central sign-in user id shared by every NextMoe site. null for an item a partner source imported.",
                         "type": "string"
                       },
                       {
@@ -149036,7 +149100,7 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl -X POST \"https://api.nextmoe.dev/v2/me/news\" \\\n  -H \"Authorization: Bearer <ACCESS_TOKEN>\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"source\":\"string\",\"source_url\":\"string\",\"summary\":\"string\",\"title\":\"string\"}'"
+              "curl": "curl -X POST \"https://api.nextmoe.dev/v2/me/news\" \\\n  -H \"Authorization: Bearer <ACCESS_TOKEN>\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"summary\":\"string\",\"title\":\"string\"}'"
             },
             {
               "id": "getMyNewsItem",
@@ -149143,6 +149207,12 @@ export const docsModel: DocsModel = {
                         "doc": "Lead image. null when there is none. B10: never a bare hash."
                       },
                       {
+                        "name": "body",
+                        "required": true,
+                        "doc": "The item's own text, CommonMark Markdown. Only community submissions carry one; empty string otherwise. Must not be used as a discriminant.",
+                        "type": "string"
+                      },
+                      {
                         "name": "id",
                         "required": true,
                         "doc": "News item id. Same id space as /v2/news.",
@@ -149225,7 +149295,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "source_url",
                         "required": true,
-                        "doc": "Canonical link to the original item.",
+                        "doc": "Canonical link to the original item. Empty string for an original community submission.",
                         "format": "uri",
                         "type": "string"
                       },
@@ -149239,6 +149309,13 @@ export const docsModel: DocsModel = {
                           "rejected",
                           "withdrawn"
                         ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "submitter_uid",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "The account that submitted the item: the central sign-in user id shared by every NextMoe site. null for an item a partner source imported.",
                         "type": "string"
                       },
                       {
@@ -150661,7 +150738,7 @@ export const docsModel: DocsModel = {
               "method": "patch",
               "path": "/v2/me/news/{id}",
               "summary": "Edit or withdraw one of my news items",
-              "description": "While pending, edits title/summary/source_url/banner_hash/work_ids and sends the item back for machine scoring. Once published the only legal transition is {\"status\":\"withdrawn\"} with If-Match. rejected is terminal.",
+              "description": "A pending or published item may be edited (title/summary/body/source_url/banner_hash/work_ids). A pending edit is scored again; a published edit takes the item off the feed and back to pending until a moderator publishes it again, unless its source is trusted. A published item may be withdrawn with {\"status\":\"withdrawn\"} and If-Match. rejected and withdrawn are terminal.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -150694,9 +150771,13 @@ export const docsModel: DocsModel = {
                     "type": "string"
                   },
                   {
+                    "name": "body",
+                    "doc": "At most 20000 runes. Only a community submission may carry one; the empty string clears it. Must not be used as a discriminant.",
+                    "type": "string"
+                  },
+                  {
                     "name": "source_url",
-                    "doc": "Canonical link to the original item.",
-                    "format": "uri",
+                    "doc": "Canonical link to the original item, an absolute http(s) URL. The empty string clears it, which only a community submission may do. Must not be used as a discriminant.",
                     "type": "string"
                   },
                   {
@@ -150810,6 +150891,12 @@ export const docsModel: DocsModel = {
                         "doc": "Lead image. null when there is none. B10: never a bare hash."
                       },
                       {
+                        "name": "body",
+                        "required": true,
+                        "doc": "The item's own text, CommonMark Markdown. Only community submissions carry one; empty string otherwise. Must not be used as a discriminant.",
+                        "type": "string"
+                      },
+                      {
                         "name": "id",
                         "required": true,
                         "doc": "News item id. Same id space as /v2/news.",
@@ -150892,7 +150979,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "source_url",
                         "required": true,
-                        "doc": "Canonical link to the original item.",
+                        "doc": "Canonical link to the original item. Empty string for an original community submission.",
                         "format": "uri",
                         "type": "string"
                       },
@@ -150906,6 +150993,13 @@ export const docsModel: DocsModel = {
                           "rejected",
                           "withdrawn"
                         ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "submitter_uid",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "The account that submitted the item: the central sign-in user id shared by every NextMoe site. null for an item a partner source imported.",
                         "type": "string"
                       },
                       {

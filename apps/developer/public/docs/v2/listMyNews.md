@@ -13,7 +13,7 @@
 
 List my news items
 
-Items under the sources bound to the bearer, pending included. Keyset-paginated. Requires a user access token.
+Items the bearer submitted, plus every item under a partner source bound to the bearer, pending included. Keyset-paginated. Requires a user access token.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>

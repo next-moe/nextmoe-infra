@@ -4353,7 +4353,7 @@ curl "https://api.nextmoe.dev/v2/news/sources"
 
 Get one news item
 
-A published news item. A withdrawn item is 410 GONE, not 404: a mirror that only sees the item leave the list never learns the copy it took was pulled. An item that never existed, or is still pending, is 404. Unauthenticated. source and source_url are always present.
+A published news item. A withdrawn item is 410 GONE, not 404: a mirror that only sees the item leave the list never learns the copy it took was pulled. An item that never existed, or is still pending, is 404. Unauthenticated. source and source_url are always present; source_url is the empty string for an original community submission, which carries body instead.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：无需凭据
@@ -5028,7 +5028,7 @@ curl -X DELETE "https://api.nextmoe.dev/v2/me/followed-companies/value" \
 
 List my news items
 
-Items under the sources bound to the bearer, pending included. Keyset-paginated. Requires a user access token.
+Items the bearer submitted, plus every item under a partner source bound to the bearer, pending included. Keyset-paginated. Requires a user access token.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
@@ -5057,7 +5057,7 @@ curl "https://api.nextmoe.dev/v2/me/news" \
 
 Submit a news item
 
-Always lands on pending: publishing is a human step. source must be bound to the bearer and active. Requires a user access token.
+Any signed-in user may submit to source community (the default): the item lands on pending and goes out once a moderator publishes it, and an account that has used up catalog.news_submissions_per_day inside the sliding window is refused 429 QUOTA_EXCEEDED. A partner source must be bound to the bearer and active; its item lands on pending, or straight on published when the source is trusted. Requires a user access token.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
@@ -5071,7 +5071,7 @@ Always lands on pending: publishing is a human step. source must be bound to the
 curl -X POST "https://api.nextmoe.dev/v2/me/news" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"source":"string","source_url":"string","summary":"string","title":"string"}'
+  -d '{"summary":"string","title":"string"}'
 ```
 
 ### GET /v2/me/news/{id}
@@ -5097,7 +5097,7 @@ curl "https://api.nextmoe.dev/v2/me/news/value" \
 
 Edit or withdraw one of my news items
 
-While pending, edits title/summary/source_url/banner_hash/work_ids and sends the item back for machine scoring. Once published the only legal transition is {"status":"withdrawn"} with If-Match. rejected is terminal.
+A pending or published item may be edited (title/summary/body/source_url/banner_hash/work_ids). A pending edit is scored again; a published edit takes the item off the feed and back to pending until a moderator publishes it again, unless its source is trusted. A published item may be withdrawn with {"status":"withdrawn"} and If-Match. rejected and withdrawn are terminal.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
