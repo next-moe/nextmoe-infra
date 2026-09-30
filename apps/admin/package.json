@@ -12,6 +12,7 @@
     "gen:types:catalog-admin": "pnpm dlx openapi-typescript@7.13.0 ../../docs/catalog/admin-openapi.yaml -o shared/types/generated/catalog-admin-api.ts",
     "gen:types:trust-admin": "pnpm dlx openapi-typescript@7.13.0 ../../docs/trust/admin-openapi.yaml -o shared/types/generated/trust-admin-api.ts",
     "gen:types:ai-admin": "pnpm dlx openapi-typescript@7.13.0 ../../docs/ai/admin-openapi.yaml -o shared/types/generated/ai-admin-api.ts",
+    "gen:types:telemetry-admin": "pnpm dlx openapi-typescript@7.13.0 ../../docs/telemetry/admin-openapi.yaml -o shared/types/generated/telemetry-admin-api.ts",
     "preview": "nuxt preview",
     "typecheck": "nuxt typecheck",
     "lint": "eslint .",
