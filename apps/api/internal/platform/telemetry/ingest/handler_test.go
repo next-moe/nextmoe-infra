@@ -524,3 +524,74 @@ func TestInvalidateReloads(t *testing.T) {
 		t.Fatalf("res=%v got=%+v", res, got)
 	}
 }
+
+func TestStreamedLogsBodyCapped(t *testing.T) {
+	clk := &frozenClock{t: time.Date(2026, 9, 29, 12, 0, 0, 0, time.UTC)}
+	w := &memWriter{}
+	h := NewHandler(enabledApp(), NewLimiter(clk), w, clk, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fa := fiber.New(app.StreamingFiberConfig("kun-telemetry-test"))
+	fa.Post("/v1/logs", h.Logs)
+	ready := make(chan struct{})
+	go func() {
+		_ = fa.Listener(ln, fiber.ListenConfig{
+			DisableStartupMessage: true,
+			BeforeServeFunc: func(*fiber.App) error {
+				close(ready)
+				return nil
+			},
+		})
+	}()
+	select {
+	case <-ready:
+	case <-time.After(3 * time.Second):
+		t.Fatal("fiber not ready")
+	}
+	t.Cleanup(func() { _ = fa.Shutdown() })
+	base := "http://" + ln.Addr().String()
+	client := &http.Client{Timeout: 30 * time.Second}
+
+	post := func(body io.Reader, cl int64, enc string) int {
+		t.Helper()
+		req, err := http.NewRequest(http.MethodPost, base+"/v1/logs", body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("x-telemetry-key", testKey)
+		if enc != "" {
+			req.Header.Set("Content-Encoding", enc)
+		}
+		if cl < 0 {
+			req.ContentLength = -1
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		_, _ = io.ReadAll(resp.Body)
+		return resp.StatusCode
+	}
+
+	chunked := io.NopCloser(bytes.NewReader(bytes.Repeat([]byte("x"), 10<<20)))
+	if st := post(chunked, -1, ""); st != 413 {
+		t.Fatalf("chunked 10MiB status=%d", st)
+	}
+
+	three := bytes.Repeat([]byte("y"), 3<<20)
+	if st := post(bytes.NewReader(three), int64(len(three)), ""); st != 413 {
+		t.Fatalf("3MiB cl status=%d", st)
+	}
+
+	gz := gzipJSONBytes(validJSON())
+	if st := post(bytes.NewReader(gz), int64(len(gz)), "gzip"); st != 200 {
+		t.Fatalf("gzip batch status=%d", st)
+	}
+	if w.calls != 1 {
+		t.Fatalf("writer calls=%d", w.calls)
+	}
+}

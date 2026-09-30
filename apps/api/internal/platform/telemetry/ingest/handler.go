@@ -186,6 +186,7 @@ func (h *Handler) err(c fiber.Ctx, appID int64, status int, msg string, retryAft
 }
 
 func (h *Handler) finish(c fiber.Ctx, appID int64, status int, body string, retryAfter, rejected, accepted int) error {
+	drainRequest(c, int64(maxBody)*8)
 	if retryAfter > 0 {
 		c.Set("Retry-After", strconv.Itoa(retryAfter))
 	}

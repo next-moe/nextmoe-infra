@@ -7,13 +7,14 @@ import (
 )
 
 type AppView struct {
-	ID          int64  `json:"id"`
-	ServiceName string `json:"service_name"`
-	DisplayName string `json:"display_name"`
-	IngestKey   string `json:"ingest_key"`
-	Enabled     bool   `json:"enabled"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
+	ID              int64  `json:"id"`
+	ServiceName     string `json:"service_name"`
+	DisplayName     string `json:"display_name"`
+	IngestKey       string `json:"ingest_key"`
+	Enabled         bool   `json:"enabled"`
+	HasSymbolsToken bool   `json:"has_symbols_token"`
+	CreatedAt       string `json:"created_at"`
+	UpdatedAt       string `json:"updated_at"`
 }
 
 type CreateAppRequest struct {
@@ -24,6 +25,36 @@ type CreateAppRequest struct {
 type UpdateAppRequest struct {
 	DisplayName *string `json:"display_name,omitempty"`
 	Enabled     *bool   `json:"enabled,omitempty"`
+}
+
+type SymbolsTokenView struct {
+	Token string `json:"token"`
+}
+
+type SymbolFileView struct {
+	FileName string `json:"file_name"`
+	Kind     string `json:"kind"`
+	Arch     string `json:"arch"`
+	BuildID  string `json:"build_id"`
+	SHA256   string `json:"sha256"`
+	Size     int64  `json:"size"`
+}
+
+type EngineSymbolView struct {
+	Variant   string `json:"variant"`
+	Status    string `json:"status"`
+	BuildID   string `json:"build_id"`
+	LastError string `json:"last_error"`
+}
+
+type SymbolUploadView struct {
+	ID             int64              `json:"id"`
+	AppID          int64              `json:"app_id"`
+	ServiceVersion string             `json:"service_version"`
+	EngineRevision string             `json:"engine_revision"`
+	CreatedAt      string             `json:"created_at"`
+	Files          []SymbolFileView   `json:"files"`
+	EngineSymbols  []EngineSymbolView `json:"engine_symbols,omitempty"`
 }
 
 type DailyMetricView struct {
@@ -57,13 +88,14 @@ func formatDate(t time.Time) string {
 
 func AppViewFrom(a model.App) AppView {
 	return AppView{
-		ID:          a.ID,
-		ServiceName: a.ServiceName,
-		DisplayName: a.DisplayName,
-		IngestKey:   a.IngestKey,
-		Enabled:     a.Enabled,
-		CreatedAt:   a.CreatedAt.UTC().Format(time.RFC3339),
-		UpdatedAt:   a.UpdatedAt.UTC().Format(time.RFC3339),
+		ID:              a.ID,
+		ServiceName:     a.ServiceName,
+		DisplayName:     a.DisplayName,
+		IngestKey:       a.IngestKey,
+		Enabled:         a.Enabled,
+		HasSymbolsToken: a.SymbolsTokenHash != nil && *a.SymbolsTokenHash != "",
+		CreatedAt:       a.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt:       a.UpdatedAt.UTC().Format(time.RFC3339),
 	}
 }
 

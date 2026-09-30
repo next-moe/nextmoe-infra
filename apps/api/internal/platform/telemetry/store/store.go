@@ -9,15 +9,19 @@ import (
 
 	"api/internal/platform/telemetry/ingest"
 	"api/internal/platform/telemetry/otlp"
+	"api/internal/platform/telemetry/symbols"
 
 	"gorm.io/gorm"
 )
 
 type Store struct {
-	db *gorm.DB
+	db    *gorm.DB
+	blobs symbols.BlobStore
 }
 
 func New(db *gorm.DB) *Store { return &Store{db: db} }
+
+func (s *Store) SetBlobStore(b symbols.BlobStore) { s.blobs = b }
 
 func (s *Store) Write(ctx context.Context, appID int64, receivedAt time.Time, batch otlp.Batch) error {
 	if len(batch.Records) == 0 {

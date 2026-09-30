@@ -67,6 +67,7 @@ type Config struct {
 
 	AIService        AIServiceConfig
 	TelemetryService TelemetryServiceConfig
+	TelemetrySymbols TelemetrySymbolsConfig
 	AIUpstream       AIUpstreamConfig
 	AIOmni           AIOmniConfig
 
@@ -116,6 +117,12 @@ type AIServiceConfig struct {
 type TelemetryServiceConfig struct {
 	Host string
 	Port int
+}
+
+type TelemetrySymbolsConfig struct {
+	S3                   S3Config
+	Dir                  string
+	EngineSymbolsBaseURL string
 }
 
 type AIUpstreamConfig struct {
@@ -605,6 +612,19 @@ func Load() (*Config, error) {
 	cfg.TelemetryService = TelemetryServiceConfig{
 		Host: getEnv("KUN_TELEMETRY_HOST", "127.0.0.1"),
 		Port: telemetryPort,
+	}
+	telPathStyle, _ := strconv.ParseBool(getEnv("KUN_TELEMETRY_S3_FORCE_PATH_STYLE", "true"))
+	cfg.TelemetrySymbols = TelemetrySymbolsConfig{
+		S3: S3Config{
+			Endpoint:        getEnv("KUN_TELEMETRY_S3_ENDPOINT", ""),
+			Region:          getEnv("KUN_TELEMETRY_S3_REGION", "auto"),
+			AccessKeyID:     getEnv("KUN_TELEMETRY_S3_ACCESS_KEY_ID", ""),
+			SecretAccessKey: getEnv("KUN_TELEMETRY_S3_SECRET_ACCESS_KEY", ""),
+			Bucket:          getEnv("KUN_TELEMETRY_S3_BUCKET", ""),
+			UsePathStyle:    telPathStyle,
+		},
+		Dir:                  getEnv("KUN_TELEMETRY_SYMBOLS_DIR", "/var/lib/telemetry/symbols"),
+		EngineSymbolsBaseURL: getEnv("KUN_TELEMETRY_ENGINE_SYMBOLS_BASE_URL", "https://storage.googleapis.com/flutter_infra_release/flutter"),
 	}
 	cfg.AIUpstream = AIUpstreamConfig{
 		BaseURL: getEnv("KUN_AI_UPSTREAM_BASE_URL", ""),

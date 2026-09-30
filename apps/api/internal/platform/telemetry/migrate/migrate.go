@@ -1,5 +1,6 @@
 // Package migrate owns the kun_telemetry schema: AutoMigrate for the
-// non-partitioned tables, raw SQL for the RANGE-partitioned event log
+// non-partitioned tables (apps, sessions, daily metrics, symbol uploads,
+// symbol files, blobs, engine symbols), raw SQL for the RANGE-partitioned event log
 // (PARTITION BY RANGE (event_day), PRIMARY KEY (event_day, record_uid), one
 // UTC-day partition named telemetry_event_pYYYYMMDD, no default partition —
 // an insert for a day that was not pre-created fails instead of landing in a
@@ -22,6 +23,10 @@ func Run(db *gorm.DB) error {
 		&model.App{},
 		&model.Session{},
 		&model.DailyMetric{},
+		&model.SymbolUpload{},
+		&model.SymbolFile{},
+		&model.Blob{},
+		&model.EngineSymbol{},
 	); err != nil {
 		return fmt.Errorf("telemetry automigrate: %w", err)
 	}

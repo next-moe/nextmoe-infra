@@ -17,6 +17,7 @@ import (
 	"api/internal/platform/telemetry/ingest"
 	telemetryPerm "api/internal/platform/telemetry/perm"
 	"api/internal/platform/telemetry/store"
+	"api/internal/platform/telemetry/symbols"
 	"api/pkg/config"
 	"api/pkg/health"
 	"api/pkg/logger"
@@ -36,7 +37,7 @@ func main() {
 
 	logger.Init(cfg.Server.Env)
 
-	application, err := app.New(cfg, app.Options{Name: "kun-telemetry"})
+	application, err := app.New(cfg, app.Options{Name: "kun-telemetry", StreamRequestBody: true})
 	if err != nil {
 		slog.Error("app init", "error", err)
 		os.Exit(1)
@@ -53,6 +54,12 @@ func main() {
 	}
 
 	st := store.New(telDB.DB())
+	blobs, err := newSymbolBlobs(cfg)
+	if err != nil {
+		slog.Error("telemetry symbol store", "error", err)
+		os.Exit(1)
+	}
+	st.SetBlobStore(blobs)
 	if err := st.EnsurePartitions(permCtx, time.Now().UTC()); err != nil {
 		slog.Error("telemetry ensure partitions", "error", err)
 		os.Exit(1)
@@ -68,10 +75,12 @@ func main() {
 	lim := ingest.NewLimiter(nil)
 	ing := ingest.NewHandler(cache, lim, st, nil, slog.Default())
 
-	application.Fiber.Get("/healthz", middleware.Logger(), func(c fiber.Ctx) error {
+	application.Fiber.Get("/healthz", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok"})
 	})
 	application.Fiber.Post("/v1/logs", ing.Logs)
+	sym := symbols.NewHandler(st, st, slog.Default())
+	application.Fiber.Post("/v1/symbols", sym.Symbols)
 
 	tokenVerifier := oidctoken.NewVerifierWithJWKS(cfg.JWT.Secret, cfg.OIDC.JWKSURL)
 	application.Fiber.Use("/api/v1/admin/telemetry",
@@ -84,6 +93,8 @@ func main() {
 	permissions.NewDistributor(application.DB.DB(), permissions.Live(), nil).Start(permCtx)
 
 	go runLoops(permCtx, st)
+	fetcher := symbols.NewFetcher(st, blobs, cfg.TelemetrySymbols.EngineSymbolsBaseURL, slog.Default())
+	go runEngineFetch(permCtx, st, fetcher)
 
 	slog.Info("telemetry service starting",
 		"addr", fmt.Sprintf("%s:%d", cfg.TelemetryService.Host, cfg.TelemetryService.Port),
@@ -142,6 +153,9 @@ func runHourly(ctx context.Context, st *store.Store) {
 		if err := st.PurgeExpired(ctx, now); err != nil {
 			return err
 		}
+		if err := st.PurgeExpiredSymbols(ctx, now); err != nil {
+			return err
+		}
 		return st.Rollup(ctx, today.AddDate(0, 0, -29), today)
 	}); err != nil {
 		slog.Error("telemetry hourly maintenance", "err", err)
@@ -151,4 +165,36 @@ func runHourly(ctx context.Context, st *store.Store) {
 func dateUTC(t time.Time) time.Time {
 	y, m, d := t.UTC().Date()
 	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
+}
+
+func newSymbolBlobs(cfg *config.Config) (symbols.BlobStore, error) {
+	if cfg.TelemetrySymbols.S3.Bucket != "" {
+		s3store, err := symbols.NewS3Store(cfg.TelemetrySymbols.S3)
+		if err != nil {
+			return nil, err
+		}
+		slog.Info("telemetry symbol blobs", "backend", "s3", "bucket", cfg.TelemetrySymbols.S3.Bucket)
+		return s3store, nil
+	}
+	slog.Info("telemetry symbol blobs", "backend", "filesystem", "dir", cfg.TelemetrySymbols.Dir)
+	return symbols.NewFSStore(cfg.TelemetrySymbols.Dir), nil
+}
+
+func runEngineFetch(ctx context.Context, st *store.Store, f *symbols.Fetcher) {
+	run := func() {
+		if err := st.TryEngineFetch(ctx, f.Cycle); err != nil {
+			slog.Error("telemetry engine fetch", "err", err)
+		}
+	}
+	run()
+	t := time.NewTicker(time.Minute)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			run()
+		}
+	}
 }

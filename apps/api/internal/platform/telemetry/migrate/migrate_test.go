@@ -49,6 +49,66 @@ func TestRunIdempotent(t *testing.T) {
 	}
 }
 
+func TestSymbolTablesShape(t *testing.T) {
+	want := map[string][]string{
+		"telemetry_symbol_upload": {"id", "app_id", "service_version", "engine_revision", "created_at"},
+		"telemetry_symbol_file":   {"id", "upload_id", "app_id", "service_version", "file_name", "kind", "arch", "build_id", "sha256", "size", "created_at"},
+		"telemetry_blob":          {"sha256", "size", "created_at"},
+		"telemetry_engine_symbol": {"engine_revision", "variant", "status", "build_id", "sha256", "size", "attempts", "next_attempt_at", "last_error", "updated_at"},
+	}
+	for table, cols := range want {
+		var got []string
+		if err := testDB.Raw(`
+			SELECT column_name FROM information_schema.columns
+			 WHERE table_name = ? ORDER BY ordinal_position`, table).Scan(&got).Error; err != nil {
+			t.Fatalf("%s columns: %v", table, err)
+		}
+		have := map[string]bool{}
+		for _, c := range got {
+			have[c] = true
+		}
+		for _, c := range cols {
+			if !have[c] {
+				t.Errorf("%s missing column %s (have %v)", table, c, got)
+			}
+		}
+	}
+	var appCols []string
+	if err := testDB.Raw(`
+		SELECT column_name FROM information_schema.columns
+		 WHERE table_name = 'telemetry_app'`).Scan(&appCols).Error; err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, c := range appCols {
+		if c == "symbols_token_hash" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("telemetry_app.symbols_token_hash missing")
+	}
+
+	var upPK, filePK, blobPK, engPK string
+	mustPK := func(table string, dest *string) {
+		t.Helper()
+		if err := testDB.Raw(`
+			SELECT string_agg(a.attname, ',' ORDER BY array_position(i.indkey, a.attnum))
+			  FROM pg_index i
+			  JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
+			 WHERE i.indrelid = ?::regclass AND i.indisprimary`, table).Scan(dest).Error; err != nil {
+			t.Fatalf("pk %s: %v", table, err)
+		}
+	}
+	mustPK("telemetry_symbol_upload", &upPK)
+	mustPK("telemetry_symbol_file", &filePK)
+	mustPK("telemetry_blob", &blobPK)
+	mustPK("telemetry_engine_symbol", &engPK)
+	if upPK != "id" || filePK != "id" || blobPK != "sha256" || engPK != "engine_revision,variant" {
+		t.Errorf("pks upload=%q file=%q blob=%q engine=%q", upPK, filePK, blobPK, engPK)
+	}
+}
+
 func TestPartitionedTableShape(t *testing.T) {
 	var kind string
 	if err := testDB.Raw(`SELECT relkind::text FROM pg_class WHERE relname = 'telemetry_event'`).Scan(&kind).Error; err != nil {

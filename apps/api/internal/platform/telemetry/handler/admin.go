@@ -71,6 +71,10 @@ func (s *AdminServer) register(api huma.API) {
 		Summary: "Update a telemetry app's display name or enabled flag", Tags: tags}, s.updateApp)
 	huma.Register(api, huma.Operation{OperationID: "rotateTelemetryAppKey", Method: http.MethodPost, Path: "/api/v1/admin/telemetry/apps/{id}/rotate-key",
 		Summary: "Replace an app's ingest key; the old key stops working in this process immediately", Tags: tags}, s.rotateKey)
+	huma.Register(api, huma.Operation{OperationID: "rotateTelemetrySymbolsToken", Method: http.MethodPost, Path: "/api/v1/admin/telemetry/apps/{id}/rotate-symbols-token",
+		Summary: "Mint a CI symbols-upload token; the plaintext is returned only this once", Tags: tags}, s.rotateSymbolsToken)
+	huma.Register(api, huma.Operation{OperationID: "listTelemetrySymbolUploads", Method: http.MethodGet, Path: "/api/v1/admin/telemetry/apps/{id}/symbol-uploads",
+		Summary: "List symbol uploads for an app, newest first", Tags: tags}, s.listSymbolUploads)
 	huma.Register(api, huma.Operation{OperationID: "listTelemetryDailyMetrics", Method: http.MethodGet, Path: "/api/v1/admin/telemetry/metrics/daily",
 		Summary: "Daily session metrics for an app", Tags: tags}, s.listMetrics)
 }
@@ -169,6 +173,53 @@ func (s *AdminServer) rotateKey(ctx context.Context, in *rotateKeyInput) (*rotat
 	}
 	s.invalidate()
 	return &rotateKeyOutput{Body: okEnvelope(dto.AppViewFrom(*row))}, nil
+}
+
+type rotateSymbolsTokenInput struct {
+	ID int64 `path:"id"`
+}
+type rotateSymbolsTokenOutput struct {
+	Body Envelope[dto.SymbolsTokenView]
+}
+
+func (s *AdminServer) rotateSymbolsToken(ctx context.Context, in *rotateSymbolsTokenInput) (*rotateSymbolsTokenOutput, error) {
+	if err := s.requireManage(ctx); err != nil {
+		return nil, err
+	}
+	tok, err := s.store.RotateSymbolsToken(ctx, in.ID)
+	if err != nil {
+		return nil, mapAdminErr("rotate symbols token", err)
+	}
+	return &rotateSymbolsTokenOutput{Body: okEnvelope(dto.SymbolsTokenView{Token: tok})}, nil
+}
+
+type listSymbolUploadsInput struct {
+	ID    int64 `path:"id"`
+	Limit int   `query:"limit" default:"50"`
+}
+type listSymbolUploadsOutput struct {
+	Body Envelope[[]dto.SymbolUploadView]
+}
+
+func (s *AdminServer) listSymbolUploads(ctx context.Context, in *listSymbolUploadsInput) (*listSymbolUploadsOutput, error) {
+	if _, err := s.store.AppByID(ctx, in.ID); err != nil {
+		return nil, mapAdminErr("list symbol uploads", err)
+	}
+	limit := in.Limit
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 200 {
+		limit = 200
+	}
+	rows, err := s.store.ListSymbolUploads(ctx, in.ID, limit)
+	if err != nil {
+		return nil, mapAdminErr("list symbol uploads", err)
+	}
+	if rows == nil {
+		rows = []dto.SymbolUploadView{}
+	}
+	return &listSymbolUploadsOutput{Body: okEnvelope(rows)}, nil
 }
 
 type listMetricsInput struct {

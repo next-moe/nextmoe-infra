@@ -1,9 +1,14 @@
 package handler
 
 import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -11,6 +16,7 @@ import (
 
 	"api/internal/middleware"
 	telemetryPerm "api/internal/platform/telemetry/perm"
+	"api/internal/platform/telemetry/symbols"
 	"api/pkg/oidctoken"
 	"api/pkg/utils"
 
@@ -65,7 +71,7 @@ func doJSON(t *testing.T, app *fiber.App, method, path, role, body string) (int,
 
 func truncateApps(t *testing.T) {
 	t.Helper()
-	require.NoError(t, testDB.Exec(`TRUNCATE telemetry_event, telemetry_session, telemetry_daily_metric, telemetry_app RESTART IDENTITY CASCADE`).Error)
+	require.NoError(t, testDB.Exec(`TRUNCATE telemetry_symbol_file, telemetry_symbol_upload, telemetry_engine_symbol, telemetry_blob, telemetry_event, telemetry_session, telemetry_daily_metric, telemetry_app RESTART IDENTITY CASCADE`).Error)
 }
 
 func TestAppsCRUD(t *testing.T) {
@@ -119,6 +125,7 @@ func TestManageRequired(t *testing.T) {
 		{"POST", "/api/v1/admin/telemetry/apps", `{"service_name":"other-app","display_name":"x"}`},
 		{"PATCH", "/api/v1/admin/telemetry/apps/1", `{"enabled":false}`},
 		{"POST", "/api/v1/admin/telemetry/apps/1/rotate-key", ""},
+		{"POST", "/api/v1/admin/telemetry/apps/1/rotate-symbols-token", ""},
 	}
 	for _, w := range writes {
 		st, raw := doJSON(t, app, w.method, w.path, "admin", w.body)
@@ -184,4 +191,74 @@ func TestDailyMetricsRates(t *testing.T) {
 	require.InDelta(t, 0.1, *env.Data[0].JankRatio, 1e-9)
 	require.Nil(t, env.Data[1].CrashRate)
 	require.Nil(t, env.Data[1].JankRatio)
+}
+
+func TestRotateSymbolsToken(t *testing.T) {
+	truncateApps(t)
+	app, _ := buildAdminApp()
+	stt, raw := doJSON(t, app, "POST", "/api/v1/admin/telemetry/apps", "ren", `{"service_name":"kungal-app","display_name":"KUN"}`)
+	require.Equal(t, fiber.StatusOK, stt, string(raw))
+	var created struct {
+		Data struct {
+			ID              int64 `json:"id"`
+			HasSymbolsToken bool  `json:"has_symbols_token"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &created))
+	require.False(t, created.Data.HasSymbolsToken)
+	id := strconv.FormatInt(created.Data.ID, 10)
+
+	stt, raw = doJSON(t, app, "POST", "/api/v1/admin/telemetry/apps/"+id+"/rotate-symbols-token", "ren", "")
+	require.Equal(t, fiber.StatusOK, stt, string(raw))
+	var tok struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &tok))
+	require.Len(t, tok.Data.Token, 64)
+	require.NotContains(t, string(raw), symbols.HashToken(tok.Data.Token)[:16])
+
+	stt, raw = doJSON(t, app, "GET", "/api/v1/admin/telemetry/apps", "ren", "")
+	require.Equal(t, fiber.StatusOK, stt, string(raw))
+	require.Contains(t, string(raw), `"has_symbols_token":true`)
+	require.NotContains(t, string(raw), tok.Data.Token)
+
+	stt, raw = doJSON(t, app, "POST", "/api/v1/admin/telemetry/apps/999999/rotate-symbols-token", "ren", "")
+	require.Equal(t, fiber.StatusNotFound, stt, string(raw))
+}
+
+func TestListSymbolUploads(t *testing.T) {
+	truncateApps(t)
+	dir := t.TempDir()
+	st.SetBlobStore(symbols.NewFSStore(dir))
+	t.Cleanup(func() { st.SetBlobStore(nil) })
+
+	row, err := st.CreateApp(context.Background(), "kungal-app", "KUN")
+	require.NoError(t, err)
+	data := []byte("elf-bytes")
+	sum := sha256.Sum256(data)
+	path := filepath.Join(dir, "app.android-arm64.symbols")
+	require.NoError(t, os.WriteFile(path, data, 0o600))
+	rev := "0123456789abcdef0123456789abcdef01234567"
+	_, _, err = st.IngestSymbolUpload(context.Background(), row.ID, "1.0.0", rev, []symbols.IncomingFile{{
+		FileName: symbols.FileARM64Symbols,
+		Kind:     symbols.KindDartSymbols,
+		Arch:     symbols.ArchARM64,
+		BuildID:  "deadbeef",
+		SHA256:   hex.EncodeToString(sum[:]),
+		Size:     int64(len(data)),
+		Path:     path,
+	}})
+	require.NoError(t, err)
+
+	app, _ := buildAdminApp()
+	stt, raw := doJSON(t, app, "GET", "/api/v1/admin/telemetry/apps/"+strconv.FormatInt(row.ID, 10)+"/symbol-uploads", "ren", "")
+	require.Equal(t, fiber.StatusOK, stt, string(raw))
+	require.Contains(t, string(raw), "deadbeef")
+	require.Contains(t, string(raw), "android-arm64-release")
+	require.Contains(t, string(raw), `"status":"pending"`)
+
+	stt, raw = doJSON(t, app, "GET", "/api/v1/admin/telemetry/apps/999999/symbol-uploads", "ren", "")
+	require.Equal(t, fiber.StatusNotFound, stt, string(raw))
 }
