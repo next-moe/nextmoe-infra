@@ -326,6 +326,14 @@ var CatalogProposalsPerDay = settings.Int(settings.Meta{
 	Max:    settings.F(100000),
 }, 100)
 
+var CatalogNewsSubmissionsPerDay = settings.Int(settings.Meta{
+	Name:   "catalog.news_submissions_per_day",
+	DescEN: "Community news items one account may submit through /v2/me/news inside the window. 0 closes community submission.",
+	DescZH: "一个账号在窗口内可通过 /v2/me/news 投稿的社区情报条数;0 表示关闭社区投稿。",
+	Min:    settings.F(0),
+	Max:    settings.F(100000),
+}, 10)
+
 var CatalogProposalsPerDayTrusted = settings.Int(settings.Meta{
 	Name:   "catalog.proposals_per_day_trusted",
 	DescEN: "The same limit for a holder of catalog.edit.trusted, whose proposals merge without review.",
@@ -372,6 +380,7 @@ var catalogDomain = settings.Domain{
 		CatalogClaimWritesPerDayTrusted,
 		CatalogProposalsPerDay,
 		CatalogProposalsPerDayTrusted,
+		CatalogNewsSubmissionsPerDay,
 	},
 }
 

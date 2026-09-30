@@ -19,14 +19,32 @@ func newsSummaryErrors(pointer, value string) []problem.FieldError {
 		return []problem.FieldError{{Pointer: pointer, Reason: problem.ReasonRequired, Detail: "the lede the source wrote"}}
 	}
 	if utf8.RuneCountInString(value) > newsmodel.PreviewMaxRunes {
-		return []problem.FieldError{{Pointer: pointer, Reason: problem.ReasonTooLong, Detail: "at most 200 runes; the body lives at source_url",
+		return []problem.FieldError{{Pointer: pointer, Reason: problem.ReasonTooLong, Detail: "at most 200 runes; longer text belongs in body or at source_url",
 			Params: &problem.FieldParams{MaxLength: problem.Ptr(newsmodel.PreviewMaxRunes)}}}
 	}
 	return nil
 }
 
-func newsSourceURLErrors(pointer, value string) []problem.FieldError {
+func newsBodyErrors(pointer, value string, community bool) []problem.FieldError {
+	if value == "" {
+		return nil
+	}
+	if !community {
+		return []problem.FieldError{{Pointer: pointer, Reason: problem.ReasonInconsistentWith,
+			Detail: "only a community submission carries a body; a partner item is its summary plus source_url"}}
+	}
+	if utf8.RuneCountInString(value) > newsmodel.BodyMaxRunes {
+		return []problem.FieldError{{Pointer: pointer, Reason: problem.ReasonTooLong, Detail: "at most 20000 runes",
+			Params: &problem.FieldParams{MaxLength: problem.Ptr(newsmodel.BodyMaxRunes)}}}
+	}
+	return nil
+}
+
+func newsSourceURLErrors(pointer, value string, community bool) []problem.FieldError {
 	if strings.TrimSpace(value) == "" {
+		if community {
+			return nil
+		}
 		return []problem.FieldError{{Pointer: pointer, Reason: problem.ReasonRequired, Detail: "attribution must carry a link to the original"}}
 	}
 	u, err := url.Parse(value)
@@ -90,7 +108,7 @@ func newsTransitionRefusal(status int16) error {
 			"the item is pending; publishing and rejection happen in the moderation queue, and withdrawal is only legal once it is published.")
 	case newsmodel.StatusPublished:
 		return problem.New(problem.CodeInvalidStateTransition, "", "",
-			`the item is published; the only legal transition is {"status":"withdrawn"}.`)
+			`the item is published; edit it, or withdraw it with {"status":"withdrawn"}.`)
 	case newsmodel.StatusRejected:
 		return problem.New(problem.CodeInvalidStateTransition, "", "",
 			"the item is rejected, which is terminal; submit a new item instead.")
@@ -120,14 +138,24 @@ func newsWriteErr(err error) error {
 	case errors.Is(err, newssvc.ErrSourceInactive):
 		return problem.New(problem.CodeSourceInactive, "", "", "this news source is deactivated; ask a NextMoe operator to restore it.")
 	case errors.Is(err, newssvc.ErrNotFound):
-		return problem.New(problem.CodeNotFound, "", "", "no news item with this id under your sources.")
+		return problem.New(problem.CodeNotFound, "", "", "no news item with this id among your submissions or under your sources.")
 	case errors.Is(err, newssvc.ErrNotEditable):
-		return problem.New(problem.CodeInvalidStateTransition, "", "", "text is editable only while the item is pending.")
+		return problem.New(problem.CodeInvalidStateTransition, "", "", "the item is rejected or withdrawn; submit a new item instead.")
+	case errors.Is(err, newssvc.ErrBodyNotAllowed):
+		p := problem.New(problem.CodeValidationFailed, "", "", "the submission is not acceptable.")
+		p.Errors = []problem.FieldError{{Pointer: "/body", Reason: problem.ReasonInconsistentWith,
+			Detail: "only a community submission carries a body; a partner item is its summary plus source_url"}}
+		return p
+	case errors.Is(err, newssvc.ErrBodyTooLong):
+		p := problem.New(problem.CodeValidationFailed, "", "", "the submission is not acceptable.")
+		p.Errors = []problem.FieldError{{Pointer: "/body", Reason: problem.ReasonTooLong, Detail: "at most 20000 runes",
+			Params: &problem.FieldParams{MaxLength: problem.Ptr(newsmodel.BodyMaxRunes)}}}
+		return p
 	case errors.Is(err, newssvc.ErrIllegalTransition):
 		return problem.New(problem.CodeInvalidStateTransition, "", "", err.Error())
 	case errors.Is(err, newssvc.ErrPreviewTooLong):
 		p := problem.New(problem.CodeValidationFailed, "", "", "the edit is not acceptable.")
-		p.Errors = []problem.FieldError{{Pointer: "/summary", Reason: problem.ReasonTooLong, Detail: "at most 200 runes; the body lives at source_url",
+		p.Errors = []problem.FieldError{{Pointer: "/summary", Reason: problem.ReasonTooLong, Detail: "at most 200 runes; longer text belongs in body or at source_url",
 			Params: &problem.FieldParams{MaxLength: problem.Ptr(newsmodel.PreviewMaxRunes)}}}
 		return p
 	}
@@ -145,14 +173,16 @@ func newsSubmissionRecord(s newssvc.Submission) repr.NewsSubmission {
 		Source: repr.NewsSource{Object: "news_source", Name: s.SourceKey,
 			DisplayName: s.SourceDisplayName, HomepageURL: s.SourceHomepageURL,
 			Attribution: s.SourceAttribution, ColumnURL: s.SourceColumnURL},
-		Lane:        s.Lane,
-		Status:      newsStatusToken(s.Status),
-		Title:       s.Title,
-		Summary:     s.Preview,
-		SourceURL:   s.SourceURL,
-		Banner:      newsBanner(s.BannerHash, s.BannerURL),
-		PublishedAt: repr.TimeUTC(s.PublishedAt),
-		WorkIDs:     works,
+		Lane:         s.Lane,
+		Status:       newsStatusToken(s.Status),
+		Title:        s.Title,
+		Summary:      s.Preview,
+		SourceURL:    s.SourceURL,
+		Banner:       newsBanner(s.BannerHash, s.BannerURL),
+		PublishedAt:  repr.TimeUTC(s.PublishedAt),
+		WorkIDs:      works,
+		Body:         s.Body,
+		SubmitterUID: newsSubmitter(s.SubmitterUID),
 	}
 }
 

@@ -8,6 +8,7 @@ package migrate
 import (
 	"fmt"
 
+	"api/internal/platform/accountpurge"
 	"api/internal/platform/news/model"
 
 	"gorm.io/gorm"
@@ -28,7 +29,18 @@ import (
 // of the constraint above. news_item itself is unchanged: "has this text been
 // scored" is answered by comparing a fingerprint computed from the item against
 // the verdict log, which needs no column on the item.
+//
+// 2026-09-29 opened /v2/me/news to every signed-in user under a new community
+// source. news_item gained submitter_uid (NULL on every existing row: all of
+// them were imported) and body (NOT NULL DEFAULT ”, so existing rows get the
+// empty string, which is what they would have carried anyway). news_source
+// gained auto_publish; the user had ruled 月幕 (2026-09-29) and 批评
+// (2026-09-05) need no review, so the two existing rows are set true once, in
+// the run that adds the column, and a later operator change survives
+// redeploys. account_purge_cursor is the catalog process's erasure cursor for
+// the submissions this database now holds.
 func Run(db *gorm.DB) error {
+	hadAutoPublish := db.Migrator().HasColumn(&model.NewsSource{}, "auto_publish")
 	if err := db.AutoMigrate(
 		&model.NewsSource{},
 		&model.NewsItem{},
@@ -36,8 +48,15 @@ func Run(db *gorm.DB) error {
 		&model.NewsItemWork{},
 		&model.NewsModerationVerdict{},
 		&model.NewsModerationDecision{},
+		&accountpurge.Cursor{},
 	); err != nil {
 		return fmt.Errorf("news automigrate: %w", err)
+	}
+	if !hadAutoPublish {
+		if err := db.Exec(`UPDATE news_source SET auto_publish = true WHERE key IN ?`,
+			[]string{model.SourceKeyYmgal, model.SourceKeyHihyou}).Error; err != nil {
+			return fmt.Errorf("news backfill auto_publish: %w", err)
+		}
 	}
 	if err := rawSQL(db); err != nil {
 		return err
@@ -122,6 +141,17 @@ func rawSQL(db *gorm.DB) error {
 			        ADD CONSTRAINT news_item_preview_len
 			        CHECK (char_length(preview) <= %d);
 			EXCEPTION WHEN duplicate_object THEN NULL; END $$`, model.PreviewMaxRunes)},
+		// Same reasoning for the body: only the community source may carry one,
+		// so no partner row can ever hold the article text neither of them granted.
+		{"news_item_body_community", fmt.Sprintf(`
+			DO $$ BEGIN
+			    ALTER TABLE news_item
+			        ADD CONSTRAINT news_item_body_community
+			        CHECK (body = '' OR (source_key = '%s' AND char_length(body) <= %d));
+			EXCEPTION WHEN duplicate_object THEN NULL; END $$`, model.SourceKeyCommunity, model.BodyMaxRunes)},
+		{"news_item_submitter", `
+			CREATE INDEX IF NOT EXISTS news_item_submitter
+			    ON news_item (submitter_uid, id DESC) WHERE submitter_uid IS NOT NULL`},
 	} {
 		if err := db.Exec(s.stmt).Error; err != nil {
 			return fmt.Errorf("news schema %s: %w", s.name, err)
@@ -134,23 +164,31 @@ func rawSQL(db *gorm.DB) error {
 // NOTHING, so a row edited in place (attribution wording, column_url) survives
 // every redeploy.
 //
-// Only 月幕 is seeded here. Galgame 批评's row lands with its backfill, which is
-// where the column URLs it must carry are first known — a placeholder
-// homepage_url would put a wrong link on every item published under her
-// attribution, which is the one condition she asked for.
+// 月幕 and the community source are seeded here. Galgame 批评's row lands with
+// its backfill, which is where the column URLs it must carry are first known — a
+// placeholder homepage_url would put a wrong link on every item published under
+// her attribution, which is the one condition she asked for.
+//
+// The community row has publisher_uid 0: no account publishes it, every
+// signed-in user may submit to it, and its items are owned by submitter_uid.
 func seedSources(db *gorm.DB) error {
 	const stmt = `
-		INSERT INTO news_source (key, display_name, homepage_url, attribution, publisher_uid, column_url, active)
-		VALUES (?, ?, ?, ?, ?, '', true)
+		INSERT INTO news_source (key, display_name, homepage_url, attribution, publisher_uid, column_url, active, auto_publish)
+		VALUES (?, ?, ?, ?, ?, '', true, ?)
 		ON CONFLICT (key) DO NOTHING`
-	if err := db.Exec(stmt,
-		model.SourceKeyYmgal,
-		"月幕 Galgame",
-		"https://www.ymgal.games",
-		"本条情报转载自月幕 Galgame,点击标题可跳转至月幕原文",
-		114748,
-	).Error; err != nil {
-		return fmt.Errorf("news seed source %s: %w", model.SourceKeyYmgal, err)
+	for _, src := range []struct {
+		key, name, homepage, attribution string
+		publisher                        int64
+		autoPublish                      bool
+	}{
+		{model.SourceKeyYmgal, "月幕 Galgame", "https://www.ymgal.games",
+			"本条情报转载自月幕 Galgame,点击标题可跳转至月幕原文", 114748, true},
+		{model.SourceKeyCommunity, "NextMoe 用户投稿", "",
+			"本条情报由 NextMoe 用户投稿,内容由投稿人负责", 0, false},
+	} {
+		if err := db.Exec(stmt, src.key, src.name, src.homepage, src.attribution, src.publisher, src.autoPublish).Error; err != nil {
+			return fmt.Errorf("news seed source %s: %w", src.key, err)
+		}
 	}
 	return nil
 }

@@ -171,11 +171,10 @@ func TestLiveNewsValidationIsFieldLevel(t *testing.T) {
 		`{"source":"`+liveNewsSource+`","title":"t","summary":"`+strings.Repeat("a", newsmodel.PreviewMaxRunes)+`","source_url":"https://example.test/x"}`)
 	require.Equal(t, 201, status, "exactly 200 runes is the ceiling, not one past it: "+string(raw))
 
-	// ftp:// satisfies huma's format:"uri" (it only asks for a non-empty scheme)
-	// and is refused by newsSourceURLErrors, which wants http or https — so both
-	// this and work_ids are handler-stage failures and must arrive together.
-	// A scheme-less "not a url" would instead fail huma's schema stage, which
-	// returns before the handler runs and can therefore report only that field.
+	// source_url carries no schema format (a community submission may leave it
+	// empty), so ftp:// is refused by newsSourceURLErrors, which wants http or
+	// https — both this and work_ids are handler-stage failures and must arrive
+	// together.
 	status, _, raw = liveDo(t, env, http.MethodPost, "/v2/me/news", liveUserToken,
 		`{"source":"`+liveNewsSource+`","title":"t","summary":"s","source_url":"ftp://example.test/x","work_ids":["abc","`+idstr(env.fx.Work)+`"]}`)
 	require.Equal(t, 422, status, string(raw))
@@ -190,7 +189,7 @@ func TestLiveNewsValidationIsFieldLevel(t *testing.T) {
 
 	// The schema stage reports every field it rejects at once, too.
 	status, _, raw = liveDo(t, env, http.MethodPost, "/v2/me/news", liveUserToken,
-		`{"source":"`+liveNewsSource+`","title":"","summary":"s","source_url":"not a url"}`)
+		`{"source":"`+liveNewsSource+`","title":"","summary":"s","lane":"weekly","source_url":"https://example.test/x"}`)
 	require.Equal(t, 422, status, string(raw))
 	p = liveProblem(t, raw)
 	require.Equal(t, problem.CodeValidationFailed, p.Code)
@@ -202,7 +201,7 @@ func TestLiveNewsValidationIsFieldLevel(t *testing.T) {
 			titleParams = e.Params
 		}
 	}
-	require.Equal(t, problem.ReasonInvalidFormat, pointers["/source_url"])
+	require.NotEmpty(t, pointers["/lane"])
 	require.Equal(t, problem.ReasonTooShort, pointers["/title"], "every schema failure at once, not one round trip each")
 	require.NotNil(t, titleParams)
 	require.NotNil(t, titleParams.MinLength)
@@ -264,9 +263,16 @@ func TestLiveNewsPendingEditThenWithdraw(t *testing.T) {
 	require.NotEmpty(t, etag)
 
 	status, _, raw = liveDoFull(t, env, http.MethodPatch, "/v2/me/news/"+rec.ID, liveUserToken,
-		`{"title":"Too late"}`, nil)
-	require.Equal(t, 409, status, "text is editable only while pending: "+string(raw))
-	require.Equal(t, problem.CodeInvalidStateTransition, liveProblem(t, raw).Code)
+		`{"title":"Edited after publication"}`, nil)
+	require.Equal(t, 200, status, string(raw))
+	require.Equal(t, "pending", liveNewsBody(t, raw).Status, "a published edit goes back to review")
+	status, _, raw = liveDo(t, env, http.MethodGet, "/v2/news/"+rec.ID, "", "")
+	require.Equal(t, 404, status, "and leaves the public face until it is published again: "+string(raw))
+
+	require.NoError(t, env.db.Exec(`UPDATE news_item SET status = ? WHERE id = ?`, newsmodel.StatusPublished, id).Error)
+	status, hdr, raw = liveDoFull(t, env, http.MethodGet, "/v2/me/news/"+rec.ID, liveUserToken, "", nil)
+	require.Equal(t, 200, status, string(raw))
+	etag = hdr.Get("ETag")
 
 	status, _, raw = liveDoFull(t, env, http.MethodPatch, "/v2/me/news/"+rec.ID, liveUserToken,
 		`{"status":"withdrawn"}`, map[string]string{"If-Match": `"n` + rec.ID + `.0"`})

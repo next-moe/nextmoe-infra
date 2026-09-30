@@ -3,8 +3,9 @@ package model
 import "time"
 
 const (
-	SourceKeyYmgal  = "ymgal"
-	SourceKeyHihyou = "galgame_hihyou"
+	SourceKeyYmgal     = "ymgal"
+	SourceKeyHihyou    = "galgame_hihyou"
+	SourceKeyCommunity = "community"
 )
 
 // A lane is what the upstream calls the article's own section. 月幕 serves the
@@ -39,16 +40,23 @@ const (
 // column would be a promise we could break by accident.
 const PreviewMaxRunes = 200
 
+// BodyMaxRunes bounds an original community submission. Only the community
+// source may carry a body; the partners granted a preview and a link.
+const BodyMaxRunes = 20000
+
 type NewsSource struct {
-	Key          string    `gorm:"primaryKey;column:key" json:"key"`
-	DisplayName  string    `gorm:"not null;column:display_name" json:"display_name"`
-	HomepageURL  string    `gorm:"not null;column:homepage_url" json:"homepage_url"`
-	Attribution  string    `gorm:"not null;column:attribution" json:"attribution"`
-	PublisherUID int64     `gorm:"not null;column:publisher_uid" json:"publisher_uid"`
-	ColumnURL    string    `gorm:"not null;default:'';column:column_url" json:"column_url"`
-	Active       bool      `gorm:"not null;column:active" json:"active"`
-	CreatedAt    time.Time `gorm:"not null;default:now();column:created_at" json:"created_at"`
-	UpdatedAt    time.Time `gorm:"not null;default:now();column:updated_at" json:"updated_at"`
+	Key          string `gorm:"primaryKey;column:key" json:"key"`
+	DisplayName  string `gorm:"not null;column:display_name" json:"display_name"`
+	HomepageURL  string `gorm:"not null;column:homepage_url" json:"homepage_url"`
+	Attribution  string `gorm:"not null;column:attribution" json:"attribution"`
+	PublisherUID int64  `gorm:"not null;column:publisher_uid" json:"publisher_uid"`
+	ColumnURL    string `gorm:"not null;default:'';column:column_url" json:"column_url"`
+	Active       bool   `gorm:"not null;column:active" json:"active"`
+	// AutoPublish marks a source the user ruled needs no review: its imports and
+	// its publisher's own submissions go out without the console.
+	AutoPublish bool      `gorm:"not null;default:false;column:auto_publish" json:"auto_publish"`
+	CreatedAt   time.Time `gorm:"not null;default:now();column:created_at" json:"created_at"`
+	UpdatedAt   time.Time `gorm:"not null;default:now();column:updated_at" json:"updated_at"`
 }
 
 func (NewsSource) TableName() string { return "news_source" }
@@ -71,14 +79,18 @@ type NewsItem struct {
 	// way to tell "the partner swapped the picture" from "we already have it", and
 	// a poll running every ten minutes would have to choose between re-downloading
 	// every banner forever and never noticing a replacement.
-	BannerOriginURL string     `gorm:"not null;column:banner_origin_url" json:"banner_origin_url"`
-	PublishedAt     time.Time  `gorm:"not null;column:published_at" json:"published_at"`
-	Status          int16      `gorm:"not null;column:status" json:"status"`
-	FirstSeenAt     time.Time  `gorm:"not null;default:now();column:first_seen_at" json:"first_seen_at"`
-	LastSeenAt      time.Time  `gorm:"not null;default:now();column:last_seen_at" json:"last_seen_at"`
-	DeadAt          *time.Time `gorm:"column:dead_at" json:"dead_at,omitempty"`
-	CreatedAt       time.Time  `gorm:"not null;default:now();column:created_at" json:"created_at"`
-	UpdatedAt       time.Time  `gorm:"not null;default:now();column:updated_at" json:"updated_at"`
+	BannerOriginURL string    `gorm:"not null;column:banner_origin_url" json:"banner_origin_url"`
+	PublishedAt     time.Time `gorm:"not null;column:published_at" json:"published_at"`
+	Status          int16     `gorm:"not null;column:status" json:"status"`
+	// SubmitterUID is the account that wrote the item through /v2/me/news; NULL
+	// for rows an importer wrote.
+	SubmitterUID *int64     `gorm:"column:submitter_uid" json:"submitter_uid,omitempty"`
+	Body         string     `gorm:"not null;default:'';column:body" json:"body"`
+	FirstSeenAt  time.Time  `gorm:"not null;default:now();column:first_seen_at" json:"first_seen_at"`
+	LastSeenAt   time.Time  `gorm:"not null;default:now();column:last_seen_at" json:"last_seen_at"`
+	DeadAt       *time.Time `gorm:"column:dead_at" json:"dead_at,omitempty"`
+	CreatedAt    time.Time  `gorm:"not null;default:now();column:created_at" json:"created_at"`
+	UpdatedAt    time.Time  `gorm:"not null;default:now();column:updated_at" json:"updated_at"`
 }
 
 func (NewsItem) TableName() string { return "news_item" }

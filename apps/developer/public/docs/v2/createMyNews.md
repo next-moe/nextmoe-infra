@@ -13,7 +13,7 @@
 
 Submit a news item
 
-Always lands on pending: publishing is a human step. source must be bound to the bearer and active. Requires a user access token.
+Any signed-in user may submit to source community (the default): the item lands on pending and goes out once a moderator publishes it, and an account that has used up catalog.news_submissions_per_day inside the sliding window is refused 429 QUOTA_EXCEEDED. A partner source must be bound to the bearer and active; its item lands on pending, or straight on published when the source is trusted. Requires a user access token.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
@@ -27,7 +27,7 @@ Always lands on pending: publishing is a human step. source must be bound to the
 curl -X POST "https://api.nextmoe.dev/v2/me/news" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"source":"string","source_url":"string","summary":"string","title":"string"}'
+  -d '{"summary":"string","title":"string"}'
 ```
 
 ---

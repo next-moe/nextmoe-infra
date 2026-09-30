@@ -157,6 +157,7 @@ func (s *AdminService) Item(ctx context.Context, id int64) (dto.AdminNewsItemDet
 		return out, err
 	}
 	out.AdminNewsItem = views[0]
+	out.Body = rows[0].Body
 
 	var verdicts []model.NewsModerationVerdict
 	if err := s.db.WithContext(ctx).Where("item_id = ?", id).
@@ -300,6 +301,7 @@ func (s *AdminService) decorate(ctx context.Context, rows []model.NewsItem) ([]d
 			BannerURL:   s.imageURL(r.BannerHash),
 			PublishedAt: r.PublishedAt, Status: r.Status, DeadAt: r.DeadAt,
 			FirstSeenAt: r.FirstSeenAt, LastSeenAt: r.LastSeenAt,
+			SubmitterUID: r.SubmitterUID,
 		}
 		for _, v := range byItem[r.ID] {
 			if v.ContentFingerprint != fp {

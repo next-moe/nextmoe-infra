@@ -211,16 +211,19 @@ type NewsSource struct {
 }
 
 type NewsItem struct {
-	_           struct{}   `json:"-" additionalProperties:"true"`
-	Object      string     `json:"object" enum:"news_item" doc:"Type discriminant. Always news_item."`
-	ID          string     `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"News item id."`
-	Title       string     `json:"title" maxLength:"512" doc:"Must not be used as a discriminant."`
-	Summary     string     `json:"summary" maxLength:"8000" doc:"Source-provided lede. Must not be used as a discriminant."`
-	Source      NewsSource `json:"source" doc:"Attribution. Required on view=basic."`
-	SourceURL   string     `json:"source_url" format:"uri" maxLength:"1024" doc:"Canonical link to the original item."`
-	Lane        string     `json:"lane" enum:"news,column" doc:"The section the source itself filed this under. 月幕 serves the two from separate endpoints with an identical payload, so this is the only thing that tells them apart."`
-	Banner      *Image     `json:"banner" doc:"Lead image. null when the item has none."`
-	PublishedAt string     `json:"published_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
+	_            struct{}   `json:"-" additionalProperties:"true"`
+	Object       string     `json:"object" enum:"news_item" doc:"Type discriminant. Always news_item."`
+	ID           string     `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"News item id."`
+	Title        string     `json:"title" maxLength:"512" doc:"Must not be used as a discriminant."`
+	Summary      string     `json:"summary" maxLength:"8000" doc:"Source-provided lede. Must not be used as a discriminant."`
+	Source       NewsSource `json:"source" doc:"Attribution. Required on view=basic."`
+	SourceURL    string     `json:"source_url" format:"uri" maxLength:"1024" doc:"Canonical link to the original item. Empty string for an original community submission, which has no original elsewhere."`
+	Lane         string     `json:"lane" enum:"news,column" doc:"The section the source itself filed this under. 月幕 serves the two from separate endpoints with an identical payload, so this is the only thing that tells them apart."`
+	Banner       *Image     `json:"banner" doc:"Lead image. null when the item has none."`
+	PublishedAt  string     `json:"published_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
+	SubmitterUID *string    `json:"submitter_uid" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"The account that submitted the item through /v2/me/news: the central sign-in user id shared by every NextMoe site. null for items imported from a partner."`
+	HasBody      bool       `json:"has_body" doc:"Whether the item carries a body of its own. Only community submissions do; a partner item is its summary plus source_url."`
+	Body         *string    `json:"body,omitempty" maxLength:"20000" doc:"The item's own text, CommonMark Markdown, at most 20000 runes. Only on GET /v2/news/{id}, and only when has_body is true; the list omits it. Render it as untrusted user content: raw HTML must not be rendered. Must not be used as a discriminant."`
 }
 
 type CatalogStats struct {

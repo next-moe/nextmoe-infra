@@ -46,25 +46,61 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// TestNoBodyColumn is the physical form of 月幕's condition: preview message and
-// banner, "不要文章的全部内容". A column that does not exist cannot be filled by a
-// future importer, a future admin face, or a well-meaning refactor.
-func TestNoBodyColumn(t *testing.T) {
-	var cols []string
-	if err := testDB.Raw(
-		`SELECT column_name FROM information_schema.columns WHERE table_name = 'news_item'`,
-	).Scan(&cols).Error; err != nil {
-		t.Fatalf("read columns: %v", err)
+// TestBodyIsCommunityOnly is the physical form of 月幕's condition: preview
+// message and banner, "不要文章的全部内容". Since 2026-09-29 news_item has a body
+// column for original community submissions, so the promise moved from "the
+// column does not exist" to "no partner row can hold one" — enforced by the
+// database, where no future importer or refactor can route around it.
+func TestBodyIsCommunityOnly(t *testing.T) {
+	seedSource(t)
+	if err := insertItem(testDB, "body-ymgal", "preview", model.StatusPending); err != nil {
+		t.Fatal(err)
 	}
-	for _, c := range cols {
-		lower := strings.ToLower(c)
-		if lower == "body" || lower == "content" || lower == "html" || lower == "full_text" {
-			t.Errorf("news_item must not carry an article-body column, found %q", c)
-		}
+	if err := testDB.Exec(`UPDATE news_item SET body = 'full article' WHERE external_id = 'body-ymgal'`).Error; err == nil {
+		t.Error("a partner row accepted a body; the CHECK constraint is missing")
 	}
-	if len(cols) == 0 {
-		t.Fatal("news_item has no columns — migration did not run")
+	insertCommunity := func(extID, body string) error {
+		return testDB.Exec(`
+			INSERT INTO news_item (source_key, lane, upstream_category, external_id, title, preview,
+				source_url, banner_origin_url, published_at, status, body)
+			VALUES (?, ?, '', ?, 't', 'p', '', '', now(), 0, ?)`,
+			model.SourceKeyCommunity, model.LaneNews, extID, body).Error
 	}
+	if err := insertCommunity("body-at", strings.Repeat("字", model.BodyMaxRunes)); err != nil {
+		t.Errorf("a community body of exactly %d runes must be accepted: %v", model.BodyMaxRunes, err)
+	}
+	if err := insertCommunity("body-over", strings.Repeat("字", model.BodyMaxRunes+1)); err == nil {
+		t.Errorf("a community body of %d runes was accepted", model.BodyMaxRunes+1)
+	}
+	testDB.Exec(`DELETE FROM news_item WHERE external_id IN ('body-ymgal','body-at','body-over')`)
+}
+
+// The backfill must run once: an operator who later turns a source's
+// auto-publish off must not have every redeploy turn it back on.
+func TestAutoPublishBackfillRunsOnce(t *testing.T) {
+	autoPublish := func(key string) bool {
+		var v bool
+		testDB.Raw(`SELECT auto_publish FROM news_source WHERE key = ?`, key).Scan(&v)
+		return v
+	}
+	if err := testDB.Exec(`ALTER TABLE news_source DROP COLUMN auto_publish`).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := Run(testDB); err != nil {
+		t.Fatal(err)
+	}
+	if !autoPublish(model.SourceKeyYmgal) || autoPublish(model.SourceKeyCommunity) {
+		t.Fatalf("after the column is added: ymgal=%v community=%v, want true/false",
+			autoPublish(model.SourceKeyYmgal), autoPublish(model.SourceKeyCommunity))
+	}
+	testDB.Exec(`UPDATE news_source SET auto_publish = false WHERE key = ?`, model.SourceKeyYmgal)
+	if err := Run(testDB); err != nil {
+		t.Fatal(err)
+	}
+	if autoPublish(model.SourceKeyYmgal) {
+		t.Error("a redeploy turned ymgal's auto-publish back on")
+	}
+	testDB.Exec(`UPDATE news_source SET auto_publish = true WHERE key = ?`, model.SourceKeyYmgal)
 }
 
 // TestPreviewLengthEnforced pins the ceiling in the DATABASE, not only in the

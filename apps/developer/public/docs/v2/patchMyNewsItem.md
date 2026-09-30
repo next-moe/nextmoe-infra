@@ -13,7 +13,7 @@
 
 Edit or withdraw one of my news items
 
-While pending, edits title/summary/source_url/banner_hash/work_ids and sends the item back for machine scoring. Once published the only legal transition is {"status":"withdrawn"} with If-Match. rejected is terminal.
+A pending or published item may be edited (title/summary/body/source_url/banner_hash/work_ids). A pending edit is scored again; a published edit takes the item off the feed and back to pending until a moderator publishes it again, unless its source is trusted. A published item may be withdrawn with {"status":"withdrawn"} and If-Match. rejected and withdrawn are terminal.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
