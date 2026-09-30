@@ -28,6 +28,7 @@ on:
       - "docs/catalog/admin-openapi.yaml"
       - "docs/trust/admin-openapi.yaml"
       - "docs/ai/admin-openapi.yaml"
+      - "docs/telemetry/admin-openapi.yaml"
       - "apps/admin/shared/types/generated/**"
       - "apps/admin/package.json"
       - ".github/workflows/openapi-types.yml"
@@ -60,5 +61,6 @@ jobs:
           # types could go stale against the spec, and the spec against the Go
           # code, with both gates reporting green.
           pnpm -F "./apps/admin" run gen:types:ai-admin
+          pnpm -F "./apps/admin" run gen:types:telemetry-admin
       - name: Fail if the generated types are stale vs the specs
         run: git diff --exit-code -- apps/admin/shared/types/generated/

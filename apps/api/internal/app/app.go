@@ -26,8 +26,9 @@ type App struct {
 }
 
 type Options struct {
-	Name      string
-	NeedCache bool
+	Name              string
+	NeedCache         bool
+	StreamRequestBody bool
 }
 
 func New(cfg *config.Config, opts Options) (*App, error) {
@@ -51,7 +52,7 @@ func New(cfg *config.Config, opts Options) (*App, error) {
 	if name == "" {
 		name = "kun-api"
 	}
-	a.Fiber = fiber.New(FiberConfig(name))
+	a.Fiber = fiber.New(fiberConfig(name, opts.StreamRequestBody))
 	// First on purpose: a recover registered later still lets panics drop the connection with no 500.
 	a.Fiber.Use(middleware.Recover())
 
@@ -61,10 +62,18 @@ func New(cfg *config.Config, opts Options) (*App, error) {
 // FiberConfig is exported so a test can build the app the router-hardening
 // guarantee is stated about, instead of a config the test picked itself.
 func FiberConfig(name string) fiber.Config {
+	return fiberConfig(name, false)
+}
+
+func StreamingFiberConfig(name string) fiber.Config {
+	return fiberConfig(name, true)
+}
+
+func fiberConfig(name string, streamRequestBody bool) fiber.Config {
 	if name == "" {
 		name = "kun-api"
 	}
-	return fiber.Config{
+	cfg := fiber.Config{
 		AppName:        name,
 		ServerHeader:   name,
 		ErrorHandler:   errorHandler,
@@ -101,6 +110,11 @@ func FiberConfig(name string) fiber.Config {
 			Private: true,
 		},
 	}
+	if streamRequestBody {
+		cfg.StreamRequestBody = true
+		cfg.DisablePreParseMultipartForm = true
+	}
+	return cfg
 }
 
 func (a *App) Run(host string, port int) error {

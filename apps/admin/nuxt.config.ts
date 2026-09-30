@@ -65,8 +65,13 @@ export default defineNuxtConfig({
 
   echarts: {
     renderer: 'canvas',
-    charts: ['BarChart'],
-    components: ['GridComponent', 'TooltipComponent', 'MarkLineComponent']
+    charts: ['BarChart', 'LineChart'],
+    components: [
+      'GridComponent',
+      'TooltipComponent',
+      'MarkLineComponent',
+      'LegendComponent'
+    ]
   },
 
   devServer: {
@@ -104,6 +109,7 @@ export default defineNuxtConfig({
     catalogApiBaseSsr: process.env.NUXT_CATALOG_API_BASE_SSR || '',
     trustApiBaseSsr: process.env.NUXT_TRUST_API_BASE_SSR || '',
     aiApiBaseSsr: process.env.NUXT_AI_API_BASE_SSR || '',
+    telemetryApiBaseSsr: process.env.NUXT_TELEMETRY_API_BASE_SSR || '',
     oauthClientSecret: process.env.NUXT_OAUTH_CLIENT_SECRET || '',
     public: {
       apiBase:
@@ -117,6 +123,9 @@ export default defineNuxtConfig({
         '/trust-proxy',
       aiApiBase:
         process.env.KUN_VISUAL_NOVEL_NUXT_PUBLIC_AI_API_BASE || '/ai-proxy',
+      telemetryApiBase:
+        process.env.KUN_VISUAL_NOVEL_NUXT_PUBLIC_TELEMETRY_API_BASE ||
+        '/telemetry-proxy',
       imageCdnBase:
         process.env.KUN_VISUAL_NOVEL_NUXT_PUBLIC_IMAGE_CDN_BASE ||
         'https://image.kungal.iloveren.link',

@@ -18,6 +18,7 @@ type Config struct {
 	CommunityDatabase       DatabaseConfig
 	TrustDatabase           DatabaseConfig
 	AIDatabase              DatabaseConfig
+	TelemetryDatabase       DatabaseConfig
 	NewsDatabase            DatabaseConfig
 	ImagesDatabase          DatabaseConfig
 	Redis                   RedisConfig
@@ -64,9 +65,12 @@ type Config struct {
 	ChatDatabase DatabaseConfig
 	ChatService  ChatServiceConfig
 
-	AIService  AIServiceConfig
-	AIUpstream AIUpstreamConfig
-	AIOmni     AIOmniConfig
+	AIService        AIServiceConfig
+	TelemetryService TelemetryServiceConfig
+	TelemetrySymbols TelemetrySymbolsConfig
+	TelemetryWorker  TelemetryWorkerConfig
+	AIUpstream       AIUpstreamConfig
+	AIOmni           AIOmniConfig
 
 	AIClient AIClientConfig
 
@@ -109,6 +113,26 @@ type NewsModerationConfig struct {
 type AIServiceConfig struct {
 	Host string
 	Port int
+}
+
+type TelemetryServiceConfig struct {
+	Host         string
+	Port         int
+	AdminBaseURL string
+}
+
+type TelemetrySymbolsConfig struct {
+	S3                   S3Config
+	Dir                  string
+	EngineSymbolsBaseURL string
+}
+
+type TelemetryWorkerConfig struct {
+	DecodeBin      string
+	JavaBin        string
+	R8Jar          string
+	LLVMSymbolizer string
+	SymbolCacheDir string
 }
 
 type AIUpstreamConfig struct {
@@ -368,6 +392,16 @@ func Load() (*Config, error) {
 		Timezone: getEnv("KUN_AI_PG_TIMEZONE", cfg.Database.Timezone),
 	}
 
+	cfg.TelemetryDatabase = DatabaseConfig{
+		Host:     getEnv("KUN_TELEMETRY_PG_HOST", cfg.Database.Host),
+		Port:     getEnv("KUN_TELEMETRY_PG_PORT", cfg.Database.Port),
+		User:     getEnv("KUN_TELEMETRY_PG_USER", cfg.Database.User),
+		Password: getEnv("KUN_TELEMETRY_PG_PASSWORD", cfg.Database.Password),
+		DBName:   getEnv("KUN_TELEMETRY_PG_DATABASE", "kun_telemetry"),
+		SSLMode:  getEnv("KUN_TELEMETRY_PG_SSLMODE", cfg.Database.SSLMode),
+		Timezone: getEnv("KUN_TELEMETRY_PG_TIMEZONE", cfg.Database.Timezone),
+	}
+
 	cfg.NewsDatabase = DatabaseConfig{
 		Host:     getEnv("KUN_NEWS_PG_HOST", cfg.Database.Host),
 		Port:     getEnv("KUN_NEWS_PG_PORT", cfg.Database.Port),
@@ -526,7 +560,7 @@ func Load() (*Config, error) {
 	pool := loadPoolConfig()
 	for _, d := range []*DatabaseConfig{
 		&cfg.Database, &cfg.GalgameDatabase, &cfg.CatalogDatabase, &cfg.CommunityDatabase,
-		&cfg.ChatDatabase, &cfg.TrustDatabase, &cfg.AIDatabase, &cfg.NewsDatabase, &cfg.ImagesDatabase,
+		&cfg.ChatDatabase, &cfg.TrustDatabase, &cfg.AIDatabase, &cfg.TelemetryDatabase, &cfg.NewsDatabase, &cfg.ImagesDatabase,
 		&cfg.ArtifactsDatabase,
 	} {
 		d.Pool = pool
@@ -582,6 +616,33 @@ func Load() (*Config, error) {
 	cfg.AIService = AIServiceConfig{
 		Host: getEnv("KUN_AI_HOST", "127.0.0.1"),
 		Port: aiPort,
+	}
+
+	telemetryPort, _ := strconv.Atoi(getEnv("KUN_TELEMETRY_PORT", "9286"))
+	cfg.TelemetryService = TelemetryServiceConfig{
+		Host:         getEnv("KUN_TELEMETRY_HOST", "127.0.0.1"),
+		Port:         telemetryPort,
+		AdminBaseURL: strings.TrimRight(getEnv("KUN_TELEMETRY_ADMIN_BASE_URL", "https://admin.nextmoe.dev"), "/"),
+	}
+	telPathStyle, _ := strconv.ParseBool(getEnv("KUN_TELEMETRY_S3_FORCE_PATH_STYLE", "true"))
+	cfg.TelemetrySymbols = TelemetrySymbolsConfig{
+		S3: S3Config{
+			Endpoint:        getEnv("KUN_TELEMETRY_S3_ENDPOINT", ""),
+			Region:          getEnv("KUN_TELEMETRY_S3_REGION", "auto"),
+			AccessKeyID:     getEnv("KUN_TELEMETRY_S3_ACCESS_KEY_ID", ""),
+			SecretAccessKey: getEnv("KUN_TELEMETRY_S3_SECRET_ACCESS_KEY", ""),
+			Bucket:          getEnv("KUN_TELEMETRY_S3_BUCKET", ""),
+			UsePathStyle:    telPathStyle,
+		},
+		Dir:                  getEnv("KUN_TELEMETRY_SYMBOLS_DIR", "/var/lib/telemetry/symbols"),
+		EngineSymbolsBaseURL: getEnv("KUN_TELEMETRY_ENGINE_SYMBOLS_BASE_URL", "https://storage.googleapis.com/flutter_infra_release/flutter"),
+	}
+	cfg.TelemetryWorker = TelemetryWorkerConfig{
+		DecodeBin:      getEnv("KUN_TELEMETRY_DECODE_BIN", "/usr/local/bin/telemetry-decode"),
+		JavaBin:        getEnv("KUN_TELEMETRY_JAVA_BIN", "/usr/bin/java"),
+		R8Jar:          getEnv("KUN_TELEMETRY_R8_JAR", "/opt/r8/r8.jar"),
+		LLVMSymbolizer: getEnv("KUN_TELEMETRY_LLVM_SYMBOLIZER", "/usr/bin/llvm-symbolizer"),
+		SymbolCacheDir: getEnv("KUN_TELEMETRY_SYMBOL_CACHE_DIR", "/var/cache/telemetry/symbols"),
 	}
 	cfg.AIUpstream = AIUpstreamConfig{
 		BaseURL: getEnv("KUN_AI_UPSTREAM_BASE_URL", ""),

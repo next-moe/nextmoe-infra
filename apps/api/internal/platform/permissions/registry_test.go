@@ -10,6 +10,7 @@ import (
 	"api/internal/platform/permissions"
 	shopPerm "api/internal/platform/shop/perm"
 	sitePerm "api/internal/platform/site/perm"
+	telemetryPerm "api/internal/platform/telemetry/perm"
 )
 
 func TestRegistryDescribesExactlyTheBundledKeys(t *testing.T) {
@@ -71,6 +72,7 @@ func TestNonDelegableKeysAreRegistered(t *testing.T) {
 		devapiPerm.PolicyManage,
 		shopPerm.Manage, shopPerm.Publish, shopPerm.Grant,
 		aiPerm.BudgetManage,
+		telemetryPerm.Manage,
 	} {
 		if !reg.IsNonDelegable(p) {
 			t.Errorf("%q must be non-delegable", p)
