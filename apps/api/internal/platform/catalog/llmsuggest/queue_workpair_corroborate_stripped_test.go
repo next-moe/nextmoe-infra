@@ -17,8 +17,10 @@ func setupWorkPairDB(t *testing.T) (*gorm.DB, int16) {
 	db := testCatalogDB(t)
 	require.NoError(t, migrate.Run(db))
 	require.NoError(t, seed.Run(db))
+	// Work ids restart at 1, so a redirect another package left on 1 made a fresh
+	// pair "resolve to the same entity" and eight apply tests failed.
 	require.NoError(t, db.Exec(
-		`TRUNCATE catalog_merge_proposal, catalog_match_candidate, catalog_work_title, catalog_external_ref, catalog_release, catalog_work RESTART IDENTITY CASCADE`).Error)
+		`TRUNCATE catalog_merge_proposal, catalog_match_candidate, catalog_work_title, catalog_external_ref, catalog_release, catalog_redirect, catalog_work RESTART IDENTITY CASCADE`).Error)
 	require.NoError(t, db.Exec("TRUNCATE src_llm.queue_verdict RESTART IDENTITY").Error)
 	var medium int16
 	require.NoError(t, db.Raw(`SELECT id FROM catalog_medium WHERE key = 'galgame'`).Scan(&medium).Error)
