@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-本文件内联全部 130 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
+本文件内联全部 135 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
 
 ## 给 AI 助手的指引
 
@@ -2906,13 +2906,15 @@ Open · 16 tokens
 
 - 路径前缀：`/v2`
 - 凭据：Authorization: Bearer nmk_live_…（v2 应用密钥,门户自助铸造,无需申请）
-- 端点数：117
+- 端点数：122
 
 > 正式公开：形状按 additive-only 演进，删除与改名由 CI 的 oasdiff 门拦下。第三方在门户自助铸 nmk_ 密钥即可调用，不需要申请。
 
 > /v2/me/playtimes 只要用户令牌，不需要 playtime:read / playtime:write。任何已开通用户登录的应用都可以调用。
 
 > /v2/me/work-states 与 playtimes 同款：只要用户令牌，不需要任何 scope。state 五值与 Bangumi 收藏类型一一对应，completion 表示通了多少，wish 不允许携带。
+
+> /v2/me/followed-companies 与 /v2/me/calendar 同样只要用户令牌、不需要任何 scope。关注列表只对本人可见，公开的只有 /v2/catalog/companies/{id} 详情上的 follower_count；/v2/me/calendar 与公开月历同参数，只列关注厂商的作品，且缺省不按语言、不排除同人。
 
 > /v2/me/folders 是例外：收藏夹是私人清单，读要 folder:read（folder:write 也算），写要 folder:write，缺了是 403 SCOPE_REQUIRED。
 
@@ -4469,6 +4471,42 @@ curl "https://api.nextmoe.dev/v2/folders/value/items" \
 
 ## 我的
 
+### GET /v2/me/calendar
+
+My release calendar
+
+The bearer's release calendar: the works of the companies they follow, with the same windows, parameters and meta as /v2/catalog/calendar. Absent olang means all languages and absent exclude_company_kind excludes nothing, because the population is already the bearer's choice; the public calendar's defaults (Japanese, commercial only) would hide a followed doujin circle or a Chinese company. A user who follows no company gets an empty window. Requires a user access token. Any app may call this; no scope is required. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `cursor` | query | 否 | string | Opaque keyset cursor from a prior next_cursor. Must start with cur_. |
+| `limit` | query | 否 | string | Page size 1-100, default 20. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped. |
+| `view` | query | 否 | string | basic (default) or full. Closed vocabulary. |
+| `include` | query | 否 | string | Comma-separated blocks. Unknown token is 400 UNKNOWN_INCLUDE. |
+| `fields` | query | 否 | string | Comma-separated top-level keys after view/include. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
+| `ids` | query | 否 | string | Comma-separated ids, max 100. Batch lane: no pagination. |
+| `refs` | query | 否 | string | Comma-separated source:external_id, max 100. Batch lane: no pagination. |
+| `include_total` | query | 否 | string | true to include total. Only true or false. |
+| `facets` | query | 否 | string | Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. |
+| `sort` | query | 否 | string | Closed per-collection sort key. |
+| `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
+| `month` | query | 否 | string | Dated month window YYYY-MM. Default: current month in Asia/Tokyo. |
+| `year` | query | 否 | string | Year-only window YYYY (v1 pending). Default with precision=year: current year in Asia/Tokyo. |
+| `precision` | query | 否 | string | day, month, or year. year selects the year-only window. day and month use the dated month window. |
+| `status` | query | 否 | string | released, dated, announced, cancelled, unknown. announced and unknown select the undated window. cancelled is empty until the catalog records cancellations. |
+| `content_limit` | query | 否 | string | Comma-separated closed editorial axis: sfw, nsfw. |
+| `olang` | query | 否 | string | Comma-separated BCP-47, or all. Open vocabulary; unknown values match nothing. Absent = all languages. The population is already the bearer's choice, so this face does not default to ja. |
+| `exclude_company_kind` | query | 否 | string | Comma-separated closed company_kind values: game_brand, bunko, publisher, anime_studio, doujin_circle, group, or none alone to exclude nothing. Drops a work only when it has at least one company and every one of its companies is of an excluded kind; a work that also carries a company of another kind stays, and so does a work with no company. Applies to the page, total, and the month navigation in meta. Absent = exclude nothing. The population is already the bearer's choice, so this face does not default to doujin_circle. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/me/calendar" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
 ### GET /v2/me/claims
 
 List my claims
@@ -4896,6 +4934,93 @@ Remove a work from a folder
 
 ```bash
 curl -X DELETE "https://api.nextmoe.dev/v2/me/folders/value/items/value" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### GET /v2/me/followed-companies
+
+List my followed companies
+
+The bearer user's followed companies, newest follow first. Items carry ids only and are hydrated with /v2/catalog/companies?ids=. company_ids= is a batch read. The list is private to its owner; only the count is public (follower_count on /v2/catalog/companies/{id}). Requires a user access token. Any app may call this; no scope is required.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `cursor` | query | 否 | string | Opaque keyset cursor from a prior next_cursor. Must start with cur_. |
+| `limit` | query | 否 | string | Page size 1-100, default 20. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped. |
+| `view` | query | 否 | string | basic (default) or full. Closed vocabulary. |
+| `include` | query | 否 | string | Comma-separated blocks. Unknown token is 400 UNKNOWN_INCLUDE. |
+| `fields` | query | 否 | string | Comma-separated top-level keys after view/include. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
+| `ids` | query | 否 | string | Comma-separated ids, max 100. Batch lane: no pagination. |
+| `refs` | query | 否 | string | Comma-separated source:external_id, max 100. Batch lane: no pagination. |
+| `include_total` | query | 否 | string | true to include total. Only true or false. |
+| `facets` | query | 否 | string | Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. |
+| `sort` | query | 否 | string | Closed per-collection sort key. |
+| `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
+| `company_ids` | query | 否 | string | Comma-separated company ids, max 100. Batch read, no pagination. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/me/followed-companies" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### GET /v2/me/followed-companies/{company_id}
+
+Get my follow on one company
+
+404 when the bearer is not following this company. Requires a user access token. Any app may call this; no scope is required.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `company_id` | path | 是 | string | Catalog company id. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/me/followed-companies/value" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### PUT /v2/me/followed-companies/{company_id}
+
+Follow a company
+
+No request body. Idempotent: following an already-followed company answers the stored row and writes nothing. Unknown or deleted companies are 404, or the merged-entity problem when the id was merged away. At most 1000 followed companies. Requires a user access token. Any app may call this; no scope is required.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `company_id` | path | 是 | string | Catalog company id. |
+
+```bash
+curl -X PUT "https://api.nextmoe.dev/v2/me/followed-companies/value" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### DELETE /v2/me/followed-companies/{company_id}
+
+Unfollow a company
+
+204 with no body, also when the bearer was not following. Requires a user access token. Any app may call this; no scope is required.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `company_id` | path | 是 | string | Catalog company id. |
+
+```bash
+curl -X DELETE "https://api.nextmoe.dev/v2/me/followed-companies/value" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 

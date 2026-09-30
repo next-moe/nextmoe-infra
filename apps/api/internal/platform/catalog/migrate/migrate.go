@@ -79,6 +79,7 @@ func Run(db *gorm.DB) error {
 		&model.CatalogUserFolder{},         // per-user favorite folders (favorites unification wave); canonical store for forum+moyu favorites
 		&model.CatalogUserFolderItem{},     // folder memberships; (owner_uid, updated_at) is the manager-sync cursor
 		&model.CatalogUserFolderImport{},   // source-collection provenance for cmd/import-favorites; makes the backfill re-runnable
+		&model.CatalogUserEntityFollow{},   // per-user follows of catalog entities; companies only, see the CHECK
 		&model.CatalogSeries{},             // work series entity (step 94, dlsite lane first)
 		&model.CatalogSeriesMember{},       // series membership (step 94)
 		&model.CatalogSeriesIntro{},        // multilingual series intros (refs/plans/10 W0 ruling 3)
@@ -456,6 +457,8 @@ func rawSQL(db *gorm.DB) error {
 		// A rejection without a reason is useless: the row exists to tell
 		// future importers and reviewers why the pairing is wrong.
 		{"catalog_match_rejection", "chk_catalog_match_rejection_reason", `reason <> ''`},
+		// Only companies may be followed until a person lane exists, and opening one also needs its merge rehang statements.
+		{"catalog_user_entity_follow", "chk_catalog_user_entity_follow_type", "entity_type IN (3)"},
 	} {
 		exists, err := constraintExists(db, cc.table, cc.name)
 		if err != nil {

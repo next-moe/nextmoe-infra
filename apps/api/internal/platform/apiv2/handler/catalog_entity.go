@@ -120,7 +120,16 @@ func (c *Catalog) GetCompany(ctx context.Context, id int64, nsfw bool, include [
 	if !found {
 		return repr.Company{}, c.mergedOrNotFound(ctx, catmodel.EntityTypeLabel, "company", id)
 	}
-	return companyFromDetail(rec, include, c.Public.ImageURL(rec.LogoHash)), nil
+	out := companyFromDetail(rec, include, c.Public.ImageURL(rec.LogoHash))
+	if c.CompanyFollows != nil {
+		n, cerr := c.CompanyFollows.CountFollowers(ctx, id)
+		if cerr != nil {
+			return repr.Company{}, cerr
+		}
+		followers := int(n)
+		out.FollowerCount = &followers
+	}
+	return out, nil
 }
 
 func (c *Catalog) GetTag(ctx context.Context, id int64, nsfw bool, include []string) (repr.Tag, error) {

@@ -227,6 +227,16 @@ func WorkStateSpec() Spec {
 	}
 }
 
+func CompanyFollowSpec() Spec {
+	return Spec{
+		Sort:    []string{"followed_desc"},
+		Include: []string{},
+		FullSet: []string{},
+		Fields:  []string{"object", "company_id", "created_at"},
+		NoBatch: true,
+	}
+}
+
 func UserWorkSpec() Spec {
 	return Spec{
 		Sort:    []string{"work_id"},

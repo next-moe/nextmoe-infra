@@ -92,6 +92,8 @@ func TestEditingPlaneScopeLeavesItsNeighboursAlone(t *testing.T) {
 // the surface has to be classified deliberately instead of defaulting into the
 // ungated majority.
 var personGatedMePrefixes = []string{
+	"/v2/me/calendar",
+	"/v2/me/followed-companies",
 	"/v2/me/news",
 	"/v2/me/playtimes",
 	"/v2/me/work-states",

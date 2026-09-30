@@ -47,6 +47,7 @@ var specPathParams = strings.NewReplacer(
 	"{id}", "1",
 	"{object}", "work",
 	"{work_id}", "1",
+	"{company_id}", "1",
 	"{cover_id}", "1",
 	"{product_id}", "RJ01000000",
 	"{uid}", "1",

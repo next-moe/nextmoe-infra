@@ -198,6 +198,13 @@ type FolderItemBatchItem struct {
 	Problem *problem.Problem `json:"problem,omitempty" doc:"Present on failed items. A full problem object."`
 }
 
+type CompanyFollow struct {
+	_         struct{} `json:"-" additionalProperties:"true"`
+	Object    string   `json:"object" enum:"company_follow" doc:"Type discriminant. Always company_follow."`
+	CompanyID string   `json:"company_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog company id."`
+	CreatedAt string   `json:"created_at" format:"date-time" maxLength:"32" doc:"When the bearer followed this company."`
+}
+
 type UserWorkState struct {
 	_          struct{} `json:"-" additionalProperties:"true"`
 	Object     string   `json:"object" enum:"work_state" doc:"Type discriminant. Always work_state."`

@@ -92,6 +92,7 @@ type CalendarFilter struct {
 	DisplayLimits       []string
 	ExcludeCompanyKinds []string
 	Include             WorksListInclude
+	FollowedBy          int64
 }
 
 func (f CalendarFilter) PopulationKey() string {
@@ -106,6 +107,9 @@ func (f CalendarFilter) PopulationKey() string {
 	key := gate + "-" + f.OLang.Key() + "-" + limit
 	if len(f.ExcludeCompanyKinds) > 0 {
 		key += "-xck-" + strings.Join(f.ExcludeCompanyKinds, "+")
+	}
+	if f.FollowedBy > 0 {
+		key += "-follow-" + strconv.FormatInt(f.FollowedBy, 10)
 	}
 	return key
 }
@@ -124,6 +128,10 @@ func (f CalendarFilter) population() (where []string, args []any) {
 	if pred, pargs := displayLimitWhere(f.DisplayLimits); pred != "" {
 		where = append(where, pred)
 		args = append(args, pargs...)
+	}
+	if f.FollowedBy > 0 {
+		where = append(where, `w.id IN (SELECT fwl.work_id FROM catalog_work_label fwl JOIN catalog_user_entity_follow uf ON uf.entity_id = fwl.label_id AND uf.entity_type = ? WHERE uf.actor_uid = ?)`)
+		args = append(args, model.EntityTypeLabel, f.FollowedBy)
 	}
 	return where, args
 }
@@ -266,11 +274,15 @@ func releaseOrd(alias string) string {
 // order once the planner runs the rule as a hash anti-join, and CI got an
 // arbitrary kept row back as max_month. The bounds are one population-wide
 // answer shared by every month, so they are cached for the totals TTL instead.
+// A follower's population is not cached: one key per user would churn the
+// shared cache that keeps the forum's S2S count(*) traffic off postgres.
 func (s *PublicService) CalendarBounds(ctx context.Context, f CalendarFilter) (minOrd, maxOrd int64, found bool, err error) {
 	key := "calendar-bounds\x00" + f.PopulationKey()
-	if lo, ok := s.totals.get(key + "\x00min"); ok {
-		if hi, ok := s.totals.get(key + "\x00max"); ok {
-			return lo, hi, lo != 0, nil
+	if f.FollowedBy <= 0 {
+		if lo, ok := s.totals.get(key + "\x00min"); ok {
+			if hi, ok := s.totals.get(key + "\x00max"); ok {
+				return lo, hi, lo != 0, nil
+			}
 		}
 	}
 	where, args := f.population()
@@ -295,8 +307,10 @@ func (s *PublicService) CalendarBounds(ctx context.Context, f CalendarFilter) (m
 	if row.MinOrd != nil && row.MaxOrd != nil {
 		minOrd, maxOrd, found = (*row.MinOrd/100)*100, (*row.MaxOrd/100)*100, true
 	}
-	s.totals.put(key+"\x00min", minOrd)
-	s.totals.put(key+"\x00max", maxOrd)
+	if f.FollowedBy <= 0 {
+		s.totals.put(key+"\x00min", minOrd)
+		s.totals.put(key+"\x00max", maxOrd)
+	}
 	return minOrd, maxOrd, found, nil
 }
 

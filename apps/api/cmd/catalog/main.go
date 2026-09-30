@@ -134,6 +134,7 @@ func main() {
 	coverVoteSvc := service.NewCoverVoteService(catalogDB.DB())
 	playtimeSvc := service.NewUserPlaytimeService(catalogDB.DB())
 	workStateSvc := service.NewUserWorkStateService(catalogDB.DB())
+	companyFollowSvc := service.NewUserEntityFollowService(catalogDB.DB())
 	folderSvc := service.NewUserFolderService(catalogDB.DB())
 	accountpurge.Start(permCtx, &accountpurge.Consumer{
 		Name: "catalog", Feed: authRepo.NewUserRepository(application.DB.DB()), DB: catalogDB.DB(),
@@ -178,7 +179,7 @@ func main() {
 	adminNews.Post("/items/:id/decision", newsAdminH.Decide)
 
 	setupPublicCatalog(application, cfg, catalogDB, readSvc, resolveSvc, searcher, statsSvc,
-		clientRepo, tokenVerifier, devStore, devCache, newsSvc, newsWriteSvc, editRegistry, playtimeSvc, workStateSvc, folderSvc, coverVoteSvc, claimSvc, editEngine)
+		clientRepo, tokenVerifier, devStore, devCache, newsSvc, newsWriteSvc, editRegistry, playtimeSvc, workStateSvc, companyFollowSvc, folderSvc, coverVoteSvc, claimSvc, editEngine)
 
 	galgameapp.MountRetiredPublic(application)
 	// Wave R3 (2026-08-27): every v1 face this binary served is gone, so the
@@ -224,6 +225,7 @@ func setupPublicCatalog(
 	editRegistry *editing.Registry,
 	playtimeSvc *service.UserPlaytimeService,
 	workStateSvc *service.UserWorkStateService,
+	companyFollowSvc *service.UserEntityFollowService,
 	folderSvc *service.UserFolderService,
 	coverVoteSvc *service.CoverVoteService,
 	claimSvc *service.ClaimLifecycleService,
@@ -358,23 +360,24 @@ func setupPublicCatalog(
 		},
 		LookupSite: bindingOfClient,
 		Catalog: &v2handler.Catalog{
-			Public:      publicSvc,
-			Resolve:     resolveSvc,
-			StatsSvc:    statsSvc,
-			News:        newsSvc,
-			NewsWrite:   newsWriteSvc,
-			Searcher:    searcher,
-			EditTypes:   editRegistry,
-			Playtime:    playtimeSvc,
-			WorkStates:  workStateSvc,
-			Folders:     folderSvc,
-			CoverVotes:  coverVoteSvc,
-			Claims:      claimSvc,
-			Engine:      editEngine,
-			EditHistory: service.NewEditHistoryService(catalogDB.DB()),
-			Uploads:     v2handler.EditImageUpload(editUpload),
-			Store:       storeSvc,
-			Prices:      priceSvc,
+			Public:         publicSvc,
+			Resolve:        resolveSvc,
+			StatsSvc:       statsSvc,
+			News:           newsSvc,
+			NewsWrite:      newsWriteSvc,
+			Searcher:       searcher,
+			EditTypes:      editRegistry,
+			Playtime:       playtimeSvc,
+			WorkStates:     workStateSvc,
+			CompanyFollows: companyFollowSvc,
+			Folders:        folderSvc,
+			CoverVotes:     coverVoteSvc,
+			Claims:         claimSvc,
+			Engine:         editEngine,
+			EditHistory:    service.NewEditHistoryService(catalogDB.DB()),
+			Uploads:        v2handler.EditImageUpload(editUpload),
+			Store:          storeSvc,
+			Prices:         priceSvc,
 
 			SiteOfAppClient: siteOfClient,
 		},

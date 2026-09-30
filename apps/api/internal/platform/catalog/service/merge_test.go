@@ -476,6 +476,55 @@ func TestMergeLabelWorkEdgeDedup(t *testing.T) {
 	assert.Zero(t, stranded, "no brand edge may stay on the merged source")
 }
 
+func TestMergeLabelRehangsFollows(t *testing.T) {
+	cleanTables(t)
+	ctx := t.Context()
+	svc := NewUserEntityFollowService(testDB)
+
+	target := &model.CatalogLabel{DisplayName: "Brand", Kind: model.LabelKindGameBrand}
+	require.NoError(t, testDB.Create(target).Error)
+	source := &model.CatalogLabel{DisplayName: "brand", Kind: model.LabelKindDoujinCircle}
+	require.NoError(t, testDB.Create(source).Error)
+	other := &model.CatalogLabel{DisplayName: "Other", Kind: model.LabelKindPublisher}
+	require.NoError(t, testDB.Create(other).Error)
+
+	_, err := svc.FollowCompany(ctx, 1, source.ID, "client", "site")
+	require.NoError(t, err)
+	bTarget, err := svc.FollowCompany(ctx, 2, target.ID, "client", "site")
+	require.NoError(t, err)
+	_, err = svc.FollowCompany(ctx, 2, source.ID, "client", "site")
+	require.NoError(t, err)
+	cRow, err := svc.FollowCompany(ctx, 3, other.ID, "client", "site")
+	require.NoError(t, err)
+
+	p, err := testMerge.ProposeMerge(ctx, model.EntityTypeLabel, source.ID, target.ID, 7, "same brand")
+	require.NoError(t, err)
+	approveAndForceExecutable(t, p.ID)
+	require.NoError(t, testMerge.ExecuteMerge(ctx, p.ID, nil))
+
+	var aRows []model.CatalogUserEntityFollow
+	require.NoError(t, testDB.Where("actor_uid = ?", 1).Find(&aRows).Error)
+	require.Len(t, aRows, 1)
+	assert.Equal(t, target.ID, aRows[0].EntityID)
+
+	var bRows []model.CatalogUserEntityFollow
+	require.NoError(t, testDB.Where("actor_uid = ?", 2).Find(&bRows).Error)
+	require.Len(t, bRows, 1)
+	assert.Equal(t, target.ID, bRows[0].EntityID)
+	assert.Equal(t, bTarget.ID, bRows[0].ID)
+
+	var cKept model.CatalogUserEntityFollow
+	require.NoError(t, testDB.Where("actor_uid = ?", 3).Take(&cKept).Error)
+	assert.Equal(t, cRow.ID, cKept.ID)
+	assert.Equal(t, other.ID, cKept.EntityID)
+
+	var left int64
+	require.NoError(t, testDB.Raw(
+		`SELECT count(*) FROM catalog_user_entity_follow WHERE entity_type = ? AND entity_id = ?`,
+		model.EntityTypeLabel, source.ID).Scan(&left).Error)
+	assert.Zero(t, left)
+}
+
 func TestMergeLabelLogoSurvivorship(t *testing.T) {
 	cleanTables(t)
 	ctx := t.Context()
