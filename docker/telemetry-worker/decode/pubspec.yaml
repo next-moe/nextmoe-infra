@@ -1,0 +1,6 @@
+name: telemetry_decode
+publish_to: none
+environment:
+  sdk: ^3.5.0
+dependencies:
+  native_stack_traces: 0.7.0
