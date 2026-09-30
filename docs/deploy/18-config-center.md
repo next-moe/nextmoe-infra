@@ -27,7 +27,7 @@ ERROR 日志。数据库里的一行若类型不符、越界或枚举外,会被�
 **边界**:配置中心只收运行期可调项(开关、阈值、TTL、配额)。密钥、host/port/dsn/bucket、S3
 path style、PG 连接池、OIDC 签名算法、aff URL 模板等启动期接线永远留在环境变量里。
 
-## 18.1 现有键(93 个)
+## 18.1 现有键(95 个)
 
 | 域 | 键数 | 来源 |
 |---|---|---|
@@ -108,9 +108,9 @@ path style、PG 连接池、OIDC 签名算法、aff URL 模板等启动期接线
 - `ai.upstream_model` / `ai.omni_model`
 
 **例外:`store.price_steam_regions` 与 `store.price_dlsite_currencies` 在 catalog 启动时读一次**,
-改了要重启 catalog 才生效(fetcher 构造期定型);其余 89 个键都是使用时读。
+改了要重启 catalog 才生效(fetcher 构造期定型);其余 91 个键都是使用时读。
 
-### 后台任务(`jobs`,W2,14 × 2)
+### 后台任务(`jobs`,W2,15 × 2)
 
 oauth 上的调度器(`internal/jobs`)每个任务两把键,没有环境变量地板,默认值就是迁入前 `all.go`
 里写死的时刻;详见 18.6。
@@ -123,6 +123,7 @@ oauth 上的调度器(`internal/jobs`)每个任务两把键,没有环境变量�
 | `news-image-refping` | true | `daily@04:20` |
 | `user-avatar-refping` | true | `daily@04:30` |
 | `image-ref-audit` | true | `daily@04:45` |
+| `catalog-merge-stragglers` | true | `daily@21:40` |
 | `artifact-gc` | true | `daily@05:30` |
 | `prune-developer-usage` | true | `daily@06:00` |
 | `ymgal-news-poll` | true | `every:10m` |

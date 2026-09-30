@@ -500,3 +500,21 @@ func TestNameIndexExcludesRetiredLabels(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []int64{41}, disp["nexton"])
 }
+
+func TestLabelWorksCountOnlyLiveLabels(t *testing.T) {
+	cleanAll(t)
+	live := &model.CatalogLabel{DisplayName: "MAGES.", Kind: model.LabelKindGameBrand}
+	retired := &model.CatalogLabel{DisplayName: "株式会社MAGES.", Kind: model.LabelKindGameBrand}
+	require.NoError(t, testDB.Create(live).Error)
+	require.NoError(t, testDB.Create(retired).Error)
+	w := &model.CatalogWork{MediumID: 1, OLang: "ja", DisplayName: "w", Status: model.WorkStatusLive}
+	require.NoError(t, testDB.Create(w).Error)
+	for _, l := range []int64{live.ID, retired.ID} {
+		require.NoError(t, testDB.Create(&model.CatalogWorkLabel{WorkID: w.ID, LabelID: l, Kind: model.WorkLabelKindBrand}).Error)
+	}
+	require.NoError(t, testDB.Exec(`UPDATE catalog_label SET deleted_at = now() WHERE id = ?`, retired.ID).Error)
+
+	got, err := loadLabelWorks(testDB)
+	require.NoError(t, err)
+	assert.Equal(t, []int64{live.ID}, got[w.ID], "a merged-away label must not win a shared-works vote")
+}

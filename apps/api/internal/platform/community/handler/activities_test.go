@@ -55,7 +55,9 @@ func activityJSON(key string, actor int64, at time.Time, extra string) string {
 func TestActivityFacesThroughRouter(t *testing.T) {
 	cleanTables(t)
 	app := activityRouter(true)
-	at := time.Now().Add(-time.Hour)
+	// Groups are Beijing days. With now-1h, CI at 16:59 UTC on 2026-09-29 put
+	// at and at+1m on either side of Beijing midnight and split one group in two.
+	at := time.Date(2026, 9, 20, 4, 0, 0, 0, time.UTC)
 
 	body := `{"items":[` + activityJSON("topic:1", 7, at, `,"notify":true`) + `,` +
 		activityJSON("topic:2", 7, at.Add(time.Minute), "") + `,` +
