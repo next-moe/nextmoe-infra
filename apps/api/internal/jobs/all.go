@@ -62,6 +62,12 @@ func RegisterAll(r *Registry) {
 	})
 
 	r.Register(Job{
+		Name: JobCatalogMergeStragglers,
+		Desc: "catalog 合并残留回收（仍指向已合并旧 id 的行，按合并本身的迁移逻辑重放一遍）",
+		Run:  RunCatalogMergeStragglers,
+	})
+
+	r.Register(Job{
 		Name: "artifact-gc",
 		Desc: "artifact 生命周期（孤儿上传回收 + 软删物理回收）",
 		Run: func(ctx context.Context, cfg *config.Config) (Summary, error) {

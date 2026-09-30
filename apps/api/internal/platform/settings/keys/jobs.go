@@ -20,6 +20,7 @@ var jobSpecs = []struct{ Name, Schedule string }{
 	{"news-image-refping", "daily@04:20"},
 	{"user-avatar-refping", "daily@04:30"},
 	{"image-ref-audit", "daily@04:45"},
+	{"catalog-merge-stragglers", "daily@21:40"},
 	{"artifact-gc", "daily@05:30"},
 	{"prune-developer-usage", "daily@06:00"},
 	{"ymgal-news-poll", "every:10m"},

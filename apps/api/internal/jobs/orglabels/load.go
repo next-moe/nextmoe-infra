@@ -11,8 +11,9 @@ func loadLabelWorks(db *gorm.DB) (map[int64][]int64, error) {
 		WorkID  int64 `gorm:"column:work_id"`
 		LabelID int64 `gorm:"column:label_id"`
 	}
-	if err := db.Raw(
-		`SELECT DISTINCT work_id, label_id FROM catalog_work_label`,
+	if err := db.Raw(`
+		SELECT DISTINCT wl.work_id, wl.label_id FROM catalog_work_label wl
+		    JOIN catalog_label l ON l.id = wl.label_id AND l.deleted_at IS NULL`,
 	).Scan(&rows).Error; err != nil {
 		return nil, err
 	}

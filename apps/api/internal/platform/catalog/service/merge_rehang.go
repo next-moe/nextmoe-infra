@@ -17,56 +17,123 @@ type mergeStmt struct {
 	collectWorks bool
 }
 
+type mergeStep int
+
+const (
+	stepRehang mergeStep = iota
+	stepExternalRefs
+	stepUsage
+)
+
+type mergeRef struct {
+	table, column string
+	typeSQL       string
+	families      []int16
+	step          mergeStep
+}
+
+// THE LIST IS THE CONTRACT: every column that holds the id of a merge-able
+// entity is in mergeRefs, which the merge moves and SweepStragglers audits, or in
+// mergeRefExclusions, with the reason it stays on the retired id. A column in
+// neither strands its rows on the retired id, where nothing reads them and no
+// constraint complains: catalog_work_cover did it with 12 rows (wave 170b), and
+// catalog_release_label, born after the prose list this replaced, with 2,536
+// rows on 11 merged labels. TestMergeRefsCoverTheSchema fails when the schema
+// grows a column neither list names; TestRehangNamesEveryRef fails when a
+// rehang ref has no statement for its family. Columns that do not follow the
+// <family>_id naming (catalog_character.instance_of) are invisible to that walk
+// and must be added here by hand.
+var mergeRefs = []mergeRef{
+	rehangRef("catalog_character", "instance_of", model.EntityTypeCharacter),
+	rehangRef("catalog_character_alias", "character_id", model.EntityTypeCharacter),
+	rehangRef("catalog_character_intro", "character_id", model.EntityTypeCharacter),
+	rehangRef("catalog_character_intro_panel_verdict", "character_id", model.EntityTypeCharacter),
+	rehangRef("catalog_character_intro_panel_verdict", "work_id", model.EntityTypeWork),
+	rehangRef("catalog_character_trait_link", "character_id", model.EntityTypeCharacter),
+	rehangRef("catalog_cover_vote", "work_id", model.EntityTypeWork),
+	rehangRef("catalog_credit", "character_id", model.EntityTypeCharacter),
+	rehangRef("catalog_credit", "credit_name_id", model.EntityTypeCreditName),
+	rehangRef("catalog_credit", "label_id", model.EntityTypeLabel),
+	rehangRef("catalog_credit", "work_id", model.EntityTypeWork),
+	rehangRef("catalog_credit_name", "person_id", model.EntityTypePerson),
+	{"catalog_entity_relation", "a_id", "t.entity_type", []int16{model.EntityTypePerson, model.EntityTypeCreditName, model.EntityTypeLabel, model.EntityTypeCharacter}, stepRehang},
+	{"catalog_entity_relation", "b_id", "t.entity_type", []int16{model.EntityTypePerson, model.EntityTypeCreditName, model.EntityTypeLabel, model.EntityTypeCharacter}, stepRehang},
+	{"catalog_entity_usage", "entity_id", "t.entity_type", nil, stepUsage},
+	{"catalog_external_ref", "entity_id", "t.entity_type", nil, stepExternalRefs},
+	rehangRef("catalog_label_alias", "label_id", model.EntityTypeLabel),
+	rehangRef("catalog_label_intro", "label_id", model.EntityTypeLabel),
+	rehangRef("catalog_label_relation", "label_id", model.EntityTypeLabel),
+	rehangRef("catalog_label_relation", "other_label_id", model.EntityTypeLabel),
+	rehangRef("catalog_name_alias", "credit_name_id", model.EntityTypeCreditName),
+	rehangRef("catalog_person", "primary_credit_name_id", model.EntityTypeCreditName),
+	rehangRef("catalog_person_intro", "person_id", model.EntityTypePerson),
+	rehangRef("catalog_release", "work_id", model.EntityTypeWork),
+	rehangRef("catalog_release_label", "label_id", model.EntityTypeLabel),
+	rehangRef("catalog_series_member", "work_id", model.EntityTypeWork),
+	{"catalog_user_entity_follow", "entity_id", "t.entity_type", []int16{model.EntityTypeLabel}, stepRehang},
+	rehangRef("catalog_user_folder_item", "work_id", model.EntityTypeWork),
+	rehangRef("catalog_user_playtime", "work_id", model.EntityTypeWork),
+	rehangRef("catalog_user_work_state", "work_id", model.EntityTypeWork),
+	rehangRef("catalog_work_character", "character_id", model.EntityTypeCharacter),
+	rehangRef("catalog_work_character", "work_id", model.EntityTypeWork),
+	rehangRef("catalog_work_cover", "work_id", model.EntityTypeWork),
+	rehangRef("catalog_work_engine", "work_id", model.EntityTypeWork),
+	rehangRef("catalog_work_intro", "work_id", model.EntityTypeWork),
+	rehangRef("catalog_work_label", "label_id", model.EntityTypeLabel),
+	rehangRef("catalog_work_label", "work_id", model.EntityTypeWork),
+	rehangRef("catalog_work_platform", "work_id", model.EntityTypeWork),
+	rehangRef("catalog_work_playtime", "work_id", model.EntityTypeWork),
+	rehangRef("catalog_work_popularity", "work_id", model.EntityTypeWork),
+	rehangRef("catalog_work_rating", "work_id", model.EntityTypeWork),
+	rehangRef("catalog_work_relation", "a_work_id", model.EntityTypeWork),
+	rehangRef("catalog_work_relation", "b_work_id", model.EntityTypeWork),
+	rehangRef("catalog_work_screenshot", "work_id", model.EntityTypeWork),
+	rehangRef("catalog_work_tag", "work_id", model.EntityTypeWork),
+	rehangRef("catalog_work_title", "work_id", model.EntityTypeWork),
+	{"edit_suppressed_row", "entity_id",
+		fmt.Sprintf("CASE t.entity_type WHEN '%s' THEN %d WHEN '%s' THEN %d END",
+			editspec.TypeWork, model.EntityTypeWork, editspec.TypeCharacter, model.EntityTypeCharacter),
+		[]int16{model.EntityTypeWork, model.EntityTypeCharacter}, stepRehang},
+}
+
+var mergeRefExclusions = map[string]string{
+	"catalog_claim_event.work_id":             "append-only claim history, addressed to the id that was claimed",
+	"catalog_revision.entity_id":              "append-only history; the merge writes its own revision rows on both sides",
+	"edit_proposal.entity_id":                 "editing history and open queue, addressed to the id that was actually edited",
+	"edit_revision.entity_id":                 "editing history, addressed to the id that was actually edited",
+	"catalog_match_candidate.a_id":            "reconciliation queue about the source id; the matcher regenerates it",
+	"catalog_match_candidate.b_id":            "reconciliation queue about the source id; the matcher regenerates it",
+	"catalog_match_rejection.entity_id":       "audit trail of what was actually compared",
+	"catalog_merge_proposal.source_entity_id": "the merge's own record of its source",
+	"catalog_merge_proposal.target_entity_id": "the merge's own record of its target",
+	"catalog_work.product_work_id":            "a product-side claim id, not a catalog entity id; retireSource frees it",
+}
+
+func rehangRef(table, column string, family int16) mergeRef {
+	return mergeRef{table, column, fmt.Sprint(family), []int16{family}, stepRehang}
+}
+
 // rehangEntity repoints every child/reference of source onto target,
 // deleting rows that would violate the target's unique constraints (the
-// child already exists on the target — a true duplicate). The hook set per
-// type is the pinned doc 10 §6.2-2 list. It returns the work ids whose
-// rendered content changed, per the wave-118 touch matrix: a work renders
-// credits[], its roster and its brand labels, so credit / character / label
-// merges rewrite works that are not themselves part of the merge; person and
-// org ids never reach the work face (they hang one level below the name and
-// the label), so those merges touch nothing.
+// child already exists on the target — a true duplicate). It returns the work
+// ids whose rendered content changed, per the wave-118 touch matrix: a work
+// renders credits[], its roster and its brand labels, so credit / character /
+// label merges rewrite works that are not themselves part of the merge; person
+// and org ids never reach the work face, so those merges touch nothing.
 //
-// THE LIST IS THE CONTRACT (wave 170b): a table that references a merge-able
-// entity and is missing here strands its rows on the retired id, where nothing
-// reads them and no constraint complains — catalog_work_cover was born after
-// the original list and left 12 rows hanging on a merged-away work in
-// production. Every table that carries a work / character / label / person /
-// credit_name / org reference is therefore accounted for below, either by a
-// statement or by a named exclusion:
-//
-//   - catalog_revision, catalog_claim_event — append-only history. The record
-//     of what happened to the source id must keep pointing at the source id;
-//     rewriting it would rewrite the past (and the merge writes its own
-//     revision rows on both sides).
-//   - catalog_external_ref, catalog_entity_usage, catalog_redirect — merged by
-//     their own dedicated steps in ExecuteMerge (4/5/6), which carry semantics
-//     a blind repoint would destroy (exact-conflict demotion, first/last-seen
-//     folding, chain flattening).
-//   - catalog_match_candidate, catalog_match_rejection, catalog_merge_proposal
-//     — the reconciliation queue and its audit trail. The pair's own candidate
-//     is settled by step 8; the rest are proposals ABOUT the source id and are
-//     regenerated by the matcher, so they stay addressed to what was actually
-//     compared.
-//   - catalog_work.product_work_id — a PRODUCT-side id (the claim), not a
-//     catalog entity id; retireSource frees the source's claim slot.
-//   - edit_proposal, edit_proposal_amendment, edit_revision — the editing
-//     engine's history and its open queue, addressed to the id that was
-//     actually edited; same rationale as catalog_revision. edit_suppressed_row
-//     is NOT history — it is live negative knowledge the read paths consult on
-//     every request, so it rehangs with the title and alias rows below. One
-//     branch per REGISTERED entity type, not per merge-able type: work
-//     (catalog.work.titles) and character (catalog.character.aliases) each move
-//     their own rows.
-//
-// THE LIST ABOVE IS ONLY ABOUT TABLES (wave 09/D13). A suppression's identity
-// key can itself contain the id of a merge-able entity, and that drift is not a
-// table this list could name — a credit_name merge rewrites keys hanging off
-// works that are not in the merge at all. Those rewrites therefore come from the
-// registry, not from here: every field declares its IdentitySpec and
-// IdentityFollowStmts derives the statements, so registering a new field with an
-// id segment needs nobody to remember this file.
+// Suppression identity keys that contain a merge-able id (wave 09/D13) are not
+// columns mergeRefs could name: a credit_name merge rewrites keys hanging off
+// works that are not in the merge at all. Those rewrites come from the editing
+// registry, where every field declares its IdentitySpec.
 func rehangEntity(tx *gorm.DB, reg *editing.Registry, entityType int16, src, dst int64) ([]int64, error) {
+	stmts, err := rehangStmts(reg, entityType, src, dst)
+	if err != nil {
+		return nil, err
+	}
+	return execAll(tx, stmts)
+}
+
+func rehangStmts(reg *editing.Registry, entityType int16, src, dst int64) ([]mergeStmt, error) {
 	switch entityType {
 	case model.EntityTypePerson:
 		stmts := []mergeStmt{
@@ -78,7 +145,7 @@ func rehangEntity(tx *gorm.DB, reg *editing.Registry, entityType int16, src, dst
 			{`DELETE FROM catalog_person_intro WHERE person_id = ?`, []any{src}, false},
 		}
 		stmts = append(stmts, identityFollowStmts(reg, editspec.TagPerson, src, dst)...)
-		return execAll(tx, append(stmts, entityRelationStmts(entityType, src, dst)...))
+		return append(stmts, entityRelationStmts(entityType, src, dst)...), nil
 
 	case model.EntityTypeCreditName:
 		stmts := []mergeStmt{
@@ -103,7 +170,7 @@ func rehangEntity(tx *gorm.DB, reg *editing.Registry, entityType int16, src, dst
 			{`UPDATE catalog_person SET primary_credit_name_id = ? WHERE primary_credit_name_id = ?`, []any{dst, src}, false},
 		}
 		stmts = append(stmts, identityFollowStmts(reg, editspec.TagCreditName, src, dst)...)
-		return execAll(tx, append(stmts, entityRelationStmts(entityType, src, dst)...))
+		return append(stmts, entityRelationStmts(entityType, src, dst)...), nil
 
 	case model.EntityTypeLabel:
 		stmts := []mergeStmt{
@@ -122,6 +189,12 @@ func rehangEntity(tx *gorm.DB, reg *editing.Registry, entityType int16, src, dst
 			                     WHERE x.work_id = e.work_id AND x.label_id = ? AND x.kind = e.kind)
 			  RETURNING e.work_id`, []any{dst, src, dst}, true},
 			{`DELETE FROM catalog_work_label WHERE label_id = ? RETURNING work_id`, []any{src}, true},
+			{`UPDATE catalog_release_label e SET label_id = ? WHERE e.label_id = ?
+			    AND NOT EXISTS (SELECT 1 FROM catalog_release_label x
+			                     WHERE x.release_id = e.release_id AND x.label_id = ? AND x.kind = e.kind)
+			  RETURNING (SELECT r.work_id FROM catalog_release r WHERE r.id = e.release_id)`, []any{dst, src, dst}, true},
+			{`DELETE FROM catalog_release_label e WHERE e.label_id = ?
+			  RETURNING (SELECT r.work_id FROM catalog_release r WHERE r.id = e.release_id)`, []any{src}, true},
 			{`UPDATE catalog_user_entity_follow f SET entity_id = ? WHERE f.entity_type = ? AND f.entity_id = ?
 			    AND NOT EXISTS (SELECT 1 FROM catalog_user_entity_follow x
 			                     WHERE x.actor_uid = f.actor_uid AND x.entity_type = ? AND x.entity_id = ?)`,
@@ -131,7 +204,7 @@ func rehangEntity(tx *gorm.DB, reg *editing.Registry, entityType int16, src, dst
 		}
 		stmts = append(stmts, labelRelationStmts(src, dst)...)
 		stmts = append(stmts, identityFollowStmts(reg, editspec.TagLabel, src, dst)...)
-		return execAll(tx, append(stmts, entityRelationStmts(entityType, src, dst)...))
+		return append(stmts, entityRelationStmts(entityType, src, dst)...), nil
 
 	case model.EntityTypeCharacter:
 		stmts := []mergeStmt{
@@ -182,7 +255,7 @@ func rehangEntity(tx *gorm.DB, reg *editing.Registry, entityType int16, src, dst
 		}
 		stmts = append(stmts, suppressedRowStmts(editspec.TypeCharacter, src, dst)...)
 		stmts = append(stmts, identityFollowStmts(reg, editspec.TagCharacter, src, dst)...)
-		return execAll(tx, append(stmts, entityRelationStmts(entityType, src, dst)...))
+		return append(stmts, entityRelationStmts(entityType, src, dst)...), nil
 
 	case model.EntityTypeWork:
 		stmts := []mergeStmt{
@@ -221,7 +294,7 @@ func rehangEntity(tx *gorm.DB, reg *editing.Registry, entityType int16, src, dst
 		}
 		stmts = append(stmts, suppressedRowStmts(editspec.TypeWork, src, dst)...)
 		stmts = append(stmts, identityFollowStmts(reg, editspec.TagWork, src, dst)...)
-		return execAll(tx, append(stmts, workFacetStmts(src, dst)...))
+		return append(stmts, workFacetStmts(src, dst)...), nil
 	}
 	return nil, fmt.Errorf("catalog merge: unsupported entity type %d", entityType)
 }
@@ -330,6 +403,7 @@ func workFacetStmts(src, dst int64) []mergeStmt {
 	}{
 		{"catalog_work_intro", []string{"lang", "source_id"}},
 		{"catalog_work_cover", []string{"image_hash"}},
+		{"catalog_cover_vote", []string{"actor_uid"}},
 		{"catalog_work_screenshot", []string{"image_hash"}},
 		{"catalog_work_rating", []string{"source_id"}},
 		{"catalog_work_tag", []string{"name", "source_id"}},
