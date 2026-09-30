@@ -14,6 +14,7 @@ type App struct {
 	SymbolsTokenHash *string                     `gorm:"column:symbols_token_hash;uniqueIndex" json:"-"`
 	Enabled          bool                        `gorm:"not null;column:enabled" json:"enabled"`
 	InAppPrefixes    datatypes.JSONSlice[string] `gorm:"type:jsonb;not null;default:'[]';column:in_app_prefixes" json:"in_app_prefixes"`
+	AlertSettings    AlertSettings               `gorm:"type:jsonb;column:alert_settings" json:"alert_settings"`
 	CreatedAt        time.Time                   `gorm:"not null;column:created_at" json:"created_at"`
 	UpdatedAt        time.Time                   `gorm:"not null;column:updated_at" json:"updated_at"`
 }

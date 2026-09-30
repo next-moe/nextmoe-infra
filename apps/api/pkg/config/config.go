@@ -116,8 +116,9 @@ type AIServiceConfig struct {
 }
 
 type TelemetryServiceConfig struct {
-	Host string
-	Port int
+	Host         string
+	Port         int
+	AdminBaseURL string
 }
 
 type TelemetrySymbolsConfig struct {
@@ -619,8 +620,9 @@ func Load() (*Config, error) {
 
 	telemetryPort, _ := strconv.Atoi(getEnv("KUN_TELEMETRY_PORT", "9286"))
 	cfg.TelemetryService = TelemetryServiceConfig{
-		Host: getEnv("KUN_TELEMETRY_HOST", "127.0.0.1"),
-		Port: telemetryPort,
+		Host:         getEnv("KUN_TELEMETRY_HOST", "127.0.0.1"),
+		Port:         telemetryPort,
+		AdminBaseURL: strings.TrimRight(getEnv("KUN_TELEMETRY_ADMIN_BASE_URL", "https://admin.nextmoe.dev"), "/"),
 	}
 	telPathStyle, _ := strconv.ParseBool(getEnv("KUN_TELEMETRY_S3_FORCE_PATH_STYLE", "true"))
 	cfg.TelemetrySymbols = TelemetrySymbolsConfig{

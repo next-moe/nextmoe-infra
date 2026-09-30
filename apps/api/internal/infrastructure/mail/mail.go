@@ -35,6 +35,10 @@ func newMessageID(account string) string {
 	return fmt.Sprintf("<%s@%s>", hex.EncodeToString(b[:]), domain)
 }
 
+func (m *Mailer) SendShelled(to, subject, heading, innerHTML string) error {
+	return m.SendEmail(to, subject, kunEmailShell(heading, innerHTML))
+}
+
 func (m *Mailer) SendEmail(to, subject, htmlBody string) error {
 	if m.cfg.Host == "" {
 		return fmt.Errorf("mail host not configured")

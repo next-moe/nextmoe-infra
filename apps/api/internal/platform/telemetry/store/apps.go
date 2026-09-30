@@ -61,7 +61,7 @@ func (s *Store) CreateApp(ctx context.Context, serviceName, displayName string) 
 	return &row, nil
 }
 
-func (s *Store) UpdateApp(ctx context.Context, id int64, displayName *string, enabled *bool, prefixes *[]string) (*model.App, error) {
+func (s *Store) UpdateApp(ctx context.Context, id int64, displayName *string, enabled *bool, prefixes *[]string, settings *model.AlertSettings) (*model.App, error) {
 	var row model.App
 	if err := s.db.WithContext(ctx).First(&row, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -78,6 +78,9 @@ func (s *Store) UpdateApp(ctx context.Context, id int64, displayName *string, en
 	}
 	if prefixes != nil {
 		updates["in_app_prefixes"] = datatypes.JSONSlice[string](*prefixes)
+	}
+	if settings != nil {
+		updates["alert_settings"] = *settings
 	}
 	if len(updates) > 0 {
 		if err := s.db.WithContext(ctx).Model(&row).Updates(updates).Error; err != nil {
@@ -148,6 +151,10 @@ func (s *Store) PurgeExpired(ctx context.Context, now time.Time) error {
 	}
 	if err := purgeIssueDaily(s.db.WithContext(ctx), metricCut); err != nil {
 		return err
+	}
+	alertCut := now.UTC().AddDate(0, 0, -400)
+	if err := s.db.WithContext(ctx).Exec(`DELETE FROM telemetry_alert WHERE created_at < ?`, alertCut).Error; err != nil {
+		return fmt.Errorf("purge alerts: %w", err)
 	}
 	return nil
 }

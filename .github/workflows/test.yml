@@ -91,6 +91,7 @@ jobs:
           # still green. Every gen-openapi flag that has a committed output belongs
           # here — an ungated spec is worse than an absent one, because it looks checked.
           go run ./cmd/gen-openapi -ai-admin -o ../../docs/ai/admin-openapi.yaml
+          go run ./cmd/gen-openapi -telemetry-admin -o ../../docs/telemetry/admin-openapi.yaml
           # Same trap as -ai-admin, different generator: cmd/gen-v2-portal writes
           # the portal's problems.ts / vocabularies.ts / mcp-tools.mjs from the Go
           # registries and the v2 document, and no gate ran it — a new problem code

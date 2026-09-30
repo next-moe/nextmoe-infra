@@ -1,6 +1,8 @@
 // Package migrate owns the kun_telemetry schema: AutoMigrate for the
 // non-partitioned tables (apps, sessions, daily metrics, symbol uploads,
-// symbol files, blobs, engine symbols, crashes, issues, issue-daily counts),
+// symbol files, blobs, engine symbols, crashes, issues, issue-daily counts,
+// alert channels, alerts), the nullable alert_settings jsonb column on
+// telemetry_app,
 // raw SQL for the RANGE-partitioned event log
 // (PARTITION BY RANGE (event_day), PRIMARY KEY (event_day, record_uid), one
 // UTC-day partition named telemetry_event_pYYYYMMDD, no default partition —
@@ -38,6 +40,8 @@ func Run(db *gorm.DB) error {
 		&model.Issue{},
 		&model.IssueDaily{},
 		&model.Crash{},
+		&model.AlertChannel{},
+		&model.Alert{},
 	); err != nil {
 		return fmt.Errorf("telemetry automigrate: %w", err)
 	}
@@ -82,6 +86,15 @@ func rawSQL(db *gorm.DB) error {
 			CREATE INDEX IF NOT EXISTS idx_telemetry_crash_app_needs
 			    ON telemetry_crash (app_id, needs)
 			 WHERE needs <> ''`},
+		{"idx_telemetry_alert_channel_kind_target", `
+			CREATE UNIQUE INDEX IF NOT EXISTS idx_telemetry_alert_channel_kind_target
+			    ON telemetry_alert_channel (kind, target)`},
+		{"idx_telemetry_alert_dedup", `
+			CREATE UNIQUE INDEX IF NOT EXISTS idx_telemetry_alert_dedup
+			    ON telemetry_alert (rule, app_id, subject_key)`},
+		{"idx_telemetry_alert_status_urgency_created", `
+			CREATE INDEX IF NOT EXISTS idx_telemetry_alert_status_urgency_created
+			    ON telemetry_alert (status, urgency, created_at)`},
 	}
 	for _, s := range stmts {
 		if err := db.Exec(s.sql).Error; err != nil {

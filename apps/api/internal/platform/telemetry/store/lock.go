@@ -9,6 +9,7 @@ import (
 
 const maintenanceLockKey int64 = 0x746c6d74
 const engineFetchLockKey int64 = 0x746c6566
+const alertDispatchLockKey int64 = 0x746c616c
 
 func (s *Store) TryMaintenance(ctx context.Context, fn func(context.Context) error) error {
 	return s.tryLock(ctx, maintenanceLockKey, fn)
@@ -16,6 +17,10 @@ func (s *Store) TryMaintenance(ctx context.Context, fn func(context.Context) err
 
 func (s *Store) TryEngineFetch(ctx context.Context, fn func(context.Context) error) error {
 	return s.tryLock(ctx, engineFetchLockKey, fn)
+}
+
+func (s *Store) TryAlertDispatch(ctx context.Context, fn func(context.Context) error) error {
+	return s.tryLock(ctx, alertDispatchLockKey, fn)
 }
 
 func (s *Store) tryLock(ctx context.Context, key int64, fn func(context.Context) error) error {

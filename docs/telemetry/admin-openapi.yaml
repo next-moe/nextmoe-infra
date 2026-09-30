@@ -1,0 +1,1530 @@
+components:
+  schemas:
+    AlertChannelTestResult:
+      additionalProperties: false
+      properties:
+        error:
+          type: string
+        ok:
+          type: boolean
+      required:
+        - ok
+        - error
+      type: object
+    AlertChannelView:
+      additionalProperties: false
+      properties:
+        created_at:
+          type: string
+        enabled:
+          type: boolean
+        id:
+          format: int64
+          type: integer
+        kind:
+          type: string
+        target:
+          type: string
+        updated_at:
+          type: string
+      required:
+        - id
+        - kind
+        - target
+        - enabled
+        - created_at
+        - updated_at
+      type: object
+    AlertSettings:
+      additionalProperties: false
+      properties:
+        anr_rate:
+          format: double
+          type: number
+        crash_rate:
+          format: double
+          type: number
+        min_sessions:
+          format: int64
+          type: integer
+        regression_factor:
+          format: double
+          type: number
+        regression_min_delta:
+          format: double
+          type: number
+        server_faults_per_hour:
+          format: int64
+          type: integer
+        silent_hours:
+          format: int64
+          type: integer
+        silent_min_daily_sessions:
+          format: int64
+          type: integer
+      required:
+        - crash_rate
+        - anr_rate
+        - min_sessions
+        - regression_factor
+        - regression_min_delta
+        - server_faults_per_hour
+        - silent_hours
+        - silent_min_daily_sessions
+      type: object
+    AlertSettingsInput:
+      additionalProperties: false
+      properties:
+        anr_rate:
+          format: double
+          type: number
+        crash_rate:
+          format: double
+          type: number
+        min_sessions:
+          format: int64
+          type: integer
+        regression_factor:
+          format: double
+          type: number
+        regression_min_delta:
+          format: double
+          type: number
+        server_faults_per_hour:
+          format: int64
+          type: integer
+        silent_hours:
+          format: int64
+          type: integer
+        silent_min_daily_sessions:
+          format: int64
+          type: integer
+      type: object
+    AlertView:
+      additionalProperties: false
+      properties:
+        app_id:
+          format: int64
+          type: integer
+        attempts:
+          format: int64
+          type: integer
+        created_at:
+          type: string
+        facts: {}
+        id:
+          format: int64
+          type: integer
+        last_error:
+          type: string
+        rule:
+          type: string
+        sent_at:
+          type:
+            - string
+            - "null"
+        status:
+          type: string
+        subject_key:
+          type: string
+        title:
+          type: string
+        urgency:
+          type: string
+      required:
+        - id
+        - app_id
+        - rule
+        - subject_key
+        - urgency
+        - title
+        - facts
+        - status
+        - attempts
+        - last_error
+        - created_at
+        - sent_at
+      type: object
+    AppView:
+      additionalProperties: false
+      properties:
+        alert_settings:
+          $ref: "#/components/schemas/AlertSettings"
+        created_at:
+          type: string
+        display_name:
+          type: string
+        enabled:
+          type: boolean
+        has_symbols_token:
+          type: boolean
+        id:
+          format: int64
+          type: integer
+        in_app_prefixes:
+          items:
+            type: string
+          type: array
+        ingest_key:
+          type: string
+        service_name:
+          type: string
+        updated_at:
+          type: string
+      required:
+        - id
+        - service_name
+        - display_name
+        - ingest_key
+        - enabled
+        - has_symbols_token
+        - in_app_prefixes
+        - alert_settings
+        - created_at
+        - updated_at
+      type: object
+    CreateAlertChannelRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/CreateAlertChannelRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        enabled:
+          type: boolean
+        kind:
+          type: string
+        target:
+          type: string
+      required:
+        - kind
+        - target
+      type: object
+    CreateAppRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/CreateAppRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        display_name:
+          type: string
+        service_name:
+          type: string
+      required:
+        - service_name
+        - display_name
+      type: object
+    DailyMetricView:
+      additionalProperties: false
+      properties:
+        abnormal_sessions:
+          format: int64
+          type: integer
+        anr_rate:
+          format: double
+          type:
+            - number
+            - "null"
+        anr_sessions:
+          format: int64
+          type: integer
+        app_id:
+          format: int64
+          type: integer
+        crash_anr:
+          format: int64
+          type: integer
+        crash_java:
+          format: int64
+          type: integer
+        crash_native:
+          format: int64
+          type: integer
+        crash_rate:
+          format: double
+          type:
+            - number
+            - "null"
+        crashed_sessions:
+          format: int64
+          type: integer
+        day:
+          type: string
+        environment:
+          type: string
+        exceptions:
+          format: int64
+          type: integer
+        jank_frames_over:
+          format: int64
+          type: integer
+        jank_frames_total:
+          format: int64
+          type: integer
+        jank_ratio:
+          format: double
+          type:
+            - number
+            - "null"
+        service_version:
+          type: string
+        sessions:
+          format: int64
+          type: integer
+        startup_count:
+          format: int64
+          type: integer
+        ttid_p50_ms:
+          format: double
+          type:
+            - number
+            - "null"
+        ttid_p90_ms:
+          format: double
+          type:
+            - number
+            - "null"
+        unhandled_rate:
+          format: double
+          type:
+            - number
+            - "null"
+        unhandled_sessions:
+          format: int64
+          type: integer
+      required:
+        - app_id
+        - service_version
+        - environment
+        - day
+        - sessions
+        - crashed_sessions
+        - anr_sessions
+        - unhandled_sessions
+        - abnormal_sessions
+        - exceptions
+        - crash_java
+        - crash_native
+        - crash_anr
+        - startup_count
+        - ttid_p50_ms
+        - ttid_p90_ms
+        - jank_frames_over
+        - jank_frames_total
+        - crash_rate
+        - anr_rate
+        - unhandled_rate
+        - jank_ratio
+      type: object
+    EngineSymbolView:
+      additionalProperties: false
+      properties:
+        build_id:
+          type: string
+        last_error:
+          type: string
+        status:
+          type: string
+        variant:
+          type: string
+      required:
+        - variant
+        - status
+        - build_id
+        - last_error
+      type: object
+    EnvelopeAlertChannelTestResult:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeAlertChannelTestResult.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/AlertChannelTestResult"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeAlertChannelView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeAlertChannelView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/AlertChannelView"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeAppView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeAppView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/AppView"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeIssueDetail:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeIssueDetail.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/IssueDetail"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeIssueView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeIssueView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/IssueView"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeListAlertChannelView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeListAlertChannelView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          items:
+            $ref: "#/components/schemas/AlertChannelView"
+          type: array
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeListAlertView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeListAlertView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          items:
+            $ref: "#/components/schemas/AlertView"
+          type: array
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeListAppView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeListAppView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          items:
+            $ref: "#/components/schemas/AppView"
+          type: array
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeListDailyMetricView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeListDailyMetricView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          items:
+            $ref: "#/components/schemas/DailyMetricView"
+          type: array
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeListIssueListItem:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeListIssueListItem.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          items:
+            $ref: "#/components/schemas/IssueListItem"
+          type: array
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeListSymbolUploadView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeListSymbolUploadView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          items:
+            $ref: "#/components/schemas/SymbolUploadView"
+          type: array
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeMapStringInterface {}:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeMapStringInterface {}.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          additionalProperties: {}
+          type: object
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    EnvelopeSymbolsTokenView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EnvelopeSymbolsTokenView.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        data:
+          $ref: "#/components/schemas/SymbolsTokenView"
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    HouseError:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/HouseError.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          format: int64
+          type: integer
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    IssueCrashView:
+      additionalProperties: false
+      properties:
+        api_level:
+          format: int64
+          type:
+            - integer
+            - "null"
+        app.breadcrumbs:
+          items:
+            type: string
+          type: array
+        device_model:
+          type: string
+        event_day:
+          type: string
+        exception_type:
+          type: string
+        handled:
+          type:
+            - boolean
+            - "null"
+        host_arch:
+          type: string
+        message:
+          type: string
+        needs:
+          type: string
+        os_version:
+          type: string
+        raw_stack:
+          type: string
+        service_version:
+          type: string
+        stack:
+          type: string
+        status:
+          type: string
+      required:
+        - event_day
+        - service_version
+        - status
+        - needs
+        - exception_type
+        - message
+        - stack
+        - raw_stack
+        - app.breadcrumbs
+        - handled
+        - device_model
+        - os_version
+        - api_level
+        - host_arch
+      type: object
+    IssueDailyView:
+      additionalProperties: false
+      properties:
+        day:
+          type: string
+        events:
+          format: int64
+          type: integer
+        service_version:
+          type: string
+        sessions:
+          format: int64
+          type: integer
+      required:
+        - day
+        - service_version
+        - events
+        - sessions
+      type: object
+    IssueDayPoint:
+      additionalProperties: false
+      properties:
+        day:
+          type: string
+        events:
+          format: int64
+          type: integer
+      required:
+        - day
+        - events
+      type: object
+    IssueDetail:
+      additionalProperties: false
+      properties:
+        app_id:
+          format: int64
+          type: integer
+        crashes:
+          items:
+            $ref: "#/components/schemas/IssueCrashView"
+          type: array
+        created_at:
+          type: string
+        culprit:
+          type: string
+        daily:
+          items:
+            $ref: "#/components/schemas/IssueDailyView"
+          type: array
+        fingerprint:
+          type: string
+        first_seen_day:
+          type: string
+        first_version:
+          type: string
+        id:
+          format: int64
+          type: integer
+        kind:
+          type: string
+        last_seen_day:
+          type: string
+        last_version:
+          type: string
+        regressed:
+          type: boolean
+        resolved_in_version:
+          type: string
+        status:
+          type: string
+        title:
+          type: string
+        updated_at:
+          type: string
+      required:
+        - daily
+        - crashes
+        - id
+        - app_id
+        - fingerprint
+        - kind
+        - title
+        - culprit
+        - status
+        - resolved_in_version
+        - regressed
+        - first_seen_day
+        - last_seen_day
+        - first_version
+        - last_version
+        - created_at
+        - updated_at
+      type: object
+    IssueListItem:
+      additionalProperties: false
+      properties:
+        app_id:
+          format: int64
+          type: integer
+        created_at:
+          type: string
+        culprit:
+          type: string
+        events:
+          format: int64
+          type: integer
+        fingerprint:
+          type: string
+        first_seen_day:
+          type: string
+        first_version:
+          type: string
+        id:
+          format: int64
+          type: integer
+        kind:
+          type: string
+        last_seen_day:
+          type: string
+        last_version:
+          type: string
+        regressed:
+          type: boolean
+        resolved_in_version:
+          type: string
+        series:
+          items:
+            $ref: "#/components/schemas/IssueDayPoint"
+          type: array
+        sessions:
+          format: int64
+          type: integer
+        status:
+          type: string
+        title:
+          type: string
+        updated_at:
+          type: string
+      required:
+        - events
+        - sessions
+        - series
+        - id
+        - app_id
+        - fingerprint
+        - kind
+        - title
+        - culprit
+        - status
+        - resolved_in_version
+        - regressed
+        - first_seen_day
+        - last_seen_day
+        - first_version
+        - last_version
+        - created_at
+        - updated_at
+      type: object
+    IssueView:
+      additionalProperties: false
+      properties:
+        app_id:
+          format: int64
+          type: integer
+        created_at:
+          type: string
+        culprit:
+          type: string
+        fingerprint:
+          type: string
+        first_seen_day:
+          type: string
+        first_version:
+          type: string
+        id:
+          format: int64
+          type: integer
+        kind:
+          type: string
+        last_seen_day:
+          type: string
+        last_version:
+          type: string
+        regressed:
+          type: boolean
+        resolved_in_version:
+          type: string
+        status:
+          type: string
+        title:
+          type: string
+        updated_at:
+          type: string
+      required:
+        - id
+        - app_id
+        - fingerprint
+        - kind
+        - title
+        - culprit
+        - status
+        - resolved_in_version
+        - regressed
+        - first_seen_day
+        - last_seen_day
+        - first_version
+        - last_version
+        - created_at
+        - updated_at
+      type: object
+    SymbolFileView:
+      additionalProperties: false
+      properties:
+        arch:
+          type: string
+        build_id:
+          type: string
+        file_name:
+          type: string
+        kind:
+          type: string
+        sha256:
+          type: string
+        size:
+          format: int64
+          type: integer
+      required:
+        - file_name
+        - kind
+        - arch
+        - build_id
+        - sha256
+        - size
+      type: object
+    SymbolUploadView:
+      additionalProperties: false
+      properties:
+        app_id:
+          format: int64
+          type: integer
+        created_at:
+          type: string
+        engine_revision:
+          type: string
+        engine_symbols:
+          items:
+            $ref: "#/components/schemas/EngineSymbolView"
+          type: array
+        files:
+          items:
+            $ref: "#/components/schemas/SymbolFileView"
+          type: array
+        id:
+          format: int64
+          type: integer
+        service_version:
+          type: string
+      required:
+        - id
+        - app_id
+        - service_version
+        - engine_revision
+        - created_at
+        - files
+      type: object
+    SymbolsTokenView:
+      additionalProperties: false
+      properties:
+        token:
+          type: string
+      required:
+        - token
+      type: object
+    UpdateAlertChannelRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/UpdateAlertChannelRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        enabled:
+          type: boolean
+        target:
+          type: string
+      type: object
+    UpdateAppRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/UpdateAppRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        alert_settings:
+          $ref: "#/components/schemas/AlertSettingsInput"
+        display_name:
+          type: string
+        enabled:
+          type: boolean
+        in_app_prefixes:
+          items:
+            type: string
+          type: array
+      type: object
+    UpdateIssueRequest:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/UpdateIssueRequest.json
+          format: uri
+          readOnly: true
+          type: string
+        resolved_in_version:
+          type: string
+        status:
+          type: string
+      required:
+        - status
+      type: object
+info:
+  title: KUN Telemetry Admin API
+  version: 1.0.0
+openapi: 3.1.0
+paths:
+  /api/v1/admin/telemetry/alert-channels:
+    get:
+      operationId: listTelemetryAlertChannels
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeListAlertChannelView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: List telemetry alert channels
+      tags:
+        - telemetry-admin
+    post:
+      operationId: createTelemetryAlertChannel
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAlertChannelRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAlertChannelView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Create an alert channel
+      tags:
+        - telemetry-admin
+  /api/v1/admin/telemetry/alert-channels/{id}:
+    delete:
+      operationId: deleteTelemetryAlertChannel
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeMapStringInterface {}"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Delete an alert channel
+      tags:
+        - telemetry-admin
+    patch:
+      operationId: updateTelemetryAlertChannel
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAlertChannelRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAlertChannelView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Update an alert channel
+      tags:
+        - telemetry-admin
+  /api/v1/admin/telemetry/alert-channels/{id}/test:
+    post:
+      operationId: testTelemetryAlertChannel
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAlertChannelTestResult"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Send a test email to an alert channel
+      tags:
+        - telemetry-admin
+  /api/v1/admin/telemetry/alerts:
+    get:
+      operationId: listTelemetryAlerts
+      parameters:
+        - explode: false
+          in: query
+          name: app_id
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: status
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: limit
+          schema:
+            default: 50
+            format: int64
+            type: integer
+        - explode: false
+          in: query
+          name: offset
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeListAlertView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: List telemetry alerts, newest first
+      tags:
+        - telemetry-admin
+  /api/v1/admin/telemetry/apps:
+    get:
+      operationId: listTelemetryApps
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeListAppView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: List telemetry apps including ingest keys
+      tags:
+        - telemetry-admin
+    post:
+      operationId: createTelemetryApp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAppRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAppView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Create a telemetry app and mint its public ingest key
+      tags:
+        - telemetry-admin
+  /api/v1/admin/telemetry/apps/{id}:
+    patch:
+      operationId: updateTelemetryApp
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAppRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAppView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Update a telemetry app's display name or enabled flag
+      tags:
+        - telemetry-admin
+  /api/v1/admin/telemetry/apps/{id}/rotate-key:
+    post:
+      operationId: rotateTelemetryAppKey
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAppView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Replace an app's ingest key; the old key stops working in this process immediately
+      tags:
+        - telemetry-admin
+  /api/v1/admin/telemetry/apps/{id}/rotate-symbols-token:
+    post:
+      operationId: rotateTelemetrySymbolsToken
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSymbolsTokenView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Mint a CI symbols-upload token; the plaintext is returned only this once
+      tags:
+        - telemetry-admin
+  /api/v1/admin/telemetry/apps/{id}/symbol-uploads:
+    get:
+      operationId: listTelemetrySymbolUploads
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+        - explode: false
+          in: query
+          name: limit
+          schema:
+            default: 50
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeListSymbolUploadView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: List symbol uploads for an app, newest first
+      tags:
+        - telemetry-admin
+  /api/v1/admin/telemetry/issues:
+    get:
+      operationId: listTelemetryIssues
+      parameters:
+        - explode: false
+          in: query
+          name: app_id
+          required: true
+          schema:
+            format: int64
+            type: integer
+        - explode: false
+          in: query
+          name: kind
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: status
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: version
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: from
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: to
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: sort
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: limit
+          schema:
+            format: int64
+            type: integer
+        - explode: false
+          in: query
+          name: offset
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeListIssueListItem"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: List grouped crash and exception issues for an app
+      tags:
+        - telemetry-admin
+  /api/v1/admin/telemetry/issues/{id}:
+    get:
+      operationId: getTelemetryIssue
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeIssueDetail"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Get one issue with recent crashes
+      tags:
+        - telemetry-admin
+    patch:
+      operationId: updateTelemetryIssue
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateIssueRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeIssueView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Update an issue's status
+      tags:
+        - telemetry-admin
+  /api/v1/admin/telemetry/metrics/daily:
+    get:
+      operationId: listTelemetryDailyMetrics
+      parameters:
+        - explode: false
+          in: query
+          name: app_id
+          required: true
+          schema:
+            format: int64
+            type: integer
+        - explode: false
+          in: query
+          name: environment
+          schema:
+            default: direct
+            type: string
+        - explode: false
+          in: query
+          name: from
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: to
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeListDailyMetricView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseError"
+          description: Error
+      summary: Daily session metrics for an app
+      tags:
+        - telemetry-admin

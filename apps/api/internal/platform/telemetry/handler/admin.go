@@ -6,9 +6,12 @@ import (
 	"log/slog"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
 
+	"api/internal/platform/telemetry/alert"
 	"api/internal/platform/telemetry/dto"
+	"api/internal/platform/telemetry/model"
 	telemetryPerm "api/internal/platform/telemetry/perm"
 	"api/internal/platform/telemetry/store"
 	"api/pkg/errors"
@@ -40,11 +43,12 @@ type invalidator interface {
 }
 
 type AdminServer struct {
-	store *store.Store
-	keys  invalidator
+	store    *store.Store
+	keys     invalidator
+	notifier alert.Notifier
 }
 
-func SetupAdmin(app *fiber.App, st *store.Store, keys invalidator) huma.API {
+func SetupAdmin(app *fiber.App, st *store.Store, keys invalidator, notifier alert.Notifier) huma.API {
 	InstallErrorEnvelope()
 
 	cfg := huma.DefaultConfig("KUN Telemetry Admin API", "1.0.0")
@@ -55,7 +59,7 @@ func SetupAdmin(app *fiber.App, st *store.Store, keys invalidator) huma.API {
 	api := humafiber.New(app, cfg)
 	api.UseMiddleware(adminAuthBridge)
 
-	s := &AdminServer{store: st, keys: keys}
+	s := &AdminServer{store: st, keys: keys, notifier: notifier}
 	s.register(api)
 	wireshape.Publish(api.OpenAPI())
 	return api
@@ -83,6 +87,7 @@ func (s *AdminServer) register(api huma.API) {
 		Summary: "Get one issue with recent crashes", Tags: tags}, s.getIssue)
 	huma.Register(api, huma.Operation{OperationID: "updateTelemetryIssue", Method: http.MethodPatch, Path: "/api/v1/admin/telemetry/issues/{id}",
 		Summary: "Update an issue's status", Tags: tags}, s.updateIssue)
+	s.registerAlerts(api)
 }
 
 func (s *AdminServer) requireManage(ctx context.Context) error {
@@ -159,7 +164,15 @@ func (s *AdminServer) updateApp(ctx context.Context, in *updateAppInput) (*updat
 			return nil, err
 		}
 	}
-	row, err := s.store.UpdateApp(ctx, in.ID, in.Body.DisplayName, in.Body.Enabled, in.Body.InAppPrefixes)
+	var settings *model.AlertSettings
+	if in.Body.AlertSettings != nil {
+		v := in.Body.AlertSettings.Settings()
+		if err := v.Validate(); err != nil {
+			return nil, apiErrMsg(http.StatusUnprocessableEntity, errors.ErrValidationFailed, err.Error())
+		}
+		settings = &v
+	}
+	row, err := s.store.UpdateApp(ctx, in.ID, in.Body.DisplayName, in.Body.Enabled, in.Body.InAppPrefixes, settings)
 	if err != nil {
 		return nil, mapAdminErr("update app", err)
 	}
@@ -281,7 +294,11 @@ func mapAdminErr(op string, err error) *houseError {
 	case stderrors.Is(err, store.ErrNotFound):
 		return apiErr(http.StatusNotFound, errors.ErrNotFound)
 	case stderrors.Is(err, store.ErrConflict):
-		return apiErrMsg(http.StatusConflict, errors.ErrOperationFailed, "service_name already exists")
+		msg := "service_name already exists"
+		if strings.Contains(op, "channel") {
+			msg = "alert channel already exists"
+		}
+		return apiErrMsg(http.StatusConflict, errors.ErrOperationFailed, msg)
 	default:
 		slog.Error("telemetry admin "+op, "err", err)
 		return apiErr(http.StatusInternalServerError, errors.ErrInternalServer)

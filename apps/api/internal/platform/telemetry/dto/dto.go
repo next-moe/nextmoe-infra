@@ -7,15 +7,16 @@ import (
 )
 
 type AppView struct {
-	ID              int64    `json:"id"`
-	ServiceName     string   `json:"service_name"`
-	DisplayName     string   `json:"display_name"`
-	IngestKey       string   `json:"ingest_key"`
-	Enabled         bool     `json:"enabled"`
-	HasSymbolsToken bool     `json:"has_symbols_token"`
-	InAppPrefixes   []string `json:"in_app_prefixes"`
-	CreatedAt       string   `json:"created_at"`
-	UpdatedAt       string   `json:"updated_at"`
+	ID              int64               `json:"id"`
+	ServiceName     string              `json:"service_name"`
+	DisplayName     string              `json:"display_name"`
+	IngestKey       string              `json:"ingest_key"`
+	Enabled         bool                `json:"enabled"`
+	HasSymbolsToken bool                `json:"has_symbols_token"`
+	InAppPrefixes   []string            `json:"in_app_prefixes"`
+	AlertSettings   model.AlertSettings `json:"alert_settings"`
+	CreatedAt       string              `json:"created_at"`
+	UpdatedAt       string              `json:"updated_at"`
 }
 
 type CreateAppRequest struct {
@@ -24,9 +25,50 @@ type CreateAppRequest struct {
 }
 
 type UpdateAppRequest struct {
-	DisplayName   *string   `json:"display_name,omitempty"`
-	Enabled       *bool     `json:"enabled,omitempty"`
-	InAppPrefixes *[]string `json:"in_app_prefixes,omitempty"`
+	DisplayName   *string             `json:"display_name,omitempty"`
+	Enabled       *bool               `json:"enabled,omitempty"`
+	InAppPrefixes *[]string           `json:"in_app_prefixes,omitempty"`
+	AlertSettings *AlertSettingsInput `json:"alert_settings,omitempty"`
+}
+
+type AlertSettingsInput struct {
+	CrashRate              *float64 `json:"crash_rate,omitempty"`
+	AnrRate                *float64 `json:"anr_rate,omitempty"`
+	MinSessions            *int     `json:"min_sessions,omitempty"`
+	RegressionFactor       *float64 `json:"regression_factor,omitempty"`
+	RegressionMinDelta     *float64 `json:"regression_min_delta,omitempty"`
+	ServerFaultsPerHour    *int     `json:"server_faults_per_hour,omitempty"`
+	SilentHours            *int     `json:"silent_hours,omitempty"`
+	SilentMinDailySessions *int     `json:"silent_min_daily_sessions,omitempty"`
+}
+
+func (in AlertSettingsInput) Settings() model.AlertSettings {
+	out := model.DefaultAlertSettings()
+	if in.CrashRate != nil {
+		out.CrashRate = *in.CrashRate
+	}
+	if in.AnrRate != nil {
+		out.AnrRate = *in.AnrRate
+	}
+	if in.MinSessions != nil {
+		out.MinSessions = *in.MinSessions
+	}
+	if in.RegressionFactor != nil {
+		out.RegressionFactor = *in.RegressionFactor
+	}
+	if in.RegressionMinDelta != nil {
+		out.RegressionMinDelta = *in.RegressionMinDelta
+	}
+	if in.ServerFaultsPerHour != nil {
+		out.ServerFaultsPerHour = *in.ServerFaultsPerHour
+	}
+	if in.SilentHours != nil {
+		out.SilentHours = *in.SilentHours
+	}
+	if in.SilentMinDailySessions != nil {
+		out.SilentMinDailySessions = *in.SilentMinDailySessions
+	}
+	return out
 }
 
 type SymbolsTokenView struct {
@@ -101,6 +143,7 @@ func AppViewFrom(a model.App) AppView {
 		Enabled:         a.Enabled,
 		HasSymbolsToken: a.SymbolsTokenHash != nil && *a.SymbolsTokenHash != "",
 		InAppPrefixes:   prefixes,
+		AlertSettings:   a.AlertSettings.Effective(),
 		CreatedAt:       a.CreatedAt.UTC().Format(time.RFC3339),
 		UpdatedAt:       a.UpdatedAt.UTC().Format(time.RFC3339),
 	}

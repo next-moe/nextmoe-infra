@@ -9,10 +9,12 @@ import (
 
 	"api/internal/app"
 	"api/internal/infrastructure/database"
+	"api/internal/infrastructure/mail"
 	"api/internal/middleware"
 	"api/internal/platform/permissions"
 	"api/internal/platform/settings"
 	"api/internal/platform/settings/keys"
+	"api/internal/platform/telemetry/alert"
 	telemetryHandler "api/internal/platform/telemetry/handler"
 	"api/internal/platform/telemetry/ingest"
 	telemetryPerm "api/internal/platform/telemetry/perm"
@@ -82,17 +84,23 @@ func main() {
 	sym := symbols.NewHandler(st, st, slog.Default())
 	application.Fiber.Post("/v1/symbols", sym.Symbols)
 
+	mailer := mail.NewMailer(cfg.Mail)
+	notifier := alert.NewEmailNotifier(mailer)
+	eval := alert.NewEvaluator(st)
+	disp := alert.NewDispatcher(st, notifier, cfg.Mail.Host != "", cfg.TelemetryService.AdminBaseURL)
+
 	tokenVerifier := oidctoken.NewVerifierWithJWKS(cfg.JWT.Secret, cfg.OIDC.JWKSURL)
 	application.Fiber.Use("/api/v1/admin/telemetry",
 		middleware.Logger(),
 		middleware.JWTAuth(tokenVerifier),
 		middleware.RequirePermission(telemetryPerm.Resolver, telemetryPerm.View),
 	)
-	telemetryHandler.SetupAdmin(application.Fiber, st, cache)
+	telemetryHandler.SetupAdmin(application.Fiber, st, cache, notifier)
 
 	permissions.NewDistributor(application.DB.DB(), permissions.Live(), nil).Start(permCtx)
 
-	go runLoops(permCtx, st)
+	go runLoops(permCtx, st, eval)
+	go runDispatcher(permCtx, st, disp)
 	fetcher := symbols.NewFetcher(st, blobs, cfg.TelemetrySymbols.EngineSymbolsBaseURL, slog.Default())
 	go runEngineFetch(permCtx, st, fetcher)
 
@@ -113,8 +121,8 @@ func main() {
 	}
 }
 
-func runLoops(ctx context.Context, st *store.Store) {
-	runHourly(ctx, st)
+func runLoops(ctx context.Context, st *store.Store, ev *alert.Evaluator) {
+	runHourly(ctx, st, ev)
 	five := time.NewTicker(5 * time.Minute)
 	hour := time.NewTicker(time.Hour)
 	defer five.Stop()
@@ -124,23 +132,26 @@ func runLoops(ctx context.Context, st *store.Store) {
 		case <-ctx.Done():
 			return
 		case <-five.C:
-			runFive(ctx, st)
+			runFive(ctx, st, ev)
 		case <-hour.C:
-			runHourly(ctx, st)
+			runHourly(ctx, st, ev)
 		}
 	}
 }
 
-func runFive(ctx context.Context, st *store.Store) {
+func runFive(ctx context.Context, st *store.Store, ev *alert.Evaluator) {
 	if err := st.TryMaintenance(ctx, func(ctx context.Context) error {
 		today := dateUTC(time.Now())
-		return st.Rollup(ctx, today.AddDate(0, 0, -2), today)
+		if err := st.Rollup(ctx, today.AddDate(0, 0, -2), today); err != nil {
+			return err
+		}
+		return ev.Evaluate(ctx, time.Now().UTC())
 	}); err != nil {
 		slog.Error("telemetry 5m rollup", "err", err)
 	}
 }
 
-func runHourly(ctx context.Context, st *store.Store) {
+func runHourly(ctx context.Context, st *store.Store, ev *alert.Evaluator) {
 	if err := st.TryMaintenance(ctx, func(ctx context.Context) error {
 		now := time.Now().UTC()
 		today := dateUTC(now)
@@ -156,9 +167,33 @@ func runHourly(ctx context.Context, st *store.Store) {
 		if err := st.PurgeExpiredSymbols(ctx, now); err != nil {
 			return err
 		}
-		return st.Rollup(ctx, today.AddDate(0, 0, -29), today)
+		if err := st.Rollup(ctx, today.AddDate(0, 0, -29), today); err != nil {
+			return err
+		}
+		return ev.Evaluate(ctx, now)
 	}); err != nil {
 		slog.Error("telemetry hourly maintenance", "err", err)
+	}
+}
+
+func runDispatcher(ctx context.Context, st *store.Store, d *alert.Dispatcher) {
+	run := func() {
+		if err := st.TryAlertDispatch(ctx, func(ctx context.Context) error {
+			return d.Dispatch(ctx, time.Now().UTC())
+		}); err != nil {
+			slog.Error("telemetry alert dispatch", "err", err)
+		}
+	}
+	run()
+	t := time.NewTicker(time.Minute)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			run()
+		}
 	}
 }
 

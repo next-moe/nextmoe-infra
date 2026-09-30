@@ -12,6 +12,7 @@ import (
 	catHandler "api/internal/platform/catalog/handler"
 	chatHandler "api/internal/platform/chat/handler"
 	commHandler "api/internal/platform/community/handler"
+	telemetryHandler "api/internal/platform/telemetry/handler"
 	trustHandler "api/internal/platform/trust/handler"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -30,6 +31,7 @@ func main() {
 	trustAdmin := flag.Bool("trust-admin", false, "emit the trust admin review-inbox spec (/api/v1/admin/trust/*)")
 	ai := flag.Bool("ai", false, "emit the AI-gateway S2S spec (/api/v1/ai/*)")
 	aiAdmin := flag.Bool("ai-admin", false, "emit the AI-gateway usage-dashboard spec (/api/v1/admin/ai/*)")
+	telemetryAdmin := flag.Bool("telemetry-admin", false, "emit the telemetry admin spec (/api/v1/admin/telemetry/*)")
 	flag.Parse()
 
 	app := fiber.New()
@@ -51,6 +53,8 @@ func main() {
 		api = aiHandler.Setup(app, nil)
 	case *aiAdmin:
 		api = aiHandler.SetupAdmin(app, nil, nil)
+	case *telemetryAdmin:
+		api = telemetryHandler.SetupAdmin(app, nil, nil, nil)
 	case *admin:
 		api = artHandler.SetupAdmin(app, artHandler.NewAdmin(nil, nil, nil))
 	default:

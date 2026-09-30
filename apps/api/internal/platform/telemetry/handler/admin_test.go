@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"api/internal/middleware"
+	"api/internal/platform/telemetry/alert"
 	telemetryPerm "api/internal/platform/telemetry/perm"
 	"api/internal/platform/telemetry/symbols"
 	"api/pkg/oidctoken"
@@ -31,13 +32,17 @@ type recordingInv struct{ n int }
 func (r *recordingInv) Invalidate() error { r.n++; return nil }
 
 func buildAdminApp() (*fiber.App, *recordingInv) {
+	return buildAdminAppNotify(nil)
+}
+
+func buildAdminAppNotify(n alert.Notifier) (*fiber.App, *recordingInv) {
 	inv := &recordingInv{}
 	app := fiber.New()
 	verifier := oidctoken.NewVerifier(adminTestSecret, nil)
 	app.Use("/api/v1/admin/telemetry",
 		middleware.JWTAuth(verifier),
 		middleware.RequirePermission(telemetryPerm.Resolver, telemetryPerm.View))
-	SetupAdmin(app, st, inv)
+	SetupAdmin(app, st, inv, n)
 	return app, inv
 }
 
@@ -71,7 +76,7 @@ func doJSON(t *testing.T, app *fiber.App, method, path, role, body string) (int,
 
 func truncateApps(t *testing.T) {
 	t.Helper()
-	require.NoError(t, testDB.Exec(`TRUNCATE telemetry_issue_daily, telemetry_crash, telemetry_issue, telemetry_symbol_file, telemetry_symbol_upload, telemetry_engine_symbol, telemetry_blob, telemetry_event, telemetry_session, telemetry_daily_metric, telemetry_app RESTART IDENTITY CASCADE`).Error)
+	require.NoError(t, testDB.Exec(`TRUNCATE telemetry_alert, telemetry_alert_channel, telemetry_issue_daily, telemetry_crash, telemetry_issue, telemetry_symbol_file, telemetry_symbol_upload, telemetry_engine_symbol, telemetry_blob, telemetry_event, telemetry_session, telemetry_daily_metric, telemetry_app RESTART IDENTITY CASCADE`).Error)
 }
 
 func TestAppsCRUD(t *testing.T) {
@@ -127,6 +132,10 @@ func TestManageRequired(t *testing.T) {
 		{"POST", "/api/v1/admin/telemetry/apps/1/rotate-key", ""},
 		{"POST", "/api/v1/admin/telemetry/apps/1/rotate-symbols-token", ""},
 		{"PATCH", "/api/v1/admin/telemetry/issues/1", `{"status":"resolved"}`},
+		{"POST", "/api/v1/admin/telemetry/alert-channels", `{"kind":"email","target":"ops@example.com"}`},
+		{"PATCH", "/api/v1/admin/telemetry/alert-channels/1", `{"enabled":false}`},
+		{"DELETE", "/api/v1/admin/telemetry/alert-channels/1", ""},
+		{"POST", "/api/v1/admin/telemetry/alert-channels/1/test", ""},
 	}
 	for _, w := range writes {
 		st, raw := doJSON(t, app, w.method, w.path, "admin", w.body)
@@ -136,7 +145,7 @@ func TestManageRequired(t *testing.T) {
 	inner := fiber.New()
 	verifier := oidctoken.NewVerifier(adminTestSecret, nil)
 	inner.Use("/api/v1/admin/telemetry", middleware.JWTAuth(verifier))
-	SetupAdmin(inner, st, &recordingInv{})
+	SetupAdmin(inner, st, &recordingInv{}, nil)
 	for _, w := range writes {
 		st, raw := doJSON(t, inner, w.method, w.path, "admin", w.body)
 		require.Equal(t, fiber.StatusForbidden, st, "inner %s %s %s", w.method, w.path, raw)
