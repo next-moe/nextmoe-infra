@@ -63,7 +63,7 @@ echo "=== pg-backup start $(date -u '+%F %T')Z ==="
 
 PG=kun-visual-novel-infra-vqvqbc-postgres-1
 UMAMI=kun-visual-novel-umami-fm1njw-db-1
-DBS="kungalgame kun_galgame_infra kun_catalog kun_community kun_chat kun_trust kun_images kungalgame_patch kun_shortlink kun_letmoe kun_news kun_artifacts kungalgame_sticker kun_blog kun_ai"
+DBS="kungalgame kun_galgame_infra kun_catalog kun_community kun_chat kun_trust kun_images kungalgame_patch kun_shortlink kun_letmoe kun_news kun_artifacts kungalgame_sticker kun_blog kun_ai kun_telemetry"
 SKIP="dlsite getchu howlongtobeat erogamescape kun_galgame_wiki_retired_w1 kun_letmoe_staging postgres"
 
 # The dumps share the disk with the database itself; filling it would take
@@ -97,10 +97,26 @@ rm -rf dumps/*.partial dumps/weekly/*.partial
 mkdir -p "$OUT.partial"
 
 docker exec "$PG" pg_dumpall -U postgres --globals-only > "$OUT.partial/globals.sql"
+# kun_telemetry promises the apps' users that raw events, sessions and crash
+# rows are gone after 30 days; a dump kept longer would break that promise, so
+# those tables go in as schema only. Apps, symbols metadata, issues, metrics and
+# alerts are dumped in full.
+pg_dump_db() {
+  if [ "$1" = kun_telemetry ]; then
+    docker exec "$PG" pg_dump -U postgres -Fc \
+      --exclude-table-data='telemetry_event*' \
+      --exclude-table-data=telemetry_session \
+      --exclude-table-data=telemetry_crash \
+      -d "$1"
+  else
+    docker exec "$PG" pg_dump -U postgres -Fc -d "$1"
+  fi
+}
+
 for db in $DBS; do
   case " $missing " in *" $db "*) continue ;; esac
   start=$(date +%s)
-  docker exec "$PG" pg_dump -U postgres -Fc -d "$db" > "$OUT.partial/$db.dump"
+  pg_dump_db "$db" > "$OUT.partial/$db.dump"
   docker exec -i "$PG" pg_restore --list < "$OUT.partial/$db.dump" > /dev/null
   echo "$db: $(du -h "$OUT.partial/$db.dump" | cut -f1) in $(( $(date +%s) - start ))s"
 done

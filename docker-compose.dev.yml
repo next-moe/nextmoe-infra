@@ -66,6 +66,7 @@ x-dev-env: &dev-env
   KUN_CHAT_PG_DATABASE: kun_chat
   KUN_TRUST_PG_DATABASE: kun_trust
   KUN_AI_PG_DATABASE: kun_ai
+  KUN_TELEMETRY_PG_DATABASE: kun_telemetry
   KUN_NEWS_PG_DATABASE: kun_news
   KUN_ARTIFACTS_PG_DATABASE: kun_artifacts
   # 月幕 OpenAPI. Left empty on purpose: a dev box has no business polling a
@@ -305,6 +306,16 @@ services:
   migrate-ai:
     image: ghcr.io/next-moe/infra-migrate:${INFRA_IMAGE_TAG:-latest}
     command: ["ai"]
+    profiles: ["full"]
+    network_mode: host
+    environment: { <<: *dev-env }
+    restart: "no"
+
+  # telemetry is not in the default stack either: run `go run ./cmd/telemetry`
+  # (and ./cmd/telemetry-worker) when working on it.
+  migrate-telemetry:
+    image: ghcr.io/next-moe/infra-migrate:${INFRA_IMAGE_TAG:-latest}
+    command: ["telemetry"]
     profiles: ["full"]
     network_mode: host
     environment: { <<: *dev-env }

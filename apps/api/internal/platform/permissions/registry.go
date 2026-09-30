@@ -10,6 +10,7 @@ import (
 	settingsPerm "api/internal/platform/settings/perm"
 	shopPerm "api/internal/platform/shop/perm"
 	sitePerm "api/internal/platform/site/perm"
+	telemetryPerm "api/internal/platform/telemetry/perm"
 	trustPerm "api/internal/platform/trust/perm"
 )
 
@@ -183,6 +184,17 @@ var live = NewRegistry(
 		Keys: []Key{
 			{aiPerm.UsageView, "Reach the AI-gateway usage / cost / budget dashboard.", "查看 AI 网关用量/成本/预算看板"},
 			{aiPerm.BudgetManage, "Set or clear a route's daily cost cap.", "设置/清除路由每日成本上限(预算保险丝)"},
+		},
+	},
+	Domain{
+		Name:         "telemetry",
+		TitleZH:      "监测",
+		Bundles:      telemetryPerm.Bundles,
+		Holder:       telemetryPerm.Resolver,
+		NonDelegable: telemetryPerm.NonDelegable,
+		Keys: []Key{
+			{telemetryPerm.View, "Reach the telemetry dashboard — apps, ingest keys, and daily session metrics.", "查看监测看板(应用、上报密钥、每日会话指标)"},
+			{telemetryPerm.Manage, "Create or edit telemetry apps, rotate ingest keys, and change whether an app is enabled.", "创建/编辑监测应用、轮换上报密钥、启停应用;不可委派"},
 		},
 	},
 	Domain{

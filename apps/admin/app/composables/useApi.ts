@@ -19,7 +19,7 @@ interface ApiError {
   message: string
 }
 
-export type ApiService = 'oauth' | 'catalog' | 'trust' | 'ai'
+export type ApiService = 'oauth' | 'catalog' | 'trust' | 'ai' | 'telemetry'
 
 export const resolveApiBase = (service: ApiService = 'oauth'): string => {
   const config = useRuntimeConfig()
@@ -33,6 +33,9 @@ export const resolveApiBase = (service: ApiService = 'oauth'): string => {
   // hydration mismatch); the relay forwards to aiApiBaseSsr server-side.
   if (service === 'ai') {
     return (config.public.aiApiBase as string) || '/ai-proxy'
+  }
+  if (service === 'telemetry') {
+    return (config.public.telemetryApiBase as string) || '/telemetry-proxy'
   }
   return (
     (import.meta.server && config.apiBaseSsr

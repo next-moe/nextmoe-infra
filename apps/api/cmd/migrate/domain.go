@@ -15,6 +15,7 @@ import (
 	chatmigrate "api/internal/platform/chat/migrate"
 	communitymigrate "api/internal/platform/community/migrate"
 	newsmigrate "api/internal/platform/news/migrate"
+	telemetrymigrate "api/internal/platform/telemetry/migrate"
 	trustmigrate "api/internal/platform/trust/migrate"
 
 	"gorm.io/gorm"
@@ -60,6 +61,10 @@ var domains = map[string]domain{
 	"ai": {
 		db:  func(c *config.Config) config.DatabaseConfig { return c.AIDatabase },
 		run: aimigrate.Run,
+	},
+	"telemetry": {
+		db:  func(c *config.Config) config.DatabaseConfig { return c.TelemetryDatabase },
+		run: telemetrymigrate.Run,
 	},
 	"news": {
 		db:  func(c *config.Config) config.DatabaseConfig { return c.NewsDatabase },

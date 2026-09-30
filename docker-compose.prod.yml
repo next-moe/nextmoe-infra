@@ -64,6 +64,7 @@ x-infra-env: &infra-env
   KUN_CHAT_PG_DATABASE: kun_chat
   KUN_TRUST_PG_DATABASE: kun_trust
   KUN_AI_PG_DATABASE: kun_ai
+  KUN_TELEMETRY_PG_DATABASE: kun_telemetry
   KUN_NEWS_PG_DATABASE: kun_news
   # Redis
   REDIS_ENABLED: "true"
@@ -883,6 +884,64 @@ services:
       <<: *svc-health
     restart: unless-stopped
 
+  # App telemetry (kun_telemetry): OTLP log ingest from the NextMoe apps, CI
+  # symbol uploads, sessions and daily metrics, issues and alerts. Public on
+  # telemetry.nextmoe.dev for exactly two paths; the admin console reaches the
+  # admin API over dokploy-network at http://telemetry:9286/api/v1.
+  telemetry:
+    image: ghcr.io/next-moe/infra-telemetry:latest
+    pull_policy: always
+    environment:
+      <<: *infra-env
+      KUN_TELEMETRY_HOST: 0.0.0.0
+      KUN_TELEMETRY_PORT: "9286"
+      # Symbols must live in object storage: telemetry stores the uploads and
+      # telemetry-worker reads them, and the filesystem fallback is private to
+      # each container, so without a bucket every stack would silently stay
+      # undecoded. :? fails the deploy instead.
+      KUN_TELEMETRY_S3_ENDPOINT: ${KUN_TELEMETRY_S3_ENDPOINT:?R2 endpoint for telemetry symbols}
+      KUN_TELEMETRY_S3_BUCKET: ${KUN_TELEMETRY_S3_BUCKET:?private R2 bucket for telemetry symbols}
+      KUN_TELEMETRY_S3_ACCESS_KEY_ID: ${KUN_TELEMETRY_S3_ACCESS_KEY_ID:?}
+      KUN_TELEMETRY_S3_SECRET_ACCESS_KEY: ${KUN_TELEMETRY_S3_SECRET_ACCESS_KEY:?}
+    expose: ["9286"]
+    labels:
+      # OWNED HERE like every other routed service (compose labels replace the
+      # panel's). Only the ingest and symbol-upload paths are public; the admin
+      # API, /healthz and everything else stay internal. No http->https twin:
+      # /v1/symbols carries a Bearer token, and a redirect fires only after it
+      # has crossed port 80 in plaintext.
+      traefik.enable: "true"
+      traefik.docker.network: dokploy-network
+      traefik.http.routers.infra-telemetry-pub.rule: Host(`telemetry.nextmoe.dev`) && (Path(`/v1/logs`) || Path(`/v1/symbols`))
+      traefik.http.routers.infra-telemetry-pub.entrypoints: websecure
+      traefik.http.routers.infra-telemetry-pub.tls.certresolver: letsencrypt
+      traefik.http.routers.infra-telemetry-pub.service: infra-telemetry-pub
+      traefik.http.services.infra-telemetry-pub.loadbalancer.server.port: "9286"
+    depends_on:
+      postgres: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }            # roles and settings live in kun_galgame_infra
+      migrate-telemetry: { condition: service_completed_successfully }  # kun_telemetry schema
+    healthcheck:
+      test: ["CMD", "/app", "healthcheck"]
+      <<: *svc-health
+    restart: unless-stopped
+
+  # Decodes queued crash stacks (Dart / R8 / llvm-symbolizer) and groups them
+  # into issues. No port; talks only to kun_telemetry and the symbol bucket.
+  telemetry-worker:
+    image: ghcr.io/next-moe/infra-telemetry-worker:latest
+    pull_policy: always
+    environment:
+      <<: *infra-env
+      KUN_TELEMETRY_S3_ENDPOINT: ${KUN_TELEMETRY_S3_ENDPOINT:?}
+      KUN_TELEMETRY_S3_BUCKET: ${KUN_TELEMETRY_S3_BUCKET:?}
+      KUN_TELEMETRY_S3_ACCESS_KEY_ID: ${KUN_TELEMETRY_S3_ACCESS_KEY_ID:?}
+      KUN_TELEMETRY_S3_SECRET_ACCESS_KEY: ${KUN_TELEMETRY_S3_SECRET_ACCESS_KEY:?}
+    depends_on:
+      postgres: { condition: service_healthy }
+      migrate-telemetry: { condition: service_completed_successfully }
+    restart: unless-stopped
+
   # ───────────────────────────── Nuxt frontends ──────────────────────────────
   # Public (browser) config is BAKED into the image at CI build time (build-args in
   # .github/workflows/build.yml). Only the SSR base (service name) is injected here.
@@ -943,6 +1002,7 @@ services:
       NUXT_CATALOG_API_BASE_SSR: http://catalog:9281/api/v1
       NUXT_TRUST_API_BASE_SSR: http://trust:9283/api/v1
       NUXT_AI_API_BASE_SSR: http://ai:9284/api/v1
+      NUXT_TELEMETRY_API_BASE_SSR: http://telemetry:9286/api/v1
       # Dokploy panel vars only reach the container when compose lists them
       # (developer.nextmoe.dev shipped with an empty secret 2026-07-23 this
       # way). :? fails the deploy loudly if the secret was not pre-staged.
@@ -1080,6 +1140,21 @@ services:
   migrate-ai:
     image: ghcr.io/next-moe/infra-migrate:latest
     command: ["ai"]
+    pull_policy: always
+    environment: { <<: *infra-env }
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+
+  # Auto-applied on every deploy (telemetry and telemetry-worker wait for it).
+  # `migrate telemetry` is the single migration entry point against
+  # kun_telemetry: idempotent AutoMigrate, IF NOT EXISTS DDL for the partitioned
+  # event table, and the day partitions for the retention window. kun_telemetry
+  # must EXIST first — the first deploy needs a manual
+  # `CREATE DATABASE kun_telemetry` (initdb only runs on an empty data dir).
+  migrate-telemetry:
+    image: ghcr.io/next-moe/infra-migrate:latest
+    command: ["telemetry"]
     pull_policy: always
     environment: { <<: *infra-env }
     depends_on:

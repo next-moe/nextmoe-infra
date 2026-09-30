@@ -9,7 +9,7 @@ set -eu
 RUN_SH="$(cd "$(dirname "$0")" && pwd)/run.sh"
 FAILED=0
 
-LISTED="kungalgame kun_galgame_infra kun_catalog kun_community kun_chat kun_trust kun_images kungalgame_patch kun_shortlink kun_letmoe kun_news kun_artifacts kungalgame_sticker kun_blog kun_ai"
+LISTED="kungalgame kun_galgame_infra kun_catalog kun_community kun_chat kun_trust kun_images kungalgame_patch kun_shortlink kun_letmoe kun_news kun_artifacts kungalgame_sticker kun_blog kun_ai kun_telemetry"
 SKIPPED="dlsite getchu howlongtobeat erogamescape kun_galgame_wiki_retired_w1 kun_letmoe_staging postgres"
 
 tstart() { T_ID=$1; T_OK=1; T_MSG=""; }
@@ -97,7 +97,9 @@ for db in $LISTED; do
 done
 [ -s "$TD/base/dumps/$TODAY/globals.sql" ] || fail "no globals.sql"
 [ "$(cat "$TD/base/dumps/$TODAY/dokploy.dump" 2>/dev/null)" = "dump of dokploy" ] || fail "missing the panel's dokploy.dump"
-[ "$(find "$TD/base/dumps/$TODAY" -name '*.dump' | wc -l)" = 16 ] || fail "dumped a skipped database"
+[ "$(find "$TD/base/dumps/$TODAY" -name '*.dump' | wc -l)" = 17 ] || fail "dumped a skipped database"
+grep -q "pg_dump -U postgres -Fc --exclude-table-data=telemetry_event\* --exclude-table-data=telemetry_session --exclude-table-data=telemetry_crash -d kun_telemetry" "$TD/ctl/docker.log" || fail "kun_telemetry dumped its 30-day tables"
+grep -q "pg_dump -U postgres -Fc -d kun_ai" "$TD/ctl/docker.log" || fail "a plain database got the telemetry exclusions"
 for db in erogamescape umami; do
   [ "$(cat "$TD/base/dumps/weekly/$db.dump" 2>/dev/null)" = "dump of $db" ] || fail "first run made no weekly $db.dump"
 done

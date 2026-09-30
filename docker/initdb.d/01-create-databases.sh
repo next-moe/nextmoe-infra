@@ -21,6 +21,8 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-'
 	CREATE DATABASE kun_ai;
 	-- Galgame news feed republished from partner sites, see cmd/migrate news.
 	CREATE DATABASE kun_news;
+	-- App telemetry (events, sessions, symbols, issues, alerts), see cmd/migrate telemetry.
+	CREATE DATABASE kun_telemetry;
 	-- Downstream repos' databases live on this shared server too (the hub owns
 	-- the single Postgres). kungal → kungalgame, moyu → kungalgame_patch,
 	-- sticker → kungalgame_sticker, letmoe → kun_letmoe.

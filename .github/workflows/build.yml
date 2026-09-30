@@ -90,6 +90,8 @@ jobs:
               - 'apps/api/**'
               - 'docker/go.Dockerfile'
               - 'docker/cgo.Dockerfile'
+              - 'docker/telemetry-worker.Dockerfile'
+              - 'docker/telemetry-worker/**'
               - '.github/workflows/build.yml'
             account:
               - 'apps/account/**'
@@ -138,6 +140,8 @@ jobs:
             {"name":"infra-trust","file":"docker/go.Dockerfile","args":"CMD=trust","group":"go"},
             {"name":"infra-ai","file":"docker/go.Dockerfile","args":"CMD=ai","group":"go"},
             {"name":"infra-mcp","file":"docker/go.Dockerfile","args":"CMD=mcp","group":"go"},
+            {"name":"infra-telemetry","file":"docker/go.Dockerfile","args":"CMD=telemetry","group":"go"},
+            {"name":"infra-telemetry-worker","file":"docker/telemetry-worker.Dockerfile","args":"","group":"go"},
             {"name":"infra-account","file":"docker/nuxt.Dockerfile","args":"APP=account\nPUBLIC_API_BASE=https://account.nextmoe.com/api/v1\nPUBLIC_IMAGE_CDN_BASE=https://image.kungal.iloveren.link","group":"account"},
             {"name":"infra-admin","file":"docker/nuxt.Dockerfile","args":"APP=admin\nPUBLIC_API_BASE=https://admin.nextmoe.dev/api/v1\nPUBLIC_IMAGE_CDN_BASE=https://image.kungal.iloveren.link","group":"admin"},
             {"name":"infra-developer","file":"apps/developer/Dockerfile","args":"","group":"developer"},
