@@ -32,6 +32,9 @@ func (s *Store) Write(ctx context.Context, appID int64, receivedAt time.Time, ba
 		if err := insertEvents(tx, appID, batch.Records); err != nil {
 			return err
 		}
+		if err := insertCrashes(tx, appID, batch.Records); err != nil {
+			return err
+		}
 		return upsertSessions(tx, appID, receivedAt, batch.Records)
 	})
 }

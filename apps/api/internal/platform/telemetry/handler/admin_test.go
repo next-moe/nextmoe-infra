@@ -71,7 +71,7 @@ func doJSON(t *testing.T, app *fiber.App, method, path, role, body string) (int,
 
 func truncateApps(t *testing.T) {
 	t.Helper()
-	require.NoError(t, testDB.Exec(`TRUNCATE telemetry_symbol_file, telemetry_symbol_upload, telemetry_engine_symbol, telemetry_blob, telemetry_event, telemetry_session, telemetry_daily_metric, telemetry_app RESTART IDENTITY CASCADE`).Error)
+	require.NoError(t, testDB.Exec(`TRUNCATE telemetry_issue_daily, telemetry_crash, telemetry_issue, telemetry_symbol_file, telemetry_symbol_upload, telemetry_engine_symbol, telemetry_blob, telemetry_event, telemetry_session, telemetry_daily_metric, telemetry_app RESTART IDENTITY CASCADE`).Error)
 }
 
 func TestAppsCRUD(t *testing.T) {
@@ -126,6 +126,7 @@ func TestManageRequired(t *testing.T) {
 		{"PATCH", "/api/v1/admin/telemetry/apps/1", `{"enabled":false}`},
 		{"POST", "/api/v1/admin/telemetry/apps/1/rotate-key", ""},
 		{"POST", "/api/v1/admin/telemetry/apps/1/rotate-symbols-token", ""},
+		{"PATCH", "/api/v1/admin/telemetry/issues/1", `{"status":"resolved"}`},
 	}
 	for _, w := range writes {
 		st, raw := doJSON(t, app, w.method, w.path, "admin", w.body)

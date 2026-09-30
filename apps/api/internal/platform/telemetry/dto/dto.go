@@ -7,14 +7,15 @@ import (
 )
 
 type AppView struct {
-	ID              int64  `json:"id"`
-	ServiceName     string `json:"service_name"`
-	DisplayName     string `json:"display_name"`
-	IngestKey       string `json:"ingest_key"`
-	Enabled         bool   `json:"enabled"`
-	HasSymbolsToken bool   `json:"has_symbols_token"`
-	CreatedAt       string `json:"created_at"`
-	UpdatedAt       string `json:"updated_at"`
+	ID              int64    `json:"id"`
+	ServiceName     string   `json:"service_name"`
+	DisplayName     string   `json:"display_name"`
+	IngestKey       string   `json:"ingest_key"`
+	Enabled         bool     `json:"enabled"`
+	HasSymbolsToken bool     `json:"has_symbols_token"`
+	InAppPrefixes   []string `json:"in_app_prefixes"`
+	CreatedAt       string   `json:"created_at"`
+	UpdatedAt       string   `json:"updated_at"`
 }
 
 type CreateAppRequest struct {
@@ -23,8 +24,9 @@ type CreateAppRequest struct {
 }
 
 type UpdateAppRequest struct {
-	DisplayName *string `json:"display_name,omitempty"`
-	Enabled     *bool   `json:"enabled,omitempty"`
+	DisplayName   *string   `json:"display_name,omitempty"`
+	Enabled       *bool     `json:"enabled,omitempty"`
+	InAppPrefixes *[]string `json:"in_app_prefixes,omitempty"`
 }
 
 type SymbolsTokenView struct {
@@ -87,6 +89,10 @@ func formatDate(t time.Time) string {
 }
 
 func AppViewFrom(a model.App) AppView {
+	prefixes := []string(a.InAppPrefixes)
+	if prefixes == nil {
+		prefixes = []string{}
+	}
 	return AppView{
 		ID:              a.ID,
 		ServiceName:     a.ServiceName,
@@ -94,6 +100,7 @@ func AppViewFrom(a model.App) AppView {
 		IngestKey:       a.IngestKey,
 		Enabled:         a.Enabled,
 		HasSymbolsToken: a.SymbolsTokenHash != nil && *a.SymbolsTokenHash != "",
+		InAppPrefixes:   prefixes,
 		CreatedAt:       a.CreatedAt.UTC().Format(time.RFC3339),
 		UpdatedAt:       a.UpdatedAt.UTC().Format(time.RFC3339),
 	}

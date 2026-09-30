@@ -12,6 +12,7 @@ import (
 	"api/internal/platform/telemetry/model"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -45,10 +46,11 @@ func (s *Store) CreateApp(ctx context.Context, serviceName, displayName string) 
 		return nil, err
 	}
 	row := model.App{
-		ServiceName: serviceName,
-		DisplayName: displayName,
-		IngestKey:   key,
-		Enabled:     true,
+		ServiceName:   serviceName,
+		DisplayName:   displayName,
+		IngestKey:     key,
+		Enabled:       true,
+		InAppPrefixes: datatypes.JSONSlice[string]{},
 	}
 	if err := s.db.WithContext(ctx).Create(&row).Error; err != nil {
 		if isUniqueViolation(err) {
@@ -59,7 +61,7 @@ func (s *Store) CreateApp(ctx context.Context, serviceName, displayName string) 
 	return &row, nil
 }
 
-func (s *Store) UpdateApp(ctx context.Context, id int64, displayName *string, enabled *bool) (*model.App, error) {
+func (s *Store) UpdateApp(ctx context.Context, id int64, displayName *string, enabled *bool, prefixes *[]string) (*model.App, error) {
 	var row model.App
 	if err := s.db.WithContext(ctx).First(&row, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -73,6 +75,9 @@ func (s *Store) UpdateApp(ctx context.Context, id int64, displayName *string, en
 	}
 	if enabled != nil {
 		updates["enabled"] = *enabled
+	}
+	if prefixes != nil {
+		updates["in_app_prefixes"] = datatypes.JSONSlice[string](*prefixes)
 	}
 	if len(updates) > 0 {
 		if err := s.db.WithContext(ctx).Model(&row).Updates(updates).Error; err != nil {
@@ -137,6 +142,12 @@ func (s *Store) PurgeExpired(ctx context.Context, now time.Time) error {
 	metricCut := today.AddDate(0, -13, 0).Format("2006-01-02")
 	if err := s.db.WithContext(ctx).Exec(`DELETE FROM telemetry_daily_metric WHERE day < ?::date`, metricCut).Error; err != nil {
 		return fmt.Errorf("purge metrics: %w", err)
+	}
+	if err := purgeCrashes(s.db.WithContext(ctx), sessionCut); err != nil {
+		return err
+	}
+	if err := purgeIssueDaily(s.db.WithContext(ctx), metricCut); err != nil {
+		return err
 	}
 	return nil
 }

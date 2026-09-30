@@ -68,6 +68,7 @@ type Config struct {
 	AIService        AIServiceConfig
 	TelemetryService TelemetryServiceConfig
 	TelemetrySymbols TelemetrySymbolsConfig
+	TelemetryWorker  TelemetryWorkerConfig
 	AIUpstream       AIUpstreamConfig
 	AIOmni           AIOmniConfig
 
@@ -123,6 +124,14 @@ type TelemetrySymbolsConfig struct {
 	S3                   S3Config
 	Dir                  string
 	EngineSymbolsBaseURL string
+}
+
+type TelemetryWorkerConfig struct {
+	DecodeBin      string
+	JavaBin        string
+	R8Jar          string
+	LLVMSymbolizer string
+	SymbolCacheDir string
 }
 
 type AIUpstreamConfig struct {
@@ -625,6 +634,13 @@ func Load() (*Config, error) {
 		},
 		Dir:                  getEnv("KUN_TELEMETRY_SYMBOLS_DIR", "/var/lib/telemetry/symbols"),
 		EngineSymbolsBaseURL: getEnv("KUN_TELEMETRY_ENGINE_SYMBOLS_BASE_URL", "https://storage.googleapis.com/flutter_infra_release/flutter"),
+	}
+	cfg.TelemetryWorker = TelemetryWorkerConfig{
+		DecodeBin:      getEnv("KUN_TELEMETRY_DECODE_BIN", "/usr/local/bin/telemetry-decode"),
+		JavaBin:        getEnv("KUN_TELEMETRY_JAVA_BIN", "/usr/bin/java"),
+		R8Jar:          getEnv("KUN_TELEMETRY_R8_JAR", "/opt/r8/r8.jar"),
+		LLVMSymbolizer: getEnv("KUN_TELEMETRY_LLVM_SYMBOLIZER", "/usr/bin/llvm-symbolizer"),
+		SymbolCacheDir: getEnv("KUN_TELEMETRY_SYMBOL_CACHE_DIR", "/var/cache/telemetry/symbols"),
 	}
 	cfg.AIUpstream = AIUpstreamConfig{
 		BaseURL: getEnv("KUN_AI_UPSTREAM_BASE_URL", ""),

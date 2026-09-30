@@ -77,6 +77,12 @@ func (s *AdminServer) register(api huma.API) {
 		Summary: "List symbol uploads for an app, newest first", Tags: tags}, s.listSymbolUploads)
 	huma.Register(api, huma.Operation{OperationID: "listTelemetryDailyMetrics", Method: http.MethodGet, Path: "/api/v1/admin/telemetry/metrics/daily",
 		Summary: "Daily session metrics for an app", Tags: tags}, s.listMetrics)
+	huma.Register(api, huma.Operation{OperationID: "listTelemetryIssues", Method: http.MethodGet, Path: "/api/v1/admin/telemetry/issues",
+		Summary: "List grouped crash and exception issues for an app", Tags: tags}, s.listIssues)
+	huma.Register(api, huma.Operation{OperationID: "getTelemetryIssue", Method: http.MethodGet, Path: "/api/v1/admin/telemetry/issues/{id}",
+		Summary: "Get one issue with recent crashes", Tags: tags}, s.getIssue)
+	huma.Register(api, huma.Operation{OperationID: "updateTelemetryIssue", Method: http.MethodPatch, Path: "/api/v1/admin/telemetry/issues/{id}",
+		Summary: "Update an issue's status", Tags: tags}, s.updateIssue)
 }
 
 func (s *AdminServer) requireManage(ctx context.Context) error {
@@ -148,7 +154,12 @@ func (s *AdminServer) updateApp(ctx context.Context, in *updateAppInput) (*updat
 	if err := s.requireManage(ctx); err != nil {
 		return nil, err
 	}
-	row, err := s.store.UpdateApp(ctx, in.ID, in.Body.DisplayName, in.Body.Enabled)
+	if in.Body.InAppPrefixes != nil {
+		if err := validatePrefixes(*in.Body.InAppPrefixes); err != nil {
+			return nil, err
+		}
+	}
+	row, err := s.store.UpdateApp(ctx, in.ID, in.Body.DisplayName, in.Body.Enabled, in.Body.InAppPrefixes)
 	if err != nil {
 		return nil, mapAdminErr("update app", err)
 	}

@@ -1,11 +1,19 @@
 // Package migrate owns the kun_telemetry schema: AutoMigrate for the
 // non-partitioned tables (apps, sessions, daily metrics, symbol uploads,
-// symbol files, blobs, engine symbols), raw SQL for the RANGE-partitioned event log
+// symbol files, blobs, engine symbols, crashes, issues, issue-daily counts),
+// raw SQL for the RANGE-partitioned event log
 // (PARTITION BY RANGE (event_day), PRIMARY KEY (event_day, record_uid), one
 // UTC-day partition named telemetry_event_pYYYYMMDD, no default partition —
 // an insert for a day that was not pre-created fails instead of landing in a
-// catch-all that retention would miss), and the parent indexes. Existing rows
-// are none; this is a new database. Idempotent: safe on every deploy.
+// catch-all that retention would miss), the parent indexes, and the partial
+// crash-needs index. Existing rows are none; this is a new database.
+// Idempotent: safe on every deploy.
+//
+// telemetry_crash is one row per stored exception or app.crash; it has no
+// receipt- or processing-granularity timestamp so a worker cannot link the
+// rows of one request. telemetry_issue / telemetry_issue_daily are aggregates
+// and do carry created_at/updated_at. in_app_prefixes on telemetry_app is an
+// empty JSON array for existing rows.
 package migrate
 
 import (
@@ -27,6 +35,9 @@ func Run(db *gorm.DB) error {
 		&model.SymbolFile{},
 		&model.Blob{},
 		&model.EngineSymbol{},
+		&model.Issue{},
+		&model.IssueDaily{},
+		&model.Crash{},
 	); err != nil {
 		return fmt.Errorf("telemetry automigrate: %w", err)
 	}
@@ -67,6 +78,10 @@ func rawSQL(db *gorm.DB) error {
 			CREATE INDEX IF NOT EXISTS idx_telemetry_event_app_session
 			    ON telemetry_event (app_id, session_id)
 			 WHERE session_id IS NOT NULL`},
+		{"idx_telemetry_crash_app_needs", `
+			CREATE INDEX IF NOT EXISTS idx_telemetry_crash_app_needs
+			    ON telemetry_crash (app_id, needs)
+			 WHERE needs <> ''`},
 	}
 	for _, s := range stmts {
 		if err := db.Exec(s.sql).Error; err != nil {
