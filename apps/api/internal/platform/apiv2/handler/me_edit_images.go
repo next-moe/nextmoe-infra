@@ -40,12 +40,12 @@ func (c *Catalog) UploadEditImage(ctx context.Context, preset, filename string, 
 	}
 	res, uerr := c.Uploads(ctx, body, filename, target, site+":"+strconv.FormatInt(uid, 10))
 	if uerr != nil {
-		return repr.EditImage{}, editImageErr(uerr)
+		return repr.EditImage{}, imageUploadErr(uerr)
 	}
 	return editImageFrom(preset, res), nil
 }
 
-func editImageErr(err error) error {
+func imageUploadErr(err error) error {
 	switch {
 	case errors.Is(err, imageclient.ErrQuotaExceeded):
 		return problem.New(problem.CodeQuotaExceeded, "", "", "the image quota for this site is exhausted.")
@@ -53,6 +53,16 @@ func editImageErr(err error) error {
 		p := problem.New(problem.CodeValidationFailed, "", "", "these bytes were rejected by image moderation.")
 		p.Errors = []problem.FieldError{{Pointer: "/file", Reason: problem.ReasonNotAllowedValue,
 			Detail: "rejected by image moderation"}}
+		return p
+	case errors.Is(err, imageclient.ErrMIMEDenied):
+		p := problem.New(problem.CodeValidationFailed, "", "", "this slot does not take this image type.")
+		p.Errors = []problem.FieldError{{Pointer: "/file", Reason: problem.ReasonNotAllowedValue,
+			Detail: "the image type is not accepted here"}}
+		return p
+	case errors.Is(err, imageclient.ErrDecodeFailed):
+		p := problem.New(problem.CodeValidationFailed, "", "", "these bytes are not a readable image.")
+		p.Errors = []problem.FieldError{{Pointer: "/file", Reason: problem.ReasonInvalidFormat,
+			Detail: "the bytes could not be decoded as an image"}}
 		return p
 	}
 	return problem.New(problem.CodeServiceUnavailable, "", "", "the image service did not accept the upload.")

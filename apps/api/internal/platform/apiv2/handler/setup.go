@@ -57,7 +57,7 @@ func SetupWith(app *fiber.App, opt Options) huma.API {
 	app.Use(protocol.RateLimit(opt.Store, credentialLimitIdentity))
 	app.Use(protocol.Idempotency(opt.Store, credentialLimitIdentity))
 
-	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.37.0")
+	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.38.0")
 	cfg.OpenAPIPath = ""
 	cfg.DocsPath = ""
 	cfg.SchemasPath = ""
@@ -160,7 +160,7 @@ func annotateSpec(doc *huma.OpenAPI) {
 			repr.FolderHolding{}, repr.FolderHolder{},
 			repr.PlaytimeBatchItem{}, repr.WorkStateBatchItem{}, repr.ProposalRecord{}, repr.ClaimDecisionRecord{}, repr.ProposalDecisionRecord{}, repr.SnapshotRecord{},
 			repr.Revision{}, repr.FieldDiff{}, repr.Amendment{}, repr.EditImage{},
-			repr.NewsSubmission{}, repr.ClaimEventRef{}, repr.ClaimEvent{},
+			repr.NewsSubmission{}, repr.NewsImage{}, repr.ClaimEventRef{}, repr.ClaimEvent{},
 			repr.StorePurchaseLinks{}, repr.StoreCampaign{},
 			repr.StoreStats{}, repr.StoreStatRow{}, repr.StoreStatTotal{},
 		} {

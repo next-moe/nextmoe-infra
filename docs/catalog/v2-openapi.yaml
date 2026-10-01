@@ -1450,7 +1450,7 @@ components:
           readOnly: true
           type: string
         banner_hash:
-          description: Image-service content hash of the banner. The format is checked; existence is not.
+          description: Hash of the banner, as returned by POST /v2/me/news-images. A hash that face did not store is 422 VALIDATION_FAILED with reason UNKNOWN_REFERENCE.
           maxLength: 64
           pattern: ^([0-9a-f]{64})?$
           type: string
@@ -5299,6 +5299,74 @@ components:
         - character_id
         - character_name
       type: object
+    NewsImage:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/NewsImage.json
+          format: uri
+          readOnly: true
+          type: string
+        hash:
+          description: Image-service content hash. This is the value banner_hash carries on /v2/me/news.
+          maxLength: 64
+          minLength: 64
+          pattern: ^[0-9a-f]{64}$
+          type: string
+        height:
+          description: Pixel height. null if unknown.
+          format: int64
+          maximum: 65535
+          minimum: 0
+          type:
+            - integer
+            - "null"
+        is_deduplicated:
+          description: True when these bytes already existed and no new object was stored.
+          type: boolean
+        object:
+          description: Type discriminant. Always news_image.
+          enum:
+            - news_image
+          type: string
+          x-vocabulary-closed: true
+        size_bytes:
+          description: Stored byte length after the image service re-encoded the upload.
+          format: int64
+          minimum: 0
+          type: integer
+        thumbhash:
+          description: Thumbhash. null if unknown.
+          maxLength: 128
+          pattern: ^[A-Za-z0-9+/=_-]+$
+          type:
+            - string
+            - "null"
+        url:
+          description: Absolute image URL. Never a bare hash.
+          format: uri
+          maxLength: 512
+          type: string
+        width:
+          description: Pixel width. null if unknown.
+          format: int64
+          maximum: 65535
+          minimum: 0
+          type:
+            - integer
+            - "null"
+      required:
+        - object
+        - url
+        - hash
+        - width
+        - height
+        - thumbhash
+        - size_bytes
+        - is_deduplicated
+      type: object
     NewsItem:
       additionalProperties: true
       properties:
@@ -5686,7 +5754,7 @@ components:
           readOnly: true
           type: string
         banner_hash:
-          description: Image-service content hash. The empty string clears the banner.
+          description: Hash of the banner, as returned by POST /v2/me/news-images; a hash that face did not store is 422 VALIDATION_FAILED with reason UNKNOWN_REFERENCE. The empty string clears the banner.
           maxLength: 64
           pattern: ^([0-9a-f]{64})?$
           type: string
@@ -8761,7 +8829,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.37.0
+  version: 2.38.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -18311,6 +18379,101 @@ paths:
       security:
         - userToken: []
       summary: Submit a news item
+      tags:
+        - me
+  /v2/me/news-images:
+    post:
+      description: "multipart/form-data with file: a JPEG, PNG or WebP. Returns the hash a news item carries in banner_hash. A banner has to come from here: POST and PATCH /v2/me/news refuse a hash this face did not store, because bytes held under another site's image client are not kept alive for the news feed. An account that has used up catalog.news_image_uploads_per_day for the UTC day is refused 429 QUOTA_EXCEEDED. Requires a user access token."
+      operationId: uploadMyNewsImage
+      parameters:
+        - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          multipart/form-data:
+            encoding:
+              file:
+                contentType: application/octet-stream
+            schema:
+              properties:
+                file:
+                  contentEncoding: binary
+                  contentMediaType: application/octet-stream
+                  description: "The image bytes: JPEG, PNG or WebP. The ceiling is the service's own body limit, not a field constraint."
+                  format: binary
+                  type: string
+              required:
+                - file
+              type: object
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NewsImage"
+          description: Created
+          headers:
+            Location:
+              schema:
+                description: Absolute URL of the stored image.
+                type: string
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Upload a banner for a news item
       tags:
         - me
   /v2/me/news/{id}:

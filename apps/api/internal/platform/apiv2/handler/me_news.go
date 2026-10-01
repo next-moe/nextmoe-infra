@@ -110,7 +110,11 @@ func (c *Catalog) CreateMyNews(ctx context.Context, in newsSubmissionBody) (repr
 	p.Errors = append(p.Errors, newsSummaryErrors("/summary", in.Summary)...)
 	p.Errors = append(p.Errors, newsBodyErrors("/body", in.Body, community)...)
 	p.Errors = append(p.Errors, newsSourceURLErrors("/source_url", in.SourceURL, community)...)
-	p.Errors = append(p.Errors, newsBannerErrors("/banner_hash", in.BannerHash)...)
+	berrs, berr := c.newsBannerErrors(ctx, "/banner_hash", in.BannerHash)
+	if berr != nil {
+		return repr.NewsSubmission{}, "", berr
+	}
+	p.Errors = append(p.Errors, berrs...)
 	published, perrs := newsPublishedAt(in.PublishedAt)
 	p.Errors = append(p.Errors, perrs...)
 	workIDs, werrs := newsWorkIDs(in.WorkIDs)
@@ -196,8 +200,12 @@ func (c *Catalog) PatchMyNews(ctx context.Context, id int64, in newsPatchBody, i
 	if in.SourceURL != nil {
 		p.Errors = append(p.Errors, newsSourceURLErrors("/source_url", *in.SourceURL, community)...)
 	}
-	if in.BannerHash != nil {
-		p.Errors = append(p.Errors, newsBannerErrors("/banner_hash", *in.BannerHash)...)
+	if in.BannerHash != nil && *in.BannerHash != cur.BannerHash {
+		berrs, berr := c.newsBannerErrors(ctx, "/banner_hash", *in.BannerHash)
+		if berr != nil {
+			return repr.NewsSubmission{}, "", berr
+		}
+		p.Errors = append(p.Errors, berrs...)
 	}
 	params := newssvc.UpdateParams{
 		Title: in.Title, Preview: in.Summary, Body: in.Body, SourceURL: in.SourceURL, BannerHash: in.BannerHash,

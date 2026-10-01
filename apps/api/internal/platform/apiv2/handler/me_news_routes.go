@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"api/internal/platform/apiv2/collect"
+	"api/internal/platform/apiv2/problem"
 	"api/internal/platform/apiv2/repr"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -19,7 +20,7 @@ type createNewsInput struct {
 		Body        string   `json:"body,omitempty" maxLength:"80000" doc:"The item's own text, CommonMark Markdown, at most 20000 runes (longer is 422 TOO_LONG). Only a community submission may carry one. Must not be used as a discriminant."`
 		SourceURL   string   `json:"source_url,omitempty" maxLength:"1024" doc:"Canonical link to the original item, an absolute http(s) URL. Required for a partner source, whose attribution always carries a link; optional for an original community submission. Must not be used as a discriminant."`
 		PublishedAt string   `json:"published_at,omitempty" format:"date-time" maxLength:"32" doc:"RFC 3339. Defaults to the moment of submission."`
-		BannerHash  string   `json:"banner_hash,omitempty" maxLength:"64" pattern:"^([0-9a-f]{64})?$" doc:"Image-service content hash of the banner. The format is checked; existence is not."`
+		BannerHash  string   `json:"banner_hash,omitempty" maxLength:"64" pattern:"^([0-9a-f]{64})?$" doc:"Hash of the banner, as returned by POST /v2/me/news-images. A hash that face did not store is 422 VALIDATION_FAILED with reason UNKNOWN_REFERENCE."`
 		WorkIDs     []string `json:"work_ids,omitempty" maxItems:"100" doc:"Catalog work ids to link. Stored with manual confidence."`
 	}
 }
@@ -37,7 +38,7 @@ type patchNewsSubmissionInput struct {
 		Summary    *string   `json:"summary,omitempty" minLength:"1" maxLength:"2000" doc:"At most 200 runes; longer is 422 VALIDATION_FAILED with reason TOO_LONG. Must not be used as a discriminant."`
 		Body       *string   `json:"body,omitempty" maxLength:"80000" doc:"At most 20000 runes. Only a community submission may carry one; the empty string clears it. Must not be used as a discriminant."`
 		SourceURL  *string   `json:"source_url,omitempty" maxLength:"1024" doc:"Canonical link to the original item, an absolute http(s) URL. The empty string clears it, which only a community submission may do. Must not be used as a discriminant."`
-		BannerHash *string   `json:"banner_hash,omitempty" maxLength:"64" pattern:"^([0-9a-f]{64})?$" doc:"Image-service content hash. The empty string clears the banner."`
+		BannerHash *string   `json:"banner_hash,omitempty" maxLength:"64" pattern:"^([0-9a-f]{64})?$" doc:"Hash of the banner, as returned by POST /v2/me/news-images; a hash that face did not store is 422 VALIDATION_FAILED with reason UNKNOWN_REFERENCE. The empty string clears the banner."`
 		WorkIDs    *[]string `json:"work_ids,omitempty" maxItems:"100" doc:"Replaces the whole linked-work set."`
 	}
 }
@@ -82,6 +83,13 @@ func registerMeNews(api huma.API, cat *Catalog) {
 		Summary: "Edit or withdraw one of my news items", Description: `A pending or published item may be edited (title/summary/body/source_url/banner_hash/work_ids). A pending edit is scored again; a published edit takes the item off the feed and back to pending until a moderator publishes it again, unless its source is trusted. A published item may be withdrawn with {"status":"withdrawn"} and If-Match. rejected and withdrawn are terminal.`,
 		Tags: me, Errors: writeErrs, SkipValidateParams: true,
 	}, patchMyNewsItem(cat))
+	huma.Register(api, huma.Operation{
+		OperationID: "uploadMyNewsImage", Method: http.MethodPost, Path: "/v2/me/news-images",
+		Summary:     "Upload a banner for a news item",
+		Description: "multipart/form-data with file: a JPEG, PNG or WebP. Returns the hash a news item carries in banner_hash. A banner has to come from here: POST and PATCH /v2/me/news refuse a hash this face did not store, because bytes held under another site's image client are not kept alive for the news feed. An account that has used up catalog.news_image_uploads_per_day for the UTC day is refused 429 QUOTA_EXCEEDED. Requires a user access token.",
+		Tags:        me, Errors: collectionErrors(http.StatusUnauthorized, http.StatusForbidden, http.StatusUnprocessableEntity, http.StatusServiceUnavailable),
+		DefaultStatus: http.StatusCreated, SkipValidateParams: true,
+	}, uploadMyNewsImage(cat))
 }
 
 func listMyNews(cat *Catalog) func(context.Context, *CollectionInput) (*listNewsSubmissionsOutput, error) {
@@ -150,5 +158,39 @@ func patchMyNewsItem(cat *Catalog) func(context.Context, *patchNewsSubmissionInp
 			return nil, catalogErr(ctx, err)
 		}
 		return &newsSubmissionOutput{ETag: etag, Body: rec}, nil
+	}
+}
+
+type newsImageForm struct {
+	File huma.FormFile `form:"file" required:"true" contentType:"application/octet-stream" doc:"The image bytes: JPEG, PNG or WebP. The ceiling is the service's own body limit, not a field constraint."`
+}
+
+type uploadNewsImageInput struct {
+	RawBody huma.MultipartFormFiles[newsImageForm]
+}
+
+type uploadNewsImageOutput struct {
+	Location string `header:"Location" doc:"Absolute URL of the stored image."`
+	Body     repr.NewsImage
+}
+
+func uploadMyNewsImage(cat *Catalog) func(context.Context, *uploadNewsImageInput) (*uploadNewsImageOutput, error) {
+	return func(ctx context.Context, in *uploadNewsImageInput) (*uploadNewsImageOutput, error) {
+		if in == nil {
+			in = &uploadNewsImageInput{}
+		}
+		form := in.RawBody.Data()
+		if form == nil || !form.File.IsSet {
+			p := problem.New(problem.CodeValidationFailed, "", "", "a multipart file part named file is required.")
+			p.Errors = []problem.FieldError{{Pointer: "/file", Reason: problem.ReasonRequired,
+				Detail: "send multipart/form-data with a file part"}}
+			return nil, catalogErr(ctx, p)
+		}
+		defer form.File.Close()
+		rec, err := cat.UploadNewsImage(ctx, form.File.Filename, form.File)
+		if err != nil {
+			return nil, catalogErr(ctx, err)
+		}
+		return &uploadNewsImageOutput{Location: rec.URL, Body: rec}, nil
 	}
 }
