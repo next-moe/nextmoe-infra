@@ -516,6 +516,13 @@ services:
       # connection, no second container). An unreachable kun_news degrades that
       # face to 503 and leaves catalog serving.
       KUN_NEWS_IMAGE_CLIENT_BASE_URL: http://image:9278
+      # POST /v2/me/news-images stores a submitter's banner as the NEWS image
+      # client, and POST/PATCH /v2/me/news pings a banner_hash under it: the
+      # daily news-image-refping is site-scoped, so bytes held under any other
+      # client rot at the image TTL. Same Dokploy vars the oauth service's
+      # refping job already reads, no new secret. Empty => both answer 503.
+      KUN_NEWS_IMAGE_CLIENT_ID: ${KUN_NEWS_IMAGE_CLIENT_ID:-}
+      KUN_NEWS_IMAGE_CLIENT_SECRET: ${KUN_NEWS_IMAGE_CLIENT_SECRET:-}
       # w02 (store face) first deploy 2026-08-26: the two shortlink vars were
       # set in the Dokploy panel and never reached the container — panel vars
       # only exist inside a service whose compose interpolates them. The base

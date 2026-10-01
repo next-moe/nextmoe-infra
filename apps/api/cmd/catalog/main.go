@@ -287,6 +287,17 @@ func setupPublicCatalog(
 	} else {
 		slog.Warn("catalog edit face: catalog image client not configured — editor image upload disabled (503)")
 	}
+	var newsImages v2handler.NewsImageStore
+	if cfg.NewsImageClient.ClientID != "" && cfg.NewsImageClient.ClientSecret != "" {
+		newsImages = imageclient.New(imageclient.Config{
+			BaseURL:      cfg.NewsImageClient.BaseURL,
+			CDNBase:      cfg.ImageService.CDNBase,
+			ClientID:     cfg.NewsImageClient.ClientID,
+			ClientSecret: cfg.NewsImageClient.ClientSecret,
+		})
+	} else {
+		slog.Warn("news write face: news image client not configured — banner upload and any submission carrying a banner_hash answer 503 (set KUN_NEWS_IMAGE_CLIENT_ID/SECRET)")
+	}
 	publicSvc.WithWorksSearch(searcher)
 
 	var storeMinter storeService.Minter
@@ -351,8 +362,9 @@ func setupPublicCatalog(
 	// every process, which is what makes this checkable here at all.
 	v2TokenVerifier := tokenVerifier.RequiringIssuer(cfg.OIDC.Issuer)
 
+	v2Store := protocol.NewRedisStore(devCache)
 	v2API := v2handler.SetupWith(application.Fiber, v2handler.Options{
-		Store:            protocol.NewRedisStore(devCache),
+		Store:            v2Store,
 		LookupCredential: mw.Lookup,
 		LookupUser: func(ctx context.Context, raw string) (v2handler.UserIdentity, error) {
 			claims, err := v2TokenVerifier.Parse(ctx, raw)
@@ -383,6 +395,8 @@ func setupPublicCatalog(
 			Engine:         editEngine,
 			EditHistory:    service.NewEditHistoryService(catalogDB.DB()),
 			Uploads:        v2handler.EditImageUpload(editUpload),
+			NewsImages:     newsImages,
+			Counters:       v2Store,
 			Store:          storeSvc,
 			Prices:         priceSvc,
 

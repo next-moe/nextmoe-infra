@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-本文件内联全部 135 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
+本文件内联全部 136 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
 
 ## 给 AI 助手的指引
 
@@ -1368,7 +1368,10 @@ GET    /v2/me/news
 POST   /v2/me/news                   # 投稿，总是落 pending
 GET    /v2/me/news/{id}
 PATCH  /v2/me/news/{id}              # 编辑或撤回
+POST   /v2/me/news-images            # 上传横幅，返回 banner_hash 用的 hash
 ```
+
+横幅（封面图）只能来自 `POST /v2/me/news-images`（multipart 的 `file`，JPEG / PNG / WebP）：把它返回的 `hash` 填进 `banner_hash`。用别处上传得到的 hash 会被拒为 `422`（`/banner_hash`，`UNKNOWN_REFERENCE`）——资讯横幅由资讯站点自己的图床身份续期，挂在别的站点名下的图大约一年后会被回收。
 
 投稿总是落在 `pending`，由人工过审后才出现在公开的 `/v2/news`。授权模型是「有源行即有资格」：你在资讯源表里有一行，就能替那个源投稿，没有单独的申请流程。
 
@@ -2906,7 +2909,7 @@ Open · 16 tokens
 
 - 路径前缀：`/v2`
 - 凭据：Authorization: Bearer nmk_live_…（v2 应用密钥,门户自助铸造,无需申请）
-- 端点数：122
+- 端点数：123
 
 > 正式公开：形状按 additive-only 演进，删除与改名由 CI 的 oasdiff 门拦下。第三方在门户自助铸 nmk_ 密钥即可调用，不需要申请。
 
@@ -5072,6 +5075,25 @@ curl -X POST "https://api.nextmoe.dev/v2/me/news" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{"summary":"string","title":"string"}'
+```
+
+### POST /v2/me/news-images
+
+Upload a banner for a news item
+
+multipart/form-data with file: a JPEG, PNG or WebP. Returns the hash a news item carries in banner_hash. A banner has to come from here: POST and PATCH /v2/me/news refuse a hash this face did not store, because bytes held under another site's image client are not kept alive for the news feed. An account that has used up catalog.news_image_uploads_per_day for the UTC day is refused 429 QUOTA_EXCEEDED. Requires a user access token.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
+
+```bash
+curl -X POST "https://api.nextmoe.dev/v2/me/news-images" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
 ### GET /v2/me/news/{id}

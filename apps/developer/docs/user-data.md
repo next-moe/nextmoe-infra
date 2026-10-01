@@ -86,7 +86,10 @@ GET    /v2/me/news
 POST   /v2/me/news                   # 投稿，总是落 pending
 GET    /v2/me/news/{id}
 PATCH  /v2/me/news/{id}              # 编辑或撤回
+POST   /v2/me/news-images            # 上传横幅，返回 banner_hash 用的 hash
 ```
+
+横幅（封面图）只能来自 `POST /v2/me/news-images`（multipart 的 `file`，JPEG / PNG / WebP）：把它返回的 `hash` 填进 `banner_hash`。用别处上传得到的 hash 会被拒为 `422`（`/banner_hash`，`UNKNOWN_REFERENCE`）——资讯横幅由资讯站点自己的图床身份续期，挂在别的站点名下的图大约一年后会被回收。
 
 投稿总是落在 `pending`，由人工过审后才出现在公开的 `/v2/news`。授权模型是「有源行即有资格」：你在资讯源表里有一行，就能替那个源投稿，没有单独的申请流程。
 

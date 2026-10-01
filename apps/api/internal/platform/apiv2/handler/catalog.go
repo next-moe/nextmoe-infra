@@ -7,6 +7,7 @@ import (
 
 	"api/internal/platform/apiv2/collect"
 	"api/internal/platform/apiv2/problem"
+	"api/internal/platform/apiv2/protocol"
 	"api/internal/platform/apiv2/repr"
 	catmodel "api/internal/platform/catalog/model"
 	catsearch "api/internal/platform/catalog/search"
@@ -35,6 +36,8 @@ type Catalog struct {
 	Engine         *editing.Engine
 	EditHistory    *catsvc.EditHistoryService
 	Uploads        EditImageUpload
+	NewsImages     NewsImageStore
+	Counters       protocol.Store
 	Store          *storesvc.Service
 	Prices         *price.Service
 	// oauth_clients lives in the infra database, which no catalog service can

@@ -383,6 +383,7 @@ The first two are the same defect shape in a different env var. They are deliber
 | `POST /v2/me/news` | `SubmissionService.Create`. `source` defaults to `community` (any user, always `pending`, `catalog.news_submissions_per_day` quota); a partner source lands `pending`, or `published` when `news_source.auto_publish`. 201 + `Location` + full body + `ETag`. `Idempotency-Key` via the shared POST middleware |
 | `GET /v2/me/news/{id}` | `{id}` is the news item id; carries the `If-Match` ETag |
 | `PATCH /v2/me/news/{id}` | Pending or published: edits `title`/`summary`/`body`/`source_url`/`banner_hash`/`work_ids`; a published edit goes back to `pending` unless the source is trusted. Published: `{"status":"withdrawn"}`, `If-Match` mandatory (428 without) |
+| `POST /v2/me/news-images` | multipart `file`; stored as the **news** image client under preset `news_banner`, `uploader_sub` = the central uid. 201 + `Location` + `news_image`. `catalog.news_image_uploads_per_day` per account |
 
 `content_limit` on claim POST is not stored (no column on the claim row). Omit it.
 
@@ -390,8 +391,8 @@ News write specifics:
 
 - **Zero schema change.** `upstream_category` and `banner_origin_url` are importer-only and are written as `''`; `news_item_work.confidence` is `0` (manual).
 - **Re-moderation is inherited, not rebuilt.** `newsmoderate.Runner` selects `status = pending`, recomputes `NewsItem.Fingerprint()` (title + preview + lane, + body when non-empty) per row, and re-scores whenever no settled verdict exists for that exact digest. A pending text edit therefore re-enters the machine queue with no new code; a `source_url` / `banner_hash` / `work_ids` edit correctly does not.
-- **`banner_hash` is a format check only** (`^[0-9a-f]{64}$`, the image service's sha256 hex). No call to the image service, so a syntactically valid hash for bytes that do not exist is accepted and renders as a broken banner in the moderation queue.
-- **Refping tolerates native rows.** `news/imagerefs` collects `banner_hash <> ''` and never reads `banner_origin_url`, so an API-submitted banner with an empty origin is inside the daily sweep. ⚠️ The sweep authenticates as the **news** image client and is site-scoped: bytes a publisher uploaded under a different site's client will `not_found` on every ping and rot at the image service's TTL.
+- **`banner_hash` must be held under the news site** (since 2.38.0; it was a format check only before). After the format check, create and patch reference-ping the hash as the news image client; a hash that client's site does not hold is `422` `/banner_hash` `UNKNOWN_REFERENCE`. The ping is the same predicate the daily sweep applies, so "accepted here" and "kept alive later" cannot disagree. A patch that resends the stored hash unchanged is not pinged again.
+- **Refping tolerates native rows.** `news/imagerefs` collects `banner_hash <> ''` and never reads `banner_origin_url`, so an API-submitted banner with an empty origin is inside the daily sweep. The sweep authenticates as the **news** image client and is site-scoped, which is why the only way to obtain a banner hash is `POST /v2/me/news-images`: bytes uploaded under a different site's client would `not_found` on every ping and rot at the image service's TTL.
 
 ## Stage 7–8 (this repo)
 
@@ -1877,3 +1878,15 @@ The user ruled that every signed-in account may submit news, with original body 
 **Migration required**: `go run ./cmd/migrate news` against `kun_news` (the `migrate-news` job on deploy) adds `news_item.submitter_uid`, `news_item.body` (NOT NULL DEFAULT ''), `news_source.auto_publish` (backfilled true for the two partners on the run that adds it), the `news_item_body_community` CHECK, the `news_item_submitter` index, the `community` source row and `account_purge_cursor`. Additive; existing rows keep their values.
 
 **Spec is 2.37.0.** Additive: `NewsItem.submitter_uid` / `has_body` / `body`, `NewsSubmission.body` / `submitter_uid`, request `body`; `source` and `source_url` become optional on `createMyNews`.
+
+## Wave — news banner upload (2026-09-30)
+
+The forum asked to let a submitter pick a banner. Two things stood in the way, both already written down under "News write specifics": a submitter had no way to store bytes under the news site, so any banner they sent would have been collected about thirteen months later, and `banner_hash` was checked for format only. Production held no API-submitted banner when this landed (0 of 4,695 bannered rows), so there is no legacy row to reconcile.
+
+- **`POST /v2/me/news-images`** (`uploadMyNewsImage`). multipart `file`, JPEG / PNG / WebP (the `news_banner` preset's own list). Any user token, like `/v2/me/news`: no site binding and no `catalog:edit`. The catalog process uploads as the news image client, so the usage row lands on site `news` and the daily `news-image-refping` keeps the bytes alive. Returns `news_image` (`url`, `hash`, `width`, `height`, `thumbhash`, `size_bytes`, `is_deduplicated`). The catalog process's 4 MiB body limit is the ceiling (`413 PAYLOAD_TOO_LARGE`).
+- **Existence check.** See "News write specifics". An image-service outage, or a catalog process with no news image client, answers `503` to a create or patch that carries a new banner rather than storing an unverified one; a submission without a banner never touches the image leg.
+- **Per-account cap.** `catalog.news_image_uploads_per_day` (default 30, `0` closes the upload), a counter per UTC day in the v2 limiter store; `429 QUOTA_EXCEEDED`. The lane is open to every account and shares the news client's daily image quota with the 月幕 and 批评 importers, so without it one account could spend the importers' banners for the day. The counter fails open when Redis is away, as the v2 limiter does.
+- **Upload errors name the file.** The shared mapper now answers `422` `/file` for a MIME the preset refuses (`NOT_ALLOWED_VALUE`) and for undecodable bytes (`INVALID_FORMAT`). Both were `503` before, on `POST /v2/me/edit-images` as well.
+- **Deploy.** `docker-compose.prod.yml` now interpolates `KUN_NEWS_IMAGE_CLIENT_ID` / `_SECRET` into the `catalog` service — the same Dokploy variables the scheduler already reads. No migration.
+
+**Spec is 2.38.0.** Additive: `uploadMyNewsImage` and the `news_image` object. Behaviour change inside the declared contract: `createMyNews` / `patchMyNewsItem` answer 422 for a `banner_hash` the news site does not hold.

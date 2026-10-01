@@ -20,6 +20,7 @@ func TestMeNewsRequiresUserToken(t *testing.T) {
 		{http.MethodPost, "/v2/me/news"},
 		{http.MethodGet, "/v2/me/news/1"},
 		{http.MethodPatch, "/v2/me/news/1"},
+		{http.MethodPost, "/v2/me/news-images"},
 	} {
 		status, ct, body := do(t, app, tc.method, tc.path)
 		require.Equal(t, 401, status, tc.path)
@@ -53,7 +54,7 @@ func TestMeNewsUnbound(t *testing.T) {
 	require.Equal(t, problem.CodeServiceUnavailable, p.Code)
 }
 
-// TestMeNewsOpsAreDeclared names the four operations: the contract walk asserts
+// TestMeNewsOpsAreDeclared names the operations: the contract walk asserts
 // every declared operation answers, so a lost registration would make it pass by
 // having nothing to walk.
 func TestMeNewsOpsAreDeclared(t *testing.T) {
@@ -61,10 +62,11 @@ func TestMeNewsOpsAreDeclared(t *testing.T) {
 	doc := Setup(app).OpenAPI()
 
 	want := map[string]struct{ path, method string }{
-		"listMyNews":      {"/v2/me/news", http.MethodGet},
-		"createMyNews":    {"/v2/me/news", http.MethodPost},
-		"getMyNewsItem":   {"/v2/me/news/{id}", http.MethodGet},
-		"patchMyNewsItem": {"/v2/me/news/{id}", http.MethodPatch},
+		"listMyNews":        {"/v2/me/news", http.MethodGet},
+		"createMyNews":      {"/v2/me/news", http.MethodPost},
+		"getMyNewsItem":     {"/v2/me/news/{id}", http.MethodGet},
+		"patchMyNewsItem":   {"/v2/me/news/{id}", http.MethodPatch},
+		"uploadMyNewsImage": {"/v2/me/news-images", http.MethodPost},
 	}
 	found := map[string]bool{}
 	for path, item := range doc.Paths {
@@ -91,6 +93,10 @@ func TestMeNewsOpsAreDeclared(t *testing.T) {
 	require.NotNil(t, patch.Responses["409"], "INVALID_STATE_TRANSITION")
 	require.NotNil(t, patch.Responses["428"], "If-Match is mandatory to withdraw")
 	require.NotNil(t, doc.Paths["/v2/me/news/{id}"].Get.Responses["200"].Headers["ETag"])
+	upload := doc.Paths["/v2/me/news-images"].Post
+	require.NotNil(t, upload.Responses["201"].Headers["Location"], "201 must carry Location")
+	require.NotNil(t, upload.Responses["422"], "a refused file is a 422 on this path")
+	require.NotNil(t, upload.Responses["429"], "the per-account cap is a 429 on this path")
 }
 
 func TestNewsDomainCodesAreRegistered(t *testing.T) {

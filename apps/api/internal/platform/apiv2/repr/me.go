@@ -131,6 +131,18 @@ type NewsSubmission struct {
 	SubmitterUID *string    `json:"submitter_uid" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"The account that submitted the item: the central sign-in user id shared by every NextMoe site. null for an item a partner source imported."`
 }
 
+type NewsImage struct {
+	_              struct{} `json:"-" additionalProperties:"true"`
+	Object         string   `json:"object" enum:"news_image" doc:"Type discriminant. Always news_image."`
+	URL            string   `json:"url" format:"uri" maxLength:"512" doc:"Absolute image URL. Never a bare hash."`
+	Hash           string   `json:"hash" minLength:"64" maxLength:"64" pattern:"^[0-9a-f]{64}$" doc:"Image-service content hash. This is the value banner_hash carries on /v2/me/news."`
+	Width          *int     `json:"width" minimum:"0" maximum:"65535" doc:"Pixel width. null if unknown."`
+	Height         *int     `json:"height" minimum:"0" maximum:"65535" doc:"Pixel height. null if unknown."`
+	Thumbhash      *string  `json:"thumbhash" maxLength:"128" pattern:"^[A-Za-z0-9+/=_-]+$" doc:"Thumbhash. null if unknown."`
+	SizeBytes      int64    `json:"size_bytes" minimum:"0" doc:"Stored byte length after the image service re-encoded the upload."`
+	IsDeduplicated bool     `json:"is_deduplicated" doc:"True when these bytes already existed and no new object was stored."`
+}
+
 type CoverVote struct {
 	_       struct{} `json:"-" additionalProperties:"true"`
 	Object  string   `json:"object" enum:"cover_vote" doc:"Type discriminant. Always cover_vote."`
