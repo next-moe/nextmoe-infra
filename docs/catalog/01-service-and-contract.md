@@ -533,7 +533,9 @@ wave 176-179 把人类的**写**搬完了;本波搬的是搬完写之后还留�
 
 产品站会把 catalog 的编辑展示判定(§1 的 `content_limit`)缓存成自己的一列,好在 SQL 里过滤列表页。此前**没有任何 feed 被声明**承载这个字段——论坛的代码里留着原话:「There is no feed for that field — the claim-event feed carries claim state only — so a full sweep is the only way an editor's flip reaches the local lists.」于是论坛与 moyu 各自退回夜间全量扫(约 300 次请求扫 ~7.8k 行),编辑翻一个标志最坏要等一整夜才到本地列表。**信道其实一直在**:`GET /v2/catalog/changes` 按 `(updated_at, id)` 升序翻 `catalog_work`。本节把它声明成契约。
 
-**不变量**:凡改动作品的 **claim 状态**、**编辑展示轴**(`display_nsfw` / `content_rating` / `cover_art_all_explicit`)或**作品存在性**的写路径,都会 bump `catalog_work.updated_at`,因而必在本 feed 现身。当前这些写路径是:编辑面 `applyWorkColumn`、claim 生命周期八动作、周跑 `releasemeta` 评级泳道、合并的认领转移与来源退役、导入(只 INSERT,新行自带新时间戳),以及子资源写路径统一走的 `repository.TouchWorks`。**其余字段(封面/标签/标题/简介/评分)尽力而为**——它们多数也会 touch 作品,但只有上面三项是承诺。
+**不变量**:凡改动作品的 **claim 状态**、**编辑展示轴**(`display_nsfw` / `content_rating` / `cover_art_all_explicit`)、**原语言 `olang`** 或**作品存在性**的写路径,都会 bump `catalog_work.updated_at`,因而必在本 feed 现身。当前这些写路径是:编辑面 `applyWorkColumn`、claim 生命周期八动作、周跑 `releasemeta` 评级泳道、合并的认领转移、字段存留与来源退役、导入(只 INSERT,新行自带新时间戳),以及子资源写路径统一走的 `repository.TouchWorks`。**其余字段(封面/标签/标题/简介/评分)尽力而为**——它们多数也会 touch 作品,但只有上面四项是承诺。
+
+`olang` 自 2.38.1(2026-10-01)起列入承诺:论坛按原语言决定一部作品的资源归哪个站、默认列表显不显示,于是把 `olang` 也镜像成本地一列。现存行上 `olang` 只有两个写入者——编辑面字段 `catalog.work.olang` 与合并的字段存留——二者都 bump `updated_at`;导入只在铸造时写它,之后**不随源站回刷**。`olang` 在 `/v2/catalog/works?ids=` 的每一行上都带,水合照 `content_limit` 的回路走即可。
 
 **判定**:直接读作品顶层的 `content_limit`——2.26.0 起**每部作品都带**,认领与否;已认领作品的 `claim.content_limit` 是同一个值。服务端语义源 `model.WorkShelf.NSFW`:
 

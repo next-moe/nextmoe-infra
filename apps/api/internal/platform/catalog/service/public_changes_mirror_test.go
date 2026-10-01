@@ -59,6 +59,22 @@ func TestChangesFeedSurfacesContentRatingEdit(t *testing.T) {
 	assert.NotContains(t, got, bystander.ID)
 }
 
+func TestChangesFeedSurfacesOLangEdit(t *testing.T) {
+	cleanTables(t)
+	edited := createWorkX(t, galgameMediumID, model.ContentRatingAllAges, model.WorkStatusLive, "olang")
+	bystander := createWorkX(t, galgameMediumID, model.ContentRatingAllAges, model.WorkStatusLive, "bystander")
+	settleWorks(t)
+	cursor := drainChanges(t)
+
+	require.NoError(t, editspec.ApplyWorkFields(t.Context(), testDB, edited.ID,
+		map[string]any{editspec.FieldWorkOLang: "zh-Hant"}))
+
+	got := changesFrom(t, cursor)
+	require.Contains(t, got, edited.ID, "a site that routes on the original language mirrors olang off this feed")
+	assert.False(t, got[edited.ID])
+	assert.NotContains(t, got, bystander.ID)
+}
+
 func TestChangesFeedSurfacesClaimTransition(t *testing.T) {
 	s := newLifecycle(t)
 	work := createWorkX(t, galgameMediumID, model.ContentRatingAllAges, model.WorkStatusLive, "claimed")
