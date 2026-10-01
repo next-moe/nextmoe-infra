@@ -54,7 +54,7 @@ func newsSourceURLErrors(pointer, value string, community bool) []problem.FieldE
 	return nil
 }
 
-func newsBannerErrors(pointer, value string) []problem.FieldError {
+func newsBannerFormatErrors(pointer, value string) []problem.FieldError {
 	bad := []problem.FieldError{{
 		Pointer: pointer, Reason: problem.ReasonInvalidFormat,
 		Detail: "expected a 64-character lowercase hex image-service hash",

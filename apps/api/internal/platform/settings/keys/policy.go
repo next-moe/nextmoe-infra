@@ -334,6 +334,14 @@ var CatalogNewsSubmissionsPerDay = settings.Int(settings.Meta{
 	Max:    settings.F(100000),
 }, 10)
 
+var CatalogNewsImageUploadsPerDay = settings.Int(settings.Meta{
+	Name:   "catalog.news_image_uploads_per_day",
+	DescEN: "News banner images one account may upload through /v2/me/news-images per UTC day. 0 closes the upload.",
+	DescZH: "一个账号每个 UTC 日可通过 /v2/me/news-images 上传的情报封面图张数;0 表示关闭上传。",
+	Min:    settings.F(0),
+	Max:    settings.F(100000),
+}, 30)
+
 var CatalogProposalsPerDayTrusted = settings.Int(settings.Meta{
 	Name:   "catalog.proposals_per_day_trusted",
 	DescEN: "The same limit for a holder of catalog.edit.trusted, whose proposals merge without review.",
@@ -381,6 +389,7 @@ var catalogDomain = settings.Domain{
 		CatalogProposalsPerDay,
 		CatalogProposalsPerDayTrusted,
 		CatalogNewsSubmissionsPerDay,
+		CatalogNewsImageUploadsPerDay,
 	},
 }
 
