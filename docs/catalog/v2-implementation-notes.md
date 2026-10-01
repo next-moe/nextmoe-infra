@@ -1890,3 +1890,12 @@ The forum asked to let a submitter pick a banner. Two things stood in the way, b
 - **Deploy.** `docker-compose.prod.yml` now interpolates `KUN_NEWS_IMAGE_CLIENT_ID` / `_SECRET` into the `catalog` service — the same Dokploy variables the scheduler already reads. No migration.
 
 **Spec is 2.38.0.** Additive: `uploadMyNewsImage` and the `news_image` object. Behaviour change inside the declared contract: `createMyNews` / `patchMyNewsItem` answer 422 for a `banner_hash` the news site does not hold.
+
+## Wave — the changes feed promises `olang` (2026-10-01)
+
+The forum now routes on a work's original language: works whose `olang` is neither `ja` nor a `zh` variant have their resources hosted on LetMoe and are left out of the forum's default lists. It mirrors `olang` into a local column off `/v2/catalog/changes`, and the feed's description promised only claim state, the display axis and existence.
+
+- **`listCatalogChanges` names `olang` among the promised facts.** No behaviour changed. The two writers that touch `olang` on an existing row already stamped `updated_at`: the edit field `catalog.work.olang` and the merge's field survivorship. Imports write it at mint only and never re-sync it from the source.
+- **Pinned.** `TestChangesFeedSurfacesOLangEdit` sits beside the display-axis and claim tests in `public_changes_mirror_test.go`.
+
+**Spec is 2.38.1.** Description only.
