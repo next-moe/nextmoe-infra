@@ -30,7 +30,7 @@
 ```
 
 **在产状态(2026-07-16)**:
-- ✅ Tier0 词表档:46,176 条活跃全局 suspect 词(Sensitive-lexicon 除色情类目导入;2026-10-02 修剪后,见 §7「词表太吵怎么办」)+ Aho-Corasick 匹配器;**banned 恒为空是纪律**——每一条 banned 都要人工从影子数据里提升,不从外部词库直灌。词表管理 UI:管理端 `/trust/terms`。
+- ✅ Tier0 词表档:26,418 条活跃全局 suspect 词(Sensitive-lexicon 除色情类目导入;2026-10-02 修剪后,见 §7「词表太吵怎么办」)+ Aho-Corasick 匹配器;**banned 恒为空是纪律**——每一条 banned 都要人工从影子数据里提升,不从外部词库直灌。词表管理 UI:管理端 `/trust/terms`。
 - ✅ 影子扫描全链:community 原语的发帖/编辑已自动喂 scan,worker 经 AI 网关用 omni 打分,真实生产流量在流。
 - ✅ 统一收件箱 + forward/resolve 闭环 + 执法回调(HMAC 签名,注册于 subject_kind.callback_url)。
 - ✅ 举报面(reports)+ 注册表(subject kinds / report reasons)+ 管理端(队列/注册表/词表/AI 用量看板)。
@@ -170,8 +170,9 @@ Response: { "report_id": ..., "review_item_id": ... }        # review_item_id �
 - **会拖慢发帖吗?** check p99 <10ms + 500ms 超时兜底;scan 完全离线。community 原语在产实测无感。
 - **suspect 词命中会怎样?** check 返 `hold`(你发布+入队);scan 侧记进 `tier0_matched`。都不拦人。
 - **误杀了怎么办?** 词是数据不是代码:管理端 `/trust/terms` 把噪词 deprecate,60s 内全生态生效。
-- **词表太吵怎么办?** 两把工具,都只 deprecate(可逆,带备份文件和一条审计行),都不碰 banned 词和 compliance 词:
+- **词表太吵怎么办?** 两把工具,都只 deprecate(可逆,带备份文件和一条审计行),都不碰 banned 词和 compliance 词(compliance 词只会被点名、由人决定;2026-10-02 人工退役了被点名的 `les`):
   - `trust-term-prune`:按实测退役——命中 ≥20 次且命中帖被判违规的比例 <10% 的词。2026-10-02 退役 21 个(`.cn`、`189`、`第一次`、`管理员`、`test`……),它们占当时全部命中的约 95%。
-  - `trust-term-judge`:让 LLM 找「普通词」。`-mode judge` 不连库(候选词 JSONL 进、逐词结论 JSONL 出,可续跑),`-mode apply` 只退役仍在役、拼写未变的 abuse 用途 suspect 词。2026-10-02 的一轮:39,606 个候选里 19,757 个是域名(垃圾/木马站点,按规则保留不判),其余 19,837 个由 deepseek-v4-flash 判出 650 个 ordinary;只把「≤4 个字或纯英文单词、不含空格与符号、不是 7 位以上数字串」的 427 个交给 deepseek-v4-pro 复核两遍,剩 237 个退役。长短语不可能误伤正常帖子,退役它没有收益,所以不退。
+  - `trust-term-prune -domains -drop-unevidenced`:只看域名/URL 形状的词,退役其中没有命中证据的。导入的词表里有 19,757 个是多年前的垃圾/木马站点域名,两个半月零命中,2026-10-02 全部退役;垃圾链接由 scan 的模型判断,不靠域名表。
+  - `trust-term-judge`:让 LLM 找「普通词」。`-mode judge` 不连库(候选词 JSONL 进、逐词结论 JSONL 出,可续跑),`-mode apply` 只退役仍在役、拼写未变的 abuse 用途 suspect 词。2026-10-02 的一轮:39,606 个候选里 19,757 个是域名(当时按规则不判,随后由上一条整体退役),其余 19,837 个由 deepseek-v4-flash 判出 650 个 ordinary;只把「≤4 个字或纯英文单词、不含空格与符号、不是 7 位以上数字串」的 427 个交给 deepseek-v4-pro 复核两遍,剩 237 个退役。长短语不可能误伤正常帖子,退役它没有收益,所以不退。
   - 让 LLM 判词表之前先拿有标准答案的词校准。这一轮的校准集(已退役噪词 + banned 词 + 有违规命中记录的词,共 74 个)拦下了两种写法:要模型按行号作答,它在 60 词一批里错位,把 banned 的「外送茶」判成「普通数字」;只要模型列出「该退役的词」,它把 74 个里的 65 个全列了。现在的写法是每个词必须原样回写并归入一个类别,只有 ordinary 退役。
 - **我能看到自己站的打分数据吗?** 现阶段经 infra 管理端;per-site 数据面板是触发式后续。
