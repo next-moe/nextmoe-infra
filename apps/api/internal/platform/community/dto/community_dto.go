@@ -216,7 +216,7 @@ type UnreadThreadView struct {
 type UnreadListResponse struct {
 	Threads    []UnreadThreadView `json:"threads"`
 	NextCursor string             `json:"next_cursor,omitempty"`
-	Total      int64              `json:"total" doc:"the user's threads carrying unread posts on this site, muted excluded — the red-dot number"`
+	Total      int64              `json:"total" doc:"how many threads the request's filters select, across every page: the user's threads carrying unread posts on this site, muted excluded — the red-dot number"`
 }
 
 type PostFeedResponse struct {
@@ -310,6 +310,8 @@ type ReviewItemView struct {
 	Source    *int16 `json:"source,omitempty" doc:"0=flags 1=first_post_hold 2=suspect_words 3=external"`
 	Status    int16  `json:"status" doc:"0=pending 1=approved 2=rejected"`
 	DecidedBy *int64 `json:"decided_by,omitempty"`
+
+	MatchedTerms []string `json:"matched_terms" doc:"the lexicon terms the trust check matched in the post when the item was enqueued — why a suspect_words item is in the queue. [] when the check matched nothing (a flags item, a plain first-post hold) and on every item enqueued before this field existed"`
 }
 
 type ReviewListResponse struct {

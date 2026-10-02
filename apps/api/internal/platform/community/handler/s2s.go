@@ -57,7 +57,7 @@ type Services struct {
 func Setup(app *fiber.App, svc Services) huma.API {
 	InstallErrorEnvelope()
 
-	cfg := huma.DefaultConfig("KUN Community Service", "1.0.1")
+	cfg := huma.DefaultConfig("KUN Community Service", "1.1.0")
 	cfg.OpenAPIPath = ""
 	cfg.DocsPath = ""
 	cfg.SchemasPath = ""

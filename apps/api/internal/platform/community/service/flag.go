@@ -61,7 +61,7 @@ func (s *FlagService) Submit(ctx context.Context, postID, flaggerID int64, reaso
 		if err := repository.SetPostStatusTx(tx, postID, model.PostStatusHidden); err != nil {
 			return err
 		}
-		itemID, created, err := repository.EnqueueReviewIfAbsentTx(tx, pc.Site, postID, model.ReviewSourceFlags)
+		itemID, created, err := repository.EnqueueReviewIfAbsentTx(tx, pc.Site, postID, model.ReviewSourceFlags, nil)
 		if err != nil {
 			return err
 		}

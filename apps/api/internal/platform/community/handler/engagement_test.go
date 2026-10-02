@@ -1,10 +1,17 @@
 package handler
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"api/internal/platform/community/dto"
+	"api/internal/platform/community/model"
 	"api/internal/platform/community/service"
+	siteModel "api/internal/platform/site/model"
+
+	"github.com/gofiber/fiber/v3"
 )
 
 // Every id-addressed handler must stamp the caller's site onto the context; a
@@ -73,7 +80,7 @@ func TestEngagementHandlers_StampTheCallerSite(t *testing.T) {
 		t.Fatalf("reply: %v", err)
 	}
 
-	unread, err := s.listUnread(mine, &unreadListInput{ID: 300})
+	unread, err := s.listUnread(mine, &unreadListInput{ID: 300, Kind: -1})
 	if err != nil {
 		t.Fatalf("listUnread: %v", err)
 	}
@@ -86,11 +93,96 @@ func TestEngagementHandlers_StampTheCallerSite(t *testing.T) {
 	if unread.Body.Data.Threads[0].State.UnreadCount != 1 {
 		t.Fatalf("unread count should be 1: %+v", unread.Body.Data.Threads[0].State)
 	}
-	empty, err := s.listUnread(theirs, &unreadListInput{ID: 300})
+	empty, err := s.listUnread(theirs, &unreadListInput{ID: 300, Kind: -1})
 	if err != nil {
 		t.Fatalf("listUnread (other tenant): %v", err)
 	}
 	if empty.Body.Data.Total != 0 || len(empty.Body.Data.Threads) != 0 {
 		t.Fatalf("another tenant must see none of it: %+v", empty.Body.Data)
+	}
+}
+
+// Calling listUnread directly leaves `kind` at Go's zero, which is "topics
+// only"; only the router applies the declared default of -1. A caller that
+// sends neither filter must keep counting every kind, so this goes through it.
+func TestUnreadFilters_ThroughRouter(t *testing.T) {
+	cleanTables(t)
+	sink := service.NoopSink{}
+	threads, posts := service.NewThreadService(testDB, sink), service.NewPostService(testDB, sink)
+	engagement := service.NewEngagementService(testDB)
+	app := fiber.New()
+	app.Use("/api/v1/community", func(c fiber.Ctx) error {
+		c.Locals(localClient, &siteModel.OAuthClient{ID: "letmoe", CatalogSite: "letmoe"})
+		return c.Next()
+	})
+	Setup(app, Services{Threads: threads, Posts: posts, Engagement: engagement})
+
+	if err := testDB.Exec(
+		`INSERT INTO community_trust (user_id, level, first_posts_held_remaining)
+		 VALUES (100, 1, 0), (200, 1, 0), (300, 1, 0)`).Error; err != nil {
+		t.Fatalf("seed trust: %v", err)
+	}
+	ctx := service.WithCallerSite(clientCtx("letmoe"), "letmoe")
+	const reader int64 = 300
+	opened, _, err := threads.OpenTopic(ctx, service.OpenTopicParams{
+		Site: "letmoe", AuthorID: 100, BoardID: testBoard(t, "letmoe", "b1"), Title: "t", BodyRaw: "only opened",
+	})
+	if err != nil {
+		t.Fatalf("open topic: %v", err)
+	}
+	posted, _, err := threads.OpenTopic(ctx, service.OpenTopicParams{
+		Site: "letmoe", AuthorID: 100, BoardID: testBoard(t, "letmoe", "b2"), Title: "t", BodyRaw: "posted in",
+	})
+	if err != nil {
+		t.Fatalf("open topic: %v", err)
+	}
+	wall, _, err := posts.Comment(ctx, service.CommentParams{
+		Site: "letmoe", AnchorKind: model.AnchorKindSiteGame, AnchorID: "g1", AuthorID: 100, BodyRaw: "wall",
+	})
+	if err != nil {
+		t.Fatalf("comment: %v", err)
+	}
+	for _, id := range []int64{opened.ID, wall.ID} {
+		if _, err := engagement.MarkRead(ctx, id, reader, 1); err != nil {
+			t.Fatalf("mark read: %v", err)
+		}
+	}
+	if _, err := posts.Reply(ctx, service.ReplyParams{ThreadID: posted.ID, AuthorID: reader, BodyRaw: "mine"}); err != nil {
+		t.Fatalf("reader reply: %v", err)
+	}
+	for _, id := range []int64{opened.ID, posted.ID, wall.ID} {
+		if _, err := posts.Reply(ctx, service.ReplyParams{ThreadID: id, AuthorID: 200, BodyRaw: "r"}); err != nil {
+			t.Fatalf("reply: %v", err)
+		}
+	}
+
+	cases := []struct {
+		query string
+		want  int64
+	}{
+		{"", 3},
+		{"?kind=-1&min_level=1", 3},
+		{"?kind=0", 2},
+		{"?kind=1", 1},
+		{"?min_level=2", 1},
+		{"?kind=0&min_level=2", 1},
+		{"?kind=1&min_level=2", 0},
+		{"?not_a_parameter=1", 3},
+	}
+	for _, c := range cases {
+		resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/api/v1/community/users/300/unread"+c.query, nil))
+		if err != nil {
+			t.Fatalf("GET unread%s: %v", c.query, err)
+		}
+		var out Envelope[dto.UnreadListResponse]
+		derr := json.NewDecoder(resp.Body).Decode(&out)
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusOK || derr != nil {
+			t.Fatalf("GET unread%s: status %d, decode %v", c.query, resp.StatusCode, derr)
+		}
+		if out.Data.Total != c.want || int64(len(out.Data.Threads)) != c.want {
+			t.Errorf("GET unread%s: total %d with %d threads, want %d of each",
+				c.query, out.Data.Total, len(out.Data.Threads), c.want)
+		}
 	}
 }

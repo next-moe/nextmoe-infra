@@ -177,7 +177,8 @@ func (s *ThreadService) openWithFirstPost(ctx context.Context, p openThread) (*m
 		checkText = p.title + "\n\n" + p.bodyRaw
 	}
 	suspectHold := false
-	switch s.check.Decision(ctx, p.site, checkText, &p.authorID) {
+	decision, matchedTerms := s.check.Decision(ctx, p.site, checkText, &p.authorID)
+	switch decision {
 	case checkDeny:
 		return nil, nil, ErrContentBlocked
 	case checkHold:
@@ -234,7 +235,7 @@ func (s *ThreadService) openWithFirstPost(ctx context.Context, p openThread) (*m
 			return err
 		}
 		if held {
-			itemID, created, err := repository.EnqueueReviewIfAbsentTx(tx, thread.Site, post.ID, model.ReviewSourceFirstPostHold)
+			itemID, created, err := repository.EnqueueReviewIfAbsentTx(tx, thread.Site, post.ID, model.ReviewSourceFirstPostHold, matchedTerms)
 			if err != nil {
 				return err
 			}
@@ -244,7 +245,7 @@ func (s *ThreadService) openWithFirstPost(ctx context.Context, p openThread) (*m
 			return repository.DecrementHoldTx(tx, p.authorID)
 		}
 		if suspectHold {
-			itemID, created, err := repository.EnqueueReviewIfAbsentTx(tx, thread.Site, post.ID, model.ReviewSourceSuspectWords)
+			itemID, created, err := repository.EnqueueReviewIfAbsentTx(tx, thread.Site, post.ID, model.ReviewSourceSuspectWords, matchedTerms)
 			if err != nil {
 				return err
 			}

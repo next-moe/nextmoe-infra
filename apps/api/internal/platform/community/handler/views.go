@@ -144,6 +144,7 @@ func toReviewItemView(it *repository.ReviewItemRow) dto.ReviewItemView {
 	v := dto.ReviewItemView{
 		ID: it.ID, PostID: it.PostID, ThreadID: it.ThreadID, AuthorID: it.AuthorID,
 		Source: it.Source, Status: it.Status, DecidedBy: it.DecidedBy,
+		MatchedTerms: it.MatchedTerms,
 	}
 	if it.Site != nil {
 		v.Site = *it.Site
