@@ -490,6 +490,7 @@ func TestColumnAudit(t *testing.T) {
 		"community_review_item": {
 			"id", "site", "post_id", "source", "status", "decided_by",
 			"decided_at", "created_at", "trust_review_item_id", "forward_attempts",
+			"forward_after", "matched_terms",
 		},
 		"community_event": {
 			"id", "site", "kind", "thread_id", "post_id", "actor_id", "target_user_id",

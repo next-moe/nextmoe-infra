@@ -103,9 +103,9 @@ Response: { "report_id": ..., "review_item_id": ... }        # review_item_id �
 | **kungal 评论区**(galgame/rating/website/toolset,community 原语) | ✅ 全链在产:check 闸 + scan 影子 + 举报 + forward 自动具备 | 无 |
 | **kungal 主论坛**(topic/reply,forum 仓自有表) | ❌ 未接 | kinds `forum_topic`/`forum_reply` **已预注册**;forum 仓接 §3.1+3.2(接入波编排中) |
 | **kungal 资源发布 / bio 等** | ❌ 未接 | 同上配方;新 kind 需注册 |
-| **moyu**(`community_site=moyu`) | ✅ 举报在产(2026-09-25):§3.3 举报 + 执法回调;启动 ensure 注册 `patch_resource`(回调 `http://moyu-api:5214/api/v1/trust/callback`,`notify_on_dismiss=true`)与 `user`(无回调,人工);站点策略 `aggregate_threshold=0.5`(单条举报即开单) | check/scan 不接(产品决定) |
+| **moyu**(`community_site=moyu`) | ✅ 举报在产(2026-09-25):§3.3 举报 + 执法回调;启动 ensure 注册 `patch_resource`(回调 `http://moyu-api:5214/api/v1/trust/callback`,`notify_on_dismiss=true`)与 `user`(无回调,人工);站点策略 `aggregate_threshold=0.5`(单条举报即开单) | moyu 自有内容的 check/scan 不接(产品决定)。**moyu 评论区走 community 原语,check 闸对它已生效**(同 letmoe,全局词全租户适用),但 `(moyu, community_post)` 未注册:suspect 命中的条目只进 community 本地队列,forward 被 422 拒绝、每小时重试一次,进不了统一收件箱。注册该 kind 即补齐 |
 | **chat**(平台私聊,中继全部站) | ⚠️ 代码就绪、未通电:举报转发 + 执法回调;每个站要注册 `chat_message`(回调 `http://chat:9285/trust/callback`,`notify_on_dismiss=true`),chat 的 trust client 进 forwarder allowlist | 契约见 `docs/chat/01-service-and-contract.md` §9 |
-| **letmoe**(community 原语) | ⚠️ 半接:**check 闸已生效**(check 不查注册表,全局词全租户适用);scan 事件在发但受理面 422 丢弃 | 注册表加 `(letmoe, community_post)` 一行即完整(建议随 letmoe 上线 runbook 做) |
+| **letmoe**(community 原语) | ⚠️ 半接:**check 闸已生效**(check 不查注册表,全局词全租户适用);scan 事件在发但受理面 422 丢弃;本地审核队列的 forward 同样 422(每小时重试一次),条目只在 letmoe 自己的队列里 | 注册表加 `(letmoe, community_post)` 一行即完整(建议随 letmoe 上线 runbook 做) |
 
 ## 4.1 站点策略:尺度归你,不归平台
 

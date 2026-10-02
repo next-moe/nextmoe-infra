@@ -106,8 +106,15 @@ type UnreadThreadRow struct {
 	UnreadCount        int32 `gorm:"column:unread_count"`
 }
 
-func (r *EngagementRepository) ListUnread(site string, userID int64, cursor ThreadCursor, limit int) ([]UnreadThreadRow, error) {
-	db := r.unreadQuery(site, userID).
+type UnreadQuery struct {
+	Site     string
+	UserID   int64
+	Kind     int16 // -1 = every kind
+	MinLevel int16
+}
+
+func (r *EngagementRepository) ListUnread(q UnreadQuery, cursor ThreadCursor, limit int) ([]UnreadThreadRow, error) {
+	db := r.unreadQuery(q).
 		Select("community_thread.*, community_thread_user.last_read_post_number, " +
 			"community_thread_user.notification_level, " + unreadCountExpr)
 	if cursor.ID != 0 {
@@ -127,17 +134,21 @@ func (r *EngagementRepository) ListUnread(site string, userID int64, cursor Thre
 	return rows, err
 }
 
-func (r *EngagementRepository) CountUnread(site string, userID int64) (int64, error) {
+func (r *EngagementRepository) CountUnread(q UnreadQuery) (int64, error) {
 	var n int64
-	err := r.unreadQuery(site, userID).Count(&n).Error
+	err := r.unreadQuery(q).Count(&n).Error
 	return n, err
 }
 
-func (r *EngagementRepository) unreadQuery(site string, userID int64) *gorm.DB {
-	return scopeVisibleToSite(r.db.Model(&model.CommunityThreadUser{}), site).
+func (r *EngagementRepository) unreadQuery(q UnreadQuery) *gorm.DB {
+	db := scopeVisibleToSite(r.db.Model(&model.CommunityThreadUser{}), q.Site).
 		Joins("JOIN community_thread ON community_thread.id = community_thread_user.thread_id").
-		Where("community_thread_user.user_id = ?", userID).
-		Where("community_thread_user.notification_level <> ?", model.NotificationLevelMuted).
+		Where("community_thread_user.user_id = ?", q.UserID).
+		Where("community_thread_user.notification_level >= ?", max(q.MinLevel, model.NotificationLevelNormal)).
 		Where("community_thread.status <> ?", model.ThreadStatusDeleted).
 		Where("community_thread.highest_post_number > community_thread_user.last_read_post_number")
+	if q.Kind >= 0 {
+		db = db.Where("community_thread.kind = ?", q.Kind)
+	}
+	return db
 }

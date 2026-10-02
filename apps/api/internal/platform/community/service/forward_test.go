@@ -113,9 +113,16 @@ func TestForwardSweep(t *testing.T) {
 	if got.ForwardAttempts != 1 {
 		t.Fatalf("forward_attempts = %d, want 1 after one failed sweep", got.ForwardAttempts)
 	}
+	if got.ForwardAfter == nil || !got.ForwardAfter.After(time.Now()) {
+		t.Fatalf("forward_after = %v, want a time ahead of now after a failed sweep", got.ForwardAfter)
+	}
 
 	fake := newFakeForwarder()
 	svc := NewForwardService(testDB, fake)
+	if n, err := svc.Sweep(ctx); err != nil || n != 0 || fake.forwardCount() != 0 {
+		t.Fatalf("sweep inside the backoff: forwarded %d with %d calls (err %v), want none", n, fake.forwardCount(), err)
+	}
+	makeForwardDue(t, it1.ID, it2.ID)
 	n, err := svc.Sweep(ctx)
 	if err != nil || n != 2 {
 		t.Fatalf("sweep forwarded %d (err %v), want 2", n, err)
@@ -214,6 +221,78 @@ func TestForwardResolveOnDecide(t *testing.T) {
 	fake.mu.Unlock()
 	if extra != 1 {
 		t.Fatalf("un-forwarded item must not trigger a resolve; total resolves = %d", extra)
+	}
+}
+
+func TestForwardSweep_BackoffDoublesToAnHour(t *testing.T) {
+	cleanTables(t)
+	ctx := context.Background()
+	ts := NewThreadService(testDB, NoopSink{})
+	ps := NewPostService(testDB, NoopSink{})
+	th := openTopic(t, ts, "letmoe", 100, "b1", "opening")
+	_, item := heldReply(t, ps, th.ID, 700, "held")
+
+	failing := newFakeForwarder()
+	failing.failForward = true
+	svc := NewForwardService(testDB, failing)
+	for _, c := range []struct {
+		attempts int32
+		want     time.Duration
+	}{
+		{0, time.Minute}, {1, 2 * time.Minute}, {5, 32 * time.Minute}, {6, time.Hour}, {113144, time.Hour},
+	} {
+		if err := testDB.Model(&model.CommunityReviewItem{}).Where("id = ?", item.ID).
+			Updates(map[string]any{"forward_attempts": c.attempts, "forward_after": nil}).Error; err != nil {
+			t.Fatalf("seed attempts: %v", err)
+		}
+		before := time.Now()
+		if _, err := svc.Sweep(ctx); err != nil {
+			t.Fatalf("sweep: %v", err)
+		}
+		got := reloadItem(t, item.ID)
+		if got.ForwardAttempts != c.attempts+1 {
+			t.Fatalf("after %d attempts: forward_attempts = %d, want %d", c.attempts, got.ForwardAttempts, c.attempts+1)
+		}
+		if got.ForwardAfter == nil {
+			t.Fatalf("after %d attempts: forward_after is NULL", c.attempts)
+		}
+		if wait := got.ForwardAfter.Sub(before); wait < c.want-time.Second || wait > c.want+10*time.Second {
+			t.Errorf("after %d attempts: next try in %s, want %s", c.attempts, wait.Round(time.Second), c.want)
+		}
+	}
+}
+
+func TestForwardSweep_SkipsAnItemDecidedLocally(t *testing.T) {
+	cleanTables(t)
+	ctx := context.Background()
+	ts := NewThreadService(testDB, NoopSink{})
+	ps := NewPostService(testDB, NoopSink{})
+	rs := NewReviewService(testDB, NoopSink{})
+	th := openTopic(t, ts, "letmoe", 100, "b1", "opening")
+	_, decided := heldReply(t, ps, th.ID, 700, "decided before it was forwarded")
+	_, pending := heldReply(t, ps, th.ID, 701, "still pending")
+	if err := rs.Approve(ctx, decided.ID, 999); err != nil {
+		t.Fatalf("approve: %v", err)
+	}
+
+	fake := newFakeForwarder()
+	n, err := NewForwardService(testDB, fake).Sweep(ctx)
+	if err != nil || n != 1 {
+		t.Fatalf("sweep forwarded %d (err %v), want only the pending item", n, err)
+	}
+	if reloadItem(t, decided.ID).TrustReviewItemID != nil {
+		t.Fatal("an item decided locally was forwarded: trust would hold a pending item nobody resolves")
+	}
+	if reloadItem(t, pending.ID).TrustReviewItemID == nil {
+		t.Fatal("the pending item was not forwarded")
+	}
+}
+
+func makeForwardDue(t *testing.T, ids ...int64) {
+	t.Helper()
+	if err := testDB.Model(&model.CommunityReviewItem{}).Where("id IN ?", ids).
+		Update("forward_after", time.Now().Add(-time.Second)).Error; err != nil {
+		t.Fatalf("make forward due: %v", err)
 	}
 }
 

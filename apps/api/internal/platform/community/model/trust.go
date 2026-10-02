@@ -1,6 +1,10 @@
 package model
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/datatypes"
+)
 
 type CommunityTrust struct {
 	UserID int64 `gorm:"primaryKey;autoIncrement:false;column:user_id" json:"user_id"`
@@ -45,8 +49,11 @@ type CommunityReviewItem struct {
 	DecidedAt *time.Time `gorm:"column:decided_at" json:"decided_at"`
 	CreatedAt time.Time  `json:"created_at"`
 
-	TrustReviewItemID *int64 `gorm:"column:trust_review_item_id" json:"trust_review_item_id"`
-	ForwardAttempts   int32  `gorm:"not null;default:0;column:forward_attempts" json:"forward_attempts"`
+	TrustReviewItemID *int64     `gorm:"column:trust_review_item_id" json:"trust_review_item_id"`
+	ForwardAttempts   int32      `gorm:"not null;default:0;column:forward_attempts" json:"forward_attempts"`
+	ForwardAfter      *time.Time `gorm:"column:forward_after" json:"forward_after"`
+
+	MatchedTerms datatypes.JSONSlice[string] `gorm:"type:jsonb;not null;default:'[]';column:matched_terms" json:"matched_terms"`
 }
 
 func (CommunityReviewItem) TableName() string { return "community_review_item" }

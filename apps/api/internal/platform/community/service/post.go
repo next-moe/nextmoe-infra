@@ -129,6 +129,7 @@ type postDraft struct {
 	targetUserID   *int64
 	mentionUserIDs []int64
 	suspectHold    bool
+	matchedTerms   []string
 	now            time.Time
 }
 
@@ -157,11 +158,11 @@ func (s *PostService) draftPost(ctx context.Context, site string, authorID int64
 		}
 	}
 	draft := postDraft{authorID: authorID, site: site, bodyRaw: bodyRaw, cooked: cooked, now: time.Now()}
-	switch s.check.Decision(ctx, site, bodyRaw, &authorID) {
+	switch decision, matched := s.check.Decision(ctx, site, bodyRaw, &authorID); decision {
 	case checkDeny:
 		return postDraft{}, ErrContentBlocked
 	case checkHold:
-		draft.suspectHold = true
+		draft.suspectHold, draft.matchedTerms = true, matched
 	}
 	return draft, nil
 }
@@ -244,7 +245,7 @@ func appendPostTx(tx *gorm.DB, thread *model.CommunityThread, d postDraft) (writ
 		return out, err
 	}
 	if held {
-		itemID, created, err := repository.EnqueueReviewIfAbsentTx(tx, thread.Site, out.post.ID, model.ReviewSourceFirstPostHold)
+		itemID, created, err := repository.EnqueueReviewIfAbsentTx(tx, thread.Site, out.post.ID, model.ReviewSourceFirstPostHold, d.matchedTerms)
 		if err != nil {
 			return out, err
 		}
@@ -254,7 +255,7 @@ func appendPostTx(tx *gorm.DB, thread *model.CommunityThread, d postDraft) (writ
 		return out, repository.DecrementHoldTx(tx, d.authorID)
 	}
 	if d.suspectHold {
-		itemID, created, err := repository.EnqueueReviewIfAbsentTx(tx, thread.Site, out.post.ID, model.ReviewSourceSuspectWords)
+		itemID, created, err := repository.EnqueueReviewIfAbsentTx(tx, thread.Site, out.post.ID, model.ReviewSourceSuspectWords, d.matchedTerms)
 		if err != nil {
 			return out, err
 		}
@@ -297,7 +298,8 @@ func (s *PostService) Edit(ctx context.Context, p EditParams) (*model.CommunityP
 	}
 
 	suspectHold := false
-	switch s.check.Decision(ctx, callerSite(ctx), p.BodyRaw, &p.AuthorID) {
+	decision, matchedTerms := s.check.Decision(ctx, callerSite(ctx), p.BodyRaw, &p.AuthorID)
+	switch decision {
 	case checkDeny:
 		return nil, ErrContentBlocked
 	case checkHold:
@@ -341,7 +343,7 @@ func (s *PostService) Edit(ctx context.Context, p EditParams) (*model.CommunityP
 		existing.EditedAt = &now
 		existing.EditedByModerator = modActed
 		if suspectHold {
-			itemID, created, eqErr := repository.EnqueueReviewIfAbsentTx(tx, thread.Site, existing.ID, model.ReviewSourceSuspectWords)
+			itemID, created, eqErr := repository.EnqueueReviewIfAbsentTx(tx, thread.Site, existing.ID, model.ReviewSourceSuspectWords, matchedTerms)
 			if eqErr != nil {
 				return eqErr
 			}

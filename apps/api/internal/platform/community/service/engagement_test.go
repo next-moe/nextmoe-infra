@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	"api/internal/platform/community/model"
@@ -19,6 +20,10 @@ func replyN(t *testing.T, ps *PostService, threadID, author int64, n int) {
 			t.Fatalf("reply: %v", err)
 		}
 	}
+}
+
+func unreadOf(site string, userID int64) repository.UnreadQuery {
+	return repository.UnreadQuery{Site: site, UserID: userID, Kind: -1, MinLevel: model.NotificationLevelNormal}
 }
 
 func TestMarkRead_MonotonicAndClamped(t *testing.T) {
@@ -140,7 +145,7 @@ func TestUnreadList_ScopeMutesAndTotal(t *testing.T) {
 		t.Fatalf("mute: %v", err)
 	}
 
-	rows, total, err := es.ListUnread("letmoe", reader, repository.ThreadCursor{}, 50)
+	rows, total, err := es.ListUnread(unreadOf("letmoe", reader), repository.ThreadCursor{}, 50)
 	if err != nil {
 		t.Fatalf("list unread: %v", err)
 	}
@@ -196,7 +201,7 @@ func TestUnreadList_KeysetCoversEveryThread(t *testing.T) {
 	seen := map[int64]bool{}
 	cursor := repository.ThreadCursor{}
 	for {
-		page, _, err := es.ListUnread("letmoe", reader, cursor, 2)
+		page, _, err := es.ListUnread(unreadOf("letmoe", reader), cursor, 2)
 		if err != nil {
 			t.Fatalf("page: %v", err)
 		}
@@ -217,5 +222,88 @@ func TestUnreadList_KeysetCoversEveryThread(t *testing.T) {
 	}
 	if len(seen) != len(ids) {
 		t.Fatalf("unread keyset covered %d of %d threads", len(seen), len(ids))
+	}
+}
+
+func TestUnreadList_KindAndMinLevelNarrowListAndTotal(t *testing.T) {
+	cleanTables(t)
+	ts := NewThreadService(testDB, NoopSink{})
+	ps := NewPostService(testDB, NoopSink{})
+	es := NewEngagementService(testDB)
+
+	const reader int64 = 900
+	seedTrust(t, reader, model.TrustLevelBasic, 0)
+
+	opened := openTopic(t, ts, "letmoe", 100, "b1", "only opened")
+	tracked := openTopic(t, ts, "letmoe", 100, "b2", "tracked")
+	posted := openTopic(t, ts, "letmoe", 100, "b3", "posted in")
+	muted := openTopic(t, ts, "letmoe", 100, "b4", "muted")
+	for _, th := range []int64{opened.ID, tracked.ID, muted.ID} {
+		if _, err := es.MarkRead(letmoeCtx(), th, reader, 1); err != nil {
+			t.Fatalf("mark read %d: %v", th, err)
+		}
+	}
+	if _, err := es.SetNotificationLevel(letmoeCtx(), tracked.ID, reader, model.NotificationLevelTracking); err != nil {
+		t.Fatalf("track: %v", err)
+	}
+	if _, err := es.SetNotificationLevel(letmoeCtx(), muted.ID, reader, model.NotificationLevelMuted); err != nil {
+		t.Fatalf("mute: %v", err)
+	}
+	if _, err := ps.Reply(letmoeCtx(), ReplyParams{ThreadID: posted.ID, AuthorID: reader, BodyRaw: "mine"}); err != nil {
+		t.Fatalf("reader reply: %v", err)
+	}
+	wall, _, err := ps.Comment(letmoeCtx(), CommentParams{
+		Site: "letmoe", AnchorKind: model.AnchorKindSiteGame, AnchorID: "g1", AuthorID: reader, BodyRaw: "mine",
+	})
+	if err != nil {
+		t.Fatalf("reader comment: %v", err)
+	}
+	glanced, _, err := ps.Comment(letmoeCtx(), CommentParams{
+		Site: "letmoe", AnchorKind: model.AnchorKindSiteGame, AnchorID: "g2", AuthorID: 100, BodyRaw: "theirs",
+	})
+	if err != nil {
+		t.Fatalf("other comment: %v", err)
+	}
+	if _, err := es.MarkRead(letmoeCtx(), glanced.ID, reader, 1); err != nil {
+		t.Fatalf("mark read wall: %v", err)
+	}
+	for _, th := range []int64{opened.ID, tracked.ID, posted.ID, muted.ID, wall.ID, glanced.ID} {
+		replyN(t, ps, th, 200, 1)
+	}
+
+	cases := []struct {
+		name     string
+		kind     int16
+		minLevel int16
+		want     []int64
+	}{
+		{"neither filter", -1, model.NotificationLevelNormal, []int64{opened.ID, tracked.ID, posted.ID, wall.ID, glanced.ID}},
+		{"topics only", model.ThreadKindTopic, model.NotificationLevelNormal, []int64{opened.ID, tracked.ID, posted.ID}},
+		{"comments only", model.ThreadKindComments, model.NotificationLevelNormal, []int64{wall.ID, glanced.ID}},
+		{"tracking and above", -1, model.NotificationLevelTracking, []int64{tracked.ID, posted.ID, wall.ID}},
+		{"subscribed topics", model.ThreadKindTopic, model.NotificationLevelTracking, []int64{tracked.ID, posted.ID}},
+		{"watching only", -1, model.NotificationLevelWatching, []int64{posted.ID, wall.ID}},
+		{"a level below normal still excludes muted", -1, model.NotificationLevelMuted, []int64{opened.ID, tracked.ID, posted.ID, wall.ID, glanced.ID}},
+	}
+	for _, c := range cases {
+		rows, total, err := es.ListUnread(repository.UnreadQuery{
+			Site: "letmoe", UserID: reader, Kind: c.kind, MinLevel: c.minLevel,
+		}, repository.ThreadCursor{}, 50)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		got := make([]int64, len(rows))
+		for i, r := range rows {
+			got[i] = r.ID
+		}
+		slices.Sort(got)
+		want := slices.Clone(c.want)
+		slices.Sort(want)
+		if !slices.Equal(got, want) {
+			t.Errorf("%s: listed %v, want %v", c.name, got, want)
+		}
+		if total != int64(len(c.want)) {
+			t.Errorf("%s: total %d, want %d — the badge must count what the list shows", c.name, total, len(c.want))
+		}
 	}
 }

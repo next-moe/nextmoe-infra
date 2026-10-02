@@ -467,6 +467,14 @@ state at all — not "everything unread".
   deleted still reads as one unread. Scope follows the id-addressed guard, so a
   catalog-anchored thread — one conversation network-wide — is listed for every
   tenant the user reaches it from.
+  Two optional filters narrow the list **and** `total` together, so the badge
+  always counts what the list shows: `kind` (`0=topic 1=comments 2=feedback`,
+  default `-1` = every kind) and `min_level` (the lowest notification level
+  counted: `1=normal` — the default — `2=tracking`, `3=watching`; muted is
+  excluded at every value). With neither, a thread the user merely opened counts:
+  a first read creates the row at `normal`, and every later reply makes it
+  unread again. A badge that means "a thread I subscribed to has news" sends
+  `min_level=2`; one that is only about forum topics adds `kind=0`.
 
 ### Anchor subscriptions
 
@@ -782,13 +790,26 @@ deliver to the user after the purge has cleared their rows.
   `source` filter; the cross-site super-view is a future NextMoe concern). Each
   item is joined to its subject post's **`thread_id` + `author_id`** so the
   consuming site's queue UI can deep-link the thread (where an S2S read serves
-  the held content) and resolve the author, without a per-item round trip. A
+  the held content) and resolve the author, without a per-item round trip.
+  `matched_terms` is why a `suspect_words` item is there: the lexicon terms the
+  trust check matched when the item was enqueued (also set on a first-post hold
+  whose text matched). It is `[]` for a flags item and for every item enqueued
+  before community 1.1.0 — the check's answer was not kept until then. A
   decision is about the CONTENT: `approve` keeps it (post restored to visible),
   `reject` removes it (post tombstoned). A decision on a flags item **backfills
   every reporter's accuracy** (approve → the reports were wrong → `flags_disagreed`;
   reject → right → `flags_agreed`), which feeds their future weight — the
   reputation loop. Releasing a `first_post_hold` item does not refund the hold
   counter (one-way consumption).
+- **Trust inbox mirror** — a pending item is forwarded to the trust inbox
+  (`POST /trust/forward`, subject kind `community_post`) when it is enqueued. A
+  forward that fails is retried by a 60-second sweep, waiting 1, 2, 4 … minutes
+  between tries and at most an hour, for as long as the item stays pending; an
+  item decided in the site's own queue before a forward succeeded is not
+  forwarded at all, because trust would then hold a pending item nobody
+  resolves. Trust refuses the forward with 422 until `community_post` is
+  registered for the item's site, so on such a site the items exist only in
+  this local queue. The forwarded evidence note names the matched terms.
 - **No automatic bans** (invariant 9): cross-site signals only soft-hold into the
   queue; hard bans come only from humans and IdP-level suspension.
 
