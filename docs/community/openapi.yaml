@@ -2983,6 +2983,11 @@ components:
         id:
           format: int64
           type: integer
+        matched_terms:
+          description: the lexicon terms the trust check matched in the post when the item was enqueued — why a suspect_words item is in the queue. [] when the check matched nothing (a flags item, a plain first-post hold) and on every item enqueued before this field existed
+          items:
+            type: string
+          type: array
         post_id:
           format: int64
           type: integer
@@ -3003,6 +3008,7 @@ components:
       required:
         - id
         - status
+        - matched_terms
       type: object
     ReviewListResponse:
       additionalProperties: false
@@ -3463,7 +3469,7 @@ components:
             $ref: "#/components/schemas/UnreadThreadView"
           type: array
         total:
-          description: the user's threads carrying unread posts on this site, muted excluded — the red-dot number
+          description: "how many threads the request's filters select, across every page: the user's threads carrying unread posts on this site, muted excluded — the red-dot number"
           format: int64
           type: integer
       required:
@@ -3560,7 +3566,7 @@ components:
       type: object
 info:
   title: KUN Community Service
-  version: 1.0.1
+  version: 1.1.0
 openapi: 3.1.0
 paths:
   /api/v1/community/activities:
@@ -6244,6 +6250,24 @@ paths:
           required: true
           schema:
             format: int64
+            type: integer
+        - description: thread kind filter (0=topic 1=comments 2=feedback); -1 = every kind
+          explode: false
+          in: query
+          name: kind
+          schema:
+            default: -1
+            description: thread kind filter (0=topic 1=comments 2=feedback); -1 = every kind
+            format: int32
+            type: integer
+        - description: lowest notification level counted (1=normal 2=tracking 3=watching); muted is never counted
+          explode: false
+          in: query
+          name: min_level
+          schema:
+            default: 1
+            description: lowest notification level counted (1=normal 2=tracking 3=watching); muted is never counted
+            format: int32
             type: integer
         - description: opaque cursor from the previous page
           explode: false

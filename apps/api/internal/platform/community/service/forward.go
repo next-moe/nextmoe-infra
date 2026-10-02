@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"strings"
 
 	"api/internal/platform/community/model"
 	"api/internal/platform/community/repository"
@@ -18,6 +19,7 @@ const (
 	forwardBatchSize      = 50
 	forwardErrorThreshold = 5
 	contextNoteMaxRunes   = 500
+	matchedNoteMaxRunes   = 200
 
 	outcomeApproved = "approved"
 	outcomeRejected = "rejected"
@@ -75,27 +77,30 @@ func (s *ForwardService) Sweep(ctx context.Context) (int, error) {
 		}
 		for i := range rows {
 			row := &rows[i]
-			if err := repository.BumpForwardAttemptsTx(tx, row.ID); err != nil {
-				return err
-			}
-			attempts := row.ForwardAttempts + 1
 			author, content, ok, err := repository.PostBodyTx(tx, *row.PostID)
 			if err != nil {
 				return err
 			}
 			if !ok {
+				if err := repository.ParkForwardTx(tx, row.ID, row.ForwardAttempts); err != nil {
+					return err
+				}
 				continue
 			}
 			ft := &repository.ForwardTarget{
 				ItemID: row.ID, Site: *row.Site, PostID: *row.PostID, Source: row.Source,
-				AuthorID: author, ContentRaw: content,
+				MatchedTerms: row.MatchedTerms, AuthorID: author, ContentRaw: content,
 			}
 			trustID, _, ferr := s.fw.Forward(ctx, s.buildRequest(ft))
 			if ferr != nil {
+				attempts := row.ForwardAttempts + 1
 				if int(attempts) >= forwardErrorThreshold {
 					slog.Error("community trust-forward sweep", "item_id", row.ID, "attempts", attempts, "err", ferr)
 				} else {
 					slog.Warn("community trust-forward sweep", "item_id", row.ID, "attempts", attempts, "err", ferr)
+				}
+				if err := repository.ParkForwardTx(tx, row.ID, row.ForwardAttempts); err != nil {
+					return err
 				}
 				continue
 			}
@@ -140,8 +145,12 @@ func (s *ForwardService) buildRequest(ft *repository.ForwardTarget) trustclient.
 }
 
 func forwardContextNote(ft *repository.ForwardTarget) string {
-	return fmt.Sprintf("[%s] post #%d by user %d: %s",
-		forwardSourceLabel(ft.Source), ft.PostID, ft.AuthorID, truncateRunes(ft.ContentRaw, contextNoteMaxRunes))
+	matched := ""
+	if len(ft.MatchedTerms) > 0 {
+		matched = " (matched: " + truncateRunes(strings.Join(ft.MatchedTerms, ", "), matchedNoteMaxRunes) + ")"
+	}
+	return fmt.Sprintf("[%s] post #%d by user %d%s: %s",
+		forwardSourceLabel(ft.Source), ft.PostID, ft.AuthorID, matched, truncateRunes(ft.ContentRaw, contextNoteMaxRunes))
 }
 
 func forwardSourceLabel(source *int16) string {

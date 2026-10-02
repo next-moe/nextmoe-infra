@@ -3,6 +3,9 @@ package service
 import (
 	"context"
 	"errors"
+	"slices"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 
@@ -272,5 +275,90 @@ func TestCheckFirstPostTitleComposition(t *testing.T) {
 	replyReq := fake.last()
 	if replyReq.Text != "reply raw" {
 		t.Fatalf("reply check text = %q, want the raw body (no title prefix)", replyReq.Text)
+	}
+}
+
+func TestCheckHold_RecordsMatchedTermsOnTheReviewItem(t *testing.T) {
+	cleanTables(t)
+	ctx := context.Background()
+	fake := &fakeChecker{decision: checkHold}
+	ts, ps := checkWiring(t, fake, NoopSink{})
+	psOff := NewPostService(testDB, NoopSink{})
+	want := []string{"badword"}
+
+	seedTrust(t, 100, model.TrustLevelBasic, 0)
+	th, opening, err := ts.OpenTopic(ctx, OpenTopicParams{
+		Site: "letmoe", AuthorID: 100, BoardID: testBoard(t, "letmoe", "b1"),
+		Title: "t", ContentRating: model.ContentRatingAll, BodyRaw: "suspect opening",
+	})
+	if err != nil {
+		t.Fatalf("open topic: %v", err)
+	}
+	seedTrust(t, 200, model.TrustLevelBasic, 0)
+	reply, err := ps.Reply(ctx, ReplyParams{ThreadID: th.ID, AuthorID: 200, BodyRaw: "suspect reply"})
+	if err != nil {
+		t.Fatalf("reply: %v", err)
+	}
+	clean, err := psOff.Reply(ctx, ReplyParams{ThreadID: th.ID, AuthorID: 200, BodyRaw: "clean reply"})
+	if err != nil {
+		t.Fatalf("clean reply: %v", err)
+	}
+	if _, err := ps.Edit(ctx, EditParams{PostID: clean.ID, AuthorID: 200, BodyRaw: "suspect edit"}); err != nil {
+		t.Fatalf("edit: %v", err)
+	}
+	seedTrust(t, 300, model.TrustLevelNew, 1)
+	held, err := ps.Reply(ctx, ReplyParams{ThreadID: th.ID, AuthorID: 300, BodyRaw: "suspect first post"})
+	if err != nil {
+		t.Fatalf("held reply: %v", err)
+	}
+	for name, postID := range map[string]int64{"opening": opening.ID, "reply": reply.ID, "edit": clean.ID, "first-post hold": held.ID} {
+		items := reviewItemsForPost(t, postID)
+		if len(items) != 1 || !slices.Equal([]string(items[0].MatchedTerms), want) {
+			t.Errorf("%s: review items %+v, want one carrying matched_terms %v", name, items, want)
+		}
+	}
+	if src := reviewItemsForPost(t, held.ID)[0].Source; src == nil || *src != model.ReviewSourceFirstPostHold {
+		t.Fatalf("held post source = %v, want first_post_hold", src)
+	}
+
+	flagged := visibleReply(t, psOff, th.ID, 400)
+	fs := NewFlagService(testDB, NoopSink{})
+	for _, flagger := range []int64{501, 502, 503} {
+		if err := fs.Submit(ctx, flagged.ID, flagger, nil, nil); err != nil {
+			t.Fatalf("flag: %v", err)
+		}
+	}
+	flagItems := reviewItemsForPost(t, flagged.ID)
+	if len(flagItems) != 1 || flagItems[0].MatchedTerms == nil || len(flagItems[0].MatchedTerms) != 0 {
+		t.Fatalf("a flags item must carry an empty, non-null matched_terms: %+v", flagItems)
+	}
+
+	listed, err := NewReviewService(testDB, NoopSink{}).List("letmoe", -1, 50)
+	if err != nil {
+		t.Fatalf("list review: %v", err)
+	}
+	if len(listed) != 5 {
+		t.Fatalf("queue lists %d items, want 5", len(listed))
+	}
+	for _, row := range listed {
+		wantRow := want
+		if *row.PostID == flagged.ID {
+			wantRow = nil
+		}
+		if !slices.Equal([]string(row.MatchedTerms), wantRow) {
+			t.Errorf("queue row for post %d: matched_terms %v, want %v", *row.PostID, row.MatchedTerms, wantRow)
+		}
+	}
+
+	fwd := newFakeForwarder()
+	if n, err := NewForwardService(testDB, fwd).Sweep(ctx); err != nil || n != 5 {
+		t.Fatalf("sweep forwarded %d (err %v), want 5", n, err)
+	}
+	for _, req := range fwd.forwards {
+		note := *req.ContextNote
+		isFlag := req.SubjectID == strconv.FormatInt(flagged.ID, 10)
+		if strings.Contains(note, " (matched: badword): ") == isFlag {
+			t.Errorf("forward note for post %s: %q", req.SubjectID, note)
+		}
 	}
 }

@@ -65,12 +65,12 @@ func (s *EngagementService) States(site string, userID int64, threadIDs []int64)
 	return s.rows.States(site, userID, threadIDs)
 }
 
-func (s *EngagementService) ListUnread(site string, userID int64, cursor repository.ThreadCursor, limit int) ([]repository.UnreadThreadRow, int64, error) {
-	rows, err := s.rows.ListUnread(site, userID, cursor, clampLimit(limit))
+func (s *EngagementService) ListUnread(q repository.UnreadQuery, cursor repository.ThreadCursor, limit int) ([]repository.UnreadThreadRow, int64, error) {
+	rows, err := s.rows.ListUnread(q, cursor, clampLimit(limit))
 	if err != nil {
 		return nil, 0, err
 	}
-	total, err := s.rows.CountUnread(site, userID)
+	total, err := s.rows.CountUnread(q)
 	if err != nil {
 		return nil, 0, err
 	}

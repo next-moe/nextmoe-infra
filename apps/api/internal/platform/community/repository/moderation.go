@@ -1,8 +1,11 @@
 package repository
 
 import (
+	"time"
+
 	"api/internal/platform/community/model"
 
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -37,7 +40,7 @@ func ResolvePendingFlagsTx(tx *gorm.DB, postID int64, status int16) error {
 		Update("status", status).Error
 }
 
-func EnqueueReviewIfAbsentTx(tx *gorm.DB, site string, postID int64, source int16) (int64, bool, error) {
+func EnqueueReviewIfAbsentTx(tx *gorm.DB, site string, postID int64, source int16, matchedTerms []string) (int64, bool, error) {
 	var existing int64
 	if err := tx.Model(&model.CommunityReviewItem{}).
 		Where("post_id = ? AND status = ?", postID, model.ReviewStatusPending).
@@ -49,6 +52,7 @@ func EnqueueReviewIfAbsentTx(tx *gorm.DB, site string, postID int64, source int1
 	}
 	item := model.CommunityReviewItem{
 		Site: &site, PostID: &postID, Source: &source, Status: model.ReviewStatusPending,
+		MatchedTerms: matchedTerms,
 	}
 	if err := tx.Create(&item).Error; err != nil {
 		return 0, false, err
@@ -57,19 +61,20 @@ func EnqueueReviewIfAbsentTx(tx *gorm.DB, site string, postID int64, source int1
 }
 
 type ForwardTarget struct {
-	ItemID     int64
-	Site       string
-	PostID     int64
-	Source     *int16
-	AuthorID   int64
-	ContentRaw string
-	Forwarded  bool
+	ItemID       int64
+	Site         string
+	PostID       int64
+	Source       *int16
+	MatchedTerms datatypes.JSONSlice[string]
+	AuthorID     int64
+	ContentRaw   string
+	Forwarded    bool
 }
 
 func LoadForwardTargetTx(tx *gorm.DB, itemID int64) (*ForwardTarget, bool, error) {
 	var ft ForwardTarget
 	err := tx.Table("community_review_item AS ri").
-		Select("ri.id AS item_id, ri.site AS site, ri.post_id AS post_id, ri.source AS source, "+
+		Select("ri.id AS item_id, ri.site AS site, ri.post_id AS post_id, ri.source AS source, ri.matched_terms AS matched_terms, "+
 			"(ri.trust_review_item_id IS NOT NULL) AS forwarded, p.author_id AS author_id, p.content_raw AS content_raw").
 		Joins("JOIN community_post AS p ON p.id = ri.post_id").
 		Where("ri.id = ? AND ri.site IS NOT NULL AND ri.post_id IS NOT NULL", itemID).
@@ -127,6 +132,8 @@ func LockUnforwardedTx(tx *gorm.DB, limit int) ([]model.CommunityReviewItem, err
 	var rows []model.CommunityReviewItem
 	err := tx.Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
 		Where("trust_review_item_id IS NULL AND post_id IS NOT NULL AND site IS NOT NULL").
+		Where("status = ?", model.ReviewStatusPending).
+		Where("forward_after IS NULL OR forward_after <= now()").
 		Order("id ASC").Limit(limit).Find(&rows).Error
 	return rows, err
 }
@@ -153,9 +160,15 @@ func SetTrustReviewItemIDTx(tx *gorm.DB, itemID, trustItemID int64) error {
 		Update("trust_review_item_id", trustItemID).Error
 }
 
-func BumpForwardAttemptsTx(tx *gorm.DB, itemID int64) error {
-	return tx.Model(&model.CommunityReviewItem{}).Where("id = ?", itemID).
-		Update("forward_attempts", gorm.Expr("forward_attempts + 1")).Error
+func ParkForwardTx(tx *gorm.DB, itemID int64, attempts int32) error {
+	mins := 60
+	if attempts < 6 {
+		mins = 1 << attempts
+	}
+	return tx.Model(&model.CommunityReviewItem{}).Where("id = ?", itemID).Updates(map[string]any{
+		"forward_attempts": attempts + 1,
+		"forward_after":    time.Now().Add(time.Duration(mins) * time.Minute),
+	}).Error
 }
 
 func CloseReviewItemsForPostTx(tx *gorm.DB, postID int64, status int16) error {
@@ -169,19 +182,20 @@ type ReviewRepository struct{ db *gorm.DB }
 func NewReviewRepository(db *gorm.DB) *ReviewRepository { return &ReviewRepository{db: db} }
 
 type ReviewItemRow struct {
-	ID        int64   `gorm:"column:id"`
-	Site      *string `gorm:"column:site"`
-	PostID    *int64  `gorm:"column:post_id"`
-	Source    *int16  `gorm:"column:source"`
-	Status    int16   `gorm:"column:status"`
-	DecidedBy *int64  `gorm:"column:decided_by"`
-	ThreadID  *int64  `gorm:"column:thread_id"`
-	AuthorID  *int64  `gorm:"column:author_id"`
+	ID           int64                       `gorm:"column:id"`
+	Site         *string                     `gorm:"column:site"`
+	PostID       *int64                      `gorm:"column:post_id"`
+	Source       *int16                      `gorm:"column:source"`
+	Status       int16                       `gorm:"column:status"`
+	DecidedBy    *int64                      `gorm:"column:decided_by"`
+	MatchedTerms datatypes.JSONSlice[string] `gorm:"column:matched_terms"`
+	ThreadID     *int64                      `gorm:"column:thread_id"`
+	AuthorID     *int64                      `gorm:"column:author_id"`
 }
 
 func (r *ReviewRepository) ListPending(site string, source int16, limit int) ([]ReviewItemRow, error) {
 	q := r.db.Table("community_review_item AS ri").
-		Select("ri.id, ri.site, ri.post_id, ri.source, ri.status, ri.decided_by, p.thread_id, p.author_id").
+		Select("ri.id, ri.site, ri.post_id, ri.source, ri.status, ri.decided_by, ri.matched_terms, p.thread_id, p.author_id").
 		Joins("LEFT JOIN community_post AS p ON p.id = ri.post_id").
 		Where("ri.site = ? AND ri.status = ?", site, model.ReviewStatusPending)
 	if source >= 0 {

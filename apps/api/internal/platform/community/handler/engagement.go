@@ -72,9 +72,11 @@ func (s *Server) threadStates(ctx context.Context, in *threadStatesInput) (*thre
 }
 
 type unreadListInput struct {
-	ID     int64  `path:"id"`
-	Cursor string `query:"cursor" doc:"opaque cursor from the previous page"`
-	Limit  int    `query:"limit" doc:"page size (max 100, default 50)"`
+	ID       int64  `path:"id"`
+	Kind     int16  `query:"kind" default:"-1" doc:"thread kind filter (0=topic 1=comments 2=feedback); -1 = every kind"`
+	MinLevel int16  `query:"min_level" default:"1" doc:"lowest notification level counted (1=normal 2=tracking 3=watching); muted is never counted"`
+	Cursor   string `query:"cursor" doc:"opaque cursor from the previous page"`
+	Limit    int    `query:"limit" doc:"page size (max 100, default 50)"`
 }
 type unreadListOutput struct {
 	Body Envelope[dto.UnreadListResponse]
@@ -90,7 +92,9 @@ func (s *Server) listUnread(ctx context.Context, in *unreadListInput) (*unreadLi
 		return nil, apiErrMsg(http.StatusBadRequest, errors.ErrInvalidParam, "malformed cursor")
 	}
 	limit := clampLimit(in.Limit)
-	rows, total, err := s.engagement.ListUnread(site, in.ID, cursor, limit)
+	rows, total, err := s.engagement.ListUnread(repository.UnreadQuery{
+		Site: site, UserID: in.ID, Kind: in.Kind, MinLevel: in.MinLevel,
+	}, cursor, limit)
 	if err != nil {
 		return nil, mapErr("list unread", err)
 	}
