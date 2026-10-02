@@ -14,10 +14,11 @@ import (
 )
 
 func main() {
-	mode := flag.String("mode", "", "scan | report | backfill | grade")
+	mode := flag.String("mode", "", "scan | report | backfill | grade | ask | regrade")
 	dsn := flag.String("dsn", "", "images DSN (REQUIRED for scan)")
 	out := flag.String("out", "", "scan: JSONL output path (appended — resume-safe)")
-	in := flag.String("in", "", "report: JSONL input path")
+	in := flag.String("in", "", "report: JSONL input path; ask: JSONL of {hash, ext}; regrade: JSONL of {hash, level}")
+	question := flag.String("question", "", "ask: the yes/no question put to every image")
 
 	limit := flag.Int("limit", 1000, "scan: images sampled; backfill: images processed (0 = all)")
 	salt := flag.String("salt", "kungal-safety-v1", "scan: sample ordering salt")
@@ -32,7 +33,7 @@ func main() {
 	qps := flag.Float64("qps", 8, "scan: request rate ceiling")
 
 	batch := flag.Int("batch", 2000, "backfill: rows fetched per page")
-	apply := flag.Bool("apply", false, "backfill: write review_labels->auto; grade: write review_labels->grade (dry run without it)")
+	apply := flag.Bool("apply", false, "backfill: write review_labels->auto; grade, regrade: write review_labels->grade (dry run without it)")
 
 	cfAccount := flag.String("cf-account", os.Getenv("CLOUDFLARE_ACCOUNT_ID"), "grade: Cloudflare account id")
 	cfToken := flag.String("cf-token", os.Getenv("CLOUDFLARE_API_TOKEN"), "grade: Workers AI token")
@@ -93,10 +94,23 @@ func main() {
 			CarryMax:    *carryMax,
 			Client:      newMoondreamClient(*cfAccount, *cfToken, *cfModel),
 		}, os.Stdout)
+	case "ask":
+		err = runAsk(ctx, askOptions{
+			In:          *in,
+			Out:         *out,
+			Question:    *question,
+			BaseURL:     *baseURL,
+			Concurrency: *concurrency,
+			GuardDSN:    *guardDSN,
+			GuardShare:  *guardShare,
+			Client:      newMoondreamClient(*cfAccount, *cfToken, *cfModel),
+		}, os.Stdout)
+	case "regrade":
+		err = runRegrade(ctx, regradeOptions{DSN: *dsn, In: *in, Apply: *apply}, os.Stdout)
 	case "report":
 		err = runReport(*in, os.Stdout)
 	default:
-		err = fmt.Errorf("--mode must be scan, report, backfill or grade")
+		err = fmt.Errorf("--mode must be scan, report, backfill, grade, ask or regrade")
 	}
 	if err != nil {
 		slog.Error("classify-image-safety", "mode", *mode, "error", err)
