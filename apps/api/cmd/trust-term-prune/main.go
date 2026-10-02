@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"regexp"
+	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	"api/internal/infrastructure/database"
@@ -36,6 +39,7 @@ func main() {
 	minHits := flag.Int64("min-hits", 20, "matches required before a term's precision is trusted")
 	maxPrecision := flag.Float64("max-precision", 0.10, "deprecate evidenced terms scoring below this")
 	dropUnevidenced := flag.Bool("drop-unevidenced", false, "also deprecate terms below -min-hits matches")
+	domains := flag.Bool("domains", false, "only consider terms shaped like a domain or URL")
 	backup := flag.String("backup", "", "write the affected set to this JSON file (required with -apply)")
 	apply := flag.Bool("apply", false, "write to the database (default: dry-run report)")
 	flag.Parse()
@@ -66,6 +70,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	if *domains {
+		stats = slices.DeleteFunc(stats, func(s termStat) bool { return !domainShaped(s.Term) })
+	}
+
 	doomed, review := classify(stats, *minHits, *maxPrecision, *dropUnevidenced)
 	report(stats, doomed, review, corpus, *minHits, *maxPrecision)
 
@@ -84,11 +92,17 @@ func main() {
 		slog.Info("dry run — nothing written; re-run with -apply to retire these terms")
 		return
 	}
-	if err := deprecate(db.DB(), doomed, *source, *minHits, *maxPrecision, *dropUnevidenced); err != nil {
+	if err := deprecate(db.DB(), doomed, *source, *minHits, *maxPrecision, *dropUnevidenced, *domains); err != nil {
 		slog.Error("deprecating terms", "error", err)
 		os.Exit(1)
 	}
 	slog.Info("terms retired", "count", len(doomed))
+}
+
+var domainChars = regexp.MustCompile(`^[a-z0-9._:/-]+$`)
+
+func domainShaped(term string) bool {
+	return strings.Contains(term, ".") && domainChars.MatchString(term)
 }
 
 func collect(db *gorm.DB, source string) ([]termStat, int64, error) {
@@ -217,14 +231,14 @@ func writeBackup(path string, doomed []termStat) error {
 	return os.WriteFile(path, b, 0o644)
 }
 
-func deprecate(db *gorm.DB, doomed []termStat, source string, minHits int64, maxPrecision float64, dropUnevidenced bool) error {
+func deprecate(db *gorm.DB, doomed []termStat, source string, minHits int64, maxPrecision float64, dropUnevidenced, domains bool) error {
 	ids := make([]int64, len(doomed))
 	for i, s := range doomed {
 		ids[i] = s.ID
 	}
 	policy := fmt.Sprintf(
-		"trust-term-prune source=%q min_hits=%d max_precision=%.4f drop_unevidenced=%t terms=%d at=%s",
-		source, minHits, maxPrecision, dropUnevidenced, len(ids), time.Now().UTC().Format(time.RFC3339))
+		"trust-term-prune source=%q min_hits=%d max_precision=%.4f drop_unevidenced=%t domains=%t terms=%d at=%s",
+		source, minHits, maxPrecision, dropUnevidenced, domains, len(ids), time.Now().UTC().Format(time.RFC3339))
 
 	return db.Transaction(func(tx *gorm.DB) error {
 		const batch = 1000

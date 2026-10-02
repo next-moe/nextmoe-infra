@@ -30,7 +30,7 @@
 ```
 
 **在产状态(2026-07-16)**:
-- ✅ Tier0 词表档:46,434 条活跃全局 suspect 词(Sensitive-lexicon 除色情类目导入)+ Aho-Corasick 匹配器;**banned 恒为空是纪律**——每一条 banned 都要人工从影子数据里提升,不从外部词库直灌。词表管理 UI:管理端 `/trust/terms`。
+- ✅ Tier0 词表档:26,418 条活跃全局 suspect 词(Sensitive-lexicon 除色情类目导入;2026-10-02 修剪后,见 §7「词表太吵怎么办」)+ Aho-Corasick 匹配器;**banned 恒为空是纪律**——每一条 banned 都要人工从影子数据里提升,不从外部词库直灌。词表管理 UI:管理端 `/trust/terms`。
 - ✅ 影子扫描全链:community 原语的发帖/编辑已自动喂 scan,worker 经 AI 网关用 omni 打分,真实生产流量在流。
 - ✅ 统一收件箱 + forward/resolve 闭环 + 执法回调(HMAC 签名,注册于 subject_kind.callback_url)。
 - ✅ 举报面(reports)+ 注册表(subject kinds / report reasons)+ 管理端(队列/注册表/词表/AI 用量看板)。
@@ -105,7 +105,7 @@ Response: { "report_id": ..., "review_item_id": ... }        # review_item_id �
 | **kungal 资源发布 / bio 等** | ❌ 未接 | 同上配方;新 kind 需注册 |
 | **moyu**(`community_site=moyu`) | ✅ 举报在产(2026-09-25):§3.3 举报 + 执法回调;启动 ensure 注册 `patch_resource`(回调 `http://moyu-api:5214/api/v1/trust/callback`,`notify_on_dismiss=true`)与 `user`(无回调,人工);站点策略 `aggregate_threshold=0.5`(单条举报即开单) | moyu 自有内容的 check/scan 不接(产品决定)。**moyu 评论区走 community 原语,check 闸对它已生效**(同 letmoe,全局词全租户适用),但 `(moyu, community_post)` 未注册:suspect 命中的条目只进 community 本地队列,forward 被 422 拒绝、每小时重试一次,进不了统一收件箱。注册该 kind 即补齐 |
 | **chat**(平台私聊,中继全部站) | ⚠️ 代码就绪、未通电:举报转发 + 执法回调;每个站要注册 `chat_message`(回调 `http://chat:9285/trust/callback`,`notify_on_dismiss=true`),chat 的 trust client 进 forwarder allowlist | 契约见 `docs/chat/01-service-and-contract.md` §9 |
-| **letmoe**(community 原语) | ⚠️ 半接:**check 闸已生效**(check 不查注册表,全局词全租户适用);scan 事件在发但受理面 422 丢弃;本地审核队列的 forward 同样 422(每小时重试一次),条目只在 letmoe 自己的队列里 | 注册表加 `(letmoe, community_post)` 一行即完整(建议随 letmoe 上线 runbook 做) |
+| **letmoe**(community 原语) | ✅ 全链在产(2026-10-02):check 闸 + scan + forward + 执法回调。`(letmoe, community_post)` 已注册,回调接线与 kungal 同一条(`http://community:9282/trust/callback`,`notify_on_dismiss=true`)。站点策略 `auto_hide_enabled=false`:AI 判定违规只开审核单、不自动隐藏——自动隐藏的帖子只出现在统一收件箱,letmoe 自己的 `/admin/queue` 看不到 | 无。注册即同时放行 scan(此前受理面 422 丢弃),接下一站前先定好该站的 `trust_site_policy` 再注册 |
 
 ## 4.1 站点策略:尺度归你,不归平台
 
@@ -170,4 +170,9 @@ Response: { "report_id": ..., "review_item_id": ... }        # review_item_id �
 - **会拖慢发帖吗?** check p99 <10ms + 500ms 超时兜底;scan 完全离线。community 原语在产实测无感。
 - **suspect 词命中会怎样?** check 返 `hold`(你发布+入队);scan 侧记进 `tier0_matched`。都不拦人。
 - **误杀了怎么办?** 词是数据不是代码:管理端 `/trust/terms` 把噪词 deprecate,60s 内全生态生效。
+- **词表太吵怎么办?** 两把工具,都只 deprecate(可逆,带备份文件和一条审计行),都不碰 banned 词和 compliance 词(compliance 词只会被点名、由人决定;2026-10-02 人工退役了被点名的 `les`):
+  - `trust-term-prune`:按实测退役——命中 ≥20 次且命中帖被判违规的比例 <10% 的词。2026-10-02 退役 21 个(`.cn`、`189`、`第一次`、`管理员`、`test`……),它们占当时全部命中的约 95%。
+  - `trust-term-prune -domains -drop-unevidenced`:只看域名/URL 形状的词,退役其中没有命中证据的。导入的词表里有 19,757 个是多年前的垃圾/木马站点域名,两个半月零命中,2026-10-02 全部退役;垃圾链接由 scan 的模型判断,不靠域名表。
+  - `trust-term-judge`:让 LLM 找「普通词」。`-mode judge` 不连库(候选词 JSONL 进、逐词结论 JSONL 出,可续跑),`-mode apply` 只退役仍在役、拼写未变的 abuse 用途 suspect 词。2026-10-02 的一轮:39,606 个候选里 19,757 个是域名(当时按规则不判,随后由上一条整体退役),其余 19,837 个由 deepseek-v4-flash 判出 650 个 ordinary;只把「≤4 个字或纯英文单词、不含空格与符号、不是 7 位以上数字串」的 427 个交给 deepseek-v4-pro 复核两遍,剩 237 个退役。长短语不可能误伤正常帖子,退役它没有收益,所以不退。
+  - 让 LLM 判词表之前先拿有标准答案的词校准。这一轮的校准集(已退役噪词 + banned 词 + 有违规命中记录的词,共 74 个)拦下了两种写法:要模型按行号作答,它在 60 词一批里错位,把 banned 的「外送茶」判成「普通数字」;只要模型列出「该退役的词」,它把 74 个里的 65 个全列了。现在的写法是每个词必须原样回写并归入一个类别,只有 ordinary 退役。
 - **我能看到自己站的打分数据吗?** 现阶段经 infra 管理端;per-site 数据面板是触发式后续。

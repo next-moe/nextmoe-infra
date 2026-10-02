@@ -80,3 +80,23 @@ func TestClassifyNeverRetiresComplianceTerms(t *testing.T) {
 		}
 	}
 }
+
+func TestDomainShaped(t *testing.T) {
+	for term, want := range map[string]bool{
+		"h.ltf8.cn":             true,
+		"haibo.16f.cn":          true,
+		"qqhaoma2.cn:81":        true,
+		"www.example.com/a-b_c": true,
+		".cn":                   true,
+		"admin":                 false,
+		"10086":                 false,
+		"u-r":                   false,
+		"美腿.com":                false,
+		"key text.cn":           false,
+		"第一次":                   false,
+	} {
+		if got := domainShaped(term); got != want {
+			t.Errorf("domainShaped(%q) = %t, want %t", term, got, want)
+		}
+	}
+}
