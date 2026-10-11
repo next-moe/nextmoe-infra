@@ -1,12 +1,17 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,17 +20,11 @@ import (
 	"gorm.io/gorm"
 )
 
-type gradeOptions struct {
-	DSN         string
-	BaseURL     string
-	Variant     string
-	Limit       int
-	Batch       int
-	Concurrency int
-	Apply       bool
-	ReadyWait   time.Duration
-	Tagger      *wdClient
-}
+// Grading is two modes because the tagger must not run on the production host:
+// on 2026-10-11 it ran there through the evening peak (1-minute load 9-10 on
+// eight cores) and the owner ruled that compute stays off it. `tag` needs only
+// the public CDN and a tagger; `apply` needs only the images database and is
+// where the level is computed, so wd.go's rule has one implementation.
 
 type gradeLabels struct {
 	Provider string             `json:"provider"`
@@ -36,11 +35,28 @@ type gradeLabels struct {
 	At       time.Time          `json:"at"`
 }
 
-const providerWD = "wd-tagger"
+const (
+	providerWD        = "wd-tagger"
+	providerMoondream = "cloudflare-workers-ai"
+)
 
-func runGrade(ctx context.Context, o gradeOptions, w io.Writer) error {
-	if o.DSN == "" {
-		return fmt.Errorf("--dsn is required")
+type tagRecord struct {
+	Hash string `json:"hash"`
+	wdScores
+}
+
+type tagOptions struct {
+	In          string
+	Out         string
+	BaseURL     string
+	Concurrency int
+	ReadyWait   time.Duration
+	Tagger      *wdClient
+}
+
+func runTag(ctx context.Context, o tagOptions, w io.Writer) error {
+	if o.In == "" || o.Out == "" {
+		return fmt.Errorf("--in (hash,ext CSV) and --out (JSONL) are required")
 	}
 	if o.BaseURL == "" {
 		return fmt.Errorf("--base-url is required")
@@ -48,41 +64,43 @@ func runGrade(ctx context.Context, o gradeOptions, w io.Writer) error {
 	if o.Tagger == nil || o.Tagger.base == "" {
 		return fmt.Errorf("--tagger-url is required")
 	}
-	if o.Batch <= 0 {
-		o.Batch = 2000
-	}
 	if o.Concurrency <= 0 {
 		o.Concurrency = 1
 	}
-
+	rows, err := readTagInput(o.In)
+	if err != nil {
+		return err
+	}
+	done, err := taggedHashes(o.Out)
+	if err != nil {
+		return err
+	}
+	todo := rows[:0]
+	for _, r := range rows {
+		if !done[r.Hash] {
+			todo = append(todo, r)
+		}
+	}
 	model, err := o.Tagger.waitReady(ctx, o.ReadyWait)
 	if err != nil {
 		return err
 	}
+	fmt.Fprintf(w, "listed=%d already_tagged=%d todo=%d concurrency=%d tagger=%s\n",
+		len(rows), len(rows)-len(todo), len(todo), o.Concurrency, model)
 
-	db, err := database.OpenJob(o.DSN)
+	out, err := os.OpenFile(o.Out, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
 	}
-	if sqlDB, err := db.DB(); err == nil {
-		defer sqlDB.Close()
-	}
-
-	var pending int64
-	if err := db.WithContext(ctx).
-		Raw(`SELECT count(*) FROM images WHERE review_labels -> 'grade' IS NULL`).
-		Scan(&pending).Error; err != nil {
-		return fmt.Errorf("count pending: %w", err)
-	}
-	fmt.Fprintf(w, "pending=%d apply=%v concurrency=%d tagger=%s\n", pending, o.Apply, o.Concurrency, model)
+	defer out.Close()
 
 	fetch := &http.Client{Timeout: 60 * time.Second}
 	var (
 		mu                   sync.Mutex
 		ok, bad, undecodable int
-		byLevel              [4]int
 		started              = time.Now()
 		undecodableSample    []string
+		writeErr             error
 	)
 	work := make(chan imageRow)
 	var wg sync.WaitGroup
@@ -91,7 +109,15 @@ func runGrade(ctx context.Context, o gradeOptions, w io.Writer) error {
 		go func() {
 			defer wg.Done()
 			for r := range work {
-				level, err := gradeOne(ctx, db, o, model, fetch, r)
+				var line []byte
+				body, err := fetchImage(ctx, fetch, publicURL(o.BaseURL, r, ""))
+				var scores wdScores
+				if err == nil {
+					scores, err = o.Tagger.tag(ctx, body)
+				}
+				if err == nil {
+					line, err = json.Marshal(tagRecord{Hash: r.Hash, wdScores: scores})
+				}
 				mu.Lock()
 				switch {
 				case errors.Is(err, errUndecodable):
@@ -105,10 +131,12 @@ func runGrade(ctx context.Context, o gradeOptions, w io.Writer) error {
 						fmt.Fprintf(w, "error hash=%s: %v\n", r.Hash, err)
 					}
 				default:
+					if _, err := out.Write(append(line, '\n')); err != nil && writeErr == nil {
+						writeErr = err
+					}
 					ok++
-					byLevel[level]++
 				}
-				if n := ok + bad + undecodable; n%1000 == 0 {
+				if n := ok + bad + undecodable; n%2000 == 0 {
 					fmt.Fprintf(w, "progress done=%d errors=%d rate=%.2f img/s\n",
 						ok, bad, float64(n)/time.Since(started).Seconds())
 				}
@@ -116,93 +144,256 @@ func runGrade(ctx context.Context, o gradeOptions, w io.Writer) error {
 			}
 		}()
 	}
-
-	cursor := ""
-	processed := 0
 feed:
-	for {
-		var rows []imageRow
-		if err := db.WithContext(ctx).
-			Raw(`SELECT hash, ext, width, height, size_bytes, variants::text AS variants
-			       FROM images
-			      WHERE review_labels -> 'grade' IS NULL AND hash > ?
-			      ORDER BY hash
-			      LIMIT ?`, cursor, o.Batch).
-			Scan(&rows).Error; err != nil {
-			close(work)
-			wg.Wait()
-			return fmt.Errorf("page images: %w", err)
-		}
-		if len(rows) == 0 {
-			break
-		}
-		cursor = rows[len(rows)-1].Hash
-		for _, r := range rows {
-			if o.Limit > 0 && processed >= o.Limit {
-				break feed
-			}
-			select {
-			case work <- r:
-				processed++
-			case <-ctx.Done():
-				break feed
-			}
+	for _, r := range todo {
+		select {
+		case work <- r:
+		case <-ctx.Done():
+			break feed
 		}
 	}
 	close(work)
 	wg.Wait()
 
-	fmt.Fprintf(w, "grade complete done=%d level0=%d level1=%d level2=%d level3=%d errors=%d undecodable=%d elapsed=%s\n",
-		ok, byLevel[0], byLevel[1], byLevel[2], byLevel[3], bad, undecodable, time.Since(started).Truncate(time.Second))
+	fmt.Fprintf(w, "tag complete done=%d errors=%d undecodable=%d elapsed=%s\n",
+		ok, bad, undecodable, time.Since(started).Truncate(time.Second))
 	if undecodable > 0 {
-		fmt.Fprintf(w, "undecodable images stay ungraded and are retried next run: %v\n", undecodableSample)
+		fmt.Fprintf(w, "undecodable images stay ungraded and are listed again next run: %v\n", undecodableSample)
+	}
+	if writeErr != nil {
+		return fmt.Errorf("write %s: %w", o.Out, writeErr)
 	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	if bad > 0 {
-		return fmt.Errorf("%d images failed to grade", bad)
+		return fmt.Errorf("%d images failed to tag", bad)
 	}
 	return nil
 }
 
-func gradeOne(ctx context.Context, db *gorm.DB, o gradeOptions, model string, fetch *http.Client, r imageRow) (int, error) {
-	body, err := fetchImage(ctx, fetch, publicURL(o.BaseURL, r, o.Variant))
+func readTagInput(path string) ([]imageRow, error) {
+	f, err := os.Open(path)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	scores, err := o.Tagger.tag(ctx, body)
+	defer f.Close()
+	r := csv.NewReader(f)
+	r.FieldsPerRecord = 2
+	var rows []imageRow
+	for {
+		rec, err := r.Read()
+		if err == io.EOF {
+			return rows, nil
+		}
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", path, err)
+		}
+		if len(rec[0]) != 64 || rec[1] == "" {
+			return nil, fmt.Errorf("%s: want hash,ext, got %q", path, rec)
+		}
+		rows = append(rows, imageRow{Hash: rec[0], Ext: rec[1]})
+	}
+}
+
+func taggedHashes(path string) (map[string]bool, error) {
+	done := map[string]bool{}
+	recs, err := readTagRecords(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return done, nil
+	}
+	for _, r := range recs {
+		done[r.Hash] = true
+	}
+	return done, err
+}
+
+func readTagRecords(path string) ([]tagRecord, error) {
+	f, err := os.Open(path)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	level, err := wdLevel(scores)
+	defer f.Close()
+	var recs []tagRecord
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 64<<10), 1<<20)
+	for line := 1; sc.Scan(); line++ {
+		if strings.TrimSpace(sc.Text()) == "" {
+			continue
+		}
+		var r tagRecord
+		if err := json.Unmarshal(sc.Bytes(), &r); err != nil {
+			return nil, fmt.Errorf("%s line %d: %w", path, line, err)
+		}
+		if len(r.Hash) != 64 || r.Model == "" {
+			return nil, fmt.Errorf("%s line %d: a record needs a 64-character hash and a model", path, line)
+		}
+		recs = append(recs, r)
+	}
+	return recs, sc.Err()
+}
+
+type applyOptions struct {
+	DSN            string
+	In             string
+	ReplaceMachine bool
+	Apply          bool
+}
+
+type gradeMove struct {
+	from string
+	to   int
+}
+
+type applyStats struct {
+	written, missing, keptHuman, keptWD, keptMachine int
+	moves                                            map[gradeMove]int
+	shown, hidden                                    int
+}
+
+func runApply(ctx context.Context, o applyOptions, w io.Writer) error {
+	if o.DSN == "" || o.In == "" {
+		return fmt.Errorf("--dsn and --in are required")
+	}
+	recs, err := readTagRecords(o.In)
 	if err != nil {
-		return 0, err
+		return err
 	}
-	kept := make(map[string]float64, len(scores.Rating)+len(scores.Tags))
-	for k, v := range scores.Rating {
-		kept[k] = v
+	db, err := database.OpenJob(o.DSN)
+	if err != nil {
+		return err
 	}
-	for k, v := range scores.Tags {
-		kept[k] = v
+	if sqlDB, err := db.DB(); err == nil {
+		defer sqlDB.Close()
 	}
-	raw, err := json.Marshal(gradeLabels{
-		Provider: providerWD,
-		Model:    model,
-		Level:    level,
-		Scores:   kept,
-		At:       time.Now().UTC(),
+	st, err := applyGrades(ctx, db, recs, o)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(w, "apply=%v replace_machine=%v records=%d written=%d missing=%d kept_human=%d kept_wd=%d kept_machine=%d\n",
+		o.Apply, o.ReplaceMachine, len(recs), st.written, st.missing, st.keptHuman, st.keptWD, st.keptMachine)
+	fmt.Fprintf(w, "visibility for SFW readers: newly hidden=%d newly shown=%d\n", st.hidden, st.shown)
+	moves := make([]gradeMove, 0, len(st.moves))
+	for m := range st.moves {
+		moves = append(moves, m)
+	}
+	sort.Slice(moves, func(i, j int) bool {
+		if moves[i].from != moves[j].from {
+			return moves[i].from < moves[j].from
+		}
+		return moves[i].to < moves[j].to
 	})
-	if err != nil {
-		return 0, err
+	for _, m := range moves {
+		fmt.Fprintf(w, "  level %-4s -> %d  %7d\n", m.from, m.to, st.moves[m])
 	}
-	if !o.Apply {
-		return level, nil
+	return nil
+}
+
+func applyGrades(ctx context.Context, db *gorm.DB, recs []tagRecord, o applyOptions) (*applyStats, error) {
+	st := &applyStats{moves: map[gradeMove]int{}}
+	at := time.Now().UTC()
+	for start := 0; start < len(recs); start += 1000 {
+		batch := recs[start:min(start+1000, len(recs))]
+		hashes := make([]string, len(batch))
+		for i, r := range batch {
+			hashes[i] = r.Hash
+		}
+		var current []struct {
+			Hash     string  `gorm:"column:hash"`
+			Provider *string `gorm:"column:provider"`
+			Level    *int    `gorm:"column:level"`
+		}
+		if err := db.WithContext(ctx).Raw(
+			`SELECT hash, review_labels->'grade'->>'provider' AS provider,
+			        (review_labels->'grade'->>'level')::int AS level
+			   FROM images WHERE hash IN ? AND deleted_at IS NULL`, hashes).
+			Scan(&current).Error; err != nil {
+			return st, fmt.Errorf("read current grades: %w", err)
+		}
+		byHash := make(map[string]int, len(current))
+		for i, c := range current {
+			byHash[strings.TrimSpace(c.Hash)] = i
+		}
+
+		err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			for _, r := range batch {
+				i, ok := byHash[r.Hash]
+				if !ok {
+					st.missing++
+					continue
+				}
+				c := current[i]
+				from := "none"
+				if c.Provider != nil {
+					switch *c.Provider {
+					case providerHuman:
+						st.keptHuman++
+						continue
+					case providerWD:
+						st.keptWD++
+						continue
+					case providerMoondream:
+						if !o.ReplaceMachine {
+							st.keptMachine++
+							continue
+						}
+					}
+					if c.Level != nil {
+						from = fmt.Sprint(*c.Level)
+					}
+				}
+				level, err := wdLevel(r.wdScores)
+				if err != nil {
+					return fmt.Errorf("%s: %w", r.Hash, err)
+				}
+				st.written++
+				st.moves[gradeMove{from: from, to: level}]++
+				if c.Level != nil {
+					switch was, now := *c.Level >= 2, level >= 2; {
+					case was && !now:
+						st.shown++
+					case !was && now:
+						st.hidden++
+					}
+				}
+				if !o.Apply {
+					continue
+				}
+				scores := make(map[string]float64, len(r.Rating)+len(r.Tags))
+				for k, v := range r.Rating {
+					scores[k] = v
+				}
+				for k, v := range r.Tags {
+					scores[k] = v
+				}
+				raw, err := json.Marshal(gradeLabels{Provider: providerWD, Model: r.Model, Level: level, Scores: scores, At: at})
+				if err != nil {
+					return err
+				}
+				// The guard re-checks what the read saw, so a human regrade that
+				// lands between the read and this write is never overwritten.
+				if err := tx.Exec(`
+					UPDATE images
+					   SET review_labels = jsonb_set(
+					         CASE WHEN review_labels->'grade'->>'provider' = ?
+					                   AND review_labels->'grade_moondream' IS NULL
+					              THEN jsonb_set(review_labels, '{grade_moondream}', review_labels->'grade')
+					              ELSE coalesce(review_labels, '{}'::jsonb) END,
+					         '{grade}', ?::jsonb)
+					 WHERE hash = ?
+					   AND (review_labels->'grade' IS NULL
+					        OR (? AND review_labels->'grade'->>'provider' = ?))`,
+					providerMoondream, string(raw), r.Hash, o.ReplaceMachine, providerMoondream).Error; err != nil {
+					return fmt.Errorf("write %s: %w", r.Hash, err)
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return st, err
+		}
 	}
-	return level, db.WithContext(ctx).Exec(
-		`UPDATE images
-		    SET review_labels = jsonb_set(coalesce(review_labels, '{}'::jsonb), '{grade}', ?::jsonb)
-		  WHERE hash = ? AND review_labels -> 'grade' IS NULL`, string(raw), r.Hash).Error
+	return st, nil
 }
 
 func fetchImage(ctx context.Context, c *http.Client, url string) ([]byte, error) {
