@@ -239,7 +239,7 @@ func ParseDebuggerd(stack string) []Frame {
 		}
 		out = append(out, Frame{
 			Function: fn,
-			Module:   dartFileBase(modulePath),
+			Module:   nativeModule(modulePath),
 			Path:     modulePath,
 			Raw:      strings.TrimSpace(line),
 			PC:       pc,
@@ -250,6 +250,14 @@ func ParseDebuggerd(stack string) []Frame {
 		}
 	}
 	return out
+}
+
+func nativeModule(path string) string {
+	base := dartFileBase(path)
+	if _, lib, ok := strings.Cut(base, "!"); ok && lib != "" {
+		return lib
+	}
+	return base
 }
 
 func parseDebuggerdRest(rest string) (module, function, buildID string) {

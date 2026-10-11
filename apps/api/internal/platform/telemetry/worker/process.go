@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"os"
+	"strings"
 
 	"api/internal/platform/telemetry/model"
 	"api/internal/platform/telemetry/store"
@@ -233,7 +234,7 @@ func decodeNative(ctx context.Context, appID int64, typ, msg, stack string, tool
 	var needs []string
 	var next []symbolicate.Frame
 	for _, f := range frames {
-		if f.Module == "libapp.so" && f.BuildID != "" {
+		if isLibapp(f) {
 			exp, need, err := decodeLibapp(ctx, appID, f, tools, look)
 			if err != nil {
 				return decoded{}, nil, nil, err
@@ -254,6 +255,17 @@ func decodeNative(ctx context.Context, appID int64, typ, msg, stack string, tool
 	}
 	needs = append(needs, engNeeds...)
 	return decoded{typ, msg, symbolicate.FormatNativeStack(next)}, next, needs, nil
+}
+
+// A release APK maps its native libraries straight out of the APK, so
+// debuggerd names engine frames "base.apk!libflutter.so" and libapp frames
+// just "base.apk" (it has no soname). Matching "libapp.so" alone left the
+// 10-11 device drill's SIGABRT with every app and engine frame unresolved.
+func isLibapp(f symbolicate.Frame) bool {
+	if f.BuildID == "" {
+		return false
+	}
+	return f.Module == "libapp.so" || strings.HasSuffix(f.Module, ".apk")
 }
 
 func decodeLibapp(ctx context.Context, appID int64, f symbolicate.Frame, tools symbolicate.Tools, look Lookup) ([]symbolicate.Frame, string, error) {
@@ -282,7 +294,7 @@ func decodeLibapp(ctx context.Context, appID int64, f symbolicate.Frame, tools s
 		return []symbolicate.Frame{f}, "", nil
 	}
 	for i := range parsed {
-		parsed[i].Module = f.Module
+		parsed[i].Module = "libapp.so"
 		parsed[i].Path = f.Path
 		parsed[i].PC = f.PC
 		parsed[i].BuildID = f.BuildID
