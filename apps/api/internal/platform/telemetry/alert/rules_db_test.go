@@ -101,11 +101,16 @@ func insertMetric(t *testing.T, appID int64, version, env, day string, sessions,
 
 func insertIssue(t *testing.T, appID int64, fp, kind, title, status string, regressed bool, created, lastSeen, firstVer, lastVer string) int64 {
 	t.Helper()
+	return insertIssueIn(t, "direct", appID, fp, kind, title, status, regressed, created, lastSeen, firstVer, lastVer)
+}
+
+func insertIssueIn(t *testing.T, env string, appID int64, fp, kind, title, status string, regressed bool, created, lastSeen, firstVer, lastVer string) int64 {
+	t.Helper()
 	if err := testDB.Exec(`INSERT INTO telemetry_issue (
-		app_id, fingerprint, kind, title, culprit, status, resolved_in_version, regressed,
+		app_id, environment, fingerprint, kind, title, culprit, status, resolved_in_version, regressed,
 		first_seen_day, last_seen_day, first_version, last_version, created_at, updated_at)
-		VALUES (?, ?, ?, ?, 'culprit', ?, '', ?, ?::date, ?::date, ?, ?, ?::timestamptz, now())`,
-		appID, fp, kind, title, status, regressed, lastSeen, lastSeen, firstVer, lastVer, created).Error; err != nil {
+		VALUES (?, ?, ?, ?, ?, 'culprit', ?, '', ?, ?::date, ?::date, ?, ?, ?::timestamptz, now())`,
+		appID, env, fp, kind, title, status, regressed, lastSeen, lastSeen, firstVer, lastVer, created).Error; err != nil {
 		t.Fatal(err)
 	}
 	var id int64
@@ -371,6 +376,35 @@ func TestRuleSilentApp(t *testing.T) {
 	got := alertsOf(t, model.RuleSilentApp)
 	if len(got) != 1 || got[0].AppID != fire {
 		t.Fatalf("got=%+v", got)
+	}
+}
+
+func TestRulesIgnoreLocalBuilds(t *testing.T) {
+	requireDB(t)
+	truncateAlert(t)
+	appID := insertApp(t, "kungal-app", true)
+	now := evalNow()
+	created := now.Add(-time.Hour).Format(time.RFC3339)
+	insertIssueIn(t, "dev", appID, "fp-dev-contract", model.KindContract, "c", model.IssueOpen, false, created, "2026-09-29", "1.0", "1.0")
+	insertIssueIn(t, "dev", appID, "fp-dev-java", model.KindJava, "j", model.IssueOpen, false, created, "2026-09-29", "1.0", "1.0")
+	insertIssueIn(t, "check", appID, "fp-check-reg", model.KindException, "r", model.IssueOpen, true, created, "2026-09-29", "1.0", "1.0")
+	for i := 0; i < 60; i++ {
+		insertEvent(t, appID, fmt.Sprintf("d%031d", i), "1.0", "dev", "exception", "2026-09-29", now.Add(-10*time.Minute),
+			`{"app.fault":"server","http.request.method":"GET","url.path":"/x","http.response.status_code":500}`)
+	}
+	silent := insertApp(t, "silent-local", true)
+	for i := 1; i <= 7; i++ {
+		insertMetric(t, silent, "1.0", "direct", now.AddDate(0, 0, -i).Format("2006-01-02"), 50, 0, 0)
+	}
+	insertEvent(t, silent, fmt.Sprintf("s%031d", 1), "1.0", "dev", "app.lifecycle", "2026-09-29", now.Add(-time.Hour), "{}")
+	evaluate(t)
+	for _, rule := range []string{model.RuleContractNew, model.RuleIssueNew, model.RuleIssueRegressed, model.RuleServerFaults} {
+		if got := alertsOf(t, rule); len(got) != 0 {
+			t.Errorf("%s fired on a local build: %+v", rule, got)
+		}
+	}
+	if got := alertsOf(t, model.RuleSilentApp); len(got) != 1 || got[0].AppID != silent {
+		t.Errorf("dev events kept the release app from looking silent: %+v", got)
 	}
 }
 

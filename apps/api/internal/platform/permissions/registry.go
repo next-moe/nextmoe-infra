@@ -193,8 +193,8 @@ var live = NewRegistry(
 		Holder:       telemetryPerm.Resolver,
 		NonDelegable: telemetryPerm.NonDelegable,
 		Keys: []Key{
-			{telemetryPerm.View, "Reach the telemetry dashboard — apps, ingest keys, and daily session metrics.", "查看监测看板(应用、上报密钥、每日会话指标)"},
-			{telemetryPerm.Manage, "Create or edit telemetry apps, rotate ingest keys, and change whether an app is enabled.", "创建/编辑监测应用、轮换上报密钥、启停应用;不可委派"},
+			{telemetryPerm.View, "Reach the telemetry dashboard — apps, ingest keys, daily session metrics, issues with their decoded stacks, and alert history with its recipients.", "查看监测看板(应用、上报密钥、每日会话指标、问题与还原后的崩溃栈、告警记录与收件人)"},
+			{telemetryPerm.Manage, "Create or edit telemetry apps, rotate ingest keys and the CI symbols token, change whether an app is enabled, edit alert channels and thresholds, and change issue status.", "创建/编辑监测应用、轮换上报密钥与 CI 符号令牌、启停应用、维护告警渠道与阈值、改问题状态;不可委派"},
 		},
 	},
 	Domain{

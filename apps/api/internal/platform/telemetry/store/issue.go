@@ -14,15 +14,16 @@ import (
 )
 
 type IssueListParams struct {
-	AppID   int64
-	Kind    string
-	Status  string
-	Version string
-	From    time.Time
-	To      time.Time
-	Sort    string
-	Limit   int
-	Offset  int
+	AppID       int64
+	Environment string
+	Kind        string
+	Status      string
+	Version     string
+	From        time.Time
+	To          time.Time
+	Sort        string
+	Limit       int
+	Offset      int
 }
 
 func (s *Store) ListIssues(ctx context.Context, p IssueListParams) ([]dto.IssueListItem, error) {
@@ -41,7 +42,7 @@ func (s *Store) ListIssues(ctx context.Context, p IssueListParams) ([]dto.IssueL
 	fromS := p.From.Format("2006-01-02")
 	toS := p.To.Format("2006-01-02")
 	q := `
-SELECT i.id, i.app_id, i.fingerprint, i.kind, i.title, i.culprit, i.status,
+SELECT i.id, i.app_id, i.environment, i.fingerprint, i.kind, i.title, i.culprit, i.status,
        i.resolved_in_version, i.regressed, i.first_seen_day, i.last_seen_day,
        i.first_version, i.last_version, i.created_at, i.updated_at,
        COALESCE(SUM(d.events), 0)::int AS events,
@@ -54,8 +55,8 @@ SELECT i.id, i.app_id, i.fingerprint, i.kind, i.title, i.culprit, i.status,
 		q += ` AND d.service_version = ?`
 		args = append(args, p.Version)
 	}
-	q += ` WHERE i.app_id = ? AND i.status = ?`
-	args = append(args, p.AppID, p.Status)
+	q += ` WHERE i.app_id = ? AND i.environment = ? AND i.status = ?`
+	args = append(args, p.AppID, p.Environment, p.Status)
 	if p.Kind != "" {
 		q += ` AND i.kind = ?`
 		args = append(args, p.Kind)
@@ -72,6 +73,7 @@ SELECT i.id, i.app_id, i.fingerprint, i.kind, i.title, i.culprit, i.status,
 	var rows []struct {
 		ID                int64
 		AppID             int64
+		Environment       string
 		Fingerprint       string
 		Kind              string
 		Title             string
@@ -130,6 +132,7 @@ SELECT d.issue_id, d.day, SUM(d.events)::int AS events
 		iss := model.Issue{
 			ID:                r.ID,
 			AppID:             r.AppID,
+			Environment:       r.Environment,
 			Fingerprint:       r.Fingerprint,
 			Kind:              r.Kind,
 			Title:             r.Title,

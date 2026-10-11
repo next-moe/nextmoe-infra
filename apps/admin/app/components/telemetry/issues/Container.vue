@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import {
+  TELEMETRY_ENVIRONMENTS,
+  TELEMETRY_ENVIRONMENT_LABELS,
   TELEMETRY_ISSUE_KINDS,
   TELEMETRY_KIND_META,
   TELEMETRY_ISSUE_STATUSES,
@@ -9,6 +11,7 @@ import {
   TELEMETRY_ISSUE_SORT_OPTIONS,
   telemetryWindowRange,
   telemetryPageCount,
+  type TelemetryEnvironment,
   type TelemetryWindowDays
 } from '~/constants/telemetry'
 import type { TelemetryIssue } from '~~/shared/types/telemetry'
@@ -23,6 +26,16 @@ const {
   isLoading: appsLoading
 } = await useTelemetryApps()
 
+const route = useRoute()
+const router = useRouter()
+const environment = ref<TelemetryEnvironment>(
+  TELEMETRY_ENVIRONMENTS.find((e) => e === route.query.env) ?? 'direct'
+)
+watch(environment, (env) => {
+  router.replace({
+    query: { ...route.query, env: env === 'direct' ? undefined : env }
+  })
+})
 const kind = ref('')
 const issueStatus = ref('open')
 const version = ref('')
@@ -31,9 +44,12 @@ const sort = ref('events')
 const page = ref(1)
 const limit = 50
 
-watch([selectedId, kind, issueStatus, version, windowDays, sort], () => {
-  page.value = 1
-})
+watch(
+  [selectedId, environment, kind, issueStatus, version, windowDays, sort],
+  () => {
+    page.value = 1
+  }
+)
 
 const range = computed(() => telemetryWindowRange(windowDays.value))
 const offset = computed(() => (page.value - 1) * limit)
@@ -46,6 +62,11 @@ const kindOptions = computed(() => [
   }))
 ])
 
+const envOptions = TELEMETRY_ENVIRONMENTS.map((v) => ({
+  value: v,
+  label: TELEMETRY_ENVIRONMENT_LABELS[v]
+}))
+
 const statusOptions = TELEMETRY_ISSUE_STATUSES.map((s) => ({
   value: s,
   label: TELEMETRY_ISSUE_STATUS_META[s].label
@@ -56,6 +77,7 @@ const { data, status, error, refresh } = await useApiFetch<TelemetryIssue[]>(
   {
     query: computed(() => ({
       app_id: selectedId.value,
+      environment: environment.value,
       kind: kind.value || undefined,
       status: issueStatus.value,
       version: version.value.trim() || undefined,
@@ -71,7 +93,7 @@ const { data, status, error, refresh } = await useApiFetch<TelemetryIssue[]>(
 )
 
 watch(
-  [selectedId, kind, issueStatus, version, range, sort, offset],
+  [selectedId, environment, kind, issueStatus, version, range, sort, offset],
   () => {
     if (selectedId.value > 0) refresh()
   },
@@ -93,6 +115,14 @@ const totalPages = computed(() =>
 
     <div class="flex flex-wrap items-end gap-2">
       <TelemetryAppPicker v-model="appModel" :options="options" />
+      <KunSelect
+        v-model="environment"
+        :options="envOptions"
+        label="环境"
+        aria-label="环境"
+        :full-width="false"
+        class="w-36"
+      />
       <KunSelect
         v-model="kind"
         :options="kindOptions"

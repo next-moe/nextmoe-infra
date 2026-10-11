@@ -748,6 +748,8 @@ components:
           items:
             $ref: "#/components/schemas/IssueDailyView"
           type: array
+        environment:
+          type: string
         fingerprint:
           type: string
         first_seen_day:
@@ -778,6 +780,7 @@ components:
         - crashes
         - id
         - app_id
+        - environment
         - fingerprint
         - kind
         - title
@@ -801,6 +804,8 @@ components:
         created_at:
           type: string
         culprit:
+          type: string
+        environment:
           type: string
         events:
           format: int64
@@ -843,6 +848,7 @@ components:
         - series
         - id
         - app_id
+        - environment
         - fingerprint
         - kind
         - title
@@ -866,6 +872,8 @@ components:
         created_at:
           type: string
         culprit:
+          type: string
+        environment:
           type: string
         fingerprint:
           type: string
@@ -895,6 +903,7 @@ components:
       required:
         - id
         - app_id
+        - environment
         - fingerprint
         - kind
         - title
@@ -1370,6 +1379,12 @@ paths:
           schema:
             format: int64
             type: integer
+        - explode: false
+          in: query
+          name: environment
+          schema:
+            default: direct
+            type: string
         - explode: false
           in: query
           name: kind
