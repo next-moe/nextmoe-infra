@@ -14,11 +14,10 @@ import (
 )
 
 func main() {
-	mode := flag.String("mode", "", "scan | report | backfill | grade | ask | regrade")
+	mode := flag.String("mode", "", "scan | report | backfill | grade | regrade")
 	dsn := flag.String("dsn", "", "images DSN (REQUIRED for scan)")
 	out := flag.String("out", "", "scan: JSONL output path (appended — resume-safe)")
-	in := flag.String("in", "", "report: JSONL input path; ask: JSONL of {hash, ext}; regrade: JSONL of {hash, level}")
-	question := flag.String("question", "", "ask: the yes/no question put to every image")
+	in := flag.String("in", "", "report: JSONL input path; regrade: JSONL of {hash, level}")
 
 	limit := flag.Int("limit", 1000, "scan: images sampled; backfill: images processed (0 = all)")
 	salt := flag.String("salt", "kungal-safety-v1", "scan: sample ordering salt")
@@ -35,15 +34,8 @@ func main() {
 	batch := flag.Int("batch", 2000, "backfill: rows fetched per page")
 	apply := flag.Bool("apply", false, "backfill: write review_labels->auto; grade, regrade: write review_labels->grade (dry run without it)")
 
-	cfAccount := flag.String("cf-account", os.Getenv("CLOUDFLARE_ACCOUNT_ID"), "grade: Cloudflare account id")
-	cfToken := flag.String("cf-token", os.Getenv("CLOUDFLARE_API_TOKEN"), "grade: Workers AI token")
-	cfModel := flag.String("cf-model", "@cf/moondream/moondream3.1-9B-A2B", "grade: Workers AI vision model")
-	maxNeurons := flag.Float64("max-neurons", 0, "grade: stop once this many neurons are spent (0 = no cap)")
-	guardDSN := flag.String("guard-dsn", "", "grade: kun_ai DSN watched for live fail-open (empty disables the guard)")
-	guardShare := flag.Float64("guard-share", 0.106, "grade: abort when the live ai_usage failure share exceeds this")
-	quotaWait := flag.Duration("quota-wait", time.Hour, "grade: how long to wait for a used-up Workers AI daily allocation to free before carrying the rest to the next run")
-	quotaProbe := flag.Duration("quota-probe", 2*time.Minute, "grade: how often a held worker re-asks while the daily allocation is used up")
-	carryMax := flag.Int64("carry-max", 0, "grade: fail when a run carries more than this many ungraded images to the next one (0 = never)")
+	taggerURL := flag.String("tagger-url", os.Getenv("KUN_WDTAGGER_URL"), "grade: base URL of the wdtagger service (docker/wdtagger.Dockerfile)")
+	readyWait := flag.Duration("tagger-ready-wait", 3*time.Minute, "grade: how long to wait for the tagger's /healthz before giving up")
 	flag.Parse()
 
 	logger.Init("production")
@@ -86,31 +78,15 @@ func main() {
 			Batch:       *batch,
 			Concurrency: *concurrency,
 			Apply:       *apply,
-			MaxNeurons:  *maxNeurons,
-			GuardDSN:    *guardDSN,
-			GuardShare:  *guardShare,
-			QuotaWait:   *quotaWait,
-			QuotaProbe:  *quotaProbe,
-			CarryMax:    *carryMax,
-			Client:      newMoondreamClient(*cfAccount, *cfToken, *cfModel),
-		}, os.Stdout)
-	case "ask":
-		err = runAsk(ctx, askOptions{
-			In:          *in,
-			Out:         *out,
-			Question:    *question,
-			BaseURL:     *baseURL,
-			Concurrency: *concurrency,
-			GuardDSN:    *guardDSN,
-			GuardShare:  *guardShare,
-			Client:      newMoondreamClient(*cfAccount, *cfToken, *cfModel),
+			ReadyWait:   *readyWait,
+			Tagger:      newWDClient(*taggerURL),
 		}, os.Stdout)
 	case "regrade":
 		err = runRegrade(ctx, regradeOptions{DSN: *dsn, In: *in, Apply: *apply}, os.Stdout)
 	case "report":
 		err = runReport(*in, os.Stdout)
 	default:
-		err = fmt.Errorf("--mode must be scan, report, backfill, grade, ask or regrade")
+		err = fmt.Errorf("--mode must be scan, report, backfill, grade or regrade")
 	}
 	if err != nil {
 		slog.Error("classify-image-safety", "mode", *mode, "error", err)

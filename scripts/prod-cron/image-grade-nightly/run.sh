@@ -4,17 +4,21 @@
 #
 # Step A (classify-image-safety -mode grade) is naturally incremental — its
 # candidate predicate is `review_labels -> 'grade' IS NULL` — so a normal night
-# grades a handful of images in seconds; the 2026-08-13 full-corpus run
-# (639k images, 17h25m, $874) is what it will never do again.
+# grades a few hundred images and the Monday image-mirror wave ~18,000.
 # Step B (sync-image-grades) then refines catalog_work_screenshot /
 # catalog_work_cover `sexual` for every machine-ingested source, replacing the
 # work-level stamp the importers write on insert. Both steps are idempotent:
 # an idle night writes nothing.
 #
-# Runs from the infra-tools image resolved below; nothing is staged on this
-# host. Image + Cloudflare env live in /root/imgsafety/env.img and env.cf
-# (env.cf carries CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_API_TOKEN, which the tool
-# reads straight from the environment). Canonical copy:
+# The grader is the infra-wdtagger image (docker/wdtagger.Dockerfile), started
+# here for the length of step A and removed after. Until 2026-10-11 step A asked
+# moondream on Cloudflare Workers AI; the account fell to the free daily
+# allocation on 2026-09-18, after which nights graded 0-4,500 images and the
+# queue grew every week. The tagger runs on this host's CPU, capped at two cores
+# (~2 img/s measured here), and costs nothing per image.
+#
+# Runs from images resolved to a digest below; nothing is staged on this host.
+# The image service env lives in /root/imgsafety/env.img. Canonical copy:
 # scripts/prod-cron/image-grade-nightly/run.sh in nextmoe-infra — edit
 # there and redeploy.
 set -eu
@@ -30,8 +34,10 @@ exec 9>"$BASE/.lock"; flock -n 9 || { echo "another run holds the lock; exit"; e
 # job that stopped running at all. Step B runs even when step A failed (already
 # graded images are still worth propagating), but any failed step fails the run.
 FAIL=0
+TAGGER=image-grade-wdtagger
 on_exit() {
   rc=$?
+  docker rm -f "$TAGGER" >/dev/null 2>&1 || true
   [ "$rc" -eq 0 ] && [ "$FAIL" -ne 0 ] && rc=1
   if [ "$rc" -eq 0 ]; then
     date -u '+%F %T' > "$BASE/state/last-success"
@@ -47,6 +53,10 @@ IMG_TAG=ghcr.io/next-moe/infra-tools:latest
 docker pull -q "$IMG_TAG" >/dev/null 2>&1 || echo "WARN: image pull failed; using the local copy"
 IMG=$(docker image inspect --format '{{index .RepoDigests 0}}' "$IMG_TAG")
 echo "image: $IMG"
+WD_TAG=ghcr.io/next-moe/infra-wdtagger:latest
+docker pull -q "$WD_TAG" >/dev/null 2>&1 || echo "WARN: tagger pull failed; using the local copy"
+WD_IMG=$(docker image inspect --format '{{index .RepoDigests 0}}' "$WD_TAG")
+echo "tagger: $WD_IMG"
 
 PGHOST_C=kun-visual-novel-infra-vqvqbc-postgres-1
 # The password rides PGPASSWORD, never the DSN: a container's processes sit in
@@ -54,26 +64,19 @@ PGHOST_C=kun-visual-novel-infra-vqvqbc-postgres-1
 # assembled DSN with its password. pgx reads PGPASSWORD when the DSN names none.
 # The PG credentials are shared across the platform databases; only the
 # dbname differs.
-DSNSH='export PGPASSWORD="$KUN_PG_PASSWORD"; B="host='"$PGHOST_C"' port=5432 user=$KUN_PG_USER sslmode=disable"; IMGDSN="$B dbname=${KUN_IMAGES_PG_DATABASE:-kun_images}"; AIDSN="$B dbname=${KUN_AI_PG_DATABASE:-kun_ai}"; CATDSN="$B dbname=${KUN_CATALOG_PG_DATABASE:-kun_catalog}"'
+DSNSH='export PGPASSWORD="$KUN_PG_PASSWORD"; B="host='"$PGHOST_C"' port=5432 user=$KUN_PG_USER sslmode=disable"; IMGDSN="$B dbname=${KUN_IMAGES_PG_DATABASE:-kun_images}"; CATDSN="$B dbname=${KUN_CATALOG_PG_DATABASE:-kun_catalog}"'
 
-# Step A — grade only the ungraded. -guard-dsn watches the LIVE ai_usage failure
-# share: Workers AI limits are account-scoped, and in 2026-08 a batch on this
-# shared token drove the production text gate to 58% fail-open. The 10M neuron
-# cap (~$110) bounds a surprise image wave; the tool exits non-zero when the
-# cap left images ungraded, so a capped night alerts on its own.
-# Since 2026-09-18 the account runs on the free daily allocation, 1,500-4,500
-# images a night. A night that uses it up holds for an hour in case the rolling
-# window frees, then carries the rest to the next night and exits clean; it
-# fails only when more than 40,000 images are left waiting. image-mirror adds
-# ~18,000 DLsite images every Monday, so 25,000 failed the 2026-10-05 night on a
-# queue that was draining as planned.
+# Step A — grade only the ungraded.
 echo "--- step A: grade new images ---"
+docker rm -f "$TAGGER" >/dev/null 2>&1 || true
+docker run -d --rm --name "$TAGGER" --network dokploy-network --cpus 2 --memory 2g \
+  -e WD_THREADS=2 "$WD_IMG" >/dev/null
 docker run --rm --network dokploy-network \
-  --env-file "$ENVDIR/env.img" --env-file "$ENVDIR/env.cf" \
-  "$IMG" sh -c "$DSNSH"'; exec classify-image-safety -mode grade -dsn "$IMGDSN" -guard-dsn "$AIDSN" \
-    -base-url "$KUN_IMAGE_PUBLIC_BASE_URL" -limit 0 -concurrency 16 -max-neurons 10000000 \
-    -quota-wait 60m -carry-max 40000 --apply' \
+  --env-file "$ENVDIR/env.img" \
+  "$IMG" sh -c "$DSNSH"'; exec classify-image-safety -mode grade -dsn "$IMGDSN" \
+    -base-url "$KUN_IMAGE_PUBLIC_BASE_URL" -tagger-url http://'"$TAGGER"':8080 -limit 0 -concurrency 3 --apply' \
   || { echo "WARN: grading exited $?"; FAIL=1; }
+docker rm -f "$TAGGER" >/dev/null 2>&1 || true
 
 # Step B — propagate per-image grades into the catalog media rows. Ungraded and
 # dangling hashes are counted, not errors; the run fails only on write errors.
