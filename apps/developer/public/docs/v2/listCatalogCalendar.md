@@ -13,11 +13,11 @@
 
 Release calendar
 
-One collection. month=/year= pick a window; precision= and status= select among the dated month, year-only, and undated views that were three v1 routes. content_limit= gates on the editorial display axis, olang= on the original language (absent = ja), and exclude_company_kind= drops works whose every company is of an excluded kind (absent = doujin_circle, so by default the calendar lists Japanese commercial works; olang=all and exclude_company_kind=none widen it). meta carries today plus, on the dated month window, min_month/max_month/has_prev/has_next for month navigation. Requires an application key or a user access token with catalog:read. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.
+One collection. month=/year= pick a window; precision= and status= select among the dated month, year-only, and undated views that were three v1 routes. content_limit= gates on the editorial display axis, olang= on the original language (absent = ja), and exclude_company_kind= drops works whose every company is of an excluded kind (absent = doujin_circle, so by default the calendar lists Japanese commercial works; olang=all and exclude_company_kind=none widen it). meta carries today plus, on the dated month window, min_month/max_month/has_prev/has_next for month navigation. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.
 
 - 所属 API：Public API v2（/v2）
-- 鉴权：Authorization: Bearer nmk_live_…
-- scope：catalog:read
+- 鉴权：可匿名调用
+- scope：catalog:read（仅在带凭据时）
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
@@ -41,8 +41,7 @@ One collection. month=/year= pick a window; precision= and status= select among 
 | `exclude_company_kind` | query | 否 | string | Comma-separated closed company_kind values: game_brand, bunko, publisher, anime_studio, doujin_circle, group, or none alone to exclude nothing. Drops a work only when it has at least one company and every one of its companies is of an excluded kind; a work that also carries a company of another kind stays, and so does a work with no company. Applies to the page, total, and the month navigation in meta. Absent = doujin_circle: the calendar is commercial by default since spec 2.34.0; send none for doujin works too. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/calendar" \
-  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
+curl "https://api.nextmoe.dev/v2/catalog/calendar"
 ```
 
 ---

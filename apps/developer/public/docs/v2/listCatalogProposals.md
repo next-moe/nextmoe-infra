@@ -13,11 +13,11 @@
 
 Edit proposal history
 
-Filed proposals, newest first. proposer_uid=+state=merged with include_total=true is the per-contributor tally. This face publishes no patch and no decision note. Requires an application key or a user access token with catalog:read.
+Filed proposals, newest first. proposer_uid=+state=merged with include_total=true is the per-contributor tally. This face publishes no patch and no decision note. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
 
 - 所属 API：Public API v2（/v2）
-- 鉴权：Authorization: Bearer nmk_live_…
-- scope：catalog:read
+- 鉴权：可匿名调用
+- scope：catalog:read（仅在带凭据时）
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
@@ -36,8 +36,7 @@ Filed proposals, newest first. proposer_uid=+state=merged with include_total=tru
 | `state` | query | 否 | string | Closed: open, merged, declined, withdrawn. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/proposals" \
-  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
+curl "https://api.nextmoe.dev/v2/catalog/proposals"
 ```
 
 ---

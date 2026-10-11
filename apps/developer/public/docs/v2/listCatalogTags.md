@@ -13,11 +13,11 @@
 
 List tags
 
-Keyset-paginated canonical tags. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate.
+Keyset-paginated canonical tags. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate.
 
 - 所属 API：Public API v2（/v2）
-- 鉴权：Authorization: Bearer nmk_live_…
-- scope：catalog:read
+- 鉴权：可匿名调用
+- scope：catalog:read（仅在带凭据时）
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
@@ -35,8 +35,7 @@ Keyset-paginated canonical tags. Requires an application key or a user access to
 | `has_works` | query | 否 | string | true keeps only tags whose work_count is > 0 under the same nsfw gate. Only true or false. Absent = every tag. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/tags" \
-  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
+curl "https://api.nextmoe.dev/v2/catalog/tags"
 ```
 
 ---

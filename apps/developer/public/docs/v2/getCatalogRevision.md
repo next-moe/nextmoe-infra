@@ -13,11 +13,11 @@
 
 One revision
 
-include=diff adds the field-level change set against diff_base, or against the preceding revision when diff_base is absent. This id is what POST /v2/moderation/reverts takes. Requires an application key or a user access token with catalog:read.
+include=diff adds the field-level change set against diff_base, or against the preceding revision when diff_base is absent. This id is what POST /v2/moderation/reverts takes. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
 
 - 所属 API：Public API v2（/v2）
-- 鉴权：Authorization: Bearer nmk_live_…
-- scope：catalog:read
+- 鉴权：可匿名调用
+- scope：catalog:read（仅在带凭据时）
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
@@ -28,8 +28,7 @@ include=diff adds the field-level change set against diff_base, or against the p
 | `diff_base` | query | 否 | string | Revision id to diff against. Requires include=diff. Absent means the preceding revision of the same entity. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/revisions/value" \
-  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
+curl "https://api.nextmoe.dev/v2/catalog/revisions/value"
 ```
 
 ---

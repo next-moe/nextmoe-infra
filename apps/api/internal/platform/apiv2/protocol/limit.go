@@ -19,6 +19,7 @@ type LimitIdentity struct {
 	Rate      int
 	Quota     int
 	Unlimited bool
+	Anonymous bool
 }
 
 type IdentityFunc func(c fiber.Ctx) (LimitIdentity, bool)
@@ -36,8 +37,10 @@ func RateLimit(store Store, ident IdentityFunc) fiber.Handler {
 		}
 		c.Locals(localsPastAuth, true)
 		id := LimitIdentity{
-			Rate:  int(keys.APIV2DefaultRatePerMinute.Get()),
-			Quota: int(keys.APIV2DefaultQuotaPerDay.Get()),
+			Key:       addressBucket(c.IP()),
+			Rate:      int(keys.APIV2AnonRatePerMinute.Get()),
+			Quota:     int(keys.APIV2AnonQuotaPerDay.Get()),
+			Anonymous: true,
 		}
 		if ident != nil {
 			if ki, ok := ident(c); ok {
@@ -46,12 +49,6 @@ func RateLimit(store Store, ident IdentityFunc) fiber.Handler {
 		}
 		if id.Unlimited {
 			return c.Next()
-		}
-		if id.Key == "" {
-			id.Key = c.IP()
-			if id.Key == "" {
-				id.Key = "unknown"
-			}
 		}
 		if err := lim.before(c, id); err != nil {
 			return writeErr(c, err)
@@ -111,11 +108,11 @@ func (l *limiter) before(c fiber.Ctx, id LimitIdentity) error {
 
 	if int(n) > id.Rate {
 		c.Set("Retry-After", strconv.Itoa(rateReset))
-		return tooMany(c, problem.CodeRateLimited, rateReset)
+		return tooMany(c, problem.CodeRateLimited, id.Anonymous)
 	}
 	if int(qn) > id.Quota {
 		c.Set("Retry-After", strconv.Itoa(quotaReset))
-		return tooMany(c, problem.CodeQuotaExceeded, quotaReset)
+		return tooMany(c, problem.CodeQuotaExceeded, id.Anonymous)
 	}
 	return nil
 }
@@ -133,13 +130,18 @@ func untilTomorrow(now time.Time) time.Duration {
 	return tomorrow.Sub(now)
 }
 
-func tooMany(c fiber.Ctx, code string, retryAfter int) error {
+const anonymousLimitHint = " Requests without a credential share one budget per IPv4 address or IPv6 /64; " +
+	"an application key from https://developer.nextmoe.dev (self-service, no approval) has its own, higher limit."
+
+func tooMany(c fiber.Ctx, code string, anonymous bool) error {
 	p := problem.New(code, problem.RequestID(c), problem.Instance(c), "Rate or quota exceeded.")
 	if code == problem.CodeQuotaExceeded {
 		p.Detail = "Daily quota exceeded."
 	} else {
 		p.Detail = "Short-window rate limit exceeded."
 	}
-	_ = retryAfter
+	if anonymous {
+		p.Detail += anonymousLimitHint
+	}
 	return p
 }

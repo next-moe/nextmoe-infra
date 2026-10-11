@@ -107,7 +107,9 @@ const statusMeta = (status: string): { label: string; class: string } => {
         <span class="flex items-center gap-1.5">
           <KunIcon
             :name="
-              auth.kind === 'none' ? 'lucide:lock-open' : 'lucide:key-round'
+              auth.kind === 'none' || auth.kind === 'optional'
+                ? 'lucide:lock-open'
+                : 'lucide:key-round'
             "
             class="size-3.5"
           />

@@ -14,10 +14,19 @@ description: NextMoe API v2 的两种凭据：应用密钥 nmk_ 与用户 OAuth 
 | ------------ | -------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------- |
 | 应用密钥     | `Authorization: Bearer nmk_live_…`     | 你的应用           | `/v2/catalog`、`/v2/store`、`/v2/moyu/*`、`/v2/sticker/*`                                           |
 | 用户访问令牌 | `Authorization: Bearer <access_token>` | 授权给你的那个用户 | `/v2/me`、`/v2/moderation`；带 `catalog:read` 时也可用于 `/v2/catalog`                             |
-| 匿名         | 不带                                   | 任何人             | `/v2/news`、`/v2/vocabularies`、`/v2/problems`、`/v2/catalog/stats`、`/v2/catalog/schemas/{object}` |
+| 匿名         | 不带                                   | 任何人             | `/v2/catalog` 只读面（`claim-events` 除外，按 IP 限流）；`/v2/news`、`/v2/vocabularies`、`/v2/problems`、`/v2/catalog/stats`、`/v2/catalog/schemas/{object}` |
 
 > [!NOTE]
 > 一条请求只带一个凭据。`/v2/catalog` 收两种凭据，意思是**二选一**，不是两个都带。服务端按 `Authorization` 里那一个值的前缀分道：`nmk_` 是应用密钥，其余按用户令牌解析；一种失败了不会再当另一种试一次。
+
+## 不带凭据 {#anonymous}
+
+`/v2/catalog` 只读面（`/v2/catalog/claim-events` 除外）不带 `Authorization` 也能调。返回的数据和带密钥时**逐字节相同**，`nsfw=true` 照样可用；差别只在额度：匿名请求按来源 **IPv4 地址或 IPv6 /64** 共用一份很小的额度（默认每分钟 30 次、每天 1,000 次，见 [限流与配额](/docs/rate-limits)）。
+
+它是给个人脚本、浏览器扩展和纯前端小项目准备的——这些场景要么没有服务端可放密钥，要么量小到不值得注册。CORS 对所有来源开放，浏览器里直接 `fetch` 就行，**不要为此把密钥写进前端**。
+
+> [!WARNING]
+> 只有**完全不带** `Authorization` 头才算匿名。带了却无效、过期或已吊销的凭据在 `/v2/catalog` 上仍然是 `401 INVALID_CREDENTIAL`，不会悄悄降级成匿名——否则密钥一失效，你的服务就会在毫无报错的情况下掉进那份很小的匿名额度。同理，只带 `X-API-Key` 头也不算匿名：`/v2` 不读这个头，仍回 `401 MISSING_CREDENTIAL`。
 
 ## 应用密钥 {#api-key}
 
@@ -61,7 +70,7 @@ OAuth 端点的线格式是裸 RFC 6749（`{access_token, token_type, expires_in
 
 | 状态 | `code`                   | 含义                               | 怎么办                        |
 | ---- | ------------------------ | ---------------------------------- | ----------------------------- |
-| 401  | `MISSING_CREDENTIAL`     | 没有 `Authorization` 头            | 带上密钥                      |
+| 401  | `MISSING_CREDENTIAL`     | 没有 `Authorization` 头，而这个面不收匿名（`/v2/me`、`/v2/moderation`、`/v2/folders`、`/v2/store`、`claim-events`） | 带上对应的凭据 |
 | 401  | `INVALID_CREDENTIAL`     | 凭据存在，但无效、过期或已被吊销   | 换一把密钥；用户令牌则去刷新  |
 | 403  | `SCOPE_REQUIRED`         | 凭据有效，但缺这个操作要的 scope   | 在控制台补勾 scope 并重铸密钥；用户令牌则带上该 scope 重新授权 |
 | 403  | `USER_IDENTITY_REQUIRED` | 这个面要用户身份，你带的是应用密钥 | 改用用户访问令牌              |
@@ -70,4 +79,4 @@ OAuth 端点的线格式是裸 RFC 6749（`{access_token, token_type, expires_in
 
 ## 限流身份跟着凭据走 {#identity-and-limits}
 
-密钥按**密钥所属应用**计数，用户令牌按**用户**计数，匿名按 IP 计数。也就是说，把整个用户群从一个服务端出口代理出去时，请用用户令牌调用用户面——否则所有人会挤进同一个匿名 IP 桶。详见 [限流与配额](/docs/rate-limits)。
+密钥按**密钥所属应用**计数，用户令牌按**用户**计数，匿名按 IPv4 地址或 IPv6 /64 计数。也就是说，从自己的服务端调用时请始终带上密钥（读目录）或用户令牌（用户面）——不带凭据的服务端会让它背后的所有用户挤进同一个匿名 IP 桶。详见 [限流与配额](/docs/rate-limits)。

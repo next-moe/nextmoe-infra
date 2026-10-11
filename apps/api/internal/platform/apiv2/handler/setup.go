@@ -57,11 +57,11 @@ func SetupWith(app *fiber.App, opt Options) huma.API {
 	app.Use(protocol.RateLimit(opt.Store, credentialLimitIdentity))
 	app.Use(protocol.Idempotency(opt.Store, credentialLimitIdentity))
 
-	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.38.1")
+	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.39.0")
 	cfg.OpenAPIPath = ""
 	cfg.DocsPath = ""
 	cfg.SchemasPath = ""
-	cfg.Info.Description = "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The shape evolves additively; a breaking change to this document fails CI."
+	cfg.Info.Description = "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
 	cfg.Info.Extensions = map[string]any{"x-stability": "stable"}
 
 	api := humafiber.New(app, cfg)
@@ -187,10 +187,13 @@ func annotateSpec(doc *huma.OpenAPI) {
 		for _, op := range pathOps(item) {
 			rewriteErrorResponses(path, op, problemRef)
 			noteEditingPlaneScope(path, op)
-			if schemes, _ := v2Security(path); len(schemes) > 0 {
-				req := make([]map[string][]string, 0, len(schemes))
+			if schemes, _, anonymous := v2Security(path); len(schemes) > 0 {
+				req := make([]map[string][]string, 0, len(schemes)+1)
 				for _, scheme := range schemes {
 					req = append(req, map[string][]string{scheme: {}})
+				}
+				if anonymous {
+					req = append(req, map[string][]string{})
 				}
 				op.Security = req
 			}

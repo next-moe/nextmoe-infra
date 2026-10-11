@@ -45,7 +45,7 @@ curl -i "https://api.nextmoe.dev/v2/catalog/works/207379" \
 
 `public` 的前提是「同一个 URL，任何人拿到的字节相同」。注册表面满足这一点：错误码、词表、对象 schema、OpenAPI 文档不随谁在问而变化。
 
-`/v2/catalog/*` 不满足。它是密钥门内的面，body 会随认领站点的围栏、nsfw 能力位、`claim_state` 可见范围而变——一个中间层如果自作主张把它当公共内容缓存下来，就会把 A 的视图发给 B。所以这里是**默认拒绝**：只有明确证明了「body 与凭据无关」的面才进 public 名单，其余一律 `private, no-store`。
+`/v2/catalog/*` 不满足。匿名也能调它，但带凭据时 body 会随认领站点的围栏、`claim_state` 可见范围而变——一个中间层如果自作主张把它当公共内容缓存下来，就会把 A 的视图发给 B。所以这里是**默认拒绝**：只有明确证明了「body 与凭据无关」的面才进 public 名单，其余一律 `private, no-store`。
 
 > [!WARNING]
 > `Vary: Authorization` 救不了这件事——这是实测过的：曾经有边缘节点在缓存里放了一份 `max-age=14400` 的 `/v2/catalog` 响应，而这个源站从来没有设过这个值。所以现在每一条 2xx 都显式声明自己的缓存意图，不给中间层留下「自己发明一个」的空间。

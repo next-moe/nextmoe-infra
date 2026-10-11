@@ -13,11 +13,11 @@
 
 Get one credit name
 
-A credited name, not a person — this is the staff and voice-actor read surface. person_id is null when unlinked; gender and the fuzzy birth parts are person-level facts reached through that link. include=aliases,photo,siblings,intros,links,refs adds the corresponding blocks. Works this name is credited on live at /v2/catalog/credit-names/{id}/credits. Requires an application key or a user access token with catalog:read.
+A credited name, not a person — this is the staff and voice-actor read surface. person_id is null when unlinked; gender and the fuzzy birth parts are person-level facts reached through that link. include=aliases,photo,siblings,intros,links,refs adds the corresponding blocks. Works this name is credited on live at /v2/catalog/credit-names/{id}/credits. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
 
 - 所属 API：Public API v2（/v2）
-- 鉴权：Authorization: Bearer nmk_live_…
-- scope：catalog:read
+- 鉴权：可匿名调用
+- scope：catalog:read（仅在带凭据时）
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
@@ -28,8 +28,7 @@ A credited name, not a person — this is the staff and voice-actor read surface
 | `fields` | query | 否 | string | Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/credit-names/value" \
-  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
+curl "https://api.nextmoe.dev/v2/catalog/credit-names/value"
 ```
 
 ---

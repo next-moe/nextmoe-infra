@@ -13,11 +13,11 @@
 
 Entity revision history
 
-Every merged edit, newest first by default. sort=recorded_asc walks the same collection oldest-first by id, which is the shape a mirror or a contributor tally reads with a watermark. object=+entity_id= narrows to one entity's history. Requires an application key or a user access token with catalog:read.
+Every merged edit, newest first by default. sort=recorded_asc walks the same collection oldest-first by id, which is the shape a mirror or a contributor tally reads with a watermark. object=+entity_id= narrows to one entity's history. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
 
 - 所属 API：Public API v2（/v2）
-- 鉴权：Authorization: Bearer nmk_live_…
-- scope：catalog:read
+- 鉴权：可匿名调用
+- scope：catalog:read（仅在带凭据时）
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
@@ -35,8 +35,7 @@ Every merged edit, newest first by default. sort=recorded_asc walks the same col
 | `actor_uid` | query | 否 | string | The claiming site's own user id of the actor. Not a catalog id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/revisions" \
-  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
+curl "https://api.nextmoe.dev/v2/catalog/revisions"
 ```
 
 ---

@@ -13,7 +13,7 @@
 
 Catalog changes feed
 
-Works updated recently, oldest first. Keyset-paginated. Requires an application key or a user access token with catalog:read. ids= is not accepted.
+Works updated recently, oldest first. Keyset-paginated. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is not accepted.
 
 **This is the mirror channel.** If you cache any catalog-owned fact per work — above all the display axis `content_limit`, which every work carries (read it from the work; do not re-derive it from `content_rating`, which misses works whose every cover is graded explicit) — poll this feed instead of sweeping the catalog. Every write that changes a work's claim state, its display axis (the editorial NSFW flag, its content rating, or whether every cover it has is graded explicit), its original language `olang`, or its existence bumps `updated_at` and surfaces the id here.
 
@@ -24,8 +24,8 @@ gone: an entry carrying `gone: true` has left the public population — drop the
 Everything else a work serves — covers, tags, titles, intros, ratings — surfaces best-effort: most of those writers touch the work too, but only claim state, the display axis, `olang` and existence are promised.
 
 - 所属 API：Public API v2（/v2）
-- 鉴权：Authorization: Bearer nmk_live_…
-- scope：catalog:read
+- 鉴权：可匿名调用
+- scope：catalog:read（仅在带凭据时）
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
@@ -42,8 +42,7 @@ Everything else a work serves — covers, tags, titles, intros, ratings — surf
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/changes" \
-  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
+curl "https://api.nextmoe.dev/v2/catalog/changes"
 ```
 
 ---

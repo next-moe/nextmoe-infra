@@ -61,6 +61,8 @@ var goldenNames = []string{
 	"store.price_fresh_for_hours",
 	"apiv2.default_rate_per_minute",
 	"apiv2.default_quota_per_day",
+	"apiv2.anon_rate_per_minute",
+	"apiv2.anon_quota_per_day",
 	"apiv2.auth_fail_per_minute",
 	"apiv2.auth_fail_block_seconds",
 	"catalog.totals_cache_ttl_seconds",

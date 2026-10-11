@@ -8827,15 +8827,15 @@ components:
       scheme: bearer
       type: http
 info:
-  description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The shape evolves additively; a breaking change to this document fails CI."
+  description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.38.1
+  version: 2.39.0
   x-stability: stable
 openapi: 3.1.0
 paths:
   /v2/catalog/calendar:
     get:
-      description: One collection. month=/year= pick a window; precision= and status= select among the dated month, year-only, and undated views that were three v1 routes. content_limit= gates on the editorial display axis, olang= on the original language (absent = ja), and exclude_company_kind= drops works whose every company is of an excluded kind (absent = doujin_circle, so by default the calendar lists Japanese commercial works; olang=all and exclude_company_kind=none widen it). meta carries today plus, on the dated month window, min_month/max_month/has_prev/has_next for month navigation. Requires an application key or a user access token with catalog:read. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.
+      description: One collection. month=/year= pick a window; precision= and status= select among the dated month, year-only, and undated views that were three v1 routes. content_limit= gates on the editorial display axis, olang= on the original language (absent = ja), and exclude_company_kind= drops works whose every company is of an excluded kind (absent = doujin_circle, so by default the calendar lists Japanese commercial works; olang=all and exclude_company_kind=none widen it). meta carries today plus, on the dated month window, min_month/max_month/has_prev/has_next for month navigation. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.
       operationId: listCatalogCalendar
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -9036,13 +9036,14 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: Release calendar
       tags:
         - catalog
   /v2/catalog/changes:
     get:
       description: |-
-        Works updated recently, oldest first. Keyset-paginated. Requires an application key or a user access token with catalog:read. ids= is not accepted.
+        Works updated recently, oldest first. Keyset-paginated. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is not accepted.
 
         **This is the mirror channel.** If you cache any catalog-owned fact per work — above all the display axis `content_limit`, which every work carries (read it from the work; do not re-derive it from `content_rating`, which misses works whose every cover is graded explicit) — poll this feed instead of sweeping the catalog. Every write that changes a work's claim state, its display axis (the editorial NSFW flag, its content rating, or whether every cover it has is graded explicit), its original language `olang`, or its existence bumps `updated_at` and surfaces the id here.
 
@@ -9195,12 +9196,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: Catalog changes feed
       tags:
         - catalog
   /v2/catalog/characters:
     get:
-      description: "Characters from one of two lanes. The index lane is used when q= is non-empty, page= is present, or sort is popularity, relevance or newest; otherwise the registry lane (sort=id, live SQL). The index lane reflects the nightly search index; the registry lane is live. q= with no sort defaults to relevance. sort=relevance requires q=. Popularity is log1p of the character's live roster, with main appearances at full work popularity and every other kind at half; under nsfw not true only works without an r18 rating count. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate; it cannot be combined with q= or a search sort. include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs,work_count fills on every lane, and view=full is all of them; traits are cut at the default spoiler ceiling and follow the nsfw gate, exactly as on the detail face. trait_id= filters by trait (descendants included, max 10), combined by trait_match=all|any; a character matches under the same spoiler and nsfw gates as its traits block. When trait_id= is given, each item carries matched_trait_ids: this character's own traits that satisfied the filter. gender= filters by the closed vocabulary male,female,other. include=work_count is the number of distinct works the character appears in under the same nsfw gate as /v2/catalog/characters/{id}/appearances. page= selects page mode on the index lane."
+      description: "Characters from one of two lanes. The index lane is used when q= is non-empty, page= is present, or sort is popularity, relevance or newest; otherwise the registry lane (sort=id, live SQL). The index lane reflects the nightly search index; the registry lane is live. q= with no sort defaults to relevance. sort=relevance requires q=. Popularity is log1p of the character's live roster, with main appearances at full work popularity and every other kind at half; under nsfw not true only works without an r18 rating count. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate; it cannot be combined with q= or a search sort. include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs,work_count fills on every lane, and view=full is all of them; traits are cut at the default spoiler ceiling and follow the nsfw gate, exactly as on the detail face. trait_id= filters by trait (descendants included, max 10), combined by trait_match=all|any; a character matches under the same spoiler and nsfw gates as its traits block. When trait_id= is given, each item carries matched_trait_ids: this character's own traits that satisfied the filter. gender= filters by the closed vocabulary male,female,other. include=work_count is the number of distinct works the character appears in under the same nsfw gate as /v2/catalog/characters/{id}/appearances. page= selects page mode on the index lane."
       operationId: listCatalogCharacters
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -9385,12 +9387,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: List characters
       tags:
         - catalog
   /v2/catalog/characters/{id}:
     get:
-      description: Character detail. view=full adds gender, birthday, measurements, blood_type, instance_of_id. include=image,figure,traits,aliases,intros,refs adds art, trait, name, description and anchor blocks. spoiler=none|minor|major is the ceiling of the traits block and defaults to none. Merged ids are 404 ENTITY_MERGED. Requires an application key or a user access token with catalog:read.
+      description: Character detail. view=full adds gender, birthday, measurements, blood_type, instance_of_id. include=image,figure,traits,aliases,intros,refs adds art, trait, name, description and anchor blocks. spoiler=none|minor|major is the ceiling of the traits block and defaults to none. Merged ids are 404 ENTITY_MERGED. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogCharacter
       parameters:
         - description: Decimal catalog id.
@@ -9503,12 +9506,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: Get one character
       tags:
         - catalog
   /v2/catalog/characters/{id}/appearances:
     get:
-      description: Works this character appears in, with roster_role, spoiler, and voice credits. Offset cursor. Requires an application key or a user access token with catalog:read.
+      description: Works this character appears in, with roster_role, spoiler, and voice credits. Offset cursor. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogCharacterAppearances
       parameters:
         - description: Decimal catalog work id.
@@ -9605,6 +9609,7 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: Appearances of one character
       tags:
         - catalog
@@ -9751,7 +9756,7 @@ paths:
         - catalog
   /v2/catalog/companies:
     get:
-      description: Keyset-paginated company registry (v1 labels). Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only companies with works visible under the same nsfw gate. include=aliases,logo fills on every lane; include=intros,links fills on the batch lane only (and on the detail face).
+      description: Keyset-paginated company registry (v1 labels). Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only companies with works visible under the same nsfw gate. include=aliases,logo fills on every lane; include=intros,links fills on the batch lane only (and on the detail face).
       operationId: listCatalogCompanies
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -9904,12 +9909,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: List companies
       tags:
         - catalog
   /v2/catalog/companies/{id}:
     get:
-      description: Company registry row (v1 labels). include=aliases,logo,intros,links adds the corresponding blocks. Merged ids are 404 ENTITY_MERGED. Requires an application key or a user access token with catalog:read.
+      description: Company registry row (v1 labels). include=aliases,logo,intros,links adds the corresponding blocks. Merged ids are 404 ENTITY_MERGED. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogCompany
       parameters:
         - description: Decimal catalog id.
@@ -10014,12 +10020,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: Get one company
       tags:
         - catalog
   /v2/catalog/companies/{id}/graph:
     get:
-      description: Corporate-family nodes and directed edges around one company. Inverse relations are not emitted. include= is validated against the company token set, so aliases, intros and links are accepted and answered without; only include=logo changes a node, adding the brand mark to the nodes that have one. Merged ids are 404 ENTITY_MERGED. Requires an application key or a user access token with catalog:read.
+      description: Corporate-family nodes and directed edges around one company. Inverse relations are not emitted. include= is validated against the company token set, so aliases, intros and links are accepted and answered without; only include=logo changes a node, adding the brand mark to the nodes that have one. Merged ids are 404 ENTITY_MERGED. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogCompanyGraph
       parameters:
         - description: Decimal catalog id.
@@ -10124,12 +10131,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: Company family graph
       tags:
         - catalog
   /v2/catalog/credit-names:
     get:
-      description: Keyset-paginated credited names. q= filters by name. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate.
+      description: Keyset-paginated credited names. q= filters by name. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.
       operationId: listCatalogCreditNames
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -10282,12 +10290,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: List credit names
       tags:
         - catalog
   /v2/catalog/credit-names/{id}:
     get:
-      description: A credited name, not a person — this is the staff and voice-actor read surface. person_id is null when unlinked; gender and the fuzzy birth parts are person-level facts reached through that link. include=aliases,photo,siblings,intros,links,refs adds the corresponding blocks. Works this name is credited on live at /v2/catalog/credit-names/{id}/credits. Requires an application key or a user access token with catalog:read.
+      description: A credited name, not a person — this is the staff and voice-actor read surface. person_id is null when unlinked; gender and the fuzzy birth parts are person-level facts reached through that link. include=aliases,photo,siblings,intros,links,refs adds the corresponding blocks. Works this name is credited on live at /v2/catalog/credit-names/{id}/credits. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogCreditName
       parameters:
         - description: Decimal catalog id.
@@ -10392,12 +10401,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: Get one credit name
       tags:
         - catalog
   /v2/catalog/credit-names/{id}/credits:
     get:
-      description: Works this name is credited on. Offset cursor. Requires an application key or a user access token with catalog:read.
+      description: Works this name is credited on. Offset cursor. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogCreditNameCredits
       parameters:
         - description: Decimal catalog work id.
@@ -10494,12 +10504,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: Credits of one credit name
       tags:
         - catalog
   /v2/catalog/engines:
     get:
-      description: Keyset-paginated engines. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate.
+      description: Keyset-paginated engines. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.
       operationId: listCatalogEngines
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -10644,12 +10655,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: List engines
       tags:
         - catalog
   /v2/catalog/engines/{id}:
     get:
-      description: Engine detail. Requires an application key or a user access token with catalog:read.
+      description: Engine detail. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogEngine
       parameters:
         - description: Decimal catalog id.
@@ -10754,12 +10766,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: Get one engine
       tags:
         - catalog
   /v2/catalog/persons:
     get:
-      description: Keyset-paginated persons. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate.
+      description: Keyset-paginated persons. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.
       operationId: listCatalogPersons
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -10904,12 +10917,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: List persons
       tags:
         - catalog
   /v2/catalog/persons/{id}:
     get:
-      description: A person identity that groups credit names. Merged ids are 404 ENTITY_MERGED. Requires an application key or a user access token with catalog:read.
+      description: A person identity that groups credit names. Merged ids are 404 ENTITY_MERGED. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogPerson
       parameters:
         - description: Decimal catalog id.
@@ -11014,12 +11028,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: Get one person
       tags:
         - catalog
   /v2/catalog/persons/{id}/credit-names:
     get:
-      description: Every credited name linked to this person. Requires an application key or a user access token with catalog:read.
+      description: Every credited name linked to this person. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogPersonCreditNames
       parameters:
         - description: Decimal catalog id.
@@ -11124,12 +11139,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: Credit names of one person
       tags:
         - catalog
   /v2/catalog/proposals:
     get:
-      description: Filed proposals, newest first. proposer_uid=+state=merged with include_total=true is the per-contributor tally. This face publishes no patch and no decision note. Requires an application key or a user access token with catalog:read.
+      description: Filed proposals, newest first. proposer_uid=+state=merged with include_total=true is the per-contributor tally. This face publishes no patch and no decision note. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: listCatalogProposals
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -11290,12 +11306,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: Edit proposal history
       tags:
         - catalog
   /v2/catalog/proposals/{id}:
     get:
-      description: "Public transparency view: proposer, state, target entity and timestamps. include=amendments adds the amendment chain. Requires an application key or a user access token with catalog:read."
+      description: "Public transparency view: proposer, state, target entity and timestamps. include=amendments adds the amendment chain. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit."
       operationId: getCatalogProposal
       parameters:
         - description: Proposal id.
@@ -11392,12 +11409,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: One proposal
       tags:
         - catalog
   /v2/catalog/redirects:
     get:
-      description: Redirects from merged-away ids, oldest first. Keyset-paginated. object= restricts to one family. Requires an application key or a user access token with catalog:read. ids= is not accepted.
+      description: Redirects from merged-away ids, oldest first. Keyset-paginated. object= restricts to one family. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is not accepted.
       operationId: listCatalogRedirects
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -11550,12 +11568,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: Entity merge feed
       tags:
         - catalog
   /v2/catalog/releases:
     get:
-      description: Keyset-paginated dated releases, sorted by date_desc by default. Requires an application key or a user access token with catalog:read. ids= is a batch lane and does not paginate.
+      description: Keyset-paginated dated releases, sorted by date_desc by default. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate.
       operationId: listCatalogReleases
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -11700,12 +11719,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: List releases
       tags:
         - catalog
   /v2/catalog/releases/{id}:
     get:
-      description: A catalog release. Merged ids are 404 ENTITY_MERGED. r18 parent works are 404 without nsfw=true. Requires an application key or a user access token with catalog:read.
+      description: A catalog release. Merged ids are 404 ENTITY_MERGED. r18 parent works are 404 without nsfw=true. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogRelease
       parameters:
         - description: Decimal catalog id.
@@ -11810,12 +11830,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: Get one release
       tags:
         - catalog
   /v2/catalog/revisions:
     get:
-      description: Every merged edit, newest first by default. sort=recorded_asc walks the same collection oldest-first by id, which is the shape a mirror or a contributor tally reads with a watermark. object=+entity_id= narrows to one entity's history. Requires an application key or a user access token with catalog:read.
+      description: Every merged edit, newest first by default. sort=recorded_asc walks the same collection oldest-first by id, which is the shape a mirror or a contributor tally reads with a watermark. object=+entity_id= narrows to one entity's history. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: listCatalogRevisions
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -11968,12 +11989,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: Entity revision history
       tags:
         - catalog
   /v2/catalog/revisions/{id}:
     get:
-      description: include=diff adds the field-level change set against diff_base, or against the preceding revision when diff_base is absent. This id is what POST /v2/moderation/reverts takes. Requires an application key or a user access token with catalog:read.
+      description: include=diff adds the field-level change set against diff_base, or against the preceding revision when diff_base is absent. This id is what POST /v2/moderation/reverts takes. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogRevision
       parameters:
         - description: Revision id.
@@ -12078,12 +12100,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: One revision
       tags:
         - catalog
   /v2/catalog/roles:
     get:
-      description: "Keyset-paginated credit-role registry. The full registry is ~231 rows, so a client building a picker can fetch it whole in three pages. key joins the role_key on credit groups; ids= is a batch lane and does not paginate. refs= is not resolved: role has no catalog_external_ref entity_type. Requires an application key or a user access token with catalog:read."
+      description: "Keyset-paginated credit-role registry. The full registry is ~231 rows, so a client building a picker can fetch it whole in three pages. key joins the role_key on credit groups; ids= is a batch lane and does not paginate. refs= is not resolved: role has no catalog_external_ref entity_type. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit."
       operationId: listCatalogRoles
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -12228,12 +12251,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: List roles
       tags:
         - catalog
   /v2/catalog/roles/{id}:
     get:
-      description: A credit-role registry row. Unknown id is 404 NOT_FOUND. Requires an application key or a user access token with catalog:read.
+      description: A credit-role registry row. Unknown id is 404 NOT_FOUND. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogRole
       parameters:
         - description: Decimal catalog id.
@@ -12338,6 +12362,7 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: Get one role
       tags:
         - catalog
@@ -12413,7 +12438,7 @@ paths:
         - catalog
   /v2/catalog/search:
     get:
-      description: Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Requires an application key or a user access token with catalog:read. cursor= pages the hits. ids= is not accepted. page= selects page mode (see the page parameter). object=trait hits carry trait_path (group and direct parents). Without nsfw=true, sexual-family trait documents are excluded from the result and from total.
+      description: Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. cursor= pages the hits. ids= is not accepted. page= selects page mode (see the page parameter). object=trait hits carry trait_path (group and direct parents). Without nsfw=true, sexual-family trait documents are excluded from the result and from total.
       operationId: searchCatalog
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -12590,12 +12615,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: Search catalog entities
       tags:
         - catalog
   /v2/catalog/series:
     get:
-      description: "Keyset-paginated series. Requires an application key or a user access token with catalog:read. ids= is a batch lane and does not paginate. refs= is not resolved: series has no catalog_external_ref entity_type."
+      description: "Keyset-paginated series. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate. refs= is not resolved: series has no catalog_external_ref entity_type."
       operationId: listCatalogSeries
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -12740,12 +12766,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: List series
       tags:
         - catalog
   /v2/catalog/series/{id}:
     get:
-      description: Series detail. has_nsfw reports whether any member work sits behind the r18 display gate. include=intros,refs adds the corresponding blocks. Requires an application key or a user access token with catalog:read.
+      description: Series detail. has_nsfw reports whether any member work sits behind the r18 display gate. include=intros,refs adds the corresponding blocks. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogSeries
       parameters:
         - description: Decimal catalog id.
@@ -12850,6 +12877,7 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: Get one series
       tags:
         - catalog
@@ -12895,7 +12923,7 @@ paths:
         - catalog
   /v2/catalog/tags:
     get:
-      description: Keyset-paginated canonical tags. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate.
+      description: Keyset-paginated canonical tags. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate.
       operationId: listCatalogTags
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -13048,12 +13076,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: List tags
       tags:
         - catalog
   /v2/catalog/tags/{id}:
     get:
-      description: Canonical tag. include=intros adds the per-language tag descriptions. Requires an application key or a user access token with catalog:read.
+      description: Canonical tag. include=intros adds the per-language tag descriptions. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogTag
       parameters:
         - description: Decimal catalog id.
@@ -13158,12 +13187,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: Get one tag
       tags:
         - catalog
   /v2/catalog/traits:
     get:
-      description: "Keyset-paginated character traits. Requires an application key or a user access token with catalog:read. ids= is a batch lane. refs= is not resolved: traits have no catalog_external_ref entity_type. parent_id= lists direct children; group_id= lists traits in that root group (the root excluded); root=true|false keeps only roots or only non-roots. Filters are conjunctive. Without nsfw=true, sexual-family traits are excluded from the list and land in missing[] on the ids= batch; naming one as parent_id or group_id is 400. include=aliases,description,intros (and view=full) add those blocks. include=character_count is the nightly index total that GET /v2/catalog/characters?trait_id=<this id>&page=1 answers under this request's nsfw; the engine failing is 503. It is an explicit ask: view=full does not add it. is_sexual reports the sexual-family flag."
+      description: "Keyset-paginated character traits. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane. refs= is not resolved: traits have no catalog_external_ref entity_type. parent_id= lists direct children; group_id= lists traits in that root group (the root excluded); root=true|false keeps only roots or only non-roots. Filters are conjunctive. Without nsfw=true, sexual-family traits are excluded from the list and land in missing[] on the ids= batch; naming one as parent_id or group_id is 400. include=aliases,description,intros (and view=full) add those blocks. include=character_count is the nightly index total that GET /v2/catalog/characters?trait_id=<this id>&page=1 answers under this request's nsfw; the engine failing is 503. It is an explicit ask: view=full does not add it. is_sexual reports the sexual-family flag."
       operationId: listCatalogTraits
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -13332,12 +13362,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: List traits
       tags:
         - catalog
   /v2/catalog/traits/{id}:
     get:
-      description: "A character-trait vocabulary row. Without nsfw=true a sexual-family trait is 404 NOT_FOUND. include=aliases,description,intros (and view=full) add those blocks. include=character_count is the nightly index total that GET /v2/catalog/characters?trait_id=<this id>&page=1 answers under this request's nsfw; the engine failing is 503. It is an explicit ask: view=full does not add it. is_sexual reports the sexual-family flag. Requires an application key or a user access token with catalog:read."
+      description: "A character-trait vocabulary row. Without nsfw=true a sexual-family trait is 404 NOT_FOUND. include=aliases,description,intros (and view=full) add those blocks. include=character_count is the nightly index total that GET /v2/catalog/characters?trait_id=<this id>&page=1 answers under this request's nsfw; the engine failing is 503. It is an explicit ask: view=full does not add it. is_sexual reports the sexual-family flag. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit."
       operationId: getCatalogTrait
       parameters:
         - description: Decimal catalog id.
@@ -13442,12 +13473,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: Get one trait
       tags:
         - catalog
   /v2/catalog/works:
     get:
-      description: Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. Requires an application key or a user access token with catalog:read. view/include/fields/ids/refs/facets follow the v2 collection contract. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on every lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE. page= selects page mode (see the page parameter).
+      description: Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. view/include/fields/ids/refs/facets follow the v2 collection contract. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on every lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE. page= selects page mode (see the page parameter).
       operationId: listCatalogWorks
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -13728,12 +13760,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: List catalog works
       tags:
         - catalog
   /v2/catalog/works/{id}:
     get:
-      description: Work detail. spoiler=none|minor|major is the ceiling of the tags block and defaults to none. Merged ids are 404 ENTITY_MERGED with Link rel=canonical. r18 is 404 without nsfw=true. Requires an application key or a user access token with catalog:read.
+      description: Work detail. spoiler=none|minor|major is the ceiling of the tags block and defaults to none. Merged ids are 404 ENTITY_MERGED with Link rel=canonical. r18 is 404 without nsfw=true. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogWork
       parameters:
         - description: Decimal catalog id.
@@ -13846,12 +13879,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: Get one catalog work
       tags:
         - catalog
   /v2/catalog/works/{id}/characters:
     get:
-      description: Roster characters. Same items as include=characters. Requires an application key or a user access token with catalog:read.
+      description: Roster characters. Same items as include=characters. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogWorkCharacters
       parameters:
         - description: Decimal catalog work id.
@@ -13948,12 +13982,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: List characters of one work
       tags:
         - catalog
   /v2/catalog/works/{id}/covers:
     get:
-      description: Work cover rows. Same items as include=covers. Requires an application key or a user access token with catalog:read.
+      description: Work cover rows. Same items as include=covers. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogWorkCovers
       parameters:
         - description: Decimal catalog work id.
@@ -14050,12 +14085,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: List covers of one work
       tags:
         - catalog
   /v2/catalog/works/{id}/credits:
     get:
-      description: Credits grouped by role. Same items as include=credits. Requires an application key or a user access token with catalog:read.
+      description: Credits grouped by role. Same items as include=credits. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogWorkCredits
       parameters:
         - description: Decimal catalog work id.
@@ -14152,12 +14188,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: List credits of one work
       tags:
         - catalog
   /v2/catalog/works/{id}/engines:
     get:
-      description: Engines. Same items as include=engines. Requires an application key or a user access token with catalog:read.
+      description: Engines. Same items as include=engines. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogWorkEngines
       parameters:
         - description: Decimal catalog work id.
@@ -14254,12 +14291,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: List engines of one work
       tags:
         - catalog
   /v2/catalog/works/{id}/intros:
     get:
-      description: Intros. Same items as include=intros. Requires an application key or a user access token with catalog:read.
+      description: Intros. Same items as include=intros. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogWorkIntros
       parameters:
         - description: Decimal catalog work id.
@@ -14356,12 +14394,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: List intros of one work
       tags:
         - catalog
   /v2/catalog/works/{id}/links:
     get:
-      description: Outbound links. Same items as include=links. Requires an application key or a user access token with catalog:read.
+      description: Outbound links. Same items as include=links. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogWorkLinks
       parameters:
         - description: Decimal catalog work id.
@@ -14458,12 +14497,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: List links of one work
       tags:
         - catalog
   /v2/catalog/works/{id}/ratings:
     get:
-      description: Source ratings. Same items as include=ratings. Requires an application key or a user access token with catalog:read.
+      description: Source ratings. Same items as include=ratings. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogWorkRatings
       parameters:
         - description: Decimal catalog work id.
@@ -14560,12 +14600,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: List ratings of one work
       tags:
         - catalog
   /v2/catalog/works/{id}/relations:
     get:
-      description: Related works. Same items as include=relations. Requires an application key or a user access token with catalog:read.
+      description: Related works. Same items as include=relations. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogWorkRelations
       parameters:
         - description: Decimal catalog work id.
@@ -14662,12 +14703,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: List relations of one work
       tags:
         - catalog
   /v2/catalog/works/{id}/releases:
     get:
-      description: Releases of this work. Same items as include=releases. Requires an application key or a user access token with catalog:read.
+      description: Releases of this work. Same items as include=releases. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogWorkReleases
       parameters:
         - description: Decimal catalog work id.
@@ -14764,12 +14806,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: List releases of one work
       tags:
         - catalog
   /v2/catalog/works/{id}/screenshots:
     get:
-      description: Work screenshots. Same items as include=screenshots. Requires an application key or a user access token with catalog:read.
+      description: Work screenshots. Same items as include=screenshots. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogWorkScreenshots
       parameters:
         - description: Decimal catalog work id.
@@ -14866,12 +14909,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: List screenshots of one work
       tags:
         - catalog
   /v2/catalog/works/{id}/series:
     get:
-      description: Series memberships. Same items as include=series. Requires an application key or a user access token with catalog:read.
+      description: Series memberships. Same items as include=series. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogWorkSeries
       parameters:
         - description: Decimal catalog work id.
@@ -14968,12 +15012,13 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: List series of one work
       tags:
         - catalog
   /v2/catalog/works/{id}/tags:
     get:
-      description: Tags attached to this work. Same items as include=tags. spoiler=none|minor|major is the ceiling of this page and defaults to none, exactly as on the work detail face. Requires an application key or a user access token with catalog:read.
+      description: Tags attached to this work. Same items as include=tags. spoiler=none|minor|major is the ceiling of this page and defaults to none, exactly as on the work detail face. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogWorkTags
       parameters:
         - description: Decimal catalog work id.
@@ -15078,6 +15123,7 @@ paths:
       security:
         - applicationKey: []
         - userToken: []
+        - {}
       summary: List tags of one work
       tags:
         - catalog

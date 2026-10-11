@@ -13,11 +13,11 @@
 
 List intros of one work
 
-Intros. Same items as include=intros. Requires an application key or a user access token with catalog:read.
+Intros. Same items as include=intros. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
 
 - 所属 API：Public API v2（/v2）
-- 鉴权：Authorization: Bearer nmk_live_…
-- scope：catalog:read
+- 鉴权：可匿名调用
+- scope：catalog:read（仅在带凭据时）
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
@@ -27,8 +27,7 @@ Intros. Same items as include=intros. Requires an application key or a user acce
 | `limit` | query | 否 | string | Page size 1-100, default 20. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/works/value/intros" \
-  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
+curl "https://api.nextmoe.dev/v2/catalog/works/value/intros"
 ```
 
 ---

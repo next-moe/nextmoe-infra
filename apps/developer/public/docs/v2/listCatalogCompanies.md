@@ -13,11 +13,11 @@
 
 List companies
 
-Keyset-paginated company registry (v1 labels). Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only companies with works visible under the same nsfw gate. include=aliases,logo fills on every lane; include=intros,links fills on the batch lane only (and on the detail face).
+Keyset-paginated company registry (v1 labels). Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only companies with works visible under the same nsfw gate. include=aliases,logo fills on every lane; include=intros,links fills on the batch lane only (and on the detail face).
 
 - 所属 API：Public API v2（/v2）
-- 鉴权：Authorization: Bearer nmk_live_…
-- scope：catalog:read
+- 鉴权：可匿名调用
+- scope：catalog:read（仅在带凭据时）
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
@@ -35,8 +35,7 @@ Keyset-paginated company registry (v1 labels). Requires an application key or a 
 | `has_works` | query | 否 | string | true keeps only companies whose work_count is > 0 under the same nsfw gate. Only true or false. Absent = every company. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/companies" \
-  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
+curl "https://api.nextmoe.dev/v2/catalog/companies"
 ```
 
 ---

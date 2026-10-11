@@ -41,8 +41,9 @@ func mapUpstream(status int, body []byte) *mcp.CallToolResult {
 		hint = "Forbidden: the API key lacks the scope or tier required for this resource. " +
 			"Review the key's scopes at " + devPortalURL + "."
 	case 429:
-		hint = "Rate limit or daily quota exceeded for this API key. " +
-			"Slow down and retry later; check usage at " + devPortalURL + "."
+		hint = "Rate limit or daily quota exceeded. Slow down and retry later. " +
+			"Calls without an API key share one budget per IP address; a key minted at " + devPortalURL +
+			" has its own, higher limit and shows its usage there."
 	case 404:
 		hint = "Not found: no such record on the NextMoe catalog (it may be unpublished, or r18 while this call omitted nsfw=true)."
 	default:

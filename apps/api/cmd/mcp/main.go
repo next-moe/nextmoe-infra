@@ -110,7 +110,7 @@ func loadV2Spec(ctx context.Context, up *mcpface.Upstream) ([]byte, error) {
 	if p := os.Getenv("KUN_MCP_OPENAPI_PATH"); p != "" {
 		return os.ReadFile(p)
 	}
-	status, body, err := up.Get(ctx, "/v2/catalog/openapi.json", nil, "")
+	status, body, err := up.Get(ctx, "/v2/catalog/openapi.json", nil, "", "")
 	if err != nil {
 		return nil, err
 	}
