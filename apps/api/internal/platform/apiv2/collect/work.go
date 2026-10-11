@@ -304,7 +304,7 @@ func NameCreditSpec() Spec {
 	}
 }
 
-var tagInclude = []string{"intros"}
+var tagInclude = []string{"intros", "children"}
 
 func TagSpec() Spec {
 	return Spec{
@@ -313,6 +313,7 @@ func TagSpec() Spec {
 		FullSet: tagInclude,
 		Fields: []string{
 			"object", "id", "display_name", "tier", "tag_kind", "work_count", "is_sexual", "intros",
+			"parents", "child_count", "descendant_count", "children",
 		},
 	}
 }

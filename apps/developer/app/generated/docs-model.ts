@@ -58655,6 +58655,57 @@ export const docsModel: DocsModel = {
                           "type": "object",
                           "children": [
                             {
+                              "name": "child_count",
+                              "required": true,
+                              "doc": "Direct children.",
+                              "format": "int64",
+                              "type": "integer"
+                            },
+                            {
+                              "name": "children",
+                              "doc": "Direct children, ordered by id. Present when include=children, detail face only. Empty array if none.",
+                              "type": "array",
+                              "itemsOf": {
+                                "type": "object",
+                                "children": [
+                                  {
+                                    "name": "display_name",
+                                    "required": true,
+                                    "doc": "Must not be used as a discriminant.",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "name": "id",
+                                    "required": true,
+                                    "doc": "Catalog tag id.",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "name": "is_sexual",
+                                    "required": true,
+                                    "doc": "Whether this tag is in the sexual family.",
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "name": "object",
+                                    "required": true,
+                                    "doc": "Type discriminant. Always tag.",
+                                    "enum": [
+                                      "tag"
+                                    ],
+                                    "type": "string"
+                                  }
+                                ]
+                              }
+                            },
+                            {
+                              "name": "descendant_count",
+                              "required": true,
+                              "doc": "Tags below this one at any depth, each counted once.",
+                              "format": "int64",
+                              "type": "integer"
+                            },
+                            {
                               "name": "display_name",
                               "required": true,
                               "doc": "Must not be used as a discriminant.",
@@ -58715,6 +58766,44 @@ export const docsModel: DocsModel = {
                                 "tag"
                               ],
                               "type": "string"
+                            },
+                            {
+                              "name": "parents",
+                              "required": true,
+                              "doc": "Direct parents, ordered by id. Empty array for a root. Never null. The hierarchy is VNDB's tag tree projected onto canonical tags, plus reviewed edges for tags VNDB does not carry; a tag can have several parents.",
+                              "type": "array",
+                              "itemsOf": {
+                                "type": "object",
+                                "children": [
+                                  {
+                                    "name": "display_name",
+                                    "required": true,
+                                    "doc": "Must not be used as a discriminant.",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "name": "id",
+                                    "required": true,
+                                    "doc": "Catalog tag id.",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "name": "is_sexual",
+                                    "required": true,
+                                    "doc": "Whether this tag is in the sexual family.",
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "name": "object",
+                                    "required": true,
+                                    "doc": "Type discriminant. Always tag.",
+                                    "enum": [
+                                      "tag"
+                                    ],
+                                    "type": "string"
+                                  }
+                                ]
+                              }
                             },
                             {
                               "name": "tag_kind",
@@ -60010,7 +60099,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/tags/{id}",
               "summary": "Get one tag",
-              "description": "Canonical tag. include=intros adds the per-language tag descriptions. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
+              "description": "Canonical tag. include=intros adds the per-language tag descriptions; include=children adds the direct children. parents, child_count and descendant_count place the tag in the tag hierarchy. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
               "auth": {
                 "kind": "optional",
@@ -60062,6 +60151,57 @@ export const docsModel: DocsModel = {
                   "schema": {
                     "type": "object",
                     "children": [
+                      {
+                        "name": "child_count",
+                        "required": true,
+                        "doc": "Direct children.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "children",
+                        "doc": "Direct children, ordered by id. Present when include=children, detail face only. Empty array if none.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog tag id.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "is_sexual",
+                              "required": true,
+                              "doc": "Whether this tag is in the sexual family.",
+                              "type": "boolean"
+                            },
+                            {
+                              "name": "object",
+                              "required": true,
+                              "doc": "Type discriminant. Always tag.",
+                              "enum": [
+                                "tag"
+                              ],
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "descendant_count",
+                        "required": true,
+                        "doc": "Tags below this one at any depth, each counted once.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
                       {
                         "name": "display_name",
                         "required": true,
@@ -60123,6 +60263,44 @@ export const docsModel: DocsModel = {
                           "tag"
                         ],
                         "type": "string"
+                      },
+                      {
+                        "name": "parents",
+                        "required": true,
+                        "doc": "Direct parents, ordered by id. Empty array for a root. Never null. The hierarchy is VNDB's tag tree projected onto canonical tags, plus reviewed edges for tags VNDB does not carry; a tag can have several parents.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog tag id.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "is_sexual",
+                              "required": true,
+                              "doc": "Whether this tag is in the sexual family.",
+                              "type": "boolean"
+                            },
+                            {
+                              "name": "object",
+                              "required": true,
+                              "doc": "Type discriminant. Always tag.",
+                              "enum": [
+                                "tag"
+                              ],
+                              "type": "string"
+                            }
+                          ]
+                        }
                       },
                       {
                         "name": "tag_kind",

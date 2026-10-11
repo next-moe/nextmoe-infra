@@ -1,6 +1,6 @@
 package vndbtags
 
-import "strings"
+import "api/internal/platform/catalog/vndbtagmap"
 
 // Without the column tags GORM scans vid into nothing (it names the VID field
 // v_id), every vote lands on the empty vid, and the first DB run planned to
@@ -84,7 +84,7 @@ func desiredTags(votes []Vote, tags map[string]TagMeta, tagMap map[string]string
 				spoiler = 0
 			}
 		}
-		name := resolveName(meta, tagMap)
+		name := vndbtagmap.Resolve(tagMap, meta.Name, meta.Alias)
 		count := len(vs)
 		ero := meta.Cat == "ero"
 		if cur, ok := merged[name]; ok {
@@ -104,20 +104,4 @@ func desiredTags(votes []Vote, tags map[string]TagMeta, tagMap map[string]string
 		out[name] = Desired{Spoiler: a.spoiler, Count: a.count, Ero: a.ero}
 	}
 	return out
-}
-
-func resolveName(meta TagMeta, tagMap map[string]string) string {
-	if mapped, ok := tagMap[meta.Name]; ok {
-		return mapped
-	}
-	for _, alias := range strings.Split(meta.Alias, "\n") {
-		alias = strings.TrimSpace(alias)
-		if alias == "" {
-			continue
-		}
-		if mapped, ok := tagMap[alias]; ok {
-			return mapped
-		}
-	}
-	return meta.Name
 }

@@ -82,7 +82,16 @@ func tagFromListItem(it dto.PublicTagListItem) repr.Tag {
 	return repr.Tag{
 		Object: "tag", ID: repr.ID(it.ID), DisplayName: it.Name,
 		Tier: it.Tier, TagKind: it.Kind, WorkCount: it.WorkCount, IsSexual: it.Sexual,
+		Parents: tagRefs(it.Parents), ChildCount: it.ChildCount, DescendantCount: it.DescendantCount,
 	}
+}
+
+func tagRefs(in []dto.PublicTagRef) []repr.TagRef {
+	out := make([]repr.TagRef, 0, len(in))
+	for _, t := range in {
+		out = append(out, repr.TagRef{Object: "tag", ID: repr.ID(t.ID), DisplayName: t.Name, IsSexual: t.Sexual})
+	}
+	return out
 }
 
 func engineFromListItem(it dto.PublicEngineListItem) repr.Engine {
@@ -126,10 +135,14 @@ func tagFromDetail(rec dto.PublicTagDetail, include []string) repr.Tag {
 	out := repr.Tag{
 		Object: "tag", ID: repr.ID(rec.ID), DisplayName: rec.Name,
 		Tier: rec.Tier, TagKind: rec.Kind, WorkCount: rec.WorkCount, IsSexual: rec.Sexual,
+		Parents: tagRefs(rec.Parents), ChildCount: rec.ChildCount, DescendantCount: rec.DescendantCount,
 	}
 	for _, t := range include {
-		if t == "intros" {
+		switch t {
+		case "intros":
 			out.Intros = ptrSlice(introsFrom(rec.Intros))
+		case "children":
+			out.Children = ptrSlice(tagRefs(rec.Children))
 		}
 	}
 	return out
