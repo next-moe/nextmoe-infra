@@ -147,10 +147,10 @@ export default defineNuxtConfig({
 
     oauthClientSecret: process.env.NUXT_OAUTH_CLIENT_SECRET || '',
 
-    nextmoeApiBase:
-      process.env.NUXT_NEXTMOE_API_BASE || 'https://api.nextmoe.dev',
-
     public: {
+      nextmoeApiBase:
+        process.env.NUXT_NEXTMOE_API_BASE || 'https://api.nextmoe.dev',
+
       oauthAuthorizeBase:
         process.env.NUXT_PUBLIC_OAUTH_AUTHORIZE_BASE ||
         'http://127.0.0.1:9277/api/v1',

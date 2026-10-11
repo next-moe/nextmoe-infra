@@ -20,7 +20,6 @@ const searching = ref(false)
 const loadingDetail = ref(false)
 const error = ref('')
 const hits = ref<SearchHit[]>([])
-const total = ref(0)
 const detail = ref<Record<string, unknown> | null>(null)
 const showRaw = ref(false)
 
@@ -34,7 +33,7 @@ interface ExpandedEntity {
 const expanded = ref<ExpandedEntity[]>([])
 const expandNote = ref('')
 const expanding = ref(false)
-const EXPAND_CAP = 6
+const expandCap = computed(() => (apiKey.value.trim() ? 6 : 3))
 
 const GROUP_KIND: Record<string, 'characters' | 'credit-names' | 'companies' | 'works'> = {
   '厂牌 / 社团': 'companies',
@@ -121,7 +120,7 @@ const expandAll = async () => {
   const capped: typeof jobs = []
   for (const j of jobs) {
     const n = taken.get(j.group) ?? 0
-    if (n < EXPAND_CAP) {
+    if (n < expandCap.value) {
       taken.set(j.group, n + 1)
       capped.push(j)
     }
@@ -129,7 +128,7 @@ const expandAll = async () => {
 
   const results = await Promise.allSettled(
     capped.map(async (j) => {
-      const resp = await relay(j.path, j.query)
+      const resp = await apiGet(j.path, j.query)
       return { j, data: resp as Record<string, unknown> }
     })
   )
@@ -179,37 +178,23 @@ onMounted(() => {
 })
 watch(apiKey, (v) => sessionStorage.setItem('explore_api_key', v))
 
-const problemMessage = (e: unknown): string => {
-  const err = e as { data?: { detail?: string; title?: string; message?: string }; statusCode?: number }
-  return (
-    err.data?.detail ??
-    err.data?.title ??
-    err.data?.message ??
-    `请求失败（${err.statusCode ?? '网络错误'}）`
-  )
-}
-
-const relay = async (path: string, query: Record<string, string>) => {
-  const qs = new URLSearchParams(query).toString()
-  return await $fetch<unknown>(`/relay/${path}?${qs}`, {
-    headers: { Authorization: `Bearer ${apiKey.value.trim()}` }
-  })
-}
+const { read, failureMessage } = useCatalogRead()
+const apiGet = (path: string, query: Record<string, string>) =>
+  read<unknown>(path, query, apiKey.value)
+const problemMessage = (e: unknown) => failureMessage(e, apiKey.value)
 
 const search = async () => {
-  if (searching.value || !apiKey.value.trim()) return
+  if (searching.value) return
   searching.value = true
   error.value = ''
   detail.value = null
   try {
-    const resp = await relay('v2/catalog/search', {
+    const resp = await apiGet('v2/catalog/search', {
       object: 'work',
       q: q.value,
       ...(nsfw.value && { nsfw: 'true' })
     })
-    const data = resp as { items?: SearchHit[]; total?: number }
-    hits.value = data.items ?? []
-    total.value = data.total ?? 0
+    hits.value = (resp as { items?: SearchHit[] }).items ?? []
   } catch (e) {
     hits.value = []
     error.value = problemMessage(e)
@@ -223,7 +208,7 @@ const openDetail = async (id: string | number) => {
   loadingDetail.value = true
   error.value = ''
   try {
-    const resp = await relay(`v2/catalog/works/${id}`, {
+    const resp = await apiGet(`v2/catalog/works/${id}`, {
       include: 'relations,credits,companies,characters',
       ...(nsfw.value && { nsfw: 'true' })
     })
@@ -255,19 +240,21 @@ const facetSummary = computed(() => {
     <div>
       <h1 class="text-2xl font-bold text-foreground">数据浏览</h1>
       <p class="mt-1 text-sm text-default-500">
-        用你自己的 API key 实时浏览开放数据（key 只存在本浏览器的
-        sessionStorage，请求经本站 GET-only 中继转发，不落库）。还没有 key？去
+        不需要 key：请求从你的浏览器直接发到
+        <code class="font-mono text-xs">api.nextmoe.dev</code>，按你的 IP
+        计入匿名额度（每分钟 30 次、每天 1,000 次）。想用自己的额度就填一把 key，它只存在本浏览器的
+        sessionStorage；还没有的话，去
         <NuxtLink to="/dashboard" class="text-primary hover:underline">控制台</NuxtLink>
-        创建应用即得。
+        自助铸造。
       </p>
     </div>
 
     <KunCard content-class="gap-4">
       <KunInput
         v-model="apiKey"
-        label="API Key"
+        label="API Key（可选）"
         type="password"
-        placeholder="nmk_live_…"
+        placeholder="不填即匿名调用"
       />
       <div class="flex flex-wrap items-end gap-3">
         <div class="min-w-0 flex-1">
@@ -281,7 +268,7 @@ const facetSummary = computed(() => {
         <div class="pb-2">
           <KunCheckBox v-model="nsfw" label="含 R18" />
         </div>
-        <KunButton color="primary" :disabled="searching || !apiKey" @click="search">
+        <KunButton color="primary" :disabled="searching" @click="search">
           {{ searching ? '搜索中…' : '搜索' }}
         </KunButton>
       </div>
@@ -293,7 +280,7 @@ const facetSummary = computed(() => {
 
     <KunCard v-if="hits.length" content-class="p-0" class-name="overflow-hidden">
       <div class="border-b border-default-200 px-4 py-2 text-xs text-default-400">
-        {{ total.toLocaleString() }} 个命中
+        前 {{ hits.length }} 条结果
       </div>
       <button
         v-for="h in hits"

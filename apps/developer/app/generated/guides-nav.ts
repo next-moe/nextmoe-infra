@@ -114,13 +114,13 @@ export const guideMeta: Record<string, GuideMeta> = {
     "slug": "quickstart",
     "title": "快速上手",
     "eyebrow": "开始",
-    "description": "五分钟接入 NextMoe 开放 API v2：创建应用、铸造密钥、发出第一个请求、读懂响应。"
+    "description": "不注册、不带密钥，一分钟发出第一个 NextMoe API v2 请求：读懂响应、按需取块、用外部 id 反查；量大了再自助铸密钥。"
   },
   "/docs/authentication": {
     "slug": "authentication",
     "title": "鉴权与凭据",
     "eyebrow": "开始",
-    "description": "NextMoe API v2 的两种凭据：应用密钥 nmk_ 与用户 OAuth 访问令牌，各自覆盖哪些路径前缀、怎么获取、失败时返回什么。"
+    "description": "NextMoe API v2 的三种身份：不带凭据（读目录就够）、应用密钥 nmk_ 与用户 OAuth 访问令牌，各自覆盖哪些路径前缀、怎么获取、失败时返回什么。"
   },
   "/docs/concepts": {
     "slug": "concepts",

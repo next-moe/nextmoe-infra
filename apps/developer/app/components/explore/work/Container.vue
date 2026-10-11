@@ -112,12 +112,7 @@ const entityTarget = ref<{
   id: string
 } | null>(null)
 
-const relay = async (path: string, query: Record<string, string>) => {
-  const qs = new URLSearchParams(query).toString()
-  return await $fetch<WorkDetail>(`/relay/${path}?${qs}`, {
-    headers: { Authorization: `Bearer ${apiKey.value.trim()}` }
-  })
-}
+const { read, failureMessage } = useCatalogRead()
 
 const load = async () => {
   loading.value = true
@@ -125,19 +120,13 @@ const load = async () => {
   work.value = null
   entityTarget.value = null
   try {
-    work.value = await relay(`v2/catalog/works/${workId.value}`, {
-      include: WORK_INCLUDE,
-      ...(nsfw.value && { nsfw: 'true' })
-    })
+    work.value = await read<WorkDetail>(
+      `v2/catalog/works/${workId.value}`,
+      { include: WORK_INCLUDE, ...(nsfw.value && { nsfw: 'true' }) },
+      apiKey.value
+    )
   } catch (e) {
-    const err = e as {
-      data?: { detail?: string; title?: string }
-      statusCode?: number
-    }
-    error.value =
-      err.data?.detail ??
-      err.data?.title ??
-      `请求失败（${err.statusCode ?? '网络错误'}）`
+    error.value = failureMessage(e, apiKey.value)
   } finally {
     loading.value = false
   }
@@ -145,14 +134,13 @@ const load = async () => {
 
 onMounted(() => {
   apiKey.value = sessionStorage.getItem('explore_api_key') ?? ''
-  if (apiKey.value) load()
-  else loading.value = false
+  load()
 })
 
 watch(
   () => route.fullPath,
   () => {
-    if (route.params.id && apiKey.value) load()
+    if (route.params.id) load()
   }
 )
 
@@ -295,17 +283,7 @@ const popGroups = computed(() => {
       返回数据浏览
     </NuxtLink>
 
-    <KunCard v-if="!apiKey && !loading" content-class="p-10">
-      <p class="text-center text-default-500">
-        缺少 API key —— 先去
-        <NuxtLink to="/explore" class="text-primary hover:underline">
-          数据浏览
-        </NuxtLink>
-        填入你的 key，再从详情卡进入本页。
-      </p>
-    </KunCard>
-
-    <KunCard v-else-if="loading" content-class="p-10">
+    <KunCard v-if="loading" content-class="p-10">
       <p class="text-center text-default-400">正在从开放 API 拉取全量数据…</p>
     </KunCard>
 

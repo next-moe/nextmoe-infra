@@ -5,38 +5,37 @@ import { MCP_TOOLS } from '~~/shared/mcp-tools.mjs'
 useSeoMeta({
   title: 'AI / MCP 接入',
   description:
-    '把 NextMoe 开放 API v2 作为 MCP server 接入 AI 助手：工具由 /v2 OpenAPI 生成，密钥是 nmk_live_。'
+    '把 NextMoe 开放 API v2 作为 MCP server 接入 AI 助手：工具由 /v2 OpenAPI 生成，不带密钥即可接入，量大时再带 nmk_live_ 密钥。'
 })
 
 const tools = MCP_TOOLS
 
-const claudeCodeCmd = `claude mcp add --transport http nextmoe ${MCP_ENDPOINT} \\
-  --header "Authorization: Bearer nmk_live_你的密钥"`
+const claudeCodeCmd = `claude mcp add --transport http nextmoe ${MCP_ENDPOINT}`
 
 const claudeDesktopJson = `{
   "mcpServers": {
     "nextmoe": {
       "type": "http",
-      "url": "${MCP_ENDPOINT}",
-      "headers": {
-        "Authorization": "Bearer nmk_live_你的密钥"
-      }
+      "url": "${MCP_ENDPOINT}"
     }
   }
 }`
 
 const genericJson = `{
   "transport": "streamable-http",
-  "url": "${MCP_ENDPOINT}",
-  "headers": {
-    "Authorization": "Bearer nmk_live_你的密钥"
-  }
+  "url": "${MCP_ENDPOINT}"
+}`
+
+const claudeCodeKeyCmd = `claude mcp add --transport http nextmoe ${MCP_ENDPOINT} \\
+  --header "Authorization: Bearer nmk_live_你的密钥"`
+
+const keyHeadersJson = `"headers": {
+  "Authorization": "Bearer nmk_live_你的密钥"
 }`
 
 const curlHandshake = `curl -sN ${MCP_ENDPOINT} \\
   -H "Content-Type: application/json" \\
   -H "Accept: application/json, text/event-stream" \\
-  -H "Authorization: Bearer nmk_live_你的密钥" \\
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize",
        "params":{"protocolVersion":"2025-06-18","capabilities":{},
                  "clientInfo":{"name":"curl","version":"0"}}}'`
@@ -158,9 +157,8 @@ const curlHandshake = `curl -sN ${MCP_ENDPOINT} \\
       <div>
         <h2 class="text-lg font-semibold text-foreground">客户端配置</h2>
         <p class="mt-1 text-sm text-default-500">
-          把下面的
-          <code class="font-mono text-xs text-foreground">nmk_live_你的密钥</code>
-          换成你自己的密钥；只是试用的话，删掉 Authorization 那一项即可匿名接入。
+          下面的配置都不带密钥，粘贴就能用，额度按你自己的 IP 计（默认每分钟 30 次、每天
+          1,000 次）。量大了再按下方「带上密钥」加一个请求头。
         </p>
       </div>
 
@@ -188,6 +186,25 @@ const curlHandshake = `curl -sN ${MCP_ENDPOINT} \\
       <div class="space-y-2">
         <h3 class="text-sm font-semibold text-foreground">通用 MCP 客户端</h3>
         <DocsMcpConfigBlock label="JSON" icon="lucide:braces" :code="genericJson" />
+      </div>
+
+      <div class="space-y-2">
+        <h3 class="text-sm font-semibold text-foreground">带上密钥</h3>
+        <p class="text-sm text-default-500">
+          用量超过匿名额度，或者你的 MCP 客户端跑在云端（同一家厂商的用户共用它机房的出口
+          IP，也就共用那一份匿名额度）时，加一个
+          <code class="font-mono text-xs text-foreground">Authorization</code>
+          请求头。密钥在
+          <NuxtLink to="/dashboard" class="text-primary hover:underline">控制台</NuxtLink>
+          自助铸造。Claude Code：
+        </p>
+        <DocsMcpConfigBlock
+          label="终端"
+          icon="lucide:terminal"
+          :code="claudeCodeKeyCmd"
+        />
+        <p class="text-sm text-default-500">JSON 配置在 server 条目里加上：</p>
+        <DocsMcpConfigBlock label="JSON" icon="lucide:braces" :code="keyHeadersJson" />
       </div>
     </section>
 

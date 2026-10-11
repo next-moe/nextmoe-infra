@@ -16,7 +16,7 @@ export const DOCS_FACE_META: Record<
     icon: 'lucide:sparkles',
     label: 'API v2',
     tagline:
-      'NextMoe 公开 API v2，正式公开面。无信封、RFC 9457 错误、字符串 id、keyset 游标。应用密钥是 nmk_live_（CRC32 校验位），任何应用都能在门户自助铸造，无需申请。'
+      'NextMoe 公开 API v2，正式公开面。无信封、RFC 9457 错误、字符串 id、keyset 游标。目录只读面不带凭据就能调，按 IP 限流；应用密钥是 nmk_live_（CRC32 校验位），任何应用都能在门户自助铸造，无需申请。'
   },
   moyu: {
     icon: 'lucide:package',

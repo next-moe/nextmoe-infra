@@ -28,11 +28,11 @@
 
 ## 鉴权模型
 
-- 应用密钥（`Authorization: Bearer nmk_live_…`）——在 https://developer.nextmoe.dev 控制台自助创建应用与密钥，无需申请；自助可勾选的 scope 有 catalog:read 与 store:read，/v2/moyu/* 与 /v2/sticker/* 两个下游面不需要 scope、任意有效密钥可调。/v2 只收 nmk_ 前缀的密钥。
+- 不带凭据：`/v2/catalog` 只读面（`claim-events` 除外）不注册、不带任何凭据就能调，返回与带密钥时逐字节相同，`nsfw=true` 照样可用；按 IPv4 地址或 IPv6 /64 计一份很小的额度（默认 30 次/分钟、1,000 次/天）。CORS 对所有来源开放，浏览器里可直接 fetch。
+- 应用密钥（`Authorization: Bearer nmk_live_…`）——量大了或从自己的服务端调用时使用，在 https://developer.nextmoe.dev 控制台自助创建应用与密钥，无需申请；自助可勾选的 scope 有 catalog:read 与 store:read，/v2/moyu/* 与 /v2/sticker/* 两个下游面不需要 scope、任意有效密钥可调。/v2 只收 nmk_ 前缀的密钥。
 - 用户访问令牌（`Authorization: Bearer <access token>`）——/v2/me 与 /v2/moderation 读写的是某个用户自己的东西，用该用户经 OAuth 授权码 + PKCE 授权后的令牌，不是应用密钥。
 - v1 已于 2026-08-27 全面退役：/v1/catalog、/v1/news、/v1/store、/v1/playtime、/api/v1/catalog 与 /api/v1/user/catalog 一律返回 410，Link 指向 /v2。
-- `/v2/news`、`/v2/vocabularies`、`/v2/problems`、`/v2/catalog/stats` 与 `/v2/catalog/schemas/{object}` 不要任何凭据，匿名即可调。
-- `/v2/catalog` 只读面（`claim-events` 除外）也可以不带凭据调用：按 IPv4 地址或 IPv6 /64 计一份很小的额度（默认 30 次/分钟、1,000 次/天）；带应用密钥或带 `catalog:read` 的用户令牌则走各自更高的额度。
+- `/v2/news`、`/v2/vocabularies`、`/v2/problems`、`/v2/catalog/stats` 与 `/v2/catalog/schemas/{object}` 同样不要任何凭据。带应用密钥或带 `catalog:read` 的用户令牌读 `/v2/catalog` 时，走各自更高的额度。
 
 ## 3 个 API
 
@@ -50,8 +50,8 @@
 
 ## 指南（概念与集成）
 
-- [快速上手](https://developer.nextmoe.dev/docs/quickstart.md) — 五分钟接入 NextMoe 开放 API v2：创建应用、铸造密钥、发出第一个请求、读懂响应。
-- [鉴权与凭据](https://developer.nextmoe.dev/docs/authentication.md) — NextMoe API v2 的两种凭据：应用密钥 nmk_ 与用户 OAuth 访问令牌，各自覆盖哪些路径前缀、怎么获取、失败时返回什么。
+- [快速上手](https://developer.nextmoe.dev/docs/quickstart.md) — 不注册、不带密钥，一分钟发出第一个 NextMoe API v2 请求：读懂响应、按需取块、用外部 id 反查；量大了再自助铸密钥。
+- [鉴权与凭据](https://developer.nextmoe.dev/docs/authentication.md) — NextMoe API v2 的三种身份：不带凭据（读目录就够）、应用密钥 nmk_ 与用户 OAuth 访问令牌，各自覆盖哪些路径前缀、怎么获取、失败时返回什么。
 - [数据模型](https://developer.nextmoe.dev/docs/concepts.md) — NextMoe 目录的领域模型：六源对齐与出处、实体族与它们之间的边、外部 id 反查、合并与重定向、内容分级与认领。
 - [API 设计原则](https://developer.nextmoe.dev/docs/design.md) — NextMoe 开放 API v2 的设计公理、对调用方的稳定性承诺、客户端必须遵守的三条契约，以及我们承诺不会做的事。
 - [请求与响应](https://developer.nextmoe.dev/docs/conventions.md) — NextMoe API v2 的通用线格式：无信封、object 判别符、字符串 id、时间格式、null 语义、参数解析规则与请求关联头。
