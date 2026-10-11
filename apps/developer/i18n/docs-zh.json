@@ -1044,5 +1044,12 @@
   "Optional body {mode}: tree (the default) or exact. Sets the mode of an existing block and otherwise writes nothing for it. Unknown tags are 404. At most 100 blocked tags. Requires a user access token. Any app may call this; no scope is required.": "可选请求体 {mode}：tree（缺省）或 exact。已屏蔽的 tag 只更新其 mode，不另写入。未知 tag 为 404。最多屏蔽 100 个 tag。需要用户访问令牌。任何应用都可调用，不需要 scope。",
   "tree (the default) also blocks every tag below this one in the tag hierarchy; exact blocks this tag only.": "tree（缺省）连同 tag 层级中其下的所有 tag 一并屏蔽；exact 只屏蔽这一个 tag。",
   "Unblock a tag": "取消屏蔽一个 tag",
-  "204 with no body, also when the tag was not blocked. Requires a user access token. Any app may call this; no scope is required.": "返回 204 且无响应体；该 tag 本未屏蔽时也一样。需要用户访问令牌。任何应用都可调用，不需要 scope。"
+  "204 with no body, also when the tag was not blocked. Requires a user access token. Any app may call this; no scope is required.": "返回 204 且无响应体；该 tag 本未屏蔽时也一样。需要用户访问令牌。任何应用都可调用，不需要 scope。",
+  "Resolve a tag exclusion": "解析一组 tag 排除",
+  "What exclude_tag_id= and exclude_tag_tree= exclude, taking the same two parameters as /v2/catalog/works: the expanded tag ids and the ids of every work carrying one of them. A site that lists works from its own store applies a reader's blocked tags by dropping work_ids, and one with its own tag mirror can match tag_ids instead. At least one parameter is required. The body depends only on the parameters, so cache it per parameter set. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.": "exclude_tag_id= 与 exclude_tag_tree= 会排除什么：接收与 /v2/catalog/works 相同的这两个参数，返回展开后的 tag id，以及带有其中任一 tag 的全部作品 id。站点用自己的表出作品列表时，剔掉 work_ids 即可套用读者的屏蔽；自有 tag 镜像的站点也可以改用 tag_ids 匹配。至少要给一个参数。响应只取决于参数，请按参数集缓存。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。",
+  "Comma-separated canonical tag ids, max 100. Each excludes its own works.": "逗号分隔的规范 tag id，最多 100 个。每个只排除带有它自己的作品。",
+  "Comma-separated canonical tag ids, max 100. Each excludes its own works and those of every tag below it.": "逗号分隔的规范 tag id，最多 100 个。每个排除带有它自己或其下任一 tag 的作品。",
+  "Type discriminant. Always tag_exclusion.": "类型判别字段，恒为 tag_exclusion。",
+  "Every tag the parameters exclude: the exact ids, and each tree id with every tag below it. Ascending. Never null.": "参数排除的全部 tag：精确 id，以及每个树 id 连同其下所有 tag。升序。永不为 null。",
+  "Every catalog work that carries any of tag_ids, from any source, at any spoiler level and under any rating. Ascending. Never null. These are the works /v2/catalog/works drops for the same parameters, so a site listing works from its own store drops them to match.": "带有 tag_ids 中任一 tag 的全部 catalog 作品，不论来源、剧透等级与分级。升序。永不为 null。即 /v2/catalog/works 在相同参数下剔除的作品，用自己的表出列表的站点剔掉它们即可保持一致。"
 }

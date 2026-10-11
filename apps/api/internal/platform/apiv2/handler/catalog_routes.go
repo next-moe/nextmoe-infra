@@ -187,6 +187,7 @@ func registerCatalog(api huma.API, cat *Catalog) {
 		SkipValidateParams: true,
 	}, getCatalogStats(cat))
 	registerCatalogLists(api, cat)
+	registerCatalogTagExclusion(api, cat)
 	registerCatalogFeeds(api, cat)
 	registerCatalogEditHistory(api, cat)
 	registerCatalogClaimEvents(api, cat)

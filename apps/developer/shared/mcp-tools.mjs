@@ -48,6 +48,7 @@ const DESCRIPTIONS = {
   getCatalogCompanyGraph:
     '一次拿到一家公司周围的整个会社家族（母公司 / 子品牌 / 文库 / 继承），nodes[] + edges[] 有向。getCatalogCompany 的关联只有一跳，问「某社旗下有哪些牌子」用这个；反向边按设计不下发。',
   getCatalogTag: '按 id 取正典标签——跨源标签词表的一行。',
+  getCatalogTagExclusion: '解析一组排除 tag：给 exclude_tag_id / exclude_tag_tree，返回展开后的 tag id 与带有其中任一 tag 的全部作品 id，供站点在自建列表里剔除。',
   listCatalogTags:
     '浏览正典标签词表本身——用来发现 tag id 再喂给 listCatalogWorks 的 tag_id=。',
   getCatalogTrait: '按 id 取角色特征词表的一行。',

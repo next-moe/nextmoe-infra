@@ -70,6 +70,7 @@ var liveReadPaths = []string{
 	"/v2/catalog/companies/{id}",
 	"/v2/catalog/companies/{id}/graph",
 	"/v2/catalog/tags",
+	"/v2/catalog/tag-exclusion",
 	"/v2/catalog/tags/{id}",
 	"/v2/catalog/series",
 	"/v2/catalog/series/{id}",
@@ -149,10 +150,11 @@ var liveReadsNotSwept = map[string]string{
 // with 400. Carrying the filter here keeps it swept; the alternative is a
 // liveReadsNotSwept entry, which would exclude a route the fixture can reach.
 var liveReadRequiredQuery = map[string]func(fx liveFix) string{
-	"/v2/folders":             func(liveFix) string { return "?owner_uid=" + idstr(liveUID) },
-	"/v2/folders/holders":     func(fx liveFix) string { return "?work_id=" + idstr(fx.Work) },
-	"/v2/me/folders/holdings": func(fx liveFix) string { return "?work_ids=" + idstr(fx.Work) },
-	"/v2/me/works":            func(fx liveFix) string { return "?work_ids=" + idstr(fx.Work) },
+	"/v2/folders":               func(liveFix) string { return "?owner_uid=" + idstr(liveUID) },
+	"/v2/folders/holders":       func(fx liveFix) string { return "?work_id=" + idstr(fx.Work) },
+	"/v2/me/folders/holdings":   func(fx liveFix) string { return "?work_ids=" + idstr(fx.Work) },
+	"/v2/me/works":              func(fx liveFix) string { return "?work_ids=" + idstr(fx.Work) },
+	"/v2/catalog/tag-exclusion": func(fx liveFix) string { return "?exclude_tag_tree=" + idstr(fx.Tag) },
 }
 
 func liveReadURL(t *testing.T, tmpl string, fx liveFix) string {

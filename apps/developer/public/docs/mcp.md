@@ -11,7 +11,7 @@
 
 NextMoe 开放 API 同时以 MCP（Model Context Protocol）server 暴露：端点 https://mcp.nextmoe.dev/mcp，Streamable HTTP、stateless，带上同一把 API 密钥即可；不带密钥也能用，额度按你自己的 IP 计（默认每分钟 30 次、每天 1,000 次）。它是一层纯透传适配——每次工具调用就是一次对公开 /v2 GET 的请求，鉴权、限流、配额与用量与直连毫无区别。工具名就是 OpenAPI operationId，清单由 cmd/gen-v2-portal 从同一份 v2 spec 生成。
 
-## 工具（57 个）
+## 工具（58 个）
 
 - `getCatalogCharacter` `GET /v2/catalog/characters/{id}`（无需密钥）：按 id 取角色；view=full 追加性别、生日、三围、血型与 instance_of_id。nsfw 同时控 r18 作品与 sexual 系 traits 的可见性。
 - `getCatalogCharacterAppearances` `GET /v2/catalog/characters/{id}/appearances`（无需密钥）：一个角色出演的全部作品，各带 roster_role、剧透等级与配音署名，offset 游标分页。
@@ -30,6 +30,7 @@ NextMoe 开放 API 同时以 MCP（Model Context Protocol）server 暴露：端�
 - `getCatalogSeries` `GET /v2/catalog/series/{id}`（无需密钥）：按 id 取系列（身份、源锚与简介）；成员作品用 listCatalogWorks 的 series_id= 取——回答「这个系列按什么顺序玩」。
 - `getCatalogStats` `GET /v2/catalog/stats`（无需密钥）：全库计数：各家族 LIVE 实体总量。无参数，无需凭据。
 - `getCatalogTag` `GET /v2/catalog/tags/{id}`（无需密钥）：按 id 取正典标签——跨源标签词表的一行。
+- `getCatalogTagExclusion` `GET /v2/catalog/tag-exclusion`（无需密钥）：解析一组排除 tag：给 exclude_tag_id / exclude_tag_tree，返回展开后的 tag id 与带有其中任一 tag 的全部作品 id，供站点在自建列表里剔除。
 - `getCatalogTrait` `GET /v2/catalog/traits/{id}`（无需密钥）：按 id 取角色特征词表的一行。
 - `getCatalogWork` `GET /v2/catalog/works/{id}`（无需密钥）：按 id 取作品注册行，include=credits,relations 并取子块。被合并的 id 返回 404 ENTITY_MERGED 并在 Link rel=canonical 里给继任者；r18 不带 nsfw=true 同样是 404。
 - `getCatalogWorkCharacters` `GET /v2/catalog/works/{id}/characters`（无需密钥）：作品的角色花名册块（单块 cursor 分页，带 roster_role 与配音署名）。此面不设剧透上限——每行自带 spoiler 等级，由调用方分级。

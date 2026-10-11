@@ -228,6 +228,17 @@ export const mcpTools = [
     ]
   },
   {
+    "name": "getCatalogTagExclusion",
+    "method": "GET",
+    "path": "/v2/catalog/tag-exclusion",
+    "summary": "Resolve a tag exclusion",
+    "needs_key": false,
+    "params": [
+      "exclude_tag_id",
+      "exclude_tag_tree"
+    ]
+  },
+  {
     "name": "getCatalogTrait",
     "method": "GET",
     "path": "/v2/catalog/traits/{id}",

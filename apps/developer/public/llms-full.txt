@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-本文件内联全部 140 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
+本文件内联全部 141 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
 
 ## 给 AI 助手的指引
 
@@ -2938,7 +2938,7 @@ Open · 16 tokens
 
 - 路径前缀：`/v2`
 - 凭据：Authorization: Bearer nmk_live_…（v2 应用密钥,门户自助铸造,无需申请）
-- 端点数：127
+- 端点数：128
 
 > 正式公开：形状按 additive-only 演进，删除与改名由 CI 的 oasdiff 门拦下。第三方在门户自助铸 nmk_ 密钥即可调用，不需要申请。
 
@@ -2950,7 +2950,7 @@ Open · 16 tokens
 
 > /v2/me/followed-companies 与 /v2/me/calendar 同样只要用户令牌、不需要任何 scope。关注列表只对本人可见，公开的只有 /v2/catalog/companies/{id} 详情上的 follower_count；/v2/me/calendar 与公开月历同参数，只列关注厂商的作品，且缺省不按语言、不排除同人。
 
-> /v2/me/blocked-tags 同样只要用户令牌、不需要任何 scope，最多 100 个，只对本人可见。目录不会自动套用它：客户端把 mode=tree 的 id 放进 exclude_tag_tree、mode=exact 的放进 exclude_tag_id，传给 /v2/catalog/works 与两个月历。tree 会连同 tag 层级里它下面的所有 tag 一起排除（Tag.descendant_count 是数量）。
+> /v2/me/blocked-tags 同样只要用户令牌、不需要任何 scope，最多 100 个，只对本人可见。目录不会自动套用它：客户端把 mode=tree 的 id 放进 exclude_tag_tree、mode=exact 的放进 exclude_tag_id，传给 /v2/catalog/works 与两个月历。tree 会连同 tag 层级里它下面的所有 tag 一起排除（Tag.descendant_count 是数量）。站点自己的表出的列表用 /v2/catalog/tag-exclusion 取同参数要剔除的作品 id 集，在本地查询里剔掉。
 
 > /v2/me/folders 是例外：收藏夹是私人清单，读要 folder:read（folder:write 也算），写要 folder:write，缺了是 403 SCOPE_REQUIRED。
 
@@ -3864,6 +3864,25 @@ Live entity counts. Unauthenticated.
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/stats"
+```
+
+### GET /v2/catalog/tag-exclusion
+
+Resolve a tag exclusion
+
+What exclude_tag_id= and exclude_tag_tree= exclude, taking the same two parameters as /v2/catalog/works: the expanded tag ids and the ids of every work carrying one of them. A site that lists works from its own store applies a reader's blocked tags by dropping work_ids, and one with its own tag mirror can match tag_ids instead. At least one parameter is required. The body depends only on the parameters, so cache it per parameter set. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：可匿名调用
+- scope：catalog:read（仅在带凭据时）
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `exclude_tag_id` | query | 否 | string | Comma-separated canonical tag ids, max 100. Each excludes its own works. |
+| `exclude_tag_tree` | query | 否 | string | Comma-separated canonical tag ids, max 100. Each excludes its own works and those of every tag below it. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/catalog/tag-exclusion"
 ```
 
 ### GET /v2/catalog/tags
@@ -6303,7 +6322,7 @@ curl "https://api.nextmoe.dev/v2/sticker/tags" \
 
 NextMoe 开放 API 同时以 MCP（Model Context Protocol）server 暴露：端点 https://mcp.nextmoe.dev/mcp，Streamable HTTP、stateless，带上同一把 API 密钥即可；不带密钥也能用，额度按你自己的 IP 计（默认每分钟 30 次、每天 1,000 次）。它是一层纯透传适配——每次工具调用就是一次对公开 /v2 GET 的请求，鉴权、限流、配额与用量与直连毫无区别。工具名就是 OpenAPI operationId，清单由 cmd/gen-v2-portal 从同一份 v2 spec 生成。
 
-## 工具（57 个）
+## 工具（58 个）
 
 - `getCatalogCharacter` `GET /v2/catalog/characters/{id}`（无需密钥）：按 id 取角色；view=full 追加性别、生日、三围、血型与 instance_of_id。nsfw 同时控 r18 作品与 sexual 系 traits 的可见性。
 - `getCatalogCharacterAppearances` `GET /v2/catalog/characters/{id}/appearances`（无需密钥）：一个角色出演的全部作品，各带 roster_role、剧透等级与配音署名，offset 游标分页。
@@ -6322,6 +6341,7 @@ NextMoe 开放 API 同时以 MCP（Model Context Protocol）server 暴露：端�
 - `getCatalogSeries` `GET /v2/catalog/series/{id}`（无需密钥）：按 id 取系列（身份、源锚与简介）；成员作品用 listCatalogWorks 的 series_id= 取——回答「这个系列按什么顺序玩」。
 - `getCatalogStats` `GET /v2/catalog/stats`（无需密钥）：全库计数：各家族 LIVE 实体总量。无参数，无需凭据。
 - `getCatalogTag` `GET /v2/catalog/tags/{id}`（无需密钥）：按 id 取正典标签——跨源标签词表的一行。
+- `getCatalogTagExclusion` `GET /v2/catalog/tag-exclusion`（无需密钥）：解析一组排除 tag：给 exclude_tag_id / exclude_tag_tree，返回展开后的 tag id 与带有其中任一 tag 的全部作品 id，供站点在自建列表里剔除。
 - `getCatalogTrait` `GET /v2/catalog/traits/{id}`（无需密钥）：按 id 取角色特征词表的一行。
 - `getCatalogWork` `GET /v2/catalog/works/{id}`（无需密钥）：按 id 取作品注册行，include=credits,relations 并取子块。被合并的 id 返回 404 ENTITY_MERGED 并在 Link rel=canonical 里给继任者；r18 不带 nsfw=true 同样是 404。
 - `getCatalogWorkCharacters` `GET /v2/catalog/works/{id}/characters`（无需密钥）：作品的角色花名册块（单块 cursor 分页，带 roster_role 与配音署名）。此面不设剧透上限——每行自带 spoiler 等级，由调用方分级。

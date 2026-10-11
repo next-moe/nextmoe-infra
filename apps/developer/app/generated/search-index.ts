@@ -789,7 +789,7 @@ export const searchIndex: SearchEntry[] = [
     "r": "/docs/v2",
     "t": "Public API v2",
     "s": "端点参考",
-    "d": "/v2 · 127 个端点",
+    "d": "/v2 · 128 个端点",
     "b": "v2 /v2 API v2 Public API v2"
   },
   {
@@ -1043,6 +1043,13 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/stats",
     "b": "getCatalogStats /v2/catalog/stats get Catalog totals Live entity counts. Unauthenticated. LIVE 实体计数。无需凭据。"
+  },
+  {
+    "r": "/docs/v2/getCatalogTagExclusion",
+    "t": "解析一组 tag 排除",
+    "s": "端点 · 目录",
+    "d": "GET /v2/catalog/tag-exclusion",
+    "b": "getCatalogTagExclusion /v2/catalog/tag-exclusion get Resolve a tag exclusion What exclude_tag_id= and exclude_tag_tree= exclude, taking the same two parameters as /v2/catalog/works: the expanded tag ids and the ids of every work carrying one of them. A site that lists works from its own store applies a reader's blocked tags by dropping work_ids, and one with its own tag mirror can match tag_ids instead. At least one parameter is required. The body depends only on the parameters, so cache it per parameter set. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. exclude_tag_id= 与 exclude_tag_tree= 会排除什么：接收与 /v2/catalog/works 相同的这两个参数，返回展开后的 tag id，以及带有其中任一 tag 的全部作品 id。站点用自己的表出作品列表时，剔掉 work_ids 即可套用读者的屏蔽；自有 tag 镜像的站点也可以改用 tag_ids 匹配。至少要给一个参数。响应只取决于参数，请按参数集缓存。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。 catalog:read exclude_tag_id exclude_tag_tree"
   },
   {
     "r": "/docs/v2/listCatalogTags",
