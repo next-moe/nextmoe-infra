@@ -191,6 +191,16 @@ type Code struct {
 
 func (Code) TableName() string { return "shop_codes" }
 
+type RestockAlert struct {
+	UserID    uint      `gorm:"primaryKey;autoIncrement:false" json:"user_id"`
+	OfferID   int64     `gorm:"primaryKey;autoIncrement:false;index" json:"offer_id"`
+	SiteID    uint      `gorm:"not null" json:"site_id"`
+	Inbox     string    `gorm:"size:32;not null" json:"inbox"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (RestockAlert) TableName() string { return "shop_restock_alerts" }
+
 func AllModels() []any {
-	return []any{&Asset{}, &Item{}, &Offer{}, &Order{}, &Entitlement{}, &Loadout{}, &Code{}}
+	return []any{&Asset{}, &Item{}, &Offer{}, &Order{}, &Entitlement{}, &Loadout{}, &Code{}, &RestockAlert{}}
 }

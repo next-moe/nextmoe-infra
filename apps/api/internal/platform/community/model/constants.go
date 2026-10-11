@@ -87,6 +87,7 @@ const (
 	NotificationKindFollowed              int16 = 8
 	NotificationKindFolloweeThreadCreated int16 = 9
 	NotificationKindFolloweeActivity      int16 = 10
+	NotificationKindNotice                int16 = 11
 )
 
 const (

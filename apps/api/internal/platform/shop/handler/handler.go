@@ -391,7 +391,7 @@ func respondErr(c fiber.Ctx, err error) error {
 			return response.FromAppError(c, fiber.StatusNotFound, appErr)
 		case errors.ErrShopStorageUnavailable:
 			return response.FromAppError(c, fiber.StatusServiceUnavailable, appErr)
-		case errors.ErrForbidden:
+		case errors.ErrForbidden, errors.ErrShopNotStorefront:
 			return response.FromAppError(c, fiber.StatusForbidden, appErr)
 		case errors.ErrShopOfferUnavailable, errors.ErrShopAlreadyOwned, errors.ErrShopLimitReached,
 			errors.ErrShopSoldOut, errors.ErrShopNotOwned, errors.ErrShopInvalidAsset, errors.ErrShopInvalidItem,

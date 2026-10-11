@@ -499,7 +499,7 @@ func TestColumnAudit(t *testing.T) {
 		"community_notification": {
 			"id", "site", "user_id", "kind", "thread_id", "anchor_kind", "anchor_id",
 			"post_id", "post_number", "first_post_number", "since_at", "actor_id",
-			"actor_count", "item_count", "fold_key", "activity_id", "read_at", "seq", "created_at",
+			"actor_count", "item_count", "fold_key", "activity_id", "notice", "read_at", "seq", "created_at",
 			"updated_at",
 		},
 		"community_purge_archive": {

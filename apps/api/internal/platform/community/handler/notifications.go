@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -139,6 +140,15 @@ func (s *Server) notificationViews(rows []model.CommunityNotification) ([]dto.No
 	out := make([]dto.NotificationView, len(rows))
 	for i := range rows {
 		out[i] = toNotificationView(&rows[i])
+		if len(rows[i].Notice) > 0 {
+			var p model.NoticePayload
+			if err := json.Unmarshal(rows[i].Notice, &p); err != nil {
+				return nil, err
+			}
+			out[i].Notice = &dto.NotificationNoticeView{
+				ID: p.ID, Topic: p.Topic, Ref: p.Ref, Title: p.Title, URL: p.URL, RaisedAt: p.RaisedAt,
+			}
+		}
 		if rows[i].ActivityID == nil {
 			continue
 		}

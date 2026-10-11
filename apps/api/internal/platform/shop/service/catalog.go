@@ -314,6 +314,7 @@ type OfferView struct {
 	Stock        *int         `json:"stock"`
 	Sold         int          `json:"sold"`
 	Remaining    *int         `json:"remaining"`
+	RestockedAt  *time.Time   `json:"restocked_at"`
 	SortOrder    int          `json:"sort_order"`
 	CreatedAt    time.Time    `json:"created_at"`
 }
@@ -427,6 +428,11 @@ func (s *Shop) UpdateOffer(ctx context.Context, id int64, in OfferInput, canPubl
 		if o.Status == model.OfferActive && !canPublish {
 			return errors.NewWithCode(errors.ErrForbidden)
 		}
+		now := s.now()
+		wasOnSale, err := s.onSale(tx, o, now)
+		if err != nil {
+			return err
+		}
 		items, err := s.validateOffer(tx, in)
 		if err != nil {
 			return err
@@ -442,6 +448,9 @@ func (s *Shop) UpdateOffer(ctx context.Context, id int64, in OfferInput, canPubl
 		o.StartsAt, o.EndsAt, o.PerUserLimit, o.LimitPeriod = in.StartsAt, in.EndsAt, in.PerUserLimit, in.LimitPeriod
 		o.Stock, o.SortOrder = in.Stock, in.SortOrder
 		if err := tx.Save(o).Error; err != nil {
+			return err
+		}
+		if err := s.noticeIfBack(tx, o, wasOnSale, now); err != nil {
 			return err
 		}
 		out, err = s.offerView(tx, *o)
@@ -461,6 +470,11 @@ func (s *Shop) TransitionOffer(ctx context.Context, id int64, action OfferAction
 	var out *OfferView
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		o, err := s.loadOffer(tx, id, true)
+		if err != nil {
+			return err
+		}
+		now := s.now()
+		wasOnSale, err := s.onSale(tx, o, now)
 		if err != nil {
 			return err
 		}
@@ -484,6 +498,9 @@ func (s *Shop) TransitionOffer(ctx context.Context, id int64, action OfferAction
 			return errors.NewWithCode(errors.ErrShopInvalidTransition)
 		}
 		if err := tx.Save(o).Error; err != nil {
+			return err
+		}
+		if err := s.noticeIfBack(tx, o, wasOnSale, now); err != nil {
 			return err
 		}
 		out, err = s.offerView(tx, *o)
@@ -578,6 +595,10 @@ func (s *Shop) offerViews(tx *gorm.DB, offers []model.Offer) ([]OfferView, error
 	if err != nil {
 		return nil, err
 	}
+	codesAdded, err := codesAddedAt(tx, codeItems)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]OfferView, len(offers))
 	for i, o := range offers {
 		var costs []model.Cost
@@ -598,6 +619,9 @@ func (s *Shop) offerViews(tx *gorm.DB, offers []model.Offer) ([]OfferView, error
 			v.Rewards = append(v.Rewards, RewardView{Item: s.itemView(items[r.ItemID]), DurationDays: r.DurationDays})
 			if left, ok := codesLeft[r.ItemID]; ok {
 				v.Remaining = &left
+			}
+			if at, ok := codesAdded[r.ItemID]; ok {
+				v.RestockedAt = &at
 			}
 		}
 		out[i] = v
