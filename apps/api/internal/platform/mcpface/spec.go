@@ -75,6 +75,10 @@ func takesAppKey(security []map[string][]string) bool {
 	})
 }
 
+func allowsAnonymous(security []map[string][]string) bool {
+	return slices.ContainsFunc(security, func(req map[string][]string) bool { return len(req) == 0 })
+}
+
 func ToolsFromSpec(raw []byte) ([]ToolDesc, error) {
 	var doc specDoc
 	if err := json.Unmarshal(raw, &doc); err != nil {
@@ -100,7 +104,7 @@ func ToolsFromSpec(raw []byte) ([]ToolDesc, error) {
 			Name: name, Method: http.MethodGet, Path: path,
 			Summary: strings.TrimSpace(op.Summary), Description: desc,
 			ParamDocs: map[string]ParamDoc{},
-			NeedsKey:  takesAppKey(op.Security),
+			NeedsKey:  takesAppKey(op.Security) && !allowsAnonymous(op.Security),
 		}
 		seen := map[string]bool{}
 		for _, p := range params {

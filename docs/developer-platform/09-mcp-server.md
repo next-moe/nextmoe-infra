@@ -42,6 +42,11 @@ MCP server 是公开只读契约前面的一层**协议适配**,不是第二个 
   说明的 tool error 返回)。
 - MCP 规范的 OAuth 2.1 授权流 = M2(第三方实际开放后,与 `dev:manage`
   同期评估);M1 的静态 key 模式对 agent 场景已充分。
+- **2026-10-11 起 key 可选**(spec 2.39.0):上游 `/v2/catalog` 只读面收无凭证请求后,
+  spec 里带空要求 `{}` 的 op 生成的工具不再本地要 key(`claim-events` 仍要)。匿名调用时
+  MCP 把入站请求的 `CF-Connecting-IP` 原样转给上游,catalog 对私网对端信任该头,于是按
+  **终端用户自己的 IP** 计匿名额度;不转发的话所有匿名 MCP 用户会挤进 MCP 容器那一个
+  地址的桶(2026-08-27 论坛后端出口 IP 共用一份日配额的同形事故)。
 
 ## 4. 工具面(由 v2 spec 派生)
 
@@ -52,7 +57,7 @@ MCP server 是公开只读契约前面的一层**协议适配**,不是第二个 
 | 规则 | 内容 |
 |---|---|
 | `mcpToolPrefixes` | 进面的路径前缀:`/v2/catalog` `/v2/news` `/v2/problems` `/v2/vocabularies`。`/v2/me` 与 `/v2/moderation` 不进面(用户令牌写面,理由同下文 playtime 条) |
-| `takesAppKey` | 哪些工具在缺 key 时**本地**就报错而不去打上游:读该 op 在 spec 里声明的 `security`,含 `applicationKey` 即需要。**不是手写路径表**——2026-09-18 之前这里是一份按前缀手写的 `httpNeedsKey`,与 apiv2 的 `v2Security` 是同一规则的两份副本;现在 `v2Security` 写进 spec、MCP 从 spec 读,只剩一个真源 |
+| `takesAppKey` / `allowsAnonymous` | 哪些工具在缺 key 时**本地**就报错而不去打上游:读该 op 在 spec 里声明的 `security`,含 `applicationKey` 且没有空要求 `{}` 即需要。**不是手写路径表**——2026-09-18 之前这里是一份按前缀手写的 `httpNeedsKey`,与 apiv2 的 `v2Security` 是同一规则的两份副本;现在 `v2Security` 写进 spec、MCP 从 spec 读,只剩一个真源 |
 
 2026-09-18 为 **57 个工具**(`/v2/catalog` 49 + `/v2/news` 3 + `/v2/problems` 3 + `/v2/vocabularies` 2)。每个参数的描述与闭词表(`enum`)也取自 spec;v2 的 query/path 参数在 spec 里一律声明为 `type: string`、由服务端解析,所以工具入参全是 string 不丢类型信息。这个数随 v2 spec 增长自动变,**不需要改本文**;`CheckG10`(`apiv2/handler/gates_mcp.go`)保证 spec 里每条该进面的 GET 都有对应工具且参数不缺。
 

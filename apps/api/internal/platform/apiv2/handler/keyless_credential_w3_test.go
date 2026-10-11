@@ -3,7 +3,10 @@ package handler
 import (
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
+
+	"api/internal/platform/settings/keys"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/require"
@@ -29,12 +32,13 @@ func w3RateHeaders(t *testing.T, app *fiber.App, path, token string) (int, strin
 // than two numbers that could coincide.
 func TestKeylessLanesStillCountTheApplicationKey(t *testing.T) {
 	app := testApp(t)
+	anonRate := strconv.Itoa(int(keys.APIV2AnonRatePerMinute.Get()))
 	for _, path := range []string{
-		"/v2/vocabularies", "/v2/problems", "/v2/catalog/stats", "/v2/catalog/schemas/work",
+		"/v2/vocabularies", "/v2/problems", "/v2/catalog/stats", "/v2/catalog/schemas/work", "/v2/catalog/works",
 	} {
 		status, anon := w3RateHeaders(t, app, path, "")
 		require.NotEqual(t, 401, status, "%s must stay keyless: %d", path, status)
-		require.Equalf(t, "100", anon, "%s without a key falls in the anonymous bucket", path)
+		require.Equalf(t, anonRate, anon, "%s without a key falls in the anonymous bucket", path)
 
 		_, keyed := w3RateHeaders(t, app, path, testAPIKey)
 		require.Emptyf(t, keyed, "%s with an unlimited key must not be metered per IP", path)
@@ -43,5 +47,5 @@ func TestKeylessLanesStillCountTheApplicationKey(t *testing.T) {
 	// becoming a refusal — these lanes demand no credential.
 	status, anon := w3RateHeaders(t, app, "/v2/vocabularies", "nmk_not_a_real_key")
 	require.Equal(t, 200, status)
-	require.Equal(t, "100", anon)
+	require.Equal(t, anonRate, anon)
 }

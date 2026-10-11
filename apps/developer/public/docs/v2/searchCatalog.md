@@ -13,11 +13,11 @@
 
 Search catalog entities
 
-Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Requires an application key or a user access token with catalog:read. cursor= pages the hits. ids= is not accepted. page= selects page mode (see the page parameter). object=trait hits carry trait_path (group and direct parents). Without nsfw=true, sexual-family trait documents are excluded from the result and from total.
+Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. cursor= pages the hits. ids= is not accepted. page= selects page mode (see the page parameter). object=trait hits carry trait_path (group and direct parents). Without nsfw=true, sexual-family trait documents are excluded from the result and from total.
 
 - 所属 API：Public API v2（/v2）
-- 鉴权：Authorization: Bearer nmk_live_…
-- scope：catalog:read
+- 鉴权：可匿名调用
+- scope：catalog:read（仅在带凭据时）
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
@@ -38,8 +38,7 @@ Cross-entity search. object= selects the family. Hits are search_result rows wit
 | `locale` | query | 否 | string | zh or ja. Ignored for works. Must not be used as a discriminant. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/search" \
-  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
+curl "https://api.nextmoe.dev/v2/catalog/search"
 ```
 
 ---

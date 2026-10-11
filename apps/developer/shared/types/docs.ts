@@ -4,7 +4,7 @@ export type DocsMethod = 'get' | 'post' | 'put' | 'patch' | 'delete'
 export type DocsFaceKey = 'v2' | 'moyu' | 'sticker'
 
 export interface DocsAuth {
-  kind: 'api_key' | 'user_token' | 'none'
+  kind: 'api_key' | 'user_token' | 'none' | 'optional'
   curl: string
   display: string
   note: string

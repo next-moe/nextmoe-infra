@@ -13,11 +13,11 @@
 
 Get one character
 
-Character detail. view=full adds gender, birthday, measurements, blood_type, instance_of_id. include=image,figure,traits,aliases,intros,refs adds art, trait, name, description and anchor blocks. spoiler=none|minor|major is the ceiling of the traits block and defaults to none. Merged ids are 404 ENTITY_MERGED. Requires an application key or a user access token with catalog:read.
+Character detail. view=full adds gender, birthday, measurements, blood_type, instance_of_id. include=image,figure,traits,aliases,intros,refs adds art, trait, name, description and anchor blocks. spoiler=none|minor|major is the ceiling of the traits block and defaults to none. Merged ids are 404 ENTITY_MERGED. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
 
 - 所属 API：Public API v2（/v2）
-- 鉴权：Authorization: Bearer nmk_live_…
-- scope：catalog:read
+- 鉴权：可匿名调用
+- scope：catalog:read（仅在带凭据时）
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
@@ -29,8 +29,7 @@ Character detail. view=full adds gender, birthday, measurements, blood_type, ins
 | `spoiler` | query | 否 | string | Spoiler ceiling for the traits block: none (default), minor or major. Closed vocabulary; an unknown value is 400. Trait rows above the ceiling are not returned. Only the VNDB-derived trait vocabulary carries a spoiler level, and the default is the safe ceiling. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/characters/value" \
-  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
+curl "https://api.nextmoe.dev/v2/catalog/characters/value"
 ```
 
 ---

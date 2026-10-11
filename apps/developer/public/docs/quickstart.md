@@ -12,7 +12,7 @@
 从零到第一次成功调用，大约五分钟。不需要申请，不需要审核。
 
 > [!NOTE]
-> 匿名就能先试一把：`/v2/news`、`/v2/vocabularies`、`/v2/problems`、`/v2/catalog/stats` 与 `/v2/catalog/schemas/{object}` 不要任何凭据。想读目录数据再回来铸密钥。
+> 匿名就能先试一把：整个 `/v2/catalog` 只读面（`claim-events` 除外）以及 `/v2/news`、`/v2/vocabularies`、`/v2/problems` 都不要任何凭据，按 IP 限流（默认每分钟 30 次、每天 1,000 次）。`curl "https://api.nextmoe.dev/v2/catalog/works?limit=3"` 现在就能跑。量上来了再回来铸密钥。
 
 ## 1 · 创建应用
 

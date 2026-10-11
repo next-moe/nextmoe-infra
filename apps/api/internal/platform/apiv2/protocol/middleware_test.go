@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"api/internal/platform/apiv2/problem"
+	"api/internal/platform/devapi"
 	"api/internal/platform/settings/keys"
 
 	"github.com/gofiber/fiber/v3"
@@ -73,7 +74,7 @@ func TestProtocolHeadersOnSuccess(t *testing.T) {
 	require.NotEmpty(t, h.Get("ETag"))
 	require.Equal(t, "*", h.Get("Access-Control-Allow-Origin"))
 	require.Contains(t, h.Get("Access-Control-Expose-Headers"), "ETag")
-	require.Contains(t, h.Get("RateLimit-Policy"), strconv.Itoa(int(keys.APIV2DefaultRatePerMinute.Get()))+";w=60")
+	require.Contains(t, h.Get("RateLimit-Policy"), strconv.Itoa(int(keys.APIV2AnonRatePerMinute.Get()))+";w=60")
 	require.Contains(t, string(body), `"object"`)
 }
 
@@ -143,7 +144,7 @@ func TestRateLimit429(t *testing.T) {
 	app.Get("/v2/problems", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{"object": "list"})
 	})
-	for i := 0; i < int(keys.APIV2DefaultRatePerMinute.Get()); i++ {
+	for i := 0; i < int(keys.APIV2AnonRatePerMinute.Get()); i++ {
 		status, _, _ := do(t, app, http.MethodGet, "/v2/problems", nil, "")
 		require.Equal(t, 200, status)
 	}
@@ -154,6 +155,30 @@ func TestRateLimit429(t *testing.T) {
 	var p problem.Problem
 	require.NoError(t, json.Unmarshal(body, &p))
 	require.Equal(t, problem.CodeRateLimited, p.Code)
+	require.Contains(t, p.Detail, "developer.nextmoe.dev", "an anonymous 429 must say where the higher limit is")
+}
+
+// The anonymous budget is deliberately below every credentialed one; an
+// anonymous caller that out-ran a free key would make registering pointless.
+func TestAnonymousBudgetIsBelowEveryCredential(t *testing.T) {
+	freeRate, freeQuota, _ := devapi.TierLimits(devapi.TierFree)
+	require.Less(t, int(keys.APIV2AnonRatePerMinute.Get()), freeRate)
+	require.Less(t, int(keys.APIV2AnonQuotaPerDay.Get()), freeQuota)
+	require.Less(t, int(keys.APIV2AnonRatePerMinute.Get()), int(keys.APIV2DefaultRatePerMinute.Get()))
+	require.Less(t, int(keys.APIV2AnonQuotaPerDay.Get()), int(keys.APIV2DefaultQuotaPerDay.Get()))
+}
+
+func TestAddressBucket(t *testing.T) {
+	for raw, want := range map[string]string{
+		"203.0.113.9":                  "203.0.113.9",
+		"::ffff:203.0.113.9":           "203.0.113.9",
+		"2409:8a20:9414:d134:30cb::1":  "2409:8a20:9414:d134::/64",
+		"2409:8a20:9414:d134:ffff::99": "2409:8a20:9414:d134::/64",
+		"2409:8a20:9414:d135::1":       "2409:8a20:9414:d135::/64",
+		"":                             "unknown",
+	} {
+		require.Equal(t, want, addressBucket(raw), "addressBucket(%q)", raw)
+	}
 }
 
 func keyedApp(t *testing.T, id LimitIdentity, ok bool) *fiber.App {
@@ -181,6 +206,7 @@ func TestRateLimitUsesKeyIdentity(t *testing.T) {
 	var p problem.Problem
 	require.NoError(t, json.Unmarshal(body, &p))
 	require.Equal(t, problem.CodeRateLimited, p.Code)
+	require.NotContains(t, p.Detail, "developer.nextmoe.dev", "a key holder already has a key")
 }
 
 func TestRateLimitKeyQuota(t *testing.T) {

@@ -13,11 +13,11 @@
 
 Entity merge feed
 
-Redirects from merged-away ids, oldest first. Keyset-paginated. object= restricts to one family. Requires an application key or a user access token with catalog:read. ids= is not accepted.
+Redirects from merged-away ids, oldest first. Keyset-paginated. object= restricts to one family. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is not accepted.
 
 - 所属 API：Public API v2（/v2）
-- 鉴权：Authorization: Bearer nmk_live_…
-- scope：catalog:read
+- 鉴权：可匿名调用
+- scope：catalog:read（仅在带凭据时）
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
@@ -35,8 +35,7 @@ Redirects from merged-away ids, oldest first. Keyset-paginated. object= restrict
 | `object` | query | 否 | string | Restrict to one family. Closed: work, release, character, credit_name, person, company, tag, engine. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/redirects" \
-  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
+curl "https://api.nextmoe.dev/v2/catalog/redirects"
 ```
 
 ---

@@ -329,18 +329,44 @@ func TestCollectionPaginationAndBatch(t *testing.T) {
 	require.Equal(t, []string{"nope"}, batch.Missing)
 }
 
-func TestWorksRequiresCredential(t *testing.T) {
+// Every face is unbound here, so an anonymous request that got past the gate
+// answers 503; that, not a 200, is the signal it was not refused.
+func TestWorksAnswersWithoutACredential(t *testing.T) {
 	app := testApp(t)
 	status, ct, body := do(t, app, http.MethodGet, "/v2/catalog/works")
-	require.Equal(t, 401, status)
+	require.Equal(t, 503, status)
 	require.Contains(t, ct, "application/problem+json")
 	var p problem.Problem
 	require.NoError(t, json.Unmarshal(body, &p))
+	require.Equal(t, problem.CodeServiceUnavailable, p.Code)
+
+	// A credential that is present is still held to its scheme: a bad or
+	// revoked key must not read as "no key" and quietly turn anonymous.
+	for _, header := range []string{"Bearer nmk_not_a_real_key", "Bearer nmk_live_AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "Basic dTpw", "Bearer "} {
+		req := httptest.NewRequest(http.MethodGet, "/v2/catalog/works", nil)
+		req.Header.Set("Authorization", header)
+		resp, err := app.Test(req)
+		require.NoError(t, err)
+		b, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		require.Equal(t, 401, resp.StatusCode, header)
+		require.NoError(t, json.Unmarshal(b, &p), header)
+		require.Equal(t, problem.CodeInvalidCredential, p.Code, header)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/v2/catalog/works", nil)
+	req.Header.Set("X-API-Key", testAPIKey)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	b, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Equal(t, 401, resp.StatusCode)
+	require.NoError(t, json.Unmarshal(b, &p))
 	require.Equal(t, problem.CodeMissingCredential, p.Code)
 
-	req := httptest.NewRequest(http.MethodGet, "/v2/catalog/works?limit=101", nil)
+	req = httptest.NewRequest(http.MethodGet, "/v2/catalog/works?limit=101", nil)
 	req.Header.Set("Authorization", "Bearer "+testAPIKey)
-	resp, err := app.Test(req)
+	resp, err = app.Test(req)
 	require.NoError(t, err)
 	require.Equal(t, 400, resp.StatusCode)
 
@@ -394,10 +420,10 @@ func TestCatalogStatsAndNewsUnauthenticated(t *testing.T) {
 	require.Equal(t, problem.CodeServiceUnavailable, p.Code)
 
 	status, ct, body = do(t, app, http.MethodGet, "/v2/catalog/works/1")
-	require.Equal(t, 401, status)
+	require.Equal(t, 503, status)
 	require.Contains(t, ct, "application/problem+json")
 	require.NoError(t, json.Unmarshal(body, &p))
-	require.Equal(t, problem.CodeMissingCredential, p.Code)
+	require.Equal(t, problem.CodeServiceUnavailable, p.Code)
 
 	req := httptest.NewRequest(http.MethodGet, "/v2/catalog/works/1", nil)
 	req.Header.Set("Authorization", "Bearer "+testAPIKey)
@@ -416,10 +442,10 @@ func TestCatalogStatsAndNewsUnauthenticated(t *testing.T) {
 	require.Equal(t, 503, resp.StatusCode)
 
 	status, ct, body = do(t, app, http.MethodGet, "/v2/catalog/companies/1/graph")
-	require.Equal(t, 401, status)
+	require.Equal(t, 503, status)
 	require.Contains(t, ct, "application/problem+json")
 	require.NoError(t, json.Unmarshal(body, &p))
-	require.Equal(t, problem.CodeMissingCredential, p.Code)
+	require.Equal(t, problem.CodeServiceUnavailable, p.Code)
 
 	req = httptest.NewRequest(http.MethodGet, "/v2/catalog/companies/1/graph", nil)
 	req.Header.Set("Authorization", "Bearer "+testAPIKey)
@@ -428,7 +454,7 @@ func TestCatalogStatsAndNewsUnauthenticated(t *testing.T) {
 	require.Equal(t, 503, resp.StatusCode)
 }
 
-func TestCatalogCollectionsRequireCredential(t *testing.T) {
+func TestCatalogCollectionsAnswerWithoutACredential(t *testing.T) {
 	app := testApp(t)
 	for _, path := range []string{
 		"/v2/catalog/companies",
@@ -446,11 +472,11 @@ func TestCatalogCollectionsRequireCredential(t *testing.T) {
 		"/v2/catalog/traits",
 	} {
 		status, ct, body := do(t, app, http.MethodGet, path)
-		require.Equal(t, 401, status, path)
+		require.Equal(t, 503, status, path)
 		require.Contains(t, ct, "application/problem+json", path)
 		var p problem.Problem
 		require.NoError(t, json.Unmarshal(body, &p), path)
-		require.Equal(t, problem.CodeMissingCredential, p.Code, path)
+		require.Equal(t, problem.CodeServiceUnavailable, p.Code, path)
 
 		req := httptest.NewRequest(http.MethodGet, path, nil)
 		req.Header.Set("Authorization", "Bearer "+testAPIKey)
@@ -460,14 +486,14 @@ func TestCatalogCollectionsRequireCredential(t *testing.T) {
 	}
 }
 
-func TestWorkSubresourcesRequireCredential(t *testing.T) {
+func TestWorkSubresourcesAnswerWithoutACredential(t *testing.T) {
 	app := testApp(t)
 	status, ct, body := do(t, app, http.MethodGet, "/v2/catalog/works/1/tags")
-	require.Equal(t, 401, status)
+	require.Equal(t, 503, status)
 	require.Contains(t, ct, "application/problem+json")
 	var p problem.Problem
 	require.NoError(t, json.Unmarshal(body, &p))
-	require.Equal(t, problem.CodeMissingCredential, p.Code)
+	require.Equal(t, problem.CodeServiceUnavailable, p.Code)
 
 	req := httptest.NewRequest(http.MethodGet, "/v2/catalog/works/1/covers", nil)
 	req.Header.Set("Authorization", "Bearer "+testAPIKey)

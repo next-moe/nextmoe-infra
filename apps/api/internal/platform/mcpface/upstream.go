@@ -13,6 +13,12 @@ import (
 
 const upstreamTimeout = 30 * time.Second
 
+// The catalog's limiter keys a credential-less call on this header when the
+// peer is a private address. Without it every anonymous MCP user shares this
+// container's one bucket — the 2026-08-27 shape, where a first-party backend
+// spent one egress IP's daily quota for its whole site.
+const clientIPHeader = "CF-Connecting-IP"
+
 type Upstream struct {
 	base   string
 	client *http.Client
@@ -37,7 +43,7 @@ func NewUpstream(base string) *Upstream {
 	}
 }
 
-func (u *Upstream) Get(ctx context.Context, path string, query url.Values, authorization string) (status int, body []byte, err error) {
+func (u *Upstream) Get(ctx context.Context, path string, query url.Values, authorization, clientIP string) (status int, body []byte, err error) {
 	target := u.base + path
 	if enc := query.Encode(); enc != "" {
 		target += "?" + enc
@@ -45,7 +51,7 @@ func (u *Upstream) Get(ctx context.Context, path string, query url.Values, autho
 
 	const maxAttempts = 2
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		status, body, err = u.do(ctx, target, authorization)
+		status, body, err = u.do(ctx, target, authorization, clientIP)
 		if err == nil {
 			return status, body, nil
 		}
@@ -56,12 +62,17 @@ func (u *Upstream) Get(ctx context.Context, path string, query url.Values, autho
 	return 0, nil, err
 }
 
-func (u *Upstream) do(ctx context.Context, target, authorization string) (int, []byte, error) {
+func (u *Upstream) do(ctx context.Context, target, authorization, clientIP string) (int, []byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
 		return 0, nil, fmt.Errorf("build request: %w", err)
 	}
-	req.Header.Set("Authorization", authorization)
+	if authorization != "" {
+		req.Header.Set("Authorization", authorization)
+	}
+	if clientIP != "" {
+		req.Header.Set(clientIPHeader, clientIP)
+	}
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := u.client.Do(req)
