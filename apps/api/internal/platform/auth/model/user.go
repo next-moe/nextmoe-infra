@@ -5,6 +5,7 @@ import (
 	"time"
 
 	siteModel "api/internal/platform/site/model"
+	"api/pkg/imageclient"
 
 	"gorm.io/gorm"
 )
@@ -21,7 +22,6 @@ type User struct {
 	Password       *string `gorm:"size:255" json:"-"`
 	KungalPassword *string `gorm:"size:255" json:"-"`
 	MoyuPassword   *string `gorm:"size:255" json:"-"`
-	Avatar         string  `gorm:"size:255;default:''" json:"avatar"`
 
 	AvatarImageHash *string `gorm:"size:64;index" json:"avatar_image_hash,omitempty"`
 
@@ -58,6 +58,13 @@ func (u *User) RoleNames() []string {
 		names[i] = r.Name
 	}
 	return names
+}
+
+func (u *User) AvatarURL(cdnBase string) string {
+	if u.AvatarImageHash == nil {
+		return ""
+	}
+	return imageclient.MainURL(cdnBase, *u.AvatarImageHash, "webp")
 }
 
 func (User) TableName() string {

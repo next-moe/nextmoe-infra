@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -193,4 +194,21 @@ func TestSettingsDefaultsAndPatch(t *testing.T) {
 	}
 	_, err = r.svc.UpdateSettings(ctx, actor(1), SettingsPatch{AllowIncoming: ptr("friends")})
 	wantInvalid(t, err)
+}
+
+func TestUserViewsDrawTheAvatarFromItsHash(t *testing.T) {
+	r := newRig(t, 1, 2)
+	hash := "0123" + strings.Repeat("f", 60)
+	r.users.m[1] = Profile{ID: 1, Name: "u1", AvatarHash: hash, CreatedAt: old}
+
+	views, err := r.svc.userViews(context.Background(), []int64{1, 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "https://img.example/01/23/" + hash + ".webp"; len(views) != 2 || views[0].Avatar != want {
+		t.Fatalf("u1's avatar is its hash's URL: %+v", views)
+	}
+	if views[1].Avatar != "" {
+		t.Fatalf("no hash, no avatar: %+v", views[1])
+	}
 }

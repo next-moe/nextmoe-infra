@@ -43,6 +43,7 @@ type AdminService struct {
 	siteRoleRepo *repository.UserSiteRoleRepository
 	siteRepo     *siterepo.SiteRepository
 	imgClient    *imageclient.Client
+	cdnBase      string
 }
 
 func NewAdminService(
@@ -51,6 +52,7 @@ func NewAdminService(
 	siteRoleRepo *repository.UserSiteRoleRepository,
 	siteRepo *siterepo.SiteRepository,
 	imgClient *imageclient.Client,
+	cdnBase string,
 ) *AdminService {
 	return &AdminService{
 		userRepo:     userRepo,
@@ -58,6 +60,7 @@ func NewAdminService(
 		siteRoleRepo: siteRoleRepo,
 		siteRepo:     siteRepo,
 		imgClient:    imgClient,
+		cdnBase:      cdnBase,
 	}
 }
 
@@ -81,7 +84,7 @@ func (s *AdminService) ListUsers(ctx context.Context, req *dto.UserListRequest, 
 			UUID:            user.UUID,
 			Name:            user.Name,
 			Email:           piiOrRedacted(canSeePII, user.Email),
-			Avatar:          user.Avatar,
+			Avatar:          user.AvatarURL(s.cdnBase),
 			AvatarImageHash: user.AvatarImageHash,
 			Bio:             user.Bio,
 			About:           user.About,
@@ -124,7 +127,7 @@ func (s *AdminService) GetUser(ctx context.Context, uuid string, canSeePII bool)
 			UUID:            user.UUID,
 			Name:            user.Name,
 			Email:           piiOrRedacted(canSeePII, user.Email),
-			Avatar:          user.Avatar,
+			Avatar:          user.AvatarURL(s.cdnBase),
 			AvatarImageHash: user.AvatarImageHash,
 			Bio:             user.Bio,
 			About:           user.About,
@@ -222,9 +225,6 @@ func (s *AdminService) UpdateUser(ctx context.Context, uuid string, req *dto.Upd
 		}
 		user.Email = email
 	}
-	if req.Avatar != nil {
-		user.Avatar = *req.Avatar
-	}
 	if req.Bio != nil {
 		user.Bio = *req.Bio
 	}
@@ -249,7 +249,7 @@ func (s *AdminService) UpdateUser(ctx context.Context, uuid string, req *dto.Upd
 		UUID:            user.UUID,
 		Name:            user.Name,
 		Email:           piiOrRedacted(actor.CanSeePII, user.Email),
-		Avatar:          user.Avatar,
+		Avatar:          user.AvatarURL(s.cdnBase),
 		AvatarImageHash: user.AvatarImageHash,
 		Bio:             user.Bio,
 		About:           user.About,
@@ -321,7 +321,6 @@ func (s *AdminService) AnonymizeUser(ctx context.Context, uuid string) error {
 	user.Password = nil
 	user.KungalPassword = nil
 	user.MoyuPassword = nil
-	user.Avatar = ""
 	user.AvatarImageHash = nil
 	user.Bio = ""
 	user.About, user.AboutHTML = "", ""

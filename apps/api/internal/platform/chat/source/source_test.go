@@ -89,7 +89,8 @@ func TestRelationshipsReadTheCommunityTables(t *testing.T) {
 func TestProfilesMarkDeletedAccounts(t *testing.T) {
 	cleanup(t)
 	now := time.Now().UTC().Truncate(time.Second)
-	must(t, testDB.Create(&authModel.User{ID: uint(alice), Name: "alice910001", Email: "alice@chat.test", Avatar: "https://a.example/a.webp"}).Error)
+	hash := "abcd1234"
+	must(t, testDB.Create(&authModel.User{ID: uint(alice), Name: "alice910001", Email: "alice@chat.test", AvatarImageHash: &hash}).Error)
 	must(t, testDB.Create(&authModel.User{ID: uint(bob), Name: "bob910002", Email: "bob@chat.test", AnonymizedAt: &now}).Error)
 	must(t, testDB.Create(&authModel.User{ID: uint(carol), Name: "carol910003", Email: "carol@chat.test"}).Error)
 	must(t, testDB.Delete(&authModel.User{}, carol).Error)
@@ -98,7 +99,7 @@ func TestProfilesMarkDeletedAccounts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if a := got[alice]; a.Name != "alice910001" || a.Avatar != "https://a.example/a.webp" || a.Deleted || a.CreatedAt.IsZero() {
+	if a := got[alice]; a.Name != "alice910001" || a.AvatarHash != "abcd1234" || a.Deleted || a.CreatedAt.IsZero() {
 		t.Fatalf("alice: %+v", a)
 	}
 	if !got[bob].Deleted || !got[carol].Deleted {

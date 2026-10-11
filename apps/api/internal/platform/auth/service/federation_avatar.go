@@ -45,7 +45,7 @@ func (s *FederationService) adoptUpstreamAvatar(ctx context.Context, user *model
 	if s.imgClient == nil || user == nil || rawURL == "" {
 		return
 	}
-	if (user.AvatarImageHash != nil && *user.AvatarImageHash != "") || strings.TrimSpace(user.Avatar) != "" {
+	if user.AvatarImageHash != nil && *user.AvatarImageHash != "" {
 		return
 	}
 

@@ -40,7 +40,7 @@ func TestAboutNeedsThePerkToBeWrittenAndToBeSeen(t *testing.T) {
 	perks := perkTable{}
 	repo := repository.NewUserRepository(db)
 	svc := NewAuthService(repo, nil, config.JWTConfig{}).WithPerks(perks)
-	batch := NewUserBatchService(repo, nil).WithPerks(perks)
+	batch := NewUserBatchService(repo, nil, "").WithPerks(perks)
 	aboutHTML := func() string {
 		t.Helper()
 		b, err := batch.GetBriefs(ctx, []uint{u.ID}, 0)

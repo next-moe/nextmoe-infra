@@ -32,7 +32,7 @@ func TestSearchCarriesTheCallersCosmeticsLikeBatch(t *testing.T) {
 	t.Cleanup(func() { db.Exec(`DELETE FROM users WHERE id = ?`, u.ID) })
 
 	src := &siteCosmetics{}
-	svc := NewUserBatchService(repository.NewUserRepository(db), nil).WithCosmetics(src)
+	svc := NewUserBatchService(repository.NewUserRepository(db), nil, "").WithCosmetics(src)
 
 	found, err := svc.SearchByName(context.Background(), u.Name, 5, 7)
 	if err != nil {

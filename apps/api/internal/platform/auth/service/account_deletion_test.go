@@ -189,7 +189,7 @@ func TestTheDeletedFeedPagesInDeletionOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	svc := NewUserBatchService(repo, nil)
+	svc := NewUserBatchService(repo, nil, "")
 	cursor := strconv.FormatInt(base.Add(-time.Second).UnixNano(), 10) + ".0"
 	first, err := svc.ListDeleted(ctx, cursor, 1)
 	if err != nil {
