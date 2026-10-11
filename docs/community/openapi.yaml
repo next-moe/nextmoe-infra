@@ -2399,6 +2399,35 @@ components:
         - notifications
         - unread_count
       type: object
+    NotificationNoticeView:
+      additionalProperties: false
+      properties:
+        id:
+          format: int64
+          type: integer
+        raised_at:
+          format: date-time
+          type: string
+        ref:
+          description: the subject within the topic, e.g. offer:7; one unread row per topic and ref
+          type: string
+        title:
+          description: the line to show, already written for the recipient
+          type: string
+        topic:
+          description: what raised it, e.g. shop_restock
+          type: string
+        url:
+          description: absolute URL to open, or empty
+          type: string
+      required:
+        - id
+        - topic
+        - ref
+        - title
+        - url
+        - raised_at
+      type: object
     NotificationView:
       additionalProperties: false
       properties:
@@ -2435,9 +2464,12 @@ components:
           format: int64
           type: integer
         kind:
-          description: 1=replied 2=mentioned 3=posted 4=thread_created 5=liked 6=answer_accepted 7=feedback_status 8=followed 9=followee_thread_created 10=followee_activity; kinds 8 and 10 name no thread (thread_id 0, empty anchor)
+          description: 1=replied 2=mentioned 3=posted 4=thread_created 5=liked 6=answer_accepted 7=feedback_status 8=followed 9=followee_thread_created 10=followee_activity 11=notice; kinds 8, 10 and 11 name no thread (thread_id 0, empty anchor)
           format: int32
           type: integer
+        notice:
+          $ref: "#/components/schemas/NotificationNoticeView"
+          description: "kind 11 only: the newest notice the row folds; item_count is how many notices of this topic and ref arrived since the row was last read"
         post_id:
           format: int64
           type:
@@ -3566,7 +3598,7 @@ components:
       type: object
 info:
   title: KUN Community Service
-  version: 1.1.0
+  version: 1.2.0
 openapi: 3.1.0
 paths:
   /api/v1/community/activities:

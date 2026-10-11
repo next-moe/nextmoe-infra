@@ -686,11 +686,27 @@ The kinds and their folds:
 | `8` followed | `followed` | `item_count` = `actor_count` = follows of the recipient made through this row's site since `since_at` that still stand |
 | `9` followee_thread_created | none | one row per event |
 | `10` followee_activity | `followee:<actor_id>` | `item_count` = the author's live notified activities on this row's site since `since_at` (the earliest folded in), counted to 100 — `100` means 100 or more; `actor_count` = 1 |
+| `11` notice | `notice:<topic>:<ref>` | on conflict `item_count = item_count + 1`; `actor_count` = 0 |
 
-Kinds 8 and 10 name no thread: `thread_id` is 0, `anchor_kind` is 0,
+Kinds 8, 10 and 11 name no thread: `thread_id` is 0, `anchor_kind` is 0,
 `anchor_id` is empty, and `post_id` / `post_number` / `first_post_number` are
 null. Those zero values are the contract. A feed consumer skips kinds it does
 not know.
+
+Kind 11 is a **notice** from another first-party service, not from anything
+on the community. The service writes it to `platform_notices` in the platform
+database, addressed to a site and a user; the dispatcher reads that table in
+id order behind its own cursor (`platform_notice_cursor`, consumer
+`community`) and writes the row under the same lock and `seq` rule as every
+other kind. A notice has no actor, so blocks and thread levels do not apply.
+It carries `notice` — `{id, topic, ref, title, url, raised_at}`: `title` is
+the line to show, already written for the recipient; `url` is an absolute
+link (or empty) the site should open, checking its host as it would any link;
+`topic` names the producer (`shop_restock` today, see oauth doc 16) and `ref`
+the subject within it. One unread row per (site, recipient, topic, ref) folds
+newer notices of that subject: `notice` becomes the newest and `item_count`
+counts them. A site only receives notices addressed to it, so one that never
+asked another service to notify its users never sees kind 11.
 
 Kind 10 goes to the author's followers whose level is `all` at dispatch time,
 never to the author, and is delivered to the **activity's** site, not the site

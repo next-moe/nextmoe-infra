@@ -25,7 +25,10 @@ const (
 // lock keys share one space across the whole Postgres instance.
 const NotifyDispatchLockKey int64 = 0x636e7466
 
-type NotificationService struct{ db *gorm.DB }
+type NotificationService struct {
+	db      *gorm.DB
+	notices *gorm.DB
+}
 
 func NewNotificationService(db *gorm.DB) *NotificationService {
 	return &NotificationService{db: db}
@@ -43,6 +46,9 @@ func (s *NotificationService) Run(ctx context.Context) {
 		case <-batch.C:
 			if _, _, _, err := s.ProcessBatch(ctx); err != nil {
 				slog.Error("community notification dispatch", "err", err)
+			}
+			if _, err := s.DeliverNotices(ctx); err != nil {
+				slog.Error("community notice delivery", "err", err)
 			}
 		case <-prune.C:
 			if _, _, err := s.Prune(ctx); err != nil {

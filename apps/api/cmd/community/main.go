@@ -104,7 +104,7 @@ func main() {
 	engagementSvc := service.NewEngagementService(communityDB.DB())
 	searchSvc := service.NewSearchService(communityDB.DB())
 	boardSvc := service.NewBoardService(communityDB.DB())
-	notifySvc := service.NewNotificationService(communityDB.DB())
+	notifySvc := service.NewNotificationService(communityDB.DB()).WithNoticeSource(application.DB.DB())
 	followSvc := service.NewFollowService(communityDB.DB())
 	activitySvc := service.NewActivityService(communityDB.DB())
 
