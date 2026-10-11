@@ -24,11 +24,11 @@ type Actor struct {
 }
 
 type Profile struct {
-	ID        int64
-	Name      string
-	Avatar    string
-	Deleted   bool
-	CreatedAt time.Time
+	ID         int64
+	Name       string
+	AvatarHash string
+	Deleted    bool
+	CreatedAt  time.Time
 }
 
 type Users interface {

@@ -82,7 +82,6 @@ type ChangeEmailRequest struct {
 
 type UpdateProfileRequest struct {
 	Name            *string `json:"name,omitempty"              validate:"omitempty,kun_name"`
-	Avatar          *string `json:"avatar,omitempty"            validate:"omitempty,max=255"`
 	AvatarImageHash *string `json:"avatar_image_hash,omitempty" validate:"omitempty,max=64"`
 	Bio             *string `json:"bio,omitempty"               validate:"omitempty,max=107"`
 	About           *string `json:"about,omitempty"             validate:"omitempty,max=500"`

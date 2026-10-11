@@ -21,33 +21,20 @@ export const imageHashUrl = (
 }
 
 /**
- * Resolve a user's avatar URL. Prefers `avatar_image_hash` (new), falls
- * back to legacy `avatar`, finally to the placeholder.
+ * Resolve a user's avatar URL from `avatar_image_hash`, or the placeholder
+ * when the user has none.
  *
- * @param user object with `avatar` and optional `avatar_image_hash`
  * @param opts.cdnBase  image_service CDN base
  * @param opts.variant  e.g. '256' (default avatar tile) or '100' (small)
- * @param placeholder   shown when neither hash nor legacy URL is set
  */
 export const resolveAvatarUrl = (
-  user: { avatar: string; avatar_image_hash?: string | null } | null | undefined,
+  user: { avatar_image_hash?: string | null } | null | undefined,
   opts: ImageURLOptions,
   placeholder = ''
-): string => {
-  if (!user) return placeholder
-  if (user.avatar_image_hash) {
-    return imageHashUrl(user.avatar_image_hash, opts)
-  }
-  if (user.avatar) return legacyAvatarVariant(user.avatar, opts.variant)
-  return placeholder
-}
-
-const legacyAvatarVariant = (url: string, variant?: string): string => {
-  if (variant && /\/avatar\.webp$/.test(url)) {
-    return url.replace(/\/avatar\.webp$/, '/avatar-100.webp')
-  }
-  return url
-}
+): string =>
+  user?.avatar_image_hash
+    ? imageHashUrl(user.avatar_image_hash, opts)
+    : placeholder
 
 /**
  * Resolve a galgame's banner URL.

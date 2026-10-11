@@ -24,20 +24,20 @@ func (u *Users) Profiles(ctx context.Context, ids []int64) (map[int64]service.Pr
 	type row struct {
 		ID           int64      `gorm:"column:id"`
 		Name         string     `gorm:"column:name"`
-		Avatar       string     `gorm:"column:avatar"`
+		AvatarHash   string     `gorm:"column:avatar_hash"`
 		AnonymizedAt *time.Time `gorm:"column:anonymized_at"`
 		DeletedAt    *time.Time `gorm:"column:deleted_at"`
 		CreatedAt    time.Time  `gorm:"column:created_at"`
 	}
 	var rows []row
 	if err := u.db.WithContext(ctx).Raw(`
-		SELECT id, name, avatar, anonymized_at, deleted_at, created_at FROM users WHERE id IN ?`, ids).
+		SELECT id, name, COALESCE(avatar_image_hash, '') AS avatar_hash, anonymized_at, deleted_at, created_at FROM users WHERE id IN ?`, ids).
 		Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	for _, r := range rows {
 		out[r.ID] = service.Profile{
-			ID: r.ID, Name: r.Name, Avatar: r.Avatar, CreatedAt: r.CreatedAt,
+			ID: r.ID, Name: r.Name, AvatarHash: r.AvatarHash, CreatedAt: r.CreatedAt,
 			Deleted: r.AnonymizedAt != nil || r.DeletedAt != nil,
 		}
 	}

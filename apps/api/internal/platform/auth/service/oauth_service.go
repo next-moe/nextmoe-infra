@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	stderrors "errors"
-	"fmt"
 	"log/slog"
 	"net/url"
 	"strconv"
@@ -381,7 +380,7 @@ func (s *OAuthService) GetUserInfo(ctx context.Context, userUUID, scope string, 
 
 	if ScopeGrants(scope, "profile") {
 		info.Name = user.Name
-		info.Picture = s.resolveAvatar(user)
+		info.Picture = user.AvatarURL(s.cfg.ImageService.CDNBase)
 		confirmed := user.AdultConfirmedAt != nil
 		info.AdultConfirmed = &confirmed
 		info.NSFWDisplay = user.NSFWDisplay
@@ -389,15 +388,6 @@ func (s *OAuthService) GetUserInfo(ctx context.Context, userUUID, scope string, 
 	info.Email = EmailForScope(scope, user.Email)
 
 	return info, nil
-}
-
-func (s *OAuthService) resolveAvatar(u *model.User) string {
-	if u.AvatarImageHash != nil && len(*u.AvatarImageHash) >= 4 {
-		h := *u.AvatarImageHash
-		base := strings.TrimRight(s.cfg.ImageService.CDNBase, "/")
-		return fmt.Sprintf("%s/%s/%s/%s.webp", base, h[0:2], h[2:4], h)
-	}
-	return u.Avatar
 }
 
 func clientAudience(client *sitemodel.OAuthClient) jwt.ClaimStrings {

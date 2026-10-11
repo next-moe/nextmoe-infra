@@ -57,8 +57,7 @@ const submit = async () => {
       <div class="space-y-3">
         <p class="text-default-500 text-sm">
           会推送到 image_service，自动生成 <code>_256</code> / <code>_100</code>
-          变体并写入 <code>avatar_image_hash</code>。原 <code>avatar</code> URL
-          保留作回退（老用户头像不会被覆盖）。
+          变体并写入 <code>avatar_image_hash</code>。
         </p>
 
         <CommonAvatarCrop :key="cropKey" :disabled="uploading" @crop="onCrop" />
