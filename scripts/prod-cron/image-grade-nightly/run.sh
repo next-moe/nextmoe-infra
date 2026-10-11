@@ -61,16 +61,18 @@ DSNSH='export PGPASSWORD="$KUN_PG_PASSWORD"; B="host='"$PGHOST_C"' port=5432 use
 # shared token drove the production text gate to 58% fail-open. The 10M neuron
 # cap (~$110) bounds a surprise image wave; the tool exits non-zero when the
 # cap left images ungraded, so a capped night alerts on its own.
-# Since 2026-09-18 the account runs on the free daily allocation, about 4,500
+# Since 2026-09-18 the account runs on the free daily allocation, 1,500-4,500
 # images a night. A night that uses it up holds for an hour in case the rolling
 # window frees, then carries the rest to the next night and exits clean; it
-# fails only when more than 25,000 images (five nights) are left waiting.
+# fails only when more than 40,000 images are left waiting. image-mirror adds
+# ~18,000 DLsite images every Monday, so 25,000 failed the 2026-10-05 night on a
+# queue that was draining as planned.
 echo "--- step A: grade new images ---"
 docker run --rm --network dokploy-network \
   --env-file "$ENVDIR/env.img" --env-file "$ENVDIR/env.cf" \
   "$IMG" sh -c "$DSNSH"'; exec classify-image-safety -mode grade -dsn "$IMGDSN" -guard-dsn "$AIDSN" \
     -base-url "$KUN_IMAGE_PUBLIC_BASE_URL" -limit 0 -concurrency 16 -max-neurons 10000000 \
-    -quota-wait 60m -carry-max 25000 --apply' \
+    -quota-wait 60m -carry-max 40000 --apply' \
   || { echo "WARN: grading exited $?"; FAIL=1; }
 
 # Step B — propagate per-image grades into the catalog media rows. Ungraded and
