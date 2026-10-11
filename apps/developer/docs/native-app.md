@@ -21,6 +21,18 @@ description: Tauri / Wails 写的游戏管理器怎么读 /v2/catalog：用用�
 
 `GET /v2/catalog/claim-events` 与整个 `/v2/store` 是例外，仍然只收应用密钥。
 
+## 不登录：匿名额度怎么花 {#anonymous-budget}
+
+本地游戏管理器只想给用户的游戏库补元数据时，可以完全不带凭据。额度按**每台机器自己的公网 IP** 计（IPv6 按 /64），默认每分钟 30 次、每天 1,000 次，用户之间互不影响。按下面的方式调用，几百款游戏的库在这份额度里绰绰有余：
+
+1. **手上有外部 id 就批量反查。** DLsite 的 RJ 号、Steam appid、VNDB / Bangumi / ErogameScape 的 id 都能直接查：`GET /v2/catalog/works?refs=dlsite:RJ01000000,steam:1234560,vndb:v17`，一次最多 100 个，没命中的原样回在 `missing[]` 里。1,000 款游戏的库只要 10 次调用。
+2. **只有标题时才逐条搜。** `GET /v2/catalog/works?q=<标题>&limit=5` 每款 1 次。首次匹配几百款要分几分钟跑完：读响应头 `RateLimit` 里的 `remaining` 与 `reset`，用完了就等 `reset` 秒，不要撞上 429 再重试。
+3. **详情批量拿。** 匹配完用 `GET /v2/catalog/works?ids=…`，一次 100 部；`include=titles,covers,companies,tags,ratings` 在批量请求里也会返回。发行、截图、角色这些按作品给的块，才需要逐部读 `/v2/catalog/works/{id}/…`。
+4. **刷新不要全量重扫。** 定期用 `ids=` 把库里的作品批量重读一遍，500 款的库每次 5 次调用。
+5. **设一个认得出的 User-Agent**，例如 `MyGalManager/1.4 (+https://github.com/you/repo)`，出问题时我们能找到你。
+
+库很大（上千款，而且首次匹配全靠标题）时，一天的匿名额度不够。要么把首次匹配分几天做完，要么让用户登录、改用下面的用户访问令牌：每人每分钟 100 次、每天 10,000 次。
+
 ## 1 · 注册应用 {#register}
 
 在[控制台](/dashboard)建应用后，进入应用详情页的「用户登录」卡片开启并配置（`user_login`）——回调地址与 scope 随时可改，全程自助，无需联系平台管理员。落下来的配置形如下面这份，三件事随之定死：
