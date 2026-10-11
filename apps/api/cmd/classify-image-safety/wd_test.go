@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -100,72 +101,134 @@ func TestWDClientRetriesServerErrorsOnly(t *testing.T) {
 	}
 }
 
-func TestRunGradeWritesTaggerGradesToUngradedImagesOnly(t *testing.T) {
-	db := imagesTestDB(t)
-	ctx := context.Background()
-	safe := seedImage(t, db, "safe", "")
-	explicit := seedImage(t, db, "explicit", "")
-	undecodable := seedImage(t, db, "undecodable", "")
-	human := seedImage(t, db, "human", `{"grade":{"provider":"human","model":"","level":1,"at":"2026-10-11T00:00:00Z"}}`)
-
-	images := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		name := strings.TrimLeft(strings.TrimSuffix(r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:], ".webp"), "0")
-		_, _ = w.Write([]byte(name))
-	}))
-	defer images.Close()
-	const model = "SmilingWolf/wd-vit-tagger-v3@test"
-	tagger := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func fakeTagger(t *testing.T, calls *atomic.Int32) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/healthz" {
-			_, _ = w.Write([]byte(`{"model":"` + model + `"}`))
+			_, _ = w.Write([]byte(`{"model":"wd@test"}`))
 			return
 		}
+		calls.Add(1)
 		body, _ := io.ReadAll(r.Body)
+		s := scoresOf([4]float64{0.9, 0.1, 0, 0}, nil)
 		switch string(body) {
-		case "safe":
-			_ = json.NewEncoder(w).Encode(scoresOf([4]float64{0.9, 0.1, 0, 0}, nil))
 		case "explicit":
-			_ = json.NewEncoder(w).Encode(scoresOf([4]float64{0, 0.1, 0.2, 0.7}, map[string]float64{"sex": 0.9}))
+			s = scoresOf([4]float64{0, 0.1, 0.2, 0.7}, map[string]float64{"sex": 0.9})
 		case "undecodable":
 			w.WriteHeader(http.StatusUnprocessableEntity)
-		default:
-			t.Errorf("the tagger was asked about %q", body)
-			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
+		s.Model = "wd@test"
+		_ = json.NewEncoder(w).Encode(s)
 	}))
-	defer tagger.Close()
+	t.Cleanup(srv.Close)
+	return srv
+}
 
-	opts := gradeOptions{DSN: os.Getenv("TEST_IMAGES_DSN"), BaseURL: images.URL, Concurrency: 2, ReadyWait: 5 * time.Second, Tagger: newWDClient(tagger.URL)}
-	if err := runGrade(ctx, opts, io.Discard); err != nil {
-		t.Fatalf("dry run: %v", err)
-	}
-	if _, ok := labelsOf(t, db, safe)["grade"]; ok {
-		t.Fatal("a dry run wrote a grade")
-	}
+func nameServer(t *testing.T) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		file := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
+		_, _ = w.Write([]byte(strings.TrimLeft(strings.TrimSuffix(file, ".webp"), "0")))
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
 
-	opts.Apply = true
-	if err := runGrade(ctx, opts, io.Discard); err != nil {
-		t.Fatalf("apply: %v", err)
+func padHash(name string) string { return strings.Repeat("0", 64-len(name)) + name }
+
+func TestTagWritesScoresAndResumesWhereItStopped(t *testing.T) {
+	dir := t.TempDir()
+	in, out := filepath.Join(dir, "pending.csv"), filepath.Join(dir, "scores.jsonl")
+	if err := os.WriteFile(in, []byte(padHash("safe")+",webp\n"+padHash("explicit")+",webp\n"+padHash("undecodable")+",webp\n"), 0o644); err != nil {
+		t.Fatal(err)
 	}
-	for hash, want := range map[string]int{safe: 0, explicit: 3} {
-		g := labelsOf(t, db, hash)["grade"]
-		if g.Provider != providerWD || g.Model != model || g.Level != want || len(g.Scores) != 20 {
-			t.Errorf("%s: grade %+v, want level %d from %s", hash, g, want, providerWD)
+	var calls atomic.Int32
+	o := tagOptions{In: in, Out: out, BaseURL: nameServer(t).URL, Concurrency: 2, ReadyWait: 5 * time.Second,
+		Tagger: newWDClient(fakeTagger(t, &calls).URL)}
+	if err := runTag(context.Background(), o, io.Discard); err != nil {
+		t.Fatalf("tag: %v", err)
+	}
+	recs, err := readTagRecords(out)
+	if err != nil || len(recs) != 2 || calls.Load() != 3 {
+		t.Fatalf("first run: %d records, %v, %d tagger calls", len(recs), err, calls.Load())
+	}
+	for _, r := range recs {
+		if r.Model != "wd@test" || len(r.Rating) != 4 {
+			t.Errorf("record %+v", r)
 		}
 	}
-	if _, ok := labelsOf(t, db, undecodable)["grade"]; ok {
-		t.Error("an image the tagger could not decode got a grade")
+
+	calls.Store(0)
+	if err := runTag(context.Background(), o, io.Discard); err != nil {
+		t.Fatalf("second run: %v", err)
 	}
-	if g := labelsOf(t, db, human)["grade"]; g.Provider != providerHuman || g.Level != 1 {
-		t.Errorf("a human grade was touched: %+v", g)
+	if recs, _ := readTagRecords(out); len(recs) != 2 || calls.Load() != 1 {
+		t.Fatalf("a rerun re-tagged finished images: %d records, %d calls (only the undecodable one should be retried)", len(recs), calls.Load())
 	}
 }
 
-func TestRunGradeFailsWhenTheTaggerNeverComesUp(t *testing.T) {
-	err := runGrade(context.Background(), gradeOptions{
-		DSN: "unused", BaseURL: "http://unused", ReadyWait: time.Millisecond,
-		Tagger: newWDClient("http://127.0.0.1:1"),
-	}, io.Discard)
-	if err == nil || !strings.Contains(err.Error(), "not ready") {
-		t.Fatalf("err = %v", err)
+func TestApplyGradesOnlyWhatItMayReplace(t *testing.T) {
+	db := imagesTestDB(t)
+	ctx := context.Background()
+	pending := seedImage(t, db, "pending", "")
+	moondream := seedImage(t, db, "moondream", machineSafe)
+	human := seedImage(t, db, "human", `{"grade":{"provider":"human","model":"","level":1,"at":"2026-10-11T00:00:00Z"}}`)
+	already := seedImage(t, db, "already", `{"grade":{"provider":"wd-tagger","model":"wd@old","level":0,"at":"2026-10-11T00:00:00Z"}}`)
+
+	explicit := scoresOf([4]float64{0, 0.1, 0.2, 0.7}, map[string]float64{"sex": 0.9})
+	explicit.Model = "wd@test"
+	var lines []string
+	for _, h := range []string{pending, moondream, human, already, padHash("gone")} {
+		b, _ := json.Marshal(tagRecord{Hash: h, wdScores: explicit})
+		lines = append(lines, string(b))
+	}
+	in := filepath.Join(t.TempDir(), "scores.jsonl")
+	if err := os.WriteFile(in, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	recs, err := readTagRecords(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	st, err := applyGrades(ctx, db, recs, applyOptions{})
+	if err != nil || st.written != 1 || st.missing != 1 || st.keptHuman != 1 || st.keptWD != 1 || st.keptMachine != 1 {
+		t.Fatalf("dry run: %+v, %v", st, err)
+	}
+	if _, ok := labelsOf(t, db, pending)["grade"]; ok {
+		t.Fatal("a dry run wrote a grade")
+	}
+
+	if _, err := applyGrades(ctx, db, recs, applyOptions{Apply: true}); err != nil {
+		t.Fatal(err)
+	}
+	if g := labelsOf(t, db, pending)["grade"]; g.Provider != providerWD || g.Model != "wd@test" || g.Level != 3 || len(g.Scores) != 20 {
+		t.Fatalf("pending: %+v", g)
+	}
+	if g := labelsOf(t, db, moondream)["grade"]; g.Provider != providerMoondream {
+		t.Fatalf("a moondream grade was replaced without -replace-machine: %+v", g)
+	}
+
+	st, err = applyGrades(ctx, db, recs, applyOptions{Apply: true, ReplaceMachine: true})
+	if err != nil || st.written != 1 || st.hidden != 1 {
+		t.Fatalf("replace: %+v, %v", st, err)
+	}
+	if g := labelsOf(t, db, moondream)["grade"]; g.Provider != providerWD || g.Level != 3 {
+		t.Fatalf("moondream grade not replaced: %+v", g)
+	}
+	var kept struct {
+		Provider string `gorm:"column:provider"`
+		Reason   string `gorm:"column:reason"`
+	}
+	if err := db.Raw(`SELECT review_labels->'grade_moondream'->>'provider' AS provider, review_labels->>'manual_reason' AS reason
+	                    FROM images WHERE hash = ?`, moondream).Scan(&kept).Error; err != nil || kept.Provider != providerMoondream || kept.Reason != "kept" {
+		t.Fatalf("the moondream grade or another key was lost: %+v, %v", kept, err)
+	}
+	if g := labelsOf(t, db, human)["grade"]; g.Provider != providerHuman || g.Level != 1 {
+		t.Fatalf("a human grade was touched: %+v", g)
+	}
+	if g := labelsOf(t, db, already)["grade"]; g.Model != "wd@old" {
+		t.Fatalf("an existing tagger grade was overwritten: %+v", g)
 	}
 }

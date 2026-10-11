@@ -1,0 +1,8 @@
+[Unit]
+Description=NextMoe image grading, off-host half (scripts/image-grade-local/run.sh)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/share/nextmoe/image-grade/run.sh

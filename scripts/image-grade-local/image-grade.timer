@@ -1,0 +1,12 @@
+# 16:00 CST: after image-mirror's Monday wave has usually finished uploading,
+# and an hour before prod's cover-shelf-watch reads the grades. Persistent
+# catches up a run the workstation slept through.
+[Unit]
+Description=Daily NextMoe image grading
+
+[Timer]
+OnCalendar=*-*-* 16:00:00 Asia/Shanghai
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -40,6 +40,7 @@ had to be rebuilt by hand.
 | reindex-catalog | daily 06:10 | daily 22:10 (prev. day) | 48h |
 | intromt-nightly | daily 13:00 | daily 05:00 | 48h |
 | image-grade-nightly | daily 15:00 | daily 07:00 | 48h |
+| image-grade-tag (off-host: `scripts/image-grade-local`, stamped by `image-grade-nightly/io.sh`) | daily 16:00 | daily 08:00 | 48h |
 | playtime-aggregate | daily 05:20 | daily 21:20 (prev. day) | 48h |
 | refresh-tag-counts | hourly :40 | hourly :40 | 6h |
 | tag-vocab-backlog | 1st 12:30 | 1st 04:30 | 768h |
