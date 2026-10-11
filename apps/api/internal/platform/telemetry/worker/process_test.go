@@ -180,6 +180,44 @@ func TestProcessPerKind(t *testing.T) {
 			t.Fatalf("%s %s", res.Status, res.Needs)
 		}
 	})
+	apkApp := `#01 pc 0000000000bf9f2c  /data/app/~~A2X==/com.kungal.app.e2e-DYG==/base.apk (BuildId: a5a74b63f1e89ba8e03f452b38ab3fa5)`
+	apkEng := `#23 pc 00000000009410e8  /data/app/~~A2X==/com.kungal.app.e2e-DYG==/base.apk!libflutter.so (BuildId: 1164bae6165f15f0ecdcba31ceb73ad2ea73038d)`
+	t.Run("native inside apk waiting", func(t *testing.T) {
+		res := Process(ctx, job(model.KindNative, map[string]any{
+			"exception.type": "SIGABRT (SI_QUEUE)", "exception.stacktrace": apkApp + "\n" + apkEng,
+		}), fakeTools{}, fakeLookup{})
+		want := symbolicate.NeedsList("dart:a5a74b63f1e89ba8e03f452b38ab3fa5", "engine:1164bae6165f15f0ecdcba31ceb73ad2ea73038d")
+		if res.Status != model.CrashWaitingSymbols || res.Needs != want {
+			t.Fatalf("%s %q want %q", res.Status, res.Needs, want)
+		}
+	})
+	t.Run("native inside apk done", func(t *testing.T) {
+		look := fakeLookup{
+			dart:   map[string]*model.SymbolFile{"a5a74b63f1e89ba8e03f452b38ab3fa5": {SHA256: "s"}},
+			engine: map[string]*model.EngineSymbol{"1164bae6165f15f0ecdcba31ceb73ad2ea73038d": {SHA256: "e"}},
+		}
+		tools := fakeTools{
+			decodeOut: decodedDart,
+			addrs: []symbolicate.LLVMAddress{{Address: 0x9410e8, Symbols: []symbolicate.LLVMSymbol{
+				{FunctionName: "dart::DartEntry::InvokeFunction", FileName: "/b/s/w/ir/cache/builder/src/third_party/dart/runtime/vm/dart_entry.cc", Line: 1},
+			}}},
+		}
+		res := Process(ctx, job(model.KindNative, map[string]any{
+			"exception.type": "SIGABRT (SI_QUEUE)", "exception.stacktrace": apkApp + "\n" + apkEng,
+		}), tools, look)
+		if res.Status != model.CrashDone || res.Needs != "" || len(res.Frames) != 2 {
+			t.Fatalf("%s %q %+v", res.Status, res.Needs, res.Frames)
+		}
+		if f := res.Frames[0]; f.Function != "_About.build.<anonymous closure>" || f.Module != "libapp.so" {
+			t.Errorf("app %+v", f)
+		}
+		if f := res.Frames[1]; f.Function != "dart::DartEntry::InvokeFunction" || f.Module != "libflutter.so" {
+			t.Errorf("engine %+v", f)
+		}
+		if res.Culprit == "" || res.Culprit[0] == '+' {
+			t.Errorf("culprit %q", res.Culprit)
+		}
+	})
 	t.Run("tool error attempts", func(t *testing.T) {
 		look := fakeLookup{dart: map[string]*model.SymbolFile{
 			"00c92cc1f2db62bbc0baf45738c85488": {SHA256: "s"},

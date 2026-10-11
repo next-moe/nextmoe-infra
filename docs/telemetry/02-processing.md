@@ -29,7 +29,7 @@
 |---|---|
 | Dart 异常（含 `contract`、`server`） | 栈头有 `build_id` 时按 build id 找 `.symbols`，用 `telemetry-decode`（package:native_stack_traces 0.7.0）还原；类型名与消息中引号内的名字用同一次上传的混淆映射还原（映射里私有名带 `@库哈希` 后缀，比对前去掉） |
 | Java 崩溃、ANR | 按版本取 `mapping.txt`，用 R8 retrace 还原；ANR 取 `"main"` 线程的帧 |
-| 原生崩溃 | `libapp.so` 帧按 BuildId 用 Dart 符号还原（把 pc 合成为 Dart 非符号化栈再解码）；`libflutter.so` 帧按 BuildId 用引擎符号经 llvm-symbolizer 还原；系统库帧保持原样 |
+| 原生崩溃 | `libapp.so` 帧按 BuildId 用 Dart 符号还原（把 pc 合成为 Dart 非符号化栈再解码）；`libflutter.so` 帧按 BuildId 用引擎符号经 llvm-symbolizer 还原；系统库帧保持原样。release 包的原生库直接从 APK 映射，debuggerd 把引擎帧记为 `base.apk!libflutter.so`、把 libapp 帧只记为 `base.apk`（无 soname），所以模块名取 `!` 之后的部分，带 BuildId 的裸 `.apk` 帧按 libapp 处理，还原后模块记为 `libapp.so` |
 
 缺符号时记录为「等待符号」，并注明缺什么（`dart:<build id>`、`r8:<版本>`、`engine:<build id>`），先按未还原的帧归组；符号上传后每 5 分钟检查一次，自动重新还原、重新归组。工具失败 3 次记为「还原失败」，仍按原始帧归组。
 
