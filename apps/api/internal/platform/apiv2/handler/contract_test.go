@@ -75,6 +75,7 @@ func contractURL(t *testing.T, path string) string {
 	url = strings.ReplaceAll(url, "{object}", "work")
 	url = strings.ReplaceAll(url, "{work_id}", "1")
 	url = strings.ReplaceAll(url, "{company_id}", "1")
+	url = strings.ReplaceAll(url, "{tag_id}", "1")
 	url = strings.ReplaceAll(url, "{cover_id}", "1")
 	url = strings.ReplaceAll(url, "{product_id}", "RJ01000000")
 	url = strings.ReplaceAll(url, "{uid}", "1")

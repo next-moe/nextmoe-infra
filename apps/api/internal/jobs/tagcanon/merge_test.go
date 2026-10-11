@@ -173,3 +173,39 @@ func TestMergeMovesHierarchyEdgesToTheWinner(t *testing.T) {
 	assert.Equal(t, model.TagParentOriginCurated, edges[1].Origin)
 	assert.Equal(t, "reviewed", edges[1].Note)
 }
+
+func TestMergeMovesTagBlocksToTheWinner(t *testing.T) {
+	cleanTagcanon(t)
+	ctx := context.Background()
+	winner := mkTag(t, "致郁", false)
+	loser := mkTag(t, "致郁（鬱ゲー）", false)
+	block := func(uid, tag int64, mode int16) model.CatalogUserTagBlock {
+		return model.CatalogUserTagBlock{ActorUID: uid, TagID: tag, Mode: mode, ClientID: "kungal"}
+	}
+	require.NoError(t, testDB.Create(&[]model.CatalogUserTagBlock{
+		block(1, loser.ID, model.TagBlockModeTree),
+		block(2, loser.ID, model.TagBlockModeTree), block(2, winner.ID, model.TagBlockModeExact),
+		block(3, loser.ID, model.TagBlockModeExact), block(3, winner.ID, model.TagBlockModeTree),
+		block(4, winner.ID, model.TagBlockModeExact),
+	}).Error)
+
+	path := writeMergeFile(t, mergeRec{FromID: loser.ID, From: "致郁（鬱ゲー）", IntoID: winner.ID, Into: "致郁"})
+	st, err := Merge(ctx, MergeOpts{DSN: testDSN, Merges: path, Apply: true})
+	require.NoError(t, err)
+	assert.Equal(t, 0, st.Errors)
+	assert.Equal(t, 1, st.BlocksMoved)
+
+	var rows []model.CatalogUserTagBlock
+	require.NoError(t, testDB.Order("actor_uid").Find(&rows).Error)
+	got := map[int64][2]int64{}
+	for _, r := range rows {
+		got[r.ActorUID] = [2]int64{r.TagID, int64(r.Mode)}
+	}
+	tree, exact := int64(model.TagBlockModeTree), int64(model.TagBlockModeExact)
+	assert.Equal(t, map[int64][2]int64{
+		1: {winner.ID, tree},
+		2: {winner.ID, tree},
+		3: {winner.ID, tree},
+		4: {winner.ID, exact},
+	}, got, "the wider of the two modes survives")
+}

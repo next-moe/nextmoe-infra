@@ -13,7 +13,7 @@
 
 List catalog works
 
-Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. view/include/fields/ids/refs/facets follow the v2 collection contract. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on every lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE. page= selects page mode (see the page parameter).
+Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. exclude_tag_id=/exclude_tag_tree= drop works by tag on every lane, search included. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. view/include/fields/ids/refs/facets follow the v2 collection contract. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on every lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE. page= selects page mode (see the page parameter).
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：可匿名调用
@@ -42,6 +42,8 @@ Keyset-paginated work collection. q= switches to search (sort defaults to releva
 | `company_id` | query | 否 | string | Catalog company id. Live registry filter when q= is absent. |
 | `company_rollup` | query | 否 | string | true expands company_id one hop down imprint/subsidiary. Only true or false. |
 | `tag_id` | query | 否 | string | Comma-separated canonical tag ids, AND, max 10. |
+| `exclude_tag_id` | query | 否 | string | Comma-separated canonical tag ids, max 100. Drops every work that carries any of them, from any source and at any spoiler level. ANDed with the other filters, tag_id included: a tag named in both leaves nothing. |
+| `exclude_tag_tree` | query | 否 | string | Comma-separated canonical tag ids, max 100. As exclude_tag_id, and each id also drops the works carrying any tag below it in the tag hierarchy (Tag.descendant_count counts them). |
 | `series_id` | query | 否 | string | Catalog series id. |
 | `engine_id` | query | 否 | string | Catalog engine id. |
 | `platform` | query | 否 | string | Open vocabulary platform token. Unknown matches nothing. |

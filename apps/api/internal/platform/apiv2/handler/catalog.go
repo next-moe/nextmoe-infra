@@ -30,6 +30,7 @@ type Catalog struct {
 	Playtime       *catsvc.UserPlaytimeService
 	WorkStates     *catsvc.UserWorkStateService
 	CompanyFollows *catsvc.UserEntityFollowService
+	TagBlocks      *catsvc.UserTagBlockService
 	Folders        *catsvc.UserFolderService
 	CoverVotes     *catsvc.CoverVoteService
 	Claims         *catsvc.ClaimLifecycleService

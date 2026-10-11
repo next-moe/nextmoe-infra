@@ -28,6 +28,11 @@ func filterClauses(f spec.WorksFilter) []any {
 	for _, id := range f.TagIDs {
 		clauses = append(clauses, termClause("tag_ids", id))
 	}
+	if len(f.ExcludeTagIDs) > 0 {
+		clauses = append(clauses, map[string]any{
+			"bool": map[string]any{"must_not": termsClause("tag_ids", f.ExcludeTagIDs)},
+		})
+	}
 	if f.LabelID > 0 {
 		clauses = append(clauses, termClause("label_ids", f.LabelID))
 	}

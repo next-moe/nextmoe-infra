@@ -36,6 +36,8 @@ type myCalendarInput struct {
 	ContentLimit       string `query:"content_limit" maxLength:"32" doc:"Comma-separated closed editorial axis: sfw, nsfw."`
 	OLang              string `query:"olang" maxLength:"64" doc:"Comma-separated BCP-47, or all. Open vocabulary; unknown values match nothing. Absent = all languages. The population is already the bearer's choice, so this face does not default to ja."`
 	ExcludeCompanyKind string `query:"exclude_company_kind" maxLength:"96" doc:"Comma-separated closed company_kind values: game_brand, bunko, publisher, anime_studio, doujin_circle, group, or none alone to exclude nothing. Drops a work only when it has at least one company and every one of its companies is of an excluded kind; a work that also carries a company of another kind stays, and so does a work with no company. Applies to the page, total, and the month navigation in meta. Absent = exclude nothing. The population is already the bearer's choice, so this face does not default to doujin_circle."`
+	ExcludeTagID       string `query:"exclude_tag_id" maxLength:"2048" doc:"Comma-separated canonical tag ids, max 100. Drops every work that carries any of them, from any source and at any spoiler level. Applies to the page, total, and the month navigation in meta."`
+	ExcludeTagTree     string `query:"exclude_tag_tree" maxLength:"2048" doc:"Comma-separated canonical tag ids, max 100. As exclude_tag_id, and each id also drops the works carrying any tag below it in the tag hierarchy (Tag.descendant_count counts them)."`
 }
 
 func registerMeCompanyFollows(api huma.API, cat *Catalog) {
@@ -152,6 +154,7 @@ func listMyCalendar(cat *Catalog) func(context.Context, *myCalendarInput) (*list
 		page, lerr := cat.ListMyCalendar(ctx, q, calendarParams{
 			Month: in.Month, Year: in.Year, Precision: in.Precision, Status: in.Status,
 			ContentLimit: in.ContentLimit, OLang: in.OLang, ExcludeCompanyKind: in.ExcludeCompanyKind,
+			ExcludeTagID: in.ExcludeTagID, ExcludeTagTree: in.ExcludeTagTree,
 		})
 		if lerr != nil {
 			return nil, catalogErr(ctx, lerr)

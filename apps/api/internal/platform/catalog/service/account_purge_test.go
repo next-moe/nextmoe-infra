@@ -12,12 +12,14 @@ import (
 func TestPurgeAccountTakesEveryPersonalRowAndNothingElse(t *testing.T) {
 	folders := newFolderSvc(t)
 	require.NoError(t, testDB.Exec(
-		"TRUNCATE catalog_user_playtime, catalog_user_work_state, catalog_user_folder_import, catalog_user_entity_follow RESTART IDENTITY").Error)
+		"TRUNCATE catalog_user_playtime, catalog_user_work_state, catalog_user_folder_import, catalog_user_entity_follow, catalog_user_tag_block RESTART IDENTITY").Error)
 	workID, coverID := seedVoteWork(t)
 	playtime := NewUserPlaytimeService(testDB)
 	states := NewUserWorkStateService(testDB)
 	votes := NewCoverVoteService(testDB)
 	ctx := context.Background()
+	tag := model.CatalogTag{Name: "purge-blocked-tag", Tier: model.TagTierCore, Kind: model.TagKindContent}
+	require.NoError(t, testDB.Where(model.CatalogTag{Name: tag.Name}).FirstOrCreate(&tag).Error)
 
 	const gone, bystander = int64(31), int64(32)
 	for _, uid := range []int64{gone, bystander} {
@@ -39,11 +41,14 @@ func TestPurgeAccountTakesEveryPersonalRowAndNothingElse(t *testing.T) {
 		require.NoError(t, testDB.Create(&model.CatalogUserEntityFollow{
 			ActorUID: uid, EntityType: model.EntityTypeLabel, EntityID: 1, ClientID: "kungal", Site: "kungal",
 		}).Error)
+		require.NoError(t, testDB.Create(&model.CatalogUserTagBlock{
+			ActorUID: uid, TagID: tag.ID, Mode: model.TagBlockModeTree, ClientID: "kungal", Site: "kungal",
+		}).Error)
 	}
 
 	got, err := PurgeAccount(ctx, testDB, gone)
 	require.NoError(t, err)
-	require.Equal(t, AccountPurged{Folders: 1, FolderItems: 1, Playtimes: 2, WorkStates: 1, CoverVotes: 1, EntityFollows: 1}, got)
+	require.Equal(t, AccountPurged{Folders: 1, FolderItems: 1, Playtimes: 2, WorkStates: 1, CoverVotes: 1, EntityFollows: 1, TagBlocks: 1}, got)
 
 	count := func(table, col string, uid int64) int64 {
 		var n int64
@@ -58,6 +63,7 @@ func TestPurgeAccountTakesEveryPersonalRowAndNothingElse(t *testing.T) {
 		{"catalog_user_work_state", "actor_uid"},
 		{"catalog_cover_vote", "actor_uid"},
 		{"catalog_user_entity_follow", "actor_uid"},
+		{"catalog_user_tag_block", "actor_uid"},
 	} {
 		require.Zerof(t, count(tc.table, tc.col, gone), "%s still names the deleted account", tc.table)
 		require.NotZerof(t, count(tc.table, tc.col, bystander), "%s lost the bystander's rows", tc.table)
