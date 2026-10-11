@@ -68,6 +68,12 @@ func RegisterAll(r *Registry) {
 	})
 
 	r.Register(Job{
+		Name: JobCatalogTagParents,
+		Desc: "catalog tag 上下级同步（VNDB tags_parents 投影到正典 tag；人工边不动）",
+		Run:  RunCatalogTagParents,
+	})
+
+	r.Register(Job{
 		Name: "artifact-gc",
 		Desc: "artifact 生命周期（孤儿上传回收 + 软删物理回收）",
 		Run: func(ctx context.Context, cfg *config.Config) (Summary, error) {

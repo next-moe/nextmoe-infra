@@ -97,6 +97,8 @@ var goldenNames = []string{
 	"jobs.image_ref_audit.schedule",
 	"jobs.catalog_merge_stragglers.enabled",
 	"jobs.catalog_merge_stragglers.schedule",
+	"jobs.catalog_tag_parents.enabled",
+	"jobs.catalog_tag_parents.schedule",
 	"jobs.artifact_gc.enabled",
 	"jobs.artifact_gc.schedule",
 	"jobs.prune_developer_usage.enabled",
@@ -210,8 +212,8 @@ func TestJobKeysLookup(t *testing.T) {
 	}
 
 	names := keys.JobNames()
-	if len(names) != 15 {
-		t.Fatalf("JobNames() = %d, want 15", len(names))
+	if len(names) != 16 {
+		t.Fatalf("JobNames() = %d, want 16", len(names))
 	}
 	seen := make(map[string]bool, len(names))
 	re := regexp.MustCompile(keys.JobSchedulePattern)

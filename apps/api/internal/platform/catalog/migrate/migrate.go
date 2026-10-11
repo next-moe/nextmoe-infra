@@ -121,6 +121,11 @@ func Run(db *gorm.DB) error {
 		&model.CatalogTagSourceMap{},
 		&model.CatalogTagIntro{}, // multilingual tag intros (refs/plans/10 W0 ruling 3)
 		&model.CatalogTagRejection{},
+		// Tag hierarchy DAG (2026-10 tag blocking): VNDB's tags_parents
+		// projected onto canonical tags by the catalog-tag-parents job (origin
+		// 0), plus reviewed edges for tags no VNDB tag maps to (origin 1).
+		// New and empty; the job fills it on its first run.
+		&model.CatalogTagParent{},
 		// The tag chips' precomputed work_count. After catalog_tag, whose id it
 		// keys on; derived data, so it carries no FK — a tag merge that removes
 		// the tag simply leaves a row the refresh drops on its next pass.
@@ -459,6 +464,8 @@ func rawSQL(db *gorm.DB) error {
 		{"catalog_match_rejection", "chk_catalog_match_rejection_reason", `reason <> ''`},
 		// Only companies may be followed until a person lane exists, and opening one also needs its merge rehang statements.
 		{"catalog_user_entity_follow", "chk_catalog_user_entity_follow_type", "entity_type IN (3)"},
+		{"catalog_tag_parent", "chk_catalog_tag_parent_distinct", `tag_id <> parent_id`},
+		{"catalog_tag_parent", "chk_catalog_tag_parent_origin", `origin IN (0, 1)`},
 	} {
 		exists, err := constraintExists(db, cc.table, cc.name)
 		if err != nil {

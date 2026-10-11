@@ -131,7 +131,7 @@ func registerCatalog(api huma.API, cat *Catalog) {
 		Method:             http.MethodGet,
 		Path:               "/v2/catalog/tags/{id}",
 		Summary:            "Get one tag",
-		Description:        "Canonical tag. include=intros adds the per-language tag descriptions. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
+		Description:        "Canonical tag. include=intros adds the per-language tag descriptions; include=children adds the direct children. parents, child_count and descendant_count place the tag in the tag hierarchy. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
 		Tags:               catalog,
 		Errors:             authErrs,
 		SkipValidateParams: true,

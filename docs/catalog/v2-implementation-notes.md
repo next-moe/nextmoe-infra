@@ -1915,3 +1915,17 @@ The user asked whether people could use the API without registering, held to str
 - **First-party callers found on the anonymous bucket before the cut.** On 2026-10-11 at 07:40Z, the forum backend (`10.0.1.44`) had spent 470 anonymous calls on `/v2/news` and `/v2/news/sources`. The cause: `KUN_NEWS_API_KEY` is empty in its deployment, so `newsclient` sends no credential. At that pace a day exceeds 1,000. The fix is configuration, setting `KUN_NEWS_API_KEY` to the forum's `nmk_` key so `attachOptionalCredential` counts it per key. It goes in before this wave deploys. The MCP container (`10.0.1.55`) spends about 288 a day on its five-minute `openapi.json` refresh, inside the budget.
 
 **Spec is 2.39.0.** Additive: the `{}` alternative on 46 operations and the anonymous sentence in their descriptions. No migration.
+
+## Wave — tag hierarchy (2026-10-11)
+
+Users asked to block tags, and blocking a tag should be able to take its narrower tags along (NTR with its nine variants). Canonical tags were flat, while VNDB's tag tree has been imported every week into `src_vndb.tags_parents` (3,582 edges) and read by nothing.
+
+- **`catalog_tag_parent`** (`tag_id`, `parent_id`, `origin`, `note`): a DAG over canonical tags; a tag can have several parents. `origin` 0 is projected from VNDB, 1 is a reviewed edge.
+- **Projection.** A VNDB tag resolves to its canonical through the name chain `sync-vndb-tags` stores it under (mapped name, then alias, then the VNDB name: `vndbtagmap.Resolve`). Its parents are its nearest VNDB ancestors that resolve to a different canonical; ancestors that resolve to nothing (the five roots, unmapped tags) or to the same canonical are walked through. An edge that would close a loop is skipped and counted. On a copy of production: 2,911 of 3,014 VNDB tags resolve, 2,286 edges, 1,860 tags with a parent, 612 with children, no loops. 500 canonical tags (127 of them core) have no VNDB source and stay roots until reviewed edges place them.
+- **`catalog-tag-parents`** job, daily at 21:20 UTC, keeps the origin-0 edges equal to the projection and never touches origin 1. `cmd/tag-parents` runs the same sync (dry unless `-apply`), or with `-curated <file.jsonl>` applies reviewed edges: `{tag_id, tag, parent_id, parent, op, reason}` with `op` `add` or `remove`, id and name both checked as in a tag merge file. `add` on an existing VNDB edge endorses it to origin 1, so a later VNDB change cannot drop it; an edge that would close a loop is refused; `remove` deletes origin-1 edges only.
+- **Tag merge** moves the loser's edges onto the winner (self-edges dropped, duplicates kept once) before deleting the loser.
+- **Read face.** `Tag.parents` (`TagRef[]`, ordered by id, never null), `child_count` and `descendant_count` on the list, batch and detail lanes; `include=children` adds the direct children on the detail face. None of them is nsfw-gated: the gate never hides a tag, and `is_sexual` rides on every ref.
+
+**Migration required**: `go run ./cmd/migrate catalog` against `kun_catalog` (the `migrate-catalog` job on deploy) creates `catalog_tag_parent` with its two foreign keys to `catalog_tag` and the `chk_catalog_tag_parent_distinct` / `chk_catalog_tag_parent_origin` CHECKs. Additive; the table starts empty and the first job run, or `tag-parents -apply`, fills it.
+
+**Spec is 2.40.0.** Additive: `Tag.parents` / `child_count` / `descendant_count` / `children` and the `TagRef` object.

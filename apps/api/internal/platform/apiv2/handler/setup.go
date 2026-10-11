@@ -57,7 +57,7 @@ func SetupWith(app *fiber.App, opt Options) huma.API {
 	app.Use(protocol.RateLimit(opt.Store, credentialLimitIdentity))
 	app.Use(protocol.Idempotency(opt.Store, credentialLimitIdentity))
 
-	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.39.0")
+	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.40.0")
 	cfg.OpenAPIPath = ""
 	cfg.DocsPath = ""
 	cfg.SchemasPath = ""
@@ -142,7 +142,7 @@ func annotateSpec(doc *huma.OpenAPI) {
 			repr.Image{}, repr.Cover{}, repr.LocalizedText{},
 			repr.WorkTitle{}, repr.EntityName{}, repr.Intro{}, repr.Ref{},
 			repr.Claim{}, repr.Work{}, repr.FacetValue{},
-			repr.Tag{}, repr.Company{}, repr.CreditName{}, repr.Character{},
+			repr.Tag{}, repr.TagRef{}, repr.Company{}, repr.CreditName{}, repr.Character{},
 			repr.Series{}, repr.Engine{}, repr.NewsSource{}, repr.NewsItem{},
 			repr.CatalogStats{}, repr.Screenshot{}, repr.WorkTag{}, repr.WorkCharacter{},
 			repr.CreditGroup{}, repr.CreditEntry{}, repr.Release{}, repr.Relation{},

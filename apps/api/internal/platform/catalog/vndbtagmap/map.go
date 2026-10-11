@@ -48,3 +48,19 @@ func Embedded() map[string]string {
 	})
 	return embedded
 }
+
+func Resolve(tagMap map[string]string, name, alias string) string {
+	if mapped, ok := tagMap[name]; ok {
+		return mapped
+	}
+	for _, a := range strings.Split(alias, "\n") {
+		a = strings.TrimSpace(a)
+		if a == "" {
+			continue
+		}
+		if mapped, ok := tagMap[a]; ok {
+			return mapped
+		}
+	}
+	return name
+}

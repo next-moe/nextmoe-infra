@@ -40,6 +40,14 @@ func (s *PublicService) TagDetail(ctx context.Context, id int64, withWorks, nsfw
 		return dto.PublicTagDetail{}, false, err
 	}
 	rec.Intros = intros
+	h, err := s.tagHierarchyFor(ctx, []int64{id})
+	if err != nil {
+		return dto.PublicTagDetail{}, false, err
+	}
+	rec.Parents, rec.ChildCount, rec.DescendantCount = h.parentsOf(id), h.children[id], h.descendants[id]
+	if rec.Children, err = s.tagChildren(ctx, id); err != nil {
+		return dto.PublicTagDetail{}, false, err
+	}
 	if withWorks {
 		var wrows []struct {
 			WorkID int64 `gorm:"column:work_id"`

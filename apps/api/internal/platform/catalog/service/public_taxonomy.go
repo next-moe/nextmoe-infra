@@ -208,11 +208,16 @@ func (s *PublicService) TagsList(ctx context.Context, f TagsListFilter, cursor s
 	if err != nil {
 		return dto.PublicTagsListData{}, err
 	}
+	h, err := s.tagHierarchyFor(ctx, ids)
+	if err != nil {
+		return dto.PublicTagsListData{}, err
+	}
 	out := dto.PublicTagsListData{Items: make([]dto.PublicTagListItem, len(rows))}
 	for i, r := range rows {
 		out.Items[i] = dto.PublicTagListItem{
 			ID: r.ID, Name: r.Name, Tier: tagTierKey(r.Tier), Kind: tagKindKey(r.Kind),
 			WorkCount: counts[r.ID], Sexual: sexual[r.ID],
+			Parents: h.parentsOf(r.ID), ChildCount: h.children[r.ID], DescendantCount: h.descendants[r.ID],
 		}
 	}
 	if out.Total, err = s.taxonomyTotal(ctx, "catalog_tag", filterWhere, filterArgs); err != nil {

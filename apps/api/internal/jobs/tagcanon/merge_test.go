@@ -143,3 +143,33 @@ func TestMergeRefusesStaleAndSelfRecords(t *testing.T) {
 	testDB.Model(&model.CatalogTag{}).Where("id IN ?", []int64{keep.ID, other.ID}).Count(&alive)
 	assert.EqualValues(t, 2, alive, "a record that does not match the database must not touch it")
 }
+
+func TestMergeMovesHierarchyEdgesToTheWinner(t *testing.T) {
+	cleanTagcanon(t)
+	ctx := context.Background()
+	winner := mkTag(t, "致郁", false)
+	loser := mkTag(t, "致郁（鬱ゲー）", false)
+	parent := mkTag(t, "戏剧", false)
+	child := mkTag(t, "致郁结局", false)
+	require.NoError(t, testDB.Create(&[]model.CatalogTagParent{
+		{TagID: loser.ID, ParentID: parent.ID, Origin: model.TagParentOriginVNDB},
+		{TagID: winner.ID, ParentID: parent.ID, Origin: model.TagParentOriginVNDB},
+		{TagID: loser.ID, ParentID: winner.ID, Origin: model.TagParentOriginVNDB},
+		{TagID: child.ID, ParentID: loser.ID, Origin: model.TagParentOriginCurated, Note: "reviewed"},
+	}).Error)
+
+	path := writeMergeFile(t, mergeRec{FromID: loser.ID, From: "致郁（鬱ゲー）", IntoID: winner.ID, Into: "致郁"})
+	st, err := Merge(ctx, MergeOpts{DSN: testDSN, Merges: path, Apply: true})
+	require.NoError(t, err)
+	assert.Equal(t, 0, st.Errors)
+	assert.Equal(t, 1, st.TagsDeleted)
+	assert.Equal(t, 1, st.ParentsMoved)
+
+	var edges []model.CatalogTagParent
+	require.NoError(t, testDB.Order("tag_id, parent_id").Find(&edges).Error)
+	require.Len(t, edges, 2)
+	assert.Equal(t, [2]int64{winner.ID, parent.ID}, [2]int64{edges[0].TagID, edges[0].ParentID})
+	assert.Equal(t, [2]int64{child.ID, winner.ID}, [2]int64{edges[1].TagID, edges[1].ParentID})
+	assert.Equal(t, model.TagParentOriginCurated, edges[1].Origin)
+	assert.Equal(t, "reviewed", edges[1].Note)
+}
