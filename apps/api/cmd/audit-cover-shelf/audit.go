@@ -33,9 +33,15 @@ const exitFindings = 3
 //
 //	drift    the column disagrees with the cover rows — the trigger did not
 //	         fire. Mechanical, and --fix repairs it.
-//	misrated every cover the work owns is explicit, yet it is not rated r18.
+//	misrated every cover the work owns is explicit, yet it is rated all ages.
 //	         The work is either mis-rated or its art is mis-graded; both are
 //	         editorial, so this is reported and never written.
+//
+// misrated used to mean "not r18". On 2026-10-11 a hand review of all 60
+// findings left 24, and 22 of them were DLsite R15 works whose covers really do
+// show nudity: R15 allows that and the cover clause already shelves them nsfw, so
+// nothing was wrong, yet they would have been mailed every day forever. The
+// bucket had sat unread for four weeks while it grew from 10 to 60.
 type finding struct {
 	ID            int64
 	DisplayName   string
@@ -89,8 +95,8 @@ func audit(ctx context.Context, db *gorm.DB, fix bool, maxFix int) (stats, error
 	if err := db.Raw(`SELECT w.id, w.display_name, w.content_rating
 		FROM catalog_work w
 		WHERE w.deleted_at IS NULL AND w.status = ?
-		  AND w.cover_art_all_explicit AND w.content_rating <> ?
-		ORDER BY w.id`, model.WorkStatusLive, model.ContentRatingR18).Scan(&st.Misrated).Error; err != nil {
+		  AND w.cover_art_all_explicit AND w.content_rating = ?
+		ORDER BY w.id`, model.WorkStatusLive, model.ContentRatingAllAges).Scan(&st.Misrated).Error; err != nil {
 		return st, fmt.Errorf("scan works whose art outruns their rating: %w", err)
 	}
 	if !fix || len(st.Drift) == 0 {
@@ -136,7 +142,7 @@ func report(w io.Writer, st stats, fix bool) {
 			f.ID, f.DisplayName, f.Stored, f.Recomputed)
 	}
 	for _, f := range st.Misrated {
-		fmt.Fprintf(w, "[rating] work=%d rating=%d %q — every cover is explicit but the work is not rated r18; needs a human\n",
+		fmt.Fprintf(w, "[rating] work=%d rating=%d %q — every cover is explicit but the work is rated all ages; needs a human\n",
 			f.ID, f.ContentRating, f.DisplayName)
 	}
 	if fix {
