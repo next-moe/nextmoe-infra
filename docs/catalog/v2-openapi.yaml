@@ -7759,6 +7759,37 @@ components:
         - created_at
         - updated_at
       type: object
+    TagExclusion:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/TagExclusion.json
+          format: uri
+          readOnly: true
+          type: string
+        object:
+          description: Type discriminant. Always tag_exclusion.
+          enum:
+            - tag_exclusion
+          type: string
+          x-vocabulary-closed: true
+        tag_ids:
+          description: "Every tag the parameters exclude: the exact ids, and each tree id with every tag below it. Ascending. Never null."
+          items:
+            type: string
+          type: array
+        work_ids:
+          description: Every catalog work that carries any of tag_ids, from any source, at any spoiler level and under any rating. Ascending. Never null. These are the works /v2/catalog/works drops for the same parameters, so a site listing works from its own store drops them to match.
+          items:
+            type: string
+          type: array
+      required:
+        - object
+        - tag_ids
+        - work_ids
+      type: object
     TagRef:
       additionalProperties: true
       properties:
@@ -9000,7 +9031,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.41.0
+  version: 2.42.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -13106,6 +13137,85 @@ paths:
                 $ref: "#/components/schemas/Problem"
           description: Service Unavailable
       summary: Catalog totals
+      tags:
+        - catalog
+  /v2/catalog/tag-exclusion:
+    get:
+      description: "What exclude_tag_id= and exclude_tag_tree= exclude, taking the same two parameters as /v2/catalog/works: the expanded tag ids and the ids of every work carrying one of them. A site that lists works from its own store applies a reader's blocked tags by dropping work_ids, and one with its own tag mirror can match tag_ids instead. At least one parameter is required. The body depends only on the parameters, so cache it per parameter set. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit."
+      operationId: getCatalogTagExclusion
+      parameters:
+        - description: Comma-separated canonical tag ids, max 100. Each excludes its own works.
+          explode: false
+          in: query
+          name: exclude_tag_id
+          schema:
+            description: Comma-separated canonical tag ids, max 100. Each excludes its own works.
+            maxLength: 2048
+            type: string
+        - description: Comma-separated canonical tag ids, max 100. Each excludes its own works and those of every tag below it.
+          explode: false
+          in: query
+          name: exclude_tag_tree
+          schema:
+            description: Comma-separated canonical tag ids, max 100. Each excludes its own works and those of every tag below it.
+            maxLength: 2048
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagExclusion"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - applicationKey: []
+        - userToken: []
+        - {}
+      summary: Resolve a tag exclusion
       tags:
         - catalog
   /v2/catalog/tags:

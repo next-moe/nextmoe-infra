@@ -1944,3 +1944,14 @@ The tag hierarchy's consumer: a reader blocks a tag and no longer sees works car
 **Migration required**: `go run ./cmd/migrate catalog` against `kun_catalog` (the `migrate-catalog` job on deploy) creates `catalog_user_tag_block` with its unique key, its foreign key to `catalog_tag` and the `chk_catalog_user_tag_block_mode` CHECK. Additive, no backfill.
 
 **Spec is 2.41.0.** Additive: the `exclude_tag_id` / `exclude_tag_tree` parameters, `listMyTagBlocks`, `getMyTagBlock`, `putMyTagBlock`, `deleteMyTagBlock` and the `tag_block` object.
+
+## Wave — resolve a tag exclusion for a site's own lists (2026-10-11)
+
+The exclusion parameters filter what the catalog serves, but the busiest lists on the downstream sites are not catalog calls: the forum's galgame list and rankings, moyu's resource lane and letmoe's home are built from each site's own tables and only hydrated through `ids=`. A site cannot pass `exclude_tag_*` to a query the catalog never sees.
+
+- **`GET /v2/catalog/tag-exclusion?exclude_tag_id=&exclude_tag_tree=`** (`getCatalogTagExclusion`) answers what those two parameters exclude on `/v2/catalog/works`: `tag_ids` (the exact ids, and each tree id with every tag below it) and `work_ids` (every non-deleted work carrying one of them, from any source, at any spoiler level and under any rating), both ascending. Downstream work ids equal catalog work ids, so a site applies a reader's blocks to its own SQL by dropping `work_ids`, and one with a tag mirror (letmoe's `game_tag.catalog_tag_id`) can match `tag_ids` instead.
+- **Same semantics as the works face**, pinned by `TestLiveTagExclusion`, which checks that `ids=` with the same parameters reports exactly those works as missing.
+- **Size.** On production on 2026-10-11, 强奸 with its subtree is 12,917 works, NTR 2,367, 百合 3,223, and the largest single subtree, 色情内容 (610 tags), 48,620. The body depends only on its parameters; sites cache it per parameter set.
+- At least one parameter is required (400 otherwise). Anonymous calls are allowed, like every catalog read.
+
+**Spec is 2.42.0.** Additive: `getCatalogTagExclusion` and the `tag_exclusion` object. No migration.
