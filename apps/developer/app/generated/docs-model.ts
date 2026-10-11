@@ -25,6 +25,7 @@ export const docsModel: DocsModel = {
       },
       "notes": [
         "正式公开：形状按 additive-only 演进，删除与改名由 CI 的 oasdiff 门拦下。第三方在门户自助铸 nmk_ 密钥即可调用，不需要申请。",
+        "/v2/catalog 只读面（claim-events 除外）不带凭据也能调，按 IPv4 地址或 IPv6 /64 计一份很小的额度（默认 30 次/分钟、1,000 次/天），够个人脚本、浏览器扩展和纯前端小项目用；量大了就铸一把密钥，自助、不审核。带了却无效的凭据仍是 401，不会降级成匿名。",
         "/v2/me/playtimes 只要用户令牌，不需要 playtime:read / playtime:write。任何已开通用户登录的应用都可以调用。",
         "/v2/me/work-states 与 playtimes 同款：只要用户令牌，不需要任何 scope。state 五值与 Bangumi 收藏类型一一对应，completion 表示通了多少，wish 不允许携带。",
         "/v2/me/followed-companies 与 /v2/me/calendar 同样只要用户令牌、不需要任何 scope。关注列表只对本人可见，公开的只有 /v2/catalog/companies/{id} 详情上的 follower_count；/v2/me/calendar 与公开月历同参数，只列关注厂商的作品，且缺省不按语言、不排除同人。",
@@ -3928,8 +3929,14 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/calendar",
               "summary": "Release calendar",
-              "description": "One collection. month=/year= pick a window; precision= and status= select among the dated month, year-only, and undated views that were three v1 routes. content_limit= gates on the editorial display axis, olang= on the original language (absent = ja), and exclude_company_kind= drops works whose every company is of an excluded kind (absent = doujin_circle, so by default the calendar lists Japanese commercial works; olang=all and exclude_company_kind=none widen it). meta carries today plus, on the dated month window, min_month/max_month/has_prev/has_next for month navigation. Requires an application key or a user access token with catalog:read. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.",
+              "description": "One collection. month=/year= pick a window; precision= and status= select among the dated month, year-only, and undated views that were three v1 routes. content_limit= gates on the editorial display axis, olang= on the original language (absent = ja), and exclude_company_kind= drops works whose every company is of an excluded kind (absent = doujin_circle, so by default the calendar lists Japanese commercial works; olang=all and exclude_company_kind=none widen it). meta carries today plus, on the dated month window, min_month/max_month/has_prev/has_next for month navigation. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is not accepted. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on this lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "cursor",
@@ -7422,15 +7429,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/calendar\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/calendar\""
             },
             {
               "id": "listCatalogChanges",
               "method": "get",
               "path": "/v2/catalog/changes",
               "summary": "Catalog changes feed",
-              "description": "Works updated recently, oldest first. Keyset-paginated. Requires an application key or a user access token with catalog:read. ids= is not accepted.\n\n**This is the mirror channel.** If you cache any catalog-owned fact per work — above all the display axis `content_limit`, which every work carries (read it from the work; do not re-derive it from `content_rating`, which misses works whose every cover is graded explicit) — poll this feed instead of sweeping the catalog. Every write that changes a work's claim state, its display axis (the editorial NSFW flag, its content rating, or whether every cover it has is graded explicit), its original language `olang`, or its existence bumps `updated_at` and surfaces the id here.\n\nBootstrap from an empty cursor: the feed enumerates the whole population oldest-updated-first, so the first drain IS the full inventory. Hydrate each page against /v2/catalog/works with ids= in batches of at most 100, with both gates open (nsfw=true and no content_limit), then keep the cursor and poll it at your own cadence.\n\ngone: an entry carrying `gone: true` has left the public population — drop the mirrored row. Merged-away ids appear here as gone AND in /v2/catalog/redirects, which names the id that replaced them; repoint rather than delete when the redirect exists.\n\nEverything else a work serves — covers, tags, titles, intros, ratings — surfaces best-effort: most of those writers touch the work too, but only claim state, the display axis, `olang` and existence are promised.",
+              "description": "Works updated recently, oldest first. Keyset-paginated. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is not accepted.\n\n**This is the mirror channel.** If you cache any catalog-owned fact per work — above all the display axis `content_limit`, which every work carries (read it from the work; do not re-derive it from `content_rating`, which misses works whose every cover is graded explicit) — poll this feed instead of sweeping the catalog. Every write that changes a work's claim state, its display axis (the editorial NSFW flag, its content rating, or whether every cover it has is graded explicit), its original language `olang`, or its existence bumps `updated_at` and surfaces the id here.\n\nBootstrap from an empty cursor: the feed enumerates the whole population oldest-updated-first, so the first drain IS the full inventory. Hydrate each page against /v2/catalog/works with ids= in batches of at most 100, with both gates open (nsfw=true and no content_limit), then keep the cursor and poll it at your own cadence.\n\ngone: an entry carrying `gone: true` has left the public population — drop the mirrored row. Merged-away ids appear here as gone AND in /v2/catalog/redirects, which names the id that replaced them; repoint rather than delete when the redirect exists.\n\nEverything else a work serves — covers, tags, titles, intros, ratings — surfaces best-effort: most of those writers touch the work too, but only claim state, the display axis, `olang` and existence are promised.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "cursor",
@@ -8860,15 +8873,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/changes\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/changes\""
             },
             {
               "id": "listCatalogCharacters",
               "method": "get",
               "path": "/v2/catalog/characters",
               "summary": "List characters",
-              "description": "Characters from one of two lanes. The index lane is used when q= is non-empty, page= is present, or sort is popularity, relevance or newest; otherwise the registry lane (sort=id, live SQL). The index lane reflects the nightly search index; the registry lane is live. q= with no sort defaults to relevance. sort=relevance requires q=. Popularity is log1p of the character's live roster, with main appearances at full work popularity and every other kind at half; under nsfw not true only works without an r18 rating count. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate; it cannot be combined with q= or a search sort. include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs,work_count fills on every lane, and view=full is all of them; traits are cut at the default spoiler ceiling and follow the nsfw gate, exactly as on the detail face. trait_id= filters by trait (descendants included, max 10), combined by trait_match=all|any; a character matches under the same spoiler and nsfw gates as its traits block. When trait_id= is given, each item carries matched_trait_ids: this character's own traits that satisfied the filter. gender= filters by the closed vocabulary male,female,other. include=work_count is the number of distinct works the character appears in under the same nsfw gate as /v2/catalog/characters/{id}/appearances. page= selects page mode on the index lane.",
+              "description": "Characters from one of two lanes. The index lane is used when q= is non-empty, page= is present, or sort is popularity, relevance or newest; otherwise the registry lane (sort=id, live SQL). The index lane reflects the nightly search index; the registry lane is live. q= with no sort defaults to relevance. sort=relevance requires q=. Popularity is log1p of the character's live roster, with main appearances at full work popularity and every other kind at half; under nsfw not true only works without an r18 rating count. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate; it cannot be combined with q= or a search sort. include=gender,birthday,height_cm,weight_kg,measurements,blood_type,instance_of_id,image,figure,traits,aliases,intros,refs,work_count fills on every lane, and view=full is all of them; traits are cut at the default spoiler ceiling and follow the nsfw gate, exactly as on the detail face. trait_id= filters by trait (descendants included, max 10), combined by trait_match=all|any; a character matches under the same spoiler and nsfw gates as its traits block. When trait_id= is given, each item carries matched_trait_ids: this character's own traits that satisfied the filter. gender= filters by the closed vocabulary male,female,other. include=work_count is the number of distinct works the character appears in under the same nsfw gate as /v2/catalog/characters/{id}/appearances. page= selects page mode on the index lane.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "cursor",
@@ -10790,15 +10809,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/characters\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/characters\""
             },
             {
               "id": "getCatalogCharacter",
               "method": "get",
               "path": "/v2/catalog/characters/{id}",
               "summary": "Get one character",
-              "description": "Character detail. view=full adds gender, birthday, measurements, blood_type, instance_of_id. include=image,figure,traits,aliases,intros,refs adds art, trait, name, description and anchor blocks. spoiler=none|minor|major is the ceiling of the traits block and defaults to none. Merged ids are 404 ENTITY_MERGED. Requires an application key or a user access token with catalog:read.",
+              "description": "Character detail. view=full adds gender, birthday, measurements, blood_type, instance_of_id. include=image,figure,traits,aliases,intros,refs adds art, trait, name, description and anchor blocks. spoiler=none|minor|major is the ceiling of the traits block and defaults to none. Merged ids are 404 ENTITY_MERGED. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -12742,15 +12767,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/characters/value\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/characters/value\""
             },
             {
               "id": "getCatalogCharacterAppearances",
               "method": "get",
               "path": "/v2/catalog/characters/{id}/appearances",
               "summary": "Appearances of one character",
-              "description": "Works this character appears in, with roster_role, spoiler, and voice credits. Offset cursor. Requires an application key or a user access token with catalog:read.",
+              "description": "Works this character appears in, with roster_role, spoiler, and voice credits. Offset cursor. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -16624,7 +16655,7 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/characters/value/appearances\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/characters/value/appearances\""
             },
             {
               "id": "listCatalogClaimEvents",
@@ -18102,8 +18133,14 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/companies",
               "summary": "List companies",
-              "description": "Keyset-paginated company registry (v1 labels). Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only companies with works visible under the same nsfw gate. include=aliases,logo fills on every lane; include=intros,links fills on the batch lane only (and on the detail face).",
+              "description": "Keyset-paginated company registry (v1 labels). Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only companies with works visible under the same nsfw gate. include=aliases,logo fills on every lane; include=intros,links fills on the batch lane only (and on the detail face).",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "cursor",
@@ -19752,15 +19789,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/companies\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/companies\""
             },
             {
               "id": "getCatalogCompany",
               "method": "get",
               "path": "/v2/catalog/companies/{id}",
               "summary": "Get one company",
-              "description": "Company registry row (v1 labels). include=aliases,logo,intros,links adds the corresponding blocks. Merged ids are 404 ENTITY_MERGED. Requires an application key or a user access token with catalog:read.",
+              "description": "Company registry row (v1 labels). include=aliases,logo,intros,links adds the corresponding blocks. Merged ids are 404 ENTITY_MERGED. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -21452,15 +21495,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/companies/value\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/companies/value\""
             },
             {
               "id": "getCatalogCompanyGraph",
               "method": "get",
               "path": "/v2/catalog/companies/{id}/graph",
               "summary": "Company family graph",
-              "description": "Corporate-family nodes and directed edges around one company. Inverse relations are not emitted. include= is validated against the company token set, so aliases, intros and links are accepted and answered without; only include=logo changes a node, adding the brand mark to the nodes that have one. Merged ids are 404 ENTITY_MERGED. Requires an application key or a user access token with catalog:read.",
+              "description": "Corporate-family nodes and directed edges around one company. Inverse relations are not emitted. include= is validated against the company token set, so aliases, intros and links are accepted and answered without; only include=logo changes a node, adding the brand mark to the nodes that have one. Merged ids are 404 ENTITY_MERGED. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -23081,15 +23130,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/companies/value/graph\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/companies/value/graph\""
             },
             {
               "id": "listCatalogCreditNames",
               "method": "get",
               "path": "/v2/catalog/credit-names",
               "summary": "List credit names",
-              "description": "Keyset-paginated credited names. q= filters by name. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate.",
+              "description": "Keyset-paginated credited names. q= filters by name. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "cursor",
@@ -24776,15 +24831,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/credit-names\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/credit-names\""
             },
             {
               "id": "getCatalogCreditName",
               "method": "get",
               "path": "/v2/catalog/credit-names/{id}",
               "summary": "Get one credit name",
-              "description": "A credited name, not a person — this is the staff and voice-actor read surface. person_id is null when unlinked; gender and the fuzzy birth parts are person-level facts reached through that link. include=aliases,photo,siblings,intros,links,refs adds the corresponding blocks. Works this name is credited on live at /v2/catalog/credit-names/{id}/credits. Requires an application key or a user access token with catalog:read.",
+              "description": "A credited name, not a person — this is the staff and voice-actor read surface. person_id is null when unlinked; gender and the fuzzy birth parts are person-level facts reached through that link. include=aliases,photo,siblings,intros,links,refs adds the corresponding blocks. Works this name is credited on live at /v2/catalog/credit-names/{id}/credits. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -26514,15 +26575,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/credit-names/value\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/credit-names/value\""
             },
             {
               "id": "getCatalogCreditNameCredits",
               "method": "get",
               "path": "/v2/catalog/credit-names/{id}/credits",
               "summary": "Credits of one credit name",
-              "description": "Works this name is credited on. Offset cursor. Requires an application key or a user access token with catalog:read.",
+              "description": "Works this name is credited on. Offset cursor. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -30101,15 +30168,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/credit-names/value/credits\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/credit-names/value/credits\""
             },
             {
               "id": "listCatalogEngines",
               "method": "get",
               "path": "/v2/catalog/engines",
               "summary": "List engines",
-              "description": "Keyset-paginated engines. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate.",
+              "description": "Keyset-paginated engines. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "cursor",
@@ -31539,15 +31612,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/engines\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/engines\""
             },
             {
               "id": "getCatalogEngine",
               "method": "get",
               "path": "/v2/catalog/engines/{id}",
               "summary": "Get one engine",
-              "description": "Engine detail. Requires an application key or a user access token with catalog:read.",
+              "description": "Engine detail. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -33027,15 +33106,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/engines/value\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/engines/value\""
             },
             {
               "id": "listCatalogPersons",
               "method": "get",
               "path": "/v2/catalog/persons",
               "summary": "List persons",
-              "description": "Keyset-paginated persons. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate.",
+              "description": "Keyset-paginated persons. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "cursor",
@@ -34462,15 +34547,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/persons\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/persons\""
             },
             {
               "id": "getCatalogPerson",
               "method": "get",
               "path": "/v2/catalog/persons/{id}",
               "summary": "Get one person",
-              "description": "A person identity that groups credit names. Merged ids are 404 ENTITY_MERGED. Requires an application key or a user access token with catalog:read.",
+              "description": "A person identity that groups credit names. Merged ids are 404 ENTITY_MERGED. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -35947,15 +36038,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/persons/value\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/persons/value\""
             },
             {
               "id": "getCatalogPersonCreditNames",
               "method": "get",
               "path": "/v2/catalog/persons/{id}/credit-names",
               "summary": "Credit names of one person",
-              "description": "Every credited name linked to this person. Requires an application key or a user access token with catalog:read.",
+              "description": "Every credited name linked to this person. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -37766,15 +37863,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/persons/value/credit-names\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/persons/value/credit-names\""
             },
             {
               "id": "listCatalogProposals",
               "method": "get",
               "path": "/v2/catalog/proposals",
               "summary": "Edit proposal history",
-              "description": "Filed proposals, newest first. proposer_uid=+state=merged with include_total=true is the per-contributor tally. This face publishes no patch and no decision note. Requires an application key or a user access token with catalog:read.",
+              "description": "Filed proposals, newest first. proposer_uid=+state=merged with include_total=true is the per-contributor tally. This face publishes no patch and no decision note. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "cursor",
@@ -39350,15 +39453,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/proposals\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/proposals\""
             },
             {
               "id": "getCatalogProposal",
               "method": "get",
               "path": "/v2/catalog/proposals/{id}",
               "summary": "One proposal",
-              "description": "Public transparency view: proposer, state, target entity and timestamps. include=amendments adds the amendment chain. Requires an application key or a user access token with catalog:read.",
+              "description": "Public transparency view: proposer, state, target entity and timestamps. include=amendments adds the amendment chain. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -40963,15 +41072,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/proposals/value\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/proposals/value\""
             },
             {
               "id": "listCatalogRedirects",
               "method": "get",
               "path": "/v2/catalog/redirects",
               "summary": "Entity merge feed",
-              "description": "Redirects from merged-away ids, oldest first. Keyset-paginated. object= restricts to one family. Requires an application key or a user access token with catalog:read. ids= is not accepted.",
+              "description": "Redirects from merged-away ids, oldest first. Keyset-paginated. object= restricts to one family. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is not accepted.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "cursor",
@@ -42409,15 +42524,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/redirects\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/redirects\""
             },
             {
               "id": "listCatalogReleases",
               "method": "get",
               "path": "/v2/catalog/releases",
               "summary": "List releases",
-              "description": "Keyset-paginated dated releases, sorted by date_desc by default. Requires an application key or a user access token with catalog:read. ids= is a batch lane and does not paginate.",
+              "description": "Keyset-paginated dated releases, sorted by date_desc by default. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "cursor",
@@ -43926,15 +44047,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/releases\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/releases\""
             },
             {
               "id": "getCatalogRelease",
               "method": "get",
               "path": "/v2/catalog/releases/{id}",
               "summary": "Get one release",
-              "description": "A catalog release. Merged ids are 404 ENTITY_MERGED. r18 parent works are 404 without nsfw=true. Requires an application key or a user access token with catalog:read.",
+              "description": "A catalog release. Merged ids are 404 ENTITY_MERGED. r18 parent works are 404 without nsfw=true. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -45493,15 +45620,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/releases/value\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/releases/value\""
             },
             {
               "id": "listCatalogRevisions",
               "method": "get",
               "path": "/v2/catalog/revisions",
               "summary": "Entity revision history",
-              "description": "Every merged edit, newest first by default. sort=recorded_asc walks the same collection oldest-first by id, which is the shape a mirror or a contributor tally reads with a watermark. object=+entity_id= narrows to one entity's history. Requires an application key or a user access token with catalog:read.",
+              "description": "Every merged edit, newest first by default. sort=recorded_asc walks the same collection oldest-first by id, which is the shape a mirror or a contributor tally reads with a watermark. object=+entity_id= narrows to one entity's history. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "cursor",
@@ -47032,15 +47165,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/revisions\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/revisions\""
             },
             {
               "id": "getCatalogRevision",
               "method": "get",
               "path": "/v2/catalog/revisions/{id}",
               "summary": "One revision",
-              "description": "include=diff adds the field-level change set against diff_base, or against the preceding revision when diff_base is absent. This id is what POST /v2/moderation/reverts takes. Requires an application key or a user access token with catalog:read.",
+              "description": "include=diff adds the field-level change set against diff_base, or against the preceding revision when diff_base is absent. This id is what POST /v2/moderation/reverts takes. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -48614,15 +48753,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/revisions/value\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/revisions/value\""
             },
             {
               "id": "listCatalogRoles",
               "method": "get",
               "path": "/v2/catalog/roles",
               "summary": "List roles",
-              "description": "Keyset-paginated credit-role registry. The full registry is ~231 rows, so a client building a picker can fetch it whole in three pages. key joins the role_key on credit groups; ids= is a batch lane and does not paginate. refs= is not resolved: role has no catalog_external_ref entity_type. Requires an application key or a user access token with catalog:read.",
+              "description": "Keyset-paginated credit-role registry. The full registry is ~231 rows, so a client building a picker can fetch it whole in three pages. key joins the role_key on credit groups; ids= is a batch lane and does not paginate. refs= is not resolved: role has no catalog_external_ref entity_type. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "cursor",
@@ -50071,15 +50216,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/roles\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/roles\""
             },
             {
               "id": "getCatalogRole",
               "method": "get",
               "path": "/v2/catalog/roles/{id}",
               "summary": "Get one role",
-              "description": "A credit-role registry row. Unknown id is 404 NOT_FOUND. Requires an application key or a user access token with catalog:read.",
+              "description": "A credit-role registry row. Unknown id is 404 NOT_FOUND. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -51578,7 +51729,7 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/roles/value\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/roles/value\""
             },
             {
               "id": "getCatalogSchema",
@@ -52912,8 +53063,14 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/search",
               "summary": "Search catalog entities",
-              "description": "Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Requires an application key or a user access token with catalog:read. cursor= pages the hits. ids= is not accepted. page= selects page mode (see the page parameter). object=trait hits carry trait_path (group and direct parents). Without nsfw=true, sexual-family trait documents are excluded from the result and from total.",
+              "description": "Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. cursor= pages the hits. ids= is not accepted. page= selects page mode (see the page parameter). object=trait hits carry trait_path (group and direct parents). Without nsfw=true, sexual-family trait documents are excluded from the result and from total.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "cursor",
@@ -54547,15 +54704,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/search\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/search\""
             },
             {
               "id": "listCatalogSeries",
               "method": "get",
               "path": "/v2/catalog/series",
               "summary": "List series",
-              "description": "Keyset-paginated series. Requires an application key or a user access token with catalog:read. ids= is a batch lane and does not paginate. refs= is not resolved: series has no catalog_external_ref entity_type.",
+              "description": "Keyset-paginated series. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate. refs= is not resolved: series has no catalog_external_ref entity_type.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "cursor",
@@ -56033,15 +56196,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/series\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/series\""
             },
             {
               "id": "getCatalogSeries",
               "method": "get",
               "path": "/v2/catalog/series/{id}",
               "summary": "Get one series",
-              "description": "Series detail. has_nsfw reports whether any member work sits behind the r18 display gate. include=intros,refs adds the corresponding blocks. Requires an application key or a user access token with catalog:read.",
+              "description": "Series detail. has_nsfw reports whether any member work sits behind the r18 display gate. include=intros,refs adds the corresponding blocks. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -57569,7 +57738,7 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/series/value\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/series/value\""
             },
             {
               "id": "getCatalogStats",
@@ -58343,8 +58512,14 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/tags",
               "summary": "List tags",
-              "description": "Keyset-paginated canonical tags. Requires an application key or a user access token with catalog:read. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate.",
+              "description": "Keyset-paginated canonical tags. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. has_works=true keeps only tags with works visible under the same nsfw gate.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "cursor",
@@ -59828,15 +60003,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/tags\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/tags\""
             },
             {
               "id": "getCatalogTag",
               "method": "get",
               "path": "/v2/catalog/tags/{id}",
               "summary": "Get one tag",
-              "description": "Canonical tag. include=intros adds the per-language tag descriptions. Requires an application key or a user access token with catalog:read.",
+              "description": "Canonical tag. include=intros adds the per-language tag descriptions. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -61363,15 +61544,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/tags/value\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/tags/value\""
             },
             {
               "id": "listCatalogTraits",
               "method": "get",
               "path": "/v2/catalog/traits",
               "summary": "List traits",
-              "description": "Keyset-paginated character traits. Requires an application key or a user access token with catalog:read. ids= is a batch lane. refs= is not resolved: traits have no catalog_external_ref entity_type. parent_id= lists direct children; group_id= lists traits in that root group (the root excluded); root=true|false keeps only roots or only non-roots. Filters are conjunctive. Without nsfw=true, sexual-family traits are excluded from the list and land in missing[] on the ids= batch; naming one as parent_id or group_id is 400. include=aliases,description,intros (and view=full) add those blocks. include=character_count is the nightly index total that GET /v2/catalog/characters?trait_id=<this id>&page=1 answers under this request's nsfw; the engine failing is 503. It is an explicit ask: view=full does not add it. is_sexual reports the sexual-family flag.",
+              "description": "Keyset-paginated character traits. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane. refs= is not resolved: traits have no catalog_external_ref entity_type. parent_id= lists direct children; group_id= lists traits in that root group (the root excluded); root=true|false keeps only roots or only non-roots. Filters are conjunctive. Without nsfw=true, sexual-family traits are excluded from the list and land in missing[] on the ids= batch; naming one as parent_id or group_id is 400. include=aliases,description,intros (and view=full) add those blocks. include=character_count is the nightly index total that GET /v2/catalog/characters?trait_id=<this id>&page=1 answers under this request's nsfw; the engine failing is 503. It is an explicit ask: view=full does not add it. is_sexual reports the sexual-family flag.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "cursor",
@@ -63014,15 +63201,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/traits\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/traits\""
             },
             {
               "id": "getCatalogTrait",
               "method": "get",
               "path": "/v2/catalog/traits/{id}",
               "summary": "Get one trait",
-              "description": "A character-trait vocabulary row. Without nsfw=true a sexual-family trait is 404 NOT_FOUND. include=aliases,description,intros (and view=full) add those blocks. include=character_count is the nightly index total that GET /v2/catalog/characters?trait_id=<this id>&page=1 answers under this request's nsfw; the engine failing is 503. It is an explicit ask: view=full does not add it. is_sexual reports the sexual-family flag. Requires an application key or a user access token with catalog:read.",
+              "description": "A character-trait vocabulary row. Without nsfw=true a sexual-family trait is 404 NOT_FOUND. include=aliases,description,intros (and view=full) add those blocks. include=character_count is the nightly index total that GET /v2/catalog/characters?trait_id=<this id>&page=1 answers under this request's nsfw; the engine failing is 503. It is an explicit ask: view=full does not add it. is_sexual reports the sexual-family flag. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -64694,15 +64887,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/traits/value\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/traits/value\""
             },
             {
               "id": "listCatalogWorks",
               "method": "get",
               "path": "/v2/catalog/works",
               "summary": "List catalog works",
-              "description": "Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. Requires an application key or a user access token with catalog:read. view/include/fields/ids/refs/facets follow the v2 collection contract. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on every lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE. page= selects page mode (see the page parameter).",
+              "description": "Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. view/include/fields/ids/refs/facets follow the v2 collection contract. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on every lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE. page= selects page mode (see the page parameter).",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "cursor",
@@ -68223,15 +68422,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works\""
             },
             {
               "id": "getCatalogWork",
               "method": "get",
               "path": "/v2/catalog/works/{id}",
               "summary": "Get one catalog work",
-              "description": "Work detail. spoiler=none|minor|major is the ceiling of the tags block and defaults to none. Merged ids are 404 ENTITY_MERGED with Link rel=canonical. r18 is 404 without nsfw=true. Requires an application key or a user access token with catalog:read.",
+              "description": "Work detail. spoiler=none|minor|major is the ceiling of the tags block and defaults to none. Merged ids are 404 ENTITY_MERGED with Link rel=canonical. r18 is 404 without nsfw=true. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -71690,15 +71895,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works/value\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works/value\""
             },
             {
               "id": "getCatalogWorkCharacters",
               "method": "get",
               "path": "/v2/catalog/works/{id}/characters",
               "summary": "List characters of one work",
-              "description": "Roster characters. Same items as include=characters. Requires an application key or a user access token with catalog:read.",
+              "description": "Roster characters. Same items as include=characters. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -73742,15 +73953,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works/value/characters\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works/value/characters\""
             },
             {
               "id": "getCatalogWorkCovers",
               "method": "get",
               "path": "/v2/catalog/works/{id}/covers",
               "summary": "List covers of one work",
-              "description": "Work cover rows. Same items as include=covers. Requires an application key or a user access token with catalog:read.",
+              "description": "Work cover rows. Same items as include=covers. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -75352,15 +75569,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works/value/covers\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works/value/covers\""
             },
             {
               "id": "getCatalogWorkCredits",
               "method": "get",
               "path": "/v2/catalog/works/{id}/credits",
               "summary": "List credits of one work",
-              "description": "Credits grouped by role. Same items as include=credits. Requires an application key or a user access token with catalog:read.",
+              "description": "Credits grouped by role. Same items as include=credits. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -76958,15 +77181,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works/value/credits\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works/value/credits\""
             },
             {
               "id": "getCatalogWorkEngines",
               "method": "get",
               "path": "/v2/catalog/works/{id}/engines",
               "summary": "List engines of one work",
-              "description": "Engines. Same items as include=engines. Requires an application key or a user access token with catalog:read.",
+              "description": "Engines. Same items as include=engines. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -78505,15 +78734,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works/value/engines\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works/value/engines\""
             },
             {
               "id": "getCatalogWorkIntros",
               "method": "get",
               "path": "/v2/catalog/works/{id}/intros",
               "summary": "List intros of one work",
-              "description": "Intros. Same items as include=intros. Requires an application key or a user access token with catalog:read.",
+              "description": "Intros. Same items as include=intros. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -80049,15 +80284,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works/value/intros\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works/value/intros\""
             },
             {
               "id": "getCatalogWorkLinks",
               "method": "get",
               "path": "/v2/catalog/works/{id}/links",
               "summary": "List links of one work",
-              "description": "Outbound links. Same items as include=links. Requires an application key or a user access token with catalog:read.",
+              "description": "Outbound links. Same items as include=links. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -81581,15 +81822,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works/value/links\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works/value/links\""
             },
             {
               "id": "getCatalogWorkRatings",
               "method": "get",
               "path": "/v2/catalog/works/{id}/ratings",
               "summary": "List ratings of one work",
-              "description": "Source ratings. Same items as include=ratings. Requires an application key or a user access token with catalog:read.",
+              "description": "Source ratings. Same items as include=ratings. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -83190,15 +83437,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works/value/ratings\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works/value/ratings\""
             },
             {
               "id": "getCatalogWorkRelations",
               "method": "get",
               "path": "/v2/catalog/works/{id}/relations",
               "summary": "List relations of one work",
-              "description": "Related works. Same items as include=relations. Requires an application key or a user access token with catalog:read.",
+              "description": "Related works. Same items as include=relations. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -86724,15 +86977,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works/value/relations\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works/value/relations\""
             },
             {
               "id": "getCatalogWorkReleases",
               "method": "get",
               "path": "/v2/catalog/works/{id}/releases",
               "summary": "List releases of one work",
-              "description": "Releases of this work. Same items as include=releases. Requires an application key or a user access token with catalog:read.",
+              "description": "Releases of this work. Same items as include=releases. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -88365,15 +88624,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works/value/releases\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works/value/releases\""
             },
             {
               "id": "getCatalogWorkScreenshots",
               "method": "get",
               "path": "/v2/catalog/works/{id}/screenshots",
               "summary": "List screenshots of one work",
-              "description": "Work screenshots. Same items as include=screenshots. Requires an application key or a user access token with catalog:read.",
+              "description": "Work screenshots. Same items as include=screenshots. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -89956,15 +90221,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works/value/screenshots\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works/value/screenshots\""
             },
             {
               "id": "getCatalogWorkSeries",
               "method": "get",
               "path": "/v2/catalog/works/{id}/series",
               "summary": "List series of one work",
-              "description": "Series memberships. Same items as include=series. Requires an application key or a user access token with catalog:read.",
+              "description": "Series memberships. Same items as include=series. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -91509,15 +91780,21 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works/value/series\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works/value/series\""
             },
             {
               "id": "getCatalogWorkTags",
               "method": "get",
               "path": "/v2/catalog/works/{id}/tags",
               "summary": "List tags of one work",
-              "description": "Tags attached to this work. Same items as include=tags. spoiler=none|minor|major is the ceiling of this page and defaults to none, exactly as on the work detail face. Requires an application key or a user access token with catalog:read.",
+              "description": "Tags attached to this work. Same items as include=tags. spoiler=none|minor|major is the ceiling of this page and defaults to none, exactly as on the work detail face. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
+              "auth": {
+                "kind": "optional",
+                "curl": "",
+                "display": "可匿名调用",
+                "note": "不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度"
+              },
               "params": [
                 {
                   "name": "id",
@@ -93102,7 +93379,7 @@ export const docsModel: DocsModel = {
                   }
                 }
               ],
-              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works/value/tags\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+              "curl": "curl \"https://api.nextmoe.dev/v2/catalog/works/value/tags\""
             }
           ]
         },

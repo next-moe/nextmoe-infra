@@ -94,7 +94,7 @@ GET /v2/catalog/works?refs=vndb:v19658,bangumi:302835
 
 ## 编辑是公开的
 
-目录的每一次修改都留痕，而且这份痕迹是公开只读的：`/v2/catalog/proposals` 是编辑提案，`/v2/catalog/revisions` 是修订历史。谁改了什么、被谁通过或拒绝，任何持密钥的应用都能读到。
+目录的每一次修改都留痕，而且这份痕迹是公开只读的：`/v2/catalog/proposals` 是编辑提案，`/v2/catalog/revisions` 是修订历史。谁改了什么、被谁通过或拒绝，任何人都能读到，不需要密钥。
 
 - [全链走查](/docs/example) — 用两个真实系列把上面这些概念跑一遍。
 - [词表](/docs/vocabularies) — 每个枚举的成员，以及它是开放还是封闭的。

@@ -34,5 +34,5 @@
 ## 非目标
 
 - 不存产品展示字段(intro/封面/点赞/收藏——产品站各自持有)。
-- 不做面向匿名用户的公开端点(仅服务已注册的一等 OAuth Client)。
+- ~~不做面向匿名用户的公开端点~~ —— 2026-10-11(spec 2.39.0)起 `/v2/catalog` 只读面(`claim-events` 除外)收无凭证请求,按 IPv4 地址或 IPv6 /64 限流(默认 30 次/分、1,000 次/日),见 [v2-implementation-notes](./v2-implementation-notes.md) 同日波次。写面、`/v2/me`、`/v2/moderation` 仍只服务持凭证的调用方。
 - 不做自动跨源合并的「终判」——probable 锚与合并提案进 admin 三桶等人审。

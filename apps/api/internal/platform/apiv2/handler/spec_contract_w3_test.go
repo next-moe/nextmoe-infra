@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"net/http"
 	"strings"
 	"testing"
 
@@ -89,16 +90,20 @@ func TestEveryOperationDeclaresTheCredentialItsGateDemands(t *testing.T) {
 	require.Contains(t, doc.Components.SecuritySchemes, securityAppKey)
 	require.Contains(t, doc.Components.SecuritySchemes, securityUserToken)
 
-	gated, keyless, dual := 0, 0, 0
+	gated, keyless, dual, anonymous := 0, 0, 0, 0
 	for path, item := range doc.Paths {
-		schemes, _ := v2Security(path)
+		schemes, _, anon := v2Security(path)
 		for _, op := range pathOps(item) {
 			if len(schemes) == 0 {
 				require.Emptyf(t, op.Security, "%s takes no credential and must declare none", op.OperationID)
 				keyless++
 				continue
 			}
-			require.Lenf(t, op.Security, len(schemes), "%s", op.OperationID)
+			want := len(schemes)
+			if anon {
+				want++
+			}
+			require.Lenf(t, op.Security, want, "%s", op.OperationID)
 			// One requirement object per alternative, never two schemes inside
 			// one object: the second shape means "both at once", which is not
 			// what any face here does and which generators handle badly.
@@ -106,6 +111,15 @@ func TestEveryOperationDeclaresTheCredentialItsGateDemands(t *testing.T) {
 				require.Lenf(t, op.Security[i], 1, "%s requirement %d", op.OperationID, i)
 				_, ok := op.Security[i][scheme]
 				require.Truef(t, ok, "%s must declare %s", op.OperationID, scheme)
+			}
+			if anon {
+				require.Emptyf(t, op.Security[len(schemes)], "%s: the anonymous alternative is the empty requirement", op.OperationID)
+				require.Equalf(t, http.MethodGet, op.Method,
+					"%s: anonymous access was opened for reads; a write under this prefix needs its own decision", op.OperationID)
+				require.Containsf(t, op.Description, anonymousCallsSentence, "%s answers anonymously and must say so", op.OperationID)
+				anonymous++
+			} else {
+				require.NotContainsf(t, op.Description, anonymousCallsSentence, "%s refuses anonymous calls", op.OperationID)
 			}
 			if len(schemes) > 1 {
 				dual++
@@ -116,7 +130,10 @@ func TestEveryOperationDeclaresTheCredentialItsGateDemands(t *testing.T) {
 	require.Greater(t, gated, 0)
 	require.Greater(t, keyless, 0, "no keyless operation was seen; the control is vacuous")
 	require.Greater(t, dual, 40, "the catalog read surface takes either credential; too few operations said so")
+	require.Greater(t, anonymous, 40, "the catalog read surface answers anonymously; too few operations said so")
 }
+
+const anonymousCallsSentence = "Anonymous calls are allowed and limited per IP address"
 
 // The gate keys on what fiber matched, and the document is generated from the
 // same predicate, so an unreachable path in one of them is a silent hole in the

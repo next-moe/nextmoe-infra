@@ -136,7 +136,7 @@ func TestUpstreamGetPassthrough(t *testing.T) {
 	up := NewUpstream(srv.URL)
 	q := url.Values{}
 	q.Set("q", "スモーク")
-	status, body, err := up.Get(context.Background(), "/v1/catalog/search", q, "Bearer nm_live_k")
+	status, body, err := up.Get(context.Background(), "/v1/catalog/search", q, "Bearer nm_live_k", "")
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
@@ -188,7 +188,7 @@ func TestUpstreamGetTimeout(t *testing.T) {
 	up := NewUpstream(srv.URL)
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
-	if _, _, err := up.Get(ctx, "/v1/catalog/search", url.Values{}, "Bearer nm_live_k"); err == nil {
+	if _, _, err := up.Get(ctx, "/v1/catalog/search", url.Values{}, "Bearer nm_live_k", ""); err == nil {
 		t.Fatal("expected a timeout error, got nil")
 	}
 }
@@ -202,7 +202,7 @@ func TestHandlerEndToEnd(t *testing.T) {
 	defer srv.Close()
 
 	key := "nmk_live_AAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-	td := ToolDesc{Name: "listCatalogWorks", Path: "/v2/catalog/works", Params: []string{"q", "view"}, NeedsKey: true}
+	td := ToolDesc{Name: "listCatalogClaimEvents", Path: "/v2/catalog/claim-events", Params: []string{"q", "view"}, NeedsKey: true}
 	h := (&toolsRunner{up: NewUpstream(srv.URL)}).handler(td)
 	ctx := context.Background()
 	req := &mcp.CallToolRequest{Extra: &mcp.RequestExtra{
@@ -215,7 +215,7 @@ func TestHandlerEndToEnd(t *testing.T) {
 	if res.IsError {
 		t.Fatalf("handler returned an error result: %q", textOf(t, res))
 	}
-	if gotPath != "/v2/catalog/works" {
+	if gotPath != "/v2/catalog/claim-events" {
 		t.Errorf("path = %q", gotPath)
 	}
 	if !contains(gotQuery, "q=fate") || !contains(gotQuery, "view=basic") {
@@ -274,6 +274,33 @@ func TestSpecToolsSubstitutePathAndSkipKeyOnNews(t *testing.T) {
 	}
 }
 
+func TestAnonymousCatalogCallCarriesTheCallersAddress(t *testing.T) {
+	var gotAuth []string
+	var gotIP string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth, gotIP = r.Header.Values("Authorization"), r.Header.Get("CF-Connecting-IP")
+		_, _ = w.Write([]byte(`{"object":"list","items":[]}`))
+	}))
+	defer srv.Close()
+
+	td := ToolDesc{Name: "listCatalogWorks", Path: "/v2/catalog/works", Params: []string{"q"}, NeedsKey: false}
+	h := (&toolsRunner{up: NewUpstream(srv.URL)}).handler(td)
+	req := &mcp.CallToolRequest{Extra: &mcp.RequestExtra{Header: http.Header{"Cf-Connecting-Ip": {"203.0.113.9"}}}}
+	res, _, err := h(context.Background(), req, map[string]any{"q": "fate"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.IsError {
+		t.Fatalf("anonymous catalog call refused: %q", textOf(t, res))
+	}
+	if len(gotAuth) != 0 {
+		t.Errorf("an anonymous call must send no Authorization header, sent %q", gotAuth)
+	}
+	if gotIP != "203.0.113.9" {
+		t.Errorf("upstream saw CF-Connecting-IP %q; every anonymous MCP user would share this container's bucket", gotIP)
+	}
+}
+
 func textOf(t *testing.T, r *mcp.CallToolResult) string {
 	t.Helper()
 	if len(r.Content) == 0 {
@@ -312,6 +339,12 @@ var securitySpec = []byte(`{
     },
     "/v2/catalog/stats": {
       "get": {"operationId": "getCatalogStats", "summary": "Stats"}
+    },
+    "/v2/catalog/claim-events": {
+      "get": {"operationId": "listCatalogClaimEvents", "summary": "Claim events", "security": [{"applicationKey": []}]}
+    },
+    "/v2/catalog/series/{id}": {
+      "get": {"operationId": "getCatalogSeries", "summary": "Series", "security": [{"applicationKey": []}, {"userToken": []}, {}]}
     }
   }
 }`)
@@ -327,6 +360,12 @@ func TestNeedsKeyAndParamDocsComeFromTheSpec(t *testing.T) {
 	}
 	if !byName["getCatalogWork"].NeedsKey {
 		t.Error("getCatalogWork declares applicationKey but NeedsKey is false")
+	}
+	if !byName["listCatalogClaimEvents"].NeedsKey {
+		t.Error("listCatalogClaimEvents declares applicationKey only but NeedsKey is false")
+	}
+	if byName["getCatalogSeries"].NeedsKey {
+		t.Error("getCatalogSeries declares the empty requirement {} but NeedsKey is true")
 	}
 	if byName["getCatalogStats"].NeedsKey {
 		t.Error("getCatalogStats declares no security but NeedsKey is true")

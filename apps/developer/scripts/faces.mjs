@@ -93,6 +93,7 @@ export const FACES = [
     ],
     notes: [
       '正式公开：形状按 additive-only 演进，删除与改名由 CI 的 oasdiff 门拦下。第三方在门户自助铸 nmk_ 密钥即可调用，不需要申请。',
+      '/v2/catalog 只读面（claim-events 除外）不带凭据也能调，按 IPv4 地址或 IPv6 /64 计一份很小的额度（默认 30 次/分钟、1,000 次/天），够个人脚本、浏览器扩展和纯前端小项目用；量大了就铸一把密钥，自助、不审核。带了却无效的凭据仍是 401，不会降级成匿名。',
       '/v2/me/playtimes 只要用户令牌，不需要 playtime:read / playtime:write。任何已开通用户登录的应用都可以调用。',
       '/v2/me/work-states 与 playtimes 同款：只要用户令牌，不需要任何 scope。state 五值与 Bangumi 收藏类型一一对应，completion 表示通了多少，wish 不允许携带。',
       '/v2/me/followed-companies 与 /v2/me/calendar 同样只要用户令牌、不需要任何 scope。关注列表只对本人可见，公开的只有 /v2/catalog/companies/{id} 详情上的 follower_count；/v2/me/calendar 与公开月历同参数，只列关注厂商的作品，且缺省不按语言、不排除同人。',
@@ -160,6 +161,13 @@ export const NO_AUTH = {
   curl: '',
   display: '无需凭据',
   note: '匿名可调 —— 不需要 API 密钥'
+}
+
+export const ANONYMOUS_OR_CREDENTIAL_AUTH = {
+  kind: 'optional',
+  curl: '',
+  display: '可匿名调用',
+  note: '不带凭据按 IPv4 地址或 IPv6 /64 限流（默认 30 次/分钟、1,000 次/天）；带 nmk_ 应用密钥或带 catalog:read 的用户访问令牌则走各自更高的额度'
 }
 
 export const USER_TOKEN_AUTH = {

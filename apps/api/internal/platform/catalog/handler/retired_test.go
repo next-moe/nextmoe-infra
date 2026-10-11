@@ -145,8 +145,10 @@ func TestRetiredV1DoesNotCaptureLiveSiblings(t *testing.T) {
 		path string
 		want int
 	}{
-		{"/v2/catalog/works", fiber.StatusUnauthorized},
+		{"/v2/catalog/claim-events", fiber.StatusUnauthorized},
 		{"/v2/store/stats", fiber.StatusUnauthorized},
+		// Anonymous since spec 2.39.0: past the gate to its unbound handler, not a tombstone.
+		{"/v2/catalog/works", fiber.StatusServiceUnavailable},
 	} {
 		status, _, body := retiredCall(t, f, "GET", tc.path, "")
 		require.Equalf(t, tc.want, status, "GET %s must still reach the v2 key gate: %s", tc.path, body)

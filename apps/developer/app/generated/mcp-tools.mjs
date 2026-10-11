@@ -6,7 +6,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/characters/{id}",
     "summary": "Get one character",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "nsfw",
@@ -21,7 +21,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/characters/{id}/appearances",
     "summary": "Appearances of one character",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "nsfw",
@@ -34,7 +34,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/companies/{id}",
     "summary": "Get one company",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "nsfw",
@@ -48,7 +48,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/companies/{id}/graph",
     "summary": "Company family graph",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "nsfw",
@@ -62,7 +62,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/credit-names/{id}",
     "summary": "Get one credit name",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "nsfw",
@@ -76,7 +76,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/credit-names/{id}/credits",
     "summary": "Credits of one credit name",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "nsfw",
@@ -89,7 +89,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/engines/{id}",
     "summary": "Get one engine",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "nsfw",
@@ -103,7 +103,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/persons/{id}",
     "summary": "Get one person",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "nsfw",
@@ -117,7 +117,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/persons/{id}/credit-names",
     "summary": "Credit names of one person",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "nsfw",
@@ -131,7 +131,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/proposals/{id}",
     "summary": "One proposal",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "include",
@@ -144,7 +144,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/releases/{id}",
     "summary": "Get one release",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "nsfw",
@@ -158,7 +158,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/revisions/{id}",
     "summary": "One revision",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "include",
@@ -172,7 +172,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/roles/{id}",
     "summary": "Get one role",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "nsfw",
@@ -196,7 +196,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/series/{id}",
     "summary": "Get one series",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "nsfw",
@@ -218,7 +218,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/tags/{id}",
     "summary": "Get one tag",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "nsfw",
@@ -232,7 +232,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/traits/{id}",
     "summary": "Get one trait",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "nsfw",
@@ -246,7 +246,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/works/{id}",
     "summary": "Get one catalog work",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "nsfw",
@@ -261,7 +261,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/works/{id}/characters",
     "summary": "List characters of one work",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "nsfw",
@@ -274,7 +274,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/works/{id}/covers",
     "summary": "List covers of one work",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "nsfw",
@@ -287,7 +287,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/works/{id}/credits",
     "summary": "List credits of one work",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "nsfw",
@@ -300,7 +300,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/works/{id}/engines",
     "summary": "List engines of one work",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "nsfw",
@@ -313,7 +313,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/works/{id}/intros",
     "summary": "List intros of one work",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "nsfw",
@@ -326,7 +326,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/works/{id}/links",
     "summary": "List links of one work",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "nsfw",
@@ -339,7 +339,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/works/{id}/ratings",
     "summary": "List ratings of one work",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "nsfw",
@@ -352,7 +352,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/works/{id}/relations",
     "summary": "List relations of one work",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "nsfw",
@@ -365,7 +365,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/works/{id}/releases",
     "summary": "List releases of one work",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "nsfw",
@@ -378,7 +378,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/works/{id}/screenshots",
     "summary": "List screenshots of one work",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "nsfw",
@@ -391,7 +391,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/works/{id}/series",
     "summary": "List series of one work",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "nsfw",
@@ -404,7 +404,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/works/{id}/tags",
     "summary": "List tags of one work",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "id",
       "nsfw",
@@ -448,7 +448,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/calendar",
     "summary": "Release calendar",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "cursor",
       "limit",
@@ -475,7 +475,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/changes",
     "summary": "Catalog changes feed",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "cursor",
       "limit",
@@ -495,7 +495,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/characters",
     "summary": "List characters",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "cursor",
       "limit",
@@ -539,7 +539,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/companies",
     "summary": "List companies",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "cursor",
       "limit",
@@ -560,7 +560,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/credit-names",
     "summary": "List credit names",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "cursor",
       "limit",
@@ -581,7 +581,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/engines",
     "summary": "List engines",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "cursor",
       "limit",
@@ -601,7 +601,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/persons",
     "summary": "List persons",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "cursor",
       "limit",
@@ -621,7 +621,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/proposals",
     "summary": "Edit proposal history",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "cursor",
       "limit",
@@ -643,7 +643,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/redirects",
     "summary": "Entity merge feed",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "cursor",
       "limit",
@@ -664,7 +664,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/releases",
     "summary": "List releases",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "cursor",
       "limit",
@@ -684,7 +684,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/revisions",
     "summary": "Entity revision history",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "cursor",
       "limit",
@@ -705,7 +705,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/roles",
     "summary": "List roles",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "cursor",
       "limit",
@@ -725,7 +725,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/series",
     "summary": "List series",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "cursor",
       "limit",
@@ -745,7 +745,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/tags",
     "summary": "List tags",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "cursor",
       "limit",
@@ -766,7 +766,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/traits",
     "summary": "List traits",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "cursor",
       "limit",
@@ -789,7 +789,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/works",
     "summary": "List catalog works",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "cursor",
       "limit",
@@ -906,7 +906,7 @@ export const mcpTools = [
     "method": "GET",
     "path": "/v2/catalog/search",
     "summary": "Search catalog entities",
-    "needs_key": true,
+    "needs_key": false,
     "params": [
       "cursor",
       "limit",

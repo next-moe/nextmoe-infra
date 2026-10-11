@@ -91,12 +91,12 @@ func (t *toolsRunner) handler(td ToolDesc) func(context.Context, *mcp.CallToolRe
 		if ok {
 			auth = "Bearer " + token
 		}
-		return t.run(ctx, req, td.Name, path, q, auth)
+		return t.run(ctx, req, td.Name, path, q, auth, header.Get(clientIPHeader))
 	}
 }
 
-func (t *toolsRunner) run(ctx context.Context, req *mcp.CallToolRequest, tool, path string, query url.Values, authorization string) (*mcp.CallToolResult, any, error) {
-	status, body, err := t.up.Get(ctx, path, query, authorization)
+func (t *toolsRunner) run(ctx context.Context, req *mcp.CallToolRequest, tool, path string, query url.Values, authorization, clientIP string) (*mcp.CallToolResult, any, error) {
+	status, body, err := t.up.Get(ctx, path, query, authorization, clientIP)
 	if err != nil {
 		return errorResult("Upstream request failed: " + err.Error() + ". Try again later."), nil, nil
 	}

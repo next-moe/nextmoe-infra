@@ -357,9 +357,9 @@ func TestLivePublicEditHistory(t *testing.T) {
 	status, _, body = liveDo(t, env, http.MethodGet, "/v2/catalog/proposals/"+propID+"?include=patch", liveAppKey, "")
 	require.Equal(t, 400, status, string(body))
 
-	// the face needs an application key like every other /v2/catalog read
+	// like every other /v2/catalog read, the history answers without a credential too
 	status, _, body = liveDo(t, env, http.MethodGet, "/v2/catalog/revisions", "", "")
-	require.Equal(t, 401, status, string(body))
+	require.Equal(t, 200, status, string(body))
 }
 
 func liveUploadImage(t *testing.T, env *liveEnv, preset string) (int, http.Header, []byte) {

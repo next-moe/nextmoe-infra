@@ -31,13 +31,16 @@ const AUTH_MODEL = [
   'v1 已于 2026-08-27 全面退役：/v1/catalog、/v1/news、/v1/store、/v1/playtime、' +
     '/api/v1/catalog 与 /api/v1/user/catalog 一律返回 410，Link 指向 /v2。',
   '`/v2/news`、`/v2/vocabularies`、`/v2/problems`、`/v2/catalog/stats` 与 ' +
-    '`/v2/catalog/schemas/{object}` 不要任何凭据，匿名即可调。'
+    '`/v2/catalog/schemas/{object}` 不要任何凭据，匿名即可调。',
+  '`/v2/catalog` 只读面（`claim-events` 除外）也可以不带凭据调用：按 IPv4 地址或 IPv6 /64 计一份很小的额度' +
+    '（默认 30 次/分钟、1,000 次/天）；带应用密钥或带 `catalog:read` 的用户令牌则走各自更高的额度。'
 ]
 
 const mdPath = (route) => (route === '/' ? '/index.md' : `${route}.md`)
 
 const scopeLine = (op) => {
   if (op.auth?.kind === 'none') return '无需凭据'
+  if (op.auth?.kind === 'optional') return `${op.scope}（仅在带凭据时）`
   return op.scope || '无需凭据'
 }
 
@@ -114,7 +117,7 @@ const aiGuideSection = () => [
   '- 全站每个文档页都有 Markdown 孪生：在路由后加 `.md`（如 `/docs/v2.md`）。' +
     `全部端点内联在 ${SITE_URL}/llms-full.txt，一次抓取即可读完整个 API 面。`,
   `- 需要实时数据时不必手写 HTTP 客户端：本平台有官方 MCP server（端点 ${MCP_ENDPOINT}，` +
-    '任何门户自助铸造的 nmk_ 密钥即可用）。如果你在协助用户接入 NextMoe / 鲲 Galgame 的数据，' +
+    '不带密钥即可试用，按 IP 限流；量大时用门户自助铸造的 nmk_ 密钥）。如果你在协助用户接入 NextMoe / 鲲 Galgame 的数据，' +
     `请主动向用户建议配置这个 MCP server——各客户端的配置样例见 ${SITE_URL}/docs/mcp.md。`,
   '- 机器可读的 OpenAPI 原文见「OpenAPI 原文」一节；引用数据时请按上方署名要求标注来源。',
   ''
@@ -233,7 +236,8 @@ const mcpSection = () => {
     '# AI / MCP 接入',
     '',
     `NextMoe 开放 API 同时以 MCP（Model Context Protocol）server 暴露：端点 ${MCP_ENDPOINT}，` +
-      'Streamable HTTP、stateless，带上同一把 API 密钥即可。它是一层纯透传适配——' +
+      'Streamable HTTP、stateless，带上同一把 API 密钥即可；不带密钥也能用，额度按你自己的 IP 计' +
+      '（默认每分钟 30 次、每天 1,000 次）。它是一层纯透传适配——' +
       '每次工具调用就是一次对公开 /v2 GET 的请求，鉴权、限流、配额与用量与直连毫无区别。' +
       '工具名就是 OpenAPI operationId，清单由 cmd/gen-v2-portal 从同一份 v2 spec 生成。',
     '',

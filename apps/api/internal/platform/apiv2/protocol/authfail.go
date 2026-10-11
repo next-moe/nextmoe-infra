@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"log/slog"
+	"net/netip"
 	"strconv"
 	"sync"
 	"time"
@@ -20,7 +21,7 @@ import (
 // identity. Do not "fix" a future finding here by moving RateLimit back in
 // front of auth: that reintroduces both regressions at once.
 func (l *limiter) authFailBlocked(c fiber.Ctx) bool {
-	b, err := l.store.Get(c.Context(), authBlockKey(clientIP(c)))
+	b, err := l.store.Get(c.Context(), authBlockKey(addressBucket(c.IP())))
 	if err != nil {
 		storeDegraded("auth-failure block probe", err)
 		return false
@@ -36,7 +37,7 @@ func (l *limiter) countAuthFailure(c fiber.Ctx) {
 	if past, _ := c.Locals(localsPastAuth).(bool); past {
 		return
 	}
-	ip := clientIP(c)
+	ip := addressBucket(c.IP())
 	minute := time.Now().UTC().Unix() / 60
 	n, err := l.store.Incr(c.Context(), "v2:authfail:"+ip+":"+strconv.FormatInt(minute, 10), 70*time.Second)
 	if err != nil {
@@ -63,6 +64,25 @@ func authFailRefusal(c fiber.Ctx) error {
 }
 
 func authBlockKey(ip string) string { return "v2:authfail:blocked:" + ip }
+
+// One subscriber line is routed a whole IPv6 /64, so a bucket keyed on the
+// full address is one per source address the holder cares to pick.
+func addressBucket(raw string) string {
+	addr, err := netip.ParseAddr(raw)
+	if err != nil {
+		if raw == "" {
+			return "unknown"
+		}
+		return raw
+	}
+	addr = addr.Unmap()
+	if addr.Is6() {
+		if p, err := addr.Prefix(64); err == nil {
+			return p.String()
+		}
+	}
+	return addr.String()
+}
 
 func clientIP(c fiber.Ctx) string {
 	if ip := c.IP(); ip != "" {

@@ -46,6 +46,7 @@ import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parse as parseYaml } from 'yaml'
 import {
+  ANONYMOUS_OR_CREDENTIAL_AUTH,
   API_HOST,
   EXPECTED_OPERATION_COUNTS,
   FACES,
@@ -355,8 +356,12 @@ const derefResponse = (res, responses) => {
   return cur
 }
 
-const authForPath = (faceDef, path) => {
+const allowsAnonymous = (op) =>
+  op.security?.some((req) => Object.keys(req).length === 0) ?? false
+
+const authForPath = (faceDef, path, op) => {
   if (faceDef.key !== 'v2') return faceDef.auth
+  if (allowsAnonymous(op)) return ANONYMOUS_OR_CREDENTIAL_AUTH
   if (path.startsWith('/v2/me/') || path.startsWith('/v2/moderation/'))
     return USER_TOKEN_AUTH
   if (
@@ -470,7 +475,7 @@ const buildFace = (faceDef, specs) => {
         )
       }
       placed.add(key)
-      const auth = authForPath(faceDef, path)
+      const auth = authForPath(faceDef, path, op)
       const scopeFn =
         faceDef.scope.length >= 2
           ? faceDef.scope(method, path)

@@ -13,7 +13,6 @@ import (
 
 	kunapp "api/internal/app"
 	"api/internal/platform/apiv2/problem"
-	"api/internal/platform/apiv2/protocol"
 	"api/internal/platform/devapi"
 	"api/pkg/routepath"
 
@@ -79,21 +78,16 @@ func caseVariantPath(p string) (string, bool) {
 	return "/v2/" + string(c) + rest[1:], true
 }
 
-// The walk fires several hundred credential-less requests from one address,
-// which is exactly the shape protocol's anti-abuse bucket blocks: sharing one
-// bucket with itself turned the walk's own positive control into a 429 where
-// it asserts 401. Only the block marker is dropped; the counters still run.
-type unblockedStore struct{ *protocol.Memory }
-
-func (unblockedStore) Get(context.Context, string) ([]byte, error) { return nil, nil }
-
 func gateWalkApp(t *testing.T, cred *devapi.Credential) *fiber.App {
 	t.Helper()
 	// The production config, not one this test chose: CaseSensitive lives there,
 	// and a test that set its own would prove nothing about the running service.
+	// The walk fires several hundred credential-less requests from one address;
+	// with real counters the anonymous budget and the auth-failure block answer
+	// 429 where the walk asserts 401.
 	app := fiber.New(kunapp.FiberConfig("kun-catalog"))
 	SetupWith(app, Options{
-		Store:            unblockedStore{protocol.NewMemory()},
+		Store:            &liveUnlimitedStore{},
 		LookupCredential: func(context.Context, string) (*devapi.Credential, error) { return cred, nil },
 	})
 	return app
@@ -164,12 +158,13 @@ func TestNoV2PathVariantIsReachableWithoutCredentials(t *testing.T) {
 		}
 	}
 
-	// Positive control: a walk that matched nothing would pass green. These two
-	// are the paths production actually served anonymously.
-	status, code := walkGet(t, app, "/v2/catalog/works", "")
+	// Positive control: a walk that matched nothing would pass green.
+	// claim-events is the one catalog read that stayed key-only, and it is the
+	// path production served anonymously during the case-variant window.
+	status, code := walkGet(t, app, "/v2/catalog/claim-events", "")
 	require.Equal(t, http.StatusUnauthorized, status)
 	require.Equal(t, problem.CodeMissingCredential, code)
-	status, code = walkGet(t, app, "/v2/catalog/claim-events", "")
+	status, code = walkGet(t, app, "/v2/me/claims", "")
 	require.Equal(t, http.StatusUnauthorized, status)
 	require.Equal(t, problem.CodeMissingCredential, code)
 	require.Greater(t, gated, 40, "the walk exercised too few gated paths to mean anything")
@@ -227,10 +222,13 @@ func TestCatalogAuthFailsClosedWithoutACredentialStore(t *testing.T) {
 		require.Equal(t, http.StatusServiceUnavailable, status, path)
 		require.Equal(t, problem.CodeServiceUnavailable, code, path)
 	}
-	// Still 401 without a token at all, and the keyless allowlist is unaffected.
-	status, code := walkGet(t, app, "/v2/catalog/works", "")
+	// A key-only face is still 401 without a token at all; the anonymous read
+	// surface and the keyless allowlist still reach their handlers.
+	status, code := walkGet(t, app, "/v2/catalog/claim-events", "")
 	require.Equal(t, http.StatusUnauthorized, status)
 	require.Equal(t, problem.CodeMissingCredential, code)
+	_, code = walkGet(t, app, "/v2/catalog/works", "")
+	require.NotEqual(t, problem.CodeMissingCredential, code)
 	_, code = walkGet(t, app, "/v2/catalog/schemas/work", "")
 	require.NotEqual(t, problem.CodeMissingCredential, code)
 }

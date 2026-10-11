@@ -102,6 +102,12 @@ useSeoMeta({
                 >
                   无需凭据
                 </span>
+                <span
+                  v-else-if="op.auth?.kind === 'optional'"
+                  class="bg-success-50 text-success-600 rounded px-1.5 py-0.5 text-xs font-medium"
+                >
+                  可匿名
+                </span>
               </div>
               <p class="text-default-500 mt-0.5 text-sm leading-relaxed">
                 {{ t(op.summary) }}

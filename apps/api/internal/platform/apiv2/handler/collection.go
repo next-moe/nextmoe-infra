@@ -129,7 +129,7 @@ func registerCollections(api huma.API, works WorksFunc, cat *Catalog) {
 		Method:             http.MethodGet,
 		Path:               "/v2/catalog/works",
 		Summary:            "List catalog works",
-		Description:        "Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. Requires an application key or a user access token with catalog:read. view/include/fields/ids/refs/facets follow the v2 collection contract. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on every lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE. page= selects page mode (see the page parameter).",
+		Description:        "Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. view/include/fields/ids/refs/facets follow the v2 collection contract. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on every lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE. page= selects page mode (see the page parameter).",
 		Tags:               []string{"catalog"},
 		Errors:             collectionErrors(http.StatusUnauthorized, http.StatusForbidden, http.StatusServiceUnavailable),
 		SkipValidateParams: true,
@@ -280,33 +280,35 @@ const (
 //
 // A path with two schemes takes either one, never both at once: the OpenAPI
 // requirement list is an OR, and the gate below dispatches on the single Bearer
-// value (refs/api-v2 D1, one request one credential).
-func v2Security(path string) (schemes []string, scope string) {
+// value (refs/api-v2 D1, one request one credential). anonymous adds a third
+// alternative, no Authorization header at all, which the limiter then counts
+// per source address; a header that is present is still held to its scheme.
+func v2Security(path string) (schemes []string, scope string, anonymous bool) {
 	switch {
 	case strings.HasPrefix(path, "/v2/me/") || strings.HasPrefix(path, "/v2/moderation/"):
-		return []string{securityUserToken}, ""
+		return []string{securityUserToken}, "", false
 	case strings.HasPrefix(path, "/v2/catalog/"):
 		if path == "/v2/catalog/openapi.json" || path == "/v2/catalog/stats" ||
 			strings.HasPrefix(path, "/v2/catalog/schemas/") {
-			return nil, ""
+			return nil, "", false
 		}
 		// claim_events:read is operator-granted and has no consent form a person
 		// could tick, so the one catalog read that demands a scope beyond
 		// catalog:read stays key-only on the wire as well as in the gate.
 		if path == claimEventsPath {
-			return []string{securityAppKey}, devapi.ScopeCatalogRead
+			return []string{securityAppKey}, devapi.ScopeCatalogRead, false
 		}
-		return []string{securityAppKey, securityUserToken}, devapi.ScopeCatalogRead
+		return []string{securityAppKey, securityUserToken}, devapi.ScopeCatalogRead, true
 	case path == folderHoldersPath:
-		return []string{securityAppKey}, devapi.ScopeCatalogRead
+		return []string{securityAppKey}, devapi.ScopeCatalogRead, false
 	case path == "/v2/folders" || strings.HasPrefix(path, "/v2/folders/"):
-		return []string{securityAppKey, securityUserToken}, devapi.ScopeCatalogRead
+		return []string{securityAppKey, securityUserToken}, devapi.ScopeCatalogRead, false
 	case strings.HasPrefix(path, "/v2/store/prices"):
-		return nil, ""
+		return nil, "", false
 	case strings.HasPrefix(path, "/v2/store/"):
-		return []string{securityAppKey}, devapi.ScopeStoreRead
+		return []string{securityAppKey}, devapi.ScopeStoreRead, false
 	}
-	return nil, ""
+	return nil, "", false
 }
 
 // The keyless lanes (stats, schemas, openapi.json, news, problems,
@@ -363,7 +365,7 @@ func catalogAuth(
 ) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		path := routepath.Normalize(c.Path())
-		schemes, scope := v2Security(path)
+		schemes, scope, anonymous := v2Security(path)
 		if !slices.Contains(schemes, securityAppKey) {
 			attachOptionalCredential(c, lookup)
 			return c.Next()
@@ -371,6 +373,12 @@ func catalogAuth(
 		h := c.Get("Authorization")
 		const pfx = "Bearer "
 		if h == "" {
+			// X-API-Key is read only by the downstream faces' gateway. Here it
+			// keeps its old 401: taken as anonymous, a keyed integrator would
+			// land on the per-IP budget with nothing saying why.
+			if anonymous && c.Get("X-API-Key") == "" {
+				return c.Next()
+			}
 			return problem.WriteFiberError(c, problem.New(problem.CodeMissingCredential, problem.RequestID(c), problem.Instance(c),
 				"Authorization Bearer token is required."))
 		}

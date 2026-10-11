@@ -4,19 +4,35 @@ import "api/internal/platform/settings"
 
 var APIV2DefaultRatePerMinute = settings.Int(settings.Meta{
 	Name:   "apiv2.default_rate_per_minute",
-	DescEN: "Anonymous and user-token requests allowed per minute before the v2 limiter answers 429.",
-	DescZH: "v2 匿名和用户令牌请求每分钟允许的次数,超出后返回 429。",
+	DescEN: "User-token requests allowed per person per minute before the v2 limiter answers 429.",
+	DescZH: "v2 用户令牌请求每人每分钟允许的次数,超出后返回 429。",
 	Min:    settings.F(1),
 	Max:    settings.F(1000000),
 }, 100)
 
 var APIV2DefaultQuotaPerDay = settings.Int(settings.Meta{
 	Name:   "apiv2.default_quota_per_day",
-	DescEN: "Anonymous and user-token requests allowed per UTC day before the v2 limiter answers 429.",
-	DescZH: "v2 匿名和用户令牌请求每个 UTC 日允许的次数,超出后返回 429。",
+	DescEN: "User-token requests allowed per person per UTC day before the v2 limiter answers 429.",
+	DescZH: "v2 用户令牌请求每人每个 UTC 日允许的次数,超出后返回 429。",
 	Min:    settings.F(1),
 	Max:    settings.F(100000000),
 }, 10000)
+
+var APIV2AnonRatePerMinute = settings.Int(settings.Meta{
+	Name:   "apiv2.anon_rate_per_minute",
+	DescEN: "Credential-less v2 requests allowed per IPv4 address (or IPv6 /64) per minute before the limiter answers 429.",
+	DescZH: "v2 无凭证请求每个 IPv4 地址(IPv6 按 /64)每分钟允许的次数,超出后返回 429。",
+	Min:    settings.F(1),
+	Max:    settings.F(1000000),
+}, 30)
+
+var APIV2AnonQuotaPerDay = settings.Int(settings.Meta{
+	Name:   "apiv2.anon_quota_per_day",
+	DescEN: "Credential-less v2 requests allowed per IPv4 address (or IPv6 /64) per UTC day before the limiter answers 429.",
+	DescZH: "v2 无凭证请求每个 IPv4 地址(IPv6 按 /64)每个 UTC 日允许的次数,超出后返回 429。",
+	Min:    settings.F(1),
+	Max:    settings.F(100000000),
+}, 1000)
 
 var APIV2AuthFailPerMinute = settings.Int(settings.Meta{
 	Name:   "apiv2.auth_fail_per_minute",
@@ -372,6 +388,8 @@ var apiv2Domain = settings.Domain{
 	Keys: []settings.Entry{
 		APIV2DefaultRatePerMinute,
 		APIV2DefaultQuotaPerDay,
+		APIV2AnonRatePerMinute,
+		APIV2AnonQuotaPerDay,
 		APIV2AuthFailPerMinute,
 		APIV2AuthFailBlockSeconds,
 	},

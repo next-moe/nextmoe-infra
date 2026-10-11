@@ -89,7 +89,8 @@ const curlHandshake = `curl -sN ${MCP_ENDPOINT} \\
           鉴权
         </h2>
         <p class="mt-3 text-sm text-default-500">
-          在端点上带
+          不带密钥也能用：除 listCatalogClaimEvents 外的工具都按你自己的 IP 限流（默认每分钟 30 次、每天
+          1,000 次）。要更高的额度，就在端点上带
           <code
             class="rounded bg-default-100 px-1 py-0.5 font-mono text-xs text-foreground"
           >
@@ -115,7 +116,8 @@ const curlHandshake = `curl -sN ${MCP_ENDPOINT} \\
         MCP 层自身<strong class="text-foreground">零鉴权、零计量</strong>逻辑——鉴权、tier、
         NSFW 可见性、限流、日配额与用量统计全部复用同一套端点、记在同一把密钥上：一次工具调用在
         <code class="font-mono text-xs text-foreground">/dev/usage</code>
-        里与一次直连 <code class="font-mono text-xs text-foreground">/v2</code> 请求毫无区别。任何应用在门户自助铸造的 nmk_ 密钥都能用，不需要申请。
+        里与一次直连 <code class="font-mono text-xs text-foreground">/v2</code> 请求毫无区别。任何应用在门户自助铸造的 nmk_ 密钥都能用，不需要申请。不带密钥时，MCP
+        把你的来源地址转交给 API，额度按你自己的 IP 计，不会和其他 MCP 用户共用一个桶。
       </p>
     </section>
 
@@ -158,7 +160,7 @@ const curlHandshake = `curl -sN ${MCP_ENDPOINT} \\
         <p class="mt-1 text-sm text-default-500">
           把下面的
           <code class="font-mono text-xs text-foreground">nmk_live_你的密钥</code>
-          换成你自己的密钥。
+          换成你自己的密钥；只是试用的话，删掉 Authorization 那一项即可匿名接入。
         </p>
       </div>
 
