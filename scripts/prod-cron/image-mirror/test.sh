@@ -454,13 +454,25 @@ tend; rm -rf "$td"
 # --- T19: a Bangumi list past its ceiling fetches and uploads nothing there ---
 tstart 19
 td=$(mktemp -d); install_fakes "$td"
-seq 1 1001 > "$td/ctl/files/bgmcovers"
+seq 1 3001 > "$td/ctl/files/bgmcovers"
 run_job "$td"; expect_bgm_blocked "$td"
 [ -f "$td/ctl/bgm-fetch-covers.args" ] && fail "fetched past the ceiling"
 rm -rf "$td"
 td=$(mktemp -d); install_fakes "$td"
-seq 1 1501 > "$td/ctl/files/bgmlogos"
+seq 1 3001 > "$td/ctl/files/bgmlogos"
 run_job "$td"; expect_bgm_blocked "$td"
+tend; rm -rf "$td"
+
+# --- T19b: the 2026-10-04 lists (1,194 subjects, 1,133 persons) fetch and upload ---
+tstart 19b
+td=$(mktemp -d); install_fakes "$td"
+seq 1 1194 > "$td/ctl/files/bgmcovers"
+seq 1 1133 > "$td/ctl/files/bgmlogos"
+run_job "$td"
+exit_is "$td" 0 || fail "exit $(cat "$td/ctl/exit"): $(tail -3 "$td/ctl/stdout")"
+has_stamp "$td" || fail "no stamp"
+[ -f "$td/ctl/bgm-fetch-covers.args" ] || fail "the covers fetch did not run"
+[ "$(bgm_applied "$td")" = 3 ] || fail "bangumi uploads: $(bgm_applied "$td")"
 tend; rm -rf "$td"
 
 # --- T20: a fetch that got nothing but errors, failed, or printed no summary blocks the lane ---
