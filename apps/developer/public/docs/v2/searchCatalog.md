@@ -13,7 +13,7 @@
 
 Search catalog entities
 
-Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. cursor= pages the hits. ids= is not accepted. page= selects page mode (see the page parameter). object=trait hits carry trait_path (group and direct parents). Without nsfw=true, sexual-family trait documents are excluded from the result and from total.
+Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. cursor= pages the hits. ids= is not accepted. page= selects page mode (see the page parameter). object=trait hits carry trait_path (group and direct parents). Without nsfw=true, sexual-family trait documents are excluded from the result and from total. A hit carries names, sources and content_rating only: to match a work by title and read its cover, release date, companies, intros, tags, ratings, playtimes or refs in the same call, use GET /v2/catalog/works?q= with include= or view=full.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：可匿名调用

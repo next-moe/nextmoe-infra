@@ -29,6 +29,11 @@ type w6Work struct {
 	Refs *[]struct {
 		Source string `json:"source"`
 	} `json:"refs"`
+	Playtimes *[]struct {
+		Source    string `json:"source"`
+		Minutes   int    `json:"minutes"`
+		VoteCount int    `json:"vote_count"`
+	} `json:"playtimes"`
 }
 
 type w6Local struct {
@@ -125,7 +130,7 @@ func TestLiveWorksListCreditsMatchTheSubResource(t *testing.T) {
 	require.Equal(t, sub.Items, *it.Credits)
 }
 
-// The ten tokens the list cannot serve used to be accepted and answered by
+// The tokens the list cannot serve used to be accepted and answered by
 // nothing. They are refused through the vocabulary the collection declares, so
 // the refusal is the same UNKNOWN_INCLUDE any other unknown token gets.
 func TestLiveWorksListRefusesDetailOnlyIncludes(t *testing.T) {
@@ -133,7 +138,7 @@ func TestLiveWorksListRefusesDetailOnlyIncludes(t *testing.T) {
 	id := idstr(env.fx.Work)
 
 	detailOnly := []string{
-		"relations", "releases", "popularity", "playtimes", "series",
+		"relations", "releases", "popularity", "series",
 		"platforms", "screenshots", "characters", "engines", "links",
 	}
 	for _, tok := range detailOnly {
@@ -158,6 +163,7 @@ func TestLiveWorksListViewFullIsTheListFullSet(t *testing.T) {
 	id := idstr(env.fx.Work)
 
 	require.NotContains(t, collect.WorkListFullSet, "credits")
+	require.NotContains(t, collect.WorkListFullSet, "playtimes")
 	for _, tok := range collect.WorkListFullSet {
 		require.Contains(t, collect.WorkListInclude, tok)
 	}
@@ -170,6 +176,32 @@ func TestLiveWorksListViewFullIsTheListFullSet(t *testing.T) {
 	require.NotNil(t, it.Tags)
 	require.Contains(t, it.Localized, "zh-Hans")
 	require.Nil(t, it.Credits, "credits is an explicit ask on the list, exactly as on the detail face")
+	require.Nil(t, it.Playtimes, "playtimes is an explicit ask on the list, exactly as on the detail face")
+}
+
+// A game manager's integration (2026-10-11) planned three requests per game.
+// Playtime was the one block it needed that the ids= batch could not carry.
+func TestLiveWorksListHydratesPlaytimes(t *testing.T) {
+	env := liveCatalog(t)
+	id := idstr(env.fx.Work)
+
+	var detail w6Work
+	w4Get(t, env, "/v2/catalog/works/"+id+"?include=playtimes", &detail)
+	require.NotNil(t, detail.Playtimes)
+	require.Len(t, *detail.Playtimes, 2, "the fixture must carry playtimes or this test cannot fail")
+
+	for _, path := range []string{
+		"/v2/catalog/works?include=playtimes&limit=100",
+		"/v2/catalog/works?include=playtimes&ids=" + id,
+		"/v2/catalog/works?view=full&include=playtimes&ids=" + id,
+	} {
+		it := w6ListItem(t, env, path, id)
+		require.NotNil(t, it.Playtimes, "%s published no playtimes block", path)
+		require.Equal(t, *detail.Playtimes, *it.Playtimes, "%s: the list and detail playtimes blocks must agree", path)
+	}
+
+	bare := w6ListItem(t, env, "/v2/catalog/works?limit=100", id)
+	require.Nil(t, bare.Playtimes)
 }
 
 // The calendar shares workFromListItem and enrichWorkListItems with the works

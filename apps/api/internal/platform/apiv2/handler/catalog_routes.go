@@ -81,7 +81,7 @@ func registerCatalog(api huma.API, cat *Catalog) {
 		Method:             http.MethodGet,
 		Path:               "/v2/catalog/works/{id}",
 		Summary:            "Get one catalog work",
-		Description:        "Work detail. spoiler=none|minor|major is the ceiling of the tags block and defaults to none. Merged ids are 404 ENTITY_MERGED with Link rel=canonical. r18 is 404 without nsfw=true. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
+		Description:        "Work detail. spoiler=none|minor|major is the ceiling of the tags block and defaults to none. Merged ids are 404 ENTITY_MERGED with Link rel=canonical. r18 is 404 without nsfw=true. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. " + includeDoc(collect.WorkSpec()),
 		Tags:               catalog,
 		Errors:             authErrs,
 		SkipValidateParams: true,
