@@ -468,3 +468,12 @@ func TestEnsureIndexesCreateAndSchemaMismatch(t *testing.T) {
 		require.Equal(t, 2, gets)
 	})
 }
+
+func TestFilterClausesExcludeTags(t *testing.T) {
+	got := filterClauses(spec.WorksFilter{TagIDs: []int64{3}, ExcludeTagIDs: []int64{7, 9}, OLang: spec.OLang{All: true}})
+	require.Equal(t, canonJSON(t, []any{
+		termClause("tag_ids", int64(3)),
+		map[string]any{"bool": map[string]any{"must_not": map[string]any{"terms": map[string]any{"tag_ids": []int64{7, 9}}}}},
+	}), canonJSON(t, got))
+	require.Nil(t, filterClauses(spec.WorksFilter{ExcludeTagIDs: []int64{}, OLang: spec.OLang{All: true}}))
+}

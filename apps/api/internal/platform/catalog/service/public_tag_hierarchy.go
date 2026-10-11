@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"slices"
 
 	"api/internal/platform/catalog/dto"
 )
@@ -80,4 +81,41 @@ func (h tagHierarchy) parentsOf(id int64) []dto.PublicTagRef {
 		return p
 	}
 	return []dto.PublicTagRef{}
+}
+
+func (s *PublicService) TagExclusion(ctx context.Context, exact, trees []int64) ([]int64, error) {
+	set := make(map[int64]bool, len(exact)+len(trees))
+	for _, id := range exact {
+		set[id] = true
+	}
+	if len(trees) > 0 {
+		var ids []int64
+		if err := s.db.WithContext(ctx).Raw(`
+			WITH RECURSIVE d(id) AS (
+				SELECT id FROM catalog_tag WHERE id IN ?
+				UNION
+				SELECT p.tag_id FROM catalog_tag_parent p JOIN d ON p.parent_id = d.id
+			)
+			SELECT id FROM d`, trees).Scan(&ids).Error; err != nil {
+			return nil, err
+		}
+		for _, id := range ids {
+			set[id] = true
+		}
+	}
+	out := make([]int64, 0, len(set))
+	for id := range set {
+		out = append(out, id)
+	}
+	slices.Sort(out)
+	return out, nil
+}
+
+func tagExclusionWhere(workCol string, ids []int64) (string, []any) {
+	if len(ids) == 0 {
+		return "", nil
+	}
+	return `NOT EXISTS (SELECT 1 FROM catalog_work_tag xwt
+		JOIN catalog_tag_source_map xm ON xm.source_id = xwt.source_id AND xm.source_name = xwt.name
+		WHERE xwt.work_id = ` + workCol + ` AND xm.tag_id IN ?)`, []any{ids}
 }

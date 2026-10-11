@@ -30,6 +30,7 @@ type WorksFilter struct {
 	ClaimStateNot    string
 	DisplayLimits    []string
 	TagIDs           []int64
+	ExcludeTagIDs    []int64
 	LabelID          int64
 	EngineID         int64
 	SeriesID         int64

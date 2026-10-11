@@ -22,6 +22,7 @@ type WorksListFilter struct {
 	LabelID        int64
 	LabelRollup    bool
 	TagIDs         []int64
+	ExcludeTagIDs  []int64
 	SeriesID       int64
 	EngineID       int64
 	Platform       string
@@ -209,6 +210,10 @@ func worksListWhere(f WorksListFilter) ([]string, []any) {
 			JOIN catalog_tag_source_map m ON m.source_id = wt.source_id AND m.source_name = wt.name
 			WHERE wt.work_id = w.id AND m.tag_id = ?)`)
 		args = append(args, tagID)
+	}
+	if pred, pargs := tagExclusionWhere("w.id", f.ExcludeTagIDs); pred != "" {
+		where = append(where, pred)
+		args = append(args, pargs...)
 	}
 	if f.SeriesID > 0 {
 		where = append(where, "EXISTS (SELECT 1 FROM catalog_series_member sm WHERE sm.work_id = w.id AND sm.series_id = ?)")

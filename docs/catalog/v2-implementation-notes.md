@@ -1929,3 +1929,18 @@ Users asked to block tags, and blocking a tag should be able to take its narrowe
 **Migration required**: `go run ./cmd/migrate catalog` against `kun_catalog` (the `migrate-catalog` job on deploy) creates `catalog_tag_parent` with its two foreign keys to `catalog_tag` and the `chk_catalog_tag_parent_distinct` / `chk_catalog_tag_parent_origin` CHECKs. Additive; the table starts empty and the first job run, or `tag-parents -apply`, fills it.
 
 **Spec is 2.40.0.** Additive: `Tag.parents` / `child_count` / `descendant_count` / `children` and the `TagRef` object.
+
+## Wave — exclude works by tag, and a per-account block list (2026-10-11)
+
+The tag hierarchy's consumer: a reader blocks a tag and no longer sees works carrying it, optionally with every tag below it.
+
+- **`exclude_tag_id=` / `exclude_tag_tree=`** on `/v2/catalog/works` (the SQL lane, the search lane and the `ids=` batch lane), `/v2/catalog/calendar` and `/v2/me/calendar`. Each takes up to 100 canonical tag ids. A work is dropped when it carries any excluded tag from any source at any spoiler level: blocking is for avoiding content, so a spoiler-level tag hides the work too. `exclude_tag_tree` adds every tag below each id. The exclusions AND with every other filter, `tag_id` included; naming one tag in both returns an empty page rather than a 400, so a tag page can pass a reader's blocks through unchanged.
+- **Mechanics.** Trees expand per request with a recursive CTE over `catalog_tag_parent` (about 3.5k tags; no cache). The SQL lane adds one `NOT EXISTS` anti-join over `catalog_work_tag ⋈ catalog_tag_source_map`; the search lane adds `must_not terms tag_ids`, a field that already carries every source and spoiler level, so no reindex. The calendar folds the exclusion into its population predicate, so the page, `total` and the month navigation in `meta` agree; bounds under an exclusion skip the shared totals cache, as `FollowedBy` bounds do.
+- **`catalog_user_tag_block`** (`actor_uid`, `tag_id`, `mode`, `client_id`, `site`): `mode` 0 is `tree` (the default), 1 is `exact`. At most 100 per account, the parameters' cap, so a whole list always fits one request.
+- **`/v2/me/blocked-tags`**: list newest first with a `cur_` cursor and a `tag_ids=` batch read, get, PUT with an optional `{mode}` body (an existing block only changes mode), DELETE. No scope, as with company follows; the list is private. Items carry ids and `mode` only.
+- **The catalog does not apply a list by itself.** A client reads the list once and sends the `tree` ids in `exclude_tag_tree` and the `exact` ids in `exclude_tag_id`. Most callers reach the catalog with an application key from their own backend, and parameters they compose themselves stay cacheable.
+- **Lifecycle.** The account purge deletes an erased account's blocks. A tag merge moves the loser's blocks onto the winner; when a reader blocked both, the wider mode (`tree`) survives.
+
+**Migration required**: `go run ./cmd/migrate catalog` against `kun_catalog` (the `migrate-catalog` job on deploy) creates `catalog_user_tag_block` with its unique key, its foreign key to `catalog_tag` and the `chk_catalog_user_tag_block_mode` CHECK. Additive, no backfill.
+
+**Spec is 2.41.0.** Additive: the `exclude_tag_id` / `exclude_tag_tree` parameters, `listMyTagBlocks`, `getMyTagBlock`, `putMyTagBlock`, `deleteMyTagBlock` and the `tag_block` object.

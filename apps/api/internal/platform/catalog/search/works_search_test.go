@@ -205,3 +205,24 @@ func TestSearchWorksPaging(t *testing.T) {
 	assert.EqualValues(t, 4, withFacets.Facets["content_rating"]["0"])
 	assert.NotContains(t, withFacets.Facets["content_rating"], "2", "the excluded rating must not appear in the distribution")
 }
+
+func TestSearchWorksExcludeTags(t *testing.T) {
+	idx := ensureSearchIndexes(t, IndexWorks)
+	putDocs(t, IndexWorks, []EntityDoc{
+		BuildWorkDoc(WorkDocInput{ID: 1, DisplayName: "甲", Popularity: 3, TagIDs: []int64{7}}),
+		BuildWorkDoc(WorkDocInput{ID: 2, DisplayName: "乙", Popularity: 2, TagIDs: []int64{9, 11}}),
+		BuildWorkDoc(WorkDocInput{ID: 3, DisplayName: "丙", Popularity: 1}),
+	})
+	ids := func(excl []int64) []int64 {
+		t.Helper()
+		res, err := idx.SearchWorks(t.Context(), spec.WorksQuery{
+			Filter:   spec.WorksFilter{ExcludeTagIDs: excl, OLang: spec.OLang{All: true}},
+			SortLane: "popularity:desc", Page: 1, Limit: 10,
+		})
+		require.NoError(t, err)
+		return res.IDs
+	}
+	assert.Equal(t, []int64{1, 2, 3}, ids(nil))
+	assert.Equal(t, []int64{2, 3}, ids([]int64{7}))
+	assert.Equal(t, []int64{3}, ids([]int64{7, 11}))
+}

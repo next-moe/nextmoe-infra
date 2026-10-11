@@ -24,6 +24,7 @@ type calendarParams struct {
 	Month, Year, Precision, Status string
 	ContentLimit, OLang            string
 	ExcludeCompanyKind             string
+	ExcludeTagID, ExcludeTagTree   string
 }
 
 func (c *Catalog) ListCalendar(ctx context.Context, q collect.Query, p calendarParams) (repr.CalendarList, error) {
@@ -55,6 +56,21 @@ func (c *Catalog) listCalendar(ctx context.Context, q collect.Query, p calendarP
 	if kerr != nil {
 		return repr.CalendarList{}, kerr
 	}
+	exact, err := idList(p.ExcludeTagID, "exclude_tag_id", 100)
+	if err != nil {
+		return repr.CalendarList{}, err
+	}
+	trees, err := idList(p.ExcludeTagTree, "exclude_tag_tree", 100)
+	if err != nil {
+		return repr.CalendarList{}, err
+	}
+	var excludedTags []int64
+	if len(exact) > 0 || len(trees) > 0 {
+		var xerr error
+		if excludedTags, xerr = c.Public.TagExclusion(ctx, exact, trees); xerr != nil {
+			return repr.CalendarList{}, xerr
+		}
+	}
 	win, werr := calendarWindow(p.Month, p.Year, p.Precision, p.Status, time.Now())
 	if werr != nil {
 		return repr.CalendarList{}, werr
@@ -62,7 +78,7 @@ func (c *Catalog) listCalendar(ctx context.Context, q collect.Query, p calendarP
 	f := catsvc.CalendarFilter{
 		NSFW: q.NSFW, Include: listWorksInclude(q.Include),
 		DisplayLimits: limits, OLang: olang(p.OLang), ExcludeCompanyKinds: excluded,
-		FollowedBy: followedBy,
+		ExcludeTagIDs: excludedTags, FollowedBy: followedBy,
 	}
 	meta := &repr.CalendarMeta{Today: time.Now().In(calendarJST).Format("2006-01-02")}
 	if win.empty {

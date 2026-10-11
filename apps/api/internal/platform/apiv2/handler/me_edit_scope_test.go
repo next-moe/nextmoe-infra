@@ -93,6 +93,7 @@ func TestEditingPlaneScopeLeavesItsNeighboursAlone(t *testing.T) {
 // ungated majority.
 var personGatedMePrefixes = []string{
 	"/v2/me/calendar",
+	"/v2/me/blocked-tags",
 	"/v2/me/followed-companies",
 	"/v2/me/news",
 	"/v2/me/news-images",

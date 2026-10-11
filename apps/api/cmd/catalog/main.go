@@ -389,6 +389,7 @@ func setupPublicCatalog(
 			Playtime:       playtimeSvc,
 			WorkStates:     workStateSvc,
 			CompanyFollows: companyFollowSvc,
+			TagBlocks:      service.NewUserTagBlockService(catalogDB.DB()),
 			Folders:        folderSvc,
 			CoverVotes:     coverVoteSvc,
 			Claims:         claimSvc,

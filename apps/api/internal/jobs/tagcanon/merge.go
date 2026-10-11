@@ -30,6 +30,7 @@ type MergeStats struct {
 	IntrosDropped  int
 	CountsDropped  int
 	ParentsMoved   int
+	BlocksMoved    int
 	TagsDeleted    int
 	OpenProposals  int
 	Errors         int
@@ -108,7 +109,7 @@ func Merge(ctx context.Context, opts MergeOpts) (*MergeStats, error) {
 	slog.Info("tag merge done", "apply", opts.Apply, "records", st.Records, "planned", st.Planned,
 		"already_merged", st.AlreadyMerged, "maps_repointed", st.MapsRepointed,
 		"curated_aliases", st.CuratedAliases, "intros_moved", st.IntrosMoved,
-		"intros_dropped", st.IntrosDropped, "counts_dropped", st.CountsDropped, "parents_moved", st.ParentsMoved,
+		"intros_dropped", st.IntrosDropped, "counts_dropped", st.CountsDropped, "parents_moved", st.ParentsMoved, "blocks_moved", st.BlocksMoved,
 		"tags_deleted", st.TagsDeleted, "open_proposals", st.OpenProposals, "errors", st.Errors)
 	return st, nil
 }
@@ -209,6 +210,25 @@ func applyMerge(ctx context.Context, db *gorm.DB, curated int16, r mergeRec, st 
 		}
 		st.ParentsMoved += int(res.RowsAffected)
 		if err := tx.Exec(`DELETE FROM catalog_tag_parent WHERE tag_id = ? OR parent_id = ?`, r.FromID, r.FromID).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Exec(`
+			UPDATE catalog_user_tag_block w SET mode = ?, updated_at = now()
+			FROM catalog_user_tag_block l
+			WHERE w.tag_id = ? AND l.tag_id = ? AND l.actor_uid = w.actor_uid AND l.mode = ? AND w.mode <> ?`,
+			model.TagBlockModeTree, r.IntoID, r.FromID, model.TagBlockModeTree, model.TagBlockModeTree).Error; err != nil {
+			return err
+		}
+		res = tx.Exec(`
+			UPDATE catalog_user_tag_block l SET tag_id = ?
+			WHERE l.tag_id = ? AND NOT EXISTS (SELECT 1 FROM catalog_user_tag_block w
+				WHERE w.actor_uid = l.actor_uid AND w.tag_id = ?)`, r.IntoID, r.FromID, r.IntoID)
+		if res.Error != nil {
+			return res.Error
+		}
+		st.BlocksMoved += int(res.RowsAffected)
+		if err := tx.Exec(`DELETE FROM catalog_user_tag_block WHERE tag_id = ?`, r.FromID).Error; err != nil {
 			return err
 		}
 

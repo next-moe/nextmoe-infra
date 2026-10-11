@@ -80,6 +80,7 @@ func Run(db *gorm.DB) error {
 		&model.CatalogUserFolderItem{},     // folder memberships; (owner_uid, updated_at) is the manager-sync cursor
 		&model.CatalogUserFolderImport{},   // source-collection provenance for cmd/import-favorites; makes the backfill re-runnable
 		&model.CatalogUserEntityFollow{},   // per-user follows of catalog entities; companies only, see the CHECK
+		&model.CatalogUserTagBlock{},       // per-user tag blocks that clients pass as exclude_tag_id / exclude_tag_tree (2026-10); new, no backfill
 		&model.CatalogSeries{},             // work series entity (step 94, dlsite lane first)
 		&model.CatalogSeriesMember{},       // series membership (step 94)
 		&model.CatalogSeriesIntro{},        // multilingual series intros (refs/plans/10 W0 ruling 3)
@@ -466,6 +467,7 @@ func rawSQL(db *gorm.DB) error {
 		{"catalog_user_entity_follow", "chk_catalog_user_entity_follow_type", "entity_type IN (3)"},
 		{"catalog_tag_parent", "chk_catalog_tag_parent_distinct", `tag_id <> parent_id`},
 		{"catalog_tag_parent", "chk_catalog_tag_parent_origin", `origin IN (0, 1)`},
+		{"catalog_user_tag_block", "chk_catalog_user_tag_block_mode", `mode IN (0, 1)`},
 	} {
 		exists, err := constraintExists(db, cc.table, cc.name)
 		if err != nil {

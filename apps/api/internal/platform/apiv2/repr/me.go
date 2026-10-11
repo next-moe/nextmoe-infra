@@ -219,6 +219,15 @@ type CompanyFollow struct {
 	CreatedAt string   `json:"created_at" format:"date-time" maxLength:"32" doc:"When the bearer followed this company."`
 }
 
+type TagBlock struct {
+	_         struct{} `json:"-" additionalProperties:"true"`
+	Object    string   `json:"object" enum:"tag_block" doc:"Type discriminant. Always tag_block."`
+	TagID     string   `json:"tag_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog tag id."`
+	Mode      string   `json:"mode" enum:"tree,exact" doc:"tree: send the id in exclude_tag_tree, which also drops the works carrying any tag below it. exact: send it in exclude_tag_id."`
+	CreatedAt string   `json:"created_at" format:"date-time" maxLength:"32" doc:"When the bearer blocked this tag."`
+	UpdatedAt string   `json:"updated_at" format:"date-time" maxLength:"32" doc:"When the mode last changed. Equal to created_at until then."`
+}
+
 type UserWorkState struct {
 	_          struct{} `json:"-" additionalProperties:"true"`
 	Object     string   `json:"object" enum:"work_state" doc:"Type discriminant. Always work_state."`
