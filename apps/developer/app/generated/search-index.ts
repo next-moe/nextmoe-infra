@@ -793,7 +793,7 @@ export const searchIndex: SearchEntry[] = [
     "r": "/docs/v2",
     "t": "Public API v2",
     "s": "端点参考",
-    "d": "/v2 · 128 个端点",
+    "d": "/v2 · 138 个端点",
     "b": "v2 /v2 API v2 Public API v2"
   },
   {
@@ -1231,6 +1231,27 @@ export const searchIndex: SearchEntry[] = [
     "b": "listPublicFolderItems /v2/folders/{id}/items get List a public folder's items Keyset-paginated by updated_at, the same shape /v2/me/folders/{id}/items answers. The list carries every work the folder holds and applies no editorial gate, so item_count matches what is returned; a caller that hides r18 applies its own gate when it hydrates the works. Requires an application key or a user access token with catalog:read. 按 updated_at 做 keyset 分页，与 /v2/me/folders/{id}/items 的形状相同。列表返回收藏夹里的全部作品、不做分级过滤，因此 item_count 与返回内容一致；要屏蔽 r18 的调用方在补全作品详情时按自己的口径过滤。需要应用密钥或带 catalog:read 的用户访问令牌。 catalog:read id cursor limit view include fields ids refs include_total facets sort nsfw"
   },
   {
+    "r": "/docs/v2/listRatings",
+    "t": "列出某部作品的评分或某个账号写的评分",
+    "s": "端点 · 公开评分",
+    "d": "GET /v2/ratings",
+    "b": "listRatings /v2/ratings get List ratings of a work or by an account Newest first by creation, so an edit does not move a rating. work_id= or user_id= is required, and both together answer the one rating that account gave that work. No editorial gate applies: a caller that hides r18 works filters when it hydrates them. Requires an application key or a user access token with catalog:read. 按创建时间倒序，编辑不会让评分换位置。work_id= 与 user_id= 至少给一个，两个都给时答该账号对该作品的那一条评分。不套用编辑闸：要隐藏 r18 作品的调用方在补全作品时自行过滤。需要应用密钥，或带 catalog:read 的用户访问令牌。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw work_id user_id"
+  },
+  {
+    "r": "/docs/v2/listRatingChanges",
+    "t": "评分变更信道",
+    "s": "端点 · 公开评分",
+    "d": "GET /v2/ratings/changes",
+    "b": "listRatingChanges /v2/ratings/changes get Rating changes feed Every rating written or deleted on any NextMoe site, oldest first, keyset-paginated. **This is the mirror channel** for a site that keeps its own copy of the ratings: bootstrap from an empty cursor (the first drain is the whole population), then poll at your own cadence. next_cursor comes only with a full page, so keep the last one you received and poll from it: the partial page after it is read again, which an upsert absorbs. A written entry carries the rating as it stands; an entry with gone: true is a deletion, so drop the mirrored row. A change surfaces five seconds after it commits. ids= is not accepted. Requires an application key or a user access token with catalog:read. 任一 NextMoe 站点上写入或删除的每一条评分，最早的在前，键集分页。**这是镜像信道**，供自己保留评分副本的站点使用：从空游标起步（第一次抽干就是全量），之后按自己的节奏轮询。只有满页才带 next_cursor，所以保存收到的最后一个游标并从它开始轮询：其后那不满的一页会被重读，用 upsert 即可吸收。写入条目携带评分的当前样子；gone: true 的条目表示删除，删掉镜像行即可。变更在提交 5 秒后才出现。不接受 ids=。需要应用密钥，或带 catalog:read 的用户访问令牌。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw"
+  },
+  {
+    "r": "/docs/v2/getRating",
+    "t": "读取一条评分",
+    "s": "端点 · 公开评分",
+    "d": "GET /v2/ratings/{id}",
+    "b": "getRating /v2/ratings/{id} get Get one rating 404 when no rating has this id, including one that was deleted. Requires an application key or a user access token with catalog:read. 没有这个 id 的评分时为 404，已删除的也一样。需要应用密钥，或带 catalog:read 的用户访问令牌。 catalog:read id"
+  },
+  {
     "r": "/docs/v2/listMyTagBlocks",
     "t": "列出我屏蔽的 tag",
     "s": "端点 · 我的",
@@ -1539,6 +1560,48 @@ export const searchIndex: SearchEntry[] = [
     "b": "amendMyProposal /v2/me/proposals/{id}/amendments post Append an amendment If-Match required. Requires a user access token. The token must carry the catalog:edit scope. 需要 If-Match。需要用户访问令牌。令牌须带 catalog:edit scope。 id If-Match Idempotency-Key"
   },
   {
+    "r": "/docs/v2/listMyRatings",
+    "t": "列出我的评分",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/ratings",
+    "b": "listMyRatings /v2/me/ratings get List my ratings The bearer user's ratings, in the order the catalog last changed them, oldest first; next_cursor is the incremental-sync watermark. work_ids= is a batch read. A rating is one per person per work across every NextMoe site, so this answers what the user rated anywhere. Requires a user access token. Any app may call this; no scope is required. 持有人的评分，按目录最近一次改动它们的时间排序，最早的在前；next_cursor 是增量同步的水位线。work_ids= 为批量读。评分在所有 NextMoe 站点上一人一作一份，所以这里答的是该用户在任何站点打过的分。需要用户访问令牌。任何应用均可调用；不要求任何 scope。 cursor limit view include fields ids refs include_total facets sort nsfw work_ids"
+  },
+  {
+    "r": "/docs/v2/getMyRating",
+    "t": "读取我对某部作品的评分",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/ratings/{work_id}",
+    "b": "getMyRating /v2/me/ratings/{work_id} get Get my rating of one work 404 when the user has not rated the work. Requires a user access token. Any app may call this; no scope is required. 用户未给这部作品评分时为 404。需要用户访问令牌。任何应用均可调用；不要求任何 scope。 work_id"
+  },
+  {
+    "r": "/docs/v2/putMyRating",
+    "t": "给作品评分，或替换我对它的评分",
+    "s": "端点 · 我的",
+    "d": "PUT /v2/me/ratings/{work_id}",
+    "b": "putMyRating /v2/me/ratings/{work_id} put Rate a work, or replace my rating of it Creates the rating or replaces every field of it; the id, client_id and site stay those of the first write. Sending the rating as it already stands writes nothing. The work's nextmoe score on /v2/catalog/works/{id}/ratings follows at once. The rating is public on every site; run your own content check on short_summary before sending it. Refused 403 FIRST_PARTY_ONLY for a third-party application's token. Requires a user access token; no scope is required. 创建评分，或替换它的全部字段；id、client_id 与 site 保持首次写入时的值。原样重发不会写入任何东西。作品在 /v2/catalog/works/{id}/ratings 上的 nextmoe 分数随即更新。评分在所有站点公开；发送前请先对 short_summary 做自己的内容审核。第三方应用的令牌会被拒绝，返回 403 FIRST_PARTY_ONLY。需要用户访问令牌；不要求任何 scope。 work_id"
+  },
+  {
+    "r": "/docs/v2/deleteMyRating",
+    "t": "删除我对某部作品的评分",
+    "s": "端点 · 我的",
+    "d": "DELETE /v2/me/ratings/{work_id}",
+    "b": "deleteMyRating /v2/me/ratings/{work_id} delete Delete my rating of one work 204 with no body, also when there was none. The deletion reaches /v2/ratings/changes as a gone entry. Requires a user access token. Any app may call this; no scope is required. 204，无响应体，原本没有评分时也一样。删除会以 gone 条目出现在 /v2/ratings/changes。需要用户访问令牌。任何应用均可调用；不要求任何 scope。 work_id"
+  },
+  {
+    "r": "/docs/v2/getMyWorkRecord",
+    "t": "我在某部作品上的游玩状态、游玩时长和评分",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/work-records/{work_id}",
+    "b": "getMyWorkRecord /v2/me/work-records/{work_id} get My play state, playtime and rating on one work The three parts a rate-this-game form edits together, as /v2/me/work-states, /v2/me/playtimes and /v2/me/ratings answer them. 200 with null parts when nothing is recorded. Requires a user access token. Any app may call this; no scope is required. 「给这部游戏打分」表单一起编辑的三个部分，取值与 /v2/me/work-states、/v2/me/playtimes、/v2/me/ratings 的回答相同。什么都没记录时返回 200，各部分为 null。需要用户访问令牌。任何应用均可调用；不要求任何 scope。 work_id"
+  },
+  {
+    "r": "/docs/v2/putMyWorkRecord",
+    "t": "替换我在某部作品上的游玩状态、游玩时长和评分",
+    "s": "端点 · 我的",
+    "d": "PUT /v2/me/work-records/{work_id}",
+    "b": "putMyWorkRecord /v2/me/work-records/{work_id} put Replace my play state, playtime and rating on one work One transaction for the three parts: either all are written or none is. PUT replaces the whole record, so a part that is absent or null is deleted: send every part the form shows. playtime is this app's own report, and the record answers the most minutes any app reported. A third-party application's token may not touch the rating: sending one is refused 403 FIRST_PARTY_ONLY, and leaving it out leaves the rating as it is. Requires a user access token; no scope is required. 三个部分在同一个事务里：要么全部写入，要么一个都不写。PUT 替换整条记录，缺省或为 null 的部分会被删除：表单显示的每个部分都要发送。playtime 是本应用自己的上报，记录回答的是各应用上报中最大的分钟数。第三方应用的令牌不能动评分：带评分会被拒绝，返回 403 FIRST_PARTY_ONLY；不带评分则保留原评分不变。需要用户访问令牌；不要求任何 scope。 work_id"
+  },
+  {
     "r": "/docs/v2/listMyWorkStates",
     "t": "列出我的作品状态",
     "s": "端点 · 我的",
@@ -1575,10 +1638,10 @@ export const searchIndex: SearchEntry[] = [
   },
   {
     "r": "/docs/v2/listMyWorks",
-    "t": "我在各部作品上的收藏夹、游玩时长和游玩状态",
+    "t": "我在各部作品上的收藏夹、游玩时长、游玩状态和评分",
     "s": "端点 · 我的",
     "d": "GET /v2/me/works",
-    "b": "listMyWorks /v2/me/works get My folders, playtime and play state, per work What the bearer has recorded about works: the folders holding each work, its playtime and its play state. With work_ids, up to 100 works in one request with no pagination: one item per distinct work id, in the order asked. A work the bearer has recorded nothing about still gets an item, with empty folder_ids and null playtime and work_state, and so does an id that names no work. Without work_ids, every work the bearer holds in a folder of their own, has a playtime on, or has a play state on, one item per work in ascending work id, paged with cursor and limit; include_total counts them. The values are the ones /v2/me/folders/holdings, /v2/me/playtimes and /v2/me/work-states answer; this face saves a client from asking all three. Cover votes are not included: they need catalog:edit, and /v2/me/cover-votes lists them. Requires a user access token with folder:read (folder:write also grants reads). 令牌持有人在作品上记下的内容：收着每部作品的收藏夹、游玩时长和游玩状态。带 work_ids 时，一次请求答最多 100 部作品，不分页：每个不同的作品 id 答一项，顺序与请求一致。持有人什么都没记的作品同样有一项，folder_ids 为空数组，playtime 与 work_state 为 null；不指向任何作品的 id 也这样回答。不带 work_ids 时，答出持有人放进自己收藏夹、记过游玩时长或设过游玩状态的每一部作品，每部一项，按作品 id 升序，用 cursor 与 limit 分页；include_total 给出总数。取值与 /v2/me/folders/holdings、/v2/me/playtimes、/v2/me/work-states 的回答一致，这个接口省去了分别调用三者。不含封面投票：它需要 catalog:edit，由 /v2/me/cover-votes 列出。需要带 folder:read 的用户访问令牌（folder:write 也可读）。 folder:read 或 folder:write cursor limit view include fields ids refs include_total facets sort nsfw work_ids"
+    "b": "listMyWorks /v2/me/works get My folders, playtime, play state and rating, per work What the bearer has recorded about works: the folders holding each work, its playtime, its play state and its rating. With work_ids, up to 100 works in one request with no pagination: one item per distinct work id, in the order asked. A work the bearer has recorded nothing about still gets an item, with empty folder_ids and null playtime, work_state and rating, and so does an id that names no work. Without work_ids, every work the bearer holds in a folder of their own, has a playtime on, has a play state on, or has rated, one item per work in ascending work id, paged with cursor and limit; include_total counts them. The values are the ones /v2/me/folders/holdings, /v2/me/playtimes, /v2/me/work-states and /v2/me/ratings answer; this face saves a client from asking all four. Cover votes are not included: they need catalog:edit, and /v2/me/cover-votes lists them. Requires a user access token with folder:read (folder:write also grants reads). 持有人对各部作品记录过的东西：收着每部作品的收藏夹、游玩时长、游玩状态和评分。带 work_ids 时一次最多 100 部作品、不分页：每个不重复的作品 id 一项，按请求顺序。持有人什么都没记录的作品也有一项，folder_ids 为空，playtime、work_state 与 rating 为 null；不指向任何作品的 id 同样如此。不带 work_ids 时，持有人放进自己收藏夹的、有游玩时长的、有游玩状态的或评过分的每部作品各一项，按作品 id 升序，用 cursor 与 limit 分页；include_total 统计总数。取值与 /v2/me/folders/holdings、/v2/me/playtimes、/v2/me/work-states、/v2/me/ratings 的回答相同；这个面让客户端不必分别问四次。不含封面投票：那需要 catalog:edit，由 /v2/me/cover-votes 列出。需要带 folder:read 的用户访问令牌（folder:write 也可读）。 folder:read 或 folder:write cursor limit view include fields ids refs include_total facets sort nsfw work_ids"
   },
   {
     "r": "/docs/v2/listModerationClaims",
@@ -1635,6 +1698,13 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 审核",
     "d": "POST /v2/moderation/proposals/{id}/decisions",
     "b": "decideModerationProposal /v2/moderation/proposals/{id}/decisions post Decide a proposal decision=merge|decline. If-Match required. The token must carry the catalog:edit scope. decision=merge|decline。需要 If-Match。令牌须带 catalog:edit scope。 id If-Match Idempotency-Key"
+  },
+  {
+    "r": "/docs/v2/deleteModerationRating",
+    "t": "删除任意评分",
+    "s": "端点 · 审核",
+    "d": "DELETE /v2/moderation/ratings/{id}",
+    "b": "deleteModerationRating /v2/moderation/ratings/{id} delete Delete any rating Removes the rating from every site at once; the deletion reaches /v2/ratings/changes as a gone entry and the work's nextmoe score follows. 204 with no body. Requires a user access token whose holder moderates. 一次从所有站点移除这条评分；删除会以 gone 条目出现在 /v2/ratings/changes，作品的 nextmoe 分数随之更新。204，无响应体。需要持有人具备审核资格的用户访问令牌。 id"
   },
   {
     "r": "/docs/v2/revertModeration",

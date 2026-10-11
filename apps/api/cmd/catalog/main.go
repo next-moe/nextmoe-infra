@@ -388,6 +388,8 @@ func setupPublicCatalog(
 			EditTypes:      editRegistry,
 			Playtime:       playtimeSvc,
 			WorkStates:     workStateSvc,
+			Ratings:        service.NewUserRatingService(catalogDB.DB()),
+			WorkRecords:    service.NewUserWorkRecordService(catalogDB.DB()),
 			CompanyFollows: companyFollowSvc,
 			TagBlocks:      service.NewUserTagBlockService(catalogDB.DB()),
 			Folders:        folderSvc,

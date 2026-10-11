@@ -46,22 +46,14 @@ func (s *UserPlaytimeService) Report(ctx context.Context, r PlaytimeReport) (*Pl
 	if err := validateReport(r); err != nil {
 		return nil, err
 	}
-	row := model.CatalogUserPlaytime{
-		ActorUID: r.ActorUID, WorkID: r.WorkID, ClientID: r.ClientID,
-		Minutes: r.Minutes, LastPlayedAt: r.LastPlayedAt,
-	}
+	var row model.CatalogUserPlaytime
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := assertReportableWork(tx, r.WorkID); err != nil {
 			return err
 		}
-		return tx.Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "actor_uid"}, {Name: "work_id"}, {Name: "client_id"}},
-			DoUpdates: clause.Assignments(map[string]any{
-				"minutes":        r.Minutes,
-				"last_played_at": r.LastPlayedAt,
-				"updated_at":     time.Now(),
-			}),
-		}).Create(&row).Error
+		var err error
+		row, err = reportPlaytimeTx(tx, r)
+		return err
 	})
 	if err != nil {
 		return nil, err
@@ -70,6 +62,22 @@ func (s *UserPlaytimeService) Report(ctx context.Context, r PlaytimeReport) (*Pl
 		WorkID: row.WorkID, Minutes: row.Minutes,
 		LastPlayedAt: row.LastPlayedAt, ClientID: row.ClientID, UpdatedAt: row.UpdatedAt,
 	}, nil
+}
+
+func reportPlaytimeTx(tx *gorm.DB, r PlaytimeReport) (model.CatalogUserPlaytime, error) {
+	row := model.CatalogUserPlaytime{
+		ActorUID: r.ActorUID, WorkID: r.WorkID, ClientID: r.ClientID,
+		Minutes: r.Minutes, LastPlayedAt: r.LastPlayedAt,
+	}
+	err := tx.Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "actor_uid"}, {Name: "work_id"}, {Name: "client_id"}},
+		DoUpdates: clause.Assignments(map[string]any{
+			"minutes":        r.Minutes,
+			"last_played_at": r.LastPlayedAt,
+			"updated_at":     time.Now(),
+		}),
+	}).Create(&row).Error
+	return row, err
 }
 
 func (s *UserPlaytimeService) ResolveRef(ctx context.Context, sourceKey, externalID string) (int64, error) {

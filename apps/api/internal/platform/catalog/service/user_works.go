@@ -9,7 +9,9 @@ const recordedWorksSQL = `
 	UNION
 	SELECT work_id FROM catalog_user_playtime WHERE actor_uid = @uid AND work_id > @after
 	UNION
-	SELECT work_id FROM catalog_user_work_state WHERE actor_uid = @uid AND work_id > @after`
+	SELECT work_id FROM catalog_user_work_state WHERE actor_uid = @uid AND work_id > @after
+	UNION
+	SELECT work_id FROM catalog_user_work_rating WHERE actor_uid = @uid AND work_id > @after`
 
 func (s *UserFolderService) RecordedWorkIDs(ctx context.Context, uid, afterWorkID int64, limit int) ([]int64, error) {
 	if uid <= 0 {

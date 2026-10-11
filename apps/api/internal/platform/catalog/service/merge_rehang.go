@@ -73,6 +73,7 @@ var mergeRefs = []mergeRef{
 	{"catalog_user_entity_follow", "entity_id", "t.entity_type", []int16{model.EntityTypeLabel}, stepRehang},
 	rehangRef("catalog_user_folder_item", "work_id", model.EntityTypeWork),
 	rehangRef("catalog_user_playtime", "work_id", model.EntityTypeWork),
+	rehangRef("catalog_user_work_rating", "work_id", model.EntityTypeWork),
 	rehangRef("catalog_user_work_state", "work_id", model.EntityTypeWork),
 	rehangRef("catalog_work_character", "character_id", model.EntityTypeCharacter),
 	rehangRef("catalog_work_character", "work_id", model.EntityTypeWork),
@@ -97,16 +98,17 @@ var mergeRefs = []mergeRef{
 }
 
 var mergeRefExclusions = map[string]string{
-	"catalog_claim_event.work_id":             "append-only claim history, addressed to the id that was claimed",
-	"catalog_revision.entity_id":              "append-only history; the merge writes its own revision rows on both sides",
-	"edit_proposal.entity_id":                 "editing history and open queue, addressed to the id that was actually edited",
-	"edit_revision.entity_id":                 "editing history, addressed to the id that was actually edited",
-	"catalog_match_candidate.a_id":            "reconciliation queue about the source id; the matcher regenerates it",
-	"catalog_match_candidate.b_id":            "reconciliation queue about the source id; the matcher regenerates it",
-	"catalog_match_rejection.entity_id":       "audit trail of what was actually compared",
-	"catalog_merge_proposal.source_entity_id": "the merge's own record of its source",
-	"catalog_merge_proposal.target_entity_id": "the merge's own record of its target",
-	"catalog_work.product_work_id":            "a product-side claim id, not a catalog entity id; retireSource frees it",
+	"catalog_claim_event.work_id":                "append-only claim history, addressed to the id that was claimed",
+	"catalog_revision.entity_id":                 "append-only history; the merge writes its own revision rows on both sides",
+	"edit_proposal.entity_id":                    "editing history and open queue, addressed to the id that was actually edited",
+	"edit_revision.entity_id":                    "editing history, addressed to the id that was actually edited",
+	"catalog_match_candidate.a_id":               "reconciliation queue about the source id; the matcher regenerates it",
+	"catalog_match_candidate.b_id":               "reconciliation queue about the source id; the matcher regenerates it",
+	"catalog_match_rejection.entity_id":          "audit trail of what was actually compared",
+	"catalog_merge_proposal.source_entity_id":    "the merge's own record of its source",
+	"catalog_merge_proposal.target_entity_id":    "the merge's own record of its target",
+	"catalog_work.product_work_id":               "a product-side claim id, not a catalog entity id; retireSource frees it",
+	"catalog_user_work_rating_tombstone.work_id": "deletion log, addressed to the work the rating was on when it was deleted",
 }
 
 func rehangRef(table, column string, family int16) mergeRef {
@@ -397,6 +399,7 @@ func workFacetStmts(src, dst int64) []mergeStmt {
 		                     WHERE x.work_id = ? AND x.actor_uid = f.actor_uid)`, []any{dst, src, dst}, false},
 		{`DELETE FROM catalog_user_work_state WHERE work_id = ?`, []any{src}, false},
 	}
+	stmts = append(stmts, ratingMergeStmts(src, dst)...)
 	for _, f := range []struct {
 		table string
 		key   []string
@@ -419,6 +422,32 @@ func workFacetStmts(src, dst int64) []mergeStmt {
 		stmts = append(stmts, workFacetRehang(f.table, f.key, src, dst)...)
 	}
 	return stmts
+}
+
+// A rating keeps its id across a merge, because site mirrors hang likes and
+// threads on it. Where a user rated both works the later-updated row survives
+// and the other leaves a tombstone, like any delete. Every surviving rating is
+// touched: the play state it carries may have come over from the merged work.
+func ratingMergeStmts(src, dst int64) []mergeStmt {
+	upsert, prune := ratingAggregateSQL(true)
+	scope := []any{dst}
+	return []mergeStmt{
+		{`WITH gone AS (DELETE FROM catalog_user_work_rating d USING catalog_user_work_rating s
+		      WHERE d.work_id = ? AND s.work_id = ? AND s.actor_uid = d.actor_uid AND s.updated_at > d.updated_at
+		      RETURNING d.id, d.work_id)
+		  INSERT INTO catalog_user_work_rating_tombstone (id, work_id, deleted_at)
+		  SELECT id, work_id, now() FROM gone`, []any{dst, src}, false},
+		{`UPDATE catalog_user_work_rating f SET work_id = ?, changed_at = now()
+		    WHERE f.work_id = ?
+		    AND NOT EXISTS (SELECT 1 FROM catalog_user_work_rating x
+		                     WHERE x.work_id = ? AND x.actor_uid = f.actor_uid)`, []any{dst, src, dst}, false},
+		{`WITH gone AS (DELETE FROM catalog_user_work_rating WHERE work_id = ? RETURNING id, work_id)
+		  INSERT INTO catalog_user_work_rating_tombstone (id, work_id, deleted_at)
+		  SELECT id, work_id, now() FROM gone`, []any{src}, false},
+		{`UPDATE catalog_user_work_rating SET changed_at = now() WHERE work_id = ?`, []any{dst}, false},
+		{upsert, []any{scope, scope}, false},
+		{prune, []any{scope}, false},
+	}
 }
 
 func workFacetRehang(table string, keyCols []string, src, dst int64) []mergeStmt {
