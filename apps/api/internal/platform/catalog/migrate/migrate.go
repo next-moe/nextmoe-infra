@@ -87,6 +87,14 @@ func Run(db *gorm.DB) error {
 		&model.CatalogSeriesNameOverride{}, // reviewed names for machine-owned lanes (wave 185)
 		&model.CatalogPlatform{},           // platform vocabulary registry (step 96)
 		&model.CatalogWorkPlatform{},       // work-level platform facet (step 96, bgm lane)
+		// Per-user work ratings, one per person per work across every site
+		// (2026-10). Created empty: cmd/import-user-ratings fills it from the
+		// forum's galgame_rating (ids kept) and LetMoe's game_rating, and the
+		// ledger below makes that import re-runnable. Deletions leave a
+		// tombstone so site mirrors reading /v2/ratings/changes can drop them.
+		&model.CatalogUserWorkRating{},
+		&model.CatalogUserWorkRatingTombstone{},
+		&model.CatalogUserWorkRatingImport{},
 		// catalog_release. Wave R2b (2026-08-16) adds field_provenance jsonb
 		// NOT NULL DEFAULT '{}' so human edits of kind/title/lang/platform/date
 		// and hide/unhide survive importer backfills. AutoMigrate is enough:
@@ -468,6 +476,13 @@ func rawSQL(db *gorm.DB) error {
 		{"catalog_tag_parent", "chk_catalog_tag_parent_distinct", `tag_id <> parent_id`},
 		{"catalog_tag_parent", "chk_catalog_tag_parent_origin", `origin IN (0, 1)`},
 		{"catalog_user_tag_block", "chk_catalog_user_tag_block_mode", `mode IN (0, 1)`},
+		{"catalog_user_work_rating", "chk_catalog_user_work_rating_overall", `overall BETWEEN 1 AND 10`},
+		{"catalog_user_work_rating", "chk_catalog_user_work_rating_aspects", `COALESCE(art, 1) BETWEEN 1 AND 10 AND COALESCE(story, 1) BETWEEN 1 AND 10 AND
+			COALESCE(music, 1) BETWEEN 1 AND 10 AND COALESCE("character", 1) BETWEEN 1 AND 10 AND
+			COALESCE(route, 1) BETWEEN 1 AND 10 AND COALESCE("system", 1) BETWEEN 1 AND 10 AND
+			COALESCE(voice, 1) BETWEEN 1 AND 10 AND COALESCE(replay_value, 1) BETWEEN 1 AND 10`},
+		{"catalog_user_work_rating", "chk_catalog_user_work_rating_recommend", `recommend BETWEEN 1 AND 5`},
+		{"catalog_user_work_rating", "chk_catalog_user_work_rating_spoiler", `spoiler_level IN (0, 1, 2)`},
 	} {
 		exists, err := constraintExists(db, cc.table, cc.name)
 		if err != nil {
@@ -479,6 +494,16 @@ func rawSQL(db *gorm.DB) error {
 		if err := db.Exec(`ALTER TABLE ` + cc.table + ` ADD CONSTRAINT ` + cc.name + ` CHECK (` + cc.expr + `)`).Error; err != nil {
 			return fmt.Errorf("add check %s on %s: %w", cc.name, cc.table, err)
 		}
+	}
+
+	// cmd/import-user-ratings keeps the forum's rating ids (4,814 at most in
+	// 2026-10, still growing until the forum switches its writes over), so the
+	// ids the catalog issues itself start at 1,000,001: a rating written through
+	// /v2 before the import would otherwise take an id the import needs.
+	// GREATEST never lowers the sequence, so the statement is safe on every run.
+	if err := db.Exec(`SELECT setval(seq, GREATEST(COALESCE(pg_sequence_last_value(seq::regclass), 0), 1000000))
+		FROM pg_get_serial_sequence('catalog_user_work_rating', 'id') AS seq`).Error; err != nil {
+		return fmt.Errorf("floor catalog_user_work_rating ids: %w", err)
 	}
 
 	// (5) Partial/expression unique indexes.
