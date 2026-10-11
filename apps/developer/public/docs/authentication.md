@@ -9,15 +9,15 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-一条请求只带一个凭据。带哪一个，由你读的是「目录里的公共事实」还是「某个用户自己的东西」决定。
+读目录可以什么凭据都不带。要带的话，一条请求只带一个；带哪一个，由你读的是「目录里的公共事实」还是「某个用户自己的东西」决定。
 
 ## 三种身份
 
 | 身份         | 请求头                                 | 代表谁             | 用在哪些前缀                                                                                        |
 | ------------ | -------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------- |
+| 匿名         | 不带                                   | 任何人             | `/v2/catalog` 只读面（`claim-events` 除外，按 IP 限流）；`/v2/news`、`/v2/vocabularies`、`/v2/problems`、`/v2/catalog/stats`、`/v2/catalog/schemas/{object}` |
 | 应用密钥     | `Authorization: Bearer nmk_live_…`     | 你的应用           | `/v2/catalog`、`/v2/store`、`/v2/moyu/*`、`/v2/sticker/*`                                           |
 | 用户访问令牌 | `Authorization: Bearer <access_token>` | 授权给你的那个用户 | `/v2/me`、`/v2/moderation`；带 `catalog:read` 时也可用于 `/v2/catalog`                             |
-| 匿名         | 不带                                   | 任何人             | `/v2/catalog` 只读面（`claim-events` 除外，按 IP 限流）；`/v2/news`、`/v2/vocabularies`、`/v2/problems`、`/v2/catalog/stats`、`/v2/catalog/schemas/{object}` |
 
 > [!NOTE]
 > 一条请求只带一个凭据。`/v2/catalog` 收两种凭据，意思是**二选一**，不是两个都带。服务端按 `Authorization` 里那一个值的前缀分道：`nmk_` 是应用密钥，其余按用户令牌解析；一种失败了不会再当另一种试一次。

@@ -26,8 +26,7 @@ const section = (key: string) => guideNav.find((s) => s.key === key)
 const describe = (to: string) => guideMeta[to]?.description ?? ''
 const icon = (to: string) => DOCS_GUIDE_ICONS[to] ?? 'lucide:file-text'
 
-const firstCall = `curl "https://api.nextmoe.dev/v2/catalog/works?limit=3" \\
-  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"`
+const firstCall = `curl "https://api.nextmoe.dev/v2/catalog/works?limit=3"`
 </script>
 
 <template>
@@ -46,7 +45,12 @@ const firstCall = `curl "https://api.nextmoe.dev/v2/catalog/works?limit=3" \\
         >
         这一个公开面上。另有 moyu 补丁与 sticker
         表情包两个下游站点面接在同一把密钥后面，合计
-        {{ totalOperations }} 个端点。调用与编辑完全免费，自助铸密钥，无需申请。
+        {{ totalOperations }} 个端点。
+      </p>
+      <p class="text-default-500 mt-3 max-w-2xl leading-relaxed">
+        <strong class="text-foreground">读目录不用注册，也不用密钥</strong>
+        ——整个目录只读面不带任何凭据就能调，按 IP
+        计一份够个人用的额度。量大了再登录自助铸密钥，同样不需要申请。调用与编辑完全免费。
       </p>
       <div class="mt-6 flex flex-wrap items-center gap-3">
         <KunButton color="primary" @click="navigateTo('/docs/quickstart')">
@@ -66,7 +70,9 @@ const firstCall = `curl "https://api.nextmoe.dev/v2/catalog/works?limit=3" \\
 
     <section class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
       <div class="border-default-200 bg-content1 rounded-xl border p-5">
-        <h2 class="text-foreground text-sm font-semibold">第一个请求</h2>
+        <h2 class="text-foreground text-sm font-semibold">
+          第一个请求（不需要任何凭据）
+        </h2>
         <pre
           class="bg-default-100 text-foreground mt-3 overflow-x-auto rounded-lg p-3 text-xs leading-relaxed"
         ><code>{{ firstCall }}</code></pre>
@@ -100,10 +106,10 @@ const firstCall = `curl "https://api.nextmoe.dev/v2/catalog/works?limit=3" \\
         <li class="border-default-200 bg-content1 rounded-xl border p-4">
           <p class="text-foreground flex items-center gap-2 font-semibold">
             <KunIcon name="lucide:shield-check" class="text-primary size-4" />
-            两种凭据
+            凭据可选
           </p>
           <p class="text-default-500 mt-2 leading-relaxed">
-            读目录用应用密钥；读写某个用户自己的东西用那个用户的访问令牌。
+            读目录可以什么都不带；量大了带应用密钥；读写某个用户自己的东西用那个用户的访问令牌。
             <NuxtLink
               to="/docs/authentication"
               class="text-primary hover:underline"
@@ -118,7 +124,8 @@ const firstCall = `curl "https://api.nextmoe.dev/v2/catalog/works?limit=3" \\
             限流
           </p>
           <p class="text-default-500 mt-2 leading-relaxed">
-            free 档 60 次/分 · 50,000 次/日，超限返回 429 并带
+            匿名按 IP 30 次/分 · 1,000 次/日；free 档密钥 60 次/分 · 50,000
+            次/日。超限返回 429 并带
             <code class="font-mono text-xs">Retry-After</code>。
             <NuxtLink
               to="/docs/rate-limits"
@@ -313,8 +320,8 @@ const firstCall = `curl "https://api.nextmoe.dev/v2/catalog/works?limit=3" \\
         <div class="min-w-0 flex-1">
           <h3 class="text-foreground text-base font-semibold">AI / MCP 接入</h3>
           <p class="text-default-500 mt-1 text-sm leading-relaxed">
-            纯透传适配层：一个端点、同一把密钥、一整套只读工具。含 Claude Code /
-            Claude Desktop / 通用客户端配置示例。
+            纯透传适配层：一个端点、一整套只读工具，不配密钥也能用。含 Claude
+            Code / Claude Desktop / 通用客户端配置示例。
           </p>
         </div>
         <KunIcon
