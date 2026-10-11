@@ -280,6 +280,19 @@ gstep sh -c "$DSNSH"'; backfill-bgm-zh-names --dsn "$CAT" --lane label --apply'
 # 2, the same class of invocation break as bgm-refresh's --wiki-dsn on
 # 2026-08-13. Each leg is named; with neither flag the tool runs both.
 gstep import-entity-aliases --hints --run
+# Two sources spell one person differently on one work — ErogameScape's
+# 木村貴宏(すがわらあわじ、すがわらあわぢ) beside VNDB's 木村 貴宏 — and the
+# orphan spelling stayed unlinked until the alias leg below minted a second
+# person from it; 80 such duplicates were merged on 2026-10-11. This leg runs
+# first so every orphan it can place already has its person.
+if [ "$GROUP_FAIL" -eq 0 ]; then
+  if dry_ok person-cocredit person-link-batch --rule-set cocredit --actor 1 \
+     && check_counters person-cocredit "$last_dry_log" attached=300 merge_approved=30 merge_proposed=30; then
+    gstep person-link-batch --rule-set cocredit --actor 1 --run
+  else
+    ceiling_failed
+  fi
+fi
 # The candidate leg files the credit-name pairs Bangumi declares as aliases, and
 # person-link-batch links the ones its rules settle: A3, both names credited on
 # one work; A4, each declared as the other's alias. On 2026-09-17 those rules
