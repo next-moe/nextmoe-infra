@@ -47,7 +47,27 @@ func (s *LinkService) linkCreditsTx(tx *gorm.DB, aID, bID int64, actorID *int64)
 	}
 }
 
+// Two orphan names do not make a new person while someone already holds their
+// spelling on their works. On 2026-09-17 the alias lane minted P6549 from
+// 木村貴宏(すがわらあわじ、すがわらあわぢ) and すがわらあわぢ while P3177 held
+// 木村 貴宏 on the same works; 80 duplicate people were merged on 2026-10-11.
 func (s *LinkService) createAndAttach(tx *gorm.DB, a, b *model.CatalogCreditName, actorID *int64) (PersonLinkResult, error) {
+	hosts, err := coCreditHosts(tx, []int64{a.ID, b.ID})
+	if err != nil {
+		return PersonLinkResult{}, err
+	}
+	switch {
+	case len(hosts) > 1:
+		return PersonLinkResult{NeedsManual: true}, nil
+	case len(hosts) == 1 && hosts[0].Strong:
+		for _, n := range []*model.CatalogCreditName{a, b} {
+			if _, err := s.attachOrphan(tx, hosts[0].PersonID, n, actorID); err != nil {
+				return PersonLinkResult{}, err
+			}
+		}
+		return PersonLinkResult{PersonID: hosts[0].PersonID}, nil
+	}
+
 	primary := a
 	aCredits, err := creditCount(tx, a.ID)
 	if err != nil {

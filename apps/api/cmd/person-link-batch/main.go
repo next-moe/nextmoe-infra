@@ -17,7 +17,7 @@ import (
 func main() {
 	apply := flag.Bool("run", false, "write links (default: dry-run preview only)")
 	actor := flag.Int64("actor", 0, "ren superadmin user id recorded as the linker (required)")
-	ruleSet := flag.String("rule-set", ruleSetShared, "shared = A1/A2 over shared-handle candidates (default); alias = A3/A4 over alias_declared candidates")
+	ruleSet := flag.String("rule-set", ruleSetShared, "shared = A1/A2 over shared-handle candidates (default); alias = A3/A4 over alias_declared candidates; cocredit = orphan names and people spelled alike on a shared work")
 	export := flag.String("export", "", "write the T2 review worklist (alias_declared pending not cleared by A3/A4) to this TSV, then exit")
 	receipts := flag.String("receipts", "", "apply a filled worklist TSV (decision: link/reject/skip) instead of the rule pass")
 	flag.Parse()
@@ -50,6 +50,15 @@ func main() {
 		st, rerr := runReceipts(ctx, db, os.Stdout, *receipts, *actor, *apply)
 		if rerr != nil {
 			slog.Error("receipts apply failed", "error", rerr)
+			os.Exit(1)
+		}
+		if st.Errors > 0 {
+			os.Exit(1)
+		}
+	case *ruleSet == ruleSetCoCredit:
+		st, rerr := runCoCredit(ctx, db, os.Stdout, *actor, *apply)
+		if rerr != nil {
+			slog.Error("person-link-batch cocredit failed", "error", rerr)
 			os.Exit(1)
 		}
 		if st.Errors > 0 {

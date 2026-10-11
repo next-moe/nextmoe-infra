@@ -56,6 +56,7 @@ backfill-bgm-zh-names --lane character --apply
 backfill-bgm-zh-names --lane person --apply
 backfill-bgm-zh-names --lane label --apply
 import-entity-aliases --hints --run
+person-link-batch --rule-set cocredit --actor 1 --run
 import-entity-aliases --candidates --run
 person-link-batch --rule-set alias --actor 1 --run
 import-bangumi-xmedia --run
@@ -173,6 +174,10 @@ emit_out() {
       ;;
     import-entity-aliases+candidates+dry)
       echo 'leg B DRY-RUN — alias_declared candidates=12 (bidirectional=0) | ambiguous=40 already_candidate=2174 already_same_person=389'
+      ;;
+    person-link-batch+cocredit+dry)
+      echo '[approve] P2102 "妄想くりえーしょん(妄想クリエーション)" ~ P5047 "妄想 くりえーしょん" works=111: P2102 → P5047'
+      echo 'DRY-RUN (nothing written; pass --run to apply) [cocredit] — attached=12 ambiguous=1 already_linked=0 | merge_approved=1 merge_proposed=0 ref_conflict=0 proposal_exists=0 | executed=0 errors=0'
       ;;
     person-link-batch+dry)
       echo '[create] A3   "作家A" ↔ "作家A(ペンネーム)"'
@@ -373,6 +378,7 @@ case "$1" in
     case "$toolcmd" in
       *"--rule-set alias"*) ruleset=alias ;;
       *"--rule-set shared"*) ruleset=shared ;;
+      *"--rule-set cocredit"*) ruleset=cocredit ;;
     esac
     case "$toolcmd" in
       *"--actor 1"*) actor=1 ;;
@@ -386,8 +392,8 @@ case "$1" in
     if [ "$tool" = "import-entity-aliases" ] && [ -z "$leg" ]; then
       echo "import-entity-aliases without --hints or --candidates runs both legs" >> "$CTL/violations"
     fi
-    if [ "$tool" = "person-link-batch" ] && { [ "$ruleset" != alias ] || [ "$actor" != 1 ]; }; then
-      echo "person-link-batch must run --rule-set alias --actor 1: $toolcmd" >> "$CTL/violations"
+    if [ "$tool" = "person-link-batch" ] && { { [ "$ruleset" != alias ] && [ "$ruleset" != cocredit ]; } || [ "$actor" != 1 ]; }; then
+      echo "person-link-batch must run --rule-set alias|cocredit --actor 1: $toolcmd" >> "$CTL/violations"
     fi
     if [ "$tool" = "backfill-dlsite-media" ] && [ "$kind" != intro ]; then
       echo "backfill-dlsite-media must run --kind intro (covers and screenshots are image-mirror's): $toolcmd" >> "$CTL/violations"
@@ -411,6 +417,7 @@ case "$1" in
     [ -n "$src" ] && key="$key+$src"
     [ -n "$only" ] && key="$key+$only"
     [ -n "$lane" ] && key="$key+$lane"
+    [ "$ruleset" = cocredit ] && key="$key+cocredit"
     key="$key+$mode"
     printf '%s\n' "$key" >> "$CTL/tools.log"
 
@@ -813,6 +820,7 @@ expect_exit "$td" 0
 if [ -s "$td/ctl/violations" ]; then fail "$(cat "$td/ctl/violations")"; fi
 if ! grep -q '^import-entity-aliases+hints+apply$' "$td/ctl/tools.log"; then fail "entity-aliases hints never ran"; fi
 if ! grep -q '^person-link-batch+apply$' "$td/ctl/tools.log"; then fail "person-link-batch never ran"; fi
+if ! grep -q '^person-link-batch+cocredit+apply$' "$td/ctl/tools.log"; then fail "person-link-batch cocredit never ran"; fi
 tend
 rm -rf "$td"
 
@@ -871,6 +879,7 @@ grep -v -F \
   -e 'backfill-bgm-zh-names --lane person --apply' \
   -e 'backfill-bgm-zh-names --lane label --apply' \
   -e 'import-entity-aliases --hints --run' \
+  -e 'person-link-batch --rule-set cocredit --actor 1 --run' \
   -e 'import-entity-aliases --candidates --run' \
   -e 'person-link-batch --rule-set alias --actor 1 --run' \
   -e 'import-bangumi-xmedia --run' \
@@ -938,14 +947,14 @@ printf '%s\n' 'DRY-RUN (nothing written; pass --run to link) [alias] — A1=0 A2
   > "$td/ctl/out/person-link-batch+dry"
 run_job "$td"
 expect_exit_nonzero "$td"
-if grep -q -F 'person-link-batch' "$td/ctl/apply.log"; then fail "linked past the attach ceiling"; fi
+if grep -q -F 'person-link-batch --rule-set alias' "$td/ctl/apply.log"; then fail "linked past the attach ceiling"; fi
 rm -rf "$td"
 td=$(mktemp -d)
 install_fakes "$td"
 printf '%s\n' 'person-link-batch: panic before the summary' > "$td/ctl/out/person-link-batch+dry"
 run_job "$td"
 expect_exit_nonzero "$td"
-if grep -q -F 'person-link-batch' "$td/ctl/apply.log"; then fail "linked without a readable plan"; fi
+if grep -q -F 'person-link-batch --rule-set alias' "$td/ctl/apply.log"; then fail "linked without a readable plan"; fi
 tend
 rm -rf "$td"
 
@@ -1222,6 +1231,7 @@ grep -v -F \
   -e 'backfill-bgm-zh-names --lane person --apply' \
   -e 'backfill-bgm-zh-names --lane label --apply' \
   -e 'import-entity-aliases --hints --run' \
+  -e 'person-link-batch --rule-set cocredit --actor 1 --run' \
   -e 'import-entity-aliases --candidates --run' \
   -e 'person-link-batch --rule-set alias --actor 1 --run' \
   -e 'import-bangumi-xmedia --run' \
@@ -1242,6 +1252,26 @@ if ! has_stamp "$td"; then fail "missing stamp"; fi
 if has_alert "$td"; then fail "unexpected alert"; fi
 write_t1_expected "$td/ctl/t1"
 expect_apply "$td" "$td/ctl/t1"
+tend
+rm -rf "$td"
+
+# --- T35: a co-credit merge burst merges no one, and the alias legs after it stand down ---
+tstart 35
+td=$(mktemp -d)
+install_fakes "$td"
+printf '%s\n' 'DRY-RUN (nothing written; pass --run to apply) [cocredit] — attached=4 ambiguous=0 already_linked=0 | merge_approved=31 merge_proposed=0 ref_conflict=0 proposal_exists=0 | executed=0 errors=0' \
+  > "$td/ctl/out/person-link-batch+cocredit+dry"
+run_job "$td"
+expect_exit_nonzero "$td"
+if ! has_alert "$td"; then fail "no alert"; fi
+write_t1_expected "$td/ctl/t1"
+grep -v -F \
+  -e 'person-link-batch --rule-set cocredit --actor 1 --run' \
+  -e 'import-entity-aliases --candidates --run' \
+  -e 'person-link-batch --rule-set alias --actor 1 --run' \
+  -e 'import-bangumi-xmedia --run' \
+  "$td/ctl/t1" > "$td/ctl/expected"
+expect_apply "$td" "$td/ctl/expected"
 tend
 rm -rf "$td"
 

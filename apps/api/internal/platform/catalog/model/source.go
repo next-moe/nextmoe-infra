@@ -4,6 +4,7 @@ package model
 // identity are named here.
 const (
 	SourceUser          int16 = 1
+	SourceVNDB          int16 = 2
 	SourceBangumi       int16 = 3
 	SourceErogameScape  int16 = 5
 	SourceCurated       int16 = 12
