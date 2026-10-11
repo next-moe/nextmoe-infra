@@ -42,24 +42,9 @@ const rows = ref<AttachRow[]>([])
 const rowsMore = ref(false)
 const showRaw = ref(false)
 
-const problemMessage = (e: unknown): string => {
-  const err = e as {
-    data?: { detail?: string; title?: string }
-    statusCode?: number
-  }
-  return (
-    err.data?.detail ??
-    err.data?.title ??
-    `请求失败（${err.statusCode ?? '网络错误'}）`
-  )
-}
-
-const relay = async <T,>(path: string, query: Record<string, string>) => {
-  const qs = new URLSearchParams(query).toString()
-  return await $fetch<T>(`/relay/${path}?${qs}`, {
-    headers: { Authorization: `Bearer ${props.apiKey.trim()}` }
-  })
-}
+const { read, failureMessage } = useCatalogRead()
+const apiGet = <T,>(path: string, query: Record<string, string>) =>
+  read<T>(path, query, props.apiKey)
 
 // v2 entity details carry the identity core only; everything about what an
 // entity is attached to lives on its own collection. Companies have no
@@ -106,7 +91,7 @@ watch(target, async (t) => {
   showRaw.value = false
   loading.value = true
   try {
-    data.value = await relay<Record<string, unknown>>(
+    data.value = await apiGet<Record<string, unknown>>(
       `v2/catalog/${t.kind}/${t.id}`,
       {
         ...(t.kind === 'characters' && { view: 'full' }),
@@ -115,7 +100,7 @@ watch(target, async (t) => {
     )
     const attach = attachmentRequest(t)
     if (attach) {
-      const list = await relay<{ items?: unknown[]; next_cursor?: string }>(
+      const list = await apiGet<{ items?: unknown[]; next_cursor?: string }>(
         attach.path,
         attach.query
       )
@@ -123,7 +108,7 @@ watch(target, async (t) => {
       rowsMore.value = Boolean(list.next_cursor)
     }
   } catch (e) {
-    error.value = problemMessage(e)
+    error.value = failureMessage(e, props.apiKey)
   } finally {
     loading.value = false
   }

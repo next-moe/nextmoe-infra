@@ -23,7 +23,9 @@ import {
 import { MCP_TOOLS } from '../shared/mcp-tools.mjs'
 
 const AUTH_MODEL = [
-  '应用密钥（`Authorization: Bearer nmk_live_…`）——在 ' +
+  '不带凭据：`/v2/catalog` 只读面（`claim-events` 除外）不注册、不带任何凭据就能调，返回与带密钥时逐字节相同，`nsfw=true` 照样可用；' +
+    '按 IPv4 地址或 IPv6 /64 计一份很小的额度（默认 30 次/分钟、1,000 次/天）。CORS 对所有来源开放，浏览器里可直接 fetch。',
+  '应用密钥（`Authorization: Bearer nmk_live_…`）——量大了或从自己的服务端调用时使用，在 ' +
     `${SITE_URL} 控制台自助创建应用与密钥，无需申请；自助可勾选的 scope 有 catalog:read 与 store:read，/v2/moyu/* 与 /v2/sticker/* 两个下游面不需要 scope、任意有效密钥可调。` +
     '/v2 只收 nmk_ 前缀的密钥。',
   '用户访问令牌（`Authorization: Bearer <access token>`）——/v2/me 与 /v2/moderation ' +
@@ -31,9 +33,7 @@ const AUTH_MODEL = [
   'v1 已于 2026-08-27 全面退役：/v1/catalog、/v1/news、/v1/store、/v1/playtime、' +
     '/api/v1/catalog 与 /api/v1/user/catalog 一律返回 410，Link 指向 /v2。',
   '`/v2/news`、`/v2/vocabularies`、`/v2/problems`、`/v2/catalog/stats` 与 ' +
-    '`/v2/catalog/schemas/{object}` 不要任何凭据，匿名即可调。',
-  '`/v2/catalog` 只读面（`claim-events` 除外）也可以不带凭据调用：按 IPv4 地址或 IPv6 /64 计一份很小的额度' +
-    '（默认 30 次/分钟、1,000 次/天）；带应用密钥或带 `catalog:read` 的用户令牌则走各自更高的额度。'
+    '`/v2/catalog/schemas/{object}` 同样不要任何凭据。带应用密钥或带 `catalog:read` 的用户令牌读 `/v2/catalog` 时，走各自更高的额度。'
 ]
 
 const mdPath = (route) => (route === '/' ? '/index.md' : `${route}.md`)
@@ -347,11 +347,11 @@ const buildPages = (model, guides, problems, vocabularies) => {
     ...aiGuideSection(),
     ...sourceSection(),
     ...authSection(),
-    '## 三步开始',
+    '## 开始',
     '',
-    '1. 用生态账号（NextMoe / 鲲 Galgame）登录门户，不必另外注册开发者身份。',
-    '2. 在控制台创建一个应用（每个账号最多 5 个），拿到独立的配额与用量视图。',
-    '3. 生成密钥并妥善保存（只显示一次），带上它请求只读端点；要读写用户自己的游玩记录或提交编辑提案，改用那个用户授权后的访问令牌。',
+    `1. 不用注册，直接请求：\`curl "${API_HOST}/v2/catalog/works?limit=3"\`。整个目录只读面都不需要凭据。`,
+    '2. 量大了（每天超过 1,000 次，或从自己的服务端为很多用户调用），用生态账号（NextMoe / 鲲 Galgame）登录门户，创建应用（每个账号最多 5 个）并铸造密钥（只显示一次），带上它请求。',
+    '3. 要读写用户自己的游玩记录、收藏夹或提交编辑提案，改用那个用户经 OAuth 授权后的访问令牌。',
     '',
     `完整端点参考见 ${SITE_URL}/llms-full.txt。`,
     '',
