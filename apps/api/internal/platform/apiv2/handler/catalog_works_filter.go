@@ -398,6 +398,8 @@ func listWorksInclude(tokens []string) catsvc.WorksListInclude {
 			inc.Tags = true
 		case "credits":
 			inc.Credits = true
+		case "playtimes":
+			inc.Playtimes = true
 		}
 	}
 	return inc

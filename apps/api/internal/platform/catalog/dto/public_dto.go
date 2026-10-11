@@ -500,6 +500,8 @@ type PublicWorkListItem struct {
 	Refs    []PublicCatalogRef    `json:"refs,omitempty"`
 	Tags    []PublicTag           `json:"tags,omitempty" doc:"include=tags only: same shape and election as the work-detail tags block, cut at the default spoiler ceiling"`
 	Credits []PublicCreditGroup   `json:"credits,omitempty" doc:"include=credits only: same groups, ordering and suppression as the work-detail credits block"`
+
+	Playtimes []PublicPlaytime `json:"playtimes,omitempty"`
 }
 
 type PublicCoverSlot struct {
