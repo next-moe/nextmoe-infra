@@ -32,11 +32,11 @@ on_exit() {
   if [ "$rc" -ne 0 ]; then
     echo "=== FAILED (exit $rc) - sending alert ==="
     tail -n 40 "$LOG" | ssh -o BatchMode=yes "$NEO" \
-      "sudo /root/lib/alert.sh '[FAIL] image grade off-host ($(hostname), exit $rc)' -" || echo "alert delivery failed"
+      "sudo /root/lib/alert.sh '[FAIL] image grade off-host ($(uname -n), exit $rc)' -" || echo "alert delivery failed"
   fi
 }
 trap on_exit EXIT
-echo "=== image grade start $(date -u '+%F %T')Z on $(hostname) ==="
+echo "=== image grade start $(date -u '+%F %T')Z on $(uname -n) ==="
 
 WORK="$STATE/work/$(date -u +%Y%m%dT%H%M%S)"
 mkdir -p "$WORK"
