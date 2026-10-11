@@ -1,11 +1,15 @@
 package handler
 
 import (
+	"context"
 	"testing"
 
 	"api/internal/platform/community/dto"
 	"api/internal/platform/community/model"
 	"api/internal/platform/community/service"
+	"api/internal/platform/notice"
+
+	"gorm.io/gorm"
 )
 
 func processNotifications(t *testing.T) {
@@ -278,5 +282,57 @@ func TestNotificationFeedFollowedHasNoThread(t *testing.T) {
 	}
 	if found.ThreadID != 0 || found.AnchorID != "" || found.BoardID != nil {
 		t.Fatalf("kind 8 names no thread: thread_id=%d anchor_id=%q board_id=%v", found.ThreadID, found.AnchorID, found.BoardID)
+	}
+}
+
+func TestNotificationFacesCarryTheNotice(t *testing.T) {
+	cleanTables(t)
+	if err := testDB.AutoMigrate(&notice.Notice{}); err != nil {
+		t.Fatalf("migrate platform_notices: %v", err)
+	}
+	truncate := func() error {
+		return testDB.Exec("TRUNCATE platform_notices, platform_notice_cursor RESTART IDENTITY").Error
+	}
+	if err := truncate(); err != nil {
+		t.Fatalf("truncate notices: %v", err)
+	}
+	t.Cleanup(func() { _ = truncate() })
+	if err := testDB.Transaction(func(tx *gorm.DB) error {
+		return notice.RaiseTx(tx, []notice.Notice{{
+			Site: "letmoe", UserID: 5, Topic: "shop_restock", Ref: "offer:7",
+			Title: "你订阅的「DLsite 1000 円优惠券」补货了", URL: "https://letmoe.com/shop",
+		}})
+	}); err != nil {
+		t.Fatalf("raise: %v", err)
+	}
+	if _, err := service.NewNotificationService(testDB).WithNoticeSource(testDB).DeliverNotices(context.Background()); err != nil {
+		t.Fatalf("deliver: %v", err)
+	}
+	s := newTenantServer()
+	ctx := clientCtx("letmoe")
+
+	feed, err := s.notificationFeed(ctx, &notificationFeedInput{Limit: 100})
+	if err != nil {
+		t.Fatalf("feed: %v", err)
+	}
+	list, err := s.listNotifications(ctx, &listNotificationsInput{ID: 5, Limit: 50})
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	for face, rows := range map[string][]dto.NotificationView{
+		"feed": feed.Body.Data.Notifications, "inbox": list.Body.Data.Notifications,
+	} {
+		if len(rows) != 1 {
+			t.Fatalf("%s: %+v", face, rows)
+		}
+		n := rows[0]
+		if n.Kind != model.NotificationKindNotice || n.ThreadID != 0 || n.AnchorID != "" || n.Activity != nil || n.Notice == nil ||
+			n.Notice.Topic != "shop_restock" || n.Notice.Ref != "offer:7" || n.Notice.URL != "https://letmoe.com/shop" ||
+			n.Notice.Title != "你订阅的「DLsite 1000 円优惠券」补货了" || n.Notice.ID == 0 || n.Notice.RaisedAt.IsZero() {
+			t.Fatalf("%s kind-11 view: %+v notice=%+v", face, n, n.Notice)
+		}
+	}
+	if list.Body.Data.UnreadCount != 1 {
+		t.Fatalf("unread count %d", list.Body.Data.UnreadCount)
 	}
 }

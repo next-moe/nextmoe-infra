@@ -5,7 +5,7 @@ import "time"
 type NotificationView struct {
 	ID              int64      `json:"id"`
 	UserID          int64      `json:"user_id"`
-	Kind            int16      `json:"kind" doc:"1=replied 2=mentioned 3=posted 4=thread_created 5=liked 6=answer_accepted 7=feedback_status 8=followed 9=followee_thread_created 10=followee_activity; kinds 8 and 10 name no thread (thread_id 0, empty anchor)"`
+	Kind            int16      `json:"kind" doc:"1=replied 2=mentioned 3=posted 4=thread_created 5=liked 6=answer_accepted 7=feedback_status 8=followed 9=followee_thread_created 10=followee_activity 11=notice; kinds 8, 10 and 11 name no thread (thread_id 0, empty anchor)"`
 	ThreadID        int64      `json:"thread_id"`
 	AnchorKind      int16      `json:"anchor_kind"`
 	AnchorID        string     `json:"anchor_id"`
@@ -22,6 +22,16 @@ type NotificationView struct {
 	Seq             int64      `json:"seq"`
 
 	Activity *NotificationActivityView `json:"activity,omitempty" doc:"kind 10 only: the newest live activity the row counts. Absent when item_count is 0, which retracts the row"`
+	Notice   *NotificationNoticeView   `json:"notice,omitempty" doc:"kind 11 only: the newest notice the row folds; item_count is how many notices of this topic and ref arrived since the row was last read"`
+}
+
+type NotificationNoticeView struct {
+	ID       int64     `json:"id"`
+	Topic    string    `json:"topic" doc:"what raised it, e.g. shop_restock"`
+	Ref      string    `json:"ref" doc:"the subject within the topic, e.g. offer:7; one unread row per topic and ref"`
+	Title    string    `json:"title" doc:"the line to show, already written for the recipient"`
+	URL      string    `json:"url" doc:"absolute URL to open, or empty"`
+	RaisedAt time.Time `json:"raised_at"`
 }
 
 type NotificationActivityView struct {

@@ -10,6 +10,7 @@ import (
 
 	"api/internal/platform/accountpurge"
 	"api/internal/platform/community/model"
+	"api/internal/platform/notice"
 
 	"gorm.io/gorm"
 )
@@ -65,6 +66,12 @@ func Run(db *gorm.DB) error {
 		// 2026-09-27: account-level blocks (plan 17 W1). A new table with no
 		// rows; a block also deletes the follow edges between the two users.
 		&model.CommunityUserBlock{},
+		// 2026-10-11: notices raised by other first-party services (shop
+		// restocks first). community_notification gains a nullable notice
+		// jsonb, NULL on every existing row; platform_notice_cursor is a new
+		// table with no rows, so the first run reads platform_notices from the
+		// start, which is empty until this release raises its first notice.
+		&notice.Cursor{},
 	); err != nil {
 		return fmt.Errorf("community automigrate: %w", err)
 	}

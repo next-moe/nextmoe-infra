@@ -62,6 +62,7 @@ func newApp(t *testing.T) (*fiber.App, uint, *gorm.DB) {
 			client := &siteModel.OAuthClient{ID: v}
 			if rest, ok := strings.CutPrefix(v, "awarder:"); ok {
 				client.MoemoepointAwarder = true
+				rest, client.CommunitySite, _ = strings.Cut(rest, "@")
 				if n, err := strconv.ParseUint(rest, 10, 64); err == nil {
 					site := uint(n)
 					client.SiteID = &site
@@ -79,6 +80,8 @@ func newApp(t *testing.T) (*fiber.App, uint, *gorm.DB) {
 	app.Get("/users/:id/shop", h.CustomerInventory)
 	app.Post("/users/:id/shop/orders", h.CustomerPurchase)
 	app.Put("/users/:id/shop/loadout", h.CustomerEquip)
+	app.Put("/users/:id/shop/restock-alerts/:offer_id", h.CustomerRestockAlert)
+	app.Delete("/users/:id/shop/restock-alerts/:offer_id", h.CustomerRestockAlert)
 	return app, u.ID, db
 }
 
@@ -143,7 +146,8 @@ func TestOnlyASiteThatMaySpendRunsAStorefront(t *testing.T) {
 	inv := "/users/" + strconv.FormatUint(uint64(user), 10) + "/shop"
 
 	for _, client := range []string{"reader", "awarder:"} {
-		for _, r := range [][2]string{{"GET", "/shop/storefront"}, {"GET", inv}, {"POST", inv + "/orders"}, {"PUT", inv + "/loadout"}} {
+		for _, r := range [][2]string{{"GET", "/shop/storefront"}, {"GET", inv}, {"POST", inv + "/orders"}, {"PUT", inv + "/loadout"},
+			{"PUT", inv + "/restock-alerts/1"}, {"DELETE", inv + "/restock-alerts/1"}} {
 			status, code := callAs(t, app, r[0], r[1], client, map[string]any{"offer_id": 1, "idempotency_key": "k", "slot": "avatar_frame"})
 			if status != 403 || code != errors.ErrShopNotStorefront {
 				t.Fatalf("%s %s as %q: HTTP %d code %d, want 403/%d", r[0], r[1], client, status, code, errors.ErrShopNotStorefront)
@@ -183,4 +187,58 @@ func callAs(t *testing.T, app *fiber.App, method, path, client string, body any)
 	}
 	_ = json.NewDecoder(resp.Body).Decode(&out)
 	return resp.StatusCode, out.Code
+}
+
+func TestASiteWithAnInboxSubscribesToRestocks(t *testing.T) {
+	app, user, db := newApp(t)
+	site := siteModel.Site{Name: "店面", Domain: "alert-" + strconv.FormatInt(time.Now().UnixNano(), 36) + ".test.local"}
+	if err := db.Create(&site).Error; err != nil {
+		t.Fatalf("create site: %v", err)
+	}
+	item := model.Item{Kind: model.KindRedeemCode, Status: model.ItemPublished, Name: "券", Render: []byte("{}"), CreatedBy: 1}
+	if err := db.Create(&item).Error; err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	offer := model.Offer{
+		Status: model.OfferActive, Costs: []byte(`[{"asset":"moemoepoint","amount":100}]`),
+		Rewards: []byte(`[{"item_id":` + strconv.FormatInt(item.ID, 10) + `}]`), CreatedBy: 1,
+	}
+	if err := db.Create(&offer).Error; err != nil {
+		t.Fatalf("create offer: %v", err)
+	}
+	t.Cleanup(func() {
+		db.Exec(`DELETE FROM shop_restock_alerts WHERE offer_id = ?`, offer.ID)
+		db.Exec(`DELETE FROM shop_offers WHERE id = ?`, offer.ID)
+		db.Exec(`DELETE FROM shop_items WHERE id = ?`, item.ID)
+		db.Exec(`DELETE FROM sites WHERE id = ?`, site.ID)
+	})
+	sid := strconv.FormatUint(uint64(site.ID), 10)
+	inv := "/users/" + strconv.FormatUint(uint64(user), 10) + "/shop"
+	alert := inv + "/restock-alerts/" + strconv.FormatInt(offer.ID, 10)
+
+	if status, code := callAs(t, app, "PUT", alert, "awarder:"+sid, nil); status != 403 || code != errors.ErrShopNotStorefront {
+		t.Fatalf("subscribing from a site with no inbox: HTTP %d code %d", status, code)
+	}
+	shop := "awarder:" + sid + "@kungal"
+	if status, code := callAs(t, app, "PUT", inv+"/restock-alerts/0", shop, nil); status != 400 || code != errors.ErrInvalidID {
+		t.Fatalf("a bad offer id: HTTP %d code %d", status, code)
+	}
+	for range 2 {
+		if status, code := callAs(t, app, "PUT", alert, shop, nil); status != 200 || code != 0 {
+			t.Fatalf("subscribe: HTTP %d code %d", status, code)
+		}
+	}
+	var got model.RestockAlert
+	if err := db.Where("user_id = ? AND offer_id = ?", user, offer.ID).First(&got).Error; err != nil ||
+		got.Inbox != "kungal" || got.SiteID != site.ID {
+		t.Fatalf("stored alert %+v: %v", got, err)
+	}
+	if status, code := callAs(t, app, "DELETE", alert, shop, nil); status != 200 || code != 0 {
+		t.Fatalf("unsubscribe: HTTP %d code %d", status, code)
+	}
+	var left int64
+	db.Model(&model.RestockAlert{}).Where("user_id = ?", user).Count(&left)
+	if left != 0 {
+		t.Fatalf("%d alerts left after unsubscribing", left)
+	}
 }

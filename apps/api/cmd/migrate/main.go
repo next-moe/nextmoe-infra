@@ -27,6 +27,7 @@ import (
 	"api/internal/platform/devapi"
 	ledgerModel "api/internal/platform/ledger/model"
 	ledgerService "api/internal/platform/ledger/service"
+	"api/internal/platform/notice"
 	"api/internal/platform/permissions"
 	"api/internal/platform/settings"
 	shopModel "api/internal/platform/shop/model"
@@ -315,6 +316,12 @@ func getAllModels() []any {
 		&shopModel.Entitlement{},
 		&shopModel.Loadout{},
 		&shopModel.Code{},
+		// 2026-10-11: restock alerts. shop_restock_alerts (who waits for which
+		// offer, and which site inbox to tell) and platform_notices (the
+		// outbox community reads into its notifications) are new tables with
+		// no rows to convert.
+		&shopModel.RestockAlert{},
+		&notice.Notice{},
 
 		// Site models
 		&siteModel.Site{},

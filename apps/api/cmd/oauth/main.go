@@ -380,6 +380,10 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 		middleware.OAuthClientBasicAuth(oauthClientRepo), middleware.NoStore(), shopH.CustomerPurchase)
 	v1.Put("/users/:id/shop/loadout",
 		middleware.OAuthClientBasicAuth(oauthClientRepo), middleware.NoStore(), shopH.CustomerEquip)
+	v1.Put("/users/:id/shop/restock-alerts/:offer_id",
+		middleware.OAuthClientBasicAuth(oauthClientRepo), middleware.NoStore(), shopH.CustomerRestockAlert)
+	v1.Delete("/users/:id/shop/restock-alerts/:offer_id",
+		middleware.OAuthClientBasicAuth(oauthClientRepo), middleware.NoStore(), shopH.CustomerRestockAlert)
 
 	users := v1.Group("/users", middleware.Auth(authSvc))
 	users.Get("/:uuid", authH.GetProfile)

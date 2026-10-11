@@ -61,6 +61,7 @@ export interface ShopOffer {
   stock: number | null
   sold: number
   remaining: number | null
+  restocked_at: string | null
   sort_order: number
   created_at: string
 }
@@ -92,6 +93,7 @@ export interface ShopCodePool {
   sellable: number
   sold: number
   shelf_days: number
+  waiting: number
   codes: ShopCode[]
 }
 

@@ -85,3 +85,29 @@ func (h *Handler) CustomerEquip(c fiber.Ctx) error {
 	}
 	return h.equip(c, userID, req)
 }
+
+type restockAlertView struct {
+	OfferID    int64 `json:"offer_id"`
+	Subscribed bool  `json:"subscribed"`
+}
+
+func (h *Handler) CustomerRestockAlert(c fiber.Ctx) error {
+	userID, site, deny := storefrontCustomer(c)
+	if deny != nil {
+		return deny()
+	}
+	offerID, err := strconv.ParseInt(c.Params("offer_id"), 10, 64)
+	if err != nil || offerID <= 0 {
+		return response.BadRequest(c, errors.ErrInvalidID)
+	}
+	subscribed := c.Method() == fiber.MethodPut
+	if subscribed {
+		err = h.shop.SubscribeRestock(c.Context(), userID, offerID, site, middleware.OAuthClientFromCtx(c).CommunityTenant())
+	} else {
+		err = h.shop.UnsubscribeRestock(c.Context(), userID, offerID)
+	}
+	if err != nil {
+		return respondErr(c, err)
+	}
+	return response.Success(c, restockAlertView{OfferID: offerID, Subscribed: subscribed})
+}

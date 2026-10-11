@@ -17,12 +17,21 @@ const title = computed(() =>
 const isCode = computed(() => lead.value?.item.kind === 'redeem_code')
 const unit = computed(() => (isCode.value ? '张' : '份'))
 
+const shortDate = (s: string) =>
+  new Date(s).toLocaleDateString('zh-CN', {
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'Asia/Shanghai'
+  })
+
 const facts = computed(() => {
   const o = props.offer
   const out: string[] = []
   if (o.stock !== null) out.push(`限量 ${o.stock} 份`)
   if (o.remaining !== null && o.remaining > 0)
     out.push(`还剩 ${o.remaining} ${unit.value}`)
+  if (o.sold > 0) out.push(`已售 ${o.sold} ${unit.value}`)
+  if (o.restocked_at) out.push(`${shortDate(o.restocked_at)}补货`)
   if (o.per_user_limit) {
     const period = o.limit_period === 'month' ? '每月' : '每人'
     out.push(

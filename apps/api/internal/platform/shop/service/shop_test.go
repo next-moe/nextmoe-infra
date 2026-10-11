@@ -15,6 +15,7 @@ import (
 	"api/internal/platform/ledger/ledgertest"
 	ledgerModel "api/internal/platform/ledger/model"
 	ledgerService "api/internal/platform/ledger/service"
+	"api/internal/platform/notice"
 	"api/internal/platform/shop/model"
 	siteModel "api/internal/platform/site/model"
 	"api/internal/testsupport/dbtest"
@@ -39,7 +40,7 @@ func TestMain(m *testing.M) {
 	if err := ledgertest.Migrate(db); err != nil {
 		dbtest.SkipMainf("shop suite", "migrate ledger: %v", err)
 	}
-	if err := db.AutoMigrate(append([]any{&siteModel.Site{}}, model.AllModels()...)...); err != nil {
+	if err := db.AutoMigrate(append([]any{&siteModel.Site{}, &notice.Notice{}}, model.AllModels()...)...); err != nil {
 		dbtest.SkipMainf("shop suite", "migrate shop: %v", err)
 	}
 	testDB = db
@@ -85,6 +86,8 @@ func (f *fixture) user(balance int64) uint {
 		testDB.Exec(`DELETE FROM shop_loadouts WHERE user_id = ?`, u.ID)
 		testDB.Exec(`DELETE FROM shop_entitlements WHERE user_id = ?`, u.ID)
 		testDB.Exec(`DELETE FROM shop_orders WHERE user_id = ?`, u.ID)
+		testDB.Exec(`DELETE FROM shop_restock_alerts WHERE user_id = ?`, u.ID)
+		testDB.Exec(`DELETE FROM platform_notices WHERE user_id = ?`, u.ID)
 		_ = ledgertest.Purge(testDB, u.ID)
 		testDB.Exec(`DELETE FROM users WHERE id = ?`, u.ID)
 	})

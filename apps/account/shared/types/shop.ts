@@ -48,6 +48,7 @@ export interface ShopOffer {
   stock: number | null
   sold: number
   remaining: number | null
+  restocked_at: string | null
 }
 
 export interface ShopOwnedItem {

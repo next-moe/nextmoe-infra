@@ -97,7 +97,10 @@ const remove = async (c: ShopCode) => {
 <template>
   <KunModal v-model="open" :title="`码池 · ${item?.name ?? ''}`" size="lg">
     <div class="space-y-4">
-      <div v-if="pool" class="grid grid-cols-3 gap-3 text-center">
+      <div
+        v-if="pool"
+        class="grid grid-cols-2 gap-3 text-center sm:grid-cols-4"
+      >
         <KunCard class="p-3">
           <p class="text-foreground text-xl font-semibold">
             {{ pool.sellable }}
@@ -111,6 +114,12 @@ const remove = async (c: ShopCode) => {
         <KunCard class="p-3">
           <p class="text-foreground text-xl font-semibold">{{ pool.total }}</p>
           <p class="text-default-400 text-xs">总数</p>
+        </KunCard>
+        <KunCard class="p-3">
+          <p class="text-foreground text-xl font-semibold">
+            {{ pool.waiting }}
+          </p>
+          <p class="text-default-400 text-xs">等补货</p>
         </KunCard>
       </div>
 

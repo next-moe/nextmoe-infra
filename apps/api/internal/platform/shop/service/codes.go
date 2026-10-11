@@ -86,6 +86,7 @@ type CodePool struct {
 	Sold      int          `json:"sold"`
 	Codes     []model.Code `json:"codes"`
 	ShelfDays int          `json:"shelf_days"`
+	Waiting   int          `json:"waiting"`
 }
 
 func (s *Shop) codeItem(tx *gorm.DB, itemID int64) error {
@@ -118,6 +119,9 @@ func (s *Shop) CodePool(ctx context.Context, itemID int64) (*CodePool, error) {
 		if c.OrderID != nil {
 			pool.Sold++
 		}
+	}
+	if pool.Waiting, err = waitingFor(db, itemID); err != nil {
+		return nil, err
 	}
 	return pool, nil
 }
@@ -160,6 +164,17 @@ func (s *Shop) AddCodes(ctx context.Context, in AddCodesInput, by uint) (*AddedC
 		if err := s.codeItem(tx, in.ItemID); err != nil {
 			return err
 		}
+		offers, err := offersOfItem(tx, in.ItemID)
+		if err != nil {
+			return err
+		}
+		now := s.now()
+		wasOnSale := make([]bool, len(offers))
+		for i := range offers {
+			if wasOnSale[i], err = s.onSale(tx, &offers[i], now); err != nil {
+				return err
+			}
+		}
 		var existing []string
 		if err := tx.Model(&model.Code{}).Where("code IN ?", fresh).Pluck("code", &existing).Error; err != nil {
 			return err
@@ -180,7 +195,15 @@ func (s *Shop) AddCodes(ctx context.Context, in AddCodesInput, by uint) (*AddedC
 		if len(rows) == 0 {
 			return nil
 		}
-		return tx.Create(&rows).Error
+		if err := tx.Create(&rows).Error; err != nil {
+			return err
+		}
+		for i := range offers {
+			if err := s.noticeIfBack(tx, &offers[i], wasOnSale[i], now); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err
