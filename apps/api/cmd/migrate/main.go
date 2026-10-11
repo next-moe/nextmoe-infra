@@ -188,6 +188,13 @@ func runPlatform(cfg *config.Config, args []string) {
 		os.Exit(1)
 	}
 
+	// users.avatar, the pre-image_service avatar URL (2026-10-11). See
+	// authModel.DropLegacyAvatarColumn for why it went in a release of its own.
+	if err := authModel.DropLegacyAvatarColumn(gormDB); err != nil {
+		slog.Error("failed to drop the legacy users.avatar column", "error", err)
+		os.Exit(1)
+	}
+
 	// Retire the dead moderation-skeleton tables (the moderation skeleton
 	// service was removed; Trust & Safety is the dedicated kun_trust DB).
 	// Idempotent DROP IF EXISTS, so a re-run is a no-op.

@@ -114,3 +114,23 @@ func EnsureNSFWDisplayCheck(db *gorm.DB) error {
 	}
 	return nil
 }
+
+// DropLegacyAvatarColumn removes users.avatar, the avatar URL from before
+// image_service. POST /auth/me/avatar only ever wrote avatar_image_hash, so
+// for anyone who re-uploaded the column kept showing the old picture to every
+// reader that took it as-is (chat, moyu). Since #380 (2026-10-11) every
+// avatar the API returns is built from the hash, and no binary reads or
+// writes the column. It could not be dropped in #380 itself: the deploy
+// migrates before the old oauth container is replaced, and that binary still
+// wrote the column.
+//
+// Existing rows: on 2026-10-11 production had 6,134 URLs, every one of them
+// next to a hash (0 URL-only rows), so nothing was migrated. The 6,134
+// (id, avatar) pairs were copied to kungal-neo:/root/avatar-drop/ first.
+// Idempotent, so the per-deploy re-run is a no-op.
+func DropLegacyAvatarColumn(db *gorm.DB) error {
+	if err := db.Exec(`ALTER TABLE IF EXISTS users DROP COLUMN IF EXISTS avatar`).Error; err != nil {
+		return fmt.Errorf("drop users.avatar: %w", err)
+	}
+	return nil
+}
