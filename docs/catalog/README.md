@@ -19,11 +19,11 @@
 
 ## 一句话总结
 
-> **catalog 只管「规范身份 + 外部锚 + 关系」。产品站保有自己的富展示行(intro/封面/评分…),只把「这是哪一个作品/人物」的身份问题委托给 catalog:批量 resolve 规范 id、按 redirect feed 清理被合并的旧 id、通过 claim 把产品行认领到一个 catalog work、经读面(锚反查/署名/实体搜索)取回身份与关系。写路径按 per-client site 绑定授权;读面无绑定。**
+> **catalog 只管「规范身份 + 外部锚 + 关系」(外加用户对作品的个人事实:收藏、时长、状态、评分)。产品站保有自己的富展示行(intro/封面…),只把「这是哪一个作品/人物」的身份问题委托给 catalog:批量 resolve 规范 id、按 redirect feed 清理被合并的旧 id、通过 claim 把产品行认领到一个 catalog work、经读面(锚反查/署名/实体搜索)取回身份与关系。写路径按 per-client site 绑定授权;读面无绑定。**
 
 ## 关键设计速查
 
-- **注册层 vs 展示体分界** —— catalog 存**身份/关系/来源锚**(work/release/credit_name/character/label/external_ref);**不存** intro、封面、评分、点赞——那些是产品站(body)的。
+- **注册层 vs 展示体分界** —— catalog 存**身份/关系/来源锚**(work/release/credit_name/character/label/external_ref);**不存** intro、封面、点赞——那些是产品站(body)的;用户评分自 2026-10-11 起全网统一存于 catalog(见 01 §4.7)。
 - **分级来源锚** —— `catalog_external_ref` 按 `link_kind` 分 exact(0)/probable(1)/related(2);exact 唯一约束保证「一个来源的一个外部 id 只锚一个实体」。
 - **未认领注册行(R2)** —— 导入的作品可先以 `site=NULL` 存在(某产品尚未拥有它);`claim` 到来时按锚**认领已存在的身份,绝不铸第二个**。
 - **S2S per-client site 绑定** —— 写端点 `claim` 要求认证 client 的 `oauth_clients.catalog_site` 非空**且** == 请求 site,否则 403;读端点不受限。

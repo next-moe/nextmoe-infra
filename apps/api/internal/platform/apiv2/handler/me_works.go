@@ -23,11 +23,11 @@ type listMyWorksOutput struct {
 func registerMeWorks(api huma.API, cat *Catalog) {
 	huma.Register(api, huma.Operation{
 		OperationID: "listMyWorks", Method: http.MethodGet, Path: "/v2/me/works",
-		Summary: "My folders, playtime and play state, per work",
-		Description: "What the bearer has recorded about works: the folders holding each work, its playtime and its play state. " +
-			"With work_ids, up to 100 works in one request with no pagination: one item per distinct work id, in the order asked. A work the bearer has recorded nothing about still gets an item, with empty folder_ids and null playtime and work_state, and so does an id that names no work. " +
-			"Without work_ids, every work the bearer holds in a folder of their own, has a playtime on, or has a play state on, one item per work in ascending work id, paged with cursor and limit; include_total counts them. " +
-			"The values are the ones /v2/me/folders/holdings, /v2/me/playtimes and /v2/me/work-states answer; this face saves a client from asking all three. " +
+		Summary: "My folders, playtime, play state and rating, per work",
+		Description: "What the bearer has recorded about works: the folders holding each work, its playtime, its play state and its rating. " +
+			"With work_ids, up to 100 works in one request with no pagination: one item per distinct work id, in the order asked. A work the bearer has recorded nothing about still gets an item, with empty folder_ids and null playtime, work_state and rating, and so does an id that names no work. " +
+			"Without work_ids, every work the bearer holds in a folder of their own, has a playtime on, has a play state on, or has rated, one item per work in ascending work id, paged with cursor and limit; include_total counts them. " +
+			"The values are the ones /v2/me/folders/holdings, /v2/me/playtimes, /v2/me/work-states and /v2/me/ratings answer; this face saves a client from asking all four. " +
 			"Cover votes are not included: they need catalog:edit, and /v2/me/cover-votes lists them. " +
 			"Requires a user access token with folder:read (folder:write also grants reads).",
 		Tags:               []string{"me"},
@@ -55,7 +55,7 @@ func listMyWorks(cat *Catalog) func(context.Context, *listMyWorksInput) (*listMy
 
 func (c *Catalog) ListMyWorks(ctx context.Context, q collect.Query, workIDs []string) (repr.List[repr.UserWork], error) {
 	var empty repr.List[repr.UserWork]
-	if c == nil || c.Folders == nil || c.Playtime == nil || c.WorkStates == nil {
+	if c == nil || c.Folders == nil || c.Playtime == nil || c.WorkStates == nil || c.Ratings == nil {
 		return empty, problem.New(problem.CodeServiceUnavailable, "", "", "my works are not bound.")
 	}
 	uid, _, err := requireUser(ctx)
@@ -122,6 +122,10 @@ func (c *Catalog) userWorks(ctx context.Context, uid int64, ids []int64) ([]repr
 	if err != nil {
 		return nil, err
 	}
+	ratings, err := c.Ratings.ListMineFor(ctx, uid, ids)
+	if err != nil {
+		return nil, err
+	}
 
 	folders := make(map[int64][]string, len(holdings))
 	for _, h := range holdings {
@@ -136,6 +140,10 @@ func (c *Catalog) userWorks(ctx context.Context, uid int64, ids []int64) ([]repr
 		v := userWorkStateRepr(s)
 		state[s.WorkID] = &v
 	}
+	rating := make(map[int64]*repr.UserRating, len(ratings))
+	for _, r := range ratings {
+		rating[r.WorkID] = userRatingPtr(&r)
+	}
 	items := make([]repr.UserWork, 0, len(ids))
 	seen := make(map[int64]bool, len(ids))
 	for _, id := range ids {
@@ -149,7 +157,7 @@ func (c *Catalog) userWorks(ctx context.Context, uid int64, ids []int64) ([]repr
 		}
 		items = append(items, repr.UserWork{
 			Object: "user_work", WorkID: repr.ID(id), FolderIDs: held,
-			Playtime: playtime[id], WorkState: state[id],
+			Playtime: playtime[id], WorkState: state[id], Rating: rating[id],
 		})
 	}
 	return items, nil

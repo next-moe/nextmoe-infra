@@ -37,29 +37,10 @@ func (s *UserWorkStateService) Set(ctx context.Context, uid, workID int64, state
 	if uid <= 0 {
 		return nil, ErrWorkStateActorRequired
 	}
-	switch state {
-	case model.WorkStateWish, model.WorkStateDoing, model.WorkStateDone,
-		model.WorkStateOnHold, model.WorkStateDropped:
-	default:
-		return nil, ErrWorkStateBadState
+	if err := ValidateWorkState(state, completion); err != nil {
+		return nil, err
 	}
-	if completion != nil {
-		switch *completion {
-		case model.WorkCompletionOneRoute, model.WorkCompletionMain, model.WorkCompletionAll:
-		default:
-			return nil, ErrWorkStateBadCompletion
-		}
-		if state == model.WorkStateWish {
-			return nil, ErrWorkStateCompletionOnWish
-		}
-	}
-	row := model.CatalogUserWorkState{
-		ActorUID: uid, WorkID: workID, State: state, Completion: completion,
-	}
-	var completionVal any
-	if completion != nil {
-		completionVal = *completion
-	}
+	var row model.CatalogUserWorkState
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := assertReportableWork(tx, workID); err != nil {
 			if err == ErrPlaytimeWorkUnavailable {
@@ -67,14 +48,9 @@ func (s *UserWorkStateService) Set(ctx context.Context, uid, workID int64, state
 			}
 			return err
 		}
-		return tx.Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "actor_uid"}, {Name: "work_id"}},
-			DoUpdates: clause.Assignments(map[string]any{
-				"state":      state,
-				"completion": completionVal,
-				"updated_at": time.Now(),
-			}),
-		}).Create(&row).Error
+		var err error
+		row, err = setWorkStateTx(tx, uid, workID, state, completion)
+		return err
 	})
 	if err != nil {
 		return nil, err
@@ -83,6 +59,69 @@ func (s *UserWorkStateService) Set(ctx context.Context, uid, workID int64, state
 		WorkID: row.WorkID, State: row.State, Completion: row.Completion,
 		CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
 	}, nil
+}
+
+func ValidateWorkState(state int16, completion *int16) error {
+	switch state {
+	case model.WorkStateWish, model.WorkStateDoing, model.WorkStateDone,
+		model.WorkStateOnHold, model.WorkStateDropped:
+	default:
+		return ErrWorkStateBadState
+	}
+	if completion != nil {
+		switch *completion {
+		case model.WorkCompletionOneRoute, model.WorkCompletionMain, model.WorkCompletionAll:
+		default:
+			return ErrWorkStateBadCompletion
+		}
+		if state == model.WorkStateWish {
+			return ErrWorkStateCompletionOnWish
+		}
+	}
+	return nil
+}
+
+// A changed state touches the author's rating, which carries it on the
+// public rating faces and must surface on /v2/ratings/changes.
+func setWorkStateTx(tx *gorm.DB, uid, workID int64, state int16, completion *int16) (model.CatalogUserWorkState, error) {
+	var before []model.CatalogUserWorkState
+	if err := tx.Where("actor_uid = ? AND work_id = ?", uid, workID).Limit(1).Find(&before).Error; err != nil {
+		return model.CatalogUserWorkState{}, err
+	}
+	row := model.CatalogUserWorkState{
+		ActorUID: uid, WorkID: workID, State: state, Completion: completion,
+	}
+	var completionVal any
+	if completion != nil {
+		completionVal = *completion
+	}
+	err := tx.Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "actor_uid"}, {Name: "work_id"}},
+		DoUpdates: clause.Assignments(map[string]any{
+			"state":      state,
+			"completion": completionVal,
+			"updated_at": time.Now(),
+		}),
+	}).Create(&row).Error
+	if err != nil {
+		return row, err
+	}
+	if len(before) == 0 || before[0].State != state || !sameCompletion(before[0].Completion, completion) {
+		err = touchRating(tx, uid, workID)
+	}
+	return row, err
+}
+
+func sameCompletion(a, b *int16) bool {
+	return (a == nil) == (b == nil) && (a == nil || *a == *b)
+}
+
+func deleteWorkStateTx(tx *gorm.DB, uid, workID int64) error {
+	res := tx.Where("actor_uid = ? AND work_id = ?", uid, workID).Delete(&model.CatalogUserWorkState{})
+	if res.Error != nil || res.RowsAffected == 0 {
+		return res.Error
+	}
+	return touchRating(tx, uid, workID)
 }
 
 func (s *UserWorkStateService) GetMine(ctx context.Context, uid, workID int64) (*WorkStateRecord, error) {
@@ -159,7 +198,7 @@ func (s *UserWorkStateService) DeleteMine(ctx context.Context, uid, workID int64
 	if workID <= 0 {
 		return ErrWorkStateWorkUnavailable
 	}
-	return s.db.WithContext(ctx).
-		Where("actor_uid = ? AND work_id = ?", uid, workID).
-		Delete(&model.CatalogUserWorkState{}).Error
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		return deleteWorkStateTx(tx, uid, workID)
+	})
 }

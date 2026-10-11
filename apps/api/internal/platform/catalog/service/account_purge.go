@@ -10,7 +10,7 @@ import (
 )
 
 type AccountPurged struct {
-	Folders, FolderItems, Playtimes, WorkStates, CoverVotes, EntityFollows, TagBlocks int64
+	Folders, FolderItems, Playtimes, WorkStates, Ratings, CoverVotes, EntityFollows, TagBlocks int64
 }
 
 // Every kun_catalog table that names a user is purged here, except the edit
@@ -26,6 +26,9 @@ func PurgeAccount(ctx context.Context, db *gorm.DB, uid int64) (AccountPurged, e
 	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var err error
 		if out.Folders, out.FolderItems, err = purgeOwnerFoldersTx(tx, uid); err != nil {
+			return err
+		}
+		if out.Ratings, err = deleteRatingsTx(tx, "actor_uid = ?", uid); err != nil {
 			return err
 		}
 		for _, step := range []struct {
@@ -52,7 +55,7 @@ func PurgeAccount(ctx context.Context, db *gorm.DB, uid int64) (AccountPurged, e
 	if out != (AccountPurged{}) {
 		slog.Info("catalog account purge", "user_id", uid,
 			"folders", out.Folders, "folder_items", out.FolderItems, "playtimes", out.Playtimes,
-			"work_states", out.WorkStates, "cover_votes", out.CoverVotes, "entity_follows", out.EntityFollows,
+			"work_states", out.WorkStates, "ratings", out.Ratings, "cover_votes", out.CoverVotes, "entity_follows", out.EntityFollows,
 			"tag_blocks", out.TagBlocks)
 	}
 	return out, nil

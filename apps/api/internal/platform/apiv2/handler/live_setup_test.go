@@ -233,6 +233,8 @@ func liveCatalog(t *testing.T) *liveEnv {
 			EditTypes:      reg,
 			Playtime:       catsvc.NewUserPlaytimeService(db),
 			WorkStates:     catsvc.NewUserWorkStateService(db),
+			Ratings:        catsvc.NewUserRatingService(db),
+			WorkRecords:    catsvc.NewUserWorkRecordService(db),
 			CompanyFollows: catsvc.NewUserEntityFollowService(db),
 			TagBlocks:      catsvc.NewUserTagBlockService(db),
 			Folders:        catsvc.NewUserFolderService(db),
@@ -1090,7 +1092,8 @@ func liveAuthPath(path string) string {
 	if path == folderHoldersPath {
 		return liveAppKeyHolder
 	}
-	if path == "/v2/folders" || strings.HasPrefix(path, "/v2/folders/") {
+	if path == "/v2/folders" || strings.HasPrefix(path, "/v2/folders/") ||
+		path == "/v2/ratings" || strings.HasPrefix(path, "/v2/ratings/") {
 		return liveAppKey
 	}
 	if strings.HasPrefix(path, "/v2/catalog/") && path != "/v2/catalog/stats" && !strings.HasPrefix(path, "/v2/catalog/schemas/") {

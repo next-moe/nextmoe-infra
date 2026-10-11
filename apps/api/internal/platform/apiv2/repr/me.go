@@ -179,6 +179,7 @@ type UserWork struct {
 	FolderIDs []string       `json:"folder_ids" doc:"The caller's own folders holding this work, id-ascending. Empty when none does."`
 	Playtime  *UserPlaytime  `json:"playtime" doc:"The caller's playtime on this work, as GET /v2/me/playtimes answers it. null when none is recorded."`
 	WorkState *UserWorkState `json:"work_state" doc:"The caller's play state on this work, as GET /v2/me/work-states answers it. null when none is set."`
+	Rating    *UserRating    `json:"rating" doc:"The caller's rating of this work, as GET /v2/me/ratings answers it. null when none."`
 }
 
 type FolderHolder struct {

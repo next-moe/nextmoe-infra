@@ -108,6 +108,10 @@ var liveReadPaths = []string{
 	"/v2/me/work-states",
 	"/v2/me/followed-companies",
 	"/v2/me/blocked-tags",
+	"/v2/me/ratings",
+	"/v2/me/work-records/{work_id}",
+	"/v2/ratings",
+	"/v2/ratings/changes",
 	"/v2/me/calendar",
 	"/v2/me/folders",
 	"/v2/me/folders/holdings",
@@ -139,6 +143,8 @@ var liveReadsNotSwept = map[string]string{
 	"/v2/me/work-states/{work_id}":           "404 until a state is written, which is TestLiveWorkStateLifecycle's job",
 	"/v2/me/followed-companies/{company_id}": "404 until a follow is written, which is TestLiveCompanyFollowLifecycle's job",
 	"/v2/me/blocked-tags/{tag_id}":           "404 until a block is written, which is TestLiveTagBlockLifecycle's job",
+	"/v2/me/ratings/{work_id}":               "404 until a rating is written, which is TestLiveRatingLifecycle's job",
+	"/v2/ratings/{id}":                       "no rating survives seedLiveFixtures; TestLiveRatingLifecycle reads the one it writes",
 	"/v2/catalog/search":                     "the live env binds no OpenSearch, so this face is 503 here",
 	"/v2/store/purchase-links/{product_id}":  "the live env binds no store service",
 	"/v2/store/stats":                        "the live env binds no store service",
@@ -154,6 +160,7 @@ var liveReadRequiredQuery = map[string]func(fx liveFix) string{
 	"/v2/folders/holders":       func(fx liveFix) string { return "?work_id=" + idstr(fx.Work) },
 	"/v2/me/folders/holdings":   func(fx liveFix) string { return "?work_ids=" + idstr(fx.Work) },
 	"/v2/me/works":              func(fx liveFix) string { return "?work_ids=" + idstr(fx.Work) },
+	"/v2/ratings":               func(fx liveFix) string { return "?work_id=" + idstr(fx.Work) },
 	"/v2/catalog/tag-exclusion": func(fx liveFix) string { return "?exclude_tag_tree=" + idstr(fx.Tag) },
 }
 
@@ -161,7 +168,7 @@ func liveReadURL(t *testing.T, tmpl string, fx liveFix) string {
 	t.Helper()
 	url := strings.NewReplacer(
 		"{code}", problem.CodeRateLimited, "{name}", "medium", "{object}", "work",
-		"{uid}", idstr(liveEmptyUID),
+		"{uid}", idstr(liveEmptyUID), "{work_id}", idstr(fx.Work),
 	).Replace(tmpl)
 	// Longest-prefix, not liveSubstitute's substring switch: that one matches
 	// "/tags" inside /v2/catalog/works/{id}/tags and addresses a tag id as if it

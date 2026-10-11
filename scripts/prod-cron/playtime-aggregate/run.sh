@@ -4,16 +4,18 @@
 #   1. playtime median — folds the per-user reports that downstream Galgame
 #      managers write to /v2/me/playtimes (catalog_user_playtime; /v1/playtime
 #      was retired 2026-08-27) into catalog_work_playtime, source `nextmoe`.
-#   2. forum rating mean — folds kungalgame.galgame_rating into
-#      catalog_work_rating, source `nextmoe` (≥3 voters, live kungal claim).
+#   2. rating score — folds catalog_user_work_rating (every site's ratings
+#      since 2026-10) into catalog_work_rating, source `nextmoe`.
 #
-# Why these must be jobs and not write-time triggers: the published number is
-# an aggregate over a population, so it changes when the POPULATION changes,
-# not only when one person reports. A work sitting at two finishers/raters
-# publishes nothing; the third makes it eligible, and a report withdrawn below
-# the threshold makes it ineligible again — both tools DELETE in that
-# direction too. Recomputing the whole eligible set daily is the only cheap
-# way to keep those two directions symmetric.
+# Why the playtime median must be a job and not a write-time trigger: the
+# published number is an aggregate over a population, so it changes when the
+# POPULATION changes, not only when one person reports. A work sitting at two
+# finishers publishes nothing; the third makes it eligible, and a report
+# withdrawn below the threshold makes it ineligible again — the tool DELETEs in
+# that direction too. Recomputing the whole eligible set daily is the only
+# cheap way to keep those two directions symmetric. Ratings are the other way
+# round: every write refreshes its own work at once, and this pass only
+# carries the network-wide mean that each score leans on to the other works.
 #
 # Safe to re-run at any time: writes are change-detected upserts, so a second
 # pass on an unchanged corpus writes nothing (unchanged=N, written=0).
@@ -66,7 +68,7 @@ run() {
 # The password rides PGPASSWORD, never the DSN: a container's processes sit in
 # this host's process table with their argv, and on 2026-09-02 `ps` printed the
 # assembled DSN with its password. pgx reads PGPASSWORD when the DSN names none.
-DSNSH='U="${KUN_CATALOG_PG_USER:-$KUN_PG_USER}"; export PGPASSWORD="${KUN_CATALOG_PG_PASSWORD:-$KUN_PG_PASSWORD}"; CAT="host=127.0.0.1 port=5432 user=$U dbname=kun_catalog sslmode=disable"; FORUM="host=127.0.0.1 port=5432 user=$U dbname=kungalgame sslmode=disable"'
+DSNSH='U="${KUN_CATALOG_PG_USER:-$KUN_PG_USER}"; export PGPASSWORD="${KUN_CATALOG_PG_PASSWORD:-$KUN_PG_PASSWORD}"; CAT="host=127.0.0.1 port=5432 user=$U dbname=kun_catalog sslmode=disable"'
 
 # A dry pass first, and a ceiling on it. The threshold means a work can only
 # appear once at least three different people have finished it, so organic
@@ -90,22 +92,7 @@ ELIGIBLE=$(sed -n 's/.*eligible=\([0-9]*\).*/\1/p' state/dry.log | tail -1)
 # the reporter threshold loses its nextmoe row rather than keeping a stale one.
 run sh -c "$DSNSH"'; aggregate-user-playtime --dsn "$CAT" --apply'
 
-# Forum rating mean onto catalog_work_rating / source nextmoe. Same dry-then-
-# ceiling-then-apply shape: organic daily movement is small, and a four-digit
-# eligible set on a routine day means something other than people rating games
-# moved the numbers.
-run sh -c "$DSNSH"'; aggregate-forum-ratings --dsn "$CAT" --forum-dsn "$FORUM"' > state/ratings-dry.log 2>&1 || {
-  echo "FATAL: ratings dry run failed"; cat state/ratings-dry.log; exit 1; }
-cat state/ratings-dry.log
-RATINGS_ELIGIBLE=$(sed -n 's/.*eligible=\([0-9]*\).*/\1/p' state/ratings-dry.log | tail -1)
-[ -n "$RATINGS_ELIGIBLE" ] || { echo "FATAL: could not read eligible= from the ratings dry run"; exit 1; }
-[ "$RATINGS_ELIGIBLE" -le "$CEILING" ] || {
-  echo "FATAL: $RATINGS_ELIGIBLE works eligible exceeds the ceiling $CEILING — inspect"
-  echo "       kungalgame.galgame_rating for a bulk import before"
-  echo "       letting this publish."
-  exit 1; }
-
-run sh -c "$DSNSH"'; aggregate-forum-ratings --dsn "$CAT" --forum-dsn "$FORUM" --apply'
+run sh -c "$DSNSH"'; aggregate-user-ratings --dsn "$CAT" --apply'
 
 find logs -name 'run-*.log' ! -name "run-$(date -u +%F).log" -exec gzip -qf {} \;
 find logs -name 'run-*.log.gz' -mtime +90 -delete

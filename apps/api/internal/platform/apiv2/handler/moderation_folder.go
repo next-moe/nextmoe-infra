@@ -85,7 +85,7 @@ func purgeUserFolders(cat *Catalog) func(context.Context, *purgeFoldersInput) (*
 		if in == nil {
 			in = &purgeFoldersInput{}
 		}
-		if err := requireFolderModerator(ctx); err != nil {
+		if err := requireModerator(ctx); err != nil {
 			return nil, catalogErr(ctx, err)
 		}
 		if cat == nil || cat.Folders == nil {
@@ -118,7 +118,7 @@ func listUserFolders(cat *Catalog) func(context.Context, *listUserFoldersInput) 
 		if err != nil {
 			return nil, err
 		}
-		if err := requireFolderModerator(ctx); err != nil {
+		if err := requireModerator(ctx); err != nil {
 			return nil, catalogErr(ctx, err)
 		}
 		if cat == nil || cat.Folders == nil {
@@ -173,7 +173,7 @@ func (c *Catalog) ListUserFolders(ctx context.Context, ownerUID int64, q collect
 	return finishList(items, next, total, q, nil), nil
 }
 
-func requireFolderModerator(ctx context.Context) error {
+func requireModerator(ctx context.Context) error {
 	if _, _, err := requireUser(ctx); err != nil {
 		return err
 	}
@@ -188,7 +188,7 @@ func patchModerationFolder(cat *Catalog) func(context.Context, *patchModerationF
 		if in == nil {
 			in = &patchModerationFolderInput{}
 		}
-		if err := requireFolderModerator(ctx); err != nil {
+		if err := requireModerator(ctx); err != nil {
 			return nil, catalogErr(ctx, err)
 		}
 		if cat == nil || cat.Folders == nil {
@@ -219,7 +219,7 @@ func deleteModerationFolder(cat *Catalog) func(context.Context, *moderationFolde
 		if in == nil {
 			in = &moderationFolderInput{}
 		}
-		if err := requireFolderModerator(ctx); err != nil {
+		if err := requireModerator(ctx); err != nil {
 			return nil, catalogErr(ctx, err)
 		}
 		if cat == nil || cat.Folders == nil {

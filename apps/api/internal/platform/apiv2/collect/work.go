@@ -252,7 +252,40 @@ func UserWorkSpec() Spec {
 		Sort:    []string{"work_id"},
 		Include: []string{},
 		FullSet: []string{},
-		Fields:  []string{"object", "work_id", "folder_ids", "playtime", "work_state"},
+		Fields:  []string{"object", "work_id", "folder_ids", "playtime", "work_state", "rating"},
+		NoBatch: true,
+	}
+}
+
+var ratingFields = []string{"object", "id", "work_id", "user_id", "overall", "aspect_scores", "recommend",
+	"spoiler_level", "short_summary", "client_id", "site", "created_at", "updated_at"}
+
+func MyRatingSpec() Spec {
+	return Spec{
+		Sort:    []string{"updated"},
+		Include: []string{},
+		FullSet: []string{},
+		Fields:  ratingFields,
+		NoBatch: true,
+	}
+}
+
+func RatingSpec() Spec {
+	return Spec{
+		Sort:    []string{"created_desc"},
+		Include: []string{},
+		FullSet: []string{},
+		Fields:  ratingFields,
+		NoBatch: true,
+	}
+}
+
+func RatingChangeSpec() Spec {
+	return Spec{
+		Sort:    []string{"changed"},
+		Include: []string{},
+		FullSet: []string{},
+		Fields:  []string{"object", "id", "work_id", "gone", "changed_at", "rating"},
 		NoBatch: true,
 	}
 }

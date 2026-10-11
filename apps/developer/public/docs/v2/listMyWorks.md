@@ -1,4 +1,4 @@
-# My folders, playtime and play state, per work · Public API v2
+# My folders, playtime, play state and rating, per work · Public API v2
 
 > NextMoe·未萌 开放 API —— ACGN 数据，以此为准。同一部作品在六个源各有一个页面，NextMoe 把它们对齐成一条记录，逐字段给出裁定后的标准答案，并附上答案取自哪个源。
 
@@ -11,9 +11,9 @@
 
 ## GET /v2/me/works
 
-My folders, playtime and play state, per work
+My folders, playtime, play state and rating, per work
 
-What the bearer has recorded about works: the folders holding each work, its playtime and its play state. With work_ids, up to 100 works in one request with no pagination: one item per distinct work id, in the order asked. A work the bearer has recorded nothing about still gets an item, with empty folder_ids and null playtime and work_state, and so does an id that names no work. Without work_ids, every work the bearer holds in a folder of their own, has a playtime on, or has a play state on, one item per work in ascending work id, paged with cursor and limit; include_total counts them. The values are the ones /v2/me/folders/holdings, /v2/me/playtimes and /v2/me/work-states answer; this face saves a client from asking all three. Cover votes are not included: they need catalog:edit, and /v2/me/cover-votes lists them. Requires a user access token with folder:read (folder:write also grants reads).
+What the bearer has recorded about works: the folders holding each work, its playtime, its play state and its rating. With work_ids, up to 100 works in one request with no pagination: one item per distinct work id, in the order asked. A work the bearer has recorded nothing about still gets an item, with empty folder_ids and null playtime, work_state and rating, and so does an id that names no work. Without work_ids, every work the bearer holds in a folder of their own, has a playtime on, has a play state on, or has rated, one item per work in ascending work id, paged with cursor and limit; include_total counts them. The values are the ones /v2/me/folders/holdings, /v2/me/playtimes, /v2/me/work-states and /v2/me/ratings answer; this face saves a client from asking all four. Cover votes are not included: they need catalog:edit, and /v2/me/cover-votes lists them. Requires a user access token with folder:read (folder:write also grants reads).
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
