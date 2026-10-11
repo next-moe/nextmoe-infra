@@ -107,9 +107,10 @@ func insertCrashes(tx *gorm.DB, appID int64, recs []otlp.Record) error {
 }
 
 type ClaimedCrash struct {
-	Crash      model.Crash
-	Attributes map[string]any
-	Prefixes   []string
+	Crash       model.Crash
+	Environment string
+	Attributes  map[string]any
+	Prefixes    []string
 }
 
 func ClaimCrash(tx *gorm.DB) (*ClaimedCrash, error) {
@@ -131,6 +132,7 @@ func ClaimCrash(tx *gorm.DB) (*ClaimedCrash, error) {
 		Frames         []byte
 		Fingerprint    string
 		IssueID        *int64
+		Environment    string
 		Attributes     []byte
 		Prefixes       []byte
 	}
@@ -138,7 +140,7 @@ func ClaimCrash(tx *gorm.DB) (*ClaimedCrash, error) {
 SELECT c.event_day, c.record_uid, c.app_id, c.service_version, c.session_id,
        c.event_name, c.kind, c.handled, c.status, c.needs, c.attempts,
        c.exception_type, c.message, c.stack, c.frames, c.fingerprint, c.issue_id,
-       e.attributes, COALESCE(a.in_app_prefixes, '[]'::jsonb) AS prefixes
+       e.environment, e.attributes, COALESCE(a.in_app_prefixes, '[]'::jsonb) AS prefixes
   FROM telemetry_crash c
   JOIN telemetry_event e ON e.event_day = c.event_day AND e.record_uid = c.record_uid
   LEFT JOIN telemetry_app a ON a.id = c.app_id
@@ -188,8 +190,9 @@ SELECT c.event_day, c.record_uid, c.app_id, c.service_version, c.session_id,
 			Fingerprint:    row.Fingerprint,
 			IssueID:        row.IssueID,
 		},
-		Attributes: attrs,
-		Prefixes:   prefixes,
+		Environment: row.Environment,
+		Attributes:  attrs,
+		Prefixes:    prefixes,
 	}, nil
 }
 
@@ -264,10 +267,10 @@ func upsertIssue(tx *gorm.DB, job *ClaimedCrash, res CrashResult) (int64, error)
 	var id int64
 	err := tx.Raw(`
 INSERT INTO telemetry_issue (
-	app_id, fingerprint, kind, title, culprit, status, resolved_in_version, regressed,
+	app_id, environment, fingerprint, kind, title, culprit, status, resolved_in_version, regressed,
 	first_seen_day, last_seen_day, first_version, last_version, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, '', false, ?::date, ?::date, ?, ?, now(), now())
-ON CONFLICT (app_id, fingerprint) DO UPDATE SET
+) VALUES (?, ?, ?, ?, ?, ?, ?, '', false, ?::date, ?::date, ?, ?, now(), now())
+ON CONFLICT (app_id, environment, fingerprint) DO UPDATE SET
 	last_seen_day = CASE WHEN EXCLUDED.last_seen_day > telemetry_issue.last_seen_day
 		THEN EXCLUDED.last_seen_day ELSE telemetry_issue.last_seen_day END,
 	last_version = CASE WHEN EXCLUDED.last_seen_day > telemetry_issue.last_seen_day
@@ -280,7 +283,7 @@ ON CONFLICT (app_id, fingerprint) DO UPDATE SET
 	regressed = CASE WHEN telemetry_issue.status = ? THEN true ELSE telemetry_issue.regressed END,
 	updated_at = now()
 RETURNING id`,
-		job.Crash.AppID, res.Fingerprint, job.Crash.Kind, res.Title, res.Culprit,
+		job.Crash.AppID, job.Environment, res.Fingerprint, job.Crash.Kind, res.Title, res.Culprit,
 		model.IssueOpen, day, day, job.Crash.ServiceVersion, job.Crash.ServiceVersion,
 		model.IssueResolved, model.IssueOpen, model.IssueResolved,
 	).Scan(&id).Error

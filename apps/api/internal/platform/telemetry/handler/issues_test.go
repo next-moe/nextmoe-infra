@@ -16,21 +16,23 @@ func TestListIssues(t *testing.T) {
 	var appID int64
 	require.NoError(t, testDB.Raw(`SELECT id FROM telemetry_app`).Scan(&appID).Error)
 	require.NoError(t, testDB.Exec(`INSERT INTO telemetry_issue (
-		app_id, fingerprint, kind, title, culprit, status, resolved_in_version, regressed,
+		app_id, environment, fingerprint, kind, title, culprit, status, resolved_in_version, regressed,
 		first_seen_day, last_seen_day, first_version, last_version, created_at, updated_at)
-		VALUES (?, 'fp-a', 'exception', 'A', 'c', 'open', '', false, '2026-09-20', '2026-09-29', '1.0', '1.1', now(), now()),
-		       (?, 'fp-b', 'java', 'B', 'c', 'open', '', false, '2026-09-21', '2026-09-28', '1.0', '1.0', now(), now()),
-		       (?, 'fp-c', 'exception', 'C', 'c', 'resolved', '', false, '2026-09-22', '2026-09-27', '1.0', '1.0', now(), now())`,
-		appID, appID, appID).Error)
+		VALUES (?, 'direct', 'fp-a', 'exception', 'A', 'c', 'open', '', false, '2026-09-20', '2026-09-29', '1.0', '1.1', now(), now()),
+		       (?, 'direct', 'fp-b', 'java', 'B', 'c', 'open', '', false, '2026-09-21', '2026-09-28', '1.0', '1.0', now(), now()),
+		       (?, 'direct', 'fp-c', 'exception', 'C', 'c', 'resolved', '', false, '2026-09-22', '2026-09-27', '1.0', '1.0', now(), now()),
+		       (?, 'dev', 'fp-a', 'exception', 'D', 'c', 'open', '', false, '2026-09-29', '2026-09-29', '1.1', '1.1', now(), now())`,
+		appID, appID, appID, appID).Error)
 	var ids []int64
 	require.NoError(t, testDB.Raw(`SELECT id FROM telemetry_issue ORDER BY title`).Scan(&ids).Error)
-	require.Len(t, ids, 3)
+	require.Len(t, ids, 4)
 	require.NoError(t, testDB.Exec(`INSERT INTO telemetry_issue_daily (issue_id, day, service_version, events, sessions) VALUES
 		(?, '2026-09-29', '1.1', 5, 2),
 		(?, '2026-09-28', '1.0', 1, 1),
 		(?, '2026-09-28', '1.0', 3, 1),
-		(?, '2026-09-27', '1.0', 9, 1)`,
-		ids[0], ids[0], ids[1], ids[2]).Error)
+		(?, '2026-09-27', '1.0', 9, 1),
+		(?, '2026-09-29', '1.1', 50, 1)`,
+		ids[0], ids[0], ids[1], ids[2], ids[3]).Error)
 
 	app, _ := buildAdminApp()
 	q := "/api/v1/admin/telemetry/issues?app_id=" + strconv.FormatInt(appID, 10) + "&from=2026-09-16&to=2026-09-29"
@@ -56,6 +58,15 @@ func TestListIssues(t *testing.T) {
 	require.Equal(t, "B", env.Data[1].Title)
 	require.Equal(t, 3, env.Data[1].Events)
 	require.Greater(t, len(env.Data[0].Series), 10)
+
+	require.Contains(t, string(raw), `"environment":"direct"`)
+	require.NotContains(t, string(raw), `"title":"D"`)
+
+	stt, raw = doJSON(t, app, "GET", q+"&environment=dev", "ren", "")
+	require.Equal(t, 200, stt, string(raw))
+	require.NoError(t, json.Unmarshal(raw, &env))
+	require.Len(t, env.Data, 1)
+	require.Equal(t, "D", env.Data[0].Title)
 
 	stt, raw = doJSON(t, app, "GET", q+"&kind=java", "ren", "")
 	require.Equal(t, 200, stt, string(raw))
@@ -84,9 +95,9 @@ func TestGetIssue(t *testing.T) {
 	var appID int64
 	require.NoError(t, testDB.Raw(`SELECT id FROM telemetry_app`).Scan(&appID).Error)
 	require.NoError(t, testDB.Exec(`INSERT INTO telemetry_issue (
-		app_id, fingerprint, kind, title, culprit, status, resolved_in_version, regressed,
+		app_id, environment, fingerprint, kind, title, culprit, status, resolved_in_version, regressed,
 		first_seen_day, last_seen_day, first_version, last_version, created_at, updated_at)
-		VALUES (?, 'fp-g', 'exception', 'Boom', 'fn', 'open', '', false, '2026-09-29', '2026-09-29', '1.0', '1.0', now(), now())`, appID).Error)
+		VALUES (?, 'direct', 'fp-g', 'exception', 'Boom', 'fn', 'open', '', false, '2026-09-29', '2026-09-29', '1.0', '1.0', now(), now())`, appID).Error)
 	var issueID int64
 	require.NoError(t, testDB.Raw(`SELECT id FROM telemetry_issue`).Scan(&issueID).Error)
 	uid := "cccccccccccccccccccccccccccccccc"
@@ -125,9 +136,9 @@ func TestUpdateIssue(t *testing.T) {
 	var appID int64
 	require.NoError(t, testDB.Raw(`SELECT id FROM telemetry_app`).Scan(&appID).Error)
 	require.NoError(t, testDB.Exec(`INSERT INTO telemetry_issue (
-		app_id, fingerprint, kind, title, culprit, status, resolved_in_version, regressed,
+		app_id, environment, fingerprint, kind, title, culprit, status, resolved_in_version, regressed,
 		first_seen_day, last_seen_day, first_version, last_version, created_at, updated_at)
-		VALUES (?, 'fp-u', 'exception', 'T', 'c', 'open', '', true, '2026-09-29', '2026-09-29', '1.0', '1.0', now(), now())`, appID).Error)
+		VALUES (?, 'direct', 'fp-u', 'exception', 'T', 'c', 'open', '', true, '2026-09-29', '2026-09-29', '1.0', '1.0', now(), now())`, appID).Error)
 	var issueID int64
 	require.NoError(t, testDB.Raw(`SELECT id FROM telemetry_issue`).Scan(&issueID).Error)
 	path := "/api/v1/admin/telemetry/issues/" + strconv.FormatInt(issueID, 10)

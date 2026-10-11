@@ -14,6 +14,7 @@ type IssueDayPoint struct {
 type IssueView struct {
 	ID                int64  `json:"id"`
 	AppID             int64  `json:"app_id"`
+	Environment       string `json:"environment"`
 	Fingerprint       string `json:"fingerprint"`
 	Kind              string `json:"kind"`
 	Title             string `json:"title"`
@@ -75,6 +76,7 @@ func IssueViewFrom(i model.Issue) IssueView {
 	return IssueView{
 		ID:                i.ID,
 		AppID:             i.AppID,
+		Environment:       i.Environment,
 		Fingerprint:       i.Fingerprint,
 		Kind:              i.Kind,
 		Title:             i.Title,
