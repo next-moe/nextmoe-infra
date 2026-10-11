@@ -1,15 +1,27 @@
 package repr
 
 type Tag struct {
+	_               struct{}  `json:"-" additionalProperties:"true"`
+	Object          string    `json:"object" enum:"tag" doc:"Type discriminant. Always tag."`
+	ID              string    `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog tag id."`
+	DisplayName     string    `json:"display_name" maxLength:"512" doc:"Must not be used as a discriminant."`
+	Tier            string    `json:"tier" enum:"core,longtail,hidden" doc:"Tag inventory tier."`
+	TagKind         string    `json:"tag_kind" enum:"content,meta" doc:"Tag vocabulary class."`
+	WorkCount       int       `json:"work_count" minimum:"0" doc:"Works visible under the same NSFW gate."`
+	IsSexual        bool      `json:"is_sexual" doc:"Whether this tag is in the sexual family. Filter on it before rendering a tag list to an SFW reader."`
+	Intros          *[]Intro  `json:"intros,omitempty" doc:"Tag descriptions, one per language. Present when include=intros, detail face only. Empty array if none. is_machine is always false here: the store carries no provenance for a tag description, so false records unknown, not human-written."`
+	Parents         []TagRef  `json:"parents" doc:"Direct parents, ordered by id. Empty array for a root. Never null. The hierarchy is VNDB's tag tree projected onto canonical tags, plus reviewed edges for tags VNDB does not carry; a tag can have several parents."`
+	ChildCount      int       `json:"child_count" minimum:"0" doc:"Direct children."`
+	DescendantCount int       `json:"descendant_count" minimum:"0" doc:"Tags below this one at any depth, each counted once."`
+	Children        *[]TagRef `json:"children,omitempty" doc:"Direct children, ordered by id. Present when include=children, detail face only. Empty array if none."`
+}
+
+type TagRef struct {
 	_           struct{} `json:"-" additionalProperties:"true"`
 	Object      string   `json:"object" enum:"tag" doc:"Type discriminant. Always tag."`
 	ID          string   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog tag id."`
 	DisplayName string   `json:"display_name" maxLength:"512" doc:"Must not be used as a discriminant."`
-	Tier        string   `json:"tier" enum:"core,longtail,hidden" doc:"Tag inventory tier."`
-	TagKind     string   `json:"tag_kind" enum:"content,meta" doc:"Tag vocabulary class."`
-	WorkCount   int      `json:"work_count" minimum:"0" doc:"Works visible under the same NSFW gate."`
-	IsSexual    bool     `json:"is_sexual" doc:"Whether this tag is in the sexual family. Filter on it before rendering a tag list to an SFW reader."`
-	Intros      *[]Intro `json:"intros,omitempty" doc:"Tag descriptions, one per language. Present when include=intros, detail face only. Empty array if none. is_machine is always false here: the store carries no provenance for a tag description, so false records unknown, not human-written."`
+	IsSexual    bool     `json:"is_sexual" doc:"Whether this tag is in the sexual family."`
 }
 
 type Company struct {

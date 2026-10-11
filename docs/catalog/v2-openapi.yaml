@@ -7563,6 +7563,21 @@ components:
           format: uri
           readOnly: true
           type: string
+        child_count:
+          description: Direct children.
+          format: int64
+          minimum: 0
+          type: integer
+        children:
+          description: Direct children, ordered by id. Present when include=children, detail face only. Empty array if none.
+          items:
+            $ref: "#/components/schemas/TagRef"
+          type: array
+        descendant_count:
+          description: Tags below this one at any depth, each counted once.
+          format: int64
+          minimum: 0
+          type: integer
         display_name:
           description: Must not be used as a discriminant.
           maxLength: 512
@@ -7587,6 +7602,11 @@ components:
             - tag
           type: string
           x-vocabulary-closed: true
+        parents:
+          description: Direct parents, ordered by id. Empty array for a root. Never null. The hierarchy is VNDB's tag tree projected onto canonical tags, plus reviewed edges for tags VNDB does not carry; a tag can have several parents.
+          items:
+            $ref: "#/components/schemas/TagRef"
+          type: array
         tag_kind:
           description: Tag vocabulary class.
           enum:
@@ -7614,6 +7634,37 @@ components:
         - tier
         - tag_kind
         - work_count
+        - is_sexual
+        - parents
+        - child_count
+        - descendant_count
+      type: object
+    TagRef:
+      additionalProperties: true
+      properties:
+        display_name:
+          description: Must not be used as a discriminant.
+          maxLength: 512
+          type: string
+        id:
+          description: Catalog tag id.
+          maxLength: 20
+          minLength: 1
+          pattern: ^[0-9]+$
+          type: string
+        is_sexual:
+          description: Whether this tag is in the sexual family.
+          type: boolean
+        object:
+          description: Type discriminant. Always tag.
+          enum:
+            - tag
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - id
+        - display_name
         - is_sexual
       type: object
     Trait:
@@ -8829,7 +8880,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.39.0
+  version: 2.40.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -13082,7 +13133,7 @@ paths:
         - catalog
   /v2/catalog/tags/{id}:
     get:
-      description: Canonical tag. include=intros adds the per-language tag descriptions. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+      description: Canonical tag. include=intros adds the per-language tag descriptions; include=children adds the direct children. parents, child_count and descendant_count place the tag in the tag hierarchy. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogTag
       parameters:
         - description: Decimal catalog id.

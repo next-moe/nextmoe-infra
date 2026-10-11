@@ -65,3 +65,21 @@ type CatalogTagIntro struct {
 }
 
 func (CatalogTagIntro) TableName() string { return "catalog_tag_intro" }
+
+const (
+	TagParentOriginVNDB    int16 = 0
+	TagParentOriginCurated int16 = 1
+)
+
+type CatalogTagParent struct {
+	TagID     int64     `gorm:"primaryKey;autoIncrement:false" json:"tag_id"`
+	ParentID  int64     `gorm:"primaryKey;autoIncrement:false;index" json:"parent_id"`
+	Origin    int16     `gorm:"not null" json:"origin"`
+	Note      string    `gorm:"type:text;not null;default:''" json:"note"`
+	CreatedAt time.Time `json:"created_at"`
+
+	Tag    *CatalogTag `gorm:"foreignKey:TagID" json:"tag,omitempty"`
+	Parent *CatalogTag `gorm:"foreignKey:ParentID" json:"parent,omitempty"`
+}
+
+func (CatalogTagParent) TableName() string { return "catalog_tag_parent" }

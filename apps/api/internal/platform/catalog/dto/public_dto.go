@@ -537,15 +537,19 @@ type PublicChangesData struct {
 }
 
 type PublicTagDetail struct {
-	ID         int64             `json:"id"`
-	Name       string            `json:"name"`
-	Tier       string            `json:"tier" doc:"core|longtail|hidden"`
-	Kind       string            `json:"kind" doc:"content|meta"`
-	WorkCount  int               `json:"work_count"`
-	Sexual     bool              `json:"sexual"`
-	Intros     []PublicIntro     `json:"intros" doc:"tag descriptions per language. machine is ALWAYS false on this face — catalog_tag_intro carries no provenance column, so the flag records \"unknown\", not \"human-written\"; do not read an absent machine here as a quality signal"`
-	Works      []PublicWorkBrief `json:"works,omitempty"`
-	NextOffset *int              `json:"next_offset,omitempty"`
+	ID              int64             `json:"id"`
+	Name            string            `json:"name"`
+	Tier            string            `json:"tier" doc:"core|longtail|hidden"`
+	Kind            string            `json:"kind" doc:"content|meta"`
+	WorkCount       int               `json:"work_count"`
+	Sexual          bool              `json:"sexual"`
+	Intros          []PublicIntro     `json:"intros" doc:"tag descriptions per language. machine is ALWAYS false on this face — catalog_tag_intro carries no provenance column, so the flag records \"unknown\", not \"human-written\"; do not read an absent machine here as a quality signal"`
+	Parents         []PublicTagRef    `json:"parents"`
+	ChildCount      int               `json:"child_count"`
+	DescendantCount int               `json:"descendant_count"`
+	Children        []PublicTagRef    `json:"children"`
+	Works           []PublicWorkBrief `json:"works,omitempty"`
+	NextOffset      *int              `json:"next_offset,omitempty"`
 }
 
 type PublicLabelListItem struct {
@@ -569,12 +573,21 @@ type PublicLabelsListData struct {
 }
 
 type PublicTagListItem struct {
-	ID        int64  `json:"id"`
-	Name      string `json:"name"`
-	Tier      string `json:"tier" doc:"core|longtail|hidden"`
-	Kind      string `json:"kind" doc:"content|meta"`
-	WorkCount int    `json:"work_count"`
-	Sexual    bool   `json:"sexual"`
+	ID              int64          `json:"id"`
+	Name            string         `json:"name"`
+	Tier            string         `json:"tier" doc:"core|longtail|hidden"`
+	Kind            string         `json:"kind" doc:"content|meta"`
+	WorkCount       int            `json:"work_count"`
+	Sexual          bool           `json:"sexual"`
+	Parents         []PublicTagRef `json:"parents"`
+	ChildCount      int            `json:"child_count"`
+	DescendantCount int            `json:"descendant_count"`
+}
+
+type PublicTagRef struct {
+	ID     int64  `json:"id"`
+	Name   string `json:"name"`
+	Sexual bool   `json:"sexual"`
 }
 
 type PublicTagsListData struct {

@@ -29,6 +29,7 @@ type MergeStats struct {
 	IntrosMoved    int
 	IntrosDropped  int
 	CountsDropped  int
+	ParentsMoved   int
 	TagsDeleted    int
 	OpenProposals  int
 	Errors         int
@@ -107,7 +108,7 @@ func Merge(ctx context.Context, opts MergeOpts) (*MergeStats, error) {
 	slog.Info("tag merge done", "apply", opts.Apply, "records", st.Records, "planned", st.Planned,
 		"already_merged", st.AlreadyMerged, "maps_repointed", st.MapsRepointed,
 		"curated_aliases", st.CuratedAliases, "intros_moved", st.IntrosMoved,
-		"intros_dropped", st.IntrosDropped, "counts_dropped", st.CountsDropped,
+		"intros_dropped", st.IntrosDropped, "counts_dropped", st.CountsDropped, "parents_moved", st.ParentsMoved,
 		"tags_deleted", st.TagsDeleted, "open_proposals", st.OpenProposals, "errors", st.Errors)
 	return st, nil
 }
@@ -193,6 +194,23 @@ func applyMerge(ctx context.Context, db *gorm.DB, curated int16, r mergeRec, st 
 			return res.Error
 		}
 		st.CountsDropped += int(res.RowsAffected)
+
+		res = tx.Exec(`
+			INSERT INTO catalog_tag_parent (tag_id, parent_id, origin, note, created_at)
+			SELECT CASE WHEN tag_id = ? THEN ? ELSE tag_id END,
+			       CASE WHEN parent_id = ? THEN ? ELSE parent_id END,
+			       origin, note, created_at
+			FROM catalog_tag_parent
+			WHERE (tag_id = ? AND parent_id <> ?) OR (parent_id = ? AND tag_id <> ?)
+			ON CONFLICT DO NOTHING`,
+			r.FromID, r.IntoID, r.FromID, r.IntoID, r.FromID, r.IntoID, r.FromID, r.IntoID)
+		if res.Error != nil {
+			return res.Error
+		}
+		st.ParentsMoved += int(res.RowsAffected)
+		if err := tx.Exec(`DELETE FROM catalog_tag_parent WHERE tag_id = ? OR parent_id = ?`, r.FromID, r.FromID).Error; err != nil {
+			return err
+		}
 
 		res = tx.Exec(`DELETE FROM catalog_tag WHERE id = ?`, r.FromID)
 		if res.Error != nil {
