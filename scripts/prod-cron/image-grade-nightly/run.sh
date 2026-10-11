@@ -15,7 +15,9 @@
 # moondream on Cloudflare Workers AI; the account fell to the free daily
 # allocation on 2026-09-18, after which nights graded 0-4,500 images and the
 # queue grew every week. The tagger runs on this host's CPU, capped at two cores
-# (~2 img/s measured here), and costs nothing per image.
+# (~2 img/s measured here) and at a quarter of the default CPU weight, so under
+# load the sites keep the CPU and the grading slows instead; it costs nothing
+# per image.
 #
 # Runs from images resolved to a digest below; nothing is staged on this host.
 # The image service env lives in /root/imgsafety/env.img. Canonical copy:
@@ -69,7 +71,7 @@ DSNSH='export PGPASSWORD="$KUN_PG_PASSWORD"; B="host='"$PGHOST_C"' port=5432 use
 # Step A — grade only the ungraded.
 echo "--- step A: grade new images ---"
 docker rm -f "$TAGGER" >/dev/null 2>&1 || true
-docker run -d --rm --name "$TAGGER" --network dokploy-network --cpus 2 --memory 2g \
+docker run -d --rm --name "$TAGGER" --network dokploy-network --cpus 2 --cpu-shares 256 --memory 2g \
   -e WD_THREADS=2 "$WD_IMG" >/dev/null
 docker run --rm --network dokploy-network \
   --env-file "$ENVDIR/env.img" \
