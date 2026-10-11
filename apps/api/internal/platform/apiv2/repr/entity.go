@@ -16,6 +16,13 @@ type Tag struct {
 	Children        *[]TagRef `json:"children,omitempty" doc:"Direct children, ordered by id. Present when include=children, detail face only. Empty array if none."`
 }
 
+type TagExclusion struct {
+	_       struct{} `json:"-" additionalProperties:"true"`
+	Object  string   `json:"object" enum:"tag_exclusion" doc:"Type discriminant. Always tag_exclusion."`
+	TagIDs  []string `json:"tag_ids" doc:"Every tag the parameters exclude: the exact ids, and each tree id with every tag below it. Ascending. Never null."`
+	WorkIDs []string `json:"work_ids" doc:"Every catalog work that carries any of tag_ids, from any source, at any spoiler level and under any rating. Ascending. Never null. These are the works /v2/catalog/works drops for the same parameters, so a site listing works from its own store drops them to match."`
+}
+
 type TagRef struct {
 	_           struct{} `json:"-" additionalProperties:"true"`
 	Object      string   `json:"object" enum:"tag" doc:"Type discriminant. Always tag."`

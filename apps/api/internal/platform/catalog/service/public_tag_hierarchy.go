@@ -119,3 +119,19 @@ func tagExclusionWhere(workCol string, ids []int64) (string, []any) {
 		JOIN catalog_tag_source_map xm ON xm.source_id = xwt.source_id AND xm.source_name = xwt.name
 		WHERE xwt.work_id = ` + workCol + ` AND xm.tag_id IN ?)`, []any{ids}
 }
+
+func (s *PublicService) ExcludedWorkIDs(ctx context.Context, tagIDs []int64) ([]int64, error) {
+	out := []int64{}
+	if len(tagIDs) == 0 {
+		return out, nil
+	}
+	if err := s.db.WithContext(ctx).Raw(`
+		SELECT DISTINCT wt.work_id FROM catalog_work_tag wt
+		JOIN catalog_tag_source_map m ON m.source_id = wt.source_id AND m.source_name = wt.name
+		JOIN catalog_work w ON w.id = wt.work_id AND w.deleted_at IS NULL
+		WHERE m.tag_id IN ?
+		ORDER BY wt.work_id`, tagIDs).Scan(&out).Error; err != nil {
+		return nil, err
+	}
+	return out, nil
+}
