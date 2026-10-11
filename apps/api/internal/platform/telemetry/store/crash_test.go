@@ -163,7 +163,17 @@ func loadCrash(t *testing.T) ClaimedCrash {
 	if err := testDB.Order("record_uid").Take(&c).Error; err != nil {
 		t.Fatal(err)
 	}
-	return ClaimedCrash{Crash: c, Attributes: map[string]any{}, Prefixes: nil}
+	return ClaimedCrash{Crash: c, Environment: crashEnv(t, c), Attributes: map[string]any{}, Prefixes: nil}
+}
+
+func crashEnv(t *testing.T, c model.Crash) string {
+	t.Helper()
+	var env string
+	if err := testDB.Raw(`SELECT environment FROM telemetry_event WHERE event_day = ?::date AND record_uid = ?`,
+		c.EventDay.Format("2006-01-02"), c.RecordUID).Scan(&env).Error; err != nil {
+		t.Fatal(err)
+	}
+	return env
 }
 
 func sampleResult(fp, title string) CrashResult {
@@ -253,13 +263,53 @@ func TestResolvedIssueRegresses(t *testing.T) {
 	if err := testDB.Where("session_id = ?", sid(2)).Take(&c).Error; err != nil {
 		t.Fatal(err)
 	}
-	finish(t, &ClaimedCrash{Crash: c}, sampleResult("fp-r", "t"))
+	finish(t, &ClaimedCrash{Crash: c, Environment: crashEnv(t, c)}, sampleResult("fp-r", "t"))
 	var iss model.Issue
 	if err := testDB.Take(&iss).Error; err != nil {
 		t.Fatal(err)
 	}
 	if iss.Status != model.IssueOpen || !iss.Regressed {
 		t.Errorf("status=%s regressed=%v", iss.Status, iss.Regressed)
+	}
+}
+
+func TestLocalCrashKeepsOffTheDirectIssue(t *testing.T) {
+	truncate(t)
+	ts := time.Date(2026, 9, 28, 11, 0, 0, 0, time.UTC)
+	write(t, 1, rec("exception", sid(1), "1.0", "direct", ts, map[string]any{"exception.type": "A"}))
+	job := loadCrash(t)
+	finish(t, &job, sampleResult("fp-env", "t"))
+	directID := issueID(t)
+	if _, err := st.UpdateIssue(context.Background(), directID, model.IssueResolved, strPtr("1.0")); err != nil {
+		t.Fatal(err)
+	}
+	write(t, 1, rec("exception", sid(2), "1.1", "dev", ts.Add(24*time.Hour), map[string]any{"exception.type": "A"}))
+	claimed, err := st.ClaimOne(context.Background(), func(tx *gorm.DB, job *ClaimedCrash) error {
+		if job.Environment != "dev" {
+			t.Errorf("claimed environment %q", job.Environment)
+		}
+		return FinishCrash(tx, job, sampleResult("fp-env", "t"))
+	})
+	if err != nil || !claimed {
+		t.Fatalf("claimed=%v err=%v", claimed, err)
+	}
+	var issues []model.Issue
+	if err := testDB.Order("id").Find(&issues).Error; err != nil {
+		t.Fatal(err)
+	}
+	if len(issues) != 2 {
+		t.Fatalf("issues=%+v", issues)
+	}
+	direct, dev := issues[0], issues[1]
+	if direct.ID != directID || direct.Environment != "direct" {
+		t.Fatalf("direct=%+v", direct)
+	}
+	if direct.Status != model.IssueResolved || direct.Regressed || direct.LastVersion != "1.0" ||
+		direct.LastSeenDay.Format("2006-01-02") != "2026-09-28" {
+		t.Errorf("a dev crash moved the direct issue: %+v", direct)
+	}
+	if dev.Environment != "dev" || dev.Status != model.IssueOpen || dev.Regressed || dev.FirstVersion != "1.1" {
+		t.Errorf("dev=%+v", dev)
 	}
 }
 
@@ -277,7 +327,7 @@ func TestIgnoredStaysIgnored(t *testing.T) {
 	if err := testDB.Where("session_id = ?", sid(2)).Take(&c).Error; err != nil {
 		t.Fatal(err)
 	}
-	finish(t, &ClaimedCrash{Crash: c}, sampleResult("fp-i", "t"))
+	finish(t, &ClaimedCrash{Crash: c, Environment: crashEnv(t, c)}, sampleResult("fp-i", "t"))
 	var iss model.Issue
 	if err := testDB.Take(&iss).Error; err != nil {
 		t.Fatal(err)
@@ -299,7 +349,7 @@ func TestFirstLastVersion(t *testing.T) {
 	if err := testDB.Where("session_id = ?", sid(2)).Take(&c).Error; err != nil {
 		t.Fatal(err)
 	}
-	finish(t, &ClaimedCrash{Crash: c}, sampleResult("fp-v", "t"))
+	finish(t, &ClaimedCrash{Crash: c, Environment: crashEnv(t, c)}, sampleResult("fp-v", "t"))
 	var iss model.Issue
 	if err := testDB.Take(&iss).Error; err != nil {
 		t.Fatal(err)
@@ -360,9 +410,9 @@ func TestIssueDailyRetention(t *testing.T) {
 	old := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	keep := receiptNow()
 	if err := testDB.Exec(`INSERT INTO telemetry_issue (
-		app_id, fingerprint, kind, title, culprit, status, resolved_in_version, regressed,
+		app_id, environment, fingerprint, kind, title, culprit, status, resolved_in_version, regressed,
 		first_seen_day, last_seen_day, first_version, last_version, created_at, updated_at)
-		VALUES (1,'fp','exception','t','c','open','', false, ?::date, ?::date, '1','1', now(), now())`,
+		VALUES (1,'direct','fp','exception','t','c','open','', false, ?::date, ?::date, '1','1', now(), now())`,
 		keep.Format("2006-01-02"), keep.Format("2006-01-02")).Error; err != nil {
 		t.Fatal(err)
 	}

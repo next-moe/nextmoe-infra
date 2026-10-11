@@ -571,6 +571,7 @@ export interface components {
             created_at: string;
             culprit: string;
             daily: components["schemas"]["IssueDailyView"][];
+            environment: string;
             fingerprint: string;
             first_seen_day: string;
             first_version: string;
@@ -590,6 +591,7 @@ export interface components {
             app_id: number;
             created_at: string;
             culprit: string;
+            environment: string;
             /** Format: int64 */
             events: number;
             fingerprint: string;
@@ -614,6 +616,7 @@ export interface components {
             app_id: number;
             created_at: string;
             culprit: string;
+            environment: string;
             fingerprint: string;
             first_seen_day: string;
             first_version: string;
@@ -1081,6 +1084,7 @@ export interface operations {
         parameters: {
             query: {
                 app_id: number;
+                environment?: string;
                 kind?: string;
                 status?: string;
                 version?: string;

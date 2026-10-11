@@ -22,7 +22,8 @@ func (s *Store) ruleContractNew(ctx context.Context, now time.Time, _ map[int64]
 		SELECT i.id, i.app_id, i.title, i.first_version
 		  FROM telemetry_issue i
 		  JOIN telemetry_app a ON a.id = i.app_id AND a.enabled
-		 WHERE i.kind = ?
+		 WHERE i.environment = 'direct'
+		   AND i.kind = ?
 		   AND i.created_at > ?`,
 		model.KindContract, now.Add(-newIssueWindow),
 	).Scan(&rows).Error; err != nil {
@@ -56,7 +57,8 @@ func (s *Store) ruleIssueNew(ctx context.Context, now time.Time, _ map[int64]mod
 		SELECT i.id, i.app_id, i.kind, i.title, i.culprit, i.first_version
 		  FROM telemetry_issue i
 		  JOIN telemetry_app a ON a.id = i.app_id AND a.enabled
-		 WHERE i.kind IN (?, ?, ?, ?)
+		 WHERE i.environment = 'direct'
+		   AND i.kind IN (?, ?, ?, ?)
 		   AND i.created_at > ?`,
 		model.KindException, model.KindJava, model.KindNative, model.KindANR, now.Add(-newIssueWindow),
 	).Scan(&rows).Error; err != nil {
@@ -90,7 +92,8 @@ func (s *Store) ruleIssueRegressed(ctx context.Context, now time.Time, _ map[int
 		SELECT i.id, i.app_id, i.title, i.last_version, i.last_seen_day
 		  FROM telemetry_issue i
 		  JOIN telemetry_app a ON a.id = i.app_id AND a.enabled
-		 WHERE i.regressed AND i.status = ?`,
+		 WHERE i.environment = 'direct'
+		   AND i.regressed AND i.status = ?`,
 		model.IssueOpen,
 	).Scan(&rows).Error; err != nil {
 		return nil, fmt.Errorf("rule issue_regressed: %w", err)
@@ -316,7 +319,8 @@ func (s *Store) ruleServerFaults(ctx context.Context, now time.Time, settings ma
 		       COUNT(*)::int AS n
 		  FROM telemetry_event e
 		  JOIN telemetry_app a ON a.id = e.app_id AND a.enabled
-		 WHERE e.event_name = 'exception'
+		 WHERE e.environment = 'direct'
+		   AND e.event_name = 'exception'
 		   AND e.attributes->>'app.fault' = 'server'
 		   AND e.event_time > ? AND e.event_time <= ?
 		 GROUP BY e.app_id, method, path, status`,
@@ -452,6 +456,7 @@ func (s *Store) ruleSilentApp(ctx context.Context, now time.Time, settings map[i
 		if err := s.db.WithContext(ctx).Raw(`
 			SELECT COUNT(*) FROM telemetry_event
 			 WHERE app_id = ?
+			   AND environment = 'direct'
 			   AND event_day >= ?::date
 			   AND event_time > ?`,
 			r.AppID, d1, now.Add(-time.Duration(st.SilentHours)*time.Hour),

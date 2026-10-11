@@ -26,15 +26,16 @@ func validatePrefixes(prefixes []string) error {
 }
 
 type listIssuesInput struct {
-	AppID   int64  `query:"app_id" required:"true"`
-	Kind    string `query:"kind"`
-	Status  string `query:"status"`
-	Version string `query:"version"`
-	From    string `query:"from"`
-	To      string `query:"to"`
-	Sort    string `query:"sort"`
-	Limit   int    `query:"limit"`
-	Offset  int    `query:"offset"`
+	AppID       int64  `query:"app_id" required:"true"`
+	Environment string `query:"environment" default:"direct"`
+	Kind        string `query:"kind"`
+	Status      string `query:"status"`
+	Version     string `query:"version"`
+	From        string `query:"from"`
+	To          string `query:"to"`
+	Sort        string `query:"sort"`
+	Limit       int    `query:"limit"`
+	Offset      int    `query:"offset"`
 }
 type listIssuesOutput struct {
 	Body Envelope[[]dto.IssueListItem]
@@ -77,15 +78,16 @@ func (s *AdminServer) listIssues(ctx context.Context, in *listIssuesInput) (*lis
 		return nil, apiErrMsg(http.StatusUnprocessableEntity, errors.ErrValidationFailed, "sort must be events or last_seen")
 	}
 	rows, err := s.store.ListIssues(ctx, store.IssueListParams{
-		AppID:   in.AppID,
-		Kind:    in.Kind,
-		Status:  status,
-		Version: in.Version,
-		From:    from,
-		To:      to,
-		Sort:    sort,
-		Limit:   in.Limit,
-		Offset:  in.Offset,
+		AppID:       in.AppID,
+		Environment: in.Environment,
+		Kind:        in.Kind,
+		Status:      status,
+		Version:     in.Version,
+		From:        from,
+		To:          to,
+		Sort:        sort,
+		Limit:       in.Limit,
+		Offset:      in.Offset,
 	})
 	if err != nil {
 		return nil, mapAdminErr("list issues", err)

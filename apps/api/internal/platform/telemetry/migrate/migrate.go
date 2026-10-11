@@ -29,6 +29,9 @@ import (
 )
 
 func Run(db *gorm.DB) error {
+	if err := issueEnvironment(db); err != nil {
+		return err
+	}
 	if err := db.AutoMigrate(
 		&model.App{},
 		&model.Session{},
@@ -49,6 +52,27 @@ func Run(db *gorm.DB) error {
 		return err
 	}
 	return partition.EnsurePartitions(db, time.Now().UTC())
+}
+
+// issueEnvironment splits telemetry_issue by deployment environment: the
+// unique key goes from (app_id, fingerprint) to (app_id, environment,
+// fingerprint), so a crash from a local dev/check build no longer opens,
+// ages or regresses the issue the direct channel's alerts look at. Existing
+// rows are labelled direct; production had 0 issue rows when this shipped.
+// It runs before AutoMigrate so the NOT NULL column lands on a table with
+// rows, and the old index is dropped so AutoMigrate builds the new one.
+func issueEnvironment(db *gorm.DB) error {
+	stmts := []string{
+		`ALTER TABLE IF EXISTS telemetry_issue ADD COLUMN IF NOT EXISTS environment text NOT NULL DEFAULT 'direct'`,
+		`ALTER TABLE IF EXISTS telemetry_issue ALTER COLUMN environment DROP DEFAULT`,
+		`DROP INDEX IF EXISTS idx_telemetry_issue_app_fp`,
+	}
+	for _, s := range stmts {
+		if err := db.Exec(s).Error; err != nil {
+			return fmt.Errorf("telemetry issue environment: %w", err)
+		}
+	}
+	return nil
 }
 
 func rawSQL(db *gorm.DB) error {

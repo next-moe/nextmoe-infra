@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import {
+  TELEMETRY_ENVIRONMENT_LABELS,
+  type TelemetryEnvironment
+} from '~/constants/telemetry'
 import type {
   TelemetryIssueDetail,
   TelemetryIssueView
@@ -23,10 +27,20 @@ const pending = ref(false)
 const resolveOpen = ref(false)
 const resolvedVersion = ref('')
 
-const backTo = computed(() => ({
-  path: '/telemetry/issues',
-  query: issue.value ? { app: String(issue.value.app_id) } : {}
-}))
+const envLabel = computed(() => {
+  const env = issue.value?.environment ?? ''
+  return TELEMETRY_ENVIRONMENT_LABELS[env as TelemetryEnvironment] ?? env
+})
+
+const backTo = computed(() => {
+  const query: Record<string, string> = {}
+  if (issue.value) {
+    query.app = String(issue.value.app_id)
+    if (issue.value.environment !== 'direct')
+      query.env = issue.value.environment
+  }
+  return { path: '/telemetry/issues', query }
+})
 
 const applyStatus = async (
   next: 'open' | 'resolved' | 'ignored',
@@ -92,6 +106,14 @@ const confirmResolve = () =>
         <div class="flex flex-wrap items-center gap-2">
           <TelemetryKindChip :kind="issue.kind" />
           <TelemetryIssueStatusChip :status="issue.status" />
+          <KunChip
+            v-if="issue.environment !== 'direct'"
+            color="default"
+            variant="flat"
+            size="xs"
+          >
+            {{ envLabel }}
+          </KunChip>
           <KunChip
             v-if="issue.regressed"
             color="danger"
