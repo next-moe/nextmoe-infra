@@ -38,6 +38,8 @@ curl "https://api.nextmoe.dev/v2/catalog/search?object=work&q=SEQUEL&nsfw=true" 
 
 没有信封：响应体**就是**那个集合。id 一律是字符串，翻页用 `next_cursor`（末页直接不出现这个键，没有 `has_more`）。
 
+`search` 一次搜所有实体，命中行只有名字、来源和分级。只找作品、又想在同一次请求里拿到封面、开发商、简介这些块时，用 `GET /v2/catalog/works?q=SEQUEL&nsfw=true&include=companies,intros`：同一个索引，结果直接是作品对象。
+
 ## 2 · 详情：默认瘦，按 include 取块 {#detail}
 
 ```bash

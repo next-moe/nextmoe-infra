@@ -409,12 +409,7 @@ func (s *PublicService) attachWorkFacets(ctx context.Context, rec *dto.PublicCat
 	}
 	rec.Ratings = s.publicDetailRatings(detail.Ratings)
 	rec.Tags = s.publicWorkTags(detail.Tags, spoilers)
-	rec.Playtimes = make([]dto.PublicPlaytime, 0, len(detail.Playtimes))
-	for _, p := range detail.Playtimes {
-		rec.Playtimes = append(rec.Playtimes, dto.PublicPlaytime{
-			Source: s.sourceKey(p.SourceID), Minutes: p.Minutes, VoteCount: p.VoteCount,
-		})
-	}
+	rec.Playtimes = s.publicPlaytimes(detail.Playtimes)
 	series, err := s.publicWorkSeries(ctx, detail.Series, nsfw)
 	if err != nil {
 		return err

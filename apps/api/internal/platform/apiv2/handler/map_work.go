@@ -50,6 +50,9 @@ func workFromListItem(it dto.PublicWorkListItem, include []string, logoURL func(
 	if want["credits"] {
 		w.Credits = ptrSlice(creditGroupsFrom(it.Credits))
 	}
+	if want["playtimes"] {
+		w.Playtimes = ptrSlice(playtimesFrom(it.Playtimes))
+	}
 	if it.ViaLabel != nil {
 		w.ViaCompany = &repr.ViaCompany{
 			Object: "company", ID: repr.ID(it.ViaLabel.ID),

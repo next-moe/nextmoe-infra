@@ -12,18 +12,19 @@ import (
 const listSpoilerCeiling int16 = 0
 
 type WorksListInclude struct {
-	Names   bool
-	Intros  bool
-	Labels  bool
-	Ratings bool
-	Covers  bool
-	Refs    bool
-	Tags    bool
-	Credits bool
+	Names     bool
+	Intros    bool
+	Labels    bool
+	Ratings   bool
+	Covers    bool
+	Refs      bool
+	Tags      bool
+	Credits   bool
+	Playtimes bool
 }
 
 func (i WorksListInclude) any() bool {
-	return i.Names || i.Intros || i.Labels || i.Ratings || i.Covers || i.Refs || i.Tags || i.Credits
+	return i.Names || i.Intros || i.Labels || i.Ratings || i.Covers || i.Refs || i.Tags || i.Credits || i.Playtimes
 }
 
 // intersect is the "fields acts AFTER include" rule: a block is loaded only
@@ -31,14 +32,15 @@ func (i WorksListInclude) any() bool {
 // carries two keys, so either one keeps it.
 func (i WorksListInclude) intersect(sel PublicFields) WorksListInclude {
 	return WorksListInclude{
-		Names:   i.Names && sel.Wants("latin", "localized"),
-		Intros:  i.Intros && sel.Wants("intros"),
-		Labels:  i.Labels && sel.Wants("labels"),
-		Ratings: i.Ratings && sel.Wants("ratings"),
-		Covers:  i.Covers && sel.Wants("covers"),
-		Refs:    i.Refs && sel.Wants("refs"),
-		Tags:    i.Tags && sel.Wants("tags"),
-		Credits: i.Credits && sel.Wants("credits"),
+		Names:     i.Names && sel.Wants("latin", "localized"),
+		Intros:    i.Intros && sel.Wants("intros"),
+		Labels:    i.Labels && sel.Wants("labels"),
+		Ratings:   i.Ratings && sel.Wants("ratings"),
+		Covers:    i.Covers && sel.Wants("covers"),
+		Refs:      i.Refs && sel.Wants("refs"),
+		Tags:      i.Tags && sel.Wants("tags"),
+		Credits:   i.Credits && sel.Wants("credits"),
+		Playtimes: i.Playtimes && sel.Wants("playtimes"),
 	}
 }
 
@@ -154,6 +156,15 @@ func (s *PublicService) attachWorkListBlocks(
 	if inc.Credits {
 		if err := s.attachWorkListCredits(ctx, items, rows, ids); err != nil {
 			return err
+		}
+	}
+	if inc.Playtimes {
+		playtimes, err := s.read.loadWorkPlaytimes(ctx, subjects)
+		if err != nil {
+			return err
+		}
+		for i, r := range rows {
+			items[i].Playtimes = s.publicPlaytimes(playtimes[r.ID])
 		}
 	}
 	return nil
@@ -334,6 +345,16 @@ func (s *PublicService) publicRatings(rows []WorkRatingRow) []dto.PublicRating {
 	for _, r := range rows {
 		out = append(out, dto.PublicRating{
 			Source: s.sourceKey(r.SourceID), Score: r.Score, VoteCount: r.VoteCount, Rank: r.Rank,
+		})
+	}
+	return out
+}
+
+func (s *PublicService) publicPlaytimes(rows []WorkPlaytimeRow) []dto.PublicPlaytime {
+	out := make([]dto.PublicPlaytime, 0, len(rows))
+	for _, p := range rows {
+		out = append(out, dto.PublicPlaytime{
+			Source: s.sourceKey(p.SourceID), Minutes: p.Minutes, VoteCount: p.VoteCount,
 		})
 	}
 	return out

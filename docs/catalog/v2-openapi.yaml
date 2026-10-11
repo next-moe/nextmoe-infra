@@ -9031,7 +9031,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.42.0
+  version: 2.43.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -12656,7 +12656,7 @@ paths:
         - catalog
   /v2/catalog/search:
     get:
-      description: Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. cursor= pages the hits. ids= is not accepted. page= selects page mode (see the page parameter). object=trait hits carry trait_path (group and direct parents). Without nsfw=true, sexual-family trait documents are excluded from the result and from total.
+      description: "Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. cursor= pages the hits. ids= is not accepted. page= selects page mode (see the page parameter). object=trait hits carry trait_path (group and direct parents). Without nsfw=true, sexual-family trait documents are excluded from the result and from total. A hit carries names, sources and content_rating only: to match a work by title and read its cover, release date, companies, intros, tags, ratings, playtimes or refs in the same call, use GET /v2/catalog/works?q= with include= or view=full."
       operationId: searchCatalog
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -13776,7 +13776,7 @@ paths:
         - catalog
   /v2/catalog/works:
     get:
-      description: Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. exclude_tag_id=/exclude_tag_tree= drop works by tag on every lane, search included. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. view/include/fields/ids/refs/facets follow the v2 collection contract. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on every lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE. page= selects page mode (see the page parameter).
+      description: Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. exclude_tag_id=/exclude_tag_tree= drop works by tag on every lane, search included. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. view/include/fields/ids/refs/facets follow the v2 collection contract. include= takes titles, refs, intros, covers, companies, ratings, tags, credits, playtimes. view=full is titles, refs, intros, covers, companies, ratings, tags; credits, playtimes come only when include= names them. Every block fills on every lane, the ids=/refs= batch lane included. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations, releases, popularity, series, platforms, screenshots, characters, engines, links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE. page= selects page mode (see the page parameter).
       operationId: listCatalogWorks
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -14079,7 +14079,7 @@ paths:
         - catalog
   /v2/catalog/works/{id}:
     get:
-      description: Work detail. spoiler=none|minor|major is the ceiling of the tags block and defaults to none. Merged ids are 404 ENTITY_MERGED with Link rel=canonical. r18 is 404 without nsfw=true. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+      description: Work detail. spoiler=none|minor|major is the ceiling of the tags block and defaults to none. Merged ids are 404 ENTITY_MERGED with Link rel=canonical. r18 is 404 without nsfw=true. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. include= takes titles, refs, relations, credits, releases, popularity, ratings, tags, playtimes, series, platforms, intros, covers, screenshots, characters, companies, engines, links. view=full is titles, refs, intros, covers, companies, tags, releases, ratings, relations, engines, series, links; credits, popularity, playtimes, platforms, screenshots, characters come only when include= names them.
       operationId: getCatalogWork
       parameters:
         - description: Decimal catalog id.

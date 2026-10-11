@@ -763,6 +763,12 @@ func seedLiveFixtures(db *gorm.DB, claims *catsvc.ClaimLifecycleService) (liveFi
 	}).Error; err != nil {
 		return fx, err
 	}
+	if err := db.Create(&[]model.CatalogWorkPlaytime{
+		{WorkID: w.ID, SourceID: 3, Minutes: 1987, VoteCount: 201},
+		{WorkID: w.ID, SourceID: 4, Minutes: 2400},
+	}).Error; err != nil {
+		return fx, err
+	}
 
 	tr := &model.CatalogCharacterTrait{
 		VndbTID: "i99999", Name: "Live Trait", GroupTID: "i1", Alias: "", Description: "",

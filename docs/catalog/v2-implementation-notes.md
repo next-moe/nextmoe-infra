@@ -1955,3 +1955,15 @@ The exclusion parameters filter what the catalog serves, but the busiest lists o
 - At least one parameter is required (400 otherwise). Anonymous calls are allowed, like every catalog read.
 
 **Spec is 2.42.0.** Additive: `getCatalogTagExclusion` and the `tag_exclusion` object. No migration.
+
+## Wave — playtimes on the works list, and an include vocabulary in every work description (2026-10-11)
+
+A local game manager's integration, built by an LLM from the published spec, planned three requests per game: `search`, then `works?q=`, then more. Two causes, both in the contract rather than in their code:
+
+- **Playtime was the one block a library needs that the batch lane could not carry.** Everything else a manager shows — cover, release date, companies with `attribution_role`, intros, tags, ratings including `nextmoe`, refs — already rode `GET /v2/catalog/works?ids=…&view=full` 100 at a time; average playtime was detail-only, so it cost one `works/{id}` read per game. `include=playtimes` is now on the works list vocabulary (`collect.WorkListInclude`), on every lane: SQL list, `q=` search, `ids=`/`refs=` batch, and the calendar faces that share `CalendarSpec`. The block is the detail face's, byte for byte (`TestLiveWorksListHydratesPlaytimes` compares them), loaded in one `catalog_work_playtime` query per page. It is an explicit ask on the list exactly as it is on the detail face: neither `view=full` changed, so no existing consumer's payload grew.
+- **The detail operation never said which tokens `include=` takes.** `getCatalogWork` described `spoiler=` and merges and nothing else; the parameter's own text is the shared "Comma-separated blocks. Unknown token is 400 UNKNOWN_INCLUDE." Both work operations now end with a sentence built from the specs themselves (`includeDoc`): the include vocabulary, what `view=full` expands to, and which tokens come only when named. The works list's list of detail-only blocks is derived the same way (`detailOnlyWorkIncludes`), so neither description can drift from the vocabulary it describes.
+- **`searchCatalog` now says what a hit is not.** A hit carries names, sources and `content_rating`; the description points a caller who wants work data in the same call to `works?q=`, which queries the same index and returns work objects.
+
+The native-app guide's anonymous-budget section is rewritten around a field-to-parameter table and a flow that spends at most one request per game plus one per hundred.
+
+**Spec is 2.43.0.** Additive: `playtimes` joins the works list `include=` vocabulary; three operation descriptions change. No migration.

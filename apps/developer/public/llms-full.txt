@@ -1080,6 +1080,8 @@ curl "https://api.nextmoe.dev/v2/catalog/search?object=work&q=SEQUEL&nsfw=true" 
 
 没有信封：响应体**就是**那个集合。id 一律是字符串，翻页用 `next_cursor`（末页直接不出现这个键，没有 `has_more`）。
 
+`search` 一次搜所有实体，命中行只有名字、来源和分级。只找作品、又想在同一次请求里拿到封面、开发商、简介这些块时，用 `GET /v2/catalog/works?q=SEQUEL&nsfw=true&include=companies,intros`：同一个索引，结果直接是作品对象。
+
 ## 2 · 详情：默认瘦，按 include 取块
 
 ```bash
@@ -1474,15 +1476,36 @@ const write = await fetch(url, {
 
 ## 不登录：匿名额度怎么花
 
-本地游戏管理器只想给用户的游戏库补元数据时，可以完全不带凭据。额度按**每台机器自己的公网 IP** 计（IPv6 按 /64），默认每分钟 30 次、每天 1,000 次，用户之间互不影响。按下面的方式调用，几百款游戏的库在这份额度里绰绰有余：
+本地游戏管理器只想给用户的游戏库补元数据时，可以完全不带凭据。额度按**每台机器自己的公网 IP** 计（IPv6 按 /64），默认每分钟 30 次、每天 1,000 次，用户之间互不影响。
 
-1. **手上有外部 id 就批量反查。** DLsite 的 RJ 号、Steam appid、VNDB / Bangumi / ErogameScape 的 id 都能直接查：`GET /v2/catalog/works?refs=dlsite:RJ007987,steam:4484600,vndb:v17&nsfw=true&include=refs`，一次最多 100 个，没命中的原样回在 `missing[]` 里。1,000 款游戏的库只要 10 次调用。
+**补元数据只用 `/v2/catalog/works`。** `/v2/catalog/search` 是跨实体搜索（作品、角色、厂商、标签……一起搜），命中行只有名字、外部来源和分级，拿不到封面和开发商。`works?q=` 查的是同一个搜索索引，但每条结果就是完整的作品对象，能用 `include=` 带上下表里的任何一块。
+
+**要什么，带什么。** 下表对 `works` 列表、`works?q=` 搜索和 `ids=` / `refs=` 批量全部适用：
+
+| 想要 | 字段 | 参数 |
+|------|------|------|
+| 封面、发售日（最早一次发行）、分级、原语言 | `cover`、`release_date`、`content_rating`、`olang` | 默认就有 |
+| 各语言的正式译名 | `latin`、`localized` | `include=titles` |
+| 简介 | `intros` | `include=intros` |
+| 开发商 / 发行商 | `companies[]`，按 `attribution_role` 分（`developer`、`publisher`……） | `include=companies` |
+| 标签 | `tags` | `include=tags` |
+| 评分，含 NextMoe 用户评分 | `ratings[]`，NextMoe 的是 `source: "nextmoe"` | `include=ratings` |
+| 其他站点的 id（VNDB、Bangumi、Steam、DLsite、ErogameScape……） | `refs[]` | `include=refs` |
+| 平均游玩时长 | `playtimes[]`，单位分钟，按来源分开给，不要跨源平均 | `include=playtimes` |
+| 全部别名、各平台的发行记录 | `titles[]`、`releases[]` | 只在 `GET /v2/catalog/works/{id}?include=titles,releases` |
+
+`view=full` 等于 `include=titles,refs,intros,covers,companies,ratings,tags`；时长要另外点名，所以一份「全都要」的请求是 `view=full&include=playtimes`。
+
+按下面的方式调用，每款游戏最多花 1 次，几百款的库在匿名额度里绰绰有余：
+
+1. **手上有外部 id 就批量反查。** DLsite 的 RJ 号、Steam appid、VNDB / Bangumi / ErogameScape 的 id 都能直接查：`GET /v2/catalog/works?refs=dlsite:RJ007987,steam:4484600,vndb:v17&nsfw=true&view=full&include=playtimes`，一次最多 100 个，没命中的原样回在 `missing[]` 里。1,000 款游戏的库只要 10 次调用。
    - **带上 `nsfw=true`。** 不带时 R18 作品一律当作不存在，会和真没收录的一起落进 `missing[]`；游戏库里 R18 作品往往占多数。要不要给用户显示 R18 内容，由你在本地决定，不要靠漏查来过滤。
-   - **带上 `include=refs`。** 结果按作品 id 排序，不按你请求的顺序，也不回显是哪个 id 命中的；用每部作品自己的 `refs[]` 对回你的游戏。
-2. **只有标题时才逐条搜。** `GET /v2/catalog/works?q=<标题>&limit=5&nsfw=true` 每款 1 次。首次匹配几百款要分几分钟跑完：读响应头 `RateLimit` 里的 `remaining` 与 `reset`，用完了就等 `reset` 秒，不要撞上 429 再重试。
-3. **详情批量拿。** 匹配完用 `GET /v2/catalog/works?ids=…`，一次 100 部；`include=titles,covers,companies,tags,ratings` 在批量请求里也会返回。发行、截图、角色这些按作品给的块，才需要逐部读 `/v2/catalog/works/{id}/…`。
-4. **刷新不要全量重扫。** 定期用 `ids=` 把库里的作品批量重读一遍，500 款的库每次 5 次调用。
-5. **设一个认得出的 User-Agent**，例如 `MyGalManager/1.4 (+https://github.com/you/repo)`，出问题时我们能找到你。
+   - **用 `refs[]` 对回你的游戏。** 结果按作品 id 排序，不按你请求的顺序，也不回显是哪个 id 命中的。`view=full` 已经含 `refs`；只点名 `include=` 时记得带上 `refs`。
+2. **只有标题时才逐条搜。** `GET /v2/catalog/works?q=<标题>&limit=5&nsfw=true&include=companies` 每款 1 次，候选上的封面、发售日、开发商足够让用户挑。首次匹配几百款要分几分钟跑完：读响应头 `RateLimit` 里的 `remaining` 与 `reset`，用完了就等 `reset` 秒，不要撞上 429 再重试。
+3. **选定后批量取详情。** 把匹配到的作品 id 攒起来，`GET /v2/catalog/works?ids=…&nsfw=true&view=full&include=playtimes`，一次 100 部。不要对每款再搜一次或再读一次详情。
+4. **别名和发行记录等用户点开时再取。** `GET /v2/catalog/works/{id}?nsfw=true&include=titles,releases` 是逐部读，放在详情页打开时，不要放进导入流程。截图、角色、制作人员同理，各有 `/v2/catalog/works/{id}/…` 子资源。
+5. **刷新不要全量重扫。** 定期用第 3 步的 `ids=` 请求把库里的作品重读一遍，500 款的库每次 5 次调用。
+6. **设一个认得出的 User-Agent**，例如 `MyGalManager/1.4 (+https://github.com/you/repo)`，出问题时我们能找到你。
 
 库很大（上千款，而且首次匹配全靠标题）时，一天的匿名额度不够。要么把首次匹配分几天做完，要么让用户登录、改用下面的用户访问令牌：每人每分钟 100 次、每天 10,000 次。
 
@@ -3796,7 +3819,7 @@ curl "https://api.nextmoe.dev/v2/catalog/schemas/work"
 
 Search catalog entities
 
-Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. cursor= pages the hits. ids= is not accepted. page= selects page mode (see the page parameter). object=trait hits carry trait_path (group and direct parents). Without nsfw=true, sexual-family trait documents are excluded from the result and from total.
+Cross-entity search. object= selects the family. Hits are search_result rows with target_object. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. cursor= pages the hits. ids= is not accepted. page= selects page mode (see the page parameter). object=trait hits carry trait_path (group and direct parents). Without nsfw=true, sexual-family trait documents are excluded from the result and from total. A hit carries names, sources and content_rating only: to match a work by title and read its cover, release date, companies, intros, tags, ratings, playtimes or refs in the same call, use GET /v2/catalog/works?q= with include= or view=full.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：可匿名调用
@@ -4017,7 +4040,7 @@ curl "https://api.nextmoe.dev/v2/catalog/traits/value"
 
 List catalog works
 
-Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. exclude_tag_id=/exclude_tag_tree= drop works by tag on every lane, search included. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. view/include/fields/ids/refs/facets follow the v2 collection contract. include=titles,refs,intros,covers,companies,ratings,tags,credits fills on every lane; view=full is all of them except credits, which is an explicit ask. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations/releases/popularity/playtimes/series/platforms/screenshots/characters/engines/links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE. page= selects page mode (see the page parameter).
+Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. exclude_tag_id=/exclude_tag_tree= drop works by tag on every lane, search included. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. view/include/fields/ids/refs/facets follow the v2 collection contract. include= takes titles, refs, intros, covers, companies, ratings, tags, credits, playtimes. view=full is titles, refs, intros, covers, companies, ratings, tags; credits, playtimes come only when include= names them. Every block fills on every lane, the ids=/refs= batch lane included. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and relations, releases, popularity, series, platforms, screenshots, characters, engines, links, are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE. page= selects page mode (see the page parameter).
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：可匿名调用
@@ -4064,7 +4087,7 @@ curl "https://api.nextmoe.dev/v2/catalog/works"
 
 Get one catalog work
 
-Work detail. spoiler=none|minor|major is the ceiling of the tags block and defaults to none. Merged ids are 404 ENTITY_MERGED with Link rel=canonical. r18 is 404 without nsfw=true. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+Work detail. spoiler=none|minor|major is the ceiling of the tags block and defaults to none. Merged ids are 404 ENTITY_MERGED with Link rel=canonical. r18 is 404 without nsfw=true. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. include= takes titles, refs, relations, credits, releases, popularity, ratings, tags, playtimes, series, platforms, intros, covers, screenshots, characters, companies, engines, links. view=full is titles, refs, intros, covers, companies, tags, releases, ratings, relations, engines, series, links; credits, popularity, playtimes, platforms, screenshots, characters come only when include= names them.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：可匿名调用

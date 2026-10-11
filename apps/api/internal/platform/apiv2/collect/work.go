@@ -27,12 +27,12 @@ var WorkFullSet = []string{
 // regression, not a fix. The unbounded per-work galleries stay on
 // works/{id}/covers and the other sub-resources.
 var WorkListInclude = []string{
-	"titles", "refs", "intros", "covers", "companies", "ratings", "tags", "credits",
+	"titles", "refs", "intros", "covers", "companies", "ratings", "tags", "credits", "playtimes",
 }
 
-// credits is out of the list FullSet for the reason it is out of WorkFullSet:
-// it is an explicit ask, not part of "everything". Every other list-capable
-// token rides view=full.
+// credits and playtimes are out of the list FullSet for the reason they are out
+// of WorkFullSet: each is an explicit ask, not part of "everything". Every other
+// list-capable token rides view=full.
 var WorkListFullSet = []string{
 	"titles", "refs", "intros", "covers", "companies", "ratings", "tags",
 }

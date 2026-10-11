@@ -13,7 +13,7 @@
 
 Get one catalog work
 
-Work detail. spoiler=none|minor|major is the ceiling of the tags block and defaults to none. Merged ids are 404 ENTITY_MERGED with Link rel=canonical. r18 is 404 without nsfw=true. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+Work detail. spoiler=none|minor|major is the ceiling of the tags block and defaults to none. Merged ids are 404 ENTITY_MERGED with Link rel=canonical. r18 is 404 without nsfw=true. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. include= takes titles, refs, relations, credits, releases, popularity, ratings, tags, playtimes, series, platforms, intros, covers, screenshots, characters, companies, engines, links. view=full is titles, refs, intros, covers, companies, tags, releases, ratings, relations, engines, series, links; credits, popularity, playtimes, platforms, screenshots, characters come only when include= names them.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：可匿名调用
