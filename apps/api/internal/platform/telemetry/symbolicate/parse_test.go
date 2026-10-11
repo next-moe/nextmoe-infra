@@ -125,6 +125,30 @@ func TestParseDebuggerd(t *testing.T) {
 	}
 }
 
+func TestParseDebuggerdInsideAPK(t *testing.T) {
+	in := strings.Join([]string{
+		`#01 pc 0000000000bf9f2c  /data/app/~~A2X==/com.kungal.app.e2e-DYG==/base.apk (BuildId: a5a74b63f1e89ba8e03f452b38ab3fa5)`,
+		`#23 pc 00000000009410e8  /data/app/~~A2X==/com.kungal.app.e2e-DYG==/base.apk!libflutter.so (BuildId: 1164bae6165f15f0ecdcba31ceb73ad2ea73038d)`,
+		`#02 pc 0000000000001234  /data/app/~~A2X==/com.kungal.app.e2e-DYG==/split_config.arm64_v8a.apk!libsqlite3.so (BuildId: 00ff)`,
+	}, "\n")
+	got := ParseDebuggerd(in)
+	if len(got) != 3 {
+		t.Fatalf("len=%d %+v", len(got), got)
+	}
+	if got[0].Module != "base.apk" || got[0].BuildID != "a5a74b63f1e89ba8e03f452b38ab3fa5" || got[0].PC != 0xbf9f2c {
+		t.Errorf("0 %+v", got[0])
+	}
+	if got[1].Module != "libflutter.so" || got[1].BuildID != "1164bae6165f15f0ecdcba31ceb73ad2ea73038d" || got[1].PC != 0x9410e8 {
+		t.Errorf("1 %+v", got[1])
+	}
+	if got[1].Path != "/data/app/~~A2X==/com.kungal.app.e2e-DYG==/base.apk!libflutter.so" {
+		t.Errorf("path1 %q", got[1].Path)
+	}
+	if got[2].Module != "libsqlite3.so" {
+		t.Errorf("2 %+v", got[2])
+	}
+}
+
 func TestMainThreadSection(t *testing.T) {
 	in := `"FinalizerDaemon" prio=5 tid=3 Native
   at java.lang.Object.wait(Native Method)
