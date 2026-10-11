@@ -417,7 +417,7 @@ func (s *Service) userViews(ctx context.Context, ids []int64) ([]dto.User, error
 			out = append(out, dto.User{Object: "user", ID: dto.ID(id), Deleted: true})
 			continue
 		}
-		out = append(out, dto.User{Object: "user", ID: dto.ID(id), Name: p.Name, Avatar: p.Avatar})
+		out = append(out, dto.User{Object: "user", ID: dto.ID(id), Name: p.Name, Avatar: s.imageURL(p.AvatarHash)})
 	}
 	return out, nil
 }

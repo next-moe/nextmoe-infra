@@ -149,9 +149,9 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 
 	authSvc := authService.NewAuthServiceFull(userRepo, sessionRepo, passwordResetRepo, mailer, a.Cache, cfg)
 	oauthSvc := authService.NewOAuthService(userRepo, authCodeRepo, sessionRepo, oauthClientRepo, siteRoleRepo, cfg)
-	adminSvc := authService.NewAdminService(userRepo, sessionRepo, siteRoleRepo, siteRepository, imgCli)
+	adminSvc := authService.NewAdminService(userRepo, sessionRepo, siteRoleRepo, siteRepository, imgCli, cfg.ImageService.CDNBase)
 	app.StartAccountDeletion(cleanupCtx, adminSvc)
-	userBatchSvc := authService.NewUserBatchService(userRepo, siteRoleRepo)
+	userBatchSvc := authService.NewUserBatchService(userRepo, siteRoleRepo, cfg.ImageService.CDNBase)
 	creatorAppSvc := authService.NewCreatorApplicationService(authRepo.NewCreatorApplicationRepository(db), userRepo, userBatchSvc)
 	ledger := ledgerService.New(a.DB.DB())
 	authSvc.WithLedger(ledger)

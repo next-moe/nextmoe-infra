@@ -6,8 +6,8 @@ export interface User {
   uuid: string
   name: string
   email: string
-  avatar: string                  // legacy URL string (kungal/moyu old WebP)
-  avatar_image_hash?: string | null  // image_service hash, set on new uploads
+  avatar: string
+  avatar_image_hash?: string | null
   bio: string
   moemoepoint: number
   status: number

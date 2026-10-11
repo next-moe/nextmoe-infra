@@ -420,7 +420,7 @@ func (s *AuthService) ListBrowserSessions(ctx context.Context, browserID, caller
 			Sub:             u.UUID,
 			Name:            u.Name,
 			Email:           u.Email,
-			Avatar:          u.Avatar,
+			Avatar:          u.AvatarURL(s.cfg.ImageService.CDNBase),
 			AvatarImageHash: u.AvatarImageHash,
 			Roles:           u.RoleNames(),
 			Active:          sess.UserID == activeUserID,
@@ -770,9 +770,6 @@ func (s *AuthService) SendEmailChangeCode(ctx context.Context, userUUID, newEmai
 
 func (s *AuthService) UpdateProfile(ctx context.Context, userUUID string, req *dto.UpdateProfileRequest) (*model.User, error) {
 	fields := map[string]any{}
-	if req.Avatar != nil {
-		fields["avatar"] = *req.Avatar
-	}
 	if req.AvatarImageHash != nil {
 		fields["avatar_image_hash"] = *req.AvatarImageHash
 	}

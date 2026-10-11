@@ -138,7 +138,7 @@ func (h *FederationHandler) Complete(c fiber.Ctx) error {
 			UUID:            user.UUID,
 			Name:            user.Name,
 			Email:           user.Email,
-			Avatar:          user.Avatar,
+			Avatar:          user.AvatarURL(h.cfg.ImageService.CDNBase),
 			AvatarImageHash: user.AvatarImageHash,
 			Bio:             user.Bio,
 			Moemoepoint:     user.Moemoepoint,

@@ -29,10 +29,11 @@ type UserBatchService struct {
 	siteRoleRepo *repository.UserSiteRoleRepository
 	cosmetics    CosmeticsSource
 	perks        PerkSource
+	cdnBase      string
 }
 
-func NewUserBatchService(userRepo *repository.UserRepository, siteRoleRepo *repository.UserSiteRoleRepository) *UserBatchService {
-	return &UserBatchService{userRepo: userRepo, siteRoleRepo: siteRoleRepo}
+func NewUserBatchService(userRepo *repository.UserRepository, siteRoleRepo *repository.UserSiteRoleRepository, cdnBase string) *UserBatchService {
+	return &UserBatchService{userRepo: userRepo, siteRoleRepo: siteRoleRepo, cdnBase: cdnBase}
 }
 
 func (s *UserBatchService) WithCosmetics(src CosmeticsSource) *UserBatchService {
@@ -55,7 +56,7 @@ func (s *UserBatchService) GetBriefs(ctx context.Context, ids []uint, siteID uin
 	briefs := make([]dto.UserBrief, 0, len(users))
 	for _, u := range users {
 		found[u.ID] = struct{}{}
-		briefs = append(briefs, toBrief(&u))
+		briefs = append(briefs, toBrief(&u, s.cdnBase))
 	}
 
 	if siteID != 0 && s.siteRoleRepo != nil {
@@ -89,7 +90,7 @@ func (s *UserBatchService) SearchByName(ctx context.Context, query string, limit
 	}
 	briefs := make([]dto.UserBrief, 0, len(users))
 	for i := range users {
-		briefs = append(briefs, toBrief(&users[i]))
+		briefs = append(briefs, toBrief(&users[i], s.cdnBase))
 	}
 	s.attachCosmetics(ctx, briefs, siteID)
 	s.gateAbout(ctx, briefs)
@@ -146,7 +147,7 @@ func heldPerks(ctx context.Context, src PerkSource, ids []uint) map[uint][]strin
 	return held
 }
 
-func toBrief(u *model.User) dto.UserBrief {
+func toBrief(u *model.User, cdnBase string) dto.UserBrief {
 	roles := make([]string, 0, len(u.Roles))
 	for _, r := range u.Roles {
 		roles = append(roles, r.Name)
@@ -155,7 +156,7 @@ func toBrief(u *model.User) dto.UserBrief {
 		ID:              u.ID,
 		UUID:            u.UUID,
 		Name:            u.Name,
-		Avatar:          u.Avatar,
+		Avatar:          u.AvatarURL(cdnBase),
 		AvatarImageHash: u.AvatarImageHash,
 		Bio:             u.Bio,
 		AboutHTML:       u.AboutHTML,

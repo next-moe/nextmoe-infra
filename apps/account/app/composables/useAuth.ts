@@ -159,7 +159,6 @@ export const useAuth = () => {
     name?: string
     bio?: string
     about?: string
-    avatar?: string
     avatar_image_hash?: string
   }) => {
     const response = await api.patch<User>('/auth/me', payload)
