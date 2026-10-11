@@ -39,6 +39,8 @@ One collection. month=/year= pick a window; precision= and status= select among 
 | `content_limit` | query | 否 | string | Comma-separated closed editorial axis: sfw, nsfw. |
 | `olang` | query | 否 | string | Comma-separated BCP-47, or all. Open vocabulary; unknown values match nothing. Absent = the calendar's home population, ja. Until spec 2.34.0 the default was ja plus every zh variant; olang=ja,zh-Hans,zh-Hant restores it. |
 | `exclude_company_kind` | query | 否 | string | Comma-separated closed company_kind values: game_brand, bunko, publisher, anime_studio, doujin_circle, group, or none alone to exclude nothing. Drops a work only when it has at least one company and every one of its companies is of an excluded kind; a work that also carries a company of another kind stays, and so does a work with no company. Applies to the page, total, and the month navigation in meta. Absent = doujin_circle: the calendar is commercial by default since spec 2.34.0; send none for doujin works too. |
+| `exclude_tag_id` | query | 否 | string | Comma-separated canonical tag ids, max 100. Drops every work that carries any of them, from any source and at any spoiler level. Applies to the page, total, and the month navigation in meta. |
+| `exclude_tag_tree` | query | 否 | string | Comma-separated canonical tag ids, max 100. As exclude_tag_id, and each id also drops the works carrying any tag below it in the tag hierarchy (Tag.descendant_count counts them). |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/calendar"

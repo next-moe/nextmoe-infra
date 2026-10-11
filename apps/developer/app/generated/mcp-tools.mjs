@@ -467,7 +467,9 @@ export const mcpTools = [
       "status",
       "content_limit",
       "olang",
-      "exclude_company_kind"
+      "exclude_company_kind",
+      "exclude_tag_id",
+      "exclude_tag_tree"
     ]
   },
   {
@@ -812,6 +814,8 @@ export const mcpTools = [
       "company_id",
       "company_rollup",
       "tag_id",
+      "exclude_tag_id",
+      "exclude_tag_tree",
       "series_id",
       "engine_id",
       "platform",

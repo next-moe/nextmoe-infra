@@ -29,6 +29,7 @@ type WorksSearchFilter struct {
 	DisplayLimits  []string
 	LabelID        int64
 	TagIDs         []int64
+	ExcludeTagIDs  []int64
 	EngineID       int64
 	SeriesID       int64
 	ReleasedAfter  int64
@@ -148,6 +149,7 @@ func (f WorksSearchFilter) worksFilter(docID string) spec.WorksFilter {
 		ClaimStates:    f.ClaimStates,
 		DisplayLimits:  f.DisplayLimits,
 		TagIDs:         f.TagIDs,
+		ExcludeTagIDs:  f.ExcludeTagIDs,
 		LabelID:        f.LabelID,
 		EngineID:       f.EngineID,
 		SeriesID:       f.SeriesID,

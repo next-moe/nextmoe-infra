@@ -28,7 +28,7 @@ func (c *Catalog) ListCompanyFollows(ctx context.Context, q collect.Query, compa
 		return repr.List[repr.CompanyFollow]{}, err
 	}
 	if len(companyIDs) > 0 {
-		ids, perr := parseCompanyIDs(companyIDs)
+		ids, perr := parseBatchIDs(companyIDs, "company_ids")
 		if perr != nil {
 			return repr.List[repr.CompanyFollow]{}, perr
 		}
@@ -134,16 +134,16 @@ func (c *Catalog) DeleteCompanyFollow(ctx context.Context, companyID int64) erro
 	return companyFollowErr(c.CompanyFollows.UnfollowCompany(ctx, uid, companyID))
 }
 
-func parseCompanyIDs(companyIDs []string) ([]int64, error) {
-	if len(companyIDs) > collect.MaxBatchItems {
-		return nil, problem.New(problem.CodeTooManyIDs, "", "", "company_ids named more than 100 items.")
+func parseBatchIDs(raw []string, name string) ([]int64, error) {
+	if len(raw) > collect.MaxBatchItems {
+		return nil, problem.New(problem.CodeTooManyIDs, "", "", name+" named more than 100 items.")
 	}
-	ids := make([]int64, 0, len(companyIDs))
-	for _, s := range companyIDs {
+	ids := make([]int64, 0, len(raw))
+	for _, s := range raw {
 		id, ok := repr.ParseID(s)
 		if !ok {
-			p := problem.New(problem.CodeInvalidParameter, "", "", "company_ids values must be decimal catalog ids.")
-			p.Errors = []problem.FieldError{{Parameter: "company_ids", Reason: problem.ReasonInvalidFormat, Detail: s}}
+			p := problem.New(problem.CodeInvalidParameter, "", "", name+" values must be decimal catalog ids.")
+			p.Errors = []problem.FieldError{{Parameter: name, Reason: problem.ReasonInvalidFormat, Detail: s}}
 			return nil, p
 		}
 		ids = append(ids, id)

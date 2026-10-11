@@ -91,6 +91,7 @@ type CalendarFilter struct {
 	OLang               PublicOLang
 	DisplayLimits       []string
 	ExcludeCompanyKinds []string
+	ExcludeTagIDs       []int64
 	Include             WorksListInclude
 	FollowedBy          int64
 }
@@ -111,7 +112,18 @@ func (f CalendarFilter) PopulationKey() string {
 	if f.FollowedBy > 0 {
 		key += "-follow-" + strconv.FormatInt(f.FollowedBy, 10)
 	}
+	if len(f.ExcludeTagIDs) > 0 {
+		ids := make([]string, len(f.ExcludeTagIDs))
+		for i, id := range f.ExcludeTagIDs {
+			ids[i] = strconv.FormatInt(id, 10)
+		}
+		key += "-xt-" + strings.Join(ids, "+")
+	}
 	return key
+}
+
+func (f CalendarFilter) sharedBounds() bool {
+	return f.FollowedBy <= 0 && len(f.ExcludeTagIDs) == 0
 }
 
 func (f CalendarFilter) population() (where []string, args []any) {
@@ -132,6 +144,10 @@ func (f CalendarFilter) population() (where []string, args []any) {
 	if f.FollowedBy > 0 {
 		where = append(where, `w.id IN (SELECT fwl.work_id FROM catalog_work_label fwl JOIN catalog_user_entity_follow uf ON uf.entity_id = fwl.label_id AND uf.entity_type = ? WHERE uf.actor_uid = ?)`)
 		args = append(args, model.EntityTypeLabel, f.FollowedBy)
+	}
+	if pred, pargs := tagExclusionWhere("w.id", f.ExcludeTagIDs); pred != "" {
+		where = append(where, pred)
+		args = append(args, pargs...)
 	}
 	return where, args
 }
@@ -278,7 +294,7 @@ func releaseOrd(alias string) string {
 // shared cache that keeps the forum's S2S count(*) traffic off postgres.
 func (s *PublicService) CalendarBounds(ctx context.Context, f CalendarFilter) (minOrd, maxOrd int64, found bool, err error) {
 	key := "calendar-bounds\x00" + f.PopulationKey()
-	if f.FollowedBy <= 0 {
+	if f.sharedBounds() {
 		if lo, ok := s.totals.get(key + "\x00min"); ok {
 			if hi, ok := s.totals.get(key + "\x00max"); ok {
 				return lo, hi, lo != 0, nil
@@ -307,7 +323,7 @@ func (s *PublicService) CalendarBounds(ctx context.Context, f CalendarFilter) (m
 	if row.MinOrd != nil && row.MaxOrd != nil {
 		minOrd, maxOrd, found = (*row.MinOrd/100)*100, (*row.MaxOrd/100)*100, true
 	}
-	if f.FollowedBy <= 0 {
+	if f.sharedBounds() {
 		s.totals.put(key+"\x00min", minOrd)
 		s.totals.put(key+"\x00max", maxOrd)
 	}

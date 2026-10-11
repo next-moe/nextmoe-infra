@@ -237,6 +237,16 @@ func CompanyFollowSpec() Spec {
 	}
 }
 
+func TagBlockSpec() Spec {
+	return Spec{
+		Sort:    []string{"blocked_desc"},
+		Include: []string{},
+		FullSet: []string{},
+		Fields:  []string{"object", "tag_id", "mode", "created_at", "updated_at"},
+		NoBatch: true,
+	}
+}
+
 func UserWorkSpec() Spec {
 	return Spec{
 		Sort:    []string{"work_id"},

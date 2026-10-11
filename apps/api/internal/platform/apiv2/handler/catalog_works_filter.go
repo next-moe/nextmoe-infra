@@ -27,6 +27,8 @@ type worksFilter struct {
 	CompanyID      int64
 	CompanyRollup  bool
 	TagIDs         []int64
+	ExcludeTagIDs  []int64
+	ExcludeTrees   []int64
 	SeriesID       int64
 	EngineID       int64
 	Platform       string
@@ -170,6 +172,12 @@ func parseWorksFilter(in *listWorksInput, moderationAllowed bool) (worksFilter, 
 		return worksFilter{}, err
 	}
 	f.TagIDs = tags
+	if f.ExcludeTagIDs, err = idList(in.ExcludeTagID, "exclude_tag_id", 100); err != nil {
+		return worksFilter{}, err
+	}
+	if f.ExcludeTrees, err = idList(in.ExcludeTagTree, "exclude_tag_tree", 100); err != nil {
+		return worksFilter{}, err
+	}
 	if f.SeriesID, err = optionalID(in.SeriesID, "series_id"); err != nil {
 		return worksFilter{}, err
 	}
@@ -209,6 +217,13 @@ func (c *Catalog) ListWorksFiltered(ctx context.Context, q collect.Query, f work
 		p := problem.New(problem.CodeMutuallyExclusiveParameters, "", "", "q= cannot be combined with ids= or refs=.")
 		p.Errors = []problem.FieldError{{Parameter: "q", Reason: problem.ReasonNotAllowedValue, Detail: "ids=/refs= is a batch lane"}}
 		return repr.List[repr.Work]{}, p
+	}
+	if len(f.ExcludeTagIDs) > 0 || len(f.ExcludeTrees) > 0 {
+		excl, err := c.Public.TagExclusion(ctx, f.ExcludeTagIDs, f.ExcludeTrees)
+		if err != nil {
+			return repr.List[repr.Work]{}, err
+		}
+		f.ExcludeTagIDs, f.ExcludeTrees = excl, nil
 	}
 	inc := listWorksInclude(q.Include)
 	if q.Batch || (!searchWorksRequested(q, f)) {
@@ -251,7 +266,7 @@ func (c *Catalog) listWorksSQL(ctx context.Context, q collect.Query, f worksFilt
 		ContentRating: f.ContentRating, Claimed: f.Claimed, ClaimStates: f.ClaimStates,
 		DisplayLimits: f.DisplayLimits, Site: f.Site, OwnerUID: f.OwnerUID,
 		LabelID: f.CompanyID, LabelRollup: f.CompanyRollup,
-		TagIDs: f.TagIDs, SeriesID: f.SeriesID, EngineID: f.EngineID, Platform: f.Platform,
+		TagIDs: f.TagIDs, ExcludeTagIDs: f.ExcludeTagIDs, SeriesID: f.SeriesID, EngineID: f.EngineID, Platform: f.Platform,
 		ReleasedAfter: f.ReleasedAfter, ReleasedBefore: f.ReleasedBefore, NSFW: q.NSFW,
 		Sort: q.Sort, OLang: f.OLang, Include: inc, IncludeTotal: q.IncludeTotal,
 	}
@@ -320,7 +335,7 @@ func (c *Catalog) listWorksSearch(ctx context.Context, q collect.Query, f worksF
 	}
 	sf := catsvc.WorksSearchFilter{
 		Q: f.Q, ContentRating: f.ContentRating, Claimed: f.Claimed, ClaimStates: f.ClaimStates,
-		DisplayLimits: f.DisplayLimits, LabelID: f.CompanyID, TagIDs: f.TagIDs, EngineID: f.EngineID,
+		DisplayLimits: f.DisplayLimits, LabelID: f.CompanyID, TagIDs: f.TagIDs, ExcludeTagIDs: f.ExcludeTagIDs, EngineID: f.EngineID,
 		SeriesID: f.SeriesID, ReleasedAfter: f.ReleasedAfter, ReleasedBefore: f.ReleasedBefore,
 		OLang: f.OLang, NSFW: q.NSFW, Sort: sort, Facets: searchFacetTokens(q.Facets),
 		Page: page, Limit: q.Limit, Include: inc,
