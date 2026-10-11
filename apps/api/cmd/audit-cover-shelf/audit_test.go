@@ -158,6 +158,9 @@ func TestAuditSeparatesDriftFromTheRatingQuestion(t *testing.T) {
 	misrated := seedWork(t, work{name: "explicit only but rated all ages", rating: model.ContentRatingAllAges, claimed: true})
 	seedCover(t, misrated, "bangumi", "", "hallages", model.SexualExplicit)
 
+	sensitive := seedWork(t, work{name: "explicit only, rated sensitive", rating: model.ContentRatingSensitive, claimed: true})
+	seedCover(t, sensitive, "dlsite", "", "hsensitive", model.SexualExplicit)
+
 	packaging := seedWork(t, work{name: "only safe row is a box shot", rating: model.ContentRatingR18, claimed: true})
 	seedCover(t, packaging, "vndb", "", "hpkgexpl", model.SexualExplicit)
 	seedCover(t, packaging, "vndb", "pkgfront", "hpkgsafe", model.SexualSafe)
@@ -187,7 +190,7 @@ func TestAuditSeparatesDriftFromTheRatingQuestion(t *testing.T) {
 	for _, id := range []int64{safe, suggestive, ghostOnly, bare} {
 		assert.False(t, storedGrade(t, id), "work %d owns electable safe art", id)
 	}
-	for _, id := range []int64{healed, packaging, unhashed, misrated} {
+	for _, id := range []int64{healed, packaging, unhashed, misrated, sensitive} {
 		assert.True(t, storedGrade(t, id), "work %d owns no electable safe art", id)
 	}
 }

@@ -18,7 +18,8 @@
 #
 #   drift     the column disagrees with the cover rows, i.e. the trigger did not
 #             fire. Mechanical; -fix repairs it in both directions.
-#   misrated  every cover the work owns is explicit, yet it is not rated r18.
+#   misrated  every cover the work owns is explicit, yet it is rated all ages.
+#             (Not "not r18": R15 covers may show nudity, see audit.go.)
 #             Mis-rated or mis-graded, both editorial — reported, never written,
 #             and it is what raises exit 3.
 #
