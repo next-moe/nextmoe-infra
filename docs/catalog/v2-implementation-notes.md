@@ -2021,3 +2021,17 @@ Wave 146 (2026-07-30) gated every taxonomy count on `claim_state=live`, on the a
 - **Ranking** for `object=company`, `object=engine` and `object=series` with a `q=`: `(text score + 10⁶ × exact) × (1 + popularity)`, where `exact` is 1 when the query, compacted the way `titles_kw` is, equals one of the entity's names or aliases. An exact match therefore ranks above every partial match, exact matches rank by work count, and partial matches weigh text score against work count. The other families, and the empty-`q=` listing (popularity order), are unchanged.
 
 No migration and no index recreate: the mapping already has `popularity`. The query change applies on deploy; label popularity changes on the next daily `reindex-catalog` run, or at once with `reindex-catalog -index catalog_labels`. **Spec unchanged** (2.45.0): the operation's contract does not promise an order.
+
+## Wave — a cover shared by many works loses the election (2026-10-12)
+
+VNDB attaches a bundle release's box art to every work in the bundle. In production 592 cover images sat on three or more works each (3,231 rows); the HOOKSOFT 25th Discovery Box (VNDB r139531, 1000x705) was on 31. Being wide and sharp, such a box won the banner — and, through the any-cover fallback, sometimes the portrait and the list `cover` — of games it does not show; the patch site's resource page printed another game's box as the hero (forum todo #231).
+
+- **Shared** means an `image_hash` held by at least three live works (`deleted_at IS NULL`, status live). Two works sharing art are usually two editions of one game and stay ordinary.
+- **Every election tries the work's own rows first** and falls back to its shared rows only when its own rows elect nothing for this viewer: `cover` and `banner` on the detail face, the `covers` slots on every list lane (works list, `ids=`, calendar, release feed, search hydration), and the list's base `cover` without `include=covers`. A pin on a shared row loses too. Candidacy is the viewer's: for a display-safe viewer an explicit own cover is not a candidate, so a shared safe cover still beats it there, while an R18 viewer gets the own explicit cover.
+- **Per work, not per slot.** A work whose own art is all portrait gets the screenshot banner (`origin: screenshot`) or `null`, not the shared box. `banner`'s field doc ("the fallback for a work with no landscape cover") now reads as "no landscape cover of its own".
+- **One definition.** `nativeWorkCovers` flags each row `shared` in the same query that loads it; the elections only read the flag, so the faces cannot disagree.
+- `cover_art_all_explicit` does not move: shared art stays electable as the fallback, so whether a work owns electable safe art is unchanged.
+
+**Migration required**: `go run ./cmd/migrate catalog` against `kun_catalog` (the `migrate-catalog` job on deploy) creates `idx_catalog_work_cover_image_hash`. The shared count runs on every cover election; `uq_catalog_work_cover` leads with `work_id`, so without the index that count is a full scan per request (about 50 ms on a synthetic 400k-row table, about 1 ms with it). Additive; the code is correct without it, only slower, so the order against the deploy does not matter.
+
+No API shape change.
