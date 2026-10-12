@@ -432,10 +432,14 @@ func partialISOFromOrdinal(ord int64) string {
 // permitting, even a real safe cover.
 func (s *PublicService) pickListCover(rows []WorkCoverRow, allowSexual bool) string {
 	real, ghosts := s.splitCensored(rows)
-	if url := s.listCoverFrom(real, allowSexual); url != "" {
+	if url := ownCoversFirst(real, func(pool []WorkCoverRow) string {
+		return s.listCoverFrom(pool, allowSexual)
+	}); url != "" {
 		return url
 	}
-	return s.listCoverFrom(ghosts, false)
+	return ownCoversFirst(ghosts, func(pool []WorkCoverRow) string {
+		return s.listCoverFrom(pool, false)
+	})
 }
 
 func (s *PublicService) listCoverFrom(rows []WorkCoverRow, allowSexual bool) string {

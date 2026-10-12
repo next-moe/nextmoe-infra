@@ -24,13 +24,14 @@ const (
 // nil — a ghost hero adds nothing a nil banner does not already handle.
 func (s *PublicService) pickCoverSlots(rows []WorkCoverRow, meta map[string]ImageMeta, allowSexual bool) *dto.PublicWorkCoverSlots {
 	real, ghosts := s.splitCensored(rows)
-	cand := s.scanCovers(real, meta, false)
-	if allowSexual && !cand.complete() {
-		cand.fillFrom(s.scanCovers(real, meta, true))
-	}
+	cand := ownCoversFirst(real, func(pool []WorkCoverRow) coverCandidates {
+		return s.electCovers(pool, meta, allowSexual)
+	})
 	portraitRow := cand.portrait()
 	if portraitRow == nil && len(ghosts) > 0 {
-		ghost := s.scanCovers(ghosts, meta, false)
+		ghost := ownCoversFirst(ghosts, func(pool []WorkCoverRow) coverCandidates {
+			return s.electCovers(pool, meta, false)
+		})
 		portraitRow = ghost.portrait()
 	}
 	portrait, banner := s.coverSlot(portraitRow, meta), s.coverSlot(cand.banner(), meta)
@@ -38,6 +39,33 @@ func (s *PublicService) pickCoverSlots(rows []WorkCoverRow, meta map[string]Imag
 		return nil
 	}
 	return &dto.PublicWorkCoverSlots{Portrait: portrait, Banner: banner}
+}
+
+// Per work, not per slot: a work whose own art is all portrait gets the
+// screenshot banner, not the bundle box it shares — that box as the banner of a
+// game it does not show is the forum todo #231 report.
+func ownCoversFirst[T comparable](rows []WorkCoverRow, elect func([]WorkCoverRow) T) T {
+	var own, shared []WorkCoverRow
+	for _, c := range rows {
+		if c.Shared {
+			shared = append(shared, c)
+		} else {
+			own = append(own, c)
+		}
+	}
+	var none T
+	if got := elect(own); got != none {
+		return got
+	}
+	return elect(shared)
+}
+
+func (s *PublicService) electCovers(rows []WorkCoverRow, meta map[string]ImageMeta, allowSexual bool) coverCandidates {
+	cand := s.scanCovers(rows, meta, false)
+	if allowSexual && !cand.complete() {
+		cand.fillFrom(s.scanCovers(rows, meta, true))
+	}
+	return cand
 }
 
 func (s *PublicService) splitCensored(rows []WorkCoverRow) (real, ghosts []WorkCoverRow) {

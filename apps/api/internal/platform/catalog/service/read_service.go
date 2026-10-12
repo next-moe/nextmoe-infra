@@ -124,6 +124,7 @@ type WorkCoverRow struct {
 	Sexual         int16
 	Violence       int16
 	SourceID       int16
+	Shared         bool
 }
 
 type WorkScreenshotRow struct {
@@ -558,6 +559,11 @@ func (s *ReadService) loadWorkCovers(ctx context.Context, subjects []claimSubjec
 	return out, nil
 }
 
+// VNDB attaches a bundle release's box art to every work in the bundle. In
+// production (2026-10) 592 such images sat on 3+ works each — the HOOKSOFT 25th
+// Discovery Box on 31 — and won the banner of games they do not depict.
+const sharedCoverMinWorks = 3
+
 func (s *ReadService) nativeWorkCovers(ctx context.Context, workIDs []int64, out map[int64][]WorkCoverRow) error {
 	db := s.db.WithContext(ctx)
 	var rows []struct {
@@ -570,16 +576,30 @@ func (s *ReadService) nativeWorkCovers(ctx context.Context, workIDs []int64, out
 		Sexual         int16  `gorm:"column:sexual"`
 		Violence       int16  `gorm:"column:violence"`
 		SourceID       int16  `gorm:"column:source_id"`
+		Shared         bool   `gorm:"column:shared"`
 	}
-	if err := db.Raw(`SELECT id, work_id, image_hash, sort_order, kind, portrait_pinned, sexual, violence, source_id
-		FROM catalog_work_cover WHERE work_id IN ?
-		ORDER BY work_id, sort_order, image_hash`, workIDs).Scan(&rows).Error; err != nil {
+	if err := db.Raw(`WITH wc AS (
+			SELECT id, work_id, image_hash, sort_order, kind, portrait_pinned, sexual, violence, source_id
+			FROM catalog_work_cover WHERE work_id IN ?
+		), shared AS (
+			SELECT c.image_hash
+			FROM catalog_work_cover c
+			JOIN catalog_work w ON w.id = c.work_id AND w.deleted_at IS NULL AND w.status = ?
+			WHERE c.image_hash IN (SELECT image_hash FROM wc)
+			GROUP BY c.image_hash
+			HAVING count(*) >= ?
+		)
+		SELECT wc.*, shared.image_hash IS NOT NULL AS shared
+		FROM wc LEFT JOIN shared USING (image_hash)
+		ORDER BY wc.work_id, wc.sort_order, wc.image_hash`,
+		workIDs, model.WorkStatusLive, sharedCoverMinWorks).Scan(&rows).Error; err != nil {
 		return err
 	}
 	for _, r := range rows {
 		out[r.WorkID] = append(out[r.WorkID], WorkCoverRow{
 			ID: r.ID, ImageHash: r.ImageHash, Kind: r.Kind, PortraitPinned: r.PortraitPinned,
 			SortOrder: r.SortOrder, Sexual: r.Sexual, Violence: r.Violence, SourceID: r.SourceID,
+			Shared: r.Shared,
 		})
 	}
 	return nil
