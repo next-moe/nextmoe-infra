@@ -2035,3 +2035,13 @@ VNDB attaches a bundle release's box art to every work in the bundle. In product
 **Migration required**: `go run ./cmd/migrate catalog` against `kun_catalog` (the `migrate-catalog` job on deploy) creates `idx_catalog_work_cover_image_hash`. The shared count runs on every cover election; `uq_catalog_work_cover` leads with `work_id`, so without the index that count is a full scan per request (about 50 ms on a synthetic 400k-row table, about 1 ms with it). Additive; the code is correct without it, only slower, so the order against the deploy does not matter.
 
 No API shape change.
+
+## Wave — the machine zh translates the ja the reader sees (2026-10-12)
+
+The intro faces fold a language to one row by `provenance`, then the human lane (user 1 / curated 12), then `source_id`. `intro-mt` elected the row it translates by `source_id` alone, so a work holding both a curated and a DLsite ja intro showed the curated one and a zh-Hans machine row translated from the DLsite one (source 4), written on that source. About 1,000 site-claimed works rendered a ja beside a translation of a different ja; on work 3993 the translated text was a DLsite promo.
+
+- **One order.** `editspec.IntroFoldOrderSQL` is the per-language fold of the work, label and person intro faces and of the search index's work intros, and the order `intro-mt` (the ja lane and the en last-resort lane) and `entity-intro-mt` (character, person, label) elect their source row by. The character faces add the `derived` preference inside the machine tier only, which the jobs never elect from.
+- **The machine row follows its source.** It is written on the elected row's `source_id`; zh-Hans machine rows on any other source are strays, deleted in the same transaction as the write, as before, so the zh-Hans fold has one machine row to show.
+- **The next nightly retranslates each work whose election moved, once.** Its machine row sits on the old source, so the run finds none on the new one. Works with importer rows only elect what they did before. The person face gains the human-lane term; no person intro is written on source 1 or 12 today, so nothing moves there.
+
+No API shape change, no migration. **Spec unchanged** (2.46.0).

@@ -415,9 +415,9 @@ func loadWorkIntros(db *gorm.DB) (map[int64][]workIntro, error) {
 	if err := db.Raw(`SELECT i.work_id, i.lang, i.intro
 		FROM catalog_work_intro i JOIN catalog_work w ON w.id = i.work_id
 		WHERE ` + population + `
-		ORDER BY i.work_id, i.lang, i.provenance, ` +
-		editspec.HumanLaneFirstSQL("i.source_id", "i.provenance") +
-		`, i.source_id, i.id`).Scan(&native).Error; err != nil {
+		ORDER BY i.work_id, i.lang, ` +
+		editspec.IntroFoldOrderSQL("i.source_id", "i.provenance") +
+		`, i.id`).Scan(&native).Error; err != nil {
 		return nil, err
 	}
 	seen := map[int64]map[string]bool{}

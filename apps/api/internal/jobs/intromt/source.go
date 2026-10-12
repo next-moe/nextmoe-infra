@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"api/internal/jobs/workpop"
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 
 	"gorm.io/gorm"
@@ -108,7 +109,7 @@ func loadCandidates(ctx context.Context, db *gorm.DB, reg registry, pop Populati
 		ja AS (
 			SELECT DISTINCT ON (work_id) work_id, source_id AS ja_source_id, intro AS ja_text
 			FROM catalog_work_intro WHERE lang = ?
-			ORDER BY work_id, source_id
+			ORDER BY work_id, `+editspec.IntroFoldOrderSQL("source_id", "provenance")+`
 		),
 		mzh AS (
 			SELECT work_id, source_id, id AS mzh_id, src_hash AS mzh_src_hash

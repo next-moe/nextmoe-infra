@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 
 	"gorm.io/gorm"
@@ -44,7 +45,7 @@ func loadCandidates(ctx context.Context, db *gorm.DB, lane laneDef, limit, offse
 			SELECT DISTINCT ON (` + id + `) ` + id + ` AS entity_id, lang, source_id, intro
 			FROM ` + t + `
 			WHERE lang IN ('ja','en') AND provenance = 0
-			ORDER BY ` + id + `, (lang <> 'ja'), source_id
+			ORDER BY ` + id + `, (lang <> 'ja'), ` + editspec.IntroFoldOrderSQL("source_id", "provenance") + `
 		),
 		has_zh_source AS (
 			SELECT DISTINCT ` + id + ` AS entity_id FROM ` + t + `
