@@ -104956,7 +104956,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "client_id",
                               "required": true,
-                              "doc": "OAuth client of the app the rating was first written from; a later edit from another app does not change it. Display only; must not be used as a discriminant.",
+                              "doc": "OAuth client of the app the rating was first written from; a later edit from another app does not change it. A site may compare it with its own client ids to tell the ratings written through it from the ones it only mirrors; beyond that it must not be used as a discriminant.",
                               "type": "string"
                             },
                             {
@@ -106752,7 +106752,7 @@ export const docsModel: DocsModel = {
                                 {
                                   "name": "client_id",
                                   "required": true,
-                                  "doc": "OAuth client of the app the rating was first written from; a later edit from another app does not change it. Display only; must not be used as a discriminant.",
+                                  "doc": "OAuth client of the app the rating was first written from; a later edit from another app does not change it. A site may compare it with its own client ids to tell the ratings written through it from the ones it only mirrors; beyond that it must not be used as a discriminant.",
                                   "type": "string"
                                 },
                                 {
@@ -108414,7 +108414,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "client_id",
                         "required": true,
-                        "doc": "OAuth client of the app the rating was first written from; a later edit from another app does not change it. Display only; must not be used as a discriminant.",
+                        "doc": "OAuth client of the app the rating was first written from; a later edit from another app does not change it. A site may compare it with its own client ids to tell the ratings written through it from the ones it only mirrors; beyond that it must not be used as a discriminant.",
                         "type": "string"
                       },
                       {
@@ -185753,7 +185753,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "client_id",
                               "required": true,
-                              "doc": "OAuth client of the app the rating was first written from; a later edit from another app does not change it. Display only; must not be used as a discriminant.",
+                              "doc": "OAuth client of the app the rating was first written from; a later edit from another app does not change it. A site may compare it with its own client ids to tell the ratings written through it from the ones it only mirrors; beyond that it must not be used as a discriminant.",
                               "type": "string"
                             },
                             {
@@ -187411,7 +187411,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "client_id",
                         "required": true,
-                        "doc": "OAuth client of the app the rating was first written from; a later edit from another app does not change it. Display only; must not be used as a discriminant.",
+                        "doc": "OAuth client of the app the rating was first written from; a later edit from another app does not change it. A site may compare it with its own client ids to tell the ratings written through it from the ones it only mirrors; beyond that it must not be used as a discriminant.",
                         "type": "string"
                       },
                       {
@@ -189123,7 +189123,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "client_id",
                         "required": true,
-                        "doc": "OAuth client of the app the rating was first written from; a later edit from another app does not change it. Display only; must not be used as a discriminant.",
+                        "doc": "OAuth client of the app the rating was first written from; a later edit from another app does not change it. A site may compare it with its own client ids to tell the ratings written through it from the ones it only mirrors; beyond that it must not be used as a discriminant.",
                         "type": "string"
                       },
                       {
@@ -192196,7 +192196,7 @@ export const docsModel: DocsModel = {
                           {
                             "name": "client_id",
                             "required": true,
-                            "doc": "OAuth client of the app the rating was first written from; a later edit from another app does not change it. Display only; must not be used as a discriminant.",
+                            "doc": "OAuth client of the app the rating was first written from; a later edit from another app does not change it. A site may compare it with its own client ids to tell the ratings written through it from the ones it only mirrors; beyond that it must not be used as a discriminant.",
                             "type": "string"
                           },
                           {
@@ -194074,7 +194074,7 @@ export const docsModel: DocsModel = {
                           {
                             "name": "client_id",
                             "required": true,
-                            "doc": "OAuth client of the app the rating was first written from; a later edit from another app does not change it. Display only; must not be used as a discriminant.",
+                            "doc": "OAuth client of the app the rating was first written from; a later edit from another app does not change it. A site may compare it with its own client ids to tell the ratings written through it from the ones it only mirrors; beyond that it must not be used as a discriminant.",
                             "type": "string"
                           },
                           {
@@ -204236,7 +204236,7 @@ export const docsModel: DocsModel = {
                                 {
                                   "name": "client_id",
                                   "required": true,
-                                  "doc": "OAuth client of the app the rating was first written from; a later edit from another app does not change it. Display only; must not be used as a discriminant.",
+                                  "doc": "OAuth client of the app the rating was first written from; a later edit from another app does not change it. A site may compare it with its own client ids to tell the ratings written through it from the ones it only mirrors; beyond that it must not be used as a discriminant.",
                                   "type": "string"
                                 },
                                 {
@@ -219339,7 +219339,7 @@ export const docsModel: DocsModel = {
               "method": "delete",
               "path": "/v2/moderation/ratings/{id}",
               "summary": "Delete any rating",
-              "description": "Removes the rating from every site at once; the deletion reaches /v2/ratings/changes as a gone entry and the work's nextmoe score follows. 204 with no body. Requires a user access token whose holder moderates.",
+              "description": "Removes the rating from every site at once; the deletion reaches /v2/ratings/changes as a gone entry and the work's nextmoe score follows. 204 with no body. Requires a user access token whose holder has catalog.rating.moderate: the moderator, admin and ren roles have it, and the permission console can grant it to another role. Reviewing catalog edits or claims does not include it.",
               "scope": "",
               "auth": {
                 "kind": "user_token",

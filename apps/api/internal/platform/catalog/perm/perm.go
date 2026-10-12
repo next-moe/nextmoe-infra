@@ -33,7 +33,9 @@ const EditTrusted authz.Permission = "catalog.edit.trusted"
 // for its moderators — grantable only if the mint lane reads its own key.
 const ClaimTrusted authz.Permission = "catalog.claim.trusted"
 
-var moderatorPerms = []authz.Permission{ClaimReview}
+const RatingModerate authz.Permission = "catalog.rating.moderate"
+
+var moderatorPerms = []authz.Permission{ClaimReview, RatingModerate}
 
 var adminPerms = append(append([]authz.Permission{}, moderatorPerms...),
 	EditWork, EditWorkReview, EditTaxonomy, EditTaxonomyReview,

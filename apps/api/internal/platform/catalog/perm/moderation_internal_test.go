@@ -13,12 +13,13 @@ import (
 // comment on that list claims is caught; this is the assertion that looks at
 // the list itself.
 var notModeration = map[authz.Permission]string{
-	EditWork:      "propose side; the .review twin is what reaches a verdict",
-	EditTaxonomy:  "propose side",
-	EditCharacter: "propose side",
-	EditRelease:   "propose side",
-	EditTrusted:   "lands the holder's OWN edit without review; it judges nobody else",
-	ClaimTrusted:  "lands the holder's OWN mint live without review; it judges nobody else",
+	EditWork:       "propose side; the .review twin is what reaches a verdict",
+	EditTaxonomy:   "propose side",
+	EditCharacter:  "propose side",
+	EditRelease:    "propose side",
+	EditTrusted:    "lands the holder's OWN edit without review; it judges nobody else",
+	ClaimTrusted:   "lands the holder's OWN mint live without review; it judges nobody else",
+	RatingModerate: "deletes ratings and nothing else; it opens no proposal or claim queue",
 }
 
 func TestModerationPermsCoversEveryBundledPermission(t *testing.T) {
