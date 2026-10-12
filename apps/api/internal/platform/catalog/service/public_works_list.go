@@ -251,6 +251,13 @@ func worksListWhere(f WorksListFilter) ([]string, []any) {
 	return where, args
 }
 
+// Every taxonomy work_count is this population narrowed to one entity. The
+// counts once carried a claim_state=live gate of their own that the list never
+// had, and engine 46 reported 548 beside a works?engine_id=46&nsfw=true of 3,536.
+func worksListPopulation(nsfw bool) ([]string, []any) {
+	return worksListWhere(WorksListFilter{NSFW: nsfw, OLang: PublicOLang{All: true}})
+}
+
 func (s *PublicService) Changes(ctx context.Context, cursor string, limit int) (dto.PublicChangesData, error) {
 	cur, err := decodePublicCursor(cursor, "changes")
 	if err != nil {

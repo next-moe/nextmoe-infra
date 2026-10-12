@@ -421,9 +421,6 @@ func seedLiveFixtures(db *gorm.DB, claims *catsvc.ClaimLifecycleService) (liveFi
 		return fx, err
 	}
 
-	// The taxonomy work counts (has_works=, series/company work_count) only
-	// count works with a LIVE claim — claimStateWhere(taxonomyLiveClaim) — so an
-	// unclaimed fixture work attributes to a label yet counts as zero.
 	attributed := &model.CatalogWork{
 		MediumID: 1, OLang: "ja", DisplayName: "Attributed Work",
 		ContentRating: model.ContentRatingAllAges, Status: model.WorkStatusLive,
@@ -465,10 +462,6 @@ func seedLiveFixtures(db *gorm.DB, claims *catsvc.ClaimLifecycleService) (liveFi
 	}
 	fx.CompanyEmpty = empt.ID
 
-	// Both hang off the unclaimed "Live Work": the taxonomy work counts only see
-	// LIVE-claimed works, so attributing here leaves has_works= and work_count
-	// untouched while still giving the work-detail companies block one row with a
-	// logo and one without.
 	logo := &model.CatalogLabel{
 		DisplayName: "Logo Brand", Lang: "ja", Kind: model.LabelKindGameBrand,
 		LogoHash: liveLogoHash, FieldProvenance: empty,
@@ -553,9 +546,6 @@ func seedLiveFixtures(db *gorm.DB, claims *catsvc.ClaimLifecycleService) (liveFi
 		return fx, err
 	}
 
-	// live-tag is the has_works positive control: mapped, and attached to the
-	// one LIVE-claimed fixture work so the taxonomy count sees it. live-ero-tag
-	// stays unmapped-to-any-claimed-work and reads work_count 0.
 	if err := db.Create(&model.CatalogTagSourceMap{TagID: tg.ID, SourceID: 2, SourceName: "live-tag"}).Error; err != nil {
 		return fx, err
 	}
@@ -580,8 +570,13 @@ func seedLiveFixtures(db *gorm.DB, claims *catsvc.ClaimLifecycleService) (liveFi
 		return fx, err
 	}
 	fx.Series = se.ID
-	if err := db.Create(&model.CatalogSeriesMember{SeriesID: se.ID, WorkID: attributed.ID, Position: 1, Kind: model.SeriesMemberKindMain}).Error; err != nil {
-		return fx, err
+	for _, m := range []*model.CatalogSeriesMember{
+		{SeriesID: se.ID, WorkID: attributed.ID, Position: 1, Kind: model.SeriesMemberKindMain},
+		{SeriesID: se.ID, WorkID: w.ID, Position: 2, Kind: model.SeriesMemberKindFandisc},
+	} {
+		if err := db.Create(m).Error; err != nil {
+			return fx, err
+		}
 	}
 	if err := db.Create(&model.CatalogSeriesIntro{SeriesID: se.ID, Lang: "ja", Intro: "シリーズ説明", SourceID: 2}).Error; err != nil {
 		return fx, err

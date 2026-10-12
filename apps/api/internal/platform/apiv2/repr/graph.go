@@ -16,7 +16,7 @@ type CompanyGraphNode struct {
 	ID          string                   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog company id."`
 	DisplayName string                   `json:"display_name" maxLength:"512" doc:"Must not be used as a discriminant."`
 	Localized   map[string]LocalizedText `json:"localized" doc:"BCP-47 keys. Empty object if none. Must not be used as a discriminant."`
-	WorkCount   int                      `json:"work_count" minimum:"0" doc:"Works visible under the same NSFW gate."`
+	WorkCount   int                      `json:"work_count" minimum:"0" doc:"Works GET /v2/catalog/works?company_id={id} lists under the same nsfw and no other filter."`
 	Logo        *Image                   `json:"logo,omitempty" doc:"Present only when include=logo and this node has a logo; absent otherwise."`
 }
 

@@ -42,8 +42,6 @@ func TestLiveWorksRefsPartialMiss(t *testing.T) {
 
 func TestLiveCompaniesHasWorks(t *testing.T) {
 	env := liveCatalog(t)
-	status, _, body := liveDo(t, env, http.MethodGet, "/v2/catalog/companies?has_works=true&include_total=true", liveAppKey, "")
-	require.Equal(t, 200, status)
 	var out struct {
 		Items []struct {
 			ID        string `json:"id"`
@@ -51,14 +49,22 @@ func TestLiveCompaniesHasWorks(t *testing.T) {
 		} `json:"items"`
 		Total *int64 `json:"total"`
 	}
-	require.NoError(t, json.Unmarshal(body, &out))
-	require.Len(t, out.Items, 1)
-	require.Equal(t, idstr(env.fx.Company), out.Items[0].ID)
-	require.Equal(t, 1, out.Items[0].WorkCount)
-	require.NotNil(t, out.Total)
-	require.EqualValues(t, 1, *out.Total)
+	for _, nsfw := range []string{"", "&nsfw=true"} {
+		status, _, body := liveDo(t, env, http.MethodGet, "/v2/catalog/companies?has_works=true&include_total=true"+nsfw, liveAppKey, "")
+		require.Equal(t, 200, status)
+		require.NoError(t, json.Unmarshal(body, &out))
+		require.Len(t, out.Items, 4, "every company but the empty one has a work, claimed or not")
+		require.NotNil(t, out.Total)
+		require.EqualValues(t, 4, *out.Total)
+		for _, it := range out.Items {
+			require.NotEqual(t, idstr(env.fx.CompanyEmpty), it.ID)
+			total, _ := liveWorksTotal(t, env, "/v2/catalog/works?limit=1&include_total=true&company_id="+it.ID+nsfw)
+			require.NotNil(t, total)
+			require.EqualValues(t, *total, it.WorkCount, "company %s%s: work_count against its works list", it.ID, nsfw)
+		}
+	}
 
-	status, _, body = liveDo(t, env, http.MethodGet, "/v2/catalog/companies", liveAppKey, "")
+	status, _, body := liveDo(t, env, http.MethodGet, "/v2/catalog/companies", liveAppKey, "")
 	require.Equal(t, 200, status)
 	require.NoError(t, json.Unmarshal(body, &out))
 	require.Len(t, out.Items, 5, "without the flag every company lists, including the rollup pair")
@@ -152,7 +158,7 @@ func TestLiveSeriesWorkCount(t *testing.T) {
 		WorkCount int `json:"work_count"`
 	}
 	require.NoError(t, json.Unmarshal(body, &ser))
-	require.Equal(t, 1, ser.WorkCount)
+	require.Equal(t, 2, ser.WorkCount, "the claimed and the unclaimed all-ages members; the r18 one stays hidden")
 
 	status, _, body = liveDo(t, env, http.MethodGet, "/v2/catalog/series", liveAppKey, "")
 	require.Equal(t, 200, status)
@@ -164,7 +170,7 @@ func TestLiveSeriesWorkCount(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(body, &list))
 	require.Len(t, list.Items, 1)
-	require.Equal(t, 1, list.Items[0].WorkCount)
+	require.Equal(t, 2, list.Items[0].WorkCount)
 }
 
 func TestLiveEngineCarriesDescriptionAliases(t *testing.T) {

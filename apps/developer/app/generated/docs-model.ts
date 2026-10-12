@@ -4955,7 +4955,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "work_count",
                                     "required": true,
-                                    "doc": "Works visible under the same NSFW gate.",
+                                    "doc": "Works GET /v2/catalog/works?company_id={id} lists under the same nsfw and no other filter.",
                                     "format": "int64",
                                     "type": "integer"
                                   }
@@ -5311,7 +5311,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "work_count",
                                     "required": true,
-                                    "doc": "Works visible under the same NSFW gate.",
+                                    "doc": "Works GET /v2/catalog/works?engine_id={id} lists under the same nsfw and no other filter.",
                                     "format": "int64",
                                     "type": "integer"
                                   }
@@ -5942,7 +5942,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "member_count",
                                     "required": true,
-                                    "doc": "Members visible under the same NSFW gate.",
+                                    "doc": "Works GET /v2/catalog/works?series_id={id} lists under the same nsfw and no other filter.",
                                     "format": "int64",
                                     "type": "integer"
                                   },
@@ -6034,7 +6034,7 @@ export const docsModel: DocsModel = {
                                     "name": "work_count",
                                     "required": true,
                                     "nullable": true,
-                                    "doc": "Works visible under the same NSFW gate. null if unmapped.",
+                                    "doc": "Works GET /v2/catalog/works?tag_id={id} lists under the same nsfw and no other filter, as of the hourly recount. null if unmapped.",
                                     "format": "int64",
                                     "type": "integer"
                                   }
@@ -14048,7 +14048,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "work_count",
                                         "required": true,
-                                        "doc": "Works visible under the same NSFW gate.",
+                                        "doc": "Works GET /v2/catalog/works?company_id={id} lists under the same nsfw and no other filter.",
                                         "format": "int64",
                                         "type": "integer"
                                       }
@@ -14404,7 +14404,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "work_count",
                                         "required": true,
-                                        "doc": "Works visible under the same NSFW gate.",
+                                        "doc": "Works GET /v2/catalog/works?engine_id={id} lists under the same nsfw and no other filter.",
                                         "format": "int64",
                                         "type": "integer"
                                       }
@@ -15035,7 +15035,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "member_count",
                                         "required": true,
-                                        "doc": "Members visible under the same NSFW gate.",
+                                        "doc": "Works GET /v2/catalog/works?series_id={id} lists under the same nsfw and no other filter.",
                                         "format": "int64",
                                         "type": "integer"
                                       },
@@ -15127,7 +15127,7 @@ export const docsModel: DocsModel = {
                                         "name": "work_count",
                                         "required": true,
                                         "nullable": true,
-                                        "doc": "Works visible under the same NSFW gate. null if unmapped.",
+                                        "doc": "Works GET /v2/catalog/works?tag_id={id} lists under the same nsfw and no other filter, as of the hourly recount. null if unmapped.",
                                         "format": "int64",
                                         "type": "integer"
                                       }
@@ -18543,7 +18543,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "work_count",
                               "required": true,
-                              "doc": "Works visible under the same NSFW gate.",
+                              "doc": "Works GET /v2/catalog/works?company_id={id} lists under the same nsfw and no other filter.",
                               "format": "int64",
                               "type": "integer"
                             }
@@ -20116,7 +20116,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "work_count",
                         "required": true,
-                        "doc": "Works visible under the same NSFW gate.",
+                        "doc": "Works GET /v2/catalog/works?company_id={id} lists under the same nsfw and no other filter.",
                         "format": "int64",
                         "type": "integer"
                       }
@@ -21733,7 +21733,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "work_count",
                               "required": true,
-                              "doc": "Works visible under the same NSFW gate.",
+                              "doc": "Works GET /v2/catalog/works?company_id={id} lists under the same nsfw and no other filter.",
                               "format": "int64",
                               "type": "integer"
                             }
@@ -27561,7 +27561,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "work_count",
                                         "required": true,
-                                        "doc": "Works visible under the same NSFW gate.",
+                                        "doc": "Works GET /v2/catalog/works?company_id={id} lists under the same nsfw and no other filter.",
                                         "format": "int64",
                                         "type": "integer"
                                       }
@@ -27917,7 +27917,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "work_count",
                                         "required": true,
-                                        "doc": "Works visible under the same NSFW gate.",
+                                        "doc": "Works GET /v2/catalog/works?engine_id={id} lists under the same nsfw and no other filter.",
                                         "format": "int64",
                                         "type": "integer"
                                       }
@@ -28548,7 +28548,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "member_count",
                                         "required": true,
-                                        "doc": "Members visible under the same NSFW gate.",
+                                        "doc": "Works GET /v2/catalog/works?series_id={id} lists under the same nsfw and no other filter.",
                                         "format": "int64",
                                         "type": "integer"
                                       },
@@ -28640,7 +28640,7 @@ export const docsModel: DocsModel = {
                                         "name": "work_count",
                                         "required": true,
                                         "nullable": true,
-                                        "doc": "Works visible under the same NSFW gate. null if unmapped.",
+                                        "doc": "Works GET /v2/catalog/works?tag_id={id} lists under the same nsfw and no other filter, as of the hourly recount. null if unmapped.",
                                         "format": "int64",
                                         "type": "integer"
                                       }
@@ -30366,7 +30366,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "work_count",
                               "required": true,
-                              "doc": "Works visible under the same NSFW gate.",
+                              "doc": "Works GET /v2/catalog/works?engine_id={id} lists under the same nsfw and no other filter.",
                               "format": "int64",
                               "type": "integer"
                             }
@@ -31727,7 +31727,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "work_count",
                         "required": true,
-                        "doc": "Works visible under the same NSFW gate.",
+                        "doc": "Works GET /v2/catalog/works?engine_id={id} lists under the same nsfw and no other filter.",
                         "format": "int64",
                         "type": "integer"
                       }
@@ -54872,7 +54872,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "has_nsfw",
                               "required": true,
-                              "doc": "Whether any member work sits behind the r18 display gate. Counted over the same live-claimed members as work_count but NOT narrowed by nsfw=, so a series can report true while work_count hides every such member. Carried on every lane.",
+                              "doc": "Whether any work GET /v2/catalog/works?series_id={id}&nsfw=true lists sits behind the r18 display gate (content_limit=nsfw). NOT narrowed by this call's nsfw=, so a series can report true while work_count hides every such member. Carried on every lane.",
                               "type": "boolean"
                             },
                             {
@@ -54950,7 +54950,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "work_count",
                               "required": true,
-                              "doc": "Member works visible under the same NSFW gate.",
+                              "doc": "Works GET /v2/catalog/works?series_id={id} lists under the same nsfw and no other filter.",
                               "format": "int64",
                               "type": "integer"
                             }
@@ -56281,7 +56281,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "has_nsfw",
                         "required": true,
-                        "doc": "Whether any member work sits behind the r18 display gate. Counted over the same live-claimed members as work_count but NOT narrowed by nsfw=, so a series can report true while work_count hides every such member. Carried on every lane.",
+                        "doc": "Whether any work GET /v2/catalog/works?series_id={id}&nsfw=true lists sits behind the r18 display gate (content_limit=nsfw). NOT narrowed by this call's nsfw=, so a series can report true while work_count hides every such member. Carried on every lane.",
                         "type": "boolean"
                       },
                       {
@@ -56359,7 +56359,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "work_count",
                         "required": true,
-                        "doc": "Member works visible under the same NSFW gate.",
+                        "doc": "Works GET /v2/catalog/works?series_id={id} lists under the same nsfw and no other filter.",
                         "format": "int64",
                         "type": "integer"
                       }
@@ -60222,7 +60222,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "work_count",
                               "required": true,
-                              "doc": "Works visible under the same NSFW gate.",
+                              "doc": "Works GET /v2/catalog/works?tag_id={id} lists under the same nsfw and no other filter, as of the hourly recount.",
                               "format": "int64",
                               "type": "integer"
                             }
@@ -61811,7 +61811,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "work_count",
                         "required": true,
-                        "doc": "Works visible under the same NSFW gate.",
+                        "doc": "Works GET /v2/catalog/works?tag_id={id} lists under the same nsfw and no other filter, as of the hourly recount.",
                         "format": "int64",
                         "type": "integer"
                       }
@@ -67650,7 +67650,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "work_count",
                                     "required": true,
-                                    "doc": "Works visible under the same NSFW gate.",
+                                    "doc": "Works GET /v2/catalog/works?company_id={id} lists under the same nsfw and no other filter.",
                                     "format": "int64",
                                     "type": "integer"
                                   }
@@ -68006,7 +68006,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "work_count",
                                     "required": true,
-                                    "doc": "Works visible under the same NSFW gate.",
+                                    "doc": "Works GET /v2/catalog/works?engine_id={id} lists under the same nsfw and no other filter.",
                                     "format": "int64",
                                     "type": "integer"
                                   }
@@ -68637,7 +68637,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "member_count",
                                     "required": true,
-                                    "doc": "Members visible under the same NSFW gate.",
+                                    "doc": "Works GET /v2/catalog/works?series_id={id} lists under the same nsfw and no other filter.",
                                     "format": "int64",
                                     "type": "integer"
                                   },
@@ -68729,7 +68729,7 @@ export const docsModel: DocsModel = {
                                     "name": "work_count",
                                     "required": true,
                                     "nullable": true,
-                                    "doc": "Works visible under the same NSFW gate. null if unmapped.",
+                                    "doc": "Works GET /v2/catalog/works?tag_id={id} lists under the same nsfw and no other filter, as of the hourly recount. null if unmapped.",
                                     "format": "int64",
                                     "type": "integer"
                                   }
@@ -70990,7 +70990,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "work_count",
                               "required": true,
-                              "doc": "Works visible under the same NSFW gate.",
+                              "doc": "Works GET /v2/catalog/works?company_id={id} lists under the same nsfw and no other filter.",
                               "format": "int64",
                               "type": "integer"
                             }
@@ -71346,7 +71346,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "work_count",
                               "required": true,
-                              "doc": "Works visible under the same NSFW gate.",
+                              "doc": "Works GET /v2/catalog/works?engine_id={id} lists under the same nsfw and no other filter.",
                               "format": "int64",
                               "type": "integer"
                             }
@@ -71977,7 +71977,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "member_count",
                               "required": true,
-                              "doc": "Members visible under the same NSFW gate.",
+                              "doc": "Works GET /v2/catalog/works?series_id={id} lists under the same nsfw and no other filter.",
                               "format": "int64",
                               "type": "integer"
                             },
@@ -72069,7 +72069,7 @@ export const docsModel: DocsModel = {
                               "name": "work_count",
                               "required": true,
                               "nullable": true,
-                              "doc": "Works visible under the same NSFW gate. null if unmapped.",
+                              "doc": "Works GET /v2/catalog/works?tag_id={id} lists under the same nsfw and no other filter, as of the hourly recount. null if unmapped.",
                               "format": "int64",
                               "type": "integer"
                             }
@@ -78975,7 +78975,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "work_count",
                               "required": true,
-                              "doc": "Works visible under the same NSFW gate.",
+                              "doc": "Works GET /v2/catalog/works?engine_id={id} lists under the same nsfw and no other filter.",
                               "format": "int64",
                               "type": "integer"
                             }
@@ -86049,7 +86049,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "work_count",
                                         "required": true,
-                                        "doc": "Works visible under the same NSFW gate.",
+                                        "doc": "Works GET /v2/catalog/works?company_id={id} lists under the same nsfw and no other filter.",
                                         "format": "int64",
                                         "type": "integer"
                                       }
@@ -86405,7 +86405,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "work_count",
                                         "required": true,
-                                        "doc": "Works visible under the same NSFW gate.",
+                                        "doc": "Works GET /v2/catalog/works?engine_id={id} lists under the same nsfw and no other filter.",
                                         "format": "int64",
                                         "type": "integer"
                                       }
@@ -87017,7 +87017,7 @@ export const docsModel: DocsModel = {
                                       {
                                         "name": "member_count",
                                         "required": true,
-                                        "doc": "Members visible under the same NSFW gate.",
+                                        "doc": "Works GET /v2/catalog/works?series_id={id} lists under the same nsfw and no other filter.",
                                         "format": "int64",
                                         "type": "integer"
                                       },
@@ -87109,7 +87109,7 @@ export const docsModel: DocsModel = {
                                         "name": "work_count",
                                         "required": true,
                                         "nullable": true,
-                                        "doc": "Works visible under the same NSFW gate. null if unmapped.",
+                                        "doc": "Works GET /v2/catalog/works?tag_id={id} lists under the same nsfw and no other filter, as of the hourly recount. null if unmapped.",
                                         "format": "int64",
                                         "type": "integer"
                                       }
@@ -92006,7 +92006,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "member_count",
                               "required": true,
-                              "doc": "Members visible under the same NSFW gate.",
+                              "doc": "Works GET /v2/catalog/works?series_id={id} lists under the same nsfw and no other filter.",
                               "format": "int64",
                               "type": "integer"
                             },
@@ -93620,7 +93620,7 @@ export const docsModel: DocsModel = {
                               "name": "work_count",
                               "required": true,
                               "nullable": true,
-                              "doc": "Works visible under the same NSFW gate. null if unmapped.",
+                              "doc": "Works GET /v2/catalog/works?tag_id={id} lists under the same nsfw and no other filter, as of the hourly recount. null if unmapped.",
                               "format": "int64",
                               "type": "integer"
                             }
@@ -116931,7 +116931,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "work_count",
                                     "required": true,
-                                    "doc": "Works visible under the same NSFW gate.",
+                                    "doc": "Works GET /v2/catalog/works?company_id={id} lists under the same nsfw and no other filter.",
                                     "format": "int64",
                                     "type": "integer"
                                   }
@@ -117287,7 +117287,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "work_count",
                                     "required": true,
-                                    "doc": "Works visible under the same NSFW gate.",
+                                    "doc": "Works GET /v2/catalog/works?engine_id={id} lists under the same nsfw and no other filter.",
                                     "format": "int64",
                                     "type": "integer"
                                   }
@@ -117918,7 +117918,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "member_count",
                                     "required": true,
-                                    "doc": "Members visible under the same NSFW gate.",
+                                    "doc": "Works GET /v2/catalog/works?series_id={id} lists under the same nsfw and no other filter.",
                                     "format": "int64",
                                     "type": "integer"
                                   },
@@ -118010,7 +118010,7 @@ export const docsModel: DocsModel = {
                                     "name": "work_count",
                                     "required": true,
                                     "nullable": true,
-                                    "doc": "Works visible under the same NSFW gate. null if unmapped.",
+                                    "doc": "Works GET /v2/catalog/works?tag_id={id} lists under the same nsfw and no other filter, as of the hourly recount. null if unmapped.",
                                     "format": "int64",
                                     "type": "integer"
                                   }

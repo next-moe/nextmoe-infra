@@ -162,7 +162,7 @@ B 波删掉的四件(**均为 breaking,逐条声明在 `public-openapi-breaking-
     - 边语义:`{from, to, relation}` 读作「**`to` 是 `from` 的 `relation`**」,与 `relations[].relation` 同一读法(那里 `from` 即被查看的厂牌)。因图**镜像存**,本面每个事实**只出一次**:仅渲染互逆对的**正向**四值 `parent | imprint | spawned | succeeded_by`,四个反向值(`subsidiary | imprint_of | origin | formerly`)由**反读同一条边**得到(要「X 的子公司」= 取 `to` 为 X 且 relation 为 `parent` 的边)。多源断言同一 `(from,to,relation)` 折叠为一条,`source` 不出面。
     - 种子不存在 → 404;种子被合并掉 → 与 `labels/{id}` 同样的 **301 + `current_id`**;种子无边 → **单节点零边图**(不是 404)。`relations[]` 一跳面**保持不动**。
   - **wave 199 加法——imprint 上卷**:186 给了箭头、188 给了整张图,但**所有读面仍只问「归属到本行的作品有哪些」**,于是 **311 个会社页答以空列表,而 10,668 部作品就挂在它下面一跳**(VISUAL ARTS 自有 19、75 个 imprint 下 553;NEXTON 自有 38、下挂 339)。上卷是**显式开关 + 强制归因**两件事:
-    - `GET /v1/catalog/labels/{id}` 恒出 **`imprint_work_count`**:沿 `imprint`/`subsidiary` **向下一跳**多摸到的作品数,与 `work_count` 同一 nsfw 感知 + live 认领聚合。**永不并入 `work_count`** —— 并进去就抹掉了 186 建图正是为了留住的那支箭头。两个人口**不相交**(母子共同署名的作品只算在母公司一侧)。
+    - `GET /v1/catalog/labels/{id}` 恒出 **`imprint_work_count`**:沿 `imprint`/`subsidiary` **向下一跳**多摸到的作品数,与 `work_count` 同一 nsfw 感知聚合、同一作品种群(见下文 2026-10-12 更正)。**永不并入 `work_count`** —— 并进去就抹掉了 186 建图正是为了留住的那支箭头。两个人口**不相交**(母子共同署名的作品只算在母公司一侧)。
     - `GET /v1/catalog/works?label_id=<id>&label_rollup=1` 是跟着那个数走的那一页,人口恰为 `work_count + imprint_work_count`——**「chip 上的数 = 点进去拿到的数」这条全 taxonomy 道赖以成立的不变式,对第二个数同样成立**。经子厂牌进来的行带 **`via_label{id, display_name, localized{}}`**(wave 209 前是 `{id,name}`),会社自有的行不带。
     - **不跟** `spawned` 与 `succeeded_by`:分家出去的公司目录是它自己的(fairys 之于 sprite),公司承继是**两实体一箭头**(wave 198 复核员已裁)。跟了它们就等于把别家的作品挂在本会社名下,而归因存在的意义正是防这件事。软删(被合并掉)的子厂牌在两处都不出。
   - **wave 200 更正——一家公司只占一格,版次事实下沉到 release**:`labels[]` 的存储粒度是 `(work, label, kind)`,于是「既开发又发行」的公司**占两行**,**56,438 部作品**因此把同一家公司印了两遍。同时 vndb 本就按 release 记录发行方,而 `orglabels` 的 W(O) 无任何语言闸,把移植商 / 本地化商 / 汉化补丁组一并压平到作品级——あまいろショコラータ 因此列出 5 家「会社」,且压得并不一致(英文版发行商进来了、俄文版的没有)。
@@ -172,11 +172,16 @@ B 波删掉的四件(**均为 breaking,逐条声明在 `public-openapi-breaking-
     - **读面**:`releases[]` 每行加 **`labels[]`**,形状与作品级 `labels[]` 逐字同(一家公司一条 + `kinds[]` + `work_count`,共用同一折叠与同一聚合,故两个粒度的数不可能各说各话)。**恒在**,该版次无已知公司时为 `[]`——与同结构里的 `refs[]` 同规:缺键与消费端解析失败无从区分,而「不知道谁发行了这一版」是常见且真实的答案(上游发行方尚无 exact 锚时即如此)。`GET /v1/catalog/releases` 的条目同样恒带此键(时间线上一行提出的问题正是「这个移植是谁在出」,而作品块答不了它)。没有它,表写了没人读,作品页仍是一堆压平的公司。
   - **wave 201——tag 的 `work_count` 改读上卷**:`labels` / `engines` / `series` 三条边靠外键直达作品,现算是一次索引区间扫描;`tag` 是唯一经映射表(`catalog_tag_source_map ⋈ catalog_work_tag`,约 120 万行)找作品的边,没有一种排序能同时服务两个方向,postgres 的最优计划要走遍全部过闸作品、展开每部约 39 条 tag 行(产出约 43 万行只留 6.9 万)。**生产实测 200–400ms,每次 `GET /works/{id}` 一遍,占本服务慢查询日志的 90%**。
     - 这不是执行计划问题:强制全部 join order、加 `(name, source_id) INCLUDE (work_id)` 覆盖索引、把 canonical tag id 反规范化进边表,三条路各自实测只有 ~1.5×,因为这道题本身就要算这么多。
-    - 新表 **`catalog_tag_work_count`**(`tag_id` 主键 + `n_all` / `n_sfw` / `n_nsfw` + `computed_at`)。三列即读面的**全部参数空间**:chip 的数只随调用方 `nsfw` 变,展示轴那一支根本不随调用方变,其余闸门(未软删 / LIVE / galgame 媒介 / `claim_state=live`)由契约钉死。
+    - 新表 **`catalog_tag_work_count`**(`tag_id` 主键 + `n_all` / `n_sfw` / `n_nsfw` + `computed_at`)。三列即读面的**全部参数空间**:chip 的数只随调用方 `nsfw` 变,展示轴那一支根本不随调用方变,其余闸门(`GET /v2/catalog/works` 的缺省种群:未软删 / LIVE / galgame 媒介 / 认领态非 `hidden`)由契约钉死。
     - **上卷由读路径自己的聚合函数产出**(`workCountsLive`,传 nil id 列表即「全部键」),不是第二份 SQL。这是它可信的唯一理由:上卷**只可能过期,不可能算的是另一道题**——一份由另一个实现填的上卷,一旦任一侧改动就会静默分叉,而两边都会继续自信地作答。测试 `TestTagRollupMatchesTheLiveAggregate` 常驻守卫这条等式。
     - **代价说白**:tag chip 的数从「构造上精确」降为「**截至 `computed_at` 精确**」。这是刻意的:tag 计数只在批量导入后才会动,而一个慢几分钟的浏览辅助数字,比一个每开一次作品页就要花掉三分之一秒的精确数字更值。**只对 tag 让**——另外三条边现算又快,让它们过期换不来任何东西。
     - **引导回退**:上卷表**一行都没有**时读面自动回落到现算,所以读半边可以先于写半边上线,不会把全站 tag chip 一次性打成 0;表里一有行,缺席即 0 且被采信(回退是引导,不是常驻第二意见)。
     - 刷新:`go run ./cmd/refresh-tag-counts --dsn …`,全量重算 + 单事务换页,重复跑是幂等的。
+  - **2026-10-12 更正——计数的种群就是 works 列表的缺省种群**:wave 146(2026-07-30)给全部 taxonomy 计数加了 `claim_state=live` 闸,理由是词条页成员列表会传 `claim_state=live`;但下游(论坛、letmoe)的成员列表是 `GET /v2/catalog/works?<filter>=` **不带认领态过滤**,于是计数系统性偏低:生产上 engine 46 的 `work_count` 是 548,`works?engine_id=46&nsfw=true` 列出 3,536;series 1919 的 `member_count` 是 3,成员列表 6 部。
+    - 现在每个计数都等于「`GET /v2/catalog/works?<filter>={id}` 在同一 `nsfw` 下、不带其它参数时的总数」:未软删 + `status=live` + galgame 媒介 + 认领态非 `hidden`(none / live / draft / pending / declined 都计入)+ 不分 `olang`;`nsfw` 缺省时再剔 r18。谓词不是第二份抄写:计数与 `has_works=` 都调 `worksListPopulation`,即 `worksListWhere` 在「无过滤 + 全语言」下产出的那组条件,列表的缺省种群以后再改,计数随之改。
+    - 涉及的面:companies / tags / engines / series 的列表、详情与 `ids=` 批量道的 `work_count`;公司关系图节点的 `work_count`;`imprint_work_count`(`work_count + imprint_work_count` 仍恰为 `company_rollup=true` 那一页的总数);companies / tags 的 `has_works=`;作品详情与 `releases[]` 上 companies / engines / tags 的 `work_count`;作品详情与 `works/{id}/series` 的 `series[].member_count`;tag 上卷表。
+    - series 的 `has_nsfw` = `works?series_id={id}&nsfw=true&content_limit=nsfw` 是否非空,不随调用方 `nsfw` 变。
+    - tag 上卷由 `workCountsLive` 产出,部署后**下一次每小时刷新**即为新口径;在此之前 tag 的数仍是旧口径。要立即生效就手动跑一次刷新。
 
 ### 2.8 `GET /catalog/works/search?q=&medium_id=&limit=` — 作品标题搜索(只读)
 
