@@ -851,9 +851,8 @@ func (s *PublicService) labelIntros(ctx context.Context, labelID int64) ([]dto.P
 	if err := s.db.WithContext(ctx).Raw(`
 		SELECT i.lang, i.intro, src.key AS source, i.provenance
 		FROM catalog_label_intro i JOIN catalog_source src ON src.id = i.source_id
-		WHERE i.label_id = ? ORDER BY i.lang, i.provenance, `+
-		editspec.HumanLaneFirstSQL("i.source_id", "i.provenance")+
-		`, i.source_id`, labelID).Scan(&rows).Error; err != nil {
+		WHERE i.label_id = ? ORDER BY i.lang, `+
+		editspec.IntroFoldOrderSQL("i.source_id", "i.provenance"), labelID).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	out := make([]dto.PublicIntro, 0, len(rows))
@@ -1506,7 +1505,7 @@ func (s *PublicService) nameIntros(ctx context.Context, nameID, personID int64) 
 	if personID > 0 {
 		if err := s.db.WithContext(ctx).Raw(`SELECT lang, intro, source_id, provenance
 			FROM catalog_person_intro WHERE person_id = ?
-			ORDER BY lang, provenance, source_id`, personID).Scan(&personRows).Error; err != nil {
+			ORDER BY lang, `+editspec.IntroFoldOrderSQL("source_id", "provenance"), personID).Scan(&personRows).Error; err != nil {
 			return nil, err
 		}
 	}
