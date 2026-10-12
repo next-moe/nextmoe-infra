@@ -128,3 +128,36 @@ func TestPlanSkipsHumanPinnedWorks(t *testing.T) {
 	assert.Contains(t, ids, humanUnpinnedMachinePinned, "an unpinned curated cover does not veto a machine pin")
 	assert.NotContains(t, ids, unpinnedOnly, "works with no pin stay out of the candidate set")
 }
+
+func TestPlanLeavesMergedInCoversOutWhileTheWorkHasItsOwn(t *testing.T) {
+	resetCovers(t)
+	bangumi := srcID(t, "bangumi")
+	mkMerged := func(workID int64, hash string, pinned bool) {
+		require.NoError(t, testDB.Create(&model.CatalogWorkCover{
+			WorkID: workID, ImageHash: hash, Kind: "main", PortraitPinned: pinned,
+			SourceID: bangumi, MergedIn: true,
+		}).Error)
+	}
+
+	survivor := mkWork(t, "survivor")
+	mkCover(t, survivor, "hash-own-pin", bangumi, true)
+	mkMerged(survivor, "hash-loser-sharper", false)
+
+	onlyMerged := mkWork(t, "only merged art")
+	mkMerged(onlyMerged, "hash-merged-pin", true)
+	mkMerged(onlyMerged, "hash-merged-alt", false)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":{"metas":{}}}`))
+	}))
+	t.Cleanup(srv.Close)
+	stats := &Stats{}
+	r := &runner{db: testDB, stats: stats,
+		cli: imageclient.New(imageclient.Config{BaseURL: srv.URL, ClientID: "x", ClientSecret: "y"})}
+	plans, err := r.plan(context.Background(), Opts{})
+	require.NoError(t, err)
+	require.Len(t, plans, 2)
+	assert.Equal(t, 3, stats.Covers,
+		"the survivor's merged-in cover is no candidate; a work with only merged-in art keeps them")
+}

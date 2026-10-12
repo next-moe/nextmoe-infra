@@ -70,7 +70,7 @@ func cleanTables(t *testing.T) {
 	for _, table := range []string{
 		"catalog_credit",
 		"catalog_match_candidate", "catalog_match_rejection", "catalog_external_ref",
-		"catalog_merge_proposal", "catalog_revision", "catalog_redirect", "catalog_entity_usage",
+		"catalog_merge_proposal", "catalog_merge_archive", "catalog_revision", "catalog_redirect", "catalog_entity_usage",
 		"catalog_work_relation", "catalog_entity_relation",
 		"catalog_work_title", "catalog_release", "catalog_work",
 		"catalog_work_intro", "catalog_work_cover", "catalog_work_screenshot",

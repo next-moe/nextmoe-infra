@@ -106,8 +106,12 @@ func TestUnmergeRebuildsTheRowAndLeavesTheChildrenOnTheSurvivor(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, describe(t.Context(), testDB, p, target))
 
-	newID, err := merge.Unmerge(t.Context(), proposalID, &[]int64{1}[0])
+	res, err := merge.Unmerge(t.Context(), proposalID, &[]int64{1}[0])
 	require.NoError(t, err)
+	newID := res.NewID
+	require.Empty(t, res.Archive.Restored)
+	require.Len(t, res.Archive.Skipped, 1,
+		"the merge archived the loser's ja title (the survivor has one); the snapshot already rebuilt it")
 	require.NotEqual(t, source, newID, "the rebuild takes a new id")
 
 	var rebuilt model.CatalogWork

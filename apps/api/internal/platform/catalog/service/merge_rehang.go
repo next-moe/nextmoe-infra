@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"strings"
 
 	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
@@ -127,179 +126,140 @@ func rehangRef(table, column string, family int16) mergeRef {
 // columns mergeRefs could name: a credit_name merge rewrites keys hanging off
 // works that are not in the merge at all. Those rewrites come from the editing
 // registry, where every field declares its IdentitySpec.
-func rehangEntity(tx *gorm.DB, reg *editing.Registry, entityType int16, src, dst int64) ([]int64, error) {
-	stmts, err := rehangStmts(reg, entityType, src, dst)
+func rehangEntity(tx *gorm.DB, reg *editing.Registry, p mergePlan) ([]int64, error) {
+	stmts, err := rehangStmts(reg, p)
 	if err != nil {
 		return nil, err
 	}
 	return execAll(tx, stmts)
 }
 
-func rehangStmts(reg *editing.Registry, entityType int16, src, dst int64) ([]mergeStmt, error) {
-	switch entityType {
+func rehangStmts(reg *editing.Registry, p mergePlan) ([]mergeStmt, error) {
+	src, dst := p.src, p.dst
+	switch p.entityType {
 	case model.EntityTypePerson:
 		stmts := []mergeStmt{
 			{`UPDATE catalog_credit_name SET person_id = ? WHERE person_id = ?`, []any{dst, src}, false},
-			{`UPDATE catalog_person_intro i SET person_id = ? WHERE i.person_id = ?
-			    AND NOT EXISTS (SELECT 1 FROM catalog_person_intro x
-			                     WHERE x.person_id = ? AND x.lang = i.lang AND x.source_id = i.source_id)`,
-				[]any{dst, src, dst}, false},
-			{`DELETE FROM catalog_person_intro WHERE person_id = ?`, []any{src}, false},
 		}
+		stmts = append(stmts, introStmts(p, "catalog_person_intro", "person_id")...)
 		stmts = append(stmts, identityFollowStmts(reg, editspec.TagPerson, src, dst)...)
-		return append(stmts, entityRelationStmts(entityType, src, dst)...), nil
+		return append(stmts, entityRelationStmts(p)...), nil
 
 	case model.EntityTypeCreditName:
 		stmts := []mergeStmt{
-			{`DELETE FROM catalog_credit d
-			   WHERE d.credit_name_id = ? AND ` + notCuratedCreditD + `
+			archiveDeleteReturning(p, "catalog_credit", `t.credit_name_id = ? AND `+editspec.NotCuratedLaneSQL("t.source_id")+`
 			     AND EXISTS (SELECT 1 FROM catalog_credit c
-			                  WHERE c.credit_name_id = ? AND ` + curatedCreditC + `
-			                    AND c.work_id = d.work_id AND c.role_id = d.role_id
-			                    AND COALESCE(c.character_id, 0) = COALESCE(d.character_id, 0))
-			  RETURNING d.work_id`, []any{dst, src}, true},
+			                  WHERE c.credit_name_id = ? AND `+curatedCreditC+`
+			                    AND c.work_id = t.work_id AND c.role_id = t.role_id
+			                    AND COALESCE(c.character_id, 0) = COALESCE(t.character_id, 0))`,
+				[]any{dst, src}, "work_id"),
 			{`UPDATE catalog_credit c SET credit_name_id = ? WHERE c.credit_name_id = ?
 			    AND NOT EXISTS (SELECT 1 FROM catalog_credit d
 			                     WHERE d.work_id = c.work_id AND d.credit_name_id = ?
 			                       AND d.role_id = c.role_id
 			                       AND COALESCE(d.character_id, 0) = COALESCE(c.character_id, 0))
 			  RETURNING c.work_id`, []any{dst, src, dst}, true},
-			{`DELETE FROM catalog_credit WHERE credit_name_id = ? RETURNING work_id`, []any{src}, true},
-			{`UPDATE catalog_name_alias a SET credit_name_id = ? WHERE a.credit_name_id = ?
+			archiveDeleteReturning(p, "catalog_credit", "t.credit_name_id = ?", []any{src}, "work_id"),
+		}
+		stmts = append(stmts, aliasDemoteStmts(p, nameAliasTable)...)
+		stmts = append(stmts,
+			mergeStmt{`UPDATE catalog_name_alias a SET credit_name_id = ? WHERE a.credit_name_id = ?
 			    AND NOT EXISTS (SELECT 1 FROM catalog_name_alias b
 			                     WHERE b.credit_name_id = ? AND b.name = a.name AND b.lang = a.lang)`, []any{dst, src, dst}, false},
-			{`DELETE FROM catalog_name_alias WHERE credit_name_id = ?`, []any{src}, false},
-			{`UPDATE catalog_person SET primary_credit_name_id = ? WHERE primary_credit_name_id = ?`, []any{dst, src}, false},
-		}
+			archiveDelete(p, "catalog_name_alias", "t.credit_name_id = ?", src),
+			mergeStmt{`UPDATE catalog_person SET primary_credit_name_id = ? WHERE primary_credit_name_id = ?`, []any{dst, src}, false},
+		)
 		stmts = append(stmts, identityFollowStmts(reg, editspec.TagCreditName, src, dst)...)
-		return append(stmts, entityRelationStmts(entityType, src, dst)...), nil
+		return append(stmts, entityRelationStmts(p)...), nil
 
 	case model.EntityTypeLabel:
 		stmts := []mergeStmt{
 			{`UPDATE catalog_credit SET label_id = ? WHERE label_id = ? RETURNING work_id`, []any{dst, src}, true},
-			{`UPDATE catalog_label_alias a SET label_id = ? WHERE a.label_id = ?
+		}
+		stmts = append(stmts, aliasDemoteStmts(p, labelAliasTable)...)
+		stmts = append(stmts,
+			mergeStmt{`UPDATE catalog_label_alias a SET label_id = ? WHERE a.label_id = ?
 			    AND NOT EXISTS (SELECT 1 FROM catalog_label_alias b
 			                     WHERE b.label_id = ? AND b.name = a.name AND b.lang = a.lang)`, []any{dst, src, dst}, false},
-			{`DELETE FROM catalog_label_alias WHERE label_id = ?`, []any{src}, false},
-			{`UPDATE catalog_label_intro i SET label_id = ? WHERE i.label_id = ?
-			    AND NOT EXISTS (SELECT 1 FROM catalog_label_intro x
-			                     WHERE x.label_id = ? AND x.lang = i.lang AND x.source_id = i.source_id)`,
-				[]any{dst, src, dst}, false},
-			{`DELETE FROM catalog_label_intro WHERE label_id = ?`, []any{src}, false},
-			{`UPDATE catalog_work_label e SET label_id = ? WHERE e.label_id = ?
+			archiveDelete(p, "catalog_label_alias", "t.label_id = ?", src),
+		)
+		stmts = append(stmts, introStmts(p, "catalog_label_intro", "label_id")...)
+		stmts = append(stmts,
+			mergeStmt{`UPDATE catalog_work_label e SET label_id = ? WHERE e.label_id = ?
 			    AND NOT EXISTS (SELECT 1 FROM catalog_work_label x
 			                     WHERE x.work_id = e.work_id AND x.label_id = ? AND x.kind = e.kind)
 			  RETURNING e.work_id`, []any{dst, src, dst}, true},
-			{`DELETE FROM catalog_work_label WHERE label_id = ? RETURNING work_id`, []any{src}, true},
-			{`UPDATE catalog_release_label e SET label_id = ? WHERE e.label_id = ?
+			archiveDeleteReturning(p, "catalog_work_label", "t.label_id = ?", []any{src}, "work_id"),
+			mergeStmt{`UPDATE catalog_release_label e SET label_id = ? WHERE e.label_id = ?
 			    AND NOT EXISTS (SELECT 1 FROM catalog_release_label x
 			                     WHERE x.release_id = e.release_id AND x.label_id = ? AND x.kind = e.kind)
 			  RETURNING (SELECT r.work_id FROM catalog_release r WHERE r.id = e.release_id)`, []any{dst, src, dst}, true},
-			{`DELETE FROM catalog_release_label e WHERE e.label_id = ?
-			  RETURNING (SELECT r.work_id FROM catalog_release r WHERE r.id = e.release_id)`, []any{src}, true},
-			{`UPDATE catalog_user_entity_follow f SET entity_id = ? WHERE f.entity_type = ? AND f.entity_id = ?
+			archiveDeleteReturning(p, "catalog_release_label", "t.label_id = ?", []any{src},
+				"(SELECT r.work_id FROM catalog_release r WHERE r.id = gone.release_id)"),
+			mergeStmt{`UPDATE catalog_user_entity_follow f SET entity_id = ? WHERE f.entity_type = ? AND f.entity_id = ?
 			    AND NOT EXISTS (SELECT 1 FROM catalog_user_entity_follow x
 			                     WHERE x.actor_uid = f.actor_uid AND x.entity_type = ? AND x.entity_id = ?)`,
 				[]any{dst, model.EntityTypeLabel, src, model.EntityTypeLabel, dst}, false},
-			{`DELETE FROM catalog_user_entity_follow WHERE entity_type = ? AND entity_id = ?`,
+			mergeStmt{`DELETE FROM catalog_user_entity_follow WHERE entity_type = ? AND entity_id = ?`,
 				[]any{model.EntityTypeLabel, src}, false},
-		}
-		stmts = append(stmts, labelRelationStmts(src, dst)...)
+		)
+		stmts = append(stmts, labelRelationStmts(p)...)
 		stmts = append(stmts, identityFollowStmts(reg, editspec.TagLabel, src, dst)...)
-		return append(stmts, entityRelationStmts(entityType, src, dst)...), nil
+		return append(stmts, entityRelationStmts(p)...), nil
 
 	case model.EntityTypeCharacter:
 		stmts := []mergeStmt{
-			{`DELETE FROM catalog_credit d
-			   WHERE d.character_id = ? AND ` + notCuratedCreditD + `
+			archiveDeleteReturning(p, "catalog_credit", `t.character_id = ? AND `+editspec.NotCuratedLaneSQL("t.source_id")+`
 			     AND EXISTS (SELECT 1 FROM catalog_credit c
-			                  WHERE c.character_id = ? AND ` + curatedCreditC + `
-			                    AND c.work_id = d.work_id AND c.credit_name_id = d.credit_name_id
-			                    AND c.role_id = d.role_id)
-			  RETURNING d.work_id`, []any{dst, src}, true},
-			{`DELETE FROM catalog_character_alias b
-			   WHERE b.character_id = ? AND ` + editspec.NotCuratedLaneSQL("b.source_id") + `
+			                  WHERE c.character_id = ? AND `+curatedCreditC+`
+			                    AND c.work_id = t.work_id AND c.credit_name_id = t.credit_name_id
+			                    AND c.role_id = t.role_id)`, []any{dst, src}, "work_id"),
+		}
+		stmts = append(stmts, aliasDemoteStmts(p, characterAliasTable)...)
+		stmts = append(stmts,
+			archiveDelete(p, "catalog_character_alias", `t.character_id = ? AND `+editspec.NotCuratedLaneSQL("t.source_id")+`
 			     AND EXISTS (SELECT 1 FROM catalog_character_alias a
-			                  WHERE a.character_id = ? AND ` + editspec.CuratedLaneSQL("a.source_id") + `
-			                    AND a.name = b.name AND a.lang = b.lang)`, []any{dst, src}, false},
-			{`UPDATE catalog_credit c SET character_id = ? WHERE c.character_id = ?
+			                  WHERE a.character_id = ? AND `+editspec.CuratedLaneSQL("a.source_id")+`
+			                    AND a.name = t.name AND a.lang = t.lang)`, dst, src),
+			mergeStmt{`UPDATE catalog_credit c SET character_id = ? WHERE c.character_id = ?
 			    AND NOT EXISTS (SELECT 1 FROM catalog_credit d
 			                     WHERE d.work_id = c.work_id AND d.credit_name_id = c.credit_name_id
 			                       AND d.role_id = c.role_id AND COALESCE(d.character_id, 0) = ?)
 			  RETURNING c.work_id`, []any{dst, src, dst}, true},
-			{`DELETE FROM catalog_credit WHERE character_id = ? RETURNING work_id`, []any{src}, true},
-			{`UPDATE catalog_character_alias a SET character_id = ? WHERE a.character_id = ?
+			archiveDeleteReturning(p, "catalog_credit", "t.character_id = ?", []any{src}, "work_id"),
+			mergeStmt{`UPDATE catalog_character_alias a SET character_id = ? WHERE a.character_id = ?
 			    AND NOT EXISTS (SELECT 1 FROM catalog_character_alias b
 			                     WHERE b.character_id = ? AND b.name = a.name AND b.lang = a.lang)`, []any{dst, src, dst}, false},
-			{`DELETE FROM catalog_character_alias WHERE character_id = ?`, []any{src}, false},
-			{`UPDATE catalog_work_character d
+			archiveDelete(p, "catalog_character_alias", "t.character_id = ?", src),
+			mergeStmt{`UPDATE catalog_work_character d
 			    ` + rosterSurvivorshipSet + `
 			    FROM catalog_work_character s
 			    WHERE d.character_id = ? AND s.character_id = ? AND s.work_id = d.work_id`, []any{dst, src}, false},
-			{`UPDATE catalog_work_character e SET character_id = ?, updated_at = now() WHERE e.character_id = ?
+			mergeStmt{`UPDATE catalog_work_character e SET character_id = ?, updated_at = now() WHERE e.character_id = ?
 			    AND NOT EXISTS (SELECT 1 FROM catalog_work_character x
 			                     WHERE x.work_id = e.work_id AND x.character_id = ?)
 			  RETURNING e.work_id`, []any{dst, src, dst}, true},
-			{`DELETE FROM catalog_work_character WHERE character_id = ? RETURNING work_id`, []any{src}, true},
-			{`UPDATE catalog_character_intro i SET character_id = ? WHERE i.character_id = ?
-			    AND NOT EXISTS (SELECT 1 FROM catalog_character_intro x
-			                     WHERE x.character_id = ? AND x.lang = i.lang AND x.source_id = i.source_id)`,
-				[]any{dst, src, dst}, false},
-			{`DELETE FROM catalog_character_intro WHERE character_id = ?`, []any{src}, false},
+			archiveDeleteReturning(p, "catalog_work_character", "t.character_id = ?", []any{src}, "work_id"),
+		)
+		stmts = append(stmts, introStmts(p, "catalog_character_intro", "character_id")...)
+		stmts = append(stmts,
 			// Kept-verdict cache, not data: dropped rather than repointed.
-			{`DELETE FROM catalog_character_intro_panel_verdict WHERE character_id = ?`, []any{src}, false},
-			{`UPDATE catalog_character_trait_link t SET character_id = ? WHERE t.character_id = ?
+			mergeStmt{`DELETE FROM catalog_character_intro_panel_verdict WHERE character_id = ?`, []any{src}, false},
+			mergeStmt{`UPDATE catalog_character_trait_link t SET character_id = ? WHERE t.character_id = ?
 			    AND NOT EXISTS (SELECT 1 FROM catalog_character_trait_link x
 			                     WHERE x.character_id = ? AND x.trait_id = t.trait_id)`,
 				[]any{dst, src, dst}, false},
-			{`DELETE FROM catalog_character_trait_link WHERE character_id = ?`, []any{src}, false},
-			{`UPDATE catalog_character SET instance_of = ? WHERE instance_of = ?`, []any{dst, src}, false},
-		}
+			archiveDelete(p, "catalog_character_trait_link", "t.character_id = ?", src),
+			mergeStmt{`UPDATE catalog_character SET instance_of = ? WHERE instance_of = ?`, []any{dst, src}, false},
+		)
 		stmts = append(stmts, suppressedRowStmts(editspec.TypeCharacter, src, dst)...)
 		stmts = append(stmts, identityFollowStmts(reg, editspec.TagCharacter, src, dst)...)
-		return append(stmts, entityRelationStmts(entityType, src, dst)...), nil
+		return append(stmts, entityRelationStmts(p)...), nil
 
 	case model.EntityTypeWork:
-		stmts := []mergeStmt{
-			{`DELETE FROM catalog_work_relation
-			   WHERE (a_work_id = ? AND b_work_id = ?) OR (a_work_id = ? AND b_work_id = ?)`, []any{src, dst, dst, src}, false},
-			{`UPDATE catalog_work_relation r SET a_work_id = ? WHERE r.a_work_id = ?
-			    AND NOT EXISTS (SELECT 1 FROM catalog_work_relation x
-			                     WHERE x.a_work_id = ? AND x.b_work_id = r.b_work_id
-			                       AND x.relation_type_id = r.relation_type_id)
-			  RETURNING r.b_work_id`, []any{dst, src, dst}, true},
-			{`DELETE FROM catalog_work_relation WHERE a_work_id = ? RETURNING b_work_id`, []any{src}, true},
-			{`UPDATE catalog_work_relation r SET b_work_id = ? WHERE r.b_work_id = ?
-			    AND NOT EXISTS (SELECT 1 FROM catalog_work_relation x
-			                     WHERE x.b_work_id = ? AND x.a_work_id = r.a_work_id
-			                       AND x.relation_type_id = r.relation_type_id)
-			  RETURNING r.a_work_id`, []any{dst, src, dst}, true},
-			{`DELETE FROM catalog_work_relation WHERE b_work_id = ? RETURNING a_work_id`, []any{src}, true},
-			{`UPDATE catalog_work_title t SET work_id = ? WHERE t.work_id = ?
-			    AND NOT EXISTS (SELECT 1 FROM catalog_work_title u
-			                     WHERE u.work_id = ? AND u.lang = t.lang AND u.title = t.title AND u.kind = t.kind)`, []any{dst, src, dst}, false},
-			{`DELETE FROM catalog_work_title WHERE work_id = ?`, []any{src}, false},
-			{`UPDATE catalog_release SET work_id = ? WHERE work_id = ?`, []any{dst, src}, false},
-			{`DELETE FROM catalog_credit d
-			   WHERE d.work_id = ? AND ` + notCuratedCreditD + `
-			     AND EXISTS (SELECT 1 FROM catalog_credit c
-			                  WHERE c.work_id = ? AND ` + curatedCreditC + `
-			                    AND c.credit_name_id = d.credit_name_id AND c.role_id = d.role_id
-			                    AND COALESCE(c.character_id, 0) = COALESCE(d.character_id, 0))`,
-				[]any{dst, src}, false},
-			{`UPDATE catalog_credit c SET work_id = ? WHERE c.work_id = ?
-			    AND NOT EXISTS (SELECT 1 FROM catalog_credit d
-			                     WHERE d.work_id = ? AND d.credit_name_id = c.credit_name_id
-			                       AND d.role_id = c.role_id
-			                       AND COALESCE(d.character_id, 0) = COALESCE(c.character_id, 0))`, []any{dst, src, dst}, false},
-			{`DELETE FROM catalog_credit WHERE work_id = ?`, []any{src}, false},
-		}
-		stmts = append(stmts, suppressedRowStmts(editspec.TypeWork, src, dst)...)
-		stmts = append(stmts, identityFollowStmts(reg, editspec.TagWork, src, dst)...)
-		stmts = append(stmts, workFacetStmts(src, dst)...)
-		return append(stmts, mergeStmt{editspec.PurgeSuppressedWorkTagsSQL, []any{dst}, false}), nil
+		return workRehangStmts(reg, p), nil
 	}
-	return nil, fmt.Errorf("catalog merge: unsupported entity type %d", entityType)
+	return nil, fmt.Errorf("catalog merge: unsupported entity type %d", p.entityType)
 }
 
 // rehangEntity's `NOT EXISTS` + unconditional DELETE pairs settle a unique-key
@@ -354,155 +314,43 @@ func suppressedRowStmts(entityType string, src, dst int64) []mergeStmt {
 	}
 }
 
-func workFacetStmts(src, dst int64) []mergeStmt {
-	stmts := []mergeStmt{
-		{`UPDATE catalog_work_character d
-		    ` + rosterSurvivorshipSet + `
-		    FROM catalog_work_character s
-		    WHERE d.work_id = ? AND s.work_id = ? AND s.character_id = d.character_id`, []any{dst, src}, false},
-		{`UPDATE catalog_user_playtime d
-		    SET minutes = GREATEST(d.minutes, s.minutes),
-		        last_played_at = GREATEST(d.last_played_at, s.last_played_at),
-		        updated_at = now()
-		    FROM catalog_user_playtime s
-		    WHERE d.work_id = ? AND s.work_id = ?
-		      AND s.actor_uid = d.actor_uid AND s.client_id = d.client_id`, []any{dst, src}, false},
-		// Kept-verdict cache, not data: rows are re-derivable, so a merge drops
-		// them instead of repointing (the pair is re-judged once if it recurs).
-		{`DELETE FROM catalog_character_intro_panel_verdict WHERE work_id = ?`, []any{src}, false},
-		// Folder memberships take a custom move instead of the generic rehang:
-		// managers mirror these rows incrementally off updated_at, so the
-		// repointed row must surface on the sync cursor or every synced client
-		// keeps a membership addressed to the retired id.
-		{`UPDATE catalog_user_folder_item f SET work_id = ?, updated_at = now()
-		    WHERE f.work_id = ?
-		    AND NOT EXISTS (SELECT 1 FROM catalog_user_folder_item x
-		                     WHERE x.work_id = ? AND x.folder_id = f.folder_id)`, []any{dst, src, dst}, false},
-		{`DELETE FROM catalog_user_folder_item WHERE work_id = ?`, []any{src}, false},
-		// Every folder the merge touched holds dst afterwards (a src-only row
-		// was repointed to dst; a duplicate was deleted because dst was already
-		// there), so recounting the dst holders repairs every drifted count.
-		{`UPDATE catalog_user_folder f
-		    SET item_count = (SELECT count(*) FROM catalog_user_folder_item i WHERE i.folder_id = f.id),
-		        updated_at = now()
-		    WHERE f.id IN (SELECT folder_id FROM catalog_user_folder_item WHERE work_id = ?)`, []any{dst}, false},
-		// Work states sync incrementally off updated_at like folder items, so
-		// the same custom move applies. Where a user holds state on both sides,
-		// the later-updated row is the intent that survives.
-		{`UPDATE catalog_user_work_state d
-		    SET state = s.state, completion = s.completion, updated_at = now()
-		    FROM catalog_user_work_state s
-		    WHERE d.work_id = ? AND s.work_id = ?
-		      AND s.actor_uid = d.actor_uid AND s.updated_at > d.updated_at`, []any{dst, src}, false},
-		{`UPDATE catalog_user_work_state f SET work_id = ?, updated_at = now()
-		    WHERE f.work_id = ?
-		    AND NOT EXISTS (SELECT 1 FROM catalog_user_work_state x
-		                     WHERE x.work_id = ? AND x.actor_uid = f.actor_uid)`, []any{dst, src, dst}, false},
-		{`DELETE FROM catalog_user_work_state WHERE work_id = ?`, []any{src}, false},
-	}
-	stmts = append(stmts, ratingMergeStmts(src, dst)...)
-	for _, f := range []struct {
-		table string
-		key   []string
-	}{
-		{"catalog_work_intro", []string{"lang", "source_id"}},
-		{"catalog_work_cover", []string{"image_hash"}},
-		{"catalog_cover_vote", []string{"actor_uid"}},
-		{"catalog_work_screenshot", []string{"image_hash"}},
-		{"catalog_work_rating", []string{"source_id"}},
-		{"catalog_work_tag", []string{"name", "source_id"}},
-		{"catalog_work_popularity", []string{"source_id", "metric"}},
-		{"catalog_work_playtime", []string{"source_id"}},
-		{"catalog_user_playtime", []string{"actor_uid", "client_id"}},
-		{"catalog_work_platform", []string{"platform", "source_id"}},
-		{"catalog_work_engine", []string{"engine_id", "source_id"}},
-		{"catalog_series_member", []string{"series_id"}},
-		{"catalog_work_label", []string{"label_id", "kind"}},
-		{"catalog_work_character", []string{"character_id"}},
-	} {
-		stmts = append(stmts, workFacetRehang(f.table, f.key, src, dst)...)
-	}
-	return stmts
-}
-
-// A rating keeps its id across a merge, because site mirrors hang likes and
-// threads on it. Where a user rated both works the later-updated row survives
-// and the other leaves a tombstone, like any delete. Every surviving rating is
-// touched: the play state it carries may have come over from the merged work.
-func ratingMergeStmts(src, dst int64) []mergeStmt {
-	upsert, prune := ratingAggregateSQL(true)
-	scope := []any{dst}
+func labelRelationStmts(p mergePlan) []mergeStmt {
+	src, dst := p.src, p.dst
 	return []mergeStmt{
-		{`WITH gone AS (DELETE FROM catalog_user_work_rating d USING catalog_user_work_rating s
-		      WHERE d.work_id = ? AND s.work_id = ? AND s.actor_uid = d.actor_uid AND s.updated_at > d.updated_at
-		      RETURNING d.id, d.work_id)
-		  INSERT INTO catalog_user_work_rating_tombstone (id, work_id, deleted_at)
-		  SELECT id, work_id, now() FROM gone`, []any{dst, src}, false},
-		{`UPDATE catalog_user_work_rating f SET work_id = ?, changed_at = now()
-		    WHERE f.work_id = ?
-		    AND NOT EXISTS (SELECT 1 FROM catalog_user_work_rating x
-		                     WHERE x.work_id = ? AND x.actor_uid = f.actor_uid)`, []any{dst, src, dst}, false},
-		{`WITH gone AS (DELETE FROM catalog_user_work_rating WHERE work_id = ? RETURNING id, work_id)
-		  INSERT INTO catalog_user_work_rating_tombstone (id, work_id, deleted_at)
-		  SELECT id, work_id, now() FROM gone`, []any{src}, false},
-		{`UPDATE catalog_user_work_rating SET changed_at = now() WHERE work_id = ?`, []any{dst}, false},
-		{upsert, []any{scope, scope}, false},
-		{prune, []any{scope}, false},
-	}
-}
-
-func workFacetRehang(table string, keyCols []string, src, dst int64) []mergeStmt {
-	match := make([]string, 0, len(keyCols))
-	for _, c := range keyCols {
-		match = append(match, fmt.Sprintf("x.%s = f.%s", c, c))
-	}
-	move := fmt.Sprintf(
-		`UPDATE %s f SET work_id = ? WHERE f.work_id = ?
-		    AND NOT EXISTS (SELECT 1 FROM %s x WHERE x.work_id = ? AND %s)`,
-		table, table, strings.Join(match, " AND "))
-	return []mergeStmt{
-		{move, []any{dst, src, dst}, false},
-		{fmt.Sprintf(`DELETE FROM %s WHERE work_id = ?`, table), []any{src}, false},
-	}
-}
-
-func labelRelationStmts(src, dst int64) []mergeStmt {
-	return []mergeStmt{
-		{`DELETE FROM catalog_label_relation
-		   WHERE (label_id = ? AND other_label_id = ?) OR (label_id = ? AND other_label_id = ?)`,
-			[]any{src, dst, dst, src}, false},
+		archiveDelete(p, "catalog_label_relation",
+			"(t.label_id = ? AND t.other_label_id = ?) OR (t.label_id = ? AND t.other_label_id = ?)", src, dst, dst, src),
 		{`UPDATE catalog_label_relation r SET label_id = ? WHERE r.label_id = ?
 		    AND NOT EXISTS (SELECT 1 FROM catalog_label_relation x
 		                     WHERE x.label_id = ? AND x.other_label_id = r.other_label_id
 		                       AND x.relation = r.relation AND x.source_id = r.source_id)`,
 			[]any{dst, src, dst}, false},
-		{`DELETE FROM catalog_label_relation WHERE label_id = ?`, []any{src}, false},
+		archiveDelete(p, "catalog_label_relation", "t.label_id = ?", src),
 		{`UPDATE catalog_label_relation r SET other_label_id = ? WHERE r.other_label_id = ?
 		    AND NOT EXISTS (SELECT 1 FROM catalog_label_relation x
 		                     WHERE x.other_label_id = ? AND x.label_id = r.label_id
 		                       AND x.relation = r.relation AND x.source_id = r.source_id)`,
 			[]any{dst, src, dst}, false},
-		{`DELETE FROM catalog_label_relation WHERE other_label_id = ?`, []any{src}, false},
+		archiveDelete(p, "catalog_label_relation", "t.other_label_id = ?", src),
 	}
 }
 
-func entityRelationStmts(entityType int16, src, dst int64) []mergeStmt {
+func entityRelationStmts(p mergePlan) []mergeStmt {
+	et, src, dst := p.entityType, p.src, p.dst
 	return []mergeStmt{
-		{`DELETE FROM catalog_entity_relation
-		   WHERE entity_type = ? AND ((a_id = ? AND b_id = ?) OR (a_id = ? AND b_id = ?))`,
-			[]any{entityType, src, dst, dst, src}, false},
+		archiveDelete(p, "catalog_entity_relation",
+			"t.entity_type = ? AND ((t.a_id = ? AND t.b_id = ?) OR (t.a_id = ? AND t.b_id = ?))", et, src, dst, dst, src),
 		{`UPDATE catalog_entity_relation e SET a_id = ? WHERE e.entity_type = ? AND e.a_id = ?
 		    AND NOT EXISTS (SELECT 1 FROM catalog_entity_relation x
 		                     WHERE x.entity_type = e.entity_type AND x.a_id = ? AND x.b_id = e.b_id
 		                       AND x.relation_type_id = e.relation_type_id)`,
-			[]any{dst, entityType, src, dst}, false},
-		{`DELETE FROM catalog_entity_relation WHERE entity_type = ? AND a_id = ?`, []any{entityType, src}, false},
+			[]any{dst, et, src, dst}, false},
+		archiveDelete(p, "catalog_entity_relation", "t.entity_type = ? AND t.a_id = ?", et, src),
 		{`UPDATE catalog_entity_relation e SET b_id = ? WHERE e.entity_type = ? AND e.b_id = ?
 		    AND NOT EXISTS (SELECT 1 FROM catalog_entity_relation x
 		                     WHERE x.entity_type = e.entity_type AND x.b_id = ? AND x.a_id = e.a_id
 		                       AND x.relation_type_id = e.relation_type_id)`,
-			[]any{dst, entityType, src, dst}, false},
-		{`DELETE FROM catalog_entity_relation WHERE entity_type = ? AND b_id = ?`, []any{entityType, src}, false},
+			[]any{dst, et, src, dst}, false},
+		archiveDelete(p, "catalog_entity_relation", "t.entity_type = ? AND t.b_id = ?", et, src),
 	}
 }
 

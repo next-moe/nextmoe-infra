@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"maps"
 	"slices"
 	"strings"
 
@@ -200,9 +201,13 @@ func (s *PublicService) attachWorkListCoverSlots(
 		flat = append(flat, shots[sub.WorkID]...)
 	}
 	shotMeta := s.workMediaMetaFor(ctx, nil, flat)
+	if shotMeta == nil {
+		shotMeta = map[string]ImageMeta{}
+	}
+	maps.Copy(shotMeta, meta)
 	for i, r := range rows {
 		if bannerMissing(items[i].Covers) {
-			items[i].Covers = s.fillBannerFromScreenshots(items[i].Covers, shots[r.ID], shotMeta, allow[i])
+			items[i].Covers = s.fillBannerFromScreenshots(items[i].Covers, covers[r.ID], shots[r.ID], shotMeta, allow[i])
 		}
 	}
 	return nil

@@ -25,6 +25,7 @@ type stragglerPair struct {
 	EntityType int16
 	OldID      int64
 	CurrentID  int64
+	Absorb     bool
 }
 
 type stragglerRow struct {
@@ -76,14 +77,22 @@ func (s *MergeService) SweepStragglers(ctx context.Context) (StragglerReport, er
 			if err := repository.LockEntityRow(tx, p.EntityType, p.CurrentID); err != nil {
 				return err
 			}
-			touched, err := rehangEntity(tx, reg, p.EntityType, p.OldID, p.CurrentID)
+			plan, err := stragglerPlan(tx, p)
+			if err != nil {
+				return err
+			}
+			touched, err := rehangEntity(tx, reg, plan)
 			if err != nil {
 				return fmt.Errorf("rehang: %w", err)
 			}
 			if p.EntityType == model.EntityTypeWork {
 				touched = append(touched, p.CurrentID)
 			}
-			if err := moveStragglerRefs(tx, p.EntityType, p.OldID, p.CurrentID); err != nil {
+			refs := moveStragglerRefs
+			if plan.absorb {
+				refs = absorbExternalRefs
+			}
+			if err := refs(tx, plan); err != nil {
 				return fmt.Errorf("external refs: %w", err)
 			}
 			if err := repository.MergeUsage(tx, p.EntityType, p.OldID, p.CurrentID); err != nil {
@@ -126,22 +135,24 @@ func censusStragglers(db *gorm.DB) ([]stragglerRow, error) {
 	var out []stragglerRow
 	for _, ref := range mergeRefs {
 		var rows []struct {
-			EntityType int16 `gorm:"column:entity_type"`
-			OldID      int64 `gorm:"column:old_id"`
-			CurrentID  int64 `gorm:"column:current_id"`
-			N          int64 `gorm:"column:n"`
+			EntityType int16  `gorm:"column:entity_type"`
+			OldID      int64  `gorm:"column:old_id"`
+			CurrentID  int64  `gorm:"column:current_id"`
+			Reason     string `gorm:"column:reason"`
+			N          int64  `gorm:"column:n"`
 		}
-		q := fmt.Sprintf(`SELECT r.entity_type, r.old_id, r.current_id, count(*) AS n
+		q := fmt.Sprintf(`SELECT r.entity_type, r.old_id, r.current_id, r.reason, count(*) AS n
 			FROM %s t JOIN catalog_redirect r ON r.entity_type = %s AND r.old_id = t.%s
-			GROUP BY 1, 2, 3`, ref.table, ref.typeSQL, ref.column)
+			GROUP BY 1, 2, 3, 4`, ref.table, ref.typeSQL, ref.column)
 		if err := db.Raw(q).Scan(&rows).Error; err != nil {
 			return nil, fmt.Errorf("census %s.%s: %w", ref.table, ref.column, err)
 		}
 		for _, r := range rows {
 			out = append(out, stragglerRow{
-				stragglerPair: stragglerPair{EntityType: r.EntityType, OldID: r.OldID, CurrentID: r.CurrentID},
-				ref:           ref.table + "." + ref.column,
-				n:             r.N,
+				stragglerPair: stragglerPair{EntityType: r.EntityType, OldID: r.OldID, CurrentID: r.CurrentID,
+					Absorb: redirectIsAbsorb(r.Reason)},
+				ref: ref.table + "." + ref.column,
+				n:   r.N,
 			})
 		}
 	}
@@ -154,34 +165,11 @@ func censusStragglers(db *gorm.DB) ([]stragglerRow, error) {
 	return out, nil
 }
 
-// moveStragglerRefs is mergeExternalRefs without its exact-conflict demotion.
-// The merge demotes when both sides hold different exact ids from one source,
-// because at merge time that conflict is evidence the pair may be wrong. A
-// straggler was written after the merge was decided, and demoting would strip
-// the survivor's own anchor: 10 of the 11 VNDB producers anchored onto retired
-// labels in 2026-08 would have taken the survivor's VNDB id down with them. So a
-// straggler that would be a second exact id from a source lands as related, and
-// the survivor's refs are never touched. Curated ids stay exact, as in a merge:
-// several wiki ids folding into one entity is what the curated source records.
-func moveStragglerRefs(tx *gorm.DB, entityType int16, src, dst int64) error {
-	_, err := execAll(tx, []mergeStmt{
-		{`UPDATE catalog_external_ref r SET link_kind = ?
-		   WHERE r.entity_type = ? AND r.entity_id = ? AND r.link_kind = ?
-		     AND r.source_id NOT IN (SELECT id FROM catalog_source WHERE key IN ?)
-		     AND (EXISTS (SELECT 1 FROM catalog_external_ref t
-		                   WHERE t.entity_type = r.entity_type AND t.entity_id = ?
-		                     AND t.source_id = r.source_id AND t.link_kind = ?)
-		          OR (SELECT count(*) FROM catalog_external_ref s
-		               WHERE s.entity_type = r.entity_type AND s.entity_id = r.entity_id
-		                 AND s.source_id = r.source_id AND s.link_kind = ?) > 1)`,
-			[]any{model.LinkKindRelated, entityType, src, model.LinkKindExact, curatedSourceKeys,
-				dst, model.LinkKindExact, model.LinkKindExact}, false},
-		{`UPDATE catalog_external_ref r SET entity_id = ? WHERE r.entity_type = ? AND r.entity_id = ?
-		    AND NOT EXISTS (SELECT 1 FROM catalog_external_ref t
-		                     WHERE t.entity_type = r.entity_type AND t.entity_id = ?
-		                       AND t.source_id = r.source_id AND t.external_id = r.external_id)`,
-			[]any{dst, entityType, src, dst}, false},
-		{`DELETE FROM catalog_external_ref WHERE entity_type = ? AND entity_id = ?`, []any{entityType, src}, false},
-	})
-	return err
+func stragglerPlan(tx *gorm.DB, p stragglerPair) (mergePlan, error) {
+	plan := mergePlan{entityType: p.EntityType, src: p.OldID, dst: p.CurrentID, absorb: p.Absorb}
+	err := tx.Raw(`SELECT COALESCE((SELECT id FROM catalog_merge_proposal
+		WHERE entity_type = ? AND source_entity_id = ? AND status = ?
+		ORDER BY executed_at DESC NULLS LAST, id DESC LIMIT 1), 0)`,
+		p.EntityType, p.OldID, model.ProposalStatusExecuted).Scan(&plan.proposalID).Error
+	return plan, err
 }

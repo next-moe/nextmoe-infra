@@ -50,10 +50,13 @@ func TestMergeCharacterCarriesIntrosAndTraits(t *testing.T) {
 	var intros []model.CatalogCharacterIntro
 	require.NoError(t, testDB.Where("character_id = ?", target.ID).
 		Order("lang, source_id").Find(&intros).Error)
-	require.Len(t, intros, 3, "the two non-colliding source intros move onto the host")
-	assert.Equal(t, "target ja/2", intros[0].Intro, "the colliding key keeps the survivor's text")
-	assert.EqualValues(t, 3, intros[1].SourceID)
-	assert.Equal(t, "zh-Hans", intros[2].Lang)
+	require.Len(t, intros, 2, "the survivor's ja keeps out every loser ja; zh-Hans is new and moves")
+	assert.Equal(t, "target ja/2", intros[0].Intro)
+	assert.Equal(t, "zh-Hans", intros[1].Lang)
+	var archived int64
+	require.NoError(t, testDB.Raw(`SELECT count(*) FROM catalog_merge_archive
+		WHERE proposal_id = ? AND table_name = 'catalog_character_intro'`, p.ID).Scan(&archived).Error)
+	assert.EqualValues(t, 2, archived, "both loser ja intros are archived, not lost")
 
 	var links []model.CatalogCharacterTraitLink
 	require.NoError(t, testDB.Where("character_id = ?", target.ID).

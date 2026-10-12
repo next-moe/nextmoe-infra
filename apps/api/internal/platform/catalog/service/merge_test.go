@@ -98,10 +98,10 @@ func TestMergePersonFullFlow(t *testing.T) {
 		model.EntityTypePerson, target.ID).Scan(&refs).Error)
 	assert.Equal(t, []refRow{
 		{2, "s5", model.LinkKindExact},
-		{3, "person-111", model.LinkKindProbable},
+		{3, "person-111", model.LinkKindExact},
 		{3, "person-222", model.LinkKindProbable},
 		{5, "eg-1", model.LinkKindProbable},
-	}, refs)
+	}, refs, "the survivor's exact stays; only the loser's conflicting exact demotes")
 	var srcRefs int64
 	testDB.Model(&model.CatalogExternalRef{}).Where("entity_type = ? AND entity_id = ?", model.EntityTypePerson, source.ID).Count(&srcRefs)
 	assert.Zero(t, srcRefs)
@@ -277,8 +277,9 @@ func TestMergeUnmergeDrill(t *testing.T) {
 	approveAndForceExecutable(t, p.ID)
 	require.NoError(t, testMerge.ExecuteMerge(ctx, p.ID, nil))
 
-	newID, err := testMerge.Unmerge(ctx, p.ID, nil)
+	res, err := testMerge.Unmerge(ctx, p.ID, nil)
 	require.NoError(t, err)
+	newID := res.NewID
 	require.NotZero(t, newID)
 	assert.NotEqual(t, source.ID, newID, "unmerge rebuilds under a NEW id")
 
@@ -338,8 +339,9 @@ func TestUnmergeAfterTargetWasMergedOn(t *testing.T) {
 	approveAndForceExecutable(t, bc.ID)
 	require.NoError(t, testMerge.ExecuteMerge(ctx, bc.ID, nil))
 
-	newID, err := testMerge.Unmerge(ctx, ab.ID, nil)
+	res, err := testMerge.Unmerge(ctx, ab.ID, nil)
 	require.NoError(t, err, "the recorded target B is merged away; the survivor is C")
+	newID := res.NewID
 
 	canonical, redirected, err := testResolve.Resolve(ctx, model.EntityTypePerson, a.ID)
 	require.NoError(t, err)

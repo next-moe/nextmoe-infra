@@ -60,11 +60,11 @@ func TestMergeKeepsWikiIdMapRefsExact(t *testing.T) {
 		model.EntityTypeLabel, target.ID).Scan(&refs).Error)
 
 	assert.Equal(t, []refRow{
-		{srcVNDB, "p111", model.LinkKindProbable},
+		{srcVNDB, "p111", model.LinkKindExact},
 		{srcVNDB, "p222", model.LinkKindProbable},
 		{wikiSrc, "1001", model.LinkKindExact},
 		{wikiSrc, "1002", model.LinkKindExact},
-	}, refs, "both wiki oids must stay exact; the competing vndb exacts must still demote")
+	}, refs, "both wiki oids must stay exact; only the loser's competing vndb exact demotes")
 }
 
 func TestMergeKeepsWikiGidRefsExactOnWorks(t *testing.T) {

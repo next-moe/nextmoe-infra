@@ -111,8 +111,8 @@ func InsertRedirect(tx *gorm.DB, entityType int16, oldID, currentID int64, merge
 	}).Error
 }
 
-func RepointRedirect(tx *gorm.DB, entityType int16, oldID, newCurrentID int64) error {
+func RepointRedirect(tx *gorm.DB, entityType int16, oldID, newCurrentID int64, reason string) error {
 	return tx.Model(&model.CatalogRedirect{}).
 		Where("entity_type = ? AND old_id = ?", entityType, oldID).
-		Update("current_id", newCurrentID).Error
+		Updates(map[string]any{"current_id": newCurrentID, "reason": reason}).Error
 }

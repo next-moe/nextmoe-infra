@@ -47,8 +47,9 @@ func TestProbableBucketIncludesMergeDemotedRows(t *testing.T) {
 
 	items, total, err := testQueues.ListProbableRefs(ctx, RefFilters{})
 	require.NoError(t, err)
-	assert.Equal(t, int64(2), total, "both demoted exacts enter the confirmation bucket")
+	assert.Equal(t, int64(1), total, "the loser's demoted exact enters the confirmation bucket; the survivor's stays exact")
 	for _, item := range items {
+		assert.Equal(t, "bgm-2", item.ExternalID)
 		assert.Equal(t, "import:test", item.MatchedBy, "demotion keeps the original matched_by")
 		assert.Nil(t, item.VerifiedAt)
 		assert.Equal(t, target.ID, item.EntityID)

@@ -62,10 +62,19 @@ func Run(db *gorm.DB) error {
 		// Work graph (step 04): registry work/title/release, then edges.
 		&model.CatalogWork{},
 		&model.CatalogWorkTitle{},
-		&model.CatalogWorkIntro{},      // bodyless multilingual intro (step 52 media-aggregation pilot)
-		&model.CatalogWorkCover{},      // bodyless cover images (step 53 media-aggregation wave II)
-		&model.CatalogWorkScreenshot{}, // bodyless screenshot images (step 54 media-aggregation wave III)
-		&model.CatalogCoverVote{},      // advisory best-cover votes (wave 175); its cover FK is raw SQL below
+		&model.CatalogWorkIntro{}, // bodyless multilingual intro (step 52 media-aggregation pilot)
+		// Bodyless cover and screenshot images (steps 53/54). 2026-10-12 adds
+		// merged_in boolean NOT NULL DEFAULT false to both: a work merge sets it
+		// on the loser's rows it moves, and every cover election, and the
+		// banner's screenshot fallback, ranks those rows below the survivor's
+		// own. Before it the loser's sharper art won the survivor's portrait and
+		// banner. AutoMigrate adds the column as metadata (PG 11+, no rewrite);
+		// every existing row takes false, so rows moved by merges before this
+		// change keep competing as the survivor's own — nothing records which
+		// they were.
+		&model.CatalogWorkCover{},
+		&model.CatalogWorkScreenshot{},
+		&model.CatalogCoverVote{}, // advisory best-cover votes (wave 175); its cover FK is raw SQL below
 		// Bodyless source-native ratings (step 58a media-aggregation facet A).
 		// Wave 205 added the nullable distribution/stats jsonb columns; both land
 		// NULL on every existing row and stay that way until backfill-work-ratings
@@ -145,6 +154,15 @@ func Run(db *gorm.DB) error {
 		&model.CatalogMatchRejection{},
 		&model.CatalogMatchCandidate{},
 		&model.CatalogMergeProposal{},
+		// 2026-10-12: every row a merge drops instead of moving — the loser's
+		// intros where the survivor already has one, machine titles, colliding
+		// duplicates, and in absorb mode every imported row of the edition — is
+		// written here as to_jsonb(row) in the merge's own transaction, keyed by
+		// proposal, so MergeService.Unmerge can put it back on the rebuilt
+		// entity. Until now a merge deleted those rows outright and an unmerge
+		// restored only the work row and its titles. New and empty; nothing is
+		// backfilled, since rows dropped by earlier merges are gone.
+		&model.CatalogMergeArchive{},
 		&model.CatalogSurvivorshipRule{},
 
 		// Credit edges (step 05).

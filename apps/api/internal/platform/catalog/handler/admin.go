@@ -359,7 +359,8 @@ func (s *AdminServer) actOnProposal(ctx context.Context, in *proposalActionInput
 					coolingOffMessage(p.ExecuteAfter))
 			}
 			return nil, apiErrMsg(http.StatusUnprocessableEntity, errors.ErrOperationFailed, err.Error())
-		case stderrors.Is(err, service.ErrProposalState), stderrors.Is(err, service.ErrEntityNotLive):
+		case stderrors.Is(err, service.ErrProposalState), stderrors.Is(err, service.ErrEntityNotLive),
+			stderrors.Is(err, service.ErrAbsorbVNDBAnchor), stderrors.Is(err, service.ErrMergeMode):
 			return nil, apiErrMsg(http.StatusConflict, errors.ErrOperationFailed, err.Error())
 		}
 		slog.Error("catalog admin proposal action", "action", in.Action, "id", in.ID, "err", err)

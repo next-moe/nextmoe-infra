@@ -7,12 +7,14 @@
 // back, and the survivor has carried vndb v7635 (2008) and v63090 (2025) since.
 //
 // What Unmerge restores is the work row and its titles, from the merged_source
-// revision snapshot, under a NEW id. Refs, releases, credits, tags, covers and
-// characters moved to the survivor during the merge and stay there: the
-// snapshot does not carry them. So this prints what is still sitting on the
-// survivor and names the upstream ids on each side, because redistributing
-// those is a second, hand-adjudicated step and the operator needs to see the
-// size of it before starting.
+// revision snapshot, under a NEW id, plus every row the merge archived instead
+// of moving (catalog_merge_archive): the loser's intros, covers and duplicates
+// the survivor already had, and for an absorb every imported row and the
+// original refs. Rows the merge MOVED — refs, releases, credits, tags, covers
+// and characters the survivor lacked — stay on the survivor. So this prints
+// what is still sitting on the survivor and names the upstream ids on each
+// side, because redistributing those is a second, hand-adjudicated step and
+// the operator needs to see the size of it before starting.
 package main
 
 import (
@@ -20,7 +22,9 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"maps"
 	"os"
+	"slices"
 
 	"api/internal/infrastructure/database"
 	"api/internal/platform/catalog/model"
@@ -74,14 +78,24 @@ func main() {
 
 	merge := service.NewMergeService(db, resolve,
 		repository.NewProposalRepository(db), repository.NewRevisionRepository(db))
-	newID, err := merge.Unmerge(ctx, p.ID, actor)
+	res, err := merge.Unmerge(ctx, p.ID, actor)
 	if err != nil {
 		slog.Error("unmerge", "proposal", p.ID, "err", err)
 		os.Exit(1)
 	}
-	fmt.Printf("APPLIED proposal %d: work %d rebuilt as %d (titles only; refs, releases, credits, "+
-		"tags, covers and characters are still on %d and need a separate pass)\n",
-		p.ID, p.SourceEntityID, newID, survivor)
+	printRestore(res.Archive)
+	fmt.Printf("APPLIED proposal %d: work %d rebuilt as %d with its titles and archived rows; refs, releases, "+
+		"credits, tags, covers and characters the merge moved are still on %d and need a separate pass\n",
+		p.ID, p.SourceEntityID, res.NewID, survivor)
+}
+
+func printRestore(a service.ArchiveRestore) {
+	for _, table := range slices.Sorted(maps.Keys(a.Restored)) {
+		fmt.Printf("  restored %-28s %d\n", table, a.Restored[table])
+	}
+	for _, sk := range a.Skipped {
+		fmt.Printf("  skipped  %-28s archive #%d: %s\n", sk.Table, sk.ArchiveID, sk.Reason)
+	}
 }
 
 func loadExecuted(ctx context.Context, db *gorm.DB, id int64) (*model.CatalogMergeProposal, error) {

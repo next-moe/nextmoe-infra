@@ -446,14 +446,15 @@ func (s *PublicService) fillDetailBanner(
 	imgMeta map[string]ImageMeta, allowSexual bool, sel PublicFields,
 ) (*dto.PublicWorkCoverSlots, error) {
 	if sel.Wants("screenshots") {
-		return s.fillBannerFromScreenshots(slots, detail.Screenshots, imgMeta, allowSexual), nil
+		return s.fillBannerFromScreenshots(slots, detail.Covers, detail.Screenshots, imgMeta, allowSexual), nil
 	}
 	byWork, err := s.read.loadWorkScreenshots(ctx, []claimSubject{{WorkID: detail.Work.ID}})
 	if err != nil {
 		return nil, err
 	}
 	shots := byWork[detail.Work.ID]
-	return s.fillBannerFromScreenshots(slots, shots, s.workMediaMetaFor(ctx, nil, shots), allowSexual), nil
+	return s.fillBannerFromScreenshots(slots, detail.Covers, shots,
+		s.workMediaMetaFor(ctx, detail.Covers, shots), allowSexual), nil
 }
 
 func (s *PublicService) imageURL(hash string) string {
