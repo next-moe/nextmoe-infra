@@ -8583,7 +8583,7 @@ components:
           $ref: "#/components/schemas/RatingAspectScores"
           description: Per-aspect scores; each is null when the author skipped it.
         client_id:
-          description: OAuth client of the app the rating was first written from; a later edit from another app does not change it. Display only; must not be used as a discriminant.
+          description: OAuth client of the app the rating was first written from; a later edit from another app does not change it. A site may compare it with its own client ids to tell the ratings written through it from the ones it only mirrors; beyond that it must not be used as a discriminant.
           maxLength: 64
           type: string
         created_at:
@@ -9641,7 +9641,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.46.0
+  version: 2.46.1
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -23233,7 +23233,7 @@ paths:
         - moderation
   /v2/moderation/ratings/{id}:
     delete:
-      description: Removes the rating from every site at once; the deletion reaches /v2/ratings/changes as a gone entry and the work's nextmoe score follows. 204 with no body. Requires a user access token whose holder moderates.
+      description: "Removes the rating from every site at once; the deletion reaches /v2/ratings/changes as a gone entry and the work's nextmoe score follows. 204 with no body. Requires a user access token whose holder has catalog.rating.moderate: the moderator, admin and ren roles have it, and the permission console can grant it to another role. Reviewing catalog edits or claims does not include it."
       operationId: deleteModerationRating
       parameters:
         - description: Rating id.

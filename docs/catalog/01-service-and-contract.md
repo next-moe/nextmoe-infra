@@ -514,7 +514,8 @@ wave 176-179 把人类的**写**搬完了;本波搬的是搬完写之后还留�
 - **`/v2/me/work-records/{work_id}`**:GET / PUT 游玩状态 + 本应用的时长 + 评分,**一个事务**,给「一个弹窗同时提交」用。PUT 替换整条记录,缺省或为 null 的部分即删除(时长只删本应用那一行)。
 - **`/v2/me/works`** 每项多一个 `rating`;只评过分的作品也算「记过」。
 - **`/v2/ratings`**(应用密钥或带 `catalog:read` 的用户令牌):按 `work_id=` / `user_id=` 列表(按创建时间倒序)、`/v2/ratings/{id}`,以及**镜像信道 `/v2/ratings/changes`**:写入与删除按 `(changed_at, id)` 排序,与 `/v2/catalog/changes` 一样压后 5 秒,只有满页才给 `next_cursor`。
-- **`DELETE /v2/moderation/ratings/{id}`**:版主删除,经 feed 传到所有站。
+- **`DELETE /v2/moderation/ratings/{id}`**:版主删除,经 feed 传到所有站。门槛是专用权限 `catalog.rating.moderate`(moderator / admin / ren 角色默认具备,权限控制台可授予别的角色),**不是**「有任一审核权限」:生产上权限控制台给 creator 授了全部目录审核权限,2.46.1 之前这 80 人也能全网删任何人的评分。站点自己的「删他人评分」权限中央不认,没有这个权限的令牌回 403。
+- **`client_id`** 是首次写入这条评分的应用;站点拿它和自己的 client id 比较来区分「经本站写入」与「只是镜像来的」(动态、萌萌点只对前者)。`site` 不能这样用:moyu 的 client 也绑在 kungal 站点上。
 - **公开聚合**:见 §2.4 `ratings` 块的 `nextmoe` 源。
 - **生命周期**:注销账号删除其评分(写墓碑);作品合并见上。
 - **迁移 `cmd/import-user-ratings`**:论坛 `galgame_rating` 保留原 id(迁移把 catalog 自己发的 id 从 1,000,001 起,所以导入前经 `/v2` 写的评分占不到论坛的 id),LetMoe `game_rating` 取新 id;评分行里的游玩状态在中央尚无状态时补进 `catalog_user_work_state`(已有的不覆盖;created_at 取评分时间、updated_at 取当下,状态镜像才看得到);台账 `catalog_user_work_rating_import` 让重跑可对账:源端更新更晚的覆盖、源端删掉且之后未改的撤回(另一站的副本仍指向同一条时不撤)、中央已删的不复活;长事务提交后把写过的行重新盖时间,免得镜像游标在事务期间越过去。两个源各自可选。上线时跑一次,每个站切换时再跑一次,**切换之后不能再对该站跑**(那时站内表已是中央的镜像)。

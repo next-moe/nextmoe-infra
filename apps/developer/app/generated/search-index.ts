@@ -1704,7 +1704,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "删除任意评分",
     "s": "端点 · 审核",
     "d": "DELETE /v2/moderation/ratings/{id}",
-    "b": "deleteModerationRating /v2/moderation/ratings/{id} delete Delete any rating Removes the rating from every site at once; the deletion reaches /v2/ratings/changes as a gone entry and the work's nextmoe score follows. 204 with no body. Requires a user access token whose holder moderates. 一次从所有站点移除这条评分；删除会以 gone 条目出现在 /v2/ratings/changes，作品的 nextmoe 分数随之更新。204，无响应体。需要持有人具备审核资格的用户访问令牌。 id"
+    "b": "deleteModerationRating /v2/moderation/ratings/{id} delete Delete any rating Removes the rating from every site at once; the deletion reaches /v2/ratings/changes as a gone entry and the work's nextmoe score follows. 204 with no body. Requires a user access token whose holder has catalog.rating.moderate: the moderator, admin and ren roles have it, and the permission console can grant it to another role. Reviewing catalog edits or claims does not include it. 一次从所有站点移除这条评分；删除会以 gone 条目出现在 /v2/ratings/changes，作品的 nextmoe 分数随之更新。204，无响应体。需要持有人具备 catalog.rating.moderate 权限的用户访问令牌：moderator、admin、ren 角色默认具备，权限控制台可以授予其他角色。审核目录编辑或投稿认领的权限不包含它。 id"
   },
   {
     "r": "/docs/v2/revertModeration",
