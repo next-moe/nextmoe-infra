@@ -147,6 +147,103 @@ func TestAssignKindFromEdges(t *testing.T) {
 	require.Equal(t, model.SeriesMemberKindMain, byWork[lonely])
 }
 
+func factsOf(keys map[int64]int64, edges ...Edge) *Facts {
+	f := &Facts{releaseKey: keys, edgesByWork: map[int64][]Edge{}}
+	for _, e := range edges {
+		f.edgesByWork[e.A] = append(f.edgesByWork[e.A], e)
+		f.edgesByWork[e.B] = append(f.edgesByWork[e.B], e)
+	}
+	return f
+}
+
+func TestAssignNeverPutsARemakeBeforeItsOriginal(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		keys    map[int64]int64
+		edges   []Edge
+		members []int64
+		want    []int64
+	}{
+		{
+			name:    "dates that already agree are left alone",
+			keys:    map[int64]int64{1: 19980101, 2: 20000101, 3: 20250101},
+			edges:   []Edge{{A: 2, B: 1, Type: RelSequelOf}, {A: 3, B: 1, Type: RelRemakeOf}},
+			members: []int64{1, 2, 3},
+			want:    []int64{1, 2, 3},
+		},
+		{
+			name:    "an undated original moves up to just before its remake",
+			keys:    map[int64]int64{2: 20100101, 3: 20000101},
+			edges:   []Edge{{A: 3, B: 1, Type: RelRemakeOf}},
+			members: []int64{1, 2, 3},
+			want:    []int64{1, 3, 2},
+		},
+		{
+			name:    "a same-day tie goes to the original, whatever the ids",
+			keys:    map[int64]int64{1: 20000101, 2: 20000101},
+			edges:   []Edge{{A: 1, B: 2, Type: RelRemakeOf}},
+			members: []int64{1, 2},
+			want:    []int64{2, 1},
+		},
+		{
+			name: "a remake of a remake follows the whole chain",
+			keys: map[int64]int64{3: 20000101},
+			edges: []Edge{
+				{A: 3, B: 2, Type: RelRemakeOf},
+				{A: 2, B: 1, Type: RelRemakeOf},
+			},
+			members: []int64{1, 2, 3},
+			want:    []int64{1, 2, 3},
+		},
+		{
+			name:    "an original outside the series constrains nothing",
+			keys:    map[int64]int64{1: 20000101, 2: 20100101},
+			edges:   []Edge{{A: 1, B: 9, Type: RelRemakeOf}},
+			members: []int64{1, 2},
+			want:    []int64{1, 2},
+		},
+		{
+			name:    "a remake cycle still places every member once",
+			keys:    map[int64]int64{1: 20000101, 2: 20010101},
+			edges:   []Edge{{A: 1, B: 2, Type: RelRemakeOf}, {A: 2, B: 1, Type: RelRemakeOf}},
+			members: []int64{1, 2},
+			want:    []int64{2, 1},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := factsOf(tc.keys, tc.edges...).Assign(tc.members, model.SeriesMemberKindUnknown)
+			ids := make([]int64, len(got))
+			for i, a := range got {
+				ids[i] = a.WorkID
+				require.Equal(t, int16(i+1), a.Position)
+			}
+			require.Equal(t, tc.want, ids)
+		})
+	}
+}
+
+func TestRemakeIsASeriesEdge(t *testing.T) {
+	clean(t)
+	med := mediumID(t)
+	remake := mkWork(t, med, "ONE.", 2025, 1, 1)
+	original := mkWork(t, med, "ONE～輝く季節へ～", 0, 0, 0)
+	later := mkWork(t, med, "ONE Later", 2030, 1, 1)
+	mkEdge(t, remake, original, RelRemakeOf)
+	mkEdge(t, later, original, RelSameSeries)
+
+	members := []int64{remake, original, later}
+	facts, err := LoadFacts(context.Background(), testDB, members)
+	require.NoError(t, err)
+	got := facts.Assign(members, model.SeriesMemberKindUnknown)
+
+	require.Equal(t, []int64{original, remake, later},
+		[]int64{got[0].WorkID, got[1].WorkID, got[2].WorkID},
+		"the undated original is pulled ahead of its remake, not left at the tail")
+	for _, a := range got {
+		require.Equal(t, model.SeriesMemberKindMain, a.Kind, "work %d", a.WorkID)
+	}
+}
+
 func TestBackfillDryThenApplyThenZero(t *testing.T) {
 	clean(t)
 	med := mediumID(t)

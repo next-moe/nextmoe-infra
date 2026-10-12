@@ -13,10 +13,11 @@ const (
 	RelSequelOf    int64 = 2
 	RelSideStoryOf int64 = 3
 	RelFandiscOf   int64 = 4
+	RelRemakeOf    int64 = 6
 	RelSameSeries  int64 = 7
 )
 
-var SeriesEdgeTypes = []int64{RelSequelOf, RelSideStoryOf, RelFandiscOf, RelSameSeries}
+var SeriesEdgeTypes = []int64{RelSequelOf, RelSideStoryOf, RelFandiscOf, RelRemakeOf, RelSameSeries}
 
 type Assignment struct {
 	WorkID   int64
@@ -99,8 +100,48 @@ func (f *Facts) Assign(workIDs []int64, fallbackKind int16) []Assignment {
 			return out[i].WorkID < out[j].WorkID
 		}
 	})
+	out = f.originalsBeforeRemakes(out)
 	for i := range out {
 		out[i].Position = int16(i + 1)
+	}
+	return out
+}
+
+func (f *Facts) originalsBeforeRemakes(sorted []Assignment) []Assignment {
+	at := make(map[int64]Assignment, len(sorted))
+	for _, a := range sorted {
+		at[a.WorkID] = a
+	}
+	originals := map[int64][]int64{}
+	for _, o := range sorted {
+		for _, e := range f.edgesByWork[o.WorkID] {
+			if e.Type != RelRemakeOf || e.B != o.WorkID {
+				continue
+			}
+			if _, ok := at[e.A]; ok {
+				originals[e.A] = append(originals[e.A], o.WorkID)
+			}
+		}
+	}
+	if len(originals) == 0 {
+		return sorted
+	}
+
+	out := make([]Assignment, 0, len(sorted))
+	seen := make(map[int64]bool, len(sorted))
+	var place func(w int64)
+	place = func(w int64) {
+		if seen[w] {
+			return
+		}
+		seen[w] = true
+		for _, o := range originals[w] {
+			place(o)
+		}
+		out = append(out, at[w])
+	}
+	for _, a := range sorted {
+		place(a.WorkID)
 	}
 	return out
 }

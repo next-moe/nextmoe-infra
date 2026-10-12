@@ -34,9 +34,9 @@ func (a pgInt64Array) Value() (driver.Value, error) {
 
 // A title is the one field where the neighbours matter: 「ロマンス」and its
 // fandisc must not end up as 「浪漫」and 「罗曼史」. So the MT lane batches by
-// series membership and by the direct sequel/fandisc/same-series edges, and
-// every member of a batch is translated with its siblings' titles — including
-// the zh titles the catalog ALREADY has for them — in the prompt.
+// series membership and by the direct sequel/fandisc/remake/same-series
+// edges, and every member of a batch is translated with its siblings' titles —
+// including the zh titles the catalog ALREADY has for them — in the prompt.
 
 type siblingEdge struct {
 	A int64 `gorm:"column:a"`
@@ -45,8 +45,8 @@ type siblingEdge struct {
 
 // loadSeriesEdges returns the sibling pairs among the given works: same
 // catalog_series membership, plus the direct sequel_of / fandisc_of /
-// same_series relations. Relation type ids are resolved by KEY — the numeric
-// ids are seed data, not a contract.
+// remake_of / same_series relations. Relation type ids are resolved by KEY —
+// the numeric ids are seed data, not a contract.
 func loadSeriesEdges(ctx context.Context, db *gorm.DB, workIDs []int64) ([]siblingEdge, error) {
 	if len(workIDs) == 0 {
 		return nil, nil
@@ -62,7 +62,7 @@ func loadSeriesEdges(ctx context.Context, db *gorm.DB, workIDs []int64) ([]sibli
 		SELECT least(r.a_work_id, r.b_work_id) AS a, greatest(r.a_work_id, r.b_work_id) AS b
 		FROM catalog_work_relation r
 		JOIN catalog_relation_type rt ON rt.id = r.relation_type_id
-		WHERE rt.key IN ('sequel_of','fandisc_of','same_series')
+		WHERE rt.key IN ('sequel_of','fandisc_of','remake_of','same_series')
 		  AND r.a_work_id = ANY(?::bigint[]) AND r.b_work_id = ANY(?::bigint[])`,
 		ids, ids, ids, ids).Scan(&edges).Error
 	if err != nil {
@@ -222,12 +222,12 @@ func loadKnownZhTitles(ctx context.Context, db *gorm.DB, workIDs []int64) (map[i
 			SELECT r.a_work_id AS cand, r.b_work_id AS id
 			FROM catalog_work_relation r
 			JOIN catalog_relation_type rt ON rt.id = r.relation_type_id
-			WHERE rt.key IN ('sequel_of','fandisc_of','same_series') AND r.a_work_id = ANY(?::bigint[])
+			WHERE rt.key IN ('sequel_of','fandisc_of','remake_of','same_series') AND r.a_work_id = ANY(?::bigint[])
 			UNION
 			SELECT r.b_work_id AS cand, r.a_work_id AS id
 			FROM catalog_work_relation r
 			JOIN catalog_relation_type rt ON rt.id = r.relation_type_id
-			WHERE rt.key IN ('sequel_of','fandisc_of','same_series') AND r.b_work_id = ANY(?::bigint[])
+			WHERE rt.key IN ('sequel_of','fandisc_of','remake_of','same_series') AND r.b_work_id = ANY(?::bigint[])
 		)
 		SELECT rel.cand AS cand_id,
 			COALESCE((SELECT t.title FROM catalog_work_title t

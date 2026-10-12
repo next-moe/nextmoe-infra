@@ -78,6 +78,27 @@ func TestExportBatchesCarriesClaimAndSeriesContext(t *testing.T) {
 		"a translated non-candidate sibling and a hash-current machine title are context; a stale machine title is not")
 }
 
+func TestARemakeIsTitleSiblingOfItsOriginal(t *testing.T) {
+	clean(t)
+	ctx := t.Context()
+
+	original := mkWork(t, "ONE～輝く季節へ～")
+	mkTitle(t, original, "ja", "ONE～輝く季節へ～", model.WorkTitleKindOfficial, model.WorkTitleProvenanceSource)
+	mkTitle(t, original, "zh-Hans", "ONE～光辉的季节～", model.WorkTitleKindOfficial, model.WorkTitleProvenanceSource)
+	remake := mkWork(t, "ONE.")
+	require.NoError(t, testDB.Exec(`
+		INSERT INTO catalog_work_relation (a_work_id, b_work_id, relation_type_id)
+		SELECT ?, ?, id FROM catalog_relation_type WHERE key = 'remake_of'`, remake, original).Error)
+
+	edges, err := loadSeriesEdges(ctx, testDB, []int64{original, remake})
+	require.NoError(t, err)
+	require.Equal(t, []siblingEdge{{A: original, B: remake}}, edges)
+
+	known, err := loadKnownZhTitles(ctx, testDB, []int64{remake})
+	require.NoError(t, err)
+	require.Equal(t, []string{"ONE～輝く季節へ～ → ONE～光辉的季节～"}, known[remake])
+}
+
 func TestReadAcceptedCSVReassertsGates(t *testing.T) {
 	dir := t.TempDir()
 	full := filepath.Join(dir, "full.csv")
