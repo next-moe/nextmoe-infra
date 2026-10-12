@@ -56,13 +56,15 @@ had to be rebuilt by hand.
 | pg-backup | daily 02:30 | daily 18:30 (prev. day) | 48h |
 | pg-offsite | daily 04:30 | daily 20:30 (prev. day) | 48h |
 | disk-watch | every 10 min | every 10 min | 2h |
+| umami-retention | daily 04:40 | daily 20:40 (prev. day) | 48h |
 
 `source-import/test.sh`, `char-xsrc-nightly/test.sh`,
 `llm-adjudicate-nightly/test.sh`, `image-mirror/test.sh`,
 `reconcile-watch/test.sh`, `pg-backup/test.sh`, `pg-offsite/test.sh` and `disk-watch/test.sh` are the offline tests in this directory: each
 runs the `run.sh` beside it against fake `docker` / `flock` / alert stand-ins
 and asserts the call order, the ceilings and the lock/stamp rules. Run the
-matching one before redeploying any of those scripts. The box's `/bin/sh` is dash, which
+matching one before redeploying any of those scripts. `umami-retention/test.sh` is the one that
+needs a database: it runs the real deletes against `TEST_DATABASE_DSN`. The box's `/bin/sh` is dash, which
 exits a `$(...)` that fails under `set -e` where bash does not, so a harness
 that passes locally under bash can still be wrong on the box.
 
