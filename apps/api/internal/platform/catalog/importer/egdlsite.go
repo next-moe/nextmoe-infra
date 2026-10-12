@@ -303,8 +303,8 @@ func parseDLRow(r dlRow, roleMap map[string]int64, creaters map[string]dlNamed, 
 }
 
 func egdlLabelKind(makerID string) int16 {
-	if strings.HasPrefix(makerID, "VG") || strings.HasPrefix(makerID, "BG") {
+	if strings.HasPrefix(makerID, "VG") {
 		return model.LabelKindPublisher
 	}
-	return model.LabelKindDoujinCircle
+	return dlLabelKind(makerID)
 }

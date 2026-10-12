@@ -380,8 +380,13 @@ func dlContentRating(age string) int16 {
 	}
 }
 
+// RG is the ordinary circle prefix, but RG01001 is DLsite's own publishing
+// brand on スマホ版 and ported editions. Read as a circle, "DLsite" stood as the
+// circle on 4,612 works and as the only company on 585 galgames.
+var dlsiteHouseMakers = map[string]bool{"RG01001": true}
+
 func dlLabelKind(makerID string) int16 {
-	if strings.HasPrefix(makerID, "BG") {
+	if strings.HasPrefix(makerID, "BG") || dlsiteHouseMakers[makerID] {
 		return model.LabelKindPublisher
 	}
 	return model.LabelKindDoujinCircle
