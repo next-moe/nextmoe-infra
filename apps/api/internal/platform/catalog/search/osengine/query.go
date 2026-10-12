@@ -179,6 +179,37 @@ func searchBody(text string, limit int, searchIntro, entity bool) map[string]any
 	}
 }
 
+var popularityRanked = map[string]bool{
+	IndexLabels:  true,
+	IndexEngines: true,
+	IndexSeries:  true,
+}
+
+const exactNameTier = 1e6
+
+func popularityRankedQuery(text string, filters []any) map[string]any {
+	should := titleShould(text, false, true)
+	if kw := CompactKeyword(text); kw != "" {
+		should = append(should, map[string]any{
+			"constant_score": map[string]any{
+				"filter": map[string]any{"term": map[string]any{"titles_kw": kw}},
+				"boost":  exactNameTier,
+			},
+		})
+	}
+	return map[string]any{
+		"function_score": map[string]any{
+			"query": shouldQuery(should, filters),
+			"functions": []any{
+				map[string]any{"weight": 1},
+				map[string]any{"field_value_factor": map[string]any{"field": "popularity", "missing": 0}},
+			},
+			"score_mode": "sum",
+			"boost_mode": "multiply",
+		},
+	}
+}
+
 func WorksBody(q string, limit int, searchIntro bool) map[string]any {
 	return searchBody(spec.SanitizeQuery(q), limit, searchIntro, false)
 }

@@ -90,25 +90,25 @@ func loadWorksFacets(db *gorm.DB) (worksFacets, error) {
 	return f, nil
 }
 
-func loadTagWorkCounts(db *gorm.DB) (map[int64]int, error) {
+func loadEdgeWorkCounts(db *gorm.DB, edge string) (map[int64]int, error) {
 	var rows []struct {
-		TagID int64 `gorm:"column:tag_id"`
+		KeyID int64 `gorm:"column:key_id"`
 		Cnt   int   `gorm:"column:cnt"`
 	}
-	q := fmt.Sprintf(`SELECT e.key_id AS tag_id, count(DISTINCT e.work_id) AS cnt
-		FROM %s `+worksPopulationJoin+` GROUP BY e.key_id`, reindexTagEdge, "e.work_id")
+	q := fmt.Sprintf(`SELECT e.key_id, count(DISTINCT e.work_id) AS cnt
+		FROM %s `+worksPopulationJoin+` GROUP BY e.key_id`, edge, "e.work_id")
 	if err := db.Raw(q).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	m := make(map[int64]int, len(rows))
 	for _, r := range rows {
-		m[r.TagID] = r.Cnt
+		m[r.KeyID] = r.Cnt
 	}
 	return m, nil
 }
 
 func reindexTags(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, batch int) error {
-	counts, err := loadTagWorkCounts(db)
+	counts, err := loadEdgeWorkCounts(db, reindexTagEdge)
 	if err != nil {
 		return err
 	}

@@ -110,6 +110,70 @@ func TestLabelAliasIsSearchable(t *testing.T) {
 	}
 }
 
+func searchIDs(t *testing.T, idx *Indexer, uid, q string) []string {
+	t.Helper()
+	res, err := idx.SearchEntities(t.Context(), uid, spec.EntityQuery{Q: q, Limit: 20})
+	require.NoError(t, err, q)
+	ids := make([]string, 0, len(res.Hits))
+	for _, h := range res.Hits {
+		ids = append(ids, h.ID)
+	}
+	return ids
+}
+
+func TestCompanySearchRanksExactNameThenWorkCount(t *testing.T) {
+	idx := ensureSearchIndexes(t, IndexLabels)
+
+	label := func(id string, works int, name string, aliases ...string) EntityDoc {
+		kind := int16(4)
+		d := EntityDoc{ID: id, EntityType: "label", Kind: &kind, Popularity: Popularity(works)}
+		d.SetName("ja", name)
+		for _, a := range aliases {
+			d.AddAlias("ja", a)
+		}
+		return d
+	}
+	putDocs(t, IndexLabels, []EntityDoc{
+		label("b5147", 13, "ゆずソフト", "Yuzu-Soft", "Yuzusoft", "ユズソフト", "柚子社", "柚子软件"),
+		label("b47793", 0, "ゆずソフト"),
+		label("b10677", 5000, "ゆずソフトSOUR", "Yuzusoft SOUR", "ユズソフトサワー"),
+	})
+
+	got := searchIDs(t, idx, IndexLabels, "ゆずソフト")
+	require.Len(t, got, 3)
+	t.Run("an exact name match ranks first", func(t *testing.T) {
+		assert.Contains(t, []string{"b5147", "b47793"}, got[0])
+	})
+	t.Run("among exact name matches the company with more works ranks first", func(t *testing.T) {
+		assert.Equal(t, []string{"b5147", "b47793"}, got[:2],
+			"b47793 has the higher text score (no aliases to dilute it) and must still lose on works")
+	})
+	t.Run("a far more popular partial match stays behind every exact match", func(t *testing.T) {
+		assert.Equal(t, "b10677", got[2])
+	})
+	t.Run("an exact alias match counts as an exact name match", func(t *testing.T) {
+		assert.Equal(t, []string{"b5147", "b10677"}, searchIDs(t, idx, IndexLabels, "yuzusoft"))
+	})
+}
+
+func TestEngineAndSeriesSearchRankExactNameThenWorkCount(t *testing.T) {
+	idx := ensureSearchIndexes(t, IndexEngines, IndexSeries)
+
+	putDocs(t, IndexEngines, []EntityDoc{
+		{ID: "e1", EntityType: "engine", NameOther: "KiriKiri", AliasesOther: []string{"吉里吉里", "KAG3"}, Popularity: Popularity(3)},
+		{ID: "e2", EntityType: "engine", NameOther: "KiriKiri", Popularity: Popularity(0)},
+		{ID: "e3", EntityType: "engine", NameOther: "KiriKiri Z", Popularity: Popularity(900)},
+	})
+	assert.Equal(t, []string{"e1", "e2", "e3"}, searchIDs(t, idx, IndexEngines, "KiriKiri"))
+
+	putDocs(t, IndexSeries, []EntityDoc{
+		{ID: "s1", EntityType: "series", NameOther: "Clannad", NameZh: "团子大家族", Popularity: Popularity(9)},
+		{ID: "s2", EntityType: "series", NameOther: "Clannad", Popularity: Popularity(1)},
+		{ID: "s3", EntityType: "series", NameOther: "Clannad Side Stories", Popularity: Popularity(400)},
+	})
+	assert.Equal(t, []string{"s1", "s2", "s3"}, searchIDs(t, idx, IndexSeries, "Clannad"))
+}
+
 func TestDeleteBatchRemovesTombstones(t *testing.T) {
 	idx := ensureSearchIndexes(t, IndexLabels)
 

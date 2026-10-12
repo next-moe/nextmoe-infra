@@ -143,4 +143,4 @@ func bucket(lang string) string {
 	}
 }
 
-func Popularity(creditCount int) float64 { return math.Log1p(float64(creditCount)) }
+func Popularity(count int) float64 { return math.Log1p(float64(count)) }

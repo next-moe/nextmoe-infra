@@ -168,29 +168,65 @@ func TestWorksSearchBodySortLanes(t *testing.T) {
 }
 
 func TestEntitySearchBodySexualNot(t *testing.T) {
-	body, drop := entitySearchBody(spec.EntityQuery{Limit: 10, SexualNot: boolptr(true)})
+	body, drop := entitySearchBody(IndexCharacters, spec.EntityQuery{Limit: 10, SexualNot: boolptr(true)})
 	require.False(t, drop)
 	bq := body["query"].(map[string]any)["bool"].(map[string]any)
 	require.NotNil(t, bq["filter"])
 	require.Equal(t, canonJSON(t, []any{mustNotTerm("sexual", true)}), canonJSON(t, bq["filter"]))
 
-	plain, _ := entitySearchBody(spec.EntityQuery{Limit: 10})
+	plain, _ := entitySearchBody(IndexCharacters, spec.EntityQuery{Limit: 10})
 	_, hasBool := plain["query"].(map[string]any)["bool"]
 	require.False(t, hasBool, "no sexual filter when SexualNot is unset: %v", plain["query"])
 }
 
+func TestEntitySearchBodyPopularityRanking(t *testing.T) {
+	exact := map[string]any{"constant_score": map[string]any{
+		"filter": map[string]any{"term": map[string]any{"titles_kw": "ゆずソフト"}},
+		"boost":  exactNameTier,
+	}}
+	want := map[string]any{"function_score": map[string]any{
+		"query": map[string]any{"bool": map[string]any{
+			"should":               append(titleShould("ゆずソフト", false, true), exact),
+			"minimum_should_match": 1,
+		}},
+		"functions": []any{
+			map[string]any{"weight": 1},
+			map[string]any{"field_value_factor": map[string]any{"field": "popularity", "missing": 0}},
+		},
+		"score_mode": "sum",
+		"boost_mode": "multiply",
+	}}
+	for _, uid := range []string{IndexLabels, IndexEngines, IndexSeries} {
+		body, _ := entitySearchBody(uid, spec.EntityQuery{Q: "ゆずソフト", Limit: 10})
+		require.Equal(t, canonJSON(t, want), canonJSON(t, body["query"]), uid)
+		require.Equal(t, canonJSON(t, searchSort("", true)), canonJSON(t, body["sort"]), uid)
+
+		browse, _ := entitySearchBody(uid, spec.EntityQuery{Limit: 10})
+		require.Equal(t, canonJSON(t, map[string]any{"match_all": map[string]any{}}), canonJSON(t, browse["query"]), uid)
+	}
+	for _, uid := range []string{IndexCreditNames, IndexCharacters, IndexWorks, IndexTags, IndexTraits} {
+		body, _ := entitySearchBody(uid, spec.EntityQuery{Q: "ゆずソフト", Limit: 10})
+		require.Equal(t, canonJSON(t, buildQuery("ゆずソフト", false, true, nil)), canonJSON(t, body["query"]), uid)
+	}
+	require.Len(t, popularityRanked, 3)
+
+	punct, _ := entitySearchBody(IndexLabels, spec.EntityQuery{Q: "★", Limit: 10})
+	should := punct["query"].(map[string]any)["function_score"].(map[string]any)["query"].(map[string]any)["bool"].(map[string]any)["should"]
+	require.NotContains(t, canonJSON(t, should), "constant_score", "no exact tier without a compact keyword")
+}
+
 func TestEntitySearchBodyPagination(t *testing.T) {
-	page2, drop := entitySearchBody(spec.EntityQuery{Page: 2, Limit: 10})
+	page2, drop := entitySearchBody(IndexCharacters, spec.EntityQuery{Page: 2, Limit: 10})
 	require.False(t, drop)
 	require.Equal(t, 10, page2["from"])
 	require.Equal(t, 10, page2["size"])
 
-	page0, drop := entitySearchBody(spec.EntityQuery{Page: 0, Limit: 20})
+	page0, drop := entitySearchBody(IndexCharacters, spec.EntityQuery{Page: 0, Limit: 20})
 	require.False(t, drop)
 	require.Equal(t, 0, page0["from"])
 	require.Equal(t, 20, page0["size"])
 
-	clamped, drop := entitySearchBody(spec.EntityQuery{Page: 25001, Limit: 20})
+	clamped, drop := entitySearchBody(IndexCharacters, spec.EntityQuery{Page: 25001, Limit: 20})
 	require.True(t, drop)
 	require.Equal(t, 499980, clamped["from"])
 	require.Equal(t, 20, clamped["size"])

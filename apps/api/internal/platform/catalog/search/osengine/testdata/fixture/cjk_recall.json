@@ -97,7 +97,7 @@
     "index": "catalog_labels",
     "q": "Key",
     "must_id": "b2",
-    "must_rank": 3,
+    "must_rank": 1,
     "must_substr": "Key"
   },
   {
