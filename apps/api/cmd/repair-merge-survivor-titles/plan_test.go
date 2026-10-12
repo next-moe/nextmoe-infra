@@ -3,6 +3,7 @@ package main
 import (
 	"testing"
 
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 
 	"github.com/stretchr/testify/assert"
@@ -54,22 +55,80 @@ func TestPlanDemotesTheLoserOfficialWhereTheSurvivorHasItsOwn(t *testing.T) {
 	assert.Equal(t, "咎狗の血 True Blood", shown.Title)
 }
 
-func TestPlanTreatsALangTaggedAliasAsTheSurvivorsOwnTitle(t *testing.T) {
-	w := work{ID: 1, OLang: "ja", DisplayName: "原題", Titles: []titleRow{
-		row(10, "zh-Hans", "败者的中文名", official),
-		row(20, "ja", "原題", official),
-		row(30, "zh-Hans", "自己的中文名", alias),
-	}}
-	assert.Equal(t, map[int64]string{10: "demote/snapshot"}, touched(planWork(w, lineageOf(10))))
+func TestPlanPromotesTheSurvivorsOwnAliasWhereEveryOfficialIsALosers(t *testing.T) {
+	t.Run("zh-Hans, the 9453 shape", func(t *testing.T) {
+		w := work{ID: 1, OLang: "ja", DisplayName: "原題", Titles: []titleRow{
+			row(10, "zh-Hans", "败者的中文名", official),
+			row(20, "ja", "原題", official),
+			row(30, "zh-Hans", "自己的中文名", alias),
+		}}
+		plan := planWork(w, lineageOf(10))
+		assert.Equal(t, map[int64]string{10: "demote/snapshot", 30: "promote/own_alias_promoted"}, touched(plan))
+		require.Len(t, plan, 2)
+		assert.Equal(t, actionDemote, plan[0].Action, "the demotion runs first and frees (lang, title, 0)")
+		assert.Equal(t, int16(official), *plan[1].ToKind)
+		assert.Equal(t, "zh-Hans", *plan[1].ToLang)
+	})
+	t.Run("the original language, the work 60 shape", func(t *testing.T) {
+		w := work{ID: 60, OLang: "ja", DisplayName: "STEINS;GATE", Titles: []titleRow{
+			row(297163, "ja", "STEINS;GATE Nitro The Best! Vol.5", official),
+			row(597618, "ja", "STEINS;GATE", alias),
+			row(597619, "en", "STEINS;GATE", official),
+		}}
+		plan := planWork(w, lineageOf(297163))
+		assert.Equal(t, map[int64]string{297163: "demote/snapshot", 597618: "promote/own_alias_promoted"}, touched(plan))
+		shown, _ := shownTitle(w.Titles, plan, "ja")
+		assert.Equal(t, "STEINS;GATE", shown.Title)
+		assert.Equal(t, int16(official), shown.Kind)
+	})
 }
 
-func TestPlanKeepsTheOnlyOfficialInTheOriginalLanguage(t *testing.T) {
+func TestPlanPromotesTheAliasNamedLikeTheWorkElseTheOldest(t *testing.T) {
+	titles := []titleRow{
+		row(10, "ja", "敗者の題", official),
+		row(20, "ja", "略称", alias),
+		row(21, "ja", "原題", alias),
+		row(22, "ja", "別名", alias),
+	}
+	w := work{ID: 1, OLang: "ja", DisplayName: "原題", Titles: titles}
+	assert.Equal(t, map[int64]string{10: "demote/snapshot", 21: "promote/own_alias_promoted"}, touched(planWork(w, lineageOf(10))))
+
+	w.DisplayName = "どれでもない"
+	assert.Equal(t, map[int64]string{10: "demote/snapshot", 20: "promote/own_alias_promoted"}, touched(planWork(w, lineageOf(10))))
+}
+
+func TestPlanPromotesNothingTheSurvivorDoesNotOwn(t *testing.T) {
+	loserOfficial := row(10, "ja", "敗者の題", official)
+	cases := map[string]work{
+		"the alias came from a loser too": {Titles: []titleRow{loserOfficial, row(11, "ja", "原題", alias)}},
+		"a machine alias": {Titles: []titleRow{loserOfficial,
+			{ID: 20, Lang: "ja", Title: "原題", Kind: alias, Provenance: machine}}},
+		"a suppressed alias": {Titles: []titleRow{loserOfficial,
+			{ID: 20, Lang: "ja", Title: "原題", Kind: alias, Suppressed: true}}},
+		"a lang-less alias": {Titles: []titleRow{loserOfficial, row(20, "", "原題", alias)}},
+		"an abbreviation":   {Titles: []titleRow{loserOfficial, row(20, "ja", "原題", model.WorkTitleKindAbbreviation)}},
+		"the official it would become was removed by an edit": {
+			Titles:     []titleRow{loserOfficial, row(20, "ja", "原題", alias)},
+			Suppressed: map[string]struct{}{editspec.WorkTitleIdentity(official, "ja", "原題"): {}},
+		},
+		"a hidden official already holds that title": {Titles: []titleRow{loserOfficial, row(20, "ja", "原題", alias),
+			{ID: 30, Lang: "ja", Title: "原題", Kind: official, Suppressed: true}}},
+	}
+	for name, w := range cases {
+		t.Run(name, func(t *testing.T) {
+			w.ID, w.OLang, w.DisplayName = 1, "ja", "Display"
+			assert.Empty(t, planWork(w, lineageOf(10, 11)))
+		})
+	}
+}
+
+func TestPlanLeavesTheAliasAloneWhenTheSurvivorHasAnOfficial(t *testing.T) {
 	w := work{ID: 1, OLang: "ja", DisplayName: "原題", Titles: []titleRow{
 		row(10, "ja", "敗者の題", official),
-		row(20, "ja", "原題", alias),
-		row(30, "en", "Own", official),
+		row(20, "ja", "原題", official),
+		row(21, "ja", "略称", alias),
 	}}
-	assert.Empty(t, planWork(w, lineageOf(10)), "an alias does not stand in for the olang official")
+	assert.Equal(t, map[int64]string{10: "demote/snapshot"}, touched(planWork(w, lineageOf(10))))
 }
 
 func TestPlanLeavesALanguageWhereEveryOfficialCameFromALoser(t *testing.T) {
@@ -120,15 +179,6 @@ func TestPlanIgnoresSuppressedAndMachineRows(t *testing.T) {
 		row(40, "en", "Own", official),
 	}}
 	assert.Equal(t, map[int64]string{13: "demote/snapshot"}, touched(planWork(w, lineageOf(10, 11, 12, 13))))
-}
-
-func TestPlanNeverLeavesAWorkWithoutAnOfficialTitle(t *testing.T) {
-	w := work{ID: 1, OLang: "ja", DisplayName: "原題", Titles: []titleRow{
-		row(10, "zh-Hans", "败者", official),
-		row(20, "zh-Hans", "自己", alias),
-		row(21, "ja", "原題", alias),
-	}}
-	assert.Empty(t, planWork(w, lineageOf(10)))
 }
 
 func TestLoserOriginFallsBackToTheTitleWhenTheRowWasRewritten(t *testing.T) {
