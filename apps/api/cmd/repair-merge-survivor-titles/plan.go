@@ -4,15 +4,18 @@ import (
 	"cmp"
 	"slices"
 
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 )
 
 const (
-	reasonSnapshot    = "snapshot"
-	reasonDisplayName = "display_name"
+	reasonSnapshot         = "snapshot"
+	reasonDisplayName      = "display_name"
+	reasonOwnAliasPromoted = "own_alias_promoted"
 
-	actionDemote = "demote"
-	actionDelete = "delete"
+	actionDemote  = "demote"
+	actionDelete  = "delete"
+	actionPromote = "promote"
 )
 
 type titleRow struct {
@@ -32,6 +35,7 @@ type work struct {
 	DisplayName string
 	Claimed     bool
 	Titles      []titleRow
+	Suppressed  map[string]struct{}
 }
 
 type change struct {
@@ -71,10 +75,10 @@ func planWork(w work, lin *lineage) []change {
 	}
 	slices.Sort(langs)
 
-	var demote []planned
+	var demote, promote []planned
 	for _, lang := range langs {
-		var losers []titleRow
-		ownOfficial, ownAlias := false, false
+		var losers, ownAliases []titleRow
+		ownOfficial := false
 		for _, t := range byLang[lang] {
 			loser := t.Title != w.DisplayName && lin.loserOrigin(t)
 			switch {
@@ -83,18 +87,22 @@ func planWork(w work, lin *lineage) []change {
 			case t.Kind == model.WorkTitleKindOfficial:
 				ownOfficial = true
 			case t.Kind == model.WorkTitleKindAlias && !loser:
-				ownAlias = true
+				ownAliases = append(ownAliases, t)
 			}
 		}
-		if len(losers) == 0 || !(ownOfficial || (ownAlias && lang != w.OLang)) {
+		if len(losers) == 0 {
 			continue
+		}
+		if !ownOfficial {
+			heir, ok := pickHeir(w, ownAliases, losers)
+			if !ok {
+				continue
+			}
+			promote = append(promote, planned{heir, reasonOwnAliasPromoted})
 		}
 		for _, t := range losers {
 			demote = append(demote, planned{t, reasonSnapshot})
 		}
-	}
-	if len(demote) > 0 && officialsLeft(w.Titles, demote) == 0 {
-		demote = nil
 	}
 
 	if lin.snapshotless {
@@ -115,24 +123,37 @@ func planWork(w work, lin *lineage) []change {
 			}
 		}
 	}
-	return toChanges(w, demote)
+	return toChanges(w, demote, promote)
 }
 
 func isPlanned(demote []planned, id int64) bool {
 	return slices.ContainsFunc(demote, func(p planned) bool { return p.row.ID == id })
 }
 
-func officialsLeft(titles []titleRow, demote []planned) int {
-	n := 0
-	for _, t := range titles {
-		if eligible(t) && t.Kind == model.WorkTitleKindOfficial && !isPlanned(demote, t.ID) {
-			n++
+func pickHeir(w work, aliases, losers []titleRow) (titleRow, bool) {
+	var heirs []titleRow
+	for _, a := range aliases {
+		if editspec.TitleSuppressed(w.Suppressed, model.WorkTitleKindOfficial, a.Lang, a.Title) {
+			continue
+		}
+		taken := slices.ContainsFunc(w.Titles, func(t titleRow) bool {
+			return t.Kind == model.WorkTitleKindOfficial && t.Lang == a.Lang && t.Title == a.Title &&
+				!slices.ContainsFunc(losers, func(l titleRow) bool { return l.ID == t.ID })
+		})
+		if !taken {
+			heirs = append(heirs, a)
 		}
 	}
-	return n
+	if len(heirs) == 0 {
+		return titleRow{}, false
+	}
+	if i := slices.IndexFunc(heirs, func(t titleRow) bool { return t.Title == w.DisplayName }); i >= 0 {
+		return heirs[i], true
+	}
+	return slices.MinFunc(heirs, func(a, b titleRow) int { return cmp.Compare(a.ID, b.ID) }), true
 }
 
-func toChanges(w work, demote []planned) []change {
+func toChanges(w work, demote, promote []planned) []change {
 	if len(demote) == 0 {
 		return nil
 	}
@@ -142,14 +163,13 @@ func toChanges(w work, demote []planned) []change {
 			aliases[t.Title] = struct{}{}
 		}
 	}
-	slices.SortFunc(demote, func(a, b planned) int { return cmp.Compare(a.row.ID, b.row.ID) })
+	byID := func(a, b planned) int { return cmp.Compare(a.row.ID, b.row.ID) }
+	slices.SortFunc(demote, byID)
+	slices.SortFunc(promote, byID)
 
-	out := make([]change, 0, len(demote))
+	out := make([]change, 0, len(demote)+len(promote))
 	for _, p := range demote {
-		c := change{
-			WorkID: w.ID, TitleID: p.row.ID, Lang: p.row.Lang, Title: p.row.Title, Latin: p.row.Latin, FromKind: p.row.Kind,
-			Action: actionDelete, Reason: p.reason, Claimed: w.Claimed,
-		}
+		c := newChange(w, p, actionDelete)
 		if _, exists := aliases[p.row.Title]; !exists {
 			kind, lang := model.WorkTitleKindAlias, ""
 			c.Action, c.ToKind, c.ToLang = actionDemote, &kind, &lang
@@ -157,21 +177,40 @@ func toChanges(w work, demote []planned) []change {
 		}
 		out = append(out, c)
 	}
+	for _, p := range promote {
+		c := newChange(w, p, actionPromote)
+		kind, lang := model.WorkTitleKindOfficial, p.row.Lang
+		c.ToKind, c.ToLang = &kind, &lang
+		out = append(out, c)
+	}
 	return out
+}
+
+func newChange(w work, p planned, action string) change {
+	return change{
+		WorkID: w.ID, TitleID: p.row.ID, Lang: p.row.Lang, Title: p.row.Title, Latin: p.row.Latin,
+		FromKind: p.row.Kind, Action: action, Reason: p.reason, Claimed: w.Claimed,
+	}
 }
 
 // shownTitle must elect as nativeWorkTitles + workLocalized do (ORDER BY
 // provenance, kind, id; first official, alias or abbreviation row), or the
 // leftover list reports a display the read face does not serve.
 func shownTitle(titles []titleRow, changes []change, lang string) (titleRow, bool) {
-	gone := make(map[int64]struct{}, len(changes))
+	applied := make(map[int64]change, len(changes))
 	for _, c := range changes {
-		gone[c.TitleID] = struct{}{}
+		applied[c.TitleID] = c
 	}
 	var best titleRow
 	found := false
 	for _, t := range titles {
-		if _, ok := gone[t.ID]; ok || t.Suppressed || t.Lang != lang || t.Kind > model.WorkTitleKindAbbreviation {
+		if c, ok := applied[t.ID]; ok {
+			if c.Action != actionPromote {
+				continue
+			}
+			t.Kind = *c.ToKind
+		}
+		if t.Suppressed || t.Lang != lang || t.Kind > model.WorkTitleKindAbbreviation {
 			continue
 		}
 		if !found || t.Provenance < best.Provenance ||

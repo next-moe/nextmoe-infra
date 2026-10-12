@@ -231,6 +231,15 @@ func TestRepairMergeSurvivorTitles(t *testing.T) {
 	oldLoser := mkWork(t, medium, "ja", "旧敗者", title{"ja", "旧敗者", official})
 	oldSurvivor := mkWork(t, medium, "ja", "旧勝者", title{"ja", "旧勝者", official})
 
+	steinsLoser := mkWork(t, medium, "ja", "STEINS;GATE Nitro The Best! Vol.5",
+		title{"ja", "STEINS;GATE Nitro The Best! Vol.5", official})
+	steins := mkWork(t, medium, "ja", "STEINS;GATE",
+		title{"ja", "STEINS;GATE", alias}, title{"en", "STEINS;GATE", official})
+
+	borrowedLoser := mkWork(t, medium, "ja", "借り物 限定版",
+		title{"ja", "借り物 限定版", official}, title{"ja", "借り物", alias})
+	borrowed := mkWork(t, medium, "ja", "Borrowed", title{"en", "Borrowed", official})
+
 	stray := mkWork(t, medium, "ja", "迷子", title{"ja", "迷子", official})
 	orphan := mkWork(t, medium, "ja", "孤児", title{"en", "Orphan", official})
 
@@ -251,6 +260,8 @@ func TestRepairMergeSurvivorTitles(t *testing.T) {
 	legacyMerge(t, chainB, chainC, true)
 	legacyMerge(t, oldLoser, oldSurvivor, false)
 	legacyMerge(t, stray, orphan, true)
+	legacyMerge(t, steinsLoser, steins, true)
+	legacyMerge(t, borrowedLoser, borrowed, true)
 	legacyMerge(t, twinLoser, twinSurvivor, true)
 	legacyMerge(t, mixedOld, mixed, false)
 	legacyMerge(t, mixedNew, mixed, true)
@@ -258,6 +269,7 @@ func TestRepairMergeSurvivorTitles(t *testing.T) {
 
 	require.Equal(t, "咎狗の血 True Blood NITRO ARCHIVE", shownOf(t, survivor1, "ja"), "precondition: the bug")
 	require.Equal(t, "败者的中文名", shownOf(t, survivor2, "zh-Hans"), "precondition: the 9453 shape")
+	require.Equal(t, "STEINS;GATE Nitro The Best! Vol.5", shownOf(t, steins, "ja"), "precondition: the work 60 shape")
 	require.Equal(t, "鎖A", shownOf(t, chainC, "ja"), "precondition: the first link of the chain wins")
 	require.Equal(t, "旧敗者", shownOf(t, oldSurvivor, "ja"), "precondition: snapshot-less")
 
@@ -265,12 +277,14 @@ func TestRepairMergeSurvivorTitles(t *testing.T) {
 	dry, planned, _ := repair(t, false)
 	assert.Equal(t, before, dbFingerprint(t), "a dry run writes nothing")
 
-	assert.Equal(t, 7, dry.Survivors)
+	assert.Equal(t, 9, dry.Survivors)
 	assert.Equal(t, 2, dry.SurvivorsSnapshotless)
-	assert.Equal(t, 5, dry.Works)
-	assert.Equal(t, 6, dry.Rows)
-	assert.Equal(t, 5, dry.RowsBySnapshot)
+	assert.Equal(t, 6, dry.Works)
+	assert.Equal(t, 9, dry.Rows)
+	assert.Equal(t, 6, dry.RowsBySnapshot)
 	assert.Equal(t, 1, dry.RowsByDisplayName)
+	assert.Equal(t, 2, dry.RowsPromoted)
+	assert.Equal(t, 2, dry.WorksPromoted)
 	assert.Equal(t, 1, dry.RowsDeleted, "the NITRO ARCHIVE loser also carried that title as a lang-less alias")
 
 	st, applied, leftovers := repair(t, true)
@@ -286,9 +300,16 @@ func TestRepairMergeSurvivorTitles(t *testing.T) {
 	assert.Equal(t, []titleState{
 		{"", "败者的中文名", alias},
 		{"ja", "勝者二", official},
-		{"zh-Hans", "自己的中文名", alias},
+		{"zh-Hans", "自己的中文名", official},
 	}, titlesOf(t, survivor2))
 	assert.Equal(t, "自己的中文名", shownOf(t, survivor2, "zh-Hans"))
+
+	assert.Equal(t, []titleState{
+		{"", "STEINS;GATE Nitro The Best! Vol.5", alias},
+		{"ja", "STEINS;GATE", official},
+		{"en", "STEINS;GATE", official},
+	}, titlesOf(t, steins), "the survivor's own ja alias takes the official slot the loser held")
+	assert.Equal(t, "STEINS;GATE", shownOf(t, steins, "ja"))
 
 	assert.Equal(t, []titleState{
 		{"", "鎖A", alias}, {"", "鎖B", alias}, {"ja", "鎖C", official},
@@ -302,9 +323,13 @@ func TestRepairMergeSurvivorTitles(t *testing.T) {
 	}, titlesOf(t, mixed), "a later merge's target snapshot does not vouch for a snapshot-less loser's rows")
 
 	for _, c := range applied {
-		if c.WorkID == oldSurvivor {
+		switch {
+		case c.WorkID == oldSurvivor:
 			assert.Equal(t, reasonDisplayName, c.Reason)
-		} else {
+		case c.Action == actionPromote:
+			assert.Equal(t, reasonOwnAliasPromoted, c.Reason)
+			assert.Contains(t, []int64{survivor2, steins}, c.WorkID)
+		default:
 			assert.Equal(t, reasonSnapshot, c.Reason)
 		}
 	}
@@ -318,15 +343,19 @@ func TestRepairMergeSurvivorTitles(t *testing.T) {
 	assert.Equal(t, []titleState{
 		{"ja", "迷子", official}, {"en", "Orphan", official},
 	}, titlesOf(t, orphan), "negative control: the survivor has no ja title of its own to keep")
+	assert.Equal(t, []titleState{
+		{"ja", "借り物 限定版", official}, {"ja", "借り物", alias}, {"en", "Borrowed", official},
+	}, titlesOf(t, borrowed), "negative control: the only ja alias came from the loser, so nothing is promoted")
 
 	var bumped []int64
 	require.NoError(t, testDB.Raw(`SELECT id FROM catalog_work WHERE updated_at > '2000-01-01' ORDER BY id`).
 		Scan(&bumped).Error)
-	assert.ElementsMatch(t, []int64{survivor1, survivor2, chainC, oldSurvivor, mixed}, bumped)
+	assert.ElementsMatch(t, []int64{survivor1, survivor2, chainC, oldSurvivor, mixed, steins}, bumped)
 
 	assert.ElementsMatch(t, []leftover{
 		{WorkID: twinSurvivor, OLang: "ja", DisplayName: "双子", Shown: "双子 完全版", ShownKind: official, Losers: 1},
 		{WorkID: orphan, OLang: "ja", DisplayName: "孤児", Shown: "迷子", ShownKind: official, Losers: 1},
+		{WorkID: borrowed, OLang: "ja", DisplayName: "Borrowed", Shown: "借り物 限定版", ShownKind: official, Losers: 1},
 	}, leftovers)
 
 	again, _, _ := repair(t, true)
@@ -345,6 +374,19 @@ func TestRepairSkipsSuppressedTitles(t *testing.T) {
 
 	st, _, _ := repair(t, false)
 	assert.Zero(t, st.Rows, "the survivor's own official is hidden, so nothing of its own is left to show")
+}
+
+func TestRepairPromotesNoAliasIntoAnOfficialAnEditRemoved(t *testing.T) {
+	medium := setup(t)
+	loser := mkWork(t, medium, "ja", "敗者", title{"ja", "敗者", official})
+	survivor := mkWork(t, medium, "ja", "Win", title{"en", "Win", official}, title{"ja", "勝者", alias})
+	legacyMerge(t, loser, survivor, true)
+	require.NoError(t, testDB.Exec(`INSERT INTO edit_suppressed_row (entity_type, entity_id, field_key, identity_key)
+		VALUES (?, ?, ?, ?)`, editspec.TypeWork, survivor, editspec.FieldWorkTitles,
+		editspec.WorkTitleIdentity(official, "ja", "勝者")).Error)
+
+	st, _, _ := repair(t, false)
+	assert.Zero(t, st.Rows, "the promoted row would be hidden the moment it became an official")
 }
 
 func TestRepairLeavesAnUnmergedWorkAlone(t *testing.T) {
@@ -373,4 +415,17 @@ func TestRepairLeavesAnUnmergedWorkAlone(t *testing.T) {
 		{"", "分離", alias}, {"en", "Bunri", official}, {"ja", "残留", official},
 	}, titlesOf(t, survivor), "Unmerge leaves the moved rows on the survivor")
 	require.Len(t, applied, 1)
+}
+
+func TestRepairPromotesAnAliasNamedLikeTheLoserOfficial(t *testing.T) {
+	medium := setup(t)
+	loser := mkWork(t, medium, "ja", "同名", title{"ja", "同名", official})
+	survivor := mkWork(t, medium, "ja", "Same", title{"en", "Same", official}, title{"ja", "同名", alias})
+	legacyMerge(t, loser, survivor, true)
+
+	st, _, _ := repair(t, true)
+	assert.Equal(t, 1, st.RowsPromoted)
+	assert.Equal(t, []titleState{
+		{"", "同名", alias}, {"en", "Same", official}, {"ja", "同名", official},
+	}, titlesOf(t, survivor), "the demotion frees (ja, 同名, official) before the promotion takes it")
 }
