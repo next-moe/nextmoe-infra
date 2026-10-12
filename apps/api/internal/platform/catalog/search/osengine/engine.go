@@ -198,7 +198,7 @@ func (e *Engine) SearchWorks(ctx context.Context, q spec.WorksQuery) (WorksResul
 }
 
 func (e *Engine) SearchEntities(ctx context.Context, uid string, q spec.EntityQuery) (EntityResult, error) {
-	body, dropHits := entitySearchBody(q)
+	body, dropHits := entitySearchBody(uid, q)
 	var resp osSearchResponse
 	if err := e.client.Do(ctx, http.MethodPost, "/"+e.client.IndexName(uid)+"/_search", body, &resp); err != nil {
 		return EntityResult{}, err
@@ -257,7 +257,7 @@ func worksSearchBody(q spec.WorksQuery) (map[string]any, bool) {
 	return body, dropHits
 }
 
-func entitySearchBody(q spec.EntityQuery) (map[string]any, bool) {
+func entitySearchBody(uid string, q spec.EntityQuery) (map[string]any, bool) {
 	text := spec.SanitizeQuery(q.Q)
 	page := q.Page
 	if page < 1 {
@@ -280,8 +280,12 @@ func entitySearchBody(q spec.EntityQuery) (map[string]any, bool) {
 	if q.SexualNot != nil {
 		filters = append(filters, mustNotTerm("sexual", *q.SexualNot))
 	}
+	query := buildQuery(text, false, true, filters)
+	if text != "" && popularityRanked[uid] {
+		query = popularityRankedQuery(text, filters)
+	}
 	return map[string]any{
-		"query":            buildQuery(text, false, true, filters),
+		"query":            query,
 		"from":             from,
 		"size":             size,
 		"sort":             searchSort("", text != ""),
@@ -291,19 +295,23 @@ func entitySearchBody(q spec.EntityQuery) (map[string]any, bool) {
 
 func buildQuery(text string, searchIntro, entity bool, filters []any) any {
 	if text != "" {
-		bq := map[string]any{
-			"should":               titleShould(text, searchIntro, entity),
-			"minimum_should_match": 1,
-		}
-		if len(filters) > 0 {
-			bq["filter"] = filters
-		}
-		return map[string]any{"bool": bq}
+		return shouldQuery(titleShould(text, searchIntro, entity), filters)
 	}
 	if len(filters) > 0 {
 		return map[string]any{"bool": map[string]any{"filter": filters}}
 	}
 	return map[string]any{"match_all": map[string]any{}}
+}
+
+func shouldQuery(should, filters []any) map[string]any {
+	bq := map[string]any{
+		"should":               should,
+		"minimum_should_match": 1,
+	}
+	if len(filters) > 0 {
+		bq["filter"] = filters
+	}
+	return map[string]any{"bool": bq}
 }
 
 func searchSort(lane string, hasText bool) []any {

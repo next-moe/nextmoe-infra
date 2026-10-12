@@ -116,16 +116,12 @@ func main() {
 	slog.Info("reindex-catalog complete", "duration", time.Since(start))
 }
 
-func loadPopularity(db *gorm.DB, col string) (map[int64]int, error) {
+func loadCreditNamePopularity(db *gorm.DB) (map[int64]int, error) {
 	var rows []struct {
 		ID  int64 `gorm:"column:id"`
 		Cnt int   `gorm:"column:cnt"`
 	}
-	where := ""
-	if col != "credit_name_id" {
-		where = "WHERE " + col + " IS NOT NULL"
-	}
-	if err := db.Raw(fmt.Sprintf(`SELECT %s AS id, count(*) AS cnt FROM catalog_credit %s GROUP BY %s`, col, where, col)).Scan(&rows).Error; err != nil {
+	if err := db.Raw(`SELECT credit_name_id AS id, count(*) AS cnt FROM catalog_credit GROUP BY credit_name_id`).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	m := make(map[int64]int, len(rows))
@@ -162,7 +158,7 @@ func loadSources(db *gorm.DB, entityType int16) (map[int64][]string, map[int64][
 }
 
 func reindexCreditNames(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, batch int) error {
-	pop, err := loadPopularity(db, "credit_name_id")
+	pop, err := loadCreditNamePopularity(db)
 	if err != nil {
 		return err
 	}
@@ -213,7 +209,7 @@ func reindexCreditNames(ctx context.Context, db *gorm.DB, idx *catalogSearch.Ind
 }
 
 func reindexLabels(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, batch int) error {
-	pop, err := loadPopularity(db, "label_id")
+	pop, err := loadEdgeWorkCounts(db, reindexLabelEdge)
 	if err != nil {
 		return err
 	}

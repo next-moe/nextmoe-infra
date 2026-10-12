@@ -251,12 +251,19 @@ func TestWorksFacetLoadersScopeAndResolve(t *testing.T) {
 		t.Fatalf("undated work %d must have NO release ordinal entry", bare)
 	}
 
-	counts, err := loadTagWorkCounts(facetTestDB)
+	counts, err := loadEdgeWorkCounts(facetTestDB, reindexTagEdge)
 	if err != nil {
-		t.Fatalf("loadTagWorkCounts: %v", err)
+		t.Fatalf("tag work counts: %v", err)
 	}
 	if counts[tag.ID] != 1 {
 		t.Fatalf("tag work count = %d, want 1 (population-scoped, DISTINCT)", counts[tag.ID])
+	}
+	counts, err = loadEdgeWorkCounts(facetTestDB, reindexLabelEdge)
+	if err != nil {
+		t.Fatalf("label work counts: %v", err)
+	}
+	if counts[label.ID] != 1 {
+		t.Fatalf("label work count = %d, want 1 (population-scoped, DISTINCT)", counts[label.ID])
 	}
 }
 
