@@ -2012,3 +2012,12 @@ Wave 146 (2026-07-30) gated every taxonomy count on `claim_state=live`, on the a
 - **Cost.** Companies, engines and series are counted per request through the indexes on their edge key columns (`catalog_work_label.label_id`, `catalog_work_engine.engine_id`, `idx_catalog_release_engine`, `catalog_series_member`), and the claim test was a filter on the joined work row, so the rows read are the same; only the rows aggregated grow. The hourly tag refresh now aggregates every galgame work's tags instead of the live-claimed ones.
 
 **Spec is 2.46.0.** Description-only spec change: the ten `work_count` / `member_count` / `has_nsfw` descriptions name the works list query they equal. No shape change, no migration.
+
+## Wave — company search puts well-known companies first (2026-10-12)
+
+`GET /v2/catalog/search?object=company` ranked by text score and used popularity only to break exact ties, so `ゆずソフト` answered the DLsite maker duplicate (47793) ahead of the brand (5147): both names match exactly, and the brand's six aliases lengthen its title fields, which lowers its BM25 score. The popularity it would have tied on was also the wrong number: a label's count of `catalog_credit` rows carrying its `label_id` — staff credited under an agency — which on a recent copy was nonzero for 2,269 of 48,098 labels while 36,573 have works, and highest (502) for a voice agency with no works at all.
+
+- **Popularity** on `catalog_labels` is now `ln(1 + works)`, counting distinct live galgame works through `catalog_work_label` — the population of the works index and its `label_ids` facet. Engines and series keep their work counts.
+- **Ranking** for `object=company`, `object=engine` and `object=series` with a `q=`: `(text score + 10⁶ × exact) × (1 + popularity)`, where `exact` is 1 when the query, compacted the way `titles_kw` is, equals one of the entity's names or aliases. An exact match therefore ranks above every partial match, exact matches rank by work count, and partial matches weigh text score against work count. The other families, and the empty-`q=` listing (popularity order), are unchanged.
+
+No migration and no index recreate: the mapping already has `popularity`. The query change applies on deploy; label popularity changes on the next daily `reindex-catalog` run, or at once with `reindex-catalog -index catalog_labels`. **Spec unchanged** (2.45.0): the operation's contract does not promise an order.
