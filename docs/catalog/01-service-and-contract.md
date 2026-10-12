@@ -581,3 +581,26 @@ nsfw  若 cover_art_all_explicit(有可选封面且全部被判 explicit),不论
 4. **被合并的 id** 同时出现在 `/v2/catalog/redirects`,那里给出接替它的规范 id——有 redirect 就**重指**而不是删除。
 
 **本地谓词写法**:缓存列用可空列,`NULL` 表示「尚未同步」并且**放行**,例如 `WHERE content_limit IS NULL OR content_limit = 'sfw'`。冷启动期间未水合的行因此照常可见而不是整站空白;真正的权威始终是水合时 catalog 自己的闸,本地列只是列表页的快筛。
+
+## 9. 作品合并的存留语义:幸存者优先(2026-10-12)
+
+合并(`ExecuteMerge`,经 admin `POST /proposals/{id}/execute`、`cmd/work-dedup`、`cmd/catalog-dedup-batch`、`cmd/merge-work-dups` 等全部调用方)与每夜 21:40Z 的残留回收(`SweepStragglers`,对合并后才写到旧 id 上的行重放同一套规则)共用一套语句。**不变量**:合并后,幸存者的对外身份——`display_name`、每个语言的当选标题(`localized`)、每个语言的当选简介、当选的竖版封面 / 横幅 / 列表封面、每个来源的 exact 锚——与合并前**完全相同**;只有幸存者在某一格**本来空着**时,输方的值才可以补进来。此前合并把输方的行原样并入,读面再按偶然的排序选举,幸存者的展示被悄悄换掉:生产上 2,720 部 olang=ja 的作品 `localized.ja ≠ display_name`,其中 2,718 部是合并幸存者(211826 并入 3993 后 ja 显示的是「魔女っ娘ア・ラ・モード2」而不是 3993 自己的「…II」);输方的 DLsite ja 简介进来后,zh 机翻与 intromt 改去翻译输方原文;同源 exact 冲突时**两边**都被降为 probable(厂牌合并 47793→5147 把 5147 自己的 DLsite `VG03026` 也降了)。
+
+- **标题**:幸存者在语言 L 已有可当选标题(official / alias / abbreviation,未被压制;它的 `display_name` 占住它的 `olang`)时,输方在 L 的 source 标题改为**无语言别名**(`lang=''`,official→alias,与幸存者已有的同字标题去重),机翻标题丢弃;幸存者在 L 没有标题时,输方在 L 的行原样搬入;search hint 原样搬入。9453 这类「zh-Hans 名是一条带语言的 alias」的作品因此不会被输方的 zh official 顶掉。
+- **简介**(作品、厂牌、人物、角色同规):幸存者在 L 有 source 简介 → 输方在 L 的全部简介丢弃;幸存者在 L 只有机翻 → 输方的 source 简介搬入(机翻升级为原文,同源的那条幸存者机翻让位),输方机翻丢弃;幸存者在 L 没有 → 全部搬入。
+- **外部锚**(五个实体族同规):幸存者的锚**从不改动**。输方某来源的 exact 与幸存者同来源的另一个 exact 冲突时,只降输方:分版本来源(Bangumi、EGS)降为 related,其他非 curated 来源降为 probable(进人审桶);curated 锚恒保持 exact。幸存者没有的来源,输方的 exact 原样保留(补锚);输方自带多个分版本来源 exact 时留最短的一个,其余 related。残留回收沿用既有规则:晚到的第二个 exact 一律 related。
+- **封面 / 截图**:输方的封面搬入后标 `catalog_work_cover.merged_in = true`、清掉 `portrait_pinned`、`sort_order` 接在幸存者最大值之后;截图同样标 `merged_in` 并接续编号。**每一处封面选举**(详情 `cover_slots`、列表 `cover`、`include=covers` 的各列表泳道、`repincovers` 的候选)都把 `merged_in` 行排在作品自己的**全部**行(含打码替身)之后:作品自己的行选不出竖版时才用它;横幅的梯子是「自己的横版封面 → 自己的截图 → 合并来的横版封面 → 合并来的截图」。因此 `origin=screenshot` 的横幅仍然意味着「作品**自己**没有横版封面」。
+- **别名**(厂牌 / 角色 / 署名名义):与标题同规——幸存者在 L 已有可当选别名时,输方在 L 的别名改为无语言别名(`is_primary_for_locale=false`),机翻别名丢弃;完全同名同语言的行仍按既有键冲突规则处理(角色的 curated 行照旧顶替上游行)。
+- **归档**:合并**丢弃而非搬移**的每一行(上面各规则丢弃的行、唯一键冲突的重复行、absorb 丢弃的导入行)都在同一事务里先写进 `catalog_merge_archive(proposal_id, table_name, row jsonb)`。用户数据(收藏夹、游玩状态、评分、时长)仍按原规则以「较新的意图」去重,不入归档;缓存表(角色简介面板裁决)直接丢。
+- **撤销合并**(`MergeService.Unmerge` / `cmd/unmerge-work`):除了从快照重建实体行与标题,还把该提案归档的行恢复到重建出的新 id 上(凡指向旧 id 的合并引用列改写为新 id);唯一键或外键已不容纳的行跳过并逐条报告,幸存者一侧被替换的行(例如被升级掉的机翻简介)只记录不恢复。旧 id 的 redirect 指向新 id,`reason` 改为 `unmerge of proposal N`。**合并时搬走的行仍留在幸存者上**,与此前相同。
+
+**absorb 模式(一部作品的某个版本并入它的本体)**。作品的边界跟随 VNDB 的 VN:Bangumi / EGS 的版本条目只以 **related** 锚挂在本体上,既不成为作品,也不成为 exact 锚。提案在既有的 `field_resolution` 里写 `{"mode":"absorb"}`(`MergeService.ProposeAbsorb`,或 `cmd/work-dedup -mode pairs -absorb`;`-mode approve` / `-mode execute` 与 admin 面不变,`field_resolution` 原样随提案列出)。执行时:
+
+- 输方全部作品级外部锚以 **related**(`matched_by='merge:absorb'`)挂到本体,原行归档;发行版本连同其发行级锚整体搬入。
+- 输方全部标题改为无语言别名(去重),机翻标题丢弃。
+- 输方的**导入行**全部归档后丢弃,不搬:简介、封面、截图、标签、来源评分、热度、来源时长、平台、引擎、署名、厂牌归属、作品关系(来源为人工车道 user/curated 以外的,含无来源行)、系列成员、花名册。人工车道写的行(curated 简介、标签等)按普通合并规则搬入。对导入封面的封面投票先改指本体上同图的那一行,改不了的随封面归档。
+- 用户与社区数据照普通合并搬:收藏夹、用户评分、游玩状态、用户时长、封面投票、认领、编辑压制行、站点使用记录。
+- redirect 的 `reason` 以 `absorb: ` 开头,残留回收据此对日后写到被吸收 id 上的行同样执行 absorb 规则。
+- **护栏**:输方持有 VNDB exact 锚时拒绝 absorb(那是同一 VN 的重复条目,不是版本),提案与执行两处都会返回错误;admin 面为 409。
+
+迁移:`go run ./cmd/migrate catalog`(部署时的 `migrate-catalog` 任务)对 `kun_catalog` 新增 `catalog_work_cover.merged_in`、`catalog_work_screenshot.merged_in`(`boolean NOT NULL DEFAULT false`)与表 `catalog_merge_archive`(含 `idx_catalog_merge_archive_proposal`)。纯加法;本次之前的合并搬进来的封面无从识别,保持 `false`。

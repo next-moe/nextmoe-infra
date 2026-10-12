@@ -61,16 +61,19 @@ func TestRehangNamesEveryRef(t *testing.T) {
 		}
 		require.NotEmptyf(t, r.families, "%s.%s has no family", r.table, r.column)
 		for _, fam := range r.families {
-			stmts, err := rehangStmts(reg, fam, 101, 202)
-			require.NoError(t, err)
-			named := false
-			for _, s := range stmts {
-				if strings.Contains(s.sql, r.table+" ") && strings.Contains(s.sql, r.column) {
-					named = true
-					break
+			for _, absorb := range []bool{false, fam == model.EntityTypeWork} {
+				stmts, err := rehangStmts(reg, mergePlan{entityType: fam, src: 101, dst: 202, absorb: absorb})
+				require.NoError(t, err)
+				named := false
+				for _, s := range stmts {
+					if strings.Contains(s.sql, r.table+" ") && strings.Contains(s.sql, r.column) {
+						named = true
+						break
+					}
 				}
+				require.Truef(t, named, "no rehang statement for family %d (absorb=%t) moves %s.%s",
+					fam, absorb, r.table, r.column)
 			}
-			require.Truef(t, named, "no rehang statement for family %d moves %s.%s", fam, r.table, r.column)
 		}
 	}
 }

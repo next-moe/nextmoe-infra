@@ -431,6 +431,14 @@ func partialISOFromOrdinal(ord int64) string {
 // shadow the real explicit cover an R18 viewer should get — and, row order
 // permitting, even a real safe cover.
 func (s *PublicService) pickListCover(rows []WorkCoverRow, allowSexual bool) string {
+	own, merged := splitMergedCovers(rows)
+	if url := s.listCoverTier(own, allowSexual); url != "" {
+		return url
+	}
+	return s.listCoverTier(merged, allowSexual)
+}
+
+func (s *PublicService) listCoverTier(rows []WorkCoverRow, allowSexual bool) string {
 	real, ghosts := s.splitCensored(rows)
 	if url := ownCoversFirst(real, func(pool []WorkCoverRow) string {
 		return s.listCoverFrom(pool, allowSexual)

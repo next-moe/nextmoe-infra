@@ -125,6 +125,7 @@ type WorkCoverRow struct {
 	Violence       int16
 	SourceID       int16
 	Shared         bool
+	MergedIn       bool
 }
 
 type WorkScreenshotRow struct {
@@ -134,6 +135,7 @@ type WorkScreenshotRow struct {
 	Sexual    int16
 	Violence  int16
 	SourceID  int16
+	MergedIn  bool
 }
 
 type WorkCharacterRow struct {
@@ -577,9 +579,10 @@ func (s *ReadService) nativeWorkCovers(ctx context.Context, workIDs []int64, out
 		Violence       int16  `gorm:"column:violence"`
 		SourceID       int16  `gorm:"column:source_id"`
 		Shared         bool   `gorm:"column:shared"`
+		MergedIn       bool   `gorm:"column:merged_in"`
 	}
 	if err := db.Raw(`WITH wc AS (
-			SELECT id, work_id, image_hash, sort_order, kind, portrait_pinned, sexual, violence, source_id
+			SELECT id, work_id, image_hash, sort_order, kind, portrait_pinned, sexual, violence, source_id, merged_in
 			FROM catalog_work_cover WHERE work_id IN ?
 		), shared AS (
 			SELECT c.image_hash
@@ -599,7 +602,7 @@ func (s *ReadService) nativeWorkCovers(ctx context.Context, workIDs []int64, out
 		out[r.WorkID] = append(out[r.WorkID], WorkCoverRow{
 			ID: r.ID, ImageHash: r.ImageHash, Kind: r.Kind, PortraitPinned: r.PortraitPinned,
 			SortOrder: r.SortOrder, Sexual: r.Sexual, Violence: r.Violence, SourceID: r.SourceID,
-			Shared: r.Shared,
+			Shared: r.Shared, MergedIn: r.MergedIn,
 		})
 	}
 	return nil
@@ -630,8 +633,9 @@ func (s *ReadService) nativeWorkScreenshots(ctx context.Context, workIDs []int64
 		Sexual    int16  `gorm:"column:sexual"`
 		Violence  int16  `gorm:"column:violence"`
 		SourceID  int16  `gorm:"column:source_id"`
+		MergedIn  bool   `gorm:"column:merged_in"`
 	}
-	if err := db.Raw(`SELECT work_id, image_hash, sort_order, caption, sexual, violence, source_id
+	if err := db.Raw(`SELECT work_id, image_hash, sort_order, caption, sexual, violence, source_id, merged_in
 		FROM catalog_work_screenshot WHERE work_id IN ?
 		ORDER BY work_id, source_id, sort_order, image_hash`, workIDs).Scan(&rows).Error; err != nil {
 		return err
@@ -640,6 +644,7 @@ func (s *ReadService) nativeWorkScreenshots(ctx context.Context, workIDs []int64
 		out[r.WorkID] = append(out[r.WorkID], WorkScreenshotRow{
 			ImageHash: r.ImageHash, Caption: r.Caption,
 			SortOrder: r.SortOrder, Sexual: r.Sexual, Violence: r.Violence, SourceID: r.SourceID,
+			MergedIn: r.MergedIn,
 		})
 	}
 	return nil

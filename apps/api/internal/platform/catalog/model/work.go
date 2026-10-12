@@ -80,6 +80,7 @@ type CatalogWorkCover struct {
 	Sexual         int16     `gorm:"not null;default:0" json:"sexual"`
 	Violence       int16     `gorm:"not null;default:0" json:"violence"`
 	SourceID       int16     `gorm:"not null" json:"source_id"`
+	MergedIn       bool      `gorm:"not null;default:false" json:"merged_in"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 
@@ -98,6 +99,7 @@ type CatalogWorkScreenshot struct {
 	Sexual    int16     `gorm:"not null;default:0" json:"sexual"`
 	Violence  int16     `gorm:"not null;default:0" json:"violence"`
 	SourceID  int16     `gorm:"not null" json:"source_id"`
+	MergedIn  bool      `gorm:"not null;default:false" json:"merged_in"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 

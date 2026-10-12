@@ -2045,3 +2045,16 @@ The intro faces fold a language to one row by `provenance`, then the human lane 
 - **The next nightly retranslates each work whose election moved, once.** Its machine row sits on the old source, so the run finds none on the new one. Works with importer rows only elect what they did before. The person face gains the human-lane term; no person intro is written on source 1 or 12 today, so nothing moves there.
 
 No API shape change, no migration. **Spec unchanged** (2.46.0).
+
+## Wave — survivor-first work merges and absorb mode (2026-10-12)
+
+A work merge used to union the loser's rows into the survivor and let each read face elect by incidental order, so a merge silently changed what the survivor showed. On production 2,720 olang=ja works showed a `localized.ja` other than their `display_name`; 2,718 were merge survivors. The full rule set is in [01 §9](./01-service-and-contract.md); what changes on the read faces:
+
+- **`localized` (every work face that elects titles — detail, `include=names`, briefs, search hydration — and the `reindex-catalog` document builder).** Inside one provenance and kind, the title equal to `display_name` now sorts before the rest, then id. A merged-in duplicate official title with a lower id can no longer outrank the display name in its own language; elsewhere the id still decides.
+- **`cover`, `banner`, the list `cover` and `include=covers` slots.** Rows a merge carried over (`catalog_work_cover.merged_in`) rank below all of the work's own rows. The banner ladder is own landscape cover → own screenshot → merged-in landscape cover → merged-in screenshot (`catalog_work_screenshot.merged_in`). `banner`'s field doc ("the fallback for a work with no landscape cover") reads as "no landscape cover of its own", as it already does for shared bundle art.
+- **`covers[]` / `screenshots[]` order.** A merge numbers the loser's rows after the survivor's highest `sort_order`, so the survivor's sequence stays a prefix (screenshots keep their per-source blocks).
+- **Refs.** A merge no longer demotes the survivor's own exact refs; only the loser's conflicting exact becomes probable (related for Bangumi/EGS). This applies to person, credit name, label and character merges too.
+
+**Spec unchanged** (2.46.0): no field, enum or description changes; the merged-in flags are not on the wire.
+
+**Migration required**: `go run ./cmd/migrate catalog` against `kun_catalog` (the `migrate-catalog` job on deploy) adds `catalog_work_cover.merged_in`, `catalog_work_screenshot.merged_in` (`boolean NOT NULL DEFAULT false`) and creates `catalog_merge_archive` with `idx_catalog_merge_archive_proposal`. The new code reads and writes these columns, so the migration must run before the new binary serves — the deploy's job ordering does that. Additive; covers moved by earlier merges cannot be identified and stay `false`.

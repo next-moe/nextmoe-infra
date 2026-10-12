@@ -13,6 +13,7 @@ import (
 	"api/internal/platform/editing"
 	"api/internal/platform/settings/keys"
 
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -39,6 +40,22 @@ func NewMergeService(db *gorm.DB, resolve *ResolveService,
 }
 
 func (s *MergeService) ProposeMerge(ctx context.Context, entityType int16, sourceID, targetID, proposedBy int64, note string) (*model.CatalogMergeProposal, error) {
+	return s.propose(ctx, entityType, sourceID, targetID, proposedBy, note, false)
+}
+
+// ProposeAbsorb files a merge that folds an edition work into its base work:
+// the edition's work-level refs attach to the base as related and its imported
+// rows are archived, not moved. Executing it refuses a source that holds a
+// VNDB exact anchor, and so does filing it.
+func (s *MergeService) ProposeAbsorb(ctx context.Context, sourceID, targetID, proposedBy int64, note string) (*model.CatalogMergeProposal, error) {
+	return s.propose(ctx, model.EntityTypeWork, sourceID, targetID, proposedBy, note, true)
+}
+
+func (s *MergeService) CheckAbsorbable(ctx context.Context, sourceID int64) error {
+	return assertAbsorbable(s.db.WithContext(ctx), sourceID)
+}
+
+func (s *MergeService) propose(ctx context.Context, entityType int16, sourceID, targetID, proposedBy int64, note string, absorb bool) (*model.CatalogMergeProposal, error) {
 	src, _, err := s.resolve.Resolve(ctx, entityType, sourceID)
 	if err != nil {
 		return nil, err
@@ -55,12 +72,19 @@ func (s *MergeService) ProposeMerge(ctx context.Context, entityType int16, sourc
 			return nil, err
 		}
 	}
+	resolution := datatypes.JSON(`{}`)
+	if absorb {
+		if err := assertAbsorbable(s.db.WithContext(ctx), src); err != nil {
+			return nil, err
+		}
+		resolution = absorbResolution()
+	}
 	p := &model.CatalogMergeProposal{
 		EntityType:      entityType,
 		SourceEntityID:  src,
 		TargetEntityID:  dst,
 		Status:          model.ProposalStatusOpen,
-		FieldResolution: []byte(`{}`),
+		FieldResolution: resolution,
 		ProposedBy:      proposedBy,
 		Note:            note,
 	}

@@ -22,7 +22,7 @@ type workPair struct {
 }
 
 func runPairs(ctx context.Context, db *gorm.DB, w io.Writer, merge *service.MergeService,
-	resolve *service.ResolveService, actor int64, note, path string, run bool) error {
+	resolve *service.ResolveService, actor int64, note, path string, run, absorb bool) error {
 	pairs, err := loadPairs(path)
 	if err != nil {
 		return err
@@ -32,13 +32,17 @@ func runPairs(ctx context.Context, db *gorm.DB, w io.Writer, merge *service.Merg
 	}
 
 	var proposed, skippedExisting, moved, failed int
+	kind, label := "merge", ""
+	if absorb {
+		kind, label = "absorb", "absorb "
+	}
 	summary := func() {
 		mode := "DRY-RUN (pass -run to file)"
 		if run {
 			mode = "APPLIED"
 		}
-		fmt.Fprintf(w, "%s [pairs] note=%s rows=%d proposed=%d skipped_existing=%d moved=%d failed=%d\n",
-			mode, note, len(pairs), proposed, skippedExisting, moved, failed)
+		fmt.Fprintf(w, "%s [pairs] kind=%s note=%s rows=%d proposed=%d skipped_existing=%d moved=%d failed=%d\n",
+			mode, kind, note, len(pairs), proposed, skippedExisting, moved, failed)
 	}
 
 	// Every row is checked before any is filed: the first cut filed the rows
@@ -85,17 +89,30 @@ func runPairs(ctx context.Context, db *gorm.DB, w io.Writer, merge *service.Merg
 
 	for _, pair := range todo {
 		if !run {
-			fmt.Fprintf(w, "PLAN %d <- %d  %s\n", pair.target, pair.source, pair.evidence)
+			if absorb {
+				if err := merge.CheckAbsorbable(ctx, pair.source); err != nil {
+					failed++
+					fmt.Fprintf(w, "  %d->%d: absorb REFUSED %v\n", pair.source, pair.target, err)
+					continue
+				}
+			}
+			fmt.Fprintf(w, "PLAN %s%d <- %d  %s\n", label, pair.target, pair.source, pair.evidence)
 			proposed++
 			continue
 		}
-		p, err := merge.ProposeMerge(ctx, model.EntityTypeWork, pair.source, pair.target, actor, note+" | "+pair.evidence)
+		propose := merge.ProposeAbsorb
+		if !absorb {
+			propose = func(ctx context.Context, src, dst, by int64, note string) (*model.CatalogMergeProposal, error) {
+				return merge.ProposeMerge(ctx, model.EntityTypeWork, src, dst, by, note)
+			}
+		}
+		p, err := propose(ctx, pair.source, pair.target, actor, note+" | "+pair.evidence)
 		if err != nil {
 			failed++
 			fmt.Fprintf(w, "  %d->%d: propose ERROR %v\n", pair.source, pair.target, err)
 			continue
 		}
-		fmt.Fprintf(w, "OK proposal #%d %d <- %d\n", p.ID, pair.target, pair.source)
+		fmt.Fprintf(w, "OK proposal #%d %s%d <- %d\n", p.ID, label, pair.target, pair.source)
 		proposed++
 	}
 

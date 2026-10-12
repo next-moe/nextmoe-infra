@@ -22,23 +22,49 @@ const (
 // viewer should get, because the sexual pass only fills slots the safe pass
 // left empty. The banner keeps the real-art + screenshot ladder and may stay
 // nil — a ghost hero adds nothing a nil banner does not already handle.
+//
+// Rows a merge carried over from the merged-away work (merged_in) stand below
+// all of the work's own, ghosts included: they fill the portrait only when the
+// work's own rows elect none, and the banner only after its own screenshots
+// (fillBannerFromScreenshots). Ranked as equals, the loser's sharper art took
+// the survivor's portrait and banner.
 func (s *PublicService) pickCoverSlots(rows []WorkCoverRow, meta map[string]ImageMeta, allowSexual bool) *dto.PublicWorkCoverSlots {
-	real, ghosts := s.splitCensored(rows)
-	cand := ownCoversFirst(real, func(pool []WorkCoverRow) coverCandidates {
-		return s.electCovers(pool, meta, allowSexual)
-	})
-	portraitRow := cand.portrait()
-	if portraitRow == nil && len(ghosts) > 0 {
-		ghost := ownCoversFirst(ghosts, func(pool []WorkCoverRow) coverCandidates {
-			return s.electCovers(pool, meta, false)
-		})
-		portraitRow = ghost.portrait()
+	own, merged := splitMergedCovers(rows)
+	portraitRow, bannerRow := s.electSlotRows(own, meta, allowSexual)
+	if portraitRow == nil {
+		portraitRow, _ = s.electSlotRows(merged, meta, allowSexual)
 	}
-	portrait, banner := s.coverSlot(portraitRow, meta), s.coverSlot(cand.banner(), meta)
+	portrait, banner := s.coverSlot(portraitRow, meta), s.coverSlot(bannerRow, meta)
 	if portrait == nil && banner == nil {
 		return nil
 	}
 	return &dto.PublicWorkCoverSlots{Portrait: portrait, Banner: banner}
+}
+
+func (s *PublicService) electSlotRows(rows []WorkCoverRow, meta map[string]ImageMeta, allowSexual bool) (portrait, banner *WorkCoverRow) {
+	real, ghosts := s.splitCensored(rows)
+	cand := ownCoversFirst(real, func(pool []WorkCoverRow) coverCandidates {
+		return s.electCovers(pool, meta, allowSexual)
+	})
+	portrait = cand.portrait()
+	if portrait == nil && len(ghosts) > 0 {
+		ghost := ownCoversFirst(ghosts, func(pool []WorkCoverRow) coverCandidates {
+			return s.electCovers(pool, meta, false)
+		})
+		portrait = ghost.portrait()
+	}
+	return portrait, cand.banner()
+}
+
+func splitMergedCovers(rows []WorkCoverRow) (own, merged []WorkCoverRow) {
+	for _, c := range rows {
+		if c.MergedIn {
+			merged = append(merged, c)
+		} else {
+			own = append(own, c)
+		}
+	}
+	return own, merged
 }
 
 // Per work, not per slot: a work whose own art is all portrait gets the
@@ -209,20 +235,45 @@ func bannerMissing(slots *dto.PublicWorkCoverSlots) bool {
 }
 
 func (s *PublicService) fillBannerFromScreenshots(
-	slots *dto.PublicWorkCoverSlots, shots []WorkScreenshotRow, meta map[string]ImageMeta, allowSexual bool,
+	slots *dto.PublicWorkCoverSlots, covers []WorkCoverRow, shots []WorkScreenshotRow,
+	meta map[string]ImageMeta, allowSexual bool,
 ) *dto.PublicWorkCoverSlots {
-	best := s.pickBannerScreenshot(shots, meta, false)
-	if best == nil && allowSexual {
-		best = s.pickBannerScreenshot(shots, meta, true)
+	var ownShots, mergedShots []WorkScreenshotRow
+	for _, sc := range shots {
+		if sc.MergedIn {
+			mergedShots = append(mergedShots, sc)
+		} else {
+			ownShots = append(ownShots, sc)
+		}
 	}
-	if best == nil {
+	banner := s.bannerFromShots(ownShots, meta, allowSexual)
+	if banner == nil {
+		_, merged := splitMergedCovers(covers)
+		_, row := s.electSlotRows(merged, meta, allowSexual)
+		banner = s.coverSlot(row, meta)
+	}
+	if banner == nil {
+		banner = s.bannerFromShots(mergedShots, meta, allowSexual)
+	}
+	if banner == nil {
 		return slots
 	}
 	if slots == nil {
 		slots = &dto.PublicWorkCoverSlots{}
 	}
-	slots.Banner = s.screenshotSlot(best, meta)
+	slots.Banner = banner
 	return slots
+}
+
+func (s *PublicService) bannerFromShots(shots []WorkScreenshotRow, meta map[string]ImageMeta, allowSexual bool) *dto.PublicCoverSlot {
+	best := s.pickBannerScreenshot(shots, meta, false)
+	if best == nil && allowSexual {
+		best = s.pickBannerScreenshot(shots, meta, true)
+	}
+	if best == nil {
+		return nil
+	}
+	return s.screenshotSlot(best, meta)
 }
 
 func (s *PublicService) pickBannerScreenshot(rows []WorkScreenshotRow, meta map[string]ImageMeta, allowSexual bool) *WorkScreenshotRow {
