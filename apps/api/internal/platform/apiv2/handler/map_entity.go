@@ -94,6 +94,18 @@ func tagRefs(in []dto.PublicTagRef) []repr.TagRef {
 	return out
 }
 
+func tagNodes(in []dto.PublicTagNode) []repr.TagNode {
+	out := make([]repr.TagNode, 0, len(in))
+	for _, t := range in {
+		parents := make([]string, 0, len(t.ParentIDs))
+		for _, p := range t.ParentIDs {
+			parents = append(parents, repr.ID(p))
+		}
+		out = append(out, repr.TagNode{Object: "tag", ID: repr.ID(t.ID), DisplayName: t.Name, IsSexual: t.Sexual, ParentIDs: parents})
+	}
+	return out
+}
+
 func engineFromListItem(it dto.PublicEngineListItem) repr.Engine {
 	aliases := it.Aliases
 	if aliases == nil {

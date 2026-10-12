@@ -1067,7 +1067,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "获取一个标签",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/tags/{id}",
-    "b": "getCatalogTag /v2/catalog/tags/{id} get Get one tag Canonical tag. include=intros adds the per-language tag descriptions; include=children adds the direct children. parents, child_count and descendant_count place the tag in the tag hierarchy. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. 规范 tag。include=intros 会加入各语言的 tag 描述；include=children 会加入直接子 tag。parents、child_count 与 descendant_count 给出该 tag 在 tag 层级中的位置。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。 catalog:read id nsfw view include fields"
+    "b": "getCatalogTag /v2/catalog/tags/{id} get Get one tag Canonical tag. include=intros adds the per-language tag descriptions; include=children adds the direct children; include=descendants adds every tag below it (what exclude_tag_tree adds for this id), and include=ancestors every tag above it, each node with its parent_ids so the tree can be drawn. parents, child_count and descendant_count place the tag in the tag hierarchy. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. 规范 tag。include=intros 会加入各语言的 tag 描述；include=children 会加入直接子 tag；include=descendants 会加入它下面的全部 tag（即 exclude_tag_tree 对这个 id 额外排除的那些），include=ancestors 会加入它上面的全部 tag，每个节点都带 parent_ids，足以画出整棵树。parents、child_count 与 descendant_count 给出该 tag 在 tag 层级中的位置。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。 catalog:read id nsfw view include fields"
   },
   {
     "r": "/docs/v2/listCatalogTraits",

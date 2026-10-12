@@ -59956,6 +59956,52 @@ export const docsModel: DocsModel = {
                           "type": "object",
                           "children": [
                             {
+                              "name": "ancestors",
+                              "doc": "Every tag above this one at any depth, each listed once, nearest first; the first level is parents. Each node's parent_ids name all its direct parents, so every path up to a root can be drawn. A reader who blocked any of these with exclude_tag_tree does not see works carrying this tag. Present when include=ancestors, detail face only. Empty array for a root.",
+                              "type": "array",
+                              "itemsOf": {
+                                "type": "object",
+                                "children": [
+                                  {
+                                    "name": "display_name",
+                                    "required": true,
+                                    "doc": "Must not be used as a discriminant.",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "name": "id",
+                                    "required": true,
+                                    "doc": "Catalog tag id.",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "name": "is_sexual",
+                                    "required": true,
+                                    "doc": "Whether this tag is in the sexual family.",
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "name": "object",
+                                    "required": true,
+                                    "doc": "Type discriminant. Always tag.",
+                                    "enum": [
+                                      "tag"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  {
+                                    "name": "parent_ids",
+                                    "required": true,
+                                    "doc": "Direct parents of this tag within the tree it was returned in, ascending. Never null.",
+                                    "type": "array",
+                                    "itemsOf": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
+                              }
+                            },
+                            {
                               "name": "child_count",
                               "required": true,
                               "doc": "Direct children.",
@@ -60005,6 +60051,52 @@ export const docsModel: DocsModel = {
                               "doc": "Tags below this one at any depth, each counted once.",
                               "format": "int64",
                               "type": "integer"
+                            },
+                            {
+                              "name": "descendants",
+                              "doc": "Every tag below this one at any depth, each listed once, nearest first (by shortest path, then id); its length is descendant_count. Each node's parent_ids name its direct parents among this tag and the other descendants, so the subtree can be drawn; a tag with several parents is drawn under each. These are the tags exclude_tag_tree adds for this id. Present when include=descendants, detail face only. Empty array if none.",
+                              "type": "array",
+                              "itemsOf": {
+                                "type": "object",
+                                "children": [
+                                  {
+                                    "name": "display_name",
+                                    "required": true,
+                                    "doc": "Must not be used as a discriminant.",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "name": "id",
+                                    "required": true,
+                                    "doc": "Catalog tag id.",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "name": "is_sexual",
+                                    "required": true,
+                                    "doc": "Whether this tag is in the sexual family.",
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "name": "object",
+                                    "required": true,
+                                    "doc": "Type discriminant. Always tag.",
+                                    "enum": [
+                                      "tag"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  {
+                                    "name": "parent_ids",
+                                    "required": true,
+                                    "doc": "Direct parents of this tag within the tree it was returned in, ascending. Never null.",
+                                    "type": "array",
+                                    "itemsOf": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
+                              }
                             },
                             {
                               "name": "display_name",
@@ -61400,7 +61492,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/tags/{id}",
               "summary": "Get one tag",
-              "description": "Canonical tag. include=intros adds the per-language tag descriptions; include=children adds the direct children. parents, child_count and descendant_count place the tag in the tag hierarchy. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
+              "description": "Canonical tag. include=intros adds the per-language tag descriptions; include=children adds the direct children; include=descendants adds every tag below it (what exclude_tag_tree adds for this id), and include=ancestors every tag above it, each node with its parent_ids so the tree can be drawn. parents, child_count and descendant_count place the tag in the tag hierarchy. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
               "auth": {
                 "kind": "optional",
@@ -61453,6 +61545,52 @@ export const docsModel: DocsModel = {
                     "type": "object",
                     "children": [
                       {
+                        "name": "ancestors",
+                        "doc": "Every tag above this one at any depth, each listed once, nearest first; the first level is parents. Each node's parent_ids name all its direct parents, so every path up to a root can be drawn. A reader who blocked any of these with exclude_tag_tree does not see works carrying this tag. Present when include=ancestors, detail face only. Empty array for a root.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog tag id.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "is_sexual",
+                              "required": true,
+                              "doc": "Whether this tag is in the sexual family.",
+                              "type": "boolean"
+                            },
+                            {
+                              "name": "object",
+                              "required": true,
+                              "doc": "Type discriminant. Always tag.",
+                              "enum": [
+                                "tag"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "parent_ids",
+                              "required": true,
+                              "doc": "Direct parents of this tag within the tree it was returned in, ascending. Never null.",
+                              "type": "array",
+                              "itemsOf": {
+                                "type": "string"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
                         "name": "child_count",
                         "required": true,
                         "doc": "Direct children.",
@@ -61502,6 +61640,52 @@ export const docsModel: DocsModel = {
                         "doc": "Tags below this one at any depth, each counted once.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "descendants",
+                        "doc": "Every tag below this one at any depth, each listed once, nearest first (by shortest path, then id); its length is descendant_count. Each node's parent_ids name its direct parents among this tag and the other descendants, so the subtree can be drawn; a tag with several parents is drawn under each. These are the tags exclude_tag_tree adds for this id. Present when include=descendants, detail face only. Empty array if none.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog tag id.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "is_sexual",
+                              "required": true,
+                              "doc": "Whether this tag is in the sexual family.",
+                              "type": "boolean"
+                            },
+                            {
+                              "name": "object",
+                              "required": true,
+                              "doc": "Type discriminant. Always tag.",
+                              "enum": [
+                                "tag"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "parent_ids",
+                              "required": true,
+                              "doc": "Direct parents of this tag within the tree it was returned in, ascending. Never null.",
+                              "type": "array",
+                              "itemsOf": {
+                                "type": "string"
+                              }
+                            }
+                          ]
+                        }
                       },
                       {
                         "name": "display_name",

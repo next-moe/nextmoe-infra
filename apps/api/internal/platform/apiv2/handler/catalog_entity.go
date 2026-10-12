@@ -143,7 +143,22 @@ func (c *Catalog) GetTag(ctx context.Context, id int64, nsfw bool, include []str
 	if !found {
 		return repr.Tag{}, c.mergedOrNotFound(ctx, catmodel.EntityTypeTag, "tag", id)
 	}
-	return tagFromDetail(rec, include), nil
+	out := tagFromDetail(rec, include)
+	if slices.Contains(include, "descendants") {
+		nodes, err := c.Public.TagDescendants(ctx, id)
+		if err != nil {
+			return repr.Tag{}, err
+		}
+		out.Descendants = ptrSlice(tagNodes(nodes))
+	}
+	if slices.Contains(include, "ancestors") {
+		nodes, err := c.Public.TagAncestors(ctx, id)
+		if err != nil {
+			return repr.Tag{}, err
+		}
+		out.Ancestors = ptrSlice(tagNodes(nodes))
+	}
+	return out, nil
 }
 
 func (c *Catalog) GetEngine(ctx context.Context, id int64, nsfw bool) (repr.Engine, error) {

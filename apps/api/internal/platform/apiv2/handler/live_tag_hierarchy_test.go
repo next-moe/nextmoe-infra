@@ -81,3 +81,83 @@ func TestLiveTagHierarchy(t *testing.T) {
 	require.Equal(t, 1, byID[idstr(mid)].DescendantCount)
 	require.Nil(t, byID[idstr(mid)].Children, "the list lane does not carry children")
 }
+
+type liveTagNode struct {
+	ID        string   `json:"id"`
+	IsSexual  bool     `json:"is_sexual"`
+	ParentIDs []string `json:"parent_ids"`
+}
+
+func TestLiveTagTree(t *testing.T) {
+	env := liveCatalog(t)
+	mk := func(name string) int64 {
+		tag := model.CatalogTag{Name: name, Tier: model.TagTierCore, Kind: model.TagKindContent, Sexual: name == "live-tree-d"}
+		require.NoError(t, env.db.Create(&tag).Error)
+		return tag.ID
+	}
+	root, a, b, c, d, outside := mk("live-tree-root"), mk("live-tree-a"), mk("live-tree-b"), mk("live-tree-c"), mk("live-tree-d"), mk("live-tree-outside")
+	require.NoError(t, env.db.Create(&[]model.CatalogTagParent{
+		{TagID: a, ParentID: root, Origin: model.TagParentOriginVNDB},
+		{TagID: b, ParentID: root, Origin: model.TagParentOriginVNDB},
+		{TagID: c, ParentID: a, Origin: model.TagParentOriginVNDB},
+		{TagID: c, ParentID: b, Origin: model.TagParentOriginVNDB},
+		{TagID: c, ParentID: outside, Origin: model.TagParentOriginCurated, Note: "reviewed"},
+		{TagID: d, ParentID: c, Origin: model.TagParentOriginVNDB},
+	}).Error)
+	t.Cleanup(func() {
+		env.db.Exec(`DELETE FROM catalog_tag_parent WHERE tag_id IN ?`, []int64{a, b, c, d})
+		env.db.Exec(`DELETE FROM catalog_tag WHERE id IN ?`, []int64{root, a, b, c, d, outside})
+	})
+	get := func(id int64, include string) (map[string]json.RawMessage, int) {
+		status, _, body := liveDo(t, env, http.MethodGet, "/v2/catalog/tags/"+idstr(id)+include, liveAppKey, "")
+		require.Equal(t, 200, status, string(body))
+		var out map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(body, &out))
+		var count int
+		require.NoError(t, json.Unmarshal(out["descendant_count"], &count))
+		return out, count
+	}
+	nodes := func(raw json.RawMessage) []liveTagNode {
+		var out []liveTagNode
+		require.NoError(t, json.Unmarshal(raw, &out))
+		return out
+	}
+
+	body, count := get(root, "?include=descendants")
+	desc := nodes(body["descendants"])
+	require.Equal(t, []liveTagNode{
+		{ID: idstr(a), ParentIDs: []string{idstr(root)}},
+		{ID: idstr(b), ParentIDs: []string{idstr(root)}},
+		{ID: idstr(c), ParentIDs: []string{idstr(a), idstr(b)}},
+		{ID: idstr(d), IsSexual: true, ParentIDs: []string{idstr(c)}},
+	}, desc, "nearest first; c's parent outside the subtree is not named")
+	require.Len(t, desc, count)
+	_, ok := body["ancestors"]
+	require.False(t, ok, "ancestors must be absent unless asked for")
+
+	body, _ = get(d, "?include=ancestors,descendants")
+	require.Equal(t, []liveTagNode{
+		{ID: idstr(c), ParentIDs: []string{idstr(a), idstr(b), idstr(outside)}},
+		{ID: idstr(a), ParentIDs: []string{idstr(root)}},
+		{ID: idstr(b), ParentIDs: []string{idstr(root)}},
+		{ID: idstr(outside), ParentIDs: []string{}},
+		{ID: idstr(root), ParentIDs: []string{}},
+	}, nodes(body["ancestors"]))
+	require.Equal(t, "[]", string(body["descendants"]), "a leaf answers an empty array, not null")
+
+	body, _ = get(c, "?view=full")
+	_, ok = body["descendants"]
+	require.False(t, ok, "view=full does not expand the subtree")
+
+	status, _, raw := liveDo(t, env, http.MethodGet, "/v2/catalog/tag-exclusion?exclude_tag_tree="+idstr(root), liveAppKey, "")
+	require.Equal(t, 200, status, string(raw))
+	var excl struct {
+		TagIDs []string `json:"tag_ids"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &excl))
+	want := []string{idstr(root)}
+	for _, n := range desc {
+		want = append(want, n.ID)
+	}
+	require.ElementsMatch(t, want, excl.TagIDs, "descendants are what exclude_tag_tree adds")
+}
