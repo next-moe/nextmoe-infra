@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"api/internal/infrastructure/database"
+	"api/internal/platform/catalog/editspec"
 
 	"gorm.io/gorm"
 )
@@ -44,6 +45,7 @@ type Stats struct {
 	NameBlank    int
 	DupCollapsed int
 	Planned      int
+	Suppressed   int
 	Written      int
 	Conflict     int
 	Errors       int
@@ -77,8 +79,13 @@ func Run(ctx context.Context, opts Opts) (*Stats, error) {
 		return nil, fmt.Errorf("load candidates: %w", err)
 	}
 
+	suppressed, err := editspec.LoadSuppressedWorkTags(ctx, db, reg.bangumiSource)
+	if err != nil {
+		return nil, err
+	}
+
 	st := &Stats{Candidates: len(cands)}
-	w := &writer{db: db, source: reg.bangumiSource, stats: st}
+	w := &writer{db: db, source: reg.bangumiSource, stats: st, suppressed: suppressed}
 	nameFreq := map[string]int{}
 
 	for _, c := range cands {
@@ -110,7 +117,7 @@ func Run(ctx context.Context, opts Opts) (*Stats, error) {
 	slog.Info("backfill-work-tags done", "apply", opts.Apply,
 		"candidates", st.Candidates, "no_tags", st.NoTags, "not_array", st.NotArray,
 		"name_blank", st.NameBlank, "dup_collapsed", st.DupCollapsed,
-		"planned", st.Planned, "distinct_names", st.DistinctNames,
+		"planned", st.Planned, "distinct_names", st.DistinctNames, "suppressed", st.Suppressed,
 		"written", st.Written, "conflict", st.Conflict, "sexual_inherited", st.SexualInherited,
 		"errors", st.Errors)
 	for _, nf := range st.TopNames {

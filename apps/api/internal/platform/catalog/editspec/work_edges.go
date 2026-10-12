@@ -108,7 +108,10 @@ func applyTagIDs(ctx context.Context, tx *gorm.DB, entityID int64, value any) er
 	}).Create(&maps).Error; err != nil {
 		return err
 	}
-	return tx.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(&rows).Error
+	if err := tx.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(&rows).Error; err != nil {
+		return err
+	}
+	return rejectSuppressedCuratedTags(ctx, tx, entityID, FieldWorkTagIDs)
 }
 
 // Resolving by name instead of through the map dropped every curated row whose

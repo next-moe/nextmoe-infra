@@ -24,6 +24,7 @@ const (
 	FieldWorkIntros        = "catalog.work.intros"
 	FieldWorkDisplayNSFW   = "catalog.work.display_nsfw"
 	FieldWorkTagIDs        = "catalog.work.tag_ids"
+	FieldWorkTagIDsSuppr   = FieldWorkTagIDs + editing.SuppressedFieldSuffix
 	FieldWorkLabels        = "catalog.work.labels"
 	FieldWorkEngineIDs     = "catalog.work.engine_ids"
 	FieldWorkSeriesIDs     = "catalog.work.series_ids"
@@ -104,6 +105,7 @@ func RegisterWork(reg *editing.Registry, db *gorm.DB) error {
 				FieldWorkTitlesSuppr:  loadSuppressedTitles,
 				FieldWorkIntros:       loadIntros,
 				FieldWorkTagIDs:       loadTagIDs,
+				FieldWorkTagIDsSuppr:  loadSuppressedTagIDs,
 				FieldWorkLabels:       loadLabels,
 				FieldWorkEngineIDs:    loadEngineIDs,
 				FieldWorkSeriesIDs:    loadSeriesIDs,
@@ -236,6 +238,13 @@ func workFieldSpecs() []editing.FieldSpec {
 			},
 		},
 	}
+	tags := editing.FieldSpec{
+		Key: FieldWorkTagIDs, Kind: editing.KindList, DiffHint: editing.DiffHintItems,
+		Identity: &editing.IdentitySpec{Segments: 2, KeyCheck: workTagKeyCheck},
+		Value:    &editing.ValueSpec{Element: &editing.ElementSpec{Type: "ref"}},
+		Validate: validateTagIDs,
+		Apply:    applyTagIDs,
+	}
 	return []editing.FieldSpec{
 		{
 			Key: FieldWorkDisplayName, Kind: editing.KindText, DiffHint: editing.DiffHintInline,
@@ -277,12 +286,8 @@ func workFieldSpecs() []editing.FieldSpec {
 			Apply:      applyWorkColumn("display_nsfw", asBool),
 			Provenance: workProvenance("display_nsfw"),
 		},
-		{
-			Key: FieldWorkTagIDs, Kind: editing.KindList, DiffHint: editing.DiffHintItems,
-			Value:    &editing.ValueSpec{Element: &editing.ElementSpec{Type: "ref"}},
-			Validate: validateTagIDs,
-			Apply:    applyTagIDs,
-		},
+		tags,
+		workTagSuppressionSpec(tags),
 		{
 			Key: FieldWorkLabels, Kind: editing.KindList, DiffHint: editing.DiffHintItems,
 			Value: &editing.ValueSpec{Element: &editing.ElementSpec{

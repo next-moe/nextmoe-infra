@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"api/internal/infrastructure/database"
+	"api/internal/platform/catalog/editspec"
 
 	"gorm.io/gorm"
 )
@@ -51,6 +52,7 @@ type Stats struct {
 	NameBlank       int
 	DupCollapsed    int
 	Planned         int
+	Suppressed      int
 	Written         int
 	SexualInherited int
 	Conflict        int
@@ -103,8 +105,13 @@ func Run(ctx context.Context, opts Opts) (*Stats, error) {
 		return nil, fmt.Errorf("load candidates: %w", err)
 	}
 
+	suppressed, err := editspec.LoadSuppressedWorkTags(ctx, db, reg.dlsiteSource)
+	if err != nil {
+		return nil, err
+	}
+
 	st := &Stats{TaxonomyRows: len(taxonomy), Candidates: len(cands)}
-	w := &writer{db: db, source: reg.dlsiteSource, stats: st}
+	w := &writer{db: db, source: reg.dlsiteSource, stats: st, suppressed: suppressed}
 	nameFreq := map[string]int{}
 
 	worknos := make([]string, 0, len(cands))
@@ -157,7 +164,8 @@ func Run(ctx context.Context, opts Opts) (*Stats, error) {
 		"skipped_bundle", st.SkippedBundle, "missing_mirror", st.MissingMirror, "no_genres", st.NoGenres, "not_array", st.NotArray,
 		"zh_hit", st.ZhHit, "ja_fallback", st.JaFallback, "name_blank", st.NameBlank,
 		"dup_collapsed", st.DupCollapsed, "planned", st.Planned,
-		"distinct_names", st.DistinctNames, "written", st.Written, "conflict", st.Conflict,
+		"distinct_names", st.DistinctNames, "suppressed", st.Suppressed,
+		"written", st.Written, "conflict", st.Conflict,
 		"sexual_inherited", st.SexualInherited,
 		"errors", st.Errors)
 	for _, nf := range st.TopNames {
