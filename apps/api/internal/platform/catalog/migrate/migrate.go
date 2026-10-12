@@ -576,6 +576,15 @@ func rawSQL(db *gorm.DB) error {
 		{"idx_catalog_character_trait_link_trait_char", `
 			CREATE INDEX IF NOT EXISTS idx_catalog_character_trait_link_trait_char
 			    ON catalog_character_trait_link (trait_id, character_id) INCLUDE (spoiler_level)`},
+		// Every cover election (work detail, every works list, calendar,
+		// search hydration) counts how many live works hold each candidate
+		// image, so a bundle's box art loses to the work's own (2026-10-12,
+		// forum todo #231). uq_catalog_work_cover leads with work_id, so that
+		// count was a full scan of catalog_work_cover per request — ~50 ms on a
+		// 400k-row synthetic copy, ~1 ms with this index.
+		{"idx_catalog_work_cover_image_hash", `
+			CREATE INDEX IF NOT EXISTS idx_catalog_work_cover_image_hash
+			    ON catalog_work_cover (image_hash)`},
 	} {
 		if err := db.Exec(ix.stmt).Error; err != nil {
 			return fmt.Errorf("create index %s: %w", ix.name, err)
