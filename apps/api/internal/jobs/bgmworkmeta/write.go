@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/repository"
 
@@ -12,9 +13,10 @@ import (
 )
 
 type writer struct {
-	db      *gorm.DB
-	stats   *Stats
-	touched []int64
+	db         *gorm.DB
+	stats      *Stats
+	suppressed editspec.SuppressedWorkTags
+	touched    []int64
 }
 
 func (w *writer) touch(ctx context.Context) error {
@@ -35,6 +37,10 @@ type tagRow struct {
 }
 
 func (w *writer) writeTag(ctx context.Context, p tagRow, apply bool) {
+	if w.suppressed.Has(p.WorkID, p.Name) {
+		w.stats.MetaSuppressed++
+		return
+	}
 	if !apply {
 		return
 	}

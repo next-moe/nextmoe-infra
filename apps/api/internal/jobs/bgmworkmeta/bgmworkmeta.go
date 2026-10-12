@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"api/internal/infrastructure/database"
+	"api/internal/platform/catalog/editspec"
 
 	"gorm.io/gorm"
 )
@@ -45,14 +46,15 @@ type NameFreq struct {
 type Stats struct {
 	Candidates int
 
-	MetaNoTags    int
-	MetaNotArray  int
-	MetaNameBlank int
-	MetaDup       int
-	MetaPlanned   int
-	MetaWritten   int
-	MetaConflict  int
-	MetaDistinct  int
+	MetaNoTags     int
+	MetaNotArray   int
+	MetaNameBlank  int
+	MetaDup        int
+	MetaPlanned    int
+	MetaSuppressed int
+	MetaWritten    int
+	MetaConflict   int
+	MetaDistinct   int
 
 	FavNoObject   int
 	FavUnknownKey int
@@ -90,8 +92,13 @@ func Run(ctx context.Context, opts Opts) (*Stats, error) {
 		return nil, fmt.Errorf("load candidates: %w", err)
 	}
 
+	suppressed, err := editspec.LoadSuppressedWorkTags(ctx, db, reg.bangumiSource)
+	if err != nil {
+		return nil, err
+	}
+
 	st := &Stats{Candidates: len(cands)}
-	w := &writer{db: db, stats: st}
+	w := &writer{db: db, stats: st, suppressed: suppressed}
 	nameFreq := map[string]int{}
 
 	for _, c := range cands {
@@ -123,6 +130,7 @@ func Run(ctx context.Context, opts Opts) (*Stats, error) {
 		"meta_no_tags", st.MetaNoTags, "meta_not_array", st.MetaNotArray,
 		"meta_name_blank", st.MetaNameBlank, "meta_dup", st.MetaDup,
 		"meta_planned", st.MetaPlanned, "meta_distinct_names", st.MetaDistinct,
+		"meta_suppressed", st.MetaSuppressed,
 		"meta_written", st.MetaWritten, "meta_conflict", st.MetaConflict,
 		"fav_no_object", st.FavNoObject, "fav_unknown_key", st.FavUnknownKey,
 		"fav_bad_value", st.FavBadValue, "fav_planned", st.FavPlanned,

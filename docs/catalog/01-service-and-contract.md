@@ -361,12 +361,13 @@ catalog 的**第三张脸**,也是「用户写面」的起点。教义一句话:
 
 **行级压制字段 `<field>.suppressed`(wave R1a,2026-08-16 起在产)**:上游 importer 拥有的行不属于编辑面(编辑面只看 curated 车道),但人有时需要让某一行**不再出现在任何读面**。办法不是删它——下一轮导入会把它重新推回来——而是给它记一条负知识。
 
-- **形状**:凡支持此能力的字段 `F`,`getEditSchemaUser` 的 `fields[]` 里**多一个** key `F.suppressed`(`kind=list`、`diff_hint=items`),策略与 `F` 逐字相同(继承父字段的站点 overlay)。目前两个:`catalog.work.titles.suppressed` 与 `catalog.character.aliases.suppressed`。
+- **形状**:凡支持此能力的字段 `F`,`getEditSchemaUser` 的 `fields[]` 里**多一个** key `F.suppressed`(`kind=list`、`diff_hint=items`),策略与 `F` 逐字相同(继承父字段的站点 overlay)。目前五个:`catalog.work.titles.suppressed`、`catalog.work.tag_ids.suppressed`、`catalog.work.credits.suppressed`、`catalog.work.roster.suppressed` 与 `catalog.character.aliases.suppressed`。
 - **值 = 严格升序、去重的字符串数组**(不是集合语义的任意顺序数组)。乱序或重复 → **422**。元素是**内容派生**的行身份键:标题是 `title:<kind>:<lang>:<title>`(`kind` 是数字:0 official / 1 alias / 2 abbreviation),角色别名是 `alias:<kind>:<lang>:<name>`。之所以不用行 id:importer 删了重插同一行会换 id,压制会正好在它该生效的时候失效。
 - **文本段必须是规范形式(wave 柱 7,2026-08-16 起)**:键里的自由文本段(标题、别名名)以**剥掉不可见控制符(零宽/BOM/bidi/word joiner)并去掉首尾空白(含全角空格)后的形式**参与身份。发一个非规范键 → **422**,错误里会把规范键递回来。原因:目录侧有一个字符串卫生作业会原地重写这些文本列,若键按原始文本组合,它跑过之后压制会静默失配、被压制的行重新出面且无任何东西报错。**注意这只抹「语义为零」的差异**——上游把文本本身改了(改错别字),压制过期是正确语义,不在此列。
 - **悬空键合法**:只校格式,不校该行此刻是否存在——上游今天没推、明天推回来的行,压制照旧等在那里。
 - ⚠️ **不要自己拼键**:格式在此列出是为了让你读懂请求,不是让你从渲染出来的文本反推。文本段的规范化、未来可能出现的实体 id 段,都会让手拼的键与服务端算出的键错开——而错开的后果是「保存 200、回读得到、永远不生效」。全部不可见字符构成的文本(生产有 1 行)规范化后为空,**没有合法键,因而不可压制**,只能走数据修复。
 - **被压制的行仍物理留在表里**(importer 仍拥有它),只是**不出任何读面**,标题搜索与搜索索引同规排除。父字段 `F` 的编辑快照**照旧包含**这些行(它是全量替换语义,过滤掉会导致下一次保存把它们物理删掉)。
+- **例外:作品标签 `catalog.work.tag_ids.suppressed`(forum todo #268,2026-10 起)是写侧压制,不是读侧排除**。键是 `tag:<canonical tag id>`(规范标签 id,即 `/v2/catalog/tags` 的 id,**不是**某个来源的标签名),压的是「这个规范标签不属于这部作品」,对**每个来源**都生效:合入时同一事务里删掉该作品上经 `catalog_tag_source_map` 解析到该标签的**所有来源**的 `catalog_work_tag` 行;此后 VNDB / Bangumi / DLsite 各标签导入作业写入前跳过该 (作品, 标签) 对(VNDB 周同步还会删掉漏进来的行),作品合并时压制随作品搬到存活作品并同样清掉存活作品上的对应行;规范标签合并(tagcanon merge)把被并标签上的压制键改指胜出标签,同样清行。所以读面**没有**任何压制过滤——行根本不存在。与人工车道互斥:`tag_ids` 里含一个已被压制的标签 → **422**(指向 `tag_ids.suppressed`,先单独解除压制);压制一个正在 `tag_ids` 里的标签 → **422**(指向 `tag_ids`);同一次编辑里「从 `tag_ids` 去掉 + 压制」是合法的。解除压制**不会**恢复行,下一轮导入自然补回。已知缺口:词表波新增一条 `catalog_tag_source_map`(把此前未映射的来源名映到一个已被压制的标签)不回头清既有行——VNDB 周同步会删掉,Bangumi / DLsite 行留到人工处理。
 - 压制与解除各产一条 `entity_revision`,可 diff、可回滚、有归属,与普通编辑同一条审计通道。
 - ⚠️ **通用渲染的 UI 注意**:如果编辑器是「遍历 `fields[]` 逐个渲染」,`F.suppressed` 会作为一个裸字符串数组出现。它要么按压制 UI 渲染(在 `F` 的行旁边给一个「隐藏此行」),要么显式跳过 `.suppressed` 后缀——**不要**当普通文本数组交给用户手打。
 

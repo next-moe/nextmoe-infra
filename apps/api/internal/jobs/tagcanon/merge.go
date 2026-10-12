@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 
 	"gorm.io/gorm"
@@ -21,19 +22,20 @@ type MergeOpts struct {
 }
 
 type MergeStats struct {
-	Records        int
-	Planned        int
-	AlreadyMerged  int
-	MapsRepointed  int
-	CuratedAliases int
-	IntrosMoved    int
-	IntrosDropped  int
-	CountsDropped  int
-	ParentsMoved   int
-	BlocksMoved    int
-	TagsDeleted    int
-	OpenProposals  int
-	Errors         int
+	Records           int
+	Planned           int
+	AlreadyMerged     int
+	MapsRepointed     int
+	CuratedAliases    int
+	SuppressionsMoved int
+	IntrosMoved       int
+	IntrosDropped     int
+	CountsDropped     int
+	ParentsMoved      int
+	BlocksMoved       int
+	TagsDeleted       int
+	OpenProposals     int
+	Errors            int
 }
 
 // mergeRec folds the losing canonical into the winner. Both the id and the name
@@ -108,7 +110,7 @@ func Merge(ctx context.Context, opts MergeOpts) (*MergeStats, error) {
 
 	slog.Info("tag merge done", "apply", opts.Apply, "records", st.Records, "planned", st.Planned,
 		"already_merged", st.AlreadyMerged, "maps_repointed", st.MapsRepointed,
-		"curated_aliases", st.CuratedAliases, "intros_moved", st.IntrosMoved,
+		"curated_aliases", st.CuratedAliases, "suppressions_moved", st.SuppressionsMoved, "intros_moved", st.IntrosMoved,
 		"intros_dropped", st.IntrosDropped, "counts_dropped", st.CountsDropped, "parents_moved", st.ParentsMoved, "blocks_moved", st.BlocksMoved,
 		"tags_deleted", st.TagsDeleted, "open_proposals", st.OpenProposals, "errors", st.Errors)
 	return st, nil
@@ -170,6 +172,12 @@ func applyMerge(ctx context.Context, db *gorm.DB, curated int16, r mergeRec, st 
 			return res.Error
 		}
 		st.CuratedAliases += int(res.RowsAffected)
+
+		moved, err := followWorkTagSuppressions(tx, r.FromID, r.IntoID)
+		if err != nil {
+			return err
+		}
+		st.SuppressionsMoved += moved
 
 		res = tx.Exec(`
 			UPDATE catalog_tag_intro i SET tag_id = ? WHERE i.tag_id = ?
@@ -239,6 +247,35 @@ func applyMerge(ctx context.Context, db *gorm.DB, curated int16, r mergeRec, st 
 		st.TagsDeleted += int(res.RowsAffected)
 		return nil
 	})
+}
+
+func followWorkTagSuppressions(tx *gorm.DB, fromID, intoID int64) (int, error) {
+	from, into := editspec.WorkTagIdentity(fromID), editspec.WorkTagIdentity(intoID)
+	res := tx.Exec(`
+		UPDATE edit_suppressed_row s SET identity_key = ?
+		WHERE s.entity_type = ? AND s.field_key = ? AND s.identity_key = ?
+		  AND NOT EXISTS (SELECT 1 FROM edit_suppressed_row x
+		                   WHERE x.entity_type = s.entity_type AND x.entity_id = s.entity_id
+		                     AND x.field_key = s.field_key AND x.identity_key = ?)`,
+		into, editspec.TypeWork, editspec.FieldWorkTagIDs, from, into)
+	if res.Error != nil {
+		return 0, res.Error
+	}
+	if err := tx.Exec(`DELETE FROM edit_suppressed_row WHERE entity_type = ? AND field_key = ? AND identity_key = ?`,
+		editspec.TypeWork, editspec.FieldWorkTagIDs, from).Error; err != nil {
+		return 0, err
+	}
+	var works []int64
+	if err := tx.Raw(`SELECT entity_id FROM edit_suppressed_row WHERE entity_type = ? AND field_key = ? AND identity_key = ?`,
+		editspec.TypeWork, editspec.FieldWorkTagIDs, into).Scan(&works).Error; err != nil {
+		return 0, err
+	}
+	for _, workID := range works {
+		if err := tx.Exec(editspec.PurgeSuppressedWorkTagsSQL, workID).Error; err != nil {
+			return 0, err
+		}
+	}
+	return int(res.RowsAffected), nil
 }
 
 func tagNameByID(ctx context.Context, db *gorm.DB, id int64) (string, error) {
