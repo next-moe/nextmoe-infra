@@ -87,11 +87,11 @@ func TestPersonWorklistMergesAndTouchesNoWork(t *testing.T) {
 	for _, r := range refs {
 		assert.Equal(t, host.ID, r.EntityID, "every anchor must hang off the survivor")
 		want := model.LinkKindExact
-		if r.SourceID == 2 {
+		if r.ExternalID == "s2" {
 			want = model.LinkKindProbable
 		}
 		assert.Equal(t, want, r.LinkKind,
-			"two competing vndb staff ids demote to probable; the lone bangumi anchor stays exact")
+			"the survivor keeps its own vndb staff id exact; the loser's competing one demotes to probable; the lone bangumi anchor stays exact")
 	}
 
 	var retired model.CatalogPerson

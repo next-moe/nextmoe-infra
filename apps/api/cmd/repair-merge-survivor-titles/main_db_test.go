@@ -401,8 +401,9 @@ func TestRepairLeavesAnUnmergedWorkAlone(t *testing.T) {
 	resolve := service.NewResolveService(repository.NewRedirectRepository(testDB))
 	merge := service.NewMergeService(testDB, resolve,
 		repository.NewProposalRepository(testDB), repository.NewRevisionRepository(testDB))
-	rebuilt, err := merge.Unmerge(t.Context(), proposal, nil)
+	res, err := merge.Unmerge(t.Context(), proposal, nil)
 	require.NoError(t, err)
+	rebuilt := res.NewID
 	require.NoError(t, testDB.Create(&model.CatalogWorkTitle{
 		WorkID: rebuilt, Lang: "en", Title: "Bunri Remaster", Kind: official,
 	}).Error)
