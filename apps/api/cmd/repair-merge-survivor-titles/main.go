@@ -21,7 +21,8 @@ func main() {
 	dsn := flag.String("dsn", "", "catalog DSN — REQUIRED, never inferred from the environment")
 	apply := flag.Bool("apply", false, "write (default: dry run, plan and counts only)")
 	receipts := flag.String("receipts", "", "write one JSON line per planned (dry run) or committed (apply) title change; "+
-		"action demote = kind 1 with lang '', delete = an identical lang-less alias already existed")
+		"action demote = kind 1 with lang '', delete = an identical lang-less alias already existed, "+
+		"promote = the survivor's own alias in that language becomes kind 0")
 	leftovers := flag.String("leftovers", "", "write one JSON line per survivor whose original-language title would still differ from display_name")
 	batch := flag.Int("batch", 500, "survivors per transaction")
 	flag.Parse()

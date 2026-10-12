@@ -31,9 +31,11 @@ type stats struct {
 	Rows                  int
 	RowsDemoted           int
 	RowsDeleted           int
+	RowsPromoted          int
 	RowsBySnapshot        int
 	RowsByDisplayName     int
 	WorksByDisplayName    int
+	WorksPromoted         int
 	Leftovers             int
 	LeftoversClaimed      int
 }
@@ -44,9 +46,9 @@ func (s stats) logArgs() []any {
 		"survivors", s.Survivors, "survivors_not_live", s.SurvivorsNotLive,
 		"survivors_snapshotless", s.SurvivorsSnapshotless,
 		"works", s.Works, "works_claimed", s.WorksClaimed,
-		"rows", s.Rows, "rows_demoted", s.RowsDemoted, "rows_deleted", s.RowsDeleted,
+		"rows", s.Rows, "rows_demoted", s.RowsDemoted, "rows_deleted", s.RowsDeleted, "rows_promoted", s.RowsPromoted,
 		"rows_reason_snapshot", s.RowsBySnapshot, "rows_reason_display_name", s.RowsByDisplayName,
-		"works_reason_display_name", s.WorksByDisplayName,
+		"works_reason_display_name", s.WorksByDisplayName, "works_own_alias_promoted", s.WorksPromoted,
 		"leftovers", s.Leftovers, "leftovers_claimed", s.LeftoversClaimed,
 	}
 }
@@ -137,19 +139,24 @@ func (st *stats) record(w work, lin *lineage, plan []change, receipts, leftovers
 		if w.Claimed {
 			st.WorksClaimed++
 		}
-		byDisplay := false
+		byDisplay, promoted := false, false
 		for _, c := range plan {
 			st.Rows++
-			if c.Action == actionDelete {
+			switch c.Action {
+			case actionDelete:
 				st.RowsDeleted++
-			} else {
+			case actionDemote:
 				st.RowsDemoted++
+			case actionPromote:
+				st.RowsPromoted++
+				promoted = true
 			}
-			if c.Reason == reasonDisplayName {
+			switch c.Reason {
+			case reasonSnapshot:
+				st.RowsBySnapshot++
+			case reasonDisplayName:
 				st.RowsByDisplayName++
 				byDisplay = true
-			} else {
-				st.RowsBySnapshot++
 			}
 			if err := receipts.Encode(c); err != nil {
 				return fmt.Errorf("write receipt: %w", err)
@@ -157,6 +164,9 @@ func (st *stats) record(w work, lin *lineage, plan []change, receipts, leftovers
 		}
 		if byDisplay {
 			st.WorksByDisplayName++
+		}
+		if promoted {
+			st.WorksPromoted++
 		}
 	}
 	shown, ok := shownTitle(w.Titles, plan, w.OLang)
@@ -210,9 +220,14 @@ func loadWorks(ctx context.Context, db *gorm.DB, ids []int64, lock bool) ([]work
 	for _, t := range titles {
 		byWork[t.WorkID] = append(byWork[t.WorkID], t)
 	}
+	suppressed, err := editspec.SuppressedWorkTitles(ctx, db, live)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]work, len(rows))
 	for i, r := range rows {
-		out[i] = work{ID: r.ID, OLang: r.OLang, DisplayName: r.DisplayName, Claimed: r.Claimed, Titles: byWork[r.ID]}
+		out[i] = work{ID: r.ID, OLang: r.OLang, DisplayName: r.DisplayName, Claimed: r.Claimed,
+			Titles: byWork[r.ID], Suppressed: suppressed[r.ID]}
 	}
 	return out, nil
 }
