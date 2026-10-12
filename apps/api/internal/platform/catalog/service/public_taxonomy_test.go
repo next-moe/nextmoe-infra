@@ -268,15 +268,23 @@ func TestTaxonomyListsKeysetAndCounts(t *testing.T) {
 
 func assertCountMatchesWorksList(t *testing.T, svc *PublicService, f WorksListFilter, want int) {
 	t.Helper()
-	f.ClaimStates = taxonomyLiveClaim
+	if got := worksListTotal(t, svc, f); got != want {
+		t.Fatalf("works?filter=%+v holds %d rows but work_count advertised %d — a count must never disagree with its own member list",
+			f, got, want)
+	}
+}
+
+func worksListTotal(t *testing.T, svc *PublicService, f WorksListFilter) int {
+	t.Helper()
+	f.OLang, f.IncludeTotal = PublicOLang{All: true}, true
 	page, err := svc.WorksList(t.Context(), f, "", 100)
 	if err != nil {
 		t.Fatalf("WorksList %+v: %v", f, err)
 	}
-	if len(page.Items) != want {
-		t.Fatalf("works?filter=%+v returned %d rows but work_count advertised %d — a count must never disagree with its own member list",
-			f, len(page.Items), want)
+	if int64(len(page.Items)) != page.Total {
+		t.Fatalf("works?filter=%+v returned %d rows under a total of %d", f, len(page.Items), page.Total)
 	}
+	return len(page.Items)
 }
 
 func claimLive(t *testing.T, workID, productWorkID int64) {

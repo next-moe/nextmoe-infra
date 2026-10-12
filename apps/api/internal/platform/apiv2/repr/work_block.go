@@ -22,7 +22,7 @@ type WorkTag struct {
 	TagKind     *string  `json:"tag_kind" enum:"content,meta" doc:"Tag vocabulary class. null if unmapped."`
 	Spoiler     string   `json:"spoiler" enum:"none,minor,major" doc:"Spoiler level of this attachment."`
 	IsSexual    bool     `json:"is_sexual" doc:"Whether this tag is in the sexual family."`
-	WorkCount   *int     `json:"work_count" minimum:"0" doc:"Works visible under the same NSFW gate. null if unmapped."`
+	WorkCount   *int     `json:"work_count" minimum:"0" doc:"Works GET /v2/catalog/works?tag_id={id} lists under the same nsfw and no other filter, as of the hourly recount. null if unmapped."`
 }
 
 type WorkCharacter struct {
@@ -95,7 +95,7 @@ type WorkCompany struct {
 	Localized       map[string]LocalizedText `json:"localized" doc:"BCP-47 keys. Empty object if none. Must not be used as a discriminant."`
 	CompanyKind     string                   `json:"company_kind" enum:"game_brand,bunko,publisher,anime_studio,doujin_circle,group" doc:"Company registry class."`
 	AttributionRole string                   `json:"attribution_role" enum:"circle,publisher,developer,brand" doc:"Primary capacity on this work."`
-	WorkCount       int                      `json:"work_count" minimum:"0" doc:"Works visible under the same NSFW gate."`
+	WorkCount       int                      `json:"work_count" minimum:"0" doc:"Works GET /v2/catalog/works?company_id={id} lists under the same nsfw and no other filter."`
 	Logo            *Image                   `json:"logo,omitempty" doc:"Present when this company has a logo; absent otherwise."`
 }
 
@@ -154,7 +154,7 @@ type WorkEngineRef struct {
 	Object      string   `json:"object" enum:"engine" doc:"Type discriminant. Always engine."`
 	ID          string   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog engine id."`
 	DisplayName string   `json:"display_name" maxLength:"512" doc:"Must not be used as a discriminant."`
-	WorkCount   int      `json:"work_count" minimum:"0" doc:"Works visible under the same NSFW gate."`
+	WorkCount   int      `json:"work_count" minimum:"0" doc:"Works GET /v2/catalog/works?engine_id={id} lists under the same nsfw and no other filter."`
 }
 
 type WorkSeriesRef struct {
@@ -163,5 +163,5 @@ type WorkSeriesRef struct {
 	ID          string   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog series id."`
 	DisplayName string   `json:"display_name" maxLength:"512" doc:"Must not be used as a discriminant."`
 	Source      string   `json:"source" maxLength:"64" doc:"Open vocabulary sources. Must not be used as a discriminant."`
-	MemberCount int      `json:"member_count" minimum:"0" doc:"Members visible under the same NSFW gate."`
+	MemberCount int      `json:"member_count" minimum:"0" doc:"Works GET /v2/catalog/works?series_id={id} lists under the same nsfw and no other filter."`
 }

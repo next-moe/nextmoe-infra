@@ -7,7 +7,7 @@ type Tag struct {
 	DisplayName     string     `json:"display_name" maxLength:"512" doc:"Must not be used as a discriminant."`
 	Tier            string     `json:"tier" enum:"core,longtail,hidden" doc:"Tag inventory tier."`
 	TagKind         string     `json:"tag_kind" enum:"content,meta" doc:"Tag vocabulary class."`
-	WorkCount       int        `json:"work_count" minimum:"0" doc:"Works visible under the same NSFW gate."`
+	WorkCount       int        `json:"work_count" minimum:"0" doc:"Works GET /v2/catalog/works?tag_id={id} lists under the same nsfw and no other filter, as of the hourly recount."`
 	IsSexual        bool       `json:"is_sexual" doc:"Whether this tag is in the sexual family. Filter on it before rendering a tag list to an SFW reader."`
 	Intros          *[]Intro   `json:"intros,omitempty" doc:"Tag descriptions, one per language. Present when include=intros, detail face only. Empty array if none. is_machine is always false here: the store carries no provenance for a tag description, so false records unknown, not human-written."`
 	Parents         []TagRef   `json:"parents" doc:"Direct parents, ordered by id. Empty array for a root. Never null. The hierarchy is VNDB's tag tree projected onto canonical tags, plus reviewed edges for tags VNDB does not carry; a tag can have several parents."`
@@ -51,7 +51,7 @@ type Company struct {
 	Lang          *string                  `json:"lang" maxLength:"32" format:"bcp47" doc:"BCP-47 language tag of display_name. null if unrecorded. Must not be used as a discriminant."`
 	Localized     map[string]LocalizedText `json:"localized" doc:"BCP-47 keys. Empty object if none. Must not be used as a discriminant."`
 	CompanyKind   string                   `json:"company_kind" enum:"game_brand,bunko,publisher,anime_studio,doujin_circle,group" doc:"Company registry class. No other."`
-	WorkCount     int                      `json:"work_count" minimum:"0" doc:"Works visible under the same NSFW gate."`
+	WorkCount     int                      `json:"work_count" minimum:"0" doc:"Works GET /v2/catalog/works?company_id={id} lists under the same nsfw and no other filter."`
 	FollowerCount *int                     `json:"follower_count,omitempty" minimum:"0" doc:"Users following this company. Present on the detail face, /v2/catalog/companies/{id}, only; absent on list, batch and embedded company objects."`
 	Aliases       *[]EntityName            `json:"aliases,omitempty" doc:"Present when include=aliases. Empty array if none."`
 	Logo          *Image                   `json:"logo,omitempty" doc:"Present only when include=logo and this company has a logo; absent otherwise."`
@@ -196,8 +196,8 @@ type Series struct {
 	Object      string   `json:"object" enum:"series" doc:"Type discriminant. Always series."`
 	ID          string   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog series id."`
 	DisplayName string   `json:"display_name" maxLength:"512" doc:"Must not be used as a discriminant."`
-	WorkCount   int      `json:"work_count" minimum:"0" doc:"Member works visible under the same NSFW gate."`
-	HasNSFW     bool     `json:"has_nsfw" doc:"Whether any member work sits behind the r18 display gate. Counted over the same live-claimed members as work_count but NOT narrowed by nsfw=, so a series can report true while work_count hides every such member. Carried on every lane."`
+	WorkCount   int      `json:"work_count" minimum:"0" doc:"Works GET /v2/catalog/works?series_id={id} lists under the same nsfw and no other filter."`
+	HasNSFW     bool     `json:"has_nsfw" doc:"Whether any work GET /v2/catalog/works?series_id={id}&nsfw=true lists sits behind the r18 display gate (content_limit=nsfw). NOT narrowed by this call's nsfw=, so a series can report true while work_count hides every such member. Carried on every lane."`
 	Intros      *[]Intro `json:"intros,omitempty" doc:"Series descriptions, one per language. Present when include=intros, detail face only. Empty array if none. is_machine is always false here: the store carries no provenance for a series description, so false records unknown, not human-written."`
 	Refs        *[]Ref   `json:"refs,omitempty" doc:"Exact upstream anchors of this series. Present when include=refs, detail face only. Empty array if none."`
 }
@@ -207,7 +207,7 @@ type Engine struct {
 	Object      string   `json:"object" enum:"engine" doc:"Type discriminant. Always engine."`
 	ID          string   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog engine id."`
 	DisplayName string   `json:"display_name" maxLength:"512" doc:"Must not be used as a discriminant."`
-	WorkCount   int      `json:"work_count" minimum:"0" doc:"Works visible under the same NSFW gate."`
+	WorkCount   int      `json:"work_count" minimum:"0" doc:"Works GET /v2/catalog/works?engine_id={id} lists under the same nsfw and no other filter."`
 	Description string   `json:"description" maxLength:"8000" doc:"Free-text description. Empty if unrecorded. Must not be used as a discriminant."`
 	Aliases     []string `json:"aliases" doc:"Alternate spellings of the engine name. Empty array if none."`
 }
