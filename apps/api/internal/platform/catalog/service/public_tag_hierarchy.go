@@ -1,6 +1,7 @@
 package service
 
 import (
+	"cmp"
 	"context"
 	"slices"
 
@@ -73,6 +74,82 @@ func (s *PublicService) tagChildren(ctx context.Context, id int64) ([]dto.Public
 		WHERE p.parent_id = ? ORDER BY t.id`, id).Scan(&out).Error; err != nil {
 		return nil, err
 	}
+	return out, nil
+}
+
+func (s *PublicService) TagDescendants(ctx context.Context, id int64) ([]dto.PublicTagNode, error) {
+	return s.tagClosure(ctx, id, "parent_id", "tag_id")
+}
+
+func (s *PublicService) TagAncestors(ctx context.Context, id int64) ([]dto.PublicTagNode, error) {
+	return s.tagClosure(ctx, id, "tag_id", "parent_id")
+}
+
+func (s *PublicService) tagClosure(ctx context.Context, id int64, from, to string) ([]dto.PublicTagNode, error) {
+	var edges []struct {
+		TagID    int64 `gorm:"column:tag_id"`
+		ParentID int64 `gorm:"column:parent_id"`
+	}
+	if err := s.db.WithContext(ctx).Raw(`
+		WITH RECURSIVE c(id) AS (
+			SELECT `+to+` FROM catalog_tag_parent WHERE `+from+` = ?
+			UNION
+			SELECT p.`+to+` FROM catalog_tag_parent p JOIN c ON p.`+from+` = c.id
+		)
+		SELECT p.tag_id, p.parent_id FROM catalog_tag_parent p
+		WHERE p.`+to+` IN (SELECT id FROM c) AND (p.`+from+` = ? OR p.`+from+` IN (SELECT id FROM c))`,
+		id, id).Scan(&edges).Error; err != nil {
+		return nil, err
+	}
+	next := make(map[int64][]int64, len(edges))
+	parents := make(map[int64][]int64, len(edges))
+	for _, e := range edges {
+		near, far := e.ParentID, e.TagID
+		if from == "tag_id" {
+			near, far = e.TagID, e.ParentID
+		}
+		next[near] = append(next[near], far)
+		if e.TagID != id {
+			parents[e.TagID] = append(parents[e.TagID], e.ParentID)
+		}
+	}
+	depth := map[int64]int{id: 0}
+	queue := []int64{id}
+	for len(queue) > 0 {
+		cur := queue[0]
+		queue = queue[1:]
+		for _, n := range next[cur] {
+			if _, seen := depth[n]; !seen {
+				depth[n] = depth[cur] + 1
+				queue = append(queue, n)
+			}
+		}
+	}
+	delete(depth, id)
+	out := []dto.PublicTagNode{}
+	if len(depth) == 0 {
+		return out, nil
+	}
+	ids := make([]int64, 0, len(depth))
+	for n := range depth {
+		ids = append(ids, n)
+	}
+	var refs []dto.PublicTagRef
+	if err := s.db.WithContext(ctx).Raw(
+		`SELECT id, name, sexual FROM catalog_tag WHERE id IN ?`, ids).Scan(&refs).Error; err != nil {
+		return nil, err
+	}
+	for _, r := range refs {
+		p := append([]int64{}, parents[r.ID]...)
+		slices.Sort(p)
+		out = append(out, dto.PublicTagNode{ID: r.ID, Name: r.Name, Sexual: r.Sexual, ParentIDs: slices.Compact(p)})
+	}
+	slices.SortFunc(out, func(a, b dto.PublicTagNode) int {
+		if d := depth[a.ID] - depth[b.ID]; d != 0 {
+			return d
+		}
+		return cmp.Compare(a.ID, b.ID)
+	})
 	return out, nil
 }
 

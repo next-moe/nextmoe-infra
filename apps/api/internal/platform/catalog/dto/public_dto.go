@@ -592,6 +592,13 @@ type PublicTagRef struct {
 	Sexual bool   `json:"sexual"`
 }
 
+type PublicTagNode struct {
+	ID        int64   `json:"id"`
+	Name      string  `json:"name"`
+	Sexual    bool    `json:"sexual"`
+	ParentIDs []int64 `json:"parent_ids"`
+}
+
 type PublicTagsListData struct {
 	Items      []PublicTagListItem `json:"items"`
 	NextCursor *string             `json:"next_cursor"`
