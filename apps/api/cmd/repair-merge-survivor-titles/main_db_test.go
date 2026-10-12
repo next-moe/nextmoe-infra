@@ -50,7 +50,7 @@ func setup(t *testing.T) int16 {
 		dbtest.Skip(t)
 	}
 	for _, table := range []string{
-		"catalog_merge_proposal", "catalog_redirect", "catalog_external_ref", "edit_suppressed_row",
+		"catalog_merge_proposal", "catalog_merge_archive", "catalog_redirect", "catalog_external_ref", "edit_suppressed_row",
 		"catalog_revision", "catalog_release", "catalog_work_title", "catalog_work",
 	} {
 		require.NoError(t, testDB.Exec("TRUNCATE "+table+" RESTART IDENTITY CASCADE").Error)
