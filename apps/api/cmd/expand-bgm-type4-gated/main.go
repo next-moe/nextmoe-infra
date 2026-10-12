@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"api/internal/infrastructure/database"
@@ -22,7 +23,7 @@ func main() {
 	dlsiteDSN := flag.String("dlsite-dsn", "", "dlsite staging DSN (default: same host as --dsn, dbname=dlsite)")
 	apply := flag.Bool("apply", false, "write (default: dry-run — survey + samples, nothing written)")
 	limit := flag.Int("limit", 0, "cap works actually minted (0 = all); the survey is always full-pool")
-	sampleOut := flag.String("sample-out", "", "directory to write random100.tsv + collisions.tsv")
+	sampleOut := flag.String("sample-out", "", "directory to write random100.tsv + collisions.tsv + edition_ambiguous.tsv")
 	flag.Parse()
 
 	logger.Init("development")
@@ -59,6 +60,8 @@ func main() {
 		"skipped_ascii_xonly", st.SkippedASCIIXOnly,
 		"title_collisions", st.TitleCollisions, "skipped_intra_collision", st.SkippedIntraCollision,
 		"to_create", st.ToCreate, "to_quarantine", st.ToQuarantine, "quarantined", st.Quarantined,
+		"edition_guarded", st.EditionGuarded, "edition_ambiguous", st.EditionAmbiguous,
+		"edition_refs_created", st.EditionRefsCreated,
 		"works_created", st.WorksCreated, "titles_created", st.TitlesCreated,
 		"anchors_created", st.AnchorsCreated, "revisions_created", st.RevisionsCreated)
 	slog.Info("bgm-type4-gated overlap matrix",
@@ -70,7 +73,8 @@ func main() {
 			slog.Error("write samples", "error", err)
 			os.Exit(1)
 		}
-		slog.Info("samples written", "dir", *sampleOut, "random", len(st.RandomSample), "collisions", len(st.CollisionSamples))
+		slog.Info("samples written", "dir", *sampleOut, "random", len(st.RandomSample), "collisions", len(st.CollisionSamples),
+			"edition_ambiguous", len(st.EditionAmbiguousSubjects))
 	}
 	if !*apply {
 		slog.Info("DRY RUN — nothing written; re-run with --apply")
@@ -116,7 +120,19 @@ func writeSamples(dir string, st *importer.BgmGatedStats) error {
 	if err := writeSampleTSV(filepath.Join(dir, "ascii_dropped.tsv"), st.ASCIIDroppedSamples); err != nil {
 		return err
 	}
-	return writeSampleTSV(filepath.Join(dir, "ascii_survivors.tsv"), st.ASCIISurvivorSamples)
+	if err := writeSampleTSV(filepath.Join(dir, "ascii_survivors.tsv"), st.ASCIISurvivorSamples); err != nil {
+		return err
+	}
+	var eb strings.Builder
+	eb.WriteString("subject_id\tname\tname_cn\tmatched_norm\trelease_holder_work_ids\n")
+	for _, e := range st.EditionAmbiguousSubjects {
+		ids := make([]string, len(e.WorkIDs))
+		for i, id := range e.WorkIDs {
+			ids[i] = strconv.FormatInt(id, 10)
+		}
+		fmt.Fprintf(&eb, "%d\t%s\t%s\t%s\t%s\n", e.SubjectID, tsv(e.Name), tsv(e.NameCN), tsv(e.MatchedNorm), strings.Join(ids, ","))
+	}
+	return os.WriteFile(filepath.Join(dir, "edition_ambiguous.tsv"), []byte(eb.String()), 0o644)
 }
 
 func writeSampleTSV(path string, samples []importer.BgmGatedSample) error {

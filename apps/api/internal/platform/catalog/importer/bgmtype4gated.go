@@ -61,6 +61,10 @@ type BgmGatedStats struct {
 	ToQuarantine          int
 	Quarantined           int
 
+	EditionGuarded     int
+	EditionAmbiguous   int
+	EditionRefsCreated int
+
 	WorksCreated     int
 	TitlesCreated    int
 	AnchorsCreated   int
@@ -71,6 +75,8 @@ type BgmGatedStats struct {
 
 	ASCIIDroppedSamples  []BgmGatedSample
 	ASCIISurvivorSamples []BgmGatedSample
+
+	EditionAmbiguousSubjects []BgmGatedEdition
 }
 
 type BgmGatedSample struct {
@@ -126,6 +132,10 @@ func (im *Importer) RunBgmType4Gated(dlsiteDB *gorm.DB) (BgmGatedStats, error) {
 	if err != nil {
 		return st, fmt.Errorf("load existing work titles: %w", err)
 	}
+	editions, err := im.loadEditionCorpus()
+	if err != nil {
+		return st, fmt.Errorf("load edition corpus: %w", err)
+	}
 	pool, err := im.loadGatedPool()
 	if err != nil {
 		return st, fmt.Errorf("load pool: %w", err)
@@ -133,6 +143,7 @@ func (im *Importer) RunBgmType4Gated(dlsiteDB *gorm.DB) (BgmGatedStats, error) {
 
 	var toCreate []candidate
 	var toQuarantine []candidate
+	var toAttach []editionAttach
 	for _, r := range pool {
 		st.PoolTotal++
 		if r.Excluded {
@@ -187,6 +198,19 @@ func (im *Importer) RunBgmType4Gated(dlsiteDB *gorm.DB) (BgmGatedStats, error) {
 			})
 			continue
 		}
+		matched, works := editions.editionHit(r)
+		if len(works) == 1 {
+			st.EditionGuarded++
+			toAttach = append(toAttach, editionAttach{subjectID: r.ID, workID: works[0]})
+			continue
+		}
+		if len(works) > 1 {
+			st.EditionAmbiguous++
+			st.EditionAmbiguousSubjects = append(st.EditionAmbiguousSubjects, BgmGatedEdition{
+				SubjectID: r.ID, Name: r.Name, NameCN: r.NameCN, MatchedNorm: matched, WorkIDs: works,
+			})
+			continue
+		}
 		toCreate = append(toCreate, candidate{row: r, signals: signalString(p, t, x)})
 	}
 
@@ -198,6 +222,9 @@ func (im *Importer) RunBgmType4Gated(dlsiteDB *gorm.DB) (BgmGatedStats, error) {
 	if im.dryRun {
 		logBgmGated(&st, true)
 		return st, nil
+	}
+	if err := im.attachEditionRefs(toAttach, &st); err != nil {
+		return st, err
 	}
 	createLive := toCreate
 	createQ := toQuarantine
@@ -327,6 +354,8 @@ func logBgmGated(st *BgmGatedStats, dry bool) {
 		"skipped_ascii_xonly", st.SkippedASCIIXOnly,
 		"title_collisions", st.TitleCollisions, "skipped_intra_collision", st.SkippedIntraCollision,
 		"to_create", st.ToCreate, "to_quarantine", st.ToQuarantine, "quarantined", st.Quarantined,
+		"edition_guarded", st.EditionGuarded, "edition_ambiguous", st.EditionAmbiguous,
+		"edition_refs_created", st.EditionRefsCreated,
 		"works_created", st.WorksCreated, "titles_created", st.TitlesCreated,
 		"anchors_created", st.AnchorsCreated, "revisions_created", st.RevisionsCreated)
 }
