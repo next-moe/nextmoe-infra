@@ -102,8 +102,12 @@ func TestLabelWorklistMergesBrandFacets(t *testing.T) {
 	require.Len(t, refs, 2)
 	for _, r := range refs {
 		assert.Equal(t, host.ID, r.EntityID)
-		assert.Equal(t, model.LinkKindProbable, r.LinkKind,
-			"two competing EXACT dlsite maker ids on one survivor demote to probable")
+		want := model.LinkKindExact
+		if r.ExternalID == "VG01282" {
+			want = model.LinkKindProbable
+		}
+		assert.Equal(t, want, r.LinkKind,
+			"the survivor keeps its own dlsite maker id exact; only the loser's competing one demotes to probable")
 	}
 
 	var retired model.CatalogLabel
