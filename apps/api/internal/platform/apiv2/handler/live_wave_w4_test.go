@@ -444,38 +444,57 @@ func TestLiveSeriesBatchDeduplicatesIDs(t *testing.T) {
 // catalog_series_member with none of the predicates the series faces apply.
 func TestLiveSeriesMemberCountAgreesWithTheSeriesFace(t *testing.T) {
 	env := liveCatalog(t)
+	id := idstr(env.fx.Series)
 
-	var series struct {
-		WorkCount int `json:"work_count"`
-	}
-	w4Get(t, env, "/v2/catalog/series/"+idstr(env.fx.Series), &series)
+	for _, nsfw := range []string{"", "&nsfw=true"} {
+		total, _ := liveWorksTotal(t, env, "/v2/catalog/works?limit=1&include_total=true&series_id="+id+nsfw)
+		require.NotNil(t, total)
+		want := int(*total)
 
-	var detail struct {
-		Series []struct {
+		var series struct {
+			WorkCount int `json:"work_count"`
+		}
+		w4Get(t, env, "/v2/catalog/series/"+id+"?"+nsfw, &series)
+		require.Equal(t, want, series.WorkCount, "series/{id}%s", nsfw)
+
+		var list struct {
+			Items []struct {
+				WorkCount int `json:"work_count"`
+			} `json:"items"`
+		}
+		w4Get(t, env, "/v2/catalog/series?ids="+id+nsfw, &list)
+		require.Len(t, list.Items, 1)
+		require.Equal(t, want, list.Items[0].WorkCount, "series?ids=%s", nsfw)
+
+		type seriesRef struct {
 			ID          string `json:"id"`
 			MemberCount int    `json:"member_count"`
-		} `json:"series"`
-	}
-	w4Get(t, env, "/v2/catalog/works/"+idstr(env.fx.Attributed)+"?include=series", &detail)
-	require.NotEmpty(t, detail.Series)
-	found := false
-	for _, s := range detail.Series {
-		if s.ID != idstr(env.fx.Series) {
-			continue
 		}
-		found = true
-		require.Equal(t, series.WorkCount, s.MemberCount)
+		var detail struct {
+			Series []seriesRef `json:"series"`
+		}
+		var sub struct {
+			Items []seriesRef `json:"items"`
+		}
+		w4Get(t, env, "/v2/catalog/works/"+idstr(env.fx.Attributed)+"?include=series"+nsfw, &detail)
+		w4Get(t, env, "/v2/catalog/works/"+idstr(env.fx.Attributed)+"/series?"+nsfw, &sub)
+		for face, refs := range map[string][]seriesRef{"works/{id}.series": detail.Series, "works/{id}/series": sub.Items} {
+			found := false
+			for _, s := range refs {
+				if s.ID == id {
+					found = true
+					require.Equal(t, want, s.MemberCount, "%s%s member_count", face, nsfw)
+				}
+			}
+			require.True(t, found, "%s%s is missing the series", face, nsfw)
+		}
 	}
-	require.True(t, found)
 
-	// Positive control: the raw membership row count is higher, so an equal
-	// pair cannot be an accident of both being the same number.
-	var raw int64
-	require.NoError(t, env.db.Raw(
-		`SELECT count(*) FROM catalog_series_member WHERE series_id = ?`, env.fx.Series).
-		Scan(&raw).Error)
-	require.Greater(t, raw, int64(series.WorkCount),
-		"the fixture must hold a member the nsfw gate hides, or this proves nothing")
+	sfw, _ := liveWorksTotal(t, env, "/v2/catalog/works?limit=1&include_total=true&series_id="+id)
+	live, _ := liveWorksTotal(t, env, "/v2/catalog/works?limit=1&include_total=true&claim_state=live&series_id="+id)
+	all, _ := liveWorksTotal(t, env, "/v2/catalog/works?limit=1&include_total=true&nsfw=true&series_id="+id)
+	require.Greater(t, *sfw, *live, "the fixture must hold an unclaimed member, or this proves nothing")
+	require.Greater(t, *all, *sfw, "the fixture must hold a member the nsfw gate hides, or this proves nothing")
 }
 
 // D25: q= was interpolated straight into ILIKE '%'||q||'%', so q=% matched the

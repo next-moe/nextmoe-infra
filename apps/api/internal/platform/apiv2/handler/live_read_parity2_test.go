@@ -180,7 +180,7 @@ func TestLiveSeriesNSFWAndBlocks(t *testing.T) {
 		} `json:"refs"`
 	}
 	require.NoError(t, json.Unmarshal(body, &out))
-	require.Equal(t, 1, out.WorkCount, "the r18 member stays out of the sfw count")
+	require.Equal(t, 2, out.WorkCount, "the r18 member stays out of the sfw count")
 	require.True(t, out.HasNSFW)
 	require.NotNil(t, out.Intros)
 	require.Len(t, *out.Intros, 1)

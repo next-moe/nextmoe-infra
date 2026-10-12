@@ -89,11 +89,11 @@ func TestTagRollupMatchesTheLiveAggregate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("rollup nsfw: %v", err)
 	}
-	if sfw[hot] != 1 {
-		t.Fatalf("sfw count = %d, want 1 (the all-ages claimed work only)", sfw[hot])
+	if sfw[hot] != 2 {
+		t.Fatalf("sfw count = %d, want 2 (the claimed and the unclaimed all-ages works)", sfw[hot])
 	}
-	if nsfwCounts[hot] != 2 {
-		t.Fatalf("nsfw count = %d, want 2 (all-ages + r18, still not the stub or the unclaimed)", nsfwCounts[hot])
+	if nsfwCounts[hot] != 3 {
+		t.Fatalf("nsfw count = %d, want 3 (both all-ages works + r18, still not the stub)", nsfwCounts[hot])
 	}
 	if nsfwWorks[hot] != 1 {
 		t.Fatalf("display-nsfw tally = %d, want 1", nsfwWorks[hot])
@@ -152,8 +152,8 @@ func TestTagRollupFallsBackBeforeItIsEverFilled(t *testing.T) {
 	if err != nil {
 		t.Fatalf("rollup on an empty table: %v", err)
 	}
-	if counts[hot] != 2 {
-		t.Fatalf("unfilled rollup returned %d, want the live 2 — a fresh deploy must not zero every chip", counts[hot])
+	if counts[hot] != 3 {
+		t.Fatalf("unfilled rollup returned %d, want the live 3 — a fresh deploy must not zero every chip", counts[hot])
 	}
 
 	if _, err := svc.RefreshTagWorkCounts(ctx, time.Now()); err != nil {

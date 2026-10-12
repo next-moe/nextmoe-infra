@@ -387,8 +387,6 @@ func (r roleRow) item() dto.PublicRoleListItem {
 	}
 }
 
-var taxonomyLiveClaim = []string{model.ClaimStateKeyLive}
-
 type taxonomyEdge struct {
 	sql    string
 	rollup string
@@ -423,24 +421,20 @@ func (s *PublicService) workCountsLive(ctx context.Context, edge taxonomyEdge, i
 	if ids != nil && len(ids) == 0 {
 		return counts, nsfwWorks, nil
 	}
-	visible := "TRUE"
-	var args []any
+	visible, args := "TRUE", []any(nil)
 	if !nsfw {
-		visible = "w.content_rating <> ?"
-		args = append(args, model.ContentRatingR18)
+		sfw, sfwArgs := worksListPopulation(false)
+		visible, args = strings.Join(sfw, " AND "), sfwArgs
 	}
 	nsfwPred, nsfwArgs := displayLimitWhere([]string{model.DisplayLimitKeyNSFW})
 	args = append(args, nsfwArgs...)
 
-	where := []string{"w.deleted_at IS NULL", "w.status = ?", "w.medium_id = ?"}
+	where, popArgs := worksListPopulation(true)
 	if ids != nil {
 		where = append([]string{"e.key_id IN ?"}, where...)
 		args = append(args, ids)
 	}
-	args = append(args, model.WorkStatusLive, galgameMediumID)
-	pred, pargs := claimStateWhere(taxonomyLiveClaim)
-	where = append(where, pred)
-	args = append(args, pargs...)
+	args = append(args, popArgs...)
 
 	var rows []struct {
 		KeyID int64 `gorm:"column:key_id"`
@@ -467,15 +461,8 @@ func (s *PublicService) workCountsLive(ctx context.Context, edge taxonomyEdge, i
 }
 
 func workExistsClause(edge taxonomyEdge, outerID string, nsfw bool) (string, []any) {
-	where := []string{"e.key_id = " + outerID, "w.deleted_at IS NULL", "w.status = ?", "w.medium_id = ?"}
-	args := []any{model.WorkStatusLive, galgameMediumID}
-	if !nsfw {
-		where = append(where, "w.content_rating <> ?")
-		args = append(args, model.ContentRatingR18)
-	}
-	pred, pargs := claimStateWhere(taxonomyLiveClaim)
-	where = append(where, pred)
-	args = append(args, pargs...)
+	where, args := worksListPopulation(nsfw)
+	where = append([]string{"e.key_id = " + outerID}, where...)
 	return `EXISTS (SELECT 1 FROM ` + edge.sql + ` JOIN catalog_work w ON w.id = e.work_id WHERE ` +
 		strings.Join(where, " AND ") + `)`, args
 }

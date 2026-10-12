@@ -1999,3 +1999,16 @@ A reader who blocks a tag "with its subtags" could not see which subtags those w
 - Both are explicit asks, outside `view=full`: the largest subtree, 色情内容, is 610 tags. Neither is nsfw-gated, as with `parents` and `children`.
 
 **Spec is 2.45.0.** Additive: the `descendants` and `ancestors` include tokens and fields, and the `TagNode` object. No migration.
+
+## Wave — a work_count is the works list it links to (2026-10-12)
+
+Wave 146 (2026-07-30) gated every taxonomy count on `claim_state=live`, on the assumption that an entity page lists its members with `works?<filter>=&claim_state=live`. The consumers do not: the forum and letmoe list members with `GET /v2/catalog/works?<filter>=` and no claim filter, so the count ran low against the list it sat beside. In production engine 46 reported `work_count` 548 while `works?engine_id=46&nsfw=true` listed 3,536, and series 1919 reported `member_count` 3 beside a member list of 6.
+
+- **The population is the works list's default population.** Each count equals the total `GET /v2/catalog/works?<filter>={id}` reports under the same `nsfw` and no other parameter: not soft-deleted, `status` live, the galgame medium, any `olang`, and any claim state except `hidden` — none, live, draft, pending and declined all count. Without `nsfw=true`, r18 works drop out, as before.
+- **One predicate.** The counts and `has_works=` call `worksListPopulation`, which is `worksListWhere` with no filter and every language, so a change to the list's default population moves the counts with it. `TestWorkCountIsTheWorksListPopulation` builds works in every claim state, both ratings, another language, and the excluded stub / soft-deleted / other-medium rows, and checks every face below against the works list total for both `nsfw` values, on the live aggregate and on the tag rollup.
+- **Faces.** `work_count` on the companies, tags, engines and series lists, detail faces and `ids=` lanes; company relation-graph nodes; `imprint_work_count` (and `work_count + imprint_work_count` still equals the `company_rollup=true` total); `has_works=` on companies and tags; `work_count` on the companies, engines and tags of a work and of its releases; `series[].member_count` on the work detail and on `works/{id}/series`.
+- **`has_nsfw`** on a series is whether `works?series_id={id}&nsfw=true&content_limit=nsfw` is non-empty. It does not follow the caller's `nsfw`.
+- **The tag rollup follows on its next hourly refresh.** `catalog_tag_work_count` is produced by the same aggregate, so the change needs no schema work, but until `refresh-tag-counts` next runs the tag numbers keep the old population while companies, engines and series already use the new one.
+- **Cost.** Companies, engines and series are counted per request through the indexes on their edge key columns (`catalog_work_label.label_id`, `catalog_work_engine.engine_id`, `idx_catalog_release_engine`, `catalog_series_member`), and the claim test was a filter on the joined work row, so the rows read are the same; only the rows aggregated grow. The hourly tag refresh now aggregates every galgame work's tags instead of the live-claimed ones.
+
+**Spec is 2.46.0.** Description-only spec change: the ten `work_count` / `member_count` / `has_nsfw` descriptions name the works list query they equal. No shape change, no migration.

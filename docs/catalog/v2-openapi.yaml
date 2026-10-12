@@ -996,7 +996,7 @@ components:
           type: string
           x-vocabulary-closed: true
         work_count:
-          description: Works visible under the same NSFW gate.
+          description: Works GET /v2/catalog/works?company_id={id} lists under the same nsfw and no other filter.
           format: int64
           minimum: 0
           type: integer
@@ -1134,7 +1134,7 @@ components:
           type: string
           x-vocabulary-closed: true
         work_count:
-          description: Works visible under the same NSFW gate.
+          description: Works GET /v2/catalog/works?company_id={id} lists under the same nsfw and no other filter.
           format: int64
           minimum: 0
           type: integer
@@ -1963,7 +1963,7 @@ components:
           type: string
           x-vocabulary-closed: true
         work_count:
-          description: Works visible under the same NSFW gate.
+          description: Works GET /v2/catalog/works?engine_id={id} lists under the same nsfw and no other filter.
           format: int64
           minimum: 0
           type: integer
@@ -7717,7 +7717,7 @@ components:
           maxLength: 512
           type: string
         has_nsfw:
-          description: Whether any member work sits behind the r18 display gate. Counted over the same live-claimed members as work_count but NOT narrowed by nsfw=, so a series can report true while work_count hides every such member. Carried on every lane.
+          description: Whether any work GET /v2/catalog/works?series_id={id}&nsfw=true lists sits behind the r18 display gate (content_limit=nsfw). NOT narrowed by this call's nsfw=, so a series can report true while work_count hides every such member. Carried on every lane.
           type: boolean
         id:
           description: Catalog series id.
@@ -7742,7 +7742,7 @@ components:
             $ref: "#/components/schemas/Ref"
           type: array
         work_count:
-          description: Member works visible under the same NSFW gate.
+          description: Works GET /v2/catalog/works?series_id={id} lists under the same nsfw and no other filter.
           format: int64
           minimum: 0
           type: integer
@@ -8083,7 +8083,7 @@ components:
           type: string
           x-vocabulary-closed: true
         work_count:
-          description: Works visible under the same NSFW gate.
+          description: Works GET /v2/catalog/works?tag_id={id} lists under the same nsfw and no other filter, as of the hourly recount.
           format: int64
           minimum: 0
           type: integer
@@ -9222,7 +9222,7 @@ components:
           type: string
           x-vocabulary-closed: true
         work_count:
-          description: Works visible under the same NSFW gate.
+          description: Works GET /v2/catalog/works?company_id={id} lists under the same nsfw and no other filter.
           format: int64
           minimum: 0
           type: integer
@@ -9255,7 +9255,7 @@ components:
           type: string
           x-vocabulary-closed: true
         work_count:
-          description: Works visible under the same NSFW gate.
+          description: Works GET /v2/catalog/works?engine_id={id} lists under the same nsfw and no other filter.
           format: int64
           minimum: 0
           type: integer
@@ -9426,7 +9426,7 @@ components:
           pattern: ^[0-9]+$
           type: string
         member_count:
-          description: Members visible under the same NSFW gate.
+          description: Works GET /v2/catalog/works?series_id={id} lists under the same nsfw and no other filter.
           format: int64
           minimum: 0
           type: integer
@@ -9577,7 +9577,7 @@ components:
             - "null"
           x-vocabulary-closed: true
         work_count:
-          description: Works visible under the same NSFW gate. null if unmapped.
+          description: Works GET /v2/catalog/works?tag_id={id} lists under the same nsfw and no other filter, as of the hourly recount. null if unmapped.
           format: int64
           minimum: 0
           type:
@@ -9641,7 +9641,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.45.0
+  version: 2.46.0
   x-stability: stable
 openapi: 3.1.0
 paths:
