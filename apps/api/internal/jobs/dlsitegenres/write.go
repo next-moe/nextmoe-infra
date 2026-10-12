@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/repository"
 
@@ -12,10 +13,11 @@ import (
 )
 
 type writer struct {
-	db      *gorm.DB
-	source  int16
-	stats   *Stats
-	touched []int64
+	db         *gorm.DB
+	source     int16
+	stats      *Stats
+	suppressed editspec.SuppressedWorkTags
+	touched    []int64
 }
 
 func (w *writer) finish(ctx context.Context, apply bool) error {
@@ -36,6 +38,10 @@ type plannedRow struct {
 }
 
 func (w *writer) write(ctx context.Context, p plannedRow, apply bool) {
+	if w.suppressed.Has(p.WorkID, p.Name) {
+		w.stats.Suppressed++
+		return
+	}
 	if !apply {
 		return
 	}

@@ -1,0 +1,51 @@
+package worktags
+
+import (
+	"context"
+	"testing"
+
+	"api/internal/platform/catalog/editspec"
+	"api/internal/platform/catalog/model"
+	"api/internal/platform/editing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestSuppressedTagIsNeverWritten(t *testing.T) {
+	clean(t)
+	truncate := func() {
+		for _, tbl := range []string{"edit_suppressed_row", "catalog_tag_source_map", "catalog_tag"} {
+			require.NoError(t, testDB.Exec("TRUNCATE "+tbl+" RESTART IDENTITY CASCADE").Error)
+		}
+	}
+	truncate()
+	t.Cleanup(truncate)
+	ctx := context.Background()
+	reg, err := resolveRegistry(ctx, testDB)
+	require.NoError(t, err)
+
+	wa2 := mkWork(t, reg.galgameMedium, "WHITE ALBUM2", nil)
+	mkSubject(t, 401, `[{"name":"肛交","count":1},{"name":"纯爱","count":30}]`)
+	mkAnchor(t, wa2, "401", reg.bangumiSource, model.LinkKindExact, ruleTitleYear)
+	other := mkWork(t, reg.galgameMedium, "other", nil)
+	mkSubject(t, 402, `[{"name":"肛交","count":4},{"name":"纯爱","count":2}]`)
+	mkAnchor(t, other, "402", reg.bangumiSource, model.LinkKindExact, ruleTitleYear)
+
+	tag := model.CatalogTag{Name: "肛交", Tier: model.TagTierCore, Kind: model.TagKindContent}
+	require.NoError(t, testDB.Create(&tag).Error)
+	require.NoError(t, testDB.Create(&model.CatalogTagSourceMap{SourceID: reg.bangumiSource, SourceName: "肛交", TagID: tag.ID}).Error)
+	require.NoError(t, testDB.Create(&editing.SuppressedRow{
+		EntityType: editspec.TypeWork, EntityID: wa2, FieldKey: editspec.FieldWorkTagIDs,
+		IdentityKey: editspec.WorkTagIdentity(tag.ID),
+	}).Error)
+
+	st, err := Run(ctx, Opts{DSN: testDSN, Apply: true})
+	require.NoError(t, err)
+	assert.Equal(t, 1, st.Suppressed)
+	assert.Equal(t, 3, st.Written)
+	assert.Zero(t, st.Errors)
+	assert.EqualValues(t, 0, tagCount(t, "WHERE work_id = ? AND name = ?", wa2, "肛交"), "the suppressed pair is skipped")
+	assert.EqualValues(t, 1, tagCount(t, "WHERE work_id = ? AND name = ?", wa2, "纯爱"), "the work's other tags are written")
+	assert.EqualValues(t, 2, tagCount(t, "WHERE work_id = ?", other), "the same tag on another work is written")
+}

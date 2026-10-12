@@ -296,7 +296,8 @@ func rehangStmts(reg *editing.Registry, entityType int16, src, dst int64) ([]mer
 		}
 		stmts = append(stmts, suppressedRowStmts(editspec.TypeWork, src, dst)...)
 		stmts = append(stmts, identityFollowStmts(reg, editspec.TagWork, src, dst)...)
-		return append(stmts, workFacetStmts(src, dst)...), nil
+		stmts = append(stmts, workFacetStmts(src, dst)...)
+		return append(stmts, mergeStmt{editspec.PurgeSuppressedWorkTagsSQL, []any{dst}, false}), nil
 	}
 	return nil, fmt.Errorf("catalog merge: unsupported entity type %d", entityType)
 }

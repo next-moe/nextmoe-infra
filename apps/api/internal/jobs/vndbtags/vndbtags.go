@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	"api/internal/infrastructure/database"
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/repository"
 	"api/internal/platform/catalog/vndbtagmap"
@@ -33,6 +34,7 @@ type Stats struct {
 	WorksChanged      int
 	OrphanWorks       int
 	TagsDesired       int
+	TagsSuppressed    int
 	TagsSame          int
 	TagsInserted      int
 	TagsUpdated       int
@@ -55,6 +57,7 @@ func (st *Stats) LogArgs() []any {
 		"works_changed", st.WorksChanged,
 		"orphan_works", st.OrphanWorks,
 		"tags_desired", st.TagsDesired,
+		"tags_suppressed", st.TagsSuppressed,
 		"tags_same", st.TagsSame,
 		"tags_inserted", st.TagsInserted,
 		"tags_updated", st.TagsUpdated,
@@ -198,6 +201,10 @@ func processPopBatch(
 	if err != nil {
 		return err
 	}
+	suppressed, err := editspec.LoadSuppressedWorkTags(ctx, db, w.sourceID)
+	if err != nil {
+		return err
+	}
 	byVID := map[string][]Vote{}
 	for _, v := range votes {
 		byVID[v.VID] = append(byVID[v.VID], v)
@@ -206,6 +213,12 @@ func processPopBatch(
 	plans := make([]workPlan, 0, len(batch))
 	for _, pw := range batch {
 		desired := desiredTags(byVID[pw.VID], tagMeta, tagMap)
+		for name := range desired {
+			if suppressed.Has(pw.WorkID, name) {
+				delete(desired, name)
+				w.stats.TagsSuppressed++
+			}
+		}
 		w.stats.TagsDesired += len(desired)
 		plan := diffTags(existing[pw.WorkID], desired, sexualByName)
 		w.stats.TagsSame += plan.Same
