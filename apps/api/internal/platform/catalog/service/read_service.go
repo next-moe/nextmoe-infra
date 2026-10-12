@@ -515,8 +515,8 @@ func (s *ReadService) nativeWorkIntros(ctx context.Context, workIDs []int64, out
 		Provenance int16  `gorm:"column:provenance"`
 	}
 	if err := db.Raw(`SELECT work_id, lang, intro, source_id, provenance FROM catalog_work_intro
-		WHERE work_id IN ? ORDER BY work_id, lang, provenance, `+
-		editspec.HumanLaneFirstSQL("source_id", "provenance")+`, source_id`, workIDs).Scan(&rows).Error; err != nil {
+		WHERE work_id IN ? ORDER BY work_id, lang, `+
+		editspec.IntroFoldOrderSQL("source_id", "provenance"), workIDs).Scan(&rows).Error; err != nil {
 		return err
 	}
 	seen := make(map[int64]map[string]bool)

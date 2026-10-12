@@ -66,6 +66,14 @@ func HumanLaneFirstSQL(sourceColumn, provenanceColumn string) string {
 		provenanceColumn, catmodel.IntroProvenanceSource)
 }
 
+// IntroFoldOrderSQL is the per-lang order an intro face keeps the first row of,
+// and the order the MT jobs elect the row they translate by. The jobs used to
+// take the lowest source_id instead: ~1,000 claimed works rendered a curated ja
+// beside a zh-Hans translated from a DLsite promo (work 3993, 2026-10).
+func IntroFoldOrderSQL(sourceColumn, provenanceColumn string) string {
+	return provenanceColumn + ", " + HumanLaneFirstSQL(sourceColumn, provenanceColumn) + ", " + sourceColumn
+}
+
 // HumanLaneFirstNoProvenanceSQL is HumanLaneFirstSQL for the tables with no 0/1
 // provenance axis (catalog_tag_intro, catalog_series_intro, catalog_credit):
 // there is no machine tier to keep the human lane out of, so the gate has
