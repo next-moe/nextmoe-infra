@@ -35,6 +35,10 @@ PORTRAITS_MAX=${IMAGE_MIRROR_PORTRAITS_MAX:-3000}
 DLSITE_BATCH=${IMAGE_MIRROR_DLSITE_BATCH:-3000}
 DLSITE_WORKS_MAX=${IMAGE_MIRROR_DLSITE_WORKS_MAX:-3000}
 DLSITE_404_RETRY_DAYS=${IMAGE_MIRROR_DLSITE_404_RETRY_DAYS:-90}
+# A batch stages ~8G on the root disk. On 2026-10-12 one started with 8G free, the
+# disk filled at 06:27 CST, and every Postgres on the box PANICked for 83 minutes.
+# 30G leaves the batch well clear of OpenSearch's 95% flood stage (11.8G here).
+DLSITE_MIN_FREE_G=${IMAGE_MIRROR_DLSITE_MIN_FREE_G:-30}
 # The 2026-09-16 import left ~800 new works without a cover; at 1,000 the Bangumi lane
 # failed three weeks running (1,080 then 1,194 subjects), all of them live works.
 BANGUMI_COVERS_MAX=${IMAGE_MIRROR_BANGUMI_COVERS_MAX:-3000}
@@ -189,6 +193,10 @@ lane_dlsite() {
   fi
 
   if [ "$works" -gt 0 ]; then
+    free_g=$(df -BG --output=avail "$BASE" | tail -1 | tr -dc 0-9)
+    if [ "${free_g:-0}" -lt "$DLSITE_MIN_FREE_G" ]; then
+      echo "FATAL: ${free_g:-?}G free, the DLsite download needs ${DLSITE_MIN_FREE_G}G — free the disk before rerunning"; return 1
+    fi
     u=$(sed -n 's/^KUN_CATALOG_PG_USER=//p' env.tmp | head -1)
     [ -n "$u" ] || u=$(sed -n 's/^KUN_PG_USER=//p' env.tmp | head -1)
     p=$(sed -n 's/^KUN_CATALOG_PG_PASSWORD=//p' env.tmp | head -1)
