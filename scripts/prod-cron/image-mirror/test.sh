@@ -184,6 +184,12 @@ FAKE
 for a in "$@"; do case "$a" in -*) ;; *) rm -f "$a" ;; esac; done
 FAKE
 
+  cat > "$td/bin/df" <<'FAKE'
+#!/bin/sh
+echo "Avail"
+echo " $(cat "${FAKE_CTL:?}/free" 2>/dev/null || echo 100)G"
+FAKE
+
   cat > "$td/alert.sh" <<'FAKE'
 #!/bin/sh
 echo "$1" >> "${FAKE_CTL:?}/alerts"
@@ -205,7 +211,7 @@ run_job() {
 exit_is() { [ "$(cat "$1/ctl/exit")" = "$2" ]; }
 has_stamp() { [ -f "$1/base/state/last-success" ]; }
 has_alert() { [ -s "$1/ctl/alerts" ]; }
-applied() { n=$(grep -c "${2:-.}" "$1/ctl/apply.log" 2>/dev/null); echo "${n:-0}"; }
+applied() { n=$(grep -c "${2:-.}" "$1/ctl/apply.log" 2>/dev/null || true); echo "${n:-0}"; }
 vndb_applied() { applied "$1" 'backfill-vndb-covers\|backfill-character-portraits'; }
 dlsite_applied() { applied "$1" 'backfill-dlsite-media'; }
 bgm_applied() { applied "$1" 'backfill-bangumi-covers\|backfill-label-logos\|backfill-person-photos'; }
@@ -630,6 +636,15 @@ i=0; : > "$td/ctl/files/dlsite"
 while [ $i -lt 5000 ]; do echo "RJ$i" >> "$td/ctl/files/dlsite"; i=$((i + 1)); done
 IMAGE_MIRROR_DLSITE_BATCH=5000 run_job "$td"; expect_dlsite_blocked "$td"
 [ -f "$td/ctl/crawler.args" ] && fail "the crawler ran past the ceiling"
+tend; rm -rf "$td"
+
+# --- T30: a disk short of the DLsite floor downloads and uploads nothing there; the other lanes still run ---
+tstart 30
+td=$(mktemp -d); install_fakes "$td"
+echo 29 > "$td/ctl/free"
+run_job "$td"; expect_dlsite_blocked "$td"
+[ -f "$td/ctl/crawler.args" ] && fail "the crawler ran on a short disk"
+grep -q 'FATAL: 29G free, the DLsite download needs 30G' "$td/base/logs/"run-*.log || fail "no reason logged"
 tend; rm -rf "$td"
 
 [ "$FAILED" -eq 0 ]
