@@ -201,6 +201,100 @@ func TestGiantComponentSplitsOnStrongEdges(t *testing.T) {
 	require.Contains(t, string(body), `"size":32`)
 }
 
+func TestRemakeJoinsItsOriginalsLine(t *testing.T) {
+	clean(t)
+	ctx := context.Background()
+
+	original := mkWork(t, "ONE～輝く季節へ～", 1998)
+	fd := mkWork(t, "ONE～輝く季節へ～ ファンディスク", 1999)
+	mkEdge(t, fd, original, seriesorder.RelFandiscOf)
+	_, err := RunWithDB(ctx, testDB, Opts{Apply: true})
+	require.NoError(t, err)
+	before := derivedSeries(t)
+	require.Len(t, before, 1)
+
+	remake := mkWork(t, "ONE.", 2025)
+	mkEdge(t, remake, original, seriesorder.RelRemakeOf)
+	st, err := RunWithDB(ctx, testDB, Opts{Apply: true})
+	require.NoError(t, err)
+	require.Zero(t, st.SeriesCreated+st.SeriesDeleted, "the remake joins the line it remakes")
+	require.Equal(t, 1, st.MembersAdded)
+
+	after := derivedSeries(t)
+	require.Len(t, after, 1)
+	require.Equal(t, before[0].ID, after[0].ID)
+	require.Equal(t, fmt.Sprintf("comp:%d", original), after[0].ExternalID)
+
+	var rows []struct {
+		WorkID   int64 `gorm:"column:work_id"`
+		Position int16 `gorm:"column:position"`
+		Kind     int16 `gorm:"column:kind"`
+	}
+	require.NoError(t, testDB.Raw(`SELECT work_id, position, kind FROM catalog_series_member
+		WHERE series_id = ? ORDER BY position`, after[0].ID).Scan(&rows).Error)
+	require.Len(t, rows, 3)
+	require.Equal(t, []int64{original, fd, remake}, []int64{rows[0].WorkID, rows[1].WorkID, rows[2].WorkID})
+	require.Equal(t, model.SeriesMemberKindMain, rows[2].Kind)
+
+	requireQuiescent(t)
+}
+
+func TestCrossoverWithARemakeIsStillCut(t *testing.T) {
+	clean(t)
+	a1 := mkWork(t, "Alpha First", 2000)
+	a2 := mkWork(t, "Alpha Second", 2001)
+	b1 := mkWork(t, "Beta First", 2002)
+	b2 := mkWork(t, "Beta Second", 2003)
+	x := mkWork(t, "Crossover Festival", 2004)
+	xr := mkWork(t, "Crossover Festival Remake", 2010)
+	mkEdge(t, a2, a1, seriesorder.RelSequelOf)
+	mkEdge(t, b2, b1, seriesorder.RelSequelOf)
+	mkEdge(t, x, a1, seriesorder.RelFandiscOf)
+	mkEdge(t, x, b1, seriesorder.RelFandiscOf)
+	mkEdge(t, xr, x, seriesorder.RelRemakeOf)
+
+	st := runApply(t)
+	require.Equal(t, 1, st.Bridges)
+
+	var rows []struct {
+		SeriesID int64 `gorm:"column:series_id"`
+		WorkID   int64 `gorm:"column:work_id"`
+	}
+	require.NoError(t, testDB.Raw(`SELECT series_id, work_id FROM catalog_series_member`).Scan(&rows).Error)
+	seriesOf := map[int64]int64{}
+	for _, r := range rows {
+		seriesOf[r.WorkID] = r.SeriesID
+	}
+	require.Equal(t, seriesOf[a1], seriesOf[a2])
+	require.Equal(t, seriesOf[b1], seriesOf[b2])
+	require.NotEqual(t, seriesOf[a1], seriesOf[b1])
+	require.NotEqual(t, seriesOf[a1], seriesOf[x])
+	require.NotEqual(t, seriesOf[b1], seriesOf[x])
+
+	requireQuiescent(t)
+}
+
+func TestARemakeEdgeDoesNotMakeASideStoryABridge(t *testing.T) {
+	clean(t)
+	a1 := mkWork(t, "Alpha First", 2000)
+	a2 := mkWork(t, "Alpha Second", 2001)
+	other := mkWork(t, "Another Tale", 2002)
+	stay := mkWork(t, "Stay Memories", 2003)
+	mkEdge(t, a2, a1, seriesorder.RelSequelOf)
+	mkEdge(t, other, a1, seriesorder.RelSideStoryOf)
+	mkEdge(t, stay, a1, seriesorder.RelSideStoryOf)
+	mkEdge(t, stay, other, seriesorder.RelRemakeOf)
+
+	st := runApply(t)
+	require.Zero(t, st.Bridges)
+
+	var got []int64
+	require.NoError(t, testDB.Raw(`SELECT work_id FROM catalog_series_member`).Scan(&got).Error)
+	require.ElementsMatch(t, []int64{a1, a2, other, stay}, got)
+
+	requireQuiescent(t)
+}
+
 func TestFallbackNameIsTheEarliestMemberVerbatim(t *testing.T) {
 	clean(t)
 	ctx := context.Background()

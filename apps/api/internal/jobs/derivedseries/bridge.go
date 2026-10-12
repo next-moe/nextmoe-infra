@@ -28,7 +28,10 @@ func crossoverBridges(works []int64, edgesByWork map[int64][]seriesorder.Edge,
 	}
 	for _, w := range works {
 		for _, e := range edgesByWork[w] {
-			if e.A != w {
+			// remake_of stays out of the bridge test both ways. Counted as strong, it stopped
+			// ニトロプラスブラスターズ being cut and welded the 十二神器 lines into one component;
+			// counted as weak, it cut "Stay." (side story of ONE, remake of another ONE) as a bridge.
+			if e.A != w || e.Type == seriesorder.RelRemakeOf {
 				continue
 			}
 			if StrongEdgeTypes[e.Type] {
