@@ -178,6 +178,8 @@ func (r *runner) plan(ctx context.Context, opts Opts) ([]Plan, error) {
 		JOIN catalog_source s ON s.id = c.source_id
 		WHERE c.work_id IN (SELECT work_id FROM catalog_work_cover WHERE portrait_pinned)
 		  AND c.work_id NOT IN (SELECT work_id FROM catalog_work_cover WHERE portrait_pinned AND %s)
+		  AND (NOT c.merged_in OR NOT EXISTS (SELECT 1 FROM catalog_work_cover o
+		                                       WHERE o.work_id = c.work_id AND NOT o.merged_in))
 		ORDER BY c.work_id, c.sort_order, c.image_hash`, editspec.CuratedLaneSQL("source_id")))
 	var rows []coverRow
 	if err := q.Scan(&rows).Error; err != nil {

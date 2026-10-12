@@ -11,8 +11,13 @@ import (
 	"gorm.io/gorm"
 )
 
-func (s *MergeService) Unmerge(ctx context.Context, proposalID int64, actorID *int64) (int64, error) {
-	var newID int64
+type UnmergeResult struct {
+	NewID   int64
+	Archive ArchiveRestore
+}
+
+func (s *MergeService) Unmerge(ctx context.Context, proposalID int64, actorID *int64) (UnmergeResult, error) {
+	var res UnmergeResult
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		p, err := repository.LockProposal(tx, proposalID)
 		if err != nil {
@@ -34,16 +39,29 @@ func (s *MergeService) Unmerge(ctx context.Context, proposalID int64, actorID *i
 			return fmt.Errorf("%w: merged_source revision for entity %d", ErrNotFound, p.SourceEntityID)
 		}
 
-		newID, err = rebuildFromSnapshot(tx, et, rev.Snapshot)
+		newID, err := rebuildFromSnapshot(tx, et, rev.Snapshot)
 		if err != nil {
 			return fmt.Errorf("rebuild: %w", err)
 		}
+		res.NewID = newID
 
-		if err := repository.RepointRedirect(tx, et, p.SourceEntityID, newID); err != nil {
+		note := fmt.Sprintf("unmerge of proposal %d", p.ID)
+		if err := repository.RepointRedirect(tx, et, p.SourceEntityID, newID, note); err != nil {
 			return err
 		}
 
-		note := fmt.Sprintf("unmerge of proposal %d", p.ID)
+		restored, touched, err := restoreArchive(tx, p, newID)
+		if err != nil {
+			return err
+		}
+		res.Archive = restored
+		if et == model.EntityTypeWork {
+			touched = append(touched, newID)
+		}
+		if err := repository.TouchWorks(ctx, tx, touched); err != nil {
+			return fmt.Errorf("touch works: %w", err)
+		}
+
 		rebuiltSnap, err := takeSnapshot(tx, et, newID)
 		if err != nil {
 			return err
@@ -69,7 +87,7 @@ func (s *MergeService) Unmerge(ctx context.Context, proposalID int64, actorID *i
 
 		return tx.Model(p).Update("note", appendNote(p.Note, fmt.Sprintf("unmerged into new entity %d", newID))).Error
 	})
-	return newID, err
+	return res, err
 }
 
 func rebuildFromSnapshot(tx *gorm.DB, entityType int16, raw []byte) (int64, error) {

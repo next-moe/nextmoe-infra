@@ -22,7 +22,7 @@ func slotsWith(svc *PublicService, covers []WorkCoverRow, shots []WorkScreenshot
 	meta map[string]ImageMeta, allowSexual bool) *dto.PublicWorkCoverSlots {
 	slots := svc.pickCoverSlots(covers, meta, allowSexual)
 	if bannerMissing(slots) {
-		slots = svc.fillBannerFromScreenshots(slots, shots, meta, allowSexual)
+		slots = svc.fillBannerFromScreenshots(slots, covers, shots, meta, allowSexual)
 	}
 	return slots
 }

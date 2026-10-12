@@ -391,7 +391,7 @@ func loadWorkTitles(db *gorm.DB) (map[int64][]workTitle, error) {
 		FROM catalog_work_title t
 		JOIN catalog_work w ON w.id = t.work_id
 		WHERE ` + population + ` AND ` + editspec.NotSuppressedWorkTitleSQL("t") + `
-		ORDER BY t.work_id, t.kind, t.lang, t.id`).Scan(&native).Error; err != nil {
+		ORDER BY t.work_id, t.kind, t.lang, t.title = w.display_name DESC, t.id`).Scan(&native).Error; err != nil {
 		return nil, err
 	}
 	for _, r := range native {

@@ -118,7 +118,7 @@ func TestRunPairsNoteGuard(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var out bytes.Buffer
-			err := runPairs(context.Background(), nil, &out, nil, nil, 1, tc.note, path, false)
+			err := runPairs(context.Background(), nil, &out, nil, nil, 1, tc.note, path, false, false)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tc.want)
 			assert.Empty(t, out.String())
@@ -138,12 +138,45 @@ func TestRunPairsDryRunWritesNothing(t *testing.T) {
 	merge := newMerge(t)
 	resolve := service.NewResolveService(repository.NewRedirectRepository(testDB))
 	var out bytes.Buffer
-	require.NoError(t, runPairs(ctx, testDB, &out, merge, resolve, 4242, pairsNote, path, false))
+	require.NoError(t, runPairs(ctx, testDB, &out, merge, resolve, 4242, pairsNote, path, false, false))
 	assert.Contains(t, out.String(), fmt.Sprintf("PLAN %d <- %d  operator evidence", tgt, src))
 	assert.Contains(t, out.String(), "DRY-RUN (pass -run to file) [pairs]")
 	assert.Contains(t, out.String(), "proposed=1")
 	assert.Contains(t, out.String(), "skipped_existing=0")
 	assert.Zero(t, countRows(t, `SELECT count(*) FROM catalog_merge_proposal`))
+}
+
+func TestRunPairsAbsorbFilesAbsorbProposalsAndRefusesAVNDBAnchoredSource(t *testing.T) {
+	requireDB(t)
+	cleanPipeline(t)
+	ctx := context.Background()
+	medium := galgameMedium(t)
+	edition := mkWork(t, medium, "円環の柩 HD", nil)
+	base := mkWork(t, medium, "円環の柩", nil)
+	mkAnchor(t, edition, model.SourceBangumi, "200")
+	duplicate := mkWork(t, medium, "Faith remake", nil)
+	faith := mkWork(t, medium, "Faith", nil)
+	mkAnchor(t, duplicate, model.SourceVNDB, "v2")
+	path := writePairsFile(t, fmt.Sprintf("%d\t%d\tedition\n%d\t%d\tnot an edition\n", edition, base, duplicate, faith))
+
+	merge := newMerge(t)
+	resolve := service.NewResolveService(repository.NewRedirectRepository(testDB))
+	var out bytes.Buffer
+	err := runPairs(ctx, testDB, &out, merge, resolve, 4242, pairsNote, path, false, true)
+	require.Error(t, err, "a dry run reports the refusal it would hit")
+	assert.Contains(t, out.String(), fmt.Sprintf("PLAN absorb %d <- %d  edition", base, edition))
+	assert.Contains(t, out.String(), "absorb REFUSED")
+	assert.Zero(t, countRows(t, `SELECT count(*) FROM catalog_merge_proposal`))
+
+	out.Reset()
+	err = runPairs(ctx, testDB, &out, merge, resolve, 4242, pairsNote, path, true, true)
+	require.Error(t, err)
+	var p model.CatalogMergeProposal
+	require.NoError(t, testDB.Where("source_entity_id = ?", edition).First(&p).Error)
+	assert.JSONEq(t, `{"mode":"absorb"}`, string(p.FieldResolution))
+	assert.Contains(t, out.String(), fmt.Sprintf("OK proposal #%d absorb %d <- %d", p.ID, base, edition))
+	assert.Equal(t, int64(1), countRows(t, `SELECT count(*) FROM catalog_merge_proposal`),
+		"the VNDB-anchored pair is not filed as an absorb")
 }
 
 func TestRunPairsFilesOpenProposalsAndSkipsExisting(t *testing.T) {
@@ -158,7 +191,7 @@ func TestRunPairsFilesOpenProposalsAndSkipsExisting(t *testing.T) {
 	merge := newMerge(t)
 	resolve := service.NewResolveService(repository.NewRedirectRepository(testDB))
 	var out bytes.Buffer
-	require.NoError(t, runPairs(ctx, testDB, &out, merge, resolve, 4242, pairsNote, path, true))
+	require.NoError(t, runPairs(ctx, testDB, &out, merge, resolve, 4242, pairsNote, path, true, false))
 
 	var p model.CatalogMergeProposal
 	require.NoError(t, testDB.Where("entity_type = ?", model.EntityTypeWork).First(&p).Error)
@@ -172,7 +205,7 @@ func TestRunPairsFilesOpenProposalsAndSkipsExisting(t *testing.T) {
 	assert.Contains(t, out.String(), "proposed=1")
 
 	out.Reset()
-	require.NoError(t, runPairs(ctx, testDB, &out, merge, resolve, 4242, pairsNote, path, true))
+	require.NoError(t, runPairs(ctx, testDB, &out, merge, resolve, 4242, pairsNote, path, true, false))
 	assert.Contains(t, out.String(), fmt.Sprintf("SKIP existing proposal #%d (open) %d <- %d", p.ID, tgt, src))
 	assert.Contains(t, out.String(), "skipped_existing=1")
 	assert.Contains(t, out.String(), "proposed=0")
@@ -203,7 +236,7 @@ func TestRunPairsMovedSourceReturnsErrorAndFilesNothing(t *testing.T) {
 	path := writePairsFile(t, fmt.Sprintf("%d\t%d\tclean row first\n%d\t%d\tstale adjudication\n",
 		cleanSrc, cleanTgt, member, later))
 	var out bytes.Buffer
-	err = runPairs(ctx, testDB, &out, merge, resolve, actor, pairsNote, path, true)
+	err = runPairs(ctx, testDB, &out, merge, resolve, actor, pairsNote, path, true, false)
 	require.Error(t, err)
 	assert.Contains(t, out.String(), fmt.Sprintf("SKIP moved %d→%d %d→%d", member, survivor, later, later))
 	assert.Contains(t, out.String(), "moved=1")
@@ -240,7 +273,7 @@ func TestRunPairsEndToEndApproveExecute(t *testing.T) {
 	merge := newMerge(t)
 	resolve := service.NewResolveService(repository.NewRedirectRepository(testDB))
 	var out bytes.Buffer
-	require.NoError(t, runPairs(ctx, testDB, &out, merge, resolve, actor, pairsNote, path, true))
+	require.NoError(t, runPairs(ctx, testDB, &out, merge, resolve, actor, pairsNote, path, true, false))
 	assert.Equal(t, int64(2), countRows(t, `SELECT count(*) FROM catalog_merge_proposal WHERE status = ?`,
 		model.ProposalStatusOpen))
 
@@ -278,7 +311,7 @@ func TestRunPairsEndToEndApproveExecute(t *testing.T) {
 
 	before := countRows(t, `SELECT count(*) FROM catalog_merge_proposal`)
 	out.Reset()
-	require.NoError(t, runPairs(ctx, testDB, &out, merge, resolve, actor, pairsNote, path, true),
+	require.NoError(t, runPairs(ctx, testDB, &out, merge, resolve, actor, pairsNote, path, true, false),
 		"re-running an executed worklist is a no-op, not a moved-endpoint failure")
 	assert.Contains(t, out.String(), fmt.Sprintf("SKIP existing proposal #%d (executed)", propA.ID))
 	assert.Contains(t, out.String(), fmt.Sprintf("SKIP existing proposal #%d (rejected)", propB.ID))
@@ -302,7 +335,7 @@ func TestRunPairsProposeFailureIsAnError(t *testing.T) {
 	merge := newMerge(t)
 	resolve := service.NewResolveService(repository.NewRedirectRepository(testDB))
 	var out bytes.Buffer
-	err := runPairs(ctx, testDB, &out, merge, resolve, 4242, pairsNote, path, true)
+	err := runPairs(ctx, testDB, &out, merge, resolve, 4242, pairsNote, path, true, false)
 	require.Error(t, err)
 	assert.Contains(t, out.String(), fmt.Sprintf("%d->%d: propose ERROR", src, gone))
 	assert.Contains(t, out.String(), "proposed=1")

@@ -31,6 +31,7 @@ func main() {
 	note := flag.String("note", waveTagW1, "wave note tag stamped on proposals and matched by -mode approve and -mode execute")
 	csvPath := flag.String("csv", "", "census: also export the full pair dossier to this CSV path")
 	pairsPath := flag.String("pairs", "", "pairs: TSV of source_work_id, target_work_id, evidence")
+	absorb := flag.Bool("absorb", false, `pairs: file each row as an absorb merge (field_resolution {"mode":"absorb"}): the source is an edition of the target, its work-level refs attach to the target as related and its imported rows are archived; refused when the source holds a VNDB exact anchor`)
 	dsn := flag.String("dsn", "", "catalog DSN override (default: KUN_CATALOG_PG_* env)")
 	failOnNew := flag.Bool("fail-on-new", false, fmt.Sprintf("watch: exit %d when undecided new pairs exist; nightly: exit %d when the seed filed new needs_manual pairs", exitNewPairs, exitNewPairs))
 	flag.Parse()
@@ -86,7 +87,7 @@ func main() {
 	case "crossmedium":
 		err = runCrossMedium(ctx, db, os.Stdout, *actor, *run)
 	case "pairs":
-		err = runPairs(ctx, db, os.Stdout, merge, resolve, *actor, *note, *pairsPath, *run)
+		err = runPairs(ctx, db, os.Stdout, merge, resolve, *actor, *note, *pairsPath, *run, *absorb)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown mode %q\n", *mode)
 		os.Exit(2)

@@ -97,3 +97,18 @@ func TestLoadWorkTitlesUsesCatalogRowsForEveryWork(t *testing.T) {
 		t.Fatalf("a non-LIVE work contributed titles: %v", got)
 	}
 }
+
+func TestLoadWorkTitlesPutsTheDisplayNameFirstInItsLanguage(t *testing.T) {
+	truncateFacetTables(t)
+	w := mkWork(t, "魔女っ娘ア・ラ・モードII", model.WorkStatusLive, galgameMedium)
+	for _, title := range []string{"魔女っ娘ア・ラ・モード2", "魔女っ娘ア・ラ・モードII"} {
+		if err := facetTestDB.Exec(`INSERT INTO catalog_work_title (work_id, lang, title, kind, provenance)
+			VALUES (?, 'ja', ?, 0, 0)`, w, title).Error; err != nil {
+			t.Fatalf("seed title: %v", err)
+		}
+	}
+	got := titlesOf(t, w)
+	if len(got) != 2 || got[0][1] != "魔女っ娘ア・ラ・モードII" {
+		t.Fatalf("titles = %v, want the display name ahead of the older merged-in duplicate", got)
+	}
+}

@@ -61,7 +61,7 @@ func TestMergeKeepsLowestEGExactWhenTargetHadNone(t *testing.T) {
 	}, workRefs(t, target.ID, model.SourceErogameScape))
 }
 
-func TestMergeStillDemotesConflictingVNDBExacts(t *testing.T) {
+func TestMergeDemotesOnlyTheLosersConflictingVNDBExact(t *testing.T) {
 	cleanTables(t)
 	target := createWork(t, "Faith")
 	source := createWork(t, "Faith remake")
@@ -71,9 +71,28 @@ func TestMergeStillDemotesConflictingVNDBExacts(t *testing.T) {
 	executeWorkMerge(t, source.ID, target.ID)
 
 	assert.Equal(t, []editionRefRow{
-		{"v1", model.LinkKindProbable},
+		{"v1", model.LinkKindExact},
 		{"v2", model.LinkKindProbable},
 	}, workRefs(t, target.ID, srcVNDB))
+}
+
+func TestMergeKeepsTheSurvivorsDLsiteExactOnALabel(t *testing.T) {
+	cleanTables(t)
+	target := createLabel(t, "Survivor brand", model.LabelKindGameBrand)
+	source := createLabel(t, "Loser brand", model.LabelKindGameBrand)
+	addExternalRef(t, model.EntityTypeLabel, target, srcDlsite, "VG03026", model.LinkKindExact)
+	addExternalRef(t, model.EntityTypeLabel, source, srcDlsite, "RG99999", model.LinkKindExact)
+
+	mergeNow(t, model.EntityTypeLabel, source, target)
+
+	var refs []editionRefRow
+	require.NoError(t, testDB.Raw(`SELECT external_id, link_kind FROM catalog_external_ref
+		WHERE entity_type = ? AND entity_id = ? AND source_id = ? ORDER BY external_id`,
+		model.EntityTypeLabel, target, srcDlsite).Scan(&refs).Error)
+	assert.Equal(t, []editionRefRow{
+		{"RG99999", model.LinkKindProbable},
+		{"VG03026", model.LinkKindExact},
+	}, refs, "label merge 47793→5147 took 5147's own VG03026 down to probable")
 }
 
 func TestMergeBangumiEditionIdsBecomeRelated(t *testing.T) {
