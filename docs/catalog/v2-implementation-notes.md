@@ -1988,3 +1988,14 @@ The forum and LetMoe each kept their own rating table with the same shape: a who
 **Migration required**: `go run ./cmd/migrate catalog` against `kun_catalog` (the `migrate-catalog` job on deploy) creates `catalog_user_work_rating` with its unique key, indexes and four CHECKs, starts its id sequence at 1,000,001, and creates `catalog_user_work_rating_tombstone` and `catalog_user_work_rating_import`. Additive; the import fills them.
 
 **Spec is 2.44.0.** Additive: `listMyRatings`, `getMyRating`, `putMyRating`, `deleteMyRating`, `getMyWorkRecord`, `putMyWorkRecord`, `listRatings`, `getRating`, `listRatingChanges`, `deleteModerationRating`, the `rating`, `rating_change` and `work_record` objects, and `rating` on `user_work`.
+
+## Wave — the whole subtree and the whole ancestry of a tag (2026-10-12)
+
+A reader who blocks a tag "with its subtags" could not see which subtags those were: the detail face carried `descendant_count` and, with `include=children`, one level down. A tag page that lists nothing could not say why when the block sat on an ancestor.
+
+- **`include=descendants`** on `GET /v2/catalog/tags/{id}` adds `descendants`: every tag below it at any depth, each once, nearest first (shortest path, then id). It is exactly the set `exclude_tag_tree` adds for that id, and its length is `descendant_count`; `TestLiveTagTree` pins both against `/v2/catalog/tag-exclusion`.
+- **`include=ancestors`** adds `ancestors`: every tag above it, nearest first; the first level is `parents`. A site checks a reader's `tree` blocks against it to explain a tag hidden by a parent's block.
+- **`TagNode`** (`object`, `id`, `display_name`, `is_sexual`, `parent_ids`). On `descendants`, `parent_ids` names a node's direct parents among the requested tag and the other descendants, so a parent outside the subtree is left out; on `ancestors`, all of a node's parents (every one of them is an ancestor too). The hierarchy is a DAG: a client drawing a tree draws a multi-parent node under each parent.
+- Both are explicit asks, outside `view=full`: the largest subtree, 色情内容, is 610 tags. Neither is nsfw-gated, as with `parents` and `children`.
+
+**Spec is 2.45.0.** Additive: the `descendants` and `ancestors` include tokens and fields, and the `TagNode` object. No migration.

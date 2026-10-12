@@ -347,16 +347,14 @@ func NameCreditSpec() Spec {
 	}
 }
 
-var tagInclude = []string{"intros", "children"}
-
 func TagSpec() Spec {
 	return Spec{
 		Sort:    []string{"id"},
-		Include: tagInclude,
-		FullSet: tagInclude,
+		Include: []string{"intros", "children", "descendants", "ancestors"},
+		FullSet: []string{"intros", "children"},
 		Fields: []string{
 			"object", "id", "display_name", "tier", "tag_kind", "work_count", "is_sexual", "intros",
-			"parents", "child_count", "descendant_count", "children",
+			"parents", "child_count", "descendant_count", "children", "descendants", "ancestors",
 		},
 	}
 }
