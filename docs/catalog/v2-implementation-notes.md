@@ -2058,3 +2058,13 @@ A work merge used to union the loser's rows into the survivor and let each read 
 **Spec unchanged** (2.46.0): no field, enum or description changes; the merged-in flags are not on the wire.
 
 **Migration required**: `go run ./cmd/migrate catalog` against `kun_catalog` (the `migrate-catalog` job on deploy) adds `catalog_work_cover.merged_in`, `catalog_work_screenshot.merged_in` (`boolean NOT NULL DEFAULT false`) and creates `catalog_merge_archive` with `idx_catalog_merge_archive_proposal`. The new code reads and writes these columns, so the migration must run before the new binary serves — the deploy's job ordering does that. Additive; covers moved by earlier merges cannot be identified and stay `false`.
+
+## Wave — rating moderation has its own permission (2026-10-12)
+
+`DELETE /v2/moderation/ratings/{id}` was gated by `requireModerator`, which passes for any catalog review key (`perm.Moderates`). Production's permission console grants `creator` all of them (`catalog.review`, `catalog.claim.review`, the four `edit.catalog.*.review` keys) for curating the catalog, so the 80 accounts holding `creator` could delete anyone's rating on every site — wider than the ruling that only the author and site staff delete ratings.
+
+- New key **`catalog.rating.moderate`**, in the `moderator` bundle and therefore in `admin` and `ren`. It is registered in the permission console, so it can be granted to another role there; it is not moderation authority for the proposal and claim queues (`notModeration` names it).
+- The rating moderation delete checks that key alone; the folder moderation faces keep `requireModerator`.
+- `client_id` on the rating object now says what downstream sites use it for: comparing it with their own client ids to tell ratings written through the site from mirrored ones. `site` is not usable for that — moyu's client is bound to the `kungal` site too.
+
+**Spec is 2.46.1.** Description-only spec change (the two descriptions above); the gate itself narrows who may call. No shape change, no migration.

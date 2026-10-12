@@ -23,7 +23,7 @@ type UserRating struct {
 	Recommend    string             `json:"recommend" enum:"strong_no,no,neutral,yes,strong_yes" doc:"How strongly the author recommends the work."`
 	SpoilerLevel string             `json:"spoiler_level" enum:"none,portion,serious" doc:"How much short_summary gives away, as its author declared. A reader who hides spoilers sees the summary of anything above none masked."`
 	ShortSummary string             `json:"short_summary" maxLength:"2000" doc:"The author's short review, plain text. Empty string if none. Must not be used as a discriminant."`
-	ClientID     string             `json:"client_id" maxLength:"64" doc:"OAuth client of the app the rating was first written from; a later edit from another app does not change it. Display only; must not be used as a discriminant."`
+	ClientID     string             `json:"client_id" maxLength:"64" doc:"OAuth client of the app the rating was first written from; a later edit from another app does not change it. A site may compare it with its own client ids to tell the ratings written through it from the ones it only mirrors; beyond that it must not be used as a discriminant."`
 	Site         string             `json:"site" maxLength:"64" doc:"Catalog site that app is bound to, empty when none. Open vocabulary; display only, must not be used as a discriminant."`
 	CreatedAt    string             `json:"created_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
 	WorkState    *RatingAuthorState `json:"work_state" doc:"The author's play state on this work as it stands now, not when the rating was written. null when the author has none. A change to it surfaces the rating on /v2/ratings/changes."`
