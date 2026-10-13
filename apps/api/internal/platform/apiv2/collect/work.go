@@ -43,7 +43,10 @@ var WorkBasicFields = []string{
 	"cover", "banner", "claim", "created_at", "updated_at",
 }
 
-var WorkSort = []string{"id", "updated", "relevance", "released_desc", "released_asc", "popularity"}
+var WorkSort = []string{
+	"id", "updated", "relevance", "released_desc", "released_asc", "popularity",
+	"rating_bangumi", "rating_vndb", "rating_erogamescape", "rating_dlsite", "rating_nextmoe",
+}
 
 var WorkFacets = []string{
 	"tag_id", "company_id", "olang", "content_rating", "medium", "platform",
@@ -51,7 +54,8 @@ var WorkFacets = []string{
 
 func SearchSort(sort string) bool {
 	switch sort {
-	case "relevance", "released_desc", "released_asc", "popularity":
+	case "relevance", "released_desc", "released_asc", "popularity",
+		"rating_bangumi", "rating_vndb", "rating_erogamescape", "rating_dlsite", "rating_nextmoe":
 		return true
 	default:
 		return false

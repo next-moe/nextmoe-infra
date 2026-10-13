@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -99,6 +100,13 @@ func (e *Engine) ensureIndex(ctx context.Context, uid string) error {
 	gotVer, ok := mappingSchemaVersion(got)
 	if !ok || gotVer != SchemaVersion {
 		return fmt.Errorf("index %s schema_version mismatch (got %d, want %d); run reindex-catalog -recreate", name, gotVer, SchemaVersion)
+	}
+	props, err := propertiesFor(uid)
+	if err != nil {
+		return err
+	}
+	if err := e.client.Do(ctx, http.MethodPut, "/"+name+"/_mapping", map[string]any{"properties": props}, nil); err != nil {
+		return fmt.Errorf("put mapping %s (a changed field needs a SchemaVersion bump and reindex-catalog -recreate): %w", name, err)
 	}
 	return nil
 }
@@ -316,6 +324,12 @@ func shouldQuery(should, filters []any) map[string]any {
 
 func searchSort(lane string, hasText bool) []any {
 	if field, order, ok := parseSortLane(lane); ok {
+		if strings.HasPrefix(field, "rating.") {
+			return []any{
+				map[string]any{field: map[string]any{"order": order, "missing": "_last"}},
+				map[string]any{"catalog_id": map[string]any{"order": "asc"}},
+			}
+		}
 		clause := map[string]any{field: map[string]any{"order": order}}
 		if field == "popularity" {
 			return []any{clause}
@@ -333,8 +347,10 @@ func parseSortLane(lane string) (field, order string, ok bool) {
 	if !found {
 		return "", "", false
 	}
-	switch field {
-	case "released_ord", "updated_ts", "popularity":
+	src, rated := strings.CutPrefix(field, "rating.")
+	switch {
+	case field == "released_ord", field == "updated_ts", field == "popularity":
+	case rated && slices.Contains(spec.RatingSources, src):
 	default:
 		return "", "", false
 	}

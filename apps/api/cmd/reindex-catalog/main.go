@@ -457,6 +457,10 @@ func reindexWorks(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, 
 	if err != nil {
 		return err
 	}
+	ratings, err := loadWorkRatingSort(db)
+	if err != nil {
+		return err
+	}
 	// Works was the only soft-deleting lane without this purge: the 2026-08-29
 	// merge wave left its 3,242 soft-deleted works in the index — hits
 	// self-healed through DB hydration, totals and ranking slots did not — and
@@ -510,6 +514,7 @@ func reindexWorks(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, 
 				Popularity: pop[r.ID], Sources: srcs[r.ID], SourceKeys: keys[r.ID],
 				TagIDs: facets.tagIDs[r.ID], LabelIDs: facets.labelIDs[r.ID],
 				EngineIDs: facets.engineIDs[r.ID], SeriesIDs: facets.seriesIDs[r.ID],
+				Ratings: ratings[r.ID],
 			}
 			for _, t := range titles[r.ID] {
 				in.Titles = append(in.Titles, catalogSearch.WorkDocTitle{Lang: t.lang, Title: t.title, Latin: t.latin})
