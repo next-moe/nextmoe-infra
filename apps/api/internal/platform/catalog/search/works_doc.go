@@ -2,6 +2,7 @@ package search
 
 import (
 	"math"
+	"slices"
 	"strconv"
 
 	"api/internal/platform/catalog/model"
@@ -53,6 +54,17 @@ type WorkDocInput struct {
 	EngineIDs     []int64
 	SeriesIDs     []int64
 	Intros        []WorkDocIntro
+	Ratings       map[string]float64
+}
+
+var alreadyBayesianRatingSources = []string{"vndb", "nextmoe"}
+
+func RatingSortScore(source string, score float64, votes int, sourceMean float64) float64 {
+	if slices.Contains(alreadyBayesianRatingSources, source) {
+		return score
+	}
+	c := float64(model.RatingPriorVotes)
+	return (c*sourceMean + float64(votes)*score) / (c + float64(votes))
 }
 
 func BuildWorkDoc(in WorkDocInput) EntityDoc {
@@ -67,8 +79,8 @@ func BuildWorkDoc(in WorkDocInput) EntityDoc {
 		claimState = model.ClaimStateKeyNone
 	}
 	d := EntityDoc{
-		ID: WorkDocID(in.ID), EntityType: "work",
-		Sources: in.Sources, SourceKeys: in.SourceKeys,
+		ID: WorkDocID(in.ID), EntityType: "work", CatalogID: in.ID,
+		Sources: in.Sources, SourceKeys: in.SourceKeys, Rating: in.Ratings,
 		ContentRating: &rating, Popularity: in.Popularity,
 		Claimed: &claimed, ClaimState: claimState, ContentLimit: in.ContentLimit, OLang: in.OLang,
 		TagIDs: in.TagIDs, LabelIDs: in.LabelIDs,

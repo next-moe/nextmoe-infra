@@ -12,6 +12,7 @@ import (
 	"api/internal/platform/apiv2/protocol"
 	"api/internal/platform/apiv2/repr"
 	"api/internal/platform/apiv2/vocab"
+	catmodel "api/internal/platform/catalog/model"
 	"api/internal/platform/devapi"
 	"api/internal/platform/settings/keys"
 	"api/pkg/routepath"
@@ -131,7 +132,7 @@ func registerCollections(api huma.API, works WorksFunc, cat *Catalog) {
 		Method:             http.MethodGet,
 		Path:               "/v2/catalog/works",
 		Summary:            "List catalog works",
-		Description:        "Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. exclude_tag_id=/exclude_tag_tree= drop works by tag on every lane, search included. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. view/include/fields/ids/refs/facets follow the v2 collection contract. " + includeDoc(collect.WorkListSpec()) + " Every block fills on every lane, the ids=/refs= batch lane included. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and " + strings.Join(detailOnlyWorkIncludes(), ", ") + ", are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE. page= selects page mode (see the page parameter).",
+		Description:        "Keyset-paginated work collection. q= switches to search (sort defaults to relevance). company_id=/tag_id=/series_id= filter the live registry when q= is absent. exclude_tag_id=/exclude_tag_tree= drop works by tag on every lane, search included. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. view/include/fields/ids/refs/facets follow the v2 collection contract. " + includeDoc(collect.WorkListSpec()) + " Every block fills on every lane, the ids=/refs= batch lane included. On a collection lane titles elects latin/localized and covers elects the two cover slots that grade the base cover — the full titles[] and covers[] arrays, and " + strings.Join(detailOnlyWorkIncludes(), ", ") + ", are per-record blocks and live on /v2/catalog/works/{id} and its sub-resources; asking for one here is 400 UNKNOWN_INCLUDE. page= selects page mode (see the page parameter). " + ratingSortDoc(),
 		Tags:               []string{"catalog"},
 		Errors:             collectionErrors(http.StatusUnauthorized, http.StatusForbidden, http.StatusServiceUnavailable),
 		SkipValidateParams: true,
@@ -149,6 +150,20 @@ func includeDoc(s collect.Spec) string {
 	}
 	return "include= takes " + strings.Join(s.Include, ", ") + ". view=full is " + strings.Join(s.FullSet, ", ") +
 		"; " + strings.Join(named, ", ") + " come only when include= names them."
+}
+
+func ratingSortDoc() string {
+	var sorts []string
+	for _, s := range collect.WorkSort {
+		if strings.HasPrefix(s, "rating_") {
+			sorts = append(sorts, s)
+		}
+	}
+	c := strconv.Itoa(catmodel.RatingPriorVotes)
+	return "sort=" + strings.Join(sorts, ", ") + " each rank by one source's rating, highest first, and read the search index, which is rebuilt nightly. " +
+		"Sources are never combined; each keeps its own scale. bangumi, erogamescape and dlsite rank by (" + c + "·m + n·score) / (" + c + " + n), " +
+		"where n is that source's vote_count and m its mean score over the indexed works, which pulls a work with few votes toward m; " +
+		"vndb and nextmoe already publish a Bayesian score and rank by it as published. Works the source has not rated come last, and ties break by id ascending."
 }
 
 func detailOnlyWorkIncludes() []string {

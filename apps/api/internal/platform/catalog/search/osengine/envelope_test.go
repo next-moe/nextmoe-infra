@@ -165,6 +165,18 @@ func TestWorksSearchBodySortLanes(t *testing.T) {
 		"_score",
 		map[string]any{"popularity": map[string]any{"order": "desc"}},
 	}), canonJSON(t, relevance["sort"]))
+
+	for _, src := range spec.RatingSources {
+		rated, _ := worksSearchBody(spec.WorksQuery{Q: "x", SortLane: "rating." + src + ":desc", Limit: 8})
+		require.Equal(t, canonJSON(t, []any{
+			map[string]any{"rating." + src: map[string]any{"order": "desc", "missing": "_last"}},
+			map[string]any{"catalog_id": map[string]any{"order": "asc"}},
+		}), canonJSON(t, rated["sort"]), src)
+	}
+	for _, lane := range []string{"rating.howlongtobeat:desc", "rating:desc", "rating.:desc"} {
+		_, _, ok := parseSortLane(lane)
+		require.False(t, ok, lane)
+	}
 }
 
 func TestEntitySearchBodySexualNot(t *testing.T) {
@@ -494,6 +506,10 @@ func TestEnsureIndexesCreateAndSchemaMismatch(t *testing.T) {
 					}
 				}`)
 			case http.MethodPut:
+				if r.URL.Path == "/catalog_works/_mapping" {
+					_, _ = io.WriteString(w, `{"acknowledged":true}`)
+					return
+				}
 				w.WriteHeader(http.StatusBadRequest)
 				_, _ = io.WriteString(w, `{"error":{"type":"resource_already_exists_exception","reason":"index [catalog_works] already exists"}}`)
 			default:
@@ -502,6 +518,42 @@ func TestEnsureIndexesCreateAndSchemaMismatch(t *testing.T) {
 		})
 		require.NoError(t, eng.ensureIndex(t.Context(), IndexWorks))
 		require.Equal(t, 2, gets)
+	})
+	t.Run("existing index takes new fields in place", func(t *testing.T) {
+		var calls []string
+		var mapping map[string]any
+		eng := testEngine(t, func(w http.ResponseWriter, r *http.Request) {
+			calls = append(calls, r.Method+" "+r.URL.Path)
+			switch r.Method {
+			case http.MethodGet:
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = io.WriteString(w, `{"catalog_works": {"mappings": {"_meta": {"schema_version": 3}}}}`)
+			case http.MethodPut:
+				require.NoError(t, json.NewDecoder(r.Body).Decode(&mapping))
+				_, _ = io.WriteString(w, `{"acknowledged":true}`)
+			default:
+				w.WriteHeader(http.StatusMethodNotAllowed)
+			}
+		})
+		require.NoError(t, eng.ensureIndex(t.Context(), IndexWorks))
+		require.Equal(t, []string{"GET /catalog_works", "PUT /catalog_works/_mapping"}, calls)
+		want, err := propertiesFor(IndexWorks)
+		require.NoError(t, err)
+		require.Equal(t, canonJSON(t, map[string]any{"properties": want}), canonJSON(t, mapping))
+	})
+	t.Run("refused mapping names recreate", func(t *testing.T) {
+		eng := testEngine(t, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodGet {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = io.WriteString(w, `{"catalog_works": {"mappings": {"_meta": {"schema_version": 3}}}}`)
+				return
+			}
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = io.WriteString(w, `{"error":{"type":"illegal_argument_exception","reason":"mapper [popularity] cannot be changed from type [float] to [long]"}}`)
+		})
+		err := eng.ensureIndex(t.Context(), IndexWorks)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "reindex-catalog -recreate")
 	})
 }
 
