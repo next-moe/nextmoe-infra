@@ -82,7 +82,7 @@ do {
 
 每个集合声明自己的一套封闭 `sort` 键，未知值是 `400 UNKNOWN_SORT`。排序一律带 tie-breaker——平局顺序不会由存储内部决定，所以重建索引不会打乱翻页。
 
-以作品集合为例，它接受 `id`（默认）、`updated`、`relevance`、`released_desc`、`released_asc`、`popularity`。带 `q=` 做标题搜索时会切到搜索索引，此时只有 `relevance`、`released_desc`、`released_asc`、`popularity` 有意义。
+以作品集合为例，它接受 `id`（默认）、`updated`、`relevance`、`released_desc`、`released_asc`、`popularity`，以及按单一来源评分从高到低排序的 `rating_bangumi`、`rating_vndb`、`rating_erogamescape`、`rating_dlsite`、`rating_nextmoe`（该来源未评分的作品排在最后，算法见 `listCatalogWorks` 的说明）。带 `q=` 做标题搜索时会切到搜索索引，此时只有 `relevance`、`released_desc`、`released_asc`、`popularity` 与 `rating_*` 有意义；`rating_*` 不带 `q=` 时也走搜索索引。
 
 ## facets {#facets}
 

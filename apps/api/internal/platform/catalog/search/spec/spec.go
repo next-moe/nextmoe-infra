@@ -16,6 +16,8 @@ func SanitizeQuery(q string) string {
 	return strings.TrimSpace(q)
 }
 
+var RatingSources = []string{"bangumi", "vndb", "erogamescape", "dlsite", "nextmoe"}
+
 type OLang struct {
 	All    bool
 	Values []string

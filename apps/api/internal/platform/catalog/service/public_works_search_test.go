@@ -30,6 +30,12 @@ func TestWorksSearchClosedVocabularies(t *testing.T) {
 		"released_asc":  "released_ord:asc",
 		"updated":       "updated_ts:desc",
 		"popularity":    "popularity:desc",
+
+		"rating_bangumi":      "rating.bangumi:desc",
+		"rating_vndb":         "rating.vndb:desc",
+		"rating_erogamescape": "rating.erogamescape:desc",
+		"rating_dlsite":       "rating.dlsite:desc",
+		"rating_nextmoe":      "rating.nextmoe:desc",
 	} {
 		if rule, _ := WorksSearchSortRule(tok); rule != want {
 			t.Fatalf("sort %q = %q, want %q", tok, rule, want)
@@ -210,13 +216,14 @@ func seedSearchCorpus(t *testing.T) searchCorpus {
 		{ID: safe.ID, DisplayName: "いろとりどりのセカイ", OLang: "ja",
 			ContentRating: model.ContentRatingAllAges, ReleasedOrd: 20200301, UpdatedTS: 1700000001,
 			Popularity: 3, TagIDs: []int64{c.tagID}, LabelIDs: []int64{c.labelID},
-			EngineIDs: []int64{c.engineID}, SourceKeys: []string{"vndb"}},
+			EngineIDs: []int64{c.engineID}, SourceKeys: []string{"vndb"},
+			Ratings: map[string]float64{"bangumi": 6.5}},
 		{ID: r18.ID, DisplayName: "いろとりどりのハイパー", OLang: "ja",
 			ContentRating: model.ContentRatingR18, ReleasedOrd: 20100600, UpdatedTS: 1700000002,
 			Popularity: 5, TagIDs: []int64{c.tagID}, SourceKeys: []string{"vndb"}},
 		{ID: claimedW.ID, DisplayName: "クレイムド作品", OLang: "ja", Claimed: true,
 			ContentRating: model.ContentRatingAllAges, ReleasedOrd: 20241225, UpdatedTS: 1700000003,
-			Popularity: 1, SourceKeys: []string{"bangumi"}},
+			Popularity: 1, SourceKeys: []string{"bangumi"}, Ratings: map[string]float64{"bangumi": 7.9}},
 		{ID: enWork.ID, DisplayName: "Sekai Project", OLang: "en",
 			ContentRating: model.ContentRatingAllAges, UpdatedTS: 1700000004,
 			Popularity: 9, SourceKeys: []string{"vndb"}},
@@ -375,6 +382,10 @@ func TestWorksSearchSortLanes(t *testing.T) {
 	pop := searchIDs(t, c.svc, WorksSearchFilter{Sort: "popularity", OLang: all})
 	if len(pop) != 3 || pop[0] != c.enWork || pop[2] != c.claimedWork {
 		t.Fatalf("popularity = %v, want [9 %d, 3 %d, 1 %d]", pop, c.enWork, c.safe, c.claimedWork)
+	}
+	rated := searchIDs(t, c.svc, WorksSearchFilter{Sort: "rating_bangumi", OLang: all})
+	if len(rated) != 3 || rated[0] != c.claimedWork || rated[1] != c.safe || rated[2] != c.enWork {
+		t.Fatalf("rating_bangumi = %v, want [7.9 %d, 6.5 %d, unrated %d LAST despite top popularity]", rated, c.claimedWork, c.safe, c.enWork)
 	}
 	if rel := searchIDs(t, c.svc, WorksSearchFilter{Sort: "relevance", OLang: all}); len(rel) != 3 || rel[0] != c.enWork {
 		t.Fatalf("empty-q relevance = %v, want the popularity order", rel)

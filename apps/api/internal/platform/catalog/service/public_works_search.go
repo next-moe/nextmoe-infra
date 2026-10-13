@@ -73,9 +73,18 @@ var worksSearchSortRules = map[string]string{
 	"released_asc":  "released_ord:asc",
 	"updated":       "updated_ts:desc",
 	"popularity":    "popularity:desc",
+
+	"rating_bangumi":      "rating.bangumi:desc",
+	"rating_vndb":         "rating.vndb:desc",
+	"rating_erogamescape": "rating.erogamescape:desc",
+	"rating_dlsite":       "rating.dlsite:desc",
+	"rating_nextmoe":      "rating.nextmoe:desc",
 }
 
-var WorksSearchSortTokens = []string{"relevance", "released_desc", "released_asc", "updated", "popularity"}
+var WorksSearchSortTokens = []string{
+	"relevance", "released_desc", "released_asc", "updated", "popularity",
+	"rating_bangumi", "rating_vndb", "rating_erogamescape", "rating_dlsite", "rating_nextmoe",
+}
 
 var WorksSearchClaimStateTokens = []string{
 	model.ClaimStateKeyNone, model.ClaimStateKeyLive,

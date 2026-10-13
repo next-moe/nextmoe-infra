@@ -4,6 +4,8 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+
+	"api/internal/platform/catalog/search/spec"
 )
 
 //go:embed analysis.json
@@ -84,6 +86,12 @@ func propertiesFor(uid string) (map[string]any, error) {
 		props["series_ids"] = map[string]any{"type": "long"}
 		props["released_ord"] = map[string]any{"type": "integer"}
 		props["updated_ts"] = map[string]any{"type": "long"}
+		props["catalog_id"] = map[string]any{"type": "long"}
+		rating := make(map[string]any, len(spec.RatingSources))
+		for _, src := range spec.RatingSources {
+			rating[src] = map[string]any{"type": "float"}
+		}
+		props["rating"] = map[string]any{"properties": rating}
 	case IndexCreditNames:
 		props["person_id"] = map[string]any{"type": "long"}
 	case IndexLabels:
