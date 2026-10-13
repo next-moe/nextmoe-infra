@@ -60,6 +60,8 @@ export const DOCS_GUIDE_ICONS: Record<string, string> = {
   '/docs/example': 'lucide:route',
   '/docs/mirror': 'lucide:refresh-cw',
   '/docs/user-data': 'lucide:user-round-cog',
+  '/docs/play-records': 'lucide:star',
+  '/docs/folders': 'lucide:folder-heart',
   '/docs/best-practices': 'lucide:list-checks',
   '/docs/moyu-patches': 'lucide:package',
   '/docs/sticker-packs': 'lucide:smile'
@@ -84,6 +86,6 @@ export const DOCS_SCENARIOS = [
     to: '/docs/user-data',
     icon: 'lucide:user-round-check',
     title: '代表用户读写',
-    body: '游玩时长、编辑提案、认领与投票：走 OAuth 拿用户令牌，而不是应用密钥。'
+    body: '评分、游玩记录、收藏夹、编辑提案与认领：走 OAuth 拿用户令牌，而不是应用密钥。'
   }
 ] as const
