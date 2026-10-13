@@ -37,6 +37,7 @@ import (
 	"time"
 
 	"api/internal/infrastructure/database"
+	"api/pkg/config"
 	"api/pkg/logger"
 
 	"gorm.io/gorm"
@@ -52,7 +53,7 @@ func main() {
 	offset := flag.Int("offset", 0, "skip the first N candidate works (stable id order)")
 	workIDs := flag.String("work-ids", "", "comma-separated work ids to run instead of the whole bucket — the retry lane for works a batch failed on")
 	gateway := flag.String("gateway", "openai", "openai (chat/completions) or cursor (agent runs, batched)")
-	model := flag.String("model", envOr("KUN_INTRO_MT_LLM_MODEL", envOr("KUN_AI_UPSTREAM_MODEL", "glm-5.2")), "served model id")
+	model := flag.String("model", envOr("KUN_INTRO_MT_LLM_MODEL", envOr("KUN_AI_UPSTREAM_MODEL", config.DefaultAIUpstreamModel)), "served model id")
 	llmBase := flag.String("llm-base", envOr("KUN_INTRO_MT_LLM_BASE", os.Getenv("KUN_AI_UPSTREAM_BASE_URL")), "OpenAI-compatible gateway base URL (…/v1)")
 	llmToken := flag.String("llm-token", envOr("KUN_INTRO_MT_LLM_TOKEN", os.Getenv("KUN_AI_UPSTREAM_TOKEN")), "gateway bearer token")
 	cursorKeyFile := flag.String("cursor-key-file", "", "file holding the Cursor API key (or set CURSOR_API_KEY) — never pass a key on the command line")

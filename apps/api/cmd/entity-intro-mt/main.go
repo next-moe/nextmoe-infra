@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"api/internal/jobs/entityintromt"
+	"api/pkg/config"
 	"api/pkg/logger"
 )
 
@@ -20,7 +21,7 @@ func main() {
 	lane := flag.String("lane", "", "restrict to one lane: character | person | label (empty = all three)")
 	limit := flag.Int("limit", 0, "process only N candidates per lane in entity-id order (0 = all)")
 	offset := flag.Int("offset", 0, "skip the first N candidates per lane — with --limit, the resumable batch window")
-	model := flag.String("model", envOr("KUN_INTRO_MT_LLM_MODEL", envOr("KUN_AI_UPSTREAM_MODEL", "deepseek-chat")), "served model id (recorded in mt_model)")
+	model := flag.String("model", envOr("KUN_INTRO_MT_LLM_MODEL", envOr("KUN_AI_UPSTREAM_MODEL", config.DefaultAIUpstreamModel)), "served model id (recorded in mt_model)")
 	llmBase := flag.String("llm-base", envOr("KUN_INTRO_MT_LLM_BASE", os.Getenv("KUN_AI_UPSTREAM_BASE_URL")), "OpenAI-compatible gateway base URL (…/v1)")
 	llmToken := flag.String("llm-token", envOr("KUN_INTRO_MT_LLM_TOKEN", os.Getenv("KUN_AI_UPSTREAM_TOKEN")), "gateway bearer token")
 	maxTokens := flag.Int("max-tokens", 4096, "translation max_tokens")

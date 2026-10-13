@@ -35,7 +35,7 @@
 - ✅ 统一收件箱 + forward/resolve 闭环 + 执法回调(HMAC 签名,注册于 subject_kind.callback_url)。
 - ✅ 举报面(reports)+ 注册表(subject kinds / report reasons)+ 管理端(队列/注册表/词表/AI 用量看板)。
 - ⏳ 影子期:2026-07-16 起 ≥4 周。期间 scan 打分**零执法零入队**,纯攒校准数据;四周后拿分布定阈值,先开「超阈入队」,最后才谈「自动隐藏 top ≤1%」。
-- ⏳ Tier2 LLM 渠道:owner 择定中;接入后 = 填 `KUN_AI_UPSTREAM_*` 三个 env,级联自动升维,**下游零感知零改动**。
+- ✅ Tier2 LLM 渠道:Cloudflare Workers AI(OpenAI 兼容端点,模型 `@cf/zai-org/glm-5.2`),由 ai 服务的 `KUN_AI_UPSTREAM_*` 三个 env 指定;换渠道只改这三个 env,**下游零感知零改动**。
 
 ## 2. 概念词汇表(读懂 API 的前提)
 

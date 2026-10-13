@@ -57,7 +57,7 @@ func TestJudgeStopsOnARefusalTheGatewayWillRepeat(t *testing.T) {
 	_, err := judge(t.Context(), c, "sys", "user", 64)
 	require.Error(t, err)
 	assert.Equal(t, int64(1), calls.Load(), "an unsupported model is not worth judgeAttempts calls")
-	assert.Contains(t, err.Error(), "vllm http 400")
+	assert.Contains(t, err.Error(), "upstream http 400")
 }
 
 func TestJudgeRetriesAMalformedCompletionWithoutWaiting(t *testing.T) {
