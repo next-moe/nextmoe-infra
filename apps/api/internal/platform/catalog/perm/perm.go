@@ -35,7 +35,9 @@ const ClaimTrusted authz.Permission = "catalog.claim.trusted"
 
 const RatingModerate authz.Permission = "catalog.rating.moderate"
 
-var moderatorPerms = []authz.Permission{ClaimReview, RatingModerate}
+const FolderModerate authz.Permission = "catalog.folder.moderate"
+
+var moderatorPerms = []authz.Permission{ClaimReview, RatingModerate, FolderModerate}
 
 var adminPerms = append(append([]authz.Permission{}, moderatorPerms...),
 	EditWork, EditWorkReview, EditTaxonomy, EditTaxonomyReview,

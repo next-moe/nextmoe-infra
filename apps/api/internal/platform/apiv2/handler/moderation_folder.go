@@ -7,6 +7,7 @@ import (
 	"api/internal/platform/apiv2/collect"
 	"api/internal/platform/apiv2/problem"
 	"api/internal/platform/apiv2/repr"
+	"api/internal/platform/authz"
 	catalogPerm "api/internal/platform/catalog/perm"
 	catsvc "api/internal/platform/catalog/service"
 
@@ -39,9 +40,9 @@ type patchModerationFolderInput struct {
 	}
 }
 
-// Folders hold user-authored text on a public face, so the standing to act on
-// them is the same "can reach a verdict" union the rest of /v2/moderation uses.
-// What a moderator may touch stops at that text: not the works the folder
+const folderModerationGate = " Requires a user access token whose holder has catalog.folder.moderate: the moderator, admin and ren roles have it, and the permission console can grant it to another role. Reviewing catalog edits or claims does not include it."
+
+// What a moderator may touch stops at the folder's text: not the works it
 // holds, and not is_default, which is the owner's own navigation.
 func registerModerationFolders(api huma.API, cat *Catalog) {
 	tags := []string{"moderation"}
@@ -51,28 +52,28 @@ func registerModerationFolders(api huma.API, cat *Catalog) {
 	huma.Register(api, huma.Operation{
 		OperationID: "patchModerationFolder", Method: http.MethodPatch, Path: "/v2/moderation/folders/{id}",
 		Summary:     "Moderate a folder's text",
-		Description: "Rewrite or blank the name and description of any user's folder, or force it private. Does not touch the folder's items. Requires a user access token whose holder moderates.",
+		Description: "Rewrite or blank the name and description of any user's folder, or force it private. Does not touch the folder's items." + folderModerationGate,
 		Tags:        tags, Errors: errs, SkipValidateParams: true,
 	}, patchModerationFolder(cat))
 
 	huma.Register(api, huma.Operation{
 		OperationID: "deleteModerationFolder", Method: http.MethodDelete, Path: "/v2/moderation/folders/{id}",
 		Summary:     "Delete any folder",
-		Description: "Deletes the folder and its items. Unlike the owner's own delete this accepts the default folder: is_default is set by the folder's owner, so honouring it here would let anyone make a folder undeletable. 204 with no body. Requires a user access token whose holder moderates.",
+		Description: "Deletes the folder and its items. Unlike the owner's own delete this accepts the default folder: is_default is set by the folder's owner, so honouring it here would let anyone make a folder undeletable. 204 with no body." + folderModerationGate,
 		Tags:        tags, Errors: errs, DefaultStatus: http.StatusNoContent, SkipValidateParams: true,
 	}, deleteModerationFolder(cat))
 
 	huma.Register(api, huma.Operation{
 		OperationID: "listUserFolders", Method: http.MethodGet, Path: "/v2/moderation/users/{uid}/folders",
 		Summary:     "List every folder an account holds",
-		Description: "The read preview of the purge on this same path: what the DELETE would remove. Every folder the account owns, private ones included, id-ascending and keyset-paginated like /v2/me/folders. Items are not listed — the folder's item_count is what a confirmation needs. An account holding none is 200 with an empty list, not 404. Requires a user access token whose holder moderates.",
+		Description: "The read preview of the purge on this same path: what the DELETE would remove. Every folder the account owns, private ones included, id-ascending and keyset-paginated like /v2/me/folders. Items are not listed — the folder's item_count is what a confirmation needs. An account holding none is 200 with an empty list, not 404." + folderModerationGate,
 		Tags:        tags, Errors: errs, SkipValidateParams: true,
 	}, listUserFolders(cat))
 
 	huma.Register(api, huma.Operation{
 		OperationID: "purgeUserFolders", Method: http.MethodDelete, Path: "/v2/moderation/users/{uid}/folders",
 		Summary:     "Remove every folder an account holds",
-		Description: "What an account deletion reaches for: all of one account's folders, their memberships and the import provenance naming them, in one transaction. Answers a receipt with the counts; an account holding none is 200 with zeros, not 404. Requires a user access token whose holder moderates.",
+		Description: "What an account deletion reaches for: all of one account's folders, their memberships and the import provenance naming them, in one transaction. Answers a receipt with the counts; an account holding none is 200 with zeros, not 404." + folderModerationGate,
 		Tags:        tags, Errors: errs, SkipValidateParams: true,
 	}, purgeUserFolders(cat))
 }
@@ -85,7 +86,7 @@ func purgeUserFolders(cat *Catalog) func(context.Context, *purgeFoldersInput) (*
 		if in == nil {
 			in = &purgeFoldersInput{}
 		}
-		if err := requireModerator(ctx); err != nil {
+		if err := requireModerationKey(ctx, catalogPerm.FolderModerate); err != nil {
 			return nil, catalogErr(ctx, err)
 		}
 		if cat == nil || cat.Folders == nil {
@@ -118,7 +119,7 @@ func listUserFolders(cat *Catalog) func(context.Context, *listUserFoldersInput) 
 		if err != nil {
 			return nil, err
 		}
-		if err := requireModerator(ctx); err != nil {
+		if err := requireModerationKey(ctx, catalogPerm.FolderModerate); err != nil {
 			return nil, catalogErr(ctx, err)
 		}
 		if cat == nil || cat.Folders == nil {
@@ -173,12 +174,15 @@ func (c *Catalog) ListUserFolders(ctx context.Context, ownerUID int64, q collect
 	return finishList(items, next, total, q, nil), nil
 }
 
-func requireModerator(ctx context.Context) error {
+// These faces once shared requireModerator, which any catalog review key
+// satisfies; the permission console grants those keys to creator, so 80
+// production creators could delete anyone's rating or folder on every site.
+func requireModerationKey(ctx context.Context, key authz.Permission) error {
 	if _, _, err := requireUser(ctx); err != nil {
 		return err
 	}
-	if !catalogPerm.Moderates(rolesFrom(ctx)) {
-		return problem.New(problem.CodePermissionRequired, "", "", "this operation requires moderation standing.")
+	if !catalogPerm.Resolver.Can(rolesFrom(ctx), key) {
+		return problem.New(problem.CodePermissionRequired, "", "", "this operation requires the "+string(key)+" permission.")
 	}
 	return nil
 }
@@ -188,7 +192,7 @@ func patchModerationFolder(cat *Catalog) func(context.Context, *patchModerationF
 		if in == nil {
 			in = &patchModerationFolderInput{}
 		}
-		if err := requireModerator(ctx); err != nil {
+		if err := requireModerationKey(ctx, catalogPerm.FolderModerate); err != nil {
 			return nil, catalogErr(ctx, err)
 		}
 		if cat == nil || cat.Folders == nil {
@@ -219,7 +223,7 @@ func deleteModerationFolder(cat *Catalog) func(context.Context, *moderationFolde
 		if in == nil {
 			in = &moderationFolderInput{}
 		}
-		if err := requireModerator(ctx); err != nil {
+		if err := requireModerationKey(ctx, catalogPerm.FolderModerate); err != nil {
 			return nil, catalogErr(ctx, err)
 		}
 		if cat == nil || cat.Folders == nil {

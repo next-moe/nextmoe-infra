@@ -211002,7 +211002,7 @@ export const docsModel: DocsModel = {
               "method": "patch",
               "path": "/v2/moderation/folders/{id}",
               "summary": "Moderate a folder's text",
-              "description": "Rewrite or blank the name and description of any user's folder, or force it private. Does not touch the folder's items. Requires a user access token whose holder moderates.",
+              "description": "Rewrite or blank the name and description of any user's folder, or force it private. Does not touch the folder's items. Requires a user access token whose holder has catalog.folder.moderate: the moderator, admin and ren roles have it, and the permission console can grant it to another role. Reviewing catalog edits or claims does not include it.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -212515,7 +212515,7 @@ export const docsModel: DocsModel = {
               "method": "delete",
               "path": "/v2/moderation/folders/{id}",
               "summary": "Delete any folder",
-              "description": "Deletes the folder and its items. Unlike the owner's own delete this accepts the default folder: is_default is set by the folder's owner, so honouring it here would let anyone make a folder undeletable. 204 with no body. Requires a user access token whose holder moderates.",
+              "description": "Deletes the folder and its items. Unlike the owner's own delete this accepts the default folder: is_default is set by the folder's owner, so honouring it here would let anyone make a folder undeletable. 204 with no body. Requires a user access token whose holder has catalog.folder.moderate: the moderator, admin and ren roles have it, and the permission console can grant it to another role. Reviewing catalog edits or claims does not include it.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -224342,7 +224342,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/moderation/users/{uid}/folders",
               "summary": "List every folder an account holds",
-              "description": "The read preview of the purge on this same path: what the DELETE would remove. Every folder the account owns, private ones included, id-ascending and keyset-paginated like /v2/me/folders. Items are not listed — the folder's item_count is what a confirmation needs. An account holding none is 200 with an empty list, not 404. Requires a user access token whose holder moderates.",
+              "description": "The read preview of the purge on this same path: what the DELETE would remove. Every folder the account owns, private ones included, id-ascending and keyset-paginated like /v2/me/folders. Items are not listed — the folder's item_count is what a confirmation needs. An account holding none is 200 with an empty list, not 404. Requires a user access token whose holder has catalog.folder.moderate: the moderator, admin and ren roles have it, and the permission console can grant it to another role. Reviewing catalog edits or claims does not include it.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -225993,7 +225993,7 @@ export const docsModel: DocsModel = {
               "method": "delete",
               "path": "/v2/moderation/users/{uid}/folders",
               "summary": "Remove every folder an account holds",
-              "description": "What an account deletion reaches for: all of one account's folders, their memberships and the import provenance naming them, in one transaction. Answers a receipt with the counts; an account holding none is 200 with zeros, not 404. Requires a user access token whose holder moderates.",
+              "description": "What an account deletion reaches for: all of one account's folders, their memberships and the import provenance naming them, in one transaction. Answers a receipt with the counts; an account holding none is 200 with zeros, not 404. Requires a user access token whose holder has catalog.folder.moderate: the moderator, admin and ren roles have it, and the permission console can grant it to another role. Reviewing catalog edits or claims does not include it.",
               "scope": "",
               "auth": {
                 "kind": "user_token",

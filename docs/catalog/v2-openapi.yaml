@@ -9641,7 +9641,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.46.1
+  version: 2.46.2
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -22691,7 +22691,7 @@ paths:
         - moderation
   /v2/moderation/folders/{id}:
     delete:
-      description: "Deletes the folder and its items. Unlike the owner's own delete this accepts the default folder: is_default is set by the folder's owner, so honouring it here would let anyone make a folder undeletable. 204 with no body. Requires a user access token whose holder moderates."
+      description: "Deletes the folder and its items. Unlike the owner's own delete this accepts the default folder: is_default is set by the folder's owner, so honouring it here would let anyone make a folder undeletable. 204 with no body. Requires a user access token whose holder has catalog.folder.moderate: the moderator, admin and ren roles have it, and the permission console can grant it to another role. Reviewing catalog edits or claims does not include it."
       operationId: deleteModerationFolder
       parameters:
         - description: Folder id.
@@ -22761,7 +22761,7 @@ paths:
       tags:
         - moderation
     patch:
-      description: Rewrite or blank the name and description of any user's folder, or force it private. Does not touch the folder's items. Requires a user access token whose holder moderates.
+      description: "Rewrite or blank the name and description of any user's folder, or force it private. Does not touch the folder's items. Requires a user access token whose holder has catalog.folder.moderate: the moderator, admin and ren roles have it, and the permission console can grant it to another role. Reviewing catalog edits or claims does not include it."
       operationId: patchModerationFolder
       parameters:
         - description: Folder id.
@@ -23491,7 +23491,7 @@ paths:
         - moderation
   /v2/moderation/users/{uid}/folders:
     delete:
-      description: "What an account deletion reaches for: all of one account's folders, their memberships and the import provenance naming them, in one transaction. Answers a receipt with the counts; an account holding none is 200 with zeros, not 404. Requires a user access token whose holder moderates."
+      description: "What an account deletion reaches for: all of one account's folders, their memberships and the import provenance naming them, in one transaction. Answers a receipt with the counts; an account holding none is 200 with zeros, not 404. Requires a user access token whose holder has catalog.folder.moderate: the moderator, admin and ren roles have it, and the permission console can grant it to another role. Reviewing catalog edits or claims does not include it."
       operationId: purgeUserFolders
       parameters:
         - description: The account whose folders to remove.
@@ -23565,7 +23565,7 @@ paths:
       tags:
         - moderation
     get:
-      description: "The read preview of the purge on this same path: what the DELETE would remove. Every folder the account owns, private ones included, id-ascending and keyset-paginated like /v2/me/folders. Items are not listed — the folder's item_count is what a confirmation needs. An account holding none is 200 with an empty list, not 404. Requires a user access token whose holder moderates."
+      description: "The read preview of the purge on this same path: what the DELETE would remove. Every folder the account owns, private ones included, id-ascending and keyset-paginated like /v2/me/folders. Items are not listed — the folder's item_count is what a confirmation needs. An account holding none is 200 with an empty list, not 404. Requires a user access token whose holder has catalog.folder.moderate: the moderator, admin and ren roles have it, and the permission console can grant it to another role. Reviewing catalog edits or claims does not include it."
       operationId: listUserFolders
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.

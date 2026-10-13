@@ -2064,7 +2064,17 @@ A work merge used to union the loser's rows into the survivor and let each read 
 `DELETE /v2/moderation/ratings/{id}` was gated by `requireModerator`, which passes for any catalog review key (`perm.Moderates`). Production's permission console grants `creator` all of them (`catalog.review`, `catalog.claim.review`, the four `edit.catalog.*.review` keys) for curating the catalog, so the 80 accounts holding `creator` could delete anyone's rating on every site — wider than the ruling that only the author and site staff delete ratings.
 
 - New key **`catalog.rating.moderate`**, in the `moderator` bundle and therefore in `admin` and `ren`. It is registered in the permission console, so it can be granted to another role there; it is not moderation authority for the proposal and claim queues (`notModeration` names it).
-- The rating moderation delete checks that key alone; the folder moderation faces keep `requireModerator`.
+- The rating moderation delete checks that key alone; the folder moderation faces kept `requireModerator` until the next wave.
 - `client_id` on the rating object now says what downstream sites use it for: comparing it with their own client ids to tell ratings written through the site from mirrored ones. `site` is not usable for that — moyu's client is bound to the `kungal` site too.
 
 **Spec is 2.46.1.** Description-only spec change (the two descriptions above); the gate itself narrows who may call. No shape change, no migration.
+
+## Wave — folder moderation has its own permission (2026-10-13)
+
+The same gap as the rating wave, on the four folder moderation faces: `PATCH` / `DELETE /v2/moderation/folders/{id}` and `GET` / `DELETE /v2/moderation/users/{uid}/folders` were gated by `requireModerator` (`perm.Moderates`), so the 80 production accounts holding `creator` could rename, blank, hide or delete anyone's folder, list any account's private folders, and remove every folder an account holds. Deviation 117 chose `perm.Moderates` as "the same union the rest of `/v2/moderation` uses"; the permission console granting `creator` the review keys made that union wider than the forum's `collection.edit_any` / `collection.delete_any`, which only moderator, admin and ren hold.
+
+- New key **`catalog.folder.moderate`**, in the `moderator` bundle and therefore in `admin` and `ren`, registered in the permission console and named in `notModeration`. It is a separate key from `catalog.rating.moderate`; neither includes the other.
+- `requireModerator` is gone. Every moderation face that is not a proposal or claim queue now names its key through `requireModerationKey`. `perm.Moderates` still gates the proposal queue.
+- Callers checked before the change: the forum's staff edit and delete of someone else's collection and its account purge (`collection.edit_any`, `collection.delete_any`, `user.purge_content` are all moderator-or-above there), and moyu's purge preview, which reads the folders with the acting admin's token and already shows the 403 reason. The forum's purge also deletes ratings, so it already needed `catalog.rating.moderate`, which the same bundles hold.
+
+**Spec is 2.46.2.** Description-only spec change (the four operation descriptions); the gate itself narrows who may call. No shape change, no migration.
