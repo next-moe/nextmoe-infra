@@ -7,7 +7,7 @@
 // Called from sync-specs.mjs, which stays the single entry point: one command
 // rebuilds the reference model, the guides, and every LLM-facing artifact, so
 // a guide edit cannot refresh the HTML while leaving the Markdown twin stale.
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import matter from 'gray-matter'
@@ -144,8 +144,17 @@ const requireField = (value, field, slug) => {
   throw new Error(`docs/${slug}.md is missing frontmatter \`${field}\``)
 }
 
+// Each guide route is its own page file. play-records and folders shipped with
+// a nav entry, a search hit and a Markdown twin, and both routes were 404.
+const PAGES_DIR = join(GUIDES_DIR, '..', 'app', 'pages', 'docs')
+
 export const buildGuides = () => {
   const pages = GUIDE_SLUGS.map((slug) => {
+    if (!existsSync(join(PAGES_DIR, `${slug}.vue`))) {
+      throw new Error(
+        `app/pages/docs/${slug}.vue is missing — guide ${slug} would be a 404`
+      )
+    }
     const raw = readFileSync(join(GUIDES_DIR, `${slug}.md`), 'utf8')
     const { content, data } = matter(raw)
     const tokens = md.parse(content, {})
