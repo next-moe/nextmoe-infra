@@ -2102,3 +2102,14 @@ letmoe's users asked to browse the 图鉴 (`/works`, which pages `GET /v2/catalo
 - **No `SchemaVersion` bump.** `EnsureIndexes` now PUTs the current properties onto an index whose version already matches; OpenSearch adds new fields in place and refuses a changed one, and that refusal names the bump-and-recreate path. The last two bumps (1→2 for the character trait fields, 2→3 for `popularity_sfw`) were both purely additive, and each recreate left every catalog search empty for about 90 seconds; this rollout is a plain reindex with no gap.
 
 **Spec is 2.47.0.** Additive: five sort tokens and the works list description. No SQL migration; after deploy, `reindex-catalog -index catalog_works` (or the next nightly run) adds the fields and fills them.
+
+## Wave — relation briefs carry cover and release date (2026-10-13)
+
+The three sites are adding a 关联作品 block to the work page. Every relation brief shipped `cover: null` and `release_date: null`. letmoe fetched covers with a second, batch call by id, and kungal and moyu would have needed that same call just to draw a card and sort it.
+
+- **`include=relations` and `GET /v2/catalog/works/{id}/relations`** now fill the related work's `cover`, `release_date` and `release_date_precision` (`attachRelationMedia`). They take one batched query each for dates, covers and image meta, whatever the number of relations.
+- **`cover`** is the portrait slot that the related work shows on its own detail: the same election (`pickCoverSlots`) and the same gate. A sexual cover can be returned only to an `nsfw=true` caller, and only when the related work is display-NSFW. A display-safe cover still wins its tier, as on the works list. `banner` stays null.
+- **`release_date`** is the earliest live release, `earliestReleaseDatesFor` as on the works list, so a related work sorts by the same date it shows in the list. `release_status` follows from it.
+- Series siblings, appearances and credit-name credits still ship these fields as null. Nobody has asked for them, and the credit lists can run to hundreds of works.
+
+**Spec is 2.48.0.** Additive: existing nullable fields now carry values, plus one description. No migration.
