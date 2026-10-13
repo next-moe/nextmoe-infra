@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"api/internal/infrastructure/database"
+	"api/pkg/config"
 	"api/pkg/logger"
 )
 
@@ -46,7 +47,7 @@ func main() {
 	excludeIDs := flag.String("exclude-ids", "", "--mode auto: file of work ids to skip, for cheap resume")
 	openccBin := flag.String("opencc", "", "--mode kanji: path to the opencc binary; without it the worklist carries no conversion")
 	openccCfg := flag.String("opencc-config", "jp2s.json", "--mode kanji: opencc config name")
-	modelName := flag.String("model", envOr("KUN_INTRO_MT_LLM_MODEL", envOr("KUN_AI_UPSTREAM_MODEL", "glm-5.2")), "served model id")
+	modelName := flag.String("model", envOr("KUN_INTRO_MT_LLM_MODEL", envOr("KUN_AI_UPSTREAM_MODEL", config.DefaultAIUpstreamModel)), "served model id")
 	llmBase := flag.String("llm-base", envOr("KUN_INTRO_MT_LLM_BASE", os.Getenv("KUN_AI_UPSTREAM_BASE_URL")), "OpenAI-compatible gateway base URL (…/v1)")
 	llmToken := flag.String("llm-token", envOr("KUN_INTRO_MT_LLM_TOKEN", os.Getenv("KUN_AI_UPSTREAM_TOKEN")), "gateway bearer token")
 	maxTokens := flag.Int("max-tokens", 4096, "--mode auto: max_tokens (thinking models spend most of it before the title)")

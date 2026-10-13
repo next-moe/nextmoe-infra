@@ -76,21 +76,18 @@ echo "image: $IMG"
 # Fresh env snapshot from the live catalog container; the EXIT trap shreds it.
 # Both tools read KUN_CATALOG_PG_* straight out of the environment, so no DSN is
 # ever assembled on a host command line and no password reaches argv.
-# /root/env-llm-key.env carries only the gateway credential and is load-bearing
-# for other jobs — it is never shredded here.
+# /root/env-llm-key.env carries only the upstream base URL and token and is
+# load-bearing for other jobs — it is never shredded here.
 docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$CATC" | grep -v '^$' > env.tmp
 chmod 600 env.tmp
 
-# --concurrency 2, not the default 4. Measured 2026-09-14 on the ref lane at 4:
-# judged=1426 errors=852, every failure an upstream 429. The retry loop already
-# paces five attempts from 500ms to 8s with jitter, which cut the earlier wave's
-# failure rate from 52% to 37% but cannot outlast a gateway that stays saturated
-# longer than its ~15s window - the only lever left is asking for less at once.
-# A failure is stored on the verdict row and the next night's run retries it.
-LLM='--llm-base http://ec2.ksm.moe:3000/v1 --model deepseek-v4-flash --concurrency 2'
+# --concurrency 2, not the default 4: on 2026-10-13 four calls in flight drew a
+# 429 on 9 of 40 requests. A failure is stored on the verdict row and the next
+# night's run retries it.
+LLM='--model @cf/deepseek-ai/deepseek-v4-flash --concurrency 2'
 
 # llm-suggest exits 1 when ANY judgement failed, and a handful of upstream 429s
-# is the steady state on that gateway. On 2026-09-14 the ref judge finished
+# is a normal night. On 2026-09-14 the ref judge finished
 # "queue-refs done judged=836 errors=27" and `set -e` killed the lane on that
 # exit code, so step 6's apply -- the entire point of the ref half -- has never
 # run on any night, and state/last-success was never written either. A failure
@@ -113,7 +110,7 @@ judge_step() {
   _judged=${_counts% *}
   _errs=${_counts#* }
   [ "$_errs" -eq 0 ] || echo "note: $_task stored $_errs failed judgements; tomorrow retries them"
-  # A dead gateway otherwise looks exactly like a quiet night: every call fails,
+  # A dead upstream otherwise looks exactly like a quiet night: every call fails,
   # the lane finishes clean, stamps its success, and the deadman stays quiet.
   if [ "$_errs" -gt "$_judged" ]; then
     "$ALERT_SH" "[ADJ] $_task: $_errs failures against $_judged judgements" "$BASE/$LOG" \

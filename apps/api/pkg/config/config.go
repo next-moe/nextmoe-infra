@@ -140,6 +140,8 @@ type AIUpstreamConfig struct {
 	Token   string
 }
 
+const DefaultAIUpstreamModel = "@cf/zai-org/glm-5.2"
+
 type AIOmniConfig struct {
 	BaseURL string
 	Token   string

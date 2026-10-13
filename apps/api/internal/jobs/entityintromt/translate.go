@@ -162,7 +162,7 @@ func (t *HTTPTranslator) Translate(ctx context.Context, text string, src SourceL
 	if err != nil {
 		return "", "", err
 	}
-	// The gateway files an answer written without thinking under reasoning_content and leaves
+	// The upstream files an answer written without thinking under reasoning_content and leaves
 	// content empty: seven characters came back empty every night from 2026-09-13 to 09-18.
 	// The reasoning text cannot stand in for the answer, because when the model does think it is
 	// the thinking; asked again with thinking off, all of them answered in content. A length stop

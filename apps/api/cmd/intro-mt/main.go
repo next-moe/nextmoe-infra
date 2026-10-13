@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"api/internal/jobs/intromt"
+	"api/pkg/config"
 	"api/pkg/logger"
 )
 
@@ -21,7 +22,7 @@ func main() {
 	sourceLang := flag.String("source-lang", string(intromt.SourceJa), "translate FROM: ja (default) or en (last resort — excludes anything with ja, and anything Getchu anchors)")
 	top := flag.Int("top", 5000, "popularity-ranked candidate ceiling (0 = unlimited, the full-sweep posture)")
 	limit := flag.Int("limit", 0, "process only the most-popular N candidates (0 = all within --top)")
-	model := flag.String("model", envOr("KUN_INTRO_MT_LLM_MODEL", envOr("KUN_AI_UPSTREAM_MODEL", "deepseek-chat")), "served model id (recorded in mt_model)")
+	model := flag.String("model", envOr("KUN_INTRO_MT_LLM_MODEL", envOr("KUN_AI_UPSTREAM_MODEL", config.DefaultAIUpstreamModel)), "served model id (recorded in mt_model)")
 	llmBase := flag.String("llm-base", envOr("KUN_INTRO_MT_LLM_BASE", os.Getenv("KUN_AI_UPSTREAM_BASE_URL")), "OpenAI-compatible gateway base URL (…/v1)")
 	llmToken := flag.String("llm-token", envOr("KUN_INTRO_MT_LLM_TOKEN", os.Getenv("KUN_AI_UPSTREAM_TOKEN")), "gateway bearer token")
 	maxTokens := flag.Int("max-tokens", 4096, "translation max_tokens (ja intros run up to ~4.5k chars)")

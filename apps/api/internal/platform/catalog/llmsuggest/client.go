@@ -23,7 +23,7 @@ func NewClient(baseURL, model string) *Client {
 	return &Client{
 		baseURL: strings.TrimRight(baseURL, "/"),
 		model:   model,
-		apiKey:  os.Getenv("KUN_LLM_API_KEY"),
+		apiKey:  os.Getenv("KUN_AI_UPSTREAM_TOKEN"),
 		http:    &http.Client{Timeout: 180 * time.Second},
 	}
 }
@@ -74,7 +74,7 @@ type StatusError struct {
 }
 
 func (e *StatusError) Error() string {
-	return fmt.Sprintf("vllm http %d: %s", e.Status, e.Body)
+	return fmt.Sprintf("upstream http %d: %s", e.Status, e.Body)
 }
 
 type ChatResult struct {
@@ -129,42 +129,16 @@ func (c *Client) ChatJSON(ctx context.Context, system, user, schemaName string, 
 		return ChatResult{}, fmt.Errorf("decode chat response: %w (body: %s)", err, truncate(string(data), 300))
 	}
 	if cr.Error != nil {
-		return ChatResult{}, fmt.Errorf("vllm error: %s", cr.Error.Message)
+		return ChatResult{}, fmt.Errorf("upstream error: %s", cr.Error.Message)
 	}
 	if len(cr.Choices) == 0 {
-		return ChatResult{}, fmt.Errorf("vllm returned no choices")
+		return ChatResult{}, fmt.Errorf("upstream returned no choices")
 	}
 	return ChatResult{
 		Content:          strings.TrimSpace(cr.Choices[0].Message.Content),
 		CompletionTokens: cr.Usage.CompletionTokens,
 		FinishReason:     cr.Choices[0].FinishReason,
 	}, nil
-}
-
-func (c *Client) Ping(ctx context.Context) ([]string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/models", nil)
-	if err != nil {
-		return nil, err
-	}
-	c.applyAuth(req)
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	var out struct {
-		Data []struct {
-			ID string `json:"id"`
-		} `json:"data"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return nil, err
-	}
-	ids := make([]string, len(out.Data))
-	for i, d := range out.Data {
-		ids[i] = d.ID
-	}
-	return ids, nil
 }
 
 func truncate(s string, n int) string {

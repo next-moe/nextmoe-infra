@@ -31,8 +31,8 @@ func main() {
 	apply := flag.Bool("apply", false, "write suggestions (default: dry run — sample + print)")
 	limit := flag.Int("limit", 0, "cap items processed (0 = all); dry-run sample size")
 	conc := flag.Int("concurrency", 4, "parallel LLM calls (<=4)")
-	llmBase := flag.String("llm-base", "http://127.0.0.1:8002/v1", "vLLM OpenAI base URL")
-	model := flag.String("model", "qwen3-14b", "served model id")
+	llmBase := flag.String("llm-base", "", "OpenAI-compatible base URL (default: $KUN_AI_UPSTREAM_BASE_URL)")
+	model := flag.String("model", "@cf/deepseek-ai/deepseek-v4-flash", "model id")
 	goldPath := flag.String("goldset", defaultGoldSet, "gold set JSONL path")
 	egDSN := flag.String("eg-dsn", "", "erogamescape staging DSN (default: erogamescape on the catalog server)")
 	hltbDSN := flag.String("hltb-dsn", "", "howlongtobeat mirror DSN (default: howlongtobeat on the catalog server)")
@@ -129,7 +129,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, "--mode calibrate requires --queue workpair|ref")
 			os.Exit(2)
 		}
-		client := mustLLM(ctx, *llmBase, *model)
+		client := mustLLM(*llmBase, *model)
 		var up llmsuggest.StagingDBs
 		if *queue == llmsuggest.QueueRef {
 			up = llmsuggest.StagingDBs{
@@ -163,7 +163,7 @@ func main() {
 
 	var client *llmsuggest.Client
 	if needsLLM(*task, *families) {
-		client = mustLLM(ctx, *llmBase, *model)
+		client = mustLLM(*llmBase, *model)
 	}
 
 	failures := 0
@@ -229,16 +229,15 @@ func needsLLM(task, families string) bool {
 	}
 }
 
-func mustLLM(ctx context.Context, base, model string) *llmsuggest.Client {
-	client := llmsuggest.NewClient(base, model)
-	models, err := client.Ping(ctx)
-	if err != nil {
-		fmt.Printf("BLOCKED: local vLLM unreachable at %s (%v).\n"+
-			"Start kungal-llm-infra and retry — this is a designed precondition, not a failure.\n", base, err)
+func mustLLM(base, model string) *llmsuggest.Client {
+	if base == "" {
+		base = os.Getenv("KUN_AI_UPSTREAM_BASE_URL")
+	}
+	if base == "" || os.Getenv("KUN_AI_UPSTREAM_TOKEN") == "" {
+		fmt.Println("BLOCKED: LLM upstream not configured (need KUN_AI_UPSTREAM_BASE_URL or --llm-base, and KUN_AI_UPSTREAM_TOKEN).")
 		os.Exit(3)
 	}
-	slog.Info("vLLM reachable", "base", base, "models", models)
-	return client
+	return llmsuggest.NewClient(base, model)
 }
 
 func openEG(cfg *config.Config, dsn string) *gorm.DB {

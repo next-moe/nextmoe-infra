@@ -1,5 +1,4 @@
 #!/bin/sh
-# shellcheck disable=SC2016
 # Nightly cross-source character fold (catalog-char-xsrc). Canonical copy:
 # scripts/prod-cron/char-xsrc-nightly/run.sh in nextmoe-infra; the box copy is
 # /root/char-xsrc-nightly/run.sh and must stay byte-identical.
@@ -17,8 +16,9 @@
 # model calls.
 #
 # crontab (root): 30 22 * * * /root/char-xsrc-nightly/run.sh
-# 22:30 CST, after llm-adjudicate-nightly (21:00) — the gateway throttles by
-# concurrency, so this waits for that job to release its lock first.
+# 22:30 CST, after llm-adjudicate-nightly (21:00) — both judge with the same
+# model on one upstream account, which already 429s at four calls in flight, so
+# this waits for that job to release its lock first.
 set -eu
 BASE=${XSRC_BASE:-/root/char-xsrc-nightly}
 ALERT_SH=${XSRC_ALERT:-/root/lib/alert.sh}
@@ -49,7 +49,7 @@ echo "=== char-xsrc nightly start $(date -u '+%F %T')Z ==="
 
 echo "waiting on llm-adjudicate lock $ADJ_LOCK (up to 10800s)"
 if ! flock -w 10800 "$ADJ_LOCK" true; then
-  echo "FATAL: llm-adjudicate still holds $ADJ_LOCK; refusing to share the gateway with it"
+  echo "FATAL: llm-adjudicate still holds $ADJ_LOCK; refusing to share the upstream with it"
   exit 1
 fi
 
@@ -58,7 +58,7 @@ LOCKED=1
 
 CATC=kun-visual-novel-infra-vqvqbc-catalog-1
 NOTE='rule:catalog-dedup char-xsrc-nightly'
-# Per-night bounds. A judgement takes 3-9s on the gateway, so 600 fits in a
+# Per-night bounds. A judgement takes a few seconds, so 600 fits in a
 # round's deadline; the deadline is what ends a round whose calls hang.
 # PROPOSE_MAX is a tripwire, not a quota: a quiet week proposes a handful, and
 # a night past it means a lane minted a batch of twins — the proposals are
@@ -82,22 +82,20 @@ catalog() {
     -v "$BASE:/w" --user 0:0 "$IMG" "$@"
 }
 
-# The judge gets the gateway key and nothing from the catalog container. Its
-# token is read inside the container, so the key never reaches a host argv.
-# catalog-adjudicate exits 1 when any single call failed, and a few upstream
-# 429s are the steady state on this gateway; a failed key has no verdict line
-# and is retried on the next run. Exit 1 is also "could not start", so the
-# tolerance applies only to a run that printed its own done line.
+# The judge gets the upstream credential and nothing from the catalog
+# container; catalog-adjudicate reads its token from the environment, so the key
+# never reaches a host argv. catalog-adjudicate exits 1 when any single call
+# failed; a failed key has no verdict line and is retried on the next run.
+# Exit 1 is also "could not start", so the tolerance applies only to a run that
+# printed its own done line.
 judge() {
   _label=$1
   _mark=$(wc -c < "$LOG")
   _rc=0
   docker run --rm --name "xsrc-judge-$_label" --network dokploy-network \
-    --env-file "$LLM_ENV" -e KUN_AI_UPSTREAM_BASE_URL=http://ec2.ksm.moe:3000/v1 \
-    -v "$BASE:/w" --user 0:0 "$IMG" \
-    sh -c 'KUN_AI_UPSTREAM_TOKEN="$KUN_LLM_API_KEY" exec catalog-adjudicate "$@"' judge \
-    -packets "/w/work/$2" -verdicts "/w/state/$3" -errors "/w/state/$4" \
-    -model deepseek-v4-flash -workers 1 -rpm 30 -chunk 1 -limit "$JUDGE_LIMIT" \
+    --env-file "$LLM_ENV" -v "$BASE:/w" --user 0:0 "$IMG" \
+    catalog-adjudicate -packets "/w/work/$2" -verdicts "/w/state/$3" -errors "/w/state/$4" \
+    -model @cf/deepseek-ai/deepseek-v4-flash -workers 1 -rpm 30 -chunk 1 -limit "$JUDGE_LIMIT" \
     -request-timeout 120s -deadline "$JUDGE_DEADLINE" || _rc=$?
   _counts=$(tail -c "+$((_mark + 1))" "$LOG" \
     | sed -n 's/.*adjudicate done .* judged=\([0-9]*\) .* errors=\([0-9]*\).*/\1 \2/p' | tail -1)

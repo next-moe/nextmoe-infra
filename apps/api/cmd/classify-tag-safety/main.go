@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"api/internal/jobs/tagsafety"
+	"api/pkg/config"
 	"api/pkg/logger"
 )
 
@@ -30,7 +31,7 @@ func main() {
 
 	limit := flag.Int("limit", 0, "rehearsal cap — classify: names judged; apply: write operations (0 = no cap)")
 
-	model := flag.String("model", envOr("KUN_TAG_PAIR_LLM_MODEL", envOr("KUN_AI_UPSTREAM_MODEL", "glm-5.2")), "served model id")
+	model := flag.String("model", envOr("KUN_TAG_PAIR_LLM_MODEL", envOr("KUN_AI_UPSTREAM_MODEL", config.DefaultAIUpstreamModel)), "served model id")
 	llmBase := flag.String("llm-base", envOr("KUN_TAG_PAIR_LLM_BASE", os.Getenv("KUN_AI_UPSTREAM_BASE_URL")), "OpenAI-compatible gateway base URL (…/v1)")
 	llmToken := flag.String("llm-token", envOr("KUN_TAG_PAIR_LLM_TOKEN", envOr("KUN_AI_UPSTREAM_KEY", os.Getenv("KUN_AI_UPSTREAM_TOKEN"))), "gateway bearer token")
 	maxTokens := flag.Int("max-tokens", 4096, "LLM max_tokens per batch")
