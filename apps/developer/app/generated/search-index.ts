@@ -1669,14 +1669,14 @@ export const searchIndex: SearchEntry[] = [
     "t": "处置收藏夹的文本",
     "s": "端点 · 审核",
     "d": "PATCH /v2/moderation/folders/{id}",
-    "b": "patchModerationFolder /v2/moderation/folders/{id} patch Moderate a folder's text Rewrite or blank the name and description of any user's folder, or force it private. Does not touch the folder's items. Requires a user access token whose holder moderates. 改写或清空任意用户收藏夹的名称与简介，或强制设为私密。不动收藏夹里的条目。需要持有审核权限的用户访问令牌。 id"
+    "b": "patchModerationFolder /v2/moderation/folders/{id} patch Moderate a folder's text Rewrite or blank the name and description of any user's folder, or force it private. Does not touch the folder's items. Requires a user access token whose holder has catalog.folder.moderate: the moderator, admin and ren roles have it, and the permission console can grant it to another role. Reviewing catalog edits or claims does not include it. 改写或清空任意用户收藏夹的名称与简介，或强制设为私密。不动收藏夹里的条目。需要持有人具备 catalog.folder.moderate 权限的用户访问令牌：moderator、admin、ren 角色默认具备，权限控制台可以授予其他角色。审核目录编辑或投稿认领的权限不包含它。 id"
   },
   {
     "r": "/docs/v2/deleteModerationFolder",
     "t": "删除任意收藏夹",
     "s": "端点 · 审核",
     "d": "DELETE /v2/moderation/folders/{id}",
-    "b": "deleteModerationFolder /v2/moderation/folders/{id} delete Delete any folder Deletes the folder and its items. Unlike the owner's own delete this accepts the default folder: is_default is set by the folder's owner, so honouring it here would let anyone make a folder undeletable. 204 with no body. Requires a user access token whose holder moderates. 删除该收藏夹及其条目。与夹主自己的删除不同，这里接受默认收藏夹：is_default 是夹主自己设的，如果这里也照办，任何人都能靠标成默认让收藏夹删不掉。返回 204 空响应。需要持有审核权限的用户访问令牌。 id"
+    "b": "deleteModerationFolder /v2/moderation/folders/{id} delete Delete any folder Deletes the folder and its items. Unlike the owner's own delete this accepts the default folder: is_default is set by the folder's owner, so honouring it here would let anyone make a folder undeletable. 204 with no body. Requires a user access token whose holder has catalog.folder.moderate: the moderator, admin and ren roles have it, and the permission console can grant it to another role. Reviewing catalog edits or claims does not include it. 删除该收藏夹及其条目。与夹主自己的删除不同，这里接受默认收藏夹：is_default 是夹主自己设的，如果这里也照办，任何人都能靠标成默认让收藏夹删不掉。返回 204 空响应。需要持有人具备 catalog.folder.moderate 权限的用户访问令牌：moderator、admin、ren 角色默认具备，权限控制台可以授予其他角色。审核目录编辑或投稿认领的权限不包含它。 id"
   },
   {
     "r": "/docs/v2/listModerationProposals",
@@ -1725,14 +1725,14 @@ export const searchIndex: SearchEntry[] = [
     "t": "列出一个账号名下的全部收藏夹",
     "s": "端点 · 审核",
     "d": "GET /v2/moderation/users/{uid}/folders",
-    "b": "listUserFolders /v2/moderation/users/{uid}/folders get List every folder an account holds The read preview of the purge on this same path: what the DELETE would remove. Every folder the account owns, private ones included, id-ascending and keyset-paginated like /v2/me/folders. Items are not listed — the folder's item_count is what a confirmation needs. An account holding none is 200 with an empty list, not 404. Requires a user access token whose holder moderates. 同一条路径上那个清空操作的**只读预览**：DELETE 会删掉什么。该账号名下的全部夹子，含私密夹，按 id 升序、与 /v2/me/folders 同款 keyset 翻页。**不列夹内条目**——确认一次删除需要的是夹子的 item_count。名下一个夹子都没有的账号回 200 空列表，不是 404。要用户访问令牌，且持令牌者有审核权。 uid cursor limit view include fields ids refs include_total facets sort nsfw"
+    "b": "listUserFolders /v2/moderation/users/{uid}/folders get List every folder an account holds The read preview of the purge on this same path: what the DELETE would remove. Every folder the account owns, private ones included, id-ascending and keyset-paginated like /v2/me/folders. Items are not listed — the folder's item_count is what a confirmation needs. An account holding none is 200 with an empty list, not 404. Requires a user access token whose holder has catalog.folder.moderate: the moderator, admin and ren roles have it, and the permission console can grant it to another role. Reviewing catalog edits or claims does not include it. 同一条路径上那个清空操作的**只读预览**：DELETE 会删掉什么。该账号名下的全部夹子，含私密夹，按 id 升序、与 /v2/me/folders 同款 keyset 翻页。**不列夹内条目**——确认一次删除需要的是夹子的 item_count。名下一个夹子都没有的账号回 200 空列表，不是 404。需要持有人具备 catalog.folder.moderate 权限的用户访问令牌：moderator、admin、ren 角色默认具备，权限控制台可以授予其他角色。审核目录编辑或投稿认领的权限不包含它。 uid cursor limit view include fields ids refs include_total facets sort nsfw"
   },
   {
     "r": "/docs/v2/purgeUserFolders",
     "t": "清空某个账号的全部收藏夹",
     "s": "端点 · 审核",
     "d": "DELETE /v2/moderation/users/{uid}/folders",
-    "b": "purgeUserFolders /v2/moderation/users/{uid}/folders delete Remove every folder an account holds What an account deletion reaches for: all of one account's folders, their memberships and the import provenance naming them, in one transaction. Answers a receipt with the counts; an account holding none is 200 with zeros, not 404. Requires a user access token whose holder moderates. 注销账号时调用的就是它：在一个事务里删掉该账号的全部收藏夹、其中的条目，以及指向它们的导入台账。返回一张带数量的回执；账号一个收藏夹都没有时返回 200 和两个 0，不是 404。需要持有审核权限的用户访问令牌。 uid"
+    "b": "purgeUserFolders /v2/moderation/users/{uid}/folders delete Remove every folder an account holds What an account deletion reaches for: all of one account's folders, their memberships and the import provenance naming them, in one transaction. Answers a receipt with the counts; an account holding none is 200 with zeros, not 404. Requires a user access token whose holder has catalog.folder.moderate: the moderator, admin and ren roles have it, and the permission console can grant it to another role. Reviewing catalog edits or claims does not include it. 注销账号时调用的就是它：在一个事务里删掉该账号的全部收藏夹、其中的条目，以及指向它们的导入台账。返回一张带数量的回执；账号一个收藏夹都没有时返回 200 和两个 0，不是 404。需要持有人具备 catalog.folder.moderate 权限的用户访问令牌：moderator、admin、ren 角色默认具备，权限控制台可以授予其他角色。审核目录编辑或投稿认领的权限不包含它。 uid"
   },
   {
     "r": "/docs/v2/listStorePrices",

@@ -155,6 +155,7 @@ var live = NewRegistry(
 			{catalogPerm.EditTrusted, "Write at the trusted tier through the editing engine (site ProposeTrusted lanes accept filings directly).", "以受信任层级走编辑引擎写入(站点 trusted 通道直接接受其提交)"},
 			{catalogPerm.ClaimTrusted, "Mint a work submission straight to live, skipping claim review. Does not touch the editing engine.", "建档投稿直接上线、免认领审核(不影响编辑提案走不走审)"},
 			{catalogPerm.RatingModerate, "Delete anyone's rating; the deletion reaches every site at once.", "删除任何人的评分(全网同时生效)"},
+			{catalogPerm.FolderModerate, "Rename, blank, hide or delete anyone's folder, and list or remove every folder an account holds; folders are shared by every site.", "改名、清空、隐藏或删除任何人的收藏夹,查看或清除某个账号的全部收藏夹(收藏夹全网共用)"},
 		},
 	},
 	Domain{

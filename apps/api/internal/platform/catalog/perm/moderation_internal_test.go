@@ -20,6 +20,7 @@ var notModeration = map[authz.Permission]string{
 	EditTrusted:    "lands the holder's OWN edit without review; it judges nobody else",
 	ClaimTrusted:   "lands the holder's OWN mint live without review; it judges nobody else",
 	RatingModerate: "deletes ratings and nothing else; it opens no proposal or claim queue",
+	FolderModerate: "edits and deletes folders and nothing else; it opens no proposal or claim queue",
 }
 
 func TestModerationPermsCoversEveryBundledPermission(t *testing.T) {
