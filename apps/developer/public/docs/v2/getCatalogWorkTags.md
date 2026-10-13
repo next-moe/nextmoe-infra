@@ -28,7 +28,7 @@ Tags attached to this work. Same items as include=tags. spoiler=none|minor|major
 | `spoiler` | query | 否 | string | Spoiler ceiling for this page: none (default), minor or major. Closed vocabulary; an unknown value is 400. Tag rows above the ceiling are not returned. Only the VNDB-derived tag vocabulary carries a spoiler level — Bangumi and DLsite folksonomy publish no spoiler concept, so those rows read none — and the default is the safe ceiling. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/works/value/tags"
+curl "https://api.nextmoe.dev/v2/catalog/works/1/tags"
 ```
 
 ---

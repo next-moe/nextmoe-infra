@@ -27,7 +27,7 @@ Related works. Same items as include=relations. Anonymous calls are allowed and 
 | `limit` | query | 否 | string | Page size 1-100, default 20. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/works/value/relations"
+curl "https://api.nextmoe.dev/v2/catalog/works/1/relations"
 ```
 
 ---

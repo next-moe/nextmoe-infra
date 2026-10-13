@@ -205,7 +205,119 @@ const buildNode = (schema, { name, required, schemas, seen }) => {
   return node
 }
 
+const explicitSample = (schema) => {
+  if (!schema || typeof schema !== 'object') return undefined
+  if (Array.isArray(schema.examples) && schema.examples.length > 0) {
+    return schema.examples[0]
+  }
+  if (Object.prototype.hasOwnProperty.call(schema, 'example'))
+    return schema.example
+  if (Object.prototype.hasOwnProperty.call(schema, 'default'))
+    return schema.default
+  return undefined
+}
+
+const isReadOnlySchema = (schema, schemas, seen) => {
+  if (!schema || typeof schema !== 'object') return false
+  if (schema.readOnly) return true
+  if (schema.$ref) {
+    const rn = refName(schema.$ref)
+    if (seen.has(rn)) return false
+    const next = new Set(seen)
+    next.add(rn)
+    return isReadOnlySchema(schemas[rn], schemas, next)
+  }
+  return false
+}
+
+// An optional property still belongs in the sample when it, or something
+// nested under it, carries an example. Otherwise a required sibling would
+// hide a tagged field such as work-state completion.
+const carriesExample = (schema, schemas, seen) => {
+  if (!schema || typeof schema !== 'object') return false
+  if (explicitSample(schema) !== undefined) return true
+  if (schema.$ref) {
+    const rn = refName(schema.$ref)
+    if (seen.has(rn)) return false
+    const next = new Set(seen)
+    next.add(rn)
+    return carriesExample(schemas[rn], schemas, next)
+  }
+  if (schema.allOf) {
+    return schema.allOf.some((member) => carriesExample(member, schemas, seen))
+  }
+  if (schema.properties) {
+    return Object.entries(schema.properties).some(
+      ([key, prop]) =>
+        key !== '$schema' &&
+        !isReadOnlySchema(prop, schemas, seen) &&
+        carriesExample(prop, schemas, seen)
+    )
+  }
+  if (schema.items) return carriesExample(schema.items, schemas, seen)
+  return false
+}
+
+const sampleNumber = (schema) => {
+  let n
+  if (schema.minimum !== undefined) n = schema.minimum
+  else if (schema.exclusiveMinimum !== undefined)
+    n = schema.exclusiveMinimum + 1
+  else n = 0
+  if (schema.exclusiveMaximum !== undefined && n >= schema.exclusiveMaximum) {
+    n = schema.exclusiveMaximum - 1
+  }
+  if (schema.maximum !== undefined && n > schema.maximum) n = schema.maximum
+  return n
+}
+
+const patternMisses = []
+
+const notePatternMiss = (where, pattern, value) => {
+  if (pattern && !new RegExp(pattern).test(value)) {
+    patternMisses.push(`${where} "${value}" does not match ${pattern}`)
+  }
+}
+
+const synthesizeString = (schema) => {
+  if (schema.format === 'date') return '2020-01-01'
+  if (schema.format === 'date-time') return '2020-01-01T00:00:00Z'
+  if (schema.format === 'uri' || schema.format === 'uri-reference') {
+    return 'https://example.com/'
+  }
+  if (schema.pattern === '^[0-9]+$') return '1'
+  const min = schema.minLength || 0
+  if (min <= 6) return 'string'
+  return 's'.repeat(min)
+}
+
+const sampleString = (schema) => {
+  const value = synthesizeString(schema)
+  notePatternMiss('body field', schema.pattern, value)
+  return value
+}
+
 const sampleValue = (schema, { schemas, seen }) => {
+  if (!schema) return null
+  if (schema.allOf) {
+    const next = new Set(seen)
+    return sampleValue(flattenAllOf(schema, { schemas, seen: next }), {
+      schemas,
+      seen: next
+    })
+  }
+  if (schema.anyOf) {
+    const members = schema.anyOf
+    const nullMember = members.find(
+      (m) => m && m.type === 'null' && !m.$ref && !m.properties
+    )
+    const others = members.filter((m) => m !== nullMember)
+    if (nullMember && others.length === 1) {
+      return sampleValue(others[0], { schemas, seen })
+    }
+  }
+  const picked = explicitSample(schema)
+  if (picked !== undefined) return picked
   if (schema.$ref) {
     const rn = refName(schema.$ref)
     if (seen.has(rn)) return null
@@ -213,16 +325,32 @@ const sampleValue = (schema, { schemas, seen }) => {
     next.add(rn)
     return sampleValue(schemas[rn], { schemas, seen: next })
   }
-  if (schema.enum) return schema.enum[0]
+  if (schema.enum) {
+    const first = schema.enum.find((v) => v !== null && v !== undefined)
+    return first !== undefined ? first : null
+  }
   const { primary } = splitType(schema.type)
   switch (primary) {
     case 'object': {
       if (schema.properties) {
         const req = new Set(schema.required || [])
+        const writable = Object.entries(schema.properties).filter(
+          ([k, prop]) =>
+            k !== '$schema' && !isReadOnlySchema(prop, schemas, seen)
+        )
+        const pickExampled =
+          req.size > 0 ||
+          writable.some(([, prop]) => carriesExample(prop, schemas, seen))
         const obj = {}
-        for (const k of Object.keys(schema.properties)) {
-          if (k === '$schema' || !req.has(k)) continue
-          obj[k] = sampleValue(schema.properties[k], { schemas, seen })
+        for (const [k, prop] of writable) {
+          if (
+            !req.has(k) &&
+            pickExampled &&
+            !carriesExample(prop, schemas, seen)
+          ) {
+            continue
+          }
+          obj[k] = sampleValue(prop, { schemas, seen })
         }
         return obj
       }
@@ -240,23 +368,53 @@ const sampleValue = (schema, { schemas, seen }) => {
       return schema.items ? [sampleValue(schema.items, { schemas, seen })] : []
     case 'integer':
     case 'number':
-      return 0
+      return sampleNumber(schema)
     case 'boolean':
       return true
     default:
-      return 'string'
+      return sampleString(schema)
   }
 }
 
-const samplePathValue = (param) => {
-  if (param.enum?.length) return String(param.enum[0])
-  return param.type === 'integer' || param.type === 'number' ? '1' : 'value'
+const samplePathToken = (param, schema, schemas) => {
+  const direct = explicitSample(param)
+  if (direct !== undefined && direct !== null) return String(direct)
+  const onSchema = explicitSample(schema)
+  if (onSchema !== undefined && onSchema !== null) return String(onSchema)
+  const resolved = derefSchema(schema, schemas)
+  const onResolved = explicitSample(resolved)
+  if (onResolved !== undefined && onResolved !== null) return String(onResolved)
+  if (Array.isArray(resolved.enum) && resolved.enum.length) {
+    const first = resolved.enum.find((v) => v !== null && v !== undefined)
+    if (first !== undefined) return String(first)
+  }
+  const name = param.name || ''
+  const pattern = resolved.pattern || ''
+  if (pattern === '^[0-9]+$' || name === 'id' || name.endsWith('_id'))
+    return '1'
+  const { primary } = splitType(resolved.type)
+  if (primary === 'integer' || primary === 'number')
+    return String(sampleNumber(resolved))
+  if (resolved.format === 'date') return '2020-01-01'
+  if (resolved.format === 'date-time') return '2020-01-01T00:00:00Z'
+  if (resolved.format === 'uri' || resolved.format === 'uri-reference') {
+    return 'https://example.com/'
+  }
+  return 'example'
 }
 
-const buildCurl = (method, path, params, bodyExample, authHeader) => {
+const buildCurl = (
+  method,
+  path,
+  params,
+  pathTokens,
+  bodyExample,
+  authHeader
+) => {
   let url = API_HOST + path
   for (const p of params) {
-    if (p.in === 'path') url = url.replace(`{${p.name}}`, samplePathValue(p))
+    if (p.in === 'path')
+      url = url.replaceAll(`{${p.name}}`, pathTokens[p.name] ?? '1')
   }
   const verb = method.toUpperCase()
   const lines = [verb === 'GET' ? `curl "${url}"` : `curl -X ${verb} "${url}"`]
@@ -383,6 +541,17 @@ const buildOperation = (
   { schemas, responseDefs, paramDefs, scope, auth, faceAuth }
 ) => {
   const params = buildParams(op.parameters, paramDefs, schemas)
+  const pathTokens = {}
+  for (const raw of op.parameters || []) {
+    const p = derefParam(raw, paramDefs)
+    if (p.in !== 'path' || !p.name) continue
+    pathTokens[p.name] = samplePathToken(p, p.schema || {}, schemas)
+    notePatternMiss(
+      `path {${p.name}}`,
+      derefSchema(p.schema || {}, schemas).pattern,
+      pathTokens[p.name]
+    )
+  }
 
   let requestBody
   let bodyExample
@@ -390,6 +559,11 @@ const buildOperation = (
   if (bodySchema) {
     requestBody = buildNode(bodySchema, { schemas, seen: new Set() })
     bodyExample = sampleValue(bodySchema, { schemas, seen: new Set() })
+  }
+  if (patternMisses.length) {
+    throw new Error(
+      `docs-model example guard: ${op.operationId} ${patternMisses.join('; ')} — add an example tag to the Go field`
+    )
   }
 
   const responses = Object.entries(op.responses || {}).map(([status, raw]) => {
@@ -419,7 +593,7 @@ const buildOperation = (
     params,
     ...(requestBody && { requestBody }),
     responses,
-    curl: buildCurl(method, path, params, bodyExample, auth.curl)
+    curl: buildCurl(method, path, params, pathTokens, bodyExample, auth.curl)
   }
 }
 
@@ -561,6 +735,19 @@ for (const file of new Set(FACES.map((f) => f.file))) {
       throw new Error(
         `docs-model coverage guard: spec path ${path} belongs to no face — add one to FACES`
       )
+    }
+  }
+}
+
+for (const face of model.faces) {
+  for (const group of face.groups) {
+    for (const op of group.operations) {
+      if (op.method === 'get' || !op.requestBody) continue
+      if (op.curl.includes("-d '{}'")) {
+        throw new Error(
+          `docs-model example guard: ${op.id} would print -d '{}'`
+        )
+      }
     }
   }
 }

@@ -24,7 +24,7 @@ Returns the registry entry for one code. Unknown codes are 404 NOT_FOUND, not 42
 | `code` | path | 是 | string | Top-level error code from the registry (UPPER_SNAKE). |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/problems/value"
+curl "https://api.nextmoe.dev/v2/problems/VALIDATION_FAILED"
 ```
 
 ---

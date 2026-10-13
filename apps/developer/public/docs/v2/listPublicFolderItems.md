@@ -35,7 +35,7 @@ Keyset-paginated by updated_at, the same shape /v2/me/folders/{id}/items answers
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/folders/value/items" \
+curl "https://api.nextmoe.dev/v2/folders/1/items" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 

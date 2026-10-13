@@ -445,6 +445,16 @@ export const mcpTools = [
     ]
   },
   {
+    "name": "getRating",
+    "method": "GET",
+    "path": "/v2/ratings/{id}",
+    "summary": "Get one rating",
+    "needs_key": true,
+    "params": [
+      "id"
+    ]
+  },
+  {
     "name": "getVocabulary",
     "method": "GET",
     "path": "/v2/vocabularies/{name}",
@@ -894,6 +904,28 @@ export const mcpTools = [
       "facets",
       "sort",
       "nsfw"
+    ]
+  },
+  {
+    "name": "listRatings",
+    "method": "GET",
+    "path": "/v2/ratings",
+    "summary": "List ratings of a work or by an account",
+    "needs_key": true,
+    "params": [
+      "cursor",
+      "limit",
+      "view",
+      "include",
+      "fields",
+      "ids",
+      "refs",
+      "include_total",
+      "facets",
+      "sort",
+      "nsfw",
+      "work_id",
+      "user_id"
     ]
   },
   {

@@ -24,7 +24,7 @@ Mints (or returns) the short links this application sends readers to. The purcha
 | `product_id` | path | 是 | string | DLsite product number. RJ is doujin, VJ is commercial. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/store/purchase-links/value" \
+curl "https://api.nextmoe.dev/v2/store/purchase-links/RJ01234567" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 

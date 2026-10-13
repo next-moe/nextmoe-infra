@@ -31,7 +31,7 @@ URL, exactly as on the site.
 | `include` | query | 否 | string[] |  取值：publisher |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/moyu/patches/value/resources" \
+curl "https://api.nextmoe.dev/v2/moyu/patches/11617/resources" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 

@@ -35,8 +35,7 @@ func CheckG10(doc *huma.OpenAPI) []string {
 		if item == nil || item.Get == nil {
 			continue
 		}
-		if !strings.HasPrefix(path, "/v2/catalog") && !strings.HasPrefix(path, "/v2/news") &&
-			!strings.HasPrefix(path, "/v2/problems") && !strings.HasPrefix(path, "/v2/vocabularies") {
+		if !mcpface.AdmitsToolPath(path) {
 			continue
 		}
 		op := item.Get

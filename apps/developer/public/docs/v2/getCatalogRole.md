@@ -28,7 +28,7 @@ A credit-role registry row. Unknown id is 404 NOT_FOUND. Anonymous calls are all
 | `fields` | query | 否 | string | Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/roles/value"
+curl "https://api.nextmoe.dev/v2/catalog/roles/1"
 ```
 
 ---

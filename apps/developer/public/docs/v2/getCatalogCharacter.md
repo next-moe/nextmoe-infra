@@ -29,7 +29,7 @@ Character detail. view=full adds gender, birthday, measurements, blood_type, ins
 | `spoiler` | query | 否 | string | Spoiler ceiling for the traits block: none (default), minor or major. Closed vocabulary; an unknown value is 400. Trait rows above the ceiling are not returned. Only the VNDB-derived trait vocabulary carries a spoiler level, and the default is the safe ceiling. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/characters/value"
+curl "https://api.nextmoe.dev/v2/catalog/characters/1"
 ```
 
 ---

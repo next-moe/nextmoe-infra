@@ -2113,3 +2113,9 @@ The three sites are adding a 关联作品 block to the work page. Every relation
 - Series siblings, appearances and credit-name credits still ship these fields as null. Nobody has asked for them, and the credit lists can run to hundreds of works.
 
 **Spec is 2.48.0.** Additive: existing nullable fields now carry values, plus one description. No migration.
+
+## Wave — request examples for user-data writes (2026-10-13)
+
+The developer portal built curl bodies from required fields only, with `0` for every number and the first enum member for every string. `PUT /v2/me/work-records/{work_id}` therefore showed `-d '{}'` (that PUT deletes any part the body omits) and `PUT /v2/me/ratings/{work_id}` showed `overall: 0` with `recommend: strong_no`, which is a 422. The write structs for work records, ratings, playtimes, work states and folders now carry `example` tags. Nothing else on those fields changed.
+
+**Spec is 2.48.1.** Examples only; no shape change, no migration.

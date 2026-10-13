@@ -27,7 +27,7 @@ Works this character appears in, with roster_role, spoiler, and voice credits. O
 | `limit` | query | 否 | string | Page size 1-100, default 20. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/characters/value/appearances"
+curl "https://api.nextmoe.dev/v2/catalog/characters/1/appearances"
 ```
 
 ---

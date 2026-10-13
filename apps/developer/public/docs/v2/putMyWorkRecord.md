@@ -23,11 +23,35 @@ One transaction for the three parts: either all are written or none is. PUT repl
 | --- | --- | --- | --- | --- |
 | `work_id` | path | 是 | string | Catalog work id. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `playtime` | 否 | object |  |
+| `playtime.minutes` | 是 | integer (int64) | Absolute cumulative minutes. |
+| `rating` | 否 | object |  |
+| `rating.aspect_scores` | 否 | object |  |
+| `rating.aspect_scores.art` | 否 | integer (int64) | Absent or null when not rated. |
+| `rating.aspect_scores.character` | 否 | integer (int64) | Absent or null when not rated. |
+| `rating.aspect_scores.music` | 否 | integer (int64) | Absent or null when not rated. |
+| `rating.aspect_scores.replay_value` | 否 | integer (int64) | Absent or null when not rated. |
+| `rating.aspect_scores.route` | 否 | integer (int64) | Absent or null when not rated. |
+| `rating.aspect_scores.story` | 否 | integer (int64) | Absent or null when not rated. |
+| `rating.aspect_scores.system` | 否 | integer (int64) | Absent or null when not rated. |
+| `rating.aspect_scores.voice` | 否 | integer (int64) | Absent or null when not rated. |
+| `rating.overall` | 是 | integer (int64) | The overall score, a whole number from 1 to 10. |
+| `rating.recommend` | 是 | string | How strongly the author recommends the work. 取值：strong_no \| no \| neutral \| yes \| strong_yes |
+| `rating.short_summary` | 否 | string | Short review, plain text. Absent or empty means none. Free text; must not be used as a discriminant. |
+| `rating.spoiler_level` | 否 | string | How much short_summary gives away. Absent means none. 取值：none \| portion \| serious |
+| `work_state` | 否 | object |  |
+| `work_state.completion` | 否 | string | How much is finished. Absent means unstated. Refused with wish. 取值：one_route \| main \| all |
+| `work_state.state` | 是 | string | Closed vocabulary, as on /v2/me/work-states. 取值：wish \| doing \| done \| on_hold \| dropped |
+
 ```bash
-curl -X PUT "https://api.nextmoe.dev/v2/me/work-records/value" \
+curl -X PUT "https://api.nextmoe.dev/v2/me/work-records/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{}'
+  -d '{"playtime":{"minutes":720},"rating":{"aspect_scores":{"art":8,"character":8,"music":9,"replay_value":8,"route":7,"story":8,"system":7,"voice":8},"overall":8,"recommend":"yes","short_summary":"画面和音乐都很出色，主线一周目通关后还想再走一遍。","spoiler_level":"none"},"work_state":{"completion":"all","state":"done"}}'
 ```
 
 ---

@@ -24,7 +24,7 @@ Returns every published value of one vocabulary. Unknown names are 404 NOT_FOUND
 | `name` | path | 是 | string | Vocabulary name. The path segment of /v2/vocabularies/{name}. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/vocabularies/value"
+curl "https://api.nextmoe.dev/v2/vocabularies/content_rating"
 ```
 
 ---

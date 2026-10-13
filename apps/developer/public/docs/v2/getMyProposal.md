@@ -26,7 +26,7 @@ Requires a user access token. The token must carry the catalog:edit scope.
 | `view` | query | 否 | string | basic (default) or full. full adds amendments and patch. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/me/proposals/value" \
+curl "https://api.nextmoe.dev/v2/me/proposals/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 

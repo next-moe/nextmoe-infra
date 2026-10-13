@@ -25,7 +25,7 @@ Naturally idempotent: re-adding an existing membership answers the stored row an
 | `work_id` | path | 是 | string | Catalog work id. |
 
 ```bash
-curl -X PUT "https://api.nextmoe.dev/v2/me/folders/value/items/value" \
+curl -X PUT "https://api.nextmoe.dev/v2/me/folders/1/items/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 

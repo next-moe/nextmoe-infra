@@ -27,7 +27,7 @@ Roster characters. Same items as include=characters. Anonymous calls are allowed
 | `limit` | query | 否 | string | Page size 1-100, default 20. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/works/value/characters"
+curl "https://api.nextmoe.dev/v2/catalog/works/1/characters"
 ```
 
 ---

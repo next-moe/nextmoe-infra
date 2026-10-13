@@ -25,8 +25,15 @@ decision=merge|decline. If-Match required. The token must carry the catalog:edit
 | `If-Match` | header | 是 | string | Current ETag. Required; its absence is 428 PRECONDITION_REQUIRED. |
 | `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `decision` | 是 | string | merge writes the effective patch and records a revision. decline closes the proposal. 取值：merge \| decline |
+| `note` | 否 | string | Must not be used as a discriminant. |
+
 ```bash
-curl -X POST "https://api.nextmoe.dev/v2/moderation/proposals/value/decisions" \
+curl -X POST "https://api.nextmoe.dev/v2/moderation/proposals/1/decisions" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{"decision":"merge"}'

@@ -25,11 +25,21 @@ If-Match required. Requires a user access token. The token must carry the catalo
 | `If-Match` | header | 是 | string | Current ETag. Required; its absence is 428 PRECONDITION_REQUIRED. |
 | `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `note` | 否 | string | Must not be used as a discriminant. |
+| `set` | 否 | map<string, object> | Field-key to corrected value. |
+| `set.«key»` | 否 | object |  |
+| `unset` | 否 | string[] | Field keys to drop, at most 100. |
+| `unset[]` | 否 | string |  |
+
 ```bash
-curl -X POST "https://api.nextmoe.dev/v2/me/proposals/value/amendments" \
+curl -X POST "https://api.nextmoe.dev/v2/me/proposals/1/amendments" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{}'
+  -d '{"note":"string","set":{"key":"string"},"unset":["string"]}'
 ```
 
 ---

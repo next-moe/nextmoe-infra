@@ -24,7 +24,7 @@ Delete my rating of one work
 | `work_id` | path | 是 | string | Catalog work id. |
 
 ```bash
-curl -X DELETE "https://api.nextmoe.dev/v2/me/ratings/value" \
+curl -X DELETE "https://api.nextmoe.dev/v2/me/ratings/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 

@@ -34,7 +34,15 @@ export const GUIDE_SECTIONS = [
   {
     key: 'guides',
     label: '集成指南',
-    slugs: ['example', 'mirror', 'user-data', 'native-app', 'best-practices']
+    slugs: [
+      'example',
+      'mirror',
+      'user-data',
+      'play-records',
+      'folders',
+      'native-app',
+      'best-practices'
+    ]
   },
   // Not slugs `moyu` / `sticker`: a guide route is /docs/<slug> and a face
   // reference is /docs/<faceKey>, so those would have collided with the two

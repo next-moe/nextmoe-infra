@@ -35,7 +35,7 @@ The read preview of the purge on this same path: what the DELETE would remove. E
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/moderation/users/value/folders" \
+curl "https://api.nextmoe.dev/v2/moderation/users/1/folders" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 

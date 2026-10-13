@@ -24,7 +24,7 @@ Removes the rating from every site at once; the deletion reaches /v2/ratings/cha
 | `id` | path | 是 | string | Rating id. |
 
 ```bash
-curl -X DELETE "https://api.nextmoe.dev/v2/moderation/ratings/value" \
+curl -X DELETE "https://api.nextmoe.dev/v2/moderation/ratings/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 

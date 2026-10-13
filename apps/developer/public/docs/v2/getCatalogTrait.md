@@ -28,7 +28,7 @@ A character-trait vocabulary row. Without nsfw=true a sexual-family trait is 404
 | `fields` | query | 否 | string | Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/traits/value"
+curl "https://api.nextmoe.dev/v2/catalog/traits/1"
 ```
 
 ---

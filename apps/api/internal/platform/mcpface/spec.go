@@ -62,10 +62,17 @@ type ToolDesc struct {
 const appKeyScheme = "applicationKey"
 
 func mcpToolPrefixes(path string) bool {
-	return strings.HasPrefix(path, "/v2/catalog") ||
+	if strings.HasPrefix(path, "/v2/catalog") ||
 		strings.HasPrefix(path, "/v2/news") ||
 		strings.HasPrefix(path, "/v2/problems") ||
-		strings.HasPrefix(path, "/v2/vocabularies")
+		strings.HasPrefix(path, "/v2/vocabularies") {
+		return true
+	}
+	return path == "/v2/ratings" || strings.HasPrefix(path, "/v2/ratings/{")
+}
+
+func AdmitsToolPath(path string) bool {
+	return mcpToolPrefixes(path)
 }
 
 func takesAppKey(security []map[string][]string) bool {

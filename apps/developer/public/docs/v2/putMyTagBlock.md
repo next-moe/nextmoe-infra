@@ -23,11 +23,17 @@ Optional body {mode}: tree (the default) or exact. Sets the mode of an existing 
 | --- | --- | --- | --- | --- |
 | `tag_id` | path | 是 | string | Catalog tag id. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `mode` | 否 | string | tree (the default) also blocks every tag below this one in the tag hierarchy; exact blocks this tag only. 取值：tree \| exact |
+
 ```bash
-curl -X PUT "https://api.nextmoe.dev/v2/me/blocked-tags/value" \
+curl -X PUT "https://api.nextmoe.dev/v2/me/blocked-tags/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{}'
+  -d '{"mode":"tree"}'
 ```
 
 ---

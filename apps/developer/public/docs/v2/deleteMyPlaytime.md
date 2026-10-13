@@ -24,7 +24,7 @@ Deletes only the row the calling app reported. Rows other apps reported on the s
 | `work_id` | path | 是 | string | Catalog work id. |
 
 ```bash
-curl -X DELETE "https://api.nextmoe.dev/v2/me/playtimes/value" \
+curl -X DELETE "https://api.nextmoe.dev/v2/me/playtimes/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 

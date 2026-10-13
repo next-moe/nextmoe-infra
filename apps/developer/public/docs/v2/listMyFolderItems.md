@@ -35,7 +35,7 @@ Keyset-paginated by updated_at; the final next_cursor can be stored and replayed
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/me/folders/value/items" \
+curl "https://api.nextmoe.dev/v2/me/folders/1/items" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 

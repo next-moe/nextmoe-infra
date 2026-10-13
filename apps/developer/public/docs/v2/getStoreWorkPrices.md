@@ -24,7 +24,7 @@ Cached storefront price quotes for one catalog work. Unauthenticated. Quotes are
 | `id` | path | 是 | string | Decimal catalog work id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/store/prices/value" \
+curl "https://api.nextmoe.dev/v2/store/prices/1" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 

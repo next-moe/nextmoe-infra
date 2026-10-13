@@ -24,7 +24,7 @@ What an account deletion reaches for: all of one account's folders, their member
 | `uid` | path | 是 | string | The account whose folders to remove. |
 
 ```bash
-curl -X DELETE "https://api.nextmoe.dev/v2/moderation/users/value/folders" \
+curl -X DELETE "https://api.nextmoe.dev/v2/moderation/users/1/folders" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 

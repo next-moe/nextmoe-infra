@@ -25,8 +25,15 @@ decision=approve|decline|ban|unban. unban restores the state the claim was hidde
 | `If-Match` | header | 是 | string | Current ETag. Required; its absence is 428 PRECONDITION_REQUIRED. |
 | `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `decision` | 是 | string | approve publishes a pending claim, decline sends it back, ban hides it from any state, unban restores the state it was hidden from. 取值：approve \| decline \| ban \| unban |
+| `note` | 否 | string | Must not be used as a discriminant. Required to decline. |
+
 ```bash
-curl -X POST "https://api.nextmoe.dev/v2/moderation/claims/value/decisions" \
+curl -X POST "https://api.nextmoe.dev/v2/moderation/claims/1/decisions" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{"decision":"approve"}'

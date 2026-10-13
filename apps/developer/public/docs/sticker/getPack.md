@@ -22,7 +22,7 @@ One pack, with its stickers
 | `pack_id` | path | 是 | string (uuid) | This site's own pack id (UUIDv7). |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/sticker/packs/value" \
+curl "https://api.nextmoe.dev/v2/sticker/packs/1" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 

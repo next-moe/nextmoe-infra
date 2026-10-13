@@ -28,7 +28,7 @@ A person identity that groups credit names. Merged ids are 404 ENTITY_MERGED. An
 | `fields` | query | 否 | string | Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/persons/value"
+curl "https://api.nextmoe.dev/v2/catalog/persons/1"
 ```
 
 ---

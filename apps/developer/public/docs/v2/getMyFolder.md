@@ -24,7 +24,7 @@ Get one folder
 | `id` | path | 是 | string | Folder id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/me/folders/value" \
+curl "https://api.nextmoe.dev/v2/me/folders/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 

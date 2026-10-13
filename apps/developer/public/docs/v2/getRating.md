@@ -24,7 +24,7 @@ Get one rating
 | `id` | path | 是 | string | Rating id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/ratings/value" \
+curl "https://api.nextmoe.dev/v2/ratings/1" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 

@@ -26,7 +26,7 @@ Site-fenced. include=patch adds the proposed and effective patches a decision is
 | `view` | query | 否 | string | basic (default) or full. full adds amendments and patch. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/moderation/proposals/value" \
+curl "https://api.nextmoe.dev/v2/moderation/proposals/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 

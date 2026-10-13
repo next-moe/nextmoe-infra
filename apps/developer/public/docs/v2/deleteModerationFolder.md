@@ -24,7 +24,7 @@ Deletes the folder and its items. Unlike the owner's own delete this accepts the
 | `id` | path | 是 | string | Folder id. |
 
 ```bash
-curl -X DELETE "https://api.nextmoe.dev/v2/moderation/folders/value" \
+curl -X DELETE "https://api.nextmoe.dev/v2/moderation/folders/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 

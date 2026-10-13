@@ -22,7 +22,7 @@ One sticker
 | `sticker_id` | path | 是 | string (uuid) |  |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/sticker/stickers/value" \
+curl "https://api.nextmoe.dev/v2/sticker/stickers/1" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 

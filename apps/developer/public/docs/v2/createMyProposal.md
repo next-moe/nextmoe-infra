@@ -23,11 +23,21 @@ A contributor who has used up catalog.proposals_per_day inside the sliding windo
 | --- | --- | --- | --- | --- |
 | `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `entity_id` | 是 | string | Target catalog id. |
+| `entity_type` | 是 | string | Editing-engine type, e.g. catalog.work. Must not be used as a discriminant. |
+| `note` | 否 | string | Must not be used as a discriminant. |
+| `patch` | 是 | map<string, object> | Field-key to new value. |
+| `patch.«key»` | 否 | object |  |
+
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/me/proposals" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"entity_id":"string","entity_type":"string","patch":{"key":"string"}}'
+  -d '{"entity_id":"1","entity_type":"string","patch":{"key":"string"}}'
 ```
 
 ---

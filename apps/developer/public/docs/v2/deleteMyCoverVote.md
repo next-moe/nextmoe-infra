@@ -24,7 +24,7 @@ Withdraw a cover vote
 | `cover_id` | path | 是 | string | Catalog cover row id. |
 
 ```bash
-curl -X DELETE "https://api.nextmoe.dev/v2/me/cover-votes/value" \
+curl -X DELETE "https://api.nextmoe.dev/v2/me/cover-votes/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 

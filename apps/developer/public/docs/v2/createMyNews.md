@@ -23,6 +23,21 @@ Any signed-in user may submit to source community (the default): the item lands 
 | --- | --- | --- | --- | --- |
 | `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `banner_hash` | 否 | string | Hash of the banner, as returned by POST /v2/me/news-images. A hash that face did not store is 422 VALIDATION_FAILED with reason UNKNOWN_REFERENCE. |
+| `body` | 否 | string | The item's own text, CommonMark Markdown, at most 20000 runes (longer is 422 TOO_LONG). Only a community submission may carry one. Must not be used as a discriminant. |
+| `lane` | 否 | string | Section of the source. Defaults to news. 取值：news \| column |
+| `published_at` | 否 | string (date-time) | RFC 3339. Defaults to the moment of submission. |
+| `source` | 否 | string | News source key. Omit it for community, which any signed-in user may submit to. Any other source must be bound to the bearer as its publisher and active. |
+| `source_url` | 否 | string | Canonical link to the original item, an absolute http(s) URL. Required for a partner source, whose attribution always carries a link; optional for an original community submission. Must not be used as a discriminant. |
+| `summary` | 是 | string | The lede. At most 200 runes; longer is 422 VALIDATION_FAILED with reason TOO_LONG. Must not be used as a discriminant. |
+| `title` | 是 | string | Must not be used as a discriminant. |
+| `work_ids` | 否 | string[] | Catalog work ids to link. Stored with manual confidence. |
+| `work_ids[]` | 否 | string |  |
+
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/me/news" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \

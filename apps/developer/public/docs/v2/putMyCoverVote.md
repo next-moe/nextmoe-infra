@@ -23,8 +23,14 @@ Only vote=up is stored. One ballot per work. Requires a user access token. The t
 | --- | --- | --- | --- | --- |
 | `cover_id` | path | 是 | string | Catalog cover row id. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `vote` | 是 | string | Only up is stored. 取值：up |
+
 ```bash
-curl -X PUT "https://api.nextmoe.dev/v2/me/cover-votes/value" \
+curl -X PUT "https://api.nextmoe.dev/v2/me/cover-votes/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{"vote":"up"}'

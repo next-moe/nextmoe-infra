@@ -24,7 +24,7 @@ The three parts a rate-this-game form edits together, as /v2/me/work-states, /v2
 | `work_id` | path | 是 | string | Catalog work id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/me/work-records/value" \
+curl "https://api.nextmoe.dev/v2/me/work-records/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 

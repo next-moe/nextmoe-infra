@@ -24,7 +24,7 @@ Deletes a draft the caller owns; a live or pending claim must be withdrawn to dr
 | `id` | path | 是 | string | Catalog work id. |
 
 ```bash
-curl -X DELETE "https://api.nextmoe.dev/v2/me/claims/value" \
+curl -X DELETE "https://api.nextmoe.dev/v2/me/claims/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 

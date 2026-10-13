@@ -27,7 +27,7 @@ Engines. Same items as include=engines. Anonymous calls are allowed and limited 
 | `limit` | query | 否 | string | Page size 1-100, default 20. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/works/value/engines"
+curl "https://api.nextmoe.dev/v2/catalog/works/1/engines"
 ```
 
 ---

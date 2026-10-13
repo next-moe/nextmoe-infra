@@ -24,11 +24,19 @@ If-Match required. Requires a user access token. The token must carry the catalo
 | `id` | path | 是 | string | Proposal id. |
 | `If-Match` | header | 是 | string | Current ETag. Required; its absence is 428 PRECONDITION_REQUIRED. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `patch` | 否 | map<string, object> | Field-key to new value to amend. |
+| `patch.«key»` | 否 | object |  |
+| `state` | 否 | string | Set withdrawn to withdraw. 取值：withdrawn |
+
 ```bash
-curl -X PATCH "https://api.nextmoe.dev/v2/me/proposals/value" \
+curl -X PATCH "https://api.nextmoe.dev/v2/me/proposals/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{}'
+  -d '{"patch":{"key":"string"},"state":"withdrawn"}'
 ```
 
 ---

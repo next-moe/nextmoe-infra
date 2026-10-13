@@ -24,7 +24,7 @@ Deletes the folder and its items. The default folder is refused with 422; move t
 | `id` | path | 是 | string | Folder id. |
 
 ```bash
-curl -X DELETE "https://api.nextmoe.dev/v2/me/folders/value" \
+curl -X DELETE "https://api.nextmoe.dev/v2/me/folders/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 

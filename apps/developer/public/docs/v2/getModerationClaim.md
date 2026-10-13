@@ -24,7 +24,7 @@ id is the catalog work id. Site-fenced. Requires a user access token bound to a 
 | `id` | path | 是 | string | Catalog work id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/moderation/claims/value" \
+curl "https://api.nextmoe.dev/v2/moderation/claims/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 

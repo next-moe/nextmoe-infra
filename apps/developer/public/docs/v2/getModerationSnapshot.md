@@ -25,7 +25,7 @@ Registered field values. Requires a user access token. The token must carry the 
 | `id` | path | 是 | string | Catalog id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/moderation/snapshots/value/value" \
+curl "https://api.nextmoe.dev/v2/moderation/snapshots/example/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 

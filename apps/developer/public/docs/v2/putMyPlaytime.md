@@ -23,11 +23,17 @@ Absolute minutes. Naturally idempotent. Requires a user access token. Any app ma
 | --- | --- | --- | --- | --- |
 | `work_id` | path | 是 | string | Catalog work id. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `minutes` | 是 | integer (int64) | Absolute cumulative minutes. |
+
 ```bash
-curl -X PUT "https://api.nextmoe.dev/v2/me/playtimes/value" \
+curl -X PUT "https://api.nextmoe.dev/v2/me/playtimes/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"minutes":0}'
+  -d '{"minutes":720}'
 ```
 
 ---
