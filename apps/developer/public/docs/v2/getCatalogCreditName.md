@@ -28,7 +28,7 @@ A credited name, not a person — this is the staff and voice-actor read surface
 | `fields` | query | 否 | string | Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/credit-names/value"
+curl "https://api.nextmoe.dev/v2/catalog/credit-names/1"
 ```
 
 ---

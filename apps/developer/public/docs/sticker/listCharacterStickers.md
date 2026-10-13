@@ -27,7 +27,7 @@ The primary lane. Newest first, published packs only. An empty page and a 404 me
 | `include_total` | query | 否 | string | `true` adds `total`, counted under the same filter as `items`. 取值：true \| false |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/sticker/characters/value/stickers" \
+curl "https://api.nextmoe.dev/v2/sticker/characters/1/stickers" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 

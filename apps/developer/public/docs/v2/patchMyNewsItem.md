@@ -24,11 +24,24 @@ A pending or published item may be edited (title/summary/body/source_url/banner_
 | `id` | path | 是 | string | News item id. |
 | `If-Match` | header | 否 | string | Current ETag. Required to withdraw. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `banner_hash` | 否 | string | Hash of the banner, as returned by POST /v2/me/news-images; a hash that face did not store is 422 VALIDATION_FAILED with reason UNKNOWN_REFERENCE. The empty string clears the banner. |
+| `body` | 否 | string | At most 20000 runes. Only a community submission may carry one; the empty string clears it. Must not be used as a discriminant. |
+| `source_url` | 否 | string | Canonical link to the original item, an absolute http(s) URL. The empty string clears it, which only a community submission may do. Must not be used as a discriminant. |
+| `status` | 否 | string | Only withdrawn. Publishing and rejection happen in the moderation queue, never here. 取值：withdrawn |
+| `summary` | 否 | string | At most 200 runes; longer is 422 VALIDATION_FAILED with reason TOO_LONG. Must not be used as a discriminant. |
+| `title` | 否 | string | Must not be used as a discriminant. |
+| `work_ids` | 否 | string[] | Replaces the whole linked-work set. |
+| `work_ids[]` | 否 | string |  |
+
 ```bash
-curl -X PATCH "https://api.nextmoe.dev/v2/me/news/value" \
+curl -X PATCH "https://api.nextmoe.dev/v2/me/news/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{}'
+  -d '{"title":"中文版发售日确定"}'
 ```
 
 ---

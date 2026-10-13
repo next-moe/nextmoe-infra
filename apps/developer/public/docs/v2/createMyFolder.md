@@ -23,11 +23,20 @@ Requires a user access token with folder:write.
 | --- | --- | --- | --- | --- |
 | `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `description` | 否 | string | Owner's own note. Must not be used as a discriminant. |
+| `is_default` | 否 | boolean | true makes this the user's default folder and clears the flag on the previous holder. |
+| `name` | 是 | string | Display name. Must not be used as a discriminant. |
+| `visibility` | 否 | string | Defaults to private. 取值：private \| public |
+
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/me/folders" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"name":"string"}'
+  -d '{"description":"还没开始的作品","is_default":false,"name":"想玩","visibility":"private"}'
 ```
 
 ---

@@ -54,12 +54,12 @@ MCP server 是公开只读契约前面的一层**协议适配**,不是第二个 
 
 准入与凭据两条规则,都在 `internal/platform/mcpface/spec.go`:
 
-| 规则 | 内容 |
-|---|---|
-| `mcpToolPrefixes` | 进面的路径前缀:`/v2/catalog` `/v2/news` `/v2/problems` `/v2/vocabularies`。`/v2/me` 与 `/v2/moderation` 不进面(用户令牌写面,理由同下文 playtime 条) |
+| 规则                              | 内容                                                                                                                                                                                                                                                                                                            |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mcpToolPrefixes`                 | 进面的路径前缀:`/v2/catalog` `/v2/news` `/v2/problems` `/v2/vocabularies`,再加上恰好 `GET /v2/ratings` 与 `GET /v2/ratings/{id}`。`/v2/ratings/changes`、`/v2/me` 与 `/v2/moderation` 不进面(用户令牌写面,理由同下文 playtime 条;变更 feed 是给镜像站点的,不是给 agent 的)                                      |
 | `takesAppKey` / `allowsAnonymous` | 哪些工具在缺 key 时**本地**就报错而不去打上游:读该 op 在 spec 里声明的 `security`,含 `applicationKey` 且没有空要求 `{}` 即需要。**不是手写路径表**——2026-09-18 之前这里是一份按前缀手写的 `httpNeedsKey`,与 apiv2 的 `v2Security` 是同一规则的两份副本;现在 `v2Security` 写进 spec、MCP 从 spec 读,只剩一个真源 |
 
-2026-09-18 为 **57 个工具**(`/v2/catalog` 49 + `/v2/news` 3 + `/v2/problems` 3 + `/v2/vocabularies` 2)。每个参数的描述与闭词表(`enum`)也取自 spec;v2 的 query/path 参数在 spec 里一律声明为 `type: string`、由服务端解析,所以工具入参全是 string 不丢类型信息。这个数随 v2 spec 增长自动变,**不需要改本文**;`CheckG10`(`apiv2/handler/gates_mcp.go`)保证 spec 里每条该进面的 GET 都有对应工具且参数不缺。
+2026-09-18 为 **57 个工具**(当时的前缀是 `/v2/catalog` 49 + `/v2/news` 3 + `/v2/problems` 3 + `/v2/vocabularies` 2)。2026-10-13 起同一规则再收两条公开评分读:`GET /v2/ratings`(`listRatings`)与 `GET /v2/ratings/{id}`(`getRating`),不含 `/v2/ratings/changes`。每个参数的描述与闭词表(`enum`)也取自 spec;v2 的 query/path 参数在 spec 里一律声明为 `type: string`、由服务端解析,所以工具入参全是 string 不丢类型信息。这个数随 v2 spec 增长自动变,**不需要改本文**;`CheckG10`(`apiv2/handler/gates_mcp.go`)保证 spec 里每条该进面的 GET 都有对应工具且参数不缺。
 
 > **为什么删掉原来的 37 行表**:那张表列的是 M1 时代手写的 v1 工具名(`catalog_search` / `news_list` / …)。`409a7a80` 把 `NewServer` 切到 `registerSpecTools` 之后,server 注册的是 v2 `operationId`,而表和门户页都没跟上——**表上每一个名字都不再存在**,而没有任何东西比对过两边。第二份手写清单必然漂移,所以这一波把它换成派生物,并把「派生物 vs 描述表」的比对做成构建期断言。
 

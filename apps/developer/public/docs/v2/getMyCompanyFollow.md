@@ -24,7 +24,7 @@ Get my follow on one company
 | `company_id` | path | 是 | string | Catalog company id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/me/followed-companies/value" \
+curl "https://api.nextmoe.dev/v2/me/followed-companies/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 

@@ -23,11 +23,20 @@ Partial update: name, description, visibility, is_default. Requires a user acces
 | --- | --- | --- | --- | --- |
 | `id` | path | 是 | string | Folder id. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `description` | 否 | string | New note; an empty string clears it. Must not be used as a discriminant. |
+| `is_default` | 否 | boolean | Only true is accepted: it moves the default flag to this folder. Sending false is 422 — set the flag on another folder instead. |
+| `name` | 否 | string | New display name. Must not be used as a discriminant. |
+| `visibility` | 否 | string | New visibility. 取值：private \| public |
+
 ```bash
-curl -X PATCH "https://api.nextmoe.dev/v2/me/folders/value" \
+curl -X PATCH "https://api.nextmoe.dev/v2/me/folders/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{}'
+  -d '{"description":"全路线通关的作品","is_default":true,"name":"已通关","visibility":"public"}'
 ```
 
 ---

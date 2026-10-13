@@ -24,7 +24,7 @@ Carries an ETag for If-Match. Requires a user access token.
 | `id` | path | 是 | string | News item id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/me/news/value" \
+curl "https://api.nextmoe.dev/v2/me/news/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 

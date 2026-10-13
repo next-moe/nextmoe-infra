@@ -24,7 +24,7 @@ Get my state on one work
 | `work_id` | path | 是 | string | Catalog work id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/me/work-states/value" \
+curl "https://api.nextmoe.dev/v2/me/work-states/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 

@@ -22,7 +22,7 @@ One catalog character, as this site holds it
 | `character_id` | path | 是 | string | Infra catalog character id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/sticker/characters/value" \
+curl "https://api.nextmoe.dev/v2/sticker/characters/1" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 

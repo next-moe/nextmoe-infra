@@ -28,7 +28,7 @@ include=diff adds the field-level change set against diff_base, or against the p
 | `diff_base` | query | 否 | string | Revision id to diff against. Requires include=diff. Absent means the preceding revision of the same entity. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/revisions/value"
+curl "https://api.nextmoe.dev/v2/catalog/revisions/1"
 ```
 
 ---

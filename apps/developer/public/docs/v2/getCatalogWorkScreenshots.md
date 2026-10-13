@@ -27,7 +27,7 @@ Work screenshots. Same items as include=screenshots. Anonymous calls are allowed
 | `limit` | query | 否 | string | Page size 1-100, default 20. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/works/value/screenshots"
+curl "https://api.nextmoe.dev/v2/catalog/works/1/screenshots"
 ```
 
 ---

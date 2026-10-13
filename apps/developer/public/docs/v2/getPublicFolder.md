@@ -24,7 +24,7 @@ Get one public folder
 | `id` | path | 是 | string | Folder id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/folders/value" \
+curl "https://api.nextmoe.dev/v2/folders/1" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 

@@ -23,11 +23,29 @@ Mint or claim a work. work_id claims an existing catalog work. refs= claims the 
 | --- | --- | --- | --- | --- |
 | `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `confirm_duplicates` | 否 | boolean | Mint even when live works of the same medium share a submitted title. Without it such a mint is refused with 409 DUPLICATE_SUSPECTS and the works in suspects[]; nothing is written. Confirming still files the pairs for reconciliation. Only mint lanes read this. |
+| `display_name` | 否 | string | Required to mint when refs do not match. Must not be used as a discriminant. |
+| `field_values` | 否 | map<string, object> | Editing-engine field key to value for the minted work, e.g. catalog.work.titles — the same shape GET /v2/moderation/snapshots/{object}/{id} answers. Sent alone it mints from the map; sent with work_id it is 422. Top-level display_name wins over catalog.work.display_name. |
+| `field_values.«key»` | 否 | object |  |
+| `refs` | 否 | object[] | source:external_id anchors, at most 100. Used when work_id is absent. |
+| `refs[].external_id` | 是 | string | Verbatim upstream id. Must not be used as a discriminant beyond exact match. |
+| `refs[].source` | 是 | string | Open vocabulary source key such as vndb. Must not be used as a discriminant. |
+| `released` | 否 | object |  |
+| `released.d` | 否 | integer (int32) | Release day; 0 or absent means unknown. Requires m. |
+| `released.m` | 否 | integer (int32) | Release month; 0 or absent means unknown. |
+| `released.y` | 是 | integer (int32) | Release year. |
+| `site_work_id` | 否 | string | The site's own work id. Sent alone with display_name — no work_id, no refs — it mints a work anchored to that id. |
+| `work_id` | 否 | string | Existing catalog work id to claim. |
+
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/me/claims" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{}'
+  -d '{"work_id":"1"}'
 ```
 
 ---

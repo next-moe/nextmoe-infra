@@ -19,10 +19,10 @@ type listFoldersOutput struct {
 }
 type createFolderInput struct {
 	Body struct {
-		Name        string `json:"name" minLength:"1" maxLength:"100" doc:"Display name. Must not be used as a discriminant."`
-		Description string `json:"description,omitempty" maxLength:"500" doc:"Owner's own note. Must not be used as a discriminant."`
-		Visibility  string `json:"visibility,omitempty" enum:"private,public" doc:"Defaults to private."`
-		IsDefault   bool   `json:"is_default,omitempty" doc:"true makes this the user's default folder and clears the flag on the previous holder."`
+		Name        string `json:"name" minLength:"1" maxLength:"100" example:"想玩" doc:"Display name. Must not be used as a discriminant."`
+		Description string `json:"description,omitempty" maxLength:"500" example:"还没开始的作品" doc:"Owner's own note. Must not be used as a discriminant."`
+		Visibility  string `json:"visibility,omitempty" enum:"private,public" example:"private" doc:"Defaults to private."`
+		IsDefault   bool   `json:"is_default,omitempty" example:"false" doc:"true makes this the user's default folder and clears the flag on the previous holder."`
 	}
 }
 type folderOutput struct {
@@ -34,10 +34,10 @@ type getFolderInput struct {
 type patchFolderInput struct {
 	ID   string `path:"id" minLength:"1" maxLength:"20" pattern:"^[0-9]+$" doc:"Folder id."`
 	Body struct {
-		Name        *string `json:"name,omitempty" minLength:"1" maxLength:"100" doc:"New display name. Must not be used as a discriminant."`
-		Description *string `json:"description,omitempty" maxLength:"500" doc:"New note; an empty string clears it. Must not be used as a discriminant."`
-		Visibility  *string `json:"visibility,omitempty" enum:"private,public" doc:"New visibility."`
-		IsDefault   *bool   `json:"is_default,omitempty" doc:"Only true is accepted: it moves the default flag to this folder. Sending false is 422 — set the flag on another folder instead."`
+		Name        *string `json:"name,omitempty" minLength:"1" maxLength:"100" example:"已通关" doc:"New display name. Must not be used as a discriminant."`
+		Description *string `json:"description,omitempty" maxLength:"500" example:"全路线通关的作品" doc:"New note; an empty string clears it. Must not be used as a discriminant."`
+		Visibility  *string `json:"visibility,omitempty" enum:"private,public" example:"public" doc:"New visibility."`
+		IsDefault   *bool   `json:"is_default,omitempty" example:"true" doc:"Only true is accepted: it moves the default flag to this folder. Sending false is 422 — set the flag on another folder instead."`
 	}
 }
 type listFolderItemsInput struct {
@@ -59,7 +59,7 @@ type folderItemOutput struct {
 // "Item" after the field, and two batch routes with that shape panic the
 // registry with "duplicate name: Item" at startup.
 type folderBatchEntry struct {
-	WorkID string `json:"work_id" minLength:"1" maxLength:"20" pattern:"^[0-9]+$" doc:"Catalog work id."`
+	WorkID string `json:"work_id" minLength:"1" maxLength:"20" pattern:"^[0-9]+$" example:"1" doc:"Catalog work id."`
 }
 
 type batchFolderItemsInput struct {

@@ -23,11 +23,29 @@ Creates the rating or replaces every field of it; the id, client_id and site sta
 | --- | --- | --- | --- | --- |
 | `work_id` | path | 是 | string | Catalog work id. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `aspect_scores` | 否 | object |  |
+| `aspect_scores.art` | 否 | integer (int64) | Absent or null when not rated. |
+| `aspect_scores.character` | 否 | integer (int64) | Absent or null when not rated. |
+| `aspect_scores.music` | 否 | integer (int64) | Absent or null when not rated. |
+| `aspect_scores.replay_value` | 否 | integer (int64) | Absent or null when not rated. |
+| `aspect_scores.route` | 否 | integer (int64) | Absent or null when not rated. |
+| `aspect_scores.story` | 否 | integer (int64) | Absent or null when not rated. |
+| `aspect_scores.system` | 否 | integer (int64) | Absent or null when not rated. |
+| `aspect_scores.voice` | 否 | integer (int64) | Absent or null when not rated. |
+| `overall` | 是 | integer (int64) | The overall score, a whole number from 1 to 10. |
+| `recommend` | 是 | string | How strongly the author recommends the work. 取值：strong_no \| no \| neutral \| yes \| strong_yes |
+| `short_summary` | 否 | string | Short review, plain text. Absent or empty means none. Free text; must not be used as a discriminant. |
+| `spoiler_level` | 否 | string | How much short_summary gives away. Absent means none. 取值：none \| portion \| serious |
+
 ```bash
-curl -X PUT "https://api.nextmoe.dev/v2/me/ratings/value" \
+curl -X PUT "https://api.nextmoe.dev/v2/me/ratings/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"overall":0,"recommend":"strong_no"}'
+  -d '{"aspect_scores":{"art":8,"character":8,"music":9,"replay_value":8,"route":7,"story":8,"system":7,"voice":8},"overall":8,"recommend":"yes","short_summary":"画面和音乐都很出色，主线一周目通关后还想再走一遍。","spoiler_level":"none"}'
 ```
 
 ---

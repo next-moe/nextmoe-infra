@@ -1,7 +1,7 @@
 ---
 title: 接入用户数据
 eyebrow: 集成指南
-description: 用 OAuth 用户访问令牌接入 NextMoe 的用户面：游玩时长、认领、编辑提案、封面投票、资讯投稿，以及审核队列。
+description: 用 OAuth 用户访问令牌接入 /v2/me。游玩记录与收藏夹各有专页；本页是其余用户面的入口，并写认领、编辑提案、封面投票、资讯投稿与审核队列。
 ---
 
 # 接入用户数据
@@ -15,33 +15,96 @@ description: 用 OAuth 用户访问令牌接入 NextMoe 的用户面：游玩时
 > [!WARNING]
 > 用户面的限流按**用户**计数，不是按 IP。所以一定要带用户令牌调用；用别的方式代理会让你的全体用户挤进同一个桶。
 
-## 六类用户数据 {#surfaces}
+## 各面在哪 {#surfaces}
 
-### 游玩时长
+游玩记录与收藏夹有专页。下表是 `/v2/me` 的每一族：凭据，以及语义写在哪一页。
+
+| 一族                           | 路径                                                                              | 凭据                                     | 写在哪                               |
+| ------------------------------ | --------------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------ |
+| 游玩状态、时长、评分、一次写完 | `/v2/me/work-states`、`/v2/me/playtimes`、`/v2/me/ratings`、`/v2/me/work-records` | 用户令牌，无 scope。写评分只限第一方应用 | [评分与游玩记录](/docs/play-records) |
+| 收藏夹                         | `/v2/me/folders`                                                                  | `folder:read` / `folder:write`           | [收藏夹](/docs/folders)              |
+| 按作品汇总                     | `/v2/me/works`                                                                    | `folder:read`（`folder:write` 也满足读） | [本页](#works)                       |
+| 关注的会社                     | `/v2/me/followed-companies`                                                       | 用户令牌，无 scope                       | [本页](#followed-companies)          |
+| 屏蔽的标签                     | `/v2/me/blocked-tags`                                                             | 用户令牌，无 scope                       | [本页](#blocked-tags)                |
+| 我的发售月历                   | `/v2/me/calendar`                                                                 | 用户令牌，无 scope                       | [本页](#calendar)                    |
+| 编辑能力                       | `/v2/me/edit-capabilities`                                                        | `catalog:edit`                           | [本页](#edit-capabilities)           |
+| 认领                           | `/v2/me/claims`                                                                   | `catalog:edit`                           | [本页](#claims)                      |
+| 编辑提案与配图                 | `/v2/me/proposals`、`/v2/me/edit-images`                                          | `catalog:edit`                           | [本页](#proposals)                   |
+| 封面投票                       | `/v2/me/cover-votes`                                                              | `catalog:edit`                           | [本页](#cover-votes)                 |
+| 资讯投稿                       | `/v2/me/news`、`/v2/me/news-images`                                               | 用户令牌，无 scope                       | [本页](#news)                        |
+
+缺了表里点名的 scope 是 `403 SCOPE_REQUIRED`，响应里写出缺的是哪一个。
+
+## 按作品汇总 {#works}
 
 ```http
-GET    /v2/me/playtimes              # 我的全部记录
-GET    /v2/me/playtimes/{work_id}    # 单部作品
-PUT    /v2/me/playtimes/{work_id}    # 覆盖写
-POST   /v2/me/playtimes              # 批量写
-DELETE /v2/me/playtimes/{work_id}
+GET /v2/me/works
+GET /v2/me/works?work_ids=
 ```
 
-这一组**只要用户令牌**，不需要任何额外 scope——任何已开通用户登录的应用都可以调用。批量写用 `POST /v2/me/playtimes`，导入历史记录时别用 `PUT` 逐条打。
+一次读回这个人对作品记下的东西：每部作品在哪些收藏夹里、游玩时长、游玩状态、评分。数值与 `/v2/me/folders/holdings`、`/v2/me/playtimes`、`/v2/me/work-states`、`/v2/me/ratings` 各自的回答相同，免得一个客户端打四次。
 
-### 游玩状态
+带 `work_ids=`（最多 100 个）是批量读，不分页：每个不重复的 id 一项，顺序与请求一致。这个人什么都没记过的作品，以及并不存在的 id，也各有一项，`folder_ids` 为空，时长、状态、评分都是 null。
+
+不带 `work_ids` 时，列出这个人收藏过、报过时长、记过状态或评过分的每一部作品，按作品 id 升序，用 `cursor` / `limit` 翻页，`include_total` 给总数。
+
+封面投票不在这里：它要 `catalog:edit`，清单在 `/v2/me/cover-votes`。
+
+这一面要 `folder:read`。只申请了 `folder:write` 的应用也读得回来。
+
+## 关注的会社 {#followed-companies}
 
 ```http
-GET    /v2/me/work-states             # 我的全部状态
-GET    /v2/me/work-states/{work_id}   # 单部作品
-PUT    /v2/me/work-states/{work_id}   # 覆盖写
-POST   /v2/me/work-states             # 批量写
-DELETE /v2/me/work-states/{work_id}
+GET    /v2/me/followed-companies
+GET    /v2/me/followed-companies/{company_id}
+PUT    /v2/me/followed-companies/{company_id}
+DELETE /v2/me/followed-companies/{company_id}
 ```
 
-状态是两个轴：`state` 是封闭词表 `wish / doing / done / on_hold / dropped`，与 Bangumi 收藏类型一一对应；`completion` 表示通了多少（`one_route / main / all`），可以不填，`wish` 不允许携带它。`PUT` 是整体替换——不带 `completion` 就等于清掉它。这一组和游玩时长一样**只要用户令牌**，不需要任何额外 scope。
+只要用户令牌，不需要 scope。列表是这个人关注的会社，最新的关注在前。每一项只带 id，用 `/v2/catalog/companies?ids=` 水合。`company_ids=` 是批量读。这份清单只对主人可见；公开的只有计数，在 `/v2/catalog/companies/{id}` 的 `follower_count`。
 
-### 认领
+`PUT` 没有 body。已经关注过的再 PUT 一次，返回存着的那一行，不再写。不存在、已删除，或这个 id 已经被合并走，是 404（合并走的是合并实体那一种 problem）。每人最多 **1000** 家，超出是 422。
+
+`DELETE` 是 204，没有 body，本来就没关注也是 204。单条 GET 在没关注时是 404。
+
+## 屏蔽的标签 {#blocked-tags}
+
+```http
+GET    /v2/me/blocked-tags
+GET    /v2/me/blocked-tags/{tag_id}
+PUT    /v2/me/blocked-tags/{tag_id}
+DELETE /v2/me/blocked-tags/{tag_id}
+```
+
+只要用户令牌，不需要 scope。列表按最新屏蔽在前排。每一项只带 id，用 `/v2/catalog/tags?ids=` 水合。`tag_ids=` 是批量读。这份清单只对主人可见，目录自己不会拿它去过滤：客户端把 `tree` 模式的 id 放进 `/v2/catalog/works` 和两个月历的 `exclude_tag_tree`，把 `exact` 模式的 id 放进 `exclude_tag_id`。最多 **100** 条，所以整份清单放得进这两个参数。
+
+`PUT` 的 body 可选，`mode` 是 `tree`（缺省）或 `exact`。已经屏蔽过的再 PUT，只改模式，除此之外不再写。未知标签是 404。超出 100 条是 422。
+
+`DELETE` 是 204，没有 body，本来就没屏蔽也是 204。单条 GET 在没屏蔽时是 404。
+
+## 我的发售月历 {#calendar}
+
+```http
+GET /v2/me/calendar
+```
+
+这个人关注的会社名下的作品，窗口、参数和 `meta` 与 `/v2/catalog/calendar` 相同。不传 `olang` 表示全部语言，不传 `exclude_company_kind` 表示什么都不排除：人口已经是这个人自己选的，公开月历的缺省（日语、只要商业）会把关注的同人社团或中国会社藏掉。一个人一家都没关注，得到一个空窗口。
+
+只要用户令牌，不需要 scope。不接受 `ids=`。`include=` 可以是 `titles,refs,intros,covers,companies,ratings,tags,credits`；`view=full` 是其中除 `credits` 以外的全部，`credits` 要点名才有。在集合面上，`titles` 选出 latin / localized，`covers` 选出给基础封面定级的两个封面位。完整的 `titles[]`、`covers[]`，以及 relations / releases / popularity / playtimes / series / platforms / screenshots / characters / engines / links，是单条记录的块，在 `/v2/catalog/works/{id}` 和它的子资源上；在这里要其中一块是 `400 UNKNOWN_INCLUDE`。
+
+## 编辑能力 {#edit-capabilities}
+
+```http
+GET /v2/me/edit-capabilities/{object}?entity_id=
+```
+
+编辑引擎对这个人算出的、每个字段的 `can_propose` / `can_review` / `would_automerge`。`object` 是 `work / company / character / release / tag / engine / series`，未知家族是 404。
+
+这组答案不能挂在 `/v2/catalog/schemas/{object}` 上：那个面不看凭据，同一个 URL 不能按凭据变字段集。两个 URL 分开，用 `fields[].key` 对齐。站点如果开了主人通道，要带 `entity_id=`；不带的话 `would_automerge` 回答的是类型级的问题，结果是 false。
+
+要用户令牌，而且令牌必须绑在一个目录站点上，并带 `catalog:edit`。
+
+## 认领 {#claims}
 
 ```http
 GET    /v2/me/claims
@@ -56,7 +119,7 @@ DELETE /v2/me/claims/{id}            # 只能删草稿
 > [!NOTE]
 > 带 `refs` 的提交如果命中了已存在的作品，会返回 `409` 而不是静默新建一条——这是防止你在目录里造出重复条目。先按 `refs=` 查一次，命中就走已有的那条。
 
-### 编辑提案
+## 编辑提案 {#proposals}
 
 ```http
 GET    /v2/me/proposals
@@ -69,7 +132,7 @@ POST   /v2/me/edit-images            # 提案里要用的图先传这里
 
 提案是「我想把这个字段改成那个值」。可改哪些字段由 `GET /v2/catalog/schemas/{object}` 的 `fields` 给出。列表带 `include=patch`（2.27.0 起）时每一行都有 `patch` 与 `effective_patch`，与详情面一致，列表页不必逐条再读详情。提案与修订历史是**公开只读**的（`/v2/catalog/proposals`、`/v2/catalog/revisions`）——目录的每一次改动都留痕。
 
-### 封面投票
+## 封面投票 {#cover-votes}
 
 ```http
 GET    /v2/me/cover-votes
@@ -79,11 +142,11 @@ DELETE /v2/me/cover-votes/{cover_id}
 
 封面项的 `id` 在 `GET /v2/catalog/works/{id}/covers` 里——每个能被投票的东西都在读面上有地址，这是硬性设计约束的一个具体例子。
 
-### 资讯投稿
+## 资讯投稿 {#news}
 
 ```http
 GET    /v2/me/news
-POST   /v2/me/news                   # 投稿，总是落 pending
+POST   /v2/me/news                   # 投稿
 GET    /v2/me/news/{id}
 PATCH  /v2/me/news/{id}              # 编辑或撤回
 POST   /v2/me/news-images            # 上传横幅，返回 banner_hash 用的 hash
@@ -91,11 +154,13 @@ POST   /v2/me/news-images            # 上传横幅，返回 banner_hash 用的 
 
 横幅（封面图）只能来自 `POST /v2/me/news-images`（multipart 的 `file`，JPEG / PNG / WebP）：把它返回的 `hash` 填进 `banner_hash`。用别处上传得到的 hash 会被拒为 `422`（`/banner_hash`，`UNKNOWN_REFERENCE`）——资讯横幅由资讯站点自己的图床身份续期，挂在别的站点名下的图大约一年后会被回收。
 
-投稿总是落在 `pending`，由人工过审后才出现在公开的 `/v2/news`。授权模型是「有源行即有资格」：你在资讯源表里有一行，就能替那个源投稿，没有单独的申请流程。
+不指定源时投到社区源 `community`：任何登录用户都能投，稿件落在 `pending`，版主发布后才出现在公开的 `/v2/news`；滑动窗口内用完 `catalog.news_submissions_per_day` 的账号是 `429 QUOTA_EXCEEDED`。替合作源投稿时，这个源必须绑定在你的账号上并且处于启用状态；稿件落在 `pending`，受信任的源直接 `published`。
 
 ## 审核面 {#moderation}
 
-`/v2/moderation/*` 是给**有审核权的用户**用的，同样是用户令牌，能不能看见由那个用户在对应站点上的权限决定。
+评分的删除与收藏夹的审核不在这一节：[评分与游玩记录 · 版主删除](/docs/play-records#moderation)、[收藏夹 · 审核](/docs/folders#moderation)。
+
+`/v2/moderation/*` 是给**有审核权的用户**用的，同样是用户令牌，能不能看见由那个用户在对应站点上的权限决定。下面这一组还要 `catalog:edit`。
 
 ```http
 GET  /v2/moderation/claims                     # 认领队列

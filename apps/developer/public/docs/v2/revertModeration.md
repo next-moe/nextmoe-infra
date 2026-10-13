@@ -23,11 +23,18 @@ Body names revision_id. Requires a user access token bound to a catalog site. Th
 | --- | --- | --- | --- | --- |
 | `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `reason` | 否 | string | Must not be used as a discriminant. |
+| `revision_id` | 是 | string | edit_revision id. |
+
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/moderation/reverts" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"revision_id":"string"}'
+  -d '{"revision_id":"1"}'
 ```
 
 ---

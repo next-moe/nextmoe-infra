@@ -23,7 +23,7 @@ One patch page
 | `include` | query | 否 | string[] | Comma-separated relations to attach. Nothing is attached by default, including the resources — `resource_count` tells you whether there is anything to ask for, and `/patches/{id}/resources` pages them when there are many.  取值：resources \| publisher |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/moyu/patches/value" \
+curl "https://api.nextmoe.dev/v2/moyu/patches/11617" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 

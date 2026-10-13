@@ -24,7 +24,7 @@ A published news item. A withdrawn item is 410 GONE, not 404: a mirror that only
 | `id` | path | 是 | string | Decimal news item id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/news/value"
+curl "https://api.nextmoe.dev/v2/news/1"
 ```
 
 ---

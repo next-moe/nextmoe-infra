@@ -1403,6 +1403,8 @@ components:
           type: string
         work_id:
           description: Existing catalog work id to claim.
+          examples:
+            - "1"
           maxLength: 20
           pattern: ^[0-9]+$
           type: string
@@ -1419,13 +1421,19 @@ components:
           type: string
         description:
           description: Owner's own note. Must not be used as a discriminant.
+          examples:
+            - 还没开始的作品
           maxLength: 500
           type: string
         is_default:
           description: true makes this the user's default folder and clears the flag on the previous holder.
+          examples:
+            - false
           type: boolean
         name:
           description: Display name. Must not be used as a discriminant.
+          examples:
+            - 想玩
           maxLength: 100
           minLength: 1
           type: string
@@ -1434,6 +1442,8 @@ components:
           enum:
             - private
             - public
+          examples:
+            - private
           type: string
           x-vocabulary-closed: true
       required:
@@ -2175,6 +2185,8 @@ components:
       properties:
         work_id:
           description: Catalog work id.
+          examples:
+            - "1"
           maxLength: 20
           minLength: 1
           pattern: ^[0-9]+$
@@ -2397,12 +2409,16 @@ components:
       properties:
         minutes:
           description: Absolute cumulative minutes.
+          examples:
+            - 720
           format: int64
           maximum: 60000
           minimum: 0
           type: integer
         work_id:
           description: Catalog work id.
+          examples:
+            - "1"
           maxLength: 20
           minLength: 1
           pattern: ^[0-9]+$
@@ -5867,13 +5883,19 @@ components:
           type: string
         description:
           description: New note; an empty string clears it. Must not be used as a discriminant.
+          examples:
+            - 全路线通关的作品
           maxLength: 500
           type: string
         is_default:
           description: "Only true is accepted: it moves the default flag to this folder. Sending false is 422 — set the flag on another folder instead."
+          examples:
+            - true
           type: boolean
         name:
           description: New display name. Must not be used as a discriminant.
+          examples:
+            - 已通关
           maxLength: 100
           minLength: 1
           type: string
@@ -5881,6 +5903,8 @@ components:
           description: New visibility.
           enum:
             - private
+            - public
+          examples:
             - public
           type: string
           x-vocabulary-closed: true
@@ -5947,6 +5971,8 @@ components:
           type: string
         title:
           description: Must not be used as a discriminant.
+          examples:
+            - 中文版发售日确定
           maxLength: 512
           minLength: 1
           type: string
@@ -6606,6 +6632,8 @@ components:
           type: string
         minutes:
           description: Absolute cumulative minutes.
+          examples:
+            - 720
           format: int64
           maximum: 60000
           minimum: 0
@@ -6667,6 +6695,8 @@ components:
             - one_route
             - main
             - all
+          examples:
+            - all
           type: string
           x-vocabulary-closed: true
         state:
@@ -6677,6 +6707,8 @@ components:
             - done
             - on_hold
             - dropped
+          examples:
+            - done
           type: string
           x-vocabulary-closed: true
       required:
@@ -6804,48 +6836,64 @@ components:
       properties:
         art:
           description: Absent or null when not rated.
+          examples:
+            - 8
           format: int64
           maximum: 10
           minimum: 1
           type: integer
         character:
           description: Absent or null when not rated.
+          examples:
+            - 8
           format: int64
           maximum: 10
           minimum: 1
           type: integer
         music:
           description: Absent or null when not rated.
+          examples:
+            - 9
           format: int64
           maximum: 10
           minimum: 1
           type: integer
         replay_value:
           description: Absent or null when not rated.
+          examples:
+            - 8
           format: int64
           maximum: 10
           minimum: 1
           type: integer
         route:
           description: Absent or null when not rated.
+          examples:
+            - 7
           format: int64
           maximum: 10
           minimum: 1
           type: integer
         story:
           description: Absent or null when not rated.
+          examples:
+            - 8
           format: int64
           maximum: 10
           minimum: 1
           type: integer
         system:
           description: Absent or null when not rated.
+          examples:
+            - 7
           format: int64
           maximum: 10
           minimum: 1
           type: integer
         voice:
           description: Absent or null when not rated.
+          examples:
+            - 8
           format: int64
           maximum: 10
           minimum: 1
@@ -6894,6 +6942,8 @@ components:
           description: Per-aspect scores. Absent means none rated.
         overall:
           description: The overall score, a whole number from 1 to 10.
+          examples:
+            - 8
           format: int64
           maximum: 10
           minimum: 1
@@ -6906,10 +6956,14 @@ components:
             - neutral
             - "yes"
             - strong_yes
+          examples:
+            - "yes"
           type: string
           x-vocabulary-closed: true
         short_summary:
           description: Short review, plain text. Absent or empty means none. Free text; must not be used as a discriminant.
+          examples:
+            - 画面和音乐都很出色，主线一周目通关后还想再走一遍。
           maxLength: 2000
           type: string
         spoiler_level:
@@ -6918,6 +6972,8 @@ components:
             - none
             - portion
             - serious
+          examples:
+            - none
           type: string
           x-vocabulary-closed: true
       required:
@@ -9381,6 +9437,8 @@ components:
       properties:
         minutes:
           description: Absolute cumulative minutes.
+          examples:
+            - 720
           format: int64
           maximum: 60000
           minimum: 0
@@ -9397,6 +9455,8 @@ components:
             - one_route
             - main
             - all
+          examples:
+            - all
           type: string
           x-vocabulary-closed: true
         state:
@@ -9407,6 +9467,8 @@ components:
             - done
             - on_hold
             - dropped
+          examples:
+            - done
           type: string
           x-vocabulary-closed: true
       required:
@@ -9458,6 +9520,8 @@ components:
             - one_route
             - main
             - all
+          examples:
+            - all
           type: string
           x-vocabulary-closed: true
         state:
@@ -9468,10 +9532,14 @@ components:
             - done
             - on_hold
             - dropped
+          examples:
+            - done
           type: string
           x-vocabulary-closed: true
         work_id:
           description: Catalog work id.
+          examples:
+            - "1"
           maxLength: 20
           minLength: 1
           pattern: ^[0-9]+$
@@ -9641,7 +9709,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.48.0
+  version: 2.48.1
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -24172,6 +24240,8 @@ paths:
           required: true
           schema:
             description: Top-level error code from the registry (UPPER_SNAKE).
+            examples:
+              - VALIDATION_FAILED
             maxLength: 63
             pattern: ^[A-Z][A-Z0-9_]*[A-Z0-9]$
             type: string
@@ -24747,6 +24817,8 @@ paths:
           required: true
           schema:
             description: DLsite product number. RJ is doujin, VJ is commercial.
+            examples:
+              - RJ01234567
             maxLength: 10
             pattern: ^(RJ|VJ)[0-9]{6,8}$
             type: string
@@ -25045,6 +25117,8 @@ paths:
           required: true
           schema:
             description: Vocabulary name. The path segment of /v2/vocabularies/{name}.
+            examples:
+              - content_rating
             maxLength: 63
             pattern: ^[a-z][a-z0-9_]*$
             type: string

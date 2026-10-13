@@ -48,7 +48,8 @@ const DESCRIPTIONS = {
   getCatalogCompanyGraph:
     '一次拿到一家公司周围的整个会社家族（母公司 / 子品牌 / 文库 / 继承），nodes[] + edges[] 有向。getCatalogCompany 的关联只有一跳，问「某社旗下有哪些牌子」用这个；反向边按设计不下发。',
   getCatalogTag: '按 id 取正典标签——跨源标签词表的一行。',
-  getCatalogTagExclusion: '解析一组排除 tag：给 exclude_tag_id / exclude_tag_tree，返回展开后的 tag id 与带有其中任一 tag 的全部作品 id，供站点在自建列表里剔除。',
+  getCatalogTagExclusion:
+    '解析一组排除 tag：给 exclude_tag_id / exclude_tag_tree，返回展开后的 tag id 与带有其中任一 tag 的全部作品 id，供站点在自建列表里剔除。',
   listCatalogTags:
     '浏览正典标签词表本身——用来发现 tag id 再喂给 listCatalogWorks 的 tag_id=。',
   getCatalogTrait: '按 id 取角色特征词表的一行。',
@@ -121,7 +122,11 @@ const DESCRIPTIONS = {
     '字段级 reason 的封闭清单，无需凭据。这里的取值永远不会作为顶层 code 出现。',
   listVocabularies:
     '已发布词表清单（封闭词表与 seed-open 词表），keyset 分页，无需凭据。',
-  getVocabulary: '按 name 取一个词表的全部已发布取值。未知 name 返回 404。'
+  getVocabulary: '按 name 取一个词表的全部已发布取值。未知 name 返回 404。',
+  listRatings:
+    '一个人在一部作品上的评分，全 NextMoe 站点共用一条。work_id= 或 user_id= 至少给一个，两个都给就是这个账号对这部作品的那一条；按创建时间从新到旧。需要应用密钥，或带 catalog:read 的用户令牌。',
+  getRating:
+    '按评分 id 取这一条。一个人、一部作品、所有 NextMoe 站点只有一条评分；没有这条，包括已删除的，是 404。需要应用密钥，或带 catalog:read 的用户令牌。'
 }
 
 const undescribed = mcpTools

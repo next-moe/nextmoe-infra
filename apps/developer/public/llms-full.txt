@@ -1323,6 +1323,56 @@ for (;;) {
 - [字段裁剪与批量读](/docs/shaping) — `ids=` 的边界、`missing[]` 的语义、include 词表怎么问。
 - [限流与配额](/docs/rate-limits) — 冷启动是这个 API 上最大的一次性用量，先算好预算。
 
+## 评分镜像
+
+`GET /v2/ratings/changes` 是评分的镜像信道：所有 NextMoe 站点上写过或删过的评分，按 `(changed_at, id)` **从旧到新**做 keyset 翻页。要在自己的库里留一份评分副本，走这一条，不要翻 `/v2/ratings`。
+
+和目录变更 feed 的差别，都写在这条操作自己的说明里：
+
+- 条目**自带评分**，不需要再去水合。目录 feed 给的是作品 id，要再打 `/v2/catalog/works?ids=`。
+- `next_cursor` **只在满页时出现**。存下收到的最后一个，下次从它接着拉：它后面那一页不满，会被再读一遍，用 upsert 吸收即可。
+- 需要应用密钥，或带 `catalog:read` 的用户令牌。目录变更 feed 允许匿名，这一条不允许。
+- 没有合并重指。`gone` 就是这条评分被删了，删掉本地那一行。评分 id 在编辑和作品合并之后保持不变，被删的 id 不会回来。
+
+和目录 feed 一样，这一条不接受 `ids=`。
+
+作者改自己的游玩状态也会让这条评分出现在 feed 里：条目上的 `work_state` 是作者**现在**的状态，不是写评分时的状态。变更在提交大约 **5 秒**之后才出现，和目录 feed 一样。这不是丢失，下一轮会带上。
+
+```json
+{
+  "object": "rating_change",
+  "id": "1",
+  "work_id": "1",
+  "gone": false,
+  "changed_at": "2026-10-13T00:00:00.000000000Z",
+  "rating": { "object": "rating", "id": "1", "work_id": "1" }
+}
+```
+
+### 冷启动
+
+从空游标翻完。feed 按最旧优先枚举全部人口，第一次翻完就是全量，不需要另一个「列出全部评分」的面。
+
+```http
+GET /v2/ratings/changes?limit=100
+```
+
+每一页里 `gone` 不为真的条目，把 `rating` upsert 进本地，以评分 `id` 为键。存下最后一页的 `next_cursor`。第一轮若最后一页不满，它不带这个键，你已经持有全部。
+
+### 稳态
+
+带着存下的游标按自己的节奏轮询。游标是不透明串，原样回传。
+
+满页才带新的 `next_cursor`，把它存回去。没带，说明这一页是不满的尾页：下次仍用**上一个**游标来拉，这一页会被再读一遍。按评分 `id` upsert，重读是空操作。
+
+不要因为「刚写的没立刻出现」就重置游标。5 秒水位过了，下一轮会带上它。
+
+### gone
+
+`gone: true` 的条目是一次删除。`rating` 为 null，`work_id` 是删除时它所在的作品。删掉本地以这个评分 `id` 为键的那一行。被删的 id 不会回来。
+
+没有与 `/v2/catalog/redirects` 对应的面，不要把 `gone` 读成「去查重指」。作品被合并时，评分 id 留下来：同一个人两边都评过，留下 `updated_at` 较新的那条，另一条变成 `gone`；留下的那条改指继任作品，并因为 `changed_at` 被刷新而再次出现在 feed 里。
+
 ---
 
 # 接入用户数据
@@ -1336,33 +1386,96 @@ for (;;) {
 > [!WARNING]
 > 用户面的限流按**用户**计数，不是按 IP。所以一定要带用户令牌调用；用别的方式代理会让你的全体用户挤进同一个桶。
 
-## 六类用户数据
+## 各面在哪
 
-### 游玩时长
+游玩记录与收藏夹有专页。下表是 `/v2/me` 的每一族：凭据，以及语义写在哪一页。
+
+| 一族                           | 路径                                                                              | 凭据                                     | 写在哪                               |
+| ------------------------------ | --------------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------ |
+| 游玩状态、时长、评分、一次写完 | `/v2/me/work-states`、`/v2/me/playtimes`、`/v2/me/ratings`、`/v2/me/work-records` | 用户令牌，无 scope。写评分只限第一方应用 | [评分与游玩记录](/docs/play-records) |
+| 收藏夹                         | `/v2/me/folders`                                                                  | `folder:read` / `folder:write`           | [收藏夹](/docs/folders)              |
+| 按作品汇总                     | `/v2/me/works`                                                                    | `folder:read`（`folder:write` 也满足读） | [本页](#works)                       |
+| 关注的会社                     | `/v2/me/followed-companies`                                                       | 用户令牌，无 scope                       | [本页](#followed-companies)          |
+| 屏蔽的标签                     | `/v2/me/blocked-tags`                                                             | 用户令牌，无 scope                       | [本页](#blocked-tags)                |
+| 我的发售月历                   | `/v2/me/calendar`                                                                 | 用户令牌，无 scope                       | [本页](#calendar)                    |
+| 编辑能力                       | `/v2/me/edit-capabilities`                                                        | `catalog:edit`                           | [本页](#edit-capabilities)           |
+| 认领                           | `/v2/me/claims`                                                                   | `catalog:edit`                           | [本页](#claims)                      |
+| 编辑提案与配图                 | `/v2/me/proposals`、`/v2/me/edit-images`                                          | `catalog:edit`                           | [本页](#proposals)                   |
+| 封面投票                       | `/v2/me/cover-votes`                                                              | `catalog:edit`                           | [本页](#cover-votes)                 |
+| 资讯投稿                       | `/v2/me/news`、`/v2/me/news-images`                                               | 用户令牌，无 scope                       | [本页](#news)                        |
+
+缺了表里点名的 scope 是 `403 SCOPE_REQUIRED`，响应里写出缺的是哪一个。
+
+## 按作品汇总
 
 ```http
-GET    /v2/me/playtimes              # 我的全部记录
-GET    /v2/me/playtimes/{work_id}    # 单部作品
-PUT    /v2/me/playtimes/{work_id}    # 覆盖写
-POST   /v2/me/playtimes              # 批量写
-DELETE /v2/me/playtimes/{work_id}
+GET /v2/me/works
+GET /v2/me/works?work_ids=
 ```
 
-这一组**只要用户令牌**，不需要任何额外 scope——任何已开通用户登录的应用都可以调用。批量写用 `POST /v2/me/playtimes`，导入历史记录时别用 `PUT` 逐条打。
+一次读回这个人对作品记下的东西：每部作品在哪些收藏夹里、游玩时长、游玩状态、评分。数值与 `/v2/me/folders/holdings`、`/v2/me/playtimes`、`/v2/me/work-states`、`/v2/me/ratings` 各自的回答相同，免得一个客户端打四次。
 
-### 游玩状态
+带 `work_ids=`（最多 100 个）是批量读，不分页：每个不重复的 id 一项，顺序与请求一致。这个人什么都没记过的作品，以及并不存在的 id，也各有一项，`folder_ids` 为空，时长、状态、评分都是 null。
+
+不带 `work_ids` 时，列出这个人收藏过、报过时长、记过状态或评过分的每一部作品，按作品 id 升序，用 `cursor` / `limit` 翻页，`include_total` 给总数。
+
+封面投票不在这里：它要 `catalog:edit`，清单在 `/v2/me/cover-votes`。
+
+这一面要 `folder:read`。只申请了 `folder:write` 的应用也读得回来。
+
+## 关注的会社
 
 ```http
-GET    /v2/me/work-states             # 我的全部状态
-GET    /v2/me/work-states/{work_id}   # 单部作品
-PUT    /v2/me/work-states/{work_id}   # 覆盖写
-POST   /v2/me/work-states             # 批量写
-DELETE /v2/me/work-states/{work_id}
+GET    /v2/me/followed-companies
+GET    /v2/me/followed-companies/{company_id}
+PUT    /v2/me/followed-companies/{company_id}
+DELETE /v2/me/followed-companies/{company_id}
 ```
 
-状态是两个轴：`state` 是封闭词表 `wish / doing / done / on_hold / dropped`，与 Bangumi 收藏类型一一对应；`completion` 表示通了多少（`one_route / main / all`），可以不填，`wish` 不允许携带它。`PUT` 是整体替换——不带 `completion` 就等于清掉它。这一组和游玩时长一样**只要用户令牌**，不需要任何额外 scope。
+只要用户令牌，不需要 scope。列表是这个人关注的会社，最新的关注在前。每一项只带 id，用 `/v2/catalog/companies?ids=` 水合。`company_ids=` 是批量读。这份清单只对主人可见；公开的只有计数，在 `/v2/catalog/companies/{id}` 的 `follower_count`。
 
-### 认领
+`PUT` 没有 body。已经关注过的再 PUT 一次，返回存着的那一行，不再写。不存在、已删除，或这个 id 已经被合并走，是 404（合并走的是合并实体那一种 problem）。每人最多 **1000** 家，超出是 422。
+
+`DELETE` 是 204，没有 body，本来就没关注也是 204。单条 GET 在没关注时是 404。
+
+## 屏蔽的标签
+
+```http
+GET    /v2/me/blocked-tags
+GET    /v2/me/blocked-tags/{tag_id}
+PUT    /v2/me/blocked-tags/{tag_id}
+DELETE /v2/me/blocked-tags/{tag_id}
+```
+
+只要用户令牌，不需要 scope。列表按最新屏蔽在前排。每一项只带 id，用 `/v2/catalog/tags?ids=` 水合。`tag_ids=` 是批量读。这份清单只对主人可见，目录自己不会拿它去过滤：客户端把 `tree` 模式的 id 放进 `/v2/catalog/works` 和两个月历的 `exclude_tag_tree`，把 `exact` 模式的 id 放进 `exclude_tag_id`。最多 **100** 条，所以整份清单放得进这两个参数。
+
+`PUT` 的 body 可选，`mode` 是 `tree`（缺省）或 `exact`。已经屏蔽过的再 PUT，只改模式，除此之外不再写。未知标签是 404。超出 100 条是 422。
+
+`DELETE` 是 204，没有 body，本来就没屏蔽也是 204。单条 GET 在没屏蔽时是 404。
+
+## 我的发售月历
+
+```http
+GET /v2/me/calendar
+```
+
+这个人关注的会社名下的作品，窗口、参数和 `meta` 与 `/v2/catalog/calendar` 相同。不传 `olang` 表示全部语言，不传 `exclude_company_kind` 表示什么都不排除：人口已经是这个人自己选的，公开月历的缺省（日语、只要商业）会把关注的同人社团或中国会社藏掉。一个人一家都没关注，得到一个空窗口。
+
+只要用户令牌，不需要 scope。不接受 `ids=`。`include=` 可以是 `titles,refs,intros,covers,companies,ratings,tags,credits`；`view=full` 是其中除 `credits` 以外的全部，`credits` 要点名才有。在集合面上，`titles` 选出 latin / localized，`covers` 选出给基础封面定级的两个封面位。完整的 `titles[]`、`covers[]`，以及 relations / releases / popularity / playtimes / series / platforms / screenshots / characters / engines / links，是单条记录的块，在 `/v2/catalog/works/{id}` 和它的子资源上；在这里要其中一块是 `400 UNKNOWN_INCLUDE`。
+
+## 编辑能力
+
+```http
+GET /v2/me/edit-capabilities/{object}?entity_id=
+```
+
+编辑引擎对这个人算出的、每个字段的 `can_propose` / `can_review` / `would_automerge`。`object` 是 `work / company / character / release / tag / engine / series`，未知家族是 404。
+
+这组答案不能挂在 `/v2/catalog/schemas/{object}` 上：那个面不看凭据，同一个 URL 不能按凭据变字段集。两个 URL 分开，用 `fields[].key` 对齐。站点如果开了主人通道，要带 `entity_id=`；不带的话 `would_automerge` 回答的是类型级的问题，结果是 false。
+
+要用户令牌，而且令牌必须绑在一个目录站点上，并带 `catalog:edit`。
+
+## 认领
 
 ```http
 GET    /v2/me/claims
@@ -1377,7 +1490,7 @@ DELETE /v2/me/claims/{id}            # 只能删草稿
 > [!NOTE]
 > 带 `refs` 的提交如果命中了已存在的作品，会返回 `409` 而不是静默新建一条——这是防止你在目录里造出重复条目。先按 `refs=` 查一次，命中就走已有的那条。
 
-### 编辑提案
+## 编辑提案
 
 ```http
 GET    /v2/me/proposals
@@ -1390,7 +1503,7 @@ POST   /v2/me/edit-images            # 提案里要用的图先传这里
 
 提案是「我想把这个字段改成那个值」。可改哪些字段由 `GET /v2/catalog/schemas/{object}` 的 `fields` 给出。列表带 `include=patch`（2.27.0 起）时每一行都有 `patch` 与 `effective_patch`，与详情面一致，列表页不必逐条再读详情。提案与修订历史是**公开只读**的（`/v2/catalog/proposals`、`/v2/catalog/revisions`）——目录的每一次改动都留痕。
 
-### 封面投票
+## 封面投票
 
 ```http
 GET    /v2/me/cover-votes
@@ -1400,11 +1513,11 @@ DELETE /v2/me/cover-votes/{cover_id}
 
 封面项的 `id` 在 `GET /v2/catalog/works/{id}/covers` 里——每个能被投票的东西都在读面上有地址，这是硬性设计约束的一个具体例子。
 
-### 资讯投稿
+## 资讯投稿
 
 ```http
 GET    /v2/me/news
-POST   /v2/me/news                   # 投稿，总是落 pending
+POST   /v2/me/news                   # 投稿
 GET    /v2/me/news/{id}
 PATCH  /v2/me/news/{id}              # 编辑或撤回
 POST   /v2/me/news-images            # 上传横幅，返回 banner_hash 用的 hash
@@ -1412,11 +1525,13 @@ POST   /v2/me/news-images            # 上传横幅，返回 banner_hash 用的 
 
 横幅（封面图）只能来自 `POST /v2/me/news-images`（multipart 的 `file`，JPEG / PNG / WebP）：把它返回的 `hash` 填进 `banner_hash`。用别处上传得到的 hash 会被拒为 `422`（`/banner_hash`，`UNKNOWN_REFERENCE`）——资讯横幅由资讯站点自己的图床身份续期，挂在别的站点名下的图大约一年后会被回收。
 
-投稿总是落在 `pending`，由人工过审后才出现在公开的 `/v2/news`。授权模型是「有源行即有资格」：你在资讯源表里有一行，就能替那个源投稿，没有单独的申请流程。
+不指定源时投到社区源 `community`：任何登录用户都能投，稿件落在 `pending`，版主发布后才出现在公开的 `/v2/news`；滑动窗口内用完 `catalog.news_submissions_per_day` 的账号是 `429 QUOTA_EXCEEDED`。替合作源投稿时，这个源必须绑定在你的账号上并且处于启用状态；稿件落在 `pending`，受信任的源直接 `published`。
 
 ## 审核面
 
-`/v2/moderation/*` 是给**有审核权的用户**用的，同样是用户令牌，能不能看见由那个用户在对应站点上的权限决定。
+评分的删除与收藏夹的审核不在这一节：[评分与游玩记录 · 版主删除](/docs/play-records#moderation)、[收藏夹 · 审核](/docs/folders#moderation)。
+
+`/v2/moderation/*` 是给**有审核权的用户**用的，同样是用户令牌，能不能看见由那个用户在对应站点上的权限决定。下面这一组还要 `catalog:edit`。
 
 ```http
 GET  /v2/moderation/claims                     # 认领队列
@@ -1457,17 +1572,239 @@ const write = await fetch(url, {
 
 ---
 
+# 评分与游玩记录
+
+一个人在一部作品上的游玩数据分成四份资源。三份各自能读能写，第四份把它们放进同一个请求。
+
+## 四份资源怎么选
+
+| 资源     | 路径                            | 什么时候用                     |
+| -------- | ------------------------------- | ------------------------------ |
+| 游玩状态 | `/v2/me/work-states`            | 只改「想玩 / 在玩 / 通了」     |
+| 游玩时长 | `/v2/me/playtimes`              | 只上报本应用累计的分钟数       |
+| 评分     | `/v2/me/ratings`                | 只改这个人给这部作品的评分     |
+| 一次写完 | `/v2/me/work-records/{work_id}` | 一个表单同时交状态、时长和评分 |
+
+四份都只要用户访问令牌，不需要 scope。公开读取别人的评分不走 `/v2/me`，见 [公开读取](#public)。
+
+```http
+GET    /v2/me/work-states
+GET    /v2/me/work-states/{work_id}
+PUT    /v2/me/work-states/{work_id}
+POST   /v2/me/work-states
+DELETE /v2/me/work-states/{work_id}
+
+GET    /v2/me/playtimes
+GET    /v2/me/playtimes/{work_id}
+PUT    /v2/me/playtimes/{work_id}
+POST   /v2/me/playtimes
+DELETE /v2/me/playtimes/{work_id}
+
+GET    /v2/me/ratings
+GET    /v2/me/ratings/{work_id}
+PUT    /v2/me/ratings/{work_id}
+DELETE /v2/me/ratings/{work_id}
+
+GET    /v2/me/work-records/{work_id}
+PUT    /v2/me/work-records/{work_id}
+```
+
+## 一次写完
+
+`GET /v2/me/work-records/{work_id}` 返回表单要展示的三块，形状与三条单资源的 GET 一致。什么都没记过也是 200，对应的块为 null。
+
+`PUT /v2/me/work-records/{work_id}` 在**一个事务**里写这三块：要么都写上，要么都不写。它**替换整条记录**。某一块缺了，或者是 null，这块就被删掉。客户端必须把表单上显示的每一块都原样送回去。
+
+```json
+{
+  "work_state": { "state": "done", "completion": "all" },
+  "playtime": { "minutes": 720 },
+  "rating": {
+    "overall": 8,
+    "recommend": "yes",
+    "spoiler_level": "none",
+    "short_summary": "画面和音乐都很出色，主线一周目通关后还想再走一遍。"
+  }
+}
+```
+
+`playtime` 写的是**本应用自己的**上报。读回来的分钟数是所有应用里报过的最大值。
+
+> [!WARNING]
+> 复制一个空 body 再 PUT，会删掉这个人的游玩状态和本应用的时长。第一方应用还会连评分一起删掉。第三方应用不送 `rating` 时，评分保持原样。
+
+## 给这部作品打分
+
+表单的顺序是固定的：先读，再整份送回。
+
+1. `GET /v2/me/work-records/{work_id}`，把返回的三块填进表单。null 的块显示为空。
+2. 用户改完后，`PUT` 同一路径，body 里带上表单上的**每一块**，包括用户没改的那些。
+3. 第三方应用不能写评分：表单里把评分只读显示，PUT 时不送 `rating`，状态和时长照常写入，评分留在原地。送了 `rating` 是 `403 FIRST_PARTY_ONLY`，整次写入都不生效。
+
+第一方应用不要靠「省略 rating」来表示「没改评分」——省略就是删除。没改的评分要原样送回去。
+
+## 评分
+
+一条评分是**一个人、一部作品、所有 NextMoe 站点共用的一条**。`id`、`client_id` 和 `site` 永远是第一次写入时的值，后来换一个站点改内容也不会换主人。
+
+`PUT /v2/me/ratings/{work_id}` 创建或整份替换。`overall` 是 1 到 10 的整数，`recommend` 是 `strong_no / no / neutral / yes / strong_yes`。`aspect_scores` 的每一项也是 1 到 10，不评的项不送。`spoiler_level` 不送等于 `none`。`short_summary` 是纯文本，最长 2000 个字符，不送或空串等于没有短评。和已经存着的内容完全一样时，这次写入不落库。作品的 nextmoe 评分（`/v2/catalog/works/{id}/ratings`）随即更新。
+
+> [!IMPORTANT]
+> `PUT /v2/me/ratings/{work_id}`，以及 work-records 里的 `rating` 块，**只有第一方应用能写**。第三方应用的令牌得到 `403 FIRST_PARTY_ONLY`。中央服务不检查 `short_summary` 的内容，每个第一方站点在写入之前自己做内容检查。
+
+读是放开的。`GET /v2/me/ratings` 与 `GET /v2/me/ratings/{work_id}` 任何拿着这个用户令牌的应用都能调，不需要 scope。列表按目录最后一次改动这条评分的时间从旧到新排，`next_cursor` 是增量水位；`work_ids=` 是最多 100 个 id 的批量读，不分页。单条不存在是 404。
+
+`DELETE /v2/me/ratings/{work_id}` 任何应用都能调，不需要 scope。没有这条评分也是 204。删除会在 `/v2/ratings/changes` 里变成一条 `gone`。
+
+## 游玩时长
+
+每个应用各写自己的一行，单位是累计分钟，0 到 60000。`PUT /v2/me/playtimes/{work_id}` 覆盖本应用的这一行，重复送同一个数不会多写一行。
+
+`GET /v2/me/playtimes/{work_id}` 回答的是**各应用上报里最大的分钟数**。从没人报过是 404。`GET /v2/me/playtimes` 按行枚举，`work_ids=` 是批量读。
+
+`DELETE /v2/me/playtimes/{work_id}` 只删**本应用**的那一行。别的应用报过的还在，之后的 GET 继续从它们里面取最大。
+
+批量写用 `POST /v2/me/playtimes`，一次最多 100 条，响应是 `207 Multi-Status`：`items[]` 与请求逐位对应，每一项要么是一条 playtime，要么是一个 problem。导入历史时用这一条，不要逐条 PUT。
+
+## 游玩状态
+
+`state` 是封闭词表 `wish / doing / done / on_hold / dropped`。`completion` 表示通了多少，`one_route / main / all`，可以不填。`wish` 不允许带 `completion`。
+
+`PUT /v2/me/work-states/{work_id}` 整体替换。body 里没有 `completion`，原来的完成度就被清掉。重复送同一份内容不会多写。`POST /v2/me/work-states` 是批量，同样 207，一次最多 100 条。`work_ids=` 是列表上的批量读。
+
+## 公开读取
+
+别人写下的评分在 `/v2/ratings`，不在 `/v2/me`。需要应用密钥，或带 `catalog:read` 的用户令牌。
+
+```http
+GET /v2/ratings?work_id={work_id}
+GET /v2/ratings?user_id={user_id}
+GET /v2/ratings?work_id={work_id}&user_id={user_id}
+GET /v2/ratings/{id}
+```
+
+`work_id=` 与 `user_id=` 至少要有一个。两个都给，就是这个账号对这部作品的那一条。列表按**创建时间**从新到旧，后来的修改不会把一条评分挪到前面。这个面没有内容闸：调用方要藏 R18 作品，在水合作品时自己滤。
+
+`GET /v2/ratings/{id}` 按评分 id 取一条。没有这条，包括已经删掉的，都是 404。
+
+## 镜像
+
+要在自己的库里留一份评分副本，走 `/v2/ratings/changes`，不要翻 `/v2/ratings`。冷启动、水位和 `gone` 的做法见 [增量镜像目录 · 评分镜像](/docs/mirror#ratings)。
+
+## 版主删除
+
+`DELETE /v2/moderation/ratings/{id}` 把这条评分从所有站点删掉，feed 里出现 `gone`，作品的 nextmoe 评分随后更新。204，没有 body。
+
+门槛是 `catalog.rating.moderate`，而且**只认全局角色**：`moderator`、`admin`、`ren` 默认有，权限控制台也可以授给别的角色。令牌上由某个站点自己授予的角色不算。审核编辑或认领的权限也不包括这一条。没有这个权限是 403。
+
+---
+
+# 收藏夹
+
+收藏夹是这个人自己的作品清单，存在中央，所有 NextMoe 站点读的是同一份。游戏管理器怎么做增量同步，见 [原生桌面应用接入 · 收藏夹同步](/docs/native-app#folders)；这一页是这组资源本身的语义。
+
+## 我的收藏夹
+
+```http
+GET    /v2/me/folders
+POST   /v2/me/folders
+GET    /v2/me/folders/{id}
+PATCH  /v2/me/folders/{id}
+DELETE /v2/me/folders/{id}
+GET    /v2/me/folders/holdings?work_ids=
+```
+
+这是 `/v2/me` 上要 scope 的一族。`folder:read` 覆盖 GET / HEAD，`folder:write` 覆盖其余方法，并且**同时满足读**——只申请了写的应用仍读得回自己写的东西。缺了是 `403 SCOPE_REQUIRED`，响应里点名缺的是哪一个。
+
+列表按 id 升序。`contains_work_id=` 只留已经收了这部作品的夹，给「加入收藏夹」的选择器用。`GET /v2/me/folders/{id}` 在这个人没有这只夹时是 404。
+
+`POST` 的 body 是名字，加上可选的备注、`visibility`（`private` 或 `public`，缺省 `private`）和 `is_default`。`name` 与 `description` 是给人看的，不能拿来当判别条件。
+
+`PATCH` 是部分更新。`description` 送空串等于清掉备注。`is_default` 只接受 `true`：默认标记移到这只夹上，原来那只自动失去标记。送 `false` 是 422，要改默认就去另一只夹上设 `true`。
+
+`DELETE` 删掉夹和里面的条目，204，没有 body。默认夹在标记移走之前删不掉，是 422。
+
+每人最多 **200** 只夹，超出 422。
+
+`GET /v2/me/folders/holdings?work_ids=` 一次问最多 100 部作品各在哪些夹里。只返回至少在一只夹里的作品，`folder_ids` 不为空；这个人没收藏的、以及不存在的 id，都不出现。各种可见性都算，因为这些夹都属于这个人。`work_ids` 必填，这是批量读，不分页。同样要 `folder:read`（`folder:write` 也行）。
+
+## 条目
+
+```http
+GET    /v2/me/folders/{id}/items
+PUT    /v2/me/folders/{id}/items/{work_id}
+DELETE /v2/me/folders/{id}/items/{work_id}
+POST   /v2/me/folders/{id}/items
+```
+
+读按 `updated_at` 做 keyset 翻页。最后一页的 `next_cursor` 可以存下来，以后原样回放，当作增量水位。删除不会在这道增量里回放。
+
+`PUT` 把一部作品放进夹里，本来就在则原样返回，不改 `updated_at`。`DELETE` 拿出去，本来就不在也是 204。作品必须是 `live` 的；隔离的或不存在的 id 是 404。每只夹最多 **10,000** 条，超出 422。
+
+`POST /v2/me/folders/{id}/items` 批量加入，一次最多 100 条，响应是 `207 Multi-Status`。`items[]` 与请求逐位对应，每一项要么是一条 `folder_item`，要么是一个 problem。整体不是事务，部分成功是正常结果，按项读 `status`。
+
+```json
+{ "items": [{ "work_id": "1" }] }
+```
+
+目录把两部作品判成同一部时，指向被退役 id 的条目会改指幸存者，并刷新 `updated_at`。同一只夹里两边都收藏过的合成一条。
+
+## 公开读取
+
+`visibility: public` 的夹出现在 `/v2/folders`。需要应用密钥，或带 `catalog:read` 的用户令牌。`folder:read` 开不了这个面。不带凭据也不行。
+
+```http
+GET /v2/folders?owner_uid={uid}
+GET /v2/folders/{id}
+GET /v2/folders/{id}/items
+```
+
+`owner_uid` 必填，没有全站目录。列表按 id 升序，只含这个账号的公开夹。私密夹不会出现，连主人自己来读也没有——主人的完整清单在 `/v2/me/folders`。
+
+`GET /v2/folders/{id}` 在这只夹不公开时是 404，不存在和主人设成 private 是同一种 404。条目列表的形状与 `/v2/me/folders/{id}/items` 相同，按 `updated_at` 翻页，夹里有什么就返回什么，不做内容过滤，所以 `item_count` 与返回的条数一致。调用方要藏 R18，在水合作品时自己滤。
+
+## 谁收藏了这部作品
+
+```http
+GET /v2/folders/holders?work_id={work_id}
+```
+
+给一部作品发通知时用：哪些账号的某只夹里有它。各种可见性都算，私密夹的主人也在等这个消息。回答按 `owner_uid` 升序分页，只有 uid——没有夹的 id、名字、可见性或数量，不能拿来翻成「谁收藏了什么」的索引。没有人收藏是空列表，不是 404。
+
+只要应用密钥，而且要在 `catalog:read` 之上再有运营发放的 `folder_holders:read`。这个 scope 不能在控制台自助勾选。用户令牌来是 `403 SCOPE_REQUIRED`，不要把它当成过期去刷新。
+
+## 审核
+
+```http
+PATCH  /v2/moderation/folders/{id}
+DELETE /v2/moderation/folders/{id}
+GET    /v2/moderation/users/{uid}/folders
+DELETE /v2/moderation/users/{uid}/folders
+```
+
+门槛是 `catalog.folder.moderate`。`moderator`、`admin`、`ren` 默认有，权限控制台可以授给别的角色。审核编辑或认领的权限不包括这一条。和评分删除不同，这里认的是令牌上的角色并集，站点授予的角色也算。不需要 `catalog:edit`，也不需要 `folder:read`。
+
+`PATCH` 改任何一只夹的名字和备注，或把它强制设成 `private`（这样它就从 `/v2/folders` 消失，条目还在）。名字可以收成空串，这是审核面独有的。不动夹里的作品，也不动 `is_default`。
+
+`DELETE /v2/moderation/folders/{id}` 删掉夹和条目，204。默认夹也删得掉——默认标记是主人自己的导航，在这里尊重它就等于谁都能造出一只删不掉的夹。
+
+`GET /v2/moderation/users/{uid}/folders` 是同一路径上 DELETE 的预览：这个账号的每一只夹，含私密的，按 id 升序，翻页方式与 `/v2/me/folders` 相同。不列条目，确认时看 `item_count` 即可。一只都没有是 200 加空列表，不是 404。
+
+`DELETE /v2/moderation/users/{uid}/folders` 在一个事务里删掉这个账号的全部夹、成员关系和指向它们的导入记录。响应是一张回执，带删除的夹数和条目数。一只都没有是 200，计数为 0，不是 404。
+
+---
+
 # 原生桌面应用接入
 
 分发出去的桌面客户端**没有机密可言**。应用密钥躺在用户机器上的可执行文件里，`strings` 一遍就出来，抓一次 HTTPS 也出来——而泄漏的是**你的**密钥：配额、限流、封禁都算在你的应用头上，吊销一次所有用户一起断。
 
 所以 `/v2/catalog` 只读面**同时接受两种凭据**（二选一），也可以完全不带：
 
-| 凭据 | 代表谁 | 按什么计配额 | 适合谁 |
-|------|--------|-------------|--------|
-| 应用密钥 `nmk_live_…` | 你的应用 | 按密钥（tier 决定速率与日配额） | 服务端、你自己控制的后端 |
-| 用户访问令牌 | 授权给你的那个用户 | 按**用户**，跨该用户授权过的所有应用共池 | 分发出去的原生客户端 |
-| 不带凭据 | 任何人 | 按每台机器自己的 IPv4 地址或 IPv6 /64（默认 30 次/分钟、1,000 次/天） | 只读目录、用量小、不想让用户先登录的客户端 |
+| 凭据                  | 代表谁             | 按什么计配额                                                          | 适合谁                                     |
+| --------------------- | ------------------ | --------------------------------------------------------------------- | ------------------------------------------ |
+| 应用密钥 `nmk_live_…` | 你的应用           | 按密钥（tier 决定速率与日配额）                                       | 服务端、你自己控制的后端                   |
+| 用户访问令牌          | 授权给你的那个用户 | 按**用户**，跨该用户授权过的所有应用共池                              | 分发出去的原生客户端                       |
+| 不带凭据              | 任何人             | 按每台机器自己的 IPv4 地址或 IPv6 /64（默认 30 次/分钟、1,000 次/天） | 只读目录、用量小、不想让用户先登录的客户端 |
 
 > [!NOTE]
 > 一条请求只带一个凭据。服务端按 `Authorization` 里那**一个**值的前缀分道：`nmk_` 是应用密钥，其余按用户令牌解析；一种失败了不会再当另一种试一次。
@@ -1482,17 +1819,17 @@ const write = await fetch(url, {
 
 **要什么，带什么。** 下表对 `works` 列表、`works?q=` 搜索和 `ids=` / `refs=` 批量全部适用：
 
-| 想要 | 字段 | 参数 |
-|------|------|------|
-| 封面、发售日（最早一次发行）、分级、原语言 | `cover`、`release_date`、`content_rating`、`olang` | 默认就有 |
-| 各语言的正式译名 | `latin`、`localized` | `include=titles` |
-| 简介 | `intros` | `include=intros` |
-| 开发商 / 发行商 | `companies[]`，按 `attribution_role` 分（`developer`、`publisher`……） | `include=companies` |
-| 标签 | `tags` | `include=tags` |
-| 评分，含 NextMoe 用户评分 | `ratings[]`，NextMoe 的是 `source: "nextmoe"` | `include=ratings` |
-| 其他站点的 id（VNDB、Bangumi、Steam、DLsite、ErogameScape……） | `refs[]` | `include=refs` |
-| 平均游玩时长 | `playtimes[]`，单位分钟，按来源分开给，不要跨源平均 | `include=playtimes` |
-| 全部别名、各平台的发行记录 | `titles[]`、`releases[]` | 只在 `GET /v2/catalog/works/{id}?include=titles,releases` |
+| 想要                                                          | 字段                                                                  | 参数                                                      |
+| ------------------------------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------- |
+| 封面、发售日（最早一次发行）、分级、原语言                    | `cover`、`release_date`、`content_rating`、`olang`                    | 默认就有                                                  |
+| 各语言的正式译名                                              | `latin`、`localized`                                                  | `include=titles`                                          |
+| 简介                                                          | `intros`                                                              | `include=intros`                                          |
+| 开发商 / 发行商                                               | `companies[]`，按 `attribution_role` 分（`developer`、`publisher`……） | `include=companies`                                       |
+| 标签                                                          | `tags`                                                                | `include=tags`                                            |
+| 评分，含 NextMoe 用户评分                                     | `ratings[]`，NextMoe 的是 `source: "nextmoe"`                         | `include=ratings`                                         |
+| 其他站点的 id（VNDB、Bangumi、Steam、DLsite、ErogameScape……） | `refs[]`                                                              | `include=refs`                                            |
+| 平均游玩时长                                                  | `playtimes[]`，单位分钟，按来源分开给，不要跨源平均                   | `include=playtimes`                                       |
+| 全部别名、各平台的发行记录                                    | `titles[]`、`releases[]`                                              | 只在 `GET /v2/catalog/works/{id}?include=titles,releases` |
 
 `view=full` 等于 `include=titles,refs,intros,covers,companies,ratings,tags`；时长要另外点名，所以一份「全都要」的请求是 `view=full&include=playtimes`。
 
@@ -1741,10 +2078,10 @@ func (a *App) SignIn(ctx context.Context) (string, error) {
 
 ## 6 · 收藏夹同步
 
-管理器还有一半工作在**用户自己的库**上。`/v2/me/folders` 是这份库在平台侧的规范存放处：收藏夹本身九个操作，加上夹内条目的读、增、删。
+管理器还有一半工作在**用户自己的库**上。`/v2/me/folders` 是这份库在平台侧的规范存放处：收藏夹本身九个操作，加上夹内条目的读、增、删。收藏夹、条目、公开读取和审核的语义在 [收藏夹](/docs/folders)；这一节只写游戏管理器怎么同步。
 
 > [!IMPORTANT]
-> 这是 `/v2/me` 上**唯一**真的看 scope 的一族。其余各面只认「这个人的令牌」，不问应用被授了什么；收藏夹是私人清单，那条规矩在这里等于把整份清单交给用户登录过的每一个应用。`folder:read` 覆盖 GET / HEAD，`folder:write` 覆盖其余方法**并且同时满足读**——只申请了写的管理器仍读得回自己写的东西。两个都要加进应用的 `user_login.scopes`，并在授权 URL 的 `scope` 里一并请求；缺了是 `403 SCOPE_REQUIRED`，响应里点名缺哪一个。
+> `folder:read` 覆盖 GET / HEAD，`folder:write` 覆盖其余方法**并且同时满足读**——只申请了写的管理器仍读得回自己写的东西。两个都要加进应用的 `user_login.scopes`，并在授权 URL 的 `scope` 里一并请求；缺了是 `403 SCOPE_REQUIRED`，响应里点名缺哪一个。`/v2/me` 上不只有这一族看 scope：`/v2/me/works` 与收藏夹一样要 `folder:read`，认领、提案、封面投票、编辑能力和编辑审核队列要 `catalog:edit`。见 [接入用户数据](/docs/user-data#surfaces)。
 
 **冷启动**：全量各拉一次。前者按 id 升序，后者按 `updated_at` 升序，都用 `next_cursor` 续页，`null` 即到底。
 
@@ -1773,23 +2110,25 @@ POST   /v2/me/folders/<id>/items             → 207，{"items":[{"work_id":"...
 
 批量一次最多 **100** 条，响应是 `207 Multi-Status`：`items[]` 与请求逐位对应，每项要么是 `{status:200, object:"folder_item", work_id}`，要么带一个完整的 problem 对象。整体不是事务，部分成功是正常结果——按项读 `status`，不要看 HTTP 状态码。
 
-**边界**：每人最多 **200** 个收藏夹，每夹最多 **10,000** 条，超出 422。加入的作品必须是 `live`，隔离或不存在的 id 是 404。`is_default` 全用户单持有——设到另一个夹上会自动摘掉原持有者，传 `false` 是 422，默认夹在标记移走之前删不掉。`visibility: public` 目前只是存下来的意向，还没有公开浏览面。
+**边界**：每人最多 **200** 个收藏夹，每夹最多 **10,000** 条，超出 422。加入的作品必须是 `live`，隔离或不存在的 id 是 404。`is_default` 全用户单持有——设到另一个夹上会自动摘掉原持有者，传 `false` 是 422，默认夹在标记移走之前删不掉。`visibility: public` 的夹出现在 `/v2/folders`，见 [收藏夹 · 公开读取](/docs/folders#public)。
 
 **合并会移动条目**：目录把两部作品判为同一部时，指向被退役 id 的条目改指幸存者，并且**故意**刷新 `updated_at`。这是条目唯一一次在没人动它的情况下出现在增量里，因为你手上那个 id 已经不解析了。同一个夹里两边都收藏过的会合成一条，`item_count` 随之重算。
 
 ## 常见错误
 
-| 症状 | 原因 |
-|------|------|
-| 授权时 `15006` | 请求的 scope 没在应用注册的 scope 里。到应用详情页「用户登录」卡片勾上缺的那个，重新授权。`catalog:read` 不会触发它——每个应用无需注册即可请求。 |
-| 换码 `invalid_grant` | `redirect_uri` 与授权那步不是逐字节相同，或 `code_verifier` 对不上 challenge，或码已用过（授权码一次性）。 |
-| `403 SCOPE_REQUIRED` | 打 `/v2/catalog` 而令牌不带 `catalog:read`，或打 `/v2/me/folders` 而不带 `folder:read` / `folder:write`。响应会点名缺哪一个；旧令牌不追认，重新走一次授权。 |
-| `401 INVALID_CREDENTIAL` | 令牌过期，或者你把它打到了 `claim-events` / `/v2/store`——那两处只收应用密钥。 |
-| 刷新 401 而令牌确实没过期 | 用了第一方 `/api/v1/auth/refresh`。OAuth session 只能经 `/oauth/token` 刷新。 |
-| 注册时回调被拒 | `localhost`、自定义 scheme、带 fragment、或非环回的明文 http。移动端不必等 scheme 放开：环回照用，或注册 `https://` 回调配 App Links / Universal Links，见 [§1](#register)。 |
+| 症状                      | 原因                                                                                                                                                                                                                       |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 授权时 `15006`            | 请求的 scope 没在应用注册的 scope 里。到应用详情页「用户登录」卡片勾上缺的那个，重新授权。`catalog:read` 不会触发它——每个应用无需注册即可请求。                                                                            |
+| 换码 `invalid_grant`      | `redirect_uri` 与授权那步不是逐字节相同，或 `code_verifier` 对不上 challenge，或码已用过（授权码一次性）。                                                                                                                 |
+| `403 SCOPE_REQUIRED`      | 打 `/v2/catalog` 而令牌不带 `catalog:read`，打 `/v2/me/folders` 或 `/v2/me/works` 而不带 `folder:read` / `folder:write`，或打认领、提案、封面投票而不带 `catalog:edit`。响应会点名缺哪一个；旧令牌不追认，重新走一次授权。 |
+| `401 INVALID_CREDENTIAL`  | 令牌过期，或者你把它打到了 `claim-events` / `/v2/store`——那两处只收应用密钥。                                                                                                                                              |
+| 刷新 401 而令牌确实没过期 | 用了第一方 `/api/v1/auth/refresh`。OAuth session 只能经 `/oauth/token` 刷新。                                                                                                                                              |
+| 注册时回调被拒            | `localhost`、自定义 scheme、带 fragment、或非环回的明文 http。移动端不必等 scheme 放开：环回照用，或注册 `https://` 回调配 App Links / Universal Links，见 [§1](#register)。                                               |
 
 - [鉴权与凭据](/docs/authentication) — 两种凭据各自能开哪些面，失败长什么样。
-- [接入用户数据](/docs/user-data) — 同一把用户令牌还能读写 `/v2/me`：时长、认领、编辑提案。
+- [接入用户数据](/docs/user-data) — 同一把用户令牌还能读写 `/v2/me`：各面的入口、认领、编辑提案。
+- [评分与游玩记录](/docs/play-records) — 状态、时长、评分，以及一次写完的 work-records。
+- [收藏夹](/docs/folders) — 收藏夹本身的语义；本节只覆盖同步。
 
 ---
 
@@ -3074,7 +3413,7 @@ Returns the registry entry for one code. Unknown codes are 404 NOT_FOUND, not 42
 | `code` | path | 是 | string | Top-level error code from the registry (UPPER_SNAKE). |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/problems/value"
+curl "https://api.nextmoe.dev/v2/problems/VALIDATION_FAILED"
 ```
 
 ### GET /v2/vocabularies
@@ -3120,7 +3459,7 @@ Returns every published value of one vocabulary. Unknown names are 404 NOT_FOUND
 | `name` | path | 是 | string | Vocabulary name. The path segment of /v2/vocabularies/{name}. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/vocabularies/value"
+curl "https://api.nextmoe.dev/v2/vocabularies/content_rating"
 ```
 
 ## 目录
@@ -3251,7 +3590,7 @@ Character detail. view=full adds gender, birthday, measurements, blood_type, ins
 | `spoiler` | query | 否 | string | Spoiler ceiling for the traits block: none (default), minor or major. Closed vocabulary; an unknown value is 400. Trait rows above the ceiling are not returned. Only the VNDB-derived trait vocabulary carries a spoiler level, and the default is the safe ceiling. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/characters/value"
+curl "https://api.nextmoe.dev/v2/catalog/characters/1"
 ```
 
 ### GET /v2/catalog/characters/{id}/appearances
@@ -3272,7 +3611,7 @@ Works this character appears in, with roster_role, spoiler, and voice credits. O
 | `limit` | query | 否 | string | Page size 1-100, default 20. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/characters/value/appearances"
+curl "https://api.nextmoe.dev/v2/catalog/characters/1/appearances"
 ```
 
 ### GET /v2/catalog/claim-events
@@ -3351,7 +3690,7 @@ Company registry row (v1 labels). include=aliases,logo,intros,links adds the cor
 | `fields` | query | 否 | string | Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/companies/value"
+curl "https://api.nextmoe.dev/v2/catalog/companies/1"
 ```
 
 ### GET /v2/catalog/companies/{id}/graph
@@ -3373,7 +3712,7 @@ Corporate-family nodes and directed edges around one company. Inverse relations 
 | `fields` | query | 否 | string | Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/companies/value/graph"
+curl "https://api.nextmoe.dev/v2/catalog/companies/1/graph"
 ```
 
 ### GET /v2/catalog/credit-names
@@ -3424,7 +3763,7 @@ A credited name, not a person — this is the staff and voice-actor read surface
 | `fields` | query | 否 | string | Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/credit-names/value"
+curl "https://api.nextmoe.dev/v2/catalog/credit-names/1"
 ```
 
 ### GET /v2/catalog/credit-names/{id}/credits
@@ -3445,7 +3784,7 @@ Works this name is credited on. Offset cursor. Anonymous calls are allowed and l
 | `limit` | query | 否 | string | Page size 1-100, default 20. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/credit-names/value/credits"
+curl "https://api.nextmoe.dev/v2/catalog/credit-names/1/credits"
 ```
 
 ### GET /v2/catalog/engines
@@ -3495,7 +3834,7 @@ Engine detail. Anonymous calls are allowed and limited per IP address; an applic
 | `fields` | query | 否 | string | Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/engines/value"
+curl "https://api.nextmoe.dev/v2/catalog/engines/1"
 ```
 
 ### GET /v2/catalog/persons
@@ -3545,7 +3884,7 @@ A person identity that groups credit names. Merged ids are 404 ENTITY_MERGED. An
 | `fields` | query | 否 | string | Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/persons/value"
+curl "https://api.nextmoe.dev/v2/catalog/persons/1"
 ```
 
 ### GET /v2/catalog/persons/{id}/credit-names
@@ -3567,7 +3906,7 @@ Every credited name linked to this person. Anonymous calls are allowed and limit
 | `fields` | query | 否 | string | Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/persons/value/credit-names"
+curl "https://api.nextmoe.dev/v2/catalog/persons/1/credit-names"
 ```
 
 ### GET /v2/catalog/proposals
@@ -3618,7 +3957,7 @@ Public transparency view: proposer, state, target entity and timestamps. include
 | `fields` | query | 否 | string | Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/proposals/value"
+curl "https://api.nextmoe.dev/v2/catalog/proposals/1"
 ```
 
 ### GET /v2/catalog/redirects
@@ -3697,7 +4036,7 @@ A catalog release. Merged ids are 404 ENTITY_MERGED. r18 parent works are 404 wi
 | `fields` | query | 否 | string | Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/releases/value"
+curl "https://api.nextmoe.dev/v2/catalog/releases/1"
 ```
 
 ### GET /v2/catalog/revisions
@@ -3748,7 +4087,7 @@ include=diff adds the field-level change set against diff_base, or against the p
 | `diff_base` | query | 否 | string | Revision id to diff against. Requires include=diff. Absent means the preceding revision of the same entity. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/revisions/value"
+curl "https://api.nextmoe.dev/v2/catalog/revisions/1"
 ```
 
 ### GET /v2/catalog/roles
@@ -3798,7 +4137,7 @@ A credit-role registry row. Unknown id is 404 NOT_FOUND. Anonymous calls are all
 | `fields` | query | 否 | string | Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/roles/value"
+curl "https://api.nextmoe.dev/v2/catalog/roles/1"
 ```
 
 ### GET /v2/catalog/schemas/{object}
@@ -3898,7 +4237,7 @@ Series detail. has_nsfw reports whether any member work sits behind the r18 disp
 | `fields` | query | 否 | string | Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/series/value"
+curl "https://api.nextmoe.dev/v2/catalog/series/1"
 ```
 
 ### GET /v2/catalog/stats
@@ -3984,7 +4323,7 @@ Canonical tag. include=intros adds the per-language tag descriptions; include=ch
 | `fields` | query | 否 | string | Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/tags/value"
+curl "https://api.nextmoe.dev/v2/catalog/tags/1"
 ```
 
 ### GET /v2/catalog/traits
@@ -4037,7 +4376,7 @@ A character-trait vocabulary row. Without nsfw=true a sexual-family trait is 404
 | `fields` | query | 否 | string | Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/traits/value"
+curl "https://api.nextmoe.dev/v2/catalog/traits/1"
 ```
 
 ### GET /v2/catalog/works
@@ -4107,7 +4446,7 @@ Work detail. spoiler=none|minor|major is the ceiling of the tags block and defau
 | `spoiler` | query | 否 | string | Spoiler ceiling for the tags block: none (default), minor or major. Closed vocabulary; an unknown value is 400. Tag rows above the ceiling are not returned. Only the VNDB-derived tag vocabulary carries a spoiler level — Bangumi and DLsite folksonomy publish no spoiler concept, so those rows read none — and the default is the safe ceiling. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/works/value"
+curl "https://api.nextmoe.dev/v2/catalog/works/1"
 ```
 
 ### GET /v2/catalog/works/{id}/characters
@@ -4128,7 +4467,7 @@ Roster characters. Same items as include=characters. Anonymous calls are allowed
 | `limit` | query | 否 | string | Page size 1-100, default 20. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/works/value/characters"
+curl "https://api.nextmoe.dev/v2/catalog/works/1/characters"
 ```
 
 ### GET /v2/catalog/works/{id}/covers
@@ -4149,7 +4488,7 @@ Work cover rows. Same items as include=covers. Anonymous calls are allowed and l
 | `limit` | query | 否 | string | Page size 1-100, default 20. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/works/value/covers"
+curl "https://api.nextmoe.dev/v2/catalog/works/1/covers"
 ```
 
 ### GET /v2/catalog/works/{id}/credits
@@ -4170,7 +4509,7 @@ Credits grouped by role. Same items as include=credits. Anonymous calls are allo
 | `limit` | query | 否 | string | Page size 1-100, default 20. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/works/value/credits"
+curl "https://api.nextmoe.dev/v2/catalog/works/1/credits"
 ```
 
 ### GET /v2/catalog/works/{id}/engines
@@ -4191,7 +4530,7 @@ Engines. Same items as include=engines. Anonymous calls are allowed and limited 
 | `limit` | query | 否 | string | Page size 1-100, default 20. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/works/value/engines"
+curl "https://api.nextmoe.dev/v2/catalog/works/1/engines"
 ```
 
 ### GET /v2/catalog/works/{id}/intros
@@ -4212,7 +4551,7 @@ Intros. Same items as include=intros. Anonymous calls are allowed and limited pe
 | `limit` | query | 否 | string | Page size 1-100, default 20. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/works/value/intros"
+curl "https://api.nextmoe.dev/v2/catalog/works/1/intros"
 ```
 
 ### GET /v2/catalog/works/{id}/links
@@ -4233,7 +4572,7 @@ Outbound links. Same items as include=links. Anonymous calls are allowed and lim
 | `limit` | query | 否 | string | Page size 1-100, default 20. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/works/value/links"
+curl "https://api.nextmoe.dev/v2/catalog/works/1/links"
 ```
 
 ### GET /v2/catalog/works/{id}/ratings
@@ -4254,7 +4593,7 @@ Source ratings. Same items as include=ratings. Anonymous calls are allowed and l
 | `limit` | query | 否 | string | Page size 1-100, default 20. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/works/value/ratings"
+curl "https://api.nextmoe.dev/v2/catalog/works/1/ratings"
 ```
 
 ### GET /v2/catalog/works/{id}/relations
@@ -4275,7 +4614,7 @@ Related works. Same items as include=relations. Anonymous calls are allowed and 
 | `limit` | query | 否 | string | Page size 1-100, default 20. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/works/value/relations"
+curl "https://api.nextmoe.dev/v2/catalog/works/1/relations"
 ```
 
 ### GET /v2/catalog/works/{id}/releases
@@ -4296,7 +4635,7 @@ Releases of this work. Same items as include=releases. Anonymous calls are allow
 | `limit` | query | 否 | string | Page size 1-100, default 20. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/works/value/releases"
+curl "https://api.nextmoe.dev/v2/catalog/works/1/releases"
 ```
 
 ### GET /v2/catalog/works/{id}/screenshots
@@ -4317,7 +4656,7 @@ Work screenshots. Same items as include=screenshots. Anonymous calls are allowed
 | `limit` | query | 否 | string | Page size 1-100, default 20. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/works/value/screenshots"
+curl "https://api.nextmoe.dev/v2/catalog/works/1/screenshots"
 ```
 
 ### GET /v2/catalog/works/{id}/series
@@ -4338,7 +4677,7 @@ Series memberships. Same items as include=series. Anonymous calls are allowed an
 | `limit` | query | 否 | string | Page size 1-100, default 20. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/works/value/series"
+curl "https://api.nextmoe.dev/v2/catalog/works/1/series"
 ```
 
 ### GET /v2/catalog/works/{id}/tags
@@ -4360,7 +4699,7 @@ Tags attached to this work. Same items as include=tags. spoiler=none|minor|major
 | `spoiler` | query | 否 | string | Spoiler ceiling for this page: none (default), minor or major. Closed vocabulary; an unknown value is 400. Tag rows above the ceiling are not returned. Only the VNDB-derived tag vocabulary carries a spoiler level — Bangumi and DLsite folksonomy publish no spoiler concept, so those rows read none — and the default is the safe ceiling. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/works/value/tags"
+curl "https://api.nextmoe.dev/v2/catalog/works/1/tags"
 ```
 
 ## 资讯
@@ -4428,7 +4767,7 @@ A published news item. A withdrawn item is 410 GONE, not 404: a mirror that only
 | `id` | path | 是 | string | Decimal news item id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/news/value"
+curl "https://api.nextmoe.dev/v2/news/1"
 ```
 
 ## 公开收藏夹
@@ -4499,7 +4838,7 @@ Get one public folder
 | `id` | path | 是 | string | Folder id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/folders/value" \
+curl "https://api.nextmoe.dev/v2/folders/1" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 
@@ -4529,7 +4868,7 @@ Keyset-paginated by updated_at, the same shape /v2/me/folders/{id}/items answers
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/folders/value/items" \
+curl "https://api.nextmoe.dev/v2/folders/1/items" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 
@@ -4610,7 +4949,7 @@ Get one rating
 | `id` | path | 是 | string | Rating id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/ratings/value" \
+curl "https://api.nextmoe.dev/v2/ratings/1" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 
@@ -4661,7 +5000,7 @@ Get my block on one tag
 | `tag_id` | path | 是 | string | Catalog tag id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/me/blocked-tags/value" \
+curl "https://api.nextmoe.dev/v2/me/blocked-tags/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -4679,11 +5018,17 @@ Optional body {mode}: tree (the default) or exact. Sets the mode of an existing 
 | --- | --- | --- | --- | --- |
 | `tag_id` | path | 是 | string | Catalog tag id. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `mode` | 否 | string | tree (the default) also blocks every tag below this one in the tag hierarchy; exact blocks this tag only. 取值：tree \| exact |
+
 ```bash
-curl -X PUT "https://api.nextmoe.dev/v2/me/blocked-tags/value" \
+curl -X PUT "https://api.nextmoe.dev/v2/me/blocked-tags/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{}'
+  -d '{"mode":"tree"}'
 ```
 
 ### DELETE /v2/me/blocked-tags/{tag_id}
@@ -4701,7 +5046,7 @@ Unblock a tag
 | `tag_id` | path | 是 | string | Catalog tag id. |
 
 ```bash
-curl -X DELETE "https://api.nextmoe.dev/v2/me/blocked-tags/value" \
+curl -X DELETE "https://api.nextmoe.dev/v2/me/blocked-tags/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -4789,11 +5134,29 @@ Mint or claim a work. work_id claims an existing catalog work. refs= claims the 
 | --- | --- | --- | --- | --- |
 | `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `confirm_duplicates` | 否 | boolean | Mint even when live works of the same medium share a submitted title. Without it such a mint is refused with 409 DUPLICATE_SUSPECTS and the works in suspects[]; nothing is written. Confirming still files the pairs for reconciliation. Only mint lanes read this. |
+| `display_name` | 否 | string | Required to mint when refs do not match. Must not be used as a discriminant. |
+| `field_values` | 否 | map<string, object> | Editing-engine field key to value for the minted work, e.g. catalog.work.titles — the same shape GET /v2/moderation/snapshots/{object}/{id} answers. Sent alone it mints from the map; sent with work_id it is 422. Top-level display_name wins over catalog.work.display_name. |
+| `field_values.«key»` | 否 | object |  |
+| `refs` | 否 | object[] | source:external_id anchors, at most 100. Used when work_id is absent. |
+| `refs[].external_id` | 是 | string | Verbatim upstream id. Must not be used as a discriminant beyond exact match. |
+| `refs[].source` | 是 | string | Open vocabulary source key such as vndb. Must not be used as a discriminant. |
+| `released` | 否 | object |  |
+| `released.d` | 否 | integer (int32) | Release day; 0 or absent means unknown. Requires m. |
+| `released.m` | 否 | integer (int32) | Release month; 0 or absent means unknown. |
+| `released.y` | 是 | integer (int32) | Release year. |
+| `site_work_id` | 否 | string | The site's own work id. Sent alone with display_name — no work_id, no refs — it mints a work anchored to that id. |
+| `work_id` | 否 | string | Existing catalog work id to claim. |
+
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/me/claims" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{}'
+  -d '{"work_id":"1"}'
 ```
 
 ### GET /v2/me/claims/{id}
@@ -4811,7 +5174,7 @@ id is the catalog work id. Requires a user access token. The token must carry th
 | `id` | path | 是 | string | Catalog work id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/me/claims/value" \
+curl "https://api.nextmoe.dev/v2/me/claims/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -4830,8 +5193,14 @@ PATCH {state: live|pending|withdrawn}. live publishes a draft without review, pe
 | `id` | path | 是 | string | Catalog work id. |
 | `If-Match` | header | 是 | string | Current ETag. Required; its absence is 428 PRECONDITION_REQUIRED. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `state` | 是 | string | live publishes a draft, pending submits it for review, withdrawn returns a live or pending claim to draft. draft is the older spelling of withdrawn. 取值：live \| pending \| withdrawn \| draft |
+
 ```bash
-curl -X PATCH "https://api.nextmoe.dev/v2/me/claims/value" \
+curl -X PATCH "https://api.nextmoe.dev/v2/me/claims/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{"state":"live"}'
@@ -4852,7 +5221,7 @@ Deletes a draft the caller owns; a live or pending claim must be withdrawn to dr
 | `id` | path | 是 | string | Catalog work id. |
 
 ```bash
-curl -X DELETE "https://api.nextmoe.dev/v2/me/claims/value" \
+curl -X DELETE "https://api.nextmoe.dev/v2/me/claims/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -4887,8 +5256,14 @@ Only vote=up is stored. One ballot per work. Requires a user access token. The t
 | --- | --- | --- | --- | --- |
 | `cover_id` | path | 是 | string | Catalog cover row id. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `vote` | 是 | string | Only up is stored. 取值：up |
+
 ```bash
-curl -X PUT "https://api.nextmoe.dev/v2/me/cover-votes/value" \
+curl -X PUT "https://api.nextmoe.dev/v2/me/cover-votes/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{"vote":"up"}'
@@ -4909,7 +5284,7 @@ Withdraw a cover vote
 | `cover_id` | path | 是 | string | Catalog cover row id. |
 
 ```bash
-curl -X DELETE "https://api.nextmoe.dev/v2/me/cover-votes/value" \
+curl -X DELETE "https://api.nextmoe.dev/v2/me/cover-votes/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -4996,11 +5371,20 @@ Requires a user access token with folder:write.
 | --- | --- | --- | --- | --- |
 | `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `description` | 否 | string | Owner's own note. Must not be used as a discriminant. |
+| `is_default` | 否 | boolean | true makes this the user's default folder and clears the flag on the previous holder. |
+| `name` | 是 | string | Display name. Must not be used as a discriminant. |
+| `visibility` | 否 | string | Defaults to private. 取值：private \| public |
+
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/me/folders" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"name":"string"}'
+  -d '{"description":"还没开始的作品","is_default":false,"name":"想玩","visibility":"private"}'
 ```
 
 ### GET /v2/me/folders/holdings
@@ -5037,7 +5421,7 @@ Get one folder
 | `id` | path | 是 | string | Folder id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/me/folders/value" \
+curl "https://api.nextmoe.dev/v2/me/folders/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -5055,11 +5439,20 @@ Partial update: name, description, visibility, is_default. Requires a user acces
 | --- | --- | --- | --- | --- |
 | `id` | path | 是 | string | Folder id. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `description` | 否 | string | New note; an empty string clears it. Must not be used as a discriminant. |
+| `is_default` | 否 | boolean | Only true is accepted: it moves the default flag to this folder. Sending false is 422 — set the flag on another folder instead. |
+| `name` | 否 | string | New display name. Must not be used as a discriminant. |
+| `visibility` | 否 | string | New visibility. 取值：private \| public |
+
 ```bash
-curl -X PATCH "https://api.nextmoe.dev/v2/me/folders/value" \
+curl -X PATCH "https://api.nextmoe.dev/v2/me/folders/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{}'
+  -d '{"description":"全路线通关的作品","is_default":true,"name":"已通关","visibility":"public"}'
 ```
 
 ### DELETE /v2/me/folders/{id}
@@ -5077,7 +5470,7 @@ Deletes the folder and its items. The default folder is refused with 422; move t
 | `id` | path | 是 | string | Folder id. |
 
 ```bash
-curl -X DELETE "https://api.nextmoe.dev/v2/me/folders/value" \
+curl -X DELETE "https://api.nextmoe.dev/v2/me/folders/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -5107,7 +5500,7 @@ Keyset-paginated by updated_at; the final next_cursor can be stored and replayed
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/me/folders/value/items" \
+curl "https://api.nextmoe.dev/v2/me/folders/1/items" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -5126,11 +5519,18 @@ Batch add works to a folder
 | `id` | path | 是 | string | Folder id. |
 | `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `items` | 是 | object[] | At most 100 items. |
+| `items[].work_id` | 是 | string | Catalog work id. |
+
 ```bash
-curl -X POST "https://api.nextmoe.dev/v2/me/folders/value/items" \
+curl -X POST "https://api.nextmoe.dev/v2/me/folders/1/items" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"items":[{"work_id":"string"}]}'
+  -d '{"items":[{"work_id":"1"}]}'
 ```
 
 ### PUT /v2/me/folders/{id}/items/{work_id}
@@ -5149,7 +5549,7 @@ Naturally idempotent: re-adding an existing membership answers the stored row an
 | `work_id` | path | 是 | string | Catalog work id. |
 
 ```bash
-curl -X PUT "https://api.nextmoe.dev/v2/me/folders/value/items/value" \
+curl -X PUT "https://api.nextmoe.dev/v2/me/folders/1/items/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -5169,7 +5569,7 @@ Remove a work from a folder
 | `work_id` | path | 是 | string | Catalog work id. |
 
 ```bash
-curl -X DELETE "https://api.nextmoe.dev/v2/me/folders/value/items/value" \
+curl -X DELETE "https://api.nextmoe.dev/v2/me/folders/1/items/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -5218,7 +5618,7 @@ Get my follow on one company
 | `company_id` | path | 是 | string | Catalog company id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/me/followed-companies/value" \
+curl "https://api.nextmoe.dev/v2/me/followed-companies/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -5237,7 +5637,7 @@ No request body. Idempotent: following an already-followed company answers the s
 | `company_id` | path | 是 | string | Catalog company id. |
 
 ```bash
-curl -X PUT "https://api.nextmoe.dev/v2/me/followed-companies/value" \
+curl -X PUT "https://api.nextmoe.dev/v2/me/followed-companies/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -5256,7 +5656,7 @@ Unfollow a company
 | `company_id` | path | 是 | string | Catalog company id. |
 
 ```bash
-curl -X DELETE "https://api.nextmoe.dev/v2/me/followed-companies/value" \
+curl -X DELETE "https://api.nextmoe.dev/v2/me/followed-companies/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -5303,6 +5703,21 @@ Any signed-in user may submit to source community (the default): the item lands 
 | --- | --- | --- | --- | --- |
 | `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `banner_hash` | 否 | string | Hash of the banner, as returned by POST /v2/me/news-images. A hash that face did not store is 422 VALIDATION_FAILED with reason UNKNOWN_REFERENCE. |
+| `body` | 否 | string | The item's own text, CommonMark Markdown, at most 20000 runes (longer is 422 TOO_LONG). Only a community submission may carry one. Must not be used as a discriminant. |
+| `lane` | 否 | string | Section of the source. Defaults to news. 取值：news \| column |
+| `published_at` | 否 | string (date-time) | RFC 3339. Defaults to the moment of submission. |
+| `source` | 否 | string | News source key. Omit it for community, which any signed-in user may submit to. Any other source must be bound to the bearer as its publisher and active. |
+| `source_url` | 否 | string | Canonical link to the original item, an absolute http(s) URL. Required for a partner source, whose attribution always carries a link; optional for an original community submission. Must not be used as a discriminant. |
+| `summary` | 是 | string | The lede. At most 200 runes; longer is 422 VALIDATION_FAILED with reason TOO_LONG. Must not be used as a discriminant. |
+| `title` | 是 | string | Must not be used as a discriminant. |
+| `work_ids` | 否 | string[] | Catalog work ids to link. Stored with manual confidence. |
+| `work_ids[]` | 否 | string |  |
+
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/me/news" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
@@ -5344,7 +5759,7 @@ Carries an ETag for If-Match. Requires a user access token.
 | `id` | path | 是 | string | News item id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/me/news/value" \
+curl "https://api.nextmoe.dev/v2/me/news/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -5363,11 +5778,24 @@ A pending or published item may be edited (title/summary/body/source_url/banner_
 | `id` | path | 是 | string | News item id. |
 | `If-Match` | header | 否 | string | Current ETag. Required to withdraw. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `banner_hash` | 否 | string | Hash of the banner, as returned by POST /v2/me/news-images; a hash that face did not store is 422 VALIDATION_FAILED with reason UNKNOWN_REFERENCE. The empty string clears the banner. |
+| `body` | 否 | string | At most 20000 runes. Only a community submission may carry one; the empty string clears it. Must not be used as a discriminant. |
+| `source_url` | 否 | string | Canonical link to the original item, an absolute http(s) URL. The empty string clears it, which only a community submission may do. Must not be used as a discriminant. |
+| `status` | 否 | string | Only withdrawn. Publishing and rejection happen in the moderation queue, never here. 取值：withdrawn |
+| `summary` | 否 | string | At most 200 runes; longer is 422 VALIDATION_FAILED with reason TOO_LONG. Must not be used as a discriminant. |
+| `title` | 否 | string | Must not be used as a discriminant. |
+| `work_ids` | 否 | string[] | Replaces the whole linked-work set. |
+| `work_ids[]` | 否 | string |  |
+
 ```bash
-curl -X PATCH "https://api.nextmoe.dev/v2/me/news/value" \
+curl -X PATCH "https://api.nextmoe.dev/v2/me/news/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{}'
+  -d '{"title":"中文版发售日确定"}'
 ```
 
 ### GET /v2/me/playtimes
@@ -5414,11 +5842,19 @@ Batch write playtimes
 | --- | --- | --- | --- | --- |
 | `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `items` | 是 | object[] | At most 100 items. |
+| `items[].minutes` | 是 | integer (int64) | Absolute cumulative minutes. |
+| `items[].work_id` | 是 | string | Catalog work id. |
+
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/me/playtimes" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"items":[{"minutes":0,"work_id":"string"}]}'
+  -d '{"items":[{"minutes":720,"work_id":"1"}]}'
 ```
 
 ### GET /v2/me/playtimes/{work_id}
@@ -5436,7 +5872,7 @@ Get my playtime on one work
 | `work_id` | path | 是 | string | Catalog work id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/me/playtimes/value" \
+curl "https://api.nextmoe.dev/v2/me/playtimes/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -5454,11 +5890,17 @@ Absolute minutes. Naturally idempotent. Requires a user access token. Any app ma
 | --- | --- | --- | --- | --- |
 | `work_id` | path | 是 | string | Catalog work id. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `minutes` | 是 | integer (int64) | Absolute cumulative minutes. |
+
 ```bash
-curl -X PUT "https://api.nextmoe.dev/v2/me/playtimes/value" \
+curl -X PUT "https://api.nextmoe.dev/v2/me/playtimes/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"minutes":0}'
+  -d '{"minutes":720}'
 ```
 
 ### DELETE /v2/me/playtimes/{work_id}
@@ -5476,7 +5918,7 @@ Deletes only the row the calling app reported. Rows other apps reported on the s
 | `work_id` | path | 是 | string | Catalog work id. |
 
 ```bash
-curl -X DELETE "https://api.nextmoe.dev/v2/me/playtimes/value" \
+curl -X DELETE "https://api.nextmoe.dev/v2/me/playtimes/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -5527,11 +5969,21 @@ A contributor who has used up catalog.proposals_per_day inside the sliding windo
 | --- | --- | --- | --- | --- |
 | `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `entity_id` | 是 | string | Target catalog id. |
+| `entity_type` | 是 | string | Editing-engine type, e.g. catalog.work. Must not be used as a discriminant. |
+| `note` | 否 | string | Must not be used as a discriminant. |
+| `patch` | 是 | map<string, object> | Field-key to new value. |
+| `patch.«key»` | 否 | object |  |
+
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/me/proposals" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"entity_id":"string","entity_type":"string","patch":{"key":"string"}}'
+  -d '{"entity_id":"1","entity_type":"string","patch":{"key":"string"}}'
 ```
 
 ### GET /v2/me/proposals/{id}
@@ -5551,7 +6003,7 @@ Requires a user access token. The token must carry the catalog:edit scope.
 | `view` | query | 否 | string | basic (default) or full. full adds amendments and patch. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/me/proposals/value" \
+curl "https://api.nextmoe.dev/v2/me/proposals/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -5570,11 +6022,19 @@ If-Match required. Requires a user access token. The token must carry the catalo
 | `id` | path | 是 | string | Proposal id. |
 | `If-Match` | header | 是 | string | Current ETag. Required; its absence is 428 PRECONDITION_REQUIRED. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `patch` | 否 | map<string, object> | Field-key to new value to amend. |
+| `patch.«key»` | 否 | object |  |
+| `state` | 否 | string | Set withdrawn to withdraw. 取值：withdrawn |
+
 ```bash
-curl -X PATCH "https://api.nextmoe.dev/v2/me/proposals/value" \
+curl -X PATCH "https://api.nextmoe.dev/v2/me/proposals/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{}'
+  -d '{"patch":{"key":"string"},"state":"withdrawn"}'
 ```
 
 ### POST /v2/me/proposals/{id}/amendments
@@ -5593,11 +6053,21 @@ If-Match required. Requires a user access token. The token must carry the catalo
 | `If-Match` | header | 是 | string | Current ETag. Required; its absence is 428 PRECONDITION_REQUIRED. |
 | `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `note` | 否 | string | Must not be used as a discriminant. |
+| `set` | 否 | map<string, object> | Field-key to corrected value. |
+| `set.«key»` | 否 | object |  |
+| `unset` | 否 | string[] | Field keys to drop, at most 100. |
+| `unset[]` | 否 | string |  |
+
 ```bash
-curl -X POST "https://api.nextmoe.dev/v2/me/proposals/value/amendments" \
+curl -X POST "https://api.nextmoe.dev/v2/me/proposals/1/amendments" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{}'
+  -d '{"note":"string","set":{"key":"string"},"unset":["string"]}'
 ```
 
 ### GET /v2/me/ratings
@@ -5645,7 +6115,7 @@ Get my rating of one work
 | `work_id` | path | 是 | string | Catalog work id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/me/ratings/value" \
+curl "https://api.nextmoe.dev/v2/me/ratings/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -5663,11 +6133,29 @@ Creates the rating or replaces every field of it; the id, client_id and site sta
 | --- | --- | --- | --- | --- |
 | `work_id` | path | 是 | string | Catalog work id. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `aspect_scores` | 否 | object |  |
+| `aspect_scores.art` | 否 | integer (int64) | Absent or null when not rated. |
+| `aspect_scores.character` | 否 | integer (int64) | Absent or null when not rated. |
+| `aspect_scores.music` | 否 | integer (int64) | Absent or null when not rated. |
+| `aspect_scores.replay_value` | 否 | integer (int64) | Absent or null when not rated. |
+| `aspect_scores.route` | 否 | integer (int64) | Absent or null when not rated. |
+| `aspect_scores.story` | 否 | integer (int64) | Absent or null when not rated. |
+| `aspect_scores.system` | 否 | integer (int64) | Absent or null when not rated. |
+| `aspect_scores.voice` | 否 | integer (int64) | Absent or null when not rated. |
+| `overall` | 是 | integer (int64) | The overall score, a whole number from 1 to 10. |
+| `recommend` | 是 | string | How strongly the author recommends the work. 取值：strong_no \| no \| neutral \| yes \| strong_yes |
+| `short_summary` | 否 | string | Short review, plain text. Absent or empty means none. Free text; must not be used as a discriminant. |
+| `spoiler_level` | 否 | string | How much short_summary gives away. Absent means none. 取值：none \| portion \| serious |
+
 ```bash
-curl -X PUT "https://api.nextmoe.dev/v2/me/ratings/value" \
+curl -X PUT "https://api.nextmoe.dev/v2/me/ratings/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"overall":0,"recommend":"strong_no"}'
+  -d '{"aspect_scores":{"art":8,"character":8,"music":9,"replay_value":8,"route":7,"story":8,"system":7,"voice":8},"overall":8,"recommend":"yes","short_summary":"画面和音乐都很出色，主线一周目通关后还想再走一遍。","spoiler_level":"none"}'
 ```
 
 ### DELETE /v2/me/ratings/{work_id}
@@ -5685,7 +6173,7 @@ Delete my rating of one work
 | `work_id` | path | 是 | string | Catalog work id. |
 
 ```bash
-curl -X DELETE "https://api.nextmoe.dev/v2/me/ratings/value" \
+curl -X DELETE "https://api.nextmoe.dev/v2/me/ratings/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -5704,7 +6192,7 @@ The three parts a rate-this-game form edits together, as /v2/me/work-states, /v2
 | `work_id` | path | 是 | string | Catalog work id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/me/work-records/value" \
+curl "https://api.nextmoe.dev/v2/me/work-records/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -5722,11 +6210,35 @@ One transaction for the three parts: either all are written or none is. PUT repl
 | --- | --- | --- | --- | --- |
 | `work_id` | path | 是 | string | Catalog work id. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `playtime` | 否 | object |  |
+| `playtime.minutes` | 是 | integer (int64) | Absolute cumulative minutes. |
+| `rating` | 否 | object |  |
+| `rating.aspect_scores` | 否 | object |  |
+| `rating.aspect_scores.art` | 否 | integer (int64) | Absent or null when not rated. |
+| `rating.aspect_scores.character` | 否 | integer (int64) | Absent or null when not rated. |
+| `rating.aspect_scores.music` | 否 | integer (int64) | Absent or null when not rated. |
+| `rating.aspect_scores.replay_value` | 否 | integer (int64) | Absent or null when not rated. |
+| `rating.aspect_scores.route` | 否 | integer (int64) | Absent or null when not rated. |
+| `rating.aspect_scores.story` | 否 | integer (int64) | Absent or null when not rated. |
+| `rating.aspect_scores.system` | 否 | integer (int64) | Absent or null when not rated. |
+| `rating.aspect_scores.voice` | 否 | integer (int64) | Absent or null when not rated. |
+| `rating.overall` | 是 | integer (int64) | The overall score, a whole number from 1 to 10. |
+| `rating.recommend` | 是 | string | How strongly the author recommends the work. 取值：strong_no \| no \| neutral \| yes \| strong_yes |
+| `rating.short_summary` | 否 | string | Short review, plain text. Absent or empty means none. Free text; must not be used as a discriminant. |
+| `rating.spoiler_level` | 否 | string | How much short_summary gives away. Absent means none. 取值：none \| portion \| serious |
+| `work_state` | 否 | object |  |
+| `work_state.completion` | 否 | string | How much is finished. Absent means unstated. Refused with wish. 取值：one_route \| main \| all |
+| `work_state.state` | 是 | string | Closed vocabulary, as on /v2/me/work-states. 取值：wish \| doing \| done \| on_hold \| dropped |
+
 ```bash
-curl -X PUT "https://api.nextmoe.dev/v2/me/work-records/value" \
+curl -X PUT "https://api.nextmoe.dev/v2/me/work-records/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{}'
+  -d '{"playtime":{"minutes":720},"rating":{"aspect_scores":{"art":8,"character":8,"music":9,"replay_value":8,"route":7,"story":8,"system":7,"voice":8},"overall":8,"recommend":"yes","short_summary":"画面和音乐都很出色，主线一周目通关后还想再走一遍。","spoiler_level":"none"},"work_state":{"completion":"all","state":"done"}}'
 ```
 
 ### GET /v2/me/work-states
@@ -5773,11 +6285,20 @@ Batch write work states
 | --- | --- | --- | --- | --- |
 | `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `items` | 是 | object[] | At most 100 items. |
+| `items[].completion` | 否 | string | How much is finished. Absent clears it. Refused with wish. 取值：one_route \| main \| all |
+| `items[].state` | 是 | string | Closed vocabulary. 取值：wish \| doing \| done \| on_hold \| dropped |
+| `items[].work_id` | 是 | string | Catalog work id. |
+
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/me/work-states" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"items":[{"state":"wish","work_id":"string"}]}'
+  -d '{"items":[{"completion":"all","state":"done","work_id":"1"}]}'
 ```
 
 ### GET /v2/me/work-states/{work_id}
@@ -5795,7 +6316,7 @@ Get my state on one work
 | `work_id` | path | 是 | string | Catalog work id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/me/work-states/value" \
+curl "https://api.nextmoe.dev/v2/me/work-states/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -5813,11 +6334,18 @@ Body carries state and optionally completion; an absent completion clears it. Na
 | --- | --- | --- | --- | --- |
 | `work_id` | path | 是 | string | Catalog work id. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `completion` | 否 | string | How much is finished. Absent clears it. Refused with wish. 取值：one_route \| main \| all |
+| `state` | 是 | string | Closed vocabulary. 取值：wish \| doing \| done \| on_hold \| dropped |
+
 ```bash
-curl -X PUT "https://api.nextmoe.dev/v2/me/work-states/value" \
+curl -X PUT "https://api.nextmoe.dev/v2/me/work-states/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"state":"wish"}'
+  -d '{"completion":"all","state":"done"}'
 ```
 
 ### DELETE /v2/me/work-states/{work_id}
@@ -5835,7 +6363,7 @@ Delete my state on one work
 | `work_id` | path | 是 | string | Catalog work id. |
 
 ```bash
-curl -X DELETE "https://api.nextmoe.dev/v2/me/work-states/value" \
+curl -X DELETE "https://api.nextmoe.dev/v2/me/work-states/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -5916,7 +6444,7 @@ id is the catalog work id. Site-fenced. Requires a user access token bound to a 
 | `id` | path | 是 | string | Catalog work id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/moderation/claims/value" \
+curl "https://api.nextmoe.dev/v2/moderation/claims/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -5936,8 +6464,15 @@ decision=approve|decline|ban|unban. unban restores the state the claim was hidde
 | `If-Match` | header | 是 | string | Current ETag. Required; its absence is 428 PRECONDITION_REQUIRED. |
 | `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `decision` | 是 | string | approve publishes a pending claim, decline sends it back, ban hides it from any state, unban restores the state it was hidden from. 取值：approve \| decline \| ban \| unban |
+| `note` | 否 | string | Must not be used as a discriminant. Required to decline. |
+
 ```bash
-curl -X POST "https://api.nextmoe.dev/v2/moderation/claims/value/decisions" \
+curl -X POST "https://api.nextmoe.dev/v2/moderation/claims/1/decisions" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{"decision":"approve"}'
@@ -5957,11 +6492,19 @@ Rewrite or blank the name and description of any user's folder, or force it priv
 | --- | --- | --- | --- | --- |
 | `id` | path | 是 | string | Folder id. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `description` | 否 | string | New note; an empty string clears it. Must not be used as a discriminant. |
+| `name` | 否 | string | New display name. Must not be used as a discriminant. An empty string is accepted here and nowhere else: the abuse a moderator removes is usually the name, and picking a replacement is the owner's to do. |
+| `visibility` | 否 | string | private takes the folder off /v2/folders without deleting anything. 取值：private \| public |
+
 ```bash
-curl -X PATCH "https://api.nextmoe.dev/v2/moderation/folders/value" \
+curl -X PATCH "https://api.nextmoe.dev/v2/moderation/folders/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{}'
+  -d '{"description":"string","name":"string","visibility":"private"}'
 ```
 
 ### DELETE /v2/moderation/folders/{id}
@@ -5979,7 +6522,7 @@ Deletes the folder and its items. Unlike the owner's own delete this accepts the
 | `id` | path | 是 | string | Folder id. |
 
 ```bash
-curl -X DELETE "https://api.nextmoe.dev/v2/moderation/folders/value" \
+curl -X DELETE "https://api.nextmoe.dev/v2/moderation/folders/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -6032,7 +6575,7 @@ Site-fenced. include=patch adds the proposed and effective patches a decision is
 | `view` | query | 否 | string | basic (default) or full. full adds amendments and patch. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/moderation/proposals/value" \
+curl "https://api.nextmoe.dev/v2/moderation/proposals/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -6052,8 +6595,15 @@ decision=merge|decline. If-Match required. The token must carry the catalog:edit
 | `If-Match` | header | 是 | string | Current ETag. Required; its absence is 428 PRECONDITION_REQUIRED. |
 | `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `decision` | 是 | string | merge writes the effective patch and records a revision. decline closes the proposal. 取值：merge \| decline |
+| `note` | 否 | string | Must not be used as a discriminant. |
+
 ```bash
-curl -X POST "https://api.nextmoe.dev/v2/moderation/proposals/value/decisions" \
+curl -X POST "https://api.nextmoe.dev/v2/moderation/proposals/1/decisions" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{"decision":"merge"}'
@@ -6074,7 +6624,7 @@ Removes the rating from every site at once; the deletion reaches /v2/ratings/cha
 | `id` | path | 是 | string | Rating id. |
 
 ```bash
-curl -X DELETE "https://api.nextmoe.dev/v2/moderation/ratings/value" \
+curl -X DELETE "https://api.nextmoe.dev/v2/moderation/ratings/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -6092,11 +6642,18 @@ Body names revision_id. Requires a user access token bound to a catalog site. Th
 | --- | --- | --- | --- | --- |
 | `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `reason` | 否 | string | Must not be used as a discriminant. |
+| `revision_id` | 是 | string | edit_revision id. |
+
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/moderation/reverts" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"revision_id":"string"}'
+  -d '{"revision_id":"1"}'
 ```
 
 ### GET /v2/moderation/snapshots/{object}/{id}
@@ -6115,7 +6672,7 @@ Registered field values. Requires a user access token. The token must carry the 
 | `id` | path | 是 | string | Catalog id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/moderation/snapshots/value/value" \
+curl "https://api.nextmoe.dev/v2/moderation/snapshots/example/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -6145,7 +6702,7 @@ The read preview of the purge on this same path: what the DELETE would remove. E
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/moderation/users/value/folders" \
+curl "https://api.nextmoe.dev/v2/moderation/users/1/folders" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -6164,7 +6721,7 @@ What an account deletion reaches for: all of one account's folders, their member
 | `uid` | path | 是 | string | The account whose folders to remove. |
 
 ```bash
-curl -X DELETE "https://api.nextmoe.dev/v2/moderation/users/value/folders" \
+curl -X DELETE "https://api.nextmoe.dev/v2/moderation/users/1/folders" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -6204,7 +6761,7 @@ Cached storefront price quotes for one catalog work. Unauthenticated. Quotes are
 | `id` | path | 是 | string | Decimal catalog work id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/store/prices/value" \
+curl "https://api.nextmoe.dev/v2/store/prices/1" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 
@@ -6223,7 +6780,7 @@ Mints (or returns) the short links this application sends readers to. The purcha
 | `product_id` | path | 是 | string | DLsite product number. RJ is doujin, VJ is commercial. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/store/purchase-links/value" \
+curl "https://api.nextmoe.dev/v2/store/purchase-links/RJ01234567" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 
@@ -6327,7 +6884,7 @@ One patch page
 | `include` | query | 否 | string[] | Comma-separated relations to attach. Nothing is attached by default, including the resources — `resource_count` tells you whether there is anything to ask for, and `/patches/{id}/resources` pages them when there are many.  取值：resources \| publisher |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/moyu/patches/value" \
+curl "https://api.nextmoe.dev/v2/moyu/patches/11617" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 
@@ -6353,7 +6910,7 @@ URL, exactly as on the site.
 | `include` | query | 否 | string[] |  取值：publisher |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/moyu/patches/value/resources" \
+curl "https://api.nextmoe.dev/v2/moyu/patches/11617/resources" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 
@@ -6373,7 +6930,7 @@ One resource
 | `include` | query | 否 | string[] |  取值：publisher |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/moyu/resources/value" \
+curl "https://api.nextmoe.dev/v2/moyu/resources/10463" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 
@@ -6442,7 +6999,7 @@ One pack, with its stickers
 | `pack_id` | path | 是 | string (uuid) | This site's own pack id (UUIDv7). |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/sticker/packs/value" \
+curl "https://api.nextmoe.dev/v2/sticker/packs/1" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 
@@ -6461,7 +7018,7 @@ One sticker
 | `sticker_id` | path | 是 | string (uuid) |  |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/sticker/stickers/value" \
+curl "https://api.nextmoe.dev/v2/sticker/stickers/1" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 
@@ -6503,7 +7060,7 @@ One catalog character, as this site holds it
 | `character_id` | path | 是 | string | Infra catalog character id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/sticker/characters/value" \
+curl "https://api.nextmoe.dev/v2/sticker/characters/1" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 
@@ -6525,7 +7082,7 @@ The primary lane. Newest first, published packs only. An empty page and a 404 me
 | `include_total` | query | 否 | string | `true` adds `total`, counted under the same filter as `items`. 取值：true \| false |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/sticker/characters/value/stickers" \
+curl "https://api.nextmoe.dev/v2/sticker/characters/1/stickers" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 
@@ -6571,7 +7128,7 @@ A pack counts as being about a game if it declares it or holds a sticker of it. 
 | `nsfw` | query | 否 | string | `true` includes r18 packs; absent or `false` hides them. Same meaning as catalog's nsfw parameter. Note this is the *pack's* rating: a pack of ordinary reaction faces cut from an r18 game is `all_ages`, and its work's `content_rating` still says `r18`. 取值：true \| false |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/sticker/works/value/packs" \
+curl "https://api.nextmoe.dev/v2/sticker/works/1/packs" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 
@@ -6602,7 +7159,7 @@ curl "https://api.nextmoe.dev/v2/sticker/tags" \
 
 NextMoe 开放 API 同时以 MCP（Model Context Protocol）server 暴露：端点 https://mcp.nextmoe.dev/mcp，Streamable HTTP、stateless，带上同一把 API 密钥即可；不带密钥也能用，额度按你自己的 IP 计（默认每分钟 30 次、每天 1,000 次）。它是一层纯透传适配——每次工具调用就是一次对公开 /v2 GET 的请求，鉴权、限流、配额与用量与直连毫无区别。工具名就是 OpenAPI operationId，清单由 cmd/gen-v2-portal 从同一份 v2 spec 生成。
 
-## 工具（58 个）
+## 工具（60 个）
 
 - `getCatalogCharacter` `GET /v2/catalog/characters/{id}`（无需密钥）：按 id 取角色；view=full 追加性别、生日、三围、血型与 instance_of_id。nsfw 同时控 r18 作品与 sexual 系 traits 的可见性。
 - `getCatalogCharacterAppearances` `GET /v2/catalog/characters/{id}/appearances`（无需密钥）：一个角色出演的全部作品，各带 roster_role、剧透等级与配音署名，offset 游标分页。
@@ -6638,6 +7195,7 @@ NextMoe 开放 API 同时以 MCP（Model Context Protocol）server 暴露：端�
 - `getCatalogWorkTags` `GET /v2/catalog/works/{id}/tags`（无需密钥）：作品的源标签块（单块 cursor 分页）。命中正典映射的行带 canonical id 与 tier / kind，未映射的行不带。
 - `getNewsItem` `GET /v2/news/{id}`（无需密钥）：按 id 取单条资讯。已撤回的、上游原文已消失的条目返回 404——这是契约不是查不到，别重试，也别拿缓存副本顶上。
 - `getProblemType` `GET /v2/problems/{code}`（无需密钥）：按 code 取单条错误码定义。未知 code 返回 404 而不是 422——路径参数是查找键，不是封闭枚举。
+- `getRating` `GET /v2/ratings/{id}`：按评分 id 取这一条。一个人、一部作品、所有 NextMoe 站点只有一条评分；没有这条，包括已删除的，是 404。需要应用密钥，或带 catalog:read 的用户令牌。
 - `getVocabulary` `GET /v2/vocabularies/{name}`（无需密钥）：按 name 取一个词表的全部已发布取值。未知 name 返回 404。
 - `listCatalogCalendar` `GET /v2/catalog/calendar`（无需密钥）：发售月历：month= / year= 选窗口，precision= 与 status= 在「已定档到月」「只知年」「已公布未定档」三个视图间切换——v1 的三条月历路径在 v2 是这一条。不接受 ids=。
 - `listCatalogChanges` `GET /v2/catalog/changes`（无需密钥）：增量同步变更流：近期更新过的作品，最旧优先。存下 next_cursor，下次轮询只拿变化的部分。
@@ -6660,5 +7218,6 @@ NextMoe 开放 API 同时以 MCP（Model Context Protocol）server 暴露：端�
 - `listNewsSources` `GET /v2/news/sources`（无需密钥）：资讯来源注册表：每家媒体的名称、主页、专栏入口，以及该渲染的归属文案。无参数，无需凭据。
 - `listProblemReasons` `GET /v2/problems/reasons`（无需密钥）：字段级 reason 的封闭清单，无需凭据。这里的取值永远不会作为顶层 code 出现。
 - `listProblemTypes` `GET /v2/problems`（无需密钥）：错误码注册表：/v2 全部顶层 code 的封闭清单，keyset 分页，无需凭据。
+- `listRatings` `GET /v2/ratings`：一个人在一部作品上的评分，全 NextMoe 站点共用一条。work_id= 或 user_id= 至少给一个，两个都给就是这个账号对这部作品的那一条；按创建时间从新到旧。需要应用密钥，或带 catalog:read 的用户令牌。
 - `listVocabularies` `GET /v2/vocabularies`（无需密钥）：已发布词表清单（封闭词表与 seed-open 词表），keyset 分页，无需凭据。
 - `searchCatalog` `GET /v2/catalog/search`（无需密钥）：按名字跨家族搜身份图谱：object= 选家族（works / characters / credit-names / companies …），命中行是 search_result，各带 target_object 说明它是什么。r18 需 nsfw=true；不接受 cursor= 与 ids=。
