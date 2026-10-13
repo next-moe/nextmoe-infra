@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	"api/internal/middleware"
 	"api/internal/platform/apiv2/problem"
 	"api/internal/platform/apiv2/protocol"
 	"api/internal/platform/devapi"
@@ -16,12 +17,13 @@ import (
 type ctxKey string
 
 const (
-	ctxUserID     ctxKey = "v2_user_id"
-	ctxClientID   ctxKey = "v2_client_id"
-	ctxSite       ctxKey = "v2_catalog_site"
-	ctxRoles      ctxKey = "v2_user_roles"
-	ctxCredClient ctxKey = "v2_credential_client_id"
-	ctxThirdParty ctxKey = "v2_third_party_client"
+	ctxUserID      ctxKey = "v2_user_id"
+	ctxClientID    ctxKey = "v2_client_id"
+	ctxSite        ctxKey = "v2_catalog_site"
+	ctxRoles       ctxKey = "v2_user_roles"
+	ctxGlobalRoles ctxKey = "v2_user_global_roles"
+	ctxCredClient  ctxKey = "v2_credential_client_id"
+	ctxThirdParty  ctxKey = "v2_third_party_client"
 )
 
 // SiteBinding is what the token's OAuth client is, not just where it points.
@@ -74,6 +76,11 @@ func siteFrom(ctx context.Context) string {
 
 func rolesFrom(ctx context.Context) []string {
 	v, _ := ctx.Value(ctxRoles).([]string)
+	return v
+}
+
+func globalRolesFrom(ctx context.Context) []string {
+	v, _ := ctx.Value(ctxGlobalRoles).([]string)
 	return v
 }
 
@@ -178,9 +185,10 @@ func folderScopeProblem(c fiber.Ctx, scopes []string) *problem.Problem {
 }
 
 type UserIdentity struct {
-	UID      int64
-	ClientID string
-	Roles    []string
+	UID       int64
+	ClientID  string
+	Roles     []string
+	SiteRoles []string
 	// The token's granted OAuth scopes. /v2/me and /v2/moderation gate on the
 	// person, not on what the app was consented for, so nothing read this until
 	// the catalog read surface began accepting user tokens.
@@ -193,8 +201,11 @@ type UserIdentity struct {
 func applyUserIdentity(c fiber.Ctx, ident UserIdentity) {
 	c.Locals("user_id", ident.UID)
 	c.Locals("token_client_id", ident.ClientID)
+	if roles := middleware.UnionRoles(ident.Roles, ident.SiteRoles); len(roles) > 0 {
+		c.Locals("user_roles", roles)
+	}
 	if len(ident.Roles) > 0 {
-		c.Locals("user_roles", ident.Roles)
+		c.Locals("user_global_roles", ident.Roles)
 	}
 }
 

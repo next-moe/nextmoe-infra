@@ -373,7 +373,7 @@ func setupPublicCatalog(
 			}
 			return v2handler.UserIdentity{
 				UID: int64(claims.ID), ClientID: claims.ClientID,
-				Roles:  middleware.UnionRoles(claims.Roles, claims.SiteRoles),
+				Roles: claims.Roles, SiteRoles: claims.SiteRoles,
 				Scopes: strings.Fields(claims.Scope),
 			}, nil
 		},

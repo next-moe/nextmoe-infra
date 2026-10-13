@@ -2,8 +2,10 @@ package handler
 
 import (
 	"context"
+	"net/http"
 	"testing"
 
+	"api/internal/platform/apiv2/problem"
 	"api/internal/platform/authz"
 	catalogPerm "api/internal/platform/catalog/perm"
 
@@ -33,23 +35,43 @@ func TestModerationNeedsItsOwnKey(t *testing.T) {
 
 	require.True(t, catalogPerm.Moderates([]string{"creator"}), "positive control: creator reviews")
 	for _, key := range moderationKeys {
-		require.Error(t, requireModerationKey(moderationKeyCtx([]string{"creator"}), key),
+		require.Error(t, requireModerationKey(moderationKeyCtx([]string{"creator"}), key, []string{"creator"}),
 			"reviewing edits and claims must not reach anyone's %s", key)
-		require.NoError(t, requireModerationKey(moderationKeyCtx([]string{"moderator"}), key), key)
-		require.Error(t, requireModerationKey(context.WithValue(context.Background(), ctxRoles, []string{"moderator"}), key),
+		require.NoError(t, requireModerationKey(moderationKeyCtx([]string{"moderator"}), key, []string{"moderator"}), key)
+		require.Error(t, requireModerationKey(context.WithValue(context.Background(), ctxRoles, []string{"moderator"}), key, []string{"moderator"}),
 			"an application key carries no user to act as")
 	}
-	require.Error(t, requireModerationKey(moderationKeyCtx([]string{"rater"}), catalogPerm.FolderModerate),
+	require.Error(t, requireModerationKey(moderationKeyCtx([]string{"rater"}), catalogPerm.FolderModerate, []string{"rater"}),
 		"each key opens its own faces")
 }
 
 func TestModerationFollowsTheCodeBundles(t *testing.T) {
 	for _, key := range moderationKeys {
 		for _, role := range []string{"moderator", "admin", "ren"} {
-			require.NoError(t, requireModerationKey(moderationKeyCtx([]string{role}), key), "%s %s", role, key)
+			require.NoError(t, requireModerationKey(moderationKeyCtx([]string{role}), key, []string{role}), "%s %s", role, key)
 		}
 		for _, role := range []string{"user", "creator"} {
-			require.Error(t, requireModerationKey(moderationKeyCtx([]string{role}), key), "%s %s", role, key)
+			require.Error(t, requireModerationKey(moderationKeyCtx([]string{role}), key, []string{role}), "%s %s", role, key)
 		}
 	}
+}
+
+// A token carries its site's roles beside the global ones. Production's forum
+// and moyu each have 41 site moderators, 39 of them with no global role.
+func TestRatingModerationCountsOnlyGlobalRoles(t *testing.T) {
+	siteMod := testAppDualCredential(t, UserIdentity{
+		UID: 42, ClientID: "kungal-client", Roles: []string{"user"}, SiteRoles: []string{"moderator"},
+	})
+	status, p := authDo(t, siteMod, http.MethodDelete, "/v2/moderation/ratings/501", catalogUserToken, "")
+	require.Equal(t, http.StatusForbidden, status)
+	require.Equal(t, problem.CodePermissionRequired, p.Code)
+
+	status, p = authDo(t, siteMod, http.MethodDelete, "/v2/moderation/folders/501", catalogUserToken, "")
+	require.Equal(t, http.StatusServiceUnavailable, status, "folder moderation keeps the site role: %+v", p)
+
+	globalMod := testAppDualCredential(t, UserIdentity{
+		UID: 42, ClientID: "kungal-client", Roles: []string{"moderator"},
+	})
+	status, p = authDo(t, globalMod, http.MethodDelete, "/v2/moderation/ratings/501", catalogUserToken, "")
+	require.Equal(t, http.StatusServiceUnavailable, status, "positive control: a global moderator passes the gate: %+v", p)
 }
