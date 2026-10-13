@@ -28,7 +28,7 @@ A catalog release. Merged ids are 404 ENTITY_MERGED. r18 parent works are 404 wi
 | `fields` | query | 否 | string | Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/releases/value"
+curl "https://api.nextmoe.dev/v2/catalog/releases/1"
 ```
 
 ---

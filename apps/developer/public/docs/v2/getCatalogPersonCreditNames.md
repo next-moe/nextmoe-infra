@@ -28,7 +28,7 @@ Every credited name linked to this person. Anonymous calls are allowed and limit
 | `fields` | query | 否 | string | Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/persons/value/credit-names"
+curl "https://api.nextmoe.dev/v2/catalog/persons/1/credit-names"
 ```
 
 ---

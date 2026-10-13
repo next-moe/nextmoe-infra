@@ -98,6 +98,35 @@ func TestToolRegistry(t *testing.T) {
 	}
 }
 
+func TestPublicRatingReadsAreTools(t *testing.T) {
+	raw := []byte(`{
+	  "paths": {
+	    "/v2/ratings": {"get": {"operationId": "listRatings", "summary": "List ratings"}},
+	    "/v2/ratings/{id}": {"get": {"operationId": "getRating", "summary": "Get one rating"}},
+	    "/v2/ratings/changes": {"get": {"operationId": "listRatingChanges", "summary": "Rating changes feed"}},
+	    "/v2/me/ratings": {"get": {"operationId": "listMyRatings", "summary": "List my ratings"}}
+	  }
+	}`)
+	descs, err := ToolsFromSpec(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := make([]string, 0, len(descs))
+	for _, d := range descs {
+		got = append(got, d.Name)
+	}
+	sort.Strings(got)
+	want := []string{"getRating", "listRatings"}
+	if len(got) != len(want) {
+		t.Fatalf("tools = %v, want %v", got, want)
+	}
+	for i, name := range want {
+		if got[i] != name {
+			t.Errorf("tool[%d] = %q, want %q", i, got[i], name)
+		}
+	}
+}
+
 func TestBearerTokenFormCheck(t *testing.T) {
 	tests := []struct {
 		name      string

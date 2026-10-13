@@ -60,6 +60,73 @@ const paramTable = (params) => {
   ]
 }
 
+const typeLabel = (node) => {
+  if (!node) return 'any'
+  if (node.type === 'array') {
+    const el = node.itemsOf
+    const inner = !el
+      ? 'any'
+      : el.type === 'array'
+        ? typeLabel(el)
+        : el.format
+          ? `${el.type} (${el.format})`
+          : el.type
+    return `${inner}[]`
+  }
+  if (node.type === 'map') {
+    return `map<string, ${node.itemsOf?.type || 'any'}>`
+  }
+  return node.format ? `${node.type} (${node.format})` : node.type
+}
+
+const fieldDoc = (node) => {
+  const doc = (node.doc ?? '').replace(/\|/g, '\\|').replace(/\n+/g, ' ')
+  const enums = node.enum?.length ? ` 取值：${node.enum.join(' \\| ')}` : ''
+  return `${doc}${enums}`
+}
+
+const bodyFieldRows = (node, path, rows) => {
+  rows.push(
+    `| \`${path}\` | ${node.required ? '是' : '否'} | ${typeLabel(node)} | ${fieldDoc(node)} |`
+  )
+  if (node.type === 'object' && node.children?.length) {
+    for (const child of node.children) {
+      bodyFieldRows(child, `${path}.${child.name}`, rows)
+    }
+  } else if (node.type === 'array' && node.itemsOf) {
+    const item = node.itemsOf
+    const itemPath = `${path}[]`
+    if (item.type === 'object' && item.children?.length) {
+      for (const child of item.children) {
+        bodyFieldRows(child, `${itemPath}.${child.name}`, rows)
+      }
+    } else {
+      bodyFieldRows(item, itemPath, rows)
+    }
+  } else if (node.type === 'map' && node.itemsOf) {
+    bodyFieldRows(node.itemsOf, `${path}.«key»`, rows)
+  }
+}
+
+const bodyTable = (body) => {
+  if (!body) return []
+  const rows = []
+  if (body.type === 'object' && body.children?.length) {
+    for (const child of body.children) bodyFieldRows(child, child.name, rows)
+  } else {
+    bodyFieldRows(body, body.name || 'body', rows)
+  }
+  if (!rows.length) return []
+  return [
+    '请求体',
+    '',
+    '| 字段 | 必填 | 类型 | 说明 |',
+    '| --- | --- | --- | --- |',
+    ...rows,
+    ''
+  ]
+}
+
 const operationSection = (face, op, heading) => {
   const lines = [
     `${heading} ${op.method.toUpperCase()} ${op.path}`,
@@ -73,6 +140,7 @@ const operationSection = (face, op, heading) => {
   lines.push(`- scope：${scopeLine(op)}`)
   lines.push('')
   lines.push(...paramTable(op.params))
+  lines.push(...bodyTable(op.requestBody))
   lines.push('```bash', op.curl, '```', '')
   return lines
 }

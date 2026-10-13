@@ -27,7 +27,7 @@ Work cover rows. Same items as include=covers. Anonymous calls are allowed and l
 | `limit` | query | 否 | string | Page size 1-100, default 20. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/works/value/covers"
+curl "https://api.nextmoe.dev/v2/catalog/works/1/covers"
 ```
 
 ---

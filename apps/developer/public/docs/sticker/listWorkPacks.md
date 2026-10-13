@@ -29,7 +29,7 @@ A pack counts as being about a game if it declares it or holds a sticker of it. 
 | `nsfw` | query | 否 | string | `true` includes r18 packs; absent or `false` hides them. Same meaning as catalog's nsfw parameter. Note this is the *pack's* rating: a pack of ordinary reaction faces cut from an r18 game is `all_ages`, and its work's `content_rating` still says `r18`. 取值：true \| false |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/sticker/works/value/packs" \
+curl "https://api.nextmoe.dev/v2/sticker/works/1/packs" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 

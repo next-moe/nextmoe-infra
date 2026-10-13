@@ -28,7 +28,7 @@ Series detail. has_nsfw reports whether any member work sits behind the r18 disp
 | `fields` | query | 否 | string | Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/series/value"
+curl "https://api.nextmoe.dev/v2/catalog/series/1"
 ```
 
 ---

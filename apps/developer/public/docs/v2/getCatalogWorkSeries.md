@@ -27,7 +27,7 @@ Series memberships. Same items as include=series. Anonymous calls are allowed an
 | `limit` | query | 否 | string | Page size 1-100, default 20. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/works/value/series"
+curl "https://api.nextmoe.dev/v2/catalog/works/1/series"
 ```
 
 ---

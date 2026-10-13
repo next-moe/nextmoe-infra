@@ -126,8 +126,8 @@ func registerMeWrite(api huma.API, cat *Catalog) {
 type batchPlaytimesInput struct {
 	Body struct {
 		Items []struct {
-			WorkID  string `json:"work_id" minLength:"1" maxLength:"20" pattern:"^[0-9]+$" doc:"Catalog work id."`
-			Minutes int    `json:"minutes" minimum:"0" maximum:"60000" doc:"Absolute cumulative minutes."`
+			WorkID  string `json:"work_id" minLength:"1" maxLength:"20" pattern:"^[0-9]+$" example:"1" doc:"Catalog work id."`
+			Minutes int    `json:"minutes" minimum:"0" maximum:"60000" example:"720" doc:"Absolute cumulative minutes."`
 		} `json:"items" maxItems:"100" doc:"At most 100 items."`
 	}
 }
@@ -140,9 +140,9 @@ type batchPlaytimesOutput struct {
 // panics huma's schema registry at startup (deviation 110, "duplicate name:
 // Item"); folderBatchEntry exists for the same reason.
 type workStateBatchEntry struct {
-	WorkID     string `json:"work_id" minLength:"1" maxLength:"20" pattern:"^[0-9]+$" doc:"Catalog work id."`
-	State      string `json:"state" enum:"wish,doing,done,on_hold,dropped" doc:"Closed vocabulary."`
-	Completion string `json:"completion,omitempty" enum:"one_route,main,all" doc:"How much is finished. Absent clears it. Refused with wish."`
+	WorkID     string `json:"work_id" minLength:"1" maxLength:"20" pattern:"^[0-9]+$" example:"1" doc:"Catalog work id."`
+	State      string `json:"state" enum:"wish,doing,done,on_hold,dropped" example:"done" doc:"Closed vocabulary."`
+	Completion string `json:"completion,omitempty" enum:"one_route,main,all" example:"all" doc:"How much is finished. Absent clears it. Refused with wish."`
 }
 type batchWorkStatesInput struct {
 	Body struct {
@@ -167,7 +167,7 @@ type claimReleasedBody struct {
 type createClaimInput struct {
 	Body struct {
 		SiteWorkID        string             `json:"site_work_id,omitempty" pattern:"^[0-9]+$" maxLength:"20" doc:"The site's own work id. Sent alone with display_name — no work_id, no refs — it mints a work anchored to that id."`
-		WorkID            string             `json:"work_id,omitempty" pattern:"^[0-9]+$" maxLength:"20" doc:"Existing catalog work id to claim."`
+		WorkID            string             `json:"work_id,omitempty" pattern:"^[0-9]+$" maxLength:"20" example:"1" doc:"Existing catalog work id to claim."`
 		DisplayName       string             `json:"display_name,omitempty" maxLength:"512" doc:"Required to mint when refs do not match. Must not be used as a discriminant."`
 		Refs              []claimRefBody     `json:"refs,omitempty" maxItems:"100" doc:"source:external_id anchors, at most 100. Used when work_id is absent."`
 		FieldValues       map[string]any     `json:"field_values,omitempty" doc:"Editing-engine field key to value for the minted work, e.g. catalog.work.titles — the same shape GET /v2/moderation/snapshots/{object}/{id} answers. Sent alone it mints from the map; sent with work_id it is 422. Top-level display_name wins over catalog.work.display_name."`

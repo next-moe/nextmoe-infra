@@ -24,8 +24,14 @@ PATCH {state: live|pending|withdrawn}. live publishes a draft without review, pe
 | `id` | path | 是 | string | Catalog work id. |
 | `If-Match` | header | 是 | string | Current ETag. Required; its absence is 428 PRECONDITION_REQUIRED. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `state` | 是 | string | live publishes a draft, pending submits it for review, withdrawn returns a live or pending claim to draft. draft is the older spelling of withdrawn. 取值：live \| pending \| withdrawn \| draft |
+
 ```bash
-curl -X PATCH "https://api.nextmoe.dev/v2/me/claims/value" \
+curl -X PATCH "https://api.nextmoe.dev/v2/me/claims/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{"state":"live"}'

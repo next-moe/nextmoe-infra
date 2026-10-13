@@ -37,7 +37,7 @@ type problemReason struct {
 }
 
 type getProblemInput struct {
-	Code string `path:"code" maxLength:"63" pattern:"^[A-Z][A-Z0-9_]*[A-Z0-9]$" doc:"Top-level error code from the registry (UPPER_SNAKE)."`
+	Code string `path:"code" maxLength:"63" pattern:"^[A-Z][A-Z0-9_]*[A-Z0-9]$" example:"VALIDATION_FAILED" doc:"Top-level error code from the registry (UPPER_SNAKE)."`
 }
 type getProblemOutput struct {
 	Body problemType
@@ -46,7 +46,7 @@ type listReasonsOutput struct {
 	Body listObject[problemReason]
 }
 type getVocabInput struct {
-	Name string `path:"name" maxLength:"63" pattern:"^[a-z][a-z0-9_]*$" doc:"Vocabulary name. The path segment of /v2/vocabularies/{name}."`
+	Name string `path:"name" maxLength:"63" pattern:"^[a-z][a-z0-9_]*$" example:"content_rating" doc:"Vocabulary name. The path segment of /v2/vocabularies/{name}."`
 }
 type getVocabOutput struct {
 	Body vocab.Vocabulary

@@ -27,7 +27,7 @@ Releases of this work. Same items as include=releases. Anonymous calls are allow
 | `limit` | query | 否 | string | Page size 1-100, default 20. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/works/value/releases"
+curl "https://api.nextmoe.dev/v2/catalog/works/1/releases"
 ```
 
 ---

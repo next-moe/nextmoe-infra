@@ -24,7 +24,7 @@ id is the catalog work id. Requires a user access token. The token must carry th
 | `id` | path | 是 | string | Catalog work id. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/me/claims/value" \
+curl "https://api.nextmoe.dev/v2/me/claims/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 

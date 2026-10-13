@@ -24,7 +24,7 @@ No request body. Idempotent: following an already-followed company answers the s
 | `company_id` | path | 是 | string | Catalog company id. |
 
 ```bash
-curl -X PUT "https://api.nextmoe.dev/v2/me/followed-companies/value" \
+curl -X PUT "https://api.nextmoe.dev/v2/me/followed-companies/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 

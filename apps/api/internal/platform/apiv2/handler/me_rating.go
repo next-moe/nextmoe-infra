@@ -58,22 +58,22 @@ func aspectInt(p *int16) *int {
 }
 
 type ratingAspectsBody struct {
-	Art         *int `json:"art,omitempty" minimum:"1" maximum:"10" doc:"Absent or null when not rated."`
-	Story       *int `json:"story,omitempty" minimum:"1" maximum:"10" doc:"Absent or null when not rated."`
-	Music       *int `json:"music,omitempty" minimum:"1" maximum:"10" doc:"Absent or null when not rated."`
-	Character   *int `json:"character,omitempty" minimum:"1" maximum:"10" doc:"Absent or null when not rated."`
-	Route       *int `json:"route,omitempty" minimum:"1" maximum:"10" doc:"Absent or null when not rated."`
-	System      *int `json:"system,omitempty" minimum:"1" maximum:"10" doc:"Absent or null when not rated."`
-	Voice       *int `json:"voice,omitempty" minimum:"1" maximum:"10" doc:"Absent or null when not rated."`
-	ReplayValue *int `json:"replay_value,omitempty" minimum:"1" maximum:"10" doc:"Absent or null when not rated."`
+	Art         *int `json:"art,omitempty" minimum:"1" maximum:"10" example:"8" doc:"Absent or null when not rated."`
+	Story       *int `json:"story,omitempty" minimum:"1" maximum:"10" example:"8" doc:"Absent or null when not rated."`
+	Music       *int `json:"music,omitempty" minimum:"1" maximum:"10" example:"9" doc:"Absent or null when not rated."`
+	Character   *int `json:"character,omitempty" minimum:"1" maximum:"10" example:"8" doc:"Absent or null when not rated."`
+	Route       *int `json:"route,omitempty" minimum:"1" maximum:"10" example:"7" doc:"Absent or null when not rated."`
+	System      *int `json:"system,omitempty" minimum:"1" maximum:"10" example:"7" doc:"Absent or null when not rated."`
+	Voice       *int `json:"voice,omitempty" minimum:"1" maximum:"10" example:"8" doc:"Absent or null when not rated."`
+	ReplayValue *int `json:"replay_value,omitempty" minimum:"1" maximum:"10" example:"8" doc:"Absent or null when not rated."`
 }
 
 type ratingBody struct {
-	Overall      int                `json:"overall" minimum:"1" maximum:"10" doc:"The overall score, a whole number from 1 to 10."`
+	Overall      int                `json:"overall" minimum:"1" maximum:"10" example:"8" doc:"The overall score, a whole number from 1 to 10."`
 	AspectScores *ratingAspectsBody `json:"aspect_scores,omitempty" doc:"Per-aspect scores. Absent means none rated."`
-	Recommend    string             `json:"recommend" enum:"strong_no,no,neutral,yes,strong_yes" doc:"How strongly the author recommends the work."`
-	SpoilerLevel string             `json:"spoiler_level,omitempty" enum:"none,portion,serious" doc:"How much short_summary gives away. Absent means none."`
-	ShortSummary string             `json:"short_summary,omitempty" maxLength:"2000" doc:"Short review, plain text. Absent or empty means none. Free text; must not be used as a discriminant."`
+	Recommend    string             `json:"recommend" enum:"strong_no,no,neutral,yes,strong_yes" example:"yes" doc:"How strongly the author recommends the work."`
+	SpoilerLevel string             `json:"spoiler_level,omitempty" enum:"none,portion,serious" example:"none" doc:"How much short_summary gives away. Absent means none."`
+	ShortSummary string             `json:"short_summary,omitempty" maxLength:"2000" example:"画面和音乐都很出色，主线一周目通关后还想再走一遍。" doc:"Short review, plain text. Absent or empty means none. Free text; must not be used as a discriminant."`
 }
 
 func (b ratingBody) input() catsvc.RatingInput {

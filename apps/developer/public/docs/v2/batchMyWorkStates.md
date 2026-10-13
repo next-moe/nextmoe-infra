@@ -23,11 +23,20 @@ Batch write work states
 | --- | --- | --- | --- | --- |
 | `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `items` | 是 | object[] | At most 100 items. |
+| `items[].completion` | 否 | string | How much is finished. Absent clears it. Refused with wish. 取值：one_route \| main \| all |
+| `items[].state` | 是 | string | Closed vocabulary. 取值：wish \| doing \| done \| on_hold \| dropped |
+| `items[].work_id` | 是 | string | Catalog work id. |
+
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/me/work-states" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"items":[{"state":"wish","work_id":"string"}]}'
+  -d '{"items":[{"completion":"all","state":"done","work_id":"1"}]}'
 ```
 
 ---

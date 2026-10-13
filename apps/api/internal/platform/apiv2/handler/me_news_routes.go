@@ -34,7 +34,7 @@ type patchNewsSubmissionInput struct {
 	IfMatch string `header:"If-Match" doc:"Current ETag. Required to withdraw."`
 	Body    struct {
 		Status     *string   `json:"status,omitempty" enum:"withdrawn" doc:"Only withdrawn. Publishing and rejection happen in the moderation queue, never here."`
-		Title      *string   `json:"title,omitempty" minLength:"1" maxLength:"512" doc:"Must not be used as a discriminant."`
+		Title      *string   `json:"title,omitempty" minLength:"1" maxLength:"512" example:"中文版发售日确定" doc:"Must not be used as a discriminant."`
 		Summary    *string   `json:"summary,omitempty" minLength:"1" maxLength:"2000" doc:"At most 200 runes; longer is 422 VALIDATION_FAILED with reason TOO_LONG. Must not be used as a discriminant."`
 		Body       *string   `json:"body,omitempty" maxLength:"80000" doc:"At most 20000 runes. Only a community submission may carry one; the empty string clears it. Must not be used as a discriminant."`
 		SourceURL  *string   `json:"source_url,omitempty" maxLength:"1024" doc:"Canonical link to the original item, an absolute http(s) URL. The empty string clears it, which only a community submission may do. Must not be used as a discriminant."`

@@ -11,7 +11,7 @@
 
 NextMoe 开放 API 同时以 MCP（Model Context Protocol）server 暴露：端点 https://mcp.nextmoe.dev/mcp，Streamable HTTP、stateless，带上同一把 API 密钥即可；不带密钥也能用，额度按你自己的 IP 计（默认每分钟 30 次、每天 1,000 次）。它是一层纯透传适配——每次工具调用就是一次对公开 /v2 GET 的请求，鉴权、限流、配额与用量与直连毫无区别。工具名就是 OpenAPI operationId，清单由 cmd/gen-v2-portal 从同一份 v2 spec 生成。
 
-## 工具（58 个）
+## 工具（60 个）
 
 - `getCatalogCharacter` `GET /v2/catalog/characters/{id}`（无需密钥）：按 id 取角色；view=full 追加性别、生日、三围、血型与 instance_of_id。nsfw 同时控 r18 作品与 sexual 系 traits 的可见性。
 - `getCatalogCharacterAppearances` `GET /v2/catalog/characters/{id}/appearances`（无需密钥）：一个角色出演的全部作品，各带 roster_role、剧透等级与配音署名，offset 游标分页。
@@ -47,6 +47,7 @@ NextMoe 开放 API 同时以 MCP（Model Context Protocol）server 暴露：端�
 - `getCatalogWorkTags` `GET /v2/catalog/works/{id}/tags`（无需密钥）：作品的源标签块（单块 cursor 分页）。命中正典映射的行带 canonical id 与 tier / kind，未映射的行不带。
 - `getNewsItem` `GET /v2/news/{id}`（无需密钥）：按 id 取单条资讯。已撤回的、上游原文已消失的条目返回 404——这是契约不是查不到，别重试，也别拿缓存副本顶上。
 - `getProblemType` `GET /v2/problems/{code}`（无需密钥）：按 code 取单条错误码定义。未知 code 返回 404 而不是 422——路径参数是查找键，不是封闭枚举。
+- `getRating` `GET /v2/ratings/{id}`：按评分 id 取这一条。一个人、一部作品、所有 NextMoe 站点只有一条评分；没有这条，包括已删除的，是 404。需要应用密钥，或带 catalog:read 的用户令牌。
 - `getVocabulary` `GET /v2/vocabularies/{name}`（无需密钥）：按 name 取一个词表的全部已发布取值。未知 name 返回 404。
 - `listCatalogCalendar` `GET /v2/catalog/calendar`（无需密钥）：发售月历：month= / year= 选窗口，precision= 与 status= 在「已定档到月」「只知年」「已公布未定档」三个视图间切换——v1 的三条月历路径在 v2 是这一条。不接受 ids=。
 - `listCatalogChanges` `GET /v2/catalog/changes`（无需密钥）：增量同步变更流：近期更新过的作品，最旧优先。存下 next_cursor，下次轮询只拿变化的部分。
@@ -69,6 +70,7 @@ NextMoe 开放 API 同时以 MCP（Model Context Protocol）server 暴露：端�
 - `listNewsSources` `GET /v2/news/sources`（无需密钥）：资讯来源注册表：每家媒体的名称、主页、专栏入口，以及该渲染的归属文案。无参数，无需凭据。
 - `listProblemReasons` `GET /v2/problems/reasons`（无需密钥）：字段级 reason 的封闭清单，无需凭据。这里的取值永远不会作为顶层 code 出现。
 - `listProblemTypes` `GET /v2/problems`（无需密钥）：错误码注册表：/v2 全部顶层 code 的封闭清单，keyset 分页，无需凭据。
+- `listRatings` `GET /v2/ratings`：一个人在一部作品上的评分，全 NextMoe 站点共用一条。work_id= 或 user_id= 至少给一个，两个都给就是这个账号对这部作品的那一条；按创建时间从新到旧。需要应用密钥，或带 catalog:read 的用户令牌。
 - `listVocabularies` `GET /v2/vocabularies`（无需密钥）：已发布词表清单（封闭词表与 seed-open 词表），keyset 分页，无需凭据。
 - `searchCatalog` `GET /v2/catalog/search`（无需密钥）：按名字跨家族搜身份图谱：object= 选家族（works / characters / credit-names / companies …），命中行是 search_result，各带 target_object 说明它是什么。r18 需 nsfw=true；不接受 cursor= 与 ids=。
 

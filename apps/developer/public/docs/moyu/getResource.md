@@ -23,7 +23,7 @@ One resource
 | `include` | query | 否 | string[] |  取值：publisher |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/moyu/resources/value" \
+curl "https://api.nextmoe.dev/v2/moyu/resources/10463" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 

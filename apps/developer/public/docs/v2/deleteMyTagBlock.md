@@ -24,7 +24,7 @@ Unblock a tag
 | `tag_id` | path | 是 | string | Catalog tag id. |
 
 ```bash
-curl -X DELETE "https://api.nextmoe.dev/v2/me/blocked-tags/value" \
+curl -X DELETE "https://api.nextmoe.dev/v2/me/blocked-tags/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 

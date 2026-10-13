@@ -1,7 +1,7 @@
 ---
 title: 增量镜像目录
 eyebrow: 集成指南
-description: 用 /v2/catalog/changes 把 NextMoe 目录镜像进本地库的完整配方：冷启动、稳态轮询、gone 的处理、合并重指与本地谓词写法。
+description: 用 /v2/catalog/changes 把 NextMoe 目录镜像进本地库，用 /v2/ratings/changes 镜像评分：冷启动、稳态轮询、gone 的处理。
 ---
 
 # 增量镜像目录
@@ -121,3 +121,53 @@ for (;;) {
 
 - [字段裁剪与批量读](/docs/shaping) — `ids=` 的边界、`missing[]` 的语义、include 词表怎么问。
 - [限流与配额](/docs/rate-limits) — 冷启动是这个 API 上最大的一次性用量，先算好预算。
+
+## 评分镜像 {#ratings}
+
+`GET /v2/ratings/changes` 是评分的镜像信道：所有 NextMoe 站点上写过或删过的评分，按 `(changed_at, id)` **从旧到新**做 keyset 翻页。要在自己的库里留一份评分副本，走这一条，不要翻 `/v2/ratings`。
+
+和目录变更 feed 的差别，都写在这条操作自己的说明里：
+
+- 条目**自带评分**，不需要再去水合。目录 feed 给的是作品 id，要再打 `/v2/catalog/works?ids=`。
+- `next_cursor` **只在满页时出现**。存下收到的最后一个，下次从它接着拉：它后面那一页不满，会被再读一遍，用 upsert 吸收即可。
+- 需要应用密钥，或带 `catalog:read` 的用户令牌。目录变更 feed 允许匿名，这一条不允许。
+- 没有合并重指。`gone` 就是这条评分被删了，删掉本地那一行。评分 id 在编辑和作品合并之后保持不变，被删的 id 不会回来。
+
+和目录 feed 一样，这一条不接受 `ids=`。
+
+作者改自己的游玩状态也会让这条评分出现在 feed 里：条目上的 `work_state` 是作者**现在**的状态，不是写评分时的状态。变更在提交大约 **5 秒**之后才出现，和目录 feed 一样。这不是丢失，下一轮会带上。
+
+```json
+{
+  "object": "rating_change",
+  "id": "1",
+  "work_id": "1",
+  "gone": false,
+  "changed_at": "2026-10-13T00:00:00.000000000Z",
+  "rating": { "object": "rating", "id": "1", "work_id": "1" }
+}
+```
+
+### 冷启动 {#ratings-bootstrap}
+
+从空游标翻完。feed 按最旧优先枚举全部人口，第一次翻完就是全量，不需要另一个「列出全部评分」的面。
+
+```http
+GET /v2/ratings/changes?limit=100
+```
+
+每一页里 `gone` 不为真的条目，把 `rating` upsert 进本地，以评分 `id` 为键。存下最后一页的 `next_cursor`。第一轮若最后一页不满，它不带这个键，你已经持有全部。
+
+### 稳态 {#ratings-steady}
+
+带着存下的游标按自己的节奏轮询。游标是不透明串，原样回传。
+
+满页才带新的 `next_cursor`，把它存回去。没带，说明这一页是不满的尾页：下次仍用**上一个**游标来拉，这一页会被再读一遍。按评分 `id` upsert，重读是空操作。
+
+不要因为「刚写的没立刻出现」就重置游标。5 秒水位过了，下一轮会带上它。
+
+### gone {#ratings-gone}
+
+`gone: true` 的条目是一次删除。`rating` 为 null，`work_id` 是删除时它所在的作品。删掉本地以这个评分 `id` 为键的那一行。被删的 id 不会回来。
+
+没有与 `/v2/catalog/redirects` 对应的面，不要把 `gone` 读成「去查重指」。作品被合并时，评分 id 留下来：同一个人两边都评过，留下 `updated_at` 较新的那条，另一条变成 `gone`；留下的那条改指继任作品，并因为 `changed_at` 被刷新而再次出现在 feed 里。

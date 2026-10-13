@@ -27,7 +27,7 @@ Public transparency view: proposer, state, target entity and timestamps. include
 | `fields` | query | 否 | string | Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/proposals/value"
+curl "https://api.nextmoe.dev/v2/catalog/proposals/1"
 ```
 
 ---

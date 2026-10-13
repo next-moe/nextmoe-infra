@@ -23,11 +23,18 @@ Body carries state and optionally completion; an absent completion clears it. Na
 | --- | --- | --- | --- | --- |
 | `work_id` | path | 是 | string | Catalog work id. |
 
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `completion` | 否 | string | How much is finished. Absent clears it. Refused with wish. 取值：one_route \| main \| all |
+| `state` | 是 | string | Closed vocabulary. 取值：wish \| doing \| done \| on_hold \| dropped |
+
 ```bash
-curl -X PUT "https://api.nextmoe.dev/v2/me/work-states/value" \
+curl -X PUT "https://api.nextmoe.dev/v2/me/work-states/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"state":"wish"}'
+  -d '{"completion":"all","state":"done"}'
 ```
 
 ---

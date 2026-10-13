@@ -15,7 +15,7 @@ import (
 )
 
 type getPurchaseLinksInput struct {
-	ProductID string `path:"product_id" maxLength:"10" pattern:"^(RJ|VJ)[0-9]{6,8}$" doc:"DLsite product number. RJ is doujin, VJ is commercial."`
+	ProductID string `path:"product_id" maxLength:"10" pattern:"^(RJ|VJ)[0-9]{6,8}$" example:"RJ01234567" doc:"DLsite product number. RJ is doujin, VJ is commercial."`
 }
 
 type getPurchaseLinksOutput struct {

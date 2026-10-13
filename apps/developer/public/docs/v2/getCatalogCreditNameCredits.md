@@ -27,7 +27,7 @@ Works this name is credited on. Offset cursor. Anonymous calls are allowed and l
 | `limit` | query | 否 | string | Page size 1-100, default 20. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/credit-names/value/credits"
+curl "https://api.nextmoe.dev/v2/catalog/credit-names/1/credits"
 ```
 
 ---

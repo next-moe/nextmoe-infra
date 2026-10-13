@@ -28,7 +28,7 @@ Company registry row (v1 labels). include=aliases,logo,intros,links adds the cor
 | `fields` | query | 否 | string | Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/companies/value"
+curl "https://api.nextmoe.dev/v2/catalog/companies/1"
 ```
 
 ---

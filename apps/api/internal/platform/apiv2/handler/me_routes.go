@@ -27,7 +27,7 @@ type getPlaytimeOutput struct {
 type putPlaytimeInput struct {
 	WorkID string `path:"work_id" minLength:"1" maxLength:"20" pattern:"^[0-9]+$" doc:"Catalog work id."`
 	Body   struct {
-		Minutes int `json:"minutes" minimum:"0" maximum:"60000" doc:"Absolute cumulative minutes."`
+		Minutes int `json:"minutes" minimum:"0" maximum:"60000" example:"720" doc:"Absolute cumulative minutes."`
 	}
 }
 type deletePlaytimeInput struct {
@@ -49,8 +49,8 @@ type getWorkStateOutput struct {
 type putWorkStateInput struct {
 	WorkID string `path:"work_id" minLength:"1" maxLength:"20" pattern:"^[0-9]+$" doc:"Catalog work id."`
 	Body   struct {
-		State      string `json:"state" enum:"wish,doing,done,on_hold,dropped" doc:"Closed vocabulary."`
-		Completion string `json:"completion,omitempty" enum:"one_route,main,all" doc:"How much is finished. Absent clears it. Refused with wish."`
+		State      string `json:"state" enum:"wish,doing,done,on_hold,dropped" example:"done" doc:"Closed vocabulary."`
+		Completion string `json:"completion,omitempty" enum:"one_route,main,all" example:"all" doc:"How much is finished. Absent clears it. Refused with wish."`
 	}
 }
 type deleteWorkStateInput struct {

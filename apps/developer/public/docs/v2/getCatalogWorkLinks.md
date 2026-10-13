@@ -27,7 +27,7 @@ Outbound links. Same items as include=links. Anonymous calls are allowed and lim
 | `limit` | query | 否 | string | Page size 1-100, default 20. |
 
 ```bash
-curl "https://api.nextmoe.dev/v2/catalog/works/value/links"
+curl "https://api.nextmoe.dev/v2/catalog/works/1/links"
 ```
 
 ---

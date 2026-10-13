@@ -84,6 +84,14 @@ export const guideNav: GuideNavSection[] = [
         "label": "接入用户数据"
       },
       {
+        "to": "/docs/play-records",
+        "label": "评分与游玩记录"
+      },
+      {
+        "to": "/docs/folders",
+        "label": "收藏夹"
+      },
+      {
         "to": "/docs/native-app",
         "label": "原生桌面应用接入"
       },
@@ -186,13 +194,25 @@ export const guideMeta: Record<string, GuideMeta> = {
     "slug": "mirror",
     "title": "增量镜像目录",
     "eyebrow": "集成指南",
-    "description": "用 /v2/catalog/changes 把 NextMoe 目录镜像进本地库的完整配方：冷启动、稳态轮询、gone 的处理、合并重指与本地谓词写法。"
+    "description": "用 /v2/catalog/changes 把 NextMoe 目录镜像进本地库，用 /v2/ratings/changes 镜像评分：冷启动、稳态轮询、gone 的处理。"
   },
   "/docs/user-data": {
     "slug": "user-data",
     "title": "接入用户数据",
     "eyebrow": "集成指南",
-    "description": "用 OAuth 用户访问令牌接入 NextMoe 的用户面：游玩时长、认领、编辑提案、封面投票、资讯投稿，以及审核队列。"
+    "description": "用 OAuth 用户访问令牌接入 /v2/me。游玩记录与收藏夹各有专页；本页是其余用户面的入口，并写认领、编辑提案、封面投票、资讯投稿与审核队列。"
+  },
+  "/docs/play-records": {
+    "slug": "play-records",
+    "title": "评分与游玩记录",
+    "eyebrow": "集成指南",
+    "description": "游玩状态、游玩时长、评分，以及把三者一次写完的 work-records：谁能写、替换语义、公开读取与镜像入口。"
+  },
+  "/docs/folders": {
+    "slug": "folders",
+    "title": "收藏夹",
+    "eyebrow": "集成指南",
+    "description": "/v2/me/folders 的收藏夹与条目、folder:read / folder:write、公开读取、持有者名单，以及审核面。"
   },
   "/docs/native-app": {
     "slug": "native-app",

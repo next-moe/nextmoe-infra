@@ -31,11 +31,11 @@ type userRatingOutput struct {
 }
 
 type workRecordState struct {
-	State      string `json:"state" enum:"wish,doing,done,on_hold,dropped" doc:"Closed vocabulary, as on /v2/me/work-states."`
-	Completion string `json:"completion,omitempty" enum:"one_route,main,all" doc:"How much is finished. Absent means unstated. Refused with wish."`
+	State      string `json:"state" enum:"wish,doing,done,on_hold,dropped" example:"done" doc:"Closed vocabulary, as on /v2/me/work-states."`
+	Completion string `json:"completion,omitempty" enum:"one_route,main,all" example:"all" doc:"How much is finished. Absent means unstated. Refused with wish."`
 }
 type workRecordPlaytime struct {
-	Minutes int `json:"minutes" minimum:"0" maximum:"60000" doc:"Absolute cumulative minutes."`
+	Minutes int `json:"minutes" minimum:"0" maximum:"60000" example:"720" doc:"Absolute cumulative minutes."`
 }
 type putWorkRecordInput struct {
 	WorkID string `path:"work_id" minLength:"1" maxLength:"20" pattern:"^[0-9]+$" doc:"Catalog work id."`

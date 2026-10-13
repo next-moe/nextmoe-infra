@@ -13,11 +13,11 @@
 
 所以 `/v2/catalog` 只读面**同时接受两种凭据**（二选一），也可以完全不带：
 
-| 凭据 | 代表谁 | 按什么计配额 | 适合谁 |
-|------|--------|-------------|--------|
-| 应用密钥 `nmk_live_…` | 你的应用 | 按密钥（tier 决定速率与日配额） | 服务端、你自己控制的后端 |
-| 用户访问令牌 | 授权给你的那个用户 | 按**用户**，跨该用户授权过的所有应用共池 | 分发出去的原生客户端 |
-| 不带凭据 | 任何人 | 按每台机器自己的 IPv4 地址或 IPv6 /64（默认 30 次/分钟、1,000 次/天） | 只读目录、用量小、不想让用户先登录的客户端 |
+| 凭据                  | 代表谁             | 按什么计配额                                                          | 适合谁                                     |
+| --------------------- | ------------------ | --------------------------------------------------------------------- | ------------------------------------------ |
+| 应用密钥 `nmk_live_…` | 你的应用           | 按密钥（tier 决定速率与日配额）                                       | 服务端、你自己控制的后端                   |
+| 用户访问令牌          | 授权给你的那个用户 | 按**用户**，跨该用户授权过的所有应用共池                              | 分发出去的原生客户端                       |
+| 不带凭据              | 任何人             | 按每台机器自己的 IPv4 地址或 IPv6 /64（默认 30 次/分钟、1,000 次/天） | 只读目录、用量小、不想让用户先登录的客户端 |
 
 > [!NOTE]
 > 一条请求只带一个凭据。服务端按 `Authorization` 里那**一个**值的前缀分道：`nmk_` 是应用密钥，其余按用户令牌解析；一种失败了不会再当另一种试一次。
@@ -32,17 +32,17 @@
 
 **要什么，带什么。** 下表对 `works` 列表、`works?q=` 搜索和 `ids=` / `refs=` 批量全部适用：
 
-| 想要 | 字段 | 参数 |
-|------|------|------|
-| 封面、发售日（最早一次发行）、分级、原语言 | `cover`、`release_date`、`content_rating`、`olang` | 默认就有 |
-| 各语言的正式译名 | `latin`、`localized` | `include=titles` |
-| 简介 | `intros` | `include=intros` |
-| 开发商 / 发行商 | `companies[]`，按 `attribution_role` 分（`developer`、`publisher`……） | `include=companies` |
-| 标签 | `tags` | `include=tags` |
-| 评分，含 NextMoe 用户评分 | `ratings[]`，NextMoe 的是 `source: "nextmoe"` | `include=ratings` |
-| 其他站点的 id（VNDB、Bangumi、Steam、DLsite、ErogameScape……） | `refs[]` | `include=refs` |
-| 平均游玩时长 | `playtimes[]`，单位分钟，按来源分开给，不要跨源平均 | `include=playtimes` |
-| 全部别名、各平台的发行记录 | `titles[]`、`releases[]` | 只在 `GET /v2/catalog/works/{id}?include=titles,releases` |
+| 想要                                                          | 字段                                                                  | 参数                                                      |
+| ------------------------------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------- |
+| 封面、发售日（最早一次发行）、分级、原语言                    | `cover`、`release_date`、`content_rating`、`olang`                    | 默认就有                                                  |
+| 各语言的正式译名                                              | `latin`、`localized`                                                  | `include=titles`                                          |
+| 简介                                                          | `intros`                                                              | `include=intros`                                          |
+| 开发商 / 发行商                                               | `companies[]`，按 `attribution_role` 分（`developer`、`publisher`……） | `include=companies`                                       |
+| 标签                                                          | `tags`                                                                | `include=tags`                                            |
+| 评分，含 NextMoe 用户评分                                     | `ratings[]`，NextMoe 的是 `source: "nextmoe"`                         | `include=ratings`                                         |
+| 其他站点的 id（VNDB、Bangumi、Steam、DLsite、ErogameScape……） | `refs[]`                                                              | `include=refs`                                            |
+| 平均游玩时长                                                  | `playtimes[]`，单位分钟，按来源分开给，不要跨源平均                   | `include=playtimes`                                       |
+| 全部别名、各平台的发行记录                                    | `titles[]`、`releases[]`                                              | 只在 `GET /v2/catalog/works/{id}?include=titles,releases` |
 
 `view=full` 等于 `include=titles,refs,intros,covers,companies,ratings,tags`；时长要另外点名，所以一份「全都要」的请求是 `view=full&include=playtimes`。
 
@@ -291,10 +291,10 @@ func (a *App) SignIn(ctx context.Context) (string, error) {
 
 ## 6 · 收藏夹同步
 
-管理器还有一半工作在**用户自己的库**上。`/v2/me/folders` 是这份库在平台侧的规范存放处：收藏夹本身九个操作，加上夹内条目的读、增、删。
+管理器还有一半工作在**用户自己的库**上。`/v2/me/folders` 是这份库在平台侧的规范存放处：收藏夹本身九个操作，加上夹内条目的读、增、删。收藏夹、条目、公开读取和审核的语义在 [收藏夹](/docs/folders)；这一节只写游戏管理器怎么同步。
 
 > [!IMPORTANT]
-> 这是 `/v2/me` 上**唯一**真的看 scope 的一族。其余各面只认「这个人的令牌」，不问应用被授了什么；收藏夹是私人清单，那条规矩在这里等于把整份清单交给用户登录过的每一个应用。`folder:read` 覆盖 GET / HEAD，`folder:write` 覆盖其余方法**并且同时满足读**——只申请了写的管理器仍读得回自己写的东西。两个都要加进应用的 `user_login.scopes`，并在授权 URL 的 `scope` 里一并请求；缺了是 `403 SCOPE_REQUIRED`，响应里点名缺哪一个。
+> `folder:read` 覆盖 GET / HEAD，`folder:write` 覆盖其余方法**并且同时满足读**——只申请了写的管理器仍读得回自己写的东西。两个都要加进应用的 `user_login.scopes`，并在授权 URL 的 `scope` 里一并请求；缺了是 `403 SCOPE_REQUIRED`，响应里点名缺哪一个。`/v2/me` 上不只有这一族看 scope：`/v2/me/works` 与收藏夹一样要 `folder:read`，认领、提案、封面投票、编辑能力和编辑审核队列要 `catalog:edit`。见 [接入用户数据](/docs/user-data#surfaces)。
 
 **冷启动**：全量各拉一次。前者按 id 升序，后者按 `updated_at` 升序，都用 `next_cursor` 续页，`null` 即到底。
 
@@ -323,23 +323,25 @@ POST   /v2/me/folders/<id>/items             → 207，{"items":[{"work_id":"...
 
 批量一次最多 **100** 条，响应是 `207 Multi-Status`：`items[]` 与请求逐位对应，每项要么是 `{status:200, object:"folder_item", work_id}`，要么带一个完整的 problem 对象。整体不是事务，部分成功是正常结果——按项读 `status`，不要看 HTTP 状态码。
 
-**边界**：每人最多 **200** 个收藏夹，每夹最多 **10,000** 条，超出 422。加入的作品必须是 `live`，隔离或不存在的 id 是 404。`is_default` 全用户单持有——设到另一个夹上会自动摘掉原持有者，传 `false` 是 422，默认夹在标记移走之前删不掉。`visibility: public` 目前只是存下来的意向，还没有公开浏览面。
+**边界**：每人最多 **200** 个收藏夹，每夹最多 **10,000** 条，超出 422。加入的作品必须是 `live`，隔离或不存在的 id 是 404。`is_default` 全用户单持有——设到另一个夹上会自动摘掉原持有者，传 `false` 是 422，默认夹在标记移走之前删不掉。`visibility: public` 的夹出现在 `/v2/folders`，见 [收藏夹 · 公开读取](/docs/folders#public)。
 
 **合并会移动条目**：目录把两部作品判为同一部时，指向被退役 id 的条目改指幸存者，并且**故意**刷新 `updated_at`。这是条目唯一一次在没人动它的情况下出现在增量里，因为你手上那个 id 已经不解析了。同一个夹里两边都收藏过的会合成一条，`item_count` 随之重算。
 
 ## 常见错误
 
-| 症状 | 原因 |
-|------|------|
-| 授权时 `15006` | 请求的 scope 没在应用注册的 scope 里。到应用详情页「用户登录」卡片勾上缺的那个，重新授权。`catalog:read` 不会触发它——每个应用无需注册即可请求。 |
-| 换码 `invalid_grant` | `redirect_uri` 与授权那步不是逐字节相同，或 `code_verifier` 对不上 challenge，或码已用过（授权码一次性）。 |
-| `403 SCOPE_REQUIRED` | 打 `/v2/catalog` 而令牌不带 `catalog:read`，或打 `/v2/me/folders` 而不带 `folder:read` / `folder:write`。响应会点名缺哪一个；旧令牌不追认，重新走一次授权。 |
-| `401 INVALID_CREDENTIAL` | 令牌过期，或者你把它打到了 `claim-events` / `/v2/store`——那两处只收应用密钥。 |
-| 刷新 401 而令牌确实没过期 | 用了第一方 `/api/v1/auth/refresh`。OAuth session 只能经 `/oauth/token` 刷新。 |
-| 注册时回调被拒 | `localhost`、自定义 scheme、带 fragment、或非环回的明文 http。移动端不必等 scheme 放开：环回照用，或注册 `https://` 回调配 App Links / Universal Links，见 [§1](#register)。 |
+| 症状                      | 原因                                                                                                                                                                                                                       |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 授权时 `15006`            | 请求的 scope 没在应用注册的 scope 里。到应用详情页「用户登录」卡片勾上缺的那个，重新授权。`catalog:read` 不会触发它——每个应用无需注册即可请求。                                                                            |
+| 换码 `invalid_grant`      | `redirect_uri` 与授权那步不是逐字节相同，或 `code_verifier` 对不上 challenge，或码已用过（授权码一次性）。                                                                                                                 |
+| `403 SCOPE_REQUIRED`      | 打 `/v2/catalog` 而令牌不带 `catalog:read`，打 `/v2/me/folders` 或 `/v2/me/works` 而不带 `folder:read` / `folder:write`，或打认领、提案、封面投票而不带 `catalog:edit`。响应会点名缺哪一个；旧令牌不追认，重新走一次授权。 |
+| `401 INVALID_CREDENTIAL`  | 令牌过期，或者你把它打到了 `claim-events` / `/v2/store`——那两处只收应用密钥。                                                                                                                                              |
+| 刷新 401 而令牌确实没过期 | 用了第一方 `/api/v1/auth/refresh`。OAuth session 只能经 `/oauth/token` 刷新。                                                                                                                                              |
+| 注册时回调被拒            | `localhost`、自定义 scheme、带 fragment、或非环回的明文 http。移动端不必等 scheme 放开：环回照用，或注册 `https://` 回调配 App Links / Universal Links，见 [§1](#register)。                                               |
 
 - [鉴权与凭据](/docs/authentication) — 两种凭据各自能开哪些面，失败长什么样。
-- [接入用户数据](/docs/user-data) — 同一把用户令牌还能读写 `/v2/me`：时长、认领、编辑提案。
+- [接入用户数据](/docs/user-data) — 同一把用户令牌还能读写 `/v2/me`：各面的入口、认领、编辑提案。
+- [评分与游玩记录](/docs/play-records) — 状态、时长、评分，以及一次写完的 work-records。
+- [收藏夹](/docs/folders) — 收藏夹本身的语义；本节只覆盖同步。
 
 ---
 本页来源 · NextMoe 开发者平台 · https://developer.nextmoe.dev/docs/native-app
