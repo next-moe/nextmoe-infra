@@ -2078,3 +2078,14 @@ The same gap as the rating wave, on the four folder moderation faces: `PATCH` / 
 - Callers checked before the change: the forum's staff edit and delete of someone else's collection and its account purge (`collection.edit_any`, `collection.delete_any`, `user.purge_content` are all moderator-or-above there), and moyu's purge preview, which reads the folders with the acting admin's token and already shows the 403 reason. The forum's purge also deletes ratings, so it already needed `catalog.rating.moderate`, which the same bundles hold.
 
 **Spec is 2.46.2.** Description-only spec change (the four operation descriptions); the gate itself narrows who may call. No shape change, no migration.
+
+## Wave — rating moderation counts only global roles (2026-10-13)
+
+A v2 user token carries the roles of the site its client is bound to beside the global ones, and the catalog's token lookup handed `UnionRoles(claims.Roles, claims.SiteRoles)` to every gate. A site's `moderator` role therefore resolved to the `moderator` bundle and passed `catalog.rating.moderate`: production's forum and moyu each have 41 site moderators, 39 of them with no global role, and every one could delete any rating from every site through their site's token. The forum hid its button behind its own `rating.delete_any` (admin/ren), so the hole was reachable but unused; moyu's first rating PR (#104) would have shown the button to its moderators. The owner ruled that a site's moderator moderates that site, not the shared ratings.
+
+- `UserIdentity` carries `SiteRoles` apart from `Roles`. The request's `user_roles` is still their union, so every other gate is unchanged; a new context value holds the global roles alone.
+- `requireModerationKey` takes the role set to judge. The rating moderation delete passes the global roles; the four folder moderation faces pass the union as before, because the forum's site moderators edit and purge collections through them.
+- The permission console's line for `catalog.rating.moderate` says a site role does not grant it.
+- Callers checked: the forum's account purge deletes the target's ratings with the operator's token and refuses the whole purge before deleting anything when NextMoe answers 403, so a site-only moderator can no longer purge an account that has ratings. Every production purge so far (7) was run by a global admin. moyu deletes others' ratings only for admin/ren; letmoe's staff delete is in progress against the same key.
+
+**Spec is 2.46.3.** Description-only spec change (the operation description); the gate itself narrows who may call. No shape change, no migration.

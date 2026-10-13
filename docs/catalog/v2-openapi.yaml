@@ -9641,7 +9641,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.46.2
+  version: 2.46.3
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -23233,7 +23233,7 @@ paths:
         - moderation
   /v2/moderation/ratings/{id}:
     delete:
-      description: "Removes the rating from every site at once; the deletion reaches /v2/ratings/changes as a gone entry and the work's nextmoe score follows. 204 with no body. Requires a user access token whose holder has catalog.rating.moderate: the moderator, admin and ren roles have it, and the permission console can grant it to another role. Reviewing catalog edits or claims does not include it."
+      description: "Removes the rating from every site at once; the deletion reaches /v2/ratings/changes as a gone entry and the work's nextmoe score follows. 204 with no body. Requires a user access token whose holder has catalog.rating.moderate through a global role: the moderator, admin and ren roles have it, and the permission console can grant it to another role. A role a site grants on its own tokens does not count here, since a site moderator moderates that site and a deleted rating leaves every site. Reviewing catalog edits or claims does not include it."
       operationId: deleteModerationRating
       parameters:
         - description: Rating id.

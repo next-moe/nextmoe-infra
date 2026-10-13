@@ -219339,7 +219339,7 @@ export const docsModel: DocsModel = {
               "method": "delete",
               "path": "/v2/moderation/ratings/{id}",
               "summary": "Delete any rating",
-              "description": "Removes the rating from every site at once; the deletion reaches /v2/ratings/changes as a gone entry and the work's nextmoe score follows. 204 with no body. Requires a user access token whose holder has catalog.rating.moderate: the moderator, admin and ren roles have it, and the permission console can grant it to another role. Reviewing catalog edits or claims does not include it.",
+              "description": "Removes the rating from every site at once; the deletion reaches /v2/ratings/changes as a gone entry and the work's nextmoe score follows. 204 with no body. Requires a user access token whose holder has catalog.rating.moderate through a global role: the moderator, admin and ren roles have it, and the permission console can grant it to another role. A role a site grants on its own tokens does not count here, since a site moderator moderates that site and a deleted rating leaves every site. Reviewing catalog edits or claims does not include it.",
               "scope": "",
               "auth": {
                 "kind": "user_token",

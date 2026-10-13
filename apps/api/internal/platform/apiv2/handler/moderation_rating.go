@@ -15,7 +15,7 @@ func registerModerationRatings(api huma.API, cat *Catalog) {
 	huma.Register(api, huma.Operation{
 		OperationID: "deleteModerationRating", Method: http.MethodDelete, Path: "/v2/moderation/ratings/{id}",
 		Summary:     "Delete any rating",
-		Description: "Removes the rating from every site at once; the deletion reaches /v2/ratings/changes as a gone entry and the work's nextmoe score follows. 204 with no body. Requires a user access token whose holder has catalog.rating.moderate: the moderator, admin and ren roles have it, and the permission console can grant it to another role. Reviewing catalog edits or claims does not include it.",
+		Description: "Removes the rating from every site at once; the deletion reaches /v2/ratings/changes as a gone entry and the work's nextmoe score follows. 204 with no body. Requires a user access token whose holder has catalog.rating.moderate through a global role: the moderator, admin and ren roles have it, and the permission console can grant it to another role. A role a site grants on its own tokens does not count here, since a site moderator moderates that site and a deleted rating leaves every site. Reviewing catalog edits or claims does not include it.",
 		Tags:        []string{"moderation"},
 		Errors: collectionErrors(http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound,
 			http.StatusServiceUnavailable),
@@ -25,7 +25,11 @@ func registerModerationRatings(api huma.API, cat *Catalog) {
 
 func deleteModerationRating(cat *Catalog) func(context.Context, *ratingPathInput) (*struct{}, error) {
 	return func(ctx context.Context, in *ratingPathInput) (*struct{}, error) {
-		if err := requireModerationKey(ctx, catalogPerm.RatingModerate); err != nil {
+		// Global roles only. A token carries its site's roles too, so with them
+		// 39 of the forum's 41 site moderators, holding no global role, could
+		// delete a rating from every site; the owner ruled 2026-10-13 that a
+		// site's moderator moderates that site, not the shared ratings.
+		if err := requireModerationKey(ctx, catalogPerm.RatingModerate, globalRolesFrom(ctx)); err != nil {
 			return nil, catalogErr(ctx, err)
 		}
 		if cat == nil || cat.Ratings == nil {

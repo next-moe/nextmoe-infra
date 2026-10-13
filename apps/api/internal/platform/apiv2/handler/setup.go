@@ -57,7 +57,7 @@ func SetupWith(app *fiber.App, opt Options) huma.API {
 	app.Use(protocol.RateLimit(opt.Store, credentialLimitIdentity))
 	app.Use(protocol.Idempotency(opt.Store, credentialLimitIdentity))
 
-	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.46.2")
+	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.46.3")
 	cfg.OpenAPIPath = ""
 	cfg.DocsPath = ""
 	cfg.SchemasPath = ""
@@ -84,6 +84,9 @@ func SetupWith(app *fiber.App, opt Options) huma.API {
 		}
 		if roles, ok := fc.Locals("user_roles").([]string); ok {
 			ctx = huma.WithValue(ctx, ctxRoles, roles)
+		}
+		if roles, ok := fc.Locals("user_global_roles").([]string); ok {
+			ctx = huma.WithValue(ctx, ctxGlobalRoles, roles)
 		}
 		if tp, ok := fc.Locals("catalog_third_party").(bool); ok {
 			ctx = huma.WithValue(ctx, ctxThirdParty, tp)
