@@ -86,7 +86,7 @@ func purgeUserFolders(cat *Catalog) func(context.Context, *purgeFoldersInput) (*
 		if in == nil {
 			in = &purgeFoldersInput{}
 		}
-		if err := requireModerationKey(ctx, catalogPerm.FolderModerate); err != nil {
+		if err := requireModerationKey(ctx, catalogPerm.FolderModerate, rolesFrom(ctx)); err != nil {
 			return nil, catalogErr(ctx, err)
 		}
 		if cat == nil || cat.Folders == nil {
@@ -119,7 +119,7 @@ func listUserFolders(cat *Catalog) func(context.Context, *listUserFoldersInput) 
 		if err != nil {
 			return nil, err
 		}
-		if err := requireModerationKey(ctx, catalogPerm.FolderModerate); err != nil {
+		if err := requireModerationKey(ctx, catalogPerm.FolderModerate, rolesFrom(ctx)); err != nil {
 			return nil, catalogErr(ctx, err)
 		}
 		if cat == nil || cat.Folders == nil {
@@ -177,11 +177,11 @@ func (c *Catalog) ListUserFolders(ctx context.Context, ownerUID int64, q collect
 // These faces once shared requireModerator, which any catalog review key
 // satisfies; the permission console grants those keys to creator, so 80
 // production creators could delete anyone's rating or folder on every site.
-func requireModerationKey(ctx context.Context, key authz.Permission) error {
+func requireModerationKey(ctx context.Context, key authz.Permission, roles []string) error {
 	if _, _, err := requireUser(ctx); err != nil {
 		return err
 	}
-	if !catalogPerm.Resolver.Can(rolesFrom(ctx), key) {
+	if !catalogPerm.Resolver.Can(roles, key) {
 		return problem.New(problem.CodePermissionRequired, "", "", "this operation requires the "+string(key)+" permission.")
 	}
 	return nil
@@ -192,7 +192,7 @@ func patchModerationFolder(cat *Catalog) func(context.Context, *patchModerationF
 		if in == nil {
 			in = &patchModerationFolderInput{}
 		}
-		if err := requireModerationKey(ctx, catalogPerm.FolderModerate); err != nil {
+		if err := requireModerationKey(ctx, catalogPerm.FolderModerate, rolesFrom(ctx)); err != nil {
 			return nil, catalogErr(ctx, err)
 		}
 		if cat == nil || cat.Folders == nil {
@@ -223,7 +223,7 @@ func deleteModerationFolder(cat *Catalog) func(context.Context, *moderationFolde
 		if in == nil {
 			in = &moderationFolderInput{}
 		}
-		if err := requireModerationKey(ctx, catalogPerm.FolderModerate); err != nil {
+		if err := requireModerationKey(ctx, catalogPerm.FolderModerate, rolesFrom(ctx)); err != nil {
 			return nil, catalogErr(ctx, err)
 		}
 		if cat == nil || cat.Folders == nil {
