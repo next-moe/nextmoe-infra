@@ -1,6 +1,9 @@
 package keys
 
-import "api/internal/platform/settings"
+import (
+	"api/internal/platform/settings"
+	"api/pkg/config"
+)
 
 var ImageGCColdAfterDays = settings.Int(settings.Meta{
 	Name:   "image.gc_cold_after_days",
@@ -95,7 +98,7 @@ var AIUpstreamModel = settings.String(settings.Meta{
 	DescEN:  "Model id the Tier2 LLM lane requests from the upstream gateway; read live on every call.",
 	DescZH:  "Tier2 LLM 线向上游网关请求的模型 id,每次调用实时读取。",
 	Pattern: `^\S{1,200}$`,
-}, "deepseek-chat")
+}, config.DefaultAIUpstreamModel)
 
 var AIOmniModel = settings.String(settings.Meta{
 	Name:    "ai.omni_model",

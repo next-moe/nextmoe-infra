@@ -91,7 +91,7 @@ password: the password must travel as PGPASSWORD and never inside a DSN,
 because a container's processes and their argv show in this host's `ps`.
 
 char-xsrc-nightly keeps its judged verdicts in `state/verdicts.jsonl` and
-`state/verdicts2.jsonl`; a key there is never sent to the gateway again. They
+`state/verdicts2.jsonl`; a key there is never sent to the model again. They
 were seeded from the 2026-08-06 wave (`/root/wave177`), so deleting them re-judges
 every pair that wave already settled.
 

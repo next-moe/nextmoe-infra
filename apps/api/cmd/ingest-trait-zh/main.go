@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"api/internal/infrastructure/database"
+	"api/pkg/config"
 	"api/pkg/logger"
 
 	"gorm.io/gorm"
@@ -25,7 +26,7 @@ func main() {
 	applyCSV := flag.String("apply-csv", "", "write back a REVIEWED review CSV as machine provenance")
 	applyDescCSV := flag.String("apply-desc-csv", "", "write back a REVIEWED description CSV")
 	limit := flag.Int("limit", 0, "--mt / --mt-desc: propose at most N candidates (0 = all)")
-	model := flag.String("model", envOr("KUN_INTRO_MT_LLM_MODEL", envOr("KUN_AI_UPSTREAM_MODEL", "glm-5.2")), "served model id")
+	model := flag.String("model", envOr("KUN_INTRO_MT_LLM_MODEL", envOr("KUN_AI_UPSTREAM_MODEL", config.DefaultAIUpstreamModel)), "served model id")
 	llmBase := flag.String("llm-base", envOr("KUN_INTRO_MT_LLM_BASE", os.Getenv("KUN_AI_UPSTREAM_BASE_URL")), "OpenAI-compatible gateway base URL (…/v1)")
 	llmToken := flag.String("llm-token", envOr("KUN_INTRO_MT_LLM_TOKEN", os.Getenv("KUN_AI_UPSTREAM_TOKEN")), "gateway bearer token")
 	maxTokens := flag.Int("max-tokens", 256, "--mt: max_tokens (a trait name is a handful of characters)")

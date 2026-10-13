@@ -54,7 +54,7 @@ EOF
 install_fakes() {
   td=$1
   mkdir -p "$td/bin" "$td/sentinel" "$td/base" "$td/lib" "$td/ctl/out" "$td/ctl/rc"
-  printf '%s\n' "KUN_LLM_API_KEY=$SENTINEL_KEY" > "$td/llm.env"
+  printf '%s\n' "KUN_AI_UPSTREAM_TOKEN=$SENTINEL_KEY" > "$td/llm.env"
 
   cat > "$td/bin/docker" <<'FAKE'
 #!/bin/sh

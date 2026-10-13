@@ -85,7 +85,7 @@ func NewHTTPJudge(baseURL, token, model string, maxTokens, rpm int) *HTTPJudge {
 func (j *HTTPJudge) Configured() bool { return j.baseURL != "" && j.token != "" }
 
 // WithRequestTimeout bounds one gateway call. The 900s default was sized for
-// glm's long thinking; on 2026-09-17 the ksm.moe gateway held a deepseek call
+// glm's long thinking; on 2026-09-17 the upstream held a deepseek call
 // open with no response, and a single-worker batch sat on it for the whole
 // window, so a scheduled caller sets this to a few multiples of a normal call.
 func (j *HTTPJudge) WithRequestTimeout(d time.Duration) *HTTPJudge {

@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"api/internal/jobs/tagcanon"
+	"api/pkg/config"
 	"api/pkg/logger"
 )
 
@@ -34,7 +35,7 @@ func main() {
 	mediumFloor := flag.Float64("medium-floor", 0.60, "review: drop-below confidence floor")
 	spotCheck := flag.Int("spot-check", 30, "review: high-confidence spot-check sample size")
 
-	model := flag.String("model", envOr("KUN_TAG_PAIR_LLM_MODEL", envOr("KUN_AI_UPSTREAM_MODEL", "glm-5.2")), "served model id")
+	model := flag.String("model", envOr("KUN_TAG_PAIR_LLM_MODEL", envOr("KUN_AI_UPSTREAM_MODEL", config.DefaultAIUpstreamModel)), "served model id")
 	llmBase := flag.String("llm-base", envOr("KUN_TAG_PAIR_LLM_BASE", os.Getenv("KUN_AI_UPSTREAM_BASE_URL")), "OpenAI-compatible gateway base URL (…/v1)")
 	llmToken := flag.String("llm-token", envOr("KUN_TAG_PAIR_LLM_TOKEN", os.Getenv("KUN_AI_UPSTREAM_TOKEN")), "gateway bearer token")
 	maxTokens := flag.Int("max-tokens", 1024, "LLM max_tokens per judgment")

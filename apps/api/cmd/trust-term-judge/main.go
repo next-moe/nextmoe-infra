@@ -17,7 +17,7 @@ const usage = `trust-term-judge retires ordinary words from the Trust & Safety s
 
   -mode judge   no database: read candidate terms (JSONL: id, term), ask the model which are
                 ordinary words, append one verdict per term to -out. Resumable: terms already
-                in -out are skipped. The key comes from KUN_LLM_API_KEY.
+                in -out are skipped. The key comes from KUN_AI_UPSTREAM_TOKEN.
   -mode apply   read the verdicts and deprecate the retired terms that are still active
                 abuse-purpose suspect terms. Dry-run unless -apply, which requires -backup.
 `
@@ -26,7 +26,7 @@ func main() {
 	mode := flag.String("mode", "", "judge | apply")
 	in := flag.String("in", "", "judge: candidate terms, JSONL")
 	out := flag.String("out", "", "judge: verdicts, JSONL (appended)")
-	llmBase := flag.String("llm-base", "", "judge: OpenAI-compatible base URL")
+	llmBase := flag.String("llm-base", os.Getenv("KUN_AI_UPSTREAM_BASE_URL"), "judge: OpenAI-compatible base URL")
 	modelID := flag.String("model", "", "judge: model id; apply: named in the audit row")
 	batch := flag.Int("batch", 60, "judge: terms per request")
 	verdicts := flag.String("verdicts", "", "apply: verdicts JSONL from -mode judge")

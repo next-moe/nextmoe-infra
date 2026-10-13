@@ -129,7 +129,7 @@ func TestVNDBDateEquals(t *testing.T) {
 }
 
 func TestClientSendsBearer(t *testing.T) {
-	t.Setenv("KUN_LLM_API_KEY", "secret-token")
+	t.Setenv("KUN_AI_UPSTREAM_TOKEN", "secret-token")
 	var got string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		got = r.Header.Get("Authorization")
