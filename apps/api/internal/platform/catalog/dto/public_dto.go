@@ -21,6 +21,8 @@ type PublicWorkBrief struct {
 	ClaimedBy     *PublicClaimedBy               `json:"claimed_by"`
 	Latin         string                         `json:"latin,omitempty" doc:"romanisation of display_name, from the title row display_name was taken from; absent when that row records none"`
 	Localized     map[string]PublicLocalizedName `json:"localized" doc:"preferred title per locale, keyed by canonically-cased BCP-47 tag; {} when none. SPARSE by design — render localized[yourLocale] ?? display_name ?? latin, never a blank"`
+	ReleaseDate   *string                        `json:"release_date,omitempty"`
+	Cover         *PublicCoverSlot               `json:"cover,omitempty"`
 }
 
 type PublicCatalogTitle struct {

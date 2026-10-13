@@ -313,6 +313,9 @@ func (s *PublicService) WorkDetail(ctx context.Context, id int64, inc PublicIncl
 	rec.SeriesSiblings = s.publicSeriesSiblings(detail.SeriesSiblings, nsfw, limits)
 	if withRelations {
 		rec.Relations = s.publicRelations(detail.Relations, nsfw, limits)
+		if err = s.attachRelationMedia(ctx, rec.Relations, detail.Relations, nsfw, limits); err != nil {
+			return dto.PublicCatalogWork{}, false, err
+		}
 	}
 	if withCredits {
 		groups, err := s.workCredits(ctx, id)

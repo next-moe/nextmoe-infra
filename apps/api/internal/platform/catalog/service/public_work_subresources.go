@@ -257,6 +257,9 @@ func (s *PublicService) WorkRelations(ctx context.Context, id int64, nsfw bool, 
 		return dto.PublicWorkRelationsData{}, false, err
 	}
 	items := s.publicRelations(pageRows, nsfw, limits)
+	if err = s.attachRelationMedia(ctx, items, pageRows, nsfw, limits); err != nil {
+		return dto.PublicWorkRelationsData{}, false, err
+	}
 	briefs := make([]*dto.PublicWorkBrief, len(items))
 	for i := range items {
 		briefs[i] = &items[i].Work

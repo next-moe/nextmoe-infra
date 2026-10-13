@@ -243,9 +243,10 @@ func workFromBrief(b dto.PublicWorkBrief) repr.Work {
 		created = b.Updated
 	}
 	w, _ := repr.NewWork(
-		b.ID, b.Medium, b.DisplayName, b.OLang, b.ContentRating, "unknown",
+		b.ID, b.Medium, b.DisplayName, b.OLang, b.ContentRating, releaseStatus(b.ReleaseDate),
 		created, b.Updated, optString(b.Latin), localizedFrom(b.Localized),
-		nil, nil, nil, nil, claimFrom(b.ClaimedBy), b.ContentLimit,
+		releaseDateValue(b.ReleaseDate), releasePrecision(b.ReleaseDate), imageFromSlot(b.Cover), nil,
+		claimFrom(b.ClaimedBy), b.ContentLimit,
 	)
 	if w.Object == "" {
 		w.Object = "work"
