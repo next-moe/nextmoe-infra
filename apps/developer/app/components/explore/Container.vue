@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ExploreWorkBrief } from '~~/shared/types/explore'
+
 useSeoMeta({ title: '数据浏览', robots: 'noindex' })
 
 interface SearchHit {
@@ -107,13 +109,20 @@ const expandAll = async () => {
           { ...gate() }
         )
   }
-  for (const r of arr('relations'))
+  let offCatalog = 0
+  for (const r of arr('relations')) {
+    const work = (r as { work?: ExploreWorkBrief }).work
+    if (!isBrowsableWork(work)) {
+      offCatalog++
+      continue
+    }
     push(
       '关联作品',
-      idOf((r as { work?: unknown }).work),
+      idOf(work),
       (i) => `v2/catalog/works/${i}`,
       { include: 'relations,credits', ...gate() }
     )
+  }
   const totals = new Map<string, number>()
   for (const j of jobs) totals.set(j.group, (totals.get(j.group) ?? 0) + 1)
   const taken = new Map<string, number>()
@@ -152,6 +161,8 @@ const expandAll = async () => {
     const took = taken.get(g) ?? 0
     if (total > took) notes.push(`${g} 仅取前 ${took}/${total}`)
   }
+  if (offCatalog)
+    notes.push(`${offCatalog} 部关联作品不是 galgame，开放 API 不提供其详情`)
   if (failed) notes.push(`${failed} 个实体拉取失败`)
   expandNote.value = notes.join('；')
   expanding.value = false

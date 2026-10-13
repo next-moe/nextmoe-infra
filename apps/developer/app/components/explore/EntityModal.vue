@@ -1,23 +1,16 @@
 <script setup lang="ts">
-interface Target {
-  kind: 'characters' | 'credit-names' | 'companies' | 'works'
-  id: string
-}
-interface WorkRef {
-  id?: string
-  display_name?: string
-  content_rating?: string
-}
-interface AttachRow {
-  work?: WorkRef
-  roster_role?: string
-  spoiler?: string
-  voices?: { id: string; display_name: string }[]
-  roles?: { role_key: string; role_name: string; character_id?: string | null }[]
-}
+import { cn } from '@kungal/ui-core'
+import type {
+  ExploreAttachRow,
+  ExploreEntityKind,
+  ExploreEntityTarget,
+  ExploreImage,
+  ExploreIntro,
+  ExploreWorkBrief
+} from '~~/shared/types/explore'
 
 const props = defineProps<{ apiKey: string; nsfw: boolean }>()
-const target = defineModel<Target | null>({ required: true })
+const target = defineModel<ExploreEntityTarget | null>({ required: true })
 
 const open = computed({
   get: () => target.value !== null,
@@ -26,21 +19,31 @@ const open = computed({
   }
 })
 
-const KIND_LABEL: Record<Target['kind'], string> = {
+const KIND_LABEL: Record<ExploreEntityKind, string> = {
   characters: '角色',
   'credit-names': '名义',
   companies: '厂牌 / 社团',
   works: '作品'
 }
 
+const DETAIL_INCLUDE: Partial<Record<ExploreEntityKind, string>> = {
+  characters: 'image,intros',
+  'credit-names': 'photo,intros',
+  companies: 'logo,intros'
+}
+
+const INTRO_ORDER = ['zh-Hans', 'zh-Hant', 'ja', 'en']
+
 const ROW_CAP = 15
+const INTRO_CLAMP = 160
 
 const loading = ref(false)
 const error = ref('')
 const data = ref<Record<string, unknown> | null>(null)
-const rows = ref<AttachRow[]>([])
+const rows = ref<ExploreAttachRow[]>([])
 const rowsMore = ref(false)
 const showRaw = ref(false)
+const introOpen = ref(false)
 
 const { read, failureMessage } = useCatalogRead()
 const apiGet = <T,>(path: string, query: Record<string, string>) =>
@@ -50,7 +53,7 @@ const apiGet = <T,>(path: string, query: Record<string, string>) =>
 // entity is attached to lives on its own collection. Companies have no
 // sub-resource for this — their reverse lookup is the works filter.
 const attachmentRequest = (
-  t: Target
+  t: ExploreEntityTarget
 ): { path: string; query: Record<string, string> } | null => {
   const limit = String(ROW_CAP)
   const nsfw: Record<string, string> = props.nsfw ? { nsfw: 'true' } : {}
@@ -75,10 +78,13 @@ const attachmentRequest = (
   }
 }
 
-const normalizeRows = (kind: Target['kind'], items: unknown[]): AttachRow[] =>
+const normalizeRows = (
+  kind: ExploreEntityKind,
+  items: unknown[]
+): ExploreAttachRow[] =>
   kind === 'companies'
-    ? items.map((w) => ({ work: w as WorkRef }))
-    : (items as AttachRow[])
+    ? items.map((w) => ({ work: w as ExploreWorkBrief }))
+    : (items as ExploreAttachRow[])
 
 watch(target, async (t) => {
   // Clearing on close blanks the panel for the length of KunModal's leave
@@ -89,12 +95,15 @@ watch(target, async (t) => {
   rowsMore.value = false
   error.value = ''
   showRaw.value = false
+  introOpen.value = false
   loading.value = true
   try {
+    const include = DETAIL_INCLUDE[t.kind]
     data.value = await apiGet<Record<string, unknown>>(
       `v2/catalog/${t.kind}/${t.id}`,
       {
         ...(t.kind === 'characters' && { view: 'full' }),
+        ...(include && { include }),
         ...(props.nsfw && { nsfw: 'true' })
       }
     )
@@ -117,10 +126,32 @@ watch(target, async (t) => {
 const title = computed(() =>
   data.value ? (entityName(data.value) ?? `#${target.value?.id}`) : ''
 )
+const subtitle = computed(() => {
+  const name = data.value?.display_name
+  return typeof name === 'string' && name !== title.value ? name : null
+})
 const isR18 = computed(
   () =>
     (data.value as { content_rating?: string } | null)?.content_rating === 'r18'
 )
+
+const portrait = computed(() => {
+  const img = (data.value?.image ?? data.value?.photo ?? data.value?.logo) as
+    ExploreImage | null | undefined
+  return img?.url && isImageShown(img, props.nsfw) ? img : null
+})
+
+const intro = computed(() => {
+  const list = (data.value?.intros as ExploreIntro[] | undefined) ?? []
+  const rank = (lang: string) => {
+    const i = INTRO_ORDER.indexOf(lang)
+    return i < 0 ? INTRO_ORDER.length : i
+  }
+  const best = [...list].sort((a, b) => rank(a.lang) - rank(b.lang))[0]
+  return best
+    ? { ...best, text: best.value.replace(/\\\n/g, '\n').trim() }
+    : null
+})
 
 const str = (key: string): string | null => {
   const v = data.value?.[key]
@@ -131,18 +162,12 @@ const num = (key: string): number | null => {
   return typeof v === 'number' ? v : null
 }
 
-const GENDER_LABEL: Record<string, string> = {
-  male: '男',
-  female: '女',
-  other: '其他'
-}
-
 const attributes = computed(() => {
   const out: { label: string; value: string }[] = []
   const kind = target.value?.kind
   if (kind === 'characters') {
     const gender = str('gender')
-    if (gender) out.push({ label: '性别', value: GENDER_LABEL[gender] ?? gender })
+    if (gender) out.push({ label: '性别', value: vocabLabel('gender', gender) })
     const birthday = str('birthday')
     if (birthday) out.push({ label: '生日', value: birthday })
     const height = num('height_cm')
@@ -150,7 +175,8 @@ const attributes = computed(() => {
     const weight = num('weight_kg')
     if (weight) out.push({ label: '体重', value: `${weight} kg` })
     const blood = str('blood_type')
-    if (blood) out.push({ label: '血型', value: blood.toUpperCase() })
+    if (blood)
+      out.push({ label: '血型', value: vocabLabel('blood_type', blood) })
     const m = data.value?.measurements as Record<string, unknown> | null
     if (m) {
       const three = [m.bust_cm, m.waist_cm, m.hip_cm]
@@ -162,7 +188,11 @@ const attributes = computed(() => {
   }
   if (kind === 'companies') {
     const companyKind = str('company_kind')
-    if (companyKind) out.push({ label: '类别', value: companyKind })
+    if (companyKind)
+      out.push({
+        label: '类别',
+        value: vocabLabel('company_kind', companyKind)
+      })
     const count = num('work_count')
     if (count !== null) out.push({ label: '作品数', value: String(count) })
   }
@@ -171,98 +201,129 @@ const attributes = computed(() => {
     if (personId) out.push({ label: '归属人物', value: `person #${personId}` })
   }
   const latin = str('latin')
-  if (latin && latin !== title.value) out.push({ label: '罗马字', value: latin })
-  const olang = str('olang')
-  if (olang) out.push({ label: '原语言', value: olang })
+  if (latin && latin !== title.value)
+    out.push({ label: '罗马字', value: latin })
   return out
 })
 
 const rowsTitle = computed(() =>
-  target.value?.kind === 'companies' ? '名下作品' : '关联作品'
+  target.value?.kind === 'companies' ? '名下作品' : '参与作品'
 )
 
-const goWork = (id?: string) => {
-  if (!id) return
+const goWork = (work: ExploreWorkBrief) => {
   target.value = null
-  navigateTo(`/explore/work/${id}${props.nsfw ? '?nsfw=1' : ''}`)
+  navigateTo(exploreWorkPath(work.id, props.nsfw))
 }
 </script>
 
 <template>
-  <KunModal v-model="open" size="lg" aria-label="实体档案">
-    <div class="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
-      <p v-if="loading" class="py-8 text-center text-sm text-default-400">
-        拉取实体档案…
-      </p>
-      <div
-        v-else-if="error"
-        class="rounded-lg bg-danger-50 p-3 text-sm text-danger"
-      >
-        {{ error }}
+  <KunModal v-model="open" size="xl" aria-label="实体档案">
+    <div class="max-h-[75vh] space-y-5 overflow-y-auto pr-1">
+      <div v-if="loading" class="flex gap-4">
+        <KunSkeleton variant="rect" width="7rem" height="9rem" rounded="lg" />
+        <div class="flex-1 space-y-2">
+          <KunSkeleton variant="text" width="50%" height="1.25rem" />
+          <KunSkeleton variant="text" />
+          <KunSkeleton variant="text" width="80%" />
+        </div>
       </div>
+      <KunInfo
+        v-else-if="error"
+        color="danger"
+        variant="flat"
+        icon="lucide:circle-alert"
+        :description="error"
+      />
 
       <template v-else-if="data">
-        <div class="flex flex-wrap items-center gap-2">
-          <h2 class="text-lg font-semibold text-foreground">{{ title }}</h2>
-          <KunChip color="default" variant="flat" size="xs">
-            {{ KIND_LABEL[target?.kind ?? 'works'] }} #{{ target?.id }}
-          </KunChip>
-          <KunChip v-if="isR18" color="danger" variant="flat" size="xs">
-            R18
-          </KunChip>
+        <div class="flex gap-4">
+          <div
+            v-if="portrait"
+            :class="
+              cn(
+                'border-default-200 bg-default-100 w-28 shrink-0 overflow-hidden rounded-xl border',
+                target?.kind === 'companies' && 'p-2'
+              )
+            "
+          >
+            <KunImageNative
+              :src="portrait.url"
+              :alt="title"
+              loading="eager"
+              :class-name="
+                cn(
+                  'w-full',
+                  target?.kind === 'companies'
+                    ? 'aspect-square object-contain'
+                    : 'aspect-[3/4] object-cover object-top'
+                )
+              "
+            />
+          </div>
+          <div class="min-w-0 flex-1 space-y-2">
+            <div>
+              <div class="flex flex-wrap items-center gap-2">
+                <h2 class="text-foreground text-xl font-semibold">
+                  {{ title }}
+                </h2>
+                <KunChip v-if="isR18" color="danger" variant="flat" size="xs">
+                  R18
+                </KunChip>
+              </div>
+              <p v-if="subtitle" class="text-default-500 text-sm">
+                {{ subtitle }}
+              </p>
+              <p class="text-default-400 mt-0.5 text-xs">
+                {{ KIND_LABEL[target?.kind ?? 'works'] }} #{{ target?.id }}
+              </p>
+            </div>
+            <dl
+              v-if="attributes.length"
+              class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3"
+            >
+              <div v-for="a in attributes" :key="a.label" class="flex gap-2">
+                <dt class="text-default-400 shrink-0">{{ a.label }}</dt>
+                <dd class="text-foreground min-w-0 truncate">{{ a.value }}</dd>
+              </div>
+            </dl>
+          </div>
         </div>
 
-        <div v-if="attributes.length" class="flex flex-wrap gap-1.5">
-          <KunChip
-            v-for="a in attributes"
-            :key="a.label"
-            color="default"
-            variant="flat"
-            size="xs"
+        <div v-if="intro" class="space-y-1.5">
+          <p
+            :class="
+              cn(
+                'text-default-600 text-sm leading-6 whitespace-pre-line',
+                !introOpen && 'line-clamp-5'
+              )
+            "
           >
-            {{ a.label }} · {{ a.value }}
-          </KunChip>
+            {{ intro.text }}
+          </p>
+          <div class="text-default-400 flex items-center gap-2 text-xs">
+            <span v-if="intro.source">
+              来源：{{ vocabLabel('sources', intro.source) }}
+            </span>
+            <span v-if="intro.is_machine" class="text-warning">机翻</span>
+            <KunButton
+              v-if="intro.text.length > INTRO_CLAMP"
+              variant="light"
+              color="primary"
+              size="xs"
+              @click="introOpen = !introOpen"
+            >
+              {{ introOpen ? '收起' : '展开全文' }}
+            </KunButton>
+          </div>
         </div>
 
-        <div v-if="rows.length" class="space-y-1.5">
-          <h3 class="text-sm font-semibold text-foreground">
-            {{ rowsTitle }}（{{ rows.length
-            }}<template v-if="rowsMore">，API 可翻页取更多</template>）
-          </h3>
-          <button
-            v-for="(r, i) in rows"
-            :key="`row-${i}`"
-            type="button"
-            class="flex w-full flex-wrap items-center gap-2 rounded-lg border border-default-200 px-3 py-2 text-left transition-colors hover:border-primary"
-            @click="goWork(r.work?.id)"
-          >
-            <span class="min-w-0 flex-1 truncate text-sm text-foreground">
-              {{ r.work?.display_name ?? `#${r.work?.id}` }}
-            </span>
-            <KunChip
-              v-if="r.work?.content_rating === 'r18'"
-              color="danger"
-              variant="flat"
-              size="xs"
-            >
-              R18
-            </KunChip>
-            <KunChip
-              v-if="r.roster_role"
-              color="default"
-              variant="flat"
-              size="xs"
-            >
-              {{ r.roster_role }}
-            </KunChip>
-            <span v-if="r.voices?.length" class="text-xs text-default-400">
-              CV {{ r.voices.map((v) => v.display_name).join(' / ') }}
-            </span>
-            <span v-if="r.roles?.length" class="text-xs text-default-400">
-              {{ r.roles.map((ro) => ro.role_name).join(' · ') }}
-            </span>
-          </button>
-        </div>
+        <ExploreEntityWorkRows
+          v-if="rows.length"
+          :rows="rows"
+          :title="rowsTitle"
+          :more="rowsMore"
+          @go="goWork"
+        />
 
         <div>
           <KunButton
@@ -275,7 +336,7 @@ const goWork = (id?: string) => {
           </KunButton>
           <div
             v-if="showRaw"
-            class="mt-1 max-h-64 overflow-auto rounded bg-default-100 p-2"
+            class="bg-default-100 mt-1 max-h-64 overflow-auto rounded p-2"
           >
             <ExploreJsonTree :data="data" />
           </div>
