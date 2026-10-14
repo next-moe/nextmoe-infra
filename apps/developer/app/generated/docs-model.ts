@@ -242022,6 +242022,12 @@ export const docsModel: DocsModel = {
                         "doc": "When the resource was last edited, its file or anything else.",
                         "format": "date-time",
                         "type": "string"
+                      },
+                      {
+                        "name": "repack",
+                        "required": true,
+                        "doc": "The passwordless STORE-zip copy letmoe's forge attached, or null.\nmoyu deletes it when the resource is deleted or its file replaced,\nso a null after a non-null means it is gone.\n",
+                        "type": "object"
                       }
                     ]
                   }
