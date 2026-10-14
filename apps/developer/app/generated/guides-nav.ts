@@ -206,7 +206,7 @@ export const guideMeta: Record<string, GuideMeta> = {
     "slug": "play-records",
     "title": "评分与游玩记录",
     "eyebrow": "集成指南",
-    "description": "游玩状态、游玩时长、评分，以及把三者一次写完的 work-records：谁能写、替换语义、公开读取与镜像入口。"
+    "description": "游玩状态、游玩时长、评分，以及把三者一次写完的 work-records：谁能写、短评检查、替换语义、公开读取与镜像入口。"
   },
   "/docs/folders": {
     "slug": "folders",

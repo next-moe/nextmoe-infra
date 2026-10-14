@@ -43,6 +43,7 @@ type Catalog struct {
 	Counters       protocol.Store
 	Store          *storesvc.Service
 	Prices         *price.Service
+	RatingTrust    RatingTrust
 	// oauth_clients lives in the infra database, which no catalog service can
 	// reach, so the moderation fence takes its client -> site resolver here.
 	SiteOfAppClient func(ctx context.Context, clientID string) (string, error)

@@ -51,9 +51,6 @@
     "Scope required": "缺少所需 scope",
     "The credential is valid but lacks the scope this operation needs.": "凭据本身有效，但缺少这个操作所需的 scope。",
 
-    "First party only": "仅限一方客户端",
-    "This operation is only available to first-party clients.": "这个操作只对一方客户端开放。",
-
     "Not found": "未找到",
     "Nothing visible exists at this URL.": "这个 URL 上没有你能看到的东西。",
 

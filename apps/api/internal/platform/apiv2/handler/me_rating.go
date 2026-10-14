@@ -132,16 +132,6 @@ func userRatingPtr(r *catsvc.RatingRecord) *repr.UserRating {
 	return &v
 }
 
-// A rating is public text on every site at once, and only the sites run the
-// trust check before writing it; an application a developer registered would
-// publish around that check.
-func requireFirstPartyWriter(ctx context.Context) error {
-	if thirdPartyFrom(ctx) {
-		return problem.New(problem.CodeFirstPartyOnly, "", "", "ratings are written through first-party sites; a third-party application may read them.")
-	}
-	return nil
-}
-
 func (c *Catalog) ListMyRatings(ctx context.Context, q collect.Query, workIDs []string) (repr.List[repr.UserRating], error) {
 	var empty repr.List[repr.UserRating]
 	if c == nil || c.Ratings == nil {
@@ -240,12 +230,20 @@ func (c *Catalog) PutMyRating(ctx context.Context, workID int64, body ratingBody
 	if err != nil {
 		return repr.UserRating{}, err
 	}
-	if err := requireFirstPartyWriter(ctx); err != nil {
+	in := body.input()
+	if err := in.Validate(); err != nil {
+		return repr.UserRating{}, ratingErr(err, "")
+	}
+	scan, err := c.checkRatingSummary(ctx, uid, workID, in.ShortSummary, "/short_summary")
+	if err != nil {
 		return repr.UserRating{}, err
 	}
-	rec, gerr := c.Ratings.Set(ctx, uid, workID, client, siteFrom(ctx), body.input())
+	rec, gerr := c.Ratings.Set(ctx, uid, workID, client, siteFrom(ctx), in)
 	if gerr != nil {
 		return repr.UserRating{}, ratingErr(gerr, "")
+	}
+	if scan {
+		c.scanRatingSummary(rec.ID, uid, rec.ShortSummary)
 	}
 	return userRatingRepr(*rec), nil
 }
