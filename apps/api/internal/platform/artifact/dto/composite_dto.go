@@ -16,7 +16,7 @@ type CreateCompositeRequest struct {
 	Filename    string                 `json:"filename" minLength:"1" maxLength:"255" doc:"Download filename, sent as an attachment Content-Disposition"`
 	ContentType string                 `json:"content_type" minLength:"1" maxLength:"100" doc:"Media type of the assembled file, e.g. application/zip"`
 	Size        int64                  `json:"size" minimum:"1" doc:"Exact byte length of the assembled file; must equal the sum of the segment lengths"`
-	BLAKE3      string                 `json:"blake3" pattern:"^[0-9a-f]{64}$" doc:"BLAKE3 of the assembled file, lowercase hex. Served as the ETag; not recomputed by the service."`
+	BLAKE3      string                 `json:"blake3,omitempty" required:"false" pattern:"^[0-9a-f]{64}$" doc:"Optional BLAKE3 of the assembled file, lowercase hex, served as the ETag; not recomputed by the service. Without it the ETag is the composite id, which already hashes the plan."`
 	Sources     []CompositeSourceInput `json:"sources" minItems:"1" maxItems:"64"`
 	Segments    []CompositeSegment     `json:"segments" minItems:"1" maxItems:"100000" doc:"The assembled file, in order"`
 }
@@ -28,7 +28,7 @@ type CompositeResponse struct {
 	Filename     string   `json:"filename"`
 	ContentType  string   `json:"content_type"`
 	Size         int64    `json:"size"`
-	BLAKE3       string   `json:"blake3"`
+	BLAKE3       string   `json:"blake3,omitempty" doc:"Absent when the plan was created without one"`
 	Artifacts    []string `json:"artifacts" doc:"UUIDs of the artifacts this composite pins, in source order"`
 	SegmentCount int      `json:"segment_count"`
 	InlineBytes  int64    `json:"inline_bytes"`
