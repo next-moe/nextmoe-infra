@@ -21,6 +21,11 @@ const (
 	// lookup answers who keeps a work in a folder, private folders included, so
 	// it discloses a person's own collection rather than the catalog's rows.
 	ScopeFolderHoldersRead = "folder_holders:read"
+	// Operator-granted, and checked by moyu rather than here: its
+	// /v2/moyu/resources/{id}/file route reads X-NextMoe-Scopes and answers a
+	// patch's artifact link and archive password, the bulk export the rest of
+	// that face exists to withhold.
+	ScopeMoyuFiles = "moyu:files"
 	// Retired 2026-08-25 with the grant-only application machinery: no route
 	// checks it any more. Kept because live keys still carry the string in
 	// their scopes jsonb and readers of that history need the name.

@@ -38,13 +38,14 @@
 
 **端点**:oauth 服务 `GET /internal/devapi/forward-auth?face=<name>`。生产 oauth 的 Traefik router 只覆盖 `/api/v1`、两条 OIDC 元数据路径与面板 web,`/internal/*` 靠路由隔离,不是靠保密。2xx 放行,其余状态连同响应头与 body 由 Traefik 原样回给调用方。拒绝一律是 RFC 9457 `application/problem+json`(与 `/v2` 同一注册表,`instance` 取 `X-Forwarded-Uri`):401 `MISSING_CREDENTIAL` / `INVALID_CREDENTIAL`,429 `RATE_LIMITED` / `QUOTA_EXCEEDED`(均带 `Retry-After`);2026-09-18 之前 401/429 回的是平台 `{code,message}` 信封。未注册或缺失 `face` 为 500(Traefik 接线错误,不是客户端错误)。首批曾各配一个 `<site>:read` 自助 scope(缺则 403),2026-09-08 当天即改判撤销:免费只读面收任意有效密钥,不查 scope。
 
-成功时写三个响应头,始终全写,好让 Traefik `authResponseHeaders` 覆盖客户端原值:
+成功时写四个响应头,始终全写,好让 Traefik `authResponseHeaders` 覆盖客户端原值:
 
 - `X-NextMoe-Client-Id`
 - `X-NextMoe-Key-Id`
 - `X-NextMoe-Tier`
+- `X-NextMoe-Scopes`(2026-10-14 起):密钥的全部 scope,空格分隔
 
-下游只可通过 Traefik `authResponseHeaders` 信任这三个头,不可信客户端原请求。
+下游只可通过 Traefik `authResponseHeaders` 信任这些头,不可信客户端原请求。闸门本身仍不查 scope;面里个别需要授权的路由(首个:moyu `/v2/moyu/resources/{id}/file`,要运营发放的 `moyu:files`)由下游读 `X-NextMoe-Scopes` 自己判。**Traefik 只覆盖列在 `authResponseHeaders` 里的头**——没列进去时客户端自带的 `X-NextMoe-Scopes` 会原样透传,所以依赖它的路由必须与该标签改动同一次部署上线。
 
 **路径前缀**:`/v2/<site>/*`(`/v2/moyu`、`/v2/sticker`)。首批接线时(2026-09-08)裁定跟随 §16.2 的修订:/v2 早已不是 catalog 专属(spec 内已有 catalog/store/news/folders/me/moderation/vocabularies 七个命名空间),`<face>` 并列其下是现成形状;门户 docs-model 与 oasdiff 门按 **spec 文档**切分而非按前缀,两份 spec 同描述 `/v2/...` 无冲突。
 
@@ -64,7 +65,7 @@ traefik.http.routers.<svc>-pub-http.entrypoints: web
 traefik.http.routers.<svc>-pub-http.middlewares: redirect-to-https@file
 traefik.http.routers.<svc>-pub-http.service: <svc>-pub
 traefik.http.middlewares.<svc>-forwardauth.forwardauth.address: http://<oauth-alias>:9277/internal/devapi/forward-auth?face=moyu
-traefik.http.middlewares.<svc>-forwardauth.forwardauth.authResponseHeaders: X-NextMoe-Client-Id,X-NextMoe-Key-Id,X-NextMoe-Tier
+traefik.http.middlewares.<svc>-forwardauth.forwardauth.authResponseHeaders: X-NextMoe-Client-Id,X-NextMoe-Key-Id,X-NextMoe-Tier,X-NextMoe-Scopes
 traefik.http.services.<svc>-pub.loadbalancer.server.port: "<port>"
 ```
 
