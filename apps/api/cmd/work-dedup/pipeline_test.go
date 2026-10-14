@@ -56,7 +56,7 @@ func requireDB(t *testing.T) {
 func cleanPipeline(t *testing.T) {
 	t.Helper()
 	for _, table := range []string{
-		"catalog_match_candidate", "catalog_merge_proposal", "catalog_redirect",
+		"catalog_match_candidate", "catalog_merge_proposal", "catalog_merge_archive", "catalog_redirect",
 		"catalog_external_ref", "catalog_revision", "catalog_entity_usage",
 		"catalog_work_label", "catalog_work_title", "catalog_release", "catalog_work",
 		"src_bangumi.subject",
