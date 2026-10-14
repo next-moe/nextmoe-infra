@@ -97,13 +97,15 @@ func Run(db *gorm.DB) error {
 		&model.CatalogPlatform{},           // platform vocabulary registry (step 96)
 		&model.CatalogWorkPlatform{},       // work-level platform facet (step 96, bgm lane)
 		// Per-user work ratings, one per person per work across every site
-		// (2026-10). Created empty: cmd/import-user-ratings fills it from the
-		// forum's galgame_rating (ids kept) and LetMoe's game_rating, and the
-		// ledger below makes that import re-runnable. Deletions leave a
-		// tombstone so site mirrors reading /v2/ratings/changes can drop them.
+		// (2026-10). Created empty and filled once from the forum's
+		// galgame_rating (ids kept) and LetMoe's game_rating by
+		// cmd/import-user-ratings, deleted 2026-10-13 after all three sites
+		// switched; its ledger table catalog_user_work_rating_import is no
+		// longer created and is left in place on production until it is
+		// dropped. Deletions leave a tombstone so site mirrors reading
+		// /v2/ratings/changes can drop them.
 		&model.CatalogUserWorkRating{},
 		&model.CatalogUserWorkRatingTombstone{},
-		&model.CatalogUserWorkRatingImport{},
 		// catalog_release. Wave R2b (2026-08-16) adds field_provenance jsonb
 		// NOT NULL DEFAULT '{}' so human edits of kind/title/lang/platform/date
 		// and hide/unhide survive importer backfills. AutoMigrate is enough:
@@ -514,11 +516,11 @@ func rawSQL(db *gorm.DB) error {
 		}
 	}
 
-	// cmd/import-user-ratings keeps the forum's rating ids (4,814 at most in
-	// 2026-10, still growing until the forum switches its writes over), so the
-	// ids the catalog issues itself start at 1,000,001: a rating written through
-	// /v2 before the import would otherwise take an id the import needs.
-	// GREATEST never lowers the sequence, so the statement is safe on every run.
+	// cmd/import-user-ratings (deleted 2026-10-13) kept the forum's rating ids
+	// (4,814 at most in 2026-10), so the ids the catalog issues itself start at
+	// 1,000,001: a rating written through /v2 before the import would otherwise
+	// have taken an id the import needed. GREATEST never lowers the sequence, so
+	// the statement is safe on every run.
 	if err := db.Exec(`SELECT setval(seq, GREATEST(COALESCE(pg_sequence_last_value(seq::regclass), 0), 1000000))
 		FROM pg_get_serial_sequence('catalog_user_work_rating', 'id') AS seq`).Error; err != nil {
 		return fmt.Errorf("floor catalog_user_work_rating ids: %w", err)

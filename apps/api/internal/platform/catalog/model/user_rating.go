@@ -54,12 +54,3 @@ type CatalogUserWorkRatingTombstone struct {
 }
 
 func (CatalogUserWorkRatingTombstone) TableName() string { return "catalog_user_work_rating_tombstone" }
-
-type CatalogUserWorkRatingImport struct {
-	Site     string    `gorm:"primaryKey" json:"site"`
-	SourceID int64     `gorm:"primaryKey;autoIncrement:false" json:"source_id"`
-	RatingID int64     `gorm:"not null;index" json:"rating_id"`
-	SyncedAt time.Time `gorm:"not null" json:"synced_at"`
-}
-
-func (CatalogUserWorkRatingImport) TableName() string { return "catalog_user_work_rating_import" }
