@@ -12,12 +12,13 @@ import (
 )
 
 type RoleSeed struct {
-	ID       int64  `yaml:"id"`
-	Key      string `yaml:"key"`
-	Category string `yaml:"category"`
-	NameEN   string `yaml:"name_en"`
-	NameCN   string `yaml:"name_cn"`
-	NameJA   string `yaml:"name_ja"`
+	ID         int64  `yaml:"id"`
+	Key        string `yaml:"key"`
+	Category   string `yaml:"category"`
+	NameEN     string `yaml:"name_en"`
+	NameCN     string `yaml:"name_cn"`
+	NameJA     string `yaml:"name_ja"`
+	Deprecated bool   `yaml:"deprecated,omitempty"`
 }
 
 type RoleMapSeed struct {
@@ -27,11 +28,25 @@ type RoleMapSeed struct {
 }
 
 type GeneratedRoles struct {
-	Roles    []RoleSeed
-	Mappings []RoleMapSeed
+	Roles            []RoleSeed
+	Mappings         []RoleMapSeed
+	GameRoleToShared map[int64]int64
 }
 
 const roleIDBase = 100
+
+// Bangumi's game positions name-match roles of their own, so a creator VNDB,
+// ErogameScape and DLsite credit as scenario was credited again as 剧本 on the
+// same work: 7,545 scenario × 剧本 pairs and 2,353 music × 音乐 pairs in
+// production on 2026-10-13. These positions take the role the other sources
+// share; the role each would have generated is left with no mapping and retired.
+var bangumiSharedRoles = map[string]int64{
+	"4:1004": roleScenario,
+	"4:1006": roleMusic,
+	"4:1013": roleIllustration,
+	"4:1016": roleDirector,
+	"4:1018": roleExecutiveProducer,
+}
 
 func GenerateBangumiRoles() (GeneratedRoles, error) {
 	staffs, err := bangumicommon.LoadStaffPositions()
@@ -134,16 +149,24 @@ func GenerateBangumiRoles() (GeneratedRoles, error) {
 	}
 
 	mappings := make([]RoleMapSeed, 0, len(walk))
+	targeted := make(map[int64]bool, len(roles))
+	gameRoleToShared := make(map[int64]int64, len(bangumiSharedRoles))
 	for _, occ := range walk {
 		k := nameKey{en: normalizeName(occ.pos.EN), cn: normalizeName(occ.pos.CN)}
-		mappings = append(mappings, RoleMapSeed{
-			SourceRole: fmt.Sprintf("%d:%d", occ.subjectType, occ.position),
-			RoleID:     roleByGroup[groups[k]].ID,
-			Note:       occ.pos.CN,
-		})
+		sourceRole := fmt.Sprintf("%d:%d", occ.subjectType, occ.position)
+		roleID := roleByGroup[groups[k]].ID
+		if shared, ok := bangumiSharedRoles[sourceRole]; ok {
+			gameRoleToShared[roleID] = shared
+			roleID = shared
+		}
+		targeted[roleID] = true
+		mappings = append(mappings, RoleMapSeed{SourceRole: sourceRole, RoleID: roleID, Note: occ.pos.CN})
+	}
+	for _, r := range roles {
+		r.Deprecated = !targeted[r.ID]
 	}
 
-	out := GeneratedRoles{Roles: make([]RoleSeed, len(roles)), Mappings: mappings}
+	out := GeneratedRoles{Roles: make([]RoleSeed, len(roles)), Mappings: mappings, GameRoleToShared: gameRoleToShared}
 	for i, r := range roles {
 		out.Roles[i] = *r
 	}

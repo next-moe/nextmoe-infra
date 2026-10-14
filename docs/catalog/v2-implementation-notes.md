@@ -2130,3 +2130,15 @@ Ratings were first-party only: `PUT /v2/me/ratings/{work_id}` and the `rating` b
 - **One asymmetry kept.** A third-party work-records PUT without a `rating` still leaves the rating as it is, where a first-party one deletes it. Third parties were documented to omit it, and Kireibox already reports playtime with a third-party token; turning omission into deletion would erase ratings users wrote on the sites. A third party removes a rating with `DELETE /v2/me/ratings/{work_id}`.
 
 **Spec is 2.49.0.** A refusal disappears and a 422 reason appears on two writes; descriptions change; `FIRST_PARTY_ONLY` leaves the problem registry. Migration: the `migrate-trust` seed above, additive and idempotent; it runs with the deploy.
+
+## Wave — Bangumi game positions use the shared roles (2026-10-13)
+
+A data-browser user reported the same creator twice on one work's staff list, e.g. 魁 under 脚本 and again under 剧本 on work 4. Two causes; this wave fixes the first.
+
+- **Roles.** The role registry is generated from Bangumi's position table by name, so Bangumi's game positions got roles of their own (`剧本`, `原画`, `音乐`, `导演` as `director-direction`, `制作总指挥`) beside the ones VNDB, ErogameScape and DLsite share. Production had 7,545 scenario × 剧本 pairs over 5,675 works, 2,353 music × 音乐 pairs and 405 director × director-direction pairs: one creator, one work, two roles. The generator now maps those five positions (`4:1004`, `4:1006`, `4:1013`, `4:1016`, `4:1018`) onto `scenario`, `music`, `illustration`, `director` and `executive-producer`; a generated role no position maps to is written `deprecated`, which retires `剧本`, `原画`, `音乐` and `制作总指挥`. `director-direction` stays live because the anime position `2:2` still uses it.
+- **The seed only ever updated `note` on an existing mapping row**, so a changed `role_id` in the generated file would never have reached a database that already had the row. It now updates `role_id` too, and roles take `is_deprecated` from the generated file.
+- **Existing credits.** `cmd/repair-bangumi-game-roles` (dry run by default, `--apply`, `--receipts` with the full row before) moves bangumi-sourced credits on game works from each generated role to its shared role, and deletes the ones whose twin (same work, credit name, character) already exists under the shared role. It touches the affected works. Run it after this deploys: until then, bangumi credits already written keep the retired roles, and new imports already use the shared ones (the importer reads `catalog_source_role_map`).
+- **Not in this wave:** the same name held by several credit-name records (one per source) on one work. Those records were never merged because `catalog-dedup-batch` buckets by work, role and folded name, and the role differed; with the roles aligned, its existing `orphan-creditname`, `mixed-creditname` and `credit_name` classes see them.
+
+**No spec change.** Role keys on credit groups change in the data, not the schema; four roles report `deprecated: true`. The migrate job reseeds the registry; the repair is a manual step after deploy.
+

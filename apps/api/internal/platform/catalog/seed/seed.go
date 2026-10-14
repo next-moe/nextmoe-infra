@@ -40,7 +40,8 @@ const (
 	roleComposer int64 = 158
 	roleArrange  int64 = 115
 
-	roleDirector int64 = 173
+	roleDirector          int64 = 173
+	roleExecutiveProducer int64 = 179
 )
 
 func handRoles() []model.CatalogRole {
@@ -190,6 +191,7 @@ func loadGeneratedRoles() ([]model.CatalogRole, []model.CatalogSourceRoleMap, er
 		roles[i] = model.CatalogRole{
 			ID: r.ID, Key: r.Key, Category: r.Category,
 			NameCN: r.NameCN, NameJA: r.NameJA, NameEN: r.NameEN,
+			IsDeprecated: r.Deprecated,
 		}
 	}
 	mappings := make([]model.CatalogSourceRoleMap, len(mapDoc.Mappings))
@@ -230,10 +232,10 @@ func Run(db *gorm.DB) error {
 	if err := upsert(db, "catalog_source", sources(), []string{"id"}, []string{"note", "key"}); err != nil {
 		return err
 	}
-	if err := upsert(db, "catalog_role", roles, []string{"id"}, []string{"category", "name_cn", "name_ja", "name_en"}); err != nil {
+	if err := upsert(db, "catalog_role", roles, []string{"id"}, []string{"category", "name_cn", "name_ja", "name_en", "is_deprecated"}); err != nil {
 		return err
 	}
-	if err := upsert(db, "catalog_source_role_map", roleMap, []string{"source_id", "source_role"}, []string{"note"}); err != nil {
+	if err := upsert(db, "catalog_source_role_map", roleMap, []string{"source_id", "source_role"}, []string{"role_id", "note"}); err != nil {
 		return err
 	}
 	if err := upsert(db, "catalog_relation_type", relationTypes(), []string{"id"}, []string{"forward_phrase", "reverse_phrase"}); err != nil {
