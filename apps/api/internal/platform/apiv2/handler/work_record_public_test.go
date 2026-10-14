@@ -148,6 +148,11 @@ func TestLivePublicWorkRecords(t *testing.T) {
 	require.Equal(t, int64(2), *page.Total)
 	require.Equal(t, map[string]int{"wish": 1, "doing": 0, "done": 1, "on_hold": 0, "dropped": 0}, counts(page))
 
+	status, raw, page = list(liveAppKey, url.Values{"state": {"wish"}, "facets": {"state"}})
+	require.Equal(t, 200, status, string(raw))
+	require.Equal(t, map[string]int{"wish": 1, "doing": 0, "done": 0, "on_hold": 0, "dropped": 0}, counts(page),
+		"the state facet counts after state=, like every v2 facet")
+
 	status, raw, page = list(liveAppKey, url.Values{"content_limit": {"sfw"}, "facets": {"state"}, "include_total": {"true"}})
 	require.Equal(t, 200, status, string(raw))
 	require.Len(t, page.Items, 1)
@@ -191,6 +196,30 @@ func TestLivePublicWorkRecords(t *testing.T) {
 	status, raw, page = list(liveSecondReadToken, url.Values{})
 	require.Equal(t, 200, status, "the account reads its own private records: %s", raw)
 	require.Len(t, page.Items, 2)
+
+	mine := func(token string, q url.Values) (int, []byte, liveWorkRecordList) {
+		t.Helper()
+		status, _, raw := liveDo(t, env, http.MethodGet, "/v2/me/work-records?"+q.Encode(), token, "")
+		var out liveWorkRecordList
+		if status == 200 {
+			require.NoError(t, json.Unmarshal(raw, &out), string(raw))
+		}
+		return status, raw, out
+	}
+	status, raw, page = mine(liveSecondPlainToken, url.Values{"facets": {"state"}, "include_total": {"true"}})
+	require.Equal(t, 200, status, "the owner's face needs no catalog:read and ignores the switch: %s", raw)
+	require.Len(t, page.Items, 2)
+	require.Equal(t, idstr(fx.NSFWMember), page.Items[0].WorkID)
+	require.Equal(t, int64(2), *page.Total)
+	require.Equal(t, map[string]int{"wish": 1, "doing": 0, "done": 1, "on_hold": 0, "dropped": 0}, counts(page))
+	status, raw, page = mine(liveSecondPlainToken, url.Values{"state": {"done"}, "content_limit": {"sfw"}})
+	require.Equal(t, 200, status, string(raw))
+	require.Len(t, page.Items, 1)
+	require.Equal(t, 720, page.Items[0].Playtime.Minutes)
+	status, raw, _ = mine(liveAppKey, url.Values{})
+	require.NotEqual(t, 200, status, "an application key has no bearer to answer for: %s", raw)
+	status, raw, _ = mine(liveSecondPlainToken, url.Values{"state": {"finished"}})
+	require.Equal(t, 400, status, string(raw))
 
 	status, raw, p = privacy(http.MethodPatch, liveSecondPlainToken, `{"play_records":"public"}`)
 	require.Equal(t, 200, status, string(raw))
