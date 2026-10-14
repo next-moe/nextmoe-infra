@@ -33,7 +33,7 @@ func healthy(cv int64) *Article {
 	return a
 }
 
-func openTestDB(t *testing.T) (*gorm.DB, string) {
+func openTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db, release, ok := newstest.Open()
 	if !ok {
@@ -43,8 +43,23 @@ func openTestDB(t *testing.T) (*gorm.DB, string) {
 	if err := newstest.Truncate(db); err != nil {
 		t.Fatal(err)
 	}
-	dsn, _ := dbtest.DSN()
-	return db, dsn
+	if err := (&writer{db: db}).seedSource(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	return db
+}
+
+func TestSeedSourceRow(t *testing.T) {
+	db := openTestDB(t)
+	var src model.NewsSource
+	if err := db.Where("key = ?", model.SourceKeyHihyou).Take(&src).Error; err != nil {
+		t.Fatal(err)
+	}
+	// 「注明出处就行」 is the whole permission: a row published without the
+	// attribution and the column link breaks the only condition she set.
+	if src.Attribution == "" || src.ColumnURL == "" || src.PublisherUID != 115235 {
+		t.Errorf("source row = %+v", src)
+	}
 }
 
 // A row that already exists with the right text is the case 04c actually meets:
@@ -52,7 +67,7 @@ func openTestDB(t *testing.T) (*gorm.DB, string) {
 // create or on a text change, that run leaves 4,425 rows without a banner
 // forever and reports success while uploading nothing.
 func TestPicturesArriveForRowsWhoseTextDidNotChange(t *testing.T) {
-	db, _ := openTestDB(t)
+	db := openTestDB(t)
 	// Three pictures under one heading: a banner plus a gallery, which is the
 	// shape that makes the two storage paths distinguishable.
 	a := article("【Gal周报202期】x",
@@ -132,7 +147,7 @@ func TestPicturesArriveForRowsWhoseTextDidNotChange(t *testing.T) {
 // that does not happen, and the writer holds no image client, so a fetch would
 // fail the test rather than quietly succeed.
 func TestWarmResolvesStoredPicturesWithoutFetching(t *testing.T) {
-	db, _ := openTestDB(t)
+	db := openTestDB(t)
 	a := article("【Gal周报203期】x",
 		text(17, false, "新作资讯"),
 		text(17, true, "1.《A》情报公开"), text(17, false, body),
