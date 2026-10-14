@@ -586,13 +586,13 @@ mappings:
       role_id: 181
       note: 游戏设计师
     - source_role: 4:1004
-      role_id: 301
+      role_id: 247
       note: 剧本
     - source_role: 4:1005
       role_id: 316
       note: 美工
     - source_role: 4:1006
-      role_id: 325
+      role_id: 209
       note: 音乐
     - source_role: 4:1007
       role_id: 295
@@ -613,7 +613,7 @@ mappings:
       role_id: 190
       note: 插入歌演出
     - source_role: 4:1013
-      role_id: 308
+      role_id: 184
       note: 原画
     - source_role: 4:1014
       role_id: 114
@@ -622,13 +622,13 @@ mappings:
       role_id: 307
       note: 原作
     - source_role: 4:1016
-      role_id: 174
+      role_id: 173
       note: 导演
     - source_role: 4:1017
       role_id: 304
       note: 动画监督
     - source_role: 4:1018
-      role_id: 300
+      role_id: 179
       note: 制作总指挥
     - source_role: 4:1019
       role_id: 243

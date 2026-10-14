@@ -1209,12 +1209,14 @@ roles:
       name_en: ""
       name_cn: 制作总指挥
       name_ja: ""
+      deprecated: true
     - id: 301
       key: 剧本
       category: storyboard
       name_en: ""
       name_cn: 剧本
       name_ja: 腳本
+      deprecated: true
     - id: 302
       key: 动作导演
       category: director
@@ -1257,6 +1259,7 @@ roles:
       name_en: ""
       name_cn: 原画
       name_ja: ""
+      deprecated: true
     - id: 309
       key: 总作画监督助理
       category: assistant
@@ -1359,3 +1362,4 @@ roles:
       name_en: ""
       name_cn: 音乐
       name_ja: 音楽
+      deprecated: true
