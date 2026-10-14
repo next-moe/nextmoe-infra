@@ -30,10 +30,7 @@ func main() {
 
 	slog.Info("running artifact migrations...")
 
-	if err := db.AutoMigrate(
-		&artifactModel.Artifact{},
-		&artifactModel.Manifest{},
-	); err != nil {
+	if err := db.AutoMigrate(artifactModel.All()...); err != nil {
 		slog.Error("migration failed", "error", err)
 		os.Exit(1)
 	}

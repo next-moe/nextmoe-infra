@@ -29,6 +29,7 @@ type Options struct {
 	Name              string
 	NeedCache         bool
 	StreamRequestBody bool
+	BodyLimit         int
 }
 
 func New(cfg *config.Config, opts Options) (*App, error) {
@@ -52,7 +53,11 @@ func New(cfg *config.Config, opts Options) (*App, error) {
 	if name == "" {
 		name = "kun-api"
 	}
-	a.Fiber = fiber.New(fiberConfig(name, opts.StreamRequestBody))
+	fcfg := fiberConfig(name, opts.StreamRequestBody)
+	if opts.BodyLimit > 0 {
+		fcfg.BodyLimit = opts.BodyLimit
+	}
+	a.Fiber = fiber.New(fcfg)
 	// First on purpose: a recover registered later still lets panics drop the connection with no 500.
 	a.Fiber.Use(middleware.Recover())
 

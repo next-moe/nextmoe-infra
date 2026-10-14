@@ -40,8 +40,9 @@ type AdminArtifactStats struct {
 }
 
 type AdminArtifactDelete struct {
-	UUID        string `json:"uuid"`
-	SoftDeleted bool   `json:"soft_deleted"`
+	UUID              string `json:"uuid"`
+	SoftDeleted       bool   `json:"soft_deleted"`
+	CompositesDeleted int    `json:"composites_deleted" doc:"Composites that served this artifact's bytes, deleted with it"`
 }
 
 type AdminArtifactReclaim struct {

@@ -1,0 +1,22 @@
+{
+  "name": "dl-composite",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.17.0",
+  "scripts": {
+    "start": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "types": "wrangler types",
+    "typecheck": "wrangler types --include-env=false && tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "aws4fetch": "1.0.20"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "5.0.2",
+    "wrangler": "4.144.0"
+  }
+}

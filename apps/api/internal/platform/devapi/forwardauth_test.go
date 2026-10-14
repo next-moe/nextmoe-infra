@@ -207,7 +207,7 @@ func TestForwardAuthNoScopeRequired(t *testing.T) {
 func TestForwardAuthSuccess(t *testing.T) {
 	store, fwd, usage := newFwdHarness()
 	raw := mustV2Key(t)
-	cred := &Credential{KeyID: 11, ClientID: "c-ok", Tier: TierFree, Scopes: []string{ScopeCatalogRead}}
+	cred := &Credential{KeyID: 11, ClientID: "c-ok", Tier: TierFree, Scopes: []string{ScopeCatalogRead, ScopeMoyuFiles}}
 	seedCachedCred(store, raw, cred)
 
 	app := fiber.New()
@@ -236,6 +236,9 @@ func TestForwardAuthSuccess(t *testing.T) {
 	}
 	if got := resp.Header.Get("X-NextMoe-Tier"); got != cred.Tier {
 		t.Errorf("X-NextMoe-Tier = %q, want %q", got, cred.Tier)
+	}
+	if got := resp.Header.Get("X-NextMoe-Scopes"); got != "catalog:read moyu:files" {
+		t.Errorf("X-NextMoe-Scopes = %q, want %q", got, "catalog:read moyu:files")
 	}
 
 	got := recorded(usage)

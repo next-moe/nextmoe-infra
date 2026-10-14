@@ -41,6 +41,7 @@ func main() {
 	application, err := app.New(cfg, app.Options{
 		Name:      "kun-artifact",
 		NeedCache: true,
+		BodyLimit: artHandler.CompositeBodyLimit,
 	})
 	if err != nil {
 		slog.Error("app init", "error", err)
@@ -56,7 +57,7 @@ func main() {
 		slog.Error("artifacts db connect", "error", err)
 		os.Exit(1)
 	}
-	if err := artifactsDB.AutoMigrate(&artModel.Artifact{}, &artModel.Manifest{}); err != nil {
+	if err := artifactsDB.AutoMigrate(artModel.All()...); err != nil {
 		slog.Error("artifacts automigrate", "error", err)
 		os.Exit(1)
 	}
@@ -69,11 +70,17 @@ func main() {
 	if err := s3Client.EnsureBucket(context.Background()); err != nil {
 		slog.Warn("ensure bucket (skip if pre-provisioned)", "error", err)
 	}
+	cleanupClient, err := storage.NewClient(cfg.ArtifactCleanupS3())
+	if err != nil {
+		slog.Error("s3 cleanup init", "error", err)
+		os.Exit(1)
+	}
 
 	repo := repository.NewArtifactRepository(artifactsDB.DB())
 	clientRepo := siteRepo.NewOAuthClientRepository(application.DB.DB())
 	q := quota.New(application.Cache)
 	svc := service.New(repo, s3Client, q)
+	composites := service.NewCompositeService(repository.NewCompositeRepository(artifactsDB.DB()), s3Client, cleanupClient)
 
 	application.Fiber.Use(middleware.RequestID())
 	application.Fiber.Use(middleware.Logger())
@@ -84,7 +91,7 @@ func main() {
 
 	application.Fiber.Use("/api/v1/artifacts", artMW.ClientAuth(clientRepo, cfg))
 
-	humaAPI := artHandler.Setup(application.Fiber, svc)
+	humaAPI := artHandler.Setup(application.Fiber, svc, composites)
 
 	application.Fiber.Get("/openapi.json", func(c fiber.Ctx) error {
 		b, err := json.Marshal(humaAPI.OpenAPI())

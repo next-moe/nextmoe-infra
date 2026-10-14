@@ -10,6 +10,7 @@ import (
 	"api/internal/platform/artifact/dto"
 	"api/internal/platform/artifact/model"
 	"api/internal/platform/artifact/repository"
+	"api/internal/platform/artifact/service"
 	"api/internal/platform/artifact/storage"
 	"api/internal/platform/settings/keys"
 
@@ -17,13 +18,23 @@ import (
 )
 
 type AdminHandler struct {
-	db        *gorm.DB
-	statsRepo *repository.StatsRepository
-	store     *storage.Client
+	db         *gorm.DB
+	statsRepo  *repository.StatsRepository
+	store      *storage.Client
+	composites *service.CompositeService
 }
 
 func NewAdmin(db *gorm.DB, statsRepo *repository.StatsRepository, store *storage.Client) *AdminHandler {
-	return &AdminHandler{db: db, statsRepo: statsRepo, store: store}
+	var cleanup service.ObjectStore
+	if store != nil {
+		cleanup = store
+	}
+	return &AdminHandler{
+		db:         db,
+		statsRepo:  statsRepo,
+		store:      store,
+		composites: service.NewCompositeService(repository.NewCompositeRepository(db), nil, cleanup),
+	}
 }
 
 var (
@@ -150,20 +161,36 @@ func (h *AdminHandler) Stats(ctx context.Context) (dto.AdminArtifactStats, error
 	return out, nil
 }
 
-func (h *AdminHandler) Delete(ctx context.Context, uuid string) error {
+// Delete is the console's takedown, so it also deletes every composite that
+// serves the artifact's bytes: a composite pins its sources against artifact-gc,
+// and left alone it would keep a taken-down artifact downloadable for good —
+// including one the site already soft-deleted, which is why the lookup is
+// unscoped.
+func (h *AdminHandler) Delete(ctx context.Context, uuid string) (int, error) {
 	if uuid == "" {
-		return errAdminBadRequest
+		return 0, errAdminBadRequest
 	}
-	res := h.db.WithContext(ctx).
-		Where("uuid = ?", uuid).
-		Delete(&model.Artifact{})
-	if res.Error != nil {
-		return fmt.Errorf("soft-delete artifact: %w", res.Error)
+	var a model.Artifact
+	if err := h.db.WithContext(ctx).Unscoped().Where("uuid = ?", uuid).First(&a).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, errAdminNotFound
+		}
+		return 0, fmt.Errorf("load artifact: %w", err)
 	}
-	if res.RowsAffected == 0 {
-		return errAdminNotFound
+	removed, err := h.composites.DeleteReferencing(ctx, a.ID)
+	if err != nil {
+		return removed, fmt.Errorf("delete composites over artifact: %w", err)
 	}
-	return nil
+	if a.DeletedAt.Valid {
+		if removed == 0 {
+			return 0, errAdminNotFound
+		}
+		return removed, nil
+	}
+	if err := h.db.WithContext(ctx).Delete(&a).Error; err != nil {
+		return removed, fmt.Errorf("soft-delete artifact: %w", err)
+	}
+	return removed, nil
 }
 
 func (h *AdminHandler) Reclaim(ctx context.Context, uuid string) error {
