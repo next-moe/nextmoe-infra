@@ -2,8 +2,6 @@ package repr
 
 import "api/internal/platform/catalog/model"
 
-const C5 = "Must not be used as a discriminant."
-
 func ptr(s string) *string { return &s }
 
 func Medium(v int16) (string, bool) {

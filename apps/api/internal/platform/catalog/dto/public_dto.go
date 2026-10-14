@@ -1,7 +1,5 @@
 package dto
 
-import "time"
-
 type PublicClaimedBy struct {
 	Site         string `json:"site"`
 	WorkID       int64  `json:"work_id"`
@@ -120,10 +118,6 @@ type PublicLookupPair struct {
 	Type       string `json:"type,omitempty"`
 }
 
-type PublicLookupBatchRequest struct {
-	Items []PublicLookupPair `json:"items"`
-}
-
 type PublicLookupBatchItem struct {
 	Source     string           `json:"source"`
 	ExternalID string           `json:"external_id"`
@@ -133,38 +127,6 @@ type PublicLookupBatchItem struct {
 	Name       *PublicName      `json:"name,omitempty"`
 	Character  *PublicCharacter `json:"character,omitempty"`
 	Label      *PublicLabel     `json:"label,omitempty"`
-}
-
-type PublicLookupBatchData struct {
-	Items []PublicLookupBatchItem `json:"items"`
-}
-
-type PublicResolveRequest struct {
-	EntityType string  `json:"entity_type"`
-	IDs        []int64 `json:"ids"`
-}
-
-type PublicResolveData struct {
-	Mappings   map[string]int64 `json:"mappings"`
-	Redirected []int64          `json:"redirected"`
-}
-
-type PublicRedirectItem struct {
-	EntityType string    `json:"entity_type"`
-	OldID      int64     `json:"old_id"`
-	CurrentID  int64     `json:"current_id"`
-	MergedAt   time.Time `json:"merged_at"`
-}
-
-type PublicRedirectsData struct {
-	Items      []PublicRedirectItem `json:"items"`
-	NextCursor *string              `json:"next_cursor"`
-}
-
-type PublicMovedData struct {
-	EntityType string `json:"entity_type"`
-	ID         int64  `json:"id"`
-	CurrentID  int64  `json:"current_id"`
 }
 
 type PublicLocalizedName struct {
@@ -312,23 +274,6 @@ type PublicLabel struct {
 	Relations        []PublicLabelRelation          `json:"relations"`
 	Works            []PublicLabelWork              `json:"works,omitempty"`
 	NextOffset       *int                           `json:"next_offset,omitempty"`
-}
-
-type PublicEntityHit struct {
-	ID            int64                          `json:"id"`
-	EntityType    string                         `json:"entity_type"`
-	DisplayName   string                         `json:"display_name"`
-	Latin         string                         `json:"latin,omitempty"`
-	Localized     map[string]PublicLocalizedName `json:"localized,omitempty" doc:"names/characters/labels/works hits: preferred name per locale, same election as the entity's detail face — render localized[yourLocale] ?? display_name. Absent when the entity has no localized name (tags hits never carry it)"`
-	Sources       []string                       `json:"sources"`
-	ContentRating string                         `json:"content_rating,omitempty"`
-	Tier          string                         `json:"tier,omitempty"`
-	Kind          string                         `json:"kind,omitempty"`
-}
-
-type PublicEntitySearchData struct {
-	Items []PublicEntityHit `json:"items"`
-	Total int64             `json:"total"`
 }
 
 type PublicPopularity struct {

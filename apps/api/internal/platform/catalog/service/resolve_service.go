@@ -17,7 +17,6 @@ var (
 	ErrProposalState         = errors.New("catalog: proposal is not in the required state")
 	ErrCoolingOff            = errors.New("catalog: cooling-off window has not elapsed")
 	ErrDuplicateOpenProposal = errors.New("catalog: an open proposal for this pair already exists")
-	ErrClaimConflict         = errors.New("catalog: work already claimed by another product work")
 	ErrNotFound              = errors.New("catalog: not found")
 )
 

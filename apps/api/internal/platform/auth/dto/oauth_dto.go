@@ -52,13 +52,3 @@ type UserInfoResponse struct {
 	AdultConfirmed *bool  `json:"adult_confirmed,omitempty"`
 	NSFWDisplay    string `json:"nsfw_display,omitempty"`
 }
-
-type AuthorizationCode struct {
-	Code         string
-	ClientID     string
-	UserUUID     string
-	RedirectURI  string
-	Scope        string
-	CodeVerifier string
-	ExpiresAt    int64
-}

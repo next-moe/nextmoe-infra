@@ -19,7 +19,6 @@ const (
 	MaxTextUnits    = 4096
 	MaxEntities     = 100
 	MaxURLLength    = 2048
-	MaxLanguageLen  = 32
 	PreviewUnits    = 120
 	maxContextField = 200
 )
