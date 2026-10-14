@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"mime"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -42,14 +43,17 @@ type ObjectStore interface {
 	Delete(ctx context.Context, key string) error
 }
 
+var foreignSourceSites = map[string][]string{"letmoe": {"moyu"}}
+
 type CompositeService struct {
-	repo    *repository.CompositeRepository
-	store   ObjectStore
-	cleanup ObjectStore
+	repo           *repository.CompositeRepository
+	store          ObjectStore
+	cleanup        ObjectStore
+	foreignSources map[string][]string
 }
 
 func NewCompositeService(repo *repository.CompositeRepository, store, cleanup ObjectStore) *CompositeService {
-	return &CompositeService{repo: repo, store: store, cleanup: cleanup}
+	return &CompositeService{repo: repo, store: store, cleanup: cleanup, foreignSources: foreignSourceSites}
 }
 
 type CompositeParams struct {
@@ -110,6 +114,9 @@ func (s *CompositeService) Create(ctx context.Context, req dto.CreateCompositeRe
 		return s.store.Put(ctx, manifestKey(c), manifest, compositeManifestType)
 	})
 	if err != nil {
+		if stderrors.Is(err, repository.ErrSourceGone) {
+			return nil, planErr("a source artifact was deleted while the composite was being created")
+		}
 		if isUniqueViolation(err) {
 			if existing, ferr := s.repo.Find(ctx, publicID, p.Site); ferr == nil {
 				return s.respond(ctx, existing, p.CDNBase)
@@ -162,17 +169,46 @@ func (s *CompositeService) Delete(ctx context.Context, publicID, site string) er
 	return s.remove(ctx, c)
 }
 
-func (s *CompositeService) DeleteReferencing(ctx context.Context, artifactID uint) (int, error) {
-	items, err := s.repo.Referencing(ctx, artifactID)
+func (s *CompositeService) DeleteArtifact(ctx context.Context, artifactUUID, site string) (bool, error) {
+	a, err := s.repo.FindArtifact(ctx, artifactUUID, site)
 	if err != nil {
-		return 0, err
+		if stderrors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	deleted, removed, err := s.TakeDown(ctx, a, site)
+	return deleted || removed > 0, err
+}
+
+// TakeDown soft-deletes the artifact before it looks up the composites over
+// it, pairing with the FOR SHARE in CompositeRepository.Create: a create racing
+// this either sees the artifact gone or commits before the lookup. Looking up
+// first lets a create land in between and pin a taken-down artifact for good.
+func (s *CompositeService) TakeDown(ctx context.Context, a *model.Artifact, spareSite string) (bool, int, error) {
+	if s.cleanup == nil {
+		items, err := s.repo.Referencing(ctx, a.ID, spareSite)
+		if err != nil {
+			return false, 0, err
+		}
+		if len(items) > 0 {
+			return false, 0, ErrStorageUnconfigured
+		}
+	}
+	deleted, err := s.repo.SoftDeleteArtifact(ctx, a.ID)
+	if err != nil {
+		return false, 0, err
+	}
+	items, err := s.repo.Referencing(ctx, a.ID, spareSite)
+	if err != nil {
+		return deleted, 0, err
 	}
 	for i := range items {
 		if err := s.remove(ctx, &items[i]); err != nil {
-			return i, err
+			return deleted, i, err
 		}
 	}
-	return len(items), nil
+	return deleted, len(items), nil
 }
 
 func (s *CompositeService) remove(ctx context.Context, c *model.Composite) error {
@@ -240,7 +276,7 @@ func (s *CompositeService) resolveSources(ctx context.Context, in []dto.Composit
 		} else {
 			a := byUUID[src.ArtifactUUID]
 			switch {
-			case a == nil || a.SiteKey != site:
+			case a == nil || !s.sourceAllowed(site, a.SiteKey):
 				return nil, planErr("sources[%d]: artifact %s not found on this site", i, src.ArtifactUUID)
 			case !a.IsReady():
 				return nil, planErr("sources[%d]: artifact %s has not finished uploading", i, src.ArtifactUUID)
@@ -254,6 +290,10 @@ func (s *CompositeService) resolveSources(ctx context.Context, in []dto.Composit
 		}
 	}
 	return out, nil
+}
+
+func (s *CompositeService) sourceAllowed(site, source string) bool {
+	return source == site || slices.Contains(s.foreignSources[site], source)
 }
 
 func checkSegments(req dto.CreateCompositeRequest, sources []resolvedSource) error {

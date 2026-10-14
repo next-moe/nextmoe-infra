@@ -177,18 +177,12 @@ func (h *AdminHandler) Delete(ctx context.Context, uuid string) (int, error) {
 		}
 		return 0, fmt.Errorf("load artifact: %w", err)
 	}
-	removed, err := h.composites.DeleteReferencing(ctx, a.ID)
+	deleted, removed, err := h.composites.TakeDown(ctx, &a, "")
 	if err != nil {
-		return removed, fmt.Errorf("delete composites over artifact: %w", err)
+		return removed, fmt.Errorf("take down artifact: %w", err)
 	}
-	if a.DeletedAt.Valid {
-		if removed == 0 {
-			return 0, errAdminNotFound
-		}
-		return removed, nil
-	}
-	if err := h.db.WithContext(ctx).Delete(&a).Error; err != nil {
-		return removed, fmt.Errorf("soft-delete artifact: %w", err)
+	if !deleted && removed == 0 {
+		return 0, errAdminNotFound
 	}
 	return removed, nil
 }

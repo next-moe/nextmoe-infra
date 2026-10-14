@@ -293,10 +293,6 @@ func (s *Service) Download(ctx context.Context, uuidStr, site, cdnBase string) (
 	}, nil
 }
 
-func (s *Service) Delete(ctx context.Context, uuidStr, site string) (bool, error) {
-	return s.repo.SoftDeleteByUUID(ctx, uuidStr, site)
-}
-
 func (s *Service) Get(ctx context.Context, uuidStr, site string) (*dto.ArtifactResponse, error) {
 	a, err := s.repo.FindByUUID(ctx, uuidStr)
 	if err != nil {
