@@ -117,7 +117,7 @@ docker stop ${PROJ}-oauth-1 ${PROJ}-image-1 ${PROJ}-galgame-1 ${PROJ}-web-1 ${PR
 
 ---
 
-## 16.4 步骤 1 · 重置库 + 还原 dump(= 本地 `reset_all.sh`)
+## 16.4 步骤 1 · 重置库 + 还原 dump(= 当时本地的 `reset_all.sh`,已删除)
 
 ```bash
 # infra 自有 3 库:置空(schema 后面由 migrate / AutoMigrate 重建)
@@ -283,7 +283,7 @@ curl -I https://account.nextmoe.com https://www.kungal.com https://www.moyu.moe 
 
 | 本地(`cd apps/api &&`) | 服务器(容器) |
 |---|---|
-| `kun-oauth-admin: ./scripts/reset_all.sh` | 步骤 0 先 `docker stop` oauth/image/galgame + §16.4 的 `docker exec … psql DROP/CREATE` + `pg_restore` |
+| `kun-oauth-admin: ./scripts/reset_all.sh`(已删除) | 步骤 0 先 `docker stop` oauth/image/galgame + §16.4 的 `docker exec … psql DROP/CREATE` + `pg_restore` |
 | `redis-cli FLUSHALL` | `docker exec $REDIS redis-cli FLUSHALL` |
 | `nuxt4: go run ./cmd/check-dup-email` | `$KUNGAL check-dup-email` |
 | `nuxt4: go run ./cmd/migrate` | `$KUNGAL migrate` |
