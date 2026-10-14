@@ -1133,5 +1133,6 @@
   "The key is valid but lacks the scope this operation needs. `code` is\n`SCOPE_REQUIRED`.": "密钥有效，但缺少这个操作需要的 scope。`code` 为 `SCOPE_REQUIRED`。",
   "The name the file was uploaded under.": "文件上传时的名字。",
   "The stored file. Replacing a resource's file uploads a new one, so\na different uuid means different bytes.": "存储的文件。替换资源的文件会上传一个新文件，所以 uuid 不同即字节不同。",
-  "When the resource was last edited, its file or anything else.": "资源最后一次被编辑的时间，无论改的是文件还是其它内容。"
+  "When the resource was last edited, its file or anything else.": "资源最后一次被编辑的时间，无论改的是文件还是其它内容。",
+  "The passwordless STORE-zip copy letmoe's forge attached, or null.\nmoyu deletes it when the resource is deleted or its file replaced,\nso a null after a non-null means it is gone.": "letmoe 的 forge 挂上的无密码 STORE zip 副本，没有时为 null。资源被删除或文件被替换时 moyu 会删除它，所以先前非 null、之后变成 null 就表示它已不在。"
 }
