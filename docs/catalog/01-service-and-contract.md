@@ -520,7 +520,7 @@ wave 176-179 把人类的**写**搬完了;本波搬的是搬完写之后还留�
 - **`client_id`** 是首次写入这条评分的应用;站点拿它和自己的 client id 比较来区分「经本站写入」与「只是镜像来的」(动态、萌萌点只对前者)。`site` 不能这样用:moyu 的 client 也绑在 kungal 站点上。
 - **公开聚合**:见 §2.4 `ratings` 块的 `nextmoe` 源。
 - **生命周期**:注销账号删除其评分(写墓碑);作品合并见上。
-- **迁移 `cmd/import-user-ratings`**:论坛 `galgame_rating` 保留原 id(迁移把 catalog 自己发的 id 从 1,000,001 起,所以导入前经 `/v2` 写的评分占不到论坛的 id),LetMoe `game_rating` 取新 id;评分行里的游玩状态在中央尚无状态时补进 `catalog_user_work_state`(已有的不覆盖;created_at 取评分时间、updated_at 取当下,状态镜像才看得到);台账 `catalog_user_work_rating_import` 让重跑可对账:源端更新更晚的覆盖、源端删掉且之后未改的撤回(另一站的副本仍指向同一条时不撤)、中央已删的不复活;长事务提交后把写过的行重新盖时间,免得镜像游标在事务期间越过去。两个源各自可选。上线时跑一次,每个站切换时再跑一次,**切换之后不能再对该站跑**(那时站内表已是中央的镜像)。
+- **初始导入(已退役)**:`cmd/import-user-ratings` 在上线和每站切换时把论坛 `galgame_rating`(保留原 id)和 LetMoe `game_rating` 导进中央;三站切换完成后于 2026-10-13 删除。它留下的唯一约束是 catalog 自己发的评分 id 从 1,000,001 起(迁移里的序列下限,论坛原 id 都在其下)。台账表 `catalog_user_work_rating_import` 不再由迁移创建,生产上的旧表待删除。
 
 ## 5. 鉴权形态
 
