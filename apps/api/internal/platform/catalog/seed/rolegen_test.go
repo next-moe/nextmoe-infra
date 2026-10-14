@@ -68,6 +68,26 @@ func TestGenerateBangumiRoles(t *testing.T) {
 	assert.Contains(t, byID[m4x1001.RoleID].Key, "developer")
 	assert.Equal(t, "开发", m4x1001.Note)
 	assert.True(t, keys["producer"] && keys["producer-2"] && keys["producer-3"])
+
+	shared := map[string]string{"4:1004": "scenario", "4:1006": "music", "4:1013": "illustration", "4:1016": "director", "4:1018": "executive-producer"}
+	for sourceRole, key := range shared {
+		m, ok := findMapping(mappings, sourceRole)
+		require.True(t, ok)
+		assert.Equal(t, key, byID[m.RoleID].Key, "%s must map onto the role the other sources share", sourceRole)
+	}
+	targeted := map[int64]bool{}
+	for _, m := range mappings {
+		targeted[m.RoleID] = true
+	}
+	var retired []string
+	for _, r := range roles {
+		assert.Equal(t, !targeted[r.ID], r.Deprecated, "role %s: deprecated exactly when no mapping points at it", r.Key)
+		if r.Deprecated {
+			retired = append(retired, r.Key)
+		}
+	}
+	assert.ElementsMatch(t, []string{"制作总指挥", "剧本", "原画", "音乐"}, retired)
+	assert.Len(t, generated.GameRoleToShared, len(shared))
 }
 
 func findMapping(mappings []RoleMapSeed, sourceRole string) (RoleMapSeed, bool) {

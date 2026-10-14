@@ -140,6 +140,7 @@ B 波删掉的四件(**均为 breaking,逐条声明在 `public-openapi-breaking-
 
 - **`identity`(wave 08/R2c-1)**:该 credit 行的**行身份键**,即 `catalog.work.credits.suppressed` 的元素。**客户端只回显、不自拼**——键格式是实现细节,组合规则可能变,而 `.suppressed` 的写面会用同一道 `KeyCheck` 拒掉任何不是本字段自己生成的串(422)。同字段下发于公开面 `GET /v1/catalog/works/{id}?include=credits`、S2S/公开的 `names/{id}` 反查;**凡下发它的面,该字符串恰好回指一行 `catalog_credit`**。
 - **压制**:被 `catalog.work.credits.suppressed` 记为负知识的上游行**不出任何读面**(行本身留在表里由 importer 所有,与标题压制同规),分页总数与其列表同谓词。
+- **各源职位落到同一个 role(2026-10-13 起)**:Bangumi 游戏条目的 剧本 / 原画 / 音乐 / 导演 / 制作总指挥 改映射到 VNDB、EGS、DLsite 共用的 `scenario` / `illustration` / `music` / `director` / `executive-producer`;存量 credit 由 `cmd/repair-bangumi-game-roles` 迁过去,同名义已有同 role 行的直接删除。此前同一人在同一作品会以「脚本」和「剧本」各出一次。原先的 `剧本`、`原画`、`音乐`、`制作总指挥` 四个 role 不再有映射,`GET /v2/catalog/roles` 上 `deprecated=true`。同一作品里同名、不同来源的多条名义合并是另一步(catalog-dedup-batch),不在本条。
 - **人工车道**:`source_id=12`(`curated`)的行由编辑面增删改,上游行只读+可压制;人工新建的 credit 若与上游行撞 `(role_id, credit_name_id, character_id)`,写面返回 **422 并指向 `.suppressed`**(唯一索引不含 source,不加宽——加宽等于同一条 credit 在读面出现两次)。
 
 ### 2.6 `GET /catalog/search/entities?q=&type=&locale=&limit=` — 实体搜索(只读)
