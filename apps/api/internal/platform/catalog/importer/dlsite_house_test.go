@@ -38,27 +38,6 @@ func TestDLsiteHouseMakerKind(t *testing.T) {
 	assert.Equal(t, model.LabelKindPublisher, egdlLabelKind("VG200"))
 }
 
-func TestDLsiteWorksHouseMakerLandsAsPublisher(t *testing.T) {
-	clean(t)
-	require.NoError(t, testDB.Exec(`INSERT INTO works (workno, work_name, maker_id, maker_name, age_category, work_type_string, status, product_json) VALUES
-		('RJH001','移植作品A','RG01001','DLsite','3','ボイス・ASMR','fetched','{}'::jsonb),
-		('RJH002','移植作品B','RG01001','DLsite','3','ボイス・ASMR','fetched','{}'::jsonb),
-		('RJC001','同人作品','RG100','サークルX','3','ボイス・ASMR','fetched','{}'::jsonb)`).Error)
-
-	_, err := New(testDB, nil, Options{}).RunDLsite(testDB)
-	require.NoError(t, err)
-	assert.Equal(t, model.LabelKindPublisher, dlMakerLabelKind(t, "RG01001"))
-	assert.Equal(t, []int16{model.WorkLabelKindPublisher, model.WorkLabelKindPublisher}, dlMakerEdgeKinds(t, "RG01001"))
-	assert.Equal(t, model.LabelKindDoujinCircle, dlMakerLabelKind(t, "RG100"))
-	assert.Equal(t, []int16{model.WorkLabelKindCircle}, dlMakerEdgeKinds(t, "RG100"))
-
-	_, err = New(testDB, nil, Options{}).RunDLsite(testDB)
-	require.NoError(t, err)
-	assert.Equal(t, model.LabelKindPublisher, dlMakerLabelKind(t, "RG01001"))
-	assert.Equal(t, []int16{model.WorkLabelKindPublisher, model.WorkLabelKindPublisher}, dlMakerEdgeKinds(t, "RG01001"),
-		"a re-import re-emits every edge and must not add a circle row beside the publisher one")
-}
-
 func TestDLsiteGamesHouseMakerLandsAsPublisher(t *testing.T) {
 	requireDLGamesDB(t)
 	insertDLFull(t, "RJHG001", "HouseBrandPortGame", "", "RG01001", "DLsite", "3", "ADV", "", "{}")

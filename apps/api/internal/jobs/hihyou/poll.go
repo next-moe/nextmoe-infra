@@ -40,7 +40,7 @@ func DefaultPollOpts() PollOpts {
 // imports the recent weeklies straight from bilibili without a corpus on disk,
 // and ends with the standing release.
 func Poll(ctx context.Context, cfg *config.Config, opts PollOpts) (map[string]any, error) {
-	db, closeDB, err := openNewsDB(cfg, "")
+	db, closeDB, err := openNewsDB(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -181,4 +181,16 @@ func (w *writer) storedIssues(ctx context.Context, weeklies []IndexEntry) (map[i
 		out[byPrefix[p]] = true
 	}
 	return out, nil
+}
+
+func sleep(ctx context.Context, d time.Duration) error {
+	if d <= 0 {
+		return nil
+	}
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(d):
+		return nil
+	}
 }

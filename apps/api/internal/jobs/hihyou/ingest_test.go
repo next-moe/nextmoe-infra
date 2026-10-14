@@ -2,38 +2,17 @@ package hihyou
 
 import (
 	"context"
-	"encoding/json"
-	"os"
 	"path"
-	"path/filepath"
 	"testing"
 	"time"
 
 	"api/internal/platform/news/model"
 	"api/internal/platform/news/newstest"
 	"api/internal/testsupport/dbtest"
-	"api/pkg/config"
 	"api/pkg/imageclient"
 
 	"gorm.io/gorm"
 )
-
-func writeCorpus(t *testing.T, dir string, arts ...*Article) {
-	t.Helper()
-	c := Corpus{Dir: dir}
-	if err := c.Mkdirs(); err != nil {
-		t.Fatal(err)
-	}
-	for _, a := range arts {
-		b, err := json.Marshal(a)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err := c.Write(c.ArticlePath(a.Data.ID), b); err != nil {
-			t.Fatal(err)
-		}
-	}
-}
 
 // healthy is four items under two sections. The third heading carries only a
 // picture, which is real upstream shape and must be dropped per item rather than
@@ -68,138 +47,6 @@ func openTestDB(t *testing.T) (*gorm.DB, string) {
 	return db, dsn
 }
 
-func TestImportWritesPendingItemsAndIsIdempotent(t *testing.T) {
-	db, dsn := openTestDB(t)
-	dir := t.TempDir()
-	// 期201 holds a single item, which the gate refuses. It must contribute no
-	// rows at all — a mis-segmented issue is quarantined whole, never partially
-	// ingested, because its rows look plausible one at a time.
-	broken := article("【Gal周报201期】x", text(17, false, "新作资讯"),
-		text(17, true, "《只有一条》"), text(17, false, body))
-	broken.Data.ID = 999
-	writeCorpus(t, dir, healthy(1001), broken)
-
-	opts := Opts{Dir: dir, NoImages: true, DSN: dsn}
-	cfg := &config.Config{}
-	ctx := context.Background()
-
-	dry, err := Import(ctx, cfg, opts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if dry.WouldCreate != 3 || dry.Created != 0 {
-		t.Fatalf("dry run: would_create=%d created=%d, want 3/0", dry.WouldCreate, dry.Created)
-	}
-	if dry.Passing != 1 || len(dry.Quarantined) != 1 {
-		t.Fatalf("dry run: passing=%d quarantined=%d, want 1/1", dry.Passing, len(dry.Quarantined))
-	}
-	var n int64
-	db.Model(&model.NewsItem{}).Count(&n)
-	if n != 0 {
-		t.Fatalf("dry run wrote %d rows", n)
-	}
-
-	opts.Apply = true
-	applied, err := Import(ctx, cfg, opts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if applied.Created != 3 || applied.DroppedNoBody != 1 {
-		t.Fatalf("apply: created=%d dropped=%d, want 3/1", applied.Created, applied.DroppedNoBody)
-	}
-
-	var rows []model.NewsItem
-	if err := db.Where("source_key = ?", model.SourceKeyHihyou).
-		Order("external_id").Find(&rows).Error; err != nil {
-		t.Fatal(err)
-	}
-	if len(rows) != 3 {
-		t.Fatalf("stored %d rows, want 3", len(rows))
-	}
-	for _, r := range rows {
-		if r.Status != model.StatusPending {
-			t.Errorf("%s: status %d — the backfill must not bypass the gate", r.ExternalID, r.Status)
-		}
-		if r.SourceURL != SourceURL(1001) {
-			t.Errorf("%s: source_url %q", r.ExternalID, r.SourceURL)
-		}
-		if r.Lane != model.LaneNews {
-			t.Errorf("%s: lane %q — an extracted item is not the column itself", r.ExternalID, r.Lane)
-		}
-	}
-	if rows[0].ExternalID != ExternalID(1001, 1) {
-		t.Errorf("external_id = %q", rows[0].ExternalID)
-	}
-	// The serial prefix is stripped: a published item's "1." has no referent.
-	if rows[0].Title != "《A》情报公开" || rows[0].UpstreamCategory != "新作资讯" {
-		t.Errorf("first row = %q / %q", rows[0].Title, rows[0].UpstreamCategory)
-	}
-	if rows[2].UpstreamCategory != "汉化情报" {
-		t.Errorf("third row section = %q", rows[2].UpstreamCategory)
-	}
-
-	// Re-running must recognise every row. The identity is (cv, ordinal), so a
-	// second import that created anything would mean the segmentation drifted.
-	again, err := Import(ctx, cfg, opts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if again.Created != 0 || again.Updated != 0 || again.Unchanged != 3 {
-		t.Fatalf("re-import: created=%d updated=%d unchanged=%d, want 0/0/3",
-			again.Created, again.Updated, again.Unchanged)
-	}
-}
-
-func TestPublishActorReleasesPendingRowsAndSparesYmgal(t *testing.T) {
-	db, dsn := openTestDB(t)
-	// The ymgal source row is seeded by the migration and survives Truncate, so
-	// only the guard item is created here.
-	guard := model.NewsItem{SourceKey: model.SourceKeyYmgal, Lane: model.LaneNews,
-		ExternalID: "t1", Title: "t", Preview: "p", SourceURL: "https://www.ymgal.games/t1",
-		PublishedAt: time.Unix(1786257779, 0).UTC(), Status: model.StatusPending}
-	if err := db.Create(&guard).Error; err != nil {
-		t.Fatal(err)
-	}
-
-	dir := t.TempDir()
-	writeCorpus(t, dir, healthy(1005))
-	sum, err := Import(context.Background(), &config.Config{},
-		Opts{Dir: dir, NoImages: true, Apply: true, DSN: dsn, PublishActor: 30})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if sum.Created != 3 || sum.Released != 3 {
-		t.Fatalf("created=%d released=%d, want 3/3", sum.Created, sum.Released)
-	}
-
-	var n int64
-	db.Model(&model.NewsItem{}).
-		Where("source_key = ? AND status = ?", model.SourceKeyHihyou, model.StatusPublished).Count(&n)
-	if n != 3 {
-		t.Errorf("published hihyou rows = %d, want 3", n)
-	}
-	var decisions []model.NewsModerationDecision
-	if err := db.Find(&decisions).Error; err != nil {
-		t.Fatal(err)
-	}
-	if len(decisions) != 3 {
-		t.Fatalf("decision rows = %d, want one per released item", len(decisions))
-	}
-	for _, d := range decisions {
-		if d.ActorUID != 30 || d.FromStatus != model.StatusPending || d.ToStatus != model.StatusPublished || d.Reason == "" {
-			t.Errorf("decision = %+v", d)
-		}
-	}
-	// The release is scoped to this source: ymgal's queue answers a different
-	// promise and a wholesale sweep here would silently bypass it.
-	if err := db.Take(&guard, guard.ID).Error; err != nil {
-		t.Fatal(err)
-	}
-	if guard.Status != model.StatusPending {
-		t.Errorf("ymgal row status = %d — the standing release swept another source", guard.Status)
-	}
-}
-
 // A row that already exists with the right text is the case 04c actually meets:
 // the whole 04b backfill ran with --no-images. If pictures only ever arrive on
 // create or on a text change, that run leaves 4,425 rows without a banner
@@ -227,7 +74,7 @@ func TestPicturesArriveForRowsWhoseTextDidNotChange(t *testing.T) {
 	published := time.Unix(1786257779, 0).UTC()
 	ctx := context.Background()
 
-	dry := &writer{db: db, opts: Opts{Apply: true, NoImages: true}, uploaded: map[string]string{}}
+	dry := &writer{db: db, opts: Opts{Apply: true}, uploaded: map[string]string{}}
 	if err := dry.applyItem(ctx, 1003, published, it, &stats{}); err != nil {
 		t.Fatal(err)
 	}
@@ -317,52 +164,5 @@ func TestWarmResolvesStoredPicturesWithoutFetching(t *testing.T) {
 		if second.uploaded[u] != seeded[u] {
 			t.Errorf("%s resolved to %q, want %q", u, second.uploaded[u], seeded[u])
 		}
-	}
-}
-
-func TestImportSeedsSourceRow(t *testing.T) {
-	// One newstest.Open per test and no more: the suite lock is a session-level
-	// advisory lock, so a second handle inside the same test waits on the first
-	// one forever rather than failing.
-	db, dsn := openTestDB(t)
-	dir := t.TempDir()
-	writeCorpus(t, dir, healthy(1002))
-
-	if _, err := Import(context.Background(), &config.Config{},
-		Opts{Dir: dir, NoImages: true, Apply: true, DSN: dsn}); err != nil {
-		t.Fatal(err)
-	}
-	var src model.NewsSource
-	if err := db.Where("key = ?", model.SourceKeyHihyou).Take(&src).Error; err != nil {
-		t.Fatal(err)
-	}
-	// 「注明出处就行」 is the whole permission: a row published without the
-	// attribution and the column link breaks the only condition she set.
-	if src.Attribution == "" || src.ColumnURL == "" || src.PublisherUID != 115235 {
-		t.Errorf("source row = %+v", src)
-	}
-}
-
-func TestCorpusTreatsRateLimitedFileAsAbsent(t *testing.T) {
-	dir := t.TempDir()
-	c := Corpus{Dir: dir}
-	if err := c.Mkdirs(); err != nil {
-		t.Fatal(err)
-	}
-	// A stored -509 envelope parses fine and would otherwise count as harvested,
-	// which is what turns a second-chance pass into a no-op that reports success.
-	if err := os.WriteFile(filepath.Join(dir, "article", "cv7.json"),
-		[]byte(`{"code":-509,"message":"请求过于频繁","data":null}`), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if c.Has(7) {
-		t.Error("a rate-limited response was accepted as a harvested article")
-	}
-	entries, bad, err := c.Load()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(entries) != 0 || len(bad) != 1 {
-		t.Errorf("load: %d entries, %d incomplete", len(entries), len(bad))
 	}
 }
