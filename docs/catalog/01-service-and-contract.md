@@ -529,9 +529,10 @@ wave 176-179 把人类的**写**搬完了;本波搬的是搬完写之后还留�
 - **`GET /v2/work-records?user_id=`**(应用密钥或带 `catalog:read` 的用户令牌,与 `/v2/ratings` 同闸):该账号**有游玩状态**的作品,每项是 `work_record`——与 `/v2/me/work-records/{work_id}` 答给本人的同一形状:`work_state`(此面恒非 null)、`playtime`(各应用上报的最大分钟数,无则 null)、`rating`(无则 null)。只有时长或只有评分的作品不列出:库的定义是「标了状态的作品」,标签页按状态分。
 - **排序与分页**:按 `work_state.updated_at` 倒序、同时刻按 `work_id` 倒序,`cur_` 游标;`sort` 只有 `updated_desc`(缺省)。走 `(actor_uid, updated_at)` 索引。
 - **筛选**:`state=`(逗号分隔,五值封闭词表)、`content_limit=sfw|nsfw`(与 `/v2/catalog/works` 同一条显示轴,同一个 `displayLimitWhere`)。不是 live 的作品(stub / merged / quarantine)一律不列出,所以 `sfw` 与 `nsfw` 两次的计数之和等于不筛的计数。
-- **计数**:`facets=state` 在同样的筛选之后给五个状态各自的数,五个桶按词表顺序恒出现(0 也出),一次请求填满一排标签页;`include_total=true` 给总数。两者共用一条 `GROUP BY state` 查询。隐藏 nsfw 的读者带 `content_limit=sfw`,列表、总数与分面一起变,站点不必自己补算。
-- **隐私开关**:表 `catalog_user_privacy (actor_uid PK, play_records_private bool, updated_at)`,**没有行即公开**——游玩记录默认公开,存量账号也一样(2026-10-13 产品裁定,知情于论坛曾在时长页写过「逐条游玩记录是私密的」;那句话需要论坛同步改掉)。设为 private 后,`/v2/work-records?user_id=` 对除本人以外一律 `403 PLAY_RECORDS_PRIVATE`(本人用自己的用户令牌仍可读,方便在自己主页预览);不用 404,因为主页要能区分「没公开」和「什么都没标」。时长与状态共用这一个开关。
+- **计数**:`facets=state` 在同样的筛选之后给五个状态各自的数,**`state=` 也算在内**(与全平台的分面同一口径,检索通道同样如此),五个桶按词表顺序恒出现(0 也出);标签页的数字取自不带 `state=` 的那次请求(「全部」页,或单独一次 `facets=state&limit=1`);`include_total=true` 给总数。两者共用一条 `GROUP BY state` 查询。隐藏 nsfw 的读者带 `content_limit=sfw`,列表、总数与分面一起变,站点不必自己补算。
+- **隐私开关**:表 `catalog_user_privacy (actor_uid PK, play_records_private bool, updated_at)`,**没有行即公开**——游玩记录默认公开,存量账号也一样(2026-10-13 产品裁定,知情于论坛曾在时长页写过「逐条游玩记录是私密的」;那句话需要论坛同步改掉)。设为 private 后,`/v2/work-records?user_id=` 对除本人以外一律 `403 PLAY_RECORDS_PRIVATE`(本人用自己的用户令牌仍可读,但那要 `catalog:read`,而三站与 App 的用户令牌都没有这个 scope,所以本人走下面的 `/v2/me/work-records`);不用 404,因为主页要能区分「没公开」和「什么都没标」。时长与状态共用这一个开关。
 - **评分不受开关影响**:评分本来就是公开行为,`/v2/ratings` 照常公开,评分上的 `work_state` 也照常带。
+- **`GET /v2/me/work-records`**(2.51.0):本人自己的列表,参数、排序、分面与公开面相同,只是没有 `user_id`;**不看隐私开关**(是本人看自己的主页);只要用户令牌、不要 scope,与 `/v2/me/work-records/{work_id}` 同闸。补这个面的原因:公开面的用户令牌通道要 `catalog:read`,而下游各站与 App 的令牌都没有,给它们加 scope 要改 client、补存量会话、App 还要重新登录。
 - **`GET /v2/me/privacy`**:只要用户令牌,不要 scope;从未改过的账号答 `{"play_records":"public","updated_at":null}`。**`PATCH /v2/me/privacy`**:只改请求体给出的开关(`play_records`: `public|private`),空体不改任何东西;值没变不推 `updated_at`。读写都是任何应用的用户令牌即可(第三方也行,不要 scope),与 2.49.0 起第三方可写评分同一口径。
 - **生命周期**:注销账号连同这一行删除(`PurgeAccount`)。无用户合并。
 - **迁移**:`go run ./cmd/migrate catalog`(生产即部署自带的 `migrate-catalog` 任务)新建空表,纯增量,不回填。
