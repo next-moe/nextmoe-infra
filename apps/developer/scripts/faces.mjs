@@ -29,13 +29,16 @@ export const PORTAL_URL = 'https://developer.nextmoe.dev'
 
 // PR #168 (2026-09-08): the downstream faces take any valid key with no scope.
 // There is no `moyu:read` / `sticker:read` — the strings do not exist and a mint
-// asking for one is refused, so this face must never print a scope.
+// asking for one is refused, so a read route must never print a scope. The one
+// scoped route is moyu's /file, on the operator-granted moyu:files.
 export const DOWNSTREAM_KEY_AUTH = {
   kind: 'api_key',
   curl: 'Authorization: Bearer nmk_live_<YOUR_KEY>',
   display: 'Authorization: Bearer nmk_live_…',
   note: '任意有效 v2 应用密钥即可,无需任何 scope'
 }
+
+const MOYU_FILE_PATH = '/v2/moyu/resources/{id}/file'
 
 // A face is a path prefix plus the credential that prefix accepts. The spec
 // itself carries neither: OpenAPI security schemes are not emitted by the
@@ -117,8 +120,11 @@ export const FACES = [
     file: MOYU_SPEC,
     prefix: '/v2/moyu',
     specUrl: `${PORTAL_URL}/specs/moyu-openapi.yaml`,
-    scope: () => '',
-    auth: DOWNSTREAM_KEY_AUTH,
+    scope: (method, path) => (path === MOYU_FILE_PATH ? 'moyu:files' : ''),
+    auth: {
+      ...DOWNSTREAM_KEY_AUTH,
+      note: '任意有效 v2 应用密钥即可,无需任何 scope;唯一例外是 /v2/moyu/resources/{id}/file,要运营发放的 moyu:files'
+    },
     autoGroups: [
       { key: 'patches', label: '补丁页', match: /^\/v2\/moyu\/patches/ },
       { key: 'resources', label: '资源', match: /^\/v2\/moyu\/resources/ }
@@ -127,6 +133,7 @@ export const FACES = [
       '下游站点面：由 鲲 Galgame 补丁（www.moyu.moe）自己的服务提供，经平台网关联邦进来。契约由该站的仓库拥有，本站只镜像它的 OpenAPI 原文。',
       '它只回答一件事：这部游戏在 moyu 上有哪些补丁资源。任意有效 nmk_ 应用密钥都能调，不需要任何 scope——网关只做身份、计量与限流，不做授权。',
       '不带下载直链、提取码与解压密码，这是契约里写死的取舍而不是遗漏：在 moyu 上取链接是一次单独的、按资源限速的请求，就是为了不能被批量抓走。每行都给 web_url，把读者送过去。',
+      '唯一例外是 /v2/moyu/resources/{id}/file：对持有 moyu:files 的密钥给出托管资源的下载链接与解压密码。这个 scope 由运营发放、不能自助勾选，其余密钥一律 403 SCOPE_REQUIRED；只有 storage 为 s3 的资源有文件，答案一律 no-store，别缓存 download_url。',
       '也不带游戏名、封面、标签与角色：那些归 catalog。每行都带 catalog_work_id，拿它去 /v2/catalog/works/{id} 解析——同一把密钥就能读。patch.id、vndb_id 与 catalog_work_id 是三个互不相等的 id 空间。',
       '/v2/moyu/patches 上的 refs= 是批量反查：一次最多 100 个 vndb:<id> 或 catalog:<id> 锚，没命中的原样回在 missing[] 里。这是「我手上这 100 部作品哪些有补丁」的一次性问法，此时 cursor 与 sort 会被拒。',
       '错误全部是 RFC 9457 application/problem+json：网关写的 401（MISSING_CREDENTIAL / INVALID_CREDENTIAL）与 429（RATE_LIMITED / QUOTA_EXCEEDED）和补丁站写的其余错误同一个形状、同一份封闭注册表。按 HTTP status 分支，再看 code。',
@@ -185,6 +192,6 @@ export const USER_TOKEN_AUTH = {
 
 export const EXPECTED_OPERATION_COUNTS = {
   v2: 142,
-  moyu: 4,
+  moyu: 5,
   sticker: 9
 }

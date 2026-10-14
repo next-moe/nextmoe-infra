@@ -1,0 +1,40 @@
+# The file behind a hosted resource · moyu 补丁面
+
+> NextMoe·未萌 开放 API —— ACGN 数据，以此为准。同一部作品在六个源各有一个页面，NextMoe 把它们对齐成一条记录，逐字段给出裁定后的标准答案，并附上答案取自哪个源。
+
+- Base URL：https://api.nextmoe.dev
+- 文档：https://developer.nextmoe.dev/docs
+- MCP 端点：https://mcp.nextmoe.dev/mcp
+- 调用与编辑都完全免费，没有付费档位，只有一层防滥用的限流。
+
+**署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
+
+## GET /v2/moyu/resources/{id}/file
+
+The file behind a hosted resource
+
+The download link and archive password `Resource` withholds. Needs the
+operator-granted `moyu:files` scope. Only a resource whose `storage` is
+`s3` has a file here; a link its publisher hosts elsewhere is
+`NOT_FOUND`, as is a hosted file no longer stored.
+
+Never cached: every answer, refusals included, is
+`Cache-Control: private, no-store`. Ask again rather than keeping a
+`download_url`.
+
+
+- 所属 API：moyu 补丁面（/v2/moyu）
+- 鉴权：Authorization: Bearer nmk_live_…
+- scope：moyu:files
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `id` | path | 是 | string | Resource id. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/moyu/resources/7007/file" \
+  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
+```
+
+---
+本页来源 · NextMoe 开发者平台 · https://developer.nextmoe.dev/docs/moyu/getResourceFile
