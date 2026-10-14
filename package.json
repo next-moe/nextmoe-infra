@@ -4,8 +4,7 @@
   "private": true,
   "packageManager": "pnpm@11.17.0",
   "workspaces": [
-    "apps/*",
-    "packages/*"
+    "apps/*"
   ],
   "scripts": {
     "dev": "bash scripts/dev.sh",
@@ -19,13 +18,7 @@
     "lint": "pnpm -F \"./apps/account\" -F \"./apps/admin\" run lint",
     "lint:fix": "pnpm -F \"./apps/account\" -F \"./apps/admin\" run lint:fix",
     "typecheck": "pnpm -F \"./apps/**\" --parallel run typecheck",
-    "sitemap": "esno apps/account/scripts/generateSitemap.ts",
-    "old:migrate": "esno scripts/migrate/index.ts",
-    "prod:deploy": "./scripts/deploy.sh",
-    "pm2:start": "./scripts/start.sh",
-    "pm2:stop": "./scripts/stop.sh",
-    "pm2:restart": "pm2 restart nextmoe-infra",
-    "pm2:logs": "pm2 logs"
+    "sitemap": "esno apps/account/scripts/generateSitemap.ts"
   },
   "devDependencies": {
     "@types/node": "^25.9.7",

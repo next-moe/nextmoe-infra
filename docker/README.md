@@ -5,16 +5,16 @@ directory holds the **Dockerfiles + init assets** the images are built from.
 The compose files live at the repo root: `docker-compose.dev.yml` (local dev
 platform, prebuilt GHCR images — see `docs/dev-environment.md`) and
 `docker-compose.prod.yml` (Dokploy production). The old root
-`docker-compose.yml` (local-build 15xxx stack) was retired in wiki-retirement
-W5.
+`docker-compose.yml` (local-build 15xxx stack) was retired at W5 of the
+galgame-wiki retirement.
 
 ## Layout
 
 | File | Builds | Base image | Why |
 |---|---|---|---|
-| `docker/go.Dockerfile` | catalog / artifact / trust / community / ai + every `migrate-*` / worker (pure Go) | `distroless/static` (~25–45 MB) | `CGO_ENABLED=0` static binary |
+| `docker/go.Dockerfile` | catalog / artifact / community / chat / trust / ai / mcp / telemetry + `migrate` (pure Go) | `distroless/static` (~25–45 MB) | `CGO_ENABLED=0` static binary |
 | `docker/cgo.Dockerfile` | **oauth + image** | `debian:trixie-slim` (~180 MB) | both transitively import `kolesa-team/go-webp` → cgo → **libwebp** at build + runtime |
-| `docker/nuxt.Dockerfile` | web + wiki (Nitro `node-server`) | `node:24-trixie-slim` (~390 MB) | self-contained `.output`; sharp comes via `@kungal/ui-nuxt`'s `@nuxt/image` |
+| `docker/nuxt.Dockerfile` | account + admin (Nitro `node-server`) | `node:24-trixie-slim` (~390 MB) | self-contained `.output`; sharp comes via `@kungal/ui-nuxt`'s `@nuxt/image` |
 | `docker/tools.Dockerfile` | every `cmd/*` binary in ONE image (`infra-tools`) | `debian:trixie-slim` | one-off migration / maintenance jobs |
 | `docker/initdb.d/` | — | — | `CREATE DATABASE` bootstrap for a fresh Postgres |
 

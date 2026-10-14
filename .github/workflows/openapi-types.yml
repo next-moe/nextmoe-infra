@@ -4,7 +4,7 @@ name: openapi-types
 # generated *.ts must equal a fresh openapi-typescript run against the committed
 # spec — this catches "the spec changed but the generated types weren't
 # regenerated" and any hand-edit to a generated file. Types live in the app that
-# consumes them: artifact-* / catalog-admin / trust-* in apps/admin. (The galgame-*
+# consumes them: the *-admin specs in apps/admin. (The galgame-*
 # pairing retired with apps/wiki at E3b; the wiki-era galgame_wiki read/calendar
 # specs retired with the bridge read face at route-B W5, and the galgame /v1
 # public projection spec followed when that face was delisted at wave 146 on
@@ -23,7 +23,6 @@ name: openapi-types
 on:
   push:
     paths: &paths
-      - "docs/artifact/openapi.yaml"
       - "docs/artifact/admin-openapi.yaml"
       - "docs/catalog/admin-openapi.yaml"
       - "docs/trust/admin-openapi.yaml"
@@ -52,7 +51,6 @@ jobs:
       # lockfile entry is needed — it fetches the pinned generator on the fly.
       - name: Regenerate TS types from the committed specs
         run: |
-          pnpm -F "./apps/admin" run gen:types:artifact
           pnpm -F "./apps/admin" run gen:types:artifact-admin
           pnpm -F "./apps/admin" run gen:types:catalog-admin
           pnpm -F "./apps/admin" run gen:types:trust-admin

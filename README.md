@@ -59,14 +59,12 @@ apps/
   api/              Go Fiber 后端(多二进制)
     cmd/            入口与工具:oauth / image / catalog / artifact / trust … + migrate-* / sync-vndb* / reindex-search …
     internal/       app(装配)· platform(领域)· infrastructure(db/redis/s3 客户端)· jobs · middleware
-  web/              管理端前端(Nuxt 4,extends @kun/ui)
-  wiki/             galgame-wiki 前端(Nuxt 4,extends @kun/ui)
-packages/
-  ui/               @kun/ui —— 共享 Nuxt UI layer(组件 / 色系 / 样式)
-  image-client/     @kun/image-client —— 图床客户端
+  account/          账号前端(Nuxt 4,KunUI)
+  admin/            管理端前端(Nuxt 4,KunUI)
+  developer/        开发者门户(Nuxt 4,KunUI)
 docker/             Dockerfile(cgo / go / nuxt)+ 各服务 env + initdb.d(建库清单,12 个)
 docs/               文档(deploy / migration / api / galgame_wiki / image_service …)
-scripts/            运维脚本(reset_all.sh)+ 源库 dump
+scripts/            运维脚本(dev / dev-doctor / ephemeral-test-db / prod-cron …)+ dev 种子库 dump
 ```
 
 ## 快速开始
