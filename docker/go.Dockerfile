@@ -1,9 +1,9 @@
 #
-# Parametric build for the PURE-GO binaries (no cgo): the galgame HTTP service
-# and every one-off cmd/migrate-* / worker tool.
+# Parametric build for the PURE-GO binaries (no cgo): catalog, artifact,
+# community, chat, trust, ai, mcp, telemetry and migrate.
 #
-#   docker build -f docker/go.Dockerfile --build-arg CMD=galgame -t kun-galgame .
-#   docker build -f docker/go.Dockerfile --build-arg CMD=migrate -t kun-migrate .
+#   docker build -f docker/go.Dockerfile --build-arg CMD=catalog -t infra-catalog .
+#   docker build -f docker/go.Dockerfile --build-arg CMD=migrate -t infra-migrate .
 #
 # Build context MUST be the repo root. oauth + image transitively import
 # go-webp (cgo) and can't be built CGO_ENABLED=0 — they use cgo.Dockerfile.

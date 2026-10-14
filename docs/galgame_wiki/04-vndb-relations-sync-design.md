@@ -2,8 +2,8 @@
 
 > **已被取代（历史设计）**：本文描述的一次性补洞脚本 `cmd/sync-vndb-relations`
 > 已删除，关联同步并入持续运行的 `cmd/sync-vndb-enrich`（与 links 一起，走带
-> provenance 的 approach-B 对账，resolver 也统一了）。现状以
-> `docs/sync/vndb/README.md` + 代码为准；本文仅留作决策追溯。
+> provenance 的 approach-B 对账，resolver 也统一了）。这套同步后来随 galgame wiki
+> 退役（wave-161）整体删除，现状文档 `docs/sync/vndb/README.md` 也已移除；本文仅留作决策追溯。
 
 ## 背景
 

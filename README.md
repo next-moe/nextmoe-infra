@@ -48,16 +48,16 @@
 ## 技术栈
 
 - **后端**:Go 1.27 + [Fiber](https://gofiber.io/),**单模块多二进制**(`cmd/*`)。`oauth`/`image` 因 `go-webp` 走 cgo(debian-slim + libwebp),其余纯 Go(distroless)。
-- **前端**:Nuxt 4 SSR(Nitro `node-server`)+ TypeScript,两个应用共享 **`@kun/ui`** Nuxt layer。
+- **前端**:Nuxt 4 SSR(Nitro `node-server`)+ TypeScript,account / admin / developer 三个应用都用 KunUI(`@kungal/ui-*`)。
 - **数据**:PostgreSQL · Redis · MinIO(S3 兼容)· OpenSearch(全文搜索)。
-- **工程**:pnpm 10 workspace(monorepo)· Docker Compose · GitHub Actions(CI→GHCR)。
+- **工程**:pnpm 11 workspace(monorepo)· Docker Compose · GitHub Actions(CI→GHCR)。
 
 ## 仓库结构
 
 ```
 apps/
   api/              Go Fiber 后端(多二进制)
-    cmd/            入口与工具:oauth / image / catalog / artifact / trust … + migrate-* / sync-vndb* / reindex-search …
+    cmd/            入口与工具:oauth / image / catalog / artifact / trust … + migrate / reindex-catalog / 各类导入与运维工具 …
     internal/       app(装配)· platform(领域)· infrastructure(db/redis/s3 客户端)· jobs · middleware
   account/          账号前端(Nuxt 4,KunUI)
   admin/            管理端前端(Nuxt 4,KunUI)
