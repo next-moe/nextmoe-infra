@@ -192,9 +192,10 @@ func newCompositeFixture(t *testing.T) *compositeFixture {
 		t.Fatalf("artifact migration: %v", err)
 	}
 	site := "t" + uuid.NewString()[:8]
+	sites := []string{site, "other" + site, "third" + site}
 	t.Cleanup(func() {
-		db.Where("site_key = ?", site).Delete(&model.Composite{})
-		db.Unscoped().Where("site_key IN ?", []string{site, "other" + site}).Delete(&model.Artifact{})
+		db.Where("site_key IN ?", sites).Delete(&model.Composite{})
+		db.Unscoped().Where("site_key IN ?", sites).Delete(&model.Artifact{})
 	})
 	store := newMemStore()
 	return &compositeFixture{
@@ -345,8 +346,8 @@ func TestDeletedArtifactStaysUntilItsCompositeGoes(t *testing.T) {
 	}
 
 	artifacts := repository.NewArtifactRepository(f.db)
-	if ok, err := artifacts.SoftDeleteByUUID(ctx, base.UUID, f.site); !ok || err != nil {
-		t.Fatalf("soft delete: %v %v", ok, err)
+	if ok, err := f.svc.DeleteArtifact(ctx, base.UUID, f.site); !ok || err != nil {
+		t.Fatalf("site delete: %v %v", ok, err)
 	}
 	expired := func() bool {
 		rows, err := artifacts.FindExpiredSoftDeleted(ctx, time.Now().Add(time.Hour), 1000)
@@ -392,18 +393,219 @@ func TestTakedownDeletesTheCompositesOverAnArtifact(t *testing.T) {
 	}
 
 	noStorage := NewCompositeService(repository.NewCompositeRepository(f.db), nil, nil)
-	if _, err := noStorage.DeleteReferencing(ctx, layer.ID); !stderrors.Is(err, ErrStorageUnconfigured) {
-		t.Fatalf("DeleteReferencing without storage = %v, want ErrStorageUnconfigured", err)
+	if _, _, err := noStorage.TakeDown(ctx, layer, ""); !stderrors.Is(err, ErrStorageUnconfigured) {
+		t.Fatalf("TakeDown without storage = %v, want ErrStorageUnconfigured", err)
+	}
+	var live int64
+	f.db.Model(&model.Artifact{}).Where("id = ?", layer.ID).Count(&live)
+	if live != 1 {
+		t.Fatal("a takedown that could not remove the composites still soft-deleted the artifact")
 	}
 
-	n, err := f.svc.DeleteReferencing(ctx, layer.ID)
-	if err != nil || n != 1 {
-		t.Fatalf("DeleteReferencing = %d, %v; want 1", n, err)
+	deleted, n, err := f.svc.TakeDown(ctx, layer, "")
+	if err != nil || !deleted || n != 1 {
+		t.Fatalf("TakeDown = %v, %d, %v; want true, 1", deleted, n, err)
 	}
 	if _, err := f.svc.Get(ctx, resp.ID, f.site, ""); !stderrors.Is(err, ErrNotFound) {
 		t.Errorf("composite survived the takedown: %v", err)
 	}
-	if n, err := f.svc.DeleteReferencing(ctx, layer.ID); err != nil || n != 0 {
-		t.Errorf("second DeleteReferencing = %d, %v; want 0", n, err)
+	if deleted, n, err := f.svc.TakeDown(ctx, layer, ""); err != nil || deleted || n != 0 {
+		t.Errorf("second TakeDown = %v, %d, %v; want false, 0", deleted, n, err)
+	}
+}
+
+func TestForeignSourcesFollowTheAllowList(t *testing.T) {
+	f := newCompositeFixture(t)
+	ctx := context.Background()
+	other := "other" + f.site
+	f.svc.foreignSources = map[string][]string{f.site: {other}}
+	base := f.artifact(t, f.site, 100, nil)
+	layer := f.artifact(t, other, 50, nil)
+
+	resp, err := f.svc.Create(ctx, f.plan(base, layer), CompositeParams{Site: f.site})
+	if err != nil {
+		t.Fatalf("Create over a listed site's artifact: %v", err)
+	}
+	if resp.Artifacts[1] != layer.UUID {
+		t.Errorf("artifacts = %v, want the foreign layer pinned second", resp.Artifacts)
+	}
+
+	cases := []struct {
+		name        string
+		site        string
+		base, layer *model.Artifact
+	}{
+		{"the reverse direction", other, f.artifact(t, other, 100, nil), f.artifact(t, f.site, 50, nil)},
+		{"a site off the list", f.site, base, f.artifact(t, "third"+f.site, 50, nil)},
+		{"a private foreign artifact", f.site, base, f.artifact(t, other, 50, func(a *model.Artifact) { a.Public = false })},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := f.svc.Create(ctx, f.plan(tc.base, tc.layer), CompositeParams{Site: tc.site})
+			if !stderrors.Is(err, ErrInvalidPlan) {
+				t.Fatalf("Create = %v, want ErrInvalidPlan", err)
+			}
+		})
+	}
+}
+
+type failingDelete struct {
+	*memStore
+	fail bool
+}
+
+func (s *failingDelete) Delete(ctx context.Context, key string) error {
+	if s.fail {
+		s.fail = false
+		return stderrors.New("storage unavailable")
+	}
+	return s.memStore.Delete(ctx, key)
+}
+
+func TestOwnerDeleteTakesDownOtherSitesCompositesOnly(t *testing.T) {
+	f := newCompositeFixture(t)
+	ctx := context.Background()
+	other := "other" + f.site
+	cleanup := &failingDelete{memStore: f.store}
+	svc := NewCompositeService(repository.NewCompositeRepository(f.db), f.store, cleanup)
+	svc.foreignSources = map[string][]string{f.site: {other}}
+
+	base := f.artifact(t, f.site, 100, nil)
+	layer := f.artifact(t, other, 50, nil)
+	merged, err := svc.Create(ctx, f.plan(base, layer), CompositeParams{Site: f.site})
+	if err != nil {
+		t.Fatal(err)
+	}
+	own, err := svc.Create(ctx, dto.CreateCompositeRequest{
+		Filename: "p.zip", ContentType: "application/zip", Size: 50, BLAKE3: strings.Repeat("e", 64),
+		Sources:  []dto.CompositeSourceInput{{ArtifactUUID: layer.UUID}},
+		Segments: []dto.CompositeSegment{seg(0, 0, 50)},
+	}, CompositeParams{Site: other})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if ok, err := svc.DeleteArtifact(ctx, layer.UUID, f.site); ok || err != nil {
+		t.Fatalf("a site deleted an artifact it does not own: %v, %v", ok, err)
+	}
+
+	cleanup.fail = true
+	if _, err := svc.DeleteArtifact(ctx, layer.UUID, other); err == nil {
+		t.Fatal("DeleteArtifact reported success though a manifest delete failed")
+	}
+	if _, err := svc.Get(ctx, merged.ID, f.site, ""); err != nil {
+		t.Fatalf("the composite whose manifest delete failed lost its row: %v", err)
+	}
+	if ok, err := svc.DeleteArtifact(ctx, layer.UUID, other); !ok || err != nil {
+		t.Fatalf("retried DeleteArtifact = %v, %v; want it to finish the cascade", ok, err)
+	}
+	if _, err := svc.Get(ctx, merged.ID, f.site, ""); !stderrors.Is(err, ErrNotFound) {
+		t.Errorf("another site's composite survived the owner's delete: %v", err)
+	}
+	if _, ok := f.store.objects["c/"+f.site+"/"+merged.ID]; ok {
+		t.Error("the foreign composite's manifest is still published")
+	}
+	if _, err := svc.Get(ctx, own.ID, other, ""); err != nil {
+		t.Errorf("the owner's own composite went with its delete: %v", err)
+	}
+	if ok, err := svc.DeleteArtifact(ctx, layer.UUID, other); ok || err != nil {
+		t.Errorf("third DeleteArtifact = %v, %v; want false, nil", ok, err)
+	}
+}
+
+func waitForLockWait(t *testing.T, db *gorm.DB) {
+	t.Helper()
+	for deadline := time.Now().Add(10 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+		var n int64
+		db.Raw("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'").Scan(&n)
+		if n > 0 {
+			return
+		}
+	}
+	t.Fatal("no session ever waited on the source row's lock")
+}
+
+func TestCreateLosesToADeleteThatCommitsFirst(t *testing.T) {
+	f := newCompositeFixture(t)
+	ctx := context.Background()
+	base := f.artifact(t, f.site, 100, nil)
+	layer := f.artifact(t, f.site, 50, nil)
+
+	tx := f.db.Begin()
+	t.Cleanup(func() { tx.Rollback() })
+	if err := tx.Delete(layer).Error; err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() {
+		_, err := f.svc.Create(ctx, f.plan(base, layer), CompositeParams{Site: f.site})
+		done <- err
+	}()
+	waitForLockWait(t, f.db)
+	if err := tx.Commit().Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := <-done; !stderrors.Is(err, ErrInvalidPlan) {
+		t.Fatalf("Create racing a delete = %v, want ErrInvalidPlan", err)
+	}
+	var rows int64
+	f.db.Model(&model.Composite{}).Where("site_key = ?", f.site).Count(&rows)
+	if rows != 0 || len(f.store.objects) != 0 {
+		t.Errorf("the losing create left %d rows and %d manifests", rows, len(f.store.objects))
+	}
+}
+
+type gatedStore struct {
+	*memStore
+	entered chan struct{}
+	release chan struct{}
+}
+
+func (g *gatedStore) Put(ctx context.Context, key string, body []byte, contentType string) error {
+	close(g.entered)
+	<-g.release
+	return g.memStore.Put(ctx, key, body, contentType)
+}
+
+func TestTakedownWaitsForACreateHoldingItsSource(t *testing.T) {
+	f := newCompositeFixture(t)
+	ctx := context.Background()
+	other := "other" + f.site
+	store := &gatedStore{memStore: f.store, entered: make(chan struct{}), release: make(chan struct{})}
+	svc := NewCompositeService(repository.NewCompositeRepository(f.db), store, store)
+	svc.foreignSources = map[string][]string{f.site: {other}}
+	base := f.artifact(t, f.site, 100, nil)
+	layer := f.artifact(t, other, 50, nil)
+
+	created := make(chan error, 1)
+	go func() {
+		_, err := svc.Create(ctx, f.plan(base, layer), CompositeParams{Site: f.site})
+		created <- err
+	}()
+	<-store.entered
+
+	type result struct {
+		deleted bool
+		removed int
+		err     error
+	}
+	takedown := make(chan result, 1)
+	go func() {
+		d, n, err := svc.TakeDown(ctx, layer, other)
+		takedown <- result{d, n, err}
+	}()
+	waitForLockWait(t, f.db)
+	close(store.release)
+
+	if err := <-created; err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if r := <-takedown; r.err != nil || !r.deleted || r.removed != 1 {
+		t.Fatalf("TakeDown = %+v; want it to wait out the create and remove its composite", r)
+	}
+	var rows int64
+	f.db.Model(&model.Composite{}).Where("site_key = ?", f.site).Count(&rows)
+	if rows != 0 || len(f.store.objects) != 0 {
+		t.Errorf("a composite over the taken-down artifact survived: %d rows, %d manifests", rows, len(f.store.objects))
 	}
 }

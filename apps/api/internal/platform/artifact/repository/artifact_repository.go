@@ -49,16 +49,6 @@ func (r *ArtifactRepository) ListBySite(ctx context.Context, site string, offset
 	return items, total, nil
 }
 
-func (r *ArtifactRepository) SoftDeleteByUUID(ctx context.Context, uuid, site string) (bool, error) {
-	res := r.db.WithContext(ctx).
-		Where("uuid = ? AND site_key = ?", uuid, site).
-		Delete(&model.Artifact{})
-	if res.Error != nil {
-		return false, res.Error
-	}
-	return res.RowsAffected > 0, nil
-}
-
 func (r *ArtifactRepository) SaveManifest(ctx context.Context, m *model.Manifest) error {
 	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "artifact_id"}},

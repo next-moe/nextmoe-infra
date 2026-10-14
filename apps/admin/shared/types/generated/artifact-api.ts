@@ -69,7 +69,7 @@ export interface paths {
         get: operations["getArtifact"];
         put?: never;
         post?: never;
-        /** Soft-delete an artifact (GC reclaims after TTL) */
+        /** Soft-delete an artifact (GC reclaims after TTL); other sites' composites over it are deleted */
         delete: operations["deleteArtifact"];
         options?: never;
         head?: never;

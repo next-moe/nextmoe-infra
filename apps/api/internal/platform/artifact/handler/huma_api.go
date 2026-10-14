@@ -175,7 +175,7 @@ func (s *HumaServer) register(api huma.API) {
 	}, s.download)
 	huma.Register(api, huma.Operation{
 		OperationID: "deleteArtifact", Method: http.MethodDelete, Path: "/api/v1/artifacts/{uuid}",
-		Summary: "Soft-delete an artifact (GC reclaims after TTL)", Tags: tags,
+		Summary: "Soft-delete an artifact (GC reclaims after TTL); other sites' composites over it are deleted", Tags: tags,
 	}, s.delete)
 	huma.Register(api, huma.Operation{
 		OperationID: "initUpload", Method: http.MethodPost, Path: "/api/v1/artifacts",
@@ -272,7 +272,7 @@ func (s *HumaServer) delete(ctx context.Context, in *uuidInput) (*deleteOutput, 
 	if err != nil {
 		return nil, err
 	}
-	ok, err := s.svc.Delete(ctx, in.UUID, site)
+	ok, err := s.composites.DeleteArtifact(ctx, in.UUID, site)
 	if err != nil {
 		slog.Error("artifact delete", "uuid", in.UUID, "site", site, "err", err)
 		return nil, apiErr(http.StatusInternalServerError, errors.ErrArtifactStoreFailed)

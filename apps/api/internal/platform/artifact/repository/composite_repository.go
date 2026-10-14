@@ -2,11 +2,15 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"api/internal/platform/artifact/model"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
+
+var ErrSourceGone = errors.New("artifact: composite source deleted mid-create")
 
 type CompositeRepository struct {
 	db *gorm.DB
@@ -35,11 +39,44 @@ func (r *CompositeRepository) Find(ctx context.Context, publicID, site string) (
 
 func (r *CompositeRepository) Create(ctx context.Context, c *model.Composite, publish func() error) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if len(c.Sources) > 0 {
+			ids := make([]uint, len(c.Sources))
+			for i, src := range c.Sources {
+				ids[i] = src.ArtifactID
+			}
+			var live []uint
+			err := tx.Model(&model.Artifact{}).
+				Clauses(clause.Locking{Strength: clause.LockingStrengthShare}).
+				Where("id IN ?", ids).
+				Pluck("id", &live).Error
+			if err != nil {
+				return err
+			}
+			if len(live) != len(ids) {
+				return ErrSourceGone
+			}
+		}
 		if err := tx.Create(c).Error; err != nil {
 			return err
 		}
 		return publish()
 	})
+}
+
+func (r *CompositeRepository) FindArtifact(ctx context.Context, uuid, site string) (*model.Artifact, error) {
+	var a model.Artifact
+	err := r.db.WithContext(ctx).Unscoped().
+		Where("uuid = ? AND site_key = ?", uuid, site).
+		First(&a).Error
+	if err != nil {
+		return nil, err
+	}
+	return &a, nil
+}
+
+func (r *CompositeRepository) SoftDeleteArtifact(ctx context.Context, id uint) (bool, error) {
+	res := r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.Artifact{})
+	return res.RowsAffected > 0, res.Error
 }
 
 func (r *CompositeRepository) Delete(ctx context.Context, id uint) error {
@@ -61,11 +98,14 @@ func (r *CompositeRepository) ListBySite(ctx context.Context, site string, offse
 	return items, total, nil
 }
 
-func (r *CompositeRepository) Referencing(ctx context.Context, artifactID uint) ([]model.Composite, error) {
+func (r *CompositeRepository) Referencing(ctx context.Context, artifactID uint, spareSite string) ([]model.Composite, error) {
 	var items []model.Composite
-	err := r.db.WithContext(ctx).
-		Where("id IN (SELECT composite_id FROM composite_sources WHERE artifact_id = ?)", artifactID).
-		Find(&items).Error
+	q := r.db.WithContext(ctx).
+		Where("id IN (SELECT composite_id FROM composite_sources WHERE artifact_id = ?)", artifactID)
+	if spareSite != "" {
+		q = q.Where("site_key <> ?", spareSite)
+	}
+	err := q.Find(&items).Error
 	return items, err
 }
 
