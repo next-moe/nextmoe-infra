@@ -48,6 +48,9 @@ func (s *MergeService) ExecuteMerge(ctx context.Context, proposalID int64, execu
 		if err := repository.LockEntityRow(tx, et, second); err != nil {
 			return err
 		}
+		if err := assertSurvivorNotHidden(tx, et, src, dst); err != nil {
+			return err
+		}
 		if plan.absorb {
 			if err := assertAbsorbable(tx, src); err != nil {
 				return err

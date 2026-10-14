@@ -90,3 +90,28 @@ func TestWorkDedupCensusPairFacts(t *testing.T) {
 	assert.False(t, row.RelConflict, "a deleted release carries no conflict")
 	assert.Equal(t, [2]int{0, 0}, [2]int{row.AnchorsA, row.AnchorsB})
 }
+
+func TestWorkDedupCensusFlagsAHiddenClaim(t *testing.T) {
+	requireDB(t)
+	cleanPipeline(t)
+	medium := galgameMedium(t)
+	kungal := "kungal"
+
+	hidden := mkWork(t, medium, "隠し主張テスト作品", &kungal)
+	plain := mkWork(t, medium, "隠し主張テスト作品", nil)
+	mkAnchor(t, plain, 3, "321")
+	require.NoError(t, testDB.Exec(`UPDATE catalog_work SET claim_state = ? WHERE id = ?`, model.ClaimStateHidden, hidden).Error)
+
+	c, err := buildCensus(context.Background(), testDB)
+	require.NoError(t, err)
+	row, verdict := findPair(t, c, hidden, plain)
+	assert.Equal(t, [2]bool{true, false}, [2]bool{row.HiddenA, row.HiddenB})
+	assert.Equal(t, bucketHiddenClaim, verdict)
+	assert.Empty(t, c.groups, "a hidden claim never lands in a merge group")
+
+	require.NoError(t, testDB.Exec(`UPDATE catalog_work SET claim_state = ? WHERE id = ?`, model.ClaimStateDraft, hidden).Error)
+	c, err = buildCensus(context.Background(), testDB)
+	require.NoError(t, err)
+	row, _ = findPair(t, c, hidden, plain)
+	assert.False(t, row.HiddenA, "a draft claim is not hidden")
+}

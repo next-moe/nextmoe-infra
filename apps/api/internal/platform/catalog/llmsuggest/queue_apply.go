@@ -206,6 +206,7 @@ func planFor(queue string, row QueueVerdict, sides map[int64]workPairSides, opts
 		s := workPairSides{
 			AID: row.AID, BID: row.BID,
 			ClaimedA: a.ClaimedA, ClaimedB: b.ClaimedA,
+			HiddenA: a.HiddenA, HiddenB: b.HiddenA,
 			ExactA: a.ExactA, ExactB: b.ExactA,
 			DeletedA: a.DeletedA, DeletedB: b.DeletedA,
 			RefsA: a.RefsA, RefsB: b.RefsA,
@@ -319,17 +320,19 @@ func loadApplySides(db *gorm.DB, rows []QueueVerdict) (map[int64]workPairSides, 
 	}
 	for _, chunk := range chunkBy(ids, 500) {
 		var works []struct {
-			ID      int64      `gorm:"column:id"`
-			Site    *string    `gorm:"column:site"`
-			Deleted *time.Time `gorm:"column:deleted_at"`
+			ID         int64      `gorm:"column:id"`
+			Site       *string    `gorm:"column:site"`
+			ClaimState *int16     `gorm:"column:claim_state"`
+			Deleted    *time.Time `gorm:"column:deleted_at"`
 		}
-		if err := db.Raw(`SELECT id, site, deleted_at FROM catalog_work WHERE id IN ?`, chunk).Scan(&works).Error; err != nil {
+		if err := db.Raw(`SELECT id, site, claim_state, deleted_at FROM catalog_work WHERE id IN ?`, chunk).Scan(&works).Error; err != nil {
 			return nil, err
 		}
 		for _, w := range works {
 			s := out[w.ID]
 			s.AID = w.ID
 			s.ClaimedA = siteClaimed(w.Site)
+			s.HiddenA = s.ClaimedA && w.ClaimState != nil && *w.ClaimState == model.ClaimStateHidden
 			s.DeletedA = w.Deleted != nil
 			out[w.ID] = s
 		}

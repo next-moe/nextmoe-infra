@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 
@@ -29,7 +30,7 @@ func runApprove(ctx context.Context, db *gorm.DB, w io.Writer, merge *service.Me
 		return err
 	}
 
-	var approved, conflicted, crossMedium, superseded, errs int
+	var approved, conflicted, crossMedium, superseded, held, errs int
 	for _, p := range props {
 		src, _, err := resolve.Resolve(ctx, p.EntityType, p.SourceEntityID)
 		if err != nil {
@@ -94,6 +95,17 @@ func runApprove(ctx context.Context, db *gorm.DB, w io.Writer, merge *service.Me
 			continue
 		}
 
+		if err := merge.CheckSurvivor(ctx, p.EntityType, src, tgt); err != nil {
+			if !errors.Is(err, service.ErrHiddenSurvivor) {
+				fmt.Fprintf(w, "  proposal %d: survivor screen ERROR %v\n", p.ID, err)
+				errs++
+				continue
+			}
+			held++
+			fmt.Fprintf(w, "  proposal %d: HELD open, %v\n", p.ID, err)
+			continue
+		}
+
 		if run {
 			if err := merge.ApproveMerge(ctx, p.ID, actor); err != nil {
 				fmt.Fprintf(w, "  proposal %d: approve ERROR %v\n", p.ID, err)
@@ -108,8 +120,8 @@ func runApprove(ctx context.Context, db *gorm.DB, w io.Writer, merge *service.Me
 	if run {
 		mode = "APPLIED"
 	}
-	fmt.Fprintf(w, "%s [approve] note=%s open=%d approved=%d ref_conflict=%d cross_medium=%d superseded=%d errors=%d\n",
-		mode, note, len(props), approved, conflicted, crossMedium, superseded, errs)
+	fmt.Fprintf(w, "%s [approve] note=%s open=%d approved=%d ref_conflict=%d cross_medium=%d superseded=%d hidden_survivor_held=%d errors=%d\n",
+		mode, note, len(props), approved, conflicted, crossMedium, superseded, held, errs)
 	if errs > 0 {
 		return fmt.Errorf("%d approvals failed", errs)
 	}

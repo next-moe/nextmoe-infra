@@ -331,6 +331,26 @@ func TestBothClaimedIsKeptApart(t *testing.T) {
 	assert.NotEqual(t, applyAccept, p.Action)
 }
 
+func TestHiddenClaimIsKeptApart(t *testing.T) {
+	for _, s := range []workPairSides{
+		{AID: 1, BID: 2, ClaimedA: true, HiddenA: true, ExactA: 4},
+		{AID: 1, BID: 2, ClaimedB: true, HiddenB: true, ExactB: 4},
+	} {
+		p := planWorkPair(VerdictSame, 1, 0.7, s, soleName("folded"))
+		assert.Equal(t, applyDefer, p.Action)
+		assert.Equal(t, stampKeptApartHiddenClaim, p.stamp())
+		assert.True(t, isKeptApartStamp(p.stamp()))
+	}
+
+	visible := workPairSides{AID: 1, BID: 2, ClaimedA: true, ExactA: 4}
+	p := planWorkPair(VerdictSame, 1, 0.7, visible, soleName("folded"))
+	assert.Equal(t, applyAccept, p.Action, "the same pair with a visible claim merges, the claim surviving")
+	assert.Equal(t, int64(1), p.Target)
+
+	p = planWorkPair(VerdictDifferent, 0.95, 0.7, workPairSides{AID: 1, BID: 2, ClaimedA: true, HiddenA: true}, soleName("folded"))
+	assert.Equal(t, applyReject, p.Action, "keeping works apart needs no person")
+}
+
 func TestLowConfidenceDifferentIsKeptApart(t *testing.T) {
 	s := workPairSides{AID: 1, BID: 2}
 	p := planWorkPair(VerdictDifferent, 0.6, 0.7, s, soleName("folded"))
@@ -340,7 +360,7 @@ func TestLowConfidenceDifferentIsKeptApart(t *testing.T) {
 
 func TestKeptApartStampsAreNotCurrent(t *testing.T) {
 	for _, stamp := range []string{
-		stampKeptApartBothClaimed, stampKeptApartUncorroborated, stampKeptApartLowConfidence,
+		stampKeptApartBothClaimed, stampKeptApartHiddenClaim, stampKeptApartUncorroborated, stampKeptApartLowConfidence,
 	} {
 		assert.NotContains(t, currentStamps, stamp)
 	}

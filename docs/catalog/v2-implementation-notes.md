@@ -2150,6 +2150,17 @@ All three sites now write ratings through `/v2` and mirror them back, so the one
 - **`catalog_user_work_rating_import`** (the importer's ledger) had no other reader. Its model is gone and `migrate` no longer creates it; the production table stays until it is dropped.
 - **Kept**: the id floor of 1,000,001 on `catalog_user_work_rating`, since the forum's ids live below it.
 
+## Wave — a merge survivor's claim is never hidden (2026-10-13)
+
+On 2026-10-12 seven forum folds retried every 30 minutes because their merge survivors (206713, 226964, 226966, 227000, 227001) were hidden, only by the 2026-07-31 `w1-resite backfill`. Two of the eight sources were live forum pages and six were unclaimed. The 09-22 case was the same shape: 5788, a 42,200-view page, folded into the hidden stub 61101.
+
+- **Guard** (`ErrHiddenSurvivor`): a work merge whose target's claim is hidden and whose source's is not is refused at propose, approve and execute; the admin face answers 409. Both hidden still merges.
+- **Census**: a pair of one hidden claim and one unclaimed work goes to the new manual bucket `hidden-claim`; two claims stay `both-kungal`. A hidden claim therefore never lands in an auto merge group.
+- **LLM queue**: the same pair is deferred with `kept_apart_hidden_claim`, a kept-apart stamp re-planned nightly.
+- **`-mode approve` / `-mode execute`** hold such a proposal instead of failing the run, counted as `hidden_survivor_held`.
+
+Why not let the unclaimed side win: the hide may be a moderation ban as easily as a stale backfill, and retiring the hidden work drops its claim. A person decides: unhide, or file the hidden side into the other.
+
 No spec change, no migration.
 
 ## Wave — public play records and the privacy switch (2026-10-13)
