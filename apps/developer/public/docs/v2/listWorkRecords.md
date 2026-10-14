@@ -13,7 +13,7 @@
 
 List an account's play records
 
-The works one account has a play state on — wish, doing, done, on_hold or dropped — each with its playtime and rating, the shape /v2/me/work-records/{work_id} answers its owner. This is the face a profile page's game library reads. Newest first by the play state's updated_at; a work with only a playtime or only a rating is not listed. Works that are no longer live in the catalog are left out. facets=state counts the account's works per state after the same filters, every state present with 0 when empty, so one request fills a row of tabs; include_total counts them all. An account that keeps its play records private (PATCH /v2/me/privacy) is 403 PLAY_RECORDS_PRIVATE, except to its own user token. Play records are public by default. Requires an application key or a user access token with catalog:read.
+The works one account has a play state on — wish, doing, done, on_hold or dropped — each with its playtime and rating, the shape /v2/me/work-records/{work_id} answers its owner. This is the face a profile page's game library reads. Newest first by the play state's updated_at; a work with only a playtime or only a rating is not listed. Works that are no longer live in the catalog are left out. facets=state counts the works per state after the same filters as the items, state= included, as every v2 facet does: all five states are present, 0 when empty. Ask for it on a request without state= to fill a row of tabs. include_total counts the items. An account that keeps its play records private (PATCH /v2/me/privacy) is 403 PLAY_RECORDS_PRIVATE, except to its own user token; the account reads its own list, private or not, on /v2/me/work-records, which needs no scope. Play records are public by default. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -32,9 +32,9 @@ The works one account has a play state on — wish, doing, done, on_hold or drop
 | `facets` | query | 否 | string | Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. |
 | `sort` | query | 否 | string | Closed per-collection sort key. |
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
-| `user_id` | query | 是 | string | The account whose play records to list — the central sign-in user id, the same one a rating reports as user_id. |
 | `state` | query | 否 | string | Comma-separated closed vocabulary: wish, doing, done, on_hold, dropped. Absent lists every state. |
 | `content_limit` | query | 否 | string | Comma-separated closed editorial axis: sfw, nsfw, as on /v2/catalog/works. Absent applies no gate. total and the state facet count after it, so a reader who hides nsfw works gets counts that match what it shows. |
+| `user_id` | query | 是 | string | The account whose play records to list — the central sign-in user id, the same one a rating reports as user_id. |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/work-records" \

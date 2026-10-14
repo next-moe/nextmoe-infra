@@ -2175,3 +2175,13 @@ The sites' profile pages want a game library: what someone wants to play, is pla
 - New problem code `PLAY_RECORDS_PRIVATE` (catalog, 403). Account purge deletes the privacy row.
 
 **Spec is 2.50.0.** Additive: one public operation, two `/v2/me` operations, one problem code. Migration: `go run ./cmd/migrate catalog` creates the empty table (the `migrate-catalog` job on deploy); no backfill.
+
+## Wave — the owner's own play-record list (2026-10-14)
+
+The four downstream integrations of `/v2/work-records` (kungal, moyu, letmoe, the kungal App) all hit the same wall: the owner reading their own library through the public face needs a user token with `catalog:read`, and none of their user tokens carries it. Adding the scope would have meant changing four clients, widening every live session, and a forced re-login in the App, where an authorize request naming a scope the client lacks fails as a whole (OP error 15006).
+
+- **`GET /v2/me/work-records`** answers the bearer's own records with the parameters, order and facets of `/v2/work-records`, minus `user_id`. The privacy switch does not apply. Same gate as `/v2/me/work-records/{work_id}`: a user token, no scope. The owner's view of their profile reads this; visitors read the public face with the site's application key. The public face still answers the account's own token, for a caller that does hold `catalog:read`.
+- **Facet wording corrected.** `facets=state` counts after the same filters as the items, `state=` included, as every v2 facet does (the search lane's aggregations are the same). The 2.50.0 description said "one request fills a row of tabs", which held only for a request without `state=`; downstream read it as disjunctive faceting. The counts for a row of tabs come from a request without `state=`.
+- Both list faces share `WorkRecordFilterInput` (`state`, `content_limit`), exported for the same huma reason as `CollectionInput`.
+
+**Spec is 2.51.0.** Additive: one `/v2/me` operation and two descriptions. No migration.

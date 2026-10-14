@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-本文件内联全部 154 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
+本文件内联全部 155 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
 
 ## 给 AI 助手的指引
 
@@ -1706,10 +1706,12 @@ GET /v2/work-records?user_id={user_id}&state=done&content_limit=sfw
 - **列的是标了状态的作品**。只报过时长、或只评过分、没标状态的作品不在里面。已经不是 live 的作品也不在。
 - **顺序**是状态的 `updated_at` 从新到旧，用 `next_cursor` 翻页，`limit` 最大 100。
 - **`state=`** 按状态筛，逗号分隔可以多选。
-- **`facets=state`** 给出五个状态各有几部，五个桶都会出现，没有的是 0，一次请求就能把一排标签页的数字填满。`include_total=true` 给总数。
+- **`facets=state`** 给出五个状态各有几部，五个桶都会出现，没有的是 0。它和列表用同一组筛选，**`state=` 也算在内**，全平台的分面都是这样。所以标签页的数字要从不带 `state=` 的请求里拿：「全部」页那次请求，或者单独发一次 `facets=state&limit=1`。`include_total=true` 给当前列表的总数。
 - **`content_limit=sfw`**：读者不看 NSFW 时带上。列表、`total` 和 `facets` 会一起排除 nsfw 作品，数字和显示出来的条数对得上，不用自己再减。
 
-账号把游玩记录设成私密时，这个面回 `403`，code 是 `PLAY_RECORDS_PRIVATE`，主页按它显示「未公开」。不要拿空列表来判断：空列表只说明这个人什么都没标。账号本人用自己的用户令牌来读，仍然能拿到全部。评分不受这个开关影响，照样在 `/v2/ratings` 公开。
+账号把游玩记录设成私密时，这个面回 `403`，code 是 `PLAY_RECORDS_PRIVATE`，主页按它显示「未公开」。不要拿空列表来判断：空列表只说明这个人什么都没标。评分不受这个开关影响，照样在 `/v2/ratings` 公开。
+
+本人看自己的主页走 `GET /v2/me/work-records`：参数、顺序和分面都与上面相同，只是没有 `user_id`；不受隐私开关影响，只要用户令牌，不需要 scope。访客看别人的主页，用站点的应用密钥读 `/v2/work-records`。
 
 ## 隐私开关
 
@@ -3366,7 +3368,7 @@ Open · 16 tokens
 
 - 路径前缀：`/v2`
 - 凭据：Authorization: Bearer nmk_live_…（v2 应用密钥,门户自助铸造,无需申请）
-- 端点数：141
+- 端点数：142
 
 > 正式公开：形状按 additive-only 演进，删除与改名由 CI 的 oasdiff 门拦下。第三方在门户自助铸 nmk_ 密钥即可调用，不需要申请。
 
@@ -3390,7 +3392,7 @@ Open · 16 tokens
 
 > /v2/ratings 是公开评分，只要 catalog:read：按 work_id / user_id 列表、按 id 读单条；/v2/ratings/changes 是给自己保留评分副本的站点用的镜像信道，删除以 gone: true 出现。作品的 nextmoe 评分（/v2/catalog/works/{id}/ratings）由这些评分算出：以全网均值为先验、权重 10 的贝叶斯均值，1 人起发布。
 
-> /v2/work-records?user_id= 是别人的游玩记录，个人主页的游戏库读它：列出该账号有游玩状态的作品，每条带时长与评分，按状态的更新时间倒序；facets=state 一次给出五个状态各有几部，content_limit=sfw 时列表、total 与计数一起排除 nsfw 作品。只要 catalog:read。游玩记录默认公开；本人经 PATCH /v2/me/privacy 设为 private 后，除本人的用户令牌外一律 403 PLAY_RECORDS_PRIVATE，评分仍在 /v2/ratings 公开。/v2/me/privacy 读写都只要用户令牌、不需要 scope。
+> /v2/work-records?user_id= 是别人的游玩记录，个人主页的游戏库读它：列出该账号有游玩状态的作品，每条带时长与评分，按状态的更新时间倒序；facets=state 给出五个状态各有几部（与列表同一组筛选，state= 也算在内，标签页的数字取自不带 state= 的请求），content_limit=sfw 时列表、total 与计数一起排除 nsfw 作品。只要 catalog:read。本人看自己的走 /v2/me/work-records，参数相同、不看隐私开关、只要用户令牌。游玩记录默认公开；本人经 PATCH /v2/me/privacy 设为 private 后，除本人的用户令牌外一律 403 PLAY_RECORDS_PRIVATE，评分仍在 /v2/ratings 公开。/v2/me/privacy 读写都只要用户令牌、不需要 scope。
 
 > 错误体是 RFC 9457 application/problem+json。type URI 解析到本站 /problems/{domain}/{kebab-code}。
 
@@ -5003,7 +5005,7 @@ curl "https://api.nextmoe.dev/v2/ratings/1" \
 
 List an account's play records
 
-The works one account has a play state on — wish, doing, done, on_hold or dropped — each with its playtime and rating, the shape /v2/me/work-records/{work_id} answers its owner. This is the face a profile page's game library reads. Newest first by the play state's updated_at; a work with only a playtime or only a rating is not listed. Works that are no longer live in the catalog are left out. facets=state counts the account's works per state after the same filters, every state present with 0 when empty, so one request fills a row of tabs; include_total counts them all. An account that keeps its play records private (PATCH /v2/me/privacy) is 403 PLAY_RECORDS_PRIVATE, except to its own user token. Play records are public by default. Requires an application key or a user access token with catalog:read.
+The works one account has a play state on — wish, doing, done, on_hold or dropped — each with its playtime and rating, the shape /v2/me/work-records/{work_id} answers its owner. This is the face a profile page's game library reads. Newest first by the play state's updated_at; a work with only a playtime or only a rating is not listed. Works that are no longer live in the catalog are left out. facets=state counts the works per state after the same filters as the items, state= included, as every v2 facet does: all five states are present, 0 when empty. Ask for it on a request without state= to fill a row of tabs. include_total counts the items. An account that keeps its play records private (PATCH /v2/me/privacy) is 403 PLAY_RECORDS_PRIVATE, except to its own user token; the account reads its own list, private or not, on /v2/me/work-records, which needs no scope. Play records are public by default. Requires an application key or a user access token with catalog:read.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer nmk_live_…
@@ -5022,9 +5024,9 @@ The works one account has a play state on — wish, doing, done, on_hold or drop
 | `facets` | query | 否 | string | Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. |
 | `sort` | query | 否 | string | Closed per-collection sort key. |
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
-| `user_id` | query | 是 | string | The account whose play records to list — the central sign-in user id, the same one a rating reports as user_id. |
 | `state` | query | 否 | string | Comma-separated closed vocabulary: wish, doing, done, on_hold, dropped. Absent lists every state. |
 | `content_limit` | query | 否 | string | Comma-separated closed editorial axis: sfw, nsfw, as on /v2/catalog/works. Absent applies no gate. total and the state facet count after it, so a reader who hides nsfw works gets counts that match what it shows. |
+| `user_id` | query | 是 | string | The account whose play records to list — the central sign-in user id, the same one a rating reports as user_id. |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/work-records" \
@@ -6294,6 +6296,37 @@ Delete my rating of one work
 
 ```bash
 curl -X DELETE "https://api.nextmoe.dev/v2/me/ratings/1" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### GET /v2/me/work-records
+
+List my play records
+
+The bearer's own play records: the works they have a play state on, each with its playtime and rating, with the filters and facets of /v2/work-records. The privacy switch does not apply: this is the owner's view of their own profile. Newest first by the play state's updated_at; a work with only a playtime or only a rating is not listed. Works that are no longer live in the catalog are left out. facets=state counts the works per state after the same filters as the items, state= included, as every v2 facet does: all five states are present, 0 when empty. Ask for it on a request without state= to fill a row of tabs. include_total counts the items. Requires a user access token. Any app may call this; no scope is required.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `cursor` | query | 否 | string | Opaque keyset cursor from a prior next_cursor. Must start with cur_. |
+| `limit` | query | 否 | string | Page size 1-100, default 20. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped. |
+| `view` | query | 否 | string | basic (default) or full. Closed vocabulary. |
+| `include` | query | 否 | string | Comma-separated blocks. Unknown token is 400 UNKNOWN_INCLUDE. |
+| `fields` | query | 否 | string | Comma-separated top-level keys after view/include. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
+| `ids` | query | 否 | string | Comma-separated ids, max 100. Batch lane: no pagination. |
+| `refs` | query | 否 | string | Comma-separated source:external_id, max 100. Batch lane: no pagination. |
+| `include_total` | query | 否 | string | true to include total. Only true or false. |
+| `facets` | query | 否 | string | Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. |
+| `sort` | query | 否 | string | Closed per-collection sort key. |
+| `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
+| `state` | query | 否 | string | Comma-separated closed vocabulary: wish, doing, done, on_hold, dropped. Absent lists every state. |
+| `content_limit` | query | 否 | string | Comma-separated closed editorial axis: sfw, nsfw, as on /v2/catalog/works. Absent applies no gate. total and the state facet count after it, so a reader who hides nsfw works gets counts that match what it shows. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/me/work-records" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 

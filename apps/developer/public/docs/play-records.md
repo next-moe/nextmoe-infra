@@ -140,10 +140,12 @@ GET /v2/work-records?user_id={user_id}&state=done&content_limit=sfw
 - **列的是标了状态的作品**。只报过时长、或只评过分、没标状态的作品不在里面。已经不是 live 的作品也不在。
 - **顺序**是状态的 `updated_at` 从新到旧，用 `next_cursor` 翻页，`limit` 最大 100。
 - **`state=`** 按状态筛，逗号分隔可以多选。
-- **`facets=state`** 给出五个状态各有几部，五个桶都会出现，没有的是 0，一次请求就能把一排标签页的数字填满。`include_total=true` 给总数。
+- **`facets=state`** 给出五个状态各有几部，五个桶都会出现，没有的是 0。它和列表用同一组筛选，**`state=` 也算在内**，全平台的分面都是这样。所以标签页的数字要从不带 `state=` 的请求里拿：「全部」页那次请求，或者单独发一次 `facets=state&limit=1`。`include_total=true` 给当前列表的总数。
 - **`content_limit=sfw`**：读者不看 NSFW 时带上。列表、`total` 和 `facets` 会一起排除 nsfw 作品，数字和显示出来的条数对得上，不用自己再减。
 
-账号把游玩记录设成私密时，这个面回 `403`，code 是 `PLAY_RECORDS_PRIVATE`，主页按它显示「未公开」。不要拿空列表来判断：空列表只说明这个人什么都没标。账号本人用自己的用户令牌来读，仍然能拿到全部。评分不受这个开关影响，照样在 `/v2/ratings` 公开。
+账号把游玩记录设成私密时，这个面回 `403`，code 是 `PLAY_RECORDS_PRIVATE`，主页按它显示「未公开」。不要拿空列表来判断：空列表只说明这个人什么都没标。评分不受这个开关影响，照样在 `/v2/ratings` 公开。
+
+本人看自己的主页走 `GET /v2/me/work-records`：参数、顺序和分面都与上面相同，只是没有 `user_id`；不受隐私开关影响，只要用户令牌，不需要 scope。访客看别人的主页，用站点的应用密钥读 `/v2/work-records`。
 
 ## 隐私开关
 
