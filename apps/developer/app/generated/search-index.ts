@@ -1904,7 +1904,7 @@ export const searchIndex: SearchEntry[] = [
     "r": "/docs/moyu",
     "t": "moyu 补丁面",
     "s": "端点参考",
-    "d": "/v2/moyu · 4 个端点",
+    "d": "/v2/moyu · 5 个端点",
     "b": "moyu /v2/moyu moyu 补丁 moyu 补丁面"
   },
   {
@@ -1934,6 +1934,13 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 资源",
     "d": "GET /v2/moyu/resources/{id}",
     "b": "getResource /v2/moyu/resources/{id} get One resource id include"
+  },
+  {
+    "r": "/docs/moyu/getResourceFile",
+    "t": "托管资源背后的文件",
+    "s": "端点 · 资源",
+    "d": "GET /v2/moyu/resources/{id}/file",
+    "b": "getResourceFile /v2/moyu/resources/{id}/file get The file behind a hosted resource The download link and archive password `Resource` withholds. Needs the\noperator-granted `moyu:files` scope. Only a resource whose `storage` is\n`s3` has a file here; a link its publisher hosts elsewhere is\n`NOT_FOUND`, as is a hosted file no longer stored.\n\nNever cached: every answer, refusals included, is\n`Cache-Control: private, no-store`. Ask again rather than keeping a\n`download_url`.\n The download link and archive password `Resource` withholds. Needs the\noperator-granted `moyu:files` scope. Only a resource whose `storage` is\n`s3` has a file here; a link its publisher hosts elsewhere is\n`NOT_FOUND`, as is a hosted file no longer stored.\n\nNever cached: every answer, refusals included, is\n`Cache-Control: private, no-store`. Ask again rather than keeping a\n`download_url`.\n moyu:files id"
   },
   {
     "r": "/docs/sticker",
