@@ -13,7 +13,7 @@
 
 Replace my play state, playtime and rating on one work
 
-One transaction for the three parts: either all are written or none is. PUT replaces the whole record, so a part that is absent or null is deleted: send every part the form shows. playtime is this app's own report, and the record answers the most minutes any app reported. A third-party application's token may not touch the rating: sending one is refused 403 FIRST_PARTY_ONLY, and leaving it out leaves the rating as it is. Requires a user access token; no scope is required.
+One transaction for the three parts: either all are written or none is. PUT replaces the whole record, so a part that is absent or null is deleted: send every part the form shows. One exception: a third-party application's PUT without a rating leaves the rating as it is; DELETE /v2/me/ratings/{work_id} removes it. playtime is this app's own report, and the record answers the most minutes any app reported. A third-party application's new or changed short_summary is checked as on PUT /v2/me/ratings/{work_id}; a refused one is 422 at /rating/short_summary and no part is written. Requires a user access token; no scope is required.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>

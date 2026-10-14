@@ -72,10 +72,6 @@ export const problemsZh: Record<string, { title: string; description: string }> 
     "title": "缺少所需 scope",
     "description": "凭据本身有效，但缺少这个操作所需的 scope。"
   },
-  "FIRST_PARTY_ONLY": {
-    "title": "仅限一方客户端",
-    "description": "这个操作只对一方客户端开放。"
-  },
   "NOT_FOUND": {
     "title": "未找到",
     "description": "这个 URL 上没有你能看到的东西。"

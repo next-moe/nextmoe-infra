@@ -30,7 +30,7 @@ export const docsModel: DocsModel = {
         "/v2/me/work-states 与 playtimes 同款：只要用户令牌，不需要任何 scope。state 五值与 Bangumi 收藏类型一一对应，completion 表示通了多少，wish 不允许携带。",
         "/v2/me/followed-companies 与 /v2/me/calendar 同样只要用户令牌、不需要任何 scope。关注列表只对本人可见，公开的只有 /v2/catalog/companies/{id} 详情上的 follower_count；/v2/me/calendar 与公开月历同参数，只列关注厂商的作品，且缺省不按语言、不排除同人。",
         "/v2/me/blocked-tags 同样只要用户令牌、不需要任何 scope，最多 100 个，只对本人可见。目录不会自动套用它：客户端把 mode=tree 的 id 放进 exclude_tag_tree、mode=exact 的放进 exclude_tag_id，传给 /v2/catalog/works 与两个月历。tree 会连同 tag 层级里它下面的所有 tag 一起排除（Tag.descendant_count 是数量）。站点自己的表出的列表用 /v2/catalog/tag-exclusion 取同参数要剔除的作品 id 集，在本地查询里剔掉。",
-        "/v2/me/ratings 是评分：全网一人一作一份，在哪个站写的都是同一份。读写只要用户令牌、不需要 scope；但第三方应用的令牌写入一律 403 FIRST_PARTY_ONLY（短评会公开在所有站，而内容审核只在各站自己的写入路径里）。/v2/me/work-records/{work_id} 一次事务写游玩状态、本应用的时长和评分，PUT 替换整条记录，缺省或为 null 的部分即删除。",
+        "/v2/me/ratings 是评分：全网一人一作一份，在哪个站写的都是同一份。读写只要用户令牌、不需要 scope，任何应用都能写（同游玩时长）；第三方应用送来的短评由中央做内容检查，被拒绝是 422 VALIDATION_FAILED。/v2/me/work-records/{work_id} 一次事务写游玩状态、本应用的时长和评分，PUT 替换整条记录，缺省或为 null 的部分即删除（唯一例外：第三方应用不带评分时保留原评分）。",
         "/v2/me/folders 是例外：收藏夹是私人清单，读要 folder:read（folder:write 也算），写要 folder:write，缺了是 403 SCOPE_REQUIRED。",
         "/v2/me/works 带 work_ids 时一次答最多 100 部作品的收藏夹归属、游玩时长和游玩状态，作品详情页一次调用即可；不带 work_ids 时按作品 id 升序分页走完持有人记过的全部作品（进了自己的收藏夹、有游玩时长或有游玩状态的都算）。答案里有收藏夹，所以同样要 folder:read（folder:write 也算）；封面投票要 catalog:edit，不在其中，走 /v2/me/cover-votes。",
         "/v2/folders 是别人的公开收藏夹，只要 catalog:read —— folder:read 是「读我自己的」，与能不能看别人无关。私密收藏夹在这里一律 404（对夹主本人也是），要读自己的私密夹走 /v2/me/folders。",
@@ -188931,7 +188931,7 @@ export const docsModel: DocsModel = {
               "method": "put",
               "path": "/v2/me/ratings/{work_id}",
               "summary": "Rate a work, or replace my rating of it",
-              "description": "Creates the rating or replaces every field of it; the id, client_id and site stay those of the first write. Sending the rating as it already stands writes nothing. The work's nextmoe score on /v2/catalog/works/{id}/ratings follows at once. The rating is public on every site; run your own content check on short_summary before sending it. Refused 403 FIRST_PARTY_ONLY for a third-party application's token. Requires a user access token; no scope is required.",
+              "description": "Creates the rating or replaces every field of it; the id, client_id and site stay those of the first write. Sending the rating as it already stands writes nothing. The work's nextmoe score on /v2/catalog/works/{id}/ratings follows at once. Any app may write a rating; it is public on every site. A first-party site checks short_summary itself before sending it. For a third-party application's token the catalog checks a new or changed short_summary: a refused one is 422 VALIDATION_FAILED at /short_summary with reason NOT_ALLOWED_VALUE, and nothing is written. Requires a user access token; no scope is required.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -193789,7 +193789,7 @@ export const docsModel: DocsModel = {
               "method": "put",
               "path": "/v2/me/work-records/{work_id}",
               "summary": "Replace my play state, playtime and rating on one work",
-              "description": "One transaction for the three parts: either all are written or none is. PUT replaces the whole record, so a part that is absent or null is deleted: send every part the form shows. playtime is this app's own report, and the record answers the most minutes any app reported. A third-party application's token may not touch the rating: sending one is refused 403 FIRST_PARTY_ONLY, and leaving it out leaves the rating as it is. Requires a user access token; no scope is required.",
+              "description": "One transaction for the three parts: either all are written or none is. PUT replaces the whole record, so a part that is absent or null is deleted: send every part the form shows. One exception: a third-party application's PUT without a rating leaves the rating as it is; DELETE /v2/me/ratings/{work_id} removes it. playtime is this app's own report, and the record answers the most minutes any app reported. A third-party application's new or changed short_summary is checked as on PUT /v2/me/ratings/{work_id}; a refused one is 422 at /rating/short_summary and no part is written. Requires a user access token; no scope is required.",
               "scope": "",
               "auth": {
                 "kind": "user_token",

@@ -77,6 +77,19 @@ func TestSeedIdempotent(t *testing.T) {
 	}
 }
 
+func TestCatalogRatingKindSeeded(t *testing.T) {
+	var rows []model.TrustSubjectKind
+	if err := testDB.Where("site = 'nextmoe' AND key = 'user_rating'").Find(&rows).Error; err != nil {
+		t.Fatalf("read kind: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("(nextmoe, user_rating) rows = %d after two migrations, want 1", len(rows))
+	}
+	if rows[0].CreatedAt.IsZero() || rows[0].CallbackURL != nil || rows[0].IsDeprecated {
+		t.Fatalf("seeded kind = %+v, want created_at set, no callback, not deprecated", rows[0])
+	}
+}
+
 // TestPartialUniqueIndexes asserts the invariant-bearing partial uniques carry
 // both their columns and their predicates verbatim (invariants 4/5).
 func TestPartialUniqueIndexes(t *testing.T) {
