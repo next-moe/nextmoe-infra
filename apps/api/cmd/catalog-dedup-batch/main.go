@@ -90,6 +90,5 @@ func main() {
 
 func mergeService(db *gorm.DB) (*service.MergeService, *service.ResolveService) {
 	resolve := service.NewResolveService(repository.NewRedirectRepository(db))
-	return service.NewMergeService(db, resolve,
-		repository.NewProposalRepository(db), repository.NewRevisionRepository(db)), resolve
+	return service.NewMergeService(db, resolve), resolve
 }

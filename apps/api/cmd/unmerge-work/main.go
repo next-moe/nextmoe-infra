@@ -76,8 +76,7 @@ func main() {
 		return
 	}
 
-	merge := service.NewMergeService(db, resolve,
-		repository.NewProposalRepository(db), repository.NewRevisionRepository(db))
+	merge := service.NewMergeService(db, resolve)
 	res, err := merge.Unmerge(ctx, p.ID, actor)
 	if err != nil {
 		slog.Error("unmerge", "proposal", p.ID, "err", err)

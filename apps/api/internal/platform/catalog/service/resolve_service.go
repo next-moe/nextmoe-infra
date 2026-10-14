@@ -18,7 +18,6 @@ var (
 	ErrCoolingOff            = errors.New("catalog: cooling-off window has not elapsed")
 	ErrDuplicateOpenProposal = errors.New("catalog: an open proposal for this pair already exists")
 	ErrClaimConflict         = errors.New("catalog: work already claimed by another product work")
-	ErrHasUsage              = errors.New("catalog: entity is referenced by site usage and cannot be hard-deleted")
 	ErrNotFound              = errors.New("catalog: not found")
 )
 

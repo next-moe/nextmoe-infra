@@ -18,17 +18,14 @@ import (
 )
 
 type MergeService struct {
-	db        *gorm.DB
-	resolve   *ResolveService
-	proposals *repository.ProposalRepository
-	revisions *repository.RevisionRepository
-	editReg   func() (*editing.Registry, error)
+	db      *gorm.DB
+	resolve *ResolveService
+	editReg func() (*editing.Registry, error)
 }
 
-func NewMergeService(db *gorm.DB, resolve *ResolveService,
-	proposals *repository.ProposalRepository, revisions *repository.RevisionRepository) *MergeService {
+func NewMergeService(db *gorm.DB, resolve *ResolveService) *MergeService {
 	return &MergeService{
-		db: db, resolve: resolve, proposals: proposals, revisions: revisions,
+		db: db, resolve: resolve,
 		editReg: sync.OnceValues(func() (*editing.Registry, error) {
 			reg := editing.NewRegistry()
 			if err := editspec.RegisterAll(reg, db); err != nil {

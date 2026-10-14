@@ -1,32 +1,10 @@
 package repository
 
 import (
-	"context"
-
 	"api/internal/platform/catalog/model"
 
 	"gorm.io/gorm"
 )
-
-type ProposalRepository struct {
-	db *gorm.DB
-}
-
-func NewProposalRepository(db *gorm.DB) *ProposalRepository {
-	return &ProposalRepository{db: db}
-}
-
-func (r *ProposalRepository) Get(ctx context.Context, id int64) (*model.CatalogMergeProposal, error) {
-	var row model.CatalogMergeProposal
-	err := r.db.WithContext(ctx).First(&row, id).Error
-	if err == gorm.ErrRecordNotFound {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	return &row, nil
-}
 
 func LockProposal(tx *gorm.DB, id int64) (*model.CatalogMergeProposal, error) {
 	var row model.CatalogMergeProposal

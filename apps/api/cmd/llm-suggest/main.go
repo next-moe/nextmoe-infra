@@ -272,8 +272,7 @@ func tryStaging(cfg *config.Config, dsn, dbName string) *gorm.DB {
 
 func adminQueue(db *gorm.DB) *service.AdminQueueService {
 	resolve := service.NewResolveService(repository.NewRedirectRepository(db))
-	merge := service.NewMergeService(db, resolve,
-		repository.NewProposalRepository(db), repository.NewRevisionRepository(db))
+	merge := service.NewMergeService(db, resolve)
 	return service.NewAdminQueueService(db, merge)
 }
 

@@ -281,29 +281,3 @@ func AttrBoolPtr(attrs map[string]any, key string) *bool {
 	}
 	return nil
 }
-
-func Breadcrumbs(attrs map[string]any) []string {
-	if attrs == nil {
-		return []string{}
-	}
-	v, ok := attrs["app.breadcrumbs"]
-	if !ok || v == nil {
-		return []string{}
-	}
-	switch t := v.(type) {
-	case []string:
-		if t == nil {
-			return []string{}
-		}
-		return t
-	case []any:
-		out := make([]string, 0, len(t))
-		for _, x := range t {
-			if s, ok := x.(string); ok {
-				out = append(out, s)
-			}
-		}
-		return out
-	}
-	return []string{}
-}

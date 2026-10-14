@@ -61,17 +61,6 @@ func ParseUndecodedDart(stack string) []Frame {
 	return out
 }
 
-func ParseDartStack(stack string) []Frame {
-	if DartBuildID(stack) != "" {
-		decoded := ParseDecodedDart(stack)
-		if len(decoded) > 0 {
-			return decoded
-		}
-		return ParseUndecodedDart(stack)
-	}
-	return ParseDecodedDart(stack)
-}
-
 func splitDecodedDart(line string) (function, loc string, ok bool) {
 	line = strings.TrimSpace(line)
 	hash := 0

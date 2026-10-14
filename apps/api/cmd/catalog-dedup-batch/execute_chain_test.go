@@ -54,8 +54,7 @@ func TestExecuteChainAware(t *testing.T) {
 	}
 	ctx := context.Background()
 	resolve := service.NewResolveService(repository.NewRedirectRepository(testDB))
-	merge := service.NewMergeService(testDB, resolve,
-		repository.NewProposalRepository(testDB), repository.NewRevisionRepository(testDB))
+	merge := service.NewMergeService(testDB, resolve)
 
 	k1, k2, k3 := mkChar(t, "K1"), mkChar(t, "K2"), mkChar(t, "K3")
 	k4, k5, k6 := mkChar(t, "K4"), mkChar(t, "K5"), mkChar(t, "K6")

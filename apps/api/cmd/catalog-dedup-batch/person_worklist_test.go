@@ -23,8 +23,7 @@ func TestPersonWorklistMergesAndTouchesNoWork(t *testing.T) {
 	}
 	ctx := context.Background()
 	resolve := service.NewResolveService(repository.NewRedirectRepository(testDB))
-	merge := service.NewMergeService(testDB, resolve,
-		repository.NewProposalRepository(testDB), repository.NewRevisionRepository(testDB))
+	merge := service.NewMergeService(testDB, resolve)
 
 	host := model.CatalogPerson{DisplayName: "北都南"}
 	loser := model.CatalogPerson{DisplayName: "ひと美"}

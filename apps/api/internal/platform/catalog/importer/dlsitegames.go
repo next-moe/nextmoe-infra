@@ -93,10 +93,6 @@ type DLsiteHoldoutRule struct {
 	Wrong   int
 }
 
-func (im *Importer) RunDLsiteGames(dlsiteDB *gorm.DB) (DLsiteGamesStats, error) {
-	return im.RunDLsiteGamesWith(dlsiteDB, DLsiteGamesRun{})
-}
-
 func (im *Importer) RunDLsiteGamesWith(dlsiteDB *gorm.DB, opts DLsiteGamesRun) (DLsiteGamesStats, error) {
 	st, receipts, err := im.planDLsiteGames(dlsiteDB)
 	if err != nil {
@@ -212,21 +208,6 @@ func (g dlGameGroup) primaryMember() dlGameProd {
 		}
 	}
 	return best
-}
-
-func (g dlGameGroup) keys() []string {
-	seen := map[string]struct{}{}
-	var out []string
-	for _, p := range g.pop {
-		for _, k := range p.keys() {
-			if _, ok := seen[k]; ok {
-				continue
-			}
-			seen[k] = struct{}{}
-			out = append(out, k)
-		}
-	}
-	return out
 }
 
 type dlGamePlan struct {

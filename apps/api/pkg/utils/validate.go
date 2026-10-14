@@ -31,7 +31,3 @@ func init() {
 func Validate(s any) error {
 	return validate.Struct(s)
 }
-
-func GetValidator() *validator.Validate {
-	return validate
-}

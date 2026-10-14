@@ -80,7 +80,6 @@ func main() {
 
 func services(db *gorm.DB) (*service.AdminQueueService, *service.MergeService) {
 	resolve := service.NewResolveService(repository.NewRedirectRepository(db))
-	merge := service.NewMergeService(db, resolve,
-		repository.NewProposalRepository(db), repository.NewRevisionRepository(db))
+	merge := service.NewMergeService(db, resolve)
 	return service.NewAdminQueueService(db, merge), merge
 }

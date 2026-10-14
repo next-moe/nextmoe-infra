@@ -53,8 +53,7 @@ func setup(t *testing.T) (*service.MergeService, int16) {
 	require.NoError(t, testDB.Raw(`SELECT id FROM catalog_medium WHERE key = 'galgame'`).Scan(&medium).Error)
 	require.NotZero(t, medium)
 	resolve := service.NewResolveService(repository.NewRedirectRepository(testDB))
-	return service.NewMergeService(testDB, resolve,
-		repository.NewProposalRepository(testDB), repository.NewRevisionRepository(testDB)), medium
+	return service.NewMergeService(testDB, resolve), medium
 }
 
 func mkWork(t *testing.T, medium int16, name string) int64 {

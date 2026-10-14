@@ -106,8 +106,6 @@ func New(
 
 var ErrModerationRejected = errors.New("service: rejected by moderation")
 
-func (s *Service) Presets() *preset.Config { return s.presets }
-
 func (s *Service) Upload(ctx context.Context, req UploadRequest) (*UploadResult, error) {
 	ps, ok := s.presets.Get(req.Preset)
 	if !ok {

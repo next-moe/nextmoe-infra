@@ -20,8 +20,7 @@ func TestProposeLeavesDecidedPairsAlone(t *testing.T) {
 	}
 	ctx := context.Background()
 	resolve := service.NewResolveService(repository.NewRedirectRepository(testDB))
-	merge := service.NewMergeService(testDB, resolve,
-		repository.NewProposalRepository(testDB), repository.NewRevisionRepository(testDB))
+	merge := service.NewMergeService(testDB, resolve)
 	const tag = "rule:catalog-dedup history-test"
 
 	file := func(src, dst int64) int64 {
@@ -99,8 +98,7 @@ func TestProposeCountsAMergedPairAsSkipped(t *testing.T) {
 	}
 	ctx := context.Background()
 	resolve := service.NewResolveService(repository.NewRedirectRepository(testDB))
-	merge := service.NewMergeService(testDB, resolve,
-		repository.NewProposalRepository(testDB), repository.NewRevisionRepository(testDB))
+	merge := service.NewMergeService(testDB, resolve)
 
 	host, dup := mkChar(t, "merged host"), mkChar(t, "merged dup")
 	p, err := merge.ProposeMerge(ctx, model.EntityTypeCharacter, dup, host, 1, "earlier wave")

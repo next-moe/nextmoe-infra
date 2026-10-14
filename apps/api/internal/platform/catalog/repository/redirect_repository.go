@@ -82,17 +82,6 @@ func getRedirect(db *gorm.DB, entityType int16, oldID int64) (*model.CatalogRedi
 	return &row, nil
 }
 
-func ResolveTx(tx *gorm.DB, entityType int16, id int64) (int64, error) {
-	row, err := getRedirect(tx, entityType, id)
-	if err != nil {
-		return 0, err
-	}
-	if row == nil {
-		return id, nil
-	}
-	return row.CurrentID, nil
-}
-
 func FlattenRedirectsTo(tx *gorm.DB, entityType int16, sourceID, targetID int64) error {
 	return tx.Model(&model.CatalogRedirect{}).
 		Where("entity_type = ? AND current_id = ?", entityType, sourceID).

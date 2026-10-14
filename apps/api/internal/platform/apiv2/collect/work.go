@@ -334,14 +334,6 @@ func FolderItemSpec() Spec {
 	}
 }
 
-func CoverVoteSpec() Spec {
-	return Spec{
-		Include: []string{},
-		FullSet: []string{},
-		Fields:  []string{"object", "cover_id", "work_id", "vote"},
-	}
-}
-
 func ClaimSpec() Spec {
 	return Spec{
 		Include: []string{},
@@ -351,14 +343,6 @@ func ClaimSpec() Spec {
 			"last_event", "first_acted_at", "acted_count",
 		},
 		NoBatch: true,
-	}
-}
-
-func NameCreditSpec() Spec {
-	return Spec{
-		Include: []string{},
-		FullSet: []string{},
-		Fields:  []string{"object", "work", "roles"},
 	}
 }
 

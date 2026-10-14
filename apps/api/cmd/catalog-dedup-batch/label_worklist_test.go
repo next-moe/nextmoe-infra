@@ -35,8 +35,7 @@ func TestLabelWorklistMergesBrandFacets(t *testing.T) {
 	}
 	ctx := context.Background()
 	resolve := service.NewResolveService(repository.NewRedirectRepository(testDB))
-	merge := service.NewMergeService(testDB, resolve,
-		repository.NewProposalRepository(testDB), repository.NewRevisionRepository(testDB))
+	merge := service.NewMergeService(testDB, resolve)
 
 	host := model.CatalogLabel{DisplayName: "アーカムプロダクツ", Lang: "ja", Kind: model.LabelKindPublisher}
 	loser := model.CatalogLabel{DisplayName: "アーカムプロダクツ", Lang: "ja", Kind: model.LabelKindPublisher}

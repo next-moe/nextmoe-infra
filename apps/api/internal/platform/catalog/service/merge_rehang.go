@@ -273,8 +273,7 @@ func rehangStmts(reg *editing.Registry, p mergePlan) ([]mergeStmt, error) {
 // on the key instead. Both tables hold 0 curated rows today (2026-08), which is
 // exactly why this is cheap now.
 var (
-	curatedCreditC    = editspec.CuratedLaneSQL("c.source_id")
-	notCuratedCreditD = editspec.NotCuratedLaneSQL("d.source_id")
+	curatedCreditC = editspec.CuratedLaneSQL("c.source_id")
 
 	// catalog_work_character has no source column: one (work, character) pair is
 	// a single consensus row every importer and every merge writes into, and the

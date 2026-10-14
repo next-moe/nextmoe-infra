@@ -65,8 +65,7 @@ func main() {
 		os.Exit(1)
 	}
 	resolve := service.NewResolveService(repository.NewRedirectRepository(db))
-	merge := service.NewMergeService(db, resolve,
-		repository.NewProposalRepository(db), repository.NewRevisionRepository(db))
+	merge := service.NewMergeService(db, resolve)
 	ctx := context.Background()
 
 	failed := 0

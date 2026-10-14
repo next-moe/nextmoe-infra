@@ -190,8 +190,7 @@ func TestLineageReadsTheSnapshotsTheMergeWrites(t *testing.T) {
 	require.NoError(t, testDB.Raw(`SELECT id FROM catalog_work_title WHERE work_id = ?`, survivor).Scan(&survivorTitle).Error)
 
 	resolve := service.NewResolveService(repository.NewRedirectRepository(testDB))
-	merge := service.NewMergeService(testDB, resolve,
-		repository.NewProposalRepository(testDB), repository.NewRevisionRepository(testDB))
+	merge := service.NewMergeService(testDB, resolve)
 	actor := int64(1)
 	p, err := merge.ProposeMerge(t.Context(), model.EntityTypeWork, loser, survivor, actor, "test")
 	require.NoError(t, err)
@@ -399,8 +398,7 @@ func TestRepairLeavesAnUnmergedWorkAlone(t *testing.T) {
 		Scan(&proposal).Error)
 
 	resolve := service.NewResolveService(repository.NewRedirectRepository(testDB))
-	merge := service.NewMergeService(testDB, resolve,
-		repository.NewProposalRepository(testDB), repository.NewRevisionRepository(testDB))
+	merge := service.NewMergeService(testDB, resolve)
 	res, err := merge.Unmerge(t.Context(), proposal, nil)
 	require.NoError(t, err)
 	rebuilt := res.NewID

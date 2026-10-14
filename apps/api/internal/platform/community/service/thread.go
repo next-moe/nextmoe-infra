@@ -315,10 +315,6 @@ func (s *ThreadService) List(q repository.ThreadListQuery) ([]model.CommunityThr
 	return s.threads.List(q)
 }
 
-func (s *ThreadService) ListByAnchor(site string, anchorKind int16, anchorID string, kind int16) ([]model.CommunityThread, error) {
-	return s.threads.ListByAnchor(site, anchorKind, anchorID, kind)
-}
-
 func (s *ThreadService) OpeningPostMeta(threadIDs []int64) (map[int64]repository.OpeningPostMeta, error) {
 	return s.threads.OpeningPostMetaByThreadIDs(threadIDs)
 }
