@@ -2142,3 +2142,12 @@ A data-browser user reported the same creator twice on one work's staff list, e.
 
 **No spec change.** Role keys on credit groups change in the data, not the schema; four roles report `deprecated: true`. The migrate job reseeds the registry; the repair is a manual step after deploy.
 
+## Wave — retire the rating importer (2026-10-13)
+
+All three sites now write ratings through `/v2` and mirror them back, so the one-off importer had no run left: running it after a site's switch would re-import the site's own mirror.
+
+- **Deleted** `cmd/import-user-ratings` and `internal/jobs/ratingimport`. Neo's `/root/rating-import/run.sh` had already been retired to an exit-1 stub on 10-12.
+- **`catalog_user_work_rating_import`** (the importer's ledger) had no other reader. Its model is gone and `migrate` no longer creates it; the production table stays until it is dropped.
+- **Kept**: the id floor of 1,000,001 on `catalog_user_work_rating`, since the forum's ids live below it.
+
+No spec change, no migration.
