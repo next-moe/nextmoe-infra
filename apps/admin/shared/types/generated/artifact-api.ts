@@ -22,6 +22,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/artifacts/composites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the site's composites (paginated, newest first) */
+        get: operations["listComposites"];
+        put?: never;
+        /** Create a composite: one download spliced at serve time from byte ranges of the site's artifacts plus inline bytes (idempotent) */
+        post: operations["createComposite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/artifacts/composites/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a composite */
+        get: operations["getComposite"];
+        put?: never;
+        post?: never;
+        /** Delete a composite: its URL stops serving and its artifacts are unpinned */
+        delete: operations["deleteComposite"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/artifacts/{uuid}": {
         parameters: {
             query?: never;
@@ -124,6 +160,87 @@ export interface components {
             /** Format: int32 */
             part_number: number;
         };
+        CompositeDeleteData: {
+            deleted: boolean;
+            id: string;
+        };
+        CompositeListData: {
+            items: components["schemas"]["CompositeResponse"][] | null;
+            /** Format: int64 */
+            total: number;
+        };
+        CompositeResponse: {
+            /** @description UUIDs of the artifacts this composite pins, in source order */
+            artifacts: string[] | null;
+            blake3: string;
+            content_type: string;
+            created_at: string;
+            filename: string;
+            /** @description Content-addressed: the same plan from the same site always yields the same id */
+            id: string;
+            /** Format: int64 */
+            inline_bytes: number;
+            /** Format: int64 */
+            segment_count: number;
+            site_key: string;
+            /** Format: int64 */
+            size: number;
+            /** @description Public download URL; absent while the site has no artifact_cdn_base */
+            url?: string;
+        };
+        CompositeSegment: {
+            /**
+             * Format: int64
+             * @description Bytes taken from that offset
+             */
+            length: number;
+            /**
+             * Format: int64
+             * @description Byte offset inside that source
+             */
+            offset: number;
+            /**
+             * Format: int64
+             * @description Index into sources
+             */
+            source: number;
+        };
+        CompositeSourceInput: {
+            /**
+             * Format: uuid
+             * @description A ready, public, undeleted artifact of the caller's own site. Exactly one of artifact_uuid and data.
+             */
+            artifact_uuid?: string;
+            /** @description Inline bytes (standard base64), stored with the composite instead of as an artifact — the zip glue. All inline sources together are capped at 8 MiB. Exactly one of artifact_uuid and data. */
+            data?: string;
+            /**
+             * Format: int64
+             * @description Optional check: the source's exact byte length. A mismatch refuses the composite.
+             */
+            size?: number;
+        };
+        CreateCompositeRequest: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/CreateCompositeRequest.json
+             */
+            readonly $schema?: string;
+            /** @description BLAKE3 of the assembled file, lowercase hex. Served as the ETag; not recomputed by the service. */
+            blake3: string;
+            /** @description Media type of the assembled file, e.g. application/zip */
+            content_type: string;
+            /** @description Download filename, sent as an attachment Content-Disposition */
+            filename: string;
+            /** @description The assembled file, in order */
+            segments: components["schemas"]["CompositeSegment"][] | null;
+            /**
+             * Format: int64
+             * @description Exact byte length of the assembled file; must equal the sum of the segment lengths
+             */
+            size: number;
+            sources: components["schemas"]["CompositeSourceInput"][] | null;
+        };
         DeleteData: {
             deleted: boolean;
             uuid: string;
@@ -142,6 +259,42 @@ export interface components {
             /** Format: int64 */
             code: number;
             data?: components["schemas"]["ArtifactResponse"];
+            message: string;
+        };
+        EnvelopeCompositeDeleteData: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeCompositeDeleteData.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["CompositeDeleteData"];
+            message: string;
+        };
+        EnvelopeCompositeListData: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeCompositeListData.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["CompositeListData"];
+            message: string;
+        };
+        EnvelopeCompositeResponse: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeCompositeResponse.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["CompositeResponse"];
             message: string;
         };
         EnvelopeDeleteData: {
@@ -340,6 +493,137 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EnvelopeInitUploadResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    listComposites: {
+        parameters: {
+            query?: {
+                /** @description 1-based page number */
+                page?: number;
+                /** @description Items per page (max 100) */
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCompositeListData"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    createComposite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCompositeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCompositeResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    getComposite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Composite id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCompositeResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    deleteComposite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Composite id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCompositeDeleteData"];
                 };
             };
             /** @description Error */

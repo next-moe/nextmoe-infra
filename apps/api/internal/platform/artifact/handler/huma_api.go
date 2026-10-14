@@ -138,10 +138,11 @@ type completeInput struct {
 }
 
 type HumaServer struct {
-	svc *service.Service
+	svc        *service.Service
+	composites *service.CompositeService
 }
 
-func Setup(app *fiber.App, svc *service.Service) huma.API {
+func Setup(app *fiber.App, svc *service.Service, composites *service.CompositeService) huma.API {
 	InstallErrorEnvelope()
 
 	cfg := huma.DefaultConfig("KUN Artifact Service", "1.0.0")
@@ -152,7 +153,8 @@ func Setup(app *fiber.App, svc *service.Service) huma.API {
 	api := humafiber.New(app, cfg)
 	api.UseMiddleware(AuthBridge)
 
-	s := &HumaServer{svc: svc}
+	s := &HumaServer{svc: svc, composites: composites}
+	s.registerComposites(api)
 	s.register(api)
 	return api
 }

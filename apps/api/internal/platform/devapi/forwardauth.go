@@ -98,6 +98,7 @@ func (f *ForwardAuth) Handle(c fiber.Ctx) error {
 	c.Set("X-NextMoe-Client-Id", cred.ClientID)
 	c.Set("X-NextMoe-Key-Id", strconv.FormatUint(uint64(cred.KeyID), 10))
 	c.Set("X-NextMoe-Tier", cred.Tier)
+	c.Set("X-NextMoe-Scopes", strings.Join(cred.Scopes, " "))
 	f.usage.Record(cred, name, pathLabel, fiber.StatusNoContent)
 	go f.usage.TouchLastUsed(context.Background(), cred)
 	return c.SendStatus(fiber.StatusNoContent)

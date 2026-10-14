@@ -77,6 +77,11 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         AdminArtifactDelete: {
+            /**
+             * Format: int64
+             * @description Composites that served this artifact's bytes, deleted with it
+             */
+            composites_deleted: number;
             soft_deleted: boolean;
             uuid: string;
         };

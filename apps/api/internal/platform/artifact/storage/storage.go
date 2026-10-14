@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -232,6 +233,20 @@ func (c *Client) Delete(ctx context.Context, key string) error {
 	})
 	if err != nil {
 		return fmt.Errorf("artifact storage: delete %q: %w", key, err)
+	}
+	return nil
+}
+
+func (c *Client) Put(ctx context.Context, key string, body []byte, contentType string) error {
+	_, err := c.s3.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:        aws.String(c.bucket),
+		Key:           aws.String(key),
+		Body:          bytes.NewReader(body),
+		ContentLength: aws.Int64(int64(len(body))),
+		ContentType:   aws.String(contentType),
+	})
+	if err != nil {
+		return fmt.Errorf("artifact storage: put %q: %w", key, err)
 	}
 	return nil
 }

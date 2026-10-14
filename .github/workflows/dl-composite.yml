@@ -1,0 +1,36 @@
+name: dl-composite
+
+# The dl.imoe.uk/c/* Worker (workers/dl-composite). It is its own pnpm
+# workspace with its own lockfile, outside the root apps/* workspace, so the
+# root install never sees it. Deploying is manual (wrangler, docs/artifact/11 §3).
+
+on:
+  push:
+    paths: &paths
+      - "workers/dl-composite/**"
+      - ".github/workflows/dl-composite.yml"
+  pull_request:
+    paths: *paths
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: workers/dl-composite
+
+jobs:
+  check:
+    name: typecheck · test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: workers/dl-composite/package.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck
+      - run: pnpm test

@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dl-composite",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-15",
+  "workers_dev": false,
+  "routes": [{ "pattern": "dl.imoe.uk/c/*", "zone_name": "imoe.uk" }],
+  "vars": {
+    "B2_ENDPOINT": "https://s3.us-east-005.backblazeb2.com",
+    "B2_REGION": "us-east-005",
+    "B2_BUCKET": "kungal-artifact-v1"
+  },
+  "observability": { "enabled": true }
+}

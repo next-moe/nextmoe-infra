@@ -9,6 +9,7 @@ import (
 
 	"api/internal/platform/artifact/dto"
 	"api/internal/platform/artifact/perm"
+	"api/internal/platform/artifact/service"
 	apperr "api/pkg/errors"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -157,18 +158,21 @@ func (s *AdminHumaServer) delete(ctx context.Context, in *adminUUIDInput) (*admi
 	if err := s.requireRen(ctx); err != nil {
 		return nil, err
 	}
-	if err := s.h.Delete(ctx, in.UUID); err != nil {
+	removed, err := s.h.Delete(ctx, in.UUID)
+	if err != nil {
 		switch {
 		case errors.Is(err, errAdminBadRequest):
 			return nil, apiErr(http.StatusBadRequest, apperr.ErrBadRequest)
 		case errors.Is(err, errAdminNotFound):
 			return nil, apiErr(http.StatusNotFound, apperr.ErrNotFound)
+		case errors.Is(err, service.ErrStorageUnconfigured):
+			return nil, apiErrMsg(http.StatusServiceUnavailable, apperr.ErrInternalServer, "artifact storage not configured; cannot take down the composites serving this artifact")
 		default:
 			slog.Error("artifact admin delete", "uuid", in.UUID, "err", err)
 			return nil, apiErr(http.StatusInternalServerError, apperr.ErrInternalServer)
 		}
 	}
-	return &adminDeleteOutput{Body: okEnvelope(dto.AdminArtifactDelete{UUID: in.UUID, SoftDeleted: true})}, nil
+	return &adminDeleteOutput{Body: okEnvelope(dto.AdminArtifactDelete{UUID: in.UUID, SoftDeleted: true, CompositesDeleted: removed})}, nil
 }
 
 func (s *AdminHumaServer) reclaim(ctx context.Context, in *adminUUIDInput) (*adminReclaimOutput, error) {
