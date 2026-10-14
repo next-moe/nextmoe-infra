@@ -10,14 +10,15 @@
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
 - 路径前缀：`/v2/moyu`
-- 凭据：Authorization: Bearer nmk_live_…（任意有效 v2 应用密钥即可,无需任何 scope）
-- 端点数：4
+- 凭据：Authorization: Bearer nmk_live_…（任意有效 v2 应用密钥即可,无需任何 scope;唯一例外是 /v2/moyu/resources/{id}/file,要运营发放的 moyu:files）
+- 端点数：5
 
 ## 使用须知
 
 - 下游站点面：由 鲲 Galgame 补丁（www.moyu.moe）自己的服务提供，经平台网关联邦进来。契约由该站的仓库拥有，本站只镜像它的 OpenAPI 原文。
 - 它只回答一件事：这部游戏在 moyu 上有哪些补丁资源。任意有效 nmk_ 应用密钥都能调，不需要任何 scope——网关只做身份、计量与限流，不做授权。
 - 不带下载直链、提取码与解压密码，这是契约里写死的取舍而不是遗漏：在 moyu 上取链接是一次单独的、按资源限速的请求，就是为了不能被批量抓走。每行都给 web_url，把读者送过去。
+- 唯一例外是 /v2/moyu/resources/{id}/file：对持有 moyu:files 的密钥给出托管资源的下载链接与解压密码。这个 scope 由运营发放、不能自助勾选，其余密钥一律 403 SCOPE_REQUIRED；只有 storage 为 s3 的资源有文件，答案一律 no-store，别缓存 download_url。
 - 也不带游戏名、封面、标签与角色：那些归 catalog。每行都带 catalog_work_id，拿它去 /v2/catalog/works/{id} 解析——同一把密钥就能读。patch.id、vndb_id 与 catalog_work_id 是三个互不相等的 id 空间。
 - /v2/moyu/patches 上的 refs= 是批量反查：一次最多 100 个 vndb:<id> 或 catalog:<id> 锚，没命中的原样回在 missing[] 里。这是「我手上这 100 部作品哪些有补丁」的一次性问法，此时 cursor 与 sort 会被拒。
 - 错误全部是 RFC 9457 application/problem+json：网关写的 401（MISSING_CREDENTIAL / INVALID_CREDENTIAL）与 429（RATE_LIMITED / QUOTA_EXCEEDED）和补丁站写的其余错误同一个形状、同一份封闭注册表。按 HTTP status 分支，再看 code。
@@ -34,6 +35,7 @@
 ### 资源
 
 - `GET /v2/moyu/resources/{id}` — One resource [详情](https://developer.nextmoe.dev/docs/moyu/getResource.md)
+- `GET /v2/moyu/resources/{id}/file` — The file behind a hosted resource [详情](https://developer.nextmoe.dev/docs/moyu/getResourceFile.md)
 
 ---
 本页来源 · NextMoe 开发者平台 · https://developer.nextmoe.dev/docs/moyu

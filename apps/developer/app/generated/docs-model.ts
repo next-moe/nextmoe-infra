@@ -238749,12 +238749,13 @@ export const docsModel: DocsModel = {
         "kind": "api_key",
         "curl": "Authorization: Bearer nmk_live_<YOUR_KEY>",
         "display": "Authorization: Bearer nmk_live_…",
-        "note": "任意有效 v2 应用密钥即可,无需任何 scope"
+        "note": "任意有效 v2 应用密钥即可,无需任何 scope;唯一例外是 /v2/moyu/resources/{id}/file,要运营发放的 moyu:files"
       },
       "notes": [
         "下游站点面：由 鲲 Galgame 补丁（www.moyu.moe）自己的服务提供，经平台网关联邦进来。契约由该站的仓库拥有，本站只镜像它的 OpenAPI 原文。",
         "它只回答一件事：这部游戏在 moyu 上有哪些补丁资源。任意有效 nmk_ 应用密钥都能调，不需要任何 scope——网关只做身份、计量与限流，不做授权。",
         "不带下载直链、提取码与解压密码，这是契约里写死的取舍而不是遗漏：在 moyu 上取链接是一次单独的、按资源限速的请求，就是为了不能被批量抓走。每行都给 web_url，把读者送过去。",
+        "唯一例外是 /v2/moyu/resources/{id}/file：对持有 moyu:files 的密钥给出托管资源的下载链接与解压密码。这个 scope 由运营发放、不能自助勾选，其余密钥一律 403 SCOPE_REQUIRED；只有 storage 为 s3 的资源有文件，答案一律 no-store，别缓存 download_url。",
         "也不带游戏名、封面、标签与角色：那些归 catalog。每行都带 catalog_work_id，拿它去 /v2/catalog/works/{id} 解析——同一把密钥就能读。patch.id、vndb_id 与 catalog_work_id 是三个互不相等的 id 空间。",
         "/v2/moyu/patches 上的 refs= 是批量反查：一次最多 100 个 vndb:<id> 或 catalog:<id> 锚，没命中的原样回在 missing[] 里。这是「我手上这 100 部作品哪些有补丁」的一次性问法，此时 cursor 与 sort 会被拒。",
         "错误全部是 RFC 9457 application/problem+json：网关写的 401（MISSING_CREDENTIAL / INVALID_CREDENTIAL）与 429（RATE_LIMITED / QUOTA_EXCEEDED）和补丁站写的其余错误同一个形状、同一份封闭注册表。按 HTTP status 分支，再看 code。",
@@ -239357,6 +239358,7 @@ export const docsModel: DocsModel = {
                           "UNKNOWN_SORT",
                           "MISSING_CREDENTIAL",
                           "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
                           "NOT_FOUND",
                           "METHOD_NOT_ALLOWED",
                           "RATE_LIMITED",
@@ -239472,6 +239474,7 @@ export const docsModel: DocsModel = {
                           "UNKNOWN_SORT",
                           "MISSING_CREDENTIAL",
                           "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
                           "NOT_FOUND",
                           "METHOD_NOT_ALLOWED",
                           "RATE_LIMITED",
@@ -239587,6 +239590,7 @@ export const docsModel: DocsModel = {
                           "UNKNOWN_SORT",
                           "MISSING_CREDENTIAL",
                           "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
                           "NOT_FOUND",
                           "METHOD_NOT_ALLOWED",
                           "RATE_LIMITED",
@@ -240108,6 +240112,7 @@ export const docsModel: DocsModel = {
                           "UNKNOWN_SORT",
                           "MISSING_CREDENTIAL",
                           "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
                           "NOT_FOUND",
                           "METHOD_NOT_ALLOWED",
                           "RATE_LIMITED",
@@ -240223,6 +240228,7 @@ export const docsModel: DocsModel = {
                           "UNKNOWN_SORT",
                           "MISSING_CREDENTIAL",
                           "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
                           "NOT_FOUND",
                           "METHOD_NOT_ALLOWED",
                           "RATE_LIMITED",
@@ -240338,6 +240344,7 @@ export const docsModel: DocsModel = {
                           "UNKNOWN_SORT",
                           "MISSING_CREDENTIAL",
                           "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
                           "NOT_FOUND",
                           "METHOD_NOT_ALLOWED",
                           "RATE_LIMITED",
@@ -240453,6 +240460,7 @@ export const docsModel: DocsModel = {
                           "UNKNOWN_SORT",
                           "MISSING_CREDENTIAL",
                           "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
                           "NOT_FOUND",
                           "METHOD_NOT_ALLOWED",
                           "RATE_LIMITED",
@@ -240831,6 +240839,7 @@ export const docsModel: DocsModel = {
                           "UNKNOWN_SORT",
                           "MISSING_CREDENTIAL",
                           "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
                           "NOT_FOUND",
                           "METHOD_NOT_ALLOWED",
                           "RATE_LIMITED",
@@ -240946,6 +240955,7 @@ export const docsModel: DocsModel = {
                           "UNKNOWN_SORT",
                           "MISSING_CREDENTIAL",
                           "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
                           "NOT_FOUND",
                           "METHOD_NOT_ALLOWED",
                           "RATE_LIMITED",
@@ -241061,6 +241071,7 @@ export const docsModel: DocsModel = {
                           "UNKNOWN_SORT",
                           "MISSING_CREDENTIAL",
                           "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
                           "NOT_FOUND",
                           "METHOD_NOT_ALLOWED",
                           "RATE_LIMITED",
@@ -241176,6 +241187,7 @@ export const docsModel: DocsModel = {
                           "UNKNOWN_SORT",
                           "MISSING_CREDENTIAL",
                           "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
                           "NOT_FOUND",
                           "METHOD_NOT_ALLOWED",
                           "RATE_LIMITED",
@@ -241511,6 +241523,7 @@ export const docsModel: DocsModel = {
                           "UNKNOWN_SORT",
                           "MISSING_CREDENTIAL",
                           "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
                           "NOT_FOUND",
                           "METHOD_NOT_ALLOWED",
                           "RATE_LIMITED",
@@ -241626,6 +241639,7 @@ export const docsModel: DocsModel = {
                           "UNKNOWN_SORT",
                           "MISSING_CREDENTIAL",
                           "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
                           "NOT_FOUND",
                           "METHOD_NOT_ALLOWED",
                           "RATE_LIMITED",
@@ -241741,6 +241755,7 @@ export const docsModel: DocsModel = {
                           "UNKNOWN_SORT",
                           "MISSING_CREDENTIAL",
                           "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
                           "NOT_FOUND",
                           "METHOD_NOT_ALLOWED",
                           "RATE_LIMITED",
@@ -241856,6 +241871,7 @@ export const docsModel: DocsModel = {
                           "UNKNOWN_SORT",
                           "MISSING_CREDENTIAL",
                           "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
                           "NOT_FOUND",
                           "METHOD_NOT_ALLOWED",
                           "RATE_LIMITED",
@@ -241927,6 +241943,671 @@ export const docsModel: DocsModel = {
                 }
               ],
               "curl": "curl \"https://api.nextmoe.dev/v2/moyu/resources/10463\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
+            },
+            {
+              "id": "getResourceFile",
+              "method": "get",
+              "path": "/v2/moyu/resources/{id}/file",
+              "summary": "The file behind a hosted resource",
+              "description": "The download link and archive password `Resource` withholds. Needs the\noperator-granted `moyu:files` scope. Only a resource whose `storage` is\n`s3` has a file here; a link its publisher hosts elsewhere is\n`NOT_FOUND`, as is a hosted file no longer stored.\n\nNever cached: every answer, refusals included, is\n`Cache-Control: private, no-store`. Ask again rather than keeping a\n`download_url`.\n",
+              "scope": "moyu:files",
+              "params": [
+                {
+                  "name": "id",
+                  "in": "path",
+                  "required": true,
+                  "type": "string",
+                  "doc": "Resource id."
+                }
+              ],
+              "responses": [
+                {
+                  "status": "200",
+                  "description": "The file.",
+                  "schema": {
+                    "doc": "The file behind a hosted resource.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "object",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "resource_id",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "artifact_uuid",
+                        "required": true,
+                        "doc": "The stored file. Replacing a resource's file uploads a new one, so\na different uuid means different bytes.\n",
+                        "format": "uuid",
+                        "type": "string"
+                      },
+                      {
+                        "name": "download_url",
+                        "required": true,
+                        "doc": "Supports `Range`.",
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "filename",
+                        "required": true,
+                        "doc": "The name the file was uploaded under.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "bytes",
+                        "required": true,
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "blake3",
+                        "required": true,
+                        "doc": "BLAKE3 of the file, or empty when moyu has none. No file uploaded\nafter 2026-06-04 has one, and a hash that belonged to a file the\nresource has since replaced is not reported. Hash the download\nyourself when you need one.\n",
+                        "type": "string"
+                      },
+                      {
+                        "name": "password",
+                        "required": true,
+                        "doc": "The archive password, empty when the archive has none.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "updated_at",
+                        "required": true,
+                        "doc": "When the resource was last edited, its file or anything else.",
+                        "format": "date-time",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "400",
+                  "description": "The request could not be parsed. `code` is one of `INVALID_PARAMETER`,\n`UNKNOWN_ENUM_VALUE`, `UNKNOWN_SORT`, `UNKNOWN_INCLUDE`,\n`INVALID_CURSOR`, `LIMIT_TOO_LARGE` or `TOO_MANY_IDS`, and `errors[0]`\nnames the parameter.\n",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "enum": [
+                                "id",
+                                "limit",
+                                "cursor",
+                                "include_total",
+                                "include",
+                                "nsfw",
+                                "ids",
+                                "refs",
+                                "sort",
+                                "type",
+                                "language",
+                                "platform",
+                                "has_resources"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "403",
+                  "description": "The key is valid but lacks the scope this operation needs. `code` is\n`SCOPE_REQUIRED`.\n",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "enum": [
+                                "id",
+                                "limit",
+                                "cursor",
+                                "include_total",
+                                "include",
+                                "nsfw",
+                                "ids",
+                                "refs",
+                                "sort",
+                                "type",
+                                "language",
+                                "platform",
+                                "has_resources"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "404",
+                  "description": "Nothing visible exists at this URL.",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "enum": [
+                                "id",
+                                "limit",
+                                "cursor",
+                                "include_total",
+                                "include",
+                                "nsfw",
+                                "ids",
+                                "refs",
+                                "sort",
+                                "type",
+                                "language",
+                                "platform",
+                                "has_resources"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "429",
+                  "description": "The key's rate limit or quota is spent. Written by the gateway as a\nproblem document from the same registry: `code` is `RATE_LIMITED` or\n`QUOTA_EXCEEDED`. `Retry-After` says when to come back.\n",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "enum": [
+                                "id",
+                                "limit",
+                                "cursor",
+                                "include_total",
+                                "include",
+                                "nsfw",
+                                "ids",
+                                "refs",
+                                "sort",
+                                "type",
+                                "language",
+                                "platform",
+                                "has_resources"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "503",
+                  "description": "A dependency is unavailable. The request may be retried.",
+                  "schema": {
+                    "doc": "RFC 9457 problem details, same shape as catalog `/v2`.",
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "type",
+                        "required": true,
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "type": "integer"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "type": "string"
+                      },
+                      {
+                        "name": "code",
+                        "required": true,
+                        "enum": [
+                          "INVALID_PARAMETER",
+                          "UNKNOWN_ENUM_VALUE",
+                          "LIMIT_TOO_LARGE",
+                          "TOO_MANY_IDS",
+                          "INVALID_CURSOR",
+                          "UNKNOWN_INCLUDE",
+                          "UNKNOWN_SORT",
+                          "MISSING_CREDENTIAL",
+                          "INVALID_CREDENTIAL",
+                          "SCOPE_REQUIRED",
+                          "NOT_FOUND",
+                          "METHOD_NOT_ALLOWED",
+                          "RATE_LIMITED",
+                          "QUOTA_EXCEEDED",
+                          "INTERNAL_ERROR",
+                          "SERVICE_UNAVAILABLE"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Also sent as `X-Request-ID`. Quote it in a support request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty when the failure is not field-level.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "parameter",
+                              "enum": [
+                                "id",
+                                "limit",
+                                "cursor",
+                                "include_total",
+                                "include",
+                                "nsfw",
+                                "ids",
+                                "refs",
+                                "sort",
+                                "type",
+                                "language",
+                                "platform",
+                                "has_resources"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "enum": [
+                                "INVALID_FORMAT",
+                                "OUT_OF_RANGE",
+                                "TOO_MANY_ITEMS",
+                                "UNKNOWN_VALUE",
+                                "NOT_ALLOWED_VALUE"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ],
+              "curl": "curl \"https://api.nextmoe.dev/v2/moyu/resources/7007/file\" \\\n  -H \"Authorization: Bearer nmk_live_<YOUR_KEY>\""
             }
           ]
         }
