@@ -27,6 +27,18 @@ const loadManifest = (store: Bucket, key: string): Promise<Manifest | null> => {
   return manifest
 }
 
+export const clientKey = (ip: string | null): string => {
+  if (!ip?.includes(':')) return ip ?? ''
+  const [head = '', tail] = ip.split('::')
+  const h = head ? head.split(':') : []
+  const t = tail ? tail.split(':') : []
+  const groups = tail === undefined ? h : [...h, ...Array<string>(8 - h.length - t.length).fill('0'), ...t]
+  return groups
+    .slice(0, 4)
+    .map((g) => parseInt(g, 16).toString(16))
+    .join(':') + '::/64'
+}
+
 const text = (status: number, body: string, headers: HeadersInit = {}): Response =>
   new Response(body, { status, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store', ...headers } })
 
@@ -72,6 +84,8 @@ export default {
     if (req.method !== 'GET' && req.method !== 'HEAD') return text(405, 'method not allowed\n', { Allow: 'GET, HEAD' })
     const path = new URL(req.url).pathname.match(PATH)
     if (!path) return text(404, 'not found\n')
+    const { success } = await env.PER_IP.limit({ key: clientKey(req.headers.get('CF-Connecting-IP')) })
+    if (!success) return text(429, 'too many requests\n', { 'Retry-After': '60' })
 
     const store = bucket(env)
     let manifest: Manifest | null

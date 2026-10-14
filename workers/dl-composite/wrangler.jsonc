@@ -10,5 +10,6 @@
     "B2_REGION": "us-east-005",
     "B2_BUCKET": "kungal-artifact-v1"
   },
+  "ratelimits": [{ "name": "PER_IP", "namespace_id": "20261014", "simple": { "limit": 600, "period": 60 } }],
   "observability": { "enabled": true }
 }
