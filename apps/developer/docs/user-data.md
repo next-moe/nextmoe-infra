@@ -21,7 +21,7 @@ description: 用 OAuth 用户访问令牌接入 /v2/me。游玩记录与收藏�
 
 | 一族                           | 路径                                                                              | 凭据                                     | 写在哪                               |
 | ------------------------------ | --------------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------ |
-| 游玩状态、时长、评分、一次写完 | `/v2/me/work-states`、`/v2/me/playtimes`、`/v2/me/ratings`、`/v2/me/work-records` | 用户令牌，无 scope。写评分只限第一方应用 | [评分与游玩记录](/docs/play-records) |
+| 游玩状态、时长、评分、一次写完 | `/v2/me/work-states`、`/v2/me/playtimes`、`/v2/me/ratings`、`/v2/me/work-records` | 用户令牌，无 scope。第三方应用写的短评由中央做内容检查 | [评分与游玩记录](/docs/play-records) |
 | 收藏夹                         | `/v2/me/folders`                                                                  | `folder:read` / `folder:write`           | [收藏夹](/docs/folders)              |
 | 按作品汇总                     | `/v2/me/works`                                                                    | `folder:read`（`folder:write` 也满足读） | [本页](#works)                       |
 | 关注的会社                     | `/v2/me/followed-companies`                                                       | 用户令牌，无 scope                       | [本页](#followed-companies)          |

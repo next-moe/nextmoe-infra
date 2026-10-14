@@ -128,15 +128,6 @@ export const problems = [
     "type": "https://developer.nextmoe.dev/problems/platform/scope-required"
   },
   {
-    "code": "FIRST_PARTY_ONLY",
-    "domain": "platform",
-    "kebab": "first-party-only",
-    "status": 403,
-    "title": "First party only",
-    "description": "This operation is only available to first-party clients.",
-    "type": "https://developer.nextmoe.dev/problems/platform/first-party-only"
-  },
-  {
     "code": "NOT_FOUND",
     "domain": "platform",
     "kebab": "not-found",

@@ -2119,3 +2119,14 @@ The three sites are adding a 关联作品 block to the work page. Every relation
 The developer portal built curl bodies from required fields only, with `0` for every number and the first enum member for every string. `PUT /v2/me/work-records/{work_id}` therefore showed `-d '{}'` (that PUT deletes any part the body omits) and `PUT /v2/me/ratings/{work_id}` showed `overall: 0` with `recommend: strong_no`, which is a 422. The write structs for work records, ratings, playtimes, work states and folders now carry `example` tags. Nothing else on those fields changed.
 
 **Spec is 2.48.1.** Examples only; no shape change, no migration.
+
+## Wave — third-party apps write ratings (2026-10-14)
+
+Ratings were first-party only: `PUT /v2/me/ratings/{work_id}` and the `rating` block of `PUT /v2/me/work-records/{work_id}` answered `403 FIRST_PARTY_ONLY` to a third-party app's token, because a short review is public on every site and only the sites ran a content check before writing. The owner ruled that a user signed in to a third-party app may rate through it, as they may report playtime.
+
+- **The gate is gone.** Any app holding a user access token may write a rating, with no scope. `FIRST_PARTY_ONLY` had no other caller and is removed from the problem registry.
+- **The catalog checks third-party short reviews.** A first-party site still checks its own writes, so the catalog does nothing for them. When a third-party app sends a non-empty `short_summary` that differs from the stored one, the catalog runs trust's word-list check first (site `nextmoe`, 500 ms, fail-open). `deny` is `422 VALIDATION_FAILED` at `/short_summary` (`/rating/short_summary` on work-records) with reason `NOT_ALLOWED_VALUE`, and nothing is written; `hold` writes and logs the matched terms. After the write the review goes to trust's scan as kind `user_rating` with the rating id as subject. A flagged review is removed with `DELETE /v2/moderation/ratings/{id}`; the kind has no callback.
+- **Wiring.** The catalog calls trust with the community service's forwarder client, which already sits in `KUN_TRUST_FORWARDER_CLIENT_IDS` and may therefore name the wire site `nextmoe`; no new secret. `migrate-trust` seeds `(nextmoe, user_rating)` because trust's ensure face binds the site from the caller's client and this client has none.
+- **One asymmetry kept.** A third-party work-records PUT without a `rating` still leaves the rating as it is, where a first-party one deletes it. Third parties were documented to omit it, and Kireibox already reports playtime with a third-party token; turning omission into deletion would erase ratings users wrote on the sites. A third party removes a rating with `DELETE /v2/me/ratings/{work_id}`.
+
+**Spec is 2.49.0.** A refusal disappears and a 422 reason appears on two writes; descriptions change; `FIRST_PARTY_ONLY` leaves the problem registry. Migration: the `migrate-trust` seed above, additive and idempotent; it runs with the deploy.

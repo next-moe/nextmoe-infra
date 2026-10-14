@@ -1,7 +1,7 @@
 ---
 title: 评分与游玩记录
 eyebrow: 集成指南
-description: 游玩状态、游玩时长、评分，以及把三者一次写完的 work-records：谁能写、替换语义、公开读取与镜像入口。
+description: 游玩状态、游玩时长、评分，以及把三者一次写完的 work-records：谁能写、短评检查、替换语义、公开读取与镜像入口。
 ---
 
 # 评分与游玩记录
@@ -63,7 +63,7 @@ PUT    /v2/me/work-records/{work_id}
 `playtime` 写的是**本应用自己的**上报。读回来的分钟数是所有应用里报过的最大值。
 
 > [!WARNING]
-> 复制一个空 body 再 PUT，会删掉这个人的游玩状态和本应用的时长。第一方应用还会连评分一起删掉。第三方应用不送 `rating` 时，评分保持原样。
+> 复制一个空 body 再 PUT，会删掉这个人的游玩状态和本应用的时长。第一方应用还会连评分一起删掉。第三方应用不送 `rating` 时，评分保持原样；要删评分请调 `DELETE /v2/me/ratings/{work_id}`。
 
 ## 给这部作品打分 {#rate}
 
@@ -71,9 +71,9 @@ PUT    /v2/me/work-records/{work_id}
 
 1. `GET /v2/me/work-records/{work_id}`，把返回的三块填进表单。null 的块显示为空。
 2. 用户改完后，`PUT` 同一路径，body 里带上表单上的**每一块**，包括用户没改的那些。
-3. 第三方应用不能写评分：表单里把评分只读显示，PUT 时不送 `rating`，状态和时长照常写入，评分留在原地。送了 `rating` 是 `403 FIRST_PARTY_ONLY`，整次写入都不生效。
+3. 短评被内容检查拒绝时（只发生在第三方应用身上，见 [评分](#ratings)），整次写入都不生效：把 422 指向的 `/rating/short_summary` 标出来，请用户改过再交。
 
-第一方应用不要靠「省略 rating」来表示「没改评分」——省略就是删除。没改的评分要原样送回去。
+第一方应用不要靠「省略 rating」来表示「没改评分」——省略就是删除。没改的评分要原样送回去。第三方应用省略 `rating` 时评分保持原样，这是为了兼容只写状态和时长的老集成；用户在表单里清掉评分时，另调 `DELETE /v2/me/ratings/{work_id}`。
 
 ## 评分 {#ratings}
 
@@ -81,8 +81,11 @@ PUT    /v2/me/work-records/{work_id}
 
 `PUT /v2/me/ratings/{work_id}` 创建或整份替换。`overall` 是 1 到 10 的整数，`recommend` 是 `strong_no / no / neutral / yes / strong_yes`。`aspect_scores` 的每一项也是 1 到 10，不评的项不送。`spoiler_level` 不送等于 `none`。`short_summary` 是纯文本，最长 2000 个字符，不送或空串等于没有短评。和已经存着的内容完全一样时，这次写入不落库。作品的 nextmoe 评分（`/v2/catalog/works/{id}/ratings`）随即更新。
 
-> [!IMPORTANT]
-> `PUT /v2/me/ratings/{work_id}`，以及 work-records 里的 `rating` 块，**只有第一方应用能写**。第三方应用的令牌得到 `403 FIRST_PARTY_ONLY`。中央服务不检查 `short_summary` 的内容，每个第一方站点在写入之前自己做内容检查。
+任何拿着用户令牌的应用都能写评分，与游玩时长一样，不需要 scope。评分在所有站点公开，所以短评要过内容检查：
+
+- 第一方站点（鲲 Galgame、鲲 Galgame 补丁、LetMoe）在写入之前自己检查，中央不再重复。
+- 第三方应用送来的短评由中央检查，只在短评非空、并且和已存的不一样时才查。被拒绝是 `422 VALIDATION_FAILED`，`errors[0].pointer` 是 `/short_summary`（work-records 上是 `/rating/short_summary`），`reason` 是 `NOT_ALLOWED_VALUE`，这次什么都不写。通过的短评写入之后还会被异步复查，复查出问题的由版主删除（见 [版主删除](#moderation)）。
+- 检查服务暂时不可用时照常写入，事后复查。
 
 读是放开的。`GET /v2/me/ratings` 与 `GET /v2/me/ratings/{work_id}` 任何拿着这个用户令牌的应用都能调，不需要 scope。列表按目录最后一次改动这条评分的时间从旧到新排，`next_cursor` 是增量水位；`work_ids=` 是最多 100 个 id 的批量读，不分页。单条不存在是 404。
 

@@ -53,10 +53,6 @@ func TestLiveRatingLifecycle(t *testing.T) {
 	status, _, raw := liveDo(t, env, http.MethodPut, path, "", body)
 	require.Equal(t, 401, status, string(raw))
 
-	status, _, raw = liveDo(t, env, http.MethodPut, path, liveThirdPartyToken, body)
-	require.Equal(t, 403, status, string(raw))
-	require.Equal(t, "FIRST_PARTY_ONLY", problemCode(t, raw))
-
 	for _, bad := range []string{
 		`{"overall":11,"recommend":"yes"}`,
 		`{"overall":8,"recommend":"maybe"}`,
@@ -192,7 +188,10 @@ func TestLiveWorkRecord(t *testing.T) {
 	require.Equal(t, 7, rec.Rating.Overall, "a refused PUT writes no part")
 
 	status, _, raw = liveDo(t, env, http.MethodPut, path, liveThirdPartyToken, full)
-	require.Equal(t, 403, status, string(raw))
+	require.Equal(t, 200, status, string(raw))
+	require.NoError(t, json.Unmarshal(raw, &rec))
+	require.Equal(t, 7, rec.Rating.Overall, "a third-party app writes the rating too")
+	require.Equal(t, liveThirdPartyClient, rec.Rating.ClientID)
 	status, _, raw = liveDo(t, env, http.MethodPut, path, liveUserToken, full)
 	require.Equal(t, 200, status, string(raw))
 	status, _, raw = liveDo(t, env, http.MethodPut, path, liveThirdPartyToken, `{"work_state":{"state":"doing"}}`)

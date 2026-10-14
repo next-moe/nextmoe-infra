@@ -511,7 +511,7 @@ wave 176-179 把人类的**写**搬完了;本波搬的是搬完写之后还留�
 - **评分带作者的游玩状态**:两站的评分卡都显示作者玩到哪了,而游玩状态没有公开读面,所以每条评分都带 `work_state`——作者在该作品上**当前**的状态,读取时从 `catalog_user_work_state` 取,评分行里不存副本。状态改变或删除会推动该评分的 `changed_at`,从而进入 feed。
 - **两个时间**:`updated_at` = 作者最后编辑评分的时间,导入保留源站的值;`changed_at`(不在评分对象上公开)= catalog 最后改动这一行的时间(编辑、状态变化、合并、导入),`/v2/me/ratings` 与 `/v2/ratings/changes` 都按它排序。只有一个时间的话,导入的评分带着历史 `updated_at`,会落在已经跑过的镜像游标之前、永远同步不到。
 - **id 稳定**:编辑保留 id;作品合并时同一人在两边都评过,保留较新那条的 id,另一条留墓碑;删除写墓碑,之后再评得到新 id。各站的点赞与讨论串挂在这个 id 上。
-- **`/v2/me/ratings`**:列表(按更新时间升序,`cur_` 游标,`work_ids=` 批量读)/ 读 / PUT / DELETE。PUT 替换全部字段,原样重发不写任何东西。不需要 scope(同游玩状态)。**第三方应用的令牌写入一律 `403 FIRST_PARTY_ONLY`**:短评在所有站公开,而内容审核只在各站自己的写入路径里跑。在 `/v2/me/work-records` 上第三方令牌完全碰不到评分:不带评分时保留原评分(一等应用不带则是删除)。
+- **`/v2/me/ratings`**:列表(按更新时间升序,`cur_` 游标,`work_ids=` 批量读)/ 读 / PUT / DELETE。PUT 替换全部字段,原样重发不写任何东西。不需要 scope(同游玩状态)。**任何应用都能写(2.49.0 起,同游玩时长)**:短评在所有站公开,第一方站点在自己的写入路径里先做内容审核;第三方应用送来的短评由中央在写入前过 trust 词表检查(site `nextmoe`,500ms 超时即放行),只在短评非空且与已存不同时检查,`deny` 是 `422 VALIDATION_FAILED`(`/short_summary`,work-records 上是 `/rating/short_summary`,reason `NOT_ALLOWED_VALUE`,整次不写);写入后异步送 trust 扫描(kind `user_rating`,subject_id 为评分 id),标记出的由版主经 `DELETE /v2/moderation/ratings/{id}` 删除。在 `/v2/me/work-records` 上第三方令牌不带评分时保留原评分(第一方不带则是删除),这是为兼容只写状态和时长的旧集成;第三方删评分走 `DELETE /v2/me/ratings/{work_id}`。
 - **`/v2/me/work-records/{work_id}`**:GET / PUT 游玩状态 + 本应用的时长 + 评分,**一个事务**,给「一个弹窗同时提交」用。PUT 替换整条记录,缺省或为 null 的部分即删除(时长只删本应用那一行)。
 - **`/v2/me/works`** 每项多一个 `rating`;只评过分的作品也算「记过」。
 - **`/v2/ratings`**(应用密钥或带 `catalog:read` 的用户令牌):按 `work_id=` / `user_id=` 列表(按创建时间倒序)、`/v2/ratings/{id}`,以及**镜像信道 `/v2/ratings/changes`**:写入与删除按 `(changed_at, id)` 排序,与 `/v2/catalog/changes` 一样压后 5 秒,只有满页才给 `next_cursor`。

@@ -544,6 +544,14 @@ services:
       KUN_STORE_PRICE_DLSITE_CURRENCIES: ${KUN_STORE_PRICE_DLSITE_CURRENCIES:-CNY,USD,TWD,HKD,KRW,EUR}
       KUN_STORE_PRICE_DLSITE_BASE: ${KUN_STORE_PRICE_DLSITE_BASE:-}
       KUN_STORE_PRICE_DLSITE_PROXY: ${KUN_STORE_PRICE_DLSITE_PROXY:-}
+      # spec 2.49.0: a third-party app's rating short review is checked before
+      # the write and scanned after it under trust site "nextmoe" (kind
+      # user_rating, seeded by migrate-trust). This reuses the community block's
+      # forwarder client: naming a wire site needs a client in trust's
+      # KUN_TRUST_FORWARDER_CLIENT_IDS, and this one already is, so no new
+      # secret. Empty => no check or scan; the write still goes through.
+      KUN_TRUST_CLIENT_ID: "ac2b8856594baed9c9ee6792eec082e3"
+      KUN_TRUST_CLIENT_SECRET: ${KUN_TRUST_CLIENT_SECRET:-}
     # S2S read/admin face stays internal — product backends (wiki/forum/moyu)
     # reach it at http://catalog:9281 over dokploy-network. The ONLY public path
     # is the open-API /v1/catalog projection routed by the labels block below.
@@ -808,7 +816,8 @@ services:
       # permitted to relay for other sites on the forward/scan/check faces (wire
       # `site` + this allowlist as the counterweight). Set 2026-07-16 (Tier0
       # power-on) to the community service's client id — the same value as the
-      # community block's KUN_TRUST_CLIENT_ID.
+      # community block's KUN_TRUST_CLIENT_ID, which the catalog block also uses
+      # since spec 2.49.0.
       KUN_TRUST_FORWARDER_CLIENT_IDS: "ac2b8856594baed9c9ee6792eec082e3,${KUN_CHAT_TRUST_CLIENT_ID:-}"
       # AI shadow-scoring pipeline (step 03; wired 2026-07-16 AI-tier power-on):
       # the scan worker scores pending trust_scan_result rows via the AI gateway's

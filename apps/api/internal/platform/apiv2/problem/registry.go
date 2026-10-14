@@ -54,7 +54,6 @@ const (
 	CodeMissingCredential            = "MISSING_CREDENTIAL"
 	CodeInvalidCredential            = "INVALID_CREDENTIAL"
 	CodeScopeRequired                = "SCOPE_REQUIRED"
-	CodeFirstPartyOnly               = "FIRST_PARTY_ONLY"
 	CodeNotFound                     = "NOT_FOUND"
 	CodeMethodNotAllowed             = "METHOD_NOT_ALLOWED"
 	CodeIdempotencyKeyReused         = "IDEMPOTENCY_KEY_REUSED"
@@ -133,7 +132,6 @@ var Codes = []Def{
 	{CodeMissingCredential, DomainPlatform, http.StatusUnauthorized, "Missing credential", "The request has no Authorization header."},
 	{CodeInvalidCredential, DomainPlatform, http.StatusUnauthorized, "Invalid credential", "A credential was sent but it is invalid, expired, or revoked."},
 	{CodeScopeRequired, DomainPlatform, http.StatusForbidden, "Scope required", "The credential is valid but lacks the scope this operation needs."},
-	{CodeFirstPartyOnly, DomainPlatform, http.StatusForbidden, "First party only", "This operation is only available to first-party clients."},
 	{CodeNotFound, DomainPlatform, http.StatusNotFound, "Not found", "Nothing visible exists at this URL."},
 	{CodeMethodNotAllowed, DomainPlatform, http.StatusMethodNotAllowed, "Method not allowed", "The path exists but this method does not."},
 	{CodeIdempotencyKeyReused, DomainPlatform, http.StatusConflict, "Idempotency key reused", "The same Idempotency-Key was sent with a different request body."},

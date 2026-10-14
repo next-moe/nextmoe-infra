@@ -40,6 +40,7 @@ import (
 	"api/pkg/imageclient"
 	"api/pkg/logger"
 	"api/pkg/oidctoken"
+	"api/pkg/trustclient"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -362,6 +363,16 @@ func setupPublicCatalog(
 	// every process, which is what makes this checkable here at all.
 	v2TokenVerifier := tokenVerifier.RequiringIssuer(cfg.OIDC.Issuer)
 
+	var ratingTrust v2handler.RatingTrust
+	if tc := trustclient.New(trustclient.Config{
+		BaseURL: cfg.TrustClient.BaseURL, ClientID: cfg.TrustClient.ClientID, ClientSecret: cfg.TrustClient.ClientSecret,
+	}); tc != nil {
+		ratingTrust = tc
+		slog.Info("third-party rating short reviews: trust check and scan enabled", "base_url", cfg.TrustClient.BaseURL)
+	} else {
+		slog.Info("third-party rating short reviews: trust check and scan disabled (KUN_TRUST_CLIENT_* unset)")
+	}
+
 	v2Store := protocol.NewRedisStore(devCache)
 	v2API := v2handler.SetupWith(application.Fiber, v2handler.Options{
 		Store:            v2Store,
@@ -402,6 +413,7 @@ func setupPublicCatalog(
 			Counters:       v2Store,
 			Store:          storeSvc,
 			Prices:         priceSvc,
+			RatingTrust:    ratingTrust,
 
 			SiteOfAppClient: siteOfClient,
 		},

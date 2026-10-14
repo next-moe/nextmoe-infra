@@ -68,7 +68,7 @@ func registerMeRatings(api huma.API, cat *Catalog) {
 	huma.Register(api, huma.Operation{
 		OperationID: "putMyRating", Method: http.MethodPut, Path: "/v2/me/ratings/{work_id}",
 		Summary:     "Rate a work, or replace my rating of it",
-		Description: "Creates the rating or replaces every field of it; the id, client_id and site stay those of the first write. Sending the rating as it already stands writes nothing. The work's nextmoe score on /v2/catalog/works/{id}/ratings follows at once. The rating is public on every site; run your own content check on short_summary before sending it. Refused 403 FIRST_PARTY_ONLY for a third-party application's token. Requires a user access token; no scope is required.",
+		Description: "Creates the rating or replaces every field of it; the id, client_id and site stay those of the first write. Sending the rating as it already stands writes nothing. The work's nextmoe score on /v2/catalog/works/{id}/ratings follows at once. Any app may write a rating; it is public on every site. A first-party site checks short_summary itself before sending it. For a third-party application's token the catalog checks a new or changed short_summary: a refused one is 422 VALIDATION_FAILED at /short_summary with reason NOT_ALLOWED_VALUE, and nothing is written. Requires a user access token; no scope is required.",
 		Tags:        me, Errors: writeErrs, SkipValidateParams: true,
 	}, putMyRating(cat))
 	huma.Register(api, huma.Operation{
@@ -86,7 +86,7 @@ func registerMeRatings(api huma.API, cat *Catalog) {
 	huma.Register(api, huma.Operation{
 		OperationID: "putMyWorkRecord", Method: http.MethodPut, Path: "/v2/me/work-records/{work_id}",
 		Summary:     "Replace my play state, playtime and rating on one work",
-		Description: "One transaction for the three parts: either all are written or none is. PUT replaces the whole record, so a part that is absent or null is deleted: send every part the form shows. playtime is this app's own report, and the record answers the most minutes any app reported. A third-party application's token may not touch the rating: sending one is refused 403 FIRST_PARTY_ONLY, and leaving it out leaves the rating as it is. Requires a user access token; no scope is required.",
+		Description: "One transaction for the three parts: either all are written or none is. PUT replaces the whole record, so a part that is absent or null is deleted: send every part the form shows. One exception: a third-party application's PUT without a rating leaves the rating as it is; DELETE /v2/me/ratings/{work_id} removes it. playtime is this app's own report, and the record answers the most minutes any app reported. A third-party application's new or changed short_summary is checked as on PUT /v2/me/ratings/{work_id}; a refused one is 422 at /rating/short_summary and no part is written. Requires a user access token; no scope is required.",
 		Tags:        me, Errors: writeErrs, SkipValidateParams: true,
 	}, putMyWorkRecord(cat))
 }
@@ -223,14 +223,21 @@ func (c *Catalog) PutWorkRecord(ctx context.Context, workID int64, in catsvc.Wor
 	if err != nil {
 		return repr.WorkRecord{}, err
 	}
+	scan := false
 	if in.Rating != nil {
-		if err := requireFirstPartyWriter(ctx); err != nil {
+		if err := in.Validate(); err != nil {
+			return repr.WorkRecord{}, workRecordErr(err)
+		}
+		if scan, err = c.checkRatingSummary(ctx, uid, workID, in.Rating.ShortSummary, "/rating/short_summary"); err != nil {
 			return repr.WorkRecord{}, err
 		}
 	}
 	rec, gerr := c.WorkRecords.Put(ctx, uid, workID, client, siteFrom(ctx), in)
 	if gerr != nil {
 		return repr.WorkRecord{}, workRecordErr(gerr)
+	}
+	if scan && rec.Rating != nil {
+		c.scanRatingSummary(rec.Rating.ID, uid, rec.Rating.ShortSummary)
 	}
 	return workRecordRepr(*rec), nil
 }

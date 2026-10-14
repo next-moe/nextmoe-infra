@@ -13,7 +13,7 @@
 
 Rate a work, or replace my rating of it
 
-Creates the rating or replaces every field of it; the id, client_id and site stay those of the first write. Sending the rating as it already stands writes nothing. The work's nextmoe score on /v2/catalog/works/{id}/ratings follows at once. The rating is public on every site; run your own content check on short_summary before sending it. Refused 403 FIRST_PARTY_ONLY for a third-party application's token. Requires a user access token; no scope is required.
+Creates the rating or replaces every field of it; the id, client_id and site stay those of the first write. Sending the rating as it already stands writes nothing. The work's nextmoe score on /v2/catalog/works/{id}/ratings follows at once. Any app may write a rating; it is public on every site. A first-party site checks short_summary itself before sending it. For a third-party application's token the catalog checks a new or changed short_summary: a refused one is 422 VALIDATION_FAILED at /short_summary with reason NOT_ALLOWED_VALUE, and nothing is written. Requires a user access token; no scope is required.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>

@@ -1,7 +1,7 @@
 // Package migrate owns the kun_trust schema migration: the AutoMigrate table
 // list, the idempotent raw-SQL section for the indexes AutoMigrate cannot
-// express (partial-unique + DESC-ordered composites), and the global report-
-// reason seed. It is called by cmd/migrate-trust and by the trust integration
+// express (partial-unique + DESC-ordered composites), the global report-
+// reason seed and the catalog's rating subject kind. It is called by cmd/migrate-trust and by the trust integration
 // tests (which provision their database with the exact production schema).
 package migrate
 
@@ -48,6 +48,9 @@ func Run(db *gorm.DB) error {
 		return err
 	}
 	if err := seedReasons(db); err != nil {
+		return err
+	}
+	if err := seedCatalogRatingKind(db); err != nil {
 		return err
 	}
 	if err := classifyImportedTermPurpose(db); err != nil {
@@ -293,6 +296,25 @@ var SeedReasons = []globalReason{
 	{"rating_mislabel", "分级标注错误", 1},
 	{"copyright", "版权侵权", 2},
 	{"other", "其他", 1},
+}
+
+// seedCatalogRatingKind registers (nextmoe, user_rating), the subject the
+// catalog scans third-party apps' rating short reviews under (spec 2.49.0).
+// A site registers its own kinds through /api/v1/trust/subject-kinds/ensure,
+// which binds the site from the caller's client; the catalog calls trust with
+// the forwarder client, which is bound to no site, so the kind is seeded here.
+// It has no callback: a flagged review is removed through the catalog's rating
+// moderation delete. Inserts only when missing; an existing row, deprecated or
+// not, is left as it is.
+func seedCatalogRatingKind(db *gorm.DB) error {
+	if err := db.Exec(`
+		INSERT INTO trust_subject_kind (site, key, created_at)
+		VALUES ('nextmoe', 'user_rating', now())
+		ON CONFLICT (site, key) DO NOTHING
+	`).Error; err != nil {
+		return fmt.Errorf("seed catalog rating subject kind: %w", err)
+	}
+	return nil
 }
 
 // seedReasons upserts the six global reasons, keyed on the partial unique
