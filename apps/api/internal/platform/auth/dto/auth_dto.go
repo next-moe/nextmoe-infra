@@ -62,11 +62,6 @@ type ResetPasswordRequest struct {
 	Password string `json:"password" validate:"required,min=6,max=100"`
 }
 
-type ResetPasswordConfirmRequest struct {
-	Token    string `json:"token" validate:"required"`
-	Password string `json:"password" validate:"required,min=6,max=100"`
-}
-
 type SendEmailChangeCodeRequest struct {
 	NewEmail string `json:"new_email" validate:"required,email"`
 }

@@ -31,10 +31,6 @@ func (s *SiteService) GetByID(ctx context.Context, id uint) (*model.Site, error)
 	return s.siteRepo.FindByID(ctx, id)
 }
 
-func (s *SiteService) GetByDomain(ctx context.Context, domain string) (*model.Site, error) {
-	return s.siteRepo.FindByDomain(ctx, domain)
-}
-
 func (s *SiteService) Create(ctx context.Context, site *model.Site) error {
 	return s.siteRepo.Create(ctx, site)
 }

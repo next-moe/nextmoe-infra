@@ -8,10 +8,8 @@ const (
 )
 
 const (
-	FolderNameMax        = 100
-	FolderDescriptionMax = 500
-	FoldersPerUserMax    = 200
-	FolderItemsMax       = 10_000
+	FoldersPerUserMax = 200
+	FolderItemsMax    = 10_000
 )
 
 type CatalogUserFolder struct {

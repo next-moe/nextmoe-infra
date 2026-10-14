@@ -66,8 +66,7 @@ func TestWorklistDrivesTheMergeMachinery(t *testing.T) {
 	}
 	ctx := context.Background()
 	resolve := service.NewResolveService(repository.NewRedirectRepository(testDB))
-	merge := service.NewMergeService(testDB, resolve,
-		repository.NewProposalRepository(testDB), repository.NewRevisionRepository(testDB))
+	merge := service.NewMergeService(testDB, resolve)
 
 	host, dup := mkChar(t, "W1 host"), mkChar(t, "W1 dup")
 	other, otherDup := mkChar(t, "W2 host"), mkChar(t, "W2 dup")

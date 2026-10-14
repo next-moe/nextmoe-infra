@@ -27,10 +27,6 @@ func TimeUTC(t time.Time) string {
 	return t.UTC().Format("2006-01-02T15:04:05Z")
 }
 
-func DateUTC(t time.Time) string {
-	return t.UTC().Format("2006-01-02")
-}
-
 func Cursor(payload string) string {
 	if payload == "" {
 		return ""

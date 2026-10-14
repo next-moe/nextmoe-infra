@@ -17,7 +17,7 @@
 |---|---|---|
 | **真·周期任务** | `sync-vndb`(日增量)、`galgame-image-refping`(日)、`image-gc`(日 TTL GC) | 是（本文核心对象） |
 | **按需/偶发**（适合 admin 手动触发，不自动） | `reindex-search`、`sync-vndb-relations` | 否（手动为主） |
-| **常驻 worker**（不是 cron，是服务） | `image-moderation-worker`、`worker` | 否（独立常驻进程） |
+| **常驻 worker**（不是 cron，是服务） | `image-moderation-worker` | 否（独立常驻进程） |
 | **一次性运维/迁移**（绝不能自动跑） | `migrate`、`migrate-galgame`、`migrate-galgame-data`、`migrate-moyu-galgame`、`migrate-galgame-banners-to-image-service`、`seed`、`image-setup`、`cleanup-bogus-vndb-id`、`dedup-galgame-alias` | 否（永远手动） |
 | **HTTP 服务** | `galgame`、`image`、`oauth`、`artifact`、`moderation` | 否 |
 
@@ -170,7 +170,6 @@ Docker 下"进程 = 容器"，宿主 crontab 脆弱（容器易失、扩缩容�
 ## 8. 关联文档
 
 - 触发本讨论的具体 job：`docs/image_service/06-integration-guide.md` §七（`galgame-image-refping`）
-- VNDB 同步现状：`docs/sync/vndb/README.md`
 - image TTL 生命周期（为何 reference-ping 必须周期跑）：`docs/image_service/04-migration-plan.md`、`internal/platform/image/service/gc.go`
 - 配额"无 cron 自重置"范本：`internal/platform/image/quota/quota.go`
 - reset-cron 遗留字段：`internal/platform/auth/model/user_site_data.go`（`DailyCheckIn`/`DailyImageCount`，OAuth 侧零引用）

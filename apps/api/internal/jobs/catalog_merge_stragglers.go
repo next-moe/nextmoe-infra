@@ -20,8 +20,7 @@ func RunCatalogMergeStragglers(ctx context.Context, cfg *config.Config) (Summary
 	defer pg.Close()
 
 	db := pg.DB()
-	svc := catsvc.NewMergeService(db, catsvc.NewResolveService(repository.NewRedirectRepository(db)),
-		repository.NewProposalRepository(db), repository.NewRevisionRepository(db))
+	svc := catsvc.NewMergeService(db, catsvc.NewResolveService(repository.NewRedirectRepository(db)))
 	rep, err := svc.SweepStragglers(ctx)
 	return Summary{
 		"pairs":     rep.Pairs,

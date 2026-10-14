@@ -14,8 +14,6 @@ import (
 	"github.com/yuin/goldmark/util"
 )
 
-const MaxRunes = 500
-
 var (
 	md = goldmark.New(
 		goldmark.WithExtensions(extension.GFM),

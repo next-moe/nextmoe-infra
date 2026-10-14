@@ -47,38 +47,6 @@ func FormatNativeStack(frames []Frame) string {
 	return b.String()
 }
 
-func FormatDartStack(header string, frames []Frame) string {
-	var b strings.Builder
-	if h := strings.TrimRight(header, "\n"); h != "" {
-		b.WriteString(h)
-		b.WriteByte('\n')
-	}
-	for i, f := range frames {
-		fmt.Fprintf(&b, "#%d      %s", i, f.Function)
-		if f.File != "" {
-			if f.Line > 0 {
-				fmt.Fprintf(&b, " (%s:%d)", f.File, f.Line)
-			} else {
-				fmt.Fprintf(&b, " (%s)", f.File)
-			}
-		}
-		b.WriteByte('\n')
-	}
-	return strings.TrimRight(b.String(), "\n")
-}
-
-func DartHeader(stack string) string {
-	var lines []string
-	for _, line := range splitLines(stack) {
-		trim := strings.TrimSpace(line)
-		if strings.HasPrefix(trim, "#") {
-			break
-		}
-		lines = append(lines, line)
-	}
-	return strings.Join(lines, "\n")
-}
-
 func NeedsList(items ...string) string {
 	seen := map[string]struct{}{}
 	var out []string

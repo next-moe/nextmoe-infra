@@ -27,10 +27,6 @@ type workTagsInput struct {
 
 func registerWorkSubs(api huma.API, cat *Catalog) {
 	errs := collectionErrors(http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound, http.StatusServiceUnavailable)
-	type op struct {
-		id, path, summary, desc string
-		handler                 any
-	}
 	catalog := []string{"catalog"}
 	huma.Register(api, subOp("getCatalogWorkCovers", "/v2/catalog/works/{id}/covers", "List covers of one work", "Work cover rows. Same items as include=covers. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.", errs, catalog), getWorkCovers(cat))
 	huma.Register(api, subOp("getCatalogWorkScreenshots", "/v2/catalog/works/{id}/screenshots", "List screenshots of one work", "Work screenshots. Same items as include=screenshots. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.", errs, catalog), getWorkScreenshots(cat))

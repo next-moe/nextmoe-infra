@@ -11,8 +11,6 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-const DefaultSpecRefresh = 5 * time.Minute
-
 // SpecSync keeps a server's tool set equal to the upstream OpenAPI document.
 //
 // The tool set used to be a startup snapshot. On 2026-08-25 production listed 49

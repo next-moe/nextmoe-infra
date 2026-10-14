@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"strconv"
 	"strings"
 	"time"
 
@@ -21,23 +20,6 @@ const (
 	ReleaseFeedSortDateDesc = "date_desc"
 	ReleaseFeedSortDateAsc  = "date_asc"
 )
-
-func ReleaseKindFromKey(k string) (int16, bool) {
-	switch k {
-	case "default":
-		return model.ReleaseKindDefault, true
-	case "digital":
-		return model.ReleaseKindDigital, true
-	case "physical":
-		return model.ReleaseKindPhysical, true
-	case "trial":
-		return model.ReleaseKindTrial, true
-	case "patch":
-		return model.ReleaseKindPatch, true
-	default:
-		return 0, false
-	}
-}
 
 var DefaultReleaseFeedKinds = []int16{
 	model.ReleaseKindDefault, model.ReleaseKindDigital, model.ReleaseKindPhysical,
@@ -70,33 +52,6 @@ func (f ReleaseFeedFilter) kinds() []int16 {
 		return f.Kinds
 	}
 	return DefaultReleaseFeedKinds
-}
-
-func (f ReleaseFeedFilter) PopulationKey() string {
-	gate := "sfw"
-	if f.NSFW {
-		gate = "nsfw"
-	}
-	limits := "all"
-	if len(f.DisplayLimits) > 0 {
-		limits = strings.Join(f.DisplayLimits, "+")
-	}
-	kinds := make([]string, 0, len(f.kinds()))
-	for _, k := range f.kinds() {
-		kinds = append(kinds, strconv.FormatInt(int64(k), 10))
-	}
-	langs := "all"
-	if len(f.Langs) > 0 {
-		langs = strings.Join(f.Langs, "+")
-	}
-	official := "any"
-	if f.Official != nil {
-		official = strconv.FormatBool(*f.Official)
-	}
-	return strings.Join([]string{
-		gate, f.OLang.Key(), limits, strings.Join(kinds, "+"), langs, official,
-		f.Platform, strconv.FormatInt(f.DateFrom, 10), strconv.FormatInt(f.DateTo, 10),
-	}, "-")
 }
 
 func (s *PublicService) ReleaseFeedMeta(ctx context.Context, f ReleaseFeedFilter) (int64, time.Time, int64, error) {
@@ -335,11 +290,4 @@ func releaseFeedSource(f ReleaseFeedFilter) (from string, where []string, args [
 		args = append(args, f.DateTo)
 	}
 	return from, where, args
-}
-
-func ReleaseFeedETag(populationKey string, count int64, maxCreated time.Time, maxID int64) string {
-	return `W/"relfeed-` + populationKey + `-` +
-		strconv.FormatInt(count, 10) + `-` +
-		strconv.FormatInt(maxCreated.Unix(), 10) + `-` +
-		strconv.FormatInt(maxID, 10) + `"`
 }

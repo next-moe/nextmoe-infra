@@ -49,27 +49,6 @@ func (m *Middleware) Lookup(ctx context.Context, raw string) (*Credential, error
 	return m.resolve(ctx, raw)
 }
 
-func (m *Middleware) ResolveCredential(c fiber.Ctx) error {
-	raw := extractKey(c)
-	if IsV2KeyPrefix(raw) {
-		if !ValidV2Key(raw) {
-			return resp401(c)
-		}
-	} else if !HasV1KeyPrefix(raw) {
-		return resp401(c)
-	}
-	cred, err := m.resolve(c.Context(), raw)
-	if err != nil {
-		slog.Error("devapi credential resolve failed", "err", err)
-		return response.Error(c, fiber.StatusServiceUnavailable, errors.ErrInternalServer, "credential store unavailable")
-	}
-	if cred == nil {
-		return resp401(c)
-	}
-	WithCredential(c, cred)
-	return c.Next()
-}
-
 func credCacheKey(hashHex string) string { return "devkey:" + hashHex }
 
 // The cached credential carries the APP's dev_enabled, tier and limits, not
@@ -153,26 +132,6 @@ func (m *Middleware) rateResult(ctx context.Context, cred *Credential, now time.
 		remaining = 0
 	}
 	return lim, remaining, reset, int(n) <= lim, false
-}
-
-func (m *Middleware) Quota(c fiber.Ctx) error {
-	cred := CredentialFrom(c)
-	if cred == nil {
-		return resp401(c)
-	}
-	limit, remaining, allowed, failOpen := m.quotaResult(c.Context(), cred, time.Now())
-	if failOpen {
-		slog.Warn("devapi quota store unavailable; failing open", "key_id", cred.KeyID)
-		return c.Next()
-	}
-	if limit > 0 {
-		c.Set("X-Quota-Limit", strconv.Itoa(limit))
-		c.Set("X-Quota-Remaining", strconv.Itoa(remaining))
-	}
-	if !allowed {
-		return resp429(c)
-	}
-	return c.Next()
 }
 
 func (m *Middleware) quotaResult(ctx context.Context, cred *Credential, now time.Time) (limit, remaining int, allowed, failOpen bool) {

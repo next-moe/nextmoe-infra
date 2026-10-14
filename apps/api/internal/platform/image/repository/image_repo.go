@@ -144,16 +144,3 @@ func (r *ImageRepository) MetaByHashes(ctx context.Context, hashes []string) (ma
 	}
 	return out, nil
 }
-
-func (r *ImageRepository) FindExistingHashes(ctx context.Context, hashes []string) ([]string, error) {
-	if len(hashes) == 0 {
-		return nil, nil
-	}
-	var out []string
-	err := r.db.WithContext(ctx).
-		Model(&model.Image{}).
-		Where("hash IN ? AND deleted_at IS NULL", hashes).
-		Pluck("hash", &out).
-		Error
-	return out, err
-}

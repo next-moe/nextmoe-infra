@@ -48,20 +48,13 @@ type writer struct {
 func newWriter(cfg *config.Config, db *gorm.DB, opts Opts) *writer {
 	w := &writer{db: db, opts: opts, uploaded: map[string]string{},
 		failed: map[string]bool{}, http: &http.Client{Timeout: 60 * time.Second}}
-	if opts.NoImages {
-		return w
-	}
 	ic := cfg.NewsImageClient
 	if ic.ClientID == "" || ic.ClientSecret == "" {
 		slog.Warn("hihyou: news image client not configured — pictures will be skipped (set KUN_NEWS_IMAGE_CLIENT_ID/SECRET)")
 		return w
 	}
-	base := ic.BaseURL
-	if opts.ImageBase != "" {
-		base = opts.ImageBase
-	}
 	w.images = imageclient.New(imageclient.Config{
-		BaseURL:      base,
+		BaseURL:      ic.BaseURL,
 		CDNBase:      cfg.ImageService.CDNBase,
 		ClientID:     ic.ClientID,
 		ClientSecret: ic.ClientSecret,

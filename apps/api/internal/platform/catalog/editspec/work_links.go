@@ -145,8 +145,6 @@ func parseLinks(v any) ([]string, error) {
 
 func validateLinks(v any) error { _, err := parseLinks(v); return err }
 
-func CanonicalWorkLinks(v any) ([]string, error) { return parseLinks(v) }
-
 func applyLinks(ctx context.Context, tx *gorm.DB, entityID int64, value any) error {
 	if err := assertWorkExists(ctx, tx, entityID); err != nil {
 		return err

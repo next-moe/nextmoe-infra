@@ -62,8 +62,6 @@ func NewFakeShortener() *FakeShortener {
 	return f
 }
 
-func (f *FakeShortener) URL() string { return f.server.URL }
-
 func (f *FakeShortener) Close() { f.server.Close() }
 
 func (f *FakeShortener) Client(apiKey string) *shortener.Client {

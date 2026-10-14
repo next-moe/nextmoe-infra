@@ -223,36 +223,6 @@ func (e *Engine) ListRevisions(ctx context.Context, entityType string, entityID 
 	return out, nil
 }
 
-type RevisionFeedFilter struct {
-	Since        int64
-	EntityFamily string
-	EntityType   string
-	Site         string
-	Limit        int
-}
-
-func (e *Engine) RevisionsSince(ctx context.Context, f RevisionFeedFilter) ([]Revision, error) {
-	limit := f.Limit
-	if limit <= 0 || limit > 1000 {
-		limit = 200
-	}
-	q := e.db.WithContext(ctx).Model(&Revision{}).Where("id > ?", f.Since)
-	if f.EntityFamily != "" {
-		q = q.Where("entity_family = ?", f.EntityFamily)
-	}
-	if f.EntityType != "" {
-		q = q.Where("entity_type = ?", f.EntityType)
-	}
-	if f.Site != "" {
-		q = q.Where("site = ?", f.Site)
-	}
-	var out []Revision
-	if err := q.Order("id ASC").Limit(limit).Find(&out).Error; err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 type FieldDiff struct {
 	Key      string
 	Kind     FieldKind

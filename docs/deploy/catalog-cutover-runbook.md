@@ -47,7 +47,7 @@
    git push origin main
    ```
 2. **盯 CI**:GitHub → Actions → `build-and-push` 本次 run 全绿。push 改了 `apps/api/**` → **go 组全建**,新镜像 `ghcr.io/next-moe/infra-catalog:latest` + `infra-migrate-catalog:latest` 首次出现,连同 `infra-migrate`/`infra-migrate-galgame`/`infra-galgame`/…一并重建。
-3. **核 `infra-tools` 已随本次 push 建绿**(它现在与 go 组锁步,`apps/api/**` 或 `docker/tools.Dockerfile` 一变即建;要单独重建走 Actions → **`build-and-push`** → **Run workflow** → `scope=tools`)。`infra-tools` 由 `docker/tools.Dockerfile` 的 `-o /out/ ./cmd/...` 打包**每个** `cmd/*`,故本轮新增的 `reconcile-galgame-works`/`import-dlsite-works`/`reindex-catalog`/`enrich-bangumi` 等**都随这次重建进镜像**——拉到旧镜像则生产 tools 里没有它们(stale → 静默失败)。
+3. **核 `infra-tools` 已随本次 push 建绿**(它现在与 go 组锁步,`apps/api/**` 或 `docker/tools.Dockerfile` 一变即建;要单独重建走 Actions → **`build-and-push`** → **Run workflow** → `scope=tools`)。`infra-tools` 由 `docker/tools.Dockerfile` 的 `-o /out/ ./cmd/...` 打包**每个** `cmd/*`,故本轮新增的 `reconcile-galgame-works`/`reindex-catalog`/`enrich-bangumi` 等**都随这次重建进镜像**——拉到旧镜像则生产 tools 里没有它们(stale → 静默失败)。
 
 ---
 

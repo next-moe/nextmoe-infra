@@ -40,8 +40,8 @@ func Run(db *gorm.DB) error {
 		// the beginning of the list.
 		&accountpurge.Cursor{},
 		// 2026-09-25: the network-wide follow graph (plan 12). A new table
-		// with no rows; cmd/import-follows fills it per source site at that
-		// site's cutover. 2026-09-26 (plan 13) adds notify_level NOT NULL
+		// with no rows; the follows import (since retired) filled it per source
+		// site at that site's cutover. 2026-09-26 (plan 13) adds notify_level NOT NULL
 		// DEFAULT 0, so every existing edge takes 0 = notify on everything,
 		// the default both sides chose; the default makes it a metadata-only
 		// change. community_event and community_notification gain a nullable
@@ -311,8 +311,8 @@ func rawSQL(db *gorm.DB) error {
 	// community_thread_user.site is the site of the user's latest interaction.
 	// Production held 4,909 rows on 2026-09-16 (moyu 4,880, kungal 22, letmoe 7)
 	// and no catalog-anchored thread, so every existing row belongs to its
-	// thread's site. The column stays nullable because the one-off
-	// cmd/import-moyu-comments inserts rows without it, and a reader falls back to
+	// thread's site. The column stays nullable because the one-off moyu comment
+	// import (since retired) inserted rows without it, and a reader falls back to
 	// the thread's site when it is NULL.
 	if err := db.Exec(`
 		UPDATE community_thread_user AS tu

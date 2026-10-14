@@ -2,8 +2,6 @@ package repr
 
 import "api/internal/platform/catalog/model"
 
-const C5 = "Must not be used as a discriminant."
-
 func ptr(s string) *string { return &s }
 
 func Medium(v int16) (string, bool) {
@@ -71,17 +69,6 @@ func TitleKind(v int16) (string, bool) {
 	}
 }
 
-func AliasKind(v int16) (string, bool) {
-	switch v {
-	case model.AliasKindTranslation:
-		return "translation", true
-	case model.AliasKindSpellingVariant:
-		return "spelling_variant", true
-	default:
-		return "", false
-	}
-}
-
 func RosterRoleFromKey(key string) (string, bool) {
 	switch key {
 	case "unknown", "main", "secondary", "appears":
@@ -91,40 +78,10 @@ func RosterRoleFromKey(key string) (string, bool) {
 	}
 }
 
-func RosterRole(v int16) (string, bool) {
-	switch v {
-	case model.WorkCharacterKindUnknown:
-		return "unknown", true
-	case model.WorkCharacterKindMain:
-		return "main", true
-	case model.WorkCharacterKindSecondary:
-		return "secondary", true
-	case model.WorkCharacterKindAppears:
-		return "appears", true
-	default:
-		return "", false
-	}
-}
-
 func AttributionRoleFromKey(key string) (string, bool) {
 	switch key {
 	case "circle", "publisher", "developer", "brand":
 		return key, true
-	default:
-		return "", false
-	}
-}
-
-func AttributionRole(v int16) (string, bool) {
-	switch v {
-	case model.WorkLabelKindCircle:
-		return "circle", true
-	case model.WorkLabelKindPublisher:
-		return "publisher", true
-	case model.WorkLabelKindDeveloper:
-		return "developer", true
-	case model.WorkLabelKindBrand:
-		return "brand", true
 	default:
 		return "", false
 	}
@@ -186,57 +143,6 @@ func ReleaseKindFromKey(key string) (string, bool) {
 	switch key {
 	case "default", "digital", "physical", "trial", "patch":
 		return key, true
-	default:
-		return "", false
-	}
-}
-
-func ReleaseKind(v int16) (string, bool) {
-	switch v {
-	case model.ReleaseKindDefault:
-		return "default", true
-	case model.ReleaseKindDigital:
-		return "digital", true
-	case model.ReleaseKindPhysical:
-		return "physical", true
-	case model.ReleaseKindTrial:
-		return "trial", true
-	case model.ReleaseKindPatch:
-		return "patch", true
-	default:
-		return "", false
-	}
-}
-
-func MemberKind(v int16) (string, bool) {
-	switch v {
-	case model.SeriesMemberKindUnknown:
-		return "unknown", true
-	case model.SeriesMemberKindMain:
-		return "main", true
-	case model.SeriesMemberKindFandisc:
-		return "fandisc", true
-	case model.SeriesMemberKindSideStory:
-		return "side_story", true
-	case model.SeriesMemberKindCollection:
-		return "collection", true
-	default:
-		return "", false
-	}
-}
-
-func ClaimState(v int16) (string, bool) {
-	switch v {
-	case model.ClaimStateLive:
-		return "live", true
-	case model.ClaimStateDraft:
-		return "draft", true
-	case model.ClaimStatePending:
-		return "pending", true
-	case model.ClaimStateDeclined:
-		return "declined", true
-	case model.ClaimStateHidden:
-		return "hidden", true
 	default:
 		return "", false
 	}
@@ -344,14 +250,5 @@ func SpoilerFromKey(key string) (int16, bool) {
 		return 2, true
 	default:
 		return 0, false
-	}
-}
-
-func ContentLimit(v string) (string, bool) {
-	switch v {
-	case model.DisplayLimitKeySFW, model.DisplayLimitKeyNSFW:
-		return v, true
-	default:
-		return "", false
 	}
 }

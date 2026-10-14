@@ -69,14 +69,6 @@ func toPostViews(posts []model.CommunityPost) []dto.PostView {
 	return out
 }
 
-func toThreadViews(threads []model.CommunityThread) []dto.ThreadView {
-	out := make([]dto.ThreadView, len(threads))
-	for i := range threads {
-		out[i] = toThreadView(&threads[i])
-	}
-	return out
-}
-
 func toThreadViewsWithOpening(threads []model.CommunityThread, metas map[int64]repository.OpeningPostMeta) []dto.ThreadView {
 	out := make([]dto.ThreadView, len(threads))
 	for i := range threads {

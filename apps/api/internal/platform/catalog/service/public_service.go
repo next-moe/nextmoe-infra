@@ -72,21 +72,6 @@ type PublicInclude struct {
 	Works     bool
 }
 
-func ParsePublicInclude(raw string) PublicInclude {
-	var inc PublicInclude
-	for _, tok := range strings.Split(raw, ",") {
-		switch strings.TrimSpace(tok) {
-		case "relations":
-			inc.Relations = true
-		case "credits":
-			inc.Credits = true
-		case "works":
-			inc.Works = true
-		}
-	}
-	return inc
-}
-
 var publicLookupTypes = map[string]int16{
 	"work":      model.EntityTypeWork,
 	"name":      model.EntityTypeCreditName,

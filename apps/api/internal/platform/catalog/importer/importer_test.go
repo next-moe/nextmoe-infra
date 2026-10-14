@@ -296,41 +296,6 @@ func TestEGWaveAndCandidates(t *testing.T) {
 	assert.GreaterOrEqual(t, cs.Twitter, 1)
 }
 
-func TestDLsiteWave(t *testing.T) {
-	clean(t)
-	testDB.Exec(`INSERT INTO works (workno, work_name, work_name_kana, maker_id, maker_name, age_category, work_type_string, status, regist_date, product_json)
-		VALUES ('RJ001','作品A','サクヒンエー','RG100','サークルX','3','ボイス・ASMR','fetched','2020-05-10',
-		'{"creaters":{"voice_by":[{"id":"9001","name":"声優花","classification":"voice_by"}],"illust_by":[{"id":"9002","name":"絵師","classification":"illust_by"}]}}'::jsonb)`)
-	testDB.Exec(`INSERT INTO works (workno, work_name, work_name_kana, maker_id, maker_name, age_category, work_type_string, status, product_json)
-		VALUES ('RJ002','作品B','','BG200','会社Y','1','ボイス・ASMR','fetched','{"creaters":{}}'::jsonb)`)
-	testDB.Exec(`INSERT INTO works (workno, work_name, work_type_string, status, maker_id, age_category, product_json) VALUES ('RJ003','漫画','マンガ','fetched','RG100','3','{}'::jsonb)`)
-
-	st, err := New(testDB, nil, Options{}).RunDLsite(testDB)
-	require.NoError(t, err)
-	assert.Equal(t, 2, st.WorksCreated)
-	assert.Equal(t, 2, st.ReleasesCreated)
-	assert.Equal(t, 3, st.TitlesCreated)
-	assert.Equal(t, 2, st.LabelsCreated)
-	assert.Equal(t, 2, st.NamesCreated)
-	assert.Equal(t, 2, st.CreditsWritten)
-	assert.Zero(t, st.Stubs)
-
-	assert.Equal(t, int64(2), scalarInt(t, `SELECT count(*) FROM catalog_work WHERE medium_id=5 AND site IS NULL`))
-	assert.Equal(t, int64(2), scalarInt(t, `SELECT count(*) FROM catalog_external_ref WHERE entity_type=6 AND source_id=4 AND link_kind=0 AND matched_by='rule:dlsite-work-import'`))
-	assert.Zero(t, scalarInt(t, `SELECT count(*) FROM catalog_external_ref WHERE entity_type=5 AND source_id=4`))
-	assert.Equal(t, int64(1), scalarInt(t, `SELECT count(*) FROM catalog_work w JOIN catalog_release rel ON rel.work_id=w.id
-		JOIN catalog_external_ref r ON r.entity_type=6 AND r.entity_id=rel.id AND r.external_id='RJ001' WHERE w.content_rating=2`))
-	assert.Equal(t, int64(1), scalarInt(t, `SELECT count(*) FROM catalog_work_title WHERE kind=3 AND title='サクヒンエー'`))
-	assert.Equal(t, int64(1), scalarInt(t, `SELECT count(*) FROM catalog_label l JOIN catalog_external_ref r ON r.entity_type=3 AND r.entity_id=l.id AND r.external_id='RG100' WHERE l.kind=4`))
-	assert.Equal(t, int64(1), scalarInt(t, `SELECT count(*) FROM catalog_label l JOIN catalog_external_ref r ON r.entity_type=3 AND r.entity_id=l.id AND r.external_id='BG200' WHERE l.kind=2`))
-	assert.Equal(t, int64(2), scalarInt(t, `SELECT count(*) FROM catalog_credit_name cn JOIN catalog_external_ref r ON r.entity_type=1 AND r.entity_id=cn.id AND r.source_id=4 AND r.link_kind=0 AND r.matched_by='rule:dlsite-creater-import' WHERE cn.person_id IS NULL`))
-
-	st2, err := New(testDB, nil, Options{}).RunDLsite(testDB)
-	require.NoError(t, err)
-	assert.Zero(t, st2.WorksCreated)
-	assert.Equal(t, 2, st2.Already)
-}
-
 func scalarInt(t *testing.T, q string) int64 {
 	t.Helper()
 	var n int64

@@ -74,12 +74,8 @@ func (f *fakeBilibili) takeRequested() []int64 {
 
 func newPollWriter(t *testing.T) *writer {
 	t.Helper()
-	db, _ := openTestDB(t)
-	w := &writer{db: db, opts: Opts{Apply: true}, uploaded: map[string]string{}, failed: map[string]bool{}}
-	if err := w.seedSource(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	return w
+	db := openTestDB(t)
+	return &writer{db: db, opts: Opts{Apply: true}, uploaded: map[string]string{}, failed: map[string]bool{}}
 }
 
 const day = 24 * time.Hour

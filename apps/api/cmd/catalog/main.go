@@ -85,8 +85,7 @@ func main() {
 
 	redirects := repository.NewRedirectRepository(catalogDB.DB())
 	resolveSvc := service.NewResolveService(redirects)
-	mergeSvc := service.NewMergeService(catalogDB.DB(), resolveSvc,
-		repository.NewProposalRepository(catalogDB.DB()), repository.NewRevisionRepository(catalogDB.DB()))
+	mergeSvc := service.NewMergeService(catalogDB.DB(), resolveSvc)
 	queueSvc := service.NewAdminQueueService(catalogDB.DB(), mergeSvc)
 
 	readSvc := service.NewReadService(catalogDB.DB())

@@ -10,9 +10,6 @@ import (
 // because there were two: cmd/catalog wired one and MergeService built its own
 // for IdentityFollowStmts, so adding a type to one of them would have left every
 // suppression on the other silently unfollowed by the next merge.
-//
-// cmd/rekey-edit-history is deliberately NOT a caller — it rekeys work history
-// only and registers catalog.work alone.
 func RegisterAll(reg *editing.Registry, db *gorm.DB) error {
 	for _, register := range []func(*editing.Registry, *gorm.DB) error{
 		RegisterWork, RegisterTaxonomy, RegisterCharacter, RegisterRelease,

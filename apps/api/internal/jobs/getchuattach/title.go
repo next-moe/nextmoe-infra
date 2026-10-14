@@ -158,14 +158,6 @@ func dropTrailingBracket(s string) string {
 	return s
 }
 
-func firstWSToken(s string) string {
-	toks := splitWS(s)
-	if len(toks) == 0 {
-		return strings.TrimSpace(s)
-	}
-	return toks[0]
-}
-
 func runeCount(s string) int { return utf8.RuneCountInString(s) }
 
 func nfkc(s string) string { return norm.NFKC.String(s) }
@@ -177,13 +169,4 @@ func isCensor(r rune) bool {
 	default:
 		return false
 	}
-}
-
-func hasCensor(s string) bool {
-	for _, r := range s {
-		if isCensor(r) {
-			return true
-		}
-	}
-	return false
 }

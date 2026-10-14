@@ -90,13 +90,6 @@ func write(t *testing.T, appID int64, recs ...otlp.Record) {
 	}
 }
 
-func writeAt(t *testing.T, appID int64, at time.Time, recs ...otlp.Record) {
-	t.Helper()
-	if err := st.Write(context.Background(), appID, at, otlp.Batch{Records: recs}); err != nil {
-		t.Fatalf("write: %v", err)
-	}
-}
-
 func sid(n byte) string {
 	b := make([]byte, 32)
 	for i := range b {

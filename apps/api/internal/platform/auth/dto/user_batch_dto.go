@@ -19,10 +19,6 @@ type UserBrief struct {
 	Cosmetics shopModel.Cosmetics `json:"cosmetics,omitempty"`
 }
 
-type BatchGetUsersRequest struct {
-	IDs []uint `query:"ids" validate:"required,min=1,max=100"`
-}
-
 type BatchGetUsersResponse struct {
 	Users    []UserBrief `json:"users"`
 	NotFound []uint      `json:"not_found"`

@@ -3,7 +3,6 @@ package wireshapetest
 import (
 	"bytes"
 	"encoding/json"
-	"net/http"
 	"strconv"
 	"strings"
 	"testing"
@@ -107,15 +106,4 @@ func (s *Spec) Conforms(t testing.TB, method, path string, status int, contentTy
 	if err := s.Schema(t, pointer).Validate(inst); err != nil {
 		t.Errorf("%s %s: %d body does not match the document: %v\n%s", method, path, status, err, raw)
 	}
-}
-
-// Returned holds what a handler returned, called directly rather than over
-// HTTP, to the document's 200 response for method path.
-func (s *Spec) Returned(t testing.TB, method, path string, body any) {
-	t.Helper()
-	raw, err := json.Marshal(body)
-	if err != nil {
-		t.Fatalf("%s %s: marshal: %v", method, path, err)
-	}
-	s.Conforms(t, method, path, http.StatusOK, "application/json", raw)
 }

@@ -78,15 +78,6 @@ func registerKind(t *testing.T, site, key string, callbackURL, secret *string) {
 	}
 }
 
-func reasonID(t *testing.T, key string) int64 {
-	t.Helper()
-	var id int64
-	if err := testDB.Raw(`SELECT id FROM trust_report_reason WHERE key = ? AND site IS NULL`, key).Scan(&id).Error; err != nil || id == 0 {
-		t.Fatalf("reason %s: id=%d err=%v", key, id, err)
-	}
-	return id
-}
-
 func countReports(t *testing.T, site, kind, subject string) int64 {
 	t.Helper()
 	var n int64

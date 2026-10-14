@@ -46,33 +46,6 @@ func nextDay(now time.Time) time.Time {
 func countKey(site, day string) string { return fmt.Sprintf("image:quota:count:%s:%s", site, day) }
 func bytesKey(site, day string) string { return fmt.Sprintf("image:quota:bytes:%s:%s", site, day) }
 
-func (c *Checker) Current(site string, limitCount int, limitBytes int64) (*DailyUsage, error) {
-	if c == nil || c.cache == nil {
-		return nil, ErrNotConfigured
-	}
-	now := time.Now()
-	day := dayKey(now)
-
-	cntRaw, _ := c.cache.Get(countKey(site, day))
-	bytesRaw, _ := c.cache.Get(bytesKey(site, day))
-
-	var cnt, bytes int64
-	if len(cntRaw) > 0 {
-		cnt, _ = strconv.ParseInt(string(cntRaw), 10, 64)
-	}
-	if len(bytesRaw) > 0 {
-		bytes, _ = strconv.ParseInt(string(bytesRaw), 10, 64)
-	}
-
-	return &DailyUsage{
-		Count:      cnt,
-		Bytes:      bytes,
-		ResetAt:    nextDay(now),
-		LimitCount: limitCount,
-		LimitBytes: limitBytes,
-	}, nil
-}
-
 func (c *Checker) Reserve(ctx context.Context, site string, bytesToAdd int64, limitCount int, limitBytes int64) (*DailyUsage, error) {
 	if c == nil || c.cache == nil {
 		return nil, ErrNotConfigured

@@ -80,7 +80,6 @@ func TestFreshDatabaseMigrationOrder(t *testing.T) {
 	}
 	defer tx.Rollback()
 
-	const schema = "devapi_fresh_migration_test"
 	if err := tx.Exec(`CREATE SCHEMA devapi_fresh_migration_test`).Error; err != nil {
 		t.Fatalf("create fresh schema: %v", err)
 	}

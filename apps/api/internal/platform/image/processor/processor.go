@@ -24,9 +24,8 @@ import (
 const MaxDecodedPixels = 50 * 1000 * 1000
 
 var (
-	ErrUnsupportedInput = errors.New("processor: unsupported input format")
-	ErrTooLarge         = errors.New("processor: decoded image exceeds pixel limit")
-	ErrInvalidInput     = errors.New("processor: invalid input")
+	ErrTooLarge     = errors.New("processor: decoded image exceeds pixel limit")
+	ErrInvalidInput = errors.New("processor: invalid input")
 )
 
 type Output struct {

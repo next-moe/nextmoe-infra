@@ -37,10 +37,6 @@ type Opts struct {
 	ImageBase string
 }
 
-func DefaultOpts() Opts {
-	return Opts{Lanes: []string{LaneNews, LaneColumn}, Pages: 1, Gap: time.Second}
-}
-
 type stats struct {
 	fetched     int
 	created     int

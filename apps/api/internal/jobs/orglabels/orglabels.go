@@ -107,15 +107,4 @@ func openPools(opts Opts, needEG bool) (catalog, eg *gorm.DB, err error) {
 	return catalog, eg, nil
 }
 
-func resolveSourceID(db *gorm.DB, key string) (int16, error) {
-	var id int16
-	if err := db.Raw(`SELECT id FROM catalog_source WHERE key = ?`, key).Scan(&id).Error; err != nil {
-		return 0, fmt.Errorf("resolve source %q: %w", key, err)
-	}
-	if id == 0 {
-		return 0, fmt.Errorf("source %q not seeded — run migrate-catalog first", key)
-	}
-	return id, nil
-}
-
 var nowUTC = func() time.Time { return time.Now().UTC() }

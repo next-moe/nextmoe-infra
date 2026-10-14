@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"regexp"
 	"strings"
-	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -50,7 +49,6 @@ type writer struct {
 	shown   int
 	touched []int64
 	judge   panelJudge
-	delay   time.Duration
 }
 
 // gated is one passage that survived every deterministic gate, ready to be

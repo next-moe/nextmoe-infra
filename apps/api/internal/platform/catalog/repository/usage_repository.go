@@ -1,18 +1,8 @@
 package repository
 
 import (
-	"api/internal/platform/catalog/model"
-
 	"gorm.io/gorm"
 )
-
-func HasUsage(db *gorm.DB, entityType int16, entityID int64) (bool, error) {
-	var count int64
-	err := db.Model(&model.CatalogEntityUsage{}).
-		Where("entity_type = ? AND entity_id = ?", entityType, entityID).
-		Count(&count).Error
-	return count > 0, err
-}
 
 func MergeUsage(tx *gorm.DB, entityType int16, sourceID, targetID int64) error {
 	if err := tx.Exec(`

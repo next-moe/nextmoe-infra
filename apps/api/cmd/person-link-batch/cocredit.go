@@ -33,8 +33,7 @@ type coCreditStats struct {
 func runCoCredit(ctx context.Context, db *gorm.DB, w io.Writer, actor int64, apply bool) (coCreditStats, error) {
 	var st coCreditStats
 	link := service.NewLinkService(db)
-	merge := service.NewMergeService(db, service.NewResolveService(repository.NewRedirectRepository(db)),
-		repository.NewProposalRepository(db), repository.NewRevisionRepository(db))
+	merge := service.NewMergeService(db, service.NewResolveService(repository.NewRedirectRepository(db)))
 
 	if apply {
 		if err := executeCooledCoCredit(ctx, db, w, merge, actor, &st); err != nil {

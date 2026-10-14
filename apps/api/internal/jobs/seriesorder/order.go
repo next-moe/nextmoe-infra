@@ -72,13 +72,6 @@ func LoadFacts(ctx context.Context, db *gorm.DB, workIDs []int64) (*Facts, error
 	return f, nil
 }
 
-func (f *Facts) Edges() map[int64][]Edge { return f.edgesByWork }
-
-func (f *Facts) ReleaseKey(workID int64) (int64, bool) {
-	k, ok := f.releaseKey[workID]
-	return k, ok
-}
-
 func (f *Facts) Assign(workIDs []int64, fallbackKind int16) []Assignment {
 	members := make(map[int64]struct{}, len(workIDs))
 	for _, w := range workIDs {

@@ -1,11 +1,5 @@
 package editing
 
-type EntityRef struct {
-	Family string
-	Type   string
-	ID     int64
-}
-
 const (
 	StatusOpen      int16 = 0
 	StatusMerged    int16 = 1

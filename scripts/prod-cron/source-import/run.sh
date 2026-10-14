@@ -443,7 +443,6 @@ if [ "$GROUP_FAIL" -eq 0 ]; then
 fi
 
 # DELIBERATELY NOT RUN HERE:
-#   import-dlsite-works — imports only ボイス・ASMR works; ASMR is out of catalog scope by decision of 2026-08-21
 #   catalog-char-xsrc — the LLM-adjudicated fold of cross-source character twins; it has its own nightly job, char-xsrc-nightly
 #   llm-suggest --task queue-creditname — has its own nightly job, llm-adjudicate-nightly
 #   enrich-org-labels — its dry counts do not subtract the rows already written, so its first apply is unmeasured
@@ -451,7 +450,6 @@ fi
 #   backfill-bangumi-covers, backfill-label-logos (bangumi), backfill-person-photos — image-mirror
 #   backfill-getchu-media, backfill-getchu-portraits — Getchu's robots.txt disallows the image paths
 #   backfill-label-logos --source cien — kun-dlsite-api cien-avatars reads cien.dlsite.com, which this host has not been probed against
-#   mint-catalog-persons — one-shot; requires a wave-152 clusters file
 #   reindex-catalog — has its own daily cron at 06:10 CST
 
 find logs -name 'run-*.log' ! -name "run-$(date -u +%F).log" -exec gzip -qf {} \;
