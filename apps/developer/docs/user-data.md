@@ -19,19 +19,20 @@ description: 用 OAuth 用户访问令牌接入 /v2/me。游玩记录与收藏�
 
 游玩记录与收藏夹有专页。下表是 `/v2/me` 的每一族：凭据，以及语义写在哪一页。
 
-| 一族                           | 路径                                                                              | 凭据                                     | 写在哪                               |
-| ------------------------------ | --------------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------ |
-| 游玩状态、时长、评分、一次写完 | `/v2/me/work-states`、`/v2/me/playtimes`、`/v2/me/ratings`、`/v2/me/work-records` | 用户令牌，无 scope。第三方应用写的短评由中央做内容检查 | [评分与游玩记录](/docs/play-records) |
-| 收藏夹                         | `/v2/me/folders`                                                                  | `folder:read` / `folder:write`           | [收藏夹](/docs/folders)              |
-| 按作品汇总                     | `/v2/me/works`                                                                    | `folder:read`（`folder:write` 也满足读） | [本页](#works)                       |
-| 关注的会社                     | `/v2/me/followed-companies`                                                       | 用户令牌，无 scope                       | [本页](#followed-companies)          |
-| 屏蔽的标签                     | `/v2/me/blocked-tags`                                                             | 用户令牌，无 scope                       | [本页](#blocked-tags)                |
-| 我的发售月历                   | `/v2/me/calendar`                                                                 | 用户令牌，无 scope                       | [本页](#calendar)                    |
-| 编辑能力                       | `/v2/me/edit-capabilities`                                                        | `catalog:edit`                           | [本页](#edit-capabilities)           |
-| 认领                           | `/v2/me/claims`                                                                   | `catalog:edit`                           | [本页](#claims)                      |
-| 编辑提案与配图                 | `/v2/me/proposals`、`/v2/me/edit-images`                                          | `catalog:edit`                           | [本页](#proposals)                   |
-| 封面投票                       | `/v2/me/cover-votes`                                                              | `catalog:edit`                           | [本页](#cover-votes)                 |
-| 资讯投稿                       | `/v2/me/news`、`/v2/me/news-images`                                               | 用户令牌，无 scope                       | [本页](#news)                        |
+| 一族                           | 路径                                                                              | 凭据                                                   | 写在哪                                       |
+| ------------------------------ | --------------------------------------------------------------------------------- | ------------------------------------------------------ | -------------------------------------------- |
+| 游玩状态、时长、评分、一次写完 | `/v2/me/work-states`、`/v2/me/playtimes`、`/v2/me/ratings`、`/v2/me/work-records` | 用户令牌，无 scope。第三方应用写的短评由中央做内容检查 | [评分与游玩记录](/docs/play-records)         |
+| 隐私开关                       | `/v2/me/privacy`                                                                  | 用户令牌，无 scope                                     | [评分与游玩记录](/docs/play-records#privacy) |
+| 收藏夹                         | `/v2/me/folders`                                                                  | `folder:read` / `folder:write`                         | [收藏夹](/docs/folders)                      |
+| 按作品汇总                     | `/v2/me/works`                                                                    | `folder:read`（`folder:write` 也满足读）               | [本页](#works)                               |
+| 关注的会社                     | `/v2/me/followed-companies`                                                       | 用户令牌，无 scope                                     | [本页](#followed-companies)                  |
+| 屏蔽的标签                     | `/v2/me/blocked-tags`                                                             | 用户令牌，无 scope                                     | [本页](#blocked-tags)                        |
+| 我的发售月历                   | `/v2/me/calendar`                                                                 | 用户令牌，无 scope                                     | [本页](#calendar)                            |
+| 编辑能力                       | `/v2/me/edit-capabilities`                                                        | `catalog:edit`                                         | [本页](#edit-capabilities)                   |
+| 认领                           | `/v2/me/claims`                                                                   | `catalog:edit`                                         | [本页](#claims)                              |
+| 编辑提案与配图                 | `/v2/me/proposals`、`/v2/me/edit-images`                                          | `catalog:edit`                                         | [本页](#proposals)                           |
+| 封面投票                       | `/v2/me/cover-votes`                                                              | `catalog:edit`                                         | [本页](#cover-votes)                         |
+| 资讯投稿                       | `/v2/me/news`、`/v2/me/news-images`                                               | 用户令牌，无 scope                                     | [本页](#news)                                |
 
 缺了表里点名的 scope 是 `403 SCOPE_REQUIRED`，响应里写出缺的是哪一个。
 

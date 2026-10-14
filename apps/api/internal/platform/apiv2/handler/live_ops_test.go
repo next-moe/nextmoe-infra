@@ -112,6 +112,8 @@ var liveReadPaths = []string{
 	"/v2/me/work-records/{work_id}",
 	"/v2/ratings",
 	"/v2/ratings/changes",
+	"/v2/work-records",
+	"/v2/me/privacy",
 	"/v2/me/calendar",
 	"/v2/me/folders",
 	"/v2/me/folders/holdings",
@@ -161,6 +163,7 @@ var liveReadRequiredQuery = map[string]func(fx liveFix) string{
 	"/v2/me/folders/holdings":   func(fx liveFix) string { return "?work_ids=" + idstr(fx.Work) },
 	"/v2/me/works":              func(fx liveFix) string { return "?work_ids=" + idstr(fx.Work) },
 	"/v2/ratings":               func(fx liveFix) string { return "?work_id=" + idstr(fx.Work) },
+	"/v2/work-records":          func(liveFix) string { return "?user_id=" + idstr(liveUID) },
 	"/v2/catalog/tag-exclusion": func(fx liveFix) string { return "?exclude_tag_tree=" + idstr(fx.Tag) },
 }
 

@@ -96,6 +96,9 @@
     "Entity merged": "实体已被合并",
     "The entity was merged into another. object and current_id are present, and Link rel=canonical is sent.": "该实体已被合并进另一个实体。响应里带 object 与 current_id，同时回一个 Link rel=canonical。",
 
+    "Play records private": "游玩记录未公开",
+    "The account keeps its play states and playtimes private. Only the account itself may read them, through its own user token. Its ratings stay public on /v2/ratings.": "该账号把游玩状态与时长设为私密，只有账号本人用自己的用户令牌才能读到。它的评分仍在 /v2/ratings 公开。",
+
     "User identity required": "需要用户身份",
     "An application key was used for an operation that needs a user token.": "这个操作需要用户令牌，却用了应用密钥。",
 

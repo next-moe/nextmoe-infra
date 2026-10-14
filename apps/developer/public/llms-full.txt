@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-本文件内联全部 151 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
+本文件内联全部 154 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
 
 ## 给 AI 助手的指引
 
@@ -1390,19 +1390,20 @@ GET /v2/ratings/changes?limit=100
 
 游玩记录与收藏夹有专页。下表是 `/v2/me` 的每一族：凭据，以及语义写在哪一页。
 
-| 一族                           | 路径                                                                              | 凭据                                     | 写在哪                               |
-| ------------------------------ | --------------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------ |
-| 游玩状态、时长、评分、一次写完 | `/v2/me/work-states`、`/v2/me/playtimes`、`/v2/me/ratings`、`/v2/me/work-records` | 用户令牌，无 scope。第三方应用写的短评由中央做内容检查 | [评分与游玩记录](/docs/play-records) |
-| 收藏夹                         | `/v2/me/folders`                                                                  | `folder:read` / `folder:write`           | [收藏夹](/docs/folders)              |
-| 按作品汇总                     | `/v2/me/works`                                                                    | `folder:read`（`folder:write` 也满足读） | [本页](#works)                       |
-| 关注的会社                     | `/v2/me/followed-companies`                                                       | 用户令牌，无 scope                       | [本页](#followed-companies)          |
-| 屏蔽的标签                     | `/v2/me/blocked-tags`                                                             | 用户令牌，无 scope                       | [本页](#blocked-tags)                |
-| 我的发售月历                   | `/v2/me/calendar`                                                                 | 用户令牌，无 scope                       | [本页](#calendar)                    |
-| 编辑能力                       | `/v2/me/edit-capabilities`                                                        | `catalog:edit`                           | [本页](#edit-capabilities)           |
-| 认领                           | `/v2/me/claims`                                                                   | `catalog:edit`                           | [本页](#claims)                      |
-| 编辑提案与配图                 | `/v2/me/proposals`、`/v2/me/edit-images`                                          | `catalog:edit`                           | [本页](#proposals)                   |
-| 封面投票                       | `/v2/me/cover-votes`                                                              | `catalog:edit`                           | [本页](#cover-votes)                 |
-| 资讯投稿                       | `/v2/me/news`、`/v2/me/news-images`                                               | 用户令牌，无 scope                       | [本页](#news)                        |
+| 一族                           | 路径                                                                              | 凭据                                                   | 写在哪                                       |
+| ------------------------------ | --------------------------------------------------------------------------------- | ------------------------------------------------------ | -------------------------------------------- |
+| 游玩状态、时长、评分、一次写完 | `/v2/me/work-states`、`/v2/me/playtimes`、`/v2/me/ratings`、`/v2/me/work-records` | 用户令牌，无 scope。第三方应用写的短评由中央做内容检查 | [评分与游玩记录](/docs/play-records)         |
+| 隐私开关                       | `/v2/me/privacy`                                                                  | 用户令牌，无 scope                                     | [评分与游玩记录](/docs/play-records#privacy) |
+| 收藏夹                         | `/v2/me/folders`                                                                  | `folder:read` / `folder:write`                         | [收藏夹](/docs/folders)                      |
+| 按作品汇总                     | `/v2/me/works`                                                                    | `folder:read`（`folder:write` 也满足读）               | [本页](#works)                               |
+| 关注的会社                     | `/v2/me/followed-companies`                                                       | 用户令牌，无 scope                                     | [本页](#followed-companies)                  |
+| 屏蔽的标签                     | `/v2/me/blocked-tags`                                                             | 用户令牌，无 scope                                     | [本页](#blocked-tags)                        |
+| 我的发售月历                   | `/v2/me/calendar`                                                                 | 用户令牌，无 scope                                     | [本页](#calendar)                            |
+| 编辑能力                       | `/v2/me/edit-capabilities`                                                        | `catalog:edit`                                         | [本页](#edit-capabilities)                   |
+| 认领                           | `/v2/me/claims`                                                                   | `catalog:edit`                                         | [本页](#claims)                              |
+| 编辑提案与配图                 | `/v2/me/proposals`、`/v2/me/edit-images`                                          | `catalog:edit`                                         | [本页](#proposals)                           |
+| 封面投票                       | `/v2/me/cover-votes`                                                              | `catalog:edit`                                         | [本页](#cover-votes)                         |
+| 资讯投稿                       | `/v2/me/news`、`/v2/me/news-images`                                               | 用户令牌，无 scope                                     | [本页](#news)                                |
 
 缺了表里点名的 scope 是 `403 SCOPE_REQUIRED`，响应里写出缺的是哪一个。
 
@@ -1585,7 +1586,7 @@ const write = await fetch(url, {
 | 评分     | `/v2/me/ratings`                | 只改这个人给这部作品的评分     |
 | 一次写完 | `/v2/me/work-records/{work_id}` | 一个表单同时交状态、时长和评分 |
 
-四份都只要用户访问令牌，不需要 scope。公开读取别人的评分不走 `/v2/me`，见 [公开读取](#public)。
+四份都只要用户访问令牌，不需要 scope。读别人的评分和游玩记录不走 `/v2/me`，见 [公开读取](#public) 与 [个人主页的游戏库](#library)。
 
 ```http
 GET    /v2/me/work-states
@@ -1690,9 +1691,47 @@ GET /v2/ratings/{id}
 
 `GET /v2/ratings/{id}` 按评分 id 取一条。没有这条，包括已经删掉的，都是 404。
 
+## 个人主页的游戏库
+
+别人的游玩状态、时长和评分合在一起，在 `/v2/work-records`，按账号列。凭据同 `/v2/ratings`：应用密钥，或带 `catalog:read` 的用户令牌。
+
+```http
+GET /v2/work-records?user_id={user_id}&facets=state&include_total=true
+GET /v2/work-records?user_id={user_id}&state=doing
+GET /v2/work-records?user_id={user_id}&state=done&content_limit=sfw
+```
+
+每一项是 `work_record`，与 `/v2/me/work-records/{work_id}` 答给本人的是同一个形状：`work_state` 在这里一定有值，`playtime` 是各应用上报里最大的分钟数，`rating` 是这个人对这部作品的评分，没有就是 null。
+
+- **列的是标了状态的作品**。只报过时长、或只评过分、没标状态的作品不在里面。已经不是 live 的作品也不在。
+- **顺序**是状态的 `updated_at` 从新到旧，用 `next_cursor` 翻页，`limit` 最大 100。
+- **`state=`** 按状态筛，逗号分隔可以多选。
+- **`facets=state`** 给出五个状态各有几部，五个桶都会出现，没有的是 0，一次请求就能把一排标签页的数字填满。`include_total=true` 给总数。
+- **`content_limit=sfw`**：读者不看 NSFW 时带上。列表、`total` 和 `facets` 会一起排除 nsfw 作品，数字和显示出来的条数对得上，不用自己再减。
+
+账号把游玩记录设成私密时，这个面回 `403`，code 是 `PLAY_RECORDS_PRIVATE`，主页按它显示「未公开」。不要拿空列表来判断：空列表只说明这个人什么都没标。账号本人用自己的用户令牌来读，仍然能拿到全部。评分不受这个开关影响，照样在 `/v2/ratings` 公开。
+
+## 隐私开关
+
+```http
+GET   /v2/me/privacy
+PATCH /v2/me/privacy
+```
+
+`play_records` 管的是 `/v2/work-records` 上的状态和时长，取值 `public` 或 `private`。**默认 `public`**，从没改过的账号答 `public`，`updated_at` 是 null。
+
+`PATCH` 只改 body 里给出的字段，空 body 什么都不改。值没变，`updated_at` 也不动。只要用户访问令牌，不需要 scope。
+
+```bash
+curl -X PATCH "https://api.nextmoe.dev/v2/me/privacy" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"play_records":"private"}'
+```
+
 ## 镜像
 
-要在自己的库里留一份评分副本，走 `/v2/ratings/changes`，不要翻 `/v2/ratings`。冷启动、水位和 `gone` 的做法见 [增量镜像目录 · 评分镜像](/docs/mirror#ratings)。
+要在自己的库里留一份评分副本，走 `/v2/ratings/changes`，不要翻 `/v2/ratings`。游戏库没有镜像信道，按需实时读 `/v2/work-records`。冷启动、水位和 `gone` 的做法见 [增量镜像目录 · 评分镜像](/docs/mirror#ratings)。
 
 ## 版主删除
 
@@ -2773,7 +2812,7 @@ curl -i "https://api.nextmoe.dev/v2/sticker/works/61311/packs" \
 
 # Problem types
 
-## 错误码注册表（顶层 `code`，共 48 个）
+## 错误码注册表（顶层 `code`，共 49 个）
 
 `code` 是封闭注册表里的稳定标识；`errors[].reason` 是另一套互不重叠的字段级词表。认不得的 `code` 一律按 `status` 兜底——我们会往注册表里加新成员。
 
@@ -2815,6 +2854,7 @@ curl -i "https://api.nextmoe.dev/v2/sticker/works/61311/packs" \
 | code | HTTP | title | description |
 | --- | --- | --- | --- |
 | `ENTITY_MERGED` | 404 | Entity merged | The entity was merged into another. object and current_id are present, and Link rel=canonical is sent. |
+| `PLAY_RECORDS_PRIVATE` | 403 | Play records private | The account keeps its play states and playtimes private. Only the account itself may read them, through its own user token. Its ratings stay public on /v2/ratings. |
 
 ### me
 
@@ -3326,7 +3366,7 @@ Open · 16 tokens
 
 - 路径前缀：`/v2`
 - 凭据：Authorization: Bearer nmk_live_…（v2 应用密钥,门户自助铸造,无需申请）
-- 端点数：138
+- 端点数：141
 
 > 正式公开：形状按 additive-only 演进，删除与改名由 CI 的 oasdiff 门拦下。第三方在门户自助铸 nmk_ 密钥即可调用，不需要申请。
 
@@ -3349,6 +3389,8 @@ Open · 16 tokens
 > /v2/folders 是别人的公开收藏夹，只要 catalog:read —— folder:read 是「读我自己的」，与能不能看别人无关。私密收藏夹在这里一律 404（对夹主本人也是），要读自己的私密夹走 /v2/me/folders。
 
 > /v2/ratings 是公开评分，只要 catalog:read：按 work_id / user_id 列表、按 id 读单条；/v2/ratings/changes 是给自己保留评分副本的站点用的镜像信道，删除以 gone: true 出现。作品的 nextmoe 评分（/v2/catalog/works/{id}/ratings）由这些评分算出：以全网均值为先验、权重 10 的贝叶斯均值，1 人起发布。
+
+> /v2/work-records?user_id= 是别人的游玩记录，个人主页的游戏库读它：列出该账号有游玩状态的作品，每条带时长与评分，按状态的更新时间倒序；facets=state 一次给出五个状态各有几部，content_limit=sfw 时列表、total 与计数一起排除 nsfw 作品。只要 catalog:read。游玩记录默认公开；本人经 PATCH /v2/me/privacy 设为 private 后，除本人的用户令牌外一律 403 PLAY_RECORDS_PRIVATE，评分仍在 /v2/ratings 公开。/v2/me/privacy 读写都只要用户令牌、不需要 scope。
 
 > 错误体是 RFC 9457 application/problem+json。type URI 解析到本站 /problems/{domain}/{kebab-code}。
 
@@ -4955,6 +4997,40 @@ curl "https://api.nextmoe.dev/v2/ratings/1" \
   -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
 ```
 
+## 公开游玩记录
+
+### GET /v2/work-records
+
+List an account's play records
+
+The works one account has a play state on — wish, doing, done, on_hold or dropped — each with its playtime and rating, the shape /v2/me/work-records/{work_id} answers its owner. This is the face a profile page's game library reads. Newest first by the play state's updated_at; a work with only a playtime or only a rating is not listed. Works that are no longer live in the catalog are left out. facets=state counts the account's works per state after the same filters, every state present with 0 when empty, so one request fills a row of tabs; include_total counts them all. An account that keeps its play records private (PATCH /v2/me/privacy) is 403 PLAY_RECORDS_PRIVATE, except to its own user token. Play records are public by default. Requires an application key or a user access token with catalog:read.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer nmk_live_…
+- scope：catalog:read
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `cursor` | query | 否 | string | Opaque keyset cursor from a prior next_cursor. Must start with cur_. |
+| `limit` | query | 否 | string | Page size 1-100, default 20. Values above 100 are 400 LIMIT_TOO_LARGE, not clamped. |
+| `view` | query | 否 | string | basic (default) or full. Closed vocabulary. |
+| `include` | query | 否 | string | Comma-separated blocks. Unknown token is 400 UNKNOWN_INCLUDE. |
+| `fields` | query | 否 | string | Comma-separated top-level keys after view/include. Unknown token is 400 UNKNOWN_FIELD. object and id are always kept. |
+| `ids` | query | 否 | string | Comma-separated ids, max 100. Batch lane: no pagination. |
+| `refs` | query | 否 | string | Comma-separated source:external_id, max 100. Batch lane: no pagination. |
+| `include_total` | query | 否 | string | true to include total. Only true or false. |
+| `facets` | query | 否 | string | Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. |
+| `sort` | query | 否 | string | Closed per-collection sort key. |
+| `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
+| `user_id` | query | 是 | string | The account whose play records to list — the central sign-in user id, the same one a rating reports as user_id. |
+| `state` | query | 否 | string | Comma-separated closed vocabulary: wish, doing, done, on_hold, dropped. Absent lists every state. |
+| `content_limit` | query | 否 | string | Comma-separated closed editorial axis: sfw, nsfw, as on /v2/catalog/works. Absent applies no gate. total and the state facet count after it, so a reader who hides nsfw works gets counts that match what it shows. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/work-records" \
+  -H "Authorization: Bearer nmk_live_<YOUR_KEY>"
+```
+
 ## 我的
 
 ### GET /v2/me/blocked-tags
@@ -5922,6 +5998,48 @@ Deletes only the row the calling app reported. Rows other apps reported on the s
 ```bash
 curl -X DELETE "https://api.nextmoe.dev/v2/me/playtimes/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### GET /v2/me/privacy
+
+My privacy switches
+
+play_records says who may read the bearer's play states and playtimes on /v2/work-records. An account that never changed it answers public with a null updated_at. Requires a user access token. Any app may call this; no scope is required.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+无参数。
+
+```bash
+curl "https://api.nextmoe.dev/v2/me/privacy" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### PATCH /v2/me/privacy
+
+Change my privacy switches
+
+Sets the switches the body names and leaves the others as they are; an empty body changes nothing. The change applies to the next read of /v2/work-records. Requires a user access token. Any app may call this; no scope is required.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+无参数。
+
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `play_records` | 否 | string | Who may read the account's play states and playtimes on /v2/work-records. Absent leaves it as it is. 取值：public \| private |
+
+```bash
+curl -X PATCH "https://api.nextmoe.dev/v2/me/privacy" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"play_records":"private"}'
 ```
 
 ### GET /v2/me/proposals
