@@ -172,7 +172,8 @@ export interface components {
         CompositeResponse: {
             /** @description UUIDs of the artifacts this composite pins, in source order */
             artifacts: string[] | null;
-            blake3: string;
+            /** @description Absent when the plan was created without one */
+            blake3?: string;
             content_type: string;
             created_at: string;
             filename: string;
@@ -226,8 +227,8 @@ export interface components {
              * @example https://example.com/CreateCompositeRequest.json
              */
             readonly $schema?: string;
-            /** @description BLAKE3 of the assembled file, lowercase hex. Served as the ETag; not recomputed by the service. */
-            blake3: string;
+            /** @description Optional BLAKE3 of the assembled file, lowercase hex, served as the ETag; not recomputed by the service. Without it the ETag is the composite id, which already hashes the plan. */
+            blake3?: string;
             /** @description Media type of the assembled file, e.g. application/zip */
             content_type: string;
             /** @description Download filename, sent as an attachment Content-Disposition */

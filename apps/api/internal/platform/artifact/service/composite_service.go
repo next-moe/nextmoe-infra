@@ -379,7 +379,7 @@ func encodeManifest(c *model.Composite, segments []dto.CompositeSegment, sources
 		Size:               c.Size,
 		ContentType:        c.ContentType,
 		ContentDisposition: storage.ContentDisposition(c.Filename),
-		ETag:               `"` + c.BLAKE3 + `"`,
+		ETag:               compositeETag(c),
 		LastModified:       c.CreatedAt.UTC().Format(http.TimeFormat),
 		Segments:           make([][3]int64, len(segments)),
 	}
@@ -403,6 +403,13 @@ func encodeManifest(c *model.Composite, segments []dto.CompositeSegment, sources
 	out = append(out, head...)
 	out = append(out, '\n')
 	return append(out, tail...), nil
+}
+
+func compositeETag(c *model.Composite) string {
+	if c.BLAKE3 == "" {
+		return `"` + c.PublicID + `"`
+	}
+	return `"` + c.BLAKE3 + `"`
 }
 
 func manifestKey(c *model.Composite) string {

@@ -284,6 +284,35 @@ func TestCreateCompositePinsPublishesAndIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestCompositeWithoutBLAKE3UsesItsIDAsETag(t *testing.T) {
+	f := newCompositeFixture(t)
+	ctx := context.Background()
+	base := f.artifact(t, f.site, 100, nil)
+	layer := f.artifact(t, f.site, 50, nil)
+	withSum := f.plan(base, layer)
+	bare := f.plan(base, layer)
+	bare.BLAKE3 = ""
+
+	resp, err := f.svc.Create(ctx, bare, CompositeParams{Site: f.site})
+	if err != nil {
+		t.Fatalf("Create without blake3: %v", err)
+	}
+	if resp.BLAKE3 != "" {
+		t.Errorf("blake3 = %q, want it absent", resp.BLAKE3)
+	}
+	head, _, _ := bytes.Cut(f.store.objects["c/"+f.site+"/"+resp.ID], []byte("\n"))
+	var h manifestHeader
+	if err := json.Unmarshal(head, &h); err != nil {
+		t.Fatal(err)
+	}
+	if h.ETag != `"`+resp.ID+`"` {
+		t.Errorf("etag = %s, want the quoted composite id", h.ETag)
+	}
+	if compositeID(f.site, withSum) == resp.ID {
+		t.Error("a plan with and without blake3 got the same id")
+	}
+}
+
 func TestCreateCompositeRefusesSourcesItCannotServe(t *testing.T) {
 	f := newCompositeFixture(t)
 	ctx := context.Background()
