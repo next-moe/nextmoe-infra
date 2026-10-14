@@ -263,6 +263,15 @@ export const problems = [
     "type": "https://developer.nextmoe.dev/problems/catalog/entity-merged"
   },
   {
+    "code": "PLAY_RECORDS_PRIVATE",
+    "domain": "catalog",
+    "kebab": "play-records-private",
+    "status": 403,
+    "title": "Play records private",
+    "description": "The account keeps its play states and playtimes private. Only the account itself may read them, through its own user token. Its ratings stay public on /v2/ratings.",
+    "type": "https://developer.nextmoe.dev/problems/catalog/play-records-private"
+  },
+  {
     "code": "USER_IDENTITY_REQUIRED",
     "domain": "me",
     "kebab": "user-identity-required",

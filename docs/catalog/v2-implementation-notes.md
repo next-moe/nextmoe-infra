@@ -2151,3 +2151,16 @@ All three sites now write ratings through `/v2` and mirror them back, so the one
 - **Kept**: the id floor of 1,000,001 on `catalog_user_work_rating`, since the forum's ids live below it.
 
 No spec change, no migration.
+
+## Wave — public play records and the privacy switch (2026-10-13)
+
+The sites' profile pages want a game library: what someone wants to play, is playing, finished, paused, dropped. Until now another person's play states were visible only through the ratings they had written (a rating carries its author's `work_state`); an unrated state and every playtime were readable by their owner alone.
+
+- **`GET /v2/work-records?user_id=`** lists the works an account has a play state on, as `work_record` items (the shape `/v2/me/work-records/{work_id}` answers its owner): `work_state` (never null here), `playtime` (the most minutes any app reported) and `rating`. Newest first by the state's `updated_at`, `cur_` cursor. A work with only a playtime or only a rating is not listed, and works that are not live are left out. Same gate as `/v2/ratings`: an application key or a user token with `catalog:read`.
+- **Filters and counts**: `state=` (closed, comma-separated) and `content_limit=sfw|nsfw` (the works list's display axis, through the same `displayLimitWhere`). `facets=state` returns all five buckets in vocabulary order, zeros included, after the same filters, and `include_total` counts them; both come from one `GROUP BY`. A site that hides nsfw works sends `content_limit=sfw` and gets a list and counts that agree.
+- **Privacy**: new table `catalog_user_privacy`, no row = public. Play records are public by default, existing accounts included (a product decision of 2026-10-13, taken knowing the forum's playtime page had promised privacy). An account set to private is `403 PLAY_RECORDS_PRIVATE` to everyone but its own user token; 403 rather than 404 because a profile must tell "hidden" from "nothing recorded". One switch covers states and playtimes. Ratings stay public either way and keep carrying the author's state.
+- **`GET /v2/me/privacy`** and **`PATCH /v2/me/privacy`** (`{"play_records":"private"}`) answer any user token, third-party apps included, with no scope — the same rule as the rest of the person-gated `/v2/me` surface since third-party apps may write ratings. A PATCH that changes nothing leaves `updated_at` alone.
+- `WorkRecord`'s field docs now say "the account's" instead of "the caller's", since the shape answers both faces.
+- New problem code `PLAY_RECORDS_PRIVATE` (catalog, 403). Account purge deletes the privacy row.
+
+**Spec is 2.50.0.** Additive: one public operation, two `/v2/me` operations, one problem code. Migration: `go run ./cmd/migrate catalog` creates the empty table (the `migrate-catalog` job on deploy); no backfill.

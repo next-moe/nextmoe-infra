@@ -509,7 +509,7 @@ wave 176-179 把人类的**写**搬完了;本波搬的是搬完写之后还留�
 论坛与 LetMoe 原本各有一张形状相同的评分表(整数 1-10 总分、八项可选子分、五档推荐、三档剧透、短评)。现在评分与游玩时长、游玩状态一样由 catalog 统一存储:在一个站写的评分,就是所有站上的那一份。
 
 - **表 `catalog_user_work_rating`**:`(actor_uid, work_id)` 唯一——评分是人的判断,不是某个应用的测量,所以不像时长那样按 client 分行。`overall` 1-10;`art/story/music/character/route/system/voice/replay_value` 可空 1-10(空 = 未评;论坛历史上的 `0` 导入为空);`recommend` 1-5(strong_no…strong_yes);`spoiler_level` 0-2(none/portion/serious);`short_summary` ≤2000 字符;`client_id`/`site` = **首次写入**它的应用,之后从别的应用编辑也不变。各取值范围由 CHECK 钉死。
-- **评分带作者的游玩状态**:两站的评分卡都显示作者玩到哪了,而游玩状态没有公开读面,所以每条评分都带 `work_state`——作者在该作品上**当前**的状态,读取时从 `catalog_user_work_state` 取,评分行里不存副本。状态改变或删除会推动该评分的 `changed_at`,从而进入 feed。
+- **评分带作者的游玩状态**:两站的评分卡都显示作者玩到哪了,而游玩状态当时没有公开读面(2.50.0 起有了,见 §4.8),所以每条评分都带 `work_state`——作者在该作品上**当前**的状态,读取时从 `catalog_user_work_state` 取,评分行里不存副本。状态改变或删除会推动该评分的 `changed_at`,从而进入 feed。
 - **两个时间**:`updated_at` = 作者最后编辑评分的时间,导入保留源站的值;`changed_at`(不在评分对象上公开)= catalog 最后改动这一行的时间(编辑、状态变化、合并、导入),`/v2/me/ratings` 与 `/v2/ratings/changes` 都按它排序。只有一个时间的话,导入的评分带着历史 `updated_at`,会落在已经跑过的镜像游标之前、永远同步不到。
 - **id 稳定**:编辑保留 id;作品合并时同一人在两边都评过,保留较新那条的 id,另一条留墓碑;删除写墓碑,之后再评得到新 id。各站的点赞与讨论串挂在这个 id 上。
 - **`/v2/me/ratings`**:列表(按更新时间升序,`cur_` 游标,`work_ids=` 批量读)/ 读 / PUT / DELETE。PUT 替换全部字段,原样重发不写任何东西。不需要 scope(同游玩状态)。**任何应用都能写(2.49.0 起,同游玩时长)**:短评在所有站公开,第一方站点在自己的写入路径里先做内容审核;第三方应用送来的短评由中央在写入前过 trust 词表检查(site `nextmoe`,500ms 超时即放行),只在短评非空且与已存不同时检查,`deny` 是 `422 VALIDATION_FAILED`(`/short_summary`,work-records 上是 `/rating/short_summary`,reason `NOT_ALLOWED_VALUE`,整次不写);写入后异步送 trust 扫描(kind `user_rating`,subject_id 为评分 id),标记出的由版主经 `DELETE /v2/moderation/ratings/{id}` 删除。在 `/v2/me/work-records` 上第三方令牌不带评分时保留原评分(第一方不带则是删除),这是为兼容只写状态和时长的旧集成;第三方删评分走 `DELETE /v2/me/ratings/{work_id}`。
@@ -521,6 +521,20 @@ wave 176-179 把人类的**写**搬完了;本波搬的是搬完写之后还留�
 - **公开聚合**:见 §2.4 `ratings` 块的 `nextmoe` 源。
 - **生命周期**:注销账号删除其评分(写墓碑);作品合并见上。
 - **初始导入(已退役)**:`cmd/import-user-ratings` 在上线和每站切换时把论坛 `galgame_rating`(保留原 id)和 LetMoe `game_rating` 导进中央;三站切换完成后于 2026-10-13 删除。它留下的唯一约束是 catalog 自己发的评分 id 从 1,000,001 起(迁移里的序列下限,论坛原 id 都在其下)。台账表 `catalog_user_work_rating_import` 不再由迁移创建,生产上的旧表待删除。
+
+## 4.8 公开游玩记录与隐私开关(`/v2/work-records` · `/v2/me/privacy`;2026-10-13,spec 2.50.0)
+
+各站个人主页要展示「想玩 / 在玩 / 玩过 / 搁置 / 抛弃」的游戏库。此前别人的游玩状态只能从他写过的评分上看到(`work_state` 随评分公开),没评分的状态与全部时长都只有本人可读。
+
+- **`GET /v2/work-records?user_id=`**(应用密钥或带 `catalog:read` 的用户令牌,与 `/v2/ratings` 同闸):该账号**有游玩状态**的作品,每项是 `work_record`——与 `/v2/me/work-records/{work_id}` 答给本人的同一形状:`work_state`(此面恒非 null)、`playtime`(各应用上报的最大分钟数,无则 null)、`rating`(无则 null)。只有时长或只有评分的作品不列出:库的定义是「标了状态的作品」,标签页按状态分。
+- **排序与分页**:按 `work_state.updated_at` 倒序、同时刻按 `work_id` 倒序,`cur_` 游标;`sort` 只有 `updated_desc`(缺省)。走 `(actor_uid, updated_at)` 索引。
+- **筛选**:`state=`(逗号分隔,五值封闭词表)、`content_limit=sfw|nsfw`(与 `/v2/catalog/works` 同一条显示轴,同一个 `displayLimitWhere`)。不是 live 的作品(stub / merged / quarantine)一律不列出,所以 `sfw` 与 `nsfw` 两次的计数之和等于不筛的计数。
+- **计数**:`facets=state` 在同样的筛选之后给五个状态各自的数,五个桶按词表顺序恒出现(0 也出),一次请求填满一排标签页;`include_total=true` 给总数。两者共用一条 `GROUP BY state` 查询。隐藏 nsfw 的读者带 `content_limit=sfw`,列表、总数与分面一起变,站点不必自己补算。
+- **隐私开关**:表 `catalog_user_privacy (actor_uid PK, play_records_private bool, updated_at)`,**没有行即公开**——游玩记录默认公开,存量账号也一样(2026-10-13 产品裁定,知情于论坛曾在时长页写过「逐条游玩记录是私密的」;那句话需要论坛同步改掉)。设为 private 后,`/v2/work-records?user_id=` 对除本人以外一律 `403 PLAY_RECORDS_PRIVATE`(本人用自己的用户令牌仍可读,方便在自己主页预览);不用 404,因为主页要能区分「没公开」和「什么都没标」。时长与状态共用这一个开关。
+- **评分不受开关影响**:评分本来就是公开行为,`/v2/ratings` 照常公开,评分上的 `work_state` 也照常带。
+- **`GET /v2/me/privacy`**:只要用户令牌,不要 scope;从未改过的账号答 `{"play_records":"public","updated_at":null}`。**`PATCH /v2/me/privacy`**:只改请求体给出的开关(`play_records`: `public|private`),空体不改任何东西;值没变不推 `updated_at`。读写都是任何应用的用户令牌即可(第三方也行,不要 scope),与 2.49.0 起第三方可写评分同一口径。
+- **生命周期**:注销账号连同这一行删除(`PurgeAccount`)。无用户合并。
+- **迁移**:`go run ./cmd/migrate catalog`(生产即部署自带的 `migrate-catalog` 任务)新建空表,纯增量,不回填。
 
 ## 5. 鉴权形态
 

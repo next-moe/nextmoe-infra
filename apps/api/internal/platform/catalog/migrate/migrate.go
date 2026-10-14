@@ -90,6 +90,7 @@ func Run(db *gorm.DB) error {
 		&model.CatalogUserFolderImport{},   // source-collection provenance for cmd/import-favorites; makes the backfill re-runnable
 		&model.CatalogUserEntityFollow{},   // per-user follows of catalog entities; companies only, see the CHECK
 		&model.CatalogUserTagBlock{},       // per-user tag blocks that clients pass as exclude_tag_id / exclude_tag_tree (2026-10); new, no backfill
+		&model.CatalogUserPrivacy{},        // per-account privacy switches (2026-10-13); created empty on purpose: no row means public, so every existing account's play states and playtimes become readable on /v2/work-records — a product decision taken knowing the forum had told its users play records were private
 		&model.CatalogSeries{},             // work series entity (step 94, dlsite lane first)
 		&model.CatalogSeriesMember{},       // series membership (step 94)
 		&model.CatalogSeriesIntro{},        // multilingual series intros (refs/plans/10 W0 ruling 3)

@@ -132,6 +132,10 @@ export const problemsZh: Record<string, { title: string; description: string }> 
     "title": "实体已被合并",
     "description": "该实体已被合并进另一个实体。响应里带 object 与 current_id，同时回一个 Link rel=canonical。"
   },
+  "PLAY_RECORDS_PRIVATE": {
+    "title": "游玩记录未公开",
+    "description": "该账号把游玩状态与时长设为私密，只有账号本人用自己的用户令牌才能读到。它的评分仍在 /v2/ratings 公开。"
+  },
   "USER_IDENTITY_REQUIRED": {
     "title": "需要用户身份",
     "description": "这个操作需要用户令牌，却用了应用密钥。"

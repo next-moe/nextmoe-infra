@@ -248,3 +248,10 @@ type WorkStateBatchItem struct {
 	Completion *string          `json:"completion,omitempty" enum:"one_route,main,all" doc:"Present on 200 items when set."`
 	Problem    *problem.Problem `json:"problem,omitempty" doc:"Present on failed items. A full problem object."`
 }
+
+type UserPrivacy struct {
+	_           struct{} `json:"-" additionalProperties:"true"`
+	Object      string   `json:"object" enum:"privacy" doc:"Type discriminant. Always privacy."`
+	PlayRecords string   `json:"play_records" enum:"public,private" doc:"Who may read the account's play states and playtimes on /v2/work-records. public, the default, lets any application read them; private refuses everyone but the account itself with 403 PLAY_RECORDS_PRIVATE. Ratings are public either way, and a rating still carries its author's play state."`
+	UpdatedAt   *string  `json:"updated_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC of the last change. null while the account has never changed it."`
+}
