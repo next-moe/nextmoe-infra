@@ -61,6 +61,7 @@ apps/account/public/urls.txt
 logs
 
 __pycache__/
+*.pyc
 
 # backup
 backup

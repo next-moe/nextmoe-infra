@@ -7,7 +7,6 @@
     "icons": "node scripts/generate-icons.mjs",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
-    "gen:types:artifact": "pnpm dlx openapi-typescript@7.13.0 ../../docs/artifact/openapi.yaml -o shared/types/generated/artifact-api.ts",
     "gen:types:artifact-admin": "pnpm dlx openapi-typescript@7.13.0 ../../docs/artifact/admin-openapi.yaml -o shared/types/generated/artifact-admin-api.ts",
     "gen:types:catalog-admin": "pnpm dlx openapi-typescript@7.13.0 ../../docs/catalog/admin-openapi.yaml -o shared/types/generated/catalog-admin-api.ts",
     "gen:types:trust-admin": "pnpm dlx openapi-typescript@7.13.0 ../../docs/trust/admin-openapi.yaml -o shared/types/generated/trust-admin-api.ts",
@@ -30,7 +29,6 @@
     "@vue/devtools-api": "^8.2.1",
     "date-fns": "^4.4.0",
     "echarts": "^6.1.0",
-    "localforage": "^1.10.0",
     "nuxt": "^4.5.2",
     "nuxt-echarts": "^1.1.0",
     "nuxt-schema-org": "^6.3.2",
@@ -38,15 +36,13 @@
     "postcss": "^8.5.28",
     "tailwindcss": "^4.3.3",
     "vue": "^3.5.42",
-    "vue-router": "^5.3.1",
-    "zod": "^4.6.5"
+    "vue-router": "^5.3.1"
   },
   "devDependencies": {
     "@iconify-json/lucide": "^1.2.133",
     "@nuxtjs/color-mode": "^4.0.1",
     "@pinia/nuxt": "^1.0.2",
     "eslint": "^10.10.0",
-    "husky": "^9.1.7",
     "pinia-plugin-persistedstate": "4.7.1",
     "prettier": "^3.9.7",
     "prettier-plugin-tailwindcss": "^0.8.1",

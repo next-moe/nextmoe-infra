@@ -108,7 +108,7 @@ cd nextmoe-infra/apps/api && go run ./cmd/reindex-catalog
 带数据上线是一条**有严格顺序的跨仓流水线**(不是单个 job)。Docker 不简化顺序,但每一步都能容器化成 `compose run` job。总体顺序(详见各仓 `docs/migration/`):
 
 1. **恢复源库 dump**:`kungalgame`、`kungalgame_patch` 从生产 dump 恢复;清空 infra 的 3 个库。
-   (infra `scripts/reset_all.sh` 是本地版的 drop+restore。)
+   (当时 infra 的 `scripts/reset_all.sh` 是本地版的 drop+restore,cutover 完成后已删除。)
 2. **kungal 预处理**:`check-dup-email` → kungal `migrate`(001–004、008–009)。
 3. **moyu OAuth 对齐**:moyu `migrate-oauth-prep`。
 4. **infra 身份/内容迁移**(顺序敏感):
