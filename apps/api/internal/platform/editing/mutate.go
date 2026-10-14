@@ -396,7 +396,7 @@ func (e *Engine) mergeLocked(
 	prop.DecidedByUID = &decidedBy
 	prop.DecidedAt = &now
 	prop.DecisionNote = decisionNote
-	err = spec.Txn(withActor(ctx, prop.ProposerUID), func(atx *gorm.DB) error {
+	err = spec.Txn(ctx, func(atx *gorm.DB) error {
 		for _, key := range changed {
 			f, _ := spec.Field(key)
 			if err := ApplyField(ctx, atx, f, prop.EntityID, eff[key]); err != nil {

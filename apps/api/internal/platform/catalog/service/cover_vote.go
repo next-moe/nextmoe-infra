@@ -91,13 +91,6 @@ func (s *CoverVoteService) ListMine(ctx context.Context, uid int64) ([]CoverVote
 	return out, nil
 }
 
-func (s *CoverVoteService) CountFor(ctx context.Context, coverID int64) (int64, error) {
-	var count int64
-	err := s.db.WithContext(ctx).Model(&model.CatalogCoverVote{}).
-		Where("cover_id = ?", coverID).Count(&count).Error
-	return count, err
-}
-
 func assertVotableWork(tx *gorm.DB, workID int64) error {
 	var work model.CatalogWork
 	err := tx.Select("status").Where("id = ?", workID).Take(&work).Error

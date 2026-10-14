@@ -28,10 +28,8 @@ import (
 )
 
 var (
-	ErrUnsupportedFormat = errors.New("service: unsupported image format")
-	ErrPresetNotFound    = errors.New("service: preset not defined")
-	ErrPresetNotAllowed  = errors.New("service: preset not allowed for site")
-	ErrMIMENotAllowed    = errors.New("service: mime not allowed by preset")
+	ErrPresetNotFound = errors.New("service: preset not defined")
+	ErrMIMENotAllowed = errors.New("service: mime not allowed by preset")
 )
 
 type UploadRequest struct {
@@ -105,8 +103,6 @@ func New(
 }
 
 var ErrModerationRejected = errors.New("service: rejected by moderation")
-
-func (s *Service) Presets() *preset.Config { return s.presets }
 
 func (s *Service) Upload(ctx context.Context, req UploadRequest) (*UploadResult, error) {
 	ps, ok := s.presets.Get(req.Preset)

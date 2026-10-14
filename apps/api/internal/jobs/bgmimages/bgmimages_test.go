@@ -41,7 +41,6 @@ func encodePNG(t *testing.T, w, h int) []byte {
 }
 
 type item struct {
-	status   int
 	images   map[string]string
 	body     []byte
 	ctype    string

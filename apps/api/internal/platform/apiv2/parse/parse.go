@@ -22,14 +22,6 @@ func Bool(raw, name string) (bool, *problem.Problem) {
 	}
 }
 
-func Int(raw, name string) (int, *problem.Problem) {
-	n, err := strconv.Atoi(raw)
-	if err != nil {
-		return 0, invalid(name, "expected an integer")
-	}
-	return n, nil
-}
-
 func Limit(raw string, def, max int) (int, *problem.Problem) {
 	if raw == "" {
 		return def, nil

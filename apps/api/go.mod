@@ -10,7 +10,6 @@ require (
 	github.com/aws/smithy-go v1.28.1
 	github.com/danielgtaylor/huma/v2 v2.39.1
 	github.com/gabriel-vasile/mimetype v1.4.15
-	github.com/gen2brain/avif v0.6.0
 	github.com/go-playground/validator/v10 v10.30.4
 	github.com/gofiber/fiber/v3 v3.5.0
 	github.com/gofiber/storage/redis/v3 v3.6.0
@@ -87,7 +86,6 @@ require (
 	github.com/redis/go-redis/v9 v9.22.0 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/segmentio/encoding v0.5.4 // indirect
-	github.com/tetratelabs/wazero v1.12.0 // indirect
 	github.com/tinylib/msgp v1.6.4 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.74.0 // indirect

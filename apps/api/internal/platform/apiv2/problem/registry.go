@@ -20,10 +20,6 @@ const (
 	DomainChat       Domain = "chat"
 )
 
-var DomainOrder = []Domain{
-	DomainPlatform, DomainCatalog, DomainMe, DomainModeration, DomainNews, DomainStore, DomainChat,
-}
-
 type Def struct {
 	Code        string
 	Domain      Domain

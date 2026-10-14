@@ -1,7 +1,9 @@
 # moyu → community primitive: the cutover
 
-> Status: infra side done, waiting to be run. This page is the order of
-> operations and the brief for the moyu session.
+> Status: done. This page was the order of operations and the brief for the
+> moyu session; it is kept as the record. `cmd/import-moyu-comments` was
+> deleted after the import ran (2026-10-14), so step 2 describes what it did
+> and is no longer a command to run.
 >
 > Every number here was measured on production on 2026-09-16.
 

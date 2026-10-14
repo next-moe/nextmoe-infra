@@ -22,14 +22,6 @@ func (r *PasswordResetRepository) Create(ctx context.Context, reset *model.Passw
 	return r.db.WithContext(ctx).Create(reset).Error
 }
 
-func (r *PasswordResetRepository) FindByToken(ctx context.Context, token string) (*model.PasswordReset, error) {
-	var reset model.PasswordReset
-	if err := r.db.WithContext(ctx).Where("token = ?", token).First(&reset).Error; err != nil {
-		return nil, err
-	}
-	return &reset, nil
-}
-
 func (r *PasswordResetRepository) FindValidByToken(ctx context.Context, token string) (*model.PasswordReset, error) {
 	var reset model.PasswordReset
 	if err := r.db.WithContext(ctx).
@@ -53,12 +45,6 @@ func (r *PasswordResetRepository) MarkAsUsed(ctx context.Context, id uint) error
 		return errors.NewWithCode(errors.ErrAuthInvalidToken)
 	}
 	return nil
-}
-
-func (r *PasswordResetRepository) DeleteExpired(ctx context.Context) error {
-	return r.db.WithContext(ctx).
-		Where("expires_at < ?", time.Now()).
-		Delete(&model.PasswordReset{}).Error
 }
 
 func (r *PasswordResetRepository) DeleteByUserID(ctx context.Context, userID uint) error {

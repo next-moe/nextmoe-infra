@@ -25,14 +25,9 @@ const (
 	ClaimActionBan      ClaimAction = "ban"
 	ClaimActionUnban    ClaimAction = "unban"
 	// delete soft-deletes a draft rather than moving it to another state, so
-	// it is deliberately absent from ClaimActions and transitions.
+	// it is deliberately absent from transitions.
 	ClaimActionDelete ClaimAction = "delete"
 )
-
-var ClaimActions = []ClaimAction{
-	ClaimActionClaim, ClaimActionSubmit, ClaimActionPublish, ClaimActionWithdraw,
-	ClaimActionApprove, ClaimActionDecline, ClaimActionBan, ClaimActionUnban,
-}
 
 var ReviewActions = map[ClaimAction]bool{
 	ClaimActionApprove: true, ClaimActionDecline: true,

@@ -206,16 +206,6 @@ func (r *ThreadRepository) OpeningPostMetaByThreadIDs(threadIDs []int64) (map[in
 	return out, nil
 }
 
-func (r *ThreadRepository) ListByAnchor(site string, anchorKind int16, anchorID string, kind int16) ([]model.CommunityThread, error) {
-	q := r.db.Where("anchor_kind = ? AND anchor_id = ? AND kind = ?", anchorKind, anchorID, kind)
-	if model.AnchorIsSiteLocal(anchorKind) {
-		q = q.Where("site = ?", site)
-	}
-	var rows []model.CommunityThread
-	err := q.Order("last_posted_at DESC NULLS LAST, id DESC").Find(&rows).Error
-	return rows, err
-}
-
 func CreateThreadTx(tx *gorm.DB, t *model.CommunityThread, bornEmpty bool) error {
 	if err := tx.Create(t).Error; err != nil {
 		return err

@@ -181,8 +181,7 @@ func TestWorkDedupPipeline(t *testing.T) {
 	assert.Equal(t, k1, c.groups[0].survivor, "the claimed work survives")
 
 	resolve := service.NewResolveService(repository.NewRedirectRepository(testDB))
-	merge := service.NewMergeService(testDB, resolve,
-		repository.NewProposalRepository(testDB), repository.NewRevisionRepository(testDB))
+	merge := service.NewMergeService(testDB, resolve)
 	var out bytes.Buffer
 
 	require.NoError(t, runSeed(ctx, testDB, &out, actor, false))
@@ -374,8 +373,7 @@ func TestProposeLimitLeavesTheRestPending(t *testing.T) {
 func newMerge(t *testing.T) *service.MergeService {
 	t.Helper()
 	resolve := service.NewResolveService(repository.NewRedirectRepository(testDB))
-	return service.NewMergeService(testDB, resolve,
-		repository.NewProposalRepository(testDB), repository.NewRevisionRepository(testDB))
+	return service.NewMergeService(testDB, resolve)
 }
 
 func findPair(t *testing.T, c *census, a, b int64) (pairRow, bucket) {

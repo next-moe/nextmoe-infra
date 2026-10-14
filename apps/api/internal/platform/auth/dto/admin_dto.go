@@ -44,10 +44,6 @@ type UpdateUserRequest struct {
 	Status *int    `json:"status" validate:"omitempty,oneof=0 1"`
 }
 
-type BanUserRequest struct {
-	Reason string `json:"reason" validate:"required,min=1,max=500"`
-}
-
 type AssignRoleRequest struct {
 	Role string `json:"role" validate:"required,oneof=user creator moderator admin"`
 }

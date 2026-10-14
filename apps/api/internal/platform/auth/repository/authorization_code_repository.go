@@ -22,14 +22,6 @@ func (r *AuthorizationCodeRepository) Create(ctx context.Context, code *model.Au
 	return r.db.WithContext(ctx).Create(code).Error
 }
 
-func (r *AuthorizationCodeRepository) FindByCode(ctx context.Context, code string) (*model.AuthorizationCode, error) {
-	var authCode model.AuthorizationCode
-	if err := r.db.WithContext(ctx).Where("code = ?", code).First(&authCode).Error; err != nil {
-		return nil, err
-	}
-	return &authCode, nil
-}
-
 func (r *AuthorizationCodeRepository) FindValidByCode(ctx context.Context, code string) (*model.AuthorizationCode, error) {
 	var authCode model.AuthorizationCode
 	if err := r.db.WithContext(ctx).
@@ -61,11 +53,5 @@ func (r *AuthorizationCodeRepository) MarkAsUsed(ctx context.Context, id uint) e
 func (r *AuthorizationCodeRepository) DeleteExpired(ctx context.Context) error {
 	return r.db.WithContext(ctx).
 		Where("expires_at < ?", time.Now()).
-		Delete(&model.AuthorizationCode{}).Error
-}
-
-func (r *AuthorizationCodeRepository) DeleteByUserID(ctx context.Context, userID uint) error {
-	return r.db.WithContext(ctx).
-		Where("user_id = ?", userID).
 		Delete(&model.AuthorizationCode{}).Error
 }

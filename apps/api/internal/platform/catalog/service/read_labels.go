@@ -31,23 +31,3 @@ func (s *ReadService) loadWorkLabels(ctx context.Context, workIDs []int64) (map[
 	}
 	return out, nil
 }
-
-func (s *ReadService) LabelLogoHashes(ctx context.Context, labelIDs []int64) (map[int64]string, error) {
-	out := make(map[int64]string, len(labelIDs))
-	if len(labelIDs) == 0 {
-		return out, nil
-	}
-	var rows []struct {
-		ID       int64  `gorm:"column:id"`
-		LogoHash string `gorm:"column:logo_hash"`
-	}
-	if err := s.db.WithContext(ctx).Raw(`
-		SELECT id, logo_hash FROM catalog_label
-		WHERE id IN ? AND deleted_at IS NULL AND logo_hash <> ''`, labelIDs).Scan(&rows).Error; err != nil {
-		return nil, err
-	}
-	for _, r := range rows {
-		out[r.ID] = r.LogoHash
-	}
-	return out, nil
-}

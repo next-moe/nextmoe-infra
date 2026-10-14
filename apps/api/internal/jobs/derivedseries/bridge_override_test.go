@@ -10,13 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func runDry(t *testing.T) *Stats {
-	t.Helper()
-	st, err := RunWithDB(context.Background(), testDB, Opts{})
-	require.NoError(t, err)
-	return st
-}
-
 func runApply(t *testing.T) *Stats {
 	t.Helper()
 	st, err := RunWithDB(context.Background(), testDB, Opts{Apply: true})

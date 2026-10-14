@@ -1,24 +1,10 @@
 package repository
 
 import (
-	"context"
-
 	"api/internal/platform/catalog/model"
 
 	"gorm.io/gorm"
 )
-
-type RevisionRepository struct {
-	db *gorm.DB
-}
-
-func NewRevisionRepository(db *gorm.DB) *RevisionRepository {
-	return &RevisionRepository{db: db}
-}
-
-func (r *RevisionRepository) LatestByAction(ctx context.Context, entityType int16, entityID int64, action int16) (*model.CatalogRevision, error) {
-	return LatestRevisionByAction(r.db.WithContext(ctx), entityType, entityID, action)
-}
 
 func LatestRevisionByAction(db *gorm.DB, entityType int16, entityID int64, action int16) (*model.CatalogRevision, error) {
 	var row model.CatalogRevision

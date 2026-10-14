@@ -16,8 +16,6 @@ var (
 	ErrPlaytimeClientRequired  = stderrors.New("catalog: a playtime report requires a client id")
 	ErrPlaytimeWorkUnavailable = stderrors.New("catalog: work not available for playtime reporting")
 	ErrPlaytimeMinutesRange    = stderrors.New("catalog: minutes must be between 0 and 60000")
-	ErrPlaytimeUnknownSource   = stderrors.New("catalog: unknown external source key")
-	ErrPlaytimeRefUnresolved   = stderrors.New("catalog: no work is anchored to that external id")
 )
 
 type UserPlaytimeService struct{ db *gorm.DB }
@@ -78,31 +76,6 @@ func reportPlaytimeTx(tx *gorm.DB, r PlaytimeReport) (model.CatalogUserPlaytime,
 		}),
 	}).Create(&row).Error
 	return row, err
-}
-
-func (s *UserPlaytimeService) ResolveRef(ctx context.Context, sourceKey, externalID string) (int64, error) {
-	var sourceID int16
-	err := s.db.WithContext(ctx).Raw(
-		`SELECT id FROM catalog_source WHERE key = ?`, sourceKey).Scan(&sourceID).Error
-	if err != nil {
-		return 0, err
-	}
-	if sourceID == 0 {
-		return 0, ErrPlaytimeUnknownSource
-	}
-	var workID int64
-	err = s.db.WithContext(ctx).Raw(`
-		SELECT entity_id FROM catalog_external_ref
-		 WHERE entity_type = ? AND source_id = ? AND external_id = ? AND link_kind = 0
-		 ORDER BY id DESC LIMIT 1`,
-		model.EntityTypeWork, sourceID, externalID).Scan(&workID).Error
-	if err != nil {
-		return 0, err
-	}
-	if workID == 0 {
-		return 0, ErrPlaytimeRefUnresolved
-	}
-	return workID, nil
 }
 
 func (s *UserPlaytimeService) ListMine(ctx context.Context, uid int64, since time.Time, sinceWorkID int64, limit int) ([]PlaytimeRecord, error) {

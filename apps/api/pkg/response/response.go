@@ -61,10 +61,6 @@ func Unauthorized(c fiber.Ctx, code int) error {
 	return ErrorCode(c, fiber.StatusUnauthorized, code)
 }
 
-func UnauthorizedMsg(c fiber.Ctx, code int, message string) error {
-	return Error(c, fiber.StatusUnauthorized, code, message)
-}
-
 func Forbidden(c fiber.Ctx, code int) error {
 	return ErrorCode(c, fiber.StatusForbidden, code)
 }
