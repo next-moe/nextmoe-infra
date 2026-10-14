@@ -1,7 +1,7 @@
 ---
 title: 评分与游玩记录
 eyebrow: 集成指南
-description: 游玩状态、游玩时长、评分，以及把三者一次写完的 work-records：谁能写、短评检查、替换语义、公开读取与镜像入口。
+description: 游玩状态、游玩时长、评分，以及把三者一次写完的 work-records：谁能写、短评检查、替换语义、公开读取、个人主页的游戏库、隐私开关与镜像入口。
 ---
 
 # 评分与游玩记录
@@ -17,7 +17,7 @@ description: 游玩状态、游玩时长、评分，以及把三者一次写完�
 | 评分     | `/v2/me/ratings`                | 只改这个人给这部作品的评分     |
 | 一次写完 | `/v2/me/work-records/{work_id}` | 一个表单同时交状态、时长和评分 |
 
-四份都只要用户访问令牌，不需要 scope。公开读取别人的评分不走 `/v2/me`，见 [公开读取](#public)。
+四份都只要用户访问令牌，不需要 scope。读别人的评分和游玩记录不走 `/v2/me`，见 [公开读取](#public) 与 [个人主页的游戏库](#library)。
 
 ```http
 GET    /v2/me/work-states
@@ -122,9 +122,47 @@ GET /v2/ratings/{id}
 
 `GET /v2/ratings/{id}` 按评分 id 取一条。没有这条，包括已经删掉的，都是 404。
 
+## 个人主页的游戏库 {#library}
+
+别人的游玩状态、时长和评分合在一起，在 `/v2/work-records`，按账号列。凭据同 `/v2/ratings`：应用密钥，或带 `catalog:read` 的用户令牌。
+
+```http
+GET /v2/work-records?user_id={user_id}&facets=state&include_total=true
+GET /v2/work-records?user_id={user_id}&state=doing
+GET /v2/work-records?user_id={user_id}&state=done&content_limit=sfw
+```
+
+每一项是 `work_record`，与 `/v2/me/work-records/{work_id}` 答给本人的是同一个形状：`work_state` 在这里一定有值，`playtime` 是各应用上报里最大的分钟数，`rating` 是这个人对这部作品的评分，没有就是 null。
+
+- **列的是标了状态的作品**。只报过时长、或只评过分、没标状态的作品不在里面。已经不是 live 的作品也不在。
+- **顺序**是状态的 `updated_at` 从新到旧，用 `next_cursor` 翻页，`limit` 最大 100。
+- **`state=`** 按状态筛，逗号分隔可以多选。
+- **`facets=state`** 给出五个状态各有几部，五个桶都会出现，没有的是 0，一次请求就能把一排标签页的数字填满。`include_total=true` 给总数。
+- **`content_limit=sfw`**：读者不看 NSFW 时带上。列表、`total` 和 `facets` 会一起排除 nsfw 作品，数字和显示出来的条数对得上，不用自己再减。
+
+账号把游玩记录设成私密时，这个面回 `403`，code 是 `PLAY_RECORDS_PRIVATE`，主页按它显示「未公开」。不要拿空列表来判断：空列表只说明这个人什么都没标。账号本人用自己的用户令牌来读，仍然能拿到全部。评分不受这个开关影响，照样在 `/v2/ratings` 公开。
+
+## 隐私开关 {#privacy}
+
+```http
+GET   /v2/me/privacy
+PATCH /v2/me/privacy
+```
+
+`play_records` 管的是 `/v2/work-records` 上的状态和时长，取值 `public` 或 `private`。**默认 `public`**，从没改过的账号答 `public`，`updated_at` 是 null。
+
+`PATCH` 只改 body 里给出的字段，空 body 什么都不改。值没变，`updated_at` 也不动。只要用户访问令牌，不需要 scope。
+
+```bash
+curl -X PATCH "https://api.nextmoe.dev/v2/me/privacy" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"play_records":"private"}'
+```
+
 ## 镜像 {#mirror}
 
-要在自己的库里留一份评分副本，走 `/v2/ratings/changes`，不要翻 `/v2/ratings`。冷启动、水位和 `gone` 的做法见 [增量镜像目录 · 评分镜像](/docs/mirror#ratings)。
+要在自己的库里留一份评分副本，走 `/v2/ratings/changes`，不要翻 `/v2/ratings`。游戏库没有镜像信道，按需实时读 `/v2/work-records`。冷启动、水位和 `gone` 的做法见 [增量镜像目录 · 评分镜像](/docs/mirror#ratings)。
 
 ## 版主删除 {#moderation}
 

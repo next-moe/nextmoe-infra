@@ -261,6 +261,17 @@ func UserWorkSpec() Spec {
 	}
 }
 
+func WorkRecordSpec() Spec {
+	return Spec{
+		Sort:    []string{"updated_desc"},
+		Include: []string{},
+		FullSet: []string{},
+		Fields:  []string{"object", "work_id", "work_state", "playtime", "rating"},
+		Facets:  []string{"state"},
+		NoBatch: true,
+	}
+}
+
 var ratingFields = []string{"object", "id", "work_id", "user_id", "overall", "aspect_scores", "recommend",
 	"spoiler_level", "short_summary", "client_id", "site", "created_at", "updated_at"}
 

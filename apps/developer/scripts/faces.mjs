@@ -88,6 +88,7 @@ export const FACES = [
       { key: 'news', label: '资讯', match: /^\/v2\/news/ },
       { key: 'folders', label: '公开收藏夹', match: /^\/v2\/folders/ },
       { key: 'ratings', label: '公开评分', match: /^\/v2\/ratings/ },
+      { key: 'work-records', label: '公开游玩记录', match: /^\/v2\/work-records/ },
       { key: 'me', label: '我的', match: /^\/v2\/me/ },
       { key: 'moderation', label: '审核', match: /^\/v2\/moderation/ },
       { key: 'store', label: '商店', match: /^\/v2\/store/ }
@@ -104,6 +105,7 @@ export const FACES = [
       '/v2/me/works 带 work_ids 时一次答最多 100 部作品的收藏夹归属、游玩时长和游玩状态，作品详情页一次调用即可；不带 work_ids 时按作品 id 升序分页走完持有人记过的全部作品（进了自己的收藏夹、有游玩时长或有游玩状态的都算）。答案里有收藏夹，所以同样要 folder:read（folder:write 也算）；封面投票要 catalog:edit，不在其中，走 /v2/me/cover-votes。',
       '/v2/folders 是别人的公开收藏夹，只要 catalog:read —— folder:read 是「读我自己的」，与能不能看别人无关。私密收藏夹在这里一律 404（对夹主本人也是），要读自己的私密夹走 /v2/me/folders。',
       '/v2/ratings 是公开评分，只要 catalog:read：按 work_id / user_id 列表、按 id 读单条；/v2/ratings/changes 是给自己保留评分副本的站点用的镜像信道，删除以 gone: true 出现。作品的 nextmoe 评分（/v2/catalog/works/{id}/ratings）由这些评分算出：以全网均值为先验、权重 10 的贝叶斯均值，1 人起发布。',
+      '/v2/work-records?user_id= 是别人的游玩记录，个人主页的游戏库读它：列出该账号有游玩状态的作品，每条带时长与评分，按状态的更新时间倒序；facets=state 一次给出五个状态各有几部，content_limit=sfw 时列表、total 与计数一起排除 nsfw 作品。只要 catalog:read。游玩记录默认公开；本人经 PATCH /v2/me/privacy 设为 private 后，除本人的用户令牌外一律 403 PLAY_RECORDS_PRIVATE，评分仍在 /v2/ratings 公开。/v2/me/privacy 读写都只要用户令牌、不需要 scope。',
       '错误体是 RFC 9457 application/problem+json。type URI 解析到本站 /problems/{domain}/{kebab-code}。',
       '客户端必须忽略未知字段、容忍开放词表中未见过的取值，并为未知错误 code 准备一个按 HTTP status 的兜底分支。'
     ]
@@ -182,7 +184,7 @@ export const USER_TOKEN_AUTH = {
 }
 
 export const EXPECTED_OPERATION_COUNTS = {
-  v2: 138,
+  v2: 141,
   moyu: 4,
   sticker: 9
 }

@@ -12,7 +12,7 @@ import (
 func TestPurgeAccountTakesEveryPersonalRowAndNothingElse(t *testing.T) {
 	folders := newFolderSvc(t)
 	require.NoError(t, testDB.Exec(
-		"TRUNCATE catalog_user_playtime, catalog_user_work_state, catalog_user_folder_import, catalog_user_entity_follow, catalog_user_tag_block, catalog_user_work_rating, catalog_user_work_rating_tombstone RESTART IDENTITY").Error)
+		"TRUNCATE catalog_user_playtime, catalog_user_work_state, catalog_user_folder_import, catalog_user_entity_follow, catalog_user_tag_block, catalog_user_work_rating, catalog_user_work_rating_tombstone, catalog_user_privacy RESTART IDENTITY").Error)
 	workID, coverID := seedVoteWork(t)
 	playtime := NewUserPlaytimeService(testDB)
 	states := NewUserWorkStateService(testDB)
@@ -47,11 +47,13 @@ func TestPurgeAccountTakesEveryPersonalRowAndNothingElse(t *testing.T) {
 		_, err = NewUserRatingService(testDB).Set(ctx, uid, workID, "kungal", "kungal",
 			RatingInput{Overall: 8, Recommend: model.RecommendYes, ShortSummary: "purge me"})
 		require.NoError(t, err)
+		_, err = NewUserWorkRecordService(testDB).SetPrivacy(ctx, uid, true)
+		require.NoError(t, err)
 	}
 
 	got, err := PurgeAccount(ctx, testDB, gone)
 	require.NoError(t, err)
-	require.Equal(t, AccountPurged{Folders: 1, FolderItems: 1, Playtimes: 2, WorkStates: 1, Ratings: 1, CoverVotes: 1, EntityFollows: 1, TagBlocks: 1}, got)
+	require.Equal(t, AccountPurged{Folders: 1, FolderItems: 1, Playtimes: 2, WorkStates: 1, Ratings: 1, CoverVotes: 1, EntityFollows: 1, TagBlocks: 1, Privacy: 1}, got)
 
 	count := func(table, col string, uid int64) int64 {
 		var n int64
@@ -68,6 +70,7 @@ func TestPurgeAccountTakesEveryPersonalRowAndNothingElse(t *testing.T) {
 		{"catalog_user_entity_follow", "actor_uid"},
 		{"catalog_user_tag_block", "actor_uid"},
 		{"catalog_user_work_rating", "actor_uid"},
+		{"catalog_user_privacy", "actor_uid"},
 	} {
 		require.Zerof(t, count(tc.table, tc.col, gone), "%s still names the deleted account", tc.table)
 		require.NotZerof(t, count(tc.table, tc.col, bystander), "%s lost the bystander's rows", tc.table)

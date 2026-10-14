@@ -67,6 +67,7 @@ var (
 	liveThirdPartyClient = "portal-app-client"
 	liveSecondPlainToken = "user-live-second-plain-token"
 	liveSecondPlainUID   = int64(12)
+	liveSecondReadToken  = "user-live-second-read-token"
 
 	// Owns nothing the fixture seeds, so a walk of everything it recorded is
 	// exactly what the test puts there.
@@ -287,6 +288,9 @@ func liveCatalog(t *testing.T) *liveEnv {
 				case liveSecondPlainToken:
 					return UserIdentity{UID: liveSecondPlainUID, ClientID: liveClient, Roles: []string{"user"},
 						Scopes: []string{devapi.ScopeCatalogEdit}}, nil
+				case liveSecondReadToken:
+					return UserIdentity{UID: liveSecondPlainUID, ClientID: liveClient, Roles: []string{"user"},
+						Scopes: []string{devapi.ScopeCatalogRead}}, nil
 				case liveWalkerToken:
 					return UserIdentity{UID: liveWalkerUID, ClientID: liveClient, Roles: []string{"user"},
 						Scopes: []string{devapi.ScopeFolderRead}}, nil
@@ -1088,7 +1092,8 @@ func liveAuthPath(path string) string {
 		return liveAppKeyHolder
 	}
 	if path == "/v2/folders" || strings.HasPrefix(path, "/v2/folders/") ||
-		path == "/v2/ratings" || strings.HasPrefix(path, "/v2/ratings/") {
+		path == "/v2/ratings" || strings.HasPrefix(path, "/v2/ratings/") ||
+		path == "/v2/work-records" {
 		return liveAppKey
 	}
 	if strings.HasPrefix(path, "/v2/catalog/") && path != "/v2/catalog/stats" && !strings.HasPrefix(path, "/v2/catalog/schemas/") {
