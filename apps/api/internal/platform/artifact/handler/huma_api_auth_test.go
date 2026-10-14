@@ -29,6 +29,13 @@ func TestUserTokenIsRefusedOnEverySiteWideOperation(t *testing.T) {
 		"get":      func() error { _, err := s.get(ctx, one); return err },
 		"download": func() error { _, err := s.download(ctx, one); return err },
 		"delete":   func() error { _, err := s.delete(ctx, one); return err },
+		"createComposite": func() error {
+			_, err := s.createComposite(ctx, &createCompositeInput{})
+			return err
+		},
+		"listComposites":  func() error { _, err := s.listComposites(ctx, &listInput{}); return err },
+		"getComposite":    func() error { _, err := s.getComposite(ctx, &compositeIDInput{}); return err },
+		"deleteComposite": func() error { _, err := s.deleteComposite(ctx, &compositeIDInput{}); return err },
 	}
 	for name, call := range ops {
 		t.Run(name, func(t *testing.T) {

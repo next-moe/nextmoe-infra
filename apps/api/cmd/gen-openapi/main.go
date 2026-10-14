@@ -58,7 +58,7 @@ func main() {
 	case *admin:
 		api = artHandler.SetupAdmin(app, artHandler.NewAdmin(nil, nil, nil))
 	default:
-		api = artHandler.Setup(app, service.New(nil, nil, nil))
+		api = artHandler.Setup(app, service.New(nil, nil, nil), nil)
 	}
 
 	var (

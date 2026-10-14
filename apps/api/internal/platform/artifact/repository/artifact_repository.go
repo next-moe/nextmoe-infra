@@ -86,6 +86,7 @@ func (r *ArtifactRepository) FindExpiredSoftDeleted(ctx context.Context, before 
 	var items []model.Artifact
 	err := r.db.WithContext(ctx).Unscoped().
 		Where("deleted_at IS NOT NULL AND deleted_at < ?", before).
+		Where("NOT EXISTS (SELECT 1 FROM composite_sources cs WHERE cs.artifact_id = artifacts.id)").
 		Limit(limit).
 		Find(&items).Error
 	return items, err
