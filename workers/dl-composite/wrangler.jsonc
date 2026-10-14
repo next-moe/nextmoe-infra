@@ -11,5 +11,6 @@
     "B2_BUCKET": "kungal-artifact-v1"
   },
   "ratelimits": [{ "name": "PER_IP", "namespace_id": "20261014", "simple": { "limit": 600, "period": 60 } }],
+  "limits": { "cpu_ms": 5000 },
   "observability": { "enabled": true }
 }
