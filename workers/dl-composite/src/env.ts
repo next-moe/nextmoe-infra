@@ -4,4 +4,5 @@ export interface Env {
   B2_BUCKET: string
   B2_KEY_ID: string
   B2_APP_KEY: string
+  PER_IP: RateLimit
 }
