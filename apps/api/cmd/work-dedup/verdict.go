@@ -13,6 +13,7 @@ const (
 	bucketAnchorConflict bucket = "anchor-conflict"
 	bucketRelConflict    bucket = "release-conflict"
 	bucketBothKungal     bucket = "both-kungal"
+	bucketHiddenClaim    bucket = "hidden-claim"
 	bucketDateClash      bucket = "date-clash"
 	bucketBare           bucket = "bare"
 	bucketBridged        bucket = "bridged"
@@ -55,6 +56,11 @@ func classifyPair(r pairRow) bucket {
 		return bucketRelConflict
 	case r.LaneA == "kungal" && r.LaneB == "kungal":
 		return bucketBothKungal
+	case r.HiddenA || r.HiddenB:
+		// Merging into hidden 61101 took a 42,200-view game off every read face;
+		// its hide was a stale backfill, but a moderation ban reads the same, so
+		// neither direction is safe without a person.
+		return bucketHiddenClaim
 	case r.RefOverlap:
 		// works 51010/222325 shared bangumi subject 524476 yet were filed manual because the year check ran first.
 		return bucketAuto

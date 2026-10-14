@@ -125,3 +125,26 @@ func TestApproveRejectsACrossMediumPair(t *testing.T) {
 	require.NoError(t, testDB.Raw(`SELECT status FROM catalog_merge_proposal WHERE id = ?`, p.ID).Scan(&status).Error)
 	require.Equal(t, model.ProposalStatusRejected, status, "a novel and the game adapted from it are two works")
 }
+
+func TestApproveHoldsAMergeIntoAHiddenClaim(t *testing.T) {
+	requireDB(t)
+	cleanPipeline(t)
+	medium := galgameMedium(t)
+	merge := newMerge(t)
+	resolve := service.NewResolveService(repository.NewRedirectRepository(testDB))
+	ctx := context.Background()
+	kungal := "kungal"
+
+	src := mkWork(t, medium, "same title", nil)
+	dst := mkWork(t, medium, "same title again", &kungal)
+	p, err := merge.ProposeMerge(ctx, model.EntityTypeWork, src, dst, 1, "llm:queue-adjudicator 1 conf=0.95")
+	require.NoError(t, err)
+	require.NoError(t, testDB.Exec(`UPDATE catalog_work SET claim_state = ? WHERE id = ?`, model.ClaimStateHidden, dst).Error)
+
+	var out bytes.Buffer
+	require.NoError(t, runApprove(ctx, testDB, &out, merge, resolve, 1, "llm:queue-adjudicator", 0, true))
+	require.Contains(t, out.String(), "hidden_survivor_held=1")
+	var status int16
+	require.NoError(t, testDB.Raw(`SELECT status FROM catalog_merge_proposal WHERE id = ?`, p.ID).Scan(&status).Error)
+	require.Equal(t, model.ProposalStatusOpen, status, "held, not rejected: a person flips it or unhides the target")
+}

@@ -41,6 +41,7 @@ const (
 	// candidate as deferred and are deliberately absent from currentStamps so
 	// a later corroborator can still accept the same verdict row.
 	stampKeptApartBothClaimed    = "kept_apart_both_claimed"
+	stampKeptApartHiddenClaim    = "kept_apart_hidden_claim"
 	stampKeptApartUncorroborated = "kept_apart_uncorroborated"
 	stampKeptApartLowConfidence  = "kept_apart_low_confidence"
 	stampHeldProbableDisputed    = "held_probable_disputed"
@@ -108,6 +109,7 @@ type exactRef struct {
 type workPairSides struct {
 	AID, BID           int64
 	ClaimedA, ClaimedB bool
+	HiddenA, HiddenB   bool
 	ExactA, ExactB     int
 	DeletedA, DeletedB bool
 	RefsA, RefsB       []exactRef
@@ -293,6 +295,9 @@ func planWorkPair(verdict string, conf, minReject float64, s workPairSides, ev p
 		if bothClaimed(s) {
 			return applyPlan{Action: applyDefer, Stamp: stampKeptApartBothClaimed}
 		}
+		if s.HiddenA || s.HiddenB {
+			return applyPlan{Action: applyDefer, Stamp: stampKeptApartHiddenClaim}
+		}
 		if reason := ev.acceptReason(verdict); reason != "" {
 			src, tgt := survivorTarget(s)
 			return applyPlan{Action: applyAccept, Source: src, Target: tgt, Reason: reason}
@@ -305,7 +310,7 @@ func planWorkPair(verdict string, conf, minReject float64, s workPairSides, ev p
 
 func isKeptApartStamp(stamp string) bool {
 	switch stamp {
-	case stampKeptApartBothClaimed, stampKeptApartUncorroborated, stampKeptApartLowConfidence:
+	case stampKeptApartBothClaimed, stampKeptApartHiddenClaim, stampKeptApartUncorroborated, stampKeptApartLowConfidence:
 		return true
 	default:
 		return false

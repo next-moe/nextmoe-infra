@@ -42,7 +42,7 @@ func printCensus(c *census, w io.Writer) {
 		}
 	}
 	fmt.Fprintf(w, "[census] pairs=%d in_scope=%d\n", len(c.rows), len(c.rows)-buckets[bucketOutOfScope])
-	for _, b := range []bucket{bucketAuto, bucketAnchorConflict, bucketRelConflict, bucketDateClash, bucketBare, bucketBothKungal, bucketBridged, bucketRefCI, bucketAliasOnly, bucketOutOfScope} {
+	for _, b := range []bucket{bucketAuto, bucketAnchorConflict, bucketRelConflict, bucketDateClash, bucketBare, bucketBothKungal, bucketHiddenClaim, bucketBridged, bucketRefCI, bucketAliasOnly, bucketOutOfScope} {
 		fmt.Fprintf(w, "  %-16s %d\n", b, buckets[b])
 	}
 	fmt.Fprintf(w, "  merge groups: %d\n", len(c.groups))

@@ -55,6 +55,10 @@ func (s *MergeService) CheckAbsorbable(ctx context.Context, sourceID int64) erro
 	return assertAbsorbable(s.db.WithContext(ctx), sourceID)
 }
 
+func (s *MergeService) CheckSurvivor(ctx context.Context, entityType int16, sourceID, targetID int64) error {
+	return assertSurvivorNotHidden(s.db.WithContext(ctx), entityType, sourceID, targetID)
+}
+
 func (s *MergeService) propose(ctx context.Context, entityType int16, sourceID, targetID, proposedBy int64, note string, absorb bool) (*model.CatalogMergeProposal, error) {
 	src, _, err := s.resolve.Resolve(ctx, entityType, sourceID)
 	if err != nil {
@@ -71,6 +75,9 @@ func (s *MergeService) propose(ctx context.Context, entityType int16, sourceID, 
 		if err := assertEntityAlive(s.db.WithContext(ctx), entityType, id); err != nil {
 			return nil, err
 		}
+	}
+	if err := assertSurvivorNotHidden(s.db.WithContext(ctx), entityType, src, dst); err != nil {
+		return nil, err
 	}
 	resolution := datatypes.JSON(`{}`)
 	if absorb {
@@ -99,6 +106,9 @@ func (s *MergeService) propose(ctx context.Context, entityType int16, sourceID, 
 
 func (s *MergeService) ApproveMerge(ctx context.Context, proposalID, approvedBy int64) error {
 	return s.transition(ctx, proposalID, model.ProposalStatusOpen, func(tx *gorm.DB, p *model.CatalogMergeProposal) error {
+		if err := assertSurvivorNotHidden(tx, p.EntityType, p.SourceEntityID, p.TargetEntityID); err != nil {
+			return err
+		}
 		after := time.Now().Add(time.Duration(keys.CatalogMergeCoolingOffHours.Get()) * time.Hour)
 		return tx.Model(p).Updates(map[string]any{
 			"status":        model.ProposalStatusApproved,

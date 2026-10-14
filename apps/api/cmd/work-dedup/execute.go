@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 
@@ -24,7 +25,7 @@ func runExecute(ctx context.Context, db *gorm.DB, w io.Writer, merge *service.Me
 	if err := q.Find(&props).Error; err != nil {
 		return err
 	}
-	var executed, superseded, residual, errs int
+	var executed, superseded, residual, held, errs int
 	for _, p := range props {
 		rsrc, srcMoved, err := resolve.Resolve(ctx, p.EntityType, p.SourceEntityID)
 		if err != nil {
@@ -61,12 +62,19 @@ func runExecute(ctx context.Context, db *gorm.DB, w io.Writer, merge *service.Me
 				}
 			}
 		default:
+			check := func() error { return merge.CheckSurvivor(ctx, p.EntityType, rsrc, rtgt) }
 			if run {
-				if err := merge.ExecuteMerge(ctx, p.ID, &actor); err != nil {
-					fmt.Fprintf(w, "  proposal %d: execute ERROR %v\n", p.ID, err)
-					errs++
+				check = func() error { return merge.ExecuteMerge(ctx, p.ID, &actor) }
+			}
+			if err := check(); err != nil {
+				if errors.Is(err, service.ErrHiddenSurvivor) {
+					held++
+					fmt.Fprintf(w, "  proposal %d: HELD approved, %v\n", p.ID, err)
 					continue
 				}
+				fmt.Fprintf(w, "  proposal %d: execute ERROR %v\n", p.ID, err)
+				errs++
+				continue
 			}
 			executed++
 		}
@@ -75,8 +83,8 @@ func runExecute(ctx context.Context, db *gorm.DB, w io.Writer, merge *service.Me
 	if run {
 		mode = "APPLIED"
 	}
-	fmt.Fprintf(w, "%s [execute] note=%s cooled=%d executed=%d chain_superseded=%d chain_residual=%d errors=%d\n",
-		mode, note, len(props), executed, superseded, residual, errs)
+	fmt.Fprintf(w, "%s [execute] note=%s cooled=%d executed=%d chain_superseded=%d chain_residual=%d hidden_survivor_held=%d errors=%d\n",
+		mode, note, len(props), executed, superseded, residual, held, errs)
 	if errs > 0 {
 		return fmt.Errorf("%d executions failed", errs)
 	}

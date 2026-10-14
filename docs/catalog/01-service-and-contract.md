@@ -621,3 +621,5 @@ nsfw  若 cover_art_all_explicit(有可选封面且全部被判 explicit),不论
 - **护栏**:输方持有 VNDB exact 锚时拒绝 absorb(那是同一 VN 的重复条目,不是版本),提案与执行两处都会返回错误;admin 面为 409。
 
 迁移:`go run ./cmd/migrate catalog`(部署时的 `migrate-catalog` 任务)对 `kun_catalog` 新增 `catalog_work_cover.merged_in`、`catalog_work_screenshot.merged_in`(`boolean NOT NULL DEFAULT false`)与表 `catalog_merge_archive`(含 `idx_catalog_merge_archive_proposal`)。纯加法;本次之前的合并搬进来的封面无从识别,保持 `false`。
+
+**幸存者的认领不能是隐藏的(2026-10-13)**。目标作品的认领是 hidden、来源不是(无认领、live、draft、pending、declined 都算)时,提案(`ProposeMerge` / `ProposeAbsorb`)、批准、执行三处都拒绝(`ErrHiddenSurvivor`,admin 面 409):合并结果会从所有读面消失,站点也没法把自己的数据折进打不开的页面。10-12 有七次论坛折叠因此每 30 分钟重试一次,八个来源里只有两个有认领,幸存者都是 07-31 `w1-resite backfill` 才隐藏的。两边都是 hidden 时照常合并。`cmd/work-dedup -mode approve` / `-mode execute` 遇到这种提案不报错,保留原状态并计入 `hidden_survivor_held`。判重普查把「一边 hidden 认领、另一边无认领」的作品对放进人审桶 `hidden-claim`(两边都有认领时仍是 `both-kungal`),LLM 队列对同样的作品对记 `kept_apart_hidden_claim` 并搁置:隐藏可能是封禁,也可能是过时的回填,只能由人判断——先解除隐藏,或者把隐藏的一方并入另一方。

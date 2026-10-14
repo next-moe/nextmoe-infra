@@ -245,6 +245,7 @@ func (s *AdminServer) decideCandidate(ctx context.Context, in *decideCandidateIn
 		case stderrors.Is(err, service.ErrDuplicateOpenProposal),
 			stderrors.Is(err, service.ErrSameEntity),
 			stderrors.Is(err, service.ErrEntityNotLive),
+			stderrors.Is(err, service.ErrHiddenSurvivor),
 			stderrors.Is(err, service.ErrProposalState):
 			return nil, apiErrMsg(http.StatusConflict, errors.ErrOperationFailed, err.Error())
 		}
@@ -360,7 +361,8 @@ func (s *AdminServer) actOnProposal(ctx context.Context, in *proposalActionInput
 			}
 			return nil, apiErrMsg(http.StatusUnprocessableEntity, errors.ErrOperationFailed, err.Error())
 		case stderrors.Is(err, service.ErrProposalState), stderrors.Is(err, service.ErrEntityNotLive),
-			stderrors.Is(err, service.ErrAbsorbVNDBAnchor), stderrors.Is(err, service.ErrMergeMode):
+			stderrors.Is(err, service.ErrAbsorbVNDBAnchor), stderrors.Is(err, service.ErrMergeMode),
+			stderrors.Is(err, service.ErrHiddenSurvivor):
 			return nil, apiErrMsg(http.StatusConflict, errors.ErrOperationFailed, err.Error())
 		}
 		slog.Error("catalog admin proposal action", "action", in.Action, "id", in.ID, "err", err)

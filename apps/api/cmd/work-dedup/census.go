@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"strconv"
 	"time"
 
+	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/service"
 
 	"gorm.io/gorm"
@@ -21,6 +23,8 @@ type pairRow struct {
 	AnchorsB       int        `gorm:"column:anchors_b"`
 	SiteA          *string    `gorm:"column:site_a"`
 	SiteB          *string    `gorm:"column:site_b"`
+	HiddenA        bool       `gorm:"column:hidden_a"`
+	HiddenB        bool       `gorm:"column:hidden_b"`
 	NameA          string     `gorm:"column:name_a"`
 	NameB          string     `gorm:"column:name_b"`
 	AnchorConflict bool       `gorm:"column:anchor_conflict"`
@@ -49,7 +53,7 @@ type pairRow struct {
 func pairQuerySQL() string {
 	return `
 WITH lw AS (
-  SELECT id, site, display_name, medium_id FROM catalog_work WHERE deleted_at IS NULL
+  SELECT id, site, claim_state, display_name, medium_id FROM catalog_work WHERE deleted_at IS NULL
 ),
 norms AS (
   SELECT work_id, n, bool_or(official) AS official FROM (` + service.WorkDupeCorpusSQL() + `) c GROUP BY work_id, n
@@ -109,6 +113,7 @@ wk AS (
          WHEN w.eg THEN 'eg'
          WHEN r.dlsite THEN 'dlsite'
          ELSE 'other' END AS lane,
+    (lw.site IS NOT NULL AND lw.site <> '' AND lw.claim_state = ` + strconv.Itoa(int(model.ClaimStateHidden)) + `) AS hidden,
     coalesce(w.anchors, 0) AS anchors,
     coalesce(w.anchor_keys, '{}') AS anchor_keys,
     coalesce(w.ref_keys, '{}') AS ref_keys,
@@ -166,6 +171,7 @@ SELECT p.a, p.b, p.shared_norm, p.shared_norms, p.shared_official,
   wa.lane AS lane_a, wb.lane AS lane_b,
   wa.anchors AS anchors_a, wb.anchors AS anchors_b,
   wa.site AS site_a, wb.site AS site_b,
+  wa.hidden AS hidden_a, wb.hidden AS hidden_b,
   wa.display_name AS name_a, wb.display_name AS name_b,
   ` + sameSourceOtherIDSQL("wa.anchor_keys", "wb.anchor_keys") + ` AS anchor_conflict,
   (` + sameSourceOtherIDSQL("wa.rel_keys", "wb.rel_keys") + `

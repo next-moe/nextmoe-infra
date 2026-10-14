@@ -50,6 +50,18 @@ func TestClassifyPairBuckets(t *testing.T) {
 			r.LaneB, r.RefOverlap = "kungal", true
 			return r
 		}, bucketBothKungal},
+		{"a hidden claim facing an unclaimed work waits for a person", func(r pairRow) pairRow {
+			r.HiddenA, r.RefOverlap = true, true
+			return r
+		}, bucketHiddenClaim},
+		{"a hidden claim facing another claim stays both-kungal", func(r pairRow) pairRow {
+			r.LaneB, r.HiddenA, r.RefOverlap = "kungal", true, true
+			return r
+		}, bucketBothKungal},
+		{"a conflict still outranks a hidden claim", func(r pairRow) pairRow {
+			r.HiddenA, r.AnchorConflict = true, true
+			return r
+		}, bucketAnchorConflict},
 		{"dlsite edition splits are out of scope", func(r pairRow) pairRow {
 			r.LaneA, r.LaneB, r.AnchorConflict = "dlsite", "dlsite", true
 			return r
@@ -171,5 +183,25 @@ func TestPairEvidenceNamesTheCorroborators(t *testing.T) {
 	}
 	if got := pairEvidence(pairRow{RefOverlap: true, RefOverlapCI: true, SharedNorms: 1}); got != "ref" {
 		t.Fatalf("evidence = %q, want %q", got, "ref")
+	}
+}
+
+func TestClassifyNeverElectsAHiddenSurvivor(t *testing.T) {
+	rows := []pairRow{
+		{A: 1, B: 2, LaneA: "kungal", LaneB: "bgm", HiddenA: true, AnchorsB: 3, RefOverlap: true, SharedNorms: 1, SharedOfficial: 1},
+		{A: 2, B: 3, LaneA: "bgm", LaneB: "vndb", RefOverlap: true, SharedNorms: 1, SharedOfficial: 1},
+	}
+	verdicts, groups := classify(rows)
+	if verdicts[0] != bucketHiddenClaim {
+		t.Fatalf("hidden pair: %v", verdicts)
+	}
+	if len(groups) != 1 || groups[0].survivor == 1 || len(groups[0].sources) != 1 || groups[0].sources[0] == 1 {
+		t.Fatalf("the hidden work must stay out of every merge group: %+v", groups)
+	}
+
+	rows[0].HiddenA = false
+	_, groups = classify(rows)
+	if len(groups) != 1 || groups[0].survivor != 1 {
+		t.Fatalf("without the hide the claimed work survives the same component: %+v", groups)
 	}
 }
