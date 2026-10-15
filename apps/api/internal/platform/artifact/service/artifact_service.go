@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	stderrors "errors"
+	"fmt"
 	"log/slog"
 	"path/filepath"
 	"sort"
@@ -23,26 +24,34 @@ import (
 )
 
 var (
-	ErrTooBig       = stderrors.New("artifact: file exceeds per-site max size")
-	ErrMIMEDenied   = stderrors.New("artifact: file type not allowed for this site")
-	ErrQuotaCount   = stderrors.New("artifact: daily file-count quota exceeded")
-	ErrQuotaBytes   = stderrors.New("artifact: daily byte quota exceeded")
-	ErrNotFound     = stderrors.New("artifact: not found")
-	ErrSizeMismatch = stderrors.New("artifact: uploaded size does not match declared size")
-	ErrBadRequest   = stderrors.New("artifact: bad request")
-	ErrNotResumable = stderrors.New("artifact: upload is not resumable (already completed or failed)")
+	ErrTooBig        = stderrors.New("artifact: file exceeds per-site max size")
+	ErrMIMEDenied    = stderrors.New("artifact: file type not allowed for this site")
+	ErrQuotaCount    = stderrors.New("artifact: daily file-count quota exceeded")
+	ErrQuotaBytes    = stderrors.New("artifact: daily byte quota exceeded")
+	ErrNotFound      = stderrors.New("artifact: not found")
+	ErrSizeMismatch  = stderrors.New("artifact: uploaded size does not match declared size")
+	ErrBadRequest    = stderrors.New("artifact: bad request")
+	ErrNotResumable  = stderrors.New("artifact: upload is not resumable (already completed or failed)")
+	ErrRenameRefused = stderrors.New("artifact: rename refused")
 )
+
+const maxInPlaceCopyBytes = 5 << 30
+
+type dispositionStore interface {
+	SetContentDisposition(ctx context.Context, key, downloadName, contentType string) error
+}
 
 const maxS3Parts = 10000
 
 type Service struct {
-	repo  *repository.ArtifactRepository
-	store *storage.Client
-	quota *quota.Checker
+	repo        *repository.ArtifactRepository
+	store       *storage.Client
+	disposition dispositionStore
+	quota       *quota.Checker
 }
 
 func New(repo *repository.ArtifactRepository, store *storage.Client, q *quota.Checker) *Service {
-	return &Service{repo: repo, store: store, quota: q}
+	return &Service{repo: repo, store: store, disposition: store, quota: q}
 }
 
 type InitParams struct {
@@ -291,6 +300,42 @@ func (s *Service) Download(ctx context.Context, uuidStr, site, cdnBase string) (
 		URL:       url,
 		ExpiresAt: time.Now().Add(downloadTTL).UTC().Format(time.RFC3339),
 	}, nil
+}
+
+func (s *Service) Rename(ctx context.Context, uuidStr, site, name string) (*dto.ArtifactResponse, error) {
+	a, err := s.repo.FindByUUID(ctx, uuidStr)
+	if err != nil {
+		if stderrors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	if a.SiteKey != site {
+		return nil, ErrNotFound
+	}
+	if a.Name == name {
+		return toResponse(a), nil
+	}
+	switch {
+	case !a.IsReady():
+		return nil, fmt.Errorf("%w: the upload has not finished", ErrRenameRefused)
+	case extForKey(name) != extForKey(a.Name):
+		return nil, fmt.Errorf("%w: the extension must stay %q", ErrRenameRefused, extForKey(a.Name))
+	case a.FileSize > maxInPlaceCopyBytes:
+		return nil, fmt.Errorf("%w: the file is over 5 GiB, beyond an in-place copy", ErrRenameRefused)
+	}
+	if err := s.disposition.SetContentDisposition(ctx, a.FileKey, name, a.MimeType); err != nil {
+		return nil, err
+	}
+	ok, err := s.repo.SetName(ctx, a.ID, name)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, ErrNotFound
+	}
+	a.Name = name
+	return toResponse(a), nil
 }
 
 func (s *Service) Get(ctx context.Context, uuidStr, site string) (*dto.ArtifactResponse, error) {

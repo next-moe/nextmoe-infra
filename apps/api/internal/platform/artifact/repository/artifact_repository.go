@@ -49,6 +49,11 @@ func (r *ArtifactRepository) ListBySite(ctx context.Context, site string, offset
 	return items, total, nil
 }
 
+func (r *ArtifactRepository) SetName(ctx context.Context, id uint, name string) (bool, error) {
+	res := r.db.WithContext(ctx).Model(&model.Artifact{}).Where("id = ?", id).Update("name", name)
+	return res.RowsAffected > 0, res.Error
+}
+
 func (r *ArtifactRepository) SaveManifest(ctx context.Context, m *model.Manifest) error {
 	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "artifact_id"}},
