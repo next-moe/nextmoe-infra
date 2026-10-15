@@ -29,6 +29,7 @@ func TestUserTokenIsRefusedOnEverySiteWideOperation(t *testing.T) {
 		"get":      func() error { _, err := s.get(ctx, one); return err },
 		"download": func() error { _, err := s.download(ctx, one); return err },
 		"delete":   func() error { _, err := s.delete(ctx, one); return err },
+		"rename":   func() error { _, err := s.rename(ctx, &renameInput{UUID: one.UUID}); return err },
 		"createComposite": func() error {
 			_, err := s.createComposite(ctx, &createCompositeInput{})
 			return err
