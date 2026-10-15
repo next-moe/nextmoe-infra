@@ -25,4 +25,9 @@ UPDATE message
   SET content = :'marker' || ' synthetic direct message.'
   WHERE content IS NOT NULL AND content <> '';
 
+-- What the user purge took, kept so a mistaken purge can be undone: deleted
+-- content, including chat and message rows as JSON the updates above never
+-- reach.
+TRUNCATE user_purge_archive;
+
 COMMIT;

@@ -333,6 +333,8 @@ mutated.
 | `sessions`, `authorization_codes`, `password_resets`, `signing_keys`, `oauth_accounts` tokens | emptied (signing_keys: dev runs HS256 / self-bootstraps a fresh KEK) |
 | private chat + DM content (`chat_message`, `message`, `user_message`, edit history) | `[dev-scrubbed] …` synthetic text |
 | `kun_community` **held** posts (`status=1`) body + `community_flag.note` | `[dev-scrubbed] …` synthetic text |
+| `kungalgame_patch.admin_log.content` (its `delete` entries embed the deleted account, email and password hash included) | `[dev-scrubbed] …` synthetic text |
+| purge archives (`kungalgame.user_purge_archive`, `kun_community.community_purge_archive`) | emptied |
 | public content (topics, replies, comments, resources, catalog, wiki, images) | **preserved verbatim** |
 
 The dev credentials above are **public by design** (裁定 3) — hard-code them in
@@ -387,16 +389,24 @@ DEVSEED_SUFFIX=_seed ./scripts/restore-dev-seed.sh --yes   # keep existing DBs, 
 ```
 
 Every seeded account logs in with password `kungal-dev` (same dev-credential
-contract as the snapshot). Desensitisation is inherited — the seed is sampled
-*from* the scrubbed snapshot databases, never from raw prod. Content-side
-image/file hashes may dangle by design: bytes live in prod object storage and
-are not part of any seed.
+contract as the snapshot). The seed is sampled from the local snapshot
+databases: six of them are scrubbed at source, but `kun_catalog` is a raw
+production copy, so its prune empties every per-user table and fails the build
+if any other table holding a user id still has rows. Every prune also ships
+private tables empty (chats, DMs, notifications, drafts, folders, moderation
+queues, purge archives, tokens, keys, federated identities, the points ledger,
+shop orders) and re-applies the snapshot's email / IP / client-secret contract
+that local use can undo. Only public images (kept covers and avatars) keep
+their metadata rows; content-side image/file hashes may dangle by design:
+bytes live in prod object storage and are not part of any seed.
 
 Producing it (maintainer side, this box): `scripts/dev-seed/build-seed.sh`
 samples the local snapshot DBs (`prune/<db>.sql` per DB, keep-sets + FK-enforced
-deletes) and `publish-seed.sh` replaces the release assets in place. A weekly
-systemd user timer (`scripts/dev-seed/systemd/`) keeps the release fresh —
-freshness tracks whatever the last `refresh-dev-db` pulled.
+deletes) and `publish-seed.sh` replaces the release assets in place. Check a
+build before publishing it with
+`DEVSEED_DIR=~/.cache/kungal-dev-seed/latest DEVSEED_SUFFIX=_seedcheck ./scripts/restore-dev-seed.sh --yes`.
+A weekly systemd user timer (`scripts/dev-seed/systemd/`) keeps the release
+fresh — freshness tracks whatever the last `refresh-dev-db` pulled.
 
 ## Wiring a product repo (per-repo quickstart index)
 

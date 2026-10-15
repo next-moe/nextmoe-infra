@@ -115,12 +115,17 @@ run_assertions() {
     kungalgame)
       content_col_synthetic kungalgame chat_message content
       content_col_synthetic kungalgame message content
-      content_col_synthetic kungalgame chat_room last_message_content ;;
+      content_col_synthetic kungalgame chat_room last_message_content
+      assert_zero "user_purge_archive empty" kungalgame "SELECT count(*) FROM user_purge_archive" ;;
     kungalgame_patch)
       content_col_synthetic kungalgame_patch chat_message content
       content_col_synthetic kungalgame_patch user_message content
       content_col_synthetic kungalgame_patch chat_message_edit_history previous_content
-      assert_zero "user.ip cleared" kungalgame_patch "SELECT count(*) FROM \"user\" WHERE ip IS NOT NULL AND ip <> ''" ;;
+      assert_zero "user.ip cleared" kungalgame_patch "SELECT count(*) FROM \"user\" WHERE ip IS NOT NULL AND ip <> ''"
+      assert_zero "admin_log carries no real email" kungalgame_patch \
+        "SELECT count(*) FROM admin_log WHERE regexp_replace(content, '[A-Za-z0-9._%+-]+@${DEV_EMAIL_DOMAIN//./\\.}', '', 'g') ~ '[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}'"
+      assert_zero "admin_log carries no password field" kungalgame_patch \
+        "SELECT count(*) FROM admin_log WHERE content ~* 'pass(word|wd)\"?\s*:'" ;;
     kun_community)
       assert_zero "held posts content synthetic" kun_community \
         "SELECT count(*) FROM community_post WHERE status=1 AND (content_raw NOT LIKE '%${MK}%' OR content_html NOT LIKE '%${MK}%')"

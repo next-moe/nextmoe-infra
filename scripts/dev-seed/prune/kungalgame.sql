@@ -19,7 +19,9 @@
 --     reference. Kept-user closure is therefore computed here and the big
 --     per-user tables are pruned against it; residual soft-ref orphans are
 --     counted and reported at the end.
---   * Deterministic: roots are the newest N rows by id; caps use ORDER BY id.
+--   * Since G0 a forum galgame id IS the catalog work id, so ids no longer
+--     encode recency: galgame roots are the newest published rows by
+--     `created`. Topic ids are still forum-local, so topics stay newest-by-id.
 -- ============================================================================
 
 -- Fail early if a required variable was not passed.
@@ -59,25 +61,28 @@ BEGIN
 END $$;
 
 -- ----------------------------------------------------------------------------
--- Section 1: root keep-sets — newest topics and newest galgames
+-- Section 1: root keep-sets — newest visible topics and newest galgames
 -- ----------------------------------------------------------------------------
 CREATE TEMP TABLE keep_topic AS
-  SELECT id FROM topic ORDER BY id DESC LIMIT :seed_topics;
+  SELECT id FROM topic
+  WHERE status = 0 AND access_scope = 'public'
+  ORDER BY id DESC LIMIT :seed_topics;
 ALTER TABLE keep_topic ADD PRIMARY KEY (id);
 
 CREATE TEMP TABLE keep_galgame AS
-  SELECT id FROM galgame ORDER BY id DESC LIMIT :seed_works;
+  SELECT id FROM galgame
+  WHERE published
+  ORDER BY created DESC, id DESC LIMIT :seed_works;
 ALTER TABLE keep_galgame ADD PRIMARY KEY (id);
 
--- Quizzes: linked to galgames only through galgame_quiz_galgame
--- (galgame_quiz.galgame_id is 0 for every row in this schema).
+-- Quizzes: linked to galgames only through galgame_quiz_galgame.
 -- Keep a quiz if it has no galgame links at all, or at least one link to a
 -- kept galgame.
 CREATE TEMP TABLE keep_quiz AS
   SELECT q.id FROM galgame_quiz q
   WHERE NOT EXISTS (SELECT 1 FROM galgame_quiz_galgame l WHERE l.quiz_id = q.id)
      OR EXISTS (SELECT 1 FROM galgame_quiz_galgame l
-                JOIN keep_galgame kg ON kg.id = l.galgame_id
+                JOIN keep_galgame kg ON kg.id = l.work_id
                 WHERE l.quiz_id = q.id);
 ALTER TABLE keep_quiz ADD PRIMARY KEY (id);
 
@@ -96,19 +101,23 @@ SELECT DISTINCT uid FROM (
   -- topic authors of kept topics
   SELECT t.user_id AS uid FROM topic t JOIN keep_topic k ON k.id = t.id
   UNION ALL
-  -- reply / comment authors on kept topics
+  -- visible reply / comment authors on kept topics
   SELECT r.user_id FROM topic_reply r JOIN keep_topic k ON k.id = r.topic_id
+  WHERE r.status = 0
   UNION ALL
   SELECT c.user_id FROM topic_comment c JOIN keep_topic k ON k.id = c.topic_id
+  WHERE c.status = 0
   UNION ALL
   -- galgame contributors on kept galgames: creator, wiki-edit actors,
-  -- resource uploaders
+  -- contributors, resource uploaders
   SELECT g.creator_user_id FROM galgame g JOIN keep_galgame k ON k.id = g.id
   WHERE g.creator_user_id IS NOT NULL
   UNION ALL
-  SELECT a.user_id FROM galgame_activity a JOIN keep_galgame k ON k.id = a.galgame_id
+  SELECT a.user_id FROM galgame_activity a JOIN keep_galgame k ON k.id = a.work_id
   UNION ALL
-  SELECT r.user_id FROM galgame_resource r JOIN keep_galgame k ON k.id = r.galgame_id
+  SELECT c.user_id FROM galgame_contributor c JOIN keep_galgame k ON k.id = c.work_id
+  UNION ALL
+  SELECT r.user_id FROM galgame_resource r JOIN keep_galgame k ON k.id = r.work_id
   UNION ALL
   -- staff-ish soft references from site-wide singletons (stand-in for admins)
   SELECT author_id FROM doc_article
@@ -116,6 +125,8 @@ SELECT DISTINCT uid FROM (
   SELECT user_id FROM update_log
   UNION ALL
   SELECT user_id FROM todo
+  UNION ALL
+  SELECT claimed_user_id FROM todo
   UNION ALL
   SELECT updated_by FROM role_permission_override
   UNION ALL
@@ -140,20 +151,37 @@ WHERE uid IS NOT NULL
 ALTER TABLE keep_user ADD PRIMARY KEY (uid);
 
 -- ----------------------------------------------------------------------------
--- Section 3: topic-side prune
+-- Section 3: private and ephemeral tables ship empty
+-- ----------------------------------------------------------------------------
+-- Private by nature, whoever they belong to: chats, notifications, drafts,
+-- per-topic subscriptions, collections (the same folders catalog ships empty),
+-- quiz answers (shown only to the answerer and the quiz author), lottery prize
+-- codes, purge / merge archives, moderation bookkeeping.
+TRUNCATE chat_message_reaction, chat_message_read_by, chat_message,
+         chat_room_admin, chat_room_participant, chat_room;
+TRUNCATE message, system_message_read_state, topic_subscription, topic_draft;
+TRUNCATE galgame_quiz_answer;
+TRUNCATE galgame_collection_item, galgame_collection_viewer, galgame_collection;
+TRUNCATE topic_lottery_code;
+TRUNCATE user_purge_archive, galgame_merge_discarded, _user_merge_109310_to_1922,
+         trust_disposition_applied;
+TRUNCATE toolset_upload, dlsite_store_link;
+
+-- ----------------------------------------------------------------------------
+-- Section 4: topic-side prune
 -- ----------------------------------------------------------------------------
 -- Dropping a topic cascades to: topic_reply (and its likes/dislikes/reactions
--- via reply FK), topic_comment (+likes), topic_like/dislike/favorite/upvote,
--- topic_reaction has no FK -> handled explicitly below, topic_poll
--- (+options/votes), topic_section_relation.
+-- via reply FK), topic_comment (+likes), topic_like/dislike/favorite/upvote/
+-- reaction, topic_poll (+options/votes), topic_lottery (+prizes/entries),
+-- topic_section_relation, topic_access_grant.
 DELETE FROM topic WHERE id NOT IN (SELECT id FROM keep_topic);
 
--- topic_reaction carries no FK to topic: prune to kept topics x kept users.
-DELETE FROM topic_reaction
-WHERE topic_id NOT IN (SELECT id FROM keep_topic)
-   OR user_id  NOT IN (SELECT uid FROM keep_user);
+-- Hidden replies / comments are removed content.
+DELETE FROM topic_reply   WHERE status <> 0;
+DELETE FROM topic_comment WHERE status <> 0;
 
 -- Engagement rows on kept topics: restrict to kept users.
+DELETE FROM topic_reaction WHERE user_id NOT IN (SELECT uid FROM keep_user);
 DELETE FROM topic_like     WHERE user_id NOT IN (SELECT uid FROM keep_user);
 DELETE FROM topic_dislike  WHERE user_id NOT IN (SELECT uid FROM keep_user);
 DELETE FROM topic_upvote   WHERE user_id NOT IN (SELECT uid FROM keep_user);
@@ -163,112 +191,70 @@ DELETE FROM topic_reply_dislike  WHERE user_id NOT IN (SELECT uid FROM keep_user
 DELETE FROM topic_reply_reaction WHERE user_id NOT IN (SELECT uid FROM keep_user);
 DELETE FROM topic_comment_like   WHERE user_id NOT IN (SELECT uid FROM keep_user);
 DELETE FROM topic_poll_vote      WHERE user_id NOT IN (SELECT uid FROM keep_user);
-
--- Per-user drafts.
-DELETE FROM topic_draft WHERE user_id NOT IN (SELECT uid FROM keep_user);
+DELETE FROM topic_poll_vote v USING topic_poll p
+WHERE p.id = v.poll_id AND p.is_anonymous;
+DELETE FROM topic_lottery_entry  WHERE user_id NOT IN (SELECT uid FROM keep_user);
 
 -- ----------------------------------------------------------------------------
--- Section 4: galgame-side prune
+-- Section 5: galgame-side prune
 -- ----------------------------------------------------------------------------
 -- galgame_rating references galgame with ON DELETE RESTRICT: remove ratings
--- of dropped galgames first (cascades rating comments / likes), and restrict
--- ratings on kept galgames to kept users.
+-- of dropped galgames first (cascades rating likes), and restrict ratings on
+-- kept galgames to kept users.
 DELETE FROM galgame_rating
-WHERE galgame_id NOT IN (SELECT id FROM keep_galgame)
-   OR user_id    NOT IN (SELECT uid FROM keep_user);
-DELETE FROM galgame_rating_comment WHERE user_id NOT IN (SELECT uid FROM keep_user);
-DELETE FROM galgame_rating_like    WHERE user_id NOT IN (SELECT uid FROM keep_user);
+WHERE work_id NOT IN (SELECT id FROM keep_galgame)
+   OR user_id NOT IN (SELECT uid FROM keep_user);
+DELETE FROM galgame_rating_like WHERE user_id NOT IN (SELECT uid FROM keep_user);
 
--- Dropping a galgame cascades to: galgame_comment (+likes via comment FK),
--- galgame_like, galgame_favorite, galgame_resource (+link/provider/like).
+-- Dropping a galgame cascades to: galgame_like, galgame_favorite,
+-- galgame_resource (+link/provider/like).
 DELETE FROM galgame WHERE id NOT IN (SELECT id FROM keep_galgame);
 
--- Engagement on kept galgames: restrict to kept users. Galgame comment
--- authors are not part of the kept-user closure, so their comments go too
--- (descendant comments cascade through the parent/root comment FKs).
-DELETE FROM galgame_like     WHERE user_id NOT IN (SELECT uid FROM keep_user);
-DELETE FROM galgame_favorite WHERE user_id NOT IN (SELECT uid FROM keep_user);
-DELETE FROM galgame_comment  WHERE user_id NOT IN (SELECT uid FROM keep_user);
-DELETE FROM galgame_comment_like  WHERE user_id NOT IN (SELECT uid FROM keep_user);
+DELETE FROM galgame_like          WHERE user_id NOT IN (SELECT uid FROM keep_user);
+DELETE FROM galgame_favorite      WHERE user_id NOT IN (SELECT uid FROM keep_user);
 DELETE FROM galgame_resource_like WHERE user_id NOT IN (SELECT uid FROM keep_user);
 
--- Wiki-edit activity rows of dropped galgames (soft galgame ref, no FK).
-DELETE FROM galgame_activity WHERE galgame_id NOT IN (SELECT id FROM keep_galgame);
+-- Soft work refs (no FK) of dropped galgames.
+DELETE FROM galgame_activity      WHERE work_id NOT IN (SELECT id FROM keep_galgame);
+DELETE FROM galgame_contributor   WHERE work_id NOT IN (SELECT id FROM keep_galgame);
+DELETE FROM galgame_renumber_2026 WHERE new_id  NOT IN (SELECT id FROM keep_galgame);
+DELETE FROM galgame_resource_relocation
+WHERE work_id NOT IN (SELECT id FROM keep_galgame);
 
--- Community-thread migration maps carry soft refs only: keep rows whose
--- underlying comment/galgame survived.
+-- Community-thread migration maps carry soft refs only. Rating threads do not
+-- survive the kun_community prune, so their map rows go too.
 DELETE FROM galgame_comment_community_map
-WHERE galgame_id NOT IN (SELECT id FROM keep_galgame)
-   OR old_comment_id NOT IN (SELECT id FROM galgame_comment);
-DELETE FROM resource_comment_community_map
-WHERE (source = 'rating'  AND old_id NOT IN (SELECT id FROM galgame_rating_comment))
-   OR (source = 'toolset' AND old_id NOT IN (SELECT id FROM galgame_toolset_comment))
-   OR (source = 'website' AND old_id NOT IN (SELECT id FROM galgame_website_comment));
+WHERE work_id NOT IN (SELECT id FROM keep_galgame);
+DELETE FROM resource_comment_community_map WHERE source = 'rating';
 
 -- Likes on community posts about galgames (post_id lives in the community DB).
 DELETE FROM galgame_post_like WHERE user_id NOT IN (SELECT uid FROM keep_user);
 
--- Collections: folders of kept users only (cascade items + viewers), then
--- drop items pointing at dropped galgames and viewers who are not kept.
-DELETE FROM galgame_collection WHERE user_id NOT IN (SELECT uid FROM keep_user);
-DELETE FROM galgame_collection_item
-WHERE galgame_id NOT IN (SELECT id FROM keep_galgame)
-   OR user_id    NOT IN (SELECT uid FROM keep_user);
-DELETE FROM galgame_collection_viewer WHERE user_id NOT IN (SELECT uid FROM keep_user);
-
 -- ----------------------------------------------------------------------------
--- Section 5: quizzes / toolsets / websites (small sections)
+-- Section 6: quizzes / toolsets / websites (small sections)
 -- ----------------------------------------------------------------------------
 -- Quiz-galgame links to dropped galgames, then quizzes that lost every link
--- (cascades answers / favorites / links).
-DELETE FROM galgame_quiz_galgame WHERE galgame_id NOT IN (SELECT id FROM keep_galgame);
+-- (cascades favorites / links).
+DELETE FROM galgame_quiz_galgame WHERE work_id NOT IN (SELECT id FROM keep_galgame);
 DELETE FROM galgame_quiz WHERE id NOT IN (SELECT id FROM keep_quiz);
-DELETE FROM galgame_quiz_answer   WHERE user_id NOT IN (SELECT uid FROM keep_user);
 DELETE FROM galgame_quiz_favorite WHERE user_id NOT IN (SELECT uid FROM keep_user);
--- Per-quiz analytics: only for surviving quizzes.
 DELETE FROM galgame_quiz_view_daily WHERE entity_id NOT IN (SELECT id FROM keep_quiz);
 
 -- Toolsets and websites are kept wholesale (their authors joined keep_user);
 -- restrict per-user engagement rows to kept users.
-DELETE FROM galgame_toolset_comment      WHERE user_id NOT IN (SELECT uid FROM keep_user);
 DELETE FROM galgame_toolset_practicality WHERE user_id NOT IN (SELECT uid FROM keep_user);
-DELETE FROM galgame_website_comment  WHERE user_id NOT IN (SELECT uid FROM keep_user);
 DELETE FROM galgame_website_like     WHERE user_id NOT IN (SELECT uid FROM keep_user);
 DELETE FROM galgame_website_favorite WHERE user_id NOT IN (SELECT uid FROM keep_user);
 
 -- ----------------------------------------------------------------------------
--- Section 6: chat
+-- Section 7: feed, per-user state
 -- ----------------------------------------------------------------------------
--- Keep the newest 200 rooms in which every participant is a kept user.
--- Dropping a room cascades to messages, participants, admins, and message
--- reactions / read receipts (via the chat_message FK).
-CREATE TEMP TABLE keep_chat_room AS
-  SELECT r.id FROM chat_room r
-  WHERE NOT EXISTS (
-          SELECT 1 FROM chat_room_participant p
-          WHERE p.chat_room_id = r.id
-            AND p.user_id NOT IN (SELECT uid FROM keep_user))
-    AND EXISTS (SELECT 1 FROM chat_room_participant p WHERE p.chat_room_id = r.id)
-  ORDER BY r.id DESC LIMIT 200;
-
-DELETE FROM chat_room WHERE id NOT IN (SELECT id FROM keep_chat_room);
-
--- ----------------------------------------------------------------------------
--- Section 7: notifications, feed, per-user state
--- ----------------------------------------------------------------------------
--- message (notifications): only between kept users, capped at 5,000 newest.
-DELETE FROM message
-WHERE sender_id   NOT IN (SELECT uid FROM keep_user)
-   OR receiver_id NOT IN (SELECT uid FROM keep_user);
-DELETE FROM message
-WHERE id NOT IN (SELECT id FROM message ORDER BY id DESC LIMIT 5000);
-
 -- feed_activity: rows by kept users about kept content, capped at 5,000
--- newest. galgame_id and source_id are soft refs whose target depends on
+-- newest. work_id and source_id are soft refs whose target depends on
 -- `type`; rows about content that did not survive are dropped.
 DELETE FROM feed_activity WHERE user_id NOT IN (SELECT uid FROM keep_user);
 DELETE FROM feed_activity
-WHERE galgame_id <> 0 AND galgame_id NOT IN (SELECT id FROM keep_galgame);
+WHERE work_id <> 0 AND work_id NOT IN (SELECT id FROM keep_galgame);
 DELETE FROM feed_activity
 WHERE (type IN ('TOPIC_CREATION', 'TOPIC_UPVOTE')
          AND source_id NOT IN (SELECT id FROM keep_topic))
@@ -281,15 +267,10 @@ WHERE (type IN ('TOPIC_CREATION', 'TOPIC_UPVOTE')
 DELETE FROM feed_activity
 WHERE id NOT IN (SELECT id FROM feed_activity ORDER BY id DESC LIMIT 5000);
 
--- Per-user state rows for kept users only.
+-- The forum updates kungal_user_state rows in place, so kept users keep
+-- theirs; the muted-notification preference is reset to its default.
 DELETE FROM kungal_user_state WHERE user_id NOT IN (SELECT uid FROM keep_user);
-DELETE FROM wiki_message_read_state WHERE user_id NOT IN (SELECT uid FROM keep_user);
-
--- System-message read cursors: kept users, capped at the 2,000 newest.
-DELETE FROM system_message_read_state WHERE user_id NOT IN (SELECT uid FROM keep_user);
-DELETE FROM system_message_read_state
-WHERE user_id NOT IN (SELECT user_id FROM system_message_read_state
-                      ORDER BY user_id DESC LIMIT 2000);
+UPDATE kungal_user_state SET muted_notification_types = '[]'::jsonb;
 
 -- Social graph: both endpoints must be kept.
 DELETE FROM user_follow
@@ -299,7 +280,6 @@ DELETE FROM user_friend
 WHERE user_id   NOT IN (SELECT uid FROM keep_user)
    OR friend_id NOT IN (SELECT uid FROM keep_user);
 
--- Per-user permission overrides (empty in practice, kept consistent anyway).
 DELETE FROM user_permission_override WHERE user_id NOT IN (SELECT uid FROM keep_user);
 
 -- ----------------------------------------------------------------------------
@@ -308,10 +288,13 @@ DELETE FROM user_permission_override WHERE user_id NOT IN (SELECT uid FROM keep_
 DELETE FROM "user" WHERE id NOT IN (SELECT uid FROM keep_user);
 
 -- ----------------------------------------------------------------------------
--- Section 9: analytics tables
+-- Section 9: analytics tables and outbox queues
 -- ----------------------------------------------------------------------------
 TRUNCATE galgame_view_daily;
 TRUNCATE topic_view_daily;
+-- Last: the feed / anchor triggers enqueue a row for every delete above.
+TRUNCATE activity_push_queue, activity_push_sent,
+         anchor_presentation_queue, anchor_presentation_sent;
 
 -- ----------------------------------------------------------------------------
 -- Section 10: report — before/after counts, hard bar, orphan spot-checks
@@ -350,16 +333,6 @@ SELECT 'topic_comment.target_user_id' AS ref, count(*) AS orphans
   FROM topic_comment c
   WHERE target_user_id IS NOT NULL AND target_user_id <> 0
     AND NOT EXISTS (SELECT 1 FROM "user" u WHERE u.id = c.target_user_id)
-UNION ALL
-SELECT 'galgame_rating_comment.target_user_id', count(*)
-  FROM galgame_rating_comment c
-  WHERE target_user_id IS NOT NULL AND target_user_id <> 0
-    AND NOT EXISTS (SELECT 1 FROM "user" u WHERE u.id = c.target_user_id)
-UNION ALL
-SELECT 'chat_room.last_message_sender_id', count(*)
-  FROM chat_room r
-  WHERE last_message_sender_id IS NOT NULL AND last_message_sender_id <> 0
-    AND NOT EXISTS (SELECT 1 FROM "user" u WHERE u.id = r.last_message_sender_id)
 UNION ALL
 SELECT 'system_message.user_id', count(*)
   FROM system_message m
