@@ -12,6 +12,8 @@
 #   DEVSEED_SUFFIX=           (appended to every database name; use e.g.
 #                              _seed if the plain names already hold data
 #                              you care about — restore DROPS the targets)
+#   DEVSEED_DIR=              (restore a local build-seed.sh output dir
+#                              instead of downloading the release)
 
 set -euo pipefail
 
@@ -21,6 +23,7 @@ SEED_PG_HOST="${SEED_PG_HOST:-localhost}"
 SEED_PG_PORT="${SEED_PG_PORT:-5432}"
 SEED_PG_USER="${SEED_PG_USER:-postgres}"
 DEVSEED_SUFFIX="${DEVSEED_SUFFIX:-}"
+DEVSEED_DIR="${DEVSEED_DIR:-}"
 
 if [[ "${1:-}" != "--yes" ]]; then
   cat >&2 <<EOF
@@ -32,11 +35,15 @@ EOF
 fi
 
 PSQL=(psql -h "${SEED_PG_HOST}" -p "${SEED_PG_PORT}" -U "${SEED_PG_USER}" -v ON_ERROR_STOP=1 -q -d postgres)
-WORK="$(mktemp -d)"
-trap 'rm -rf "${WORK}"' EXIT
-
-echo "downloading ${SEED_REPO}@${SEED_TAG} ..."
-gh release download "${SEED_TAG}" -R "${SEED_REPO}" -D "${WORK}"
+if [[ -n "${DEVSEED_DIR}" ]]; then
+  WORK="$(readlink -f "${DEVSEED_DIR}")"
+  echo "using local build ${WORK}"
+else
+  WORK="$(mktemp -d)"
+  trap 'rm -rf "${WORK}"' EXIT
+  echo "downloading ${SEED_REPO}@${SEED_TAG} ..."
+  gh release download "${SEED_TAG}" -R "${SEED_REPO}" -D "${WORK}"
+fi
 (cd "${WORK}" && sha256sum -c SHA256SUMS)
 
 for dump in "${WORK}"/*.dump; do

@@ -59,6 +59,8 @@ for db in "${SEED_DBS[@]}"; do
     -v seed_works="${SEED_WORKS}" \
     -v seed_topics="${SEED_TOPICS}" \
     -v seed_users="${SEED_USERS}" \
+    -v dev_email_domain="${DEV_EMAIL_DOMAIN}" \
+    -v dev_secret_prefix="${DEV_SECRET_PREFIX}" \
     -f "${SCRIPT_DIR}/prune/${db}.sql")
 
   log "${db}: dumping seed"
