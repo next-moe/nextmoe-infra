@@ -76,3 +76,7 @@ type DownloadResponse struct {
 	URL       string `json:"url"`
 	ExpiresAt string `json:"expires_at,omitempty"`
 }
+
+type RenameArtifactRequest struct {
+	Name string `json:"name" minLength:"1" maxLength:"255" doc:"New download filename. The extension must stay the same; the Content-Disposition of the stored object is rewritten to match."`
+}

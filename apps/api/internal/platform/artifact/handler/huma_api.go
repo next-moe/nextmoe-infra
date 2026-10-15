@@ -115,6 +115,11 @@ type resumeOutput struct {
 	Body Envelope[*dto.ResumeUploadResponse]
 }
 
+type renameInput struct {
+	UUID string `path:"uuid" doc:"Artifact UUID"`
+	Body dto.RenameArtifactRequest
+}
+
 type deleteData struct {
 	UUID    string `json:"uuid"`
 	Deleted bool   `json:"deleted"`
@@ -178,6 +183,10 @@ func (s *HumaServer) register(api huma.API) {
 		Summary: "Soft-delete an artifact (GC reclaims after TTL); other sites' composites over it are deleted", Tags: tags,
 	}, s.delete)
 	huma.Register(api, huma.Operation{
+		OperationID: "renameArtifact", Method: http.MethodPatch, Path: "/api/v1/artifacts/{uuid}",
+		Summary: "Rename an artifact: its download filename, extension unchanged (S2S only)", Tags: tags,
+	}, s.rename)
+	huma.Register(api, huma.Operation{
 		OperationID: "initUpload", Method: http.MethodPost, Path: "/api/v1/artifacts",
 		Summary: "Init an upload; returns presigned URL(s)", Tags: tags,
 	}, s.initUpload)
@@ -218,6 +227,26 @@ func (s *HumaServer) get(ctx context.Context, in *uuidInput) (*artifactOutput, e
 		}
 		slog.Error("artifact get", "uuid", in.UUID, "site", site, "err", err)
 		return nil, apiErr(http.StatusInternalServerError, errors.ErrArtifactStoreFailed)
+	}
+	return &artifactOutput{Body: okEnvelope(resp)}, nil
+}
+
+func (s *HumaServer) rename(ctx context.Context, in *renameInput) (*artifactOutput, error) {
+	site, err := siteWideSite(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := s.svc.Rename(ctx, in.UUID, site, in.Body.Name)
+	if err != nil {
+		switch {
+		case stderrors.Is(err, service.ErrNotFound):
+			return nil, apiErr(http.StatusNotFound, errors.ErrArtifactNotFound)
+		case stderrors.Is(err, service.ErrRenameRefused):
+			return nil, apiErrMsg(http.StatusUnprocessableEntity, errors.ErrArtifactInvalid, err.Error())
+		default:
+			slog.Error("artifact rename", "uuid", in.UUID, "site", site, "err", err)
+			return nil, apiErr(http.StatusInternalServerError, errors.ErrArtifactStoreFailed)
+		}
 	}
 	return &artifactOutput{Body: okEnvelope(resp)}, nil
 }
