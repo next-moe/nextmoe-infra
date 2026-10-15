@@ -4,10 +4,8 @@
 -- prune/kungalgame_patch.sql (patch-local ids) and prune/kun_community.sql
 -- (platform uids), and maps the site-local ones through user_migrations.
 --
--- Kept wholesale: sites, oauth_clients, roles, signing_keys, developer_api_*
--- (all tiny, all needed for a working dev login). Ephemeral credential tables
--- (sessions / password_resets / authorization_codes) are emptied: a seed has
--- no business carrying tokens, scrubbed or not.
+-- Kept wholesale: sites, roles, first-party and listed oauth_clients, the shop
+-- storefront, settings (all tiny, all needed for a working dev login).
 
 -- CSV paths are CWD-relative: \copy does not interpolate psql variables, so
 -- build-seed.sh runs this file with CWD = the shared export directory.
@@ -20,6 +18,10 @@ CREATE TEMP TABLE in_moyu (id bigint PRIMARY KEY);
 \copy in_moyu FROM 'kungalgame_patch_users.csv'
 CREATE TEMP TABLE in_platform (id bigint PRIMARY KEY);
 \copy in_platform FROM 'kun_community_users.csv'
+
+-- Third-party apps nobody listed publicly are their developers' private
+-- registrations.
+DELETE FROM oauth_clients WHERE owner_user_id IS NOT NULL AND NOT listed;
 
 CREATE TEMP TABLE keep_user (id bigint PRIMARY KEY);
 INSERT INTO keep_user
@@ -46,11 +48,13 @@ SELECT DISTINCT u FROM (
   -- community exports platform uids directly; guard against stray ids
   SELECT id FROM users WHERE id IN (SELECT id FROM in_platform)
   UNION
-  -- privileged accounts always ride along (admin console needs them)
+  -- privileged accounts and app owners always ride along (admin console and
+  -- developer portal need them)
   SELECT user_id FROM user_roles
   UNION SELECT user_id    FROM user_site_roles
   UNION SELECT granted_by FROM user_site_roles
   UNION SELECT created_by_user_id FROM sites
+  UNION SELECT owner_user_id FROM oauth_clients
 ) s(u) WHERE u IS NOT NULL;
 
 -- Plus a deterministic sample of the newest accounts.
@@ -58,61 +62,50 @@ INSERT INTO keep_user
 SELECT id FROM users ORDER BY id DESC LIMIT :seed_users
 ON CONFLICT DO NOTHING;
 
--- Ephemeral credential tables: schema only. creator_applications joins them:
--- its evidence/message columns are private user submissions the snapshot
--- scrub does not touch, so a redistributable seed must not carry them.
-TRUNCATE sessions, password_resets, authorization_codes, creator_applications;
+-- Credentials, tokens and keys: sessions, codes, resets, signing keys,
+-- federated identities (external subject ids), developer API keys and usage.
+-- creator_applications: its evidence/message columns are private user
+-- submissions. Preferences and notices are private per-user state.
+TRUNCATE sessions, password_resets, authorization_codes, signing_keys,
+         oauth_accounts, developer_api_keys, developer_api_usage,
+         creator_applications, user_preferences, platform_notices;
+
+-- Points history, shop orders and store payouts / coupons / click stats.
+-- The ledger ships empty on purpose: cmd/oauth's ledger.ImportLegacy opens
+-- an opening_balance for every user whose users.moemoepoint it cannot
+-- explain, so dev balances rebuild themselves from the kept users.moemoepoint.
+TRUNCATE ledger_entries, ledger_transfers, ledger_accounts, moemoepoint_log;
+TRUNCATE shop_orders, shop_entitlements, shop_loadouts, shop_codes,
+         shop_restock_alerts;
+TRUNCATE store_coupons, store_coupon_shares, store_coupon_batches,
+         store_coupon_links, store_link_daily_stats, store_purchase_links;
 
 -- FK children of users first, then users.
-DELETE FROM oauth_accounts  WHERE user_id NOT IN (SELECT id FROM keep_user);
 DELETE FROM user_follows    WHERE follower_id  NOT IN (SELECT id FROM keep_user)
                                OR following_id NOT IN (SELECT id FROM keep_user);
 DELETE FROM user_roles      WHERE user_id NOT IN (SELECT id FROM keep_user);
 DELETE FROM user_migrations WHERE user_id NOT IN (SELECT id FROM keep_user);
 DELETE FROM user_site_data  WHERE user_id NOT IN (SELECT id FROM keep_user);
--- Soft references (no FK) pruned to the same set.
-DELETE FROM moemoepoint_log
-  WHERE user_id NOT IN (SELECT id FROM keep_user)
-     OR (actor_user_id IS NOT NULL AND actor_user_id NOT IN (SELECT id FROM keep_user));
--- The ledger is pruned by whole transfers, never by entries: a transfer that
--- loses one leg no longer balances, and the system accounts are re-derived from
--- what is left. It is not capped like the log above for the same reason.
-DO $$
-BEGIN
-  IF to_regclass('ledger_transfers') IS NULL THEN
-    RETURN;
-  END IF;
-  CREATE TEMP TABLE drop_transfer ON COMMIT DROP AS
-    SELECT DISTINCT e.transfer_id AS id FROM ledger_entries e
-    JOIN ledger_accounts a ON a.id = e.account_id
-    WHERE a.kind = 'user' AND a.user_id NOT IN (SELECT id FROM keep_user)
-    UNION
-    SELECT id FROM ledger_transfers
-    WHERE actor_user_id <> 0 AND actor_user_id NOT IN (SELECT id FROM keep_user);
-  DELETE FROM ledger_entries WHERE transfer_id IN (SELECT id FROM drop_transfer);
-  DELETE FROM ledger_transfers WHERE id IN (SELECT id FROM drop_transfer);
-  DELETE FROM ledger_accounts WHERE kind = 'user' AND user_id NOT IN (SELECT id FROM keep_user);
-  UPDATE ledger_accounts a
-    SET balance = COALESCE((SELECT SUM(e.amount) FROM ledger_entries e WHERE e.account_id = a.id), 0);
-  UPDATE users u SET moemoepoint = a.balance
-    FROM ledger_accounts a
-    WHERE a.kind = 'user' AND a.asset = 'moemoepoint' AND a.code = '' AND a.user_id = u.id;
-END $$;
-DO $$
-BEGIN
-  IF to_regclass('shop_orders') IS NULL THEN
-    RETURN;
-  END IF;
-  DELETE FROM shop_loadouts     WHERE user_id NOT IN (SELECT id FROM keep_user);
-  DELETE FROM shop_entitlements WHERE user_id NOT IN (SELECT id FROM keep_user);
-  DELETE FROM shop_orders       WHERE user_id NOT IN (SELECT id FROM keep_user);
-END $$;
 DELETE FROM users WHERE id NOT IN (SELECT id FROM keep_user);
 
--- Caps on log-ish tables that survive per-user filtering.
-DELETE FROM moemoepoint_log
-  WHERE id NOT IN (SELECT id FROM moemoepoint_log ORDER BY id DESC LIMIT 5000);
+-- refresh-dev-db guarantees these, but local use writes them again (an erased
+-- account's address, locally created OAuth clients with their own secrets).
+-- Pending account deletions and the content preference are private state.
+UPDATE users SET email = 'user' || id || '@' || :'dev_email_domain'
+  WHERE email NOT LIKE ('%@' || :'dev_email_domain');
+UPDATE users SET original_email = 'user' || id || '@' || :'dev_email_domain'
+  WHERE original_email <> '' AND original_email NOT LIKE ('%@' || :'dev_email_domain');
+UPDATE users SET ip = '' WHERE ip <> '';
+UPDATE users SET deletion_requested_at = NULL, deletion_due_at = NULL
+  WHERE deletion_requested_at IS NOT NULL OR deletion_due_at IS NOT NULL;
+UPDATE users SET nsfw_display = 'show' WHERE nsfw_display <> 'show';
+UPDATE oauth_clients
+  SET secret = 'sha256:' || encode(sha256(convert_to(:'dev_secret_prefix' || id, 'UTF8')), 'hex');
+
 DELETE FROM job_run
   WHERE id NOT IN (SELECT id FROM job_run ORDER BY id DESC LIMIT 200);
 
 COMMIT;
+
+-- Kept avatars are public images: the kun_images prune keeps their rows.
+\copy (SELECT DISTINCT avatar_image_hash FROM users WHERE avatar_image_hash <> '' ORDER BY 1) TO 'kun_galgame_infra_avatars.csv'

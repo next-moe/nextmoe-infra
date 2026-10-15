@@ -2,8 +2,8 @@
 -- dev-seed prune: kungalgame_patch (moyu.moe patch site)
 -- =============================================================================
 -- Shrinks a full scratch copy (TEMPLATE'd from the desensitised prod snapshot)
--- down to the newest :seed_works patches plus full FK closure, for a tiny
--- collaborator seed dump.
+-- down to the newest :seed_works published patches plus full FK closure, for
+-- a tiny collaborator seed dump.
 --
 -- Invocation (orchestrator):
 --   psql -h localhost -p 5432 -U postgres -v ON_ERROR_STOP=1 -q \
@@ -17,19 +17,20 @@
 --
 -- Technique: FK constraints stay enforced. Keep-sets are materialised in TEMP
 -- tables, then children are deleted before parents; any closure mistake fails
--- loudly as an FK violation. Fully deterministic (all sampling is ORDER BY id).
+-- loudly as an FK violation. Fully deterministic (ties broken by id).
 --
--- Schema notes discovered against the 2026-08 snapshot:
+-- Schema notes:
 --   * The desensitised "user" table carries NO role / name / email columns,
 --     so "admins & moderators" are approximated by the distinct actors of
---     admin_log (18 users in the snapshot).
+--     admin_log.
+--   * Since G0 a patch id IS the catalog work id, so ids no longer encode
+--     recency: roots are the newest published patches by `created`.
 --   * Soft (non-FK) reference columns: patch.creator_id, doc.author_uid,
 --     doc.user_id, claim_event_processed.actor_uid / work_id,
 --     patch_resource_revision.actor_id, patch_resource_file_history.actor_id.
 --     Orphan counts for these are reported at the end.
 --   * Left untouched (small config / vocab / ledger tables): doc, cron_state,
---     site_setting, _migrations, wiki_message_processed, claim_event_processed,
---     wiki_message_read_state, trust_disposition_applied.
+--     site_setting, _migrations, wiki_message_processed, claim_event_processed.
 -- =============================================================================
 
 BEGIN;
@@ -56,21 +57,25 @@ END $$;
 -- Section 1: keep-sets
 -- -----------------------------------------------------------------------------
 
--- Roots: the newest :seed_works patches by id.
 CREATE TEMP TABLE keep_patch (id int PRIMARY KEY);
 INSERT INTO keep_patch
-SELECT id FROM patch ORDER BY id DESC LIMIT :seed_works;
+SELECT id FROM patch WHERE published ORDER BY created DESC, id DESC LIMIT :seed_works;
 
--- All resources attached to kept patches.
+-- Visible resources of kept patches (1 = disabled by its owner, 2 = hidden
+-- by moderation).
 CREATE TEMP TABLE keep_resource (id int PRIMARY KEY);
 INSERT INTO keep_resource
-SELECT r.id FROM patch_resource r JOIN keep_patch kp ON kp.id = r.galgame_id;
+SELECT r.id FROM patch_resource r JOIN keep_patch kp ON kp.id = r.galgame_id
+WHERE r.status = 0;
 
 -- All comments on kept patches (whole threads: parent chains never cross
--- patches, so filtering by galgame_id keeps every ancestor of a kept comment).
+-- patches, so filtering by galgame_id keeps every ancestor of a kept comment),
+-- minus comments on dropped resources, which cascade away with them.
 CREATE TEMP TABLE keep_comment (id int PRIMARY KEY);
 INSERT INTO keep_comment
-SELECT c.id FROM patch_comment c JOIN keep_patch kp ON kp.id = c.galgame_id;
+SELECT c.id FROM patch_comment c JOIN keep_patch kp ON kp.id = c.galgame_id
+WHERE c.resource_id IS NULL
+   OR c.resource_id IN (SELECT id FROM keep_resource);
 
 -- Users to keep:
 --   (a) authors of kept patches (patch.user_id, hard FK) and their soft
@@ -103,76 +108,30 @@ SELECT DISTINCT id FROM (
     (SELECT id FROM "user" ORDER BY id DESC LIMIT :seed_users) newest
 ) s;
 
--- Chat rooms kept: every member must be a kept user; cap at the newest 200
--- rooms by id to stay small.
-CREATE TEMP TABLE keep_room (id int PRIMARY KEY);
-INSERT INTO keep_room
-SELECT cr.id FROM chat_room cr
-WHERE NOT EXISTS (
-  SELECT 1 FROM chat_member m
-  LEFT JOIN keep_user ku ON ku.id = m.user_id
-  WHERE m.chat_room_id = cr.id AND ku.id IS NULL
-)
-ORDER BY cr.id DESC LIMIT 200;
-
--- Chat messages kept: in a kept room, from a kept sender (a sender may have
--- left the room, so membership alone does not guarantee the sender is kept).
-CREATE TEMP TABLE keep_chat_message (id int PRIMARY KEY);
-INSERT INTO keep_chat_message
-SELECT cm.id FROM chat_message cm
-JOIN keep_room kr ON kr.id = cm.chat_room_id
-JOIN keep_user ku ON ku.id = cm.sender_id;
-
--- Direct messages kept: both endpoints kept, capped at the ~3,000 newest.
-CREATE TEMP TABLE keep_user_message (id int PRIMARY KEY);
-INSERT INTO keep_user_message
-SELECT um.id FROM user_message um
-JOIN keep_user s ON s.id = um.sender_id
-JOIN keep_user r ON r.id = um.recipient_id
-ORDER BY um.id DESC LIMIT 3000;
-
--- Admin log kept: the newest 500 entries (all actors are kept via rule (d)).
-CREATE TEMP TABLE keep_admin_log (id int PRIMARY KEY);
-INSERT INTO keep_admin_log
-SELECT id FROM admin_log ORDER BY id DESC LIMIT 500;
-
 ANALYZE keep_patch; ANALYZE keep_resource; ANALYZE keep_comment;
-ANALYZE keep_user;  ANALYZE keep_room;     ANALYZE keep_chat_message;
-ANALYZE keep_user_message; ANALYZE keep_admin_log;
+ANALYZE keep_user;
 
 -- -----------------------------------------------------------------------------
--- Section 2: truncate the stray backup table
+-- Section 2: private and ephemeral tables ship empty
 -- -----------------------------------------------------------------------------
-TRUNCATE TABLE patch_resource_update_time_bak_20260606;
+-- Chats and user_message (DMs + notifications) are private by nature.
+TRUNCATE chat_message_seen, chat_message_reaction, chat_message_edit_history,
+         chat_message, chat_member, chat_room;
+TRUNCATE user_message;
+-- 2026-10-14: admin_log 'delete' entries embed the deleted account as JSON,
+-- email and password hash included, and the snapshot scrub did not touch the
+-- table; the 2026-08-07 seed shipped 38 such emails in a public release.
+TRUNCATE admin_log;
+TRUNCATE trust_disposition_applied, trust_subject_watermark, dlsite_store_link;
+
+-- refresh-dev-db clears user.ip, but local logins write it again.
+UPDATE "user" SET ip = '' WHERE ip <> '';
 
 -- -----------------------------------------------------------------------------
 -- Section 3: deletes, children before parents
 -- -----------------------------------------------------------------------------
 
--- 3.1 chat subtree ------------------------------------------------------------
-DELETE FROM chat_message_seen s
-WHERE NOT EXISTS (SELECT 1 FROM keep_chat_message k WHERE k.id = s.chat_message_id)
-   OR NOT EXISTS (SELECT 1 FROM keep_user ku WHERE ku.id = s.user_id);
-
-DELETE FROM chat_message_reaction x
-WHERE NOT EXISTS (SELECT 1 FROM keep_chat_message k WHERE k.id = x.chat_message_id)
-   OR NOT EXISTS (SELECT 1 FROM keep_user ku WHERE ku.id = x.user_id);
-
-DELETE FROM chat_message_edit_history h
-WHERE NOT EXISTS (SELECT 1 FROM keep_chat_message k WHERE k.id = h.chat_message_id);
-
--- reply_to_id is a self-FK ON DELETE SET NULL, so cross-references from kept
--- messages to deleted ones null out automatically.
-DELETE FROM chat_message m
-WHERE NOT EXISTS (SELECT 1 FROM keep_chat_message k WHERE k.id = m.id);
-
-DELETE FROM chat_member m
-WHERE NOT EXISTS (SELECT 1 FROM keep_room kr WHERE kr.id = m.chat_room_id);
-
-DELETE FROM chat_room r
-WHERE NOT EXISTS (SELECT 1 FROM keep_room kr WHERE kr.id = r.id);
-
--- 3.2 comment subtree ---------------------------------------------------------
+-- 3.1 comment subtree ---------------------------------------------------------
 DELETE FROM user_patch_comment_like_relation l
 WHERE NOT EXISTS (SELECT 1 FROM keep_comment kc WHERE kc.id = l.comment_id)
    OR NOT EXISTS (SELECT 1 FROM keep_user ku WHERE ku.id = l.user_id);
@@ -180,7 +139,7 @@ WHERE NOT EXISTS (SELECT 1 FROM keep_comment kc WHERE kc.id = l.comment_id)
 DELETE FROM patch_comment c
 WHERE NOT EXISTS (SELECT 1 FROM keep_comment kc WHERE kc.id = c.id);
 
--- 3.3 resource subtree --------------------------------------------------------
+-- 3.2 resource subtree --------------------------------------------------------
 DELETE FROM user_patch_resource_like_relation l
 WHERE NOT EXISTS (SELECT 1 FROM keep_resource kr WHERE kr.id = l.resource_id)
    OR NOT EXISTS (SELECT 1 FROM keep_user ku WHERE ku.id = l.user_id);
@@ -198,9 +157,15 @@ WHERE NOT EXISTS (SELECT 1 FROM keep_resource kr WHERE kr.id = h.resource_id);
 DELETE FROM patch_resource r
 WHERE NOT EXISTS (SELECT 1 FROM keep_resource kr WHERE kr.id = r.id);
 
--- 3.4 remaining patch children ------------------------------------------------
+-- 3.3 remaining patch children ------------------------------------------------
 DELETE FROM patch_link l
 WHERE NOT EXISTS (SELECT 1 FROM keep_patch kp WHERE kp.id = l.galgame_id);
+
+-- Soft refs (no FK): community-thread migration map and id redirects.
+DELETE FROM patch_comment_community_map m
+WHERE NOT EXISTS (SELECT 1 FROM keep_patch kp WHERE kp.id = m.galgame_id);
+DELETE FROM patch_redirect r
+WHERE NOT EXISTS (SELECT 1 FROM keep_patch kp WHERE kp.id = r.new_id);
 
 DELETE FROM user_patch_favorite_relation f
 WHERE NOT EXISTS (SELECT 1 FROM keep_patch kp WHERE kp.id = f.galgame_id)
@@ -210,18 +175,12 @@ DELETE FROM user_patch_contribute_relation c
 WHERE NOT EXISTS (SELECT 1 FROM keep_patch kp WHERE kp.id = c.galgame_id)
    OR NOT EXISTS (SELECT 1 FROM keep_user ku WHERE ku.id = c.user_id);
 
--- 3.5 user children -----------------------------------------------------------
-DELETE FROM user_message m
-WHERE NOT EXISTS (SELECT 1 FROM keep_user_message k WHERE k.id = m.id);
-
-DELETE FROM admin_log a
-WHERE NOT EXISTS (SELECT 1 FROM keep_admin_log k WHERE k.id = a.id);
-
+-- 3.4 user children -----------------------------------------------------------
 DELETE FROM user_follow_relation f
 WHERE NOT EXISTS (SELECT 1 FROM keep_user ku WHERE ku.id = f.follower_id)
    OR NOT EXISTS (SELECT 1 FROM keep_user ku WHERE ku.id = f.following_id);
 
--- 3.6 parents -----------------------------------------------------------------
+-- 3.5 parents -----------------------------------------------------------------
 -- patch.user_id is ON DELETE RESTRICT: a mistake in keep_user would abort here.
 DELETE FROM patch p
 WHERE NOT EXISTS (SELECT 1 FROM keep_patch kp WHERE kp.id = p.id);
@@ -318,13 +277,21 @@ COPY (SELECT id FROM "user" ORDER BY id) TO STDOUT WITH (FORMAT csv);
 \echo '=== exported kept user ids ==='
 \echo :filepath
 
--- Kept patch ids too: moyu is gid-native (patch.id IS the wiki galgame id),
--- so the catalog prune must keep the works these ids anchor to via the
--- `curated` external-ref source, or every moyu card's catalog hydration
--- misses in the seed.
+-- Kept patch ids too: patch.id IS the catalog work id, so the catalog prune
+-- must keep these works or every moyu card's catalog hydration misses in the
+-- seed.
 \set filepath :export_dir '/kungalgame_patch_patches.csv'
 \o :filepath
 COPY (SELECT id FROM patch ORDER BY id) TO STDOUT WITH (FORMAT csv);
 \o
 \echo '=== exported kept patch ids ==='
+\echo :filepath
+
+-- Kept resource ids: moyu's resource comment threads in kun_community anchor
+-- on them.
+\set filepath :export_dir '/kungalgame_patch_resources.csv'
+\o :filepath
+COPY (SELECT id FROM patch_resource ORDER BY id) TO STDOUT WITH (FORMAT csv);
+\o
+\echo '=== exported kept resource ids ==='
 \echo :filepath

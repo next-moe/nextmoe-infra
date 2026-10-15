@@ -8,9 +8,11 @@
 # collaborators can bootstrap a working dev database set without any access to
 # the production server or to the full snapshot artifacts.
 #
-# Desensitisation is inherited: the sampling source is the local copy that the
-# refresh pipeline already scrubbed (scripts/dev-snapshot/scrub/*.sql), so no
-# scrub step exists here on purpose. Never point SEED_SOURCE at raw prod data.
+# Desensitisation is mostly inherited: six of the sampling sources are the
+# local copies the refresh pipeline scrubbed (scripts/dev-snapshot/scrub/*.sql).
+# kun_catalog is a raw production copy; prune/kun_catalog.sql empties its
+# per-user tables and guards against new ones. Every prune also ships private
+# tables empty, because the release is public and the snapshot is not.
 #
 # shellcheck disable=SC2034  # every value here is consumed by a sourcing script.
 
@@ -25,11 +27,11 @@ source "${DEV_SEED_CONFIG_DIR}/../dev-snapshot/config.sh"
 # prune step reads those lists to keep the matching platform-side rows).
 SEED_DBS=(
   kungalgame          # exports kept user / topic / galgame / resource id lists
-  kungalgame_patch    # exports kept patch-local user + patch (= wiki gid) ids
-  kun_catalog         # imports both sites' gid lists (curated work anchors)
-  kun_community       # imports forum content ids; exports kept platform uids
-  kun_galgame_infra   # imports all kept-user lists (accounts + site mappings)
-  kun_images
+  kungalgame_patch    # exports kept patch-local user + patch + resource ids
+  kun_catalog         # imports both sites' work ids; exports kept cover hashes
+  kun_community       # imports both sites' content ids; exports kept platform uids
+  kun_galgame_infra   # imports all kept-user lists; exports kept avatar hashes
+  kun_images          # imports cover + avatar hashes
   kun_artifacts
 )
 

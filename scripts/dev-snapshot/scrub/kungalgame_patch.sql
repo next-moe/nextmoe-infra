@@ -27,4 +27,11 @@ UPDATE user_message
   SET content = :'marker' || ' synthetic direct message.'
   WHERE content IS NOT NULL AND content <> '';
 
+-- Admin log: 'delete' entries embed the deleted account as JSON, email and
+-- password hash included (found 2026-10-14 after the dev seed had shipped 38
+-- such emails). The admin log page shows non-JSON content verbatim.
+UPDATE admin_log
+  SET content = :'marker' || ' synthetic admin log entry.'
+  WHERE content IS NOT NULL AND content <> '';
+
 COMMIT;
