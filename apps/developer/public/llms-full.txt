@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-本文件内联全部 156 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
+本文件内联全部 157 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
 
 ## 给 AI 助手的指引
 
@@ -1400,6 +1400,7 @@ GET /v2/ratings/changes?limit=100
 | 屏蔽的标签                     | `/v2/me/blocked-tags`                                                             | 用户令牌，无 scope                                     | [本页](#blocked-tags)                        |
 | 我的发售月历                   | `/v2/me/calendar`                                                                 | 用户令牌，无 scope                                     | [本页](#calendar)                            |
 | 编辑能力                       | `/v2/me/edit-capabilities`                                                        | `catalog:edit`                                         | [本页](#edit-capabilities)                   |
+| 编辑配额                       | `/v2/me/edit-quota`                                                               | `catalog:edit`                                         | [本页](#edit-quota)                          |
 | 认领                           | `/v2/me/claims`                                                                   | `catalog:edit`                                         | [本页](#claims)                              |
 | 编辑提案与配图                 | `/v2/me/proposals`、`/v2/me/edit-images`                                          | `catalog:edit`                                         | [本页](#proposals)                           |
 | 封面投票                       | `/v2/me/cover-votes`                                                              | `catalog:edit`                                         | [本页](#cover-votes)                         |
@@ -1472,9 +1473,27 @@ GET /v2/me/edit-capabilities/{object}?entity_id=
 
 编辑引擎对这个人算出的、每个字段的 `can_propose` / `can_review` / `would_automerge`。`object` 是 `work / company / character / release / tag / engine / series`，未知家族是 404。
 
-这组答案不能挂在 `/v2/catalog/schemas/{object}` 上：那个面不看凭据，同一个 URL 不能按凭据变字段集。两个 URL 分开，用 `fields[].key` 对齐。站点如果开了主人通道，要带 `entity_id=`；不带的话 `would_automerge` 回答的是类型级的问题，结果是 false。
+这组答案不能挂在 `/v2/catalog/schemas/{object}` 上：那个面不看凭据，同一个 URL 不能按凭据变字段集。两个 URL 分开，用 `fields[].key` 对齐。作品与发行开了主人通道，要带 `entity_id=`；不带的话 `would_automerge` 回答的是类型级的问题，结果是 false。
+
+编辑策略对所有第一方站点是同一套：任何人都能提案；作品与发行由审核者或 `catalog.edit.trusted` 持有者（编辑者）提交时立即生效，作品主人可审核自己作品上的提案；角色与共享词表（会社、标签、引擎、系列）的提案一律等审核。策略可在运行时调整，这里的答案总是当下生效的那一份。
+
+答案已计入配额：`quota_tier` 是调用者的配额档位，`quota_exhausted` 为 true 时所有 `can_propose` 都是 false；编辑者用完当日免审直编额度后 `would_automerge` 变为 false，提交仍可，只是转为待审。`central` 为 true 表示令牌来自中央编辑站，它能查看、裁决、回滚任何站点上的提案。
 
 要用户令牌，而且令牌必须绑在一个目录站点上，并带 `catalog:edit`。
+
+## 编辑配额
+
+```http
+GET /v2/me/edit-quota
+```
+
+调用者所在的配额档位（`user` / `editor` / `reviewer`），以及三个计数项各自的 `limit` / `used` / `remaining`：
+
+- `proposals`：滑动窗口内提交的提案数，立即生效的也算。用满后提交是 `429 QUOTA_EXCEEDED`。
+- `direct_edits`：窗口内免审生效的编辑数。普通用户为 0；编辑者用满后提交照常，只是转为待审；审核者不设上限（`limit` 为 null）。
+- `open_proposals`：仍待裁决的提案数，不按窗口。达到上限后提交是 `429 QUOTA_EXCEEDED`，直到有提案被裁决或撤回。
+
+按人计，跨所有目录站点。上限是运行时配置，以这里返回的为准。要用户令牌，令牌须绑在目录站点上并带 `catalog:edit`。
 
 ## 认领
 
@@ -3368,7 +3387,7 @@ Open · 16 tokens
 
 - 路径前缀：`/v2`
 - 凭据：Authorization: Bearer nmk_live_…（v2 应用密钥,门户自助铸造,无需申请）
-- 端点数：142
+- 端点数：143
 
 > 正式公开：形状按 additive-only 演进，删除与改名由 CI 的 oasdiff 门拦下。第三方在门户自助铸 nmk_ 密钥即可调用，不需要申请。
 
@@ -5372,7 +5391,7 @@ curl -X DELETE "https://api.nextmoe.dev/v2/me/cover-votes/1" \
 
 What I may edit on one family
 
-Per-field can_propose / can_review / would_automerge for the bearer, evaluated by the editing engine. The capability axis cannot ride on /v2/catalog/schemas/{object}: that face is credential-less and B34 forbids varying one URL's field set by credential, so the two are separate URLs and join on fields[].key. Pass entity_id= wherever the site grants the owner channel, or would_automerge answers the type-level question instead. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+Per-field can_propose / can_review / would_automerge for the bearer, evaluated by the editing engine. The capability axis cannot ride on /v2/catalog/schemas/{object}: that face is credential-less and B34 forbids varying one URL's field set by credential, so the two are separate URLs and join on fields[].key. Pass entity_id= for the owner channel, or would_automerge answers the type-level question instead. The answer folds in the bearer's quota: an exhausted tier proposes nothing, and an editor past the daily direct-edit allowance no longer automerges. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
@@ -5381,7 +5400,7 @@ Per-field can_propose / can_review / would_automerge for the bearer, evaluated b
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
 | `object` | path | 是 | string | Family these capabilities describe. Unknown family is 404 NOT_FOUND. 取值：work \| company \| character \| release \| tag \| engine \| series |
-| `entity_id` | query | 否 | integer (int64) | Evaluate against one entity. Omit for the type-level answer, which cannot express the owner channel: a site that grants owner-review or owner-automerge answers would_automerge=false without it. |
+| `entity_id` | query | 否 | integer (int64) | Evaluate against one entity. Omit for the type-level answer, which cannot express the owner channel: a policy that grants owner-review or owner-automerge answers would_automerge=false without it. |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/me/edit-capabilities/work" \
@@ -5404,6 +5423,23 @@ multipart/form-data with preset and file. Returns the hash an edit proposal carr
 
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/me/edit-images" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### GET /v2/me/edit-quota
+
+My editing quota
+
+The bearer's quota tier and, per counter, the limit, how much of it is used and what remains: proposals filed inside the sliding window, edits applied without review inside it, and proposals still awaiting a decision. Counted per person across every catalog site; the limits are runtime configuration. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+无参数。
+
+```bash
+curl "https://api.nextmoe.dev/v2/me/edit-quota" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -6048,7 +6084,7 @@ curl -X PATCH "https://api.nextmoe.dev/v2/me/privacy" \
 
 List my proposals
 
-The bearer's own proposals. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch and effective_patch, the same pair GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. Requires a user access token. The token must carry the catalog:edit scope.
+The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch and effective_patch, the same pair GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. Requires a user access token. The token must carry the catalog:edit scope.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
@@ -6081,7 +6117,7 @@ curl "https://api.nextmoe.dev/v2/me/proposals" \
 
 File a proposal
 
-A contributor who has used up catalog.proposals_per_day inside the sliding window is refused 429 QUOTA_EXCEEDED; holders of catalog.edit.trusted, whose proposals merge without review, get the higher catalog.proposals_per_day_trusted. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+Quotas are tiered (user, editor, reviewer; GET /v2/me/edit-quota answers the bearer's): a contributor who has used up their tier's proposal limit inside the sliding window (catalog.proposals_per_day, catalog.proposals_per_day_editor, catalog.proposals_per_day_reviewer), or who already has their tier's most proposals awaiting a decision (catalog.open_proposals_max_*), is refused 429 QUOTA_EXCEEDED. An editor past catalog.direct_edits_per_day_editor still files, but the proposal queues for review instead of applying. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
@@ -6683,7 +6719,7 @@ curl -X DELETE "https://api.nextmoe.dev/v2/moderation/folders/1" \
 
 Moderation proposal queue
 
-Open proposals on the token site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. The token must carry the catalog:edit scope.
+Open proposals on the token site; on the central editor (catalog site editor), on every site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. The token must carry the catalog:edit scope.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
@@ -6715,7 +6751,7 @@ curl "https://api.nextmoe.dev/v2/moderation/proposals" \
 
 Get one moderation proposal
 
-Site-fenced. include=patch adds the proposed and effective patches a decision is taken on. The ETag is the validator POST /v2/moderation/proposals/{id}/decisions takes as If-Match. The token must carry the catalog:edit scope.
+Site-fenced, except on the central editor (catalog site editor), which reads proposals filed on any site. include=patch adds the proposed and effective patches a decision is taken on. The ETag is the validator POST /v2/moderation/proposals/{id}/decisions takes as If-Match. The token must carry the catalog:edit scope.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
@@ -6785,7 +6821,7 @@ curl -X DELETE "https://api.nextmoe.dev/v2/moderation/ratings/1" \
 
 Revert to a revision
 
-Body names revision_id. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+Body names revision_id. A downstream site may not revert an entity another site claims; the central editor (catalog site editor) may revert any. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>

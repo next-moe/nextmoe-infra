@@ -36,29 +36,6 @@ const (
 
 const maxNameRunes = 300
 
-func taxonomyPolicy() editing.Policy {
-	return editing.Policy{
-		Propose:   editing.ProposePerm(string(perm.EditTaxonomy)),
-		Review:    editing.ReviewPerm(string(perm.EditTaxonomyReview)),
-		Automerge: editing.AutomergeNever,
-	}
-}
-
-// A taxonomy row fans out to every work referencing it, so kungal keeps
-// automerge=never here even though its work overlay automerges on review perm.
-func kungalTaxonomyOverlays(fields []editing.FieldSpec) map[string]map[string]editing.Policy {
-	kungal := editing.Policy{
-		Propose:   editing.ProposeOpen,
-		Review:    editing.ReviewPerm(string(perm.EditTaxonomyReview)),
-		Automerge: editing.AutomergeNever,
-	}
-	overlay := make(map[string]editing.Policy, len(fields))
-	for _, f := range fields {
-		overlay[f.Key] = kungal
-	}
-	return map[string]map[string]editing.Policy{"kungal": overlay}
-}
-
 func RegisterTaxonomy(reg *editing.Registry, db *gorm.DB) error {
 	for _, register := range []func(*editing.Registry, *gorm.DB) error{
 		registerLabel, registerTag, registerEngine, registerSeries,
@@ -125,8 +102,7 @@ func registerLabel(reg *editing.Registry, db *gorm.DB) error {
 				FieldLabelLinks:  links,
 			}, nil
 		},
-		DefaultPolicy: taxonomyPolicy(),
-		SiteOverlays:  kungalTaxonomyOverlays(fields),
+		DefaultPolicy: sharedEntityPolicy(perm.EditTaxonomyReview),
 		Fields:        fields,
 	})
 }
@@ -159,8 +135,7 @@ func registerTag(reg *editing.Registry, db *gorm.DB) error {
 			}
 			return map[string]any{FieldTagIntros: intros}, nil
 		},
-		DefaultPolicy: taxonomyPolicy(),
-		SiteOverlays:  kungalTaxonomyOverlays(fields),
+		DefaultPolicy: sharedEntityPolicy(perm.EditTaxonomyReview),
 		Fields:        fields,
 	})
 }
@@ -201,8 +176,7 @@ func registerEngine(reg *editing.Registry, db *gorm.DB) error {
 				FieldEngineAliases: aliases,
 			}, nil
 		},
-		DefaultPolicy: taxonomyPolicy(),
-		SiteOverlays:  kungalTaxonomyOverlays(fields),
+		DefaultPolicy: sharedEntityPolicy(perm.EditTaxonomyReview),
 		Fields:        fields,
 	})
 }
@@ -243,8 +217,7 @@ func registerSeries(reg *editing.Registry, db *gorm.DB) error {
 				FieldSeriesIntros: intros,
 			}, nil
 		},
-		DefaultPolicy: taxonomyPolicy(),
-		SiteOverlays:  kungalTaxonomyOverlays(fields),
+		DefaultPolicy: sharedEntityPolicy(perm.EditTaxonomyReview),
 		Fields:        fields,
 	})
 }

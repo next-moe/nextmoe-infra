@@ -79,6 +79,7 @@ func cleanTables(t *testing.T) {
 	t.Helper()
 	for _, table := range []string{
 		"edit_proposal_amendment", "edit_proposal", "edit_revision", "edit_suppressed_row", "edit_test_widget",
+		"edit_policy_override", "edit_policy_override_audit",
 	} {
 		if err := testDB.Exec("TRUNCATE " + table + " RESTART IDENTITY CASCADE").Error; err != nil {
 			t.Fatalf("truncate %s: %v", table, err)
@@ -97,10 +98,31 @@ const (
 
 	permPropose = "edit.test.widget"
 	permReview  = "edit.test.widget.review"
-
-	overlaySite     = "overlay-site"
-	ownerReviewSite = "owner-review-site"
 )
+
+func strp(s string) *string { return &s }
+
+func boolp(b bool) *bool { return &b }
+
+func lockOpenOpenName() []editing.PolicyOverride {
+	return []editing.PolicyOverride{
+		{EntityType: "test.widget", FieldKey: fOpen, Propose: strp(editing.ProposeLocked), Automerge: strp(editing.AutomergeNever)},
+		{EntityType: "test.widget", FieldKey: fName, Propose: strp(editing.ProposeOpen), Automerge: strp(editing.AutomergeAlways)},
+	}
+}
+
+func ownerReviewsName() []editing.PolicyOverride {
+	return []editing.PolicyOverride{
+		{EntityType: "test.widget", FieldKey: fName, Propose: strp(editing.ProposeOpen), OwnerReview: boolp(true)},
+	}
+}
+
+func applyOverrides(t *testing.T, e *editing.Engine, rows []editing.PolicyOverride) {
+	t.Helper()
+	if skipped := e.Registry().SetPolicyOverrides(rows); len(skipped) > 0 {
+		t.Fatalf("overrides rejected: %v", skipped)
+	}
+}
 
 type widgetRow struct {
 	ID          int64  `gorm:"column:id"`
@@ -187,15 +209,6 @@ func widgetSpec(db *gorm.DB) editing.EntityTypeSpec {
 				Validate: stringValidator, Apply: widgetApply("locked_code")},
 			{Key: fLegacy, Kind: editing.KindText, DiffHint: editing.DiffHintInline,
 				Deprecated: true, Validate: deny, Apply: denyApply},
-		},
-		SiteOverlays: map[string]map[string]editing.Policy{
-			overlaySite: {
-				fOpen: {Propose: editing.ProposeLocked, Review: editing.ReviewPerm(permReview), Automerge: editing.AutomergeNever},
-				fName: {Propose: editing.ProposeOpen, Review: editing.ReviewPerm(permReview), Automerge: editing.AutomergeAlways},
-			},
-			ownerReviewSite: {
-				fName: {Propose: editing.ProposeOpen, Review: editing.ReviewPerm(permReview), Automerge: editing.AutomergeNever, OwnerReview: true},
-			},
 		},
 	}
 }

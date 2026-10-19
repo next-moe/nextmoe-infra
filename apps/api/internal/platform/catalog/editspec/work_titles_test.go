@@ -54,7 +54,7 @@ func loadTitleRows(t *testing.T, workID int64) []model.CatalogWorkTitle {
 func TestTitlesValidator(t *testing.T) {
 	e := newEngine(t)
 	work := createWork(t, "validator target")
-	editor := realActor(100, "admin")
+	editor := realActor(100)
 
 	bad := []struct {
 		name  string
@@ -96,7 +96,7 @@ func TestTitlesApplyAndDerivation(t *testing.T) {
 			patch[k] = v
 		}
 		prop, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
-			EntityType: editspec.TypeWork, EntityID: workID, Patch: patch, Actor: realActor(100, "admin"),
+			EntityType: editspec.TypeWork, EntityID: workID, Patch: patch, Actor: realActor(100),
 		})
 		if err != nil {
 			t.Fatalf("propose titles: %v", err)
@@ -194,7 +194,7 @@ func TestTitlesApplyAndDerivation(t *testing.T) {
 		mergeTitles(t, work.ID, value, nil)
 		prop, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
 			EntityType: editspec.TypeWork, EntityID: work.ID,
-			Patch: map[string]any{editspec.FieldWorkTitles: value}, Actor: realActor(100, "admin"),
+			Patch: map[string]any{editspec.FieldWorkTitles: value}, Actor: realActor(100),
 		})
 		if err != nil {
 			t.Fatalf("no-op propose: %v", err)
@@ -228,17 +228,20 @@ func TestTitlesApplyAndDerivation(t *testing.T) {
 	})
 }
 
-func TestLetmoeSiteOverlay(t *testing.T) {
+// What changed for letmoe when its overlay went: anyone may propose, the
+// trusted tier lands its edits on any work instead of only letmoe's claims, and
+// a claim no longer lands an untrusted edit because it is letmoe's.
+func TestLetmoeUnderThePlatformPolicy(t *testing.T) {
 	e := newEngine(t)
 
-	t.Run("own claimed work direct-edits in one revision", func(t *testing.T) {
+	t.Run("trusted tier direct-edits its own claim in one revision", func(t *testing.T) {
 		work := createClaimedWork(t, "letmoe", "自家作品", "ja")
 		prop, rev, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
 			EntityType: editspec.TypeWork, EntityID: work.ID,
 			Patch: map[string]any{editspec.FieldWorkTitles: []any{
 				title("ja", "自家作品・改", 0),
 			}},
-			Actor: letmoeActor(500, 2),
+			Actor: letmoeActor(500, editing.TrustedTier),
 		})
 		if err != nil {
 			t.Fatalf("letmoe direct edit: %v", err)
@@ -259,15 +262,31 @@ func TestLetmoeSiteOverlay(t *testing.T) {
 		}
 	})
 
-	t.Run("unclaimed work proposal stays open", func(t *testing.T) {
-		work := createWork(t, "公共作品")
+	t.Run("trusted tier now direct-edits works letmoe does not claim", func(t *testing.T) {
+		for _, work := range []*model.CatalogWork{
+			createWork(t, "公共作品"),
+			createClaimedWork(t, "moyu", "他站作品", "ja"),
+		} {
+			_, rev, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
+				EntityType: editspec.TypeWork, EntityID: work.ID,
+				Patch: map[string]any{editspec.FieldWorkDisplayName: work.DisplayName + "・改"},
+				Actor: letmoeActor(500, editing.TrustedTier),
+			})
+			if err != nil || rev == nil {
+				t.Fatalf("work %d: trusted edit must land: rev=%v err=%v", work.ID, rev, err)
+			}
+		}
+	})
+
+	t.Run("below trusted tier proposes and queues, even on letmoe's own claim", func(t *testing.T) {
+		work := createClaimedWork(t, "letmoe", "自家作品", "ja")
 		prop, rev, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
 			EntityType: editspec.TypeWork, EntityID: work.ID,
-			Patch: map[string]any{editspec.FieldWorkDisplayName: "公共作品・提案"},
-			Actor: letmoeActor(500, 2),
+			Patch: map[string]any{editspec.FieldWorkDisplayName: "一般提案"},
+			Actor: letmoeActor(501, 0),
 		})
 		if err != nil {
-			t.Fatalf("letmoe public proposal: %v", err)
+			t.Fatalf("tier 0 propose: %v", err)
 		}
 		if rev != nil || prop.Status != editing.StatusOpen {
 			t.Fatalf("must stay open: rev=%v status=%d", rev, prop.Status)
@@ -277,43 +296,17 @@ func TestLetmoeSiteOverlay(t *testing.T) {
 		}
 	})
 
-	t.Run("another site's claim is not letmoe's to direct-edit", func(t *testing.T) {
-		work := createClaimedWork(t, "moyu", "他站作品", "ja")
-		prop, rev, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
-			EntityType: editspec.TypeWork, EntityID: work.ID,
-			Patch: map[string]any{editspec.FieldWorkDisplayName: "他站作品・提案"},
-			Actor: letmoeActor(500, 2),
-		})
-		if err != nil {
-			t.Fatalf("cross-site proposal: %v", err)
-		}
-		if rev != nil || prop.Status != editing.StatusOpen {
-			t.Fatalf("must stay open: rev=%v status=%d", rev, prop.Status)
-		}
-	})
-
-	t.Run("below trusted tier cannot propose on letmoe sites", func(t *testing.T) {
+	t.Run("the answer is the same on every site", func(t *testing.T) {
 		work := createClaimedWork(t, "letmoe", "自家作品", "ja")
-		var permErr *editing.PermissionError
-		if _, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
-			EntityType: editspec.TypeWork, EntityID: work.ID,
-			Patch: map[string]any{editspec.FieldWorkDisplayName: "x"},
-			Actor: letmoeActor(501, 0),
-		}); !errors.As(err, &permErr) {
-			t.Fatalf("tier 0 propose: %v", err)
-		}
-	})
-
-	t.Run("nextmoe default site is unaffected by the overlay", func(t *testing.T) {
-		work := createClaimedWork(t, "letmoe", "自家作品", "ja")
-		nextmoeTrusted := editing.PolicyContext{UserID: 502, Site: "nextmoe", TrustTier: 4}
-		var permErr *editing.PermissionError
-		if _, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
-			EntityType: editspec.TypeWork, EntityID: work.ID,
-			Patch: map[string]any{editspec.FieldWorkDisplayName: "x"},
-			Actor: nextmoeTrusted,
-		}); !errors.As(err, &permErr) {
-			t.Fatalf("default-site propose: %v", err)
+		for _, site := range []string{"nextmoe", "kungal", "editor"} {
+			_, rev, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
+				EntityType: editspec.TypeWork, EntityID: work.ID,
+				Patch: map[string]any{editspec.FieldWorkDisplayName: "via " + site},
+				Actor: editing.PolicyContext{UserID: 502, Site: site, TrustTier: editing.TrustedTier},
+			})
+			if err != nil || rev == nil {
+				t.Fatalf("%s: trusted edit must land: rev=%v err=%v", site, rev, err)
+			}
 		}
 	})
 }
@@ -329,7 +322,7 @@ func TestAliasMayHaveNoLanguage(t *testing.T) {
 	}
 	prop, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
 		EntityType: editspec.TypeWork, EntityID: work.ID,
-		Patch: map[string]any{editspec.FieldWorkTitles: value}, Actor: realActor(100, "admin"),
+		Patch: map[string]any{editspec.FieldWorkTitles: value}, Actor: realActor(100),
 	})
 	if err != nil {
 		t.Fatalf("propose a lang-less alias: %v", err)
@@ -358,7 +351,7 @@ func TestAliasMayHaveNoLanguage(t *testing.T) {
 	if _, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
 		EntityType: editspec.TypeWork, EntityID: work.ID,
 		Patch: map[string]any{editspec.FieldWorkTitles: wire},
-		Actor: realActor(100, "admin"),
+		Actor: realActor(100),
 	}); err != nil && !errors.Is(err, editing.ErrNoEffectiveChanges) {
 		t.Fatalf("the field must accept its own snapshot: %v", err)
 	}
@@ -377,7 +370,7 @@ func TestOnlyAliasMayHaveNoLanguage(t *testing.T) {
 	} {
 		if _, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
 			EntityType: editspec.TypeWork, EntityID: work.ID,
-			Patch: map[string]any{editspec.FieldWorkTitles: c.value}, Actor: realActor(100, "admin"),
+			Patch: map[string]any{editspec.FieldWorkTitles: c.value}, Actor: realActor(100),
 		}); !errors.As(err, &valErr) {
 			t.Errorf("%s: want ValidationError, got %v", c.name, err)
 		}

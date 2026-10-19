@@ -52,6 +52,7 @@ var liveReadPaths = []string{
 	"/v2/catalog/stats",
 	"/v2/catalog/schemas/{object}",
 	"/v2/me/edit-capabilities/{object}",
+	"/v2/me/edit-quota",
 	"/v2/catalog/works",
 	"/v2/catalog/works/{id}",
 	"/v2/catalog/works/{id}/covers",

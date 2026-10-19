@@ -13,7 +13,7 @@
 
 What I may edit on one family
 
-Per-field can_propose / can_review / would_automerge for the bearer, evaluated by the editing engine. The capability axis cannot ride on /v2/catalog/schemas/{object}: that face is credential-less and B34 forbids varying one URL's field set by credential, so the two are separate URLs and join on fields[].key. Pass entity_id= wherever the site grants the owner channel, or would_automerge answers the type-level question instead. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+Per-field can_propose / can_review / would_automerge for the bearer, evaluated by the editing engine. The capability axis cannot ride on /v2/catalog/schemas/{object}: that face is credential-less and B34 forbids varying one URL's field set by credential, so the two are separate URLs and join on fields[].key. Pass entity_id= for the owner channel, or would_automerge answers the type-level question instead. The answer folds in the bearer's quota: an exhausted tier proposes nothing, and an editor past the daily direct-edit allowance no longer automerges. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
@@ -22,7 +22,7 @@ Per-field can_propose / can_review / would_automerge for the bearer, evaluated b
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
 | `object` | path | 是 | string | Family these capabilities describe. Unknown family is 404 NOT_FOUND. 取值：work \| company \| character \| release \| tag \| engine \| series |
-| `entity_id` | query | 否 | integer (int64) | Evaluate against one entity. Omit for the type-level answer, which cannot express the owner channel: a site that grants owner-review or owner-automerge answers would_automerge=false without it. |
+| `entity_id` | query | 否 | integer (int64) | Evaluate against one entity. Omit for the type-level answer, which cannot express the owner channel: a policy that grants owner-review or owner-automerge answers would_automerge=false without it. |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/me/edit-capabilities/work" \

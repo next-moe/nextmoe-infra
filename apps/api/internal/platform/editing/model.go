@@ -14,14 +14,14 @@ type Proposal struct {
 	EntityID        int64          `gorm:"not null;index:idx_edit_proposal_entity,priority:3" json:"entity_id"`
 	BaseRevisionSeq int            `gorm:"not null" json:"base_revision_seq"`
 	Patch           datatypes.JSON `gorm:"type:jsonb;not null" json:"patch"`
-	ProposerUID     int64          `gorm:"column:proposer_uid;not null" json:"proposer_uid"`
+	ProposerUID     int64          `gorm:"column:proposer_uid;not null;index:idx_edit_proposal_proposer,priority:1" json:"proposer_uid"`
 	Note            string         `gorm:"not null;default:''" json:"note"`
 	Site            string         `gorm:"not null;index:idx_edit_proposal_site,priority:1" json:"site"`
 	Status          int16          `gorm:"not null;index:idx_edit_proposal_entity,priority:4;index:idx_edit_proposal_site,priority:2" json:"status"`
 	DecidedByUID    *int64         `gorm:"column:decided_by_uid" json:"decided_by_uid"`
 	DecidedAt       *time.Time     `json:"decided_at"`
 	DecisionNote    string         `gorm:"not null;default:''" json:"decision_note"`
-	CreatedAt       time.Time      `json:"created_at"`
+	CreatedAt       time.Time      `gorm:"index:idx_edit_proposal_proposer,priority:2" json:"created_at"`
 	UpdatedAt       time.Time      `json:"updated_at"`
 }
 
@@ -51,11 +51,11 @@ type Revision struct {
 	// BaselineSnapshot is set only on an entity's first revision: the state the
 	// engine found before its first write, which Revert and Diff address as seq 0.
 	BaselineSnapshot datatypes.JSON `gorm:"type:jsonb" json:"baseline_snapshot,omitempty"`
-	ActorUID         int64          `gorm:"column:actor_uid;not null" json:"actor_uid"`
+	ActorUID         int64          `gorm:"column:actor_uid;not null;index:idx_edit_revision_actor,priority:1" json:"actor_uid"`
 	AmenderUID       *int64         `gorm:"column:amender_uid" json:"amender_uid"`
 	ProposalID       *int64         `gorm:"index" json:"proposal_id"`
 	Site             string         `gorm:"not null" json:"site"`
-	CreatedAt        time.Time      `json:"created_at"`
+	CreatedAt        time.Time      `gorm:"index:idx_edit_revision_actor,priority:2" json:"created_at"`
 
 	LegacyAction *string        `gorm:"->;column:legacy_action;type:text" json:"legacy_action,omitempty"`
 	LegacyMeta   datatypes.JSON `gorm:"->;column:legacy_meta;type:jsonb" json:"legacy_meta,omitempty"`
@@ -65,5 +65,6 @@ type Revision struct {
 func (Revision) TableName() string { return "edit_revision" }
 
 func AutoMigrate(db *gorm.DB) error {
-	return db.AutoMigrate(&Proposal{}, &ProposalAmendment{}, &Revision{}, &SuppressedRow{})
+	return db.AutoMigrate(&Proposal{}, &ProposalAmendment{}, &Revision{}, &SuppressedRow{},
+		&PolicyOverrideRow{}, &PolicyOverrideAudit{})
 }

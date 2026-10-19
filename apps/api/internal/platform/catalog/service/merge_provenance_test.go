@@ -35,7 +35,7 @@ func humanEdit(t *testing.T, e *editing.Engine, entityType string, entityID int6
 	t.Helper()
 	ctx := t.Context()
 	prop, _, err := e.CreateProposal(ctx, editing.CreateProposalInput{
-		EntityType: entityType, EntityID: entityID, Patch: patch, Actor: provActor(100, "admin"),
+		EntityType: entityType, EntityID: entityID, Patch: patch, Actor: provActor(100),
 	})
 	require.NoError(t, err)
 	_, err = e.MergeProposal(ctx, prop.ID, provActor(200, "ren"), "")

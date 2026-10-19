@@ -93,7 +93,7 @@ path style、PG 连接池、OIDC 签名算法、aff URL 模板等启动期接线
 - `trust.*`:`report_rate_window_minutes` / `report_rate_max_per_window` / `aggregate_threshold` / `new_account_age_days` / `new_account_reporter_weight` / `policy_cache_ttl_seconds` / `term_cache_ttl_seconds`
 - `ai.moderate_max_tokens`
 - `community.*`:`sandbox_max_links` / `sandbox_max_images` / `sandbox_max_mentions` / `sandbox_max_topics_per_day` / `sandbox_max_replies_per_day` / `sandbox_window_hours` / `flag_hide_threshold`
-- `catalog.*`:`totals_cache_ttl_seconds` / `merge_cooling_off_hours` / `write_quota_window_hours` / `claim_writes_per_day` / `claim_writes_per_day_trusted` / `proposals_per_day` / `proposals_per_day_trusted` / `news_submissions_per_day` / `news_image_uploads_per_day`
+- `catalog.*`:`totals_cache_ttl_seconds` / `merge_cooling_off_hours` / `write_quota_window_hours` / `claim_writes_per_day` / `claim_writes_per_day_trusted` / `proposals_per_day` / `proposals_per_day_editor` / `proposals_per_day_reviewer` / `direct_edits_per_day_editor` / `open_proposals_max_user` / `open_proposals_max_editor` / `open_proposals_max_reviewer`(2026-10-19 按用户/编辑者/审核者分档,取代 `proposals_per_day_trusted`) / `news_submissions_per_day` / `news_image_uploads_per_day`
 - `developer.*`:`credential_cache_ttl_seconds` / `credential_cache_negative_ttl_seconds`
 
 ### 启动期旋钮收编(W3-b,13 个)

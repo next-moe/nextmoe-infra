@@ -168,6 +168,6 @@ func TestHumaOwnsThe500AndThe422NotCollectionErrors(t *testing.T) {
 	}
 	require.Equal(t, total, with500, "huma puts 500 on every operation; collectionErrors cannot take it off")
 	require.Less(t, with422, total, "422 is not universal, so the count below is a real discriminant")
-	require.Equal(t, total-5, with422,
-		"only the five operations with no input parameters lack 422: getCatalogStats, getMyPrivacy, listMyCoverVotes, listNewsSources, listProblemReasons")
+	require.Equal(t, total-6, with422,
+		"only the six operations with no input parameters lack 422: getCatalogStats, getMyEditQuota, getMyPrivacy, listMyCoverVotes, listNewsSources, listProblemReasons")
 }

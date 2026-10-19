@@ -126,6 +126,7 @@ var editingPlanePrefixes = []string{
 	"/v2/me/cover-votes",
 	"/v2/me/edit-capabilities",
 	"/v2/me/edit-images",
+	"/v2/me/edit-quota",
 	"/v2/me/proposals",
 	"/v2/moderation/claims",
 	"/v2/moderation/proposals",
