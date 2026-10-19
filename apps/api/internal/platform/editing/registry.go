@@ -187,7 +187,6 @@ type EntityTypeSpec struct {
 	Family        string
 	Type          string
 	LoadSnapshot  func(ctx context.Context, entityID int64) (map[string]any, error)
-	Txn           func(ctx context.Context, fn func(tx *gorm.DB) error) error
 	OwnerSite     func(ctx context.Context, entityID int64) (*string, error)
 	OwnerUserID   func(ctx context.Context, entityID int64) (*int64, error)
 	OnMerge       func(ctx context.Context, ev MergeEvent) error
@@ -243,8 +242,8 @@ func (r *Registry) Register(spec EntityTypeSpec) error {
 	if !strings.HasPrefix(spec.Type, spec.Family+".") {
 		return fmt.Errorf("editing: type %q must be prefixed by family %q", spec.Type, spec.Family)
 	}
-	if spec.LoadSnapshot == nil || spec.Txn == nil {
-		return fmt.Errorf("editing: type %q needs LoadSnapshot and Txn", spec.Type)
+	if spec.LoadSnapshot == nil {
+		return fmt.Errorf("editing: type %q needs LoadSnapshot", spec.Type)
 	}
 	if len(spec.Fields) == 0 {
 		return fmt.Errorf("editing: type %q registers no fields", spec.Type)

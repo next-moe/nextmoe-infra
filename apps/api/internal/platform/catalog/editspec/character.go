@@ -70,7 +70,6 @@ func RegisterCharacter(reg *editing.Registry, db *gorm.DB) error {
 		Family:       "catalog",
 		Type:         TypeCharacter,
 		LoadSnapshot: loadCharacterSnapshot(db),
-		Txn:          txnOn(db),
 		// A character belongs to no product site — nothing claims one the way a
 		// site claims a work. The hook exists because editing.Register refuses an
 		// automerge=owner policy without one, and returning nil is what makes the

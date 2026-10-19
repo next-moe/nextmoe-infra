@@ -298,7 +298,7 @@ func (e *Engine) DeclineProposal(ctx context.Context, proposalID int64, actor Po
 		if err != nil {
 			return err
 		}
-		if err := e.deriveOwnership(ctx, spec, prop.EntityID, &actor); err != nil {
+		if err := e.deriveOwnership(ctx, spec, prop.EntityID, &actor); err != nil && !errors.Is(err, ErrEntityNotFound) {
 			return err
 		}
 		amendments, err := loadAmendments(etx, proposalID)
@@ -385,6 +385,11 @@ func (e *Engine) mergeLocked(
 		ActorUID: prop.ProposerUID, AmenderUID: amenderUID, ProposalID: &prop.ID,
 		Site: prop.Site,
 	}
+	if seq == 0 {
+		if rev.BaselineSnapshot, err = encodeJSON(base); err != nil {
+			return nil, err
+		}
+	}
 	if err := etx.Create(rev).Error; err != nil {
 		return nil, err
 	}
@@ -396,17 +401,11 @@ func (e *Engine) mergeLocked(
 	prop.DecidedByUID = &decidedBy
 	prop.DecidedAt = &now
 	prop.DecisionNote = decisionNote
-	err = spec.Txn(ctx, func(atx *gorm.DB) error {
-		for _, key := range changed {
-			f, _ := spec.Field(key)
-			if err := ApplyField(ctx, atx, f, prop.EntityID, eff[key]); err != nil {
-				return err
-			}
+	for _, key := range changed {
+		f, _ := spec.Field(key)
+		if err := ApplyField(ctx, etx, f, prop.EntityID, eff[key]); err != nil {
+			return nil, err
 		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
 	}
 	return rev, nil
 }
@@ -421,6 +420,14 @@ func lockProposal(etx *gorm.DB, id int64) (*Proposal, error) {
 		return nil, err
 	}
 	return &p, nil
+}
+
+func DeclineOpenProposals(tx *gorm.DB, entityType string, entityID int64, decidedBy *int64, note string) error {
+	return tx.Model(&Proposal{}).
+		Where("entity_type = ? AND entity_id = ? AND status = ?", entityType, entityID, StatusOpen).
+		Updates(map[string]any{
+			"status": StatusDeclined, "decided_by_uid": decidedBy, "decided_at": time.Now(), "decision_note": note,
+		}).Error
 }
 
 func closeProposal(etx *gorm.DB, id int64, status int16, decidedBy int64, note string) error {

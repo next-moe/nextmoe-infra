@@ -151,6 +151,7 @@ func TestAbsorbKeepsTheBaseWorkAndTakesOnlyUserData(t *testing.T) {
 		"catalog_work_screenshot": 1, "catalog_work_tag": 1, "catalog_work_rating": 1,
 		"catalog_work_platform": 1, "catalog_series_member": 1, "catalog_work_character": 1,
 		"catalog_credit": 1, "catalog_work_relation": 1, "catalog_external_ref": 3,
+		"edit_suppressed_row": 1,
 	}, archived)
 }
 
