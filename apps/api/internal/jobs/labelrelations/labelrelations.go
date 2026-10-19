@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"api/internal/infrastructure/database"
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 
 	"gorm.io/gorm"
@@ -29,6 +30,7 @@ type Stats struct {
 	SkippedUnanchored      int
 	SkippedUnknownRelation int
 	SkippedSelf            int
+	SkippedSuppressed      int
 	Deleted                int64
 }
 
@@ -60,7 +62,11 @@ func build(ctx context.Context, db *gorm.DB, apply bool) (Stats, error) {
 	}
 	st.EdgesTotal = len(edges)
 
-	rows := project(edges, anchors, sourceID, &st)
+	suppressed, err := editspec.LoadSuppressedLabelRelations(ctx, db)
+	if err != nil {
+		return st, err
+	}
+	rows := dropSuppressed(project(edges, anchors, sourceID, &st), suppressed, &st)
 	if !apply {
 		return st, nil
 	}
@@ -168,6 +174,21 @@ func rebuild(ctx context.Context, db *gorm.DB, sourceID int16, rows []model.Cata
 		}
 		return nil
 	})
+}
+
+// The rebuild deletes and re-inserts this source's whole graph, so an edge a
+// company suppressed would come straight back without this filter.
+func dropSuppressed(rows []model.CatalogLabelRelation, suppressed editspec.SuppressedLabelRelations, st *Stats) []model.CatalogLabelRelation {
+	kept := rows[:0]
+	for _, r := range rows {
+		if suppressed.Has(r.LabelID, r.OtherLabelID, r.Relation) {
+			st.SkippedSuppressed++
+			continue
+		}
+		kept = append(kept, r)
+	}
+	st.Written = len(kept)
+	return kept
 }
 
 var nowUTC = func() time.Time { return time.Now().UTC() }

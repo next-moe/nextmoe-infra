@@ -36,7 +36,7 @@ func main() {
 		"edges_total", st.EdgesTotal, "both_anchored", st.BothAnchored,
 		"written", st.Written, "skipped_unanchored", st.SkippedUnanchored,
 		"skipped_unknown_relation", st.SkippedUnknownRelation,
-		"skipped_self", st.SkippedSelf, "deleted", st.Deleted)
+		"skipped_self", st.SkippedSelf, "skipped_suppressed", st.SkippedSuppressed, "deleted", st.Deleted)
 	if st.SkippedUnknownRelation > 0 {
 		slog.Warn("unmapped relation codes seen — VNDB extended its vocabulary; update relationmap.go",
 			"rows", st.SkippedUnknownRelation)

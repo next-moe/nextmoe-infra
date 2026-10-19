@@ -178,6 +178,10 @@ func rehangStmts(reg *editing.Registry, p mergePlan) ([]mergeStmt, error) {
 		}
 		stmts = append(stmts, aliasDemoteStmts(p, labelAliasTable)...)
 		stmts = append(stmts,
+			archiveDelete(p, "catalog_label_alias", `t.label_id = ? AND `+editspec.NotCuratedLaneSQL("t.source_id")+`
+			     AND EXISTS (SELECT 1 FROM catalog_label_alias a
+			                  WHERE a.label_id = ? AND `+editspec.CuratedLaneSQL("a.source_id")+`
+			                    AND a.name = t.name AND a.lang = t.lang)`, dst, src),
 			mergeStmt{`UPDATE catalog_label_alias a SET label_id = ? WHERE a.label_id = ?
 			    AND NOT EXISTS (SELECT 1 FROM catalog_label_alias b
 			                     WHERE b.label_id = ? AND b.name = a.name AND b.lang = a.lang)`, []any{dst, src, dst}, false},
@@ -204,7 +208,9 @@ func rehangStmts(reg *editing.Registry, p mergePlan) ([]mergeStmt, error) {
 				[]any{model.EntityTypeLabel, src}, false},
 		)
 		stmts = append(stmts, labelRelationStmts(p)...)
+		stmts = append(stmts, suppressedRowStmts(p, editspec.TypeLabel)...)
 		stmts = append(stmts, identityFollowStmts(reg, editspec.TagLabel, src, dst)...)
+		stmts = append(stmts, mergeStmt{editspec.PurgeSuppressedLabelRelationsSQL, []any{dst, dst}, false})
 		return append(stmts, entityRelationStmts(p)...), nil
 
 	case model.EntityTypeCharacter:
@@ -245,6 +251,10 @@ func rehangStmts(reg *editing.Registry, p mergePlan) ([]mergeStmt, error) {
 		stmts = append(stmts,
 			// Kept-verdict cache, not data: dropped rather than repointed.
 			mergeStmt{`DELETE FROM catalog_character_intro_panel_verdict WHERE character_id = ?`, []any{src}, false},
+			archiveDelete(p, "catalog_character_trait_link", `t.character_id = ? AND `+editspec.NotCuratedLaneSQL("t.source_id")+`
+			     AND EXISTS (SELECT 1 FROM catalog_character_trait_link c
+			                  WHERE c.character_id = ? AND `+editspec.CuratedLaneSQL("c.source_id")+`
+			                    AND c.trait_id = t.trait_id)`, dst, src),
 			mergeStmt{`UPDATE catalog_character_trait_link t SET character_id = ? WHERE t.character_id = ?
 			    AND NOT EXISTS (SELECT 1 FROM catalog_character_trait_link x
 			                     WHERE x.character_id = ? AND x.trait_id = t.trait_id)`,
@@ -253,6 +263,7 @@ func rehangStmts(reg *editing.Registry, p mergePlan) ([]mergeStmt, error) {
 			mergeStmt{`UPDATE catalog_character SET instance_of = ? WHERE instance_of = ?`, []any{dst, src}, false},
 		)
 		stmts = append(stmts, suppressedRowStmts(p, editspec.TypeCharacter)...)
+		stmts = append(stmts, mergeStmt{editspec.PurgeSuppressedCharacterTraitsSQL, []any{dst}, false})
 		stmts = append(stmts, identityFollowStmts(reg, editspec.TagCharacter, src, dst)...)
 		return append(stmts, entityRelationStmts(p)...), nil
 

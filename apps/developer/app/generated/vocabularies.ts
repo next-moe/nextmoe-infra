@@ -398,6 +398,52 @@ export const vocabularies = [
     ]
   },
   {
+    "name": "company_relation",
+    "closed": true,
+    "values": [
+      {
+        "value": "parent",
+        "display_name": "Parent",
+        "description": "The other company owns this one."
+      },
+      {
+        "value": "subsidiary",
+        "display_name": "Subsidiary",
+        "description": "The other company is owned by this one."
+      },
+      {
+        "value": "imprint",
+        "display_name": "Imprint",
+        "description": "The other company is a brand operating under this one."
+      },
+      {
+        "value": "imprint_of",
+        "display_name": "Imprint of",
+        "description": "This company is a brand operating under the other one."
+      },
+      {
+        "value": "spawned",
+        "display_name": "Spawned",
+        "description": "The other company is a spin-off of this one."
+      },
+      {
+        "value": "origin",
+        "display_name": "Origin",
+        "description": "This company is a spin-off of the other one."
+      },
+      {
+        "value": "succeeded_by",
+        "display_name": "Succeeded by",
+        "description": "The other company succeeded this one."
+      },
+      {
+        "value": "formerly",
+        "display_name": "Formerly",
+        "description": "This company succeeded the other one."
+      }
+    ]
+  },
+  {
     "name": "tag_kind",
     "closed": true,
     "values": [

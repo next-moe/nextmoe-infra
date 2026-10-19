@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"api/internal/infrastructure/database"
+	"api/internal/platform/catalog/editspec"
 
 	"gorm.io/gorm"
 )
@@ -63,7 +64,8 @@ func run(db *gorm.DB, apply bool) (stats, error) {
 	}
 	res := db.Exec(agreedCTE + `UPDATE catalog_character c SET instance_of = a.main_id
 		FROM agreed a
-		WHERE c.id = a.inst_id AND c.instance_of IS DISTINCT FROM a.main_id`)
+		WHERE c.id = a.inst_id AND c.instance_of IS DISTINCT FROM a.main_id
+		  AND ` + editspec.NotHumanFieldSQL("c.field_provenance", "instance_of"))
 	if res.Error != nil {
 		return st, res.Error
 	}

@@ -64,6 +64,10 @@
       "label": "公司类型",
       "summary": "一个厂牌 / 公司实体本身是什么类型的组织。"
     },
+    "company_relation": {
+      "label": "公司关系",
+      "summary": "两家公司之间的结构关系，读作「对方是本公司的 X」。每个事实成对存储：一侧的 parent 对应另一侧的 subsidiary。"
+    },
     "tag_kind": {
       "label": "标签种类",
       "summary": "一个标签描述的是作品内容本身，还是它的元信息。"
@@ -239,6 +243,23 @@
     "A doujin circle.": "同人社团。",
     "Group": "团体",
     "A group.": "泛指的团体。",
+
+    "company_relation/Parent": "母公司",
+    "The other company owns this one.": "对方公司拥有本公司。",
+    "company_relation/Subsidiary": "子公司",
+    "The other company is owned by this one.": "对方公司归本公司所有。",
+    "company_relation/Imprint": "旗下品牌",
+    "The other company is a brand operating under this one.": "对方是在本公司旗下运营的品牌。",
+    "company_relation/Imprint of": "所属品牌",
+    "This company is a brand operating under the other one.": "本公司是在对方旗下运营的品牌。",
+    "company_relation/Spawned": "分立出",
+    "The other company is a spin-off of this one.": "对方公司是从本公司分立出来的。",
+    "company_relation/Origin": "分立自",
+    "This company is a spin-off of the other one.": "本公司是从对方公司分立出来的。",
+    "company_relation/Succeeded by": "由其承继",
+    "The other company succeeded this one.": "对方公司承继了本公司。",
+    "company_relation/Formerly": "前身",
+    "This company succeeded the other one.": "本公司承继了对方公司。",
 
     "Content": "内容",
     "A content tag.": "描述作品内容本身的标签。",

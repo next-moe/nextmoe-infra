@@ -2479,6 +2479,13 @@ export const searchIndex: SearchEntry[] = [
     "b": "company_kind 一个厂牌 / 公司实体本身是什么类型的组织。 game_brand Game brand A game brand. 游戏厂牌 游戏厂牌。 bunko Bunko A bunko / imprint. 文库 文库 / 出版分支。 publisher Publisher A publisher. 出版社 出版社。 anime_studio Anime studio An anime studio. 动画公司 动画制作公司。 doujin_circle Doujin circle A doujin circle. 同人社团 同人社团。 group Group A group. 团体 泛指的团体。"
   },
   {
+    "r": "/docs/vocabularies/company_relation",
+    "t": "公司关系",
+    "s": "词表 · 封闭",
+    "d": "company_relation · 8 个成员",
+    "b": "company_relation 两家公司之间的结构关系，读作「对方是本公司的 X」。每个事实成对存储：一侧的 parent 对应另一侧的 subsidiary。 parent Parent The other company owns this one. 母公司 对方公司拥有本公司。 subsidiary Subsidiary The other company is owned by this one. 子公司 对方公司归本公司所有。 imprint Imprint The other company is a brand operating under this one. 旗下品牌 对方是在本公司旗下运营的品牌。 imprint_of Imprint of This company is a brand operating under the other one. 所属品牌 本公司是在对方旗下运营的品牌。 spawned Spawned The other company is a spin-off of this one. 分立出 对方公司是从本公司分立出来的。 origin Origin This company is a spin-off of the other one. 分立自 本公司是从对方公司分立出来的。 succeeded_by Succeeded by The other company succeeded this one. 由其承继 对方公司承继了本公司。 formerly Formerly This company succeeded the other one. 前身 本公司承继了对方公司。"
+  },
+  {
     "r": "/docs/vocabularies/tag_kind",
     "t": "标签种类",
     "s": "词表 · 封闭",

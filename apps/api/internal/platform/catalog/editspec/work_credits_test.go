@@ -409,7 +409,23 @@ func TestIdentityFollowStmtsCoverEveryDeclaredRef(t *testing.T) {
 			}
 		}
 	}
-	for _, tag := range []string{editspec.TagWork, editspec.TagLabel, editspec.TagPerson} {
+	labelStmts := reg.IdentityFollowStmts(editspec.TagLabel, 7, 8, nil)
+	if len(labelStmts) != 2 {
+		t.Fatalf("tag %q produced %d statements, want the move + drop pair of %s", editspec.TagLabel, len(labelStmts), editspec.FieldLabelRelations)
+	}
+	for _, s := range labelStmts {
+		var hasType, hasField bool
+		for _, a := range s.Args {
+			str, _ := a.(string)
+			hasType = hasType || str == editspec.TypeLabel
+			hasField = hasField || str == editspec.FieldLabelRelations
+		}
+		if !hasType || !hasField {
+			t.Fatalf("tag %q produced a statement not addressed to %s.%s: %s",
+				editspec.TagLabel, editspec.TypeLabel, editspec.FieldLabelRelations, s.SQL)
+		}
+	}
+	for _, tag := range []string{editspec.TagWork, editspec.TagPerson} {
 		if got := reg.IdentityFollowStmts(tag, 7, 8, nil); len(got) != 0 {
 			t.Fatalf("tag %q is in no identity key but produced %d statements", tag, len(got))
 		}

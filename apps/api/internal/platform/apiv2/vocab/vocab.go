@@ -149,6 +149,16 @@ var registry = []Vocabulary{
 		v("doujin_circle", "Doujin circle", "A doujin circle."),
 		v("group", "Group", "A group."),
 	}),
+	closed("company_relation", []Value{
+		v("parent", "Parent", "The other company owns this one."),
+		v("subsidiary", "Subsidiary", "The other company is owned by this one."),
+		v("imprint", "Imprint", "The other company is a brand operating under this one."),
+		v("imprint_of", "Imprint of", "This company is a brand operating under the other one."),
+		v("spawned", "Spawned", "The other company is a spin-off of this one."),
+		v("origin", "Origin", "This company is a spin-off of the other one."),
+		v("succeeded_by", "Succeeded by", "The other company succeeded this one."),
+		v("formerly", "Formerly", "This company succeeded the other one."),
+	}),
 	closed("tag_kind", []Value{
 		v("content", "Content", "A content tag."),
 		v("meta", "Meta", "A meta tag."),
