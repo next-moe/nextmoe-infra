@@ -50,13 +50,24 @@ useHead(() => ({
 
 <template>
   <div class="mx-auto max-w-6xl space-y-5">
-    <NuxtLink
-      to="/works"
-      class="text-default-500 hover:text-foreground inline-flex items-center gap-1 text-sm"
-    >
-      <KunIcon name="lucide:chevron-left" class="size-4" />
-      作品
-    </NuxtLink>
+    <div class="flex items-center justify-between gap-2">
+      <NuxtLink
+        to="/works"
+        class="text-default-500 hover:text-foreground inline-flex items-center gap-1 text-sm"
+      >
+        <KunIcon name="lucide:chevron-left" class="size-4" />
+        作品
+      </NuxtLink>
+      <KunButton
+        v-if="work"
+        :href="`/works/${id}/edit`"
+        color="primary"
+        size="sm"
+      >
+        <KunIcon name="lucide:pencil" class="size-4" />
+        编辑资料
+      </KunButton>
+    </div>
 
     <KunInfo
       v-if="error"
