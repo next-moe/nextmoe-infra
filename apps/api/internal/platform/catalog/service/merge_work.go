@@ -19,7 +19,7 @@ func workRehangStmts(reg *editing.Registry, p mergePlan) []mergeStmt {
 	stmts = append(stmts, workTitleStmts(p)...)
 	stmts = append(stmts, mergeStmt{`UPDATE catalog_release SET work_id = ? WHERE work_id = ?`, []any{p.dst, p.src}, false})
 	stmts = append(stmts, workCreditStmts(p)...)
-	stmts = append(stmts, suppressedRowStmts(editspec.TypeWork, p.src, p.dst)...)
+	stmts = append(stmts, suppressedRowStmts(p, editspec.TypeWork)...)
 	stmts = append(stmts, identityFollowStmts(reg, editspec.TagWork, p.src, p.dst)...)
 	stmts = append(stmts, workFacetStmts(p)...)
 	return append(stmts, mergeStmt{editspec.PurgeSuppressedWorkTagsSQL, []any{p.dst}, false})

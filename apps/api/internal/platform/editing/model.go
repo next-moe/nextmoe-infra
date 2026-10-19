@@ -48,11 +48,14 @@ type Revision struct {
 	Action        int16          `gorm:"not null" json:"action"`
 	ChangedFields datatypes.JSON `gorm:"type:jsonb;not null" json:"changed_fields"`
 	Snapshot      datatypes.JSON `gorm:"type:jsonb;not null" json:"snapshot"`
-	ActorUID      int64          `gorm:"column:actor_uid;not null" json:"actor_uid"`
-	AmenderUID    *int64         `gorm:"column:amender_uid" json:"amender_uid"`
-	ProposalID    *int64         `gorm:"index" json:"proposal_id"`
-	Site          string         `gorm:"not null" json:"site"`
-	CreatedAt     time.Time      `json:"created_at"`
+	// BaselineSnapshot is set only on an entity's first revision: the state the
+	// engine found before its first write, which Revert and Diff address as seq 0.
+	BaselineSnapshot datatypes.JSON `gorm:"type:jsonb" json:"baseline_snapshot,omitempty"`
+	ActorUID         int64          `gorm:"column:actor_uid;not null" json:"actor_uid"`
+	AmenderUID       *int64         `gorm:"column:amender_uid" json:"amender_uid"`
+	ProposalID       *int64         `gorm:"index" json:"proposal_id"`
+	Site             string         `gorm:"not null" json:"site"`
+	CreatedAt        time.Time      `json:"created_at"`
 
 	LegacyAction *string        `gorm:"->;column:legacy_action;type:text" json:"legacy_action,omitempty"`
 	LegacyMeta   datatypes.JSON `gorm:"->;column:legacy_meta;type:jsonb" json:"legacy_meta,omitempty"`

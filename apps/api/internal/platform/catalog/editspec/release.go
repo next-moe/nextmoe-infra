@@ -73,7 +73,6 @@ func RegisterRelease(reg *editing.Registry, db *gorm.DB) error {
 		Family:       "catalog",
 		Type:         TypeRelease,
 		LoadSnapshot: loadReleaseSnapshot(db),
-		Txn:          txnOn(db),
 		OwnerSite: func(ctx context.Context, entityID int64) (*string, error) {
 			w, err := parentWorkOfRelease(ctx, db, entityID, "id", "site")
 			if err != nil {

@@ -123,6 +123,12 @@ WITH all_hashes AS (
         WHERE r.entity_type IN ('galgame.game', 'catalog.work')
           AND jsonb_typeof(r.snapshot->k) = 'array'
     UNION
+    SELECT (jsonb_array_elements(r.baseline_snapshot->k))->>'image_hash'
+        FROM edit_revision r, LATERAL unnest(ARRAY[
+            'catalog.work.covers', 'catalog.work.screenshots']) AS k
+        WHERE r.entity_type = 'catalog.work'
+          AND jsonb_typeof(r.baseline_snapshot->k) = 'array'
+    UNION
     SELECT (jsonb_array_elements(p.patch->k))->>'image_hash'
         FROM edit_proposal p, LATERAL unnest(ARRAY[
             'galgame.game.covers', 'galgame.game.screenshots',
