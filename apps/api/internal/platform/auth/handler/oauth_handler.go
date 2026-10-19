@@ -9,6 +9,7 @@ import (
 	"api/internal/middleware"
 	"api/internal/platform/auth/dto"
 	"api/internal/platform/auth/service"
+	sitemodel "api/internal/platform/site/model"
 	"api/pkg/config"
 	"api/pkg/errors"
 	"api/pkg/response"
@@ -138,7 +139,7 @@ func (h *OAuthHandler) Authorize(c fiber.Ctx) error {
 		return response.BadRequestMsg(c, errors.ErrValidationFailed, err.Error())
 	}
 
-	_, err := h.oauthService.ValidateClient(c.Context(), req.ClientID, req.RedirectURI)
+	client, err := h.oauthService.ValidateClient(c.Context(), req.ClientID, req.RedirectURI)
 	if err != nil {
 		if appErr, ok := err.(*errors.AppError); ok {
 			return response.BadRequest(c, appErr.Code)
@@ -146,6 +147,23 @@ func (h *OAuthHandler) Authorize(c fiber.Ctx) error {
 		return response.InternalError(c, errors.ErrOperationFailed)
 	}
 
+	// The refresh cookie is scoped to /api/v1/auth and never reaches this path,
+	// so a browser that may already be signed in takes one hop to a sibling
+	// route that can see it, instead of rendering the consent page to find out.
+	if silentEligible(client, req.Prompt) {
+		silent := strings.TrimSuffix(c.Route().Path, "/oauth/authorize") + silentAuthorizePath
+		return c.Redirect().To(silent + "?" + authorizeQuery(&req).Encode())
+	}
+	return c.Redirect().To(h.frontendAuthorizeURL(&req))
+}
+
+const silentAuthorizePath = "/auth/oauth/silent-authorize"
+
+func silentEligible(client *sitemodel.OAuthClient, prompt string) bool {
+	return client.AutoConsent && (prompt == "" || prompt == "none")
+}
+
+func authorizeQuery(req *dto.AuthorizeRequest) url.Values {
 	q := url.Values{}
 	q.Set("client_id", req.ClientID)
 	q.Set("redirect_uri", req.RedirectURI)
@@ -167,9 +185,82 @@ func (h *OAuthHandler) Authorize(c fiber.Ctx) error {
 	if req.Nonce != "" {
 		q.Set("nonce", req.Nonce)
 	}
+	return q
+}
 
-	consentURL := h.cfg.Server.FrontendURL + "/oauth/authorize?" + q.Encode()
-	return c.Redirect().To(consentURL)
+func (h *OAuthHandler) frontendAuthorizeURL(req *dto.AuthorizeRequest) string {
+	return h.cfg.Server.FrontendURL + "/oauth/authorize?" + authorizeQuery(req).Encode()
+}
+
+// SilentAuthorize answers an auto-consent client straight to its redirect_uri
+// when the browser's account-center sign-in leaves nothing to ask; every other
+// case goes to the frontend flow exactly as Authorize sent it before.
+func (h *OAuthHandler) SilentAuthorize(c fiber.Ctx) error {
+	c.Set(fiber.HeaderCacheControl, "no-store")
+
+	var req dto.AuthorizeRequest
+	if err := c.Bind().Query(&req); err != nil {
+		return response.BadRequest(c, errors.ErrBadRequest)
+	}
+	if err := utils.Validate(&req); err != nil {
+		return response.BadRequestMsg(c, errors.ErrValidationFailed, err.Error())
+	}
+	client, err := h.oauthService.ValidateClient(c.Context(), req.ClientID, req.RedirectURI)
+	if err != nil {
+		if appErr, ok := err.(*errors.AppError); ok {
+			return response.BadRequest(c, appErr.Code)
+		}
+		return response.InternalError(c, errors.ErrOperationFailed)
+	}
+	frontend := h.frontendAuthorizeURL(&req)
+	if !silentEligible(client, req.Prompt) {
+		return c.Redirect().To(frontend)
+	}
+
+	refreshToken := c.Cookies(refreshTokenCookieName)
+	session, user, ok := h.oauthService.LiveBrowserSession(c.Context(), refreshToken)
+	if !ok {
+		if req.Prompt != "none" {
+			return c.Redirect().To(frontend)
+		}
+		target, err := buildErrorRedirectURL(req.RedirectURI, "login_required", req.State)
+		if err != nil {
+			return response.InternalError(c, errors.ErrOperationFailed)
+		}
+		return c.Redirect().To(target)
+	}
+	if req.LoginHint != "" && req.LoginHint != user.UUID && req.LoginHint != user.Email {
+		return c.Redirect().To(frontend)
+	}
+
+	codeChallengeMethod := req.CodeChallengeMethod
+	if codeChallengeMethod == "" && req.CodeChallenge != "" {
+		codeChallengeMethod = "S256"
+	}
+	code, err := h.oauthService.CreateAuthorizationCode(
+		c.Context(),
+		user.ID,
+		req.ClientID,
+		req.RedirectURI,
+		req.Scope,
+		req.CodeChallenge,
+		codeChallengeMethod,
+		req.Nonce,
+		c.Cookies(browserCookieName),
+	)
+	if err != nil {
+		return c.Redirect().To(frontend)
+	}
+	target, err := buildRedirectURL(req.RedirectURI, code, req.State)
+	if err != nil {
+		return response.InternalError(c, errors.ErrOperationFailed)
+	}
+
+	maxAge := h.oauthService.KeepBrowserSessionAlive(c.Context(), session)
+	if refreshToken == session.RefreshToken {
+		setRefreshCookie(c, h.cfg, refreshToken, maxAge)
+	}
+	return c.Redirect().To(target)
 }
 
 func (h *OAuthHandler) Consent(c fiber.Ctx) error {
