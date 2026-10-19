@@ -54,16 +54,19 @@ func NewAuthHandler(authService *service.AuthService, cfg *config.Config) *AuthH
 	return &AuthHandler{authService: authService, cfg: cfg}
 }
 
-func (h *AuthHandler) setRefreshTokenCookie(c fiber.Ctx, token string) {
-	secure := h.cfg.Server.Env == "production"
+func (h *AuthHandler) setRefreshTokenCookie(c fiber.Ctx, tokens *dto.TokenPair) {
+	maxAge := tokens.CookieMaxAge
+	if maxAge <= 0 {
+		maxAge = service.SSOCookieMaxAgeFallback()
+	}
 	c.Cookie(&fiber.Cookie{
 		Name:     refreshTokenCookieName,
-		Value:    token,
+		Value:    tokens.RefreshToken,
 		Path:     "/api/v1/auth",
 		HTTPOnly: true,
-		Secure:   secure,
+		Secure:   h.cfg.Server.Env == "production",
 		SameSite: fiber.CookieSameSiteLaxMode,
-		MaxAge:   int((7 * 24 * time.Hour).Seconds()),
+		MaxAge:   maxAge,
 	})
 }
 
@@ -142,7 +145,7 @@ func (h *AuthHandler) SwitchSession(c fiber.Ctx) error {
 		}
 		return response.InternalError(c, errors.ErrOperationFailed)
 	}
-	h.setRefreshTokenCookie(c, tokens.RefreshToken)
+	h.setRefreshTokenCookie(c, tokens)
 	h.browserID(c)
 	return response.Success(c, dto.LoginResponse{
 		User: dto.UserResponse{
@@ -240,7 +243,7 @@ func (h *AuthHandler) Register(c fiber.Ctx) error {
 		return response.InternalError(c, errors.ErrOperationFailed)
 	}
 
-	h.setRefreshTokenCookie(c, tokens.RefreshToken)
+	h.setRefreshTokenCookie(c, tokens)
 
 	return response.Success(c, dto.LoginResponse{
 		User: dto.UserResponse{
@@ -281,7 +284,7 @@ func (h *AuthHandler) Login(c fiber.Ctx) error {
 		return response.InternalError(c, errors.ErrOperationFailed)
 	}
 
-	h.setRefreshTokenCookie(c, tokens.RefreshToken)
+	h.setRefreshTokenCookie(c, tokens)
 
 	return response.Success(c, dto.LoginResponse{
 		User: dto.UserResponse{
@@ -335,7 +338,7 @@ func (h *AuthHandler) Refresh(c fiber.Ctx) error {
 		return response.InternalError(c, errors.ErrOperationFailed)
 	}
 
-	h.setRefreshTokenCookie(c, tokens.RefreshToken)
+	h.setRefreshTokenCookie(c, tokens)
 
 	return response.Success(c, dto.RefreshResponse{
 		AccessToken: tokens.AccessToken,

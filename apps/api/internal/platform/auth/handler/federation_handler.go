@@ -89,7 +89,7 @@ func (h *FederationHandler) Callback(c fiber.Ctx) error {
 	}
 
 	if result.Tokens != nil {
-		h.setRefreshTokenCookie(c, result.Tokens.RefreshToken)
+		h.setRefreshTokenCookie(c, result.Tokens)
 	}
 	return c.Redirect().To(result.RedirectTo)
 }
@@ -131,7 +131,7 @@ func (h *FederationHandler) Complete(c fiber.Ctx) error {
 		return response.InternalError(c, errors.ErrOperationFailed)
 	}
 
-	h.setRefreshTokenCookie(c, tokens.RefreshToken)
+	h.setRefreshTokenCookie(c, tokens)
 
 	return response.Success(c, dto.LoginResponse{
 		User: dto.UserResponse{
@@ -150,16 +150,19 @@ func (h *FederationHandler) Complete(c fiber.Ctx) error {
 	})
 }
 
-func (h *FederationHandler) setRefreshTokenCookie(c fiber.Ctx, token string) {
-	secure := h.cfg.Server.Env == "production"
+func (h *FederationHandler) setRefreshTokenCookie(c fiber.Ctx, tokens *dto.TokenPair) {
+	maxAge := tokens.CookieMaxAge
+	if maxAge <= 0 {
+		maxAge = service.SSOCookieMaxAgeFallback()
+	}
 	c.Cookie(&fiber.Cookie{
 		Name:     refreshTokenCookieName,
-		Value:    token,
+		Value:    tokens.RefreshToken,
 		Path:     "/api/v1/auth",
 		HTTPOnly: true,
-		Secure:   secure,
+		Secure:   h.cfg.Server.Env == "production",
 		SameSite: fiber.CookieSameSiteLaxMode,
-		MaxAge:   int((7 * 24 * time.Hour).Seconds()),
+		MaxAge:   maxAge,
 	})
 }
 

@@ -6,6 +6,7 @@ export const ROLE_COLOR: Record<
   admin: 'primary',
   moderator: 'warning',
   creator: 'success',
+  editor: 'default',
   user: 'default',
 }
 
@@ -16,12 +17,13 @@ export const ROLE_LABEL: Record<string, string> = {
   admin: '管理员',
   moderator: '版主',
   creator: '创作者',
+  editor: '编辑者',
   user: '用户',
 }
 
 export const roleLabel = (role: string) => ROLE_LABEL[role] ?? role
 
-const ROLE_PRIORITY = ['ren', 'admin', 'moderator', 'creator']
+const ROLE_PRIORITY = ['ren', 'admin', 'moderator', 'creator', 'editor']
 export const primaryRole = (roles: string[] = []) =>
   ROLE_PRIORITY.find((r) => roles.includes(r)) ?? ''
 

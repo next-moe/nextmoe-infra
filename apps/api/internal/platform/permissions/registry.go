@@ -16,13 +16,14 @@ import (
 
 const (
 	RoleUser      = "user"
+	RoleEditor    = "editor"
 	RoleCreator   = "creator"
 	RoleModerator = "moderator"
 	RoleAdmin     = "admin"
 	RoleRen       = "ren"
 )
 
-var MatrixRoles = []string{RoleUser, RoleCreator, RoleModerator, RoleAdmin, RoleRen}
+var MatrixRoles = []string{RoleUser, RoleEditor, RoleCreator, RoleModerator, RoleAdmin, RoleRen}
 
 var axisRank = map[string]int{
 	RoleModerator: 1,

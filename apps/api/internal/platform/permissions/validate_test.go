@@ -156,6 +156,16 @@ func TestRule2CreatorRowIsRenOnly(t *testing.T) {
 	}
 }
 
+func TestRule2EditorRowIsAdminEditable(t *testing.T) {
+	rig := newRig()
+	st := rig.clean()
+
+	if err := rig.val.Validate(adminUser, st, grant("editor", tAlpha)); err != nil {
+		t.Errorf("an admin holding the permission must be able to grant it on the editor row: %v", err)
+	}
+	assertRejected(t, rig.val.Validate(adminUser, st, grant("editor", tBeta)), "自己都不持有")
+}
+
 func TestRule2CallerMustHoldThePermission(t *testing.T) {
 	rig := newRig()
 	st := rig.clean()
