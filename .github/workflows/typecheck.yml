@@ -1,11 +1,11 @@
 name: typecheck
 
-# Type gate for the three Nuxt apps. Nothing ran `nuxt typecheck` in CI, so a
+# Type gate for the Nuxt apps. Nothing ran `nuxt typecheck` in CI, so a
 # type error could sit on main indefinitely: apps/developer carried 155 of them
 # (its generated vocabularies-zh.ts declared `description` required while the
 # generator omits the key whenever the registry has no description) and no job
-# noticed. Types are the only check these apps have — there is no unit suite —
-# so without this the frontend has no CI signal at all.
+# noticed. Types are the only check account/admin/developer have; apps/editor
+# also runs its vitest suite (the BFF's auth and proxy rules) here.
 #
 # Sibling gates: openapi-types.yml covers spec -> generated TS, docs-model.yml
 # covers spec -> portal docs model. Both diff committed artifacts; neither
@@ -20,6 +20,7 @@ on:
       - "apps/account/**"
       - "apps/admin/**"
       - "apps/developer/**"
+      - "apps/editor/**"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -32,7 +33,7 @@ permissions:
 
 jobs:
   typecheck:
-    name: nuxt typecheck (account · admin · developer)
+    name: nuxt typecheck (account · admin · developer · editor)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -48,3 +49,5 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Typecheck
         run: pnpm -r --parallel run typecheck
+      - name: Editor unit tests
+        run: pnpm -F ./apps/editor run test

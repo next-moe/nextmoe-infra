@@ -1,0 +1,41 @@
+{
+  "name": "editor",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "nuxt build",
+    "icons": "node scripts/generate-icons.mjs",
+    "dev": "nuxt dev",
+    "gen:types:catalog-v2": "pnpm dlx openapi-typescript@7.13.0 ../../docs/catalog/v2-openapi.yaml -o shared/types/generated/catalog-v2-api.ts",
+    "preview": "nuxt preview",
+    "typecheck": "nuxt typecheck",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@kungal/ui-core": "^2.44.0",
+    "@kungal/ui-nuxt": "^2.44.0",
+    "@kungal/ui-tokens": "^2.44.0",
+    "@kungal/ui-vue": "^2.44.0",
+    "@nuxt/eslint": "1.15.2",
+    "@tailwindcss/vite": "^4.3.3",
+    "date-fns": "^4.4.0",
+    "nuxt": "^4.5.2",
+    "postcss": "^8.5.28",
+    "tailwindcss": "^4.3.3",
+    "vue": "^3.5.42",
+    "vue-router": "^5.3.1"
+  },
+  "devDependencies": {
+    "@iconify-json/lucide": "^1.2.133",
+    "@nuxtjs/color-mode": "^4.0.1",
+    "eslint": "^10.10.0",
+    "prettier": "^3.9.7",
+    "prettier-plugin-tailwindcss": "^0.8.1",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.5"
+  }
+}

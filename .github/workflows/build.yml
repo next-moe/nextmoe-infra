@@ -6,7 +6,7 @@
 # This workflow builds ONLY the images whose inputs changed (path-filtered
 # dynamic matrix):
 #   - go images (oauth/image/artifact/catalog/community/chat/trust/ai + migrate)  ← apps/api/** + Dockerfiles
-#   - account / admin                              ← apps/account/** / apps/admin/** + root manifests + nuxt.Dockerfile
+#   - account / admin / editor                     ← apps/account/** / apps/admin/** / apps/editor/** + root manifests + nuxt.Dockerfile
 #   - tools (infra-tools)                          ← apps/api/** + docker/tools.Dockerfile
 #   - wdtagger (infra-wdtagger)                    ← docker/wdtagger.Dockerfile + docker/wdtagger/**
 # A docs-only push therefore builds nothing and costs ~1 min (the `changes` job).
@@ -23,7 +23,7 @@
 # redeploy; Actions → Run workflow → scope=tools rebuilds infra-tools alone.
 #
 # Three Dokploy projects deploy from this repo, and each is redeployed only when
-# an image it runs was rebuilt: the main stack (go/account/admin), the developer
+# an image it runs was rebuilt: the main stack (go/account/admin/editor), the developer
 # portal (infra-developer) and the MCP server (infra-mcp).
 #
 # Images publish to ghcr.io/<repo owner>/* (today: next-moe). The first push
@@ -109,6 +109,13 @@ jobs:
               - 'package.json'
               - 'docker/nuxt.Dockerfile'
               - '.github/workflows/build.yml'
+            editor:
+              - 'apps/editor/**'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'package.json'
+              - 'docker/nuxt.Dockerfile'
+              - '.github/workflows/build.yml'
             developer:
               - 'apps/developer/**'
               - 'pnpm-lock.yaml'
@@ -130,6 +137,7 @@ jobs:
           GO: ${{ steps.filter.outputs.go }}
           ACCOUNT: ${{ steps.filter.outputs.account }}
           ADMIN: ${{ steps.filter.outputs.admin }}
+          EDITOR: ${{ steps.filter.outputs.editor }}
           DEV: ${{ steps.filter.outputs.developer }}
           TOOLS: ${{ steps.filter.outputs.tools }}
           WDTAGGER: ${{ steps.filter.outputs.wdtagger }}
@@ -151,6 +159,7 @@ jobs:
             {"name":"infra-telemetry-worker","file":"docker/telemetry-worker.Dockerfile","args":"","group":"go"},
             {"name":"infra-account","file":"docker/nuxt.Dockerfile","args":"APP=account\nPUBLIC_API_BASE=https://account.nextmoe.com/api/v1\nPUBLIC_IMAGE_CDN_BASE=https://image.kungal.iloveren.link","group":"account"},
             {"name":"infra-admin","file":"docker/nuxt.Dockerfile","args":"APP=admin\nPUBLIC_API_BASE=https://admin.nextmoe.dev/api/v1\nPUBLIC_IMAGE_CDN_BASE=https://image.kungal.iloveren.link","group":"admin"},
+            {"name":"infra-editor","file":"docker/nuxt.Dockerfile","args":"APP=editor","group":"editor"},
             {"name":"infra-developer","file":"apps/developer/Dockerfile","args":"","group":"developer"},
             {"name":"infra-tools","file":"docker/tools.Dockerfile","args":"","group":"tools"},
             {"name":"infra-wdtagger","file":"docker/wdtagger.Dockerfile","args":"","group":"wdtagger"}
@@ -162,13 +171,13 @@ jobs:
               sel=$(jq -cn --argjson c "$push_catalog" '$c')
             fi
           else
-            sel=$(jq -cn --argjson c "$push_catalog" --arg go "$GO" --arg account "$ACCOUNT" --arg admin "$ADMIN" --arg dev "$DEV" --arg tools "$TOOLS" --arg wdtagger "$WDTAGGER" \
-              '([{g:"go",v:$go},{g:"account",v:$account},{g:"admin",v:$admin},{g:"developer",v:$dev},{g:"tools",v:$tools},{g:"wdtagger",v:$wdtagger}] | map(select(.v=="true") | .g)) as $grp
+            sel=$(jq -cn --argjson c "$push_catalog" --arg go "$GO" --arg account "$ACCOUNT" --arg admin "$ADMIN" --arg editor "$EDITOR" --arg dev "$DEV" --arg tools "$TOOLS" --arg wdtagger "$WDTAGGER" \
+              '([{g:"go",v:$go},{g:"account",v:$account},{g:"admin",v:$admin},{g:"editor",v:$editor},{g:"developer",v:$dev},{g:"tools",v:$tools},{g:"wdtagger",v:$wdtagger}] | map(select(.v=="true") | .g)) as $grp
                | $c | map(select(.group as $x | $grp | index($x)))')
           fi
           n=$(jq -n --argjson s "$sel" '$s | length')
           echo "any=$([ "$n" -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-          echo "deploy_infra=$(jq -n --argjson s "$sel" '$s | any(.[]; .group == "go" or .group == "account" or .group == "admin")')" >> "$GITHUB_OUTPUT"
+          echo "deploy_infra=$(jq -n --argjson s "$sel" '$s | any(.[]; .group == "go" or .group == "account" or .group == "admin" or .group == "editor")')" >> "$GITHUB_OUTPUT"
           echo "deploy_developer=$(jq -n --argjson s "$sel" '$s | any(.[]; .group == "developer")')" >> "$GITHUB_OUTPUT"
           echo "deploy_mcp=$(jq -n --argjson s "$sel" '$s | any(.[]; .name == "infra-mcp")')" >> "$GITHUB_OUTPUT"
           printf 'matrix={"include":%s}\n' "$sel" >> "$GITHUB_OUTPUT"

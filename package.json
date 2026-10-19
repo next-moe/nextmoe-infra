@@ -15,8 +15,8 @@
     "dev:db": "bash scripts/create-dev-databases.sh",
     "build": "pnpm -F \"./apps/**\" --parallel run build",
     "format": "pnpm -F \"./apps/**\" --parallel run format",
-    "lint": "pnpm -F \"./apps/account\" -F \"./apps/admin\" run lint",
-    "lint:fix": "pnpm -F \"./apps/account\" -F \"./apps/admin\" run lint:fix",
+    "lint": "pnpm -F \"./apps/account\" -F \"./apps/admin\" -F \"./apps/editor\" run lint",
+    "lint:fix": "pnpm -F \"./apps/account\" -F \"./apps/admin\" -F \"./apps/editor\" run lint:fix",
     "typecheck": "pnpm -F \"./apps/**\" --parallel run typecheck",
     "sitemap": "esno apps/account/scripts/generateSitemap.ts"
   },
