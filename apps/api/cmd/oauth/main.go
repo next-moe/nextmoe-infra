@@ -280,6 +280,7 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	auth.Post("/register", strict, authH.Register)
 	auth.Post("/login", strict, authH.Login)
 	auth.Post("/refresh", authH.Refresh)
+	auth.Get("/oauth/silent-authorize", oauthH.SilentAuthorize)
 	auth.Post("/password/forgot", strict, authH.ForgotPassword)
 	auth.Post("/password/reset", strict, authH.ResetPassword)
 

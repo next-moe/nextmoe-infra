@@ -90,3 +90,41 @@ application (`POST /api/v1/editor/applications`, admin review under
 (wave E1). Re-apply cooldown: `auth.editor_application_cooldown_hours`
 (default 24). The creator flow's cooldown moved from a hardcoded 24 h to
 `auth.creator_application_cooldown_hours` (default 24) at the same time.
+
+## 6. Silent authorize (no account-center page)
+
+Shipped with wave E0b. Before it, a silent sign-in still passed through the
+account frontend: `GET /api/v1/oauth/authorize` always redirected to
+`/oauth/authorize` on the frontend, which loaded, checked the session
+client-side and rendered 「正在跳转回应用...」 before posting the auto-consent.
+The user saw the account center flash.
+
+Now, when the client has `auto_consent` and the request carries no `prompt` or
+`prompt=none`, `GET /api/v1/oauth/authorize` 302s to
+`GET /api/v1/auth/oauth/silent-authorize` with the same parameters. The hop
+exists because the `refresh_token` cookie is path-scoped to `/api/v1/auth` and
+never reaches `/api/v1/oauth/authorize`. The silent route re-validates the
+request and the client, then decides with no HTML:
+
+| Situation | Answer |
+|---|---|
+| live account-center sign-in (the `refresh_token` cookie names a `client_id = ''` session that is unexpired, current or within the rotation grace, user not banned or anonymized), and `login_hint` absent or equal to that user's `sub`/email | mint the code (browser recorded from `nm_browser`, nonce passed through, exactly as `/oauth/authorize/consent` does), slide the sign-in as an account refresh would (`expires_at` and `last_used_at`, cookie `Max-Age` re-issued to the cap), 302 to `redirect_uri?code&state` |
+| `prompt=none` and no live sign-in | 302 to `redirect_uri?error=login_required&state` |
+| anything else — no sign-in, expired, banned, `login_hint` naming someone else, a client session's token, a stale rotated token, `prompt=login`/`select_account`, a client without `auto_consent`, a code-mint failure | 302 to the frontend `/oauth/authorize` with the original parameters: today's flow, unchanged |
+
+With several accounts in one browser and no `login_hint`, the account the
+`refresh_token` cookie names is used — the same account the frontend's
+auto-consent would have picked. The account chooser only ever appears for
+`prompt=select_account` or a `login_hint` naming a non-active account, and both
+of those still go to the frontend. Downstream links into the editor should
+pass `login_hint` so the account the user is on there is the one they arrive
+as.
+
+**Why minting from a GET is safe.** The frontend flow already mints a code for
+an auto-consent client on a plain top-level navigation with no user interaction
+(the page posts the consent itself), so a cross-site navigation could always
+cause one. The code still goes only to a `redirect_uri` registered on that
+first-party client, PKCE binds it to the verifier of whoever started the flow,
+and the RP's `state` check rejects a code it did not ask for. The route sits
+behind the house IP rate limiter like `/oauth/authorize` and `/auth/refresh`,
+and answers `Cache-Control: no-store`.

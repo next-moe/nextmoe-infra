@@ -59,12 +59,16 @@ func (h *AuthHandler) setRefreshTokenCookie(c fiber.Ctx, tokens *dto.TokenPair) 
 	if maxAge <= 0 {
 		maxAge = service.SSOCookieMaxAgeFallback()
 	}
+	setRefreshCookie(c, h.cfg, tokens.RefreshToken, maxAge)
+}
+
+func setRefreshCookie(c fiber.Ctx, cfg *config.Config, token string, maxAge int) {
 	c.Cookie(&fiber.Cookie{
 		Name:     refreshTokenCookieName,
-		Value:    tokens.RefreshToken,
+		Value:    token,
 		Path:     "/api/v1/auth",
 		HTTPOnly: true,
-		Secure:   h.cfg.Server.Env == "production",
+		Secure:   cfg.Server.Env == "production",
 		SameSite: fiber.CookieSameSiteLaxMode,
 		MaxAge:   maxAge,
 	})
