@@ -140,6 +140,14 @@ func TestSearch_QueryBounds(t *testing.T) {
 			t.Fatalf("thread query %q should be refused, got %v", q, err)
 		}
 	}
+	for _, q := range []string{"ab\x00", "ab\xff"} {
+		if _, err := ss.Posts(repository.SearchQuery{Site: "letmoe", Q: q, Kind: -1}); !errors.Is(err, ErrSearchQueryNotText) {
+			t.Fatalf("query %q should be refused before it reaches postgres, got %v", q, err)
+		}
+		if _, err := ss.Threads(repository.SearchQuery{Site: "letmoe", Q: q, Kind: -1}); !errors.Is(err, ErrSearchQueryNotText) {
+			t.Fatalf("thread query %q should be refused before it reaches postgres, got %v", q, err)
+		}
+	}
 	if got := searchBodies(t, ss, "letmoe", "  ab  "); len(got) != 1 {
 		t.Fatalf("a padded query is trimmed before it is matched: %v", got)
 	}
