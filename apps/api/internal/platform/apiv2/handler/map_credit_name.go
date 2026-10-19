@@ -31,7 +31,7 @@ func creditNameFromDetail(rec dto.PublicName, include []string, photoURL string)
 		case "intros":
 			out.Intros = ptrSlice(introsFrom(rec.Intros))
 		case "links":
-			out.Links = ptrSlice(personLinksFrom(rec.Links))
+			out.Links = ptrSlice(linksFrom(rec.Links))
 		case "refs":
 			out.Refs = ptrSlice(refsFrom(rec.Refs))
 		}
@@ -47,14 +47,6 @@ func siblingNamesFrom(in []dto.PublicSiblingName, personID *string) []repr.Credi
 			Latin: optString(s.Latin), Lang: optString(s.Lang),
 			Localized: localizedFrom(s.Localized), PersonID: personID,
 		})
-	}
-	return out
-}
-
-func personLinksFrom(in []dto.PublicPersonLink) []repr.WorkLink {
-	out := make([]repr.WorkLink, 0, len(in))
-	for _, l := range in {
-		out = append(out, repr.WorkLink{Source: l.Source, URL: l.URL})
 	}
 	return out
 }

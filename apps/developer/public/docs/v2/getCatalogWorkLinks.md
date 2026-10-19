@@ -13,7 +13,7 @@
 
 List links of one work
 
-Outbound links. Same items as include=links. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+This work's own upstream pages (is_identity=true), then its related links. Same items as include=links. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：可匿名调用

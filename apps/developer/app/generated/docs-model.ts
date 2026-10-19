@@ -4592,11 +4592,22 @@ export const docsModel: DocsModel = {
                                         },
                                         {
                                           "name": "links",
-                                          "doc": "External pages for the linked person. Present when include=links, detail face only. Empty array if none.",
+                                          "doc": "External pages: this credited name's own upstream pages first (vndb staff, bangumi person, erogamescape creater), then the linked person's for any source the name has none of, then the person's related links. Present when include=links, detail face only. Empty array if none.",
                                           "type": "array",
                                           "itemsOf": {
                                             "type": "object",
                                             "children": [
+                                              {
+                                                "name": "is_identity",
+                                                "required": true,
+                                                "doc": "true: this entity's own page on an upstream catalog, minted from an exact anchor. false: a related web presence such as an official site, a social account or a store page. Identity links come first. Links are unique by address; of two sources naming the same page, the more specific one is kept.",
+                                                "type": "boolean"
+                                              },
+                                              {
+                                                "name": "page_id",
+                                                "doc": "The upstream page's own id as it appears in url: vndb v17, s267, p24, c88; numeric for bangumi, erogamescape, howlongtobeat and steam. Present on identity links only. Not a ref external_id: a credit name's vndb ref is a staff alias id, while its link is the staff page.",
+                                                "type": "string"
+                                              },
                                               {
                                                 "name": "source",
                                                 "required": true,
@@ -5374,6 +5385,17 @@ export const docsModel: DocsModel = {
                               "itemsOf": {
                                 "type": "object",
                                 "children": [
+                                  {
+                                    "name": "is_identity",
+                                    "required": true,
+                                    "doc": "true: this entity's own page on an upstream catalog, minted from an exact anchor. false: a related web presence such as an official site, a social account or a store page. Identity links come first. Links are unique by address; of two sources naming the same page, the more specific one is kept.",
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "name": "page_id",
+                                    "doc": "The upstream page's own id as it appears in url: vndb v17, s267, p24, c88; numeric for bangumi, erogamescape, howlongtobeat and steam. Present on identity links only. Not a ref external_id: a credit name's vndb ref is a staff alias id, while its link is the staff page.",
+                                    "type": "string"
+                                  },
                                   {
                                     "name": "source",
                                     "required": true,
@@ -9351,6 +9373,40 @@ export const docsModel: DocsModel = {
                               "type": "string"
                             },
                             {
+                              "name": "links",
+                              "doc": "This character's own pages on vndb, bangumi and erogamescape. Present when include=links. Empty array if none.",
+                              "type": "array",
+                              "itemsOf": {
+                                "type": "object",
+                                "children": [
+                                  {
+                                    "name": "is_identity",
+                                    "required": true,
+                                    "doc": "true: this entity's own page on an upstream catalog, minted from an exact anchor. false: a related web presence such as an official site, a social account or a store page. Identity links come first. Links are unique by address; of two sources naming the same page, the more specific one is kept.",
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "name": "page_id",
+                                    "doc": "The upstream page's own id as it appears in url: vndb v17, s267, p24, c88; numeric for bangumi, erogamescape, howlongtobeat and steam. Present on identity links only. Not a ref external_id: a credit name's vndb ref is a staff alias id, while its link is the staff page.",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "name": "source",
+                                    "required": true,
+                                    "doc": "Open vocabulary sources. Must not be used as a discriminant.",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "name": "url",
+                                    "required": true,
+                                    "doc": "Absolute URL.",
+                                    "format": "uri",
+                                    "type": "string"
+                                  }
+                                ]
+                              }
+                            },
+                            {
                               "name": "localized",
                               "required": true,
                               "doc": "BCP-47 keys. Empty object if none. Must not be used as a discriminant.",
@@ -10834,7 +10890,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/characters/{id}",
               "summary": "Get one character",
-              "description": "Character detail. view=full adds gender, birthday, measurements, blood_type, instance_of_id. include=image,figure,traits,aliases,intros,refs adds art, trait, name, description and anchor blocks. spoiler=none|minor|major is the ceiling of the traits block and defaults to none. Merged ids are 404 ENTITY_MERGED. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
+              "description": "Character detail. view=full adds gender, birthday, measurements, blood_type, instance_of_id. include=image,figure,traits,aliases,intros,refs,links adds art, trait, name, description, anchor and link blocks. spoiler=none|minor|major is the ceiling of the traits block and defaults to none. Merged ids are 404 ENTITY_MERGED. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
               "auth": {
                 "kind": "optional",
@@ -11174,6 +11230,40 @@ export const docsModel: DocsModel = {
                         "nullable": true,
                         "doc": "null if unrecorded. Must not be used as a discriminant.",
                         "type": "string"
+                      },
+                      {
+                        "name": "links",
+                        "doc": "This character's own pages on vndb, bangumi and erogamescape. Present when include=links. Empty array if none.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "is_identity",
+                              "required": true,
+                              "doc": "true: this entity's own page on an upstream catalog, minted from an exact anchor. false: a related web presence such as an official site, a social account or a store page. Identity links come first. Links are unique by address; of two sources naming the same page, the more specific one is kept.",
+                              "type": "boolean"
+                            },
+                            {
+                              "name": "page_id",
+                              "doc": "The upstream page's own id as it appears in url: vndb v17, s267, p24, c88; numeric for bangumi, erogamescape, howlongtobeat and steam. Present on identity links only. Not a ref external_id: a credit name's vndb ref is a staff alias id, while its link is the staff page.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "source",
+                              "required": true,
+                              "doc": "Open vocabulary sources. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "url",
+                              "required": true,
+                              "doc": "Absolute URL.",
+                              "format": "uri",
+                              "type": "string"
+                            }
+                          ]
+                        }
                       },
                       {
                         "name": "localized",
@@ -13054,11 +13144,22 @@ export const docsModel: DocsModel = {
                                   },
                                   {
                                     "name": "links",
-                                    "doc": "External pages for the linked person. Present when include=links, detail face only. Empty array if none.",
+                                    "doc": "External pages: this credited name's own upstream pages first (vndb staff, bangumi person, erogamescape creater), then the linked person's for any source the name has none of, then the person's related links. Present when include=links, detail face only. Empty array if none.",
                                     "type": "array",
                                     "itemsOf": {
                                       "type": "object",
                                       "children": [
+                                        {
+                                          "name": "is_identity",
+                                          "required": true,
+                                          "doc": "true: this entity's own page on an upstream catalog, minted from an exact anchor. false: a related web presence such as an official site, a social account or a store page. Identity links come first. Links are unique by address; of two sources naming the same page, the more specific one is kept.",
+                                          "type": "boolean"
+                                        },
+                                        {
+                                          "name": "page_id",
+                                          "doc": "The upstream page's own id as it appears in url: vndb v17, s267, p24, c88; numeric for bangumi, erogamescape, howlongtobeat and steam. Present on identity links only. Not a ref external_id: a credit name's vndb ref is a staff alias id, while its link is the staff page.",
+                                          "type": "string"
+                                        },
                                         {
                                           "name": "source",
                                           "required": true,
@@ -13685,11 +13786,22 @@ export const docsModel: DocsModel = {
                                             },
                                             {
                                               "name": "links",
-                                              "doc": "External pages for the linked person. Present when include=links, detail face only. Empty array if none.",
+                                              "doc": "External pages: this credited name's own upstream pages first (vndb staff, bangumi person, erogamescape creater), then the linked person's for any source the name has none of, then the person's related links. Present when include=links, detail face only. Empty array if none.",
                                               "type": "array",
                                               "itemsOf": {
                                                 "type": "object",
                                                 "children": [
+                                                  {
+                                                    "name": "is_identity",
+                                                    "required": true,
+                                                    "doc": "true: this entity's own page on an upstream catalog, minted from an exact anchor. false: a related web presence such as an official site, a social account or a store page. Identity links come first. Links are unique by address; of two sources naming the same page, the more specific one is kept.",
+                                                    "type": "boolean"
+                                                  },
+                                                  {
+                                                    "name": "page_id",
+                                                    "doc": "The upstream page's own id as it appears in url: vndb v17, s267, p24, c88; numeric for bangumi, erogamescape, howlongtobeat and steam. Present on identity links only. Not a ref external_id: a credit name's vndb ref is a staff alias id, while its link is the staff page.",
+                                                    "type": "string"
+                                                  },
                                                   {
                                                     "name": "source",
                                                     "required": true,
@@ -14467,6 +14579,17 @@ export const docsModel: DocsModel = {
                                   "itemsOf": {
                                     "type": "object",
                                     "children": [
+                                      {
+                                        "name": "is_identity",
+                                        "required": true,
+                                        "doc": "true: this entity's own page on an upstream catalog, minted from an exact anchor. false: a related web presence such as an official site, a social account or a store page. Identity links come first. Links are unique by address; of two sources naming the same page, the more specific one is kept.",
+                                        "type": "boolean"
+                                      },
+                                      {
+                                        "name": "page_id",
+                                        "doc": "The upstream page's own id as it appears in url: vndb v17, s267, p24, c88; numeric for bangumi, erogamescape, howlongtobeat and steam. Present on identity links only. Not a ref external_id: a credit name's vndb ref is a staff alias id, while its link is the staff page.",
+                                        "type": "string"
+                                      },
                                       {
                                         "name": "source",
                                         "required": true,
@@ -18422,6 +18545,17 @@ export const docsModel: DocsModel = {
                                 "type": "object",
                                 "children": [
                                   {
+                                    "name": "is_identity",
+                                    "required": true,
+                                    "doc": "true: this entity's own page on an upstream catalog, minted from an exact anchor. false: a related web presence such as an official site, a social account or a store page. Identity links come first. Links are unique by address; of two sources naming the same page, the more specific one is kept.",
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "name": "page_id",
+                                    "doc": "The upstream page's own id as it appears in url: vndb v17, s267, p24, c88; numeric for bangumi, erogamescape, howlongtobeat and steam. Present on identity links only. Not a ref external_id: a credit name's vndb ref is a staff alias id, while its link is the staff page.",
+                                    "type": "string"
+                                  },
+                                  {
                                     "name": "source",
                                     "required": true,
                                     "doc": "Open vocabulary sources. Must not be used as a discriminant.",
@@ -19994,6 +20128,17 @@ export const docsModel: DocsModel = {
                         "itemsOf": {
                           "type": "object",
                           "children": [
+                            {
+                              "name": "is_identity",
+                              "required": true,
+                              "doc": "true: this entity's own page on an upstream catalog, minted from an exact anchor. false: a related web presence such as an official site, a social account or a store page. Identity links come first. Links are unique by address; of two sources naming the same page, the more specific one is kept.",
+                              "type": "boolean"
+                            },
+                            {
+                              "name": "page_id",
+                              "doc": "The upstream page's own id as it appears in url: vndb v17, s267, p24, c88; numeric for bangumi, erogamescape, howlongtobeat and steam. Present on identity links only. Not a ref external_id: a credit name's vndb ref is a staff alias id, while its link is the staff page.",
+                              "type": "string"
+                            },
                             {
                               "name": "source",
                               "required": true,
@@ -23428,11 +23573,22 @@ export const docsModel: DocsModel = {
                             },
                             {
                               "name": "links",
-                              "doc": "External pages for the linked person. Present when include=links, detail face only. Empty array if none.",
+                              "doc": "External pages: this credited name's own upstream pages first (vndb staff, bangumi person, erogamescape creater), then the linked person's for any source the name has none of, then the person's related links. Present when include=links, detail face only. Empty array if none.",
                               "type": "array",
                               "itemsOf": {
                                 "type": "object",
                                 "children": [
+                                  {
+                                    "name": "is_identity",
+                                    "required": true,
+                                    "doc": "true: this entity's own page on an upstream catalog, minted from an exact anchor. false: a related web presence such as an official site, a social account or a store page. Identity links come first. Links are unique by address; of two sources naming the same page, the more specific one is kept.",
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "name": "page_id",
+                                    "doc": "The upstream page's own id as it appears in url: vndb v17, s267, p24, c88; numeric for bangumi, erogamescape, howlongtobeat and steam. Present on identity links only. Not a ref external_id: a credit name's vndb ref is a staff alias id, while its link is the staff page.",
+                                    "type": "string"
+                                  },
                                   {
                                     "name": "source",
                                     "required": true,
@@ -25039,11 +25195,22 @@ export const docsModel: DocsModel = {
                       },
                       {
                         "name": "links",
-                        "doc": "External pages for the linked person. Present when include=links, detail face only. Empty array if none.",
+                        "doc": "External pages: this credited name's own upstream pages first (vndb staff, bangumi person, erogamescape creater), then the linked person's for any source the name has none of, then the person's related links. Present when include=links, detail face only. Empty array if none.",
                         "type": "array",
                         "itemsOf": {
                           "type": "object",
                           "children": [
+                            {
+                              "name": "is_identity",
+                              "required": true,
+                              "doc": "true: this entity's own page on an upstream catalog, minted from an exact anchor. false: a related web presence such as an official site, a social account or a store page. Identity links come first. Links are unique by address; of two sources naming the same page, the more specific one is kept.",
+                              "type": "boolean"
+                            },
+                            {
+                              "name": "page_id",
+                              "doc": "The upstream page's own id as it appears in url: vndb v17, s267, p24, c88; numeric for bangumi, erogamescape, howlongtobeat and steam. Present on identity links only. Not a ref external_id: a credit name's vndb ref is a staff alias id, while its link is the staff page.",
+                              "type": "string"
+                            },
                             {
                               "name": "source",
                               "required": true,
@@ -27198,11 +27365,22 @@ export const docsModel: DocsModel = {
                                             },
                                             {
                                               "name": "links",
-                                              "doc": "External pages for the linked person. Present when include=links, detail face only. Empty array if none.",
+                                              "doc": "External pages: this credited name's own upstream pages first (vndb staff, bangumi person, erogamescape creater), then the linked person's for any source the name has none of, then the person's related links. Present when include=links, detail face only. Empty array if none.",
                                               "type": "array",
                                               "itemsOf": {
                                                 "type": "object",
                                                 "children": [
+                                                  {
+                                                    "name": "is_identity",
+                                                    "required": true,
+                                                    "doc": "true: this entity's own page on an upstream catalog, minted from an exact anchor. false: a related web presence such as an official site, a social account or a store page. Identity links come first. Links are unique by address; of two sources naming the same page, the more specific one is kept.",
+                                                    "type": "boolean"
+                                                  },
+                                                  {
+                                                    "name": "page_id",
+                                                    "doc": "The upstream page's own id as it appears in url: vndb v17, s267, p24, c88; numeric for bangumi, erogamescape, howlongtobeat and steam. Present on identity links only. Not a ref external_id: a credit name's vndb ref is a staff alias id, while its link is the staff page.",
+                                                    "type": "string"
+                                                  },
                                                   {
                                                     "name": "source",
                                                     "required": true,
@@ -27980,6 +28158,17 @@ export const docsModel: DocsModel = {
                                   "itemsOf": {
                                     "type": "object",
                                     "children": [
+                                      {
+                                        "name": "is_identity",
+                                        "required": true,
+                                        "doc": "true: this entity's own page on an upstream catalog, minted from an exact anchor. false: a related web presence such as an official site, a social account or a store page. Identity links come first. Links are unique by address; of two sources naming the same page, the more specific one is kept.",
+                                        "type": "boolean"
+                                      },
+                                      {
+                                        "name": "page_id",
+                                        "doc": "The upstream page's own id as it appears in url: vndb v17, s267, p24, c88; numeric for bangumi, erogamescape, howlongtobeat and steam. Present on identity links only. Not a ref external_id: a credit name's vndb ref is a staff alias id, while its link is the staff page.",
+                                        "type": "string"
+                                      },
                                       {
                                         "name": "source",
                                         "required": true,
@@ -36287,11 +36476,22 @@ export const docsModel: DocsModel = {
                             },
                             {
                               "name": "links",
-                              "doc": "External pages for the linked person. Present when include=links, detail face only. Empty array if none.",
+                              "doc": "External pages: this credited name's own upstream pages first (vndb staff, bangumi person, erogamescape creater), then the linked person's for any source the name has none of, then the person's related links. Present when include=links, detail face only. Empty array if none.",
                               "type": "array",
                               "itemsOf": {
                                 "type": "object",
                                 "children": [
+                                  {
+                                    "name": "is_identity",
+                                    "required": true,
+                                    "doc": "true: this entity's own page on an upstream catalog, minted from an exact anchor. false: a related web presence such as an official site, a social account or a store page. Identity links come first. Links are unique by address; of two sources naming the same page, the more specific one is kept.",
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "name": "page_id",
+                                    "doc": "The upstream page's own id as it appears in url: vndb v17, s267, p24, c88; numeric for bangumi, erogamescape, howlongtobeat and steam. Present on identity links only. Not a ref external_id: a credit name's vndb ref is a staff alias id, while its link is the staff page.",
+                                    "type": "string"
+                                  },
                                   {
                                     "name": "source",
                                     "required": true,
@@ -67287,11 +67487,22 @@ export const docsModel: DocsModel = {
                                         },
                                         {
                                           "name": "links",
-                                          "doc": "External pages for the linked person. Present when include=links, detail face only. Empty array if none.",
+                                          "doc": "External pages: this credited name's own upstream pages first (vndb staff, bangumi person, erogamescape creater), then the linked person's for any source the name has none of, then the person's related links. Present when include=links, detail face only. Empty array if none.",
                                           "type": "array",
                                           "itemsOf": {
                                             "type": "object",
                                             "children": [
+                                              {
+                                                "name": "is_identity",
+                                                "required": true,
+                                                "doc": "true: this entity's own page on an upstream catalog, minted from an exact anchor. false: a related web presence such as an official site, a social account or a store page. Identity links come first. Links are unique by address; of two sources naming the same page, the more specific one is kept.",
+                                                "type": "boolean"
+                                              },
+                                              {
+                                                "name": "page_id",
+                                                "doc": "The upstream page's own id as it appears in url: vndb v17, s267, p24, c88; numeric for bangumi, erogamescape, howlongtobeat and steam. Present on identity links only. Not a ref external_id: a credit name's vndb ref is a staff alias id, while its link is the staff page.",
+                                                "type": "string"
+                                              },
                                               {
                                                 "name": "source",
                                                 "required": true,
@@ -68069,6 +68280,17 @@ export const docsModel: DocsModel = {
                               "itemsOf": {
                                 "type": "object",
                                 "children": [
+                                  {
+                                    "name": "is_identity",
+                                    "required": true,
+                                    "doc": "true: this entity's own page on an upstream catalog, minted from an exact anchor. false: a related web presence such as an official site, a social account or a store page. Identity links come first. Links are unique by address; of two sources naming the same page, the more specific one is kept.",
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "name": "page_id",
+                                    "doc": "The upstream page's own id as it appears in url: vndb v17, s267, p24, c88; numeric for bangumi, erogamescape, howlongtobeat and steam. Present on identity links only. Not a ref external_id: a credit name's vndb ref is a staff alias id, while its link is the staff page.",
+                                    "type": "string"
+                                  },
                                   {
                                     "name": "source",
                                     "required": true,
@@ -70627,11 +70849,22 @@ export const docsModel: DocsModel = {
                                   },
                                   {
                                     "name": "links",
-                                    "doc": "External pages for the linked person. Present when include=links, detail face only. Empty array if none.",
+                                    "doc": "External pages: this credited name's own upstream pages first (vndb staff, bangumi person, erogamescape creater), then the linked person's for any source the name has none of, then the person's related links. Present when include=links, detail face only. Empty array if none.",
                                     "type": "array",
                                     "itemsOf": {
                                       "type": "object",
                                       "children": [
+                                        {
+                                          "name": "is_identity",
+                                          "required": true,
+                                          "doc": "true: this entity's own page on an upstream catalog, minted from an exact anchor. false: a related web presence such as an official site, a social account or a store page. Identity links come first. Links are unique by address; of two sources naming the same page, the more specific one is kept.",
+                                          "type": "boolean"
+                                        },
+                                        {
+                                          "name": "page_id",
+                                          "doc": "The upstream page's own id as it appears in url: vndb v17, s267, p24, c88; numeric for bangumi, erogamescape, howlongtobeat and steam. Present on identity links only. Not a ref external_id: a credit name's vndb ref is a staff alias id, while its link is the staff page.",
+                                          "type": "string"
+                                        },
                                         {
                                           "name": "source",
                                           "required": true,
@@ -71409,6 +71642,17 @@ export const docsModel: DocsModel = {
                         "itemsOf": {
                           "type": "object",
                           "children": [
+                            {
+                              "name": "is_identity",
+                              "required": true,
+                              "doc": "true: this entity's own page on an upstream catalog, minted from an exact anchor. false: a related web presence such as an official site, a social account or a store page. Identity links come first. Links are unique by address; of two sources naming the same page, the more specific one is kept.",
+                              "type": "boolean"
+                            },
+                            {
+                              "name": "page_id",
+                              "doc": "The upstream page's own id as it appears in url: vndb v17, s267, p24, c88; numeric for bangumi, erogamescape, howlongtobeat and steam. Present on identity links only. Not a ref external_id: a credit name's vndb ref is a staff alias id, while its link is the staff page.",
+                              "type": "string"
+                            },
                             {
                               "name": "source",
                               "required": true,
@@ -74034,11 +74278,22 @@ export const docsModel: DocsModel = {
                                   },
                                   {
                                     "name": "links",
-                                    "doc": "External pages for the linked person. Present when include=links, detail face only. Empty array if none.",
+                                    "doc": "External pages: this credited name's own upstream pages first (vndb staff, bangumi person, erogamescape creater), then the linked person's for any source the name has none of, then the person's related links. Present when include=links, detail face only. Empty array if none.",
                                     "type": "array",
                                     "itemsOf": {
                                       "type": "object",
                                       "children": [
+                                        {
+                                          "name": "is_identity",
+                                          "required": true,
+                                          "doc": "true: this entity's own page on an upstream catalog, minted from an exact anchor. false: a related web presence such as an official site, a social account or a store page. Identity links come first. Links are unique by address; of two sources naming the same page, the more specific one is kept.",
+                                          "type": "boolean"
+                                        },
+                                        {
+                                          "name": "page_id",
+                                          "doc": "The upstream page's own id as it appears in url: vndb v17, s267, p24, c88; numeric for bangumi, erogamescape, howlongtobeat and steam. Present on identity links only. Not a ref external_id: a credit name's vndb ref is a staff alias id, while its link is the staff page.",
+                                          "type": "string"
+                                        },
                                         {
                                           "name": "source",
                                           "required": true,
@@ -81969,7 +82224,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/works/{id}/links",
               "summary": "List links of one work",
-              "description": "Outbound links. Same items as include=links. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
+              "description": "This work's own upstream pages (is_identity=true), then its related links. Same items as include=links. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.",
               "scope": "catalog:read",
               "auth": {
                 "kind": "optional",
@@ -82055,6 +82310,17 @@ export const docsModel: DocsModel = {
                         "itemsOf": {
                           "type": "object",
                           "children": [
+                            {
+                              "name": "is_identity",
+                              "required": true,
+                              "doc": "true: this entity's own page on an upstream catalog, minted from an exact anchor. false: a related web presence such as an official site, a social account or a store page. Identity links come first. Links are unique by address; of two sources naming the same page, the more specific one is kept.",
+                              "type": "boolean"
+                            },
+                            {
+                              "name": "page_id",
+                              "doc": "The upstream page's own id as it appears in url: vndb v17, s267, p24, c88; numeric for bangumi, erogamescape, howlongtobeat and steam. Present on identity links only. Not a ref external_id: a credit name's vndb ref is a staff alias id, while its link is the staff page.",
+                              "type": "string"
+                            },
                             {
                               "name": "source",
                               "required": true,
@@ -85686,11 +85952,22 @@ export const docsModel: DocsModel = {
                                             },
                                             {
                                               "name": "links",
-                                              "doc": "External pages for the linked person. Present when include=links, detail face only. Empty array if none.",
+                                              "doc": "External pages: this credited name's own upstream pages first (vndb staff, bangumi person, erogamescape creater), then the linked person's for any source the name has none of, then the person's related links. Present when include=links, detail face only. Empty array if none.",
                                               "type": "array",
                                               "itemsOf": {
                                                 "type": "object",
                                                 "children": [
+                                                  {
+                                                    "name": "is_identity",
+                                                    "required": true,
+                                                    "doc": "true: this entity's own page on an upstream catalog, minted from an exact anchor. false: a related web presence such as an official site, a social account or a store page. Identity links come first. Links are unique by address; of two sources naming the same page, the more specific one is kept.",
+                                                    "type": "boolean"
+                                                  },
+                                                  {
+                                                    "name": "page_id",
+                                                    "doc": "The upstream page's own id as it appears in url: vndb v17, s267, p24, c88; numeric for bangumi, erogamescape, howlongtobeat and steam. Present on identity links only. Not a ref external_id: a credit name's vndb ref is a staff alias id, while its link is the staff page.",
+                                                    "type": "string"
+                                                  },
                                                   {
                                                     "name": "source",
                                                     "required": true,
@@ -86468,6 +86745,17 @@ export const docsModel: DocsModel = {
                                   "itemsOf": {
                                     "type": "object",
                                     "children": [
+                                      {
+                                        "name": "is_identity",
+                                        "required": true,
+                                        "doc": "true: this entity's own page on an upstream catalog, minted from an exact anchor. false: a related web presence such as an official site, a social account or a store page. Identity links come first. Links are unique by address; of two sources naming the same page, the more specific one is kept.",
+                                        "type": "boolean"
+                                      },
+                                      {
+                                        "name": "page_id",
+                                        "doc": "The upstream page's own id as it appears in url: vndb v17, s267, p24, c88; numeric for bangumi, erogamescape, howlongtobeat and steam. Present on identity links only. Not a ref external_id: a credit name's vndb ref is a staff alias id, while its link is the staff page.",
+                                        "type": "string"
+                                      },
                                       {
                                         "name": "source",
                                         "required": true,
@@ -118303,11 +118591,22 @@ export const docsModel: DocsModel = {
                                         },
                                         {
                                           "name": "links",
-                                          "doc": "External pages for the linked person. Present when include=links, detail face only. Empty array if none.",
+                                          "doc": "External pages: this credited name's own upstream pages first (vndb staff, bangumi person, erogamescape creater), then the linked person's for any source the name has none of, then the person's related links. Present when include=links, detail face only. Empty array if none.",
                                           "type": "array",
                                           "itemsOf": {
                                             "type": "object",
                                             "children": [
+                                              {
+                                                "name": "is_identity",
+                                                "required": true,
+                                                "doc": "true: this entity's own page on an upstream catalog, minted from an exact anchor. false: a related web presence such as an official site, a social account or a store page. Identity links come first. Links are unique by address; of two sources naming the same page, the more specific one is kept.",
+                                                "type": "boolean"
+                                              },
+                                              {
+                                                "name": "page_id",
+                                                "doc": "The upstream page's own id as it appears in url: vndb v17, s267, p24, c88; numeric for bangumi, erogamescape, howlongtobeat and steam. Present on identity links only. Not a ref external_id: a credit name's vndb ref is a staff alias id, while its link is the staff page.",
+                                                "type": "string"
+                                              },
                                               {
                                                 "name": "source",
                                                 "required": true,
@@ -119085,6 +119384,17 @@ export const docsModel: DocsModel = {
                               "itemsOf": {
                                 "type": "object",
                                 "children": [
+                                  {
+                                    "name": "is_identity",
+                                    "required": true,
+                                    "doc": "true: this entity's own page on an upstream catalog, minted from an exact anchor. false: a related web presence such as an official site, a social account or a store page. Identity links come first. Links are unique by address; of two sources naming the same page, the more specific one is kept.",
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "name": "page_id",
+                                    "doc": "The upstream page's own id as it appears in url: vndb v17, s267, p24, c88; numeric for bangumi, erogamescape, howlongtobeat and steam. Present on identity links only. Not a ref external_id: a credit name's vndb ref is a staff alias id, while its link is the staff page.",
+                                    "type": "string"
+                                  },
                                   {
                                     "name": "source",
                                     "required": true,

@@ -292,7 +292,7 @@ func (s *PublicService) WorkLinks(ctx context.Context, id int64, nsfw bool, limi
 	if err != nil || !ok {
 		return dto.PublicWorkLinksData{}, false, err
 	}
-	rows, err := s.workLinks(ctx, id)
+	rows, err := s.entityLinks(ctx, model.EntityTypeWork, id)
 	if err != nil {
 		return dto.PublicWorkLinksData{}, false, err
 	}

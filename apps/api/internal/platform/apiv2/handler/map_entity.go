@@ -52,7 +52,7 @@ func companyFromDetail(rec dto.PublicLabel, include []string, logoURL string) re
 		case "intros":
 			out.Intros = ptrSlice(introsFrom(rec.Intros))
 		case "links":
-			out.Links = ptrSlice(labelLinksFrom(rec.Links))
+			out.Links = ptrSlice(linksFrom(rec.Links))
 		}
 	}
 	return out
@@ -66,14 +66,6 @@ func entityNamesFrom(in []dto.PublicAlias) []repr.EntityName {
 			kind = "spelling_variant"
 		}
 		out = append(out, repr.EntityName{Lang: a.Lang, Value: a.Value, AliasKind: kind, IsMachine: a.Machine})
-	}
-	return out
-}
-
-func labelLinksFrom(in []dto.PublicLabelLink) []repr.WorkLink {
-	out := make([]repr.WorkLink, 0, len(in))
-	for _, l := range in {
-		out = append(out, repr.WorkLink{Source: l.Source, URL: l.URL})
 	}
 	return out
 }
@@ -217,6 +209,8 @@ func characterFromRow(it catsvc.EntityListRow, include []string) repr.Character 
 			out.Intros = ptrSlice(introsFrom(it.Intros))
 		case "refs":
 			out.Refs = ptrSlice(refsFrom(it.Refs))
+		case "links":
+			out.Links = ptrSlice(linksFrom(it.Links))
 		}
 	}
 	out.MatchedTraitIDs = it.MatchedTraitIDs
@@ -314,6 +308,8 @@ func attachCharacterBlocks(out *repr.Character, rec dto.PublicCharacter, include
 			out.Intros = ptrSlice(introsFrom(rec.Intros))
 		case "refs":
 			out.Refs = ptrSlice(refsFrom(rec.Refs))
+		case "links":
+			out.Links = ptrSlice(linksFrom(rec.Links))
 		}
 	}
 }

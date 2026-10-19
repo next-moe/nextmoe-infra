@@ -100,7 +100,7 @@ type PublicCatalogWork struct {
 	Characters     []PublicRosterCharacter        `json:"characters"`
 	Labels         []PublicWorkLabel              `json:"labels"`
 	Engines        []PublicWorkEngine             `json:"engines"`
-	Links          []PublicWorkLink               `json:"links"`
+	Links          []PublicLink                   `json:"links"`
 	SeriesSiblings []PublicWorkBrief              `json:"series_siblings"`
 }
 
@@ -185,7 +185,7 @@ type PublicName struct {
 	BirthY      *int16                         `json:"birth_y,omitempty" doc:"fuzzy birth date, year; absent = not recorded at this precision"`
 	BirthM      *int16                         `json:"birth_m,omitempty" doc:"fuzzy birth date, month"`
 	BirthD      *int16                         `json:"birth_d,omitempty" doc:"fuzzy birth date, day"`
-	Links       []PublicPersonLink             `json:"links"`
+	Links       []PublicLink                   `json:"links"`
 	Intros      []PublicIntro                  `json:"intros"`
 	Refs        []PublicCatalogRef             `json:"refs"`
 	Credits     []PublicNameCredit             `json:"credits,omitempty"`
@@ -218,6 +218,7 @@ type PublicCharacter struct {
 	Localized   map[string]PublicLocalizedName `json:"localized" doc:"preferred name per locale, keyed by canonically-cased BCP-47 tag; {} when none. SPARSE by design — render localized[yourLocale] ?? display_name ?? latin, never a blank"`
 	Latin       string                         `json:"latin,omitempty"`
 	Refs        []PublicCatalogRef             `json:"refs"`
+	Links       []PublicLink                   `json:"links"`
 	Works       []PublicCharacterWork          `json:"works,omitempty"`
 	NextOffset  *int                           `json:"next_offset,omitempty"`
 	Traits      []PublicCharacterTrait         `json:"traits"`
@@ -233,11 +234,6 @@ type PublicLabelWork struct {
 	Kind string          `json:"kind"`
 }
 
-type PublicLabelLink struct {
-	Source string `json:"source"`
-	URL    string `json:"url"`
-}
-
 type PublicLabelRelation struct {
 	ID          int64                          `json:"id"`
 	DisplayName string                         `json:"display_name"`
@@ -249,11 +245,6 @@ type PublicLabelVia struct {
 	ID          int64                          `json:"id"`
 	DisplayName string                         `json:"display_name"`
 	Localized   map[string]PublicLocalizedName `json:"localized" doc:"preferred name per locale, keyed by canonically-cased BCP-47 tag; {} when none — render localized[yourLocale] ?? display_name"`
-}
-
-type PublicPersonLink struct {
-	Source string `json:"source"`
-	URL    string `json:"url"`
 }
 
 type PublicLabel struct {
@@ -270,7 +261,7 @@ type PublicLabel struct {
 	LogoMeta         *PublicImageMeta               `json:"logo_meta,omitempty" doc:"dimensions, thumbhash and grading of logo_hash; absent when there is no logo or the image service did not answer"`
 	Refs             []PublicCatalogRef             `json:"refs"`
 	Intros           []PublicIntro                  `json:"intros"`
-	Links            []PublicLabelLink              `json:"links"`
+	Links            []PublicLink                   `json:"links"`
 	Relations        []PublicLabelRelation          `json:"relations"`
 	Works            []PublicLabelWork              `json:"works,omitempty"`
 	NextOffset       *int                           `json:"next_offset,omitempty"`
@@ -389,9 +380,11 @@ type PublicWorkEngine struct {
 	WorkCount int    `json:"work_count"`
 }
 
-type PublicWorkLink struct {
-	Source string `json:"source"`
-	URL    string `json:"url"`
+type PublicLink struct {
+	Source   string `json:"source"`
+	URL      string `json:"url"`
+	Identity bool   `json:"is_identity"`
+	PageID   string `json:"page_id,omitempty"`
 }
 
 type PublicRelease struct {

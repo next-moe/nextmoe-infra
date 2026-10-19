@@ -168,7 +168,7 @@ func CreditNameSpec() Spec {
 func CharacterSpec() Spec {
 	full := []string{
 		"gender", "birthday", "height_cm", "weight_kg", "measurements", "blood_type", "instance_of_id",
-		"image", "figure", "traits", "aliases", "intros", "refs", "work_count",
+		"image", "figure", "traits", "aliases", "intros", "refs", "links", "work_count",
 	}
 	fields := []string{"object", "id", "display_name", "latin", "lang", "localized", "matched_trait_ids"}
 	fields = append(fields, full...)

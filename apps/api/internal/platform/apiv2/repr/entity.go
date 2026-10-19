@@ -76,7 +76,7 @@ type CreditName struct {
 	Photo       *Image                   `json:"photo,omitempty" doc:"Photograph of the linked person. Present only when include=photo and there is a photo; absent otherwise. Detail face only."`
 	Siblings    *[]CreditName            `json:"siblings,omitempty" doc:"The same person's other publicly linked names, as basic entries. Present when include=siblings, detail face only. Empty array if none."`
 	Intros      *[]Intro                 `json:"intros,omitempty" doc:"Biography of the linked person, one per language. Present when include=intros, detail face only. Empty array if none."`
-	Links       *[]WorkLink              `json:"links,omitempty" doc:"External pages for the linked person. Present when include=links, detail face only. Empty array if none."`
+	Links       *[]WorkLink              `json:"links,omitempty" doc:"External pages: this credited name's own upstream pages first (vndb staff, bangumi person, erogamescape creater), then the linked person's for any source the name has none of, then the person's related links. Present when include=links, detail face only. Empty array if none."`
 	Refs        *[]Ref                   `json:"refs,omitempty" doc:"Exact upstream anchors of this credited name. Present when include=refs, detail face only. Empty array if none."`
 }
 
@@ -98,6 +98,7 @@ type Character struct {
 	Image           *Image                   `json:"image,omitempty" doc:"Present only when include=image and this character has an image; absent otherwise."`
 	Figure          *Image                   `json:"figure,omitempty" doc:"Present only when include=figure and this character has a full-body figure cutout; absent otherwise."`
 	Traits          *[]CharacterTrait        `json:"traits,omitempty" doc:"Present when include=traits. Empty array if none."`
+	Links           *[]WorkLink              `json:"links,omitempty" doc:"This character's own pages on vndb, bangumi and erogamescape. Present when include=links. Empty array if none."`
 	Aliases         *[]EntityName            `json:"aliases,omitempty" doc:"Alternate spellings of THIS character name. Present when include=aliases. Empty array if none."`
 	Intros          *[]Intro                 `json:"intros,omitempty" doc:"Character descriptions, one per language. Present when include=intros. Empty array if none."`
 	Refs            *[]Ref                   `json:"refs,omitempty" doc:"Exact upstream anchors of this character. Present when include=refs. Empty array if none."`

@@ -100,9 +100,11 @@ type WorkCompany struct {
 }
 
 type WorkLink struct {
-	_      struct{} `json:"-" additionalProperties:"true"`
-	Source string   `json:"source" maxLength:"64" doc:"Open vocabulary sources. Must not be used as a discriminant."`
-	URL    string   `json:"url" format:"uri" maxLength:"1024" doc:"Absolute URL."`
+	_          struct{} `json:"-" additionalProperties:"true"`
+	Source     string   `json:"source" maxLength:"64" doc:"Open vocabulary sources. Must not be used as a discriminant."`
+	URL        string   `json:"url" format:"uri" maxLength:"1024" doc:"Absolute URL."`
+	IsIdentity bool     `json:"is_identity" doc:"true: this entity's own page on an upstream catalog, minted from an exact anchor. false: a related web presence such as an official site, a social account or a store page. Identity links come first. Links are unique by address; of two sources naming the same page, the more specific one is kept."`
+	PageID     *string  `json:"page_id,omitempty" pattern:"^[a-z]?[0-9]+$" maxLength:"64" doc:"The upstream page's own id as it appears in url: vndb v17, s267, p24, c88; numeric for bangumi, erogamescape, howlongtobeat and steam. Present on identity links only. Not a ref external_id: a credit name's vndb ref is a staff alias id, while its link is the staff page."`
 }
 
 type Rating struct {
