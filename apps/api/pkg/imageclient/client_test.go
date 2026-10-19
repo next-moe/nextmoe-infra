@@ -48,6 +48,7 @@ func TestClassifyErrorAndIsPermanent(t *testing.T) {
 		{60002, ErrModerationRejected, true},
 		{80008, ErrQuotaExceeded, false},
 		{80001, ErrUnauthorized, false},
+		{80007, ErrFileTooLarge, true},
 		{80012, nil, false},
 	}
 	for _, tc := range cases {
@@ -64,5 +65,10 @@ func TestClassifyErrorAndIsPermanent(t *testing.T) {
 		if got := IsPermanent(err); got != tc.permanent {
 			t.Errorf("code %d IsPermanent = %v, want %v", tc.code, got, tc.permanent)
 		}
+	}
+
+	bare := classifyError(&Error{StatusCode: http.StatusRequestEntityTooLarge, Code: 413, Message: "Request Entity Too Large"})
+	if !errors.Is(bare, ErrFileTooLarge) || !IsPermanent(bare) {
+		t.Errorf("a bare 413 from the body limit = %v, want a permanent ErrFileTooLarge", bare)
 	}
 }
