@@ -1061,6 +1061,48 @@ services:
         limits:
           memory: 1g
 
+  editor:
+    image: ghcr.io/next-moe/infra-editor:latest
+    pull_policy: always
+    environment:
+      NUXT_OAUTH_API_BASE_SSR: http://oauth:9277/api/v1
+      NUXT_CATALOG_API_BASE_SSR: http://catalog:9281
+      NUXT_PUBLIC_OAUTH_AUTHORIZE_BASE: https://account.nextmoe.com/api/v1
+      NUXT_PUBLIC_OAUTH_WEB_BASE: https://account.nextmoe.com
+      NUXT_PUBLIC_OAUTH_CLIENT_ID: nextmoe-editor
+      NUXT_PUBLIC_OAUTH_REDIRECT_URI: https://editor.nextmoe.com/auth/callback
+    expose: ["3000"]
+    depends_on:
+      oauth: { condition: service_started }
+      catalog: { condition: service_started }
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.infra-editor.rule: Host(`editor.nextmoe.com`)
+      traefik.http.routers.infra-editor.priority: "1"
+      traefik.http.routers.infra-editor.entrypoints: websecure
+      traefik.http.routers.infra-editor.tls.certresolver: letsencrypt
+      traefik.http.routers.infra-editor.service: infra-editor
+      traefik.http.routers.infra-editor-http.rule: Host(`editor.nextmoe.com`)
+      traefik.http.routers.infra-editor-http.priority: "1"
+      traefik.http.routers.infra-editor-http.entrypoints: web
+      traefik.http.routers.infra-editor-http.middlewares: redirect-to-https@file
+      traefik.http.routers.infra-editor-http.service: infra-editor
+      traefik.http.services.infra-editor.loadbalancer.server.port: "3000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('net').connect(3000,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))",
+        ]
+      <<: *svc-health
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
   # wiki (apps/wiki galgame-wiki frontend on wiki.kungal.com) RETIRED at E3b/W4;
   # the last /api router on that host (infra-wiki-api) RETIRED at open-api
   # phase 2 wave 05 (A3) — wiki.kungal.com now serves nothing and its DNS record
@@ -1092,7 +1134,9 @@ services:
   migrate:
     image: ghcr.io/next-moe/infra-migrate:latest
     pull_policy: always
-    environment: { <<: *infra-env }
+    environment:
+      <<: *infra-env
+      KUN_EDITOR_PUBLIC_URL: https://editor.nextmoe.com
     depends_on:
       postgres: { condition: service_healthy }
     restart: "no"
