@@ -98,11 +98,16 @@ var (
 	// backoff ladder per file (~90s) to learn nothing.
 	ErrMIMEDenied   = errors.New("imageclient: preset does not accept this format")
 	ErrDecodeFailed = errors.New("imageclient: image could not be decoded")
+	// The body limit in front of the handler answers a bare 413 (code 413)
+	// before the handler's own 80007: a 4.4 MB bangumi logo failed the weekly
+	// image-mirror run on 2026-10-19 as a transient error.
+	ErrFileTooLarge = errors.New("imageclient: file exceeds the upload size limit")
 	ErrUnauthorized = errors.New("imageclient: unauthorized")
 )
 
 func IsPermanent(err error) bool {
-	return errors.Is(err, ErrModerationRejected) || errors.Is(err, ErrMIMEDenied) || errors.Is(err, ErrDecodeFailed)
+	return errors.Is(err, ErrModerationRejected) || errors.Is(err, ErrMIMEDenied) ||
+		errors.Is(err, ErrDecodeFailed) || errors.Is(err, ErrFileTooLarge)
 }
 
 func classifyError(e *Error) error {
@@ -120,9 +125,13 @@ func classifyError(e *Error) error {
 		return fmt.Errorf("%w: %s", ErrMIMEDenied, e.Message)
 	case 80010:
 		return fmt.Errorf("%w: %s", ErrDecodeFailed, e.Message)
-	default:
-		return e
+	case 80007:
+		return fmt.Errorf("%w: %s", ErrFileTooLarge, e.Message)
 	}
+	if e.StatusCode == http.StatusRequestEntityTooLarge {
+		return fmt.Errorf("%w: %s", ErrFileTooLarge, e.Message)
+	}
+	return e
 }
 
 func (c *Client) Upload(ctx context.Context, r io.Reader, filename, presetName string) (*UploadResult, error) {
