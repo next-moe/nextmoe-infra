@@ -6,8 +6,6 @@ import (
 	"testing"
 
 	"api/internal/platform/editing"
-
-	"gorm.io/gorm"
 )
 
 const fOwned = "test.ownuser.name"
@@ -22,9 +20,6 @@ func ownUserSpec(entityType string, hook func(context.Context, int64) (*int64, e
 				return nil, editing.ErrEntityNotFound
 			}
 			return map[string]any{entityType + ".name": w.Name}, nil
-		},
-		Txn: func(ctx context.Context, fn func(tx *gorm.DB) error) error {
-			return testDB.WithContext(ctx).Transaction(fn)
 		},
 		OwnerUserID: hook,
 		DefaultPolicy: editing.Policy{

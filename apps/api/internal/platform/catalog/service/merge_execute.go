@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/repository"
+	"api/internal/platform/editing"
 
 	"gorm.io/gorm"
 )
@@ -136,6 +138,12 @@ func (s *MergeService) ExecuteMerge(ctx context.Context, proposalID int64, execu
 		if err := retireSource(tx, et, src); err != nil {
 			return fmt.Errorf("retire source: %w", err)
 		}
+		if editType, ok := editTypeOfFamily[et]; ok {
+			if err := editing.DeclineOpenProposals(tx, editType, src, executedBy,
+				fmt.Sprintf("条目已合并到 #%d，此提案随之关闭", dst)); err != nil {
+				return fmt.Errorf("close proposals: %w", err)
+			}
+		}
 
 		if err := repository.TouchWorks(ctx, tx, touched); err != nil {
 			return fmt.Errorf("touch works: %w", err)
@@ -146,6 +154,15 @@ func (s *MergeService) ExecuteMerge(ctx context.Context, proposalID int64, execu
 			"executed_at": time.Now(),
 		}).Error
 	})
+}
+
+// Every merge-able family that is also an editing type. A family missing here
+// keeps open proposals on its retired id, where nothing can merge them;
+// TestEditTypeOfFamilyCoversTheRegistry fails when the registry outgrows it.
+var editTypeOfFamily = map[int16]string{
+	model.EntityTypeWork:      editspec.TypeWork,
+	model.EntityTypeCharacter: editspec.TypeCharacter,
+	model.EntityTypeLabel:     editspec.TypeLabel,
 }
 
 func retireSource(tx *gorm.DB, entityType int16, src int64) error {

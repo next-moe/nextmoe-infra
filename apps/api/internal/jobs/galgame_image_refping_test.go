@@ -85,6 +85,22 @@ func TestRefpingEngineLaneMatchesBothKeySpellings(t *testing.T) {
 	assert.Len(t, got, 4, "no duplicates, nothing invented")
 }
 
+func TestRefpingKeepsACoverOnlyTheBaselineHolds(t *testing.T) {
+	db := openEditTestDB(t)
+	ctx := context.Background()
+
+	const hBase = "5555555555555555555555555555555555555555555555555555555555555555"
+	require.NoError(t, db.Exec(`
+		INSERT INTO edit_revision
+			(entity_family, entity_type, entity_id, seq, action, changed_fields, snapshot, baseline_snapshot, actor_uid, site, created_at)
+		VALUES ('catalog', 'catalog.work', 5, 1, 0, '["catalog.work.covers"]'::jsonb, ?::jsonb, ?::jsonb, 1, 'kungal', now())`,
+		`{"catalog.work.covers":[]}`, `{"catalog.work.covers":[{"image_hash":"`+hBase+`"}]}`).Error)
+
+	got, err := collectEditRefpingHashes(ctx, db)
+	require.NoError(t, err)
+	assert.Equal(t, []string{hBase}, got)
+}
+
 func TestRefpingEngineLaneSkipsOtherFamilies(t *testing.T) {
 	db := openEditTestDB(t)
 	ctx := context.Background()

@@ -125,9 +125,6 @@ func RegisterWork(reg *editing.Registry, db *gorm.DB) error {
 			}
 			return snapshot, nil
 		},
-		Txn: func(ctx context.Context, fn func(tx *gorm.DB) error) error {
-			return db.WithContext(ctx).Transaction(fn)
-		},
 		OnMerge: buildWorkOnMerge(db),
 		OwnerSite: func(ctx context.Context, entityID int64) (*string, error) {
 			var w catmodel.CatalogWork

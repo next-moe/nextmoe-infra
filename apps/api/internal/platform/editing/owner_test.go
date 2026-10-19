@@ -8,8 +8,6 @@ import (
 	"testing"
 
 	"api/internal/platform/editing"
-
-	"gorm.io/gorm"
 )
 
 func ownedSpec(ownerOf map[int64]*string, ownerErr error) editing.EntityTypeSpec {
@@ -22,9 +20,6 @@ func ownedSpec(ownerOf map[int64]*string, ownerErr error) editing.EntityTypeSpec
 				return nil, editing.ErrEntityNotFound
 			}
 			return map[string]any{"test.owned.name": w.Name}, nil
-		},
-		Txn: func(ctx context.Context, fn func(tx *gorm.DB) error) error {
-			return testDB.WithContext(ctx).Transaction(fn)
 		},
 		OwnerSite: func(ctx context.Context, id int64) (*string, error) {
 			if ownerErr != nil {

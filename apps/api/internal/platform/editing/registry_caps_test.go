@@ -30,7 +30,6 @@ func TestRegisterBackfillsEffectiveMaxSuppressed(t *testing.T) {
 	spec := editing.EntityTypeSpec{
 		Family: "test", Type: "test.caps",
 		LoadSnapshot: func(context.Context, int64) (map[string]any, error) { return map[string]any{}, nil },
-		Txn:          func(ctx context.Context, fn func(tx *gorm.DB) error) error { return fn(nil) },
 		DefaultPolicy: editing.Policy{
 			Propose: editing.ProposePerm(permPropose), Review: editing.ReviewPerm(permReview),
 			Automerge: editing.AutomergeNever,

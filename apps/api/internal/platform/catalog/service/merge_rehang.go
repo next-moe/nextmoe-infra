@@ -99,7 +99,7 @@ var mergeRefs = []mergeRef{
 var mergeRefExclusions = map[string]string{
 	"catalog_claim_event.work_id":                "append-only claim history, addressed to the id that was claimed",
 	"catalog_revision.entity_id":                 "append-only history; the merge writes its own revision rows on both sides",
-	"edit_proposal.entity_id":                    "editing history and open queue, addressed to the id that was actually edited",
+	"edit_proposal.entity_id":                    "editing history, addressed to the id that was actually edited; ExecuteMerge declines the open ones",
 	"edit_revision.entity_id":                    "editing history, addressed to the id that was actually edited",
 	"catalog_match_candidate.a_id":               "reconciliation queue about the source id; the matcher regenerates it",
 	"catalog_match_candidate.b_id":               "reconciliation queue about the source id; the matcher regenerates it",
@@ -252,7 +252,7 @@ func rehangStmts(reg *editing.Registry, p mergePlan) ([]mergeStmt, error) {
 			archiveDelete(p, "catalog_character_trait_link", "t.character_id = ?", src),
 			mergeStmt{`UPDATE catalog_character SET instance_of = ? WHERE instance_of = ?`, []any{dst, src}, false},
 		)
-		stmts = append(stmts, suppressedRowStmts(editspec.TypeCharacter, src, dst)...)
+		stmts = append(stmts, suppressedRowStmts(p, editspec.TypeCharacter)...)
 		stmts = append(stmts, identityFollowStmts(reg, editspec.TagCharacter, src, dst)...)
 		return append(stmts, entityRelationStmts(p)...), nil
 
@@ -300,8 +300,16 @@ func identityFollowStmts(reg *editing.Registry, entityTag string, src, dst int64
 	return out
 }
 
-func suppressedRowStmts(entityType string, src, dst int64) []mergeStmt {
+// Unmerge rebuilds the loser only from its snapshot and the archive, and every
+// suppression row here moves or is dropped, so a rebuilt work lost them all:
+// the archive keeps a copy of each, moved ones included (restoreSuppressedRow).
+func suppressedRowStmts(p mergePlan, entityType string) []mergeStmt {
+	src, dst := p.src, p.dst
 	return []mergeStmt{
+		{`INSERT INTO catalog_merge_archive (proposal_id, table_name, row)
+		    SELECT ?, '` + suppressedRowTable + `', to_jsonb(s) FROM edit_suppressed_row s
+		    WHERE s.entity_type = ? AND s.entity_id = ?`,
+			[]any{p.proposalID, entityType, src}, false},
 		{`UPDATE edit_suppressed_row s SET entity_id = ?
 		    WHERE s.entity_type = ? AND s.entity_id = ?
 		    AND NOT EXISTS (SELECT 1 FROM edit_suppressed_row x

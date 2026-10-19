@@ -164,9 +164,6 @@ func widgetSpec(db *gorm.DB) editing.EntityTypeSpec {
 				fOpen: w.OpenNote, fTrusted: w.TrustedNote, fLocked: w.LockedCode,
 			}, nil
 		},
-		Txn: func(ctx context.Context, fn func(tx *gorm.DB) error) error {
-			return db.WithContext(ctx).Transaction(fn)
-		},
 		DefaultPolicy: editing.Policy{
 			Propose:   editing.ProposePerm(permPropose),
 			Review:    editing.ReviewPerm(permReview),

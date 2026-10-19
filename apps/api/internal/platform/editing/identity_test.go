@@ -279,7 +279,7 @@ func TestIdentityFollowStmtsCoverEveryDeclaredRef(t *testing.T) {
 	base := widgetSpec(testDB)
 	second := editing.EntityTypeSpec{
 		Family: "test", Type: "test.gadget",
-		LoadSnapshot: base.LoadSnapshot, Txn: base.Txn, DefaultPolicy: base.DefaultPolicy,
+		LoadSnapshot: base.LoadSnapshot, DefaultPolicy: base.DefaultPolicy,
 		Fields: []editing.FieldSpec{listField("test.gadget.roster", &editing.IdentitySpec{
 			Segments: 3, KeyCheck: numericKeyCheck("roster", 3),
 			Refs: []editing.IdentityRef{{Segment: 2, EntityTag: tagCharacter}},

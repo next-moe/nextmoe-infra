@@ -70,12 +70,6 @@ func RegisterTaxonomy(reg *editing.Registry, db *gorm.DB) error {
 	return nil
 }
 
-func txnOn(db *gorm.DB) func(context.Context, func(*gorm.DB) error) error {
-	return func(ctx context.Context, fn func(tx *gorm.DB) error) error {
-		return db.WithContext(ctx).Transaction(fn)
-	}
-}
-
 func registerLabel(reg *editing.Registry, db *gorm.DB) error {
 	fields := []editing.FieldSpec{
 		{
@@ -131,7 +125,6 @@ func registerLabel(reg *editing.Registry, db *gorm.DB) error {
 				FieldLabelLinks:  links,
 			}, nil
 		},
-		Txn:           txnOn(db),
 		DefaultPolicy: taxonomyPolicy(),
 		SiteOverlays:  kungalTaxonomyOverlays(fields),
 		Fields:        fields,
@@ -166,7 +159,6 @@ func registerTag(reg *editing.Registry, db *gorm.DB) error {
 			}
 			return map[string]any{FieldTagIntros: intros}, nil
 		},
-		Txn:           txnOn(db),
 		DefaultPolicy: taxonomyPolicy(),
 		SiteOverlays:  kungalTaxonomyOverlays(fields),
 		Fields:        fields,
@@ -209,7 +201,6 @@ func registerEngine(reg *editing.Registry, db *gorm.DB) error {
 				FieldEngineAliases: aliases,
 			}, nil
 		},
-		Txn:           txnOn(db),
 		DefaultPolicy: taxonomyPolicy(),
 		SiteOverlays:  kungalTaxonomyOverlays(fields),
 		Fields:        fields,
@@ -252,7 +243,6 @@ func registerSeries(reg *editing.Registry, db *gorm.DB) error {
 				FieldSeriesIntros: intros,
 			}, nil
 		},
-		Txn:           txnOn(db),
 		DefaultPolicy: taxonomyPolicy(),
 		SiteOverlays:  kungalTaxonomyOverlays(fields),
 		Fields:        fields,

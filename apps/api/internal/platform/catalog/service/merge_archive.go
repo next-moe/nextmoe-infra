@@ -71,6 +71,18 @@ func restoreArchive(tx *gorm.DB, p *model.CatalogMergeProposal, newID int64) (Ar
 			}
 			cols[r.Table] = names
 		}
+		if r.Table == suppressedRowTable {
+			ok, err := restoreSuppressedRow(tx, r.Row, p, newID)
+			if err != nil {
+				return out, nil, fmt.Errorf("restore archive row %d (%s): %w", r.ID, r.Table, err)
+			}
+			if !ok {
+				out.Skipped = append(out.Skipped, ArchiveSkip{r.ID, r.Table, skipCollides})
+				continue
+			}
+			out.Restored[r.Table]++
+			continue
+		}
 		refs := restoreRefs(r.Table, p.EntityType)
 		if len(refs) == 0 || len(cols[r.Table]) == 0 {
 			out.Skipped = append(out.Skipped, ArchiveSkip{r.ID, r.Table, skipSurvivorSide})
@@ -88,6 +100,19 @@ func restoreArchive(tx *gorm.DB, p *model.CatalogMergeProposal, newID int64) (Ar
 		touched = append(touched, rowWorkIDs(r.Row, p.EntityType, p.SourceEntityID, newID)...)
 	}
 	return out, touched, nil
+}
+
+const suppressedRowTable = "edit_suppressed_row"
+
+// A moved suppression row still owns the id its archived copy carries, so the
+// id-preserving restoreRow would skip every one of them as a collision.
+func restoreSuppressedRow(tx *gorm.DB, row string, p *model.CatalogMergeProposal, newID int64) (bool, error) {
+	res := tx.Exec(`INSERT INTO edit_suppressed_row (entity_type, entity_id, field_key, identity_key, created_at)
+		SELECT t.entity_type, ?, t.field_key, t.identity_key, t.created_at
+		FROM jsonb_populate_record(NULL::edit_suppressed_row, ?::jsonb) t
+		WHERE t.entity_id = ?
+		ON CONFLICT DO NOTHING`, newID, row, p.SourceEntityID)
+	return res.RowsAffected > 0, res.Error
 }
 
 func restoreRefs(table string, entityType int16) []mergeRef {

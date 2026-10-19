@@ -275,6 +275,9 @@ func (e *Engine) Diff(ctx context.Context, entityType string, entityID int64, fr
 }
 
 func (e *Engine) revisionAt(ctx context.Context, spec *EntityTypeSpec, entityID int64, seq int) (*Revision, error) {
+	if seq == 0 {
+		return e.baselineRevision(ctx, spec, entityID)
+	}
 	var rev Revision
 	err := e.db.WithContext(ctx).
 		Where("entity_family = ? AND entity_type = ? AND entity_id = ? AND seq = ?",
@@ -287,6 +290,20 @@ func (e *Engine) revisionAt(ctx context.Context, spec *EntityTypeSpec, entityID 
 		return nil, err
 	}
 	return &rev, nil
+}
+
+func (e *Engine) baselineRevision(ctx context.Context, spec *EntityTypeSpec, entityID int64) (*Revision, error) {
+	first, err := e.revisionAt(ctx, spec, entityID, 1)
+	if err != nil {
+		return nil, err
+	}
+	if len(first.BaselineSnapshot) == 0 {
+		return nil, ErrRevisionNotFound
+	}
+	return &Revision{
+		EntityFamily: first.EntityFamily, EntityType: first.EntityType, EntityID: first.EntityID,
+		Seq: 0, Snapshot: first.BaselineSnapshot, CreatedAt: first.CreatedAt,
+	}, nil
 }
 
 type FieldProjection struct {
