@@ -224,7 +224,7 @@ func TestFillRelabelsTheByteIdenticalLegacyRow(t *testing.T) {
 	clean(t)
 	reg, err := resolveRegistry(context.Background(), testDB)
 	require.NoError(t, err)
-	curated := sourceID(t, "curated")
+	upscale := sourceID(t, "upscale")
 
 	var jpg bytes.Buffer
 	require.NoError(t, jpeg.Encode(&jpg, image.NewRGBA(image.Rect(0, 0, 12, 16)), nil))
@@ -234,7 +234,7 @@ func TestFillRelabelsTheByteIdenticalLegacyRow(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(mirror, rel), jpg.Bytes(), 0o644))
 
 	id := mkWork(t, reg, "wiki-clone")
-	mkCover(t, id, curated, "", "official-hash")
+	mkCover(t, id, upscale, "", "official-hash")
 
 	row := planRow{
 		WorkID: id, VNDBID: "v12306",
@@ -264,6 +264,46 @@ func TestFillRelabelsTheByteIdenticalLegacyRow(t *testing.T) {
 	assert.Equal(t, 1, rerun.stats.Dedup, "an already-vndb row must count as dedup on re-run")
 	assert.Zero(t, rerun.stats.Uploaded)
 	assert.Empty(t, rerun.touched)
+}
+
+func TestFillLeavesAByteIdenticalCuratedRowAlone(t *testing.T) {
+	clean(t)
+	reg, err := resolveRegistry(context.Background(), testDB)
+	require.NoError(t, err)
+	curated := sourceID(t, "curated")
+
+	var jpg bytes.Buffer
+	require.NoError(t, jpeg.Encode(&jpg, image.NewRGBA(image.Rect(0, 0, 12, 16)), nil))
+	mirror := t.TempDir()
+	rel := filepath.Join("cv", "08", "12308.jpg")
+	require.NoError(t, os.MkdirAll(filepath.Join(mirror, filepath.Dir(rel)), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(mirror, rel), jpg.Bytes(), 0o644))
+
+	id := mkWork(t, reg, "editor-upload")
+	require.NoError(t, testDB.Create(&model.CatalogWorkCover{
+		WorkID: id, ImageHash: "official-hash", Kind: "", SourceID: curated, Sexual: 2, Violence: 1,
+	}).Error)
+
+	row := planRow{
+		WorkID: id, VNDBID: "v12308",
+		Img: &vnImage{URL: "https://t.vndb.org/cv/08/12308.jpg", Dims: []int{12, 16}, Sexual: 0, Violence: 0},
+	}
+	r := &runner{db: testDB, cli: &stubUploader{fixed: "official-hash"}, sourceID: reg.vndbSource,
+		curatedSource: curated, imageDir: mirror, stats: &Stats{}}
+	r.fill(context.Background(), row)
+
+	var rows []model.CatalogWorkCover
+	require.NoError(t, testDB.Where("work_id = ?", id).Find(&rows).Error)
+	require.Len(t, rows, 1)
+	got := rows[0]
+	assert.Equal(t, curated, got.SourceID, "an editor's cover stays in the curated lane")
+	assert.Equal(t, "", got.Kind)
+	assert.Equal(t, int16(2), got.Sexual, "the grading a person set survives")
+	assert.Equal(t, int16(1), got.Violence)
+	assert.False(t, got.PortraitPinned)
+	assert.Zero(t, r.stats.Uploaded)
+	assert.Equal(t, 1, r.stats.Dedup)
+	assert.Empty(t, r.touched)
 }
 
 // The relabel re-run ended dedup=26: for those works vndb's main cover is

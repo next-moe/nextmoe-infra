@@ -8,6 +8,7 @@ import (
 	"sort"
 	"time"
 
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/repository"
 
 	"gorm.io/gorm"
@@ -16,7 +17,8 @@ import (
 const bangumiSourceID = 3
 
 type stats struct {
-	Moved, Deleted, Works int
+	Moved, Deleted, Works                  int
+	SuppressionsMoved, SuppressionsDropped int
 }
 
 type creditRow struct {
@@ -87,6 +89,12 @@ func run(ctx context.Context, db *gorm.DB, gameRoleToShared map[int64]int64, app
 			}
 			st.Moved += len(moveIDs)
 			st.Deleted += len(deleteIDs)
+			carried, dropped, err := carrySuppressions(tx, shared, moveIDs, deleteIDs, apply)
+			if err != nil {
+				return err
+			}
+			st.SuppressionsMoved += carried
+			st.SuppressionsDropped += dropped
 			if !apply {
 				continue
 			}
@@ -112,4 +120,49 @@ func run(ctx context.Context, db *gorm.DB, gameRoleToShared map[int64]int64, app
 		return repository.TouchWorks(ctx, tx, ids)
 	})
 	return st, err
+}
+
+// carrySuppressions runs before the credits change, while catalog_credit still
+// holds the old role_id the suppression keys were built from. A moved credit's
+// suppression is re-keyed to the shared role; a twin-deleted credit's is
+// dropped, because the twin was visible when the credit was hidden.
+func carrySuppressions(tx *gorm.DB, shared int64, moveIDs, deleteIDs []int64, apply bool) (carried, dropped int, err error) {
+	all := append(append([]int64{}, moveIDs...), deleteIDs...)
+	if len(all) == 0 {
+		return 0, 0, nil
+	}
+	oldKey := editspec.CreditIdentitySQL("c")
+	newKey := `('credit:' || ?::bigint || ':' || c.credit_name_id || ':' || COALESCE(c.character_id, 0))`
+	onCredit := `esr.entity_type = ? AND esr.field_key = ? AND esr.entity_id = c.work_id AND esr.identity_key = ` + oldKey
+	newKeyFree := `NOT EXISTS (SELECT 1 FROM edit_suppressed_row x
+		WHERE x.entity_type = esr.entity_type AND x.entity_id = esr.entity_id
+		  AND x.field_key = esr.field_key AND x.identity_key = ` + newKey + `)`
+
+	var total, movable int64
+	if err := tx.Raw(`SELECT count(*) FROM edit_suppressed_row esr JOIN catalog_credit c ON `+onCredit+`
+		WHERE c.id IN ?`, editspec.TypeWork, editspec.FieldWorkCredits, all).Scan(&total).Error; err != nil {
+		return 0, 0, err
+	}
+	if len(moveIDs) > 0 {
+		if err := tx.Raw(`SELECT count(*) FROM edit_suppressed_row esr JOIN catalog_credit c ON `+onCredit+`
+			WHERE c.id IN ? AND `+newKeyFree,
+			editspec.TypeWork, editspec.FieldWorkCredits, moveIDs, shared).Scan(&movable).Error; err != nil {
+			return 0, 0, err
+		}
+	}
+	if apply {
+		if len(moveIDs) > 0 {
+			if err := tx.Exec(`UPDATE edit_suppressed_row esr SET identity_key = `+newKey+`
+				FROM catalog_credit c WHERE `+onCredit+` AND c.id IN ? AND `+newKeyFree,
+				shared, editspec.TypeWork, editspec.FieldWorkCredits, moveIDs, shared).Error; err != nil {
+				return 0, 0, err
+			}
+		}
+		if err := tx.Exec(`DELETE FROM edit_suppressed_row esr USING catalog_credit c
+			WHERE `+onCredit+` AND c.id IN ?`,
+			editspec.TypeWork, editspec.FieldWorkCredits, all).Error; err != nil {
+			return 0, 0, err
+		}
+	}
+	return int(movable), int(total - movable), nil
 }

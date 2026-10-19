@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"time"
 
+	"api/internal/platform/provenance"
+
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -34,11 +36,6 @@ type charState struct {
 	FieldProvenance datatypes.JSON `gorm:"column:field_provenance"`
 }
 
-type provEntry struct {
-	Source string `json:"source"`
-	At     string `json:"at"`
-}
-
 type charWriter struct {
 	source      string
 	now         string
@@ -55,21 +52,12 @@ func newCharWriter(source, now string, prov datatypes.JSON) *charWriter {
 	return &charWriter{source: source, now: now, provDoc: doc, updates: map[string]any{}}
 }
 
-func (w *charWriter) latestWriter(col string) string {
-	raw, ok := w.provDoc[col]
-	if !ok {
-		return ""
-	}
-	var arr []provEntry
-	if json.Unmarshal(raw, &arr) != nil || len(arr) == 0 {
-		return ""
-	}
-	return arr[0].Source
-}
-
 func (w *charWriter) decide(col string, curNil, equal bool) bool {
-	latest := w.latestWriter(col)
+	latest := provenance.Head(w.provDoc[col])
 	if equal && latest == w.source {
+		return false
+	}
+	if provenance.IsHuman(latest) {
 		return false
 	}
 	if curNil {
@@ -83,14 +71,7 @@ func (w *charWriter) decide(col string, curNil, equal bool) bool {
 }
 
 func (w *charWriter) recordProv(col string) {
-	entry, _ := json.Marshal(provEntry{Source: w.source, At: w.now})
-	var arr []json.RawMessage
-	if raw, ok := w.provDoc[col]; ok {
-		_ = json.Unmarshal(raw, &arr)
-	}
-	arr = append([]json.RawMessage{entry}, arr...)
-	merged, _ := json.Marshal(arr)
-	w.provDoc[col] = merged
+	provenance.Prepend(w.provDoc, col, w.source, w.now)
 	w.touchedProv = true
 }
 

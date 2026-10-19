@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"api/internal/platform/provenance"
 	"api/pkg/imageclient"
 
 	"gorm.io/datatypes"
@@ -123,7 +124,7 @@ func TestMergeProvenancePrependsAndPreservesOtherFields(t *testing.T) {
 	cur := datatypes.JSON(`{"display_name":[{"source":"vndb","at":"2020-01-01T00:00:00Z"}],"logo_hash":[{"source":"cien","at":"2021-01-01T00:00:00Z"}]}`)
 	out := mergeProvenance(cur, "bangumi", "2026-08-05T00:00:00Z")
 
-	var doc map[string][]provEntry
+	var doc map[string][]provenance.Entry
 	if err := json.Unmarshal(out, &doc); err != nil {
 		t.Fatalf("unmarshal merged provenance: %v", err)
 	}
@@ -149,7 +150,7 @@ func TestMergeProvenanceFromEmptyAndUnreadable(t *testing.T) {
 		"unreadable": datatypes.JSON(`not json at all`),
 	} {
 		out := mergeProvenance(cur, "cien", "2026-08-05T00:00:00Z")
-		var doc map[string][]provEntry
+		var doc map[string][]provenance.Entry
 		if err := json.Unmarshal(out, &doc); err != nil {
 			t.Fatalf("%s: unmarshal: %v", name, err)
 		}
