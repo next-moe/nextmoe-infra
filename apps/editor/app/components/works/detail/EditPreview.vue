@@ -40,9 +40,19 @@ const mark = (value: boolean | undefined) =>
       color="primary"
       variant="flat"
       icon="lucide:info"
-      title="编辑器即将开放"
-      description="下面是这部作品当前开放编辑的字段，以及你在每个字段上的权限。可以直接提交、需要审核或仅可查看，都以资料库的实时判定为准。"
-    />
+      title="编辑这部作品"
+      description="下面是这部作品开放编辑的字段，以及你在每个字段上的权限。可以直接生效、需要审核或仅可查看，都以资料库的实时判定为准。"
+    >
+      <KunButton
+        :href="`/works/${props.workId}/edit`"
+        color="primary"
+        size="sm"
+        class="mt-2"
+      >
+        <KunIcon name="lucide:pencil" class="size-4" />
+        打开编辑器
+      </KunButton>
+    </KunInfo>
 
     <WorksDetailSection title="可编辑字段" :count="rows.length">
       <KunLoading v-if="pending" spinner />

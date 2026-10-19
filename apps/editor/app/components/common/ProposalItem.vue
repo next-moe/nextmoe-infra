@@ -5,6 +5,7 @@ import { PROPOSAL_STATE, SITE_LABELS } from '~/constants/catalog'
 const props = defineProps<{
   proposal: CatalogProposal
   name: string
+  to?: string
 }>()
 
 const state = computed(
@@ -39,7 +40,11 @@ const state = computed(
         {{ props.proposal.note }}
       </p>
       <p class="text-default-400 mt-1 text-xs">
-        提案 #{{ props.proposal.id }} ·
+        <NuxtLink v-if="props.to" :to="props.to" class="hover:text-primary">
+          提案 #{{ props.proposal.id }}
+        </NuxtLink>
+        <template v-else>提案 #{{ props.proposal.id }}</template>
+        ·
         {{ labelOf(SITE_LABELS, props.proposal.site) }} ·
         <time
           :datetime="props.proposal.created_at"

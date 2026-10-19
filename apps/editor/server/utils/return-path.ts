@@ -19,5 +19,6 @@ export const safeReturnPath = (raw: unknown) => {
   if (url.pathname === '/auth' || url.pathname.startsWith('/auth/')) {
     return FALLBACK
   }
+  url.searchParams.delete('login_hint')
   return `${url.pathname}${url.search}${url.hash}`
 }
