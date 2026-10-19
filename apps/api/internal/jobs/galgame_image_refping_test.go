@@ -101,6 +101,32 @@ func TestRefpingKeepsACoverOnlyTheBaselineHolds(t *testing.T) {
 	assert.Equal(t, []string{hBase}, got)
 }
 
+func TestRefpingKeepsScalarImageFieldsAlive(t *testing.T) {
+	db := openEditTestDB(t)
+	ctx := context.Background()
+
+	const (
+		hPortrait = "4444444444444444444444444444444444444444444444444444444444444444"
+		hFigure   = "3333333333333333333333333333333333333333333333333333333333333333"
+		hLogo     = "2222222222222222222222222222222222222222222222222222222222222222"
+	)
+	require.NoError(t, db.Exec(`
+		INSERT INTO edit_revision
+			(entity_family, entity_type, entity_id, seq, action, changed_fields, snapshot, baseline_snapshot, actor_uid, site, created_at)
+		VALUES ('catalog', 'catalog.character', 7, 1, 0, '["catalog.character.image_hash"]'::jsonb, ?::jsonb, ?::jsonb, 1, 'kungal', now())`,
+		`{"catalog.character.image_hash":null,"catalog.character.figure_hash":"`+hFigure+`"}`,
+		`{"catalog.character.image_hash":"`+hPortrait+`"}`).Error)
+	require.NoError(t, db.Exec(`
+		INSERT INTO edit_proposal
+			(entity_family, entity_type, entity_id, base_revision_seq, patch, proposer_uid, note, site, status, decision_note, created_at, updated_at)
+		VALUES ('catalog', 'catalog.label', 8, 0, ?::jsonb, 1, '', 'kungal', 0, '', now(), now())`,
+		`{"catalog.label.logo_hash":"`+hLogo+`"}`).Error)
+
+	got, err := collectEditRefpingHashes(ctx, db)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{hPortrait, hFigure, hLogo}, got)
+}
+
 func TestRefpingEngineLaneSkipsOtherFamilies(t *testing.T) {
 	db := openEditTestDB(t)
 	ctx := context.Background()

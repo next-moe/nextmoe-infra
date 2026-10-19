@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"api/internal/infrastructure/database"
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 
 	"gorm.io/gorm"
@@ -247,6 +248,7 @@ func runLinks(ctx context.Context, db *gorm.DB, opts Opts, st *Stats) error {
 		JOIN catalog_external_ref r ON r.entity_type = 4 AND r.source_id = 2
 			AND r.link_kind = 0 AND r.external_id = ct.id
 		LEFT JOIN catalog_character_trait t ON t.vndb_tid = ct.tid
+		WHERE NOT ` + editspec.CharacterTraitSuppressedSQL("r.entity_id", "t.id") + `
 		ORDER BY r.entity_id, ct.tid, r.external_id`).Rows()
 	if err != nil {
 		return fmt.Errorf("stream links: %w", err)
@@ -293,7 +295,8 @@ func runLinks(ctx context.Context, db *gorm.DB, opts Opts, st *Stats) error {
 		}
 		sb.WriteString(` ON CONFLICT (character_id, trait_id) DO UPDATE SET
 			spoiler_level = EXCLUDED.spoiler_level, lie = EXCLUDED.lie, updated_at = now()
-			WHERE (catalog_character_trait_link.spoiler_level, catalog_character_trait_link.lie)
+			WHERE ` + editspec.NotCuratedLaneSQL("catalog_character_trait_link.source_id") + `
+			  AND (catalog_character_trait_link.spoiler_level, catalog_character_trait_link.lie)
 			    IS DISTINCT FROM (EXCLUDED.spoiler_level, EXCLUDED.lie)`)
 		res := db.WithContext(ctx).Exec(sb.String(), args...)
 		if res.Error != nil {

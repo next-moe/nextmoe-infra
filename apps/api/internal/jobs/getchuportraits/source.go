@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"api/internal/jobs/getchuchars"
+	"api/internal/platform/catalog/editspec"
 
 	"gorm.io/gorm"
 )
@@ -98,7 +99,7 @@ func loadPlates(ctx context.Context, gdb *gorm.DB, slot Slot) (map[nameplateKey]
 func loadUnfilled(ctx context.Context, db *gorm.DB, slot Slot, ids []int64) (map[int64]bool, error) {
 	out := map[int64]bool{}
 	q := fmt.Sprintf(`SELECT id FROM catalog_character
-		 WHERE id IN ? AND deleted_at IS NULL AND %s IS NULL`, slot.TargetColumn)
+		 WHERE id IN ? AND deleted_at IS NULL AND %s IS NULL`, slot.TargetColumn) + " AND " + editspec.NotHumanFieldSQL("field_provenance", slot.TargetColumn)
 	for i := 0; i < len(ids); i += 5000 {
 		batch := ids[i:min(i+5000, len(ids))]
 		var got []int64

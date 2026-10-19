@@ -25,6 +25,7 @@ var (
 	labelAliasSource = aliasSource{
 		table: "catalog_label_alias", ownerCol: "label_id",
 		ownerTable: "catalog_label", ownerNameCol: "display_name",
+		live: editspec.NotSuppressedLabelAliasSQL("a"),
 	}
 	characterAliasSource = aliasSource{
 		table: "catalog_character_alias", ownerCol: "character_id",

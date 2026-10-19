@@ -136,6 +136,15 @@ WITH all_hashes AS (
         WHERE p.entity_type IN ('galgame.game', 'catalog.work')
           AND jsonb_typeof(p.patch->k) = 'array'
     UNION
+    SELECT doc->>k
+        FROM (SELECT r.snapshot AS doc FROM edit_revision r
+              UNION ALL SELECT r.baseline_snapshot FROM edit_revision r WHERE r.baseline_snapshot IS NOT NULL
+              UNION ALL SELECT p.patch FROM edit_proposal p) d,
+             LATERAL unnest(ARRAY[
+            'catalog.character.image_hash', 'catalog.character.figure_hash',
+            'catalog.label.logo_hash']) AS k
+        WHERE jsonb_typeof(doc->k) = 'string'
+    UNION
     -- legacy_meta is the archived OLD-wire snapshot, whose keys are bare
     -- ('covers' / 'screenshots') and are not rewritten by the rekey.
     SELECT (jsonb_array_elements(p.legacy_meta->'snapshot'->k))->>'image_hash'

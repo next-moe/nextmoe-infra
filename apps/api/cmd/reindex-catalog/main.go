@@ -217,7 +217,7 @@ func reindexLabels(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer,
 	if err != nil {
 		return err
 	}
-	aliases, err := loadAliasTable(db, "catalog_label_alias", "label_id", "")
+	aliases, err := loadAliasTable(db, "catalog_label_alias", "label_id", editspec.NotSuppressedLabelAliasSQL("a"))
 	if err != nil {
 		return err
 	}
