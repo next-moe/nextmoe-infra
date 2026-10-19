@@ -35,6 +35,7 @@ var (
 	creditNameAliasSource = aliasSource{
 		table: "catalog_name_alias", ownerCol: "credit_name_id",
 		ownerTable: "catalog_credit_name", ownerNameCol: "name",
+		live: editspec.NotSuppressedNameAliasSQL("a"),
 	}
 )
 

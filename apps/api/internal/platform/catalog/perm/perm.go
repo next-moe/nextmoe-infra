@@ -26,6 +26,11 @@ const (
 	EditReleaseReview authz.Permission = "edit.catalog.release.review"
 )
 
+const (
+	EditPerson       authz.Permission = "edit.catalog.person"
+	EditPersonReview authz.Permission = "edit.catalog.person.review"
+)
+
 const EditTrusted authz.Permission = "catalog.edit.trusted"
 
 // ClaimTrusted is deliberately not implied by EditTrusted: the two were one key
@@ -39,9 +44,9 @@ const FolderModerate authz.Permission = "catalog.folder.moderate"
 
 const EditPolicyManage authz.Permission = "edit.policy.manage"
 
-var editProposePerms = []authz.Permission{EditWork, EditTaxonomy, EditCharacter, EditRelease}
+var editProposePerms = []authz.Permission{EditWork, EditTaxonomy, EditCharacter, EditRelease, EditPerson}
 
-var editReviewPerms = []authz.Permission{EditWorkReview, EditTaxonomyReview, EditCharacterReview, EditReleaseReview}
+var editReviewPerms = []authz.Permission{EditWorkReview, EditTaxonomyReview, EditCharacterReview, EditReleaseReview, EditPersonReview}
 
 var editorPerms = append(append([]authz.Permission{}, editProposePerms...), EditTrusted)
 

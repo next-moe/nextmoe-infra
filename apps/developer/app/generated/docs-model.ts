@@ -38158,7 +38158,7 @@ export const docsModel: DocsModel = {
                   "in": "query",
                   "required": false,
                   "type": "string",
-                  "doc": "Closed family filter: work, company, character, release, tag, engine, series."
+                  "doc": "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."
                 },
                 {
                   "name": "entity_id",
@@ -38401,7 +38401,9 @@ export const docsModel: DocsModel = {
                                 "release",
                                 "tag",
                                 "engine",
-                                "series"
+                                "series",
+                                "person",
+                                "credit_name"
                               ],
                               "type": "string"
                             },
@@ -39887,7 +39889,9 @@ export const docsModel: DocsModel = {
                           "release",
                           "tag",
                           "engine",
-                          "series"
+                          "series",
+                          "person",
+                          "credit_name"
                         ],
                         "type": "string"
                       },
@@ -45915,7 +45919,7 @@ export const docsModel: DocsModel = {
                   "in": "query",
                   "required": false,
                   "type": "string",
-                  "doc": "Closed family filter: work, company, character, release, tag, engine, series."
+                  "doc": "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."
                 },
                 {
                   "name": "entity_id",
@@ -46120,7 +46124,9 @@ export const docsModel: DocsModel = {
                                 "release",
                                 "tag",
                                 "engine",
-                                "series"
+                                "series",
+                                "person",
+                                "credit_name"
                               ],
                               "type": "string"
                             }
@@ -47575,7 +47581,9 @@ export const docsModel: DocsModel = {
                           "release",
                           "tag",
                           "engine",
-                          "series"
+                          "series",
+                          "person",
+                          "credit_name"
                         ],
                         "type": "string"
                       }
@@ -51976,7 +51984,9 @@ export const docsModel: DocsModel = {
                     "release",
                     "tag",
                     "engine",
-                    "series"
+                    "series",
+                    "person",
+                    "credit_name"
                   ]
                 }
               ],
@@ -52224,7 +52234,9 @@ export const docsModel: DocsModel = {
                           "release",
                           "tag",
                           "engine",
-                          "series"
+                          "series",
+                          "person",
+                          "credit_name"
                         ],
                         "type": "string"
                       }
@@ -135351,7 +135363,9 @@ export const docsModel: DocsModel = {
                     "release",
                     "tag",
                     "engine",
-                    "series"
+                    "series",
+                    "person",
+                    "credit_name"
                   ]
                 },
                 {
@@ -135476,7 +135490,9 @@ export const docsModel: DocsModel = {
                           "release",
                           "tag",
                           "engine",
-                          "series"
+                          "series",
+                          "person",
+                          "credit_name"
                         ],
                         "type": "string"
                       }
@@ -136879,7 +136895,7 @@ export const docsModel: DocsModel = {
               "method": "post",
               "path": "/v2/me/edit-images",
               "summary": "Upload an image for an edit proposal",
-              "description": "multipart/form-data with preset and file. Returns the hash an edit proposal carries in a cover or screenshot row. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.",
+              "description": "multipart/form-data with preset and file. Returns the hash an edit proposal carries in a cover or screenshot row, or in a person's photo field. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -136938,7 +136954,8 @@ export const docsModel: DocsModel = {
                         "doc": "Which editor slot these bytes were sized for.",
                         "enum": [
                           "cover",
-                          "screenshot"
+                          "screenshot",
+                          "photo"
                         ],
                         "type": "string"
                       },
@@ -181438,7 +181455,7 @@ export const docsModel: DocsModel = {
                   "in": "query",
                   "required": false,
                   "type": "string",
-                  "doc": "Closed family filter: work, company, character, release, tag, engine, series."
+                  "doc": "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."
                 },
                 {
                   "name": "entity_type",
@@ -181667,7 +181684,9 @@ export const docsModel: DocsModel = {
                                 "release",
                                 "tag",
                                 "engine",
-                                "series"
+                                "series",
+                                "person",
+                                "credit_name"
                               ],
                               "type": "string"
                             },
@@ -183336,7 +183355,9 @@ export const docsModel: DocsModel = {
                           "release",
                           "tag",
                           "engine",
-                          "series"
+                          "series",
+                          "person",
+                          "credit_name"
                         ],
                         "type": "string"
                       },
@@ -185463,7 +185484,9 @@ export const docsModel: DocsModel = {
                           "release",
                           "tag",
                           "engine",
-                          "series"
+                          "series",
+                          "person",
+                          "credit_name"
                         ],
                         "type": "string"
                       },
@@ -187089,7 +187112,9 @@ export const docsModel: DocsModel = {
                           "release",
                           "tag",
                           "engine",
-                          "series"
+                          "series",
+                          "person",
+                          "credit_name"
                         ],
                         "type": "string"
                       },
@@ -189242,7 +189267,9 @@ export const docsModel: DocsModel = {
                           "release",
                           "tag",
                           "engine",
-                          "series"
+                          "series",
+                          "person",
+                          "credit_name"
                         ],
                         "type": "string"
                       },
@@ -221378,7 +221405,7 @@ export const docsModel: DocsModel = {
                   "in": "query",
                   "required": false,
                   "type": "string",
-                  "doc": "Closed family filter: work, company, character, release, tag, engine, series."
+                  "doc": "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."
                 },
                 {
                   "name": "entity_type",
@@ -221607,7 +221634,9 @@ export const docsModel: DocsModel = {
                                 "release",
                                 "tag",
                                 "engine",
-                                "series"
+                                "series",
+                                "person",
+                                "credit_name"
                               ],
                               "type": "string"
                             },
@@ -223259,7 +223288,9 @@ export const docsModel: DocsModel = {
                           "release",
                           "tag",
                           "engine",
-                          "series"
+                          "series",
+                          "person",
+                          "credit_name"
                         ],
                         "type": "string"
                       },
@@ -228315,7 +228346,9 @@ export const docsModel: DocsModel = {
                           "release",
                           "tag",
                           "engine",
-                          "series"
+                          "series",
+                          "person",
+                          "credit_name"
                         ],
                         "type": "string"
                       },
@@ -230254,7 +230287,7 @@ export const docsModel: DocsModel = {
                   "in": "path",
                   "required": true,
                   "type": "string",
-                  "doc": "Family: work, company, character, release, tag, engine, series."
+                  "doc": "Family: work, company, character, release, tag, engine, series, person, credit_name."
                 },
                 {
                   "name": "id",

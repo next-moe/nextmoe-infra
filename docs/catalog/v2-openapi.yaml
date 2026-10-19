@@ -1847,6 +1847,8 @@ components:
             - tag
             - engine
             - series
+            - person
+            - credit_name
           type: string
           x-vocabulary-closed: true
       required:
@@ -1897,6 +1899,7 @@ components:
           enum:
             - cover
             - screenshot
+            - photo
           type: string
           x-vocabulary-closed: true
         sexual:
@@ -5960,6 +5963,8 @@ components:
             - tag
             - engine
             - series
+            - person
+            - credit_name
           type: string
           x-vocabulary-closed: true
       required:
@@ -6722,6 +6727,8 @@ components:
             - tag
             - engine
             - series
+            - person
+            - credit_name
           type: string
           x-vocabulary-closed: true
         updated_at:
@@ -7541,6 +7548,8 @@ components:
             - tag
             - engine
             - series
+            - person
+            - credit_name
           type: string
           x-vocabulary-closed: true
       required:
@@ -9924,7 +9933,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.53.0
+  version: 2.54.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -12323,12 +12332,12 @@ paths:
             description: filed_desc is the only key. Closed.
             maxLength: 32
             type: string
-        - description: "Closed family filter: work, company, character, release, tag, engine, series."
+        - description: "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."
           explode: false
           in: query
           name: object
           schema:
-            description: "Closed family filter: work, company, character, release, tag, engine, series."
+            description: "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."
             maxLength: 32
             type: string
         - description: Catalog id of one entity. Requires object=.
@@ -13014,12 +13023,12 @@ paths:
             description: recorded_desc (default) or recorded_asc. Closed.
             maxLength: 32
             type: string
-        - description: "Closed family filter: work, company, character, release, tag, engine, series."
+        - description: "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."
           explode: false
           in: query
           name: object
           schema:
-            description: "Closed family filter: work, company, character, release, tag, engine, series."
+            description: "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."
             maxLength: 32
             type: string
         - description: Catalog id of one entity. Requires object=.
@@ -13496,6 +13505,8 @@ paths:
               - tag
               - engine
               - series
+              - person
+              - credit_name
             maxLength: 32
             type: string
             x-vocabulary-closed: true
@@ -18233,6 +18244,8 @@ paths:
               - tag
               - engine
               - series
+              - person
+              - credit_name
             maxLength: 32
             type: string
             x-vocabulary-closed: true
@@ -18309,7 +18322,7 @@ paths:
         - me
   /v2/me/edit-images:
     post:
-      description: multipart/form-data with preset and file. Returns the hash an edit proposal carries in a cover or screenshot row. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+      description: multipart/form-data with preset and file. Returns the hash an edit proposal carries in a cover or screenshot row, or in a person's photo field. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
       operationId: uploadMyEditImage
       parameters:
         - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
@@ -18341,6 +18354,7 @@ paths:
                   enum:
                     - cover
                     - screenshot
+                    - photo
                   type: string
               required:
                 - preset
@@ -21080,12 +21094,12 @@ paths:
             description: "Closed: open, pending, merged, declined, withdrawn. Unknown value is 400 UNKNOWN_ENUM_VALUE."
             maxLength: 16
             type: string
-        - description: "Closed family filter: work, company, character, release, tag, engine, series."
+        - description: "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."
           explode: false
           in: query
           name: object
           schema:
-            description: "Closed family filter: work, company, character, release, tag, engine, series."
+            description: "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."
             maxLength: 32
             type: string
         - description: Editing-engine type, e.g. catalog.work. The same spelling POST /v2/me/proposals takes in its body. Names the same filter as object=; sending both with different families is 400.
@@ -23556,12 +23570,12 @@ paths:
             description: true includes r18. false or absent hides r18. Only true or false.
             maxLength: 8
             type: string
-        - description: "Closed family filter: work, company, character, release, tag, engine, series."
+        - description: "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."
           explode: false
           in: query
           name: object
           schema:
-            description: "Closed family filter: work, company, character, release, tag, engine, series."
+            description: "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."
             maxLength: 32
             type: string
         - description: Editing-engine type, e.g. catalog.work. Names the same filter as object=; sending both with different families is 400.
@@ -24032,12 +24046,12 @@ paths:
       description: Registered field values. Requires a user access token. The token must carry the catalog:edit scope.
       operationId: getModerationSnapshot
       parameters:
-        - description: "Family: work, company, character, release, tag, engine, series."
+        - description: "Family: work, company, character, release, tag, engine, series, person, credit_name."
           in: path
           name: object
           required: true
           schema:
-            description: "Family: work, company, character, release, tag, engine, series."
+            description: "Family: work, company, character, release, tag, engine, series, person, credit_name."
             maxLength: 32
             type: string
         - description: Catalog id.

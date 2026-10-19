@@ -2925,7 +2925,7 @@ curl -i "https://api.nextmoe.dev/v2/sticker/works/61311/packs" \
 
 # Vocabularies
 
-## 词表（共 27 个）
+## 词表（共 29 个）
 
 封闭词表（`closed`）不加不减成员就是它的承诺——你的 `switch` 可以没有 `default`。开放词表相反：提前告诉你会有新值，客户端必须容忍没见过的取值。运行时以 `https://api.nextmoe.dev/v2/vocabularies` 为准，它比任何文档都新，且不需要凭据。
 
@@ -3065,6 +3065,26 @@ Closed · 2 tokens
 | --- | --- | --- |
 | `translation` | Translation | A translated name. |
 | `spelling_variant` | Spelling variant | A spelling variant. search_hint is internal and is not in this vocabulary. |
+
+### `credit_name_kind`
+
+Closed · 4 tokens
+
+| value | display_name | description |
+| --- | --- | --- |
+| `main` | Main | The person's main name. |
+| `pen_name` | Pen name | A pen name. |
+| `distinct_persona` | Distinct persona | A persona kept apart from the person's other names. |
+| `former_name` | Former name | A name the person no longer uses. |
+
+### `link_visibility`
+
+Closed · 2 tokens
+
+| value | display_name | description |
+| --- | --- | --- |
+| `public` | Public | The link between this credit name and its person is shown. |
+| `hidden` | Hidden | The link between this credit name and its person is withheld from public faces. |
 
 ### `roster_role`
 
@@ -4009,7 +4029,7 @@ Filed proposals, newest first. proposer_uid=+state=merged with include_total=tru
 | `ids` | query | 否 | string | Comma-separated proposal ids, max 100. Batch lane: no pagination. |
 | `include_total` | query | 否 | string | true to include total. Only true or false. |
 | `sort` | query | 否 | string | filed_desc is the only key. Closed. |
-| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series. |
+| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name. |
 | `entity_id` | query | 否 | string | Catalog id of one entity. Requires object=. |
 | `site` | query | 否 | string | Tenant key. Open vocabulary; unknown values match nothing. |
 | `proposer_uid` | query | 否 | string | The claiming site's own user id of the proposer. Not a catalog id. |
@@ -4139,7 +4159,7 @@ Every merged edit, newest first by default. sort=recorded_asc walks the same col
 | `ids` | query | 否 | string | Comma-separated revision ids, max 100. Batch lane: no pagination. |
 | `include_total` | query | 否 | string | true to include total. Only true or false. |
 | `sort` | query | 否 | string | recorded_desc (default) or recorded_asc. Closed. |
-| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series. |
+| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name. |
 | `entity_id` | query | 否 | string | Catalog id of one entity. Requires object=. |
 | `site` | query | 否 | string | Tenant key. Open vocabulary; unknown values match nothing. |
 | `actor_uid` | query | 否 | string | The claiming site's own user id of the actor. Not a catalog id. |
@@ -4232,7 +4252,7 @@ Unauthenticated metadata: include tokens, FULL_SET, and editing-engine fields. i
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
-| `object` | path | 是 | string | Family this schema describes. Unknown family is 404 NOT_FOUND. 取值：work \| company \| character \| release \| tag \| engine \| series |
+| `object` | path | 是 | string | Family this schema describes. Unknown family is 404 NOT_FOUND. 取值：work \| company \| character \| release \| tag \| engine \| series \| person \| credit_name |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/schemas/work"
@@ -5414,7 +5434,7 @@ Per-field can_propose / can_review / would_automerge for the bearer, evaluated b
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
-| `object` | path | 是 | string | Family these capabilities describe. Unknown family is 404 NOT_FOUND. 取值：work \| company \| character \| release \| tag \| engine \| series |
+| `object` | path | 是 | string | Family these capabilities describe. Unknown family is 404 NOT_FOUND. 取值：work \| company \| character \| release \| tag \| engine \| series \| person \| credit_name |
 | `entity_id` | query | 否 | integer (int64) | Evaluate against one entity. Omit for the type-level answer, which cannot express the owner channel: a policy that grants owner-review or owner-automerge answers would_automerge=false without it. |
 
 ```bash
@@ -5426,7 +5446,7 @@ curl "https://api.nextmoe.dev/v2/me/edit-capabilities/work" \
 
 Upload an image for an edit proposal
 
-multipart/form-data with preset and file. Returns the hash an edit proposal carries in a cover or screenshot row. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+multipart/form-data with preset and file. Returns the hash an edit proposal carries in a cover or screenshot row, or in a person's photo field. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
@@ -6119,7 +6139,7 @@ The bearer's own proposals filed on the token's catalog site; on the central edi
 | `sort` | query | 否 | string | Closed per-collection sort key. |
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
 | `state` | query | 否 | string | Closed: open, pending, merged, declined, withdrawn. Unknown value is 400 UNKNOWN_ENUM_VALUE. |
-| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series. |
+| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name. |
 | `entity_type` | query | 否 | string | Editing-engine type, e.g. catalog.work. The same spelling POST /v2/me/proposals takes in its body. Names the same filter as object=; sending both with different families is 400. |
 | `entity_id` | query | 否 | string | Catalog id of one entity. Accepted alone on this lane, which is already fenced to the bearer's own proposals; pair it with object= or entity_type= when ids collide across families. |
 
@@ -6753,7 +6773,7 @@ Open proposals on the token site; on the central editor (catalog site editor), o
 | `facets` | query | 否 | string | Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. |
 | `sort` | query | 否 | string | Closed per-collection sort key. |
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
-| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series. |
+| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name. |
 | `entity_type` | query | 否 | string | Editing-engine type, e.g. catalog.work. Names the same filter as object=; sending both with different families is 400. |
 | `entity_id` | query | 否 | string | Catalog id of one entity. Requires object= or entity_type=. Narrows the queue to that entity, which its owner may read without a review permission. |
 
@@ -6872,7 +6892,7 @@ Registered field values. Requires a user access token. The token must carry the 
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
-| `object` | path | 是 | string | Family: work, company, character, release, tag, engine, series. |
+| `object` | path | 是 | string | Family: work, company, character, release, tag, engine, series, person, credit_name. |
 | `id` | path | 是 | string | Catalog id. |
 
 ```bash

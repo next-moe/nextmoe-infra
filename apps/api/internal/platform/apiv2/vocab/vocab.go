@@ -129,6 +129,16 @@ var registry = []Vocabulary{
 		v("translation", "Translation", "A translated name."),
 		v("spelling_variant", "Spelling variant", "A spelling variant. search_hint is internal and is not in this vocabulary."),
 	}),
+	closed("credit_name_kind", []Value{
+		v("main", "Main", "The person's main name."),
+		v("pen_name", "Pen name", "A pen name."),
+		v("distinct_persona", "Distinct persona", "A persona kept apart from the person's other names."),
+		v("former_name", "Former name", "A name the person no longer uses."),
+	}),
+	closed("link_visibility", []Value{
+		v("public", "Public", "The link between this credit name and its person is shown."),
+		v("hidden", "Hidden", "The link between this credit name and its person is withheld from public faces."),
+	}),
 	closed("roster_role", []Value{
 		v("unknown", "Unknown", "The roster role was not recorded."),
 		v("main", "Main", "A main character."),
