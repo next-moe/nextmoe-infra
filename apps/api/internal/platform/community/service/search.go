@@ -46,6 +46,9 @@ func normalizeSearch(q *repository.SearchQuery) error {
 	if n := utf8.RuneCountInString(q.Q); n < searchMinRunes || n > searchMaxRunes {
 		return ErrInvalidSearchQuery
 	}
+	if !utf8.ValidString(q.Q) || strings.ContainsRune(q.Q, 0) {
+		return ErrSearchQueryNotText
+	}
 	q.Limit = clampLimit(q.Limit)
 	return nil
 }

@@ -39,6 +39,8 @@ func mapErr(op string, err error) *houseError {
 		return apiErrMsg(http.StatusConflict, errors.ErrOperationFailed, "thread is not open")
 	case stderrors.Is(err, service.ErrInvalidSearchQuery):
 		return apiErrMsg(http.StatusBadRequest, errors.ErrInvalidParam, "search query must be 2-100 characters")
+	case stderrors.Is(err, service.ErrSearchQueryNotText):
+		return apiErrMsg(http.StatusBadRequest, errors.ErrInvalidParam, "search query must be UTF-8 text without NUL")
 	case stderrors.Is(err, service.ErrInvalidNotificationLevel):
 		return apiErrMsg(http.StatusBadRequest, errors.ErrInvalidParam, "notification level out of range")
 	case stderrors.Is(err, service.ErrNotFeedback):

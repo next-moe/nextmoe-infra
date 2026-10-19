@@ -69,6 +69,9 @@ func (h *UserBatchHandler) Search(c fiber.Ctx) error {
 	if utf8.RuneCountInString(q) > 50 {
 		return response.BadRequestMsg(c, errors.ErrInvalidParam, "q: max 50 chars")
 	}
+	if !utf8.ValidString(q) || strings.ContainsRune(q, 0) {
+		return response.BadRequestMsg(c, errors.ErrInvalidParam, "q: must be UTF-8 text without NUL")
+	}
 
 	limit := 20
 	if s := c.Query("limit"); s != "" {
