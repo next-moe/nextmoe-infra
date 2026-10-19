@@ -88,6 +88,7 @@ var (
 		JOIN catalog_label l ON l.id = a.label_id
 		WHERE a.label_id IN (?)
 		  AND a.lang IN ('zh-Hans','zh','zh-Hant') AND a.kind IN (0,1)
+		  AND ` + editspec.NotSuppressedLabelAliasSQL("a") + `
 		ORDER BY a.label_id, (NOT a.is_primary_for_locale), (a.lang <> 'zh-Hans'), a.id`
 )
 

@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type characterAlias struct {
+type entityAlias struct {
 	Name    string
 	Lang    string
 	Latin   string
@@ -19,12 +19,12 @@ type characterAlias struct {
 	Primary bool
 }
 
-func parseCharacterAliases(v any) ([]characterAlias, error) {
+func parseEntityAliases(v any) ([]entityAlias, error) {
 	arr, err := asArray(v, "alias objects")
 	if err != nil {
 		return nil, err
 	}
-	out := make([]characterAlias, 0, len(arr))
+	out := make([]entityAlias, 0, len(arr))
 	seen := make(map[string]struct{}, len(arr))
 	for i, el := range arr {
 		obj, err := asObject(el, i, "name", "lang", "kind", "latin", "primary")
@@ -65,18 +65,18 @@ func parseCharacterAliases(v any) ([]characterAlias, error) {
 			return nil, fmt.Errorf("element %d: duplicate (name, lang)", i)
 		}
 		seen[uniq] = struct{}{}
-		out = append(out, characterAlias{Name: name, Lang: lang, Latin: latin, Kind: kind, Primary: primary})
+		out = append(out, entityAlias{Name: name, Lang: lang, Latin: latin, Kind: kind, Primary: primary})
 	}
 	return out, nil
 }
 
 func validateCharacterAliases(v any) error {
-	_, err := parseCharacterAliases(v)
+	_, err := parseEntityAliases(v)
 	return err
 }
 
 func applyCharacterAliases(ctx context.Context, tx *gorm.DB, entityID int64, value any) error {
-	aliases, err := parseCharacterAliases(value)
+	aliases, err := parseEntityAliases(value)
 	if err != nil {
 		return fmt.Errorf("editspec: aliases: %w", err)
 	}
@@ -118,7 +118,7 @@ func applyCharacterAliases(ctx context.Context, tx *gorm.DB, entityID int64, val
 // an importer already owns can never exist, and the alternatives are a raw 23505
 // out of the merge or the importers' own ON CONFLICT DO NOTHING, which saves the
 // proposal and drops the row.
-func rejectUpstreamAliasCollisions(ctx context.Context, tx *gorm.DB, entityID int64, aliases []characterAlias) error {
+func rejectUpstreamAliasCollisions(ctx context.Context, tx *gorm.DB, entityID int64, aliases []entityAlias) error {
 	if len(aliases) == 0 {
 		return nil
 	}

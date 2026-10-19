@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 
 	"gorm.io/datatypes"
@@ -87,7 +88,7 @@ func loadCandidates(ctx context.Context, db *gorm.DB, sourceID int16, src Source
 		       l.id AS label_id, r.external_id AS external_id, l.field_provenance AS field_provenance
 		FROM catalog_label l
 		JOIN catalog_external_ref r ON r.entity_id = l.id AND `+clause+`
-		WHERE l.deleted_at IS NULL AND l.logo_hash = ''
+		WHERE l.deleted_at IS NULL AND l.logo_hash = '' AND `+editspec.NotHumanFieldSQL("l.field_provenance", provField)+`
 		ORDER BY l.id, r.external_id`, args...).Scan(&out).Error
 	if err != nil {
 		return nil, err

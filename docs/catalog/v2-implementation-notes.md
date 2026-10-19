@@ -2236,3 +2236,27 @@ Every first-party site now proposes under the same policy, and the policy is dat
 **Behaviour deltas.** kungal (forum, moyu): unchanged for users, owners and admins; moderators now automerge their work and release edits in code as they already did in production. letmoe: anyone may propose (before: only `catalog.edit.trusted`); the trusted tier lands its edits on every work, not only letmoe's claims; a letmoe claim no longer lands an untrusted edit because it is letmoe's; character and taxonomy proposals are open to everyone and never automerge. Other sites (news, sticker, nextmoe): proposing no longer needs `edit.catalog.*`.
 
 **Spec is 2.53.0.** Additive: `GET /v2/me/edit-quota`, three properties on `EditCapabilities`, descriptions. Migration: `go run ./cmd/migrate catalog` on `kun_catalog` (the prod `migrate-catalog` job) creates the two policy tables and two indexes.
+
+## Wave — characters and companies become fully editable (2026-10-19)
+
+E2e of the editor platform. New field keys (both types stay `sharedEntityPolicy`: open propose, never automerge):
+
+| type | field | shape | protection |
+|---|---|---|---|
+| `catalog.character` | `traits` | `{trait_id, spoiler (vocab spoiler), lie}`, ≤300 | curated lane (`catalog_character_trait_link.source_id = 12`) + `traits.suppressed` (`trait:<id>`) |
+| | `image_hash`, `figure_hash` | image hash or null; clears the `*_source_hash` twin | `field_provenance` stamp |
+| | `instance_of` | character id or null; one level deep, never self, a main never becomes an instance | stamp; follows character merges |
+| `catalog.label` | `latin`, `lang`, `kind` (vocab `company_kind`), `note`, `logo_hash` (null = `''`) | scalars | stamps |
+| | `aliases` | the character alias shape; kind 2 search hints stay machine-owned | curated lane + `aliases.suppressed` (`alias:<kind>:<lang>:<text>`), filtered on every read path |
+| | `relations` | `{label_id, relation (vocab company_relation, codes 1–8)}`, ≤200 | curated lane + `relations.suppressed` (`relation:<code>:<label_id>`, segment 3 follows label merges) |
+
+- **Trait links gained `source_id`** (`smallint NOT NULL DEFAULT 2`): every existing link came from the VNDB importer and chartraits never names the column, so the constant default is both the backfill (metadata-only) and what it keeps writing. The unique key is still `(character_id, trait_id)`, so a curated element on an imported trait takes that row over; chartraits' upsert skips curated rows and suppressed pairs. Dropping a curated element hands the trait back to the next import; hiding it is the `.suppressed` field's job.
+- **Trait and relation suppression are enforced on write**, like work tags: the suppression edit deletes the upstream rows and every writer skips them (chartraits; labelrelations filters its rebuild through `editspec.SuppressedLabelRelations`). No read face filters those tables. Label aliases follow the character alias model instead (read-path predicate `NotSuppressedLabelAliasSQL` in public names, merge demotion, search reindex, the label matcher and both MT glossaries).
+- **A company relation is a mirrored pair** (see the LabelRelation pairs). The editor writes and drops both rows together, so editing a fact from either company changes the other company's snapshot too; a suppression from either side hides both rows and keeps both out of the import.
+- **Fill-only writers respect a hand-set or hand-cleared column** through `editspec.NotHumanFieldSQL`: charportraits, getchuportraits, figurecutout (never cuts a hand-set image), labellogos (candidates and write), backfill-character-instances.
+- **Merges**: a curated trait link or label alias wins over the survivor's upstream twin; label suppression rows move to the survivor (`suppressedRowStmts`), and suppressed trait links / relations are purged on the survivor afterwards.
+- **Image keep-alive**: the edit-history refping now also reads the scalar image fields (`catalog.character.image_hash` / `figure_hash`, `catalog.label.logo_hash`) from revision snapshots, baselines and open proposals.
+- **Not editable, on purpose: `catalog_character.extra`.** It is a single `bgm` namespace holding Bangumi's infobox verbatim (15,300 characters), written by charattrs and returned only by the S2S character face, never by `/v2`. Editing it in place would make the `bgm` namespace stop meaning "what Bangumi says"; making it editable needs a first-party infobox model (a curated namespace and a read-face merge), which is a separate decision.
+- New vocabulary `company_relation` (closed, 8 tokens, coded from 1). No change to the v2 document.
+
+Migration: `go run ./cmd/migrate catalog` on `kun_catalog` (the prod `migrate-catalog` job) adds `catalog_character_trait_link.source_id`.

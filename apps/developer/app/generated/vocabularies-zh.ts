@@ -81,6 +81,10 @@ export const vocabularyMetaZh: Record<string, VocabularyZhMeta> = {
     "label": "公司类型",
     "summary": "一个厂牌 / 公司实体本身是什么类型的组织。"
   },
+  "company_relation": {
+    "label": "公司关系",
+    "summary": "两家公司之间的结构关系，读作「对方是本公司的 X」。每个事实成对存储：一侧的 parent 对应另一侧的 subsidiary。"
+  },
   "tag_kind": {
     "label": "标签种类",
     "summary": "一个标签描述的是作品内容本身，还是它的元信息。"
@@ -397,6 +401,40 @@ export const vocabularyValuesZh: Record<
     "group": {
       "displayName": "团体",
       "description": "泛指的团体。"
+    }
+  },
+  "company_relation": {
+    "parent": {
+      "displayName": "母公司",
+      "description": "对方公司拥有本公司。"
+    },
+    "subsidiary": {
+      "displayName": "子公司",
+      "description": "对方公司归本公司所有。"
+    },
+    "imprint": {
+      "displayName": "旗下品牌",
+      "description": "对方是在本公司旗下运营的品牌。"
+    },
+    "imprint_of": {
+      "displayName": "所属品牌",
+      "description": "本公司是在对方旗下运营的品牌。"
+    },
+    "spawned": {
+      "displayName": "分立出",
+      "description": "对方公司是从本公司分立出来的。"
+    },
+    "origin": {
+      "displayName": "分立自",
+      "description": "本公司是从对方公司分立出来的。"
+    },
+    "succeeded_by": {
+      "displayName": "由其承继",
+      "description": "对方公司承继了本公司。"
+    },
+    "formerly": {
+      "displayName": "前身",
+      "description": "本公司承继了对方公司。"
     }
   },
   "tag_kind": {

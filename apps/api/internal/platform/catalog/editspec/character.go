@@ -68,6 +68,7 @@ func characterFieldSpecs() []editing.FieldSpec {
 		Validate: validateCharacterAliases,
 		Apply:    applyCharacterAliases,
 	}
+	traits := characterTraitsFieldSpec()
 	return []editing.FieldSpec{
 		charText(FieldCharacterDisplayName, "display_name", maxNameRunes),
 		withValue(charLang(FieldCharacterLang, "lang"), &editing.ValueSpec{Vocabulary: "olang"}),
@@ -87,8 +88,13 @@ func characterFieldSpecs() []editing.FieldSpec {
 		withValue(charInt(FieldCharacterWaistCm, "waist_cm", 1, 500), &editing.ValueSpec{Nullable: true}),
 		withValue(charInt(FieldCharacterHipCm, "hip_cm", 1, 500), &editing.ValueSpec{Nullable: true}),
 		withValue(charNullableText(FieldCharacterCup, "cup", maxCupRunes), &editing.ValueSpec{Nullable: true}),
+		charImage(FieldCharacterImage, "image_hash", "image_source_hash"),
+		charImage(FieldCharacterFigure, "figure_hash", "figure_source_hash"),
+		charInstanceOfField(),
 		aliases,
 		editing.SuppressedFieldSpec(TypeCharacter, aliases),
+		traits,
+		characterTraitSuppressionSpec(traits),
 		{
 			Key: FieldCharacterIntros, Kind: editing.KindList, DiffHint: editing.DiffHintLines,
 			Value: &editing.ValueSpec{Element: &editing.ElementSpec{
@@ -298,7 +304,8 @@ func loadCharacterSnapshot(db *gorm.DB) func(context.Context, int64) (map[string
 		if err := firstEntity(ctx, db, &c, entityID,
 			"id", "display_name", "lang", "latin", "description", "gender",
 			"birthday_month", "birthday_day", "blood_type",
-			"height_cm", "weight_kg", "bust_cm", "waist_cm", "hip_cm", "cup"); err != nil {
+			"height_cm", "weight_kg", "bust_cm", "waist_cm", "hip_cm", "cup",
+			"image_hash", "figure_hash", "instance_of"); err != nil {
 			return nil, err
 		}
 		snapshot := map[string]any{
@@ -316,11 +323,16 @@ func loadCharacterSnapshot(db *gorm.DB) func(context.Context, int64) (map[string
 			FieldCharacterWaistCm:       nullableI16(c.WaistCm),
 			FieldCharacterHipCm:         nullableI16(c.HipCm),
 			FieldCharacterCup:           nullableString(c.Cup),
+			FieldCharacterImage:         nullableString(c.ImageHash),
+			FieldCharacterFigure:        nullableString(c.FigureHash),
+			FieldCharacterInstanceOf:    nullableInt64(c.InstanceOf),
 		}
 		for key, load := range map[string]func(context.Context, *gorm.DB, int64) ([]any, error){
 			FieldCharacterAliases:      loadCuratedCharacterAliases,
 			FieldCharacterAliasesSuppr: loadSuppressedCharacterAliases,
 			FieldCharacterIntros:       loadCharacterIntros,
+			FieldCharacterTraits:       loadCuratedCharacterTraits,
+			FieldCharacterTraitsSuppr:  loadSuppressedCharacterTraits,
 		} {
 			value, err := load(ctx, db, entityID)
 			if err != nil {

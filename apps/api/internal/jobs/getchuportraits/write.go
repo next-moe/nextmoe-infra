@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"api/internal/platform/catalog/editspec"
 	"api/pkg/imageclient"
 
 	"gorm.io/gorm"
@@ -69,7 +70,7 @@ func (r *runner) fill(ctx context.Context, dir string, c candidate, apply bool) 
 
 	tx := r.db.WithContext(ctx).Exec(fmt.Sprintf(
 		`UPDATE catalog_character SET %[1]s = ?, updated_at = now()
-		 WHERE id = ? AND %[1]s IS NULL AND deleted_at IS NULL`, r.slot.TargetColumn),
+		 WHERE id = ? AND %[1]s IS NULL AND deleted_at IS NULL`, r.slot.TargetColumn)+" AND "+editspec.NotHumanFieldSQL("field_provenance", r.slot.TargetColumn),
 		res.Hash, c.CharacterID)
 	if tx.Error != nil {
 		out.errors++

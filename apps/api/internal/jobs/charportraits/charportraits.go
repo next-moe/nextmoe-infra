@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"api/internal/infrastructure/database"
+	"api/internal/platform/catalog/editspec"
 	"api/pkg/config"
 	"api/pkg/imageclient"
 
@@ -185,7 +186,7 @@ func (r *runner) fillPortrait(ctx context.Context, dir string, c candidate) (quo
 		r.dedup++
 	}
 	tx := r.db.WithContext(ctx).Exec(
-		`UPDATE catalog_character SET image_hash = ?, updated_at = NOW() WHERE id = ? AND image_hash IS NULL`,
+		`UPDATE catalog_character SET image_hash = ?, updated_at = NOW() WHERE id = ? AND image_hash IS NULL AND `+editspec.NotHumanFieldSQL("field_provenance", "image_hash"),
 		res.Hash, c.CatalogCharacterID)
 	if tx.Error != nil {
 		r.errors++

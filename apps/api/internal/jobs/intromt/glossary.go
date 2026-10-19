@@ -149,6 +149,7 @@ var (
 			FROM catalog_label_alias a
 			WHERE a.label_id IN (SELECT label_id FROM lab)
 			  AND a.lang IN ('zh-Hans','zh','zh-Hant') AND a.kind IN (0,1)
+			  AND ` + editspec.NotSuppressedLabelAliasSQL("a") + `
 			ORDER BY a.label_id, (NOT a.is_primary_for_locale), (a.lang <> 'zh-Hans'), a.id
 		)
 		SELECT lab.work_id AS owner_id, lab.display_name AS src, al.name AS zh

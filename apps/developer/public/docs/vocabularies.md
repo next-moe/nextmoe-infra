@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-## 词表（共 26 个）
+## 词表（共 27 个）
 
 封闭词表（`closed`）不加不减成员就是它的承诺——你的 `switch` 可以没有 `default`。开放词表相反：提前告诉你会有新值，客户端必须容忍没见过的取值。运行时以 `https://api.nextmoe.dev/v2/vocabularies` 为准，它比任何文档都新，且不需要凭据。
 
@@ -184,6 +184,21 @@ Closed · 6 tokens
 | `anime_studio` | Anime studio | An anime studio. |
 | `doujin_circle` | Doujin circle | A doujin circle. |
 | `group` | Group | A group. |
+
+### `company_relation`
+
+Closed · 8 tokens
+
+| value | display_name | description |
+| --- | --- | --- |
+| `parent` | Parent | The other company owns this one. |
+| `subsidiary` | Subsidiary | The other company is owned by this one. |
+| `imprint` | Imprint | The other company is a brand operating under this one. |
+| `imprint_of` | Imprint of | This company is a brand operating under the other one. |
+| `spawned` | Spawned | The other company is a spin-off of this one. |
+| `origin` | Origin | This company is a spin-off of the other one. |
+| `succeeded_by` | Succeeded by | The other company succeeded this one. |
+| `formerly` | Formerly | This company succeeded the other one. |
 
 ### `tag_kind`
 

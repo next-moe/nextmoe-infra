@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/provenance"
 	"api/pkg/imageclient"
 
@@ -86,7 +87,8 @@ func (r *runner) fill(ctx context.Context, c candidate, apply bool) labelResult 
 
 	tx := r.db.WithContext(ctx).Exec(
 		`UPDATE catalog_label SET logo_hash = ?, field_provenance = ?, updated_at = now()
-		 WHERE id = ? AND logo_hash = '' AND deleted_at IS NULL`,
+		 WHERE id = ? AND logo_hash = '' AND deleted_at IS NULL
+		   AND `+editspec.NotHumanFieldSQL("field_provenance", provField),
 		res.Hash, mergeProvenance(c.FieldProvenance, r.source.Key, nowUTC()), c.LabelID)
 	if tx.Error != nil {
 		out.errors++

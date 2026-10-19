@@ -3,6 +3,8 @@ package orglabels
 import (
 	"fmt"
 
+	"api/internal/platform/catalog/editspec"
+
 	"gorm.io/gorm"
 )
 
@@ -35,7 +37,7 @@ func loadLabelNorms(db *gorm.DB) (map[string][]int64, error) {
 		UNION
 		SELECT a.name_norm AS norm, a.label_id FROM catalog_label_alias a
 		    JOIN catalog_label l ON l.id = a.label_id AND l.deleted_at IS NULL
-		    WHERE a.name_norm <> ''
+		    WHERE a.name_norm <> '' AND ` + editspec.NotSuppressedLabelAliasSQL("a") + `
 	`).Scan(&rows).Error; err != nil {
 		return nil, err
 	}

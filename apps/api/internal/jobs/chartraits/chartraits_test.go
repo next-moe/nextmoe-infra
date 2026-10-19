@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/migrate"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/seed"
@@ -50,7 +51,7 @@ func clean(t *testing.T) {
 	t.Helper()
 	for _, table := range []string{
 		"catalog_character_trait_link", "catalog_character_trait_parent", "catalog_character_trait",
-		"catalog_external_ref", "catalog_character",
+		"catalog_external_ref", "catalog_character", "edit_suppressed_row",
 		"src_vndb.traits", "src_vndb.traits_parents", "src_vndb.chars_traits",
 	} {
 		require.NoError(t, testDB.Exec("TRUNCATE "+table+" RESTART IDENTITY CASCADE").Error)
@@ -173,4 +174,44 @@ func TestImportCharacterTraits(t *testing.T) {
 	assert.Equal(t, 1, st.LinksWritten, "only the genuinely new (chA, i11) row")
 	require.NoError(t, testDB.Table("catalog_character_trait_link").Where("character_id = ?", chA).Count(&n).Error)
 	assert.EqualValues(t, 3, n, "no dupes from the double anchor")
+}
+
+func TestImportLeavesCuratedAndSuppressedLinksAlone(t *testing.T) {
+	clean(t)
+	mkSrcTrait(t, "i1", "", "Hair", false, 0)
+	mkSrcTrait(t, "i10", "i1", "Blond Hair", false, 0)
+	mkSrcTrait(t, "i11", "i1", "Long Hair", false, 0)
+	ch := mkChar(t, "A", "c1")
+	mkSrcLink(t, "c1", "i10", 0, false)
+	mkSrcLink(t, "c1", "i11", 0, false)
+
+	ctx := context.Background()
+	opts := Opts{DSN: testDSN, Apply: true}
+	_, err := Run(ctx, opts)
+	require.NoError(t, err)
+
+	var blond, long model.CatalogCharacterTrait
+	require.NoError(t, testDB.Where("vndb_tid = 'i10'").First(&blond).Error)
+	require.NoError(t, testDB.Where("vndb_tid = 'i11'").First(&long).Error)
+
+	// A person regraded the blond link and hid the long-hair one.
+	require.NoError(t, testDB.Exec(`UPDATE catalog_character_trait_link
+		SET source_id = 12, spoiler_level = 2, lie = true WHERE character_id = ? AND trait_id = ?`, ch, blond.ID).Error)
+	require.NoError(t, testDB.Exec(`DELETE FROM catalog_character_trait_link WHERE character_id = ? AND trait_id = ?`, ch, long.ID).Error)
+	require.NoError(t, testDB.Exec(`INSERT INTO edit_suppressed_row (entity_type, entity_id, field_key, identity_key, created_at)
+		VALUES ('catalog.character', ?, 'catalog.character.traits', ?, now())`,
+		ch, editspec.CharacterTraitIdentity(long.ID)).Error)
+
+	_, err = Run(ctx, opts)
+	require.NoError(t, err)
+
+	var link model.CatalogCharacterTraitLink
+	require.NoError(t, testDB.Where("character_id = ? AND trait_id = ?", ch, blond.ID).First(&link).Error)
+	assert.EqualValues(t, 12, link.SourceID, "the curated row stays curated")
+	assert.EqualValues(t, 2, link.SpoilerLevel, "the person's spoiler grade survives the re-import")
+	assert.True(t, link.Lie)
+	var n int64
+	require.NoError(t, testDB.Model(&model.CatalogCharacterTraitLink{}).
+		Where("character_id = ? AND trait_id = ?", ch, long.ID).Count(&n).Error)
+	assert.Zero(t, n, "a suppressed link is not re-imported")
 }

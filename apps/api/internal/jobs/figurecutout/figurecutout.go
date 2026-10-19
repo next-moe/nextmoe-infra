@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"api/internal/infrastructure/database"
+	"api/internal/platform/catalog/editspec"
 	"api/pkg/config"
 	"api/pkg/imageclient"
 
@@ -202,7 +203,7 @@ func pendingSources(ctx context.Context, db *gorm.DB, slot Slot, work []entry) (
 		var found []string
 		err := db.WithContext(ctx).Raw(fmt.Sprintf(
 			`SELECT DISTINCT %[1]s FROM catalog_character
-			 WHERE %[1]s IN ? AND %[2]s IS NULL AND deleted_at IS NULL`, slot.Column, slot.SourceCol),
+			 WHERE %[1]s IN ? AND %[2]s IS NULL AND deleted_at IS NULL`, slot.Column, slot.SourceCol)+" AND "+editspec.NotHumanFieldSQL("field_provenance", slot.Column),
 			batch).Scan(&found).Error
 		if err != nil {
 			return nil, fmt.Errorf("select pending figures: %w", err)
@@ -266,7 +267,7 @@ func (r *runner) one(ctx context.Context, e entry) result {
 	tx := r.db.WithContext(ctx).Exec(fmt.Sprintf(
 		`UPDATE catalog_character
 		 SET %[2]s = %[1]s, %[1]s = ?, updated_at = now()
-		 WHERE %[1]s = ? AND %[2]s IS NULL AND deleted_at IS NULL`, r.slot.Column, r.slot.SourceCol),
+		 WHERE %[1]s = ? AND %[2]s IS NULL AND deleted_at IS NULL`, r.slot.Column, r.slot.SourceCol)+" AND "+editspec.NotHumanFieldSQL("field_provenance", r.slot.Column),
 		res.Hash, e.Hash)
 	if tx.Error != nil {
 		out.errors++

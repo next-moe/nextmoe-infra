@@ -81,26 +81,56 @@ func registerLabel(reg *editing.Registry, db *gorm.DB) error {
 			},
 		},
 	}
+	aliases := labelAliasesFieldSpec()
+	relations := labelRelationsFieldSpec()
+	fields = append(fields, labelScalarFields()...)
+	fields = append(fields,
+		aliases, editing.SuppressedFieldSpec(TypeLabel, aliases),
+		relations, labelRelationSuppressionSpec(relations),
+	)
 	return reg.Register(editing.EntityTypeSpec{
 		Family: "catalog", Type: TypeLabel,
 		LoadSnapshot: func(ctx context.Context, entityID int64) (map[string]any, error) {
 			var l catmodel.CatalogLabel
-			if err := firstEntity(ctx, db, &l, entityID, "id", "display_name"); err != nil {
+			if err := firstEntity(ctx, db, &l, entityID,
+				"id", "display_name", "latin", "lang", "kind", "note", "logo_hash"); err != nil {
 				return nil, err
 			}
-			intros, err := loadEntityIntros(ctx, db, introTableLabel, entityID)
-			if err != nil {
-				return nil, err
+			var logo any
+			if l.LogoHash != "" {
+				logo = l.LogoHash
 			}
-			links, err := loadLinksFor(ctx, db, catmodel.EntityTypeLabel, entityID)
-			if err != nil {
-				return nil, err
+			snapshot := map[string]any{
+				FieldLabelName:  l.DisplayName,
+				FieldLabelLatin: nullableString(l.Latin),
+				FieldLabelLang:  l.Lang,
+				FieldLabelKind:  int64(l.Kind),
+				FieldLabelNote:  l.Note,
+				FieldLabelLogo:  logo,
 			}
-			return map[string]any{
-				FieldLabelName:   l.DisplayName,
-				FieldLabelIntros: intros,
-				FieldLabelLinks:  links,
-			}, nil
+			for key, load := range map[string]func(context.Context, *gorm.DB, int64) ([]any, error){
+				FieldLabelIntros: func(ctx context.Context, db *gorm.DB, id int64) ([]any, error) {
+					return loadEntityIntros(ctx, db, introTableLabel, id)
+				},
+				FieldLabelLinks: func(ctx context.Context, db *gorm.DB, id int64) ([]any, error) {
+					return loadLinksFor(ctx, db, catmodel.EntityTypeLabel, id)
+				},
+				FieldLabelAliases: loadCuratedLabelAliases,
+				FieldLabelAliasesSuppr: func(ctx context.Context, db *gorm.DB, id int64) ([]any, error) {
+					return editing.LoadSuppressedValue(ctx, db, TypeLabel, id, FieldLabelAliases)
+				},
+				FieldLabelRelations: loadCuratedLabelRelations,
+				FieldLabelRelationsSuppr: func(ctx context.Context, db *gorm.DB, id int64) ([]any, error) {
+					return editing.LoadSuppressedValue(ctx, db, TypeLabel, id, FieldLabelRelations)
+				},
+			} {
+				value, err := load(ctx, db, entityID)
+				if err != nil {
+					return nil, err
+				}
+				snapshot[key] = value
+			}
+			return snapshot, nil
 		},
 		DefaultPolicy: sharedEntityPolicy(perm.EditTaxonomyReview),
 		Fields:        fields,
