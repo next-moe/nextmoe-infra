@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
-	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -291,7 +290,7 @@ func (s *PublicService) WorkDetail(ctx context.Context, id int64, inc PublicIncl
 		return dto.PublicCatalogWork{}, false, err
 	}
 	if sel.Wants("links") {
-		if rec.Links, err = s.workLinks(ctx, id); err != nil {
+		if rec.Links, err = s.entityLinks(ctx, model.EntityTypeWork, id); err != nil {
 			return dto.PublicCatalogWork{}, false, err
 		}
 	}
@@ -590,14 +589,14 @@ func (s *PublicService) Name(ctx context.Context, id int64, withCredits, nsfw bo
 		BirthY:      res.Head.BirthY,
 		BirthM:      res.Head.BirthM,
 		BirthD:      res.Head.BirthD,
-		Links:       []dto.PublicPersonLink{},
 	}
 	p.PhotoMeta = publicImageMeta(s.entityMetaFor(ctx, p.PhotoHash), p.PhotoHash)
 	if res.Head.PersonID != nil {
 		p.PersonID = *res.Head.PersonID
-		if p.Links, err = s.personLinks(ctx, p.PersonID); err != nil {
-			return dto.PublicName{}, false, err
-		}
+	}
+	hidden := res.Head.LinkVisibility != model.LinkVisibilityPublic
+	if p.Links, err = s.creditNameLinks(ctx, id, p.PersonID, hidden); err != nil {
+		return dto.PublicName{}, false, err
 	}
 	for _, sib := range res.Siblings {
 		p.Siblings = append(p.Siblings, dto.PublicSiblingName{
@@ -685,6 +684,9 @@ func (s *PublicService) Character(ctx context.Context, id int64, withWorks, nsfw
 		return dto.PublicCharacter{}, false, err
 	}
 	if ch.Refs, err = s.entityRefs(ctx, model.EntityTypeCharacter, id); err != nil {
+		return dto.PublicCharacter{}, false, err
+	}
+	if ch.Links, err = s.entityLinks(ctx, model.EntityTypeCharacter, id); err != nil {
 		return dto.PublicCharacter{}, false, err
 	}
 	if ch.Intros, err = s.characterIntros(ctx, id); err != nil {
@@ -786,7 +788,7 @@ func (s *PublicService) Label(ctx context.Context, id int64, withWorks, nsfw boo
 	if l.Intros, err = s.labelIntros(ctx, id); err != nil {
 		return dto.PublicLabel{}, false, err
 	}
-	if l.Links, err = s.labelLinks(ctx, id); err != nil {
+	if l.Links, err = s.entityLinks(ctx, model.EntityTypeLabel, id); err != nil {
 		return dto.PublicLabel{}, false, err
 	}
 	if l.Relations, err = s.labelRelations(ctx, id); err != nil {
@@ -872,28 +874,6 @@ func (s *PublicService) characterAliases(ctx context.Context, characterID int64)
 	return richAliases(rows), localizedNames(rows), nil
 }
 
-func (s *PublicService) labelLinks(ctx context.Context, labelID int64) ([]dto.PublicLabelLink, error) {
-	var rows []struct {
-		Source     string `gorm:"column:source"`
-		ExternalID string `gorm:"column:external_id"`
-	}
-	if err := s.db.WithContext(ctx).Raw(`
-		SELECT src.key AS source, r.external_id
-		FROM catalog_external_ref r JOIN catalog_source src ON src.id = r.source_id
-		WHERE r.entity_type = ? AND r.entity_id = ? AND r.link_kind = ? AND r.dead_at IS NULL
-		ORDER BY r.source_id, r.external_id`,
-		model.EntityTypeLabel, labelID, model.LinkKindRelated).Scan(&rows).Error; err != nil {
-		return nil, err
-	}
-	out := make([]dto.PublicLabelLink, 0, len(rows))
-	for _, r := range rows {
-		if url, ok := relatedLinkURL(r.Source, r.ExternalID); ok {
-			out = append(out, dto.PublicLabelLink{Source: r.Source, URL: url})
-		}
-	}
-	return out, nil
-}
-
 func (s *PublicService) labelRelations(ctx context.Context, labelID int64) ([]dto.PublicLabelRelation, error) {
 	var rows []struct {
 		ID       int64  `gorm:"column:id"`
@@ -928,66 +908,6 @@ func (s *PublicService) labelRelations(ctx context.Context, labelID int64) ([]dt
 	return out, nil
 }
 
-func (s *PublicService) personLinks(ctx context.Context, personID int64) ([]dto.PublicPersonLink, error) {
-	var rows []struct {
-		Source     string `gorm:"column:source"`
-		ExternalID string `gorm:"column:external_id"`
-		LinkKind   int16  `gorm:"column:link_kind"`
-	}
-	if err := s.db.WithContext(ctx).Raw(`
-		SELECT src.key AS source, r.external_id, r.link_kind
-		FROM catalog_external_ref r JOIN catalog_source src ON src.id = r.source_id
-		WHERE r.entity_type = ? AND r.entity_id = ? AND r.dead_at IS NULL
-		  AND (r.link_kind = ? OR (r.link_kind = ? AND src.key IN ?))
-		ORDER BY r.source_id, r.external_id`,
-		model.EntityTypePerson, personID, model.LinkKindRelated, model.LinkKindExact,
-		personAnchorSources).Scan(&rows).Error; err != nil {
-		return nil, err
-	}
-	out := make([]dto.PublicPersonLink, 0, len(rows))
-	for _, r := range rows {
-		render := relatedLinkURL
-		if r.LinkKind == model.LinkKindExact {
-			render = personAnchorURL
-		}
-		if url, ok := render(r.Source, r.ExternalID); ok {
-			out = append(out, dto.PublicPersonLink{Source: r.Source, URL: url})
-		}
-	}
-	return out, nil
-}
-
-var personAnchorSources = []string{"vndb", "bangumi"}
-
-var (
-	vndbStaffID     = regexp.MustCompile(`^s[0-9]+$`)
-	bangumiPersonID = regexp.MustCompile(`^[0-9]+$`)
-)
-
-// personAnchorURL renders the two identity anchors that are also addressable
-// pages. It is PERSON-only on purpose, and it is not the same lane as
-// relatedLinkURL: the forum minted vndb URLs out of the refs on a CREDIT NAME
-// and shipped a wrong-person page, because a credit-name vndb ref is a staff
-// ALIAS id (vndb has no page for one) while the person-level exact anchor is
-// the staff id that does. The regexps are the guard that keeps that confusion
-// from recurring silently — an id of the wrong shape is skipped, never guessed.
-//
-// dlsite (creater ids have no public page) and erogamescape (creater.php is
-// unverified) hold person exact anchors too and are deliberately absent.
-func personAnchorURL(source, externalID string) (string, bool) {
-	switch source {
-	case "vndb":
-		if vndbStaffID.MatchString(externalID) {
-			return "https://vndb.org/" + externalID, true
-		}
-	case "bangumi":
-		if bangumiPersonID.MatchString(externalID) {
-			return "https://bgm.tv/person/" + externalID, true
-		}
-	}
-	return "", false
-}
-
 func (s *PublicService) workEngines(ctx context.Context, workID int64) ([]dto.PublicWorkEngine, error) {
 	var rows []struct {
 		ID   int64  `gorm:"column:id"`
@@ -1004,74 +924,6 @@ func (s *PublicService) workEngines(ctx context.Context, workID int64) ([]dto.Pu
 		out = append(out, dto.PublicWorkEngine{ID: r.ID, Name: r.Name})
 	}
 	return out, nil
-}
-
-func (s *PublicService) workLinks(ctx context.Context, workID int64) ([]dto.PublicWorkLink, error) {
-	var rows []struct {
-		Source     string `gorm:"column:source"`
-		ExternalID string `gorm:"column:external_id"`
-	}
-	if err := s.db.WithContext(ctx).Raw(`
-		SELECT src.key AS source, r.external_id
-		FROM catalog_external_ref r JOIN catalog_source src ON src.id = r.source_id
-		WHERE r.entity_type = ? AND r.entity_id = ? AND r.link_kind = ? AND r.dead_at IS NULL
-		ORDER BY r.source_id, r.external_id`,
-		model.EntityTypeWork, workID, model.LinkKindRelated).Scan(&rows).Error; err != nil {
-		return nil, err
-	}
-	out := make([]dto.PublicWorkLink, 0, len(rows))
-	for _, r := range rows {
-		if url, ok := relatedLinkURL(r.Source, r.ExternalID); ok {
-			out = append(out, dto.PublicWorkLink{Source: r.Source, URL: url})
-		}
-	}
-	return out, nil
-}
-
-// relatedLinkURL renders a link_kind=related external id to its absolute URL.
-// It is the ONE template table of the public face: works, labels and persons
-// all store their web presence in the same catalog_external_ref rows under the
-// same source keys, so a per-face copy of these templates is not a variation
-// point — it is a drift bug waiting to happen. (It was one: the label face
-// carried three of these six templates and silently dropped every steam / pixiv
-// / web row a label actually had.)
-//
-// The templates are the exact inverses of the parsers that mint these rows
-// (internal/jobs/wikirescue/link.go for the work lane, the E2b org/label
-// enrichment for the label lane), which is why they are safe to apply rather
-// than guesses:
-//
-//	web            the external_id IS the full URL (that is the whole point of
-//	               the `web` source — a link whose host we do not model)
-//	official_site  a host+path with the scheme and trailing slash stripped
-//	twitter        a bare lowercase handle
-//	cien           the numeric ci-en creator id
-//	steam          the numeric app id
-//	pixiv          the numeric user id
-//
-// dlsite and dmm are deliberately ABSENT: their storefront URLs are
-// section-dependent (dlsite maniax/home/pro/soft; dmm digital/dlsoft), and the
-// registry stores only the bare code, so any single template would be a guess
-// that 404s for part of the population. Those two anchors stay reachable as
-// data through the source key; the face never invents an address for them. An
-// unknown source is skipped for the same reason.
-func relatedLinkURL(source, externalID string) (string, bool) {
-	switch source {
-	case "web":
-		return externalID, true
-	case "official_site":
-		return "https://" + externalID, true
-	case "twitter":
-		return "https://x.com/" + externalID, true
-	case "cien":
-		return "https://ci-en.dlsite.com/creator/" + externalID, true
-	case "steam":
-		return "https://store.steampowered.com/app/" + externalID, true
-	case "pixiv":
-		return "https://www.pixiv.net/users/" + externalID, true
-	default:
-		return "", false
-	}
 }
 
 type workBriefRow struct {

@@ -671,7 +671,8 @@ func TestPublicLabelIntrosLinks(t *testing.T) {
 		t.Fatalf("intros[1] (lowest source_id must win the language)=%+v", got.Intros[1])
 	}
 
-	wantLinks := []dto.PublicLabelLink{
+	wantLinks := []dto.PublicLink{
+		{Source: "vndb", URL: "https://vndb.org/p129", Identity: true, PageID: "p129"},
 		{Source: "official_site", URL: "https://www.alcot.biz"},
 		{Source: "twitter", URL: "https://x.com/alcot_official"},
 		{Source: "cien", URL: "https://ci-en.dlsite.com/creator/29601"},
@@ -685,8 +686,8 @@ func TestPublicLabelIntrosLinks(t *testing.T) {
 		}
 	}
 	for _, lk := range got.Links {
-		if lk.Source == "vndb" || lk.Source == "dlsite" {
-			t.Fatalf("identity anchor leaked into links: %+v", lk)
+		if lk.Source == "dlsite" {
+			t.Fatalf("a probable dlsite anchor has no page to link: %+v", lk)
 		}
 	}
 

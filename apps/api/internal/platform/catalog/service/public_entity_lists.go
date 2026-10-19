@@ -35,6 +35,7 @@ type EntityListRow struct {
 	Aliases             []dto.PublicAlias
 	Intros              []dto.PublicIntro
 	Refs                []dto.PublicCatalogRef
+	Links               []dto.PublicLink
 	Traits              []dto.PublicCharacterTrait
 	NameZhProv          int16
 	Searchable          bool
@@ -134,6 +135,7 @@ type CharacterListInclude struct {
 	Aliases    bool
 	Intros     bool
 	Refs       bool
+	Links      bool
 	WorkCount  bool
 }
 
@@ -155,6 +157,8 @@ func CharacterListIncludeFrom(tokens []string) CharacterListInclude {
 			inc.Intros = true
 		case "refs":
 			inc.Refs = true
+		case "links":
+			inc.Links = true
 		case "work_count":
 			inc.WorkCount = true
 		}
@@ -163,7 +167,7 @@ func CharacterListIncludeFrom(tokens []string) CharacterListInclude {
 }
 
 func (inc CharacterListInclude) any() bool {
-	return inc.Attributes || inc.Image || inc.Figure || inc.Traits || inc.Aliases || inc.Intros || inc.Refs || inc.WorkCount
+	return inc.Attributes || inc.Image || inc.Figure || inc.Traits || inc.Aliases || inc.Intros || inc.Refs || inc.Links || inc.WorkCount
 }
 
 func (s *PublicService) CharactersList(ctx context.Context, ids []int64, cursor string, limit int, inc CharacterListInclude, nsfw bool, filter CharacterTraitFilter, includeTotal bool) (EntityListPage, error) {
@@ -428,6 +432,15 @@ func (s *PublicService) attachCharacterListBlocks(ctx context.Context, rows []En
 			if rows[i].Refs = refs[rows[i].ID]; rows[i].Refs == nil {
 				rows[i].Refs = []dto.PublicCatalogRef{}
 			}
+		}
+	}
+	if inc.Links {
+		links, err := s.entityLinksFor(ctx, model.EntityTypeCharacter, ids)
+		if err != nil {
+			return err
+		}
+		for i := range rows {
+			rows[i].Links = links[rows[i].ID]
 		}
 	}
 	if inc.Intros {

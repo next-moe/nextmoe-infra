@@ -967,7 +967,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "获取一个角色",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/characters/{id}",
-    "b": "getCatalogCharacter /v2/catalog/characters/{id} get Get one character Character detail. view=full adds gender, birthday, measurements, blood_type, instance_of_id. include=image,figure,traits,aliases,intros,refs adds art, trait, name, description and anchor blocks. spoiler=none|minor|major is the ceiling of the traits block and defaults to none. Merged ids are 404 ENTITY_MERGED. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. 角色详情。view=full 会加入 gender、birthday、measurements、blood_type、instance_of_id。include=image,figure,traits,aliases,intros,refs 会加入立绘、特征、名称、描述与锚点块。spoiler=none|minor|major 是 traits 块的上限，默认为 none。合并后的 id 返回 404 ENTITY_MERGED。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。 catalog:read id nsfw view include fields spoiler"
+    "b": "getCatalogCharacter /v2/catalog/characters/{id} get Get one character Character detail. view=full adds gender, birthday, measurements, blood_type, instance_of_id. include=image,figure,traits,aliases,intros,refs,links adds art, trait, name, description, anchor and link blocks. spoiler=none|minor|major is the ceiling of the traits block and defaults to none. Merged ids are 404 ENTITY_MERGED. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. 角色详情。view=full 会加入 gender、birthday、measurements、blood_type、instance_of_id。include=image,figure,traits,aliases,intros,refs,links 会加入立绘、特征、名称、描述、锚点与链接块。spoiler=none|minor|major 是 traits 块的上限，默认为 none。合并后的 id 返回 404 ENTITY_MERGED。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。 catalog:read id nsfw view include fields spoiler"
   },
   {
     "r": "/docs/v2/getCatalogCharacterAppearances",
@@ -1247,7 +1247,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "列出一部作品的外链",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/works/{id}/links",
-    "b": "getCatalogWorkLinks /v2/catalog/works/{id}/links get List links of one work Outbound links. Same items as include=links. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. 外链。与 include=links 同一批条目。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。 catalog:read id nsfw cursor limit"
+    "b": "getCatalogWorkLinks /v2/catalog/works/{id}/links get List links of one work This work's own upstream pages (is_identity=true), then its related links. Same items as include=links. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. 该作品自己的上游页面(is_identity=true)在前,其后是相关链接。与 include=links 同一批条目。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。 catalog:read id nsfw cursor limit"
   },
   {
     "r": "/docs/v2/getCatalogWorkRatings",

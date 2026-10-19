@@ -2185,3 +2185,30 @@ The four downstream integrations of `/v2/work-records` (kungal, moyu, letmoe, th
 - Both list faces share `WorkRecordFilterInput` (`state`, `content_limit`), exported for the same huma reason as `CollectionInput`.
 
 **Spec is 2.51.0.** Additive: one `/v2/me` operation and two descriptions. No migration.
+
+## Wave — catalog mints every external link (2026-10-19)
+
+Downstreams were building identity URLs out of `refs` themselves, and one of them got it wrong at scale: kungal built `vndb.org/s<ref>` from a credit name's vndb ref, which is a staff **alias** id, and linked 60,925 of 60,930 names to someone else (alias 447 is 小倉結衣 = s267; s447 is 村上和也). moyu had the same bug (alias 26940 = 榎木実佳 = s987, while s26940 is 甲斐祐子). Deviation 37 had already made person `links[]` mint the two page-addressable person anchors; this wave finishes the job, so that turning an anchor into a URL happens only in catalog. `refs` stay identity anchors; downstreams render `links` only.
+
+- **`links[]` element:** `{source, url, is_identity, page_id?}`. `is_identity` is true for this entity's own page on an upstream catalog, minted from an exact anchor, and false for web presence (official site, social account, store page). It is a bool and not a `kind` enum because G8 forbids a property named `kind`, the name v1 overloaded with disjoint vocabularies. `page_id` is set on identity links only, with pattern `^[a-z]?[0-9]+$`. It is the upstream page's own id as it appears in `url`, always a JSON string: vndb `v17`/`s267`/`p24`/`c88`, numeric for the rest. Identity links come first, then related ones, each in `(source_id, external_id)` order.
+- **Identity templates, each shape-guarded** (a wrong-shaped id is skipped, never guessed):
+
+  | entity | vndb | bangumi | erogamescape | other |
+  |---|---|---|---|---|
+  | work | `v\d+` → vndb.org | `bgm.tv/subject/` | `game.php?game=` | howlongtobeat `/game/`, steam `/app/` |
+  | company | `p\d+` → vndb.org | `bgm.tv/person/` (bangumi companies are person rows, type 2/3: 3,169/3,169 in prod) | `brand.php?brand=` | |
+  | character | `c\d+` → vndb.org | `bgm.tv/character/` | `character.php?character=` | |
+  | person / credit name | `s\d+` → vndb.org | `bgm.tv/person/` | `creater.php?creater=` | |
+
+  dlsite and dmm stay out: their storefront URLs depend on a site section the stored code does not carry. curated is an internal id.
+- **Credit names** list the name's own pages first. The vndb alias resolves through `src_vndb.staff_alias` (prod: 61,760/61,760 resolve, 99.7% same name). Next come the linked person's identity pages, for any source the name has none of. The person's related links come last. If the name's own anchor and the person's anchor for one source disagree (9 bangumi cases in prod), the name's own anchor wins. If `link_visibility` hides the person, both the vndb staff page (it lists every alias of the person) and every person-level link are withheld.
+- **erogamescape `creater.php` is no longer "unverified":** all 38,185 credit-name EGS anchors in prod were checked against the EGS mirror's creater names. 37,899 match exactly, 278 are the EGS name plus a bracketed alias, and 8 are the same person under another spelling or a company rename. None points at someone else.
+- **One link per address.** Links are compared after lower-casing the host, dropping `www.` and a trailing `/`, and treating `twitter.com` as `x.com`. Of duplicates, the more specific is kept: identity, then a named source (twitter/cien/steam/pixiv), then `official_site`, then `web`. The forum counted 32 companies and 55 works whose `official_site` and `cien`/`web` rows named the same page twice.
+- **Related templates are now shape-guarded too.**
+  - Company `steam` rows hold whole store URLs, and the bare app template had produced `…/app/https://…`. A whole URL now passes through only for steam and pixiv, and only on their own host.
+  - `web` must be an http(s) URL.
+  - `official_site` must be an http(s) URL or a bare host, so values like `（已失效）http://…` are skipped.
+- `characters` gains `include=links` on every lane. `works/{id}/links` answers the same items as `include=links`, identity first.
+- `dto.PublicWorkLink` / `PublicPersonLink` / `PublicLabelLink` collapsed into `dto.PublicLink`, minted by `service/public_links.go`.
+
+**Spec is 2.52.0.** Additive: a required `is_identity` and an optional `page_id` on `WorkLink`, and `links` on `Character`. Behaviour change: identity entries now appear in `links[]`; a consumer that still builds identity URLs from `refs` should skip `is_identity` entries until it stops. No migration.

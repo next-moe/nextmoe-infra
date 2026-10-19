@@ -210,11 +210,15 @@ func TestWorkDetailEnginesAndLinksAndCreated(t *testing.T) {
 		t.Fatalf("engine ids = %+v, want %d then %d", rec.Engines, kiri, renpy)
 	}
 
+	want0 := dto.PublicLink{Source: "vndb", URL: "https://vndb.org/v999", Identity: true, PageID: "v999"}
+	if len(rec.Links) == 0 || rec.Links[0] != want0 {
+		t.Fatalf("links = %+v, want the exact vndb anchor first as %+v", rec.Links, want0)
+	}
 	byURL := map[string]bool{}
-	for _, l := range rec.Links {
+	for _, l := range rec.Links[1:] {
 		byURL[l.URL] = true
-		if l.Source == "vndb" {
-			t.Fatalf("an EXACT identity anchor leaked into links[]: %+v", l)
+		if l.Identity || l.PageID != "" {
+			t.Fatalf("a related anchor must not be an identity nor carry page_id: %+v", l)
 		}
 	}
 	for _, want := range []string{
@@ -228,8 +232,8 @@ func TestWorkDetailEnginesAndLinksAndCreated(t *testing.T) {
 			t.Fatalf("links = %+v, missing %s", rec.Links, want)
 		}
 	}
-	if len(rec.Links) != 5 {
-		t.Fatalf("links = %+v, want exactly 5 (dlsite/dmm have no defensible template)", rec.Links)
+	if len(rec.Links) != 6 {
+		t.Fatalf("links = %+v, want exactly 6 (dlsite/dmm have no defensible template)", rec.Links)
 	}
 
 	if rec.Created == "" || rec.Created > rec.Updated {

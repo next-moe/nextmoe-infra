@@ -11,8 +11,10 @@ import (
 )
 
 type liveLinkRow struct {
-	Source string `json:"source"`
-	URL    string `json:"url"`
+	Source     string `json:"source"`
+	URL        string `json:"url"`
+	IsIdentity bool   `json:"is_identity"`
+	PageID     string `json:"page_id,omitempty"`
 }
 
 func liveCreditNameLinks(t *testing.T, env *liveEnv, id int64) []liveLinkRow {
@@ -32,21 +34,17 @@ func TestLivePersonExactAnchorsMintLinks(t *testing.T) {
 	env := liveCatalog(t)
 
 	links := liveCreditNameLinks(t, env, env.fx.AnchoredCredit)
-	bySource := map[string]string{}
-	for _, l := range links {
-		bySource[l.Source] = l.URL
-	}
-	require.Equal(t, map[string]string{
-		"vndb":    "https://vndb.org/s131",
-		"bangumi": "https://bgm.tv/person/4423",
-	}, bySource, "exactly the two exact anchors that are addressable pages")
+	require.Equal(t, []liveLinkRow{
+		{Source: "vndb", URL: "https://vndb.org/s131", IsIdentity: true, PageID: "s131"},
+		{Source: "bangumi", URL: "https://bgm.tv/person/4423", IsIdentity: true, PageID: "4423"},
+		{Source: "erogamescape", URL: "https://erogamescape.dyndns.org/~ap2/ero/toukei_kaiseki/creater.php?creater=8080", IsIdentity: true, PageID: "8080"},
+	}, links, "the name's alias resolves to s131, which the person's own anchor repeats; dlsite has no public page")
 
-	require.NotContains(t, bySource, "dlsite", "a dlsite creater id has no public page")
-	require.NotContains(t, bySource, "erogamescape", "EGS creater.php is unverified")
 	for _, l := range links {
 		require.NotEqual(t, "https://vndb.org/v777", l.URL, "probable anchors never mint")
 		require.NotEqual(t, "https://vndb.org/1234", l.URL,
 			"the credit-name ref is a staff-alias id; minting it reaches an unrelated VN")
+		require.NotEqual(t, "https://vndb.org/s1234", l.URL, "an alias id is not a staff id")
 	}
 }
 
