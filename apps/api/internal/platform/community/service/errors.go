@@ -20,6 +20,7 @@ var (
 
 	ErrInvalidNotificationLevel = errors.New("community: notification level out of range")
 	ErrInvalidSearchQuery       = errors.New("community: search query must be 2-100 characters")
+	ErrSearchQueryNotText       = errors.New("community: search query must be UTF-8 text without NUL")
 )
 
 type SandboxError struct{ Reason string }
