@@ -18,6 +18,7 @@ func TestRegisterAllRegistersEveryEditableType(t *testing.T) {
 	for _, typ := range []string{
 		editspec.TypeWork, editspec.TypeCharacter, editspec.TypeRelease,
 		editspec.TypeLabel, editspec.TypeTag, editspec.TypeEngine, editspec.TypeSeries,
+		editspec.TypePerson, editspec.TypeCreditName,
 	} {
 		if _, ok := reg.Type(typ); !ok {
 			t.Fatalf("RegisterAll did not register %q", typ)
@@ -33,6 +34,8 @@ func TestTextIdentityKeysDeclareTrailingText(t *testing.T) {
 	for _, c := range []struct{ typ, field string }{
 		{editspec.TypeWork, editspec.FieldWorkTitles},
 		{editspec.TypeCharacter, editspec.FieldCharacterAliases},
+		{editspec.TypeCreditName, editspec.FieldCreditNameAliases},
+		{editspec.TypePerson, editspec.FieldPersonLinks},
 	} {
 		spec, ok := reg.Type(c.typ)
 		if !ok {

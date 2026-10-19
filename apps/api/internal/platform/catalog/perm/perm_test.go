@@ -18,6 +18,8 @@ var goldenGrants = map[authz.Permission][]string{
 	perm.EditCharacterReview: {"moderator", "admin", "ren"},
 	perm.EditRelease:         {"editor", "moderator", "admin", "ren"},
 	perm.EditReleaseReview:   {"moderator", "admin", "ren"},
+	perm.EditPerson:          {"editor", "moderator", "admin", "ren"},
+	perm.EditPersonReview:    {"moderator", "admin", "ren"},
 	perm.EditTrusted:         {"editor", "moderator", "admin", "ren"},
 	perm.ClaimTrusted:        {"moderator", "admin", "ren"},
 	perm.RatingModerate:      {"moderator", "admin", "ren"},

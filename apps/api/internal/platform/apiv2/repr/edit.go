@@ -4,7 +4,7 @@ type Revision struct {
 	_             struct{}     `json:"-" additionalProperties:"true"`
 	Object        string       `json:"object" enum:"revision" doc:"Type discriminant. Always revision."`
 	ID            string       `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Revision id. This is the value POST /v2/moderation/reverts takes as revision_id."`
-	TargetObject  string       `json:"target_object" enum:"work,company,character,release,tag,engine,series" doc:"Family of the entity this revision is on."`
+	TargetObject  string       `json:"target_object" enum:"work,company,character,release,tag,engine,series,person,credit_name" doc:"Family of the entity this revision is on."`
 	EntityID      string       `json:"entity_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog id of the entity this revision is on."`
 	SiteWorkID    *string      `json:"site_work_id" pattern:"^[0-9]+$" maxLength:"20" doc:"The claiming site's own work id, which on kungal, moyu and letmoe is the catalog id. null unless target_object is work and the claiming site equals site."`
 	Seq           int          `json:"seq" minimum:"1" doc:"Position in this entity's revision chain, 1-based and contiguous."`
@@ -42,7 +42,7 @@ type Amendment struct {
 type EditImage struct {
 	_              struct{} `json:"-" additionalProperties:"true"`
 	Object         string   `json:"object" enum:"edit_image" doc:"Type discriminant. Always edit_image."`
-	Preset         string   `json:"preset" enum:"cover,screenshot" doc:"Which editor slot these bytes were sized for."`
+	Preset         string   `json:"preset" enum:"cover,screenshot,photo" doc:"Which editor slot these bytes were sized for."`
 	URL            string   `json:"url" format:"uri" maxLength:"512" doc:"Absolute image URL. Never a bare hash."`
 	Hash           string   `json:"hash" minLength:"64" maxLength:"64" pattern:"^[0-9a-f]{64}$" doc:"Image-service content hash. This is the value an edit proposal carries."`
 	Width          *int     `json:"width" minimum:"0" maximum:"65535" doc:"Pixel width. null if unknown."`

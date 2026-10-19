@@ -17,6 +17,7 @@ var notModeration = map[authz.Permission]string{
 	EditTaxonomy:     "propose side",
 	EditCharacter:    "propose side",
 	EditRelease:      "propose side",
+	EditPerson:       "propose side",
 	EditTrusted:      "lands the holder's OWN edit without review; it judges nobody else",
 	ClaimTrusted:     "lands the holder's OWN mint live without review; it judges nobody else",
 	RatingModerate:   "deletes ratings and nothing else; it opens no proposal or claim queue",

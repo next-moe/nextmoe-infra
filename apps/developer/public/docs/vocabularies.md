@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-## 词表（共 27 个）
+## 词表（共 29 个）
 
 封闭词表（`closed`）不加不减成员就是它的承诺——你的 `switch` 可以没有 `default`。开放词表相反：提前告诉你会有新值，客户端必须容忍没见过的取值。运行时以 `https://api.nextmoe.dev/v2/vocabularies` 为准，它比任何文档都新，且不需要凭据。
 
@@ -149,6 +149,26 @@ Closed · 2 tokens
 | --- | --- | --- |
 | `translation` | Translation | A translated name. |
 | `spelling_variant` | Spelling variant | A spelling variant. search_hint is internal and is not in this vocabulary. |
+
+### `credit_name_kind`
+
+Closed · 4 tokens
+
+| value | display_name | description |
+| --- | --- | --- |
+| `main` | Main | The person's main name. |
+| `pen_name` | Pen name | A pen name. |
+| `distinct_persona` | Distinct persona | A persona kept apart from the person's other names. |
+| `former_name` | Former name | A name the person no longer uses. |
+
+### `link_visibility`
+
+Closed · 2 tokens
+
+| value | display_name | description |
+| --- | --- | --- |
+| `public` | Public | The link between this credit name and its person is shown. |
+| `hidden` | Hidden | The link between this credit name and its person is withheld from public faces. |
 
 ### `roster_role`
 

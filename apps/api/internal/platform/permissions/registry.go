@@ -153,6 +153,8 @@ var live = NewRegistry(
 			{catalogPerm.EditCharacterReview, "Adjudicate a catalog.character proposal (amend / merge / decline / revert).", "裁决 catalog.character 提案(修订/合入/驳回/回滚)"},
 			{catalogPerm.EditRelease, "Propose an edit on catalog.release through the editing engine (edit existing rows, hide/unhide; no create).", "对 catalog.release 提交编辑提案(只编既有行、隐藏/解除隐藏,不可新建)"},
 			{catalogPerm.EditReleaseReview, "Adjudicate a catalog.release proposal (amend / merge / decline / revert).", "裁决 catalog.release 提案(修订/合入/驳回/回滚)"},
+			{catalogPerm.EditPerson, "Propose an edit on catalog.person or catalog.credit_name (attribution, aliases, intros, links) through the editing engine.", "对 catalog.person 与 catalog.credit_name 提交编辑提案(归属、别名、简介、外链)"},
+			{catalogPerm.EditPersonReview, "Adjudicate a person or credit-name proposal (amend / merge / decline / revert).", "裁决人物与署名名提案(修订/合入/驳回/回滚)"},
 			{catalogPerm.EditTrusted, "Write at the trusted tier through the editing engine: the holder's own work and release edits apply without review (the editor quota tier, within its daily direct-edit allowance).", "以受信任层级走编辑引擎写入:本人对作品与发行的编辑免审直接生效(编辑者配额档,受每日免审直编上限约束)"},
 			{catalogPerm.ClaimTrusted, "Mint a work submission straight to live, skipping claim review. Does not touch the editing engine.", "建档投稿直接上线、免认领审核(不影响编辑提案走不走审)"},
 			{catalogPerm.RatingModerate, "Delete anyone's rating; the deletion reaches every site at once. Counts only through a global role, never a site role.", "删除任何人的评分(全网同时生效);只认全局角色,站点角色授予无效"},

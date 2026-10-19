@@ -10,7 +10,7 @@ import (
 )
 
 type getCapabilitiesInput struct {
-	Object   string `path:"object" maxLength:"32" enum:"work,company,character,release,tag,engine,series" doc:"Family these capabilities describe. Unknown family is 404 NOT_FOUND."`
+	Object   string `path:"object" maxLength:"32" enum:"work,company,character,release,tag,engine,series,person,credit_name" doc:"Family these capabilities describe. Unknown family is 404 NOT_FOUND."`
 	EntityID int64  `query:"entity_id" minimum:"0" doc:"Evaluate against one entity. Omit for the type-level answer, which cannot express the owner channel: a policy that grants owner-review or owner-automerge answers would_automerge=false without it."`
 }
 

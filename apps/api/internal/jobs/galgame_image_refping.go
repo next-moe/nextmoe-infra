@@ -142,7 +142,7 @@ WITH all_hashes AS (
               UNION ALL SELECT p.patch FROM edit_proposal p) d,
              LATERAL unnest(ARRAY[
             'catalog.character.image_hash', 'catalog.character.figure_hash',
-            'catalog.label.logo_hash']) AS k
+            'catalog.label.logo_hash', 'catalog.person.photo']) AS k
         WHERE jsonb_typeof(doc->k) = 'string'
     UNION
     -- legacy_meta is the archived OLD-wire snapshot, whose keys are bare

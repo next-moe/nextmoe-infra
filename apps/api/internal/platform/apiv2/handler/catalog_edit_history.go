@@ -32,6 +32,10 @@ func schemaObject(entityType string) string {
 		return "engine"
 	case editspec.TypeSeries:
 		return "series"
+	case editspec.TypePerson:
+		return "person"
+	case editspec.TypeCreditName:
+		return "credit_name"
 	default:
 		return ""
 	}
@@ -131,7 +135,7 @@ func (c *Catalog) ListRevisions(ctx context.Context, q collect.Query, f revision
 			p := problem.New(problem.CodeUnknownEnumValue, "", "", "object= is not an editable family.")
 			p.Errors = []problem.FieldError{{Parameter: "object", Reason: problem.ReasonUnknownValue,
 				Detail: "allowed values: work, company, character, release, tag, engine, series",
-				Params: &problem.FieldParams{Allowed: &[]string{"work", "company", "character", "release", "tag", "engine", "series"}}}}
+				Params: &problem.FieldParams{Allowed: &[]string{"work", "company", "character", "release", "tag", "engine", "series", "person", "credit_name"}}}}
 			return repr.List[repr.Revision]{}, p
 		}
 		page.EntityType = entityType

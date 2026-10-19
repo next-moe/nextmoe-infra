@@ -54,7 +54,7 @@ func registerMeWrite(api huma.API, cat *Catalog) {
 	huma.Register(api, huma.Operation{
 		OperationID: "uploadMyEditImage", Method: http.MethodPost, Path: "/v2/me/edit-images",
 		Summary:     "Upload an image for an edit proposal",
-		Description: "multipart/form-data with preset and file. Returns the hash an edit proposal carries in a cover or screenshot row. Requires a user access token bound to a catalog site.",
+		Description: "multipart/form-data with preset and file. Returns the hash an edit proposal carries in a cover or screenshot row, or in a person's photo field. Requires a user access token bound to a catalog site.",
 		Tags:        me, Errors: writeErrs, DefaultStatus: http.StatusCreated, SkipValidateParams: true,
 	}, uploadMyEditImage(cat))
 	huma.Register(api, huma.Operation{
@@ -192,13 +192,13 @@ type getClaimOutput struct {
 type listProposalsInput struct {
 	CollectionInput
 	State      string `query:"state" maxLength:"16" doc:"Closed: open, pending, merged, declined, withdrawn. Unknown value is 400 UNKNOWN_ENUM_VALUE."`
-	Object     string `query:"object" maxLength:"32" doc:"Closed family filter: work, company, character, release, tag, engine, series."`
+	Object     string `query:"object" maxLength:"32" doc:"Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."`
 	EntityType string `query:"entity_type" maxLength:"64" doc:"Editing-engine type, e.g. catalog.work. The same spelling POST /v2/me/proposals takes in its body. Names the same filter as object=; sending both with different families is 400."`
 	EntityID   string `query:"entity_id" maxLength:"20" doc:"Catalog id of one entity. Accepted alone on this lane, which is already fenced to the bearer's own proposals; pair it with object= or entity_type= when ids collide across families."`
 }
 type listModerationProposalsInput struct {
 	CollectionInput
-	Object     string `query:"object" maxLength:"32" doc:"Closed family filter: work, company, character, release, tag, engine, series."`
+	Object     string `query:"object" maxLength:"32" doc:"Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."`
 	EntityType string `query:"entity_type" maxLength:"64" doc:"Editing-engine type, e.g. catalog.work. Names the same filter as object=; sending both with different families is 400."`
 	EntityID   string `query:"entity_id" maxLength:"20" doc:"Catalog id of one entity. Requires object= or entity_type=. Narrows the queue to that entity, which its owner may read without a review permission."`
 }
@@ -264,7 +264,7 @@ type revertInput struct {
 	}
 }
 type snapshotInput struct {
-	Object string `path:"object" maxLength:"32" doc:"Family: work, company, character, release, tag, engine, series."`
+	Object string `path:"object" maxLength:"32" doc:"Family: work, company, character, release, tag, engine, series, person, credit_name."`
 	ID     string `path:"id" minLength:"1" maxLength:"20" pattern:"^[0-9]+$" doc:"Catalog id."`
 }
 type snapshotOutput struct{ Body repr.SnapshotRecord }
@@ -574,7 +574,7 @@ func revertModeration(cat *Catalog) func(context.Context, *revertInput) (*getPro
 }
 
 type editImageForm struct {
-	Preset string `form:"preset" required:"true" enum:"cover,screenshot" doc:"Which editor slot these bytes are for."`
+	Preset string `form:"preset" required:"true" enum:"cover,screenshot,photo" doc:"Which editor slot these bytes are for."`
 	// Not an image/* contentType list: mime.Writer's CreateFormFile stamps every
 	// part application/octet-stream, so a narrower list rejects the exact client
 	// this face exists for. The image service validates the bytes it is given.

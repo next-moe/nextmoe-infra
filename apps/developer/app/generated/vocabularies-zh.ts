@@ -69,6 +69,14 @@ export const vocabularyMetaZh: Record<string, VocabularyZhMeta> = {
     "label": "别名类型",
     "summary": "一条实体别名是译名还是拼写变体。"
   },
+  "credit_name_kind": {
+    "label": "署名名类型",
+    "summary": "一个署名名在其人物名下扮演的角色：本名、笔名、另立人格或曾用名。"
+  },
+  "link_visibility": {
+    "label": "关联可见性",
+    "summary": "署名名与其人物之间的关联是否对外公开。"
+  },
   "roster_role": {
     "label": "出演分量",
     "summary": "一个角色在这部作品里的出场分量。"
@@ -339,6 +347,34 @@ export const vocabularyValuesZh: Record<
     "spelling_variant": {
       "displayName": "拼写变体",
       "description": "同一个名字的拼写变体。search_hint 是内部用的，不在这个词表里。"
+    }
+  },
+  "credit_name_kind": {
+    "main": {
+      "displayName": "本名",
+      "description": "这个人的主名。"
+    },
+    "pen_name": {
+      "displayName": "笔名",
+      "description": "一个笔名。"
+    },
+    "distinct_persona": {
+      "displayName": "另立人格",
+      "description": "与此人其他名字分开经营的人格。"
+    },
+    "former_name": {
+      "displayName": "曾用名",
+      "description": "此人已不再使用的名字。"
+    }
+  },
+  "link_visibility": {
+    "public": {
+      "displayName": "公开",
+      "description": "这个署名名与其人物的关联会被展示。"
+    },
+    "hidden": {
+      "displayName": "隐藏",
+      "description": "这个署名名与其人物的关联不在公开接口中出现。"
     }
   },
   "roster_role": {

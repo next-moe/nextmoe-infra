@@ -18,11 +18,13 @@ func TestOnePlatformPolicyForEveryType(t *testing.T) {
 		editspec.TypeRelease: string(perm.EditReleaseReview),
 	}
 	shared := map[string]string{
-		editspec.TypeCharacter: string(perm.EditCharacterReview),
-		editspec.TypeLabel:     string(perm.EditTaxonomyReview),
-		editspec.TypeTag:       string(perm.EditTaxonomyReview),
-		editspec.TypeEngine:    string(perm.EditTaxonomyReview),
-		editspec.TypeSeries:    string(perm.EditTaxonomyReview),
+		editspec.TypeCharacter:  string(perm.EditCharacterReview),
+		editspec.TypeLabel:      string(perm.EditTaxonomyReview),
+		editspec.TypeTag:        string(perm.EditTaxonomyReview),
+		editspec.TypeEngine:     string(perm.EditTaxonomyReview),
+		editspec.TypeSeries:     string(perm.EditTaxonomyReview),
+		editspec.TypePerson:     string(perm.EditPersonReview),
+		editspec.TypeCreditName: string(perm.EditPersonReview),
 	}
 	if len(owned)+len(shared) != len(reg.Types()) {
 		t.Fatalf("registered types %v: every one must be classified owned or shared here", reg.Types())

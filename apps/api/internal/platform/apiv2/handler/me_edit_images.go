@@ -16,6 +16,7 @@ type EditImageUpload func(ctx context.Context, r io.Reader, filename, preset, up
 var editImagePresets = map[string]string{
 	"cover":      "catalog_cover",
 	"screenshot": "catalog_screenshot",
+	"photo":      "catalog_logo",
 }
 
 func (c *Catalog) UploadEditImage(ctx context.Context, preset, filename string, body io.Reader) (repr.EditImage, error) {
@@ -35,7 +36,7 @@ func (c *Catalog) UploadEditImage(ctx context.Context, preset, filename string, 
 		p := problem.New(problem.CodeValidationFailed, "", "", "preset is not an editor image slot.")
 		p.Errors = []problem.FieldError{{Pointer: "/preset", Reason: problem.ReasonUnknownValue,
 			Detail: "expected one of: cover, screenshot",
-			Params: &problem.FieldParams{Allowed: &[]string{"cover", "screenshot"}}}}
+			Params: &problem.FieldParams{Allowed: &[]string{"cover", "screenshot", "photo"}}}}
 		return repr.EditImage{}, p
 	}
 	res, uerr := c.Uploads(ctx, body, filename, target, site+":"+strconv.FormatInt(uid, 10))

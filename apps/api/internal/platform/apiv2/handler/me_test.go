@@ -147,6 +147,19 @@ func TestEditImageSubCarriesTheTokenSite(t *testing.T) {
 	}
 }
 
+func TestEditImagePhotoUsesTheLogoPreset(t *testing.T) {
+	ctx := context.WithValue(contextWithUser(t.Context(), 7, "editor-client"), ctxSite, "editor")
+	var gotPreset string
+	cat := &Catalog{Uploads: func(_ context.Context, _ io.Reader, _, preset, _ string) (*imageclient.UploadResult, error) {
+		gotPreset = preset
+		return &imageclient.UploadResult{Hash: "h", URL: "u"}, nil
+	}}
+	img, err := cat.UploadEditImage(ctx, "photo", "p.png", strings.NewReader("x"))
+	require.NoError(t, err)
+	require.Equal(t, "catalog_logo", gotPreset, "a person photo is sized like the personphotos job sizes it")
+	require.Equal(t, "photo", img.Preset)
+}
+
 func contextWithUser(ctx context.Context, uid int64, client string) context.Context {
 	ctx = context.WithValue(ctx, ctxUserID, uid)
 	return context.WithValue(ctx, ctxClientID, client)

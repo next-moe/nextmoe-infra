@@ -310,6 +310,48 @@ export const vocabularies = [
     ]
   },
   {
+    "name": "credit_name_kind",
+    "closed": true,
+    "values": [
+      {
+        "value": "main",
+        "display_name": "Main",
+        "description": "The person's main name."
+      },
+      {
+        "value": "pen_name",
+        "display_name": "Pen name",
+        "description": "A pen name."
+      },
+      {
+        "value": "distinct_persona",
+        "display_name": "Distinct persona",
+        "description": "A persona kept apart from the person's other names."
+      },
+      {
+        "value": "former_name",
+        "display_name": "Former name",
+        "description": "A name the person no longer uses."
+      }
+    ]
+  },
+  {
+    "name": "link_visibility",
+    "closed": true,
+    "values": [
+      {
+        "value": "public",
+        "display_name": "Public",
+        "description": "The link between this credit name and its person is shown."
+      },
+      {
+        "value": "hidden",
+        "display_name": "Hidden",
+        "description": "The link between this credit name and its person is withheld from public faces."
+      }
+    ]
+  },
+  {
     "name": "roster_role",
     "closed": true,
     "values": [

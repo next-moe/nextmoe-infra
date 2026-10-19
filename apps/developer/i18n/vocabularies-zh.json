@@ -107,6 +107,14 @@
     "relation_types": {
       "label": "关联类型",
       "summary": "两个实体之间的关系。标了「对称关系」的，反向也成立。开放词表。"
+    },
+    "credit_name_kind": {
+      "label": "署名名类型",
+      "summary": "一个署名名在其人物名下扮演的角色：本名、笔名、另立人格或曾用名。"
+    },
+    "link_visibility": {
+      "label": "关联可见性",
+      "summary": "署名名与其人物之间的关联是否对外公开。"
     }
   },
   "strings": {
@@ -478,6 +486,19 @@
     "Subsidiary of": "对方的子公司",
     "This company is a subsidiary of the other.": "这家公司是另一家的子公司。",
     "Member of": "对方的成员",
-    "This company is a member of the other.": "这家公司是另一家的成员。"
+    "This company is a member of the other.": "这家公司是另一家的成员。",
+
+    "Main": "本名",
+    "The person's main name.": "这个人的主名。",
+    "Pen name": "笔名",
+    "A pen name.": "一个笔名。",
+    "Distinct persona": "另立人格",
+    "A persona kept apart from the person's other names.": "与此人其他名字分开经营的人格。",
+    "Former name": "曾用名",
+    "A name the person no longer uses.": "此人已不再使用的名字。",
+
+    "Public": "公开",
+    "The link between this credit name and its person is shown.": "这个署名名与其人物的关联会被展示。",
+    "The link between this credit name and its person is withheld from public faces.": "这个署名名与其人物的关联不在公开接口中出现。"
   }
 }

@@ -1475,7 +1475,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "为编辑提案上传图片",
     "s": "端点 · 我的",
     "d": "POST /v2/me/edit-images",
-    "b": "uploadMyEditImage /v2/me/edit-images post Upload an image for an edit proposal multipart/form-data with preset and file. Returns the hash an edit proposal carries in a cover or screenshot row. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. multipart/form-data，含 preset 与 file。返回编辑提案在封面或截图行中携带的 hash。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 Idempotency-Key"
+    "b": "uploadMyEditImage /v2/me/edit-images post Upload an image for an edit proposal multipart/form-data with preset and file. Returns the hash an edit proposal carries in a cover or screenshot row, or in a person's photo field. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. multipart/form-data，含 preset 与 file。返回编辑提案在封面或截图行、或人物照片字段中携带的 hash。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 Idempotency-Key"
   },
   {
     "r": "/docs/v2/getMyEditQuota",
@@ -2456,6 +2456,20 @@ export const searchIndex: SearchEntry[] = [
     "s": "词表 · 封闭",
     "d": "alias_kind · 2 个成员",
     "b": "alias_kind 一条实体别名是译名还是拼写变体。 translation Translation A translated name. 译名 翻译过来的名字。 spelling_variant Spelling variant A spelling variant. search_hint is internal and is not in this vocabulary. 拼写变体 同一个名字的拼写变体。search_hint 是内部用的，不在这个词表里。"
+  },
+  {
+    "r": "/docs/vocabularies/credit_name_kind",
+    "t": "署名名类型",
+    "s": "词表 · 封闭",
+    "d": "credit_name_kind · 4 个成员",
+    "b": "credit_name_kind 一个署名名在其人物名下扮演的角色：本名、笔名、另立人格或曾用名。 main Main The person's main name. 本名 这个人的主名。 pen_name Pen name A pen name. 笔名 一个笔名。 distinct_persona Distinct persona A persona kept apart from the person's other names. 另立人格 与此人其他名字分开经营的人格。 former_name Former name A name the person no longer uses. 曾用名 此人已不再使用的名字。"
+  },
+  {
+    "r": "/docs/vocabularies/link_visibility",
+    "t": "关联可见性",
+    "s": "词表 · 封闭",
+    "d": "link_visibility · 2 个成员",
+    "b": "link_visibility 署名名与其人物之间的关联是否对外公开。 public Public The link between this credit name and its person is shown. 公开 这个署名名与其人物的关联会被展示。 hidden Hidden The link between this credit name and its person is withheld from public faces. 隐藏 这个署名名与其人物的关联不在公开接口中出现。"
   },
   {
     "r": "/docs/vocabularies/roster_role",

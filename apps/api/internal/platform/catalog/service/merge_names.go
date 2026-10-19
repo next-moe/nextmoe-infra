@@ -63,7 +63,8 @@ var (
 		live: editspec.NotSuppressedLabelAliasSQL}
 	characterAliasTable = mergeAliasTable{table: "catalog_character_alias", owner: "character_id", ownerTable: "catalog_character", ownerName: "display_name",
 		live: editspec.NotSuppressedCharacterAliasSQL}
-	nameAliasTable = mergeAliasTable{table: "catalog_name_alias", owner: "credit_name_id", ownerTable: "catalog_credit_name", ownerName: "name"}
+	nameAliasTable = mergeAliasTable{table: "catalog_name_alias", owner: "credit_name_id", ownerTable: "catalog_credit_name", ownerName: "name",
+		live: editspec.NotSuppressedNameAliasSQL}
 )
 
 // aliasDemoteStmts is workTitleStmts for the entity alias tables. It must run

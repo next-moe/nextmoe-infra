@@ -141,6 +141,22 @@ func TestSplitDryThenApplyThenSecondPassIsZeroWrite(t *testing.T) {
 	assert.EqualValues(t, 1, revs)
 }
 
+func TestSplitKeepsAHumanAttribution(t *testing.T) {
+	cnID, personID := fixture(t)
+	require.NoError(t, testDB.Exec(`UPDATE catalog_credit_name SET field_provenance =
+		'{"person_id":[{"source":"curated","at":"2026-10-19T00:00:00Z"}]}'::jsonb WHERE id = ?`, cnID).Error)
+	wl := write(t, fmt.Sprintf(`{"credit_name_id":%d,"detach_sources":["eg"],"reason":"bare surname"}`, cnID))
+
+	got, err := Run(context.Background(), Opts{DSN: testDSN, WorklistPath: wl, Apply: true})
+	require.NoError(t, err)
+	assert.Equal(t, 1, got.AnchorsDropped, "the anchor still comes off")
+	assert.Zero(t, got.PersonsUnlinked, "a person the editor attributed this name to is not undone by a split")
+	var cn model.CatalogCreditName
+	require.NoError(t, testDB.First(&cn, cnID).Error)
+	require.NotNil(t, cn.PersonID)
+	assert.Equal(t, personID, *cn.PersonID)
+}
+
 func TestSplitRefusesToStripEveryAnchor(t *testing.T) {
 	cnID, _ := fixture(t)
 	wl := write(t, fmt.Sprintf(`{"credit_name_id":%d,"detach_sources":["bgm","eg"]}`, cnID))

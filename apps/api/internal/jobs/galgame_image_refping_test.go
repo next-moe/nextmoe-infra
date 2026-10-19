@@ -127,6 +127,22 @@ func TestRefpingKeepsScalarImageFieldsAlive(t *testing.T) {
 	assert.ElementsMatch(t, []string{hPortrait, hFigure, hLogo}, got)
 }
 
+func TestRefpingKeepsAPendingPersonPhoto(t *testing.T) {
+	db := openEditTestDB(t)
+	ctx := context.Background()
+
+	const hPhoto = "4444444444444444444444444444444444444444444444444444444444444444"
+	require.NoError(t, db.Exec(`
+		INSERT INTO edit_proposal
+			(entity_family, entity_type, entity_id, base_revision_seq, patch, proposer_uid, note, site, status, decision_note, created_at, updated_at)
+		VALUES ('catalog', 'catalog.person', 7, 0, ?::jsonb, 1, '', 'editor', 0, '', now(), now())`,
+		`{"catalog.person.photo":"`+hPhoto+`"}`).Error)
+
+	got, err := collectEditRefpingHashes(ctx, db)
+	require.NoError(t, err)
+	assert.Equal(t, []string{hPhoto}, got, "an uploaded photo waiting for review must outlive the image TTL")
+}
+
 func TestRefpingEngineLaneSkipsOtherFamilies(t *testing.T) {
 	db := openEditTestDB(t)
 	ctx := context.Background()

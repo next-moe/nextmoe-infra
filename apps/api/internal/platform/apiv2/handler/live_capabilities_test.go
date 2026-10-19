@@ -87,7 +87,7 @@ func TestLiveCapabilitiesShapeAndErrors(t *testing.T) {
 
 	// Every family the public schema face serves must answer here too, or the
 	// two faces cannot be joined.
-	for _, object := range []string{"work", "company", "character", "release", "tag", "engine", "series"} {
+	for _, object := range []string{"work", "company", "character", "release", "tag", "engine", "series", "person", "credit_name"} {
 		liveCaps(t, env, "/v2/me/edit-capabilities/"+object, liveUserToken)
 	}
 

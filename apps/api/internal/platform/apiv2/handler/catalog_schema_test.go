@@ -28,10 +28,10 @@ func TestGetSchemaUnbound(t *testing.T) {
 	if !ok || p.Code != problem.CodeServiceUnavailable {
 		t.Fatalf("%v", err)
 	}
-	_, err = (&Catalog{}).GetSchema(t.Context(), "person")
+	_, err = (&Catalog{}).GetSchema(t.Context(), "trait")
 	p, ok = err.(*problem.Problem)
 	if !ok || p.Code != problem.CodeNotFound {
-		t.Fatalf("person %v", err)
+		t.Fatalf("trait %v", err)
 	}
 }
 
@@ -149,7 +149,15 @@ func TestCatalogSchemaHTTP(t *testing.T) {
 	require.NoError(t, json.Unmarshal(body, &s))
 	require.True(t, s.CreationDisabled)
 
-	status, _, body = do(t, app, httpMethodGet, "/v2/catalog/schemas/person")
+	for _, object := range []string{"person", "credit_name"} {
+		status, _, body = do(t, app, httpMethodGet, "/v2/catalog/schemas/"+object)
+		require.Equal(t, 200, status, object)
+		require.NoError(t, json.Unmarshal(body, &s))
+		require.Equal(t, object, s.TargetObject)
+		require.NotEmpty(t, s.Fields, object)
+	}
+
+	status, _, body = do(t, app, httpMethodGet, "/v2/catalog/schemas/trait")
 	require.Equal(t, 404, status)
 	var p problem.Problem
 	require.NoError(t, json.Unmarshal(body, &p), string(body))

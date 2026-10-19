@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"api/internal/platform/catalog/dto"
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 )
 
@@ -200,11 +201,15 @@ func mintLinks(entityType int16, anchors []linkAnchor) []dto.PublicLink {
 }
 
 func (s *PublicService) linkAnchors(ctx context.Context, entityType int16, ids []int64) ([]linkAnchor, error) {
+	live := ""
+	if entityType == model.EntityTypePerson {
+		live = " AND " + editspec.NotSuppressedPersonLinkSQL("r", "src")
+	}
 	var rows []linkAnchor
 	err := s.db.WithContext(ctx).Raw(`
 		SELECT r.entity_id, src.key AS source, r.external_id, r.link_kind
 		FROM catalog_external_ref r JOIN catalog_source src ON src.id = r.source_id
-		WHERE r.entity_type = ? AND r.entity_id IN ? AND r.link_kind IN ? AND r.dead_at IS NULL
+		WHERE r.entity_type = ? AND r.entity_id IN ? AND r.link_kind IN ? AND r.dead_at IS NULL`+live+`
 		ORDER BY r.entity_id, r.source_id, r.external_id`,
 		entityType, ids, []int16{model.LinkKindExact, model.LinkKindRelated}).Scan(&rows).Error
 	return rows, err
