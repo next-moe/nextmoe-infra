@@ -52,6 +52,7 @@ export const EDITOR_NAV: EditorNavGroup[] = [
         label: '待审队列',
         icon: 'lucide:inbox',
         to: '/review',
+        ready: true,
         reviewerOnly: true
       }
     ]
