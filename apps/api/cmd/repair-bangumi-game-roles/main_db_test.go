@@ -9,9 +9,11 @@ import (
 	"strings"
 	"testing"
 
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/migrate"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/seed"
+	"api/internal/platform/editing"
 	"api/internal/testsupport/dbtest"
 
 	"github.com/stretchr/testify/assert"
@@ -168,4 +170,58 @@ func TestRepairMovesBangumiCreditsOntoSharedRoles(t *testing.T) {
 	st, err = run(context.Background(), testDB, generated.GameRoleToShared, true, &bytes.Buffer{})
 	require.NoError(t, err)
 	assert.Equal(t, stats{}, st, "a second run finds nothing to move")
+}
+
+func suppress(t *testing.T, work int64, key string) {
+	t.Helper()
+	require.NoError(t, testDB.Create(&editing.SuppressedRow{
+		EntityType: editspec.TypeWork, EntityID: work, FieldKey: editspec.FieldWorkCredits, IdentityKey: key,
+	}).Error)
+}
+
+func suppressedKeys(t *testing.T, work int64) []string {
+	t.Helper()
+	var keys []string
+	require.NoError(t, testDB.Raw(`SELECT identity_key FROM edit_suppressed_row
+		WHERE entity_type = ? AND entity_id = ? AND field_key = ? ORDER BY identity_key`,
+		editspec.TypeWork, work, editspec.FieldWorkCredits).Scan(&keys).Error)
+	return keys
+}
+
+func TestRepairCarriesSuppressionsWithTheCredits(t *testing.T) {
+	setup(t)
+	require.NoError(t, testDB.Exec("TRUNCATE edit_suppressed_row RESTART IDENTITY").Error)
+	generated, err := seed.GenerateBangumiRoles()
+	require.NoError(t, err)
+	scenario, juben := roleID(t, "scenario"), roleID(t, "剧本")
+
+	game, other := mkWork(t, "galgame"), mkWork(t, "galgame")
+	a, b := mkName(t, "えんぎよし"), mkName(t, "魁")
+	mkCredit(t, game, a, scenario, 2)
+	mkCredit(t, game, a, juben, 3)
+	mkCredit(t, game, b, juben, 3)
+	mkCredit(t, other, b, scenario, 2)
+
+	suppress(t, game, editspec.CreditIdentity(juben, a, 0))
+	suppress(t, game, editspec.CreditIdentity(juben, b, 0))
+	suppress(t, other, editspec.CreditIdentity(scenario, b, 0))
+
+	st, err := run(context.Background(), testDB, generated.GameRoleToShared, false, &bytes.Buffer{})
+	require.NoError(t, err)
+	assert.Equal(t, stats{Moved: 1, Deleted: 1, Works: 1, SuppressionsMoved: 1, SuppressionsDropped: 1}, st)
+	assert.Len(t, suppressedKeys(t, game), 2, "a dry run writes nothing")
+
+	st, err = run(context.Background(), testDB, generated.GameRoleToShared, true, &bytes.Buffer{})
+	require.NoError(t, err)
+	assert.Equal(t, stats{Moved: 1, Deleted: 1, Works: 1, SuppressionsMoved: 1, SuppressionsDropped: 1}, st)
+
+	assert.Equal(t, []string{editspec.CreditIdentity(scenario, b, 0)}, suppressedKeys(t, game),
+		"the moved credit stays hidden, and the twin of the deleted one stays visible")
+	assert.Equal(t, []string{editspec.CreditIdentity(scenario, b, 0)}, suppressedKeys(t, other),
+		"another work's suppressions are untouched")
+
+	var hidden int64
+	require.NoError(t, testDB.Raw(`SELECT count(*) FROM catalog_credit c WHERE c.work_id = ? AND NOT `+
+		editspec.NotSuppressedCreditSQL("c"), game).Scan(&hidden).Error)
+	assert.EqualValues(t, 1, hidden, "the read path still drops exactly the credit that was hidden")
 }

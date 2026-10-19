@@ -31,6 +31,26 @@ func IsHuman(source string) bool {
 	return source == SourceUser || source == SourceCurated
 }
 
+// Head is the source key of the newest entry in one column's entry array.
+func Head(entries json.RawMessage) string {
+	var arr []Entry
+	if len(entries) == 0 || json.Unmarshal(entries, &arr) != nil || len(arr) == 0 {
+		return ""
+	}
+	return arr[0].Source
+}
+
+// Prepend records a write as the newest entry of field in a decoded document.
+func Prepend(doc map[string]json.RawMessage, field, source, at string) {
+	entry, _ := json.Marshal(Entry{Source: source, At: at})
+	var arr []json.RawMessage
+	if raw, ok := doc[field]; ok {
+		_ = json.Unmarshal(raw, &arr)
+	}
+	merged, _ := json.Marshal(append([]json.RawMessage{entry}, arr...))
+	doc[field] = merged
+}
+
 // FirstSource is the source key of the most recent write to field, or "" when
 // the document does not record one.
 func FirstSource(doc []byte, field string) string {
