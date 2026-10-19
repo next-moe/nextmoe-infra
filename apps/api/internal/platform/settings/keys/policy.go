@@ -336,11 +336,59 @@ var CatalogClaimWritesPerDayTrusted = settings.Int(settings.Meta{
 
 var CatalogProposalsPerDay = settings.Int(settings.Meta{
 	Name:   "catalog.proposals_per_day",
-	DescEN: "Edit proposals one contributor may file inside the window. 0 freezes the lane.",
-	DescZH: "一个贡献者在窗口内可提交的编辑提案数;0 表示冻结该通道。",
+	DescEN: "Edit proposals one ordinary contributor (user tier) may file inside the window, counting ones that applied immediately. 0 freezes the lane.",
+	DescZH: "普通贡献者(用户档)在窗口内可提交的编辑提案数,即时生效的也计入;0 表示冻结该通道。",
 	Min:    settings.F(0),
 	Max:    settings.F(100000),
 }, 100)
+
+var CatalogProposalsPerDayEditor = settings.Int(settings.Meta{
+	Name:   "catalog.proposals_per_day_editor",
+	DescEN: "The same limit for the editor tier: holders of catalog.edit.trusted without a review permission.",
+	DescZH: "编辑者档(持 catalog.edit.trusted 但无审核权)的同一限额。",
+	Min:    settings.F(0),
+	Max:    settings.F(100000),
+}, 500)
+
+var CatalogProposalsPerDayReviewer = settings.Int(settings.Meta{
+	Name:   "catalog.proposals_per_day_reviewer",
+	DescEN: "The same limit for the reviewer tier: holders of a review permission on any edit family. High enough never to be felt; it bounds a stolen token, not a person.",
+	DescZH: "审核者档(持任一编辑审核权)的同一限额。设得足够高以致真人不会碰到;它限制的是被盗令牌的爆炸半径。",
+	Min:    settings.F(0),
+	Max:    settings.F(100000),
+}, 1000)
+
+var CatalogDirectEditsPerDayEditor = settings.Int(settings.Meta{
+	Name:   "catalog.direct_edits_per_day_editor",
+	DescEN: "Edits an editor may apply without review inside the window. Past it their edits queue as ordinary proposals instead of failing. 0 sends every editor edit to review.",
+	DescZH: "编辑者在窗口内可免审直接生效的编辑数;超出后其编辑转为普通待审提案而非报错。0 表示编辑者的每次编辑都进审核。",
+	Min:    settings.F(0),
+	Max:    settings.F(100000),
+}, 100)
+
+var CatalogOpenProposalsMaxUser = settings.Int(settings.Meta{
+	Name:   "catalog.open_proposals_max_user",
+	DescEN: "Proposals an ordinary contributor may have awaiting a decision at once, across all sites. 0 means no cap.",
+	DescZH: "普通贡献者同时处于待审状态的提案上限(跨所有站点);0 表示不设上限。",
+	Min:    settings.F(0),
+	Max:    settings.F(100000),
+}, 30)
+
+var CatalogOpenProposalsMaxEditor = settings.Int(settings.Meta{
+	Name:   "catalog.open_proposals_max_editor",
+	DescEN: "The same cap for the editor tier. 0 means no cap.",
+	DescZH: "编辑者档的同一上限;0 表示不设上限。",
+	Min:    settings.F(0),
+	Max:    settings.F(100000),
+}, 100)
+
+var CatalogOpenProposalsMaxReviewer = settings.Int(settings.Meta{
+	Name:   "catalog.open_proposals_max_reviewer",
+	DescEN: "The same cap for the reviewer tier. 0 means no cap.",
+	DescZH: "审核者档的同一上限;0 表示不设上限。",
+	Min:    settings.F(0),
+	Max:    settings.F(100000),
+}, 0)
 
 var CatalogNewsSubmissionsPerDay = settings.Int(settings.Meta{
 	Name:   "catalog.news_submissions_per_day",
@@ -357,14 +405,6 @@ var CatalogNewsImageUploadsPerDay = settings.Int(settings.Meta{
 	Min:    settings.F(0),
 	Max:    settings.F(100000),
 }, 30)
-
-var CatalogProposalsPerDayTrusted = settings.Int(settings.Meta{
-	Name:   "catalog.proposals_per_day_trusted",
-	DescEN: "The same limit for a holder of catalog.edit.trusted, whose proposals merge without review.",
-	DescZH: "持 catalog.edit.trusted 者的同一限额——他们的提案免审直接合并。",
-	Min:    settings.F(0),
-	Max:    settings.F(100000),
-}, 500)
 
 var DeveloperCredentialCacheTTLSeconds = settings.Int(settings.Meta{
 	Name:   "developer.credential_cache_ttl_seconds",
@@ -405,7 +445,12 @@ var catalogDomain = settings.Domain{
 		CatalogClaimWritesPerDay,
 		CatalogClaimWritesPerDayTrusted,
 		CatalogProposalsPerDay,
-		CatalogProposalsPerDayTrusted,
+		CatalogProposalsPerDayEditor,
+		CatalogProposalsPerDayReviewer,
+		CatalogDirectEditsPerDayEditor,
+		CatalogOpenProposalsMaxUser,
+		CatalogOpenProposalsMaxEditor,
+		CatalogOpenProposalsMaxReviewer,
 		CatalogNewsSubmissionsPerDay,
 		CatalogNewsImageUploadsPerDay,
 	},

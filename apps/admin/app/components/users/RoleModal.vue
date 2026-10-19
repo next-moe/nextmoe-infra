@@ -10,11 +10,11 @@ const emit = defineEmits<{ success: [] }>()
 const api = useApi()
 const { isRen, isAdmin } = useAuth()
 
-const MANAGEABLE_ROLES = ['user', 'creator', 'moderator', 'admin'] as const
+const MANAGEABLE_ROLES = ['user', 'editor', 'creator', 'moderator', 'admin'] as const
 
 const canManage = (role: string) => {
   if (isRen.value) return true // ren manages every manageable role
-  if (isAdmin.value) return role === 'moderator' || role === 'creator'
+  if (isAdmin.value) return ['moderator', 'creator', 'editor'].includes(role)
   return false
 }
 

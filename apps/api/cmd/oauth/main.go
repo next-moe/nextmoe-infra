@@ -153,6 +153,7 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	app.StartAccountDeletion(cleanupCtx, adminSvc)
 	userBatchSvc := authService.NewUserBatchService(userRepo, siteRoleRepo, cfg.ImageService.CDNBase)
 	creatorAppSvc := authService.NewCreatorApplicationService(authRepo.NewCreatorApplicationRepository(db), userRepo, userBatchSvc)
+	editorAppSvc := authService.NewEditorApplicationService(authRepo.NewEditorApplicationRepository(db), userRepo, userBatchSvc)
 	ledger := ledgerService.New(a.DB.DB())
 	authSvc.WithLedger(ledger)
 	var decorationStore shopService.ObjectStore
@@ -183,6 +184,7 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	shopH := shopHandler.New(shop, userRepo)
 	userBatchH := authHandler.NewUserBatchHandler(userBatchSvc)
 	creatorAppH := authHandler.NewCreatorApplicationHandler(creatorAppSvc)
+	editorAppH := authHandler.NewEditorApplicationHandler(editorAppSvc)
 	prefH := authHandler.NewPreferenceHandler(prefSvc)
 
 	var avatarUploadH *authHandler.AvatarUploadHandler
@@ -278,6 +280,7 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	auth.Post("/register", strict, authH.Register)
 	auth.Post("/login", strict, authH.Login)
 	auth.Post("/refresh", authH.Refresh)
+	auth.Get("/oauth/silent-authorize", oauthH.SilentAuthorize)
 	auth.Post("/password/forgot", strict, authH.ForgotPassword)
 	auth.Post("/password/reset", strict, authH.ResetPassword)
 
@@ -392,6 +395,10 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	creator.Post("/applications", creatorAppH.Apply)
 	creator.Get("/applications/me", creatorAppH.MyApplication)
 
+	editor := v1.Group("/editor", middleware.Auth(authSvc))
+	editor.Post("/applications", editorAppH.Apply)
+	editor.Get("/applications/me", editorAppH.MyApplication)
+
 	admin := v1.Group("/admin", middleware.Auth(authSvc), middleware.RequirePermission(sitePerm.Resolver, sitePerm.AdminAccess))
 	admin.Get("/users", adminH.ListUsers)
 	admin.Get("/users/:uuid", adminH.GetUser)
@@ -410,6 +417,11 @@ func setupRoutes(a *app.App, cfg *config.Config, cleanupCtx context.Context) {
 	admin.Get("/creator/applications", creatorAppH.AdminList)
 	admin.Post("/creator/applications/:id/approve", creatorAppH.AdminApprove)
 	admin.Post("/creator/applications/:id/decline", creatorAppH.AdminDecline)
+	admin.Get("/editor/applications", editorAppH.AdminList)
+	admin.Post("/editor/applications/:id/approve",
+		middleware.RequirePermission(sitePerm.Resolver, sitePerm.RolesGrantBasic), editorAppH.AdminApprove)
+	admin.Post("/editor/applications/:id/decline",
+		middleware.RequirePermission(sitePerm.Resolver, sitePerm.RolesGrantBasic), editorAppH.AdminDecline)
 	admin.Post("/users/:uuid/moemoepoint",
 		middleware.RequirePermission(sitePerm.Resolver, sitePerm.MoemoepointAdjust), moemoepointH.AdminAdjust)
 	admin.Get("/users/:uuid/moemoepoint/log", moemoepointH.AdminGetLog)

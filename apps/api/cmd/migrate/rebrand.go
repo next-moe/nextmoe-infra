@@ -14,6 +14,8 @@ const (
 	opSiteName         = "NextMoe·未萌 账号"
 	adminSiteDomain    = "admin.nextmoe.dev"
 	adminSiteName      = "NextMoe·未萌 管理台"
+	editorSiteDomain   = "editor.nextmoe.com"
+	editorSiteName     = "NextMoe·未萌 编辑者平台"
 )
 
 // rebrandNextMoeSites is the NextMoe identity cutover for the sites table.

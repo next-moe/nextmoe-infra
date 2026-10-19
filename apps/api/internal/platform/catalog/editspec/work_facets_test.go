@@ -18,7 +18,7 @@ func mergeField(t *testing.T, e *editing.Engine, workID int64, key string, value
 	t.Helper()
 	prop, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
 		EntityType: editspec.TypeWork, EntityID: workID,
-		Patch: map[string]any{key: value}, Actor: realActor(100, "admin"),
+		Patch: map[string]any{key: value}, Actor: realActor(100),
 	})
 	if err != nil {
 		t.Fatalf("propose %s: %v", key, err)
@@ -311,7 +311,7 @@ func TestCoversAndScreenshotsOrderAndLane(t *testing.T) {
 			map[string]any{"image_hash": "a", "portrait_pinned": true},
 			map[string]any{"image_hash": "b", "portrait_pinned": true},
 		}},
-		Actor: realActor(100, "admin"),
+		Actor: realActor(100),
 	}); err == nil {
 		t.Fatal("two portrait_pinned covers must fail validation")
 	}

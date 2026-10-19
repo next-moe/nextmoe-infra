@@ -92,12 +92,12 @@ func TestModerationCapDeniesOwnerAutomerge(t *testing.T) {
 	}
 }
 
-func TestModerationCapOnAnOpenTenant(t *testing.T) {
+func TestModerationCapUnderAnOpenPolicy(t *testing.T) {
 	e := newEngine(t)
 	createWidget(t, 1)
+	applyOverrides(t, e, lockOpenOpenName())
 
 	open := reviewerActor(400)
-	open.Site = overlaySite
 	prop, rev, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
 		EntityType: "test.widget", EntityID: 1,
 		Patch: map[string]any{fName: "landed"}, Actor: open,
@@ -106,7 +106,7 @@ func TestModerationCapOnAnOpenTenant(t *testing.T) {
 		t.Fatalf("fixture create: %v", err)
 	}
 	if rev == nil || prop.Status != editing.StatusMerged {
-		t.Fatal("fixture: the open tenant must automerge an uncapped caller")
+		t.Fatal("fixture: the open policy must automerge an uncapped caller")
 	}
 
 	prop, rev, err = e.CreateProposal(testCtx, editing.CreateProposalInput{
@@ -117,7 +117,7 @@ func TestModerationCapOnAnOpenTenant(t *testing.T) {
 		t.Fatalf("capped create: %v", err)
 	}
 	if rev != nil || prop.Status != editing.StatusOpen {
-		t.Fatalf("a capped caller must file an OPEN proposal on an open tenant: rev=%v status=%d", rev, prop.Status)
+		t.Fatalf("a capped caller must file an OPEN proposal under an open policy: rev=%v status=%d", rev, prop.Status)
 	}
 	if w := loadWidget(t, 1); w.Name != "landed" {
 		t.Fatalf("the capped patch must not have been applied: name=%q", w.Name)

@@ -37,14 +37,38 @@ const RatingModerate authz.Permission = "catalog.rating.moderate"
 
 const FolderModerate authz.Permission = "catalog.folder.moderate"
 
-var moderatorPerms = []authz.Permission{ClaimReview, RatingModerate, FolderModerate}
+const EditPolicyManage authz.Permission = "edit.policy.manage"
 
-var adminPerms = append(append([]authz.Permission{}, moderatorPerms...),
-	EditWork, EditWorkReview, EditTaxonomy, EditTaxonomyReview,
-	EditCharacter, EditCharacterReview, EditRelease, EditReleaseReview,
-	EditTrusted, ClaimTrusted)
+var editProposePerms = []authz.Permission{EditWork, EditTaxonomy, EditCharacter, EditRelease}
+
+var editReviewPerms = []authz.Permission{EditWorkReview, EditTaxonomyReview, EditCharacterReview, EditReleaseReview}
+
+var editorPerms = append(append([]authz.Permission{}, editProposePerms...), EditTrusted)
+
+var moderatorPerms = concat(
+	[]authz.Permission{ClaimReview, RatingModerate, FolderModerate, EditTrusted, ClaimTrusted},
+	editProposePerms, editReviewPerms)
+
+var adminPerms = append(append([]authz.Permission{}, moderatorPerms...), EditPolicyManage)
 
 var renPerms = append(append([]authz.Permission{}, adminPerms...), Review)
+
+func concat(parts ...[]authz.Permission) []authz.Permission {
+	var out []authz.Permission
+	for _, p := range parts {
+		out = append(out, p...)
+	}
+	return out
+}
+
+func ReviewsEdits(roles []string) bool {
+	for _, p := range editReviewPerms {
+		if Resolver.Can(roles, p) {
+			return true
+		}
+	}
+	return false
+}
 
 // The v2 moderation faces are one place, not one per family: a proposal queue
 // row can be any registered entity type, and a snapshot is addressed by family.
@@ -52,10 +76,7 @@ var renPerms = append(append([]authz.Permission{}, adminPerms...), Review)
 // is the union below. It is a hand-maintained list over a growing permission
 // set: a new review permission that is not added here is silently not
 // moderation authority.
-var moderationPerms = []authz.Permission{
-	ClaimReview, Review,
-	EditWorkReview, EditTaxonomyReview, EditCharacterReview, EditReleaseReview,
-}
+var moderationPerms = concat([]authz.Permission{ClaimReview, Review}, editReviewPerms)
 
 func Moderates(roles []string) bool {
 	for _, p := range moderationPerms {
@@ -67,9 +88,21 @@ func Moderates(roles []string) bool {
 }
 
 var Bundles = authz.Bundles{
+	"editor":    editorPerms,
 	"moderator": moderatorPerms,
 	"admin":     adminPerms,
 	"ren":       renPerms,
+}
+
+func Known(key string) bool {
+	for _, perms := range Bundles {
+		for _, p := range perms {
+			if string(p) == key {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 var Resolver = authz.NewHolder(Bundles)

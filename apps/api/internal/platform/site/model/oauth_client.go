@@ -105,6 +105,12 @@ type OAuthClient struct {
 	// is its own property wants and what every existing client had.
 	CommunitySite string `gorm:"size:64" json:"community_site,omitempty"`
 
+	// UnionSiteRoles makes this client's tokens carry the user's site roles from
+	// every site instead of its own site's. It is for a first-party surface that
+	// acts on every site's content — the editor platform, where a forum
+	// moderator must review catalog edits filed from anywhere.
+	UnionSiteRoles bool `gorm:"not null;default:false" json:"union_site_roles"`
+
 	Site *Site `gorm:"foreignKey:SiteID" json:"site,omitempty"`
 }
 

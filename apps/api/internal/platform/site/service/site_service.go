@@ -116,7 +116,7 @@ func (s *SiteService) CreateOAuthClient(ctx context.Context, siteID uint, name s
 	return client, secret, nil
 }
 
-func (s *SiteService) UpdateOAuthClient(ctx context.Context, clientID string, name *string, redirectURIs, grants, allowedScopes []string, autoConsent *bool, refreshTokenTTLSeconds *int, listed *bool, logoURL, tagline *string, displayOrder *int) (*model.OAuthClient, error) {
+func (s *SiteService) UpdateOAuthClient(ctx context.Context, clientID string, name *string, redirectURIs, grants, allowedScopes []string, autoConsent, unionSiteRoles *bool, refreshTokenTTLSeconds *int, listed *bool, logoURL, tagline *string, displayOrder *int) (*model.OAuthClient, error) {
 	client, err := s.oauthClientRepo.FindByClientID(ctx, clientID)
 	if err != nil {
 		return nil, err
@@ -139,6 +139,9 @@ func (s *SiteService) UpdateOAuthClient(ctx context.Context, clientID string, na
 	}
 	if autoConsent != nil {
 		client.AutoConsent = *autoConsent
+	}
+	if unionSiteRoles != nil {
+		client.UnionSiteRoles = *unionSiteRoles
 	}
 	if refreshTokenTTLSeconds != nil {
 		client.RefreshTokenTTLSeconds = *refreshTokenTTLSeconds

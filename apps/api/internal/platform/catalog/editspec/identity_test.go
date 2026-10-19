@@ -81,7 +81,7 @@ func TestSuppressionRejectsNonCanonicalKeys(t *testing.T) {
 		if _, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
 			EntityType: editspec.TypeWork, EntityID: work.ID,
 			Patch: map[string]any{editspec.FieldWorkTitlesSuppr: c.keys},
-			Actor: realActor(100, "admin"),
+			Actor: realActor(100),
 		}); !errors.As(err, &valErr) {
 			t.Fatalf("%s: propose returned %v, want a ValidationError (422)", c.why, err)
 		}

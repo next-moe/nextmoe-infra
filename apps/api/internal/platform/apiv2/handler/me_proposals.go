@@ -60,15 +60,20 @@ func trustTier(ctx context.Context) int16 {
 	return 0
 }
 
+// The central editor (editor.nextmoe.com) is the one catalog site that is not a
+// tenant: it reads, decides and reverts proposals filed on every site.
+const centralEditorSite = "editor"
+
+func isCentralSite(site string) bool { return site == centralEditorSite }
+
 // Standing to review ONE item is the engine's own per-field rule, never a
-// permission list. OwnerReview lives only in the kungal site overlay for
-// catalog.work and catalog.release (editspec/work.go:65, release.go:54), so a
-// gate built on a hand-maintained permission union cannot see entityID and
-// cannot express the owner channel at all — it refused exactly the owners the
-// forum's own gate admits (CanModerate OR isGameOwner). entityID 0 means "no
-// entity", which nobody owns: that is what keeps the type-level queue
-// type-level rather than leaking it to every claimant.
-func (c *Catalog) reviewsAnyField(ctx context.Context, entityType, site string, entityID int64, actor editing.PolicyContext) bool {
+// permission list. OwnerReview is part of the catalog.work and catalog.release
+// policy, so a gate built on a hand-maintained permission union cannot see
+// entityID and cannot express the owner channel at all — it refused exactly
+// the owners the forum's own gate admits (CanModerate OR isGameOwner).
+// entityID 0 means "no entity", which nobody owns: that is what keeps the
+// type-level queue type-level rather than leaking it to every claimant.
+func (c *Catalog) reviewsAnyField(ctx context.Context, entityType string, entityID int64, actor editing.PolicyContext) bool {
 	if c.EditTypes == nil {
 		return false
 	}
@@ -82,11 +87,8 @@ func (c *Catalog) reviewsAnyField(ctx context.Context, entityType, site string, 
 			actor.IsEntityOwner = true
 		}
 	}
-	if site == "" {
-		site = actor.Site
-	}
 	for i := range spec.Fields {
-		if spec.EffectivePolicy(spec.Fields[i].Key, site).AllowsReview(actor) {
+		if spec.EffectivePolicy(spec.Fields[i].Key).AllowsReview(actor) {
 			return true
 		}
 	}
@@ -102,19 +104,19 @@ func permissionRequired(detail string) error {
 // decided, amended and withdrew another tenant's proposals. If-Match did not
 // stand in the way either: `If-Match: *` matches any non-empty validator.
 func (c *Catalog) fenceProposal(ctx context.Context, prop *editing.Proposal, actor editing.PolicyContext, proposerOrReviewer bool) error {
-	if prop.Site != actor.Site {
+	if !isCentralSite(actor.Site) && prop.Site != actor.Site {
 		return problem.New(problem.CodeTenantMismatch, "", "",
 			"this proposal was filed on another catalog site.")
 	}
 	if proposerOrReviewer && prop.ProposerUID != actor.UserID &&
-		!c.reviewsAnyField(ctx, prop.EntityType, prop.Site, prop.EntityID, actor) {
+		!c.reviewsAnyField(ctx, prop.EntityType, prop.EntityID, actor) {
 		return permissionRequired("only the proposer, or someone with review standing on this entity, may change this proposal.")
 	}
 	return nil
 }
 
 func (c *Catalog) fenceEntitySite(ctx context.Context, entityType string, entityID int64, site string) error {
-	if c.EditTypes == nil {
+	if c.EditTypes == nil || isCentralSite(site) {
 		return nil
 	}
 	spec, ok := c.EditTypes.Type(entityType)
@@ -204,7 +206,9 @@ func (c *Catalog) ListMyProposals(ctx context.Context, q collect.Query, f propos
 	if berr != nil {
 		return repr.List[repr.ProposalRecord]{}, berr
 	}
-	f.Site = siteFrom(ctx)
+	if site := siteFrom(ctx); !isCentralSite(site) {
+		f.Site = site
+	}
 	f.ProposerScoped = true
 	filter, ferr := c.proposalQuery(f, limit+1, before)
 	if ferr != nil {
@@ -274,12 +278,12 @@ func (c *Catalog) GetModerationProposal(ctx context.Context, id int64, include [
 	if derr != nil {
 		return repr.ProposalRecord{}, "", derr
 	}
-	if rec.Site != actor.Site {
+	if !isCentralSite(actor.Site) && rec.Site != actor.Site {
 		return repr.ProposalRecord{}, "", problem.New(problem.CodeTenantMismatch, "", "",
 			"this proposal was filed on another catalog site.")
 	}
 	eid, _ := repr.ParseID(rec.EntityID)
-	if !c.reviewsAnyField(ctx, rec.EntityType, rec.Site, eid, actor) {
+	if !c.reviewsAnyField(ctx, rec.EntityType, eid, actor) {
 		return repr.ProposalRecord{}, "", permissionRequired(
 			"this face publishes another contributor's patch; it needs review standing on this entity.")
 	}
@@ -300,8 +304,15 @@ func (c *Catalog) CreateProposal(ctx context.Context, entityType, entityID strin
 		p.Errors = []problem.FieldError{{Pointer: "/entity_id", Reason: problem.ReasonInvalidFormat, Detail: entityID}}
 		return repr.ProposalRecord{}, "", p
 	}
-	if qerr := c.checkProposalQuota(ctx, actor.UserID); qerr != nil {
+	quota, qerr := c.editQuota(ctx, actor.UserID)
+	if qerr != nil {
 		return repr.ProposalRecord{}, "", qerr
+	}
+	if perr := quota.filingProblem(); perr != nil {
+		return repr.ProposalRecord{}, "", perr
+	}
+	if quota.demotesEditor() {
+		actor.TrustTier = 0
 	}
 	prop, _, cerr := c.Engine.CreateProposal(ctx, editing.CreateProposalInput{
 		EntityType: entityType, EntityID: eid, Patch: patch, Note: note, Actor: actor,
@@ -405,8 +416,12 @@ func (c *Catalog) ListModerationProposals(ctx context.Context, q collect.Query, 
 	if berr != nil {
 		return repr.List[repr.ProposalRecord]{}, berr
 	}
+	queueSite := actor.Site
+	if isCentralSite(queueSite) {
+		queueSite = ""
+	}
 	f, ferr := c.proposalQuery(proposalFilter{
-		Object: object, EntityType: entityType, EntityID: entityID, Site: actor.Site,
+		Object: object, EntityType: entityType, EntityID: entityID, Site: queueSite,
 	}, limit+1, before)
 	if ferr != nil {
 		return repr.List[repr.ProposalRecord]{}, ferr
@@ -416,7 +431,7 @@ func (c *Catalog) ListModerationProposals(ctx context.Context, q collect.Query, 
 		if terr := c.fenceEntitySite(ctx, f.EntityType, f.EntityID, actor.Site); terr != nil {
 			return repr.List[repr.ProposalRecord]{}, terr
 		}
-		if !c.reviewsAnyField(ctx, f.EntityType, actor.Site, f.EntityID, actor) {
+		if !c.reviewsAnyField(ctx, f.EntityType, f.EntityID, actor) {
 			return repr.List[repr.ProposalRecord]{}, permissionRequired(
 				"this entity's queue needs review standing on it, which its owner has.")
 		}
