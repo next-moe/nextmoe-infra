@@ -227,7 +227,7 @@ func TestApplyRosterRejectsUnknownCharacter(t *testing.T) {
 				Patch: map[string]any{editspec.FieldWorkRoster: []any{
 					rosterEl(c.characterID, model.WorkCharacterKindMain, model.SpoilerNone),
 				}},
-				Actor: realActor(100, "admin"),
+				Actor: realActor(100),
 			})
 			if err != nil {
 				t.Fatalf("propose: %v", err)
@@ -257,7 +257,7 @@ func TestApplyRosterRejectsDuplicateCharacter(t *testing.T) {
 			rosterEl(ch.ID, model.WorkCharacterKindMain, model.SpoilerNone),
 			rosterEl(ch.ID, model.WorkCharacterKindAppears, model.SpoilerNone),
 		}},
-		Actor: realActor(100, "admin"),
+		Actor: realActor(100),
 	})
 	var valErr *editing.ValidationError
 	if !errors.As(err, &valErr) {

@@ -47,7 +47,7 @@ func (e *Engine) CreateProposal(ctx context.Context, in CreateProposalInput) (*P
 		if err != nil {
 			return nil, nil, err
 		}
-		pol := spec.EffectivePolicy(key, in.Actor.Site)
+		pol := spec.EffectivePolicy(key)
 		if pol.Propose == ProposeLocked {
 			return nil, nil, &LockedFieldError{Key: key}
 		}
@@ -164,7 +164,7 @@ func (e *Engine) AmendProposal(ctx context.Context, proposalID int64, in AmendIn
 			if err != nil {
 				return err
 			}
-			pol := spec.EffectivePolicy(key, prop.Site)
+			pol := spec.EffectivePolicy(key)
 			if pol.Propose == ProposeLocked {
 				return &LockedFieldError{Key: key}
 			}
@@ -182,7 +182,7 @@ func (e *Engine) AmendProposal(ctx context.Context, proposalID int64, in AmendIn
 			if _, present := eff[key]; !present {
 				return &ValidationError{Key: key, Reason: "key is not in the effective patch"}
 			}
-			if !spec.EffectivePolicy(key, prop.Site).AllowsReview(in.Actor) {
+			if !spec.EffectivePolicy(key).AllowsReview(in.Actor) {
 				return &PermissionError{Key: key, Action: "review"}
 			}
 		}
@@ -248,7 +248,7 @@ func (e *Engine) MergeProposal(ctx context.Context, proposalID int64, actor Poli
 			if err != nil {
 				return err
 			}
-			if !spec.EffectivePolicy(key, prop.Site).AllowsReview(actor) {
+			if !spec.EffectivePolicy(key).AllowsReview(actor) {
 				return &PermissionError{Key: key, Action: "review"}
 			}
 			if err := f.Validate(eff[key]); err != nil {
@@ -318,7 +318,7 @@ func (e *Engine) DeclineProposal(ctx context.Context, proposalID int64, actor Po
 			keys = sortedKeys(orig)
 		}
 		for _, key := range keys {
-			if !spec.EffectivePolicy(key, prop.Site).AllowsReview(actor) {
+			if !spec.EffectivePolicy(key).AllowsReview(actor) {
 				return &PermissionError{Key: key, Action: "review"}
 			}
 		}

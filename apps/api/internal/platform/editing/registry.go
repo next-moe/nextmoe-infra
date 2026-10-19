@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync/atomic"
 
 	"gorm.io/gorm"
 )
@@ -37,11 +38,12 @@ const (
 )
 
 const (
-	AutomergeNever   = "never"
-	AutomergeTrusted = "trusted"
-	AutomergeAlways  = "always"
-	AutomergeOwner   = "owner"
-	AutomergeReview  = "review"
+	AutomergeNever           = "never"
+	AutomergeTrusted         = "trusted"
+	AutomergeAlways          = "always"
+	AutomergeOwner           = "owner"
+	AutomergeReview          = "review"
+	AutomergeTrustedOrReview = "trusted_or_review"
 )
 
 const permPrefix = "perm:"
@@ -98,6 +100,8 @@ func (p Policy) allowsAutomergeWithOwner(pc PolicyContext, owner *string) bool {
 		return pc.TrustTier >= TrustedTier
 	case AutomergeReview:
 		return p.AllowsReview(pc)
+	case AutomergeTrustedOrReview:
+		return pc.TrustTier >= TrustedTier || p.AllowsReview(pc)
 	case AutomergeOwner:
 		return owner != nil && *owner != "" && *owner == pc.Site
 	default:
@@ -192,9 +196,9 @@ type EntityTypeSpec struct {
 	OnMerge       func(ctx context.Context, ev MergeEvent) error
 	Fields        []FieldSpec
 	DefaultPolicy Policy
-	SiteOverlays  map[string]map[string]Policy
 
 	fields map[string]*FieldSpec
+	reg    *Registry
 }
 
 func (s *EntityTypeSpec) Field(key string) (*FieldSpec, bool) {
@@ -213,20 +217,28 @@ func (s *EntityTypeSpec) fieldForWrite(key string) (*FieldSpec, error) {
 	return f, nil
 }
 
-func (s *EntityTypeSpec) EffectivePolicy(fieldKey, site string) Policy {
-	if overlay, ok := s.SiteOverlays[site]; ok {
-		if p, ok := overlay[fieldKey]; ok {
-			return p
-		}
-	}
+func (s *EntityTypeSpec) CodePolicy(fieldKey string) Policy {
 	if f, ok := s.fields[fieldKey]; ok && f.Policy != nil {
 		return *f.Policy
 	}
 	return s.DefaultPolicy
 }
 
+func (s *EntityTypeSpec) EffectivePolicy(fieldKey string) Policy {
+	p := s.CodePolicy(fieldKey)
+	if s.reg == nil {
+		return p
+	}
+	if table := s.reg.overrides.Load(); table != nil {
+		p = table.apply(s.Type, fieldKey, p)
+	}
+	return p
+}
+
 type Registry struct {
-	types map[string]*EntityTypeSpec
+	types     map[string]*EntityTypeSpec
+	overrides atomic.Pointer[overrideTable]
+	knownPerm func(key string) bool
 }
 
 func NewRegistry() *Registry {
@@ -337,19 +349,7 @@ func (r *Registry) Register(spec EntityTypeSpec) error {
 			parent.MaxSuppressed = f.MaxSuppressed
 		}
 	}
-	for site, overlay := range spec.SiteOverlays {
-		for key, p := range overlay {
-			if _, ok := spec.fields[key]; !ok {
-				return fmt.Errorf("editing: site %q overlays unknown field %q", site, key)
-			}
-			if err := validatePolicy(p); err != nil {
-				return fmt.Errorf("editing: site %q overlay for %q: %w", site, key, err)
-			}
-			if err := requireOwnerHook(fmt.Sprintf("site %q overlay for %q", site, key), p); err != nil {
-				return err
-			}
-		}
-	}
+	spec.reg = r
 	r.types[spec.Type] = &spec
 	return nil
 }
@@ -379,7 +379,7 @@ func validatePolicy(p Policy) error {
 		return fmt.Errorf("bad review rule %q (must be perm:<key>)", p.Review)
 	}
 	switch p.Automerge {
-	case AutomergeNever, AutomergeTrusted, AutomergeAlways, AutomergeOwner, AutomergeReview:
+	case AutomergeNever, AutomergeTrusted, AutomergeAlways, AutomergeOwner, AutomergeReview, AutomergeTrustedOrReview:
 	default:
 		return fmt.Errorf("bad automerge rule %q", p.Automerge)
 	}

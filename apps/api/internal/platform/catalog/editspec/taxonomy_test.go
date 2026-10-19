@@ -22,7 +22,7 @@ func newTaxonomyEngine(t *testing.T) *editing.Engine {
 func mergeOn(t *testing.T, e *editing.Engine, entityType string, id int64, patch map[string]any) map[string]any {
 	t.Helper()
 	prop, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
-		EntityType: entityType, EntityID: id, Patch: patch, Actor: realActor(100, "admin"),
+		EntityType: entityType, EntityID: id, Patch: patch, Actor: realActor(100),
 	})
 	if err != nil {
 		t.Fatalf("propose on %s: %v", entityType, err)
@@ -81,7 +81,7 @@ func TestTagFamilyIsIntroOnly(t *testing.T) {
 	var unknown *editing.UnknownFieldError
 	_, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
 		EntityType: editspec.TypeTag, EntityID: tag.ID,
-		Patch: map[string]any{"catalog.tag.name": "純愛2"}, Actor: realActor(100, "admin"),
+		Patch: map[string]any{"catalog.tag.name": "純愛2"}, Actor: realActor(100),
 	})
 	if !errors.As(err, &unknown) {
 		t.Fatalf("a tag name patch must be an unknown-field error, got %v", err)

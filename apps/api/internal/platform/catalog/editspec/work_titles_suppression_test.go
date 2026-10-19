@@ -93,7 +93,7 @@ func TestWorkTitleSuppressionEndToEnd(t *testing.T) {
 	badID := importAlias(t, work.ID, "", "誤った別名", model.WorkTitleKindAlias)
 	importAlias(t, work.ID, "", "正しい別名", model.WorkTitleKindAlias)
 
-	editor := realActor(100, "admin")
+	editor := realActor(100)
 	reviewer := realActor(200, "ren")
 	badKey := editspec.WorkTitleIdentity(model.WorkTitleKindAlias, "", "誤った別名")
 
@@ -106,7 +106,7 @@ func TestWorkTitleSuppressionEndToEnd(t *testing.T) {
 		t.Fatalf("propose suppression: %v", err)
 	}
 	if rev != nil {
-		t.Fatal("catalog.work.titles.suppressed must inherit automerge=never on nextmoe")
+		t.Fatal("a suppression by a contributor without trust or review must queue")
 	}
 	merged, err := e.MergeProposal(testCtx, prop.ID, reviewer, "confirmed")
 	if err != nil {
@@ -183,11 +183,11 @@ func TestWorkTitleSuppressionAcceptsDanglingRows(t *testing.T) {
 	if _, rev, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
 		EntityType: editspec.TypeWork, EntityID: work.ID,
 		Patch: map[string]any{editspec.FieldWorkTitlesSuppr: suppressList(key)},
-		Actor: realActor(100, "admin", "ren"),
+		Actor: realActor(100),
 	}); err != nil {
 		t.Fatalf("suppress a row that does not exist: %v", err)
 	} else if rev != nil {
-		t.Fatal("nextmoe automerge=never")
+		t.Fatal("a contributor without trust or review must queue")
 	}
 	props, err := e.ListProposals(testCtx, editing.ProposalFilter{
 		EntityType: editspec.TypeWork, EntityID: work.ID, Status: editing.StatusOpen,
@@ -364,7 +364,7 @@ func TestWorkTitleIdentitySQLMatchesGo(t *testing.T) {
 func TestWorkTitleSuppressionValidation(t *testing.T) {
 	e := newEngine(t)
 	work := createWork(t, "作品")
-	editor := realActor(100, "admin")
+	editor := realActor(100)
 
 	var valErr *editing.ValidationError
 	cases := []any{
@@ -396,11 +396,8 @@ func TestWorkTitleSuppressionInheritsParentPolicy(t *testing.T) {
 	if editspec.FieldWorkTitlesSuppr != editing.SuppressedFieldKey(editspec.FieldWorkTitles) {
 		t.Fatalf("companion key %q does not follow the engine's suffix", editspec.FieldWorkTitlesSuppr)
 	}
-	for _, site := range []string{"nextmoe", "kungal", "letmoe", "letmoe-staging", "letmoe-dev"} {
-		parent := spec.EffectivePolicy(editspec.FieldWorkTitles, site)
-		companion := spec.EffectivePolicy(editspec.FieldWorkTitlesSuppr, site)
-		if parent != companion {
-			t.Fatalf("site %q: parent %+v vs companion %+v", site, parent, companion)
-		}
+	if parent, companion := spec.EffectivePolicy(editspec.FieldWorkTitles),
+		spec.EffectivePolicy(editspec.FieldWorkTitlesSuppr); parent != companion {
+		t.Fatalf("parent %+v vs companion %+v", parent, companion)
 	}
 }

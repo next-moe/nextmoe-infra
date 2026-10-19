@@ -122,7 +122,7 @@ func main() {
 	devStore := devapi.NewRedisStore(devCache)
 
 	claimSvc := service.NewClaimLifecycleService(catalogDB.DB())
-	catHandler.SetupAdmin(application.Fiber, queueSvc, mergeSvc, claimSvc,
+	adminAPI := catHandler.SetupAdmin(application.Fiber, queueSvc, mergeSvc, claimSvc,
 		service.NewImageReferenceService(catalogDB.DB()))
 
 	editRegistry := editing.NewRegistry()
@@ -130,6 +130,9 @@ func main() {
 		slog.Error("editing: register catalog entity types", "error", err)
 		os.Exit(1)
 	}
+	editPolicy := editing.NewPolicyStore(catalogDB.DB(), editRegistry)
+	editPolicy.Start(permCtx)
+	catHandler.RegisterEditPolicy(adminAPI, editPolicy)
 	editEngine := editing.NewEngine(catalogDB.DB(), editRegistry)
 	coverVoteSvc := service.NewCoverVoteService(catalogDB.DB())
 	playtimeSvc := service.NewUserPlaytimeService(catalogDB.DB())

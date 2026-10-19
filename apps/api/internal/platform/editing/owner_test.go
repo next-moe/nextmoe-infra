@@ -196,9 +196,6 @@ func TestOwnerRuleRequiresHook(t *testing.T) {
 	}{
 		{"default policy", func(s *editing.EntityTypeSpec) { s.DefaultPolicy = ownerPol }},
 		{"field policy", func(s *editing.EntityTypeSpec) { s.Fields[0].Policy = &ownerPol }},
-		{"site overlay", func(s *editing.EntityTypeSpec) {
-			s.SiteOverlays["owner-site"] = map[string]editing.Policy{fName: ownerPol}
-		}},
 	}
 	for _, c := range cases {
 		spec := base()
@@ -207,6 +204,17 @@ func TestOwnerRuleRequiresHook(t *testing.T) {
 			!strings.Contains(err.Error(), "OwnerSite") {
 			t.Errorf("%s: owner rule without hook must fail registration, got %v", c.name, err)
 		}
+	}
+
+	reg := editing.NewRegistry()
+	if err := reg.Register(base()); err != nil {
+		t.Fatal(err)
+	}
+	owner := editing.AutomergeOwner
+	if err := reg.ValidateOverride(editing.PolicyOverride{
+		EntityType: "test.widget", FieldKey: fName, Automerge: &owner,
+	}); err == nil || !strings.Contains(err.Error(), "owner hook") {
+		t.Errorf("an automerge=owner override without a hook must be refused, got %v", err)
 	}
 
 	withHook := base()

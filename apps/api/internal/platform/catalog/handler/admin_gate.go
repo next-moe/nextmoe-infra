@@ -17,12 +17,17 @@ const AdminClaimsPrefix = "/api/v1/admin/catalog/claims"
 func AdminGate(clients OAuthClientLookup) fiber.Handler {
 	curation := middleware.RequirePermission(catperm.Resolver, catperm.Review)
 	claims := middleware.RequirePermission(catperm.Resolver, catperm.ClaimReview)
+	editPolicy := middleware.RequirePermission(catperm.Resolver, catperm.EditPolicyManage)
 	return func(c fiber.Ctx) error {
 		if err := refuseThirdPartyAdminClient(c, clients); err != nil {
 			return err
 		}
-		if strings.HasPrefix(routepath.Normalize(c.Path()), AdminClaimsPrefix) {
+		path := routepath.Normalize(c.Path())
+		switch {
+		case strings.HasPrefix(path, AdminClaimsPrefix):
 			return claims(c)
+		case path == AdminEditPolicyPrefix || strings.HasPrefix(path, AdminEditPolicyPrefix+"/"):
+			return editPolicy(c)
 		}
 		return curation(c)
 	}

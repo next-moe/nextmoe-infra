@@ -29,6 +29,22 @@ func (e *Engine) CountProposalsSince(ctx context.Context, proposerUID int64, sin
 	return n, err
 }
 
+func (e *Engine) CountDirectEditsSince(ctx context.Context, actorUID int64, since time.Time) (int64, error) {
+	var n int64
+	err := e.db.WithContext(ctx).Model(&Revision{}).
+		Where("actor_uid = ? AND action = ? AND created_at > ?", actorUID, ActionDirect, since).
+		Count(&n).Error
+	return n, err
+}
+
+func (e *Engine) CountOpenProposals(ctx context.Context, proposerUID int64) (int64, error) {
+	var n int64
+	err := e.db.WithContext(ctx).Model(&Proposal{}).
+		Where("proposer_uid = ? AND status = ?", proposerUID, StatusOpen).
+		Count(&n).Error
+	return n, err
+}
+
 func (e *Engine) resolveSpec(entityType string) (*EntityTypeSpec, error) {
 	spec, ok := e.reg.Type(entityType)
 	if !ok {
@@ -330,7 +346,7 @@ func (e *Engine) SchemaProjection(ctx context.Context, entityType string, entity
 	needOwner := false
 	if entityID != 0 {
 		for i := range spec.Fields {
-			if spec.EffectivePolicy(spec.Fields[i].Key, pc.Site).Automerge == AutomergeOwner {
+			if spec.EffectivePolicy(spec.Fields[i].Key).Automerge == AutomergeOwner {
 				needOwner = true
 				break
 			}
@@ -343,7 +359,7 @@ func (e *Engine) SchemaProjection(ctx context.Context, entityType string, entity
 	out := make([]FieldProjection, 0, len(spec.Fields))
 	for i := range spec.Fields {
 		f := &spec.Fields[i]
-		pol := spec.EffectivePolicy(f.Key, pc.Site)
+		pol := spec.EffectivePolicy(f.Key)
 		proj := FieldProjection{
 			Key: f.Key, Kind: f.Kind, DiffHint: f.DiffHint, Deprecated: f.Deprecated,
 			Locked:        pol.Propose == ProposeLocked,

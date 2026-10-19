@@ -106,14 +106,15 @@ type NonDelegable map[Permission]bool      // 叠加层永不可授予的键(§7
 | `edit.galgame.game.vndb_id` | moderator, admin, ren | 改 `galgame.game.vndb_id`(占坑教训 → 已发布条目 staff-only;投稿人改自己草稿由 adapter 情境授予,非角色) |
 | `catalog.review` | ren | catalog 内部审核/浏览面(注册表策展:merge/unmerge、对账队列) |
 | `catalog.claim.review` | moderator, admin, ren | 裁决产品站投稿认领(approve/decline/ban/unban);与 `catalog.review` **刻意分键**——投稿审核是常规内容审核,收窄到 ren 即产品权利回归 |
-| `edit.catalog.work` | admin, ren | 引擎面对 `catalog.work` 提提案(全局角色授予只给策展 staff;租户用户经信任层级/站点叠加取得) |
-| `edit.catalog.work.review` | admin, ren | 引擎面裁决 `catalog.work` 提案(amend/merge/decline/revert) |
-| `edit.catalog.taxonomy` | admin, ren | 引擎面对 `catalog.{label,tag,engine,series}` 提提案(四族**一把键**=同一权威:注册表共享词表) |
-| `edit.catalog.taxonomy.review` | admin, ren | 引擎面裁决词表提案;**建/删/合并词表条目不在此键**,属注册表策展,仍在 `catalog.review` 之后 |
-| `edit.catalog.character` | admin, ren | 引擎面对 `catalog.character` 提提案(标量属性 + curated 别名车道 + 简介;**建/删/合并角色不在此键**,属注册表策展) |
-| `edit.catalog.character.review` | admin, ren | 引擎面裁决 `catalog.character` 提案(amend/merge/decline/revert);kungal overlay 与词表同档=`automerge=never`,一个角色被多部作品共享 |
-| `catalog.edit.trusted` | admin, ren | 以受信任层级(`TrustTier=2`)走编辑引擎写入:站点 `ProposeTrusted` 通道直接接受其提交(letmoe work overlay)。**与审核轴刻意正交,故不含 moderator**;产品站把它授给自己的角色(如 letmoe `creator`)走 §7 叠加层。2026-09-09 前它还兼管建档快车道,现已拆给 `catalog.claim.trusted`,本键**只**管编辑引擎 |
-| `catalog.claim.trusted` | admin, ren | 建档投稿(`POST /v2/me/claims` 铸造车道)直接落 `live`、免认领审核;**不触编辑引擎**——从 `catalog.edit.trusted` 拆出(2026-09-09),因为单键下「投稿免审、编辑照审」无法表达(论坛要给 moderator 的正是这个组合,走权限台叠加层授予)。两键互不蕴含;第三方应用封顶同样适用 |
+| `edit.catalog.work` | editor, moderator, admin, ren | 引擎面对 `catalog.work` 提提案的键。2026-10-19 起默认策略为 propose=open,任何登录用户都可提案,此键只在运行时策略覆盖把 propose 改成 `perm:edit.catalog.work` 时起作用 |
+| `edit.catalog.work.review` | moderator, admin, ren | 引擎面裁决 `catalog.work` 提案(amend/merge/decline/revert);持有者本人的作品编辑免审生效(`trusted_or_review`)。2026-10-19 起 moderator 进代码捆(生产早经叠加层授予) |
+| `edit.catalog.taxonomy` | editor, moderator, admin, ren | 引擎面对 `catalog.{label,tag,engine,series}` 提提案的键(四族**一把键**=同一权威:注册表共享词表);默认 propose=open,同 `edit.catalog.work` |
+| `edit.catalog.taxonomy.review` | moderator, admin, ren | 引擎面裁决词表提案;**建/删/合并词表条目不在此键**,属注册表策展,仍在 `catalog.review` 之后 |
+| `edit.catalog.character` | editor, moderator, admin, ren | 引擎面对 `catalog.character` 提提案的键(标量属性 + curated 别名车道 + 简介;**建/删/合并角色不在此键**,属注册表策展);默认 propose=open |
+| `edit.catalog.character.review` | moderator, admin, ren | 引擎面裁决 `catalog.character` 提案(amend/merge/decline/revert);与词表同档 `automerge=never`,一个角色被多部作品共享 |
+| `catalog.edit.trusted` | editor, moderator, admin, ren | 以受信任层级(`TrustTier=2`)走编辑引擎写入:本人的作品与发行编辑免审生效(`trusted_or_review`);持有它而无审核键者是**编辑者配额档**,超出 `catalog.direct_edits_per_day_editor` 后编辑转为待审。与审核轴正交:`editor` 捆有它而无任何审核键。2026-09-09 前它还兼管建档快车道,现已拆给 `catalog.claim.trusted`,本键**只**管编辑引擎 |
+| `catalog.claim.trusted` | moderator, admin, ren | 建档投稿(`POST /v2/me/claims` 铸造车道)直接落 `live`、免认领审核;**不触编辑引擎**——从 `catalog.edit.trusted` 拆出(2026-09-09),因为单键下「投稿免审、编辑照审」无法表达。两键互不蕴含;第三方应用封顶同样适用 |
+| `edit.policy.manage` | admin, ren | 运行时编辑策略控制台(`/api/v1/admin/catalog/edit-policy`):按实体类型/字段覆盖 propose / review / automerge / owner_review,写入即生效并留审计(2026-10-19) |
 | `trust.queue_access` | moderator, admin, ren | T&S 统一审核收件箱队列 |
 | `trust.term_manage` | admin, ren | Tier0 词表增改/退役(站域封禁权,比 queue_access 敏感;**不含 moderator**) |
 | `ai.usage_view` | admin, ren | AI 网关用量/成本/预算看板(**不含 moderator**——运营面);只读,改预算要 `ai.budget_manage` |

@@ -19,21 +19,30 @@ func (c *Catalog) GetEditCapabilities(ctx context.Context, object string, entity
 	if err != nil {
 		return repr.EditCapabilities{}, err
 	}
+	quota, err := c.editQuota(ctx, actor.UserID)
+	if err != nil {
+		return repr.EditCapabilities{}, err
+	}
+	if quota.demotesEditor() {
+		actor.TrustTier = 0
+	}
 	proj, err := c.Engine.SchemaProjection(ctx, entityType, entityID, actor)
 	if err != nil {
 		return repr.EditCapabilities{}, proposalErr(err)
 	}
 
+	blocked := quota.blocksFiling()
 	fields := make([]repr.FieldCapability, 0, len(proj))
 	for _, p := range proj {
 		fields = append(fields, repr.FieldCapability{
-			Key: p.Key, Locked: p.Locked, CanPropose: p.CanPropose,
-			CanReview: p.CanReview, WouldAutomerge: p.WouldAutomerge,
+			Key: p.Key, Locked: p.Locked, CanPropose: p.CanPropose && !blocked,
+			CanReview: p.CanReview, WouldAutomerge: p.WouldAutomerge && !blocked,
 		})
 	}
 	out := repr.EditCapabilities{
 		Object: "edit_capabilities", TargetObject: object,
-		EntityType: entityType, Fields: fields,
+		EntityType: entityType, QuotaTier: quota.tier, QuotaExhausted: blocked,
+		Central: isCentralSite(actor.Site), Fields: fields,
 	}
 	if entityID != 0 {
 		id := repr.ID(entityID)
