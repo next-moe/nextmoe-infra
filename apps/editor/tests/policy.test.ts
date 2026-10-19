@@ -19,6 +19,20 @@ describe('return path after login', () => {
   })
 
   it.each([
+    ['/works/4/edit?login_hint=abc', '/works/4/edit'],
+    [
+      '/works/4?login_hint=u%40x.y&from=kungal&return=https%3A%2F%2Fwww.kungal.com%2Fgalgame%2F4',
+      '/works/4?from=kungal&return=https%3A%2F%2Fwww.kungal.com%2Fgalgame%2F4'
+    ],
+    ['/?tab=a&login_hint=z#top', '/?tab=a#top']
+  ])(
+    'drops login_hint but keeps from/return for the page to store: %s',
+    (input, expected) => {
+      expect(safeReturnPath(input)).toBe(expected)
+    }
+  )
+
+  it.each([
     'https://evil.example/x',
     '//evil.example/x',
     '/\\evil.example',

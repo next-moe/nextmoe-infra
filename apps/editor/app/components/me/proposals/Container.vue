@@ -93,6 +93,7 @@ await fetchPage(null)
           :key="proposal.id"
           :proposal="proposal"
           :name="names.nameOf(proposal)"
+          :to="`/me/proposals/${proposal.id}`"
         />
       </ul>
       <KunNull
