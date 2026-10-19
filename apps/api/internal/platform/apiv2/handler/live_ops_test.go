@@ -53,6 +53,7 @@ var liveReadPaths = []string{
 	"/v2/catalog/schemas/{object}",
 	"/v2/me/edit-capabilities/{object}",
 	"/v2/me/edit-quota",
+	"/v2/me/edit-context/{object}/{id}",
 	"/v2/catalog/works",
 	"/v2/catalog/works/{id}",
 	"/v2/catalog/works/{id}/covers",
@@ -198,6 +199,7 @@ func liveReadURL(t *testing.T, tmpl string, fx liveFix) string {
 		{"/v2/me/claims/", fx.Pending},
 		{"/v2/moderation/claims/", fx.Pending},
 		{"/v2/moderation/snapshots/work/", fx.Work},
+		{"/v2/me/edit-context/work/", fx.Work},
 		{"/v2/me/news/", fx.NewsItem},
 		{"/v2/news/", fx.NewsItem},
 	} {
