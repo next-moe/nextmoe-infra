@@ -45,7 +45,7 @@ type UpdateUserRequest struct {
 }
 
 type AssignRoleRequest struct {
-	Role string `json:"role" validate:"required,oneof=user creator moderator admin"`
+	Role string `json:"role" validate:"required,oneof=user editor creator moderator admin"`
 }
 
 type UserDetailResponse struct {

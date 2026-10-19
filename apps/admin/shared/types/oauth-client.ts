@@ -8,6 +8,7 @@ export interface OAuthClient {
   is_public?: boolean
   // page silently skips the user consent UI for already-logged-in users
   auto_consent?: boolean
+  union_site_roles?: boolean
   refresh_token_ttl_seconds?: number
   listed?: boolean
   logo_url?: string

@@ -399,7 +399,8 @@ func (h *SiteHandler) UpdateClient(c fiber.Ctx) error {
 		_ = json.Unmarshal(cur.AllowedScopes, &curScopes)
 		addsScope := req.AllowedScopes != nil && addsNewRenOnlyScope(req.AllowedScopes, curScopes)
 		enablesAutoConsent := req.AutoConsent != nil && *req.AutoConsent && !cur.AutoConsent
-		if addsScope || enablesAutoConsent {
+		enablesUnionSiteRoles := req.UnionSiteRoles != nil && *req.UnionSiteRoles && !cur.UnionSiteRoles
+		if addsScope || enablesAutoConsent || enablesUnionSiteRoles {
 			return response.ForbiddenMsg(c, errors.ErrForbidden, renSensitiveFieldMsg)
 		}
 		req.DisplayOrder = nil
@@ -413,6 +414,7 @@ func (h *SiteHandler) UpdateClient(c fiber.Ctx) error {
 		req.Grants,
 		req.AllowedScopes,
 		req.AutoConsent,
+		req.UnionSiteRoles,
 		req.RefreshTokenTTLSeconds,
 		req.Listed,
 		req.LogoURL,
@@ -533,6 +535,7 @@ func toOAuthClientResponse(cl *siteModel.OAuthClient, callerID uint) dto.OAuthCl
 		AllowedScopes:          allowedScopes,
 		IsPublic:               cl.IsPublic,
 		AutoConsent:            cl.AutoConsent,
+		UnionSiteRoles:         cl.UnionSiteRoles,
 		RefreshTokenTTLSeconds: cl.RefreshTokenTTLSeconds,
 		Listed:                 cl.Listed,
 		LogoURL:                cl.LogoURL,

@@ -46,6 +46,7 @@ func setup(t *testing.T) (*service.MergeService, int16) {
 	for _, table := range []string{
 		"catalog_merge_proposal", "catalog_merge_archive", "catalog_redirect", "catalog_external_ref",
 		"catalog_revision", "catalog_release", "catalog_work_title", "catalog_work",
+		"edit_suppressed_row", "edit_proposal",
 	} {
 		require.NoError(t, testDB.Exec("TRUNCATE "+table+" RESTART IDENTITY CASCADE").Error)
 	}
