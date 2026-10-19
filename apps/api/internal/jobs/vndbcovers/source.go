@@ -11,6 +11,7 @@ import (
 
 type registry struct {
 	vndbSource    int16
+	curatedSource int16
 	galgameMedium int16
 }
 
@@ -19,11 +20,15 @@ func resolveRegistry(ctx context.Context, db *gorm.DB) (registry, error) {
 	if err := db.WithContext(ctx).Raw(`SELECT id FROM catalog_source WHERE key = 'vndb'`).Scan(&r.vndbSource).Error; err != nil {
 		return r, fmt.Errorf("resolve vndb source: %w", err)
 	}
+	if err := db.WithContext(ctx).Raw(`SELECT id FROM catalog_source WHERE key = 'curated'`).Scan(&r.curatedSource).Error; err != nil {
+		return r, fmt.Errorf("resolve curated source: %w", err)
+	}
 	if err := db.WithContext(ctx).Raw(`SELECT id FROM catalog_medium WHERE key = 'galgame'`).Scan(&r.galgameMedium).Error; err != nil {
 		return r, fmt.Errorf("resolve galgame medium: %w", err)
 	}
-	if r.vndbSource == 0 || r.galgameMedium == 0 {
-		return r, fmt.Errorf("registry not seeded (vndb source=%d, galgame medium=%d)", r.vndbSource, r.galgameMedium)
+	if r.vndbSource == 0 || r.curatedSource == 0 || r.galgameMedium == 0 {
+		return r, fmt.Errorf("registry not seeded (vndb source=%d, curated source=%d, galgame medium=%d)",
+			r.vndbSource, r.curatedSource, r.galgameMedium)
 	}
 	return r, nil
 }

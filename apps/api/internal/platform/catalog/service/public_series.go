@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"api/internal/platform/catalog/dto"
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 )
 
@@ -98,11 +99,18 @@ func (s *PublicService) seriesIntros(ctx context.Context, seriesID int64) ([]dto
 	}
 	if err := s.db.WithContext(ctx).Raw(`
 		SELECT lang, intro, source_id FROM catalog_series_intro
-		WHERE series_id = ? ORDER BY lang, source_id`, seriesID).Scan(&rows).Error; err != nil {
+		WHERE series_id = ? ORDER BY lang, `+
+		editspec.HumanLaneFirstNoProvenanceSQL("source_id")+
+		`, source_id`, seriesID).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	out := make([]dto.PublicSeriesIntro, 0, len(rows))
+	seenLang := map[string]bool{}
 	for _, r := range rows {
+		if seenLang[r.Lang] {
+			continue
+		}
+		seenLang[r.Lang] = true
 		out = append(out, dto.PublicSeriesIntro{Lang: r.Lang, Intro: r.Intro, Source: s.sourceKey(r.SourceID)})
 	}
 	return out, nil

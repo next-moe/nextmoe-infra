@@ -54,7 +54,8 @@ func main() {
 	}
 
 	st, err := run(context.Background(), db, generated.GameRoleToShared, *apply, out)
-	slog.Info("repair-bangumi-game-roles summary", "apply", *apply, "moved", st.Moved, "deleted", st.Deleted, "works", st.Works)
+	slog.Info("repair-bangumi-game-roles summary", "apply", *apply, "moved", st.Moved, "deleted", st.Deleted, "works", st.Works,
+		"suppressions_moved", st.SuppressionsMoved, "suppressions_dropped", st.SuppressionsDropped)
 	if err != nil {
 		slog.Error("repair-bangumi-game-roles", "error", err)
 		os.Exit(1)

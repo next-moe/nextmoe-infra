@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"api/internal/platform/provenance"
 	"api/pkg/imageclient"
 
 	"gorm.io/datatypes"
@@ -21,11 +22,6 @@ import (
 const photoPreset = "catalog_logo"
 
 const provField = "photo_hash"
-
-type provEntry struct {
-	Source string `json:"source"`
-	At     string `json:"at"`
-}
 
 type imageUploader interface {
 	UploadWithSub(ctx context.Context, r io.Reader, filename, preset, uploaderSub string) (*imageclient.UploadResult, error)
@@ -110,14 +106,7 @@ func mergeProvenance(cur datatypes.JSON, source, at string) datatypes.JSON {
 	if len(cur) > 0 {
 		_ = json.Unmarshal(cur, &doc)
 	}
-	entry, _ := json.Marshal(provEntry{Source: source, At: at})
-	var arr []json.RawMessage
-	if raw, ok := doc[provField]; ok {
-		_ = json.Unmarshal(raw, &arr)
-	}
-	arr = append([]json.RawMessage{entry}, arr...)
-	merged, _ := json.Marshal(arr)
-	doc[provField] = merged
+	provenance.Prepend(doc, provField, source, at)
 	out, _ := json.Marshal(doc)
 	return datatypes.JSON(out)
 }

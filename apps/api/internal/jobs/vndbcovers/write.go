@@ -80,11 +80,20 @@ func (r *runner) fill(ctx context.Context, row planRow) {
 	// picker vetoes as a family. Matching on kind as well relabels that row to
 	// what vndb actually serves it as, and stays idempotent because the second
 	// pass then agrees on both columns.
+	//
+	// Since the curated lane became the editor's, the same clause also took
+	// over covers people uploaded there: a byte-identical upload left the edit
+	// snapshot and lost its hand-set kind, pin and grades. Curated rows are now
+	// left alone; the legacy rows this clause was written for were relabeled by
+	// those September runs.
 	tx := r.db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "work_id"}, {Name: "image_hash"}},
 		DoUpdates: clause.AssignmentColumns([]string{"source_id", "kind", "portrait_pinned", "sexual", "violence", "updated_at"}),
 		Where: clause.Where{Exprs: []clause.Expression{
-			clause.Expr{SQL: "catalog_work_cover.source_id <> excluded.source_id OR catalog_work_cover.kind <> excluded.kind"},
+			clause.Expr{
+				SQL:  "catalog_work_cover.source_id <> ? AND (catalog_work_cover.source_id <> excluded.source_id OR catalog_work_cover.kind <> excluded.kind)",
+				Vars: []any{r.curatedSource},
+			},
 		}},
 	}).Create(&model.CatalogWorkCover{
 		WorkID: row.WorkID, ImageHash: res.Hash, SortOrder: 0, Kind: coverKind,

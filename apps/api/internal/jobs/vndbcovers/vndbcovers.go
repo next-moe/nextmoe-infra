@@ -65,15 +65,16 @@ type imageUploader interface {
 }
 
 type runner struct {
-	db         *gorm.DB
-	cli        imageUploader
-	sourceID   int16
-	gap        time.Duration
-	imageDir   string
-	mirrorOnly bool
-	stats      *Stats
-	touched    []int64
-	pingHashes []string
+	db            *gorm.DB
+	cli           imageUploader
+	sourceID      int16
+	curatedSource int16
+	gap           time.Duration
+	imageDir      string
+	mirrorOnly    bool
+	stats         *Stats
+	touched       []int64
+	pingHashes    []string
 
 	mu       sync.Mutex
 	paceLast time.Time
@@ -192,8 +193,8 @@ func Run(ctx context.Context, cfg *config.Config, opts Opts) (*Stats, error) {
 		return stats, nil
 	}
 
-	r := &runner{db: db, sourceID: reg.vndbSource, gap: opts.UploadGap, imageDir: opts.ImageDir,
-		mirrorOnly: opts.MirrorOnly, stats: stats}
+	r := &runner{db: db, sourceID: reg.vndbSource, curatedSource: reg.curatedSource, gap: opts.UploadGap,
+		imageDir: opts.ImageDir, mirrorOnly: opts.MirrorOnly, stats: stats}
 	r.cli = imageclient.New(imageclient.Config{
 		BaseURL:      resolveBaseURL(cfg, clientCfg, opts.ImageBaseURL),
 		CDNBase:      cfg.ImageService.CDNBase,

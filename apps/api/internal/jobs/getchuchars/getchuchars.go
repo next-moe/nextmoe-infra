@@ -11,6 +11,7 @@ import (
 	"api/internal/infrastructure/database"
 	"api/internal/jobs/charattrs"
 	"api/internal/platform/catalog/model"
+	"api/internal/platform/provenance"
 
 	"gorm.io/gorm"
 )
@@ -181,6 +182,8 @@ func writeAttrs(ctx context.Context, db *gorm.DB, source string, c Candidate, ap
 	var adopt []string
 	for col, v := range proposed {
 		switch {
+		case provenance.IsHuman(provenance.Head(prov[col])):
+			continue
 		case cur[col] == nil:
 			fill[col] = v
 		case sameValue(cur[col], v):
@@ -204,16 +207,10 @@ func writeAttrs(ctx context.Context, db *gorm.DB, source string, c Candidate, ap
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	for _, col := range adopt {
-		prov[col] = mustMarshal([]json.RawMessage{
-			json.RawMessage(fmt.Sprintf(`{"at":%q,"source":%q}`, now, source))})
+		provenance.Prepend(prov, col, source, now)
 	}
 	for col := range fill {
-		entry := json.RawMessage(fmt.Sprintf(`{"at":%q,"source":%q}`, now, source))
-		var arr []json.RawMessage
-		if b, ok := prov[col]; ok {
-			_ = json.Unmarshal(b, &arr)
-		}
-		prov[col] = mustMarshal(append([]json.RawMessage{entry}, arr...))
+		provenance.Prepend(prov, col, source, now)
 	}
 	fill["field_provenance"] = mustMarshal(prov)
 	fill["updated_at"] = time.Now()
