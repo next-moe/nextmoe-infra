@@ -306,6 +306,40 @@ func TestFillLeavesAByteIdenticalCuratedRowAlone(t *testing.T) {
 	assert.Empty(t, r.touched)
 }
 
+func TestFillKeepsAGradeAPersonSetOnAnUpstreamRow(t *testing.T) {
+	clean(t)
+	reg, err := resolveRegistry(context.Background(), testDB)
+	require.NoError(t, err)
+	upscale := sourceID(t, "upscale")
+
+	var jpg bytes.Buffer
+	require.NoError(t, jpeg.Encode(&jpg, image.NewRGBA(image.Rect(0, 0, 12, 16)), nil))
+	mirror := t.TempDir()
+	rel := filepath.Join("cv", "09", "12309.jpg")
+	require.NoError(t, os.MkdirAll(filepath.Join(mirror, filepath.Dir(rel)), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(mirror, rel), jpg.Bytes(), 0o644))
+
+	id := mkWork(t, reg, "regraded")
+	require.NoError(t, testDB.Create(&model.CatalogWorkCover{
+		WorkID: id, ImageHash: "regraded-hash", Kind: "pkgfront", SourceID: upscale, Sexual: 2,
+		FieldProvenance: []byte(`{"sexual":[{"source":"curated","at":"2026-10-19T00:00:00Z"}]}`),
+	}).Error)
+
+	row := planRow{
+		WorkID: id, VNDBID: "v12309",
+		Img: &vnImage{URL: "https://t.vndb.org/cv/09/12309.jpg", Dims: []int{12, 16}, Sexual: 0, Violence: 0},
+	}
+	r := &runner{db: testDB, cli: &stubUploader{fixed: "regraded-hash"}, sourceID: reg.vndbSource,
+		curatedSource: sourceID(t, "curated"), imageDir: mirror, stats: &Stats{}}
+	r.fill(context.Background(), row)
+
+	var got model.CatalogWorkCover
+	require.NoError(t, testDB.Where("work_id = ?", id).First(&got).Error)
+	assert.Equal(t, reg.vndbSource, got.SourceID, "the row still moves to the vndb lane")
+	assert.Equal(t, int16(2), got.Sexual, "the grade a person set survives the relabel")
+	assert.NotEqual(t, "pkgfront", got.Kind, "an unstamped column still follows vndb")
+}
+
 // The relabel re-run ended dedup=26: for those works vndb's main cover is
 // byte-identical to a vndb *package* row already held, so the source matched
 // and the conflict clause held the update back. The work then owned nothing

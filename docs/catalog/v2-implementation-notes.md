@@ -2288,3 +2288,32 @@ Two faces the editor at editor.nextmoe.com needs so it never shows a bare uid or
 - **People on edit records.** `ProposalRecord` gains `proposer` and `decided_by`, `Amendment` gains `amender`, `Revision` gains `actor` and `amender`: `{object: "user", id, name, avatar}` for the uid the record already carries. A huma transformer fills them on every response body that is a proposal, a revision, or a list of either, with one batched read of the infra `users` table per response (`cmd/catalog/users.go`). Erased, soft-deleted and unknown accounts read `已注销#<id>` with no avatar, matching the name erasure writes. A failed lookup leaves the objects `null` and logs.
 
 **Spec is 2.55.0.** Additive only: one operation and new response properties. No migration.
+
+## Wave — humans can hide and regrade upstream rows (2026-10-19, E2a)
+
+Until this wave a person could only **add** to the multi-source lists; a wrong upstream row could be neither hidden nor corrected.
+
+**Row suppression.** Each list below gained a `.suppressed` companion (pillar 5: the row stays in its importer's table, every render face drops it, an importer may re-insert it and it stays hidden). Identity keys follow D13 and are built from row content, never from row ids:
+
+| Field | Identity key | Notes |
+|---|---|---|
+| `catalog.work.labels` | `label:<label_id>:<kind>` | `label_id` is a TagLabel ref, so label merges follow it |
+| `catalog.work.engine_ids` | `engine:<engine_id>` | hides the edge on both halves of `WorkEnginesSQL` (work table and release `engine_id`) |
+| `catalog.work.series_ids` | `series:<source_id>:<external_id>` | workseries/derivedseries rebuild series under new ids, so the key is the series anchor |
+| `catalog.work.links`, `catalog.label.links` | `link:<source_id>:<external_id>` | exact anchors are refused (422): they are corrected through the match queue |
+| `catalog.work.covers` / `.screenshots` | `cover:<hash>` / `screenshot:<hash>` | |
+| `catalog.work.intros`, `catalog.character.intros`, `catalog.label.intros` | `intro:<source_id>:<lang>` | hiding a row promotes the next row of that lang in the fold; hide every row to blank a lang |
+
+Tag and series intros got none: neither has an upstream writer (21 and 119 rows, all single-source).
+
+`MaxSuppressed` is about twice the production per-entity maximum (census 2026-10-19: labels 14, engines 5, series 3, work links 47, label links 21, covers 104, screenshots 79, work intros 7, character intros 6, label intros 4).
+
+Read points that now filter: work labels (detail, `read_labels`, label works list and count, works-list label filter and rollup, taxonomy label edge, label rollup edge and `via`, calendar followed-label filter and company-kind exclusion), engines (`VisibleWorkEnginesSQL` in works list, taxonomy, work detail engines, reindex facets and popularity), series (work→series, series→works, works-list filter, taxonomy edge, reindex facets and popularity), links (the link face shared by every entity; `include=links`), covers and screenshots (`nativeWorkCovers` / `nativeWorkScreenshots`), intros (work, character detail and list, label), the search reindex (external refs, work intros), and the two MT jobs, which no longer translate a hidden source row. Deliberately not filtered: identity-anchor reads (refs, dlsite store anchors, credit-name links — anchors cannot be suppressed), image GC references, merge/dedup machinery, LLM dossiers, and `cover_art_all_explicit` (it still counts a hidden cover's grade).
+
+`Cover` and `Screenshot` on `/v2` gained `identity` (echo it back for the companion; never rebuild). Identity keys for every other row come from the per-field edit-context face (wave E2h), not from the read faces. Its `rows` publish them through the same helpers the read paths filter on (`WorkLabelIdentitySQL`, `WorkEngineIdentitySQL`, `SeriesIdentitySQL`, `ExternalRefIdentitySQL` for non-anchor links only, `CoverIdentitySQL`, `ScreenshotIdentitySQL`, `IntroIdentitySQL`), and `covers_upstream` / `screenshots_upstream` list the same cover and screenshot rows with their per-row `field_provenance`. Spec 2.56.0.
+
+**Regrading upstream media.** Two new UPDATE-only fields, `catalog.work.covers_upstream` (`image_hash, kind, portrait_pinned, sexual, violence`) and `catalog.work.screenshots_upstream` (`image_hash, caption, sexual, violence`). Their value is every non-curated row with its current (effective) values; all members are required so a missing grade cannot read as 0; a hash the work does not have upstream is a 422; pinning an upstream cover while a curated cover holds the pin is a 422 (the keys sort after the curated fields, so one proposal can move the pin). Every changed column is stamped `curated` on its own row (`catalog_work_cover.field_provenance`, `catalog_work_screenshot.field_provenance`, new). The jobs read the stamp: imagegradesync never rewrites a stamped `sexual`, repincovers leaves a work with a stamped pin off the ladder, and vndbcovers' byte-identical relabel keeps each stamped column (`kind`, `portrait_pinned`, `sexual`, `violence`) while still moving the row to its lane. The other media writers only insert (`ON CONFLICT DO NOTHING`).
+
+**Titles.** Title rows carry no source, so the field keeps whole-set replacement plus its existing `.suppressed` companion. A removal sticks only when the same proposal also suppresses the row: of 224 titles people removed since titles became an engine field (111 works), 22 are back today. The editor must therefore send the removal and the suppression together; enforcing it in the engine needs a patch-normalization hook and is left open.
+
+**Migration.** `go run ./cmd/migrate catalog` on `kun_catalog` (the prod `migrate-catalog` job): `field_provenance jsonb NOT NULL DEFAULT '{}'` on `catalog_work_cover` (134,103 rows) and `catalog_work_screenshot` (325,308 rows); a constant default, so no rewrite. Merge-archive restore now coalesces a missing `field_provenance`, so a row archived before the column existed still restores. Label merges now carry the loser's suppression rows to the survivor.

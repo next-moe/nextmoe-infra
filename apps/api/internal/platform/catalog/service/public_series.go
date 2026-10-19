@@ -45,7 +45,7 @@ func (s *PublicService) SeriesDetail(ctx context.Context, id int64, withWorks, n
 		if err := s.db.WithContext(ctx).Raw(`
 			SELECT m.work_id, m.position, m.kind FROM catalog_series_member m
 			JOIN catalog_work w ON w.id = m.work_id AND w.deleted_at IS NULL AND w.status = ? AND w.medium_id = ?
-			WHERE m.series_id = ?
+			WHERE m.series_id = ? AND `+editspec.NotSuppressedWorkSeriesSQL("m")+`
 			ORDER BY (m.position = 0), m.position, m.work_id
 			LIMIT ? OFFSET ?`,
 			model.WorkStatusLive, galgameMediumID, id, limit, offset).Scan(&wrows).Error; err != nil {

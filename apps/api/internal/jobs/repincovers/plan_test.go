@@ -129,6 +129,19 @@ func TestPlanSkipsHumanPinnedWorks(t *testing.T) {
 	assert.NotContains(t, ids, unpinnedOnly, "works with no pin stay out of the candidate set")
 }
 
+func TestPlanSkipsWorksWhoseUpstreamPinAPersonSet(t *testing.T) {
+	resetCovers(t)
+	bangumi := srcID(t, "bangumi")
+	w := mkWork(t, "pin set by hand")
+	mkCover(t, w, "hash-hand-pin", bangumi, true)
+	mkCover(t, w, "hash-other", bangumi, false)
+	require.NoError(t, testDB.Exec(`UPDATE catalog_work_cover
+		SET field_provenance = '{"portrait_pinned":[{"source":"curated","at":"2026-10-19T00:00:00Z"}]}'
+		WHERE image_hash = 'hash-hand-pin'`).Error)
+
+	assert.NotContains(t, planWorks(t), w, "a pin set through catalog.work.covers_upstream takes the work off the ladder")
+}
+
 func TestPlanLeavesMergedInCoversOutWhileTheWorkHasItsOwn(t *testing.T) {
 	resetCovers(t)
 	bangumi := srcID(t, "bangumi")

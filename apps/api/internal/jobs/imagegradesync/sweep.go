@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"sort"
 
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/repository"
 
 	"gorm.io/gorm"
@@ -67,6 +68,7 @@ func sweep(ctx context.Context, db, idb *gorm.DB, table string, sc scope, opts O
 			SELECT id, work_id, image_hash, sexual, source_id
 			  FROM `+table+`
 			 WHERE source_id IN ? AND id > ?
+			   AND (`+editspec.HumanFieldProvenanceSQL("field_provenance", "sexual")+`) IS NOT TRUE
 			 ORDER BY id
 			 LIMIT ?`, sc.ids, cursor, page).Scan(&rows).Error; err != nil {
 			return fmt.Errorf("page rows: %w", err)

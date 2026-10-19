@@ -1199,6 +1199,10 @@ components:
           minLength: 1
           pattern: ^[0-9]+$
           type: string
+        identity:
+          description: Opaque row identity for a catalog.work.covers.suppressed proposal; echo it back, never rebuild it. Must not be used as a discriminant.
+          maxLength: 256
+          type: string
         portrait_pinned:
           description: Whether this row is pinned as the portrait cover.
           type: boolean
@@ -1268,6 +1272,7 @@ components:
         - sexual
         - violence
         - source
+        - identity
       type: object
     CoverSlot:
       additionalProperties: true
@@ -7985,6 +7990,10 @@ components:
           type:
             - integer
             - "null"
+        identity:
+          description: Opaque row identity for a catalog.work.screenshots.suppressed proposal; echo it back, never rebuild it. Must not be used as a discriminant.
+          maxLength: 256
+          type: string
         sexual:
           description: Sexual depiction. null means not assessed.
           enum:
@@ -8043,6 +8052,7 @@ components:
         - violence
         - source
         - caption
+        - identity
       type: object
     SearchHit:
       additionalProperties: true
@@ -10175,7 +10185,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.55.0
+  version: 2.56.0
   x-stability: stable
 openapi: 3.1.0
 paths:

@@ -11,6 +11,7 @@ type Screenshot struct {
 	Violence  *string  `json:"violence" enum:"tame,violent,brutal" doc:"Violent depiction. null means not assessed. Currently always null."`
 	Source    string   `json:"source" maxLength:"64" doc:"Open vocabulary sources. Must not be used as a discriminant."`
 	Caption   string   `json:"caption" maxLength:"2048" doc:"Must not be used as a discriminant."`
+	Identity  string   `json:"identity" maxLength:"256" doc:"Opaque row identity for a catalog.work.screenshots.suppressed proposal; echo it back, never rebuild it. Must not be used as a discriminant."`
 }
 
 type WorkTag struct {
