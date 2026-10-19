@@ -7,7 +7,7 @@ import (
 	sitePerm "api/internal/platform/site/perm"
 )
 
-var EditableRoles = []string{RoleCreator, RoleModerator, RoleAdmin}
+var EditableRoles = []string{RoleEditor, RoleCreator, RoleModerator, RoleAdmin}
 
 func isEditableRole(role string) bool {
 	for _, r := range EditableRoles {
@@ -89,7 +89,7 @@ func (v *Validator) Validate(caller Caller, state OverlayState, act Action) erro
 		if act.Role == RoleRen {
 			return reject("ren 行不可编辑:ren 既是包含性不变量的上界,也是锁死后的恢复保险,只能改代码捆")
 		}
-		return reject("未知角色 %q,只能编辑 creator / moderator / admin", act.Role)
+		return reject("未知角色 %q,只能编辑 editor / creator / moderator / admin", act.Role)
 	}
 
 	if _, ok := v.reg.Lookup(act.Permission); !ok {

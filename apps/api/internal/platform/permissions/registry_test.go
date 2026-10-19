@@ -98,8 +98,8 @@ func TestEditableRolesExcludeUserAndRen(t *testing.T) {
 			t.Errorf("%q must not be editable", r)
 		}
 	}
-	if len(permissions.EditableRoles) != 3 {
-		t.Errorf("expected creator/moderator/admin, got %v", permissions.EditableRoles)
+	if len(permissions.EditableRoles) != 4 {
+		t.Errorf("expected editor/creator/moderator/admin, got %v", permissions.EditableRoles)
 	}
 }
 

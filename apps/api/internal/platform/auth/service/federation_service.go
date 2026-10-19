@@ -31,7 +31,6 @@ const (
 
 	federationStateTTL   = 10 * time.Minute
 	federationPendingTTL = 30 * time.Minute
-	federationSessionTTL = 7 * 24 * time.Hour
 
 	federationStateKeyPrefix   = "federation_state:"
 	federationPendingKeyPrefix = "federation_pending:"
@@ -427,11 +426,12 @@ func (s *FederationService) Complete(ctx context.Context, req *dto.FederationCom
 		BrowserID:    req.BrowserID,
 		AuthTime:     &authAt,
 		LastUsedAt:   &authAt,
-		ExpiresAt:    authAt.Add(federationSessionTTL),
+		ExpiresAt:    ssoSessionExpiry(authAt, authAt),
 	}
 	if err := s.sessionRepo.Create(ctx, session); err != nil {
 		return nil, nil, err
 	}
+	tokens.CookieMaxAge = ssoCookieMaxAge(authAt, authAt)
 
 	if s.authSvc != nil {
 		s.authSvc.grantRegisterGift(ctx, user)
@@ -520,11 +520,12 @@ func (s *FederationService) mintSession(ctx context.Context, user *model.User, m
 		BrowserID:    meta.BrowserID,
 		AuthTime:     &authAt,
 		LastUsedAt:   &authAt,
-		ExpiresAt:    authAt.Add(federationSessionTTL),
+		ExpiresAt:    ssoSessionExpiry(authAt, authAt),
 	}
 	if err := s.sessionRepo.Create(ctx, session); err != nil {
 		return nil, nil, err
 	}
+	tokens.CookieMaxAge = ssoCookieMaxAge(authAt, authAt)
 	return tokens, user, nil
 }
 

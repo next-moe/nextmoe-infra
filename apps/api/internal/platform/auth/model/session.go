@@ -30,6 +30,12 @@ type Session struct {
 	AuthTime   *time.Time `json:"-"`
 	LastUsedAt *time.Time `json:"-"`
 
+	// SSOBrowserID is set only on OAuth client sessions: the browser whose
+	// account-center sign-in issued the code. It is deliberately not BrowserID,
+	// which marks a row as one of that browser's signed-in accounts and is what
+	// the account switcher and "log out of this browser" enumerate.
+	SSOBrowserID string `gorm:"column:sso_browser_id;size:64;index;default:''" json:"-"`
+
 	User User `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE" json:"-"`
 }
 

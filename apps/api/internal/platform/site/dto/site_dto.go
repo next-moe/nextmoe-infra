@@ -40,6 +40,7 @@ type UpdateOAuthClientRequest struct {
 	Grants                 []string `json:"grants" validate:"omitempty,min=1,dive,oneof=authorization_code refresh_token"`
 	AllowedScopes          []string `json:"allowed_scopes"`
 	AutoConsent            *bool    `json:"auto_consent"`
+	UnionSiteRoles         *bool    `json:"union_site_roles"`
 	RefreshTokenTTLSeconds *int     `json:"refresh_token_ttl_seconds" validate:"omitempty,min=60"`
 	Listed                 *bool    `json:"listed"`
 	LogoURL                *string  `json:"logo_url" validate:"omitempty,url,max=255"`
@@ -56,6 +57,7 @@ type OAuthClientResponse struct {
 	AllowedScopes          []string                 `json:"allowed_scopes"`
 	IsPublic               bool                     `json:"is_public"`
 	AutoConsent            bool                     `json:"auto_consent"`
+	UnionSiteRoles         bool                     `json:"union_site_roles"`
 	RefreshTokenTTLSeconds int                      `json:"refresh_token_ttl_seconds"`
 	Listed                 bool                     `json:"listed"`
 	LogoURL                string                   `json:"logo_url"`

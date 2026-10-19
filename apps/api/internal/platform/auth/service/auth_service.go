@@ -260,11 +260,12 @@ func (s *AuthService) Register(ctx context.Context, req *dto.RegisterRequest) (*
 		BrowserID:    req.BrowserID,
 		AuthTime:     &authAt,
 		LastUsedAt:   &authAt,
-		ExpiresAt:    authAt.Add(7 * 24 * time.Hour),
+		ExpiresAt:    ssoSessionExpiry(authAt, authAt),
 	}
 	if err := s.sessionRepo.Create(ctx, session); err != nil {
 		return nil, nil, err
 	}
+	tokens.CookieMaxAge = ssoCookieMaxAge(authAt, authAt)
 
 	_ = s.cache.Delete(redisKey)
 
@@ -349,12 +350,13 @@ func (s *AuthService) Login(ctx context.Context, req *dto.LoginRequest) (*dto.To
 		BrowserID:    req.BrowserID,
 		AuthTime:     &authAt,
 		LastUsedAt:   &authAt,
-		ExpiresAt:    authAt.Add(7 * 24 * time.Hour),
+		ExpiresAt:    ssoSessionExpiry(authAt, authAt),
 	}
 
 	if err := s.sessionRepo.Create(ctx, session); err != nil {
 		return nil, nil, err
 	}
+	tokens.CookieMaxAge = ssoCookieMaxAge(authAt, authAt)
 
 	return tokens, user, nil
 }
@@ -521,26 +523,31 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*d
 		return nil, err
 	}
 
+	now := time.Now()
+	authAt := sessionAuthTime(session)
+	cookieMaxAge := ssoCookieMaxAge(authAt, now)
+
 	if refreshToken != session.RefreshToken {
 		if session.PrevTokenWithinGrace() {
 			return &dto.TokenPair{
 				AccessToken:  tokens.AccessToken,
 				RefreshToken: session.RefreshToken,
+				CookieMaxAge: cookieMaxAge,
 			}, nil
 		}
 		_ = s.sessionRepo.Delete(ctx, session.ID)
 		return nil, errors.NewWithCode(errors.ErrAuthInvalidToken)
 	}
 
-	now := time.Now()
 	won, err := s.sessionRepo.RotateRefreshToken(
 		ctx, session.ID, refreshToken, tokens.AccessToken, tokens.RefreshToken,
-		now, now.Add(7*24*time.Hour),
+		now, ssoSessionExpiry(authAt, now),
 	)
 	if err != nil {
 		return nil, err
 	}
 	if won {
+		tokens.CookieMaxAge = cookieMaxAge
 		return tokens, nil
 	}
 
@@ -551,6 +558,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*d
 	return &dto.TokenPair{
 		AccessToken:  tokens.AccessToken,
 		RefreshToken: fresh.RefreshToken,
+		CookieMaxAge: cookieMaxAge,
 	}, nil
 }
 

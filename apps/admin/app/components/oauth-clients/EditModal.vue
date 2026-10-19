@@ -19,6 +19,7 @@ const allowedScopes = ref<string[]>([])
 const refreshTokenTtlDays = ref(DEFAULT_REFRESH_TOKEN_TTL_SECONDS / 86400)
 const isPublicReadonly = computed(() => props.client?.is_public ?? false)
 const autoConsent = ref(false)
+const unionSiteRoles = ref(false)
 const listed = ref(false)
 const logoUrl = ref('')
 const tagline = ref('')
@@ -35,6 +36,7 @@ const initForm = (c: OAuthClient) => {
     (c.refresh_token_ttl_seconds ?? DEFAULT_REFRESH_TOKEN_TTL_SECONDS) / 86400
   )
   autoConsent.value = c.auto_consent ?? false
+  unionSiteRoles.value = c.union_site_roles ?? false
   listed.value = c.listed ?? false
   logoUrl.value = c.logo_url ?? ''
   tagline.value = c.tagline ?? ''
@@ -123,6 +125,7 @@ const handleSubmit = async () => {
       grants: grants.value,
       allowed_scopes: allowedScopes.value,
       auto_consent: autoConsent.value,
+      union_site_roles: unionSiteRoles.value,
       refresh_token_ttl_seconds: refreshTokenTtlDays.value * 86400,
       listed: listed.value,
       logo_url: logoUrl.value,
@@ -295,6 +298,22 @@ const handleSubmit = async () => {
           <strong>跳过手动"同意"步骤</strong>，直接静默授权。
           <strong class="text-danger">仅用于你完全信任的第一方应用</strong>。
           切换会在下次 /oauth/authorize 访问立即生效，不影响已签发的 token。
+        </p>
+      </div>
+
+      <div v-if="isRen" class="rounded-lg border border-warning-200 bg-warning-50 p-3">
+        <div class="flex items-center gap-2 text-sm">
+          <KunCheckBox
+            v-model="unionSiteRoles"
+            label="携带全部站点角色 (跨站第一方应用专用)"
+            color="warning"
+          />
+        </div>
+        <p class="mt-2 text-xs text-warning-700">
+          勾选后此应用签发的 token 携带用户在
+          <strong>所有站点</strong>的站点角色（如任一站点的版主），而不只是本应用所属站点的。
+          用于编辑者平台这类面向全平台内容的应用。
+          <strong class="text-danger">会把各站点的站点权限带进本应用</strong>，下次签发或刷新 token 时生效。
         </p>
       </div>
 

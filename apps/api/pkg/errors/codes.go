@@ -80,6 +80,12 @@ const (
 	ErrCreatorAppNotFound   = 17004
 	ErrCreatorAppNotPending = 17005
 
+	ErrEditorAlreadyHas    = 17011
+	ErrEditorAppPending    = 17012
+	ErrEditorAppCooldown   = 17013
+	ErrEditorAppNotFound   = 17014
+	ErrEditorAppNotPending = 17015
+
 	ErrPrefScopeRequired    = 18001
 	ErrPrefNamespaceInvalid = 18002
 	ErrPrefNamespaceDenied  = 18003
@@ -191,6 +197,12 @@ var codeMessages = map[int]string{
 	ErrCreatorAppCooldown:   "申请被拒绝后需等待冷却期才能重新申请",
 	ErrCreatorAppNotFound:   "申请不存在",
 	ErrCreatorAppNotPending: "该申请已被处理",
+
+	ErrEditorAlreadyHas:    "你已经拥有编辑权限了",
+	ErrEditorAppPending:    "已有一份待审核的编辑者申请",
+	ErrEditorAppCooldown:   "申请被拒绝后需等待冷却期才能重新申请",
+	ErrEditorAppNotFound:   "申请不存在",
+	ErrEditorAppNotPending: "该申请已被处理",
 
 	ErrPrefScopeRequired:    "缺少 preferences 权限范围",
 	ErrPrefNamespaceInvalid: "命名空间格式不合法",

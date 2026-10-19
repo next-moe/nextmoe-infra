@@ -86,7 +86,7 @@ const confirmToggle = async () => {
     <div>
       <h1 class="text-foreground text-2xl font-bold">权限矩阵</h1>
       <p class="text-default-500 mt-1">
-        点击可操作的格子即修改叠加层：可以给 creator/moderator/admin
+        点击可操作的格子即修改叠加层：可以给 editor/creator/moderator/admin
         加上代码捆没有的权限，也可以收回代码捆给它们的权限。ren
         行是锁死后的恢复保险，只读。
       </p>

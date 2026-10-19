@@ -14,6 +14,7 @@ type AuthorizationCode struct {
 	Nonce               string     `gorm:"size:255" json:"nonce,omitempty"`
 	CodeChallenge       string     `gorm:"size:128" json:"code_challenge"`
 	CodeChallengeMethod string     `gorm:"size:10" json:"code_challenge_method"`
+	BrowserID           string     `gorm:"size:64;default:''" json:"-"`
 	ExpiresAt           time.Time  `gorm:"not null" json:"expires_at"`
 	UsedAt              *time.Time `json:"used_at,omitempty"`
 	CreatedAt           time.Time  `json:"created_at"`

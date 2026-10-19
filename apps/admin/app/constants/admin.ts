@@ -30,6 +30,12 @@ export const SIDEBAR_MENU: SidebarItem[] = [
     to: '/creator-applications',
     adminOnly: true
   },
+  {
+    icon: 'lucide:pencil-line',
+    label: '编辑者申请',
+    to: '/editor-applications',
+    adminOnly: true
+  },
   { icon: 'lucide:store', label: '萌萌点商店', to: '/shop', renOnly: true },
   {
     icon: 'lucide:heart-pulse',

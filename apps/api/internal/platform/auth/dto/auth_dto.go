@@ -85,6 +85,7 @@ type UpdateProfileRequest struct {
 type TokenPair struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
+	CookieMaxAge int    `json:"-"`
 }
 
 type UserResponse struct {

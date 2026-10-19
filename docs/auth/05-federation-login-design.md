@@ -108,7 +108,7 @@ Success body is `dto.LoginResponse` (refresh cookie set, no refresh token in JSO
 | Cookie | Purpose | Attrs |
 |--------|---------|-------|
 | `nm_fed_state` | CSRF binding for the provider round-trip | httpOnly, Secure in production, SameSite Lax, Path `/api/v1/auth/federation`, MaxAge 600 |
-| `refresh_token` | Same as password login | httpOnly, Secure in production, SameSite Lax, Path `/api/v1/auth`, 7 days |
+| `refresh_token` | Same as password login | httpOnly, Secure in production, SameSite Lax, Path `/api/v1/auth`, MaxAge = time left to the session's absolute cap (see [07](./07-sso-session-and-editor-client.md)) |
 | `nm_browser` | Existing browser/bag id; set on callback/complete the same way as login | httpOnly, Secure in production, SameSite Lax, Path `/` |
 
 ## 3. Security checklist

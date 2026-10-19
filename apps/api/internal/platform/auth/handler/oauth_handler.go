@@ -210,6 +210,7 @@ func (h *OAuthHandler) Consent(c fiber.Ctx) error {
 		req.CodeChallenge,
 		codeChallengeMethod,
 		req.Nonce,
+		c.Cookies(browserCookieName),
 	)
 	if err != nil {
 		if appErr, ok := err.(*errors.AppError); ok {
