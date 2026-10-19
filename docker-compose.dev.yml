@@ -241,7 +241,9 @@ services:
   migrate:
     image: ghcr.io/next-moe/infra-migrate:${INFRA_IMAGE_TAG:-latest}
     network_mode: host
-    environment: { <<: *dev-env }
+    environment:
+      <<: *dev-env
+      KUN_EDITOR_PUBLIC_URL: http://127.0.0.1:9422
     restart: "no"
 
   # The catalog schema against KUN_CATALOG_PG_DATABASE (kun_catalog). It also

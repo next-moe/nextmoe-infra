@@ -1,0 +1,9 @@
+.output
+.nuxt
+.nitro
+.cache
+dist
+node_modules
+.screenshots
+shared/types/generated
+app/assets/kun-icons.ts

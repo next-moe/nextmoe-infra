@@ -8,8 +8,8 @@
 #      RUNNING.
 #   2. HOT-RELOAD STACK — `air` rebuilds the six frequently-edited Go services
 #      (oauth / catalog / community / image / artifact / trust) from source on
-#      every save, plus the Nuxt frontends (account / admin / developer) via
-#      their own dev servers.
+#      every save, plus the Nuxt frontends (account / admin / developer /
+#      editor) via their own dev servers.
 #
 # The base and the hot stack never collide: the six hot services carry the
 # `full` compose profile, so the default `up` below deliberately does NOT start

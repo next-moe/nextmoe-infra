@@ -429,10 +429,11 @@ universal three steps:
 | kun-galgame-forum (kungal) | 2334 / 2333 | `apps/api`, `apps/web` | `4ed9bc99ec0a789a4796b83e22bd84c5` | `http://127.0.0.1:2333/auth/callback` |
 | kun-galgame-patch (moyu) | 5214 / 6969 | `apps/api`, `apps/web` | `df3ff6008d740bfacbe46aa8cf483cf2` | `http://127.0.0.1:6969/auth/callback` |
 | infra `apps/account` (account center) | — / 9420 | `apps/account` | session-based (n/a) | — |
+| infra `apps/editor` (未萌编辑台) | — / 9422 | `apps/editor` | `nextmoe-editor` (seeded by `cmd/migrate` from `KUN_EDITOR_PUBLIC_URL`) | `http://127.0.0.1:9422/auth/callback` |
 | kun-letmoe-community | 7001 / 5364 | `apps/api`, `apps/web` | `letmoe-dev` (seed once, below) | `http://127.0.0.1:5364/auth/callback` |
 
 Confidential clients (forum / moyu) present the plaintext `dev-secret-<client_id>`;
-the wiki is a public client (PKCE, no secret). **letmoe does NOT take the snapshot**
+the wiki and the editor are public clients (PKCE, no secret). **letmoe does NOT take the snapshot**
 — its own databases (`kun_letmoe`) are built by its own migrations + seeds, not a
 prod snapshot. But its **OAuth client is an infra row** (`oauth_clients` lives in
 `kun_galgame_infra`), which a letmoe seed cannot create — so seed it once here,
