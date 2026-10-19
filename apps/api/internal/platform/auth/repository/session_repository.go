@@ -116,6 +116,16 @@ func (r *SessionRepository) ExtendBrowserSSO(ctx context.Context, userID uint, b
 	return res.RowsAffected, res.Error
 }
 
+func (r *SessionRepository) ExtendSSO(ctx context.Context, id uint, now time.Time, idle, max time.Duration) error {
+	return r.db.WithContext(ctx).Exec(`
+		UPDATE sessions
+		SET expires_at = GREATEST(expires_at,
+		    LEAST(?::timestamptz, COALESCE(auth_time, created_at) + (? * interval '1 second'))),
+		    last_used_at = ?
+		WHERE id = ? AND client_id = '' AND expires_at > ?`,
+		now.Add(idle), int64(max.Seconds()), now, id, now).Error
+}
+
 func (r *SessionRepository) TouchLastUsed(ctx context.Context, id uint, t time.Time) error {
 	return r.db.WithContext(ctx).Model(&model.Session{}).Where("id = ?", id).Update("last_used_at", t).Error
 }
