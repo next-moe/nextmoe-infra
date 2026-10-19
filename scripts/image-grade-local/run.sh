@@ -38,6 +38,16 @@ on_exit() {
 trap on_exit EXIT
 echo "=== image grade start $(date -u '+%F %T')Z on $(uname -n) ==="
 
+# A Persistent catch-up fires the moment the workstation wakes, before the
+# network is back: on 2026-10-17 ssh said "Network is unreachable" and mailed a
+# false [FAIL]. A user manager has no network-online.target to order after.
+tries=0
+until ssh -o BatchMode=yes -o ConnectTimeout=10 "$NEO" true 2>/dev/null; do
+  tries=$((tries + 1))
+  [ "$tries" -ge 20 ] && break
+  sleep 15
+done
+
 WORK="$STATE/work/$(date -u +%Y%m%dT%H%M%S)"
 mkdir -p "$WORK"
 ssh -o BatchMode=yes "$NEO" 'sudo /root/image-grade-nightly/io.sh pending' > "$WORK/pending.csv"
