@@ -390,11 +390,18 @@ func TestCharacterAliasSuppressionInheritsParentPolicy(t *testing.T) {
 	if editspec.FieldCharacterAliasesSuppr != editing.SuppressedFieldKey(editspec.FieldCharacterAliases) {
 		t.Fatalf("companion key %q does not follow the engine's suffix", editspec.FieldCharacterAliasesSuppr)
 	}
-	for _, site := range []string{"nextmoe", "kungal", "letmoe", "letmoe-staging", "letmoe-dev"} {
-		parent := spec.EffectivePolicy(editspec.FieldCharacterAliases, site)
-		companion := spec.EffectivePolicy(editspec.FieldCharacterAliasesSuppr, site)
-		if parent != companion {
-			t.Fatalf("site %q: parent %+v vs companion %+v", site, parent, companion)
-		}
+	parent := spec.EffectivePolicy(editspec.FieldCharacterAliases)
+	companion := spec.EffectivePolicy(editspec.FieldCharacterAliasesSuppr)
+	if parent != companion {
+		t.Fatalf("parent %+v vs companion %+v", parent, companion)
+	}
+	locked := editing.ProposeLocked
+	if skipped := reg.SetPolicyOverrides([]editing.PolicyOverride{
+		{EntityType: editspec.TypeCharacter, FieldKey: editspec.FieldCharacterAliases, Propose: &locked},
+	}); len(skipped) > 0 {
+		t.Fatal(skipped)
+	}
+	if got := spec.EffectivePolicy(editspec.FieldCharacterAliasesSuppr); got.Propose != editing.ProposeLocked {
+		t.Fatalf("an override on the parent must reach the companion: %+v", got)
 	}
 }

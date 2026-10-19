@@ -181,10 +181,9 @@ func TestLiveEntityOwnerCanStillAmendAndDecide(t *testing.T) {
 	require.Equal(t, "W2 Owner Amended", liveWorkName(t, env, work))
 }
 
-// The owner channel is kungal site configuration, not a universal rule and not
-// a hard-coded site: letmoe's overlay carries AutomergeOwner and no
-// OwnerReview, so the same owner has no standing there.
-func TestReviewStandingFollowsTheSiteOverlay(t *testing.T) {
+// The owner channel is part of the work and release policy, the same on every
+// site since the per-site overlays went; character carries none.
+func TestReviewStandingFollowsThePolicy(t *testing.T) {
 	env := liveCatalog(t)
 	work := liveClaimedBy(t, env, "W2 Overlay Probe", 30116, livePlainUID)
 	owner := func(site string) editing.PolicyContext {
@@ -192,20 +191,18 @@ func TestReviewStandingFollowsTheSiteOverlay(t *testing.T) {
 	}
 	ctx := t.Context()
 
-	require.True(t, env.cat.reviewsAnyField(ctx, editspec.TypeWork, liveSite, work, owner(liveSite)),
-		"kungal overlays catalog.work with OwnerReview")
-	for _, site := range []string{"letmoe", "letmoe-staging"} {
-		require.False(t, env.cat.reviewsAnyField(ctx, editspec.TypeWork, site, work, owner(site)),
-			"%s carries AutomergeOwner and no OwnerReview", site)
+	for _, site := range []string{liveSite, "letmoe", "editor"} {
+		require.True(t, env.cat.reviewsAnyField(ctx, editspec.TypeWork, work, owner(site)),
+			"catalog.work carries OwnerReview on %s", site)
 	}
-	require.False(t, env.cat.reviewsAnyField(ctx, editspec.TypeCharacter, liveSite, work, owner(liveSite)),
+	require.False(t, env.cat.reviewsAnyField(ctx, editspec.TypeCharacter, work, owner(liveSite)),
 		"OwnerReview is on work and release only, never on character")
-	require.False(t, env.cat.reviewsAnyField(ctx, editspec.TypeWork, liveSite, 0, owner(liveSite)),
+	require.False(t, env.cat.reviewsAnyField(ctx, editspec.TypeWork, 0, owner(liveSite)),
 		"nobody owns entity 0; that is what keeps the type-level queue type-level")
 
 	capped := owner(liveSite)
 	capped.ModerationCapped = true
-	require.False(t, env.cat.reviewsAnyField(ctx, editspec.TypeWork, liveSite, work, capped),
+	require.False(t, env.cat.reviewsAnyField(ctx, editspec.TypeWork, work, capped),
 		"a developer-owned app's token reaches no verdict, ownership or not")
 }
 

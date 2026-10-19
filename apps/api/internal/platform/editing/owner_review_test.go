@@ -39,28 +39,25 @@ func TestOwnerReviewPolicy(t *testing.T) {
 func TestOwnerReviewEngine(t *testing.T) {
 	e := newEngine(t)
 	createWidget(t, 1)
+	applyOverrides(t, e, ownerReviewsName())
 
-	onSite := func(pc editing.PolicyContext, site string) editing.PolicyContext {
-		pc.Site = site
-		return pc
-	}
-	propose := func(t *testing.T, site, key string, value any, uid int64) *editing.Proposal {
+	propose := func(t *testing.T, key string, value any, uid int64) *editing.Proposal {
 		t.Helper()
 		prop, rev, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
 			EntityType: "test.widget", EntityID: 1,
-			Patch: map[string]any{key: value}, Actor: onSite(anonActor(uid), site),
+			Patch: map[string]any{key: value}, Actor: anonActor(uid),
 		})
 		if err != nil {
-			t.Fatalf("propose %s on %s: %v", key, site, err)
+			t.Fatalf("propose %s: %v", key, err)
 		}
 		if rev != nil {
 			t.Fatalf("proposal must stay open, got automerge")
 		}
 		return prop
 	}
-	owner := ownerActor(400, ownerReviewSite)
+	owner := ownerActor(400, "any-site")
 
-	prop := propose(t, ownerReviewSite, fName, "proposed name", 300)
+	prop := propose(t, fName, "proposed name", 300)
 	if _, err := e.AmendProposal(testCtx, prop.ID, editing.AmendInput{
 		Set: map[string]any{fName: "owner-corrected name"}, Note: "fix", Actor: owner,
 	}); err != nil {
@@ -77,26 +74,15 @@ func TestOwnerReviewEngine(t *testing.T) {
 		t.Fatalf("apply: %+v", w)
 	}
 
-	prop = propose(t, ownerReviewSite, fName, "declined name", 300)
+	prop = propose(t, fName, "declined name", 300)
 	if err := e.DeclineProposal(testCtx, prop.ID, owner, "not this"); err != nil {
 		t.Fatalf("owner decline: %v", err)
 	}
 
-	prop = propose(t, ownerReviewSite, fTrusted, "note", 301)
+	prop = propose(t, fTrusted, "note", 301)
 	var permErr *editing.PermissionError
 	if _, err := e.MergeProposal(testCtx, prop.ID, owner, ""); !errors.As(err, &permErr) {
 		t.Fatalf("owner on non-OwnerReview field must 403: %v", err)
-	}
-
-	prop, _, err = e.CreateProposal(testCtx, editing.CreateProposalInput{
-		EntityType: "test.widget", EntityID: 1,
-		Patch: map[string]any{fName: "default-site name"}, Actor: editorActor(302),
-	})
-	if err != nil {
-		t.Fatalf("default-site proposal: %v", err)
-	}
-	if _, err := e.MergeProposal(testCtx, prop.ID, ownerActor(400, "test-site"), ""); !errors.As(err, &permErr) {
-		t.Fatalf("owner on default site must 403: %v", err)
 	}
 
 	proj, err := e.SchemaProjection(testCtx, "test.widget", 1, owner)
@@ -109,7 +95,7 @@ func TestOwnerReviewEngine(t *testing.T) {
 			t.Errorf("owner projection %s: can_review=%v, want %v", p.Key, p.CanReview, want)
 		}
 	}
-	proj, err = e.SchemaProjection(testCtx, "test.widget", 1, onSite(anonActor(5), ownerReviewSite))
+	proj, err = e.SchemaProjection(testCtx, "test.widget", 1, anonActor(5))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,5 +103,11 @@ func TestOwnerReviewEngine(t *testing.T) {
 		if p.CanReview {
 			t.Errorf("non-owner projection %s: can_review must be false", p.Key)
 		}
+	}
+
+	prop = propose(t, fName, "after the override is gone", 302)
+	applyOverrides(t, e, nil)
+	if _, err := e.MergeProposal(testCtx, prop.ID, owner, ""); !errors.As(err, &permErr) {
+		t.Fatalf("owner without an OwnerReview policy must 403: %v", err)
 	}
 }

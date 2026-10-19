@@ -89,6 +89,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/catalog/edit-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Effective editing policy: code default, runtime override and effective rules per entity type and field */
+        get: operations["getCatalogEditPolicy"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/catalog/edit-policy/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Who changed which override, when, and from what to what (newest first) */
+        get: operations["listCatalogEditPolicyAudit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/catalog/edit-policy/overrides": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set the override on one entity type or field (replaces it whole; applies without a restart) */
+        put: operations["putCatalogEditPolicyOverride"];
+        post?: never;
+        /** Remove the override on one entity type or field */
+        delete: operations["deleteCatalogEditPolicyOverride"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/catalog/image-references": {
         parameters: {
             query?: never;
@@ -369,6 +421,20 @@ export interface components {
              */
             credit_name_id: number;
         };
+        EditPolicyAuditEntry: {
+            /** Format: int64 */
+            actor_uid: number;
+            /** @description The override after the change; null when it was removed. */
+            after: components["schemas"]["PolicyOverrideBody"];
+            /** @description The override before the change; null when there was none. */
+            before: components["schemas"]["PolicyOverrideBody"];
+            /** Format: date-time */
+            created_at: string;
+            entity_type: string;
+            field_key: string;
+            /** Format: int64 */
+            id: number;
+        };
         EntityRefSummary: {
             external_id: string;
             /** Format: int32 */
@@ -458,6 +524,18 @@ export interface components {
             data?: components["schemas"]["ImageReferencesData"];
             message: string;
         };
+        EnvelopeListEditPolicyAuditEntry: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeListEditPolicyAuditEntry.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["EditPolicyAuditEntry"][] | null;
+            message: string;
+        };
         EnvelopePageCandidateItem: {
             /**
              * Format: uri
@@ -506,6 +584,18 @@ export interface components {
             data?: components["schemas"]["PageProposalItem"];
             message: string;
         };
+        EnvelopePolicyMatrixData: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopePolicyMatrixData.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["PolicyMatrixData"];
+            message: string;
+        };
         EnvelopeProposalActionData: {
             /**
              * Format: uri
@@ -516,6 +606,18 @@ export interface components {
             /** Format: int64 */
             code: number;
             data?: components["schemas"]["ProposalActionData"];
+            message: string;
+        };
+        EnvelopePutEditPolicyData: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopePutEditPolicyData.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["PutEditPolicyData"];
             message: string;
         };
         EnvelopeQueueSummary: {
@@ -554,6 +656,19 @@ export interface components {
             data?: components["schemas"]["ReleaseWorkData"];
             message: string;
         };
+        "EnvelopeStruct {}": {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EnvelopeStruct {}.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            code: number;
+            data?: components["schemas"]["EnvelopeStruct {}DataStruct"];
+            message: string;
+        };
+        "EnvelopeStruct {}DataStruct": Record<string, never>;
         HouseError: {
             /**
              * Format: uri
@@ -611,6 +726,52 @@ export interface components {
             submitted_event_id: number | null;
             /** Format: int64 */
             work_id: number;
+        };
+        PolicyMatrixData: {
+            automerge_modes: string[] | null;
+            propose_modes: string[] | null;
+            rows: components["schemas"]["PolicyMatrixRow"][] | null;
+        };
+        PolicyMatrixRow: {
+            /** @description The rules the code ships. */
+            default: components["schemas"]["PolicyRules"];
+            /** @description What the engine applies now: default, then the type-level override, then this row's. */
+            effective: components["schemas"]["PolicyRules"];
+            entity_type: string;
+            /** @description Empty on the type-level row, whose effective rules every field without an override of its own inherits. */
+            field_key: string;
+            /** @description The runtime override on exactly this row, or null. */
+            override: components["schemas"]["PolicyOverrideBody"];
+        };
+        PolicyOverrideBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/PolicyOverrideBody.json
+             */
+            readonly $schema?: string;
+            /** @description Omitted inherits from below. */
+            automerge?: string;
+            /** @description Editing-engine type, e.g. catalog.work. */
+            entity_type: string;
+            /** @description Empty for the whole type; a field key overrides that field only. */
+            field_key?: string;
+            /** @description Omitted inherits from below. */
+            owner_review?: boolean;
+            /** @description Omitted inherits from below. */
+            propose?: string;
+            /** @description Omitted inherits from below. */
+            review?: string;
+        };
+        PolicyRules: {
+            /** @description never, trusted, always, owner, review, or trusted_or_review */
+            automerge: string;
+            /** @description Whether the entity's owner may review proposals on it, with no permission. */
+            owner_review: boolean;
+            /** @description open, trusted, locked, or perm:<catalog permission key> */
+            propose: string;
+            /** @description perm:<catalog permission key> */
+            review: string;
         };
         ProbableRefBucketCount: {
             /** Format: int64 */
@@ -680,6 +841,13 @@ export interface components {
             target: components["schemas"]["EntitySummary"];
             /** Format: int64 */
             target_entity_id: number;
+        };
+        PutEditPolicyData: {
+            override: components["schemas"]["PolicyOverrideBody"];
+            /** Format: date-time */
+            updated_at: string;
+            /** Format: int64 */
+            updated_by: number;
         };
         QueueSummary: {
             candidates: components["schemas"]["CandidateBucketCount"][] | null;
@@ -919,6 +1087,134 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EnvelopeClaimActionResult"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    getCatalogEditPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePolicyMatrixData"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    listCatalogEditPolicyAudit: {
+        parameters: {
+            query?: {
+                /** @description Items per page (max 200, default 50) */
+                limit?: number;
+                /** @description Cursor: entries with a smaller id */
+                before_id?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeListEditPolicyAuditEntry"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    putCatalogEditPolicyOverride: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PolicyOverrideBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePutEditPolicyData"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseError"];
+                };
+            };
+        };
+    };
+    deleteCatalogEditPolicyOverride: {
+        parameters: {
+            query: {
+                entity_type: string;
+                field_key?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStruct {}"];
                 };
             };
             /** @description Error */

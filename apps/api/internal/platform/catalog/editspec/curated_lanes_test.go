@@ -15,7 +15,7 @@ func titlesValue(title string) []any {
 func directEdit(t *testing.T, e *editing.Engine, workID int64, patch map[string]any) error {
 	t.Helper()
 	prop, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
-		EntityType: editspec.TypeWork, EntityID: workID, Patch: patch, Actor: realActor(100, "admin"),
+		EntityType: editspec.TypeWork, EntityID: workID, Patch: patch, Actor: realActor(100),
 	})
 	if err != nil {
 		return err
@@ -48,7 +48,7 @@ func TestTitlesReplaceLeavesTheSearchHintLane(t *testing.T) {
 			map[string]any{"lang": "ja", "title": "題", "kind": float64(0)},
 			map[string]any{"lang": "ja", "title": "補助", "kind": float64(model.WorkTitleKindSearchHint)},
 		}},
-		Actor: realActor(100, "admin"),
+		Actor: realActor(100),
 	}); err == nil {
 		t.Fatal("kind=3 must be rejected")
 	}
@@ -83,7 +83,7 @@ func TestSeriesNameIsCuratedOnly(t *testing.T) {
 	rename := func(id int64) error {
 		prop, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
 			EntityType: editspec.TypeSeries, EntityID: id,
-			Patch: map[string]any{editspec.FieldSeriesName: "改名"}, Actor: realActor(100, "admin"),
+			Patch: map[string]any{editspec.FieldSeriesName: "改名"}, Actor: realActor(100),
 		})
 		if err != nil {
 			return err

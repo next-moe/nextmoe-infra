@@ -158,39 +158,7 @@ func TestCharacterIntrosAreTheCuratedLane(t *testing.T) {
 	}
 }
 
-func TestCharacterSiteOverlays(t *testing.T) {
-	reg := editing.NewRegistry()
-	if err := editspec.RegisterCharacter(reg, testDB); err != nil {
-		t.Fatalf("register: %v", err)
-	}
-	spec, ok := reg.Type(editspec.TypeCharacter)
-	if !ok {
-		t.Fatal("catalog.character is not registered")
-	}
-	for i := range spec.Fields {
-		key := spec.Fields[i].Key
-		kungal := spec.EffectivePolicy(key, "kungal")
-		if kungal.Propose != editing.ProposeOpen || kungal.Automerge != editing.AutomergeNever {
-			t.Fatalf("kungal policy for %s = %+v, want {open, …, never}", key, kungal)
-		}
-		for _, site := range []string{"letmoe", "letmoe-staging", "letmoe-dev"} {
-			letmoe := spec.EffectivePolicy(key, site)
-			if letmoe.Propose != editing.ProposeTrusted || letmoe.Automerge != editing.AutomergeOwner {
-				t.Fatalf("%s policy for %s = %+v, want {trusted, …, owner}", site, key, letmoe)
-			}
-		}
-		nextmoe := spec.EffectivePolicy(key, "nextmoe")
-		if nextmoe.Propose != editing.ProposePerm("edit.catalog.character") ||
-			nextmoe.Automerge != editing.AutomergeNever {
-			t.Fatalf("default policy for %s = %+v", key, nextmoe)
-		}
-	}
-}
-
-// A kungal reviewer holding edit.catalog.character.review still has to merge a
-// proposal by hand: a character fans out to every work it appears in, so it is
-// on the taxonomy side of the automerge line, not the work side.
-func TestKungalCharacterNeverAutomerges(t *testing.T) {
+func TestCharacterNeverAutomerges(t *testing.T) {
 	e := newCharacterEngine(t)
 	ch := createCharacter(t, "共有キャラ")
 
@@ -200,60 +168,39 @@ func TestKungalCharacterNeverAutomerges(t *testing.T) {
 		Actor: kungalActor(102, "admin"),
 	})
 	if err != nil {
-		t.Fatalf("admin propose on kungal: %v", err)
+		t.Fatalf("admin propose: %v", err)
 	}
 	if rev != nil {
-		t.Fatal("kungal catalog.character must be automerge=never even for a review-perm holder")
+		t.Fatal("catalog.character must be automerge=never even for a review-perm holder")
+	}
+
+	trusted := editing.PolicyContext{
+		UserID: 400, Site: "letmoe", TrustTier: editing.TrustedTier, HasPerm: func(string) bool { return false },
+	}
+	if _, rev, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
+		EntityType: editspec.TypeCharacter, EntityID: ch.ID,
+		Patch: map[string]any{editspec.FieldCharacterCup: "D"}, Actor: trusted,
+	}); err != nil || rev != nil {
+		t.Fatalf("a trusted-tier editor's character edit must queue: rev=%v err=%v", rev, err)
 	}
 
 	if _, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
 		EntityType: editspec.TypeCharacter, EntityID: ch.ID,
-		Patch: map[string]any{editspec.FieldCharacterCup: "D"},
+		Patch: map[string]any{editspec.FieldCharacterCup: "E"},
 		Actor: kungalActor(101),
 	}); err != nil {
-		t.Fatalf("plain kungal user propose: %v", err)
+		t.Fatalf("plain user propose: %v", err)
 	}
 
 	var permErr *editing.PermissionError
-	if _, err := e.MergeProposal(testCtx, prop.ID, kungalActor(103, "moderator"), ""); !errors.As(err, &permErr) {
-		t.Fatalf("moderator merge: %v, want PermissionError", err)
+	if _, err := e.MergeProposal(testCtx, prop.ID, kungalActor(104, "editor"), ""); !errors.As(err, &permErr) {
+		t.Fatalf("editor merge: %v, want PermissionError (editors review nothing)", err)
 	}
-	if _, err := e.MergeProposal(testCtx, prop.ID, kungalActor(102, "admin"), "ok"); err != nil {
-		t.Fatalf("admin merge: %v", err)
+	if _, err := e.MergeProposal(testCtx, prop.ID, kungalActor(103, "moderator"), "ok"); err != nil {
+		t.Fatalf("moderator merge: %v", err)
 	}
 	if got := reloadCharacter(t, ch.ID).DisplayName; got != "レビュー権付き改名" {
 		t.Fatalf("display_name after merge = %q", got)
-	}
-}
-
-func TestLetmoeCharacterProposeIsTrusted(t *testing.T) {
-	e := newCharacterEngine(t)
-	ch := createCharacter(t, "letmoe キャラ")
-
-	untrusted := editing.PolicyContext{
-		UserID: 400, Site: "letmoe", TrustTier: 0, HasPerm: func(string) bool { return false },
-	}
-	var permErr *editing.PermissionError
-	if _, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
-		EntityType: editspec.TypeCharacter, EntityID: ch.ID,
-		Patch: map[string]any{editspec.FieldCharacterDisplayName: "x"}, Actor: untrusted,
-	}); !errors.As(err, &permErr) {
-		t.Fatalf("untrusted letmoe propose: %v, want PermissionError", err)
-	}
-
-	trusted := untrusted
-	trusted.TrustTier = editing.TrustedTier
-	_, rev, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
-		EntityType: editspec.TypeCharacter, EntityID: ch.ID,
-		Patch: map[string]any{editspec.FieldCharacterDisplayName: "信頼層の提案"}, Actor: trusted,
-	})
-	if err != nil {
-		t.Fatalf("trusted letmoe propose: %v", err)
-	}
-	// automerge=owner with no owner hook value means never — a character belongs
-	// to no site, so the letmoe overlay's shape matches work without granting it.
-	if rev != nil {
-		t.Fatal("a character has no owning site, so automerge=owner must never fire")
 	}
 }
 

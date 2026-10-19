@@ -60,12 +60,12 @@ func registerMeWrite(api huma.API, cat *Catalog) {
 	huma.Register(api, huma.Operation{
 		OperationID: "listMyProposals", Method: http.MethodGet, Path: "/v2/me/proposals",
 		Summary:     "List my proposals",
-		Description: "The bearer's own proposals. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch and effective_patch, the same pair GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. Requires a user access token.",
+		Description: "The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch and effective_patch, the same pair GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. Requires a user access token.",
 		Tags:        me, Errors: errs, SkipValidateParams: true,
 	}, listMyProposals(cat))
 	huma.Register(api, huma.Operation{
 		OperationID: "createMyProposal", Method: http.MethodPost, Path: "/v2/me/proposals",
-		Summary: "File a proposal", Description: "A contributor who has used up catalog.proposals_per_day inside the sliding window is refused 429 QUOTA_EXCEEDED; holders of catalog.edit.trusted, whose proposals merge without review, get the higher catalog.proposals_per_day_trusted. Requires a user access token bound to a catalog site.",
+		Summary: "File a proposal", Description: "Quotas are tiered (user, editor, reviewer; GET /v2/me/edit-quota answers the bearer's): a contributor who has used up their tier's proposal limit inside the sliding window (catalog.proposals_per_day, catalog.proposals_per_day_editor, catalog.proposals_per_day_reviewer), or who already has their tier's most proposals awaiting a decision (catalog.open_proposals_max_*), is refused 429 QUOTA_EXCEEDED. An editor past catalog.direct_edits_per_day_editor still files, but the proposal queues for review instead of applying. Requires a user access token bound to a catalog site.",
 		Tags: me, Errors: writeErrs, DefaultStatus: http.StatusCreated, SkipValidateParams: true,
 	}, createMyProposal(cat))
 	huma.Register(api, huma.Operation{
@@ -97,13 +97,13 @@ func registerMeWrite(api huma.API, cat *Catalog) {
 	huma.Register(api, huma.Operation{
 		OperationID: "listModerationProposals", Method: http.MethodGet, Path: "/v2/moderation/proposals",
 		Summary:     "Moderation proposal queue",
-		Description: "Open proposals on the token site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422.",
+		Description: "Open proposals on the token site; on the central editor (catalog site editor), on every site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422.",
 		Tags:        mod, Errors: errs, SkipValidateParams: true,
 	}, listModerationProposals(cat))
 	huma.Register(api, huma.Operation{
 		OperationID: "getModerationProposal", Method: http.MethodGet, Path: "/v2/moderation/proposals/{id}",
 		Summary:     "Get one moderation proposal",
-		Description: "Site-fenced. include=patch adds the proposed and effective patches a decision is taken on. The ETag is the validator POST /v2/moderation/proposals/{id}/decisions takes as If-Match.",
+		Description: "Site-fenced, except on the central editor (catalog site editor), which reads proposals filed on any site. include=patch adds the proposed and effective patches a decision is taken on. The ETag is the validator POST /v2/moderation/proposals/{id}/decisions takes as If-Match.",
 		Tags:        mod, Errors: errs, SkipValidateParams: true,
 	}, getModerationProposal(cat))
 	huma.Register(api, huma.Operation{
@@ -113,7 +113,7 @@ func registerMeWrite(api huma.API, cat *Catalog) {
 	}, decideModerationProposal(cat))
 	huma.Register(api, huma.Operation{
 		OperationID: "revertModeration", Method: http.MethodPost, Path: "/v2/moderation/reverts",
-		Summary: "Revert to a revision", Description: "Body names revision_id. Requires a user access token bound to a catalog site.",
+		Summary: "Revert to a revision", Description: "Body names revision_id. A downstream site may not revert an entity another site claims; the central editor (catalog site editor) may revert any. Requires a user access token bound to a catalog site.",
 		Tags: mod, Errors: writeErrs, DefaultStatus: http.StatusCreated, SkipValidateParams: true,
 	}, revertModeration(cat))
 	huma.Register(api, huma.Operation{

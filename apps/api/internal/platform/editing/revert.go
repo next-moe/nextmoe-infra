@@ -46,22 +46,8 @@ func (e *Engine) Revert(ctx context.Context, in RevertInput) (*Proposal, *Revisi
 	if len(patch) == 0 {
 		return nil, nil, ErrNoEffectiveChanges
 	}
-	// AmendProposal and MergeProposal resolve the overlay under prop.Site --
-	// the tenant that owns the row. Revert has no proposal to read it from and
-	// used the caller's own site, so a tenant whose overlay is looser than the
-	// owner's reviewed the owner's fields under its own rules.
-	policySite := in.Actor.Site
-	if spec.OwnerSite != nil {
-		owner, oerr := spec.OwnerSite(ctx, in.EntityID)
-		if oerr != nil {
-			return nil, nil, oerr
-		}
-		if owner != nil && *owner != "" {
-			policySite = *owner
-		}
-	}
 	for _, key := range sortedKeys(patch) {
-		if !spec.EffectivePolicy(key, policySite).AllowsReview(in.Actor) {
+		if !spec.EffectivePolicy(key).AllowsReview(in.Actor) {
 			return nil, nil, &PermissionError{Key: key, Action: "review"}
 		}
 	}

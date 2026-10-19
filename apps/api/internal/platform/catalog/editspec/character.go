@@ -40,53 +40,12 @@ const maxCupRunes = 8
 func RegisterCharacter(reg *editing.Registry, db *gorm.DB) error {
 	fields := characterFieldSpecs()
 
-	// A character is shared by every work it appears in, so kungal keeps
-	// automerge=never here — the blast radius of a direct edit is the taxonomy's,
-	// not a single work's.
-	kungalPolicy := editing.Policy{
-		Propose:   editing.ProposeOpen,
-		Review:    editing.ReviewPerm(string(perm.EditCharacterReview)),
-		Automerge: editing.AutomergeNever,
-	}
-	letmoePolicy := editing.Policy{
-		Propose:   editing.ProposeTrusted,
-		Review:    editing.ReviewPerm(string(perm.EditCharacterReview)),
-		Automerge: editing.AutomergeOwner,
-	}
-	everyField := func(p editing.Policy) map[string]editing.Policy {
-		overlay := make(map[string]editing.Policy, len(fields))
-		for _, f := range fields {
-			overlay[f.Key] = p
-		}
-		return overlay
-	}
-	overlays := make(map[string]map[string]editing.Policy, len(letmoeSites)+1)
-	for _, site := range letmoeSites {
-		overlays[site] = everyField(letmoePolicy)
-	}
-	overlays["kungal"] = everyField(kungalPolicy)
-
 	return reg.Register(editing.EntityTypeSpec{
-		Family:       "catalog",
-		Type:         TypeCharacter,
-		LoadSnapshot: loadCharacterSnapshot(db),
-		// A character belongs to no product site — nothing claims one the way a
-		// site claims a work. The hook exists because editing.Register refuses an
-		// automerge=owner policy without one, and returning nil is what makes the
-		// letmoe overlay's automerge=owner mean "never" for this family.
-		OwnerSite: func(ctx context.Context, entityID int64) (*string, error) {
-			if err := assertCharacterExists(ctx, db, entityID); err != nil {
-				return nil, err
-			}
-			return nil, nil
-		},
-		DefaultPolicy: editing.Policy{
-			Propose:   editing.ProposePerm(string(perm.EditCharacter)),
-			Review:    editing.ReviewPerm(string(perm.EditCharacterReview)),
-			Automerge: editing.AutomergeNever,
-		},
-		SiteOverlays: overlays,
-		Fields:       fields,
+		Family:        "catalog",
+		Type:          TypeCharacter,
+		LoadSnapshot:  loadCharacterSnapshot(db),
+		DefaultPolicy: sharedEntityPolicy(perm.EditCharacterReview),
+		Fields:        fields,
 	})
 }
 

@@ -214,7 +214,7 @@ func TestReleaseDateComposite(t *testing.T) {
 		t.Fatalf("null date must clear all three: %+v", cleared)
 	}
 
-	editor := realActor(100, "admin")
+	editor := realActor(100)
 	var valErr *editing.ValidationError
 	for i, patch := range []any{
 		map[string]any{"d": float64(1)},
@@ -302,46 +302,11 @@ func TestReleaseHiddenUnscopedAndIdempotent(t *testing.T) {
 	}
 }
 
-func TestReleaseSiteOverlays(t *testing.T) {
-	reg := editing.NewRegistry()
-	if err := editspec.RegisterRelease(reg, testDB); err != nil {
-		t.Fatalf("register: %v", err)
-	}
-	spec, ok := reg.Type(editspec.TypeRelease)
-	if !ok {
-		t.Fatal("catalog.release is not registered")
-	}
-	for i := range spec.Fields {
-		key := spec.Fields[i].Key
-		kungal := spec.EffectivePolicy(key, "kungal")
-		if kungal.Propose != editing.ProposeOpen || kungal.Automerge != editing.AutomergeReview || !kungal.OwnerReview {
-			t.Fatalf("kungal policy for %s = %+v, want {open, review, ownerReview}", key, kungal)
-		}
-		if kungal.Review != editing.ReviewPerm("edit.catalog.release.review") {
-			t.Fatalf("kungal ReviewPerm for %s = %s", key, kungal.Review)
-		}
-		for _, site := range []string{"letmoe", "letmoe-staging", "letmoe-dev"} {
-			letmoe := spec.EffectivePolicy(key, site)
-			if letmoe.Propose != editing.ProposeTrusted || letmoe.Automerge != editing.AutomergeOwner {
-				t.Fatalf("%s policy for %s = %+v, want {trusted, owner}", site, key, letmoe)
-			}
-			if letmoe.Review != editing.ReviewPerm("edit.catalog.release.review") {
-				t.Fatalf("%s ReviewPerm for %s = %s", site, key, letmoe.Review)
-			}
-		}
-		nextmoe := spec.EffectivePolicy(key, "nextmoe")
-		if nextmoe.Propose != editing.ProposePerm("edit.catalog.release") ||
-			nextmoe.Automerge != editing.AutomergeNever {
-			t.Fatalf("default policy for %s = %+v", key, nextmoe)
-		}
-	}
-}
-
 func TestReleaseValidatorsAndMissing(t *testing.T) {
 	e := newReleaseEngine(t)
 	work := createWork(t, "検証の主")
 	rel := createReleaseOn(t, work.ID)
-	editor := realActor(100, "admin")
+	editor := realActor(100)
 
 	var valErr *editing.ValidationError
 	cases := []map[string]any{
@@ -396,7 +361,7 @@ func TestReleaseEngineEdit(t *testing.T) {
 		t.Fatalf("field_provenance[engine_id] head = %q, want %q: the importer must see a person's choice", head, provenance.SourceCurated)
 	}
 
-	editor := realActor(100, "admin")
+	editor := realActor(100)
 	var valErr *editing.ValidationError
 	for name, value := range map[string]any{
 		"unknown engine": float64(engine.ID + 1000),

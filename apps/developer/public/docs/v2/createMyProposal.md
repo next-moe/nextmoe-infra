@@ -13,7 +13,7 @@
 
 File a proposal
 
-A contributor who has used up catalog.proposals_per_day inside the sliding window is refused 429 QUOTA_EXCEEDED; holders of catalog.edit.trusted, whose proposals merge without review, get the higher catalog.proposals_per_day_trusted. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+Quotas are tiered (user, editor, reviewer; GET /v2/me/edit-quota answers the bearer's): a contributor who has used up their tier's proposal limit inside the sliding window (catalog.proposals_per_day, catalog.proposals_per_day_editor, catalog.proposals_per_day_reviewer), or who already has their tier's most proposals awaiting a decision (catalog.open_proposals_max_*), is refused 429 QUOTA_EXCEEDED. An editor past catalog.direct_edits_per_day_editor still files, but the proposal queues for review instead of applying. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>

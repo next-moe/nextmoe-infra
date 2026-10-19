@@ -20,7 +20,7 @@ func kungalActor(uid int64, roles ...string) editing.PolicyContext {
 	}
 }
 
-func TestKungalSiteOverlay(t *testing.T) {
+func TestKungalParity(t *testing.T) {
 	e := newEngine(t)
 	work := createWork(t, "初期名")
 
@@ -51,24 +51,23 @@ func TestKungalSiteOverlay(t *testing.T) {
 	if rev == nil || rev.Action != editing.ActionDirect {
 		t.Fatalf("admin (review perm) must direct-edit on kungal: %+v", rev)
 	}
-	modProp, rev, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
+	// Production granted moderators the review keys through the permission
+	// overlay all along; the code bundle now says so, so their edits land.
+	_, rev, err = e.CreateProposal(testCtx, editing.CreateProposalInput{
 		EntityType: editspec.TypeWork, EntityID: work.ID,
-		Patch: map[string]any{editspec.FieldWorkDisplayName: "モデレーター改題"},
+		Patch: map[string]any{editspec.FieldWorkContentRating: float64(model.ContentRatingR18)},
 		Actor: kungalActor(103, "moderator"),
 	})
 	if err != nil {
-		t.Fatalf("moderator propose: %v", err)
+		t.Fatalf("moderator edit: %v", err)
 	}
-	if rev != nil {
-		t.Fatal("moderator (no review perm) must not automerge on kungal")
-	}
-	if err := e.DeclineProposal(testCtx, modProp.ID, kungalActor(102, "admin"), "dup"); err != nil {
-		t.Fatalf("decline: %v", err)
+	if rev == nil || rev.Action != editing.ActionDirect {
+		t.Fatalf("moderator (review perm in code) must direct-edit: %+v", rev)
 	}
 
 	var permErr *editing.PermissionError
-	if _, err := e.MergeProposal(testCtx, prop.ID, kungalActor(103, "moderator"), ""); !errors.As(err, &permErr) {
-		t.Fatalf("moderator merge: %v, want PermissionError", err)
+	if _, err := e.MergeProposal(testCtx, prop.ID, kungalActor(104, "editor"), ""); !errors.As(err, &permErr) {
+		t.Fatalf("editor merge: %v, want PermissionError", err)
 	}
 
 	if _, err := e.AmendProposal(testCtx, prop.ID, editing.AmendInput{
@@ -145,17 +144,17 @@ func TestKungalOwnerReview(t *testing.T) {
 		t.Fatalf("double signature: actor=%d amender=%v", merged.ActorUID, merged.AmenderUID)
 	}
 
-	var permErr *editing.PermissionError
-	if _, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
+	_, rev, err = e.CreateProposal(testCtx, editing.CreateProposalInput{
 		EntityType: editspec.TypeWork, EntityID: work.ID,
-		Patch: map[string]any{editspec.FieldWorkDisplayName: "x"},
+		Patch: map[string]any{editspec.FieldWorkDisplayName: "どこからでも"},
 		Actor: asOwner(realActor(200, "user")),
-	}); !errors.As(err, &permErr) {
-		t.Fatalf("owner on default tenant: %v, want PermissionError", err)
+	})
+	if err != nil || rev == nil {
+		t.Fatalf("the owner channel is the same on every site: rev=%v err=%v", rev, err)
 	}
 }
 
-func TestKungalTaxonomyOverlay(t *testing.T) {
+func TestTaxonomyPolicy(t *testing.T) {
 	e := newTaxonomyEngine(t)
 	tag := model.CatalogTag{Name: "泣きゲー", Tier: model.TagTierCore, Kind: model.TagKindContent}
 	if err := testDB.Create(&tag).Error; err != nil {
@@ -165,12 +164,11 @@ func TestKungalTaxonomyOverlay(t *testing.T) {
 		map[string]any{"lang": "zh-Hans", "intro": "以催泪剧情为核心"},
 	}}
 
-	var permErr *editing.PermissionError
-	if _, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
+	if _, rev, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
 		EntityType: editspec.TypeTag, EntityID: tag.ID,
 		Patch: patch, Actor: realActor(101, "user"),
-	}); !errors.As(err, &permErr) {
-		t.Fatalf("plain user on default tenant: %v, want PermissionError", err)
+	}); err != nil || rev != nil {
+		t.Fatalf("a plain user proposes taxonomy on any site and it queues: rev=%v err=%v", rev, err)
 	}
 
 	prop, rev, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
@@ -198,11 +196,12 @@ func TestKungalTaxonomyOverlay(t *testing.T) {
 		t.Fatal("kungal taxonomy is automerge=never even for a review-perm holder")
 	}
 
-	if _, err := e.MergeProposal(testCtx, prop.ID, kungalActor(103, "moderator"), ""); !errors.As(err, &permErr) {
-		t.Fatalf("moderator merge: %v, want PermissionError", err)
+	var permErr *editing.PermissionError
+	if _, err := e.MergeProposal(testCtx, prop.ID, kungalActor(104, "editor"), ""); !errors.As(err, &permErr) {
+		t.Fatalf("editor merge: %v, want PermissionError", err)
 	}
-	if _, err := e.MergeProposal(testCtx, prop.ID, kungalActor(102, "admin"), "ok"); err != nil {
-		t.Fatalf("admin merge: %v", err)
+	if _, err := e.MergeProposal(testCtx, prop.ID, kungalActor(103, "moderator"), "ok"); err != nil {
+		t.Fatalf("moderator merge: %v", err)
 	}
 	snap, err := e.CurrentSnapshot(testCtx, editspec.TypeTag, tag.ID)
 	if err != nil {

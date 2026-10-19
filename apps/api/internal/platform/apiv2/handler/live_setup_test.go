@@ -74,6 +74,12 @@ var (
 	// exactly what the test puts there.
 	liveWalkerToken = "user-live-walker-token"
 	liveWalkerUID   = int64(7070)
+
+	liveEditorToken   = "user-live-editor-token"
+	liveEditorUID     = int64(13)
+	liveCentralToken  = "user-live-central-token"
+	liveCentralUID    = int64(14)
+	liveCentralClient = "editor-client"
 )
 
 // liveUnlimitedStore never rate-limits, but it does remember: without a real
@@ -305,6 +311,12 @@ func liveCatalog(t *testing.T) *liveEnv {
 				case liveThirdPartyToken:
 					return UserIdentity{UID: liveUID, ClientID: liveThirdPartyClient, Roles: []string{"admin"},
 						Scopes: []string{devapi.ScopeCatalogEdit}}, nil
+				case liveEditorToken:
+					return UserIdentity{UID: liveEditorUID, ClientID: liveClient, Roles: []string{"user", "editor"},
+						Scopes: []string{devapi.ScopeCatalogEdit}}, nil
+				case liveCentralToken:
+					return UserIdentity{UID: liveCentralUID, ClientID: liveCentralClient, Roles: []string{"moderator"},
+						Scopes: []string{devapi.ScopeCatalogEdit}}, nil
 				default:
 					return UserIdentity{}, os.ErrPermission
 				}
@@ -317,6 +329,8 @@ func liveCatalog(t *testing.T) *liveEnv {
 					return SiteBinding{Site: liveOtherSite}, nil
 				case liveThirdPartyClient:
 					return SiteBinding{Site: liveSite, ThirdParty: true}, nil
+				case liveCentralClient:
+					return SiteBinding{Site: centralEditorSite}, nil
 				}
 				return SiteBinding{}, nil
 			},

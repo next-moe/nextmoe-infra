@@ -72,7 +72,7 @@ func TestCreditsLaneRoundTrip(t *testing.T) {
 
 	upstreamID := importCredit(t, work.ID, writer.ID, scenario, nil)
 
-	editor := realActor(100, "admin")
+	editor := realActor(100)
 	reviewer := realActor(200, "ren")
 	list := []any{
 		map[string]any{"role_id": float64(va), "credit_name_id": float64(actor.ID),
@@ -148,7 +148,7 @@ func TestCreditsUpstreamCollisionRejected(t *testing.T) {
 	}
 	clash, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
 		EntityType: editspec.TypeWork, EntityID: work.ID,
-		Patch: map[string]any{editspec.FieldWorkCredits: clashing}, Actor: realActor(100, "admin"),
+		Patch: map[string]any{editspec.FieldWorkCredits: clashing}, Actor: realActor(100),
 	})
 	if err != nil {
 		t.Fatalf("propose: %v", err)
@@ -177,7 +177,7 @@ func TestCreditsUpstreamCollisionRejected(t *testing.T) {
 	}
 	prop, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
 		EntityType: editspec.TypeWork, EntityID: work.ID,
-		Patch: map[string]any{editspec.FieldWorkCredits: free}, Actor: realActor(100, "admin"),
+		Patch: map[string]any{editspec.FieldWorkCredits: free}, Actor: realActor(100),
 	})
 	if err != nil {
 		t.Fatalf("a free tuple must be accepted: %v", err)
@@ -224,7 +224,7 @@ func TestCreditsRejectUnknownReferences(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			prop, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
 				EntityType: editspec.TypeWork, EntityID: work.ID,
-				Patch: map[string]any{editspec.FieldWorkCredits: c.value}, Actor: realActor(100, "admin"),
+				Patch: map[string]any{editspec.FieldWorkCredits: c.value}, Actor: realActor(100),
 			})
 			if err != nil {
 				t.Fatalf("propose: %v", err)
@@ -261,7 +261,7 @@ func TestCreditsRejectUnknownReferences(t *testing.T) {
 	prop, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
 		EntityType: editspec.TypeWork, EntityID: work.ID,
 		Patch: map[string]any{editspec.FieldWorkCredits: el(scenario, writer.ID, ch.ID)},
-		Actor: realActor(100, "admin"),
+		Actor: realActor(100),
 	})
 	if err != nil {
 		t.Fatalf("propose: %v", err)

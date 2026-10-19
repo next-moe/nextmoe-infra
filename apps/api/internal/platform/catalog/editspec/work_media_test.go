@@ -14,7 +14,7 @@ func mergeMustReject(t *testing.T, e *editing.Engine, entityType string, entityI
 	t.Helper()
 	prop, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
 		EntityType: entityType, EntityID: entityID,
-		Patch: map[string]any{key: value}, Actor: realActor(100, "admin"),
+		Patch: map[string]any{key: value}, Actor: realActor(100),
 	})
 	if err != nil {
 		t.Fatalf("propose %s: %v", key, err)

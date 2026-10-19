@@ -37,8 +37,6 @@ const (
 	FieldWorkRosterSuppr   = FieldWorkRoster + editing.SuppressedFieldSuffix
 )
 
-var letmoeSites = []string{"letmoe", "letmoe-staging", "letmoe-dev"}
-
 var olangAllowed = map[string]struct{}{}
 
 func init() {
@@ -54,31 +52,7 @@ func init() {
 }
 
 func RegisterWork(reg *editing.Registry, db *gorm.DB) error {
-	letmoePolicy := editing.Policy{
-		Propose:   editing.ProposeTrusted,
-		Review:    editing.ReviewPerm(string(perm.EditWorkReview)),
-		Automerge: editing.AutomergeOwner,
-	}
-	kungalPolicy := editing.Policy{
-		Propose:     editing.ProposeOpen,
-		Review:      editing.ReviewPerm(string(perm.EditWorkReview)),
-		Automerge:   editing.AutomergeReview,
-		OwnerReview: true,
-	}
 	fields := workFieldSpecs()
-	overlays := make(map[string]map[string]editing.Policy, len(letmoeSites)+1)
-	for _, site := range letmoeSites {
-		overlay := make(map[string]editing.Policy, len(fields))
-		for _, f := range fields {
-			overlay[f.Key] = letmoePolicy
-		}
-		overlays[site] = overlay
-	}
-	kungalOverlay := make(map[string]editing.Policy, len(fields))
-	for _, f := range fields {
-		kungalOverlay[f.Key] = kungalPolicy
-	}
-	overlays["kungal"] = kungalOverlay
 
 	return reg.Register(editing.EntityTypeSpec{
 		Family: "catalog",
@@ -148,13 +122,8 @@ func RegisterWork(reg *editing.Registry, db *gorm.DB) error {
 			}
 			return w.OwnerUserID, nil
 		},
-		DefaultPolicy: editing.Policy{
-			Propose:   editing.ProposePerm(string(perm.EditWork)),
-			Review:    editing.ReviewPerm(string(perm.EditWorkReview)),
-			Automerge: editing.AutomergeNever,
-		},
-		SiteOverlays: overlays,
-		Fields:       fields,
+		DefaultPolicy: ownedEntityPolicy(perm.EditWorkReview),
+		Fields:        fields,
 	})
 }
 

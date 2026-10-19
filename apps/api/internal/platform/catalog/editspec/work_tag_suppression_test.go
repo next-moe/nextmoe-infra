@@ -146,7 +146,7 @@ func TestCuratedTagsAndSuppressionCannotContradict(t *testing.T) {
 			editspec.FieldWorkTagIDs:      []any{romance.ID},
 			editspec.FieldWorkTagIDsSuppr: suppressList(key),
 		},
-		Actor: realActor(100, "admin"),
+		Actor: realActor(100),
 	})
 	if err != nil {
 		t.Fatalf("propose: %v", err)
@@ -184,7 +184,7 @@ func TestWorkTagSuppressionKeys(t *testing.T) {
 		if _, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
 			EntityType: editspec.TypeWork, EntityID: work.ID,
 			Patch: map[string]any{editspec.FieldWorkTagIDsSuppr: []any{bad}},
-			Actor: realActor(100, "admin"),
+			Actor: realActor(100),
 		}); !errors.As(err, &valErr) {
 			t.Fatalf("key %q: err = %v, want ValidationError", bad, err)
 		}
@@ -205,10 +205,8 @@ func TestWorkTagSuppressionKeys(t *testing.T) {
 	if editspec.FieldWorkTagIDsSuppr != editing.SuppressedFieldKey(editspec.FieldWorkTagIDs) {
 		t.Fatalf("companion key %q does not follow the engine's suffix", editspec.FieldWorkTagIDsSuppr)
 	}
-	for _, site := range []string{"nextmoe", "kungal", "letmoe", "letmoe-staging", "letmoe-dev"} {
-		if parent, comp := spec.EffectivePolicy(editspec.FieldWorkTagIDs, site),
-			spec.EffectivePolicy(editspec.FieldWorkTagIDsSuppr, site); parent != comp {
-			t.Fatalf("site %q: parent %+v vs companion %+v", site, parent, comp)
-		}
+	if parent, comp := spec.EffectivePolicy(editspec.FieldWorkTagIDs),
+		spec.EffectivePolicy(editspec.FieldWorkTagIDsSuppr); parent != comp {
+		t.Fatalf("parent %+v vs companion %+v", parent, comp)
 	}
 }

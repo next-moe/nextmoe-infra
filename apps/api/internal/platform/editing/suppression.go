@@ -37,9 +37,9 @@ func (SuppressedRow) TableName() string { return "edit_suppressed_row" }
 func SuppressedFieldKey(parentKey string) string { return parentKey + SuppressedFieldSuffix }
 
 // SuppressedFieldSpec builds the companion field that carries a list field's
-// suppression set. It copies the parent's Policy; the caller must append the
-// result to the same field slice its SiteOverlays are built from, or the
-// companion silently ends up more permissive than the field it suppresses.
+// suppression set. It copies the parent's Policy, and a runtime override on the
+// parent field reaches the companion too (overrideTable.apply); otherwise the
+// companion would silently end up more permissive than the field it suppresses.
 func SuppressedFieldSpec(entityType string, parent FieldSpec) FieldSpec {
 	parentKey := parent.Key
 	key := SuppressedFieldKey(parentKey)

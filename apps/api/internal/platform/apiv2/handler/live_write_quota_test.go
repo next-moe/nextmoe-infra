@@ -34,6 +34,8 @@ func seedClaimWrites(t *testing.T, env *liveEnv, actorUID int64, n int64, at tim
 	require.NoError(t, env.db.Create(&rows).Error)
 }
 
+// Seeded proposals are already decided, so they spend the daily allowance
+// without also filling the open-proposal cap.
 func seedProposals(t *testing.T, env *liveEnv, proposerUID int64, n int64, at time.Time) {
 	t.Helper()
 	t.Cleanup(func() {
@@ -45,7 +47,7 @@ func seedProposals(t *testing.T, env *liveEnv, proposerUID int64, n int64, at ti
 			INSERT INTO edit_proposal
 				(entity_family, entity_type, entity_id, base_revision_seq, patch,
 				 proposer_uid, note, site, status, decision_note, created_at, updated_at)
-			VALUES ('catalog', 'catalog.work', 1, 0, '{}'::jsonb, ?, ?, ?, 0, '', ?, ?)`,
+			VALUES ('catalog', 'catalog.work', 1, 0, '{}'::jsonb, ?, ?, ?, 1, '', ?, ?)`,
 			proposerUID, quotaProbeReason, liveSite, at, at).Error)
 	}
 }

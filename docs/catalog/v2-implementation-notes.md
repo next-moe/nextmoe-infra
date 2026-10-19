@@ -2212,3 +2212,27 @@ Downstreams were building identity URLs out of `refs` themselves, and one of the
 - `dto.PublicWorkLink` / `PublicPersonLink` / `PublicLabelLink` collapsed into `dto.PublicLink`, minted by `service/public_links.go`.
 
 **Spec is 2.52.0.** Additive: a required `is_identity` and an optional `page_id` on `WorkLink`, and `links` on `Character`. Behaviour change: identity entries now appear in `links[]`; a consumer that still builds identity URLs from `refs` should skip `is_identity` entries until it stops. No migration.
+
+## Wave — one editing policy, runtime-configurable, with quota tiers and a central editor (2026-10-19)
+
+Every first-party site now proposes under the same policy, and the policy is data. Before this wave each site carried a Go overlay: kungal (forum and moyu) proposed openly, letmoe needed `catalog.edit.trusted` to propose at all and automerged only on its own claims, and every other site fell back to "propose needs `edit.catalog.*`".
+
+- **Code defaults** (`editspec/policy.go`):
+
+  | type | propose | review | automerge | owner review |
+  |---|---|---|---|---|
+  | `catalog.work`, `catalog.release` | open | `perm:edit.catalog.<type>.review` | `trusted_or_review` | yes |
+  | `catalog.character`, `catalog.label` / `tag` / `engine` / `series` | open | `perm:edit.catalog.<character\|taxonomy>.review` | never | no |
+
+  `trusted_or_review` is a new automerge mode: the trusted tier (`catalog.edit.trusted`, never for a third-party app) or anyone who may review the field. Site no longer enters policy evaluation at all; `EntityTypeSpec.SiteOverlays` is gone.
+- **Runtime overrides.** `edit_policy_override` (kun_catalog) holds per-type (`field_key = ''`) or per-field overrides whose NULL attributes inherit: code default → type override → (for a `.suppressed` companion) the parent field's override → the field's own. `editing.PolicyStore` reloads on every write and polls every 30 s; an orphaned row (removed field or type) is skipped with a warning instead of taking the table down. Every write lands in `edit_policy_override_audit` (who, when, before, after). Rules may only name catalog permissions (`perm.Known`).
+- **Console API** on the catalog admin face, gated by the new `edit.policy.manage` (admin, ren): `GET /api/v1/admin/catalog/edit-policy` (default / override / effective per type and field), `PUT` and `DELETE …/edit-policy/overrides`, `GET …/edit-policy/audit`.
+- **Bundles in code.** moderator now carries every `edit.catalog.*` key and its `.review`, plus `catalog.edit.trusted` and `catalog.claim.trusted` — production had granted exactly these through the permission overlay. New `editor` bundle: the four propose keys and `catalog.edit.trusted`, no review. creator is untouched (its production overlay rows stay authoritative).
+- **Quota tiers.** reviewer (any `edit.catalog.*.review`) › editor (`catalog.edit.trusted` without review) › user. Settings, all hot: `catalog.proposals_per_day` (user, 100), `catalog.proposals_per_day_editor` (500), `catalog.proposals_per_day_reviewer` (1000), `catalog.direct_edits_per_day_editor` (100), `catalog.open_proposals_max_user` (30), `…_editor` (100), `…_reviewer` (0 = no cap). `catalog.proposals_per_day_trusted` is retired; production had no override row for any `catalog.*` key, so nothing carried over. An editor past the direct-edit allowance still files: the proposal loses the trusted tier and queues. A full open-proposal backlog answers 429 `QUOTA_EXCEEDED`, like the daily limit.
+- **`GET /v2/me/edit-quota`** returns the tier and `limit` / `used` / `remaining` for proposals, direct edits and open proposals (`limit: null` = no limit). `/v2/me/edit-capabilities` gains `quota_tier`, `quota_exhausted` (then every `can_propose` and `would_automerge` is false) and `central`; `would_automerge` is false for an editor past the allowance.
+- **Central editor.** catalog site `editor` (the editor.nextmoe.com client) is not a tenant: its moderation queue, proposal reads and decisions span every site, it may revert an entity another site claims, and `/v2/me/proposals` lists the caller's proposals from every site. Downstream sites keep their fences.
+- New indexes: `idx_edit_proposal_proposer (proposer_uid, created_at)`, `idx_edit_revision_actor (actor_uid, created_at)`, for the quota counts.
+
+**Behaviour deltas.** kungal (forum, moyu): unchanged for users, owners and admins; moderators now automerge their work and release edits in code as they already did in production. letmoe: anyone may propose (before: only `catalog.edit.trusted`); the trusted tier lands its edits on every work, not only letmoe's claims; a letmoe claim no longer lands an untrusted edit because it is letmoe's; character and taxonomy proposals are open to everyone and never automerge. Other sites (news, sticker, nextmoe): proposing no longer needs `edit.catalog.*`.
+
+**Spec is 2.53.0.** Additive: `GET /v2/me/edit-quota`, three properties on `EditCapabilities`, descriptions. Migration: `go run ./cmd/migrate catalog` on `kun_catalog` (the prod `migrate-catalog` job) creates the two policy tables and two indexes.

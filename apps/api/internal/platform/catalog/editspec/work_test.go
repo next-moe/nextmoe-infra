@@ -82,6 +82,8 @@ func createWork(t *testing.T, displayName string) *model.CatalogWork {
 	return w
 }
 
+func strPtr(s string) *string { return &s }
+
 func realActor(uid int64, roles ...string) editing.PolicyContext {
 	return editing.PolicyContext{
 		UserID: uid, Site: "nextmoe", TrustTier: 0,
@@ -95,17 +97,23 @@ func TestWorkPilotEndToEnd(t *testing.T) {
 	e := newEngine(t)
 	work := createWork(t, "初期名")
 
-	editor := realActor(100, "admin")
+	editor := realActor(100)
 	reviewer := realActor(200, "ren")
 	nobody := realActor(300, "user")
 
-	var permErr *editing.PermissionError
+	var lockedErr *editing.LockedFieldError
+	if skipped := e.Registry().SetPolicyOverrides([]editing.PolicyOverride{
+		{EntityType: editspec.TypeWork, FieldKey: editspec.FieldWorkDisplayName, Propose: strPtr(editing.ProposeLocked)},
+	}); len(skipped) > 0 {
+		t.Fatal(skipped)
+	}
 	if _, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
 		EntityType: editspec.TypeWork, EntityID: work.ID,
 		Patch: map[string]any{editspec.FieldWorkDisplayName: "x"}, Actor: nobody,
-	}); !errors.As(err, &permErr) {
-		t.Fatalf("user propose: %v", err)
+	}); !errors.As(err, &lockedErr) {
+		t.Fatalf("a runtime lock must refuse the field: %v", err)
 	}
+	e.Registry().SetPolicyOverrides(nil)
 
 	prop, rev, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
 		EntityType: editspec.TypeWork, EntityID: work.ID,
@@ -120,7 +128,7 @@ func TestWorkPilotEndToEnd(t *testing.T) {
 		t.Fatalf("propose: %v", err)
 	}
 	if rev != nil {
-		t.Fatal("automerge=never must keep the proposal open")
+		t.Fatal("a contributor without trust or review must queue")
 	}
 
 	if _, err := e.AmendProposal(testCtx, prop.ID, editing.AmendInput{
@@ -199,7 +207,7 @@ func TestWorkPilotEndToEnd(t *testing.T) {
 func TestWorkValidators(t *testing.T) {
 	e := newEngine(t)
 	work := createWork(t, "validator target")
-	editor := realActor(100, "admin")
+	editor := realActor(100)
 
 	var valErr *editing.ValidationError
 	cases := []map[string]any{

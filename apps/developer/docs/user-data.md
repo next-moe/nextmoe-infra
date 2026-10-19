@@ -29,6 +29,7 @@ description: 用 OAuth 用户访问令牌接入 /v2/me。游玩记录与收藏�
 | 屏蔽的标签                     | `/v2/me/blocked-tags`                                                             | 用户令牌，无 scope                                     | [本页](#blocked-tags)                        |
 | 我的发售月历                   | `/v2/me/calendar`                                                                 | 用户令牌，无 scope                                     | [本页](#calendar)                            |
 | 编辑能力                       | `/v2/me/edit-capabilities`                                                        | `catalog:edit`                                         | [本页](#edit-capabilities)                   |
+| 编辑配额                       | `/v2/me/edit-quota`                                                               | `catalog:edit`                                         | [本页](#edit-quota)                          |
 | 认领                           | `/v2/me/claims`                                                                   | `catalog:edit`                                         | [本页](#claims)                              |
 | 编辑提案与配图                 | `/v2/me/proposals`、`/v2/me/edit-images`                                          | `catalog:edit`                                         | [本页](#proposals)                           |
 | 封面投票                       | `/v2/me/cover-votes`                                                              | `catalog:edit`                                         | [本页](#cover-votes)                         |
@@ -101,9 +102,27 @@ GET /v2/me/edit-capabilities/{object}?entity_id=
 
 编辑引擎对这个人算出的、每个字段的 `can_propose` / `can_review` / `would_automerge`。`object` 是 `work / company / character / release / tag / engine / series`，未知家族是 404。
 
-这组答案不能挂在 `/v2/catalog/schemas/{object}` 上：那个面不看凭据，同一个 URL 不能按凭据变字段集。两个 URL 分开，用 `fields[].key` 对齐。站点如果开了主人通道，要带 `entity_id=`；不带的话 `would_automerge` 回答的是类型级的问题，结果是 false。
+这组答案不能挂在 `/v2/catalog/schemas/{object}` 上：那个面不看凭据，同一个 URL 不能按凭据变字段集。两个 URL 分开，用 `fields[].key` 对齐。作品与发行开了主人通道，要带 `entity_id=`；不带的话 `would_automerge` 回答的是类型级的问题，结果是 false。
+
+编辑策略对所有第一方站点是同一套：任何人都能提案；作品与发行由审核者或 `catalog.edit.trusted` 持有者（编辑者）提交时立即生效，作品主人可审核自己作品上的提案；角色与共享词表（会社、标签、引擎、系列）的提案一律等审核。策略可在运行时调整，这里的答案总是当下生效的那一份。
+
+答案已计入配额：`quota_tier` 是调用者的配额档位，`quota_exhausted` 为 true 时所有 `can_propose` 都是 false；编辑者用完当日免审直编额度后 `would_automerge` 变为 false，提交仍可，只是转为待审。`central` 为 true 表示令牌来自中央编辑站，它能查看、裁决、回滚任何站点上的提案。
 
 要用户令牌，而且令牌必须绑在一个目录站点上，并带 `catalog:edit`。
+
+## 编辑配额 {#edit-quota}
+
+```http
+GET /v2/me/edit-quota
+```
+
+调用者所在的配额档位（`user` / `editor` / `reviewer`），以及三个计数项各自的 `limit` / `used` / `remaining`：
+
+- `proposals`：滑动窗口内提交的提案数，立即生效的也算。用满后提交是 `429 QUOTA_EXCEEDED`。
+- `direct_edits`：窗口内免审生效的编辑数。普通用户为 0；编辑者用满后提交照常，只是转为待审；审核者不设上限（`limit` 为 null）。
+- `open_proposals`：仍待裁决的提案数，不按窗口。达到上限后提交是 `429 QUOTA_EXCEEDED`，直到有提案被裁决或撤回。
+
+按人计，跨所有目录站点。上限是运行时配置，以这里返回的为准。要用户令牌，令牌须绑在目录站点上并带 `catalog:edit`。
 
 ## 认领 {#claims}
 

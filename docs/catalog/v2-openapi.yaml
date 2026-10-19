@@ -1793,6 +1793,9 @@ components:
           format: uri
           readOnly: true
           type: string
+        central:
+          description: true when the token's client is the central editor, which sees, decides and reverts proposals filed on any catalog site.
+          type: boolean
         entity_id:
           description: The entity these capabilities were evaluated against. null when the answer is type-level, which cannot express the owner channel.
           maxLength: 20
@@ -1823,6 +1826,17 @@ components:
             - edit_capabilities
           type: string
           x-vocabulary-closed: true
+        quota_exhausted:
+          description: true when the daily proposal limit or the open-proposal cap of the bearer's tier is used up; every can_propose and would_automerge below is then false.
+          type: boolean
+        quota_tier:
+          description: "Quota tier of the bearer: reviewer holds a review permission on some edit family, editor holds catalog.edit.trusted without one, user is everyone else. GET /v2/me/edit-quota has the counters."
+          enum:
+            - user
+            - editor
+            - reviewer
+          type: string
+          x-vocabulary-closed: true
         target_object:
           description: Family these capabilities describe.
           enum:
@@ -1840,6 +1854,9 @@ components:
         - target_object
         - entity_type
         - entity_id
+        - quota_tier
+        - quota_exhausted
+        - central
         - fields
       type: object
     EditImage:
@@ -1941,6 +1958,52 @@ components:
         - violence
         - size_bytes
         - is_deduplicated
+      type: object
+    EditQuota:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EditQuota.json
+          format: uri
+          readOnly: true
+          type: string
+        direct_edits:
+          $ref: "#/components/schemas/QuotaCounter"
+          description: Edits that applied without review inside the window. A user has none (limit 0). Once an editor's are used up, their further edits queue as ordinary proposals instead of failing. A reviewer's are unlimited (limit null).
+        object:
+          description: Type discriminant. Always edit_quota.
+          enum:
+            - edit_quota
+          type: string
+          x-vocabulary-closed: true
+        open_proposals:
+          $ref: "#/components/schemas/QuotaCounter"
+          description: Proposals of the bearer still awaiting a decision, on every site. Not windowed. Exhausted means POST /v2/me/proposals answers 429 QUOTA_EXCEEDED until one is decided or withdrawn.
+        proposals:
+          $ref: "#/components/schemas/QuotaCounter"
+          description: Proposals filed inside the window, including ones that applied immediately. Exhausted means POST /v2/me/proposals answers 429 QUOTA_EXCEEDED.
+        quota_tier:
+          description: "Quota tier of the bearer: reviewer holds a review permission on some edit family, editor holds catalog.edit.trusted without one, user is everyone else."
+          enum:
+            - user
+            - editor
+            - reviewer
+          type: string
+          x-vocabulary-closed: true
+        window_hours:
+          description: Length of the sliding window the daily counters are counted over.
+          format: int64
+          minimum: 1
+          type: integer
+      required:
+        - object
+        - quota_tier
+        - window_hours
+        - proposals
+        - direct_edits
+        - open_proposals
       type: object
     Engine:
       additionalProperties: true
@@ -2067,7 +2130,7 @@ components:
       additionalProperties: true
       properties:
         can_propose:
-          description: true when the bearer may file a proposal touching this field.
+          description: "true when the bearer may file a proposal touching this field now: the policy allows it and the bearer's quota is not exhausted."
           type: boolean
         can_review:
           description: true when the bearer may decide a proposal touching this field. Always false for a developer-owned app, whatever roles the user carries.
@@ -2078,10 +2141,10 @@ components:
           pattern: ^[a-z0-9_]+(\.[a-z0-9_]+)+$
           type: string
         locked:
-          description: true when this site's overlay accepts no proposal of this field from anyone.
+          description: true when the editing policy accepts no proposal of this field from anyone.
           type: boolean
         would_automerge:
-          description: true when a proposal of this field by this bearer would apply immediately rather than queue. Requires entity_id wherever the site grants the owner channel.
+          description: "true when a proposal of this field by this bearer would apply immediately rather than queue. Requires entity_id for the owner channel. false for an editor whose daily direct-edit allowance is used up: the edit queues instead."
           type: boolean
       required:
         - key
@@ -6795,6 +6858,33 @@ components:
       required:
         - state
       type: object
+    QuotaCounter:
+      additionalProperties: true
+      properties:
+        limit:
+          description: null when this tier has no limit on the counter.
+          format: int64
+          minimum: 0
+          type:
+            - integer
+            - "null"
+        remaining:
+          description: limit minus used, floored at 0. null when limit is null.
+          format: int64
+          minimum: 0
+          type:
+            - integer
+            - "null"
+        used:
+          description: How much of the counter the bearer has used.
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - limit
+        - used
+        - remaining
+      type: object
     Rating:
       additionalProperties: true
       properties:
@@ -9834,7 +9924,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.52.0
+  version: 2.53.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -18126,7 +18216,7 @@ paths:
         - me
   /v2/me/edit-capabilities/{object}:
     get:
-      description: "Per-field can_propose / can_review / would_automerge for the bearer, evaluated by the editing engine. The capability axis cannot ride on /v2/catalog/schemas/{object}: that face is credential-less and B34 forbids varying one URL's field set by credential, so the two are separate URLs and join on fields[].key. Pass entity_id= wherever the site grants the owner channel, or would_automerge answers the type-level question instead. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope."
+      description: "Per-field can_propose / can_review / would_automerge for the bearer, evaluated by the editing engine. The capability axis cannot ride on /v2/catalog/schemas/{object}: that face is credential-less and B34 forbids varying one URL's field set by credential, so the two are separate URLs and join on fields[].key. Pass entity_id= for the owner channel, or would_automerge answers the type-level question instead. The answer folds in the bearer's quota: an exhausted tier proposes nothing, and an editor past the daily direct-edit allowance no longer automerges. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope."
       operationId: getMyEditCapabilities
       parameters:
         - description: Family these capabilities describe. Unknown family is 404 NOT_FOUND.
@@ -18146,12 +18236,12 @@ paths:
             maxLength: 32
             type: string
             x-vocabulary-closed: true
-        - description: "Evaluate against one entity. Omit for the type-level answer, which cannot express the owner channel: a site that grants owner-review or owner-automerge answers would_automerge=false without it."
+        - description: "Evaluate against one entity. Omit for the type-level answer, which cannot express the owner channel: a policy that grants owner-review or owner-automerge answers would_automerge=false without it."
           explode: false
           in: query
           name: entity_id
           schema:
-            description: "Evaluate against one entity. Omit for the type-level answer, which cannot express the owner channel: a site that grants owner-review or owner-automerge answers would_automerge=false without it."
+            description: "Evaluate against one entity. Omit for the type-level answer, which cannot express the owner channel: a policy that grants owner-review or owner-automerge answers would_automerge=false without it."
             format: int64
             minimum: 0
             type: integer
@@ -18337,6 +18427,60 @@ paths:
       security:
         - userToken: []
       summary: Upload an image for an edit proposal
+      tags:
+        - me
+  /v2/me/edit-quota:
+    get:
+      description: "The bearer's quota tier and, per counter, the limit, how much of it is used and what remains: proposals filed inside the sliding window, edits applied without review inside it, and proposals still awaiting a decision. Counted per person across every catalog site; the limits are runtime configuration. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope."
+      operationId: getMyEditQuota
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EditQuota"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: My editing quota
       tags:
         - me
   /v2/me/folders:
@@ -20837,7 +20981,7 @@ paths:
         - me
   /v2/me/proposals:
     get:
-      description: The bearer's own proposals. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch and effective_patch, the same pair GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. Requires a user access token. The token must carry the catalog:edit scope.
+      description: The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch and effective_patch, the same pair GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. Requires a user access token. The token must carry the catalog:edit scope.
       operationId: listMyProposals
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -21023,7 +21167,7 @@ paths:
       tags:
         - me
     post:
-      description: A contributor who has used up catalog.proposals_per_day inside the sliding window is refused 429 QUOTA_EXCEEDED; holders of catalog.edit.trusted, whose proposals merge without review, get the higher catalog.proposals_per_day_trusted. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+      description: "Quotas are tiered (user, editor, reviewer; GET /v2/me/edit-quota answers the bearer's): a contributor who has used up their tier's proposal limit inside the sliding window (catalog.proposals_per_day, catalog.proposals_per_day_editor, catalog.proposals_per_day_reviewer), or who already has their tier's most proposals awaiting a decision (catalog.open_proposals_max_*), is refused 429 QUOTA_EXCEEDED. An editor past catalog.direct_edits_per_day_editor still files, but the proposal queues for review instead of applying. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope."
       operationId: createMyProposal
       parameters:
         - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
@@ -23321,7 +23465,7 @@ paths:
         - moderation
   /v2/moderation/proposals:
     get:
-      description: Open proposals on the token site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. The token must carry the catalog:edit scope.
+      description: Open proposals on the token site; on the central editor (catalog site editor), on every site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. The token must carry the catalog:edit scope.
       operationId: listModerationProposals
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -23500,7 +23644,7 @@ paths:
         - moderation
   /v2/moderation/proposals/{id}:
     get:
-      description: Site-fenced. include=patch adds the proposed and effective patches a decision is taken on. The ETag is the validator POST /v2/moderation/proposals/{id}/decisions takes as If-Match. The token must carry the catalog:edit scope.
+      description: Site-fenced, except on the central editor (catalog site editor), which reads proposals filed on any site. include=patch adds the proposed and effective patches a decision is taken on. The ETag is the validator POST /v2/moderation/proposals/{id}/decisions takes as If-Match. The token must carry the catalog:edit scope.
       operationId: getModerationProposal
       parameters:
         - description: Proposal id.
@@ -23783,7 +23927,7 @@ paths:
         - moderation
   /v2/moderation/reverts:
     post:
-      description: Body names revision_id. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+      description: Body names revision_id. A downstream site may not revert an entity another site claims; the central editor (catalog site editor) may revert any. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
       operationId: revertModeration
       parameters:
         - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."

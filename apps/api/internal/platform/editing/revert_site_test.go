@@ -9,23 +9,13 @@ import (
 
 const strictReview = "edit.test.owned.strict_review"
 
-// Revert used to ask the overlay of the caller's OWN site, so a tenant whose
-// rules are looser than the owner's reviewed the owner's fields under its own.
-// AmendProposal and MergeProposal have always asked prop.Site.
-func revertEngine(t *testing.T, owners map[int64]*string, overlaySite string) *editing.Engine {
+func revertEngine(t *testing.T, owners map[int64]*string) *editing.Engine {
 	t.Helper()
 	cleanTables(t)
 	createWidget(t, 1)
 	spec := ownedSpec(owners, nil)
 	spec.DefaultPolicy = editing.Policy{
 		Propose: editing.ProposeOpen, Review: editing.ReviewPerm(permReview), Automerge: editing.AutomergeNever,
-	}
-	if overlaySite != "" {
-		spec.SiteOverlays = map[string]map[string]editing.Policy{
-			overlaySite: {"test.owned.name": {
-				Propose: editing.ProposeOpen, Review: editing.ReviewPerm(strictReview), Automerge: editing.AutomergeNever,
-			}},
-		}
 	}
 	reg := editing.NewRegistry()
 	if err := reg.Register(spec); err != nil {
@@ -56,19 +46,21 @@ func siteActor(uid int64, site string, perms ...string) editing.PolicyContext {
 	return a
 }
 
-func TestRevertResolvesPolicyUnderTheOwnerSite(t *testing.T) {
-	const ownerSite = "owner-site"
-	site := ownerSite
-	eng := revertEngine(t, map[int64]*string{1: &site}, ownerSite)
-	revertHistory(t, eng, siteActor(1, ownerSite, strictReview))
+func TestRevertNeedsReviewUnderTheEffectivePolicy(t *testing.T) {
+	site := "owner-site"
+	eng := revertEngine(t, map[int64]*string{1: &site})
+	revertHistory(t, eng, siteActor(1, "owner-site", permReview))
+	applyOverrides(t, eng, []editing.PolicyOverride{
+		{EntityType: "test.owned", FieldKey: "test.owned.name", Review: strp(editing.ReviewPerm(strictReview))},
+	})
 
 	_, _, err := eng.Revert(testCtx, editing.RevertInput{
 		EntityType: "test.owned", EntityID: 1, ToSeq: 1,
-		Actor: siteActor(2, "some-other-site", permReview),
+		Actor: siteActor(2, "owner-site", permReview),
 	})
 	var perm *editing.PermissionError
 	if !errors.As(err, &perm) {
-		t.Fatalf("the owner's overlay names a review permission this caller does not hold; got %v", err)
+		t.Fatalf("the override names a review permission this caller does not hold; got %v", err)
 	}
 	if got := loadWidget(t, 1).Name; got != "second" {
 		t.Fatalf("the refused revert must not have written: %q", got)
@@ -78,24 +70,22 @@ func TestRevertResolvesPolicyUnderTheOwnerSite(t *testing.T) {
 		EntityType: "test.owned", EntityID: 1, ToSeq: 1,
 		Actor: siteActor(3, "some-other-site", strictReview),
 	}); err != nil {
-		t.Fatalf("positive control: the owner overlay's own permission still reverts: %v", err)
+		t.Fatalf("the overriding permission reverts from any site: %v", err)
 	}
 	if got := loadWidget(t, 1).Name; got != "first" {
-		t.Fatalf("positive control: want first, got %q", got)
+		t.Fatalf("want first, got %q", got)
 	}
 }
 
-// An entity nobody claims has no owner overlay to resolve under, so the
-// caller's site stays the answer and the default policy applies.
-func TestRevertWithoutAnOwnerKeepsTheCallerSite(t *testing.T) {
-	eng := revertEngine(t, map[int64]*string{}, "")
+func TestRevertOnAnUnownedEntity(t *testing.T) {
+	eng := revertEngine(t, map[int64]*string{})
 	actor := siteActor(1, "some-other-site", permReview)
 	revertHistory(t, eng, actor)
 
 	if _, _, err := eng.Revert(testCtx, editing.RevertInput{
 		EntityType: "test.owned", EntityID: 1, ToSeq: 1, Actor: actor,
 	}); err != nil {
-		t.Fatalf("unowned entity falls back to the default policy: %v", err)
+		t.Fatalf("unowned entity reverts under the default policy: %v", err)
 	}
 	if got := loadWidget(t, 1).Name; got != "first" {
 		t.Fatalf("want first, got %q", got)
