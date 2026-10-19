@@ -61,7 +61,7 @@ type ProposalRecord struct {
 	Object          string          `json:"object" enum:"proposal" doc:"Type discriminant. Always proposal."`
 	ID              string          `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Proposal id."`
 	State           string          `json:"state" enum:"open,merged,declined,withdrawn" doc:"Proposal lifecycle state."`
-	TargetObject    string          `json:"target_object" enum:"work,company,character,release,tag,engine,series" doc:"Family of the entity this proposal targets."`
+	TargetObject    string          `json:"target_object" enum:"work,company,character,release,tag,engine,series,person,credit_name" doc:"Family of the entity this proposal targets."`
 	EntityType      string          `json:"entity_type" maxLength:"64" doc:"Editing-engine type, e.g. catalog.work. Must not be used as a discriminant."`
 	EntityID        string          `json:"entity_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Target catalog id."`
 	Note            string          `json:"note" maxLength:"2000" doc:"Proposer's own summary. Must not be used as a discriminant."`

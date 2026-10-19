@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	"api/internal/infrastructure/database"
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/repository"
 
@@ -184,7 +185,8 @@ func splitOne(ctx context.Context, db *gorm.DB, sources map[string]int16, r Row,
 		}
 		if unlink {
 			res := tx.Exec(`UPDATE catalog_credit_name SET person_id = NULL, updated_at = now()
-			                 WHERE id = ? AND person_id IS NOT NULL`, cn.ID)
+			                 WHERE id = ? AND person_id IS NOT NULL
+			                   AND `+editspec.NotHumanFieldSQL("field_provenance", "person_id"), cn.ID)
 			if res.Error != nil {
 				return res.Error
 			}

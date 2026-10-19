@@ -30,7 +30,7 @@ type listRevisionsInput struct {
 	IDs          string `query:"ids" maxLength:"4096" doc:"Comma-separated revision ids, max 100. Batch lane: no pagination."`
 	IncludeTotal string `query:"include_total" maxLength:"8" doc:"true to include total. Only true or false."`
 	Sort         string `query:"sort" maxLength:"32" doc:"recorded_desc (default) or recorded_asc. Closed."`
-	Object       string `query:"object" maxLength:"32" doc:"Closed family filter: work, company, character, release, tag, engine, series."`
+	Object       string `query:"object" maxLength:"32" doc:"Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."`
 	EntityID     string `query:"entity_id" maxLength:"20" doc:"Catalog id of one entity. Requires object=."`
 	Site         string `query:"site" maxLength:"64" doc:"Tenant key. Open vocabulary; unknown values match nothing."`
 	ActorUID     string `query:"actor_uid" maxLength:"20" doc:"The claiming site's own user id of the actor. Not a catalog id."`
@@ -45,7 +45,7 @@ type listPublicProposalsInput struct {
 	IDs          string `query:"ids" maxLength:"4096" doc:"Comma-separated proposal ids, max 100. Batch lane: no pagination."`
 	IncludeTotal string `query:"include_total" maxLength:"8" doc:"true to include total. Only true or false."`
 	Sort         string `query:"sort" maxLength:"32" doc:"filed_desc is the only key. Closed."`
-	Object       string `query:"object" maxLength:"32" doc:"Closed family filter: work, company, character, release, tag, engine, series."`
+	Object       string `query:"object" maxLength:"32" doc:"Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."`
 	EntityID     string `query:"entity_id" maxLength:"20" doc:"Catalog id of one entity. Requires object=."`
 	Site         string `query:"site" maxLength:"64" doc:"Tenant key. Open vocabulary; unknown values match nothing."`
 	ProposerUID  string `query:"proposer_uid" maxLength:"20" doc:"The claiming site's own user id of the proposer. Not a catalog id."`

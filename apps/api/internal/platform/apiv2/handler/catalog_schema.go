@@ -98,6 +98,10 @@ func schemaEntityType(object string) string {
 		return editspec.TypeEngine
 	case "series":
 		return editspec.TypeSeries
+	case "person":
+		return editspec.TypePerson
+	case "credit_name":
+		return editspec.TypeCreditName
 	default:
 		return ""
 	}
