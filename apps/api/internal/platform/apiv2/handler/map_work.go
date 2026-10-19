@@ -139,7 +139,7 @@ func attachWorkIncludes(w *repr.Work, rec dto.PublicCatalogWork, include []strin
 		w.Engines = ptrSlice(workEnginesFrom(rec.Engines))
 	}
 	if want["links"] {
-		w.Links = ptrSlice(workLinksFrom(rec.Links))
+		w.Links = ptrSlice(linksFrom(rec.Links))
 	}
 }
 

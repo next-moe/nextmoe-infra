@@ -198,7 +198,7 @@ func (c *Catalog) WorkLinks(ctx context.Context, id int64, nsfw bool, cursor str
 	if !found {
 		return repr.List[repr.WorkLink]{}, c.missWork(ctx, id)
 	}
-	return repr.NewList(workLinksFrom(data.Items), collect.EncodeOffset(derefInt(data.NextOffset))), nil
+	return repr.NewList(linksFrom(data.Items), collect.EncodeOffset(derefInt(data.NextOffset))), nil
 }
 
 func (c *Catalog) WorkEngines(ctx context.Context, id int64, nsfw bool, cursor string, limit int) (repr.List[repr.WorkEngineRef], error) {

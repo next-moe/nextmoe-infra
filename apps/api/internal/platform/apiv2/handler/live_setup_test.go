@@ -20,6 +20,7 @@ import (
 	"api/internal/platform/catalog/seed"
 	catsvc "api/internal/platform/catalog/service"
 	srcb "api/internal/platform/catalog/srcbangumi"
+	srcv "api/internal/platform/catalog/srcvndb"
 	"api/internal/platform/devapi"
 	"api/internal/platform/editing"
 	newsmigrate "api/internal/platform/news/migrate"
@@ -212,6 +213,10 @@ func liveCatalog(t *testing.T) *liveEnv {
 			return
 		}
 		if err := srcb.EnsureSchema(db); err != nil {
+			liveErr = err
+			return
+		}
+		if err := srcv.EnsureSchema(db); err != nil {
 			liveErr = err
 			return
 		}
@@ -984,9 +989,13 @@ func seedLiveAnchoredPerson(db *gorm.DB, fx *liveFix, empty datatypes.JSON) erro
 		return err
 	}
 	fx.AnchoredCredit = cn.ID
+	if err := db.Exec(`INSERT INTO src_vndb.staff_alias (aid, id, name, latin)
+		VALUES (1234, 's131', 'Anchored Credit', '') ON CONFLICT (aid) DO NOTHING`).Error; err != nil {
+		return err
+	}
 	// A bare numeric alias id, the shape production actually stores on a credit
 	// name — "1", "10", "100". Rendering it as a vndb URL reaches /1, an
-	// unrelated VN. The links block must not grow one from this row.
+	// unrelated VN; the page is the staff the alias belongs to.
 	return db.Create(&model.CatalogExternalRef{
 		EntityType: model.EntityTypeCreditName, EntityID: cn.ID, SourceID: 2,
 		ExternalID: "1234", LinkKind: model.LinkKindExact, MatchedBy: "test",

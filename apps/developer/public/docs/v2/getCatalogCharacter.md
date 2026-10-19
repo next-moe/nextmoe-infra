@@ -13,7 +13,7 @@
 
 Get one character
 
-Character detail. view=full adds gender, birthday, measurements, blood_type, instance_of_id. include=image,figure,traits,aliases,intros,refs adds art, trait, name, description and anchor blocks. spoiler=none|minor|major is the ceiling of the traits block and defaults to none. Merged ids are 404 ENTITY_MERGED. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+Character detail. view=full adds gender, birthday, measurements, blood_type, instance_of_id. include=image,figure,traits,aliases,intros,refs,links adds art, trait, name, description, anchor and link blocks. spoiler=none|minor|major is the ceiling of the traits block and defaults to none. Merged ids are 404 ENTITY_MERGED. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：可匿名调用

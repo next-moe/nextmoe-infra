@@ -51,8 +51,8 @@ type PublicWorkSeriesData struct {
 }
 
 type PublicWorkLinksData struct {
-	Items      []PublicWorkLink `json:"items" doc:"Non-identity outbound links of this work, same order and shape as works/{id}.links[]. Sources whose storefront URL cannot be reconstructed from the stored code (dlsite, dmm) are absent by design — they stay reachable as anchors through refs[]"`
-	NextOffset *int             `json:"next_offset,omitempty" doc:"Pass back as offset= for the next page; absent on the last page"`
+	Items      []PublicLink `json:"items" doc:"Outbound links of this work, same order and shape as works/{id}.links[]: its own upstream pages (is_identity=true) first, then related links. Sources whose storefront URL cannot be reconstructed from the stored code (dlsite, dmm) are absent by design — they stay reachable as anchors through refs[]"`
+	NextOffset *int         `json:"next_offset,omitempty" doc:"Pass back as offset= for the next page; absent on the last page"`
 }
 
 type PublicWorkEnginesData struct {

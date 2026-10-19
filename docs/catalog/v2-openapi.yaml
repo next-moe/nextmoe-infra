@@ -441,6 +441,11 @@ components:
           type:
             - string
             - "null"
+        links:
+          description: This character's own pages on vndb, bangumi and erogamescape. Present when include=links. Empty array if none.
+          items:
+            $ref: "#/components/schemas/WorkLink"
+          type: array
         localized:
           additionalProperties:
             $ref: "#/components/schemas/LocalizedText"
@@ -1684,7 +1689,7 @@ components:
             - string
             - "null"
         links:
-          description: External pages for the linked person. Present when include=links, detail face only. Empty array if none.
+          description: "External pages: this credited name's own upstream pages first (vndb staff, bangumi person, erogamescape creater), then the linked person's for any source the name has none of, then the person's related links. Present when include=links, detail face only. Empty array if none."
           items:
             $ref: "#/components/schemas/WorkLink"
           type: array
@@ -9435,6 +9440,14 @@ components:
     WorkLink:
       additionalProperties: true
       properties:
+        is_identity:
+          description: "true: this entity's own page on an upstream catalog, minted from an exact anchor. false: a related web presence such as an official site, a social account or a store page. Identity links come first. Links are unique by address; of two sources naming the same page, the more specific one is kept."
+          type: boolean
+        page_id:
+          description: "The upstream page's own id as it appears in url: vndb v17, s267, p24, c88; numeric for bangumi, erogamescape, howlongtobeat and steam. Present on identity links only. Not a ref external_id: a credit name's vndb ref is a staff alias id, while its link is the staff page."
+          maxLength: 64
+          pattern: ^[a-z]?[0-9]+$
+          type: string
         source:
           description: Open vocabulary sources. Must not be used as a discriminant.
           maxLength: 64
@@ -9449,6 +9462,7 @@ components:
       required:
         - source
         - url
+        - is_identity
       type: object
     WorkPlatform:
       additionalProperties: true
@@ -9820,7 +9834,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.51.0
+  version: 2.52.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -10400,7 +10414,7 @@ paths:
         - catalog
   /v2/catalog/characters/{id}:
     get:
-      description: Character detail. view=full adds gender, birthday, measurements, blood_type, instance_of_id. include=image,figure,traits,aliases,intros,refs adds art, trait, name, description and anchor blocks. spoiler=none|minor|major is the ceiling of the traits block and defaults to none. Merged ids are 404 ENTITY_MERGED. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+      description: Character detail. view=full adds gender, birthday, measurements, blood_type, instance_of_id. include=image,figure,traits,aliases,intros,refs,links adds art, trait, name, description, anchor and link blocks. spoiler=none|minor|major is the ceiling of the traits block and defaults to none. Merged ids are 404 ENTITY_MERGED. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogCharacter
       parameters:
         - description: Decimal catalog id.
@@ -15502,7 +15516,7 @@ paths:
         - catalog
   /v2/catalog/works/{id}/links:
     get:
-      description: Outbound links. Same items as include=links. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+      description: This work's own upstream pages (is_identity=true), then its related links. Same items as include=links. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
       operationId: getCatalogWorkLinks
       parameters:
         - description: Decimal catalog work id.

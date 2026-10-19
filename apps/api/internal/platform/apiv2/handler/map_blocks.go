@@ -295,10 +295,10 @@ func workEnginesFrom(in []dto.PublicWorkEngine) []repr.WorkEngineRef {
 	return out
 }
 
-func workLinksFrom(in []dto.PublicWorkLink) []repr.WorkLink {
+func linksFrom(in []dto.PublicLink) []repr.WorkLink {
 	out := make([]repr.WorkLink, 0, len(in))
 	for _, l := range in {
-		out = append(out, repr.WorkLink{Source: l.Source, URL: l.URL})
+		out = append(out, repr.WorkLink{Source: l.Source, URL: l.URL, IsIdentity: l.Identity, PageID: optString(l.PageID)})
 	}
 	return out
 }

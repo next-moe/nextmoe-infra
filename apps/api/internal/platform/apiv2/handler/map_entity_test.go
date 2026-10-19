@@ -16,7 +16,7 @@ func TestCreditNameFromDetailBlocks(t *testing.T) {
 		PhotoHash: hash,
 		Siblings:  []dto.PublicSiblingName{{ID: 4, DisplayName: "みずはし かおり"}},
 		Aliases:   []dto.PublicAlias{{Value: "Kaori Mizuhashi", Lang: "en", Kind: "translation"}},
-		Links:     []dto.PublicPersonLink{{Source: "twitter", URL: "https://x.com/kaori"}},
+		Links:     []dto.PublicLink{{Source: "twitter", URL: "https://x.com/kaori"}},
 		Refs:      []dto.PublicCatalogRef{{Source: "vndb", ExternalID: "s1"}},
 	}
 	bare := creditNameFromDetail(rec, nil, testImageURL(hash))
