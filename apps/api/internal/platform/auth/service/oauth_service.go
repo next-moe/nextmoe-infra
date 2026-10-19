@@ -68,6 +68,33 @@ func (s *OAuthService) siteRoles(ctx context.Context, userID, siteID uint) []str
 	return names
 }
 
+func (s *OAuthService) clientSiteRoles(ctx context.Context, client *sitemodel.OAuthClient, userID, siteID uint) []string {
+	if !client.UnionSiteRoles {
+		return s.siteRoles(ctx, userID, siteID)
+	}
+	if s.siteRoleRepo == nil {
+		return nil
+	}
+	names, err := s.siteRoleRepo.ActiveRoleNamesAllSites(ctx, userID)
+	if err != nil {
+		slog.Warn("site_roles union lookup failed; issuing token without them",
+			"user_id", userID, "client_id", client.ID, "err", err)
+		return nil
+	}
+	return names
+}
+
+func (s *OAuthService) extendBrowserSSO(ctx context.Context, session *model.Session) {
+	if session.SSOBrowserID == "" {
+		return
+	}
+	if _, err := s.sessionRepo.ExtendBrowserSSO(ctx, session.UserID, session.SSOBrowserID,
+		time.Now(), ssoSessionIdle(), ssoSessionMax()); err != nil {
+		slog.Warn("sso session extension failed",
+			"session_id", session.ID, "user_id", session.UserID, "err", err)
+	}
+}
+
 func NewOAuthService(
 	userRepo *authrepo.UserRepository,
 	authCodeRepo *authrepo.AuthorizationCodeRepository,
@@ -188,6 +215,7 @@ func (s *OAuthService) CreateAuthorizationCode(
 	codeChallenge string,
 	codeChallengeMethod string,
 	nonce string,
+	browserID string,
 ) (string, error) {
 	client, err := s.clientRepo.FindByClientID(ctx, clientID)
 	if err != nil {
@@ -212,6 +240,7 @@ func (s *OAuthService) CreateAuthorizationCode(
 		Nonce:               nonce,
 		CodeChallenge:       codeChallenge,
 		CodeChallengeMethod: codeChallengeMethod,
+		BrowserID:           browserID,
 		ExpiresAt:           time.Now().Add(10 * time.Minute),
 	}
 
@@ -308,7 +337,7 @@ func (s *OAuthService) ExchangeCode(ctx context.Context, req *dto.TokenRequest) 
 			Email:     EmailForScope(authCode.Scope, user.Email),
 			Name:      user.Name,
 			Roles:     user.RoleNames(),
-			SiteRoles: s.siteRoles(ctx, user.ID, siteID),
+			SiteRoles: s.clientSiteRoles(ctx, client, user.ID, siteID),
 			Scope:     authCode.Scope,
 			SiteID:    siteID,
 			ClientID:  req.ClientID,
@@ -335,6 +364,7 @@ func (s *OAuthService) ExchangeCode(ctx context.Context, req *dto.TokenRequest) 
 		SessionToken: accessToken,
 		RefreshToken: refreshToken,
 		ExpiresAt:    time.Now().Add(refreshTokenTTL),
+		SSOBrowserID: authCode.BrowserID,
 	}
 
 	if err := s.sessionRepo.Create(ctx, session); err != nil {
@@ -529,7 +559,7 @@ func (s *OAuthService) RefreshWithClient(ctx context.Context, refreshToken, clie
 				Email:     EmailForScope(session.Scope, user.Email),
 				Name:      user.Name,
 				Roles:     user.RoleNames(),
-				SiteRoles: s.siteRoles(ctx, user.ID, siteID),
+				SiteRoles: s.clientSiteRoles(ctx, client, user.ID, siteID),
 				Scope:     session.Scope,
 				SiteID:    siteID,
 				ClientID:  clientID,
@@ -578,6 +608,8 @@ func (s *OAuthService) RefreshWithClient(ctx context.Context, refreshToken, clie
 		_ = s.sessionRepo.Delete(ctx, session.ID)
 		return nil, errors.NewWithCode(errors.ErrAuthInvalidToken)
 	}
+
+	s.extendBrowserSSO(ctx, session)
 
 	accessToken, err := freshAccess()
 	if err != nil {

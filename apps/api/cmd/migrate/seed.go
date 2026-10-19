@@ -1,7 +1,12 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
 	"log/slog"
+	"os"
+	"strings"
 
 	siteModel "api/internal/platform/site/model"
 
@@ -36,6 +41,7 @@ func seedInitialData(db *gorm.DB, env string) error {
 	sites := []siteModel.Site{
 		{Name: opSiteName, Domain: opSiteDomain, Description: opSiteName},
 		{Name: adminSiteName, Domain: adminSiteDomain, Description: adminSiteName},
+		{Name: editorSiteName, Domain: editorSiteDomain, Description: editorSiteName},
 		{Name: "鲲 Galgame 论坛", Domain: "www.kungal.com", Description: "鲲 Galgame 论坛"},
 		{Name: "鲲 Galgame 补丁", Domain: "www.moyu.moe", Description: "鲲 Galgame 补丁"},
 		{Name: "鲲 Galgame AI", Domain: "ai.kungal.com", Description: "鲲 Galgame AI"},
@@ -58,6 +64,11 @@ func seedInitialData(db *gorm.DB, env string) error {
 	// Create default roles
 	defaultRoles := []siteModel.Role{
 		{Name: "user", Description: "Regular user"},
+		// editor（编辑者）— granted by approving an editor application: the
+		// holder's catalog edits merge without review, within a daily quota.
+		// No review power over anyone else's proposals. The catalog
+		// permissions behind it live in catalog/perm.
+		{Name: "editor", Description: "编辑者 — catalog edits merge without review, within a daily quota"},
 		// creator（创作者）— trusted publisher tier between user and moderator.
 		// Flat RBAC: granted ALONGSIDE user, gates publish-trust capabilities
 		// (direct galgame publish incl. without a VNDB id) without any moderation
@@ -136,6 +147,7 @@ func seedInitialData(db *gorm.DB, env string) error {
 		"ai.kungal.com",
 		"sticker.kungal.com",
 		adminSiteDomain,
+		editorSiteDomain,
 	}
 	res = db.Exec(`
 		UPDATE oauth_clients
@@ -213,6 +225,52 @@ func seedInitialData(db *gorm.DB, env string) error {
 		}
 	}
 
+	if err := seedEditorClient(db, os.Getenv("KUN_EDITOR_PUBLIC_URL")); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// seedEditorClient creates the editor platform's OAuth client. It is a public
+// PKCE client — its BFF holds the tokens in httpOnly cookies and there is no
+// secret to keep, so unlike every other first-party client it can be seeded
+// instead of minted through the console. The stored secret is a random hash
+// nobody ever sees. Create-only: a console edit to the row is never undone by
+// a later deploy. Skipped where KUN_EDITOR_PUBLIC_URL is unset.
+func seedEditorClient(db *gorm.DB, publicURL string) error {
+	publicURL = strings.TrimRight(strings.TrimSpace(publicURL), "/")
+	if publicURL == "" {
+		slog.Info("KUN_EDITOR_PUBLIC_URL unset; not seeding the nextmoe-editor client")
+		return nil
+	}
+	raw := make([]byte, 32)
+	if _, err := rand.Read(raw); err != nil {
+		return err
+	}
+	redirects, _ := json.Marshal([]string{publicURL + "/auth/callback"})
+	res := db.Exec(`
+		INSERT INTO oauth_clients
+		  (id, site_id, name, secret, redirect_uris, grants, is_public, auto_consent,
+		   refresh_token_ttl_seconds, allowed_scopes, catalog_site, union_site_roles,
+		   store_settlement_eligible,
+		   dev_enabled, dev_tier, dev_rate_per_min, dev_quota_daily, dev_review_status)
+		VALUES
+		  ('nextmoe-editor', (SELECT id FROM sites WHERE domain = ?), ?, ?,
+		   ?::jsonb, '["authorization_code","refresh_token"]'::jsonb, true, true,
+		   7776000, '["openid","profile","catalog:read","catalog:edit"]'::jsonb, 'editor', true,
+		   false,
+		   false, '', 0, 0, '')
+		ON CONFLICT (id) DO NOTHING
+	`, editorSiteDomain, editorSiteName,
+		siteModel.HashOAuthClientSecret(hex.EncodeToString(raw)), string(redirects))
+	if res.Error != nil {
+		slog.Error("failed to seed oauth_clients.nextmoe-editor", "error", res.Error)
+		return res.Error
+	}
+	if res.RowsAffected > 0 {
+		slog.Info("Seeded oauth_clients.nextmoe-editor", "redirect", publicURL+"/auth/callback")
+	}
 	return nil
 }
 

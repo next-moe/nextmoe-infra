@@ -9,13 +9,16 @@ import (
 	"api/internal/platform/auth/dto"
 	"api/internal/platform/auth/model"
 	"api/internal/platform/auth/repository"
+	"api/internal/platform/settings/keys"
 	"api/pkg/errors"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
-const CreatorReapplyCooldown = 24 * time.Hour
+func creatorReapplyCooldown() time.Duration {
+	return time.Duration(keys.AuthCreatorApplicationCooldownHours.Get()) * time.Hour
+}
 
 const CreatorRoleName = "creator"
 
@@ -45,7 +48,7 @@ func (s *CreatorApplicationService) Apply(ctx context.Context, userID uint, sour
 		case model.CreatorAppPending:
 			return nil, errors.NewWithCode(errors.ErrCreatorAppPending)
 		case model.CreatorAppDeclined:
-			if latest.ReviewedAt != nil && time.Since(*latest.ReviewedAt) < CreatorReapplyCooldown {
+			if latest.ReviewedAt != nil && time.Since(*latest.ReviewedAt) < creatorReapplyCooldown() {
 				return nil, errors.NewWithCode(errors.ErrCreatorAppCooldown)
 			}
 		}

@@ -29,6 +29,18 @@ func (r *UserSiteRoleRepository) ActiveRoleNames(ctx context.Context, userID, si
 	return names, err
 }
 
+func (r *UserSiteRoleRepository) ActiveRoleNamesAllSites(ctx context.Context, userID uint) ([]string, error) {
+	var names []string
+	err := r.db.WithContext(ctx).
+		Model(&model.UserSiteRole{}).
+		Distinct("role_name").
+		Where("user_id = ?", userID).
+		Where("expires_at IS NULL OR expires_at > ?", time.Now()).
+		Order("role_name ASC").
+		Pluck("role_name", &names).Error
+	return names, err
+}
+
 func (r *UserSiteRoleRepository) ActiveRoleNamesForUsers(ctx context.Context, userIDs []uint, siteID uint) (map[uint][]string, error) {
 	out := make(map[uint][]string)
 	if len(userIDs) == 0 {

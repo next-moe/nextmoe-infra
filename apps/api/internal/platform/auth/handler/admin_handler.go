@@ -13,7 +13,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-var manageableRoles = []string{"user", "creator", "moderator", "admin"}
+var manageableRoles = []string{"user", "editor", "creator", "moderator", "admin"}
 
 func callerCanManageRole(c fiber.Ctx, role string) bool {
 	if !slices.Contains(manageableRoles, role) {

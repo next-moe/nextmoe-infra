@@ -223,6 +223,15 @@ func runPlatform(cfg *config.Config, args []string) {
 		os.Exit(1)
 	}
 
+	// The same one-pending backstop for editor applications (2026-10-19).
+	if err := gormDB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uq_editor_app_pending
+		ON editor_applications (user_id) WHERE status = 'pending'
+	`).Error; err != nil {
+		slog.Error("failed to create editor_applications partial unique index", "error", err)
+		os.Exit(1)
+	}
+
 	// users.nsfw_display is a three-value enum with no Postgres enum type
 	// behind it. AutoMigrate never emits a CHECK, and on a brand-new database
 	// AddUserContentPreferenceColumns above found no users table to constrain,
@@ -292,6 +301,13 @@ func getAllModels() []any {
 		&authModel.PasswordReset{},
 		&authModel.AuthorizationCode{},
 		&authModel.CreatorApplication{},
+		// 2026-10-19: editor_applications, a new table — applying for the
+		// global editor role from the editor platform; nothing to backfill.
+		// Same day: sessions.sso_browser_id and authorization_codes.browser_id,
+		// both '' on every existing row. Only client sessions minted after this
+		// deploy link back to a browser, so a sign-in older than the deploy is
+		// not extended by downstream refreshes until its owner signs in again.
+		&authModel.EditorApplication{},
 		&authModel.SigningKey{},
 
 		// Per-client cloud preferences KV (2026-09-22). Brand-new table, no
@@ -332,6 +348,9 @@ func getAllModels() []any {
 
 		// Site models
 		&siteModel.Site{},
+		// 2026-10-19: oauth_clients.union_site_roles, false on every existing
+		// row — no client changes what its tokens carry until an operator (or
+		// the editor-client seed) turns it on.
 		&siteModel.OAuthClient{},
 		&siteModel.Role{},
 

@@ -33,14 +33,14 @@ defineProps<{ managesPermissions: boolean }>()
     </div>
 
     <p class="text-default-400 text-sm">
-      代码捆是默认值，不是地板：creator / moderator / admin
-      三列可以被叠加层收回。ren
+      代码捆是默认值，不是地板：editor / creator / moderator / admin
+      四列可以被叠加层收回。ren
       列例外——它是锁死后的恢复保险，任何叠加行都不能削减它。
     </p>
 
     <p v-if="managesPermissions" class="text-default-400 text-sm">
-      你持有 oauth.permissions.manage：可编辑 creator / moderator / admin
-      三列（含撤销），但仍受不可委派与包含性（moderator ⊆ admin ⊆ ren）约束。
+      你持有 oauth.permissions.manage：可编辑 editor / creator / moderator / admin
+      四列（含撤销），但仍受不可委派与包含性（moderator ⊆ admin ⊆ ren）约束。
     </p>
     <p v-else class="text-default-400 text-sm">
       你只能对严格低于自己管理层级的角色操作自己持有的权限——授予与撤销同理；creator

@@ -203,6 +203,10 @@ var live = settings.NewRegistry(
 			AuthVerificationResendCooldownSeconds,
 			AuthRegisterGiftPoints,
 			AuthNameChangeCost,
+			AuthSSOSessionIdleDays,
+			AuthSSOSessionMaxDays,
+			AuthCreatorApplicationCooldownHours,
+			AuthEditorApplicationCooldownHours,
 		},
 	},
 	settings.Domain{
