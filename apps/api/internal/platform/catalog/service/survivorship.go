@@ -71,9 +71,24 @@ func mergerPtr[T any](m *fieldMerger, field, column string, dstVal, srcVal *T) {
 	}
 }
 
+// The editor stamps each of the three columns on its own (catalog.person.
+// birth_year/_month/_day) while the merge machine stamps the trio under one
+// key, so a hand-entered birth date counts as human under either spelling.
 func (m *fieldMerger) trio(field, prefix string, dst [3]*int16, src [3]*int16) {
 	dstEmpty := dst[0] == nil && dst[1] == nil && dst[2] == nil
 	srcEmpty := src[0] == nil && src[1] == nil && src[2] == nil
+	keys := []string{field, prefix + "_y", prefix + "_m", prefix + "_d"}
+	human := func(prov datatypes.JSON) bool {
+		for _, k := range keys {
+			if provenance.IsHuman(firstProvSource(prov, k)) {
+				return true
+			}
+		}
+		return false
+	}
+	if !dstEmpty && human(m.dstProv) && !human(m.srcProv) {
+		return
+	}
 	if m.take(field, dstEmpty, srcEmpty) {
 		m.updates[prefix+"_y"], m.updates[prefix+"_m"], m.updates[prefix+"_d"] = src[0], src[1], src[2]
 		m.changed[field] = map[string]*int16{"y": src[0], "m": src[1], "d": src[2]}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"api/internal/platform/catalog/model"
+	"api/internal/platform/provenance"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -30,6 +31,9 @@ func (s *LinkService) linkCreditsTx(tx *gorm.DB, aID, bID int64, actorID *int64)
 	b, err := lockCreditName(tx, bID)
 	if err != nil {
 		return PersonLinkResult{}, err
+	}
+	if humanDetached(a) || humanDetached(b) {
+		return PersonLinkResult{NeedsManual: true}, nil
 	}
 
 	switch {
@@ -173,6 +177,12 @@ func (s *LinkService) repointPrimaryIfDetached(tx *gorm.DB, personID, detachedID
 	}
 	return revisionOf(tx, model.EntityTypePerson, personID, model.RevisionActionUpdated, nil, actorID,
 		"credit name detached")
+}
+
+// A name a person detached in the editor stays an orphan until a person
+// re-attaches it; the candidate lanes would otherwise relink it on their next run.
+func humanDetached(n *model.CatalogCreditName) bool {
+	return n.PersonID == nil && provenance.IsHuman(provenance.FirstSource(n.FieldProvenance, "person_id"))
 }
 
 func lockCreditName(tx *gorm.DB, id int64) (*model.CatalogCreditName, error) {

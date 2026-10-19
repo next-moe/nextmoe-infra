@@ -1265,7 +1265,7 @@ export interface paths {
         };
         /**
          * What I may edit on one family
-         * @description Per-field can_propose / can_review / would_automerge for the bearer, evaluated by the editing engine. The capability axis cannot ride on /v2/catalog/schemas/{object}: that face is credential-less and B34 forbids varying one URL's field set by credential, so the two are separate URLs and join on fields[].key. Pass entity_id= wherever the site grants the owner channel, or would_automerge answers the type-level question instead. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+         * @description Per-field can_propose / can_review / would_automerge for the bearer, evaluated by the editing engine. The capability axis cannot ride on /v2/catalog/schemas/{object}: that face is credential-less and B34 forbids varying one URL's field set by credential, so the two are separate URLs and join on fields[].key. Pass entity_id= for the owner channel, or would_automerge answers the type-level question instead. The answer folds in the bearer's quota: an exhausted tier proposes nothing, and an editor past the daily direct-edit allowance no longer automerges. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
          */
         get: operations["getMyEditCapabilities"];
         put?: never;
@@ -1287,9 +1287,29 @@ export interface paths {
         put?: never;
         /**
          * Upload an image for an edit proposal
-         * @description multipart/form-data with preset and file. Returns the hash an edit proposal carries in a cover or screenshot row. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+         * @description multipart/form-data with preset and file. Returns the hash an edit proposal carries in a cover or screenshot row, or in a person's photo field. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
          */
         post: operations["uploadMyEditImage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/me/edit-quota": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My editing quota
+         * @description The bearer's quota tier and, per counter, the limit, how much of it is used and what remains: proposals filed inside the sliding window, edits applied without review inside it, and proposals still awaiting a decision. Counted per person across every catalog site; the limits are runtime configuration. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+         */
+        get: operations["getMyEditQuota"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1617,13 +1637,13 @@ export interface paths {
         };
         /**
          * List my proposals
-         * @description The bearer's own proposals. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch and effective_patch, the same pair GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. Requires a user access token. The token must carry the catalog:edit scope.
+         * @description The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch and effective_patch, the same pair GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. Requires a user access token. The token must carry the catalog:edit scope.
          */
         get: operations["listMyProposals"];
         put?: never;
         /**
          * File a proposal
-         * @description A contributor who has used up catalog.proposals_per_day inside the sliding window is refused 429 QUOTA_EXCEEDED; holders of catalog.edit.trusted, whose proposals merge without review, get the higher catalog.proposals_per_day_trusted. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+         * @description Quotas are tiered (user, editor, reviewer; GET /v2/me/edit-quota answers the bearer's): a contributor who has used up their tier's proposal limit inside the sliding window (catalog.proposals_per_day, catalog.proposals_per_day_editor, catalog.proposals_per_day_reviewer), or who already has their tier's most proposals awaiting a decision (catalog.open_proposals_max_*), is refused 429 QUOTA_EXCEEDED. An editor past catalog.direct_edits_per_day_editor still files, but the proposal queues for review instead of applying. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
          */
         post: operations["createMyProposal"];
         delete?: never;
@@ -1933,7 +1953,7 @@ export interface paths {
         };
         /**
          * Moderation proposal queue
-         * @description Open proposals on the token site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. The token must carry the catalog:edit scope.
+         * @description Open proposals on the token site; on the central editor (catalog site editor), on every site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. The token must carry the catalog:edit scope.
          */
         get: operations["listModerationProposals"];
         put?: never;
@@ -1953,7 +1973,7 @@ export interface paths {
         };
         /**
          * Get one moderation proposal
-         * @description Site-fenced. include=patch adds the proposed and effective patches a decision is taken on. The ETag is the validator POST /v2/moderation/proposals/{id}/decisions takes as If-Match. The token must carry the catalog:edit scope.
+         * @description Site-fenced, except on the central editor (catalog site editor), which reads proposals filed on any site. include=patch adds the proposed and effective patches a decision is taken on. The ETag is the validator POST /v2/moderation/proposals/{id}/decisions takes as If-Match. The token must carry the catalog:edit scope.
          */
         get: operations["getModerationProposal"];
         put?: never;
@@ -2015,7 +2035,7 @@ export interface paths {
         put?: never;
         /**
          * Revert to a revision
-         * @description Body names revision_id. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+         * @description Body names revision_id. A downstream site may not revert an entity another site claims; the central editor (catalog site editor) may revert any. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
          */
         post: operations["revertModeration"];
         delete?: never;
@@ -3402,6 +3422,8 @@ export interface components {
              * @example https://example.com/EditCapabilities.json
              */
             readonly $schema?: string;
+            /** @description true when the token's client is the central editor, which sees, decides and reverts proposals filed on any catalog site. */
+            central: boolean;
             /** @description The entity these capabilities were evaluated against. null when the answer is type-level, which cannot express the owner channel. */
             entity_id: string | null;
             /**
@@ -3416,11 +3438,18 @@ export interface components {
              * @enum {string}
              */
             object: "edit_capabilities";
+            /** @description true when the daily proposal limit or the open-proposal cap of the bearer's tier is used up; every can_propose and would_automerge below is then false. */
+            quota_exhausted: boolean;
+            /**
+             * @description Quota tier of the bearer: reviewer holds a review permission on some edit family, editor holds catalog.edit.trusted without one, user is everyone else. GET /v2/me/edit-quota has the counters.
+             * @enum {string}
+             */
+            quota_tier: "user" | "editor" | "reviewer";
             /**
              * @description Family these capabilities describe.
              * @enum {string}
              */
-            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series";
+            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name";
         } & {
             [key: string]: unknown;
         };
@@ -3449,7 +3478,7 @@ export interface components {
              * @description Which editor slot these bytes were sized for.
              * @enum {string}
              */
-            preset: "cover" | "screenshot";
+            preset: "cover" | "screenshot" | "photo";
             /**
              * @description Sexual depiction. null means not assessed. An upload receipt is always null; the assessment lands later.
              * @enum {string|null}
@@ -3477,6 +3506,37 @@ export interface components {
              * @description Pixel width. null if unknown.
              */
             width: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        EditQuota: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EditQuota.json
+             */
+            readonly $schema?: string;
+            /** @description Edits that applied without review inside the window. A user has none (limit 0). Once an editor's are used up, their further edits queue as ordinary proposals instead of failing. A reviewer's are unlimited (limit null). */
+            direct_edits: components["schemas"]["QuotaCounter"];
+            /**
+             * @description Type discriminant. Always edit_quota.
+             * @enum {string}
+             */
+            object: "edit_quota";
+            /** @description Proposals of the bearer still awaiting a decision, on every site. Not windowed. Exhausted means POST /v2/me/proposals answers 429 QUOTA_EXCEEDED until one is decided or withdrawn. */
+            open_proposals: components["schemas"]["QuotaCounter"];
+            /** @description Proposals filed inside the window, including ones that applied immediately. Exhausted means POST /v2/me/proposals answers 429 QUOTA_EXCEEDED. */
+            proposals: components["schemas"]["QuotaCounter"];
+            /**
+             * @description Quota tier of the bearer: reviewer holds a review permission on some edit family, editor holds catalog.edit.trusted without one, user is everyone else.
+             * @enum {string}
+             */
+            quota_tier: "user" | "editor" | "reviewer";
+            /**
+             * Format: int64
+             * @description Length of the sliding window the daily counters are counted over.
+             */
+            window_hours: number;
         } & {
             [key: string]: unknown;
         };
@@ -3553,15 +3613,15 @@ export interface components {
             [key: string]: unknown;
         };
         FieldCapability: {
-            /** @description true when the bearer may file a proposal touching this field. */
+            /** @description true when the bearer may file a proposal touching this field now: the policy allows it and the bearer's quota is not exhausted. */
             can_propose: boolean;
             /** @description true when the bearer may decide a proposal touching this field. Always false for a developer-owned app, whatever roles the user carries. */
             can_review: boolean;
             /** @description Editing-engine field key. Joins /v2/catalog/schemas/{object} fields[].key. Must not be used as a discriminant. */
             key: string;
-            /** @description true when this site's overlay accepts no proposal of this field from anyone. */
+            /** @description true when the editing policy accepts no proposal of this field from anyone. */
             locked: boolean;
-            /** @description true when a proposal of this field by this bearer would apply immediately rather than queue. Requires entity_id wherever the site grants the owner channel. */
+            /** @description true when a proposal of this field by this bearer would apply immediately rather than queue. Requires entity_id for the owner channel. false for an editor whose daily direct-edit allowance is used up: the edit queues instead. */
             would_automerge: boolean;
         } & {
             [key: string]: unknown;
@@ -5901,7 +5961,7 @@ export interface components {
              * @description Family this schema describes.
              * @enum {string}
              */
-            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series";
+            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name";
         } & {
             [key: string]: unknown;
         };
@@ -6351,7 +6411,7 @@ export interface components {
              * @description Family of the entity this proposal targets.
              * @enum {string}
              */
-            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series";
+            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name";
             /**
              * Format: date-time
              * @description RFC 3339 UTC.
@@ -6441,6 +6501,25 @@ export interface components {
              * @enum {string}
              */
             state: "wish" | "doing" | "done" | "on_hold" | "dropped";
+        } & {
+            [key: string]: unknown;
+        };
+        QuotaCounter: {
+            /**
+             * Format: int64
+             * @description null when this tier has no limit on the counter.
+             */
+            limit: number | null;
+            /**
+             * Format: int64
+             * @description limit minus used, floored at 0. null when limit is null.
+             */
+            remaining: number | null;
+            /**
+             * Format: int64
+             * @description How much of the counter the bearer has used.
+             */
+            used: number;
         } & {
             [key: string]: unknown;
         };
@@ -6824,7 +6903,7 @@ export interface components {
              * @description Family of the entity this revision is on.
              * @enum {string}
              */
-            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series";
+            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name";
         } & {
             [key: string]: unknown;
         };
@@ -10089,7 +10168,7 @@ export interface operations {
                 include_total?: string;
                 /** @description filed_desc is the only key. Closed. */
                 sort?: string;
-                /** @description Closed family filter: work, company, character, release, tag, engine, series. */
+                /** @description Closed family filter: work, company, character, release, tag, engine, series, person, credit_name. */
                 object?: string;
                 /** @description Catalog id of one entity. Requires object=. */
                 entity_id?: string;
@@ -10654,7 +10733,7 @@ export interface operations {
                 include_total?: string;
                 /** @description recorded_desc (default) or recorded_asc. Closed. */
                 sort?: string;
-                /** @description Closed family filter: work, company, character, release, tag, engine, series. */
+                /** @description Closed family filter: work, company, character, release, tag, engine, series, person, credit_name. */
                 object?: string;
                 /** @description Catalog id of one entity. Requires object=. */
                 entity_id?: string;
@@ -11091,7 +11170,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description Family this schema describes. Unknown family is 404 NOT_FOUND. */
-                object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series";
+                object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name";
             };
             cookie?: never;
         };
@@ -15601,13 +15680,13 @@ export interface operations {
     getMyEditCapabilities: {
         parameters: {
             query?: {
-                /** @description Evaluate against one entity. Omit for the type-level answer, which cannot express the owner channel: a site that grants owner-review or owner-automerge answers would_automerge=false without it. */
+                /** @description Evaluate against one entity. Omit for the type-level answer, which cannot express the owner channel: a policy that grants owner-review or owner-automerge answers would_automerge=false without it. */
                 entity_id?: number;
             };
             header?: never;
             path: {
                 /** @description Family these capabilities describe. Unknown family is 404 NOT_FOUND. */
-                object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series";
+                object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name";
             };
             cookie?: never;
         };
@@ -15725,7 +15804,7 @@ export interface operations {
                      * @description Which editor slot these bytes are for.
                      * @enum {string}
                      */
-                    preset: "cover" | "screenshot";
+                    preset: "cover" | "screenshot" | "photo";
                 };
             };
         };
@@ -15805,6 +15884,87 @@ export interface operations {
             };
             /** @description Precondition Required */
             428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getMyEditQuota: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditQuota"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -18630,7 +18790,7 @@ export interface operations {
                 nsfw?: string;
                 /** @description Closed: open, pending, merged, declined, withdrawn. Unknown value is 400 UNKNOWN_ENUM_VALUE. */
                 state?: string;
-                /** @description Closed family filter: work, company, character, release, tag, engine, series. */
+                /** @description Closed family filter: work, company, character, release, tag, engine, series, person, credit_name. */
                 object?: string;
                 /** @description Editing-engine type, e.g. catalog.work. The same spelling POST /v2/me/proposals takes in its body. Names the same filter as object=; sending both with different families is 400. */
                 entity_type?: string;
@@ -21200,7 +21360,7 @@ export interface operations {
                 sort?: string;
                 /** @description true includes r18. false or absent hides r18. Only true or false. */
                 nsfw?: string;
-                /** @description Closed family filter: work, company, character, release, tag, engine, series. */
+                /** @description Closed family filter: work, company, character, release, tag, engine, series, person, credit_name. */
                 object?: string;
                 /** @description Editing-engine type, e.g. catalog.work. Names the same filter as object=; sending both with different families is 400. */
                 entity_type?: string;
@@ -21767,7 +21927,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Family: work, company, character, release, tag, engine, series. */
+                /** @description Family: work, company, character, release, tag, engine, series, person, credit_name. */
                 object: string;
                 /** @description Catalog id. */
                 id: string;

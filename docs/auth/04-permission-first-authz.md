@@ -112,6 +112,8 @@ type NonDelegable map[Permission]bool      // 叠加层永不可授予的键(§7
 | `edit.catalog.taxonomy.review` | moderator, admin, ren | 引擎面裁决词表提案;**建/删/合并词表条目不在此键**,属注册表策展,仍在 `catalog.review` 之后 |
 | `edit.catalog.character` | editor, moderator, admin, ren | 引擎面对 `catalog.character` 提提案的键(标量属性 + curated 别名车道 + 简介;**建/删/合并角色不在此键**,属注册表策展);默认 propose=open |
 | `edit.catalog.character.review` | moderator, admin, ren | 引擎面裁决 `catalog.character` 提案(amend/merge/decline/revert);与词表同档 `automerge=never`,一个角色被多部作品共享 |
+| `edit.catalog.person` | editor, moderator, admin, ren | 引擎面对 `catalog.person` 与 `catalog.credit_name` 提提案的键(两族**一把键**:署名名归属本就是人物的一部分;**建/删/合并人物或署名名不在此键**,属注册表策展);默认 propose=open |
+| `edit.catalog.person.review` | moderator, admin, ren | 引擎面裁决人物与署名名提案(amend/merge/decline/revert);与角色同档 `automerge=never`,一个署名名挂在很多部作品的 credits 上 |
 | `catalog.edit.trusted` | editor, moderator, admin, ren | 以受信任层级(`TrustTier=2`)走编辑引擎写入:本人的作品与发行编辑免审生效(`trusted_or_review`);持有它而无审核键者是**编辑者配额档**,超出 `catalog.direct_edits_per_day_editor` 后编辑转为待审。与审核轴正交:`editor` 捆有它而无任何审核键。2026-09-09 前它还兼管建档快车道,现已拆给 `catalog.claim.trusted`,本键**只**管编辑引擎 |
 | `catalog.claim.trusted` | moderator, admin, ren | 建档投稿(`POST /v2/me/claims` 铸造车道)直接落 `live`、免认领审核;**不触编辑引擎**——从 `catalog.edit.trusted` 拆出(2026-09-09),因为单键下「投稿免审、编辑照审」无法表达。两键互不蕴含;第三方应用封顶同样适用 |
 | `edit.policy.manage` | admin, ren | 运行时编辑策略控制台(`/api/v1/admin/catalog/edit-policy`):按实体类型/字段覆盖 propose / review / automerge / owner_review,写入即生效并留审计(2026-10-19) |

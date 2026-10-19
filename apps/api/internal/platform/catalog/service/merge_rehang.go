@@ -91,9 +91,11 @@ var mergeRefs = []mergeRef{
 	rehangRef("catalog_work_tag", "work_id", model.EntityTypeWork),
 	rehangRef("catalog_work_title", "work_id", model.EntityTypeWork),
 	{"edit_suppressed_row", "entity_id",
-		fmt.Sprintf("CASE t.entity_type WHEN '%s' THEN %d WHEN '%s' THEN %d END",
-			editspec.TypeWork, model.EntityTypeWork, editspec.TypeCharacter, model.EntityTypeCharacter),
-		[]int16{model.EntityTypeWork, model.EntityTypeCharacter}, stepRehang},
+		fmt.Sprintf("CASE t.entity_type WHEN '%s' THEN %d WHEN '%s' THEN %d WHEN '%s' THEN %d WHEN '%s' THEN %d WHEN '%s' THEN %d END",
+			editspec.TypeWork, model.EntityTypeWork, editspec.TypeCharacter, model.EntityTypeCharacter,
+			editspec.TypeLabel, model.EntityTypeLabel,
+			editspec.TypePerson, model.EntityTypePerson, editspec.TypeCreditName, model.EntityTypeCreditName),
+		[]int16{model.EntityTypeWork, model.EntityTypeCharacter, model.EntityTypeLabel, model.EntityTypePerson, model.EntityTypeCreditName}, stepRehang},
 }
 
 var mergeRefExclusions = map[string]string{
@@ -142,6 +144,7 @@ func rehangStmts(reg *editing.Registry, p mergePlan) ([]mergeStmt, error) {
 			{`UPDATE catalog_credit_name SET person_id = ? WHERE person_id = ?`, []any{dst, src}, false},
 		}
 		stmts = append(stmts, introStmts(p, "catalog_person_intro", "person_id")...)
+		stmts = append(stmts, suppressedRowStmts(p, editspec.TypePerson)...)
 		stmts = append(stmts, identityFollowStmts(reg, editspec.TagPerson, src, dst)...)
 		return append(stmts, entityRelationStmts(p)...), nil
 
@@ -163,12 +166,17 @@ func rehangStmts(reg *editing.Registry, p mergePlan) ([]mergeStmt, error) {
 		}
 		stmts = append(stmts, aliasDemoteStmts(p, nameAliasTable)...)
 		stmts = append(stmts,
+			archiveDelete(p, "catalog_name_alias", `t.credit_name_id = ? AND `+editspec.NotCuratedLaneSQL("t.source_id")+`
+			     AND EXISTS (SELECT 1 FROM catalog_name_alias a
+			                  WHERE a.credit_name_id = ? AND `+editspec.CuratedLaneSQL("a.source_id")+`
+			                    AND a.name = t.name AND a.lang = t.lang)`, dst, src),
 			mergeStmt{`UPDATE catalog_name_alias a SET credit_name_id = ? WHERE a.credit_name_id = ?
 			    AND NOT EXISTS (SELECT 1 FROM catalog_name_alias b
 			                     WHERE b.credit_name_id = ? AND b.name = a.name AND b.lang = a.lang)`, []any{dst, src, dst}, false},
 			archiveDelete(p, "catalog_name_alias", "t.credit_name_id = ?", src),
 			mergeStmt{`UPDATE catalog_person SET primary_credit_name_id = ? WHERE primary_credit_name_id = ?`, []any{dst, src}, false},
 		)
+		stmts = append(stmts, suppressedRowStmts(p, editspec.TypeCreditName)...)
 		stmts = append(stmts, identityFollowStmts(reg, editspec.TagCreditName, src, dst)...)
 		return append(stmts, entityRelationStmts(p)...), nil
 

@@ -160,9 +160,11 @@ func (s *MergeService) ExecuteMerge(ctx context.Context, proposalID int64, execu
 // keeps open proposals on its retired id, where nothing can merge them;
 // TestEditTypeOfFamilyCoversTheRegistry fails when the registry outgrows it.
 var editTypeOfFamily = map[int16]string{
-	model.EntityTypeWork:      editspec.TypeWork,
-	model.EntityTypeCharacter: editspec.TypeCharacter,
-	model.EntityTypeLabel:     editspec.TypeLabel,
+	model.EntityTypeWork:       editspec.TypeWork,
+	model.EntityTypeCharacter:  editspec.TypeCharacter,
+	model.EntityTypeLabel:      editspec.TypeLabel,
+	model.EntityTypePerson:     editspec.TypePerson,
+	model.EntityTypeCreditName: editspec.TypeCreditName,
 }
 
 func retireSource(tx *gorm.DB, entityType int16, src int64) error {

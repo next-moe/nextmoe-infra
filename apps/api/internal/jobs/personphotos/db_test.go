@@ -164,3 +164,30 @@ func TestDBFillWritesPhotoAndProvenance(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, cands, "a filled person is skipped before any byte read")
 }
+
+func TestDBLeavesAHumanClearedPhotoEmpty(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+
+	cleared := mkPerson(t, db, "cleared in the editor", "")
+	require.NoError(t, db.Exec(
+		`UPDATE catalog_person SET field_provenance = '{"photo_hash":[{"source":"curated","at":"2026-10-19T00:00:00Z"}]}'::jsonb WHERE id = ?`,
+		cleared).Error)
+	mkAnchor(t, db, model.EntityTypePerson, cleared, testBangumiSource, "700", model.LinkKindExact)
+
+	cands, err := loadCandidates(ctx, db, testBangumiSource)
+	require.NoError(t, err)
+	assert.Empty(t, cands, "a photo a person removed is not a gap to fill")
+
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "700", "logo.png"))
+	m, err := loadMirror(root)
+	require.NoError(t, err)
+	r := &runner{db: db, cli: &fakeUploader{hash: "3333333333333333333333333333333333333333333333333333333333333333"},
+		mirror: m, stats: &Stats{}}
+	res := r.fill(ctx, candidate{PersonID: cleared, ExternalID: "700"}, true)
+	assert.Equal(t, 1, res.raced, "a stale candidate list must not write past the human stamp either")
+	var photo string
+	require.NoError(t, db.Raw(`SELECT photo_hash FROM catalog_person WHERE id = ?`, cleared).Scan(&photo).Error)
+	assert.Empty(t, photo)
+}
