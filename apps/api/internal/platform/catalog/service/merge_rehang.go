@@ -110,6 +110,7 @@ var mergeRefExclusions = map[string]string{
 	"catalog_merge_proposal.target_entity_id":    "the merge's own record of its target",
 	"catalog_work.product_work_id":               "a product-side claim id, not a catalog entity id; retireSource frees it",
 	"catalog_user_work_rating_tombstone.work_id": "deletion log, addressed to the work the rating was on when it was deleted",
+	"catalog_work_media_order.work_id":           "the order of the source work's own images; the target keeps its own order, merged-in images sort after it, and an unmerge revives the source with its order intact",
 }
 
 func rehangRef(table, column string, family int16) mergeRef {

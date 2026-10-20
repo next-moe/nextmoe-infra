@@ -34,6 +34,9 @@ const label = computed(() => {
 
 const isList = computed(() => field.value?.field_type === 'list')
 const isIntros = computed(() => props.fieldKey.endsWith('.intros'))
+const isMediaOrder = computed(() =>
+  /\.(cover|screenshot)_order$/.test(props.fieldKey)
+)
 const isImageList = computed(() =>
   (field.value?.element?.members ?? []).some(
     (member) => member.type === 'imagehash'
@@ -130,6 +133,13 @@ watch(
       </div>
     </div>
 
+    <EditMediaOrderDiff
+      v-else-if="isMediaOrder"
+      :field-key="props.fieldKey"
+      :before="before"
+      :after="after"
+    />
+
     <div v-else-if="listDiff && isImageList" class="space-y-2">
       <div
         v-if="listDiff.added.length || listDiff.removed.length"
@@ -182,16 +192,10 @@ watch(
           object-fit="cover"
           class-name="size-12 shrink-0 rounded"
         />
-        <span class="min-w-0 break-all">
-          <span class="text-default-400 line-through">{{
-            rowText(props.fieldKey, pair.before)
-          }}</span>
-          <KunIcon
-            name="lucide:arrow-right"
-            class="text-default-400 mx-1 inline size-3"
-          />
-          <span>{{ rowText(props.fieldKey, pair.after) }}</span>
-        </span>
+        <EditMediaRowChange
+          :before="pair.before as Record<string, unknown>"
+          :after="pair.after as Record<string, unknown>"
+        />
       </div>
       <p
         v-if="listDiff.reordered"
