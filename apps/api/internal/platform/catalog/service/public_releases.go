@@ -200,11 +200,12 @@ func (s *PublicService) buildReleaseFeedItems(ctx context.Context, rows []releas
 	out := make([]dto.PublicReleaseFeedItem, len(rows))
 	labelBlocks := make([][]dto.PublicWorkLabel, 0, len(rows))
 	for i, r := range rows {
+		platforms, attrs := publicReleaseAttributes(r.Extra, r.Platform)
 		item := dto.PublicReleaseFeedItem{
 			ID: r.ID, Kind: releaseKindKey(r.Kind), Title: derefStrPub(r.Title),
 			Lang: derefStrPub(r.Lang), Platform: derefStrPub(r.Platform),
-			Platforms: publicPlatformsFromExtra(r.Extra),
-			IsFirst:   r.IsFirst, Work: byWork[r.WorkID],
+			Platforms: platforms, PublicReleaseAttributes: attrs,
+			IsFirst: r.IsFirst, Work: byWork[r.WorkID],
 			Refs: refs[r.ID], Labels: labels[r.ID],
 		}
 		if r.ReleasedY != nil {
@@ -265,8 +266,8 @@ func releaseFeedSource(f ReleaseFeedFilter) (from string, where []string, args [
 		args = append(args, f.Langs)
 	}
 	if f.Official != nil {
-		// extra->>'official' is written by the VNDB release lane only, where
-		// false means "fan translation / unofficial edition". A row WITHOUT the
+		// extra->>'official' is written by the VNDB release lane and by the
+		// editor, where false means "fan translation / unofficial edition". A row WITHOUT the
 		// key is official: every other lane materialises store SKUs (dlsite
 		// worknos, getchu product pages), which are official by construction.
 		// Hence IS DISTINCT FROM rather than <> — a NULL must count as official,
@@ -278,8 +279,8 @@ func releaseFeedSource(f ReleaseFeedFilter) (from string, where []string, args [
 		}
 	}
 	if f.Platform != "" {
-		where = append(where, "r.platform = ?")
-		args = append(args, f.Platform)
+		where = append(where, releaseOnPlatformSQL("r"))
+		args = append(args, f.Platform, f.Platform)
 	}
 	if f.DateFrom > 0 {
 		where = append(where, "("+releaseOrd("r")+") >= ?")
@@ -290,4 +291,11 @@ func releaseFeedSource(f ReleaseFeedFilter) (from string, where []string, args [
 		args = append(args, f.DateTo)
 	}
 	return from, where, args
+}
+
+// releaseOnPlatformSQL takes the platform token twice. The column is only the
+// head of the release's platform list, so matching it alone missed every
+// platform after the first on 47,073 multi-platform releases (2026-10-20).
+func releaseOnPlatformSQL(alias string) string {
+	return "(" + alias + ".platform = ? OR " + alias + ".extra->'platforms' @> to_jsonb(?::text))"
 }

@@ -409,26 +409,38 @@ func TestIdentityFollowStmtsCoverEveryDeclaredRef(t *testing.T) {
 			}
 		}
 	}
-	labelStmts := reg.IdentityFollowStmts(editspec.TagLabel, 7, 8, nil)
-	if len(labelStmts) != 4 {
-		t.Fatalf("tag %q produced %d statements, want the move + drop pairs of %s.%s and %s.%s", editspec.TagLabel, len(labelStmts),
-			editspec.TypeLabel, editspec.FieldLabelRelations, editspec.TypeWork, editspec.FieldWorkLabels)
+	labelFields := map[string]string{
+		editspec.FieldLabelRelations: editspec.TypeLabel,
+		editspec.FieldWorkLabels:     editspec.TypeWork,
+		editspec.FieldReleaseLabels:  editspec.TypeRelease,
 	}
-	seen := map[string]int{}
+	labelStmts := reg.IdentityFollowStmts(editspec.TagLabel, 7, 8, nil)
+	if len(labelStmts) != 2*len(labelFields) {
+		t.Fatalf("tag %q produced %d statements, want one move + drop pair per field in %v",
+			editspec.TagLabel, len(labelStmts), labelFields)
+	}
+	covered := map[string]int{}
 	for _, s := range labelStmts {
-		var typ, field string
+		var entityType, field string
 		for _, a := range s.Args {
-			switch str, _ := a.(string); str {
-			case editspec.TypeLabel, editspec.TypeWork:
-				typ = str
-			case editspec.FieldLabelRelations, editspec.FieldWorkLabels:
+			str, _ := a.(string)
+			if _, ok := labelFields[str]; ok {
 				field = str
 			}
+			switch str {
+			case editspec.TypeLabel, editspec.TypeWork, editspec.TypeRelease:
+				entityType = str
+			}
 		}
-		seen[typ+"/"+field]++
+		if field == "" || labelFields[field] != entityType {
+			t.Fatalf("tag %q produced a statement addressed to none of %v: %s", editspec.TagLabel, labelFields, s.SQL)
+		}
+		covered[field]++
 	}
-	if seen[editspec.TypeLabel+"/"+editspec.FieldLabelRelations] != 2 || seen[editspec.TypeWork+"/"+editspec.FieldWorkLabels] != 2 {
-		t.Fatalf("tag %q statements by type/field = %v", editspec.TagLabel, seen)
+	for field := range labelFields {
+		if covered[field] != 2 {
+			t.Fatalf("tag %q followed %s with %d statements, want 2", editspec.TagLabel, field, covered[field])
+		}
 	}
 	for _, tag := range []string{editspec.TagWork, editspec.TagPerson} {
 		if got := reg.IdentityFollowStmts(tag, 7, 8, nil); len(got) != 0 {
