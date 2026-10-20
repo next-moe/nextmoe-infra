@@ -167,14 +167,14 @@ const introsField = (help?: string) => ({
   label: '简介',
   group: 'intros',
   control: 'intros' as const,
-  help: help ?? '每种语言一段。这里写入的简介优先于资料源导入的简介显示。'
+  help: help ?? '每种语言一段。人工撰写的简介优先显示；没有时显示资料源的版本。'
 })
 
 const linksField = {
   label: '外链',
   group: 'links',
   control: 'stringList' as const,
-  help: '填写完整网址。资料源导入的外链列在下方，非身份链接可以单独隐藏。'
+  help: '粘贴完整网址即可添加。资料源导入的相关链接可以单独隐藏，身份链接不能隐藏。'
 }
 
 export const RELEASE_EDIT_CONFIG: EditEntityConfig = {
@@ -263,7 +263,7 @@ export const CHARACTER_EDIT_CONFIG: EditEntityConfig = {
       label: '别名',
       group: 'names',
       control: 'objectList',
-      help: '这里是人工添加的别名；资料源导入的别名列在下方，可以单独隐藏。',
+      help: '人工添加的别名可以直接修改；资料源导入的别名可以单独隐藏。',
       members: aliasMembers
     },
     'catalog.character.intros': introsField(),
@@ -276,7 +276,7 @@ export const CHARACTER_EDIT_CONFIG: EditEntityConfig = {
       label: '特质',
       group: 'traits',
       control: 'objectList',
-      help: '人工添加或修改的特质；资料源导入的特质列在下方，可以单独隐藏。',
+      help: '人工添加的特质可以直接修改；资料源导入的特质可以单独隐藏。',
       members: {
         trait_id: { label: '特质', ref: 'trait' },
         spoiler: { label: '剧透' },
@@ -374,7 +374,7 @@ export const CREDIT_NAME_EDIT_CONFIG: EditEntityConfig = {
       label: '别名',
       group: 'names',
       control: 'objectList',
-      help: '这里是人工添加的别名；资料源导入的别名列在下方，可以单独隐藏。',
+      help: '人工添加的别名可以直接修改；资料源导入的别名可以单独隐藏。',
       members: aliasMembers
     }
   }
@@ -398,7 +398,7 @@ export const COMPANY_EDIT_CONFIG: EditEntityConfig = {
       label: '别名',
       group: 'names',
       control: 'objectList',
-      help: '这里是人工添加的别名；资料源导入的别名列在下方，可以单独隐藏。',
+      help: '人工添加的别名可以直接修改；资料源导入的别名可以单独隐藏。',
       members: aliasMembers
     },
     'catalog.label.relations': {

@@ -148,5 +148,5 @@ export const useRowLabel = () => {
     return out
   }
 
-  return { rowText, scalarText, refsInValue }
+  return { rowText, scalarText, refsInValue, memberText }
 }

@@ -21,6 +21,12 @@ const { field, config } = useEditorField(() => props.fieldKey)
 const control = computed(() =>
   field.value ? resolveEditControl(field.value, config.value) : 'readonly'
 )
+const INLINE_ROW_ISSUES = new Set<EditControl>([
+  'objectList',
+  'titles',
+  'intros'
+])
+
 const resolvedLayout = computed(() =>
   props.layout === 'auto'
     ? ROW_CONTROLS.has(control.value)
@@ -35,6 +41,7 @@ const resolvedLayout = computed(() =>
     v-if="field"
     :field-key="props.fieldKey"
     :layout="resolvedLayout"
+    :inline-row-issues="INLINE_ROW_ISSUES.has(control)"
   >
     <EditControlText v-if="control === 'text'" :field-key="props.fieldKey" />
     <EditControlText

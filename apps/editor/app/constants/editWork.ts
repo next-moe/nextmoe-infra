@@ -54,14 +54,14 @@ export const WORK_EDIT_CONFIG: EditEntityConfig = {
       label: '简介',
       group: 'intros',
       control: 'intros',
-      help: '每种语言一段。这里写入的简介优先于资料源导入的简介显示。'
+      help: '每种语言一段。人工撰写的简介优先显示；没有时显示资料源的版本。'
     },
     'catalog.work.tag_ids': {
       label: '标签',
       group: 'tags',
       control: 'refList',
       ref: 'tag',
-      help: '这里是人工添加的标签；资料源导入的标签列在下方，可以单独隐藏。'
+      help: '人工添加的标签可以移除；资料源导入的标签可以隐藏。'
     },
     'catalog.work.tag_spoilers': {
       label: '标签剧透等级',
