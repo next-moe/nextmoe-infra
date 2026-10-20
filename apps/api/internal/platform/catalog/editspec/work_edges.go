@@ -349,6 +349,7 @@ func loadSeriesIDs(ctx context.Context, db *gorm.DB, workID int64) ([]any, error
 }
 
 func assertEntitiesExist(ctx context.Context, tx *gorm.DB, model any, ids []int64, field string) error {
+	ids = uniqueIDs(ids)
 	if len(ids) == 0 {
 		return nil
 	}

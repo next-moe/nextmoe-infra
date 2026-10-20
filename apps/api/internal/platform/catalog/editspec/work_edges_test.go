@@ -18,6 +18,19 @@ func createLabelNamed(t *testing.T, name string) *model.CatalogLabel {
 	return l
 }
 
+func TestLabelsSameCompanyInTwoRolesIsAccepted(t *testing.T) {
+	e := newEngine(t)
+	work := createWork(t, "開発兼発売")
+	label := createLabelNamed(t, "開発兼発売ブランド")
+
+	both := []any{
+		map[string]any{"label_id": label.ID, "kind": int64(model.WorkLabelKindPublisher)},
+		map[string]any{"label_id": label.ID, "kind": int64(model.WorkLabelKindDeveloper)},
+	}
+	snap := mergeField(t, e, work.ID, editspec.FieldWorkLabels, both)
+	sameJSON(t, "labels", snap[editspec.FieldWorkLabels], both)
+}
+
 func TestLabelsUpstreamCollisionRejected(t *testing.T) {
 	e := newEngine(t)
 	work := createWork(t, "レーベル衝突")
