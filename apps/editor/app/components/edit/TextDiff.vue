@@ -3,7 +3,7 @@ import { cn } from '@kungal/ui-core'
 
 const props = defineProps<{ before: string; after: string }>()
 
-const lines = computed(() => diffLines(props.before, props.after))
+const lines = computed(() => diffLineRows(props.before, props.after))
 const left = computed(() => lines.value.filter((line) => line.type !== 'add'))
 const right = computed(() => lines.value.filter((line) => line.type !== 'del'))
 </script>

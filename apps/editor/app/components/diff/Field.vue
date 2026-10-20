@@ -9,13 +9,14 @@ import {
   vocabularyLabel
 } from '~/utils/review/describe'
 import {
+  alignList,
   asList,
-  diffList,
+  diffProse,
+  diffText,
   naturalKeyMembers,
   summarizeList,
   type ListEntry
-} from '~/utils/review/listDiff'
-import { diffProse, diffText } from '~/utils/review/textDiff'
+} from '#shared/utils/diff'
 
 const props = withDefaults(
   defineProps<{
@@ -81,7 +82,7 @@ const textSegments = computed(() => {
 
 const entries = computed(() =>
   isList.value
-    ? diffList(
+    ? alignList(
         asList(props.before),
         asList(props.after),
         naturalKeyMembers(props.field.key, members.value)

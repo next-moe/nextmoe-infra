@@ -60,7 +60,7 @@ const handleSelect = (item: KunCommandItem) => {
     v-model:query="query"
     :items="groups"
     :loading="loading"
-    placeholder="搜索作品、角色、署名名、厂商…"
+    placeholder="搜索作品、角色、署名名、厂商、标签、特质…"
     empty-text="输入关键词开始搜索"
     no-result-text="没有找到匹配的条目"
     aria-label="搜索条目"

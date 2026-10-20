@@ -16,7 +16,7 @@ import {
   type FieldDecision,
   type FieldDecisions
 } from '~/utils/review/decision'
-import { cloneValue } from '~/utils/review/equal'
+import { cloneValue } from '#shared/utils/editModel'
 import { conflictingFields } from '~/utils/review/history'
 import {
   isStale,

@@ -96,7 +96,10 @@ export const ENTITY_FAMILY: Record<string, { label: string; path: string }> = {
   release: { label: '发行', path: '/releases' },
   tag: { label: '标签', path: '/tags' },
   engine: { label: '引擎', path: '/engines' },
-  series: { label: '系列', path: '/series' }
+  series: { label: '系列', path: '/series' },
+  person: { label: '人物', path: '/persons' },
+  credit_name: { label: '署名名', path: '/credit-names' },
+  trait: { label: '特质', path: '/traits' }
 }
 
 export const LANGUAGE_LABELS: Record<string, string> = {

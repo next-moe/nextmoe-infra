@@ -58,6 +58,14 @@ const control = computed(() =>
       v-else-if="control === 'roster'"
       :field-key="props.fieldKey"
     />
+    <EditControlDate
+      v-else-if="control === 'date'"
+      :field-key="props.fieldKey"
+    />
+    <EditControlImage
+      v-else-if="control === 'image'"
+      :field-key="props.fieldKey"
+    />
     <EditControlReadonly v-else :field-key="props.fieldKey" />
   </EditFieldShell>
 </template>

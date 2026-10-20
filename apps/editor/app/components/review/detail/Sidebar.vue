@@ -41,7 +41,10 @@ const amendments = computed(() => props.proposal.amendments ?? [])
   <KunCard bordered padding="md" content-class="space-y-3">
     <div>
       <p class="text-default-400 mb-1 text-xs">提案人</p>
-      <HistoryUser :uid="props.proposal.proposer_uid" />
+      <HistoryUser
+        :user="props.proposal.proposer"
+        :uid="props.proposal.proposer_uid"
+      />
       <p v-if="stats" class="text-default-500 mt-1 text-xs">
         共 {{ stats.all ?? '—' }} 条提案 · 已合并 {{ stats.merged ?? '—' }} ·
         被拒绝
@@ -59,7 +62,7 @@ const amendments = computed(() => props.proposal.amendments ?? [])
           :time="formatDateTime(amendment.created_at)"
           icon="lucide:pencil"
         >
-          <HistoryUser :uid="amendment.amender_uid" />
+          <HistoryUser :user="amendment.amender" :uid="amendment.amender_uid" />
           <p v-if="amendment.note" class="text-default-500 mt-0.5 text-xs">
             {{ amendment.note }}
           </p>

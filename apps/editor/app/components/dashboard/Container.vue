@@ -1,9 +1,6 @@
 <script setup lang="ts">
-import type {
-  ActivityList,
-  ActivityProposal,
-  ActivityRevision
-} from '#shared/types/activity'
+import type { ActivityList } from '#shared/types/activity'
+import type { CatalogProposal, CatalogRevision } from '#shared/types/catalog'
 
 useHead({ title: '工作台 · 未萌编辑台' })
 
@@ -17,7 +14,7 @@ const { data: quota } = await useEditQuota()
 const { data: openProposals, pending: proposalsPending } = await useAsyncData(
   'dashboard-open-proposals',
   () =>
-    api<ActivityList<ActivityProposal>>('/v2/me/proposals', {
+    api<ActivityList<CatalogProposal>>('/v2/me/proposals', {
       query: { state: 'open', limit: 5, include_total: true }
     }).catch(() => null)
 )
@@ -25,7 +22,7 @@ const { data: openProposals, pending: proposalsPending } = await useAsyncData(
 const { data: mergedProposals } = await useAsyncData(
   'dashboard-merged-proposals',
   () =>
-    api<ActivityList<ActivityProposal>>('/v2/me/proposals', {
+    api<ActivityList<CatalogProposal>>('/v2/me/proposals', {
       query: { state: 'merged', limit: 1, include_total: true }
     }).catch(() => null)
 )
@@ -33,7 +30,7 @@ const { data: mergedProposals } = await useAsyncData(
 const { data: recent, pending: recentPending } = await useAsyncData(
   'dashboard-recent',
   () =>
-    api<ActivityList<ActivityRevision>>('/v2/catalog/revisions', {
+    api<ActivityList<CatalogRevision>>('/v2/catalog/revisions', {
       query: { limit: 8 }
     }).catch(() => null)
 )

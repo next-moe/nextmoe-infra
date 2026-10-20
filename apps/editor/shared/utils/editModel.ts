@@ -139,7 +139,10 @@ const ROW_IDENTITY: Record<string, (row: Record<string, unknown>) => string> = {
   screenshots_upstream: (row) => str(row.image_hash),
   credits: (row) =>
     `${str(row.role_id)}:${str(row.credit_name_id)}:${str(row.character_id) || '0'}`,
-  roster: (row) => str(row.character_id)
+  roster: (row) => str(row.character_id),
+  traits: (row) => str(row.trait_id),
+  relations: (row) => `${str(row.relation)}:${str(row.label_id)}`,
+  aliases: (row) => `${str(row.kind)}:${str(row.lang)}:${str(row.name)}`
 }
 
 export const rowIdentity = (fieldKey: string, row: unknown) => {

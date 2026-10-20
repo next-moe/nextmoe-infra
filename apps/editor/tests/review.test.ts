@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
+  alignList,
+  canonicalJson,
   diffLines,
   diffProse,
   diffText,
-  hasChanges
-} from '../app/utils/review/textDiff'
-import {
-  diffList,
+  hasChanges,
   naturalKeyMembers,
-  summarizeList
-} from '../app/utils/review/listDiff'
+  summarizeList,
+  valuesEqual
+} from '../shared/utils/diff'
 import {
   afterDecision,
   buildAmendment,
@@ -24,7 +24,6 @@ import {
   orderPair,
   revertChanges
 } from '../app/utils/review/history'
-import { canonicalJson, valuesEqual } from '../app/utils/review/equal'
 import { filterQueue } from '../app/utils/review/queue'
 import { imageUrl, vocabularyLabel } from '../app/utils/review/describe'
 
@@ -84,7 +83,7 @@ describe('text diff', () => {
 
 describe('list diff', () => {
   it('classifies added, removed, kept and moved refs', () => {
-    const entries = diffList(['1', '2', '3'], ['3', '1', '4'])
+    const entries = alignList(['1', '2', '3'], ['3', '1', '4'])
     const byValue = Object.fromEntries(
       entries.map((e) => [String(e.after ?? e.before), e.status])
     )
@@ -110,7 +109,7 @@ describe('list diff', () => {
     ]
     const keys = naturalKeyMembers('catalog.work.roster', members)
     expect(keys).toEqual(['character_id'])
-    const entries = diffList(
+    const entries = alignList(
       [{ character_id: '7', kind: 0, spoiler: 0 }],
       [{ character_id: '7', kind: 1, spoiler: 0 }],
       keys
@@ -130,7 +129,7 @@ describe('list diff', () => {
   })
 
   it('keeps duplicates apart', () => {
-    const entries = diffList(['a', 'a'], ['a'])
+    const entries = alignList(['a', 'a'], ['a'])
     expect(entries.map((e) => e.status).sort()).toEqual(['kept', 'removed'])
   })
 })
@@ -340,7 +339,7 @@ describe('list pairing', () => {
       { lang: null, title: 'SP', kind: 1, latin: null },
       { lang: null, title: 'SPRB', kind: 2, latin: null }
     ]
-    const entries = diffList(before, after, keys)
+    const entries = alignList(before, after, keys)
     expect(entries.map((e) => e.status)).toEqual([
       'changed',
       'kept',
@@ -356,7 +355,7 @@ describe('list pairing', () => {
   })
 
   it('prefers exact matches before pairing by key', () => {
-    const entries = diffList(
+    const entries = alignList(
       [
         { character_id: '1', kind: 0 },
         { character_id: '1', kind: 1 }

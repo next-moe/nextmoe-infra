@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { ActivityProposal } from '../shared/types/activity'
+import type { CatalogProposal } from '../shared/types/catalog'
 import type { EditQuotaCounter } from '../shared/types/quota'
 import {
   accountUpstreamPath,
@@ -291,7 +291,7 @@ describe('local drafts', () => {
 })
 
 describe('proposal notices', () => {
-  const proposal = (overrides: Partial<ActivityProposal>): ActivityProposal =>
+  const proposal = (overrides: Partial<CatalogProposal>): CatalogProposal =>
     ({
       object: 'proposal',
       id: '1',
@@ -306,7 +306,7 @@ describe('proposal notices', () => {
       created_at: '2026-10-19T08:00:00Z',
       updated_at: '2026-10-19T08:00:00Z',
       ...overrides
-    }) as ActivityProposal
+    }) as CatalogProposal
 
   const seen = '2026-10-19T09:00:00Z'
 

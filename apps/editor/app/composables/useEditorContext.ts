@@ -1,4 +1,5 @@
 import type { InjectionKey } from 'vue'
+import type { CatalogColumnProvenance } from '#shared/types/catalog'
 import type {
   EditEntityConfig,
   EditFieldConfig,
@@ -17,8 +18,10 @@ export interface EditorContext {
   entityId: ComputedRef<string>
   upstreamRows: ComputedRef<Record<string, EditUpstreamRow[]>>
   rosterIdentity: ComputedRef<Record<string, string>>
+  provenance?: ComputedRef<Record<string, CatalogColumnProvenance[]>>
   images: Ref<Record<string, EditorImage>>
   refs: ReturnType<typeof useRefNames>
+  readonly?: boolean
 }
 
 const EDITOR_CONTEXT: InjectionKey<EditorContext> = Symbol('editor-context')
@@ -61,7 +64,10 @@ export const useEditorField = (fieldKey: MaybeRefOrGetter<string>) => {
     context.editor.capabilityByKey.value.get(key.value)
   )
   const disabled = computed(
-    () => !capability.value || !capability.value.can_propose
+    () =>
+      Boolean(context.readonly) ||
+      !capability.value ||
+      !capability.value.can_propose
   )
   const issues = computed(
     () => context.editor.issuesByKey.value[key.value] ?? []
