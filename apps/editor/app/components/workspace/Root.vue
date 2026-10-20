@@ -36,7 +36,12 @@ const { data: summary } = useLazyAsyncData(
   () =>
     api<CatalogEntitySummary & Partial<CatalogWork>>(
       `/v2/catalog/${meta.collection}/${entityId}`,
-      { query: { nsfw: true } }
+      {
+        query: {
+          nsfw: true,
+          ...(props.family === 'work' ? {} : { view: 'full' })
+        }
+      }
     ).catch(() => null)
 )
 
