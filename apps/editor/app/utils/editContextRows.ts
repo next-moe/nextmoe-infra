@@ -73,8 +73,10 @@ const baseRow = (
   identity: row.identity,
   label: '',
   source: row.source?.display,
+  sourceKey: row.source?.key,
   machine: row.machine_translated,
-  suppressed: row.suppressed
+  suppressed: row.suppressed,
+  raw: row.value
 })
 
 const titleRow = (out: EditUpstreamRow, value: Record_): EditUpstreamRow => {

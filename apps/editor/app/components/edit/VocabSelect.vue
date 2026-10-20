@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { EditVocabSlot } from '#shared/utils/editModel'
 import { vocabLabel } from '~/constants/vocabLabels'
+import { INLINE_FIELD_CLASS } from '~/utils/inlineField'
 
 const NONE = '__none__'
 
@@ -12,8 +13,17 @@ const props = withDefaults(
     disabled?: boolean
     ariaLabel?: string
     size?: 'sm' | 'md'
+    inline?: boolean
+    placeholder?: string
   }>(),
-  { nullable: false, disabled: false, ariaLabel: '', size: 'sm' }
+  {
+    nullable: false,
+    disabled: false,
+    ariaLabel: '',
+    size: 'sm',
+    inline: false,
+    placeholder: '请选择'
+  }
 )
 
 const emit = defineEmits<{ 'update:modelValue': [value: unknown] }>()
@@ -67,6 +77,7 @@ const model = computed({
     :disabled="props.disabled"
     :searchable="options.length > 12"
     :size="props.size"
-    placeholder="请选择"
+    :placeholder="props.placeholder"
+    :class-names="props.inline ? { trigger: INLINE_FIELD_CLASS } : undefined"
   />
 </template>

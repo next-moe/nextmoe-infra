@@ -8,8 +8,9 @@ const props = withDefaults(
     layout?: 'row' | 'block'
     label?: string
     hideHeader?: boolean
+    inlineRowIssues?: boolean
   }>(),
-  { layout: 'block', label: '', hideHeader: false }
+  { layout: 'block', label: '', hideHeader: false, inlineRowIssues: false }
 )
 
 const { context, config, capability, issues, companionKey } = useEditorField(
@@ -69,6 +70,12 @@ const lock = computed(() => {
   }
   return null
 })
+
+const shownIssues = computed(() =>
+  props.inlineRowIssues
+    ? issues.value.filter((issue) => issue.index === undefined)
+    : issues.value
+)
 
 const issueText = (issue: { index?: number; message: string }) =>
   issue.index === undefined
@@ -169,11 +176,11 @@ const issueText = (issue: { index?: number; message: string }) =>
     <div class="min-w-0">
       <slot />
       <ul
-        v-if="issues.length || serverErrors.length"
+        v-if="shownIssues.length || serverErrors.length"
         class="text-danger-600 mt-2 space-y-1 text-xs"
       >
         <li
-          v-for="(issue, i) in issues"
+          v-for="(issue, i) in shownIssues"
           :key="`c${i}`"
           class="flex items-start gap-1"
         >
