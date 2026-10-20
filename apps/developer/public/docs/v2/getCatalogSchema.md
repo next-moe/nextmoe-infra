@@ -21,7 +21,7 @@ Unauthenticated metadata: include tokens, FULL_SET, and editing-engine fields. i
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
-| `object` | path | 是 | string | Family this schema describes. Unknown family is 404 NOT_FOUND. 取值：work \| company \| character \| release \| tag \| engine \| series \| person \| credit_name |
+| `object` | path | 是 | string | Family this schema describes. Unknown family is 404 NOT_FOUND. 取值：work \| company \| character \| release \| tag \| engine \| series \| person \| credit_name \| trait |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/schemas/work"

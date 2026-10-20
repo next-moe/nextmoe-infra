@@ -234,3 +234,29 @@ func TestLoadMTCandidatesOnlyTheEmptyOnes(t *testing.T) {
 	assert.Equal(t, "This character is toned.", plainDescription(cands[0].Description))
 	assert.Contains(t, userMessage(cands[0]), "所属分类: Body")
 }
+
+func TestApplyNeverRefillsANameZhAPersonEdited(t *testing.T) {
+	ids := seedTraits(t, [][4]string{
+		{"i110", "Cleared", "", "1"},
+		{"i111", "Edited", "人工译名", "1"},
+	})
+	require.NoError(t, testDB.Exec(`UPDATE catalog_character_trait SET field_provenance = ?::jsonb WHERE id IN ?`,
+		`{"name_zh":[{"source":"curated","at":"2026-10-19T00:00:00Z"}]}`, []int64{ids["Cleared"], ids["Edited"]}).Error)
+	proposals := []pair{{En: "Cleared", Zh: "机翻甲"}, {En: "Edited", Zh: "机翻乙"}}
+
+	rows, err := loadTraits(context.Background(), testDB)
+	require.NoError(t, err)
+	writes := plan(proposals, rows, provenanceMachine)
+	assert.Equal(t, 2, summarise(proposals, writes).Human)
+	for i := range writes {
+		writes[i].Decision = decWrite
+	}
+	n, err := applyWrites(context.Background(), testDB, writes, provenanceMachine)
+	require.NoError(t, err)
+	assert.Zero(t, n, "the write itself refuses a human-held name, even when a plan says write")
+
+	zh, _ := loadZh(t, ids["Cleared"])
+	assert.Equal(t, "", zh, "a name a person cleared stays cleared")
+	zh, _ = loadZh(t, ids["Edited"])
+	assert.Equal(t, "人工译名", zh)
+}

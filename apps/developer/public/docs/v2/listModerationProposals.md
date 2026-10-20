@@ -32,7 +32,7 @@ Open proposals on the token site; on the central editor (catalog site editor), o
 | `facets` | query | 否 | string | Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. |
 | `sort` | query | 否 | string | Closed per-collection sort key. |
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
-| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name. |
+| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait. |
 | `entity_type` | query | 否 | string | Editing-engine type, e.g. catalog.work. Names the same filter as object=; sending both with different families is 400. |
 | `entity_id` | query | 否 | string | Catalog id of one entity. Requires object= or entity_type=. Narrows the queue to that entity, which its owner may read without a review permission. |
 

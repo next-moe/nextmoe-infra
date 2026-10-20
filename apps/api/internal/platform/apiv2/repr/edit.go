@@ -4,7 +4,7 @@ type Revision struct {
 	_             struct{}     `json:"-" additionalProperties:"true"`
 	Object        string       `json:"object" enum:"revision" doc:"Type discriminant. Always revision."`
 	ID            string       `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Revision id. This is the value POST /v2/moderation/reverts takes as revision_id."`
-	TargetObject  string       `json:"target_object" enum:"work,company,character,release,tag,engine,series,person,credit_name" doc:"Family of the entity this revision is on."`
+	TargetObject  string       `json:"target_object" enum:"work,company,character,release,tag,engine,series,person,credit_name,trait" doc:"Family of the entity this revision is on."`
 	EntityID      string       `json:"entity_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog id of the entity this revision is on."`
 	SiteWorkID    *string      `json:"site_work_id" pattern:"^[0-9]+$" maxLength:"20" doc:"The claiming site's own work id, which on kungal, moyu and letmoe is the catalog id. null unless target_object is work and the claiming site equals site."`
 	Seq           int          `json:"seq" minimum:"1" doc:"Position in this entity's revision chain, 1-based and contiguous."`

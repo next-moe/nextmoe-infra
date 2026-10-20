@@ -3481,7 +3481,7 @@ export interface components {
              * @description Family these capabilities describe.
              * @enum {string}
              */
-            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name";
+            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait";
         } & {
             [key: string]: unknown;
         };
@@ -3507,7 +3507,7 @@ export interface components {
              * @description Family of the entity.
              * @enum {string}
              */
-            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name";
+            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait";
         } & {
             [key: string]: unknown;
         };
@@ -6063,7 +6063,7 @@ export interface components {
              * @description Family this schema describes.
              * @enum {string}
              */
-            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name";
+            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait";
         } & {
             [key: string]: unknown;
         };
@@ -6517,7 +6517,7 @@ export interface components {
              * @description Family of the entity this proposal targets.
              * @enum {string}
              */
-            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name";
+            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait";
             /**
              * Format: date-time
              * @description RFC 3339 UTC.
@@ -7034,7 +7034,7 @@ export interface components {
              * @description Family of the entity this revision is on.
              * @enum {string}
              */
-            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name";
+            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait";
         } & {
             [key: string]: unknown;
         };
@@ -10319,7 +10319,7 @@ export interface operations {
                 include_total?: string;
                 /** @description filed_desc is the only key. Closed. */
                 sort?: string;
-                /** @description Closed family filter: work, company, character, release, tag, engine, series, person, credit_name. */
+                /** @description Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait. */
                 object?: string;
                 /** @description Catalog id of one entity. Requires object=. */
                 entity_id?: string;
@@ -10884,7 +10884,7 @@ export interface operations {
                 include_total?: string;
                 /** @description recorded_desc (default) or recorded_asc. Closed. */
                 sort?: string;
-                /** @description Closed family filter: work, company, character, release, tag, engine, series, person, credit_name. */
+                /** @description Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait. */
                 object?: string;
                 /** @description Catalog id of one entity. Requires object=. */
                 entity_id?: string;
@@ -11321,7 +11321,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description Family this schema describes. Unknown family is 404 NOT_FOUND. */
-                object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name";
+                object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait";
             };
             cookie?: never;
         };
@@ -15837,7 +15837,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description Family these capabilities describe. Unknown family is 404 NOT_FOUND. */
-                object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name";
+                object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait";
             };
             cookie?: never;
         };
@@ -15939,7 +15939,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description Family of the entity. Unknown family is 404 NOT_FOUND. */
-                object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name";
+                object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait";
                 /** @description Catalog id of the entity. */
                 id: string;
             };
@@ -19045,7 +19045,7 @@ export interface operations {
                 nsfw?: string;
                 /** @description Closed: open, pending, merged, declined, withdrawn. Unknown value is 400 UNKNOWN_ENUM_VALUE. */
                 state?: string;
-                /** @description Closed family filter: work, company, character, release, tag, engine, series, person, credit_name. */
+                /** @description Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait. */
                 object?: string;
                 /** @description Editing-engine type, e.g. catalog.work. The same spelling POST /v2/me/proposals takes in its body. Names the same filter as object=; sending both with different families is 400. */
                 entity_type?: string;
@@ -21615,7 +21615,7 @@ export interface operations {
                 sort?: string;
                 /** @description true includes r18. false or absent hides r18. Only true or false. */
                 nsfw?: string;
-                /** @description Closed family filter: work, company, character, release, tag, engine, series, person, credit_name. */
+                /** @description Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait. */
                 object?: string;
                 /** @description Editing-engine type, e.g. catalog.work. Names the same filter as object=; sending both with different families is 400. */
                 entity_type?: string;
@@ -22182,7 +22182,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Family: work, company, character, release, tag, engine, series, person, credit_name. */
+                /** @description Family: work, company, character, release, tag, engine, series, person, credit_name, trait. */
                 object: string;
                 /** @description Catalog id. */
                 id: string;

@@ -99,8 +99,7 @@ func runVocab(ctx context.Context, db *gorm.DB, opts Opts, st *Stats) error {
 		var unchanged int64
 		if err := db.WithContext(ctx).Raw(`SELECT count(*) FROM src_vndb.traits s
 			JOIN catalog_character_trait t ON t.vndb_tid = s.id
-			WHERE (t.name, t.group_tid, t.gorder, t.default_spoil, t.sexual, t.searchable, t.applicable, t.alias, t.description)
-			    = (s.name, s.gid, s.gorder, s.defaultspoil, s.sexual, s.searchable, s.applicable, s.alias, s.description)`).
+			WHERE (` + vocabTuple("t.") + `) IS NOT DISTINCT FROM (` + vocabEffective("t.", "s.", srcColumn) + `)`).
 			Scan(&unchanged).Error; err != nil {
 			return fmt.Errorf("dry vocab plan: %w", err)
 		}
@@ -114,17 +113,9 @@ func runVocab(ctx context.Context, db *gorm.DB, opts Opts, st *Stats) error {
 			INSERT INTO catalog_character_trait
 				(vndb_tid, name, group_tid, gorder, default_spoil, sexual, searchable, applicable, alias, description)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-			ON CONFLICT (vndb_tid) DO UPDATE SET
-				name = EXCLUDED.name, group_tid = EXCLUDED.group_tid, gorder = EXCLUDED.gorder,
-				default_spoil = EXCLUDED.default_spoil, sexual = EXCLUDED.sexual,
-				searchable = EXCLUDED.searchable, applicable = EXCLUDED.applicable,
-				alias = EXCLUDED.alias, description = EXCLUDED.description, updated_at = now()
-			WHERE (catalog_character_trait.name, catalog_character_trait.group_tid, catalog_character_trait.gorder,
-			       catalog_character_trait.default_spoil, catalog_character_trait.sexual, catalog_character_trait.searchable,
-			       catalog_character_trait.applicable, catalog_character_trait.alias, catalog_character_trait.description)
-			    IS DISTINCT FROM
-			      (EXCLUDED.name, EXCLUDED.group_tid, EXCLUDED.gorder, EXCLUDED.default_spoil, EXCLUDED.sexual,
-			       EXCLUDED.searchable, EXCLUDED.applicable, EXCLUDED.alias, EXCLUDED.description)`,
+			ON CONFLICT (vndb_tid) DO UPDATE SET `+vocabAssignments()+`, updated_at = now()
+			WHERE (`+vocabTuple("catalog_character_trait.")+`)
+			    IS DISTINCT FROM (`+vocabEffective("catalog_character_trait.", "EXCLUDED.", sameColumn)+`)`,
 			r.ID, r.Name, r.GID, r.GOrder, r.DefaultSpoil, r.Sexual, r.Searchable, r.Applicable, r.Alias, r.Description)
 		if res.Error != nil {
 			st.Errors++
@@ -138,6 +129,50 @@ func runVocab(ctx context.Context, db *gorm.DB, opts Opts, st *Stats) error {
 		}
 	}
 	return nil
+}
+
+var vocabColumns = []string{"name", "group_tid", "gorder", "default_spoil", "sexual", "searchable", "applicable", "alias", "description"}
+
+var vocabSrcColumns = map[string]string{"group_tid": "gid", "default_spoil": "defaultspoil"}
+
+func srcColumn(col string) string {
+	if c, ok := vocabSrcColumns[col]; ok {
+		return c
+	}
+	return col
+}
+
+func sameColumn(col string) string { return col }
+
+func vocabTuple(prefix string) string {
+	cols := make([]string, 0, len(vocabColumns))
+	for _, c := range vocabColumns {
+		cols = append(cols, prefix+c)
+	}
+	return strings.Join(cols, ", ")
+}
+
+// effectiveColumn is what an import would leave in one column: a column a
+// person edited (catalog.trait.*) keeps its value, every other takes VNDB's.
+func effectiveColumn(current, incoming, col string, incomingColumn func(string) string) string {
+	return fmt.Sprintf("CASE WHEN COALESCE(%s, false) THEN %s%s ELSE %s%s END",
+		editspec.HumanFieldProvenanceSQL(current+"field_provenance", col), current, col, incoming, incomingColumn(col))
+}
+
+func vocabEffective(current, incoming string, incomingColumn func(string) string) string {
+	cols := make([]string, 0, len(vocabColumns))
+	for _, c := range vocabColumns {
+		cols = append(cols, effectiveColumn(current, incoming, c, incomingColumn))
+	}
+	return strings.Join(cols, ", ")
+}
+
+func vocabAssignments() string {
+	out := make([]string, 0, len(vocabColumns))
+	for _, c := range vocabColumns {
+		out = append(out, c+" = "+effectiveColumn("catalog_character_trait.", "EXCLUDED.", c, sameColumn))
+	}
+	return strings.Join(out, ", ")
 }
 
 func loadIDMap(ctx context.Context, db *gorm.DB) (map[string]int64, error) {
@@ -174,18 +209,31 @@ func runEdges(ctx context.Context, db *gorm.DB, opts Opts, idByTID map[string]in
 		}
 		want[edge{t, p}] = struct{}{}
 	}
+	var suppressed []struct {
+		TraitID  int64 `gorm:"column:trait_id"`
+		ParentID int64 `gorm:"column:parent_id"`
+	}
+	if err := db.WithContext(ctx).Raw(`SELECT entity_id AS trait_id, split_part(identity_key, ':', 2)::bigint AS parent_id
+		FROM edit_suppressed_row WHERE entity_type = ? AND field_key = ?`,
+		editspec.TypeTrait, editspec.FieldTraitParents).Scan(&suppressed).Error; err != nil {
+		return fmt.Errorf("load suppressed trait parents: %w", err)
+	}
+	for _, s := range suppressed {
+		delete(want, edge{s.TraitID, s.ParentID})
+	}
 	st.EdgesTotal = len(want)
 
 	var existing []struct {
 		TraitID  int64 `gorm:"column:trait_id"`
 		ParentID int64 `gorm:"column:parent_id"`
+		Origin   int16 `gorm:"column:origin"`
 	}
-	if err := db.WithContext(ctx).Raw(`SELECT trait_id, parent_id FROM catalog_character_trait_parent`).Scan(&existing).Error; err != nil {
+	if err := db.WithContext(ctx).Raw(`SELECT trait_id, parent_id, origin FROM catalog_character_trait_parent`).Scan(&existing).Error; err != nil {
 		return fmt.Errorf("load existing edges: %w", err)
 	}
-	have := make(map[edge]struct{}, len(existing))
+	have := make(map[edge]int16, len(existing))
 	for _, e := range existing {
-		have[edge{e.TraitID, e.ParentID}] = struct{}{}
+		have[edge{e.TraitID, e.ParentID}] = e.Origin
 	}
 
 	var toAdd []edge
@@ -195,8 +243,8 @@ func runEdges(ctx context.Context, db *gorm.DB, opts Opts, idByTID map[string]in
 		}
 	}
 	var toDel []edge
-	for e := range have {
-		if _, ok := want[e]; !ok {
+	for e, origin := range have {
+		if _, ok := want[e]; !ok && origin == model.TraitParentOriginVNDB {
 			toDel = append(toDel, e)
 		}
 	}
@@ -214,7 +262,7 @@ func runEdges(ctx context.Context, db *gorm.DB, opts Opts, idByTID map[string]in
 	}
 	for _, e := range toDel {
 		if err := db.WithContext(ctx).Exec(`DELETE FROM catalog_character_trait_parent
-			WHERE trait_id = ? AND parent_id = ?`, e.trait, e.parent).Error; err != nil {
+			WHERE trait_id = ? AND parent_id = ? AND origin = ?`, e.trait, e.parent, model.TraitParentOriginVNDB).Error; err != nil {
 			st.Errors++
 			slog.Warn("edge delete", "trait", e.trait, "parent", e.parent, "err", err)
 		}

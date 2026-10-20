@@ -38287,7 +38287,7 @@ export const docsModel: DocsModel = {
                   "in": "query",
                   "required": false,
                   "type": "string",
-                  "doc": "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."
+                  "doc": "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait."
                 },
                 {
                   "name": "entity_id",
@@ -38646,7 +38646,8 @@ export const docsModel: DocsModel = {
                                 "engine",
                                 "series",
                                 "person",
-                                "credit_name"
+                                "credit_name",
+                                "trait"
                               ],
                               "type": "string"
                             },
@@ -40248,7 +40249,8 @@ export const docsModel: DocsModel = {
                           "engine",
                           "series",
                           "person",
-                          "credit_name"
+                          "credit_name",
+                          "trait"
                         ],
                         "type": "string"
                       },
@@ -46338,7 +46340,7 @@ export const docsModel: DocsModel = {
                   "in": "query",
                   "required": false,
                   "type": "string",
-                  "doc": "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."
+                  "doc": "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait."
                 },
                 {
                   "name": "entity_id",
@@ -46621,7 +46623,8 @@ export const docsModel: DocsModel = {
                                 "engine",
                                 "series",
                                 "person",
-                                "credit_name"
+                                "credit_name",
+                                "trait"
                               ],
                               "type": "string"
                             }
@@ -48154,7 +48157,8 @@ export const docsModel: DocsModel = {
                           "engine",
                           "series",
                           "person",
-                          "credit_name"
+                          "credit_name",
+                          "trait"
                         ],
                         "type": "string"
                       }
@@ -52557,7 +52561,8 @@ export const docsModel: DocsModel = {
                     "engine",
                     "series",
                     "person",
-                    "credit_name"
+                    "credit_name",
+                    "trait"
                   ]
                 }
               ],
@@ -52807,7 +52812,8 @@ export const docsModel: DocsModel = {
                           "engine",
                           "series",
                           "person",
-                          "credit_name"
+                          "credit_name",
+                          "trait"
                         ],
                         "type": "string"
                       }
@@ -136151,7 +136157,8 @@ export const docsModel: DocsModel = {
                     "engine",
                     "series",
                     "person",
-                    "credit_name"
+                    "credit_name",
+                    "trait"
                   ]
                 },
                 {
@@ -136278,7 +136285,8 @@ export const docsModel: DocsModel = {
                           "engine",
                           "series",
                           "person",
-                          "credit_name"
+                          "credit_name",
+                          "trait"
                         ],
                         "type": "string"
                       }
@@ -137705,7 +137713,8 @@ export const docsModel: DocsModel = {
                     "engine",
                     "series",
                     "person",
-                    "credit_name"
+                    "credit_name",
+                    "trait"
                   ]
                 },
                 {
@@ -137911,7 +137920,8 @@ export const docsModel: DocsModel = {
                           "engine",
                           "series",
                           "person",
-                          "credit_name"
+                          "credit_name",
+                          "trait"
                         ],
                         "type": "string"
                       }
@@ -183874,7 +183884,7 @@ export const docsModel: DocsModel = {
                   "in": "query",
                   "required": false,
                   "type": "string",
-                  "doc": "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."
+                  "doc": "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait."
                 },
                 {
                   "name": "entity_type",
@@ -184219,7 +184229,8 @@ export const docsModel: DocsModel = {
                                 "engine",
                                 "series",
                                 "person",
-                                "credit_name"
+                                "credit_name",
+                                "trait"
                               ],
                               "type": "string"
                             },
@@ -186004,7 +186015,8 @@ export const docsModel: DocsModel = {
                           "engine",
                           "series",
                           "person",
-                          "credit_name"
+                          "credit_name",
+                          "trait"
                         ],
                         "type": "string"
                       },
@@ -188247,7 +188259,8 @@ export const docsModel: DocsModel = {
                           "engine",
                           "series",
                           "person",
-                          "credit_name"
+                          "credit_name",
+                          "trait"
                         ],
                         "type": "string"
                       },
@@ -189989,7 +190002,8 @@ export const docsModel: DocsModel = {
                           "engine",
                           "series",
                           "person",
-                          "credit_name"
+                          "credit_name",
+                          "trait"
                         ],
                         "type": "string"
                       },
@@ -192258,7 +192272,8 @@ export const docsModel: DocsModel = {
                           "engine",
                           "series",
                           "person",
-                          "credit_name"
+                          "credit_name",
+                          "trait"
                         ],
                         "type": "string"
                       },
@@ -224394,7 +224409,7 @@ export const docsModel: DocsModel = {
                   "in": "query",
                   "required": false,
                   "type": "string",
-                  "doc": "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."
+                  "doc": "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait."
                 },
                 {
                   "name": "entity_type",
@@ -224739,7 +224754,8 @@ export const docsModel: DocsModel = {
                                 "engine",
                                 "series",
                                 "person",
-                                "credit_name"
+                                "credit_name",
+                                "trait"
                               ],
                               "type": "string"
                             },
@@ -226507,7 +226523,8 @@ export const docsModel: DocsModel = {
                           "engine",
                           "series",
                           "person",
-                          "credit_name"
+                          "credit_name",
+                          "trait"
                         ],
                         "type": "string"
                       },
@@ -231679,7 +231696,8 @@ export const docsModel: DocsModel = {
                           "engine",
                           "series",
                           "person",
-                          "credit_name"
+                          "credit_name",
+                          "trait"
                         ],
                         "type": "string"
                       },
@@ -233618,7 +233636,7 @@ export const docsModel: DocsModel = {
                   "in": "path",
                   "required": true,
                   "type": "string",
-                  "doc": "Family: work, company, character, release, tag, engine, series, person, credit_name."
+                  "doc": "Family: work, company, character, release, tag, engine, series, person, credit_name, trait."
                 },
                 {
                   "name": "id",

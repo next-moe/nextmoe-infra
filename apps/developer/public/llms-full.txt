@@ -4029,7 +4029,7 @@ Filed proposals, newest first. proposer_uid=+state=merged with include_total=tru
 | `ids` | query | 否 | string | Comma-separated proposal ids, max 100. Batch lane: no pagination. |
 | `include_total` | query | 否 | string | true to include total. Only true or false. |
 | `sort` | query | 否 | string | filed_desc is the only key. Closed. |
-| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name. |
+| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait. |
 | `entity_id` | query | 否 | string | Catalog id of one entity. Requires object=. |
 | `site` | query | 否 | string | Tenant key. Open vocabulary; unknown values match nothing. |
 | `proposer_uid` | query | 否 | string | The claiming site's own user id of the proposer. Not a catalog id. |
@@ -4159,7 +4159,7 @@ Every merged edit, newest first by default. sort=recorded_asc walks the same col
 | `ids` | query | 否 | string | Comma-separated revision ids, max 100. Batch lane: no pagination. |
 | `include_total` | query | 否 | string | true to include total. Only true or false. |
 | `sort` | query | 否 | string | recorded_desc (default) or recorded_asc. Closed. |
-| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name. |
+| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait. |
 | `entity_id` | query | 否 | string | Catalog id of one entity. Requires object=. |
 | `site` | query | 否 | string | Tenant key. Open vocabulary; unknown values match nothing. |
 | `actor_uid` | query | 否 | string | The claiming site's own user id of the actor. Not a catalog id. |
@@ -4252,7 +4252,7 @@ Unauthenticated metadata: include tokens, FULL_SET, and editing-engine fields. i
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
-| `object` | path | 是 | string | Family this schema describes. Unknown family is 404 NOT_FOUND. 取值：work \| company \| character \| release \| tag \| engine \| series \| person \| credit_name |
+| `object` | path | 是 | string | Family this schema describes. Unknown family is 404 NOT_FOUND. 取值：work \| company \| character \| release \| tag \| engine \| series \| person \| credit_name \| trait |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/schemas/work"
@@ -5434,7 +5434,7 @@ Per-field can_propose / can_review / would_automerge for the bearer, evaluated b
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
-| `object` | path | 是 | string | Family these capabilities describe. Unknown family is 404 NOT_FOUND. 取值：work \| company \| character \| release \| tag \| engine \| series \| person \| credit_name |
+| `object` | path | 是 | string | Family these capabilities describe. Unknown family is 404 NOT_FOUND. 取值：work \| company \| character \| release \| tag \| engine \| series \| person \| credit_name \| trait |
 | `entity_id` | query | 否 | integer (int64) | Evaluate against one entity. Omit for the type-level answer, which cannot express the owner channel: a policy that grants owner-review or owner-automerge answers would_automerge=false without it. |
 
 ```bash
@@ -5454,7 +5454,7 @@ Per field: the value a proposal is written against, who wrote each scalar column
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
-| `object` | path | 是 | string | Family of the entity. Unknown family is 404 NOT_FOUND. 取值：work \| company \| character \| release \| tag \| engine \| series \| person \| credit_name |
+| `object` | path | 是 | string | Family of the entity. Unknown family is 404 NOT_FOUND. 取值：work \| company \| character \| release \| tag \| engine \| series \| person \| credit_name \| trait |
 | `id` | path | 是 | string | Catalog id of the entity. |
 
 ```bash
@@ -6159,7 +6159,7 @@ The bearer's own proposals filed on the token's catalog site; on the central edi
 | `sort` | query | 否 | string | Closed per-collection sort key. |
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
 | `state` | query | 否 | string | Closed: open, pending, merged, declined, withdrawn. Unknown value is 400 UNKNOWN_ENUM_VALUE. |
-| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name. |
+| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait. |
 | `entity_type` | query | 否 | string | Editing-engine type, e.g. catalog.work. The same spelling POST /v2/me/proposals takes in its body. Names the same filter as object=; sending both with different families is 400. |
 | `entity_id` | query | 否 | string | Catalog id of one entity. Accepted alone on this lane, which is already fenced to the bearer's own proposals; pair it with object= or entity_type= when ids collide across families. |
 
@@ -6793,7 +6793,7 @@ Open proposals on the token site; on the central editor (catalog site editor), o
 | `facets` | query | 否 | string | Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. |
 | `sort` | query | 否 | string | Closed per-collection sort key. |
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
-| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name. |
+| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait. |
 | `entity_type` | query | 否 | string | Editing-engine type, e.g. catalog.work. Names the same filter as object=; sending both with different families is 400. |
 | `entity_id` | query | 否 | string | Catalog id of one entity. Requires object= or entity_type=. Narrows the queue to that entity, which its owner may read without a review permission. |
 
@@ -6912,7 +6912,7 @@ Registered field values. Requires a user access token. The token must carry the 
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
-| `object` | path | 是 | string | Family: work, company, character, release, tag, engine, series, person, credit_name. |
+| `object` | path | 是 | string | Family: work, company, character, release, tag, engine, series, person, credit_name, trait. |
 | `id` | path | 是 | string | Catalog id. |
 
 ```bash

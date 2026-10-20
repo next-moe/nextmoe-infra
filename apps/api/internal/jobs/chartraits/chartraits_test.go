@@ -215,3 +215,55 @@ func TestImportLeavesCuratedAndSuppressedLinksAlone(t *testing.T) {
 		Where("character_id = ? AND trait_id = ?", ch, long.ID).Count(&n).Error)
 	assert.Zero(t, n, "a suppressed link is not re-imported")
 }
+
+func TestImportLeavesHumanVocabularyAndEdgesAlone(t *testing.T) {
+	clean(t)
+	ctx := context.Background()
+	mkSrcTrait(t, "i1", "", "Hair", false, 0)
+	mkSrcTrait(t, "i10", "i1", "Blond Hair", false, 0)
+	mkSrcTrait(t, "i11", "i1", "Long Hair", false, 0)
+	mkSrcParent(t, "i10", "i1")
+	mkSrcParent(t, "i11", "i1")
+	_, err := Run(ctx, Opts{DSN: testDSN, Apply: true})
+	require.NoError(t, err)
+
+	id := func(tid string) int64 {
+		var tr model.CatalogCharacterTrait
+		require.NoError(t, testDB.Where("vndb_tid = ?", tid).First(&tr).Error)
+		return tr.ID
+	}
+	hair, blond, long := id("i1"), id("i10"), id("i11")
+	require.NoError(t, testDB.Exec(`UPDATE catalog_character_trait SET name = '金发', sexual = true, field_provenance = ?::jsonb WHERE id = ?`,
+		`{"name":[{"source":"curated","at":"2026-10-19T00:00:00Z"}],"sexual":[{"source":"curated","at":"2026-10-19T00:00:00Z"}]}`, blond).Error)
+	require.NoError(t, testDB.Exec(`INSERT INTO catalog_character_trait_parent (trait_id, parent_id, origin) VALUES (?, ?, ?)`,
+		long, blond, model.TraitParentOriginCurated).Error)
+	require.NoError(t, testDB.Exec(`DELETE FROM catalog_character_trait_parent WHERE trait_id = ? AND parent_id = ?`, blond, hair).Error)
+	require.NoError(t, testDB.Exec(`INSERT INTO edit_suppressed_row (entity_type, entity_id, field_key, identity_key, created_at)
+		VALUES (?, ?, ?, ?, now())`, editspec.TypeTrait, blond, editspec.FieldTraitParents, editspec.ParentIdentity(hair)).Error)
+	require.NoError(t, testDB.Exec(`UPDATE src_vndb.traits SET name = 'Blonde Hair', description = 'Yellow hair.' WHERE id = 'i10'`).Error)
+
+	_, err = Run(ctx, Opts{DSN: testDSN, Apply: true})
+	require.NoError(t, err)
+	var row model.CatalogCharacterTrait
+	require.NoError(t, testDB.First(&row, blond).Error)
+	assert.Equal(t, "金发", row.Name, "a name a person set survives the import")
+	assert.True(t, row.Sexual, "a sexual flag a person set survives the import")
+	assert.Equal(t, "Yellow hair.", row.Description, "an unedited column still follows VNDB")
+
+	var edges []model.CatalogCharacterTraitParent
+	require.NoError(t, testDB.Order("trait_id, parent_id").Find(&edges).Error)
+	got := map[[2]int64]int16{}
+	for _, e := range edges {
+		got[[2]int64{e.TraitID, e.ParentID}] = e.Origin
+	}
+	assert.Equal(t, map[[2]int64]int16{
+		{long, hair}:  model.TraitParentOriginVNDB,
+		{long, blond}: model.TraitParentOriginCurated,
+	}, got, "the curated edge stays and the suppressed one is not written back")
+
+	st, err := Run(ctx, Opts{DSN: testDSN, Apply: true})
+	require.NoError(t, err)
+	assert.Zero(t, st.VocabWritten, "a human-held column is not rewritten on every run")
+	assert.Zero(t, st.EdgesAdded)
+	assert.Zero(t, st.EdgesDeleted)
+}

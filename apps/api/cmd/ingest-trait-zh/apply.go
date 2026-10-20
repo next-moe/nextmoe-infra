@@ -4,6 +4,8 @@ import (
 	"context"
 	"sort"
 
+	"api/internal/platform/catalog/editspec"
+
 	"gorm.io/gorm"
 )
 
@@ -19,6 +21,7 @@ type traitRow struct {
 	NameZh     string `gorm:"column:name_zh"`
 	Provenance int16  `gorm:"column:name_zh_provenance"`
 	GroupTID   string `gorm:"column:group_tid"`
+	Human      bool   `gorm:"column:human"`
 }
 
 type decision int
@@ -27,6 +30,7 @@ const (
 	decWrite decision = iota
 	decSame
 	decConflict
+	decHuman
 )
 
 type plannedWrite struct {
@@ -56,6 +60,8 @@ func plan(proposals []pair, rows []traitRow, prov int16) []plannedWrite {
 
 func decide(r traitRow, zh string, prov int16) decision {
 	switch {
+	case r.Human:
+		return decHuman
 	case r.NameZh == zh && r.Provenance == prov:
 		return decSame
 	case r.NameZh == "":
@@ -72,7 +78,8 @@ func decide(r traitRow, zh string, prov int16) decision {
 func loadTraits(ctx context.Context, db *gorm.DB) ([]traitRow, error) {
 	var rows []traitRow
 	err := db.WithContext(ctx).Raw(
-		`SELECT id, vndb_tid, name, name_zh, name_zh_provenance, group_tid
+		`SELECT id, vndb_tid, name, name_zh, name_zh_provenance, group_tid,
+		        COALESCE(` + editspec.HumanFieldProvenanceSQL("field_provenance", "name_zh") + `, false) AS human
 		   FROM catalog_character_trait ORDER BY id`).Scan(&rows).Error
 	return rows, err
 }
@@ -86,7 +93,8 @@ func applyWrites(ctx context.Context, db *gorm.DB, writes []plannedWrite, prov i
 			}
 			res := tx.Exec(`UPDATE catalog_character_trait
 				   SET name_zh = ?, name_zh_provenance = ?, updated_at = now()
-				 WHERE id = ? AND (name_zh = '' OR name_zh_provenance = ?)`,
+				 WHERE id = ? AND (name_zh = '' OR name_zh_provenance = ?) AND `+
+				editspec.NotHumanFieldSQL("field_provenance", "name_zh"),
 				w.Zh, prov, w.Trait.ID, provenanceMachine)
 			if res.Error != nil {
 				return res.Error
@@ -104,6 +112,7 @@ type counts struct {
 	Write     int
 	Same      int
 	Conflict  int
+	Human     int
 }
 
 func summarise(proposals []pair, writes []plannedWrite) counts {
@@ -116,6 +125,8 @@ func summarise(proposals []pair, writes []plannedWrite) counts {
 			c.Same++
 		case decConflict:
 			c.Conflict++
+		case decHuman:
+			c.Human++
 		}
 	}
 	return c

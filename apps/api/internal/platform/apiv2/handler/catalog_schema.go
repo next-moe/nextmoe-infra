@@ -102,6 +102,8 @@ func schemaEntityType(object string) string {
 		return editspec.TypePerson
 	case "credit_name":
 		return editspec.TypeCreditName
+	case "trait":
+		return editspec.TypeTrait
 	default:
 		return ""
 	}

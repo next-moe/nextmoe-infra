@@ -25,6 +25,13 @@ func TestOnePlatformPolicyForEveryType(t *testing.T) {
 		editspec.TypeSeries:     string(perm.EditTaxonomyReview),
 		editspec.TypePerson:     string(perm.EditPersonReview),
 		editspec.TypeCreditName: string(perm.EditPersonReview),
+		editspec.TypeTrait:      string(perm.EditTaxonomyReview),
+	}
+	// The flags tagsafety and the trait sexual family drive (default listing
+	// visibility, SFW withholding) are the only fields a non-reviewer cannot
+	// propose.
+	reviewerOnly := map[string]bool{
+		editspec.FieldTagTier: true, editspec.FieldTagSexual: true, editspec.FieldTraitSexual: true,
 	}
 	if len(owned)+len(shared) != len(reg.Types()) {
 		t.Fatalf("registered types %v: every one must be classified owned or shared here", reg.Types())
@@ -34,6 +41,13 @@ func TestOnePlatformPolicyForEveryType(t *testing.T) {
 		for i := range spec.Fields {
 			key := spec.Fields[i].Key
 			got := spec.EffectivePolicy(key)
+			if reviewerOnly[key] {
+				if got.Propose != editing.ProposePerm(shared[typ]) || got.Review != editing.ReviewPerm(shared[typ]) ||
+					got.Automerge != editing.AutomergeNever {
+					t.Errorf("%s: %+v, want {perm:%s, perm:%s, never}", key, got, shared[typ], shared[typ])
+				}
+				continue
+			}
 			if got.Propose != editing.ProposeOpen {
 				t.Errorf("%s: propose = %q, want open", key, got.Propose)
 			}

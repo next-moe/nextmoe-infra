@@ -1,7 +1,6 @@
 package editspec_test
 
 import (
-	"errors"
 	"strings"
 	"testing"
 
@@ -67,7 +66,7 @@ func TestLabelFamilyEdits(t *testing.T) {
 	}
 }
 
-func TestTagFamilyIsIntroOnly(t *testing.T) {
+func TestTagIntrosRoundTrip(t *testing.T) {
 	e := newTaxonomyEngine(t)
 	tag := model.CatalogTag{Name: "純愛", Tier: model.TagTierCore, Kind: model.TagKindContent}
 	if err := testDB.Create(&tag).Error; err != nil {
@@ -77,23 +76,6 @@ func TestTagFamilyIsIntroOnly(t *testing.T) {
 	intros := []any{map[string]any{"lang": "zh-Hans", "intro": "以恋爱为主线"}}
 	snap := mergeOn(t, e, editspec.TypeTag, tag.ID, map[string]any{editspec.FieldTagIntros: intros})
 	sameJSON(t, "tag intros", snap[editspec.FieldTagIntros], intros)
-
-	var unknown *editing.UnknownFieldError
-	_, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
-		EntityType: editspec.TypeTag, EntityID: tag.ID,
-		Patch: map[string]any{"catalog.tag.name": "純愛2"}, Actor: realActor(100),
-	})
-	if !errors.As(err, &unknown) {
-		t.Fatalf("a tag name patch must be an unknown-field error, got %v", err)
-	}
-
-	var row model.CatalogTag
-	if err := testDB.First(&row, tag.ID).Error; err != nil {
-		t.Fatal(err)
-	}
-	if row.Name != "純愛" {
-		t.Fatalf("the tag name moved: %q", row.Name)
-	}
 }
 
 func TestEngineAndSeriesFamilies(t *testing.T) {

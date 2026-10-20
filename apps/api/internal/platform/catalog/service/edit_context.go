@@ -249,6 +249,19 @@ var contextRowSources = map[string]contextRowSource{
 		value:    `json_build_object('label_id', rl.label_id, 'kind', rl.kind)`,
 		order:    "rl.source_id NULLS FIRST, rl.label_id, rl.kind",
 	},
+	editspec.FieldTagParents:   parentRows("catalog_tag_parent", "tag_id", catmodel.TagParentOriginCurated),
+	editspec.FieldTraitParents: parentRows("catalog_character_trait_parent", "trait_id", catmodel.TraitParentOriginCurated),
+}
+
+func parentRows(table, childCol string, curatedOrigin int16) contextRowSource {
+	return contextRowSource{
+		from: table + " p", owner: "p." + childCol,
+		sourceKey: fmt.Sprintf("CASE WHEN p.origin = %d THEN '%s' ELSE 'vndb' END", curatedOrigin, provenance.SourceCurated),
+		human:     fmt.Sprintf("p.origin = %d", curatedOrigin),
+		identity:  "('parent:' || p.parent_id)",
+		value:     `json_build_object('parent_id', p.parent_id, 'origin', p.origin)`,
+		order:     "p.origin DESC, p.parent_id",
+	}
 }
 
 // snapshotOnlyListFields are the list fields deliberately absent from
@@ -258,6 +271,7 @@ var snapshotOnlyListFields = map[string]string{
 	editspec.FieldEngineAliases:    "catalog_engine.aliases is one array column on the engine row",
 	editspec.FieldReleasePlatforms: "catalog_release.extra.platforms is one array on the release row",
 	editspec.FieldReleaseLanguages: "catalog_release.extra.languages is one array on the release row",
+	editspec.FieldTraitAliases:     "catalog_character_trait.alias is one newline-separated column on the trait row",
 }
 
 func HasContextRows(fieldKey string) bool {
