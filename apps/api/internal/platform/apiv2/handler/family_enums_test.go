@@ -43,6 +43,7 @@ func TestFamilyEnumsCoverEveryEditingType(t *testing.T) {
 		"GET schemas {object}":           enumOf(t, getSchemaInput{}, "Object"),
 		"GET edit-capabilities {object}": enumOf(t, getCapabilitiesInput{}, "Object"),
 		"GET edit-context {object}":      enumOf(t, getEditContextInput{}, "Object"),
+		"GET edit-bundle {object}":       enumOf(t, getEditBundleInput{}, "Object"),
 	}
 	typeEnums := map[string][]string{
 		"EditCapabilities.entity_type": enumOf(t, repr.EditCapabilities{}, "EntityType"),

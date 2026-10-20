@@ -1,5 +1,7 @@
 import type {
+  CatalogEditBundle,
   CatalogEditCapabilities,
+  CatalogEditContext,
   CatalogFieldCapability,
   CatalogObjectSchema,
   CatalogProposal,
@@ -17,7 +19,6 @@ import type { EditQuota } from '#shared/types/quota'
 const DRAFT_SAVE_DELAY_MS = 800
 const QUOTA_MAX_AGE_MS = 15_000
 
-const schemaRequests = new Map<string, Promise<CatalogObjectSchema>>()
 let quotaRequest: { at: number; promise: Promise<EditQuota | null> } | null =
   null
 
@@ -53,6 +54,7 @@ export const useEntityEditor = (
 
   const schema = ref<CatalogObjectSchema | null>(null)
   const capabilities = ref<CatalogEditCapabilities | null>(null)
+  const bundleContext = shallowRef<CatalogEditContext | null>(null)
   const quota = ref<EditQuota | null>(null)
   const base = ref<EditFieldValues>({})
   const draft = ref<EditFieldValues>({})
@@ -134,38 +136,26 @@ export const useEntityEditor = (
     quota.value = await quotaRequest.promise
   }
 
-  const fetchSchema = () => {
-    let request = schemaRequests.get(config.family)
-    if (!request) {
-      request = api<CatalogObjectSchema>(
-        `/v2/catalog/schemas/${config.family}`
-      ).catch((error) => {
-        schemaRequests.delete(config.family)
-        throw error
-      })
-      schemaRequests.set(config.family, request)
-    }
-    return request
-  }
-
   const load = async () => {
     loading.value = true
     loadError.value = null
     loadStatus.value = 0
     try {
-      const [schemaRes, capRes, snapshot] = await Promise.all([
-        fetchSchema(),
-        api<CatalogEditCapabilities>(
-          `/v2/me/edit-capabilities/${config.family}`,
-          { query: { entity_id: id.value } }
-        ).catch(() => null),
-        fetchSnapshot(),
-        refreshQuota()
-      ])
-      schema.value = schemaRes
-      capabilities.value = capRes
-      await vocabularies.load(vocabularyNamesOf(schemaRes.fields ?? []))
-      base.value = snapshot.field_values ?? {}
+      const bundle = await api<CatalogEditBundle>(
+        `/v2/me/edit-bundle/${config.family}/${id.value}`
+      )
+      schema.value = bundle.schema
+      capabilities.value = bundle.capabilities ?? null
+      bundleContext.value = bundle.context ?? null
+      if (bundle.quota) {
+        const fresh = bundle.quota as EditQuota
+        quotaRequest = { at: Date.now(), promise: Promise.resolve(fresh) }
+        quota.value = fresh
+      } else {
+        await refreshQuota()
+      }
+      await vocabularies.load(vocabularyNamesOf(bundle.schema.fields ?? []))
+      base.value = bundle.snapshot.field_values ?? {}
       draft.value = cloneValue(base.value)
       serverErrors.value = {}
       const stored = persist ? readStorage(storageKey.value) : null
@@ -344,6 +334,7 @@ export const useEntityEditor = (
   return {
     schema,
     capabilities,
+    bundleContext,
     quota,
     base,
     draft,

@@ -34,7 +34,7 @@ export const createEntityWorkspace = (
   let pending: Promise<void> | null = null
 
   const load = () => {
-    pending ??= Promise.all([editor.load(), editContext.load()]).then(() => {
+    pending ??= editor.load().then(() => {
       images.value = { ...editContext.images.value, ...images.value }
       loaded.value = true
     })
