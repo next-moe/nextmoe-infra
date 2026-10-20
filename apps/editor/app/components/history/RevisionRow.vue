@@ -92,10 +92,16 @@ const action = computed(
         <p
           class="text-default-400 mt-1 flex flex-wrap items-center gap-x-1 text-xs"
         >
-          <HistoryUser :uid="props.revision.actor_uid" />
+          <HistoryUser
+            :user="props.revision.actor"
+            :uid="props.revision.actor_uid"
+          />
           <template v-if="props.revision.amender_uid">
             <span>· 修正</span>
-            <HistoryUser :uid="props.revision.amender_uid" />
+            <HistoryUser
+              :user="props.revision.amender"
+              :uid="props.revision.amender_uid"
+            />
           </template>
           <span>· {{ labelOf(SITE_LABELS, props.revision.site) }} ·</span>
           <time

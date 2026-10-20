@@ -26,6 +26,42 @@ export const suppressedKeyParts = (key: string): SuppressedKeyParts => {
       }
       return { label: '', refs }
     }
+    case 'trait':
+      return { label: '', refs: [{ family: 'trait', id: rest[0] ?? '' }] }
+    case 'engine':
+      return { label: '', refs: [{ family: 'engine', id: rest[0] ?? '' }] }
+    case 'label':
+    case 'relation':
+      return {
+        label: '',
+        refs: [
+          {
+            family: 'company',
+            id: (kind === 'label' ? rest[0] : rest[1]) ?? ''
+          }
+        ]
+      }
+    case 'link':
+    case 'series':
+      return { label: `${rest[0] ?? ''}：${rest.slice(1).join(':')}`, refs: [] }
+    case 'cover':
+    case 'screenshot':
+      return {
+        label: `${kind === 'cover' ? '封面' : '截图'} ${(rest[0] ?? '').slice(0, 12)}…`,
+        refs: []
+      }
+    case 'intro':
+      return {
+        label: `${vocabLabel('intro_lang', rest[1] ?? '')}简介（资料源 ${rest[0] ?? ''}）`,
+        refs: []
+      }
+    case 'alias': {
+      const [, lang, ...name] = rest
+      return {
+        label: `${name.join(':')}${lang ? `（${vocabLabel('olang', lang)}）` : ''}`,
+        refs: []
+      }
+    }
     case 'title': {
       const [titleKind, lang, ...text] = rest
       const kindLabel = vocabLabel(

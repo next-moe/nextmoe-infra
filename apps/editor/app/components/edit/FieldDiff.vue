@@ -32,7 +32,7 @@ const isIntros = computed(() => props.fieldKey.endsWith('.intros'))
 
 const listDiff = computed(() =>
   isList.value
-    ? diffList(
+    ? diffFieldList(
         props.fieldKey,
         (before.value as unknown[]) ?? [],
         (after.value as unknown[]) ?? []

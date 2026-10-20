@@ -35,6 +35,8 @@ export type EditControl =
   | 'images'
   | 'regrade'
   | 'roster'
+  | 'date'
+  | 'image'
   | 'readonly'
 
 export interface EditMemberConfig {
@@ -50,7 +52,7 @@ export interface EditFieldConfig {
   ref?: EditRefFamily
   members?: Record<string, EditMemberConfig>
   help?: string
-  imagePreset?: 'cover' | 'screenshot'
+  imagePreset?: 'cover' | 'screenshot' | 'photo'
   upstreamTitle?: string
 }
 
@@ -98,6 +100,8 @@ export interface EditUpstreamRow {
   imageUrl?: string
   thumbhash?: string | null
   ref?: { family: EditRefFamily; id: string }
+  machine?: boolean
+  suppressed?: boolean
 }
 
 export type EditFieldValues = Record<string, unknown>

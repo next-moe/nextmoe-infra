@@ -49,7 +49,10 @@ const state = computed(
     </div>
     <p class="text-default-500 flex flex-wrap items-center gap-x-1 text-sm">
       <span>提案 #{{ props.proposal.id }} ·</span>
-      <HistoryUser :uid="props.proposal.proposer_uid" />
+      <HistoryUser
+        :user="props.proposal.proposer"
+        :uid="props.proposal.proposer_uid"
+      />
       <span
         >· 来自 {{ labelOf(SITE_LABELS, props.proposal.site) }} · 基于第
         {{ props.proposal.base_revision_seq }} 版 ·</span

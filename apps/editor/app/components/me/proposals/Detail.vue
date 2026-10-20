@@ -1,17 +1,10 @@
 <script setup lang="ts">
 import type { CatalogProposal } from '#shared/types/catalog'
-import type { EditEntityConfig } from '#shared/types/edit'
-import type { EditorImage } from '~/composables/useEditorContext'
 import { PROPOSAL_STATE, SITE_LABELS } from '~/constants/catalog'
-import { WORK_EDIT_CONFIG } from '~/constants/editWork'
-
-const EDIT_CONFIGS: Record<string, EditEntityConfig> = {
-  work: WORK_EDIT_CONFIG
-}
+import { ENTITY_META, isEditFamily } from '~/constants/editEntities'
 
 const route = useRoute()
 const api = useEditorApi()
-const refs = useRefNames()
 const names = useEntityNames()
 
 const proposalId = computed(() => String(route.params.id))
@@ -20,17 +13,9 @@ const etag = ref('')
 const loadError = ref('')
 const withdrawing = ref(false)
 
-const entityId = computed(() => String(proposal.value?.entity_id ?? ''))
-const editor = useEntityEditor(WORK_EDIT_CONFIG, entityId, { persist: false })
-
-provideEditorContext({
-  editor,
-  config: WORK_EDIT_CONFIG,
-  entityId,
-  upstreamRows: computed(() => ({})),
-  rosterIdentity: computed(() => ({})),
-  images: ref<Record<string, EditorImage>>({}),
-  refs
+const family = computed(() => {
+  const target = proposal.value?.target_object ?? ''
+  return isEditFamily(target) ? target : null
 })
 
 const state = computed(() =>
@@ -49,9 +34,7 @@ const patch = computed(
     >
 )
 const patchKeys = computed(() => Object.keys(patch.value))
-const editable = computed(() =>
-  Boolean(EDIT_CONFIGS[proposal.value?.target_object ?? ''])
-)
+const editable = computed(() => family.value !== null)
 
 const load = async () => {
   loadError.value = ''
@@ -70,10 +53,6 @@ const load = async () => {
   }
   if (proposal.value) {
     await names.resolve([proposal.value])
-    if (editable.value) {
-      await editor.load()
-      editor.overlay(patch.value)
-    }
   }
 }
 
@@ -153,12 +132,16 @@ await load()
               <template v-if="proposal.decided_at">
                 · 处理于 {{ formatDateTime(proposal.decided_at) }}
               </template>
+              <template v-if="proposal.decided_by">
+                · 处理人
+                <HistoryUser :user="proposal.decided_by" />
+              </template>
             </p>
           </div>
           <div class="flex flex-wrap gap-2">
             <KunButton
               v-if="editable"
-              :href="`/works/${proposal.entity_id}/edit?from_proposal=${proposal.id}`"
+              :href="`${ENTITY_META[family!].path}/${proposal.entity_id}/edit?from_proposal=${proposal.id}`"
               variant="bordered"
               size="sm"
             >
@@ -195,30 +178,14 @@ await load()
 
       <KunCard bordered padding="md">
         <h2 class="mb-3 font-semibold">提议的修改</h2>
-        <KunLoading v-if="editor.loading.value && editable" spinner />
-        <template v-else-if="editable">
-          <div v-if="editor.changedKeys.value.length" class="space-y-2">
-            <p
-              v-if="proposal.state !== 'open'"
-              class="text-default-500 text-xs"
-            >
-              与条目当前内容对比：
-            </p>
-            <EditFieldDiff
-              v-for="key in editor.changedKeys.value"
-              :key="key"
-              :field-key="key"
-            />
-          </div>
-          <p v-else class="text-default-500 text-sm">
-            {{
-              proposal.state === 'merged'
-                ? '这些修改已经生效，条目当前内容已包含它们。'
-                : '提议的内容与条目当前内容一致。'
-            }}
-            涉及字段：{{ patchKeys.map((key) => fieldLabel(key)).join('、') }}
-          </p>
-        </template>
+        <MeProposalsChanges
+          v-if="family"
+          :key="`${family}:${proposal.entity_id}:${proposal.state}`"
+          :family="family"
+          :entity-id="String(proposal.entity_id)"
+          :patch="patch"
+          :state="proposal.state"
+        />
         <ul v-else class="text-default-600 space-y-1 text-sm">
           <li v-for="key in patchKeys" :key="key">{{ fieldLabel(key) }}</li>
         </ul>

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { cn } from '@kungal/ui-core'
-import type { ActivityRevision } from '#shared/types/activity'
+import type { CatalogRevision } from '#shared/types/catalog'
 import { REVISION_ACTION, SITE_LABELS } from '~/constants/catalog'
 
 const props = defineProps<{
-  revision: ActivityRevision
+  revision: CatalogRevision
   name: string
 }>()
 
@@ -19,10 +19,6 @@ const action = computed(
 
 const fields = computed(() =>
   (props.revision.changed_fields ?? []).map(fieldLabel)
-)
-
-const actorName = computed(
-  () => props.revision.actor?.name || `用户 #${props.revision.actor_uid}`
 )
 </script>
 
@@ -55,16 +51,10 @@ const actorName = computed(
         </KunChip>
       </div>
       <p class="text-default-400 mt-1 flex items-center gap-1 text-xs">
-        <KunAvatar
-          v-if="props.revision.actor?.avatar"
-          :user="{
-            id: 0,
-            name: actorName,
-            avatar: props.revision.actor.avatar
-          }"
-          size="xs"
+        <HistoryUser
+          :user="props.revision.actor"
+          :uid="props.revision.actor_uid"
         />
-        <span class="text-default-600">{{ actorName }}</span>
         · {{ labelOf(SITE_LABELS, props.revision.site) }} ·
         <time
           :datetime="props.revision.created_at"

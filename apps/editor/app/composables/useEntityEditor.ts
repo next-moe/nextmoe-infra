@@ -53,6 +53,7 @@ export const useEntityEditor = (
   const draft = ref<EditFieldValues>({})
   const loading = ref(true)
   const loadError = ref<string | null>(null)
+  const loadStatus = ref(0)
   const serverErrors = ref<Record<string, string[]>>({})
   const storedDraft = ref<EditStoredDraft | null>(null)
 
@@ -121,6 +122,7 @@ export const useEntityEditor = (
   const load = async () => {
     loading.value = true
     loadError.value = null
+    loadStatus.value = 0
     try {
       const [schemaRes, capRes, snapshot] = await Promise.all([
         api<CatalogObjectSchema>(`/v2/catalog/schemas/${config.family}`),
@@ -141,7 +143,9 @@ export const useEntityEditor = (
       storedDraft.value =
         stored && Object.keys(stored.values ?? {}).length > 0 ? stored : null
     } catch (error) {
-      loadError.value = editProblemMessage(parseEditProblem(error))
+      const problem = parseEditProblem(error)
+      loadStatus.value = problem.status
+      loadError.value = editProblemMessage(problem)
     } finally {
       loading.value = false
     }
@@ -315,6 +319,7 @@ export const useEntityEditor = (
     draft,
     loading,
     loadError,
+    loadStatus,
     serverErrors,
     storedDraft,
     storedDraftIsStale,

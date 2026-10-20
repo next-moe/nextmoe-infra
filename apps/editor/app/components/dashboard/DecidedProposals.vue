@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { ActivityList, ActivityProposal } from '#shared/types/activity'
+import type { ActivityList } from '#shared/types/activity'
+import type { CatalogProposal } from '#shared/types/catalog'
 import { PROPOSAL_STATE } from '~/constants/catalog'
 
 const SHOWN = 6
@@ -8,11 +9,11 @@ const api = useEditorApi()
 const names = useEntityNames()
 
 const fetchState = (state: 'merged' | 'declined') =>
-  api<ActivityList<ActivityProposal>>('/v2/me/proposals', {
+  api<ActivityList<CatalogProposal>>('/v2/me/proposals', {
     query: { state, limit: SHOWN }
   })
     .then((list) => list.items ?? [])
-    .catch(() => [] as ActivityProposal[])
+    .catch(() => [] as CatalogProposal[])
 
 const { data, pending } = await useAsyncData(
   'dashboard-decided-proposals',

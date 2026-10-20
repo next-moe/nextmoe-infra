@@ -1,9 +1,4 @@
-export const IMAGE_CDN_BASE = 'https://image.kungal.iloveren.link'
-
-export const imageUrl = (hash: unknown) =>
-  typeof hash === 'string' && hash.length >= 4
-    ? `${IMAGE_CDN_BASE}/${hash.slice(0, 2)}/${hash.slice(2, 4)}/${hash}.webp`
-    : ''
+export { imageUrl } from '../imageCdn'
 
 export const MEMBER_LABELS: Record<string, string> = {
   lang: '语言',

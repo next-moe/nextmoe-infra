@@ -1,23 +1,4 @@
-import type { components } from './generated/catalog-v2-api'
-
-export interface ActivityUser {
-  object?: 'user'
-  id: string
-  name: string
-  avatar?: string | null
-}
-
-type ProposalRecord = components['schemas']['ProposalRecord']
-type RevisionRecord = components['schemas']['Revision']
-
-export type ActivityProposal = ProposalRecord & {
-  proposer?: ActivityUser | null
-  decided_by?: ActivityUser | null
-}
-
-export type ActivityRevision = RevisionRecord & {
-  actor?: ActivityUser | null
-}
+import type { CatalogProposal } from './catalog'
 
 export interface ActivityList<T> {
   items?: T[]
@@ -35,7 +16,7 @@ export interface LocalDraft {
 export type ProposalNoticeKind = 'merged' | 'declined' | 'updated'
 
 export interface ProposalNotice {
-  proposal: ActivityProposal
+  proposal: CatalogProposal
   kind: ProposalNoticeKind
   at: string
 }

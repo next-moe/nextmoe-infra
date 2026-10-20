@@ -5,7 +5,10 @@ const COLLECTION_OF: Record<string, string> = {
   release: 'releases',
   tag: 'tags',
   engine: 'engines',
-  series: 'series'
+  series: 'series',
+  person: 'persons',
+  credit_name: 'credit-names',
+  trait: 'traits'
 }
 
 export interface EntityRef {
@@ -37,13 +40,13 @@ export const useEntityNames = () => {
     const found = await Promise.all(
       [...byFamily].map(async ([family, ids]) => {
         const list = await api<{
-          items?: { id: string; display_name?: string }[]
+          items?: { id: string; display_name?: string; title?: string }[]
         }>(`/v2/catalog/${COLLECTION_OF[family]}`, {
           query: { ids: [...ids].slice(0, 100).join(','), nsfw: true }
         }).catch(() => null)
         return (list?.items ?? []).map((item) => [
           `${family}:${item.id}`,
-          item.display_name ?? ''
+          item.display_name ?? item.title ?? ''
         ])
       })
     )

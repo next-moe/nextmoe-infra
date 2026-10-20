@@ -17,7 +17,7 @@ import {
   vocabularyNamesOf
 } from '../shared/utils/editModel'
 import { validateField } from '../shared/utils/editValidate'
-import { diffLines, diffList } from '../shared/utils/editDiff'
+import { diffFieldList, diffLineRows } from '../shared/utils/diff'
 import {
   editProblemFieldErrors,
   editProblemMessage,
@@ -25,7 +25,14 @@ import {
   parseEditProblem
 } from '../shared/utils/editProblem'
 import { resolveEditControl } from '../shared/utils/editControl'
-import { workUpstream } from '../app/utils/workUpstream'
+import {
+  contextImages,
+  contextProvenance,
+  contextRosterIdentity,
+  latestWriter,
+  upstreamRowsOf
+} from '../app/utils/editContextRows'
+import { setImageCdnBase } from '../app/utils/imageCdn'
 import { suppressedKeyParts } from '../app/utils/editSuppression'
 import { moveItem } from '../app/composables/useListReorder'
 
@@ -373,7 +380,7 @@ describe('validation', () => {
 
 describe('diffs', () => {
   it('splits list changes into added, removed and changed rows', () => {
-    const diff = diffList(
+    const diff = diffFieldList(
       'catalog.work.roster',
       [
         { character_id: 1, kind: 1, spoiler: 0 },
@@ -391,20 +398,20 @@ describe('diffs', () => {
   })
 
   it('notices a pure reorder', () => {
-    const diff = diffList('catalog.work.tag_ids', [1, 2, 3], [3, 1, 2])
+    const diff = diffFieldList('catalog.work.tag_ids', [1, 2, 3], [3, 1, 2])
     expect(diff.added).toEqual([])
     expect(diff.removed).toEqual([])
     expect(diff.reordered).toBe(true)
   })
 
   it('diffs text by line', () => {
-    expect(diffLines('a\nb\nc', 'a\nx\nc')).toEqual([
+    expect(diffLineRows('a\nb\nc', 'a\nx\nc')).toEqual([
       { type: 'same', text: 'a' },
       { type: 'del', text: 'b' },
       { type: 'add', text: 'x' },
       { type: 'same', text: 'c' }
     ])
-    expect(diffLines('', 'new')).toEqual([{ type: 'add', text: 'new' }])
+    expect(diffLineRows('', 'new')).toEqual([{ type: 'add', text: 'new' }])
   })
 })
 
@@ -472,89 +479,219 @@ describe('control resolution', () => {
     expect(resolveEditControl(CREDITS)).toBe('objectList')
     expect(resolveEditControl(TAGS)).toBe('refList')
     expect(resolveEditControl(TITLES_SUPPRESSED)).toBe('stringList')
-    expect(resolveEditControl(field({ field_type: 'date' }))).toBe('readonly')
+    expect(resolveEditControl(field({ field_type: 'date' }))).toBe('date')
+    expect(resolveEditControl(field({ field_type: 'imagehash' }))).toBe('image')
   })
 })
 
-describe('upstream rows from the public work face', () => {
-  const work = {
-    tags: [
-      { id: '4', display_name: '萌', source: 'vndb', spoiler: 'none' },
-      { id: '4', display_name: '萌', source: 'bangumi', spoiler: 'none' },
-      { id: '5', display_name: '人工', source: 'curated', spoiler: 'none' },
-      { id: null, display_name: '未映射', source: 'bangumi', spoiler: 'none' }
-    ],
-    covers: [
-      {
-        hash: 'h1',
-        url: 'https://img/h1',
-        source: 'vndb',
-        cover_kind: 'main',
-        sexual: 'safe'
-      },
-      { hash: 'h2', url: 'https://img/h2', source: 'curated' }
-    ],
-    credits: [
-      {
-        role_key: 'voice-actor',
-        role_name: '声优',
-        credits: [
-          {
-            id: '422',
-            display_name: 'X',
-            identity: 'credit:1:422:8086',
-            character_id: '8086'
-          }
-        ]
-      }
-    ],
-    characters: [{ id: '7', identity: 'roster:7' }, { id: '8' }],
-    intros: [
-      {
-        lang: 'ja',
-        source: 'bangumi',
-        is_machine: false,
-        value: 'あ'.repeat(100)
-      },
-      { lang: 'zh-Hans', source: 'curated', is_machine: false, value: '人工' }
-    ]
+describe('upstream rows from the edit-context face', () => {
+  const COVERS = field({
+    key: 'catalog.work.covers',
+    field_type: 'list',
+    diff_hint: 'image',
+    max_elements: 20,
+    element: {
+      type: 'object',
+      members: [
+        {
+          key: 'image_hash',
+          type: 'imagehash',
+          vocabulary: '',
+          base: 0,
+          nullable: false
+        },
+        { key: 'kind', type: 'text', vocabulary: '', base: 0, nullable: true }
+      ]
+    }
+  })
+  const INTROS = field({
+    key: 'catalog.work.intros',
+    field_type: 'list',
+    diff_hint: 'lines',
+    max_elements: 10,
+    element: {
+      type: 'object',
+      members: [
+        { key: 'lang', type: 'enum', vocabulary: '', base: 0, nullable: false },
+        { key: 'intro', type: 'text', vocabulary: '', base: 0, nullable: false }
+      ]
+    }
+  })
+  const row = (over: Record<string, unknown>) =>
+    ({
+      field_provenance: {},
+      human_lane: false,
+      identity: null,
+      machine_translated: false,
+      present: true,
+      source: { key: 'vndb', display: 'VNDB' },
+      suppressed: false,
+      value: null,
+      ...over
+    }) as never
+  const ctx = (key: string, rows: unknown[]) =>
+    ({ key, provenance: [], rows, rows_truncated: false, value: null }) as never
+  const fmt = {
+    memberText: (_: unknown, value: unknown) =>
+      value === null || value === undefined ? '' : `<${value}>`
   }
+  const identity = (key: string) => (r: unknown) => rowIdentity(key, r)
 
-  const result = workUpstream(work as never, new Map([['voice-actor', '1']]))
-
-  it('keeps only upstream tag rows and merges their sources', () => {
-    expect(result.rows['catalog.work.tag_ids']).toHaveLength(1)
-    expect(result.rows['catalog.work.tag_ids']![0]).toMatchObject({
+  it('lists only present upstream rows and keeps their identity', () => {
+    const rows = upstreamRowsOf(
+      TAGS.key,
+      TAGS,
+      ctx(TAGS.key, [
+        row({ identity: 'tag:4', value: { tag_id: 4, name: '萌' } }),
+        row({
+          human_lane: true,
+          source: { key: 'curated', display: '人工' },
+          value: { tag_id: 5 }
+        }),
+        row({ identity: 'tag:6', present: false, suppressed: true }),
+        row({ identity: null, value: { tag_id: null, name: '未映射' } })
+      ]),
+      { label: '标签', group: 'tags', control: 'refList', ref: 'tag' },
+      identity(TAGS.key),
+      fmt
+    )
+    expect(rows).toHaveLength(2)
+    expect(rows[0]).toMatchObject({
       identity: 'tag:4',
       match: '4',
-      source: 'vndb、bangumi'
+      label: '萌',
+      source: 'VNDB',
+      ref: { family: 'tag', id: '4' }
     })
+    expect(rows[1]).toMatchObject({ identity: null, label: '未映射' })
   })
 
-  it('indexes every image url but lists only upstream images', () => {
-    expect(Object.keys(result.images)).toEqual(['h1', 'h2'])
-    expect(result.rows['catalog.work.covers']!.map((r) => r.key)).toEqual([
-      'h1'
-    ])
-  })
-
-  it('carries the published credit identity and a match key in the credits row format', () => {
-    expect(result.rows['catalog.work.credits']![0]).toMatchObject({
+  it('maps object rows onto the human value identity and names the main ref', () => {
+    const [credit] = upstreamRowsOf(
+      CREDITS.key,
+      CREDITS,
+      ctx(CREDITS.key, [
+        row({
+          identity: 'credit:1:422:8086',
+          value: {
+            role_id: 1,
+            credit_name_id: 422,
+            character_id: 8086,
+            note: null
+          }
+        })
+      ]),
+      {
+        label: '制作人员',
+        group: 'credits',
+        members: {
+          role_id: { ref: 'role' },
+          credit_name_id: { ref: 'credit_name' },
+          character_id: { ref: 'character' }
+        }
+      },
+      identity(CREDITS.key),
+      fmt
+    )
+    expect(credit).toMatchObject({
       identity: 'credit:1:422:8086',
       match: '1:422:8086',
+      ref: { family: 'credit_name', id: '422' },
       characterId: '8086'
     })
+    expect(credit!.detail).toBe('<1>')
   })
 
-  it('maps roster identities and skips characters without one', () => {
-    expect(result.rosterIdentity).toEqual({ '7': 'roster:7' })
+  it('builds image rows from the configured CDN and intro rows with full text', () => {
+    setImageCdnBase('https://cdn.example/')
+    const [cover] = upstreamRowsOf(
+      COVERS.key,
+      COVERS,
+      ctx(COVERS.key, [
+        row({
+          identity: 'cover:abcd1234',
+          value: { image_hash: 'abcd1234', kind: 'main' }
+        })
+      ]),
+      { label: '封面', group: 'media' },
+      identity(COVERS.key),
+      fmt
+    )
+    expect(cover).toMatchObject({
+      match: 'abcd1234',
+      imageUrl: 'https://cdn.example/ab/cd/abcd1234.webp'
+    })
+    const [intro] = upstreamRowsOf(
+      INTROS.key,
+      INTROS,
+      ctx(INTROS.key, [
+        row({
+          identity: 'intro:3:ja',
+          machine_translated: true,
+          value: { lang: 'ja', intro: 'あ'.repeat(100) }
+        })
+      ]),
+      { label: '简介', group: 'intros' },
+      identity(INTROS.key),
+      fmt
+    )
+    expect(intro!.text).toHaveLength(100)
+    expect(intro!.detail!.endsWith('…')).toBe(true)
+    expect(intro!.machine).toBe(true)
+    setImageCdnBase(undefined)
   })
 
-  it('lists upstream intros with their full text', () => {
-    const intros = result.rows['catalog.work.intros']!
-    expect(intros).toHaveLength(1)
-    expect(intros[0]!.text).toHaveLength(100)
-    expect(intros[0]!.detail!.endsWith('…')).toBe(true)
+  it('collects roster identities, image hashes and provenance', () => {
+    expect(
+      contextRosterIdentity(
+        ctx('catalog.work.roster', [
+          row({ identity: 'roster:7', value: { character_id: 7 } }),
+          row({ identity: null, value: { character_id: 8 } })
+        ])
+      )
+    ).toEqual({ '7': 'roster:7' })
+
+    const context = {
+      fields: [
+        ctx(COVERS.key, [row({ value: { image_hash: 'ffff0000' } })]),
+        {
+          key: 'catalog.work.olang',
+          provenance: [
+            {
+              column: 'olang',
+              history: [
+                { source: 'curated', human: true, at: '2026-10-02T00:00:00Z' },
+                { source: 'vndb', human: false, at: '2026-01-01T00:00:00Z' }
+              ]
+            }
+          ],
+          rows: null,
+          rows_truncated: false,
+          value: 'ja'
+        }
+      ]
+    } as never
+    expect(
+      Object.keys(
+        contextImages(
+          [
+            COVERS,
+            field({ key: 'catalog.person.photo', field_type: 'imagehash' })
+          ],
+          {
+            [COVERS.key]: [{ image_hash: 'aaaa1111' }],
+            'catalog.person.photo': 'bbbb2222'
+          },
+          context
+        )
+      ).sort()
+    ).toEqual(['aaaa1111', 'bbbb2222', 'ffff0000'])
+    const provenance = contextProvenance(context)
+    expect(Object.keys(provenance)).toEqual(['catalog.work.olang'])
+    expect(latestWriter(provenance['catalog.work.olang'])).toMatchObject({
+      source: 'curated',
+      human: true
+    })
   })
 })
 

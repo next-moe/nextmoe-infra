@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { cn } from '@kungal/ui-core'
-import type { DiffSegment } from '~/utils/review/textDiff'
+import type { DiffSegment } from '#shared/utils/diff'
 
 const props = defineProps<{
   segments: DiffSegment[]

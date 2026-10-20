@@ -1,8 +1,5 @@
-import type {
-  ActivityList,
-  ActivityProposal,
-  ProposalNotice
-} from '#shared/types/activity'
+import type { ActivityList, ProposalNotice } from '#shared/types/activity'
+import type { CatalogProposal } from '#shared/types/catalog'
 
 const POLL_MS = 5 * 60_000
 const WINDOW_LIMIT = 50
@@ -36,7 +33,7 @@ export const useProposalNotices = () => {
         writeSeenAt(seenAt.value)
       }
     }
-    const list = await api<ActivityList<ActivityProposal>>('/v2/me/proposals', {
+    const list = await api<ActivityList<CatalogProposal>>('/v2/me/proposals', {
       query: { limit: WINDOW_LIMIT }
     }).catch(() => null)
     if (list) {

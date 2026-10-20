@@ -50,8 +50,14 @@ const fields = computed(() =>
           {{ field }}
         </KunChip>
       </div>
-      <p class="text-default-400 mt-1 text-xs">
-        用户 #{{ props.revision.actor_uid }} ·
+      <p
+        class="text-default-400 mt-1 flex flex-wrap items-center gap-1 text-xs"
+      >
+        <HistoryUser
+          :user="props.revision.actor"
+          :uid="props.revision.actor_uid"
+        />
+        ·
         {{ labelOf(SITE_LABELS, props.revision.site) }} ·
         <time
           :datetime="props.revision.created_at"

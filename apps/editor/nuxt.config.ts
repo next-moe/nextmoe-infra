@@ -84,7 +84,8 @@ export default defineNuxtConfig({
       oauthAuthorizeBase: 'http://127.0.0.1:9277/api/v1',
       oauthWebBase: 'http://127.0.0.1:9420',
       oauthClientId: 'nextmoe-editor',
-      oauthRedirectUri: 'http://127.0.0.1:9422/auth/callback'
+      oauthRedirectUri: 'http://127.0.0.1:9422/auth/callback',
+      imageCdnBase: 'https://image.kungal.iloveren.link'
     }
   }
 })

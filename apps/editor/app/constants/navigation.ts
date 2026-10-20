@@ -21,15 +21,30 @@ export const EDITOR_NAV: EditorNavGroup[] = [
     label: '条目',
     items: [
       { label: '作品', icon: 'lucide:gamepad-2', to: '/works', ready: true },
-      { label: '发行', icon: 'lucide:package', to: '/releases' },
-      { label: '角色', icon: 'lucide:user-round', to: '/characters' },
-      { label: '人物', icon: 'lucide:contact', to: '/persons' },
-      { label: '署名名', icon: 'lucide:signature', to: '/credit-names' },
-      { label: '厂商', icon: 'lucide:building-2', to: '/companies' },
-      { label: '标签', icon: 'lucide:tags', to: '/tags' },
-      { label: '特质', icon: 'lucide:sparkles', to: '/traits' },
-      { label: '系列', icon: 'lucide:library', to: '/series' },
-      { label: '引擎', icon: 'lucide:cpu', to: '/engines' }
+      { label: '发行', icon: 'lucide:package', to: '/releases', ready: true },
+      {
+        label: '角色',
+        icon: 'lucide:user-round',
+        to: '/characters',
+        ready: true
+      },
+      { label: '人物', icon: 'lucide:contact', to: '/persons', ready: true },
+      {
+        label: '署名名',
+        icon: 'lucide:signature',
+        to: '/credit-names',
+        ready: true
+      },
+      {
+        label: '厂商',
+        icon: 'lucide:building-2',
+        to: '/companies',
+        ready: true
+      },
+      { label: '标签', icon: 'lucide:tags', to: '/tags', ready: true },
+      { label: '特质', icon: 'lucide:sparkles', to: '/traits', ready: true },
+      { label: '系列', icon: 'lucide:library', to: '/series', ready: true },
+      { label: '引擎', icon: 'lucide:cpu', to: '/engines', ready: true }
     ]
   },
   {

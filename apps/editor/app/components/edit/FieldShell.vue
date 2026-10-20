@@ -1,11 +1,29 @@
 <script setup lang="ts">
 import { cn } from '@kungal/ui-core'
+import { WRITER_LABELS } from '~/constants/editEntities'
 
 const props = defineProps<{ fieldKey: string }>()
 
 const { context, field, config, capability, issues, companionKey } =
   useEditorField(() => props.fieldKey)
 const editor = context.editor
+
+const provenance = computed(
+  () => context.provenance?.value[props.fieldKey] ?? []
+)
+const writerLabel = (source: string) => WRITER_LABELS[source] ?? source
+const writer = computed(() => latestWriter(provenance.value))
+const writerHistory = computed(() =>
+  provenance.value
+    .flatMap((column) =>
+      (column.history ?? []).map(
+        (entry) =>
+          `${provenance.value.length > 1 ? `${column.column}：` : ''}${writerLabel(entry.source)}${entry.at ? ` ${formatDateTime(entry.at)}` : ''}`
+      )
+    )
+    .slice(0, 8)
+    .join('\n')
+)
 
 const label = computed(() => config.value?.label ?? fieldLabel(props.fieldKey))
 const changed = computed(
@@ -62,11 +80,34 @@ const issueText = (issue: { index?: number; message: string }) =>
           <KunChip v-if="changed" size="xs" variant="flat" color="primary">
             已修改
           </KunChip>
-          <KunTooltip :text="field?.key ?? props.fieldKey" position="top">
+          <KunTooltip
+            v-if="!context.readonly"
+            :text="field?.key ?? props.fieldKey"
+            position="top"
+          >
             <KunChip size="xs" variant="light" :color="state.color">
               <span class="inline-flex items-center gap-1">
                 <KunIcon :name="state.icon" class="size-3" />
                 {{ state.label }}
+              </span>
+            </KunChip>
+          </KunTooltip>
+          <KunTooltip v-if="writer" :text="writerHistory" position="top">
+            <KunChip
+              size="xs"
+              variant="light"
+              :color="writer.human ? 'secondary' : 'default'"
+            >
+              <span class="inline-flex items-center gap-1">
+                <KunIcon
+                  :name="writer.human ? 'lucide:user-pen' : 'lucide:database'"
+                  class="size-3"
+                />
+                {{
+                  writer.human
+                    ? '人工维护'
+                    : `来自 ${writerLabel(writer.source)}`
+                }}
               </span>
             </KunChip>
           </KunTooltip>

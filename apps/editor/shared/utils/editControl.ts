@@ -17,6 +17,10 @@ export const resolveEditControl = (
       return 'int'
     case 'ref':
       return 'ref'
+    case 'date':
+      return 'date'
+    case 'imagehash':
+      return 'image'
     case 'list':
       if (field.element?.type === 'object') {
         return 'objectList'

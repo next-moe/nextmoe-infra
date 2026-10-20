@@ -3,8 +3,8 @@ import type { KunSelectOption } from '@kungal/ui-vue'
 import type { CatalogSchemaField } from '#shared/types/catalog'
 import type { DiffContext } from '~/utils/review/context'
 import { vocabularyLabel } from '~/utils/review/describe'
-import { cloneValue } from '~/utils/review/equal'
-import { asList } from '~/utils/review/listDiff'
+import { cloneValue } from '#shared/utils/editModel'
+import { asList } from '#shared/utils/diff'
 
 const props = defineProps<{
   field: CatalogSchemaField

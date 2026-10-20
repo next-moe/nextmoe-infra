@@ -1,4 +1,5 @@
-import type { ActivityProposal, ProposalNotice } from '#shared/types/activity'
+import type { ProposalNotice } from '#shared/types/activity'
+import type { CatalogProposal } from '#shared/types/catalog'
 
 export const NOTICE_SEEN_KEY = 'nextmoe-editor:notices:seen-at'
 
@@ -15,7 +16,7 @@ const isAfter = (iso: string | null | undefined, seen: number) => {
 }
 
 export const proposalNotices = (
-  proposals: ActivityProposal[],
+  proposals: CatalogProposal[],
   seenAt: string | null
 ): ProposalNotice[] => {
   const seen = seenAt ? timeOf(seenAt) : Number.NEGATIVE_INFINITY

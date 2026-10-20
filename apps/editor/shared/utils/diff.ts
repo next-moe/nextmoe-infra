@@ -1,4 +1,129 @@
-import { canonicalJson, valuesEqual } from './equal'
+import { rowIdentity, sameValue } from './editModel'
+
+const canonicalize = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    return value.map(canonicalize)
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.keys(value as Record<string, unknown>)
+        .sort()
+        .map((key) => [
+          key,
+          canonicalize((value as Record<string, unknown>)[key])
+        ])
+    )
+  }
+  return value === undefined ? null : value
+}
+
+export const canonicalJson = (value: unknown) =>
+  JSON.stringify(canonicalize(value))
+
+export const valuesEqual = (a: unknown, b: unknown) =>
+  canonicalJson(a) === canonicalJson(b)
+
+export type DiffOp = 'same' | 'add' | 'del'
+
+export interface DiffSegment {
+  op: DiffOp
+  text: string
+}
+
+const MAX_CELLS = 250_000
+
+const TOKEN = /[A-Za-z0-9_]+|\s+|[\s\S]/gu
+
+export const tokenize = (text: string) => text.match(TOKEN) ?? []
+
+const splitLines = (text: string) => text.match(/[^\n]*\n|[^\n]+/g) ?? []
+
+const push = (out: DiffSegment[], op: DiffOp, text: string) => {
+  if (!text) {
+    return
+  }
+  const last = out.at(-1)
+  if (last && last.op === op) {
+    last.text += text
+  } else {
+    out.push({ op, text })
+  }
+}
+
+const lcsDiff = (a: string[], b: string[], out: DiffSegment[]) => {
+  const n = a.length
+  const m = b.length
+  if (n * m > MAX_CELLS) {
+    push(out, 'del', a.join(''))
+    push(out, 'add', b.join(''))
+    return
+  }
+  const width = m + 1
+  const table = new Uint32Array((n + 1) * width)
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      table[i * width + j] =
+        a[i] === b[j]
+          ? table[(i + 1) * width + j + 1]! + 1
+          : Math.max(table[(i + 1) * width + j]!, table[i * width + j + 1]!)
+    }
+  }
+  let i = 0
+  let j = 0
+  while (i < n && j < m) {
+    if (a[i] === b[j]) {
+      push(out, 'same', a[i]!)
+      i++
+      j++
+    } else if (table[(i + 1) * width + j]! >= table[i * width + j + 1]!) {
+      push(out, 'del', a[i]!)
+      i++
+    } else {
+      push(out, 'add', b[j]!)
+      j++
+    }
+  }
+  while (i < n) {
+    push(out, 'del', a[i++]!)
+  }
+  while (j < m) {
+    push(out, 'add', b[j++]!)
+  }
+}
+
+const diffTokens = (a: string[], b: string[]) => {
+  const out: DiffSegment[] = []
+  let start = 0
+  while (start < a.length && start < b.length && a[start] === b[start]) {
+    start++
+  }
+  let endA = a.length
+  let endB = b.length
+  while (endA > start && endB > start && a[endA - 1] === b[endB - 1]) {
+    endA--
+    endB--
+  }
+  push(out, 'same', a.slice(0, start).join(''))
+  lcsDiff(a.slice(start, endA), b.slice(start, endB), out)
+  push(out, 'same', a.slice(endA).join(''))
+  return out
+}
+
+export const diffText = (before: string, after: string) =>
+  diffTokens(tokenize(before), tokenize(after))
+
+export const diffLines = (before: string, after: string) =>
+  diffTokens(splitLines(before), splitLines(after))
+
+const PROSE_TOKEN_LIMIT = 6000
+
+export const diffProse = (before: string, after: string) =>
+  before.length + after.length > PROSE_TOKEN_LIMIT
+    ? diffLines(before, after)
+    : diffText(before, after)
+
+export const hasChanges = (segments: DiffSegment[]) =>
+  segments.some((segment) => segment.op !== 'same')
 
 export type ListEntryStatus = 'kept' | 'moved' | 'changed' | 'added' | 'removed'
 
@@ -105,7 +230,7 @@ const longestIncreasing = (values: number[]) => {
   return keep
 }
 
-export const diffList = (
+export const alignList = (
   before: readonly unknown[],
   after: readonly unknown[],
   keyMembers: string[] = []
@@ -197,3 +322,69 @@ export const summarizeList = (entries: ListEntry[]): ListDiffSummary =>
 
 export const asList = (value: unknown): unknown[] =>
   Array.isArray(value) ? value : value == null ? [] : [value]
+
+export interface EditListDiff<T = unknown> {
+  added: T[]
+  removed: T[]
+  changed: { before: T; after: T }[]
+  unchanged: number
+  reordered: boolean
+}
+
+export const diffFieldList = <T>(
+  fieldKey: string,
+  before: T[] | null | undefined,
+  after: T[] | null | undefined
+): EditListDiff<T> => {
+  const prev = before ?? []
+  const next = after ?? []
+  const prevById = new Map(prev.map((row) => [rowIdentity(fieldKey, row), row]))
+  const nextById = new Map(next.map((row) => [rowIdentity(fieldKey, row), row]))
+
+  const diff: EditListDiff<T> = {
+    added: [],
+    removed: [],
+    changed: [],
+    unchanged: 0,
+    reordered: false
+  }
+  for (const [id, row] of nextById) {
+    const old = prevById.get(id)
+    if (old === undefined) {
+      diff.added.push(row)
+    } else if (sameValue(old, row)) {
+      diff.unchanged++
+    } else {
+      diff.changed.push({ before: old, after: row })
+    }
+  }
+  for (const [id, row] of prevById) {
+    if (!nextById.has(id)) {
+      diff.removed.push(row)
+    }
+  }
+  const keptPrev = prev
+    .map((row) => rowIdentity(fieldKey, row))
+    .filter((id) => nextById.has(id))
+  const keptNext = next
+    .map((row) => rowIdentity(fieldKey, row))
+    .filter((id) => prevById.has(id))
+  diff.reordered = keptPrev.join('\u0000') !== keptNext.join('\u0000')
+  return diff
+}
+
+export interface EditTextDiffLine {
+  type: 'same' | 'add' | 'del'
+  text: string
+}
+
+export const diffLineRows = (
+  before: string,
+  after: string
+): EditTextDiffLine[] =>
+  diffLines(before, after).flatMap((segment) =>
+    segment.text
+      .replace(/\n$/, '')
+      .split('\n')
+      .map((text) => ({ type: segment.op, text }))
+  )
