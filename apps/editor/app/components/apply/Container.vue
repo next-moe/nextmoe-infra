@@ -3,16 +3,18 @@ import { QUOTA_TIER_LABELS } from '~/constants/quota'
 
 useHead({ title: '申请成为编辑者 · 未萌编辑台' })
 
-const { data: quota } = await useEditQuota()
+const { data: quota, pending: quotaPending } = useEditQuota()
 const { application, loaded, loadError, load } = useEditorApplication()
 
 onMounted(load)
 
 const tier = computed(() => quota.value?.quota_tier ?? 'user')
 const alreadyEditing = computed(() => tier.value !== 'user')
+const quotaSettled = computed(() => Boolean(quota.value) || !quotaPending.value)
 const showForm = computed(
   () =>
     loaded.value &&
+    quotaSettled.value &&
     !alreadyEditing.value &&
     !loadError.value &&
     application.value?.status !== 'pending' &&
@@ -97,7 +99,15 @@ const showForm = computed(
       description="无需再申请。修改时留意每日免审额度即可。"
     />
 
-    <KunLoading v-else-if="!loaded" spinner />
+    <div
+      v-else-if="!loaded || !quotaSettled"
+      class="border-default-200 bg-content1 space-y-3 rounded-xl border p-4"
+      aria-busy="true"
+    >
+      <KunSkeleton variant="text" class-name="font-semibold" width="8rem" />
+      <KunSkeleton height="6rem" rounded="lg" />
+      <KunSkeleton height="2.5rem" width="8rem" rounded="lg" />
+    </div>
 
     <KunInfo
       v-else-if="loadError"

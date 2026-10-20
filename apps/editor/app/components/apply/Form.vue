@@ -48,7 +48,7 @@ const onSubmit = async () => {
         v-model="reason"
         label="申请理由"
         placeholder="介绍一下你常编辑哪些条目、熟悉哪些资料来源、过去的贡献（可附上提案编号或其他站点的链接）"
-        max-height="16rem"
+        max-height="256px"
         :description="`${length} / ${APPLICATION_REASON_MAX}`"
         :error="lengthError || serverError"
       />

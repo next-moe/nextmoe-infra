@@ -15,12 +15,18 @@ const { editor } = workspace
 
 const patchKeys = computed(() => Object.keys(props.patch))
 
-await workspace.load()
-editor.overlay(props.patch)
+workspace.load().then(() => editor.overlay(props.patch))
 </script>
 
 <template>
-  <KunLoading v-if="editor.loading.value" spinner />
+  <div v-if="editor.loading.value" class="space-y-2" aria-busy="true">
+    <KunSkeleton
+      v-for="index in Math.min(Math.max(patchKeys.length, 1), 4)"
+      :key="index"
+      height="4.5rem"
+      rounded="lg"
+    />
+  </div>
   <div v-else-if="editor.changedKeys.value.length" class="space-y-2">
     <p v-if="props.state !== 'open'" class="text-default-500 text-xs">
       与条目当前内容对比：

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { CatalogSchemaMember, EditMemberConfig } from '#shared/types/edit'
+import { INLINE_FIELD_CLASS } from '~/utils/inlineField'
 
 const props = withDefaults(
   defineProps<{
@@ -8,8 +9,9 @@ const props = withDefaults(
     modelValue: unknown
     disabled?: boolean
     invalid?: boolean
+    inline?: boolean
   }>(),
-  { config: undefined, disabled: false, invalid: false }
+  { config: undefined, disabled: false, invalid: false, inline: false }
 )
 
 const emit = defineEmits<{ 'update:modelValue': [value: unknown] }>()
@@ -60,6 +62,7 @@ const boolValue = computed({
     :disabled="props.disabled"
     :aria-label="label"
     :placeholder="props.config.placeholder"
+    :inline="props.inline"
   />
   <EditVocabSelect
     v-else-if="vocabSlot"
@@ -68,6 +71,7 @@ const boolValue = computed({
     :nullable="props.member.nullable"
     :disabled="props.disabled"
     :aria-label="label"
+    :inline="props.inline"
     @update:model-value="emit('update:modelValue', $event)"
   />
   <KunSwitch
@@ -99,6 +103,7 @@ const boolValue = computed({
     :aria-label="label"
     :placeholder="props.config?.placeholder"
     :is-invalid="props.invalid"
+    :class-name="props.inline && !props.invalid ? INLINE_FIELD_CLASS : ''"
     size="sm"
   />
 </template>

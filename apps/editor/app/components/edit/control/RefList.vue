@@ -1,47 +1,71 @@
 <script setup lang="ts">
-import { cn } from '@kungal/ui-core'
+import type { MergedRow } from '~/utils/mergedRows'
 
 const props = defineProps<{ fieldKey: string }>()
 
-const { context, value, baseValue, disabled, config, field } = useEditorField(
-  () => props.fieldKey
-)
+const list = useMergedRows(() => props.fieldKey)
+const { context, config, field, disabled, rows, summary } = list
 const refs = context.refs
 
 const family = computed(() => config.value?.ref)
-const ids = computed<string[]>(() =>
-  Array.isArray(value.value) ? value.value.map(String) : []
-)
-const baseIds = computed(
-  () =>
-    new Set(Array.isArray(baseValue.value) ? baseValue.value.map(String) : [])
-)
+const ids = computed(() => list.draftList.value.map(String))
 const cap = computed(() => field.value?.max_elements ?? 0)
 
-const update = (next: string[]) => {
-  value.value = next.map(Number)
+const showHidden = ref(false)
+const visibleRows = computed(() =>
+  rows.value.filter((row) => showHidden.value || row.status !== 'hidden')
+)
+const hiddenCount = computed(
+  () => rows.value.filter((row) => row.status === 'hidden').length
+)
+const excluded = computed(() => [
+  ...ids.value,
+  ...rows.value
+    .filter((row) => row.lane === 'upstream' && row.upstream?.match)
+    .map((row) => row.upstream!.match!)
+])
+
+const labelOf = (row: MergedRow) => {
+  if (row.lane === 'ghost') {
+    return list.ghostLabel(row)
+  }
+  if (!family.value) {
+    return ''
+  }
+  const id = row.lane === 'human' ? String(row.value) : row.upstream?.match
+  return (
+    (id ? refs.nameOf(family.value, id) : '') ||
+    row.upstream?.label ||
+    (id ? `#${id}` : '')
+  )
 }
 
-const reorder = useListReorder(() => ids.value, update)
+const reorder = useListReorder(
+  () => list.draftList.value,
+  (next) => list.setDraft(next)
+)
 
 const pickerKey = ref(0)
 const add = (id: string | null) => {
   if (!id || ids.value.includes(id)) {
     return
   }
-  update([...ids.value, id])
+  const hiddenMatch = rows.value.find(
+    (row) => row.lane === 'upstream' && row.upstream?.match === id
+  )
+  if (hiddenMatch && hiddenMatch.status !== 'kept') {
+    list.restore(hiddenMatch)
+  } else {
+    list.append(Number(id))
+  }
   pickerKey.value++
-}
-
-const remove = (index: number) => {
-  update(ids.value.filter((_, i) => i !== index))
 }
 
 watch(
   ids,
-  (list) => {
+  (next) => {
     if (family.value) {
-      refs.resolve(family.value, list)
+      refs.resolve(family.value, next)
     }
   },
   { immediate: true }
@@ -49,59 +73,64 @@ watch(
 </script>
 
 <template>
-  <div v-if="family">
-    <ul v-if="ids.length" class="flex flex-wrap gap-2">
+  <div v-if="family" class="space-y-3">
+    <ul v-if="visibleRows.length" class="flex flex-wrap gap-2">
       <li
-        v-for="(id, index) in ids"
-        :key="id"
-        v-bind="disabled ? {} : reorder.dropAttrs(index)"
-        :class="
-          cn(
-            'border-default-200 bg-default-50 flex items-center gap-1.5 rounded-lg border py-1 pr-1 pl-1 text-sm',
-            !baseIds.has(id) && 'border-success-300 bg-success-50',
-            reorder.overIndex.value === index && 'ring-primary-300 ring-2'
-          )
+        v-for="row in visibleRows"
+        :key="row.key"
+        class="max-w-full"
+        v-bind="
+          row.lane === 'human' && row.status !== 'removed' && !disabled
+            ? reorder.dropAttrs(row.index)
+            : {}
         "
       >
-        <EditDragHandle
-          v-if="!disabled"
-          v-bind="reorder.handleAttrs(index)"
-          @keydown="reorder.onKeydown($event, index)"
-        />
-        <span>{{ refs.nameOf(family, id) || `#${id}` }}</span>
-        <span class="text-default-400 font-mono text-xs">#{{ id }}</span>
-        <button
-          v-if="!disabled"
-          type="button"
-          class="text-default-400 hover:text-danger-600 rounded p-0.5"
-          :aria-label="`移除 ${refs.nameOf(family, id) || id}`"
-          @click="remove(index)"
+        <EditListChip
+          :row="row"
+          :label="labelOf(row)"
+          :source="sourceLabelOf(row)"
+          :can-hide="list.canHide(row)"
+          :can-remove="!disabled"
+          @remove="list.removeAt(row.index)"
+          @hide="list.hide(row)"
+          @restore="list.restore(row)"
         >
-          <KunIcon name="lucide:x" class="size-3.5" />
-        </button>
+          <template
+            v-if="row.lane === 'human' && row.status !== 'removed' && !disabled"
+            #lead
+          >
+            <span
+              v-bind="reorder.handleAttrs(row.index)"
+              class="text-default-300 hover:text-default-500 -ml-1 cursor-grab"
+              aria-hidden="true"
+            >
+              <KunIcon name="lucide:grip-vertical" class="size-3.5" />
+            </span>
+          </template>
+        </EditListChip>
       </li>
     </ul>
-    <p v-else class="text-default-400 text-sm">还没有人工添加的条目。</p>
+    <p v-else class="text-default-400 text-sm">还没有任何条目。</p>
 
-    <div v-if="!disabled" class="mt-3 flex items-center gap-2">
+    <EditListHiddenToggle v-model="showHidden" :count="hiddenCount" />
+
+    <div v-if="!disabled" class="flex flex-wrap items-center gap-2">
       <EditRefPicker
         :key="pickerKey"
         :family="family"
-        :exclude="ids"
+        :exclude="excluded"
         :disabled="cap > 0 && ids.length >= cap"
+        :placeholder="`添加${config?.label ?? ''}：搜索名称或输入 ID`"
         class="w-full max-w-md"
         @update:model-value="add"
       />
-      <span v-if="cap" class="text-default-400 shrink-0 text-xs tabular-nums">
-        {{ ids.length }} / {{ cap }}
+      <span class="text-default-400 text-xs tabular-nums">
+        {{ summary.visible }} 项
+        <template v-if="summary.upstream">
+          · {{ summary.upstream }} 项来自资料源
+        </template>
       </span>
     </div>
-    <p v-if="ids.length > 1 && !disabled" class="text-default-400 mt-1 text-xs">
-      拖动或按 Alt + ↑/↓ 调整顺序。
-    </p>
-
-    <EditUpstream :field-key="props.fieldKey" :exclude="ids" />
-    <EditSuppressedList :field-key="props.fieldKey" />
   </div>
   <EditControlReadonly v-else :field-key="props.fieldKey" />
 </template>

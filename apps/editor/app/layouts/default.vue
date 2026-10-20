@@ -3,7 +3,7 @@ import { cn } from '@kungal/ui-core'
 
 const SIDEBAR_KEY = 'nextmoe-editor-sidebar-collapsed'
 
-const { load } = useEditorSession()
+const { load, status } = useEditorSession()
 const { capture } = useReturnLink()
 const route = useRoute()
 
@@ -35,7 +35,7 @@ watch(
 )
 
 capture()
-await callOnce('editor-session', load)
+callOnce('editor-session', load)
 </script>
 
 <template>
@@ -68,6 +68,15 @@ await callOnce('editor-session', load)
       </aside>
 
       <main class="min-w-0 flex-1 px-4 py-5 md:px-8 md:py-6">
+        <KunInfo
+          v-if="status === 'error'"
+          color="danger"
+          variant="flat"
+          icon="lucide:circle-x"
+          title="无法读取登录状态"
+          description="部分功能暂时不可用，请刷新页面重试。"
+          class-name="mx-auto mb-5 max-w-6xl"
+        />
         <slot />
       </main>
     </div>

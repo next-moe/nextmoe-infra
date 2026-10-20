@@ -620,6 +620,17 @@ export const mcpTools = [
     ]
   },
   {
+    "name": "listCatalogNames",
+    "method": "GET",
+    "path": "/v2/catalog/names",
+    "summary": "Display names across families",
+    "needs_key": false,
+    "params": [
+      "keys",
+      "nsfw"
+    ]
+  },
+  {
     "name": "listCatalogPersons",
     "method": "GET",
     "path": "/v2/catalog/persons",

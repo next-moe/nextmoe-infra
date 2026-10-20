@@ -1,5 +1,7 @@
 import type {
+  CatalogEditBundle,
   CatalogEditCapabilities,
+  CatalogEditContext,
   CatalogFieldCapability,
   CatalogObjectSchema,
   CatalogProposal,
@@ -15,6 +17,10 @@ import type {
 import type { EditQuota } from '#shared/types/quota'
 
 const DRAFT_SAVE_DELAY_MS = 800
+const QUOTA_MAX_AGE_MS = 15_000
+
+let quotaRequest: { at: number; promise: Promise<EditQuota | null> } | null =
+  null
 
 const readStorage = (key: string): EditStoredDraft | null => {
   try {
@@ -48,6 +54,7 @@ export const useEntityEditor = (
 
   const schema = ref<CatalogObjectSchema | null>(null)
   const capabilities = ref<CatalogEditCapabilities | null>(null)
+  const bundleContext = shallowRef<CatalogEditContext | null>(null)
   const quota = ref<EditQuota | null>(null)
   const base = ref<EditFieldValues>({})
   const draft = ref<EditFieldValues>({})
@@ -115,8 +122,18 @@ export const useEntityEditor = (
       `/v2/moderation/snapshots/${config.family}/${id.value}`
     )
 
-  const refreshQuota = async () => {
-    quota.value = await api<EditQuota>('/v2/me/edit-quota').catch(() => null)
+  const refreshQuota = async (force = false) => {
+    if (
+      force ||
+      !quotaRequest ||
+      Date.now() - quotaRequest.at > QUOTA_MAX_AGE_MS
+    ) {
+      quotaRequest = {
+        at: Date.now(),
+        promise: api<EditQuota>('/v2/me/edit-quota').catch(() => null)
+      }
+    }
+    quota.value = await quotaRequest.promise
   }
 
   const load = async () => {
@@ -124,19 +141,21 @@ export const useEntityEditor = (
     loadError.value = null
     loadStatus.value = 0
     try {
-      const [schemaRes, capRes, snapshot] = await Promise.all([
-        api<CatalogObjectSchema>(`/v2/catalog/schemas/${config.family}`),
-        api<CatalogEditCapabilities>(
-          `/v2/me/edit-capabilities/${config.family}`,
-          { query: { entity_id: id.value } }
-        ).catch(() => null),
-        fetchSnapshot(),
-        refreshQuota()
-      ])
-      schema.value = schemaRes
-      capabilities.value = capRes
-      await vocabularies.load(vocabularyNamesOf(schemaRes.fields ?? []))
-      base.value = snapshot.field_values ?? {}
+      const bundle = await api<CatalogEditBundle>(
+        `/v2/me/edit-bundle/${config.family}/${id.value}`
+      )
+      schema.value = bundle.schema
+      capabilities.value = bundle.capabilities ?? null
+      bundleContext.value = bundle.context ?? null
+      if (bundle.quota) {
+        const fresh = bundle.quota as EditQuota
+        quotaRequest = { at: Date.now(), promise: Promise.resolve(fresh) }
+        quota.value = fresh
+      } else {
+        await refreshQuota()
+      }
+      await vocabularies.load(vocabularyNamesOf(bundle.schema.fields ?? []))
+      base.value = bundle.snapshot.field_values ?? {}
       draft.value = cloneValue(base.value)
       serverErrors.value = {}
       const stored = persist ? readStorage(storageKey.value) : null
@@ -294,6 +313,7 @@ export const useEntityEditor = (
         headers: { 'Idempotency-Key': idempotencyKey }
       })
       idempotencyKey = null
+      quotaRequest = null
       writeStorage(storageKey.value, null)
       serverErrors.value = {}
       return { ok: true as const, proposal }
@@ -314,6 +334,7 @@ export const useEntityEditor = (
   return {
     schema,
     capabilities,
+    bundleContext,
     quota,
     base,
     draft,

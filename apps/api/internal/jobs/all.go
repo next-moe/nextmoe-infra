@@ -68,6 +68,12 @@ func RegisterAll(r *Registry) {
 	})
 
 	r.Register(Job{
+		Name: JobCatalogEditRewards,
+		Desc: "编辑奖励（他人合并的编辑提案按 catalog.edit_merge_reward 给提案人发萌萌点，按提案幂等）",
+		Run:  RunCatalogEditRewards,
+	})
+
+	r.Register(Job{
 		Name: JobCatalogMergeStragglers,
 		Desc: "catalog 合并残留回收（仍指向已合并旧 id 的行，按合并本身的迁移逻辑重放一遍）",
 		Run:  RunCatalogMergeStragglers,

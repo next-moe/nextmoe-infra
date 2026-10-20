@@ -46,8 +46,6 @@ export interface RefOption {
   hint?: string
 }
 
-const IDS_PER_REQUEST = 100
-
 interface RoleList {
   items?: {
     id: string
@@ -58,9 +56,16 @@ interface RoleList {
   next_cursor?: string | null
 }
 
+const ROLES_CACHE_KEY = 'nextmoe-editor:roles:v1'
+const ROLES_CACHE_MAX_AGE_MS = 6 * 60 * 60 * 1000
+
+let rolesRequest: Promise<RoleList['items']> | null = null
+
 export const useRefNames = () => {
   const api = useEditorApi()
+  const batcher = useRefNameBatcher()
   const names = useState<Record<string, string>>('edit-ref-names', () => ({}))
+  const hints = useState<Record<string, string>>('edit-ref-hints', () => ({}))
   const roles = useState<RefOption[] | null>('edit-ref-roles', () => null)
   const roleIdByKey = useState<Record<string, string>>(
     'edit-ref-role-keys',
@@ -76,32 +81,52 @@ export const useRefNames = () => {
     }
   }
 
-  const loadRoles = async () => {
-    if (roles.value) {
-      return roles.value
+  const fetchRoles = async () => {
+    const cached = readLocalCache<RoleList['items']>(
+      ROLES_CACHE_KEY,
+      ROLES_CACHE_MAX_AGE_MS
+    )
+    if (cached?.length) {
+      return cached
     }
-    const all: RefOption[] = []
-    const keys: Record<string, string> = {}
+    const items: NonNullable<RoleList['items']> = []
     let cursor: string | null = null
     for (let page = 0; page < 10; page++) {
       const list: RoleList | null = await api<RoleList>('/v2/catalog/roles', {
         query: { limit: 100, ...(cursor ? { cursor } : {}) }
       }).catch(() => null)
-      for (const role of list?.items ?? []) {
-        keys[role.key] = role.id
-        all.push({
-          value: role.id,
-          label: role.display_name,
-          hint: role.deprecated ? '已停用' : undefined
-        })
-      }
+      items.push(...(list?.items ?? []))
       cursor = list?.next_cursor ?? null
       if (!cursor) {
         break
       }
     }
+    if (items.length) {
+      writeLocalCache(ROLES_CACHE_KEY, items)
+    }
+    return items
+  }
+
+  const loadRoles = async () => {
+    if (roles.value) {
+      return roles.value
+    }
+    rolesRequest ??= fetchRoles().finally(() => {
+      rolesRequest = null
+    })
+    const items = (await rolesRequest) ?? []
+    if (roles.value) {
+      return roles.value
+    }
+    const all: RefOption[] = items.map((role) => ({
+      value: role.id,
+      label: role.display_name,
+      hint: role.deprecated ? '已停用' : undefined
+    }))
     roles.value = all
-    roleIdByKey.value = keys
+    roleIdByKey.value = Object.fromEntries(
+      items.map((role) => [role.key, role.id])
+    )
     names.value = {
       ...names.value,
       ...Object.fromEntries(all.map((r) => [keyOf('role', r.value), r.label]))
@@ -114,29 +139,40 @@ export const useRefNames = () => {
       await loadRoles()
       return
     }
-    const missing = [
+    const keys = [
       ...new Set(
         ids
           .map(String)
           .filter((id) => /^\d+$/.test(id) && !names.value[keyOf(family, id)])
+          .map((id) => keyOf(family, id))
       )
     ]
-    for (let i = 0; i < missing.length; i += IDS_PER_REQUEST) {
-      const chunk = missing.slice(i, i + IDS_PER_REQUEST)
-      const list = await api<{
-        items?: { id: string; display_name?: string; title?: string }[]
-      }>(`/v2/catalog/${REF_COLLECTION[family]}`, {
-        query: { ids: chunk.join(','), nsfw: true, limit: chunk.length }
-      }).catch(() => null)
-      const found = Object.fromEntries(
-        (list?.items ?? []).map((item) => [
-          keyOf(family, item.id),
-          item.display_name ?? item.title ?? ''
-        ])
-      )
-      names.value = { ...names.value, ...found }
+    if (!keys.length) {
+      return
+    }
+    const found = await batcher.request(keys)
+    const labels: Record<string, string> = {}
+    const extra: Record<string, string> = {}
+    for (const [key, item] of found) {
+      if (!item) {
+        continue
+      }
+      labels[key] = preferredRefLabel(item)
+      const secondary = secondaryRefLabel(item)
+      if (secondary) {
+        extra[key] = secondary
+      }
+    }
+    names.value = { ...names.value, ...labels }
+    if (Object.keys(extra).length) {
+      hints.value = { ...hints.value, ...extra }
     }
   }
+
+  const hintOf = (family: EditRefFamily | undefined, id: unknown) =>
+    family && id !== null && id !== undefined && id !== ''
+      ? (hints.value[keyOf(family, String(id))] ?? '')
+      : ''
 
   const nameOf = (family: EditRefFamily | undefined, id: unknown) => {
     if (id === null || id === undefined || id === '') {
@@ -196,14 +232,29 @@ export const useRefNames = () => {
       query: { q, object: family, limit: 12, nsfw: true }
     }).catch(() => null)
     return (list?.items ?? []).map((hit) => {
-      remember(family, hit.id, hit.display_name)
+      const zh = ZH_FIRST_FAMILIES.has(family)
+        ? zhFromLocalized(hit.localized)
+        : ''
+      const label = zh || hit.display_name
+      remember(family, hit.id, label)
       return {
         value: hit.id,
-        label: hit.display_name,
-        hint: [hit.latin, `#${hit.id}`].filter(Boolean).join(' · ')
+        label,
+        hint: [zh ? hit.display_name : hit.latin, `#${hit.id}`]
+          .filter(Boolean)
+          .join(' · ')
       }
     })
   }
 
-  return { names, roleIdByKey, nameOf, resolve, search, remember, loadRoles }
+  return {
+    names,
+    roleIdByKey,
+    nameOf,
+    hintOf,
+    resolve,
+    search,
+    remember,
+    loadRoles
+  }
 }

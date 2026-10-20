@@ -105,23 +105,25 @@ func linkRows(entityType int16) contextRowSource {
 // per-row field_provenance is where a regrade's stamp lands.
 func coverRows() contextRowSource {
 	return contextRowSource{
-		from: "catalog_work_cover c", owner: "c.work_id", sourceID: "c.source_id",
+		from:  "catalog_work_cover c " + editspec.WorkMediaOrderJoinSQL("c", catmodel.WorkMediaOrderCover),
+		owner: "c.work_id", sourceID: "c.source_id",
 		human:    humanLaneOf("c.source_id"),
 		identity: editspec.CoverIdentitySQL("c"),
 		value:    `json_build_object('image_hash', c.image_hash, 'kind', c.kind, 'portrait_pinned', c.portrait_pinned, 'sexual', c.sexual, 'violence', c.violence)`,
 		prov:     "c.field_provenance",
-		order:    "c.source_id, c.sort_order, c.image_hash",
+		order:    "mo.position NULLS LAST, c.sort_order, c.image_hash",
 	}
 }
 
 func screenshotRows() contextRowSource {
 	return contextRowSource{
-		from: "catalog_work_screenshot ss", owner: "ss.work_id", sourceID: "ss.source_id",
+		from:  "catalog_work_screenshot ss " + editspec.WorkMediaOrderJoinSQL("ss", catmodel.WorkMediaOrderScreenshot),
+		owner: "ss.work_id", sourceID: "ss.source_id",
 		human:    humanLaneOf("ss.source_id"),
 		identity: editspec.ScreenshotIdentitySQL("ss"),
 		value:    `json_build_object('image_hash', ss.image_hash, 'caption', ss.caption, 'sexual', ss.sexual, 'violence', ss.violence)`,
 		prov:     "ss.field_provenance",
-		order:    "ss.source_id, ss.sort_order, ss.image_hash",
+		order:    "mo.position NULLS LAST, ss.source_id, ss.sort_order, ss.image_hash",
 	}
 }
 
@@ -307,10 +309,12 @@ func parentRows(table, childCol string, curatedOrigin int16) contextRowSource {
 // contextRowSources: each is stored as one value on the entity's own row, so
 // there is no per-source row to list and the snapshot is the whole story.
 var snapshotOnlyListFields = map[string]string{
-	editspec.FieldEngineAliases:    "catalog_engine.aliases is one array column on the engine row",
-	editspec.FieldReleasePlatforms: "catalog_release.extra.platforms is one array on the release row",
-	editspec.FieldReleaseLanguages: "catalog_release.extra.languages is one array on the release row",
-	editspec.FieldTraitAliases:     "catalog_character_trait.alias is one newline-separated column on the trait row",
+	editspec.FieldEngineAliases:       "catalog_engine.aliases is one array column on the engine row",
+	editspec.FieldReleasePlatforms:    "catalog_release.extra.platforms is one array on the release row",
+	editspec.FieldReleaseLanguages:    "catalog_release.extra.languages is one array on the release row",
+	editspec.FieldTraitAliases:        "catalog_character_trait.alias is one newline-separated column on the trait row",
+	editspec.FieldWorkCoverOrder:      "one order a person sets per work, across every source; no per-source rows",
+	editspec.FieldWorkScreenshotOrder: "one order a person sets per work, across every source; no per-source rows",
 }
 
 func HasContextRows(fieldKey string) bool {

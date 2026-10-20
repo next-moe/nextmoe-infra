@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { EditRefFamily } from '#shared/types/edit'
+import { cn } from '@kungal/ui-core'
 import type { RefOption } from '~/composables/useRefNames'
 
 const props = withDefaults(
@@ -10,13 +11,15 @@ const props = withDefaults(
     disabled?: boolean
     exclude?: string[]
     ariaLabel?: string
+    inline?: boolean
   }>(),
   {
     modelValue: null,
     placeholder: '',
     disabled: false,
     exclude: () => [],
-    ariaLabel: ''
+    ariaLabel: '',
+    inline: false
   }
 )
 
@@ -102,7 +105,14 @@ onMounted(async () => {
     />
     <div
       v-else-if="props.modelValue"
-      class="border-default-200 bg-default-50 flex h-8 min-w-0 items-center gap-1.5 rounded-lg border px-2 text-sm"
+      :class="
+        cn(
+          'group/ref flex h-8 min-w-0 items-center gap-1.5 rounded-lg border px-2 text-sm transition-colors',
+          props.inline
+            ? 'hover:border-default-200 border-transparent'
+            : 'border-default-200 bg-default-50'
+        )
+      "
     >
       <span class="min-w-0 flex-1 truncate" :title="selectedName">
         {{ selectedName || '加载中…' }}
@@ -113,7 +123,13 @@ onMounted(async () => {
       <button
         v-if="!props.disabled"
         type="button"
-        class="text-default-400 hover:text-danger-600 shrink-0"
+        :class="
+          cn(
+            'text-default-400 hover:text-danger-600 shrink-0',
+            props.inline &&
+              'opacity-0 group-hover/ref:opacity-100 focus:opacity-100'
+          )
+        "
         :aria-label="`清除${familyLabel}`"
         @click="emit('update:modelValue', null)"
       >

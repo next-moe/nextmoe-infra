@@ -18,7 +18,11 @@ export const RETURN_SITES: ReturnSite[] = [
   {
     key: 'letmoe',
     label: 'LetMoe',
-    origins: ['https://www.letmoe.com', 'https://letmoe.com']
+    origins: [
+      'https://www.letmoe.com',
+      'https://letmoe.com',
+      'https://staging.letmoe.com'
+    ]
   },
   {
     key: 'nextmoe',

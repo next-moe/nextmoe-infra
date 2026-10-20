@@ -4,7 +4,7 @@ import type { CatalogProposal } from '#shared/types/catalog'
 
 const api = useEditorApi()
 
-const { data, pending } = await useAsyncData('dashboard-reviewer-queue', () =>
+const { data, pending } = useLazyAsyncData('dashboard-reviewer-queue', () =>
   api<ActivityList<CatalogProposal>>('/v2/moderation/proposals', {
     query: { limit: 1, include_total: true, sort: 'filed_asc' }
   }).catch(() => null)
@@ -22,7 +22,12 @@ const oldest = computed(() => data.value?.items?.[0] ?? null)
       <h2 class="font-semibold">审核队列</h2>
       <NuxtLink to="/review" class="text-primary text-sm">去审核</NuxtLink>
     </div>
-    <KunLoading v-if="pending" spinner />
+    <div v-if="pending && !data" class="grid grid-cols-2 gap-3">
+      <div v-for="index in 2" :key="index" class="bg-default-50 rounded-lg p-3">
+        <KunSkeleton variant="text" class-name="text-2xl" width="3rem" />
+        <KunSkeleton variant="text" class-name="text-sm" width="4rem" />
+      </div>
+    </div>
     <div v-else class="grid grid-cols-2 gap-3">
       <div class="bg-default-50 rounded-lg p-3">
         <p class="text-2xl font-semibold tabular-nums">{{ total }}</p>

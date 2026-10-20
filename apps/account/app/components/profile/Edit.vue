@@ -168,7 +168,7 @@ const handleSubmit = async () => {
         :maxlength="PROFILE_ABOUT_MAX"
         show-char-count
         auto-grow
-        max-height="24rem"
+        max-height="384px"
       />
       <div
         v-if="!canWriteAbout"

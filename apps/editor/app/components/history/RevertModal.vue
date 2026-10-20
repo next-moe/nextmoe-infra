@@ -200,7 +200,7 @@ const submit = async (force = false) => {
         v-model="reason"
         placeholder="回滚原因（可选，会记入修订）"
         aria-label="回滚原因"
-        max-height="8rem"
+        max-height="128px"
       />
       <div class="flex justify-end gap-2">
         <KunButton variant="light" @click="open = false">取消</KunButton>

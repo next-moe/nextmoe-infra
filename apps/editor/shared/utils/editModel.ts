@@ -73,6 +73,23 @@ const normalizeRow = (members: CatalogSchemaMember[], row: unknown) => {
   return out
 }
 
+const codePoints = (value: string) =>
+  Array.from(value, (char) => char.codePointAt(0) ?? 0)
+
+export const compareCodePoints = (a: string, b: string) => {
+  const left = codePoints(a)
+  const right = codePoints(b)
+  for (let i = 0; i < Math.min(left.length, right.length); i++) {
+    if (left[i] !== right[i]) {
+      return left[i]! - right[i]!
+    }
+  }
+  return left.length - right.length
+}
+
+export const sortedIdentities = (keys: Iterable<string>) =>
+  [...new Set(keys)].sort(compareCodePoints)
+
 export const normalizeFieldValue = (
   field: CatalogSchemaField,
   value: unknown
@@ -85,9 +102,12 @@ export const normalizeFieldValue = (
     return value.map((row) => normalizeRow(element.members ?? [], row))
   }
   if (element?.type === 'text') {
-    return value
+    const items = value
       .map((item) => (typeof item === 'string' ? item.trim() : item))
       .filter((item) => !isBlank(item))
+    return isSuppressedKey(field.key)
+      ? sortedIdentities(items.map(String))
+      : items
   }
   return value
 }
@@ -141,7 +161,10 @@ const ROW_IDENTITY: Record<string, (row: Record<string, unknown>) => string> = {
     `${str(row.role_id)}:${str(row.credit_name_id)}:${str(row.character_id) || '0'}`,
   roster: (row) => str(row.character_id),
   traits: (row) => str(row.trait_id),
-  relations: (row) => `${str(row.relation)}:${str(row.label_id)}`,
+  relations: (row) =>
+    row.work_id != null
+      ? `${str(row.relation)}:${str(row.work_id)}:${row.reverse ? 1 : 0}`
+      : `${str(row.relation)}:${str(row.label_id)}`,
   aliases: (row) => `${str(row.kind)}:${str(row.lang)}:${str(row.name)}`
 }
 

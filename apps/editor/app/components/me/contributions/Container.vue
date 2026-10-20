@@ -12,7 +12,7 @@ import { PROPOSAL_STATE } from '~/constants/catalog'
 useHead({ title: '我的贡献 · 未萌编辑台' })
 
 const api = useEditorApi()
-const { session } = useEditorSession()
+const { session, settled } = useEditorSession()
 const names = useEntityNames()
 
 const totalOf = (query: Record<string, string | number | boolean>) =>
@@ -22,7 +22,7 @@ const totalOf = (query: Record<string, string | number | boolean>) =>
     .then((list) => list.total ?? 0)
     .catch(() => null)
 
-const { data: stateTotals, pending: statesPending } = await useAsyncData(
+const { data: stateTotals, pending: statesPending } = useLazyAsyncData(
   'contributions-states',
   async () =>
     Object.fromEntries(
@@ -34,7 +34,7 @@ const { data: stateTotals, pending: statesPending } = await useAsyncData(
     )
 )
 
-const { data: familyTotals } = await useAsyncData(
+const { data: familyTotals, pending: familiesPending } = useLazyAsyncData(
   'contributions-families',
   async () =>
     (
@@ -49,7 +49,7 @@ const { data: familyTotals } = await useAsyncData(
       .sort((a, b) => b.count - a.count)
 )
 
-const { data: recentProposals } = await useAsyncData(
+const { data: recentProposals, pending: recentPending } = useLazyAsyncData(
   'contributions-recent-proposals',
   () =>
     api<ActivityList<CatalogProposal>>('/v2/me/proposals', {
@@ -59,14 +59,15 @@ const { data: recentProposals } = await useAsyncData(
       .catch(() => [] as CatalogProposal[])
 )
 
-const { data: revisions, pending: revisionsPending } = await useAsyncData(
-  'contributions-revisions',
+const { data: revisions, pending: revisionsPending } = useLazyAsyncData(
+  () => `contributions-revisions-${session.value?.id ?? 0}`,
   () =>
     session.value
       ? api<ActivityList<CatalogRevision>>('/v2/catalog/revisions', {
           query: { actor_uid: session.value.id, limit: 20, include_total: true }
         }).catch(() => null)
-      : Promise.resolve(null)
+      : Promise.resolve(null),
+  { watch: [() => session.value?.id] }
 )
 
 watch(revisions, (list) => names.resolve(list?.items ?? []), {
@@ -105,7 +106,20 @@ const familyMax = computed(() =>
   <div class="mx-auto max-w-6xl space-y-6">
     <KunHeader name="我的贡献" description="你提交过的提案与已经生效的修订。" />
 
-    <KunLoading v-if="statesPending" spinner />
+    <div
+      v-if="statesPending && !stateTotals"
+      class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5"
+      aria-busy="true"
+    >
+      <div
+        v-for="index in CONTRIBUTION_STATES.length + 1"
+        :key="index"
+        class="border-default-200 bg-content1 rounded-xl border p-4"
+      >
+        <KunSkeleton variant="text" class-name="text-2xl" width="2.5rem" />
+        <KunSkeleton variant="text" class-name="text-sm" width="4rem" />
+      </div>
+    </div>
     <div v-else class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
       <div class="border-default-200 bg-content1 rounded-xl border p-4">
         <p class="text-2xl font-semibold tabular-nums">{{ totalProposals }}</p>
@@ -132,7 +146,13 @@ const familyMax = computed(() =>
           <h2 class="font-semibold">近 {{ ACTIVITY_WEEKS }} 周提交</h2>
           <span class="text-default-400 text-xs">按最近 100 条提案统计</span>
         </div>
+        <KunSkeleton
+          v-if="recentPending && !recentProposals"
+          height="8rem"
+          rounded="lg"
+        />
         <div
+          v-else
           class="flex h-32 items-end gap-1.5"
           role="img"
           :aria-label="`近 ${ACTIVITY_WEEKS} 周每周提交的提案数`"
@@ -166,7 +186,17 @@ const familyMax = computed(() =>
 
       <KunCard bordered padding="md">
         <h2 class="mb-3 font-semibold">按条目类型</h2>
-        <ul v-if="familyTotals?.length" class="space-y-2">
+        <div
+          v-if="familiesPending && !familyTotals"
+          class="space-y-3"
+          aria-busy="true"
+        >
+          <div v-for="index in 4" :key="index" class="space-y-1">
+            <KunSkeleton variant="text" class-name="text-sm" width="40%" />
+            <KunSkeleton height="0.375rem" rounded="full" />
+          </div>
+        </div>
+        <ul v-else-if="familyTotals?.length" class="space-y-2">
           <li v-for="family in familyTotals" :key="family.key" class="text-sm">
             <div class="mb-1 flex justify-between">
               <span>{{ family.label }}</span>
@@ -204,7 +234,10 @@ const familyMax = computed(() =>
           共 {{ revisions.total }} 次
         </span>
       </div>
-      <KunLoading v-if="revisionsPending" spinner />
+      <CommonSkeletonRows
+        v-if="!settled || (revisionsPending && !revisions)"
+        :rows="5"
+      />
       <ul
         v-else-if="revisions?.items?.length"
         class="divide-default-200 divide-y"
