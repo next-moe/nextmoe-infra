@@ -32,6 +32,7 @@ const nav = useWorkspaceNav()
         :changes="nav.changesBySection.value[props.section.key] ?? 0"
       >
         <slot name="actions" />
+        <WorkspaceGuideLink :slug="props.section.guide" />
       </WorkspaceSectionHeader>
       <slot />
     </div>

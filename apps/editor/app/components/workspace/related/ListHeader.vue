@@ -36,6 +36,7 @@ const emit = defineEmits<{ add: [] }>()
         </span>
       </h2>
       <slot name="actions" />
+      <WorkspaceGuideLink icon-only />
       <KunButton
         v-if="props.canAdd"
         size="sm"
