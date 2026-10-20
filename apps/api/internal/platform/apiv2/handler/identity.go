@@ -125,6 +125,7 @@ var editingPlanePrefixes = []string{
 	"/v2/me/claims",
 	"/v2/me/cover-votes",
 	"/v2/me/creations",
+	"/v2/me/edit-bundle",
 	"/v2/me/edit-capabilities",
 	"/v2/me/edit-context",
 	"/v2/me/edit-images",

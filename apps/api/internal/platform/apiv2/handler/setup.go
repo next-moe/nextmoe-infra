@@ -57,7 +57,7 @@ func SetupWith(app *fiber.App, opt Options) huma.API {
 	app.Use(protocol.RateLimit(opt.Store, credentialLimitIdentity))
 	app.Use(protocol.Idempotency(opt.Store, credentialLimitIdentity))
 
-	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.60.0")
+	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.61.0")
 	cfg.OpenAPIPath = ""
 	cfg.DocsPath = ""
 	cfg.SchemasPath = ""
@@ -107,6 +107,7 @@ func SetupWith(app *fiber.App, opt Options) huma.API {
 	}
 	registerMeta(api)
 	registerCollections(api, works, opt.Catalog)
+	registerCatalogNames(api, works, opt.Catalog)
 	registerCatalog(api, opt.Catalog)
 	registerMe(api, opt.Catalog)
 	registerMeCompanyFollows(api, opt.Catalog)
@@ -114,6 +115,7 @@ func SetupWith(app *fiber.App, opt Options) huma.API {
 	registerMeWrite(api, opt.Catalog)
 	registerMeCapabilities(api, opt.Catalog)
 	registerMeEditContext(api, opt.Catalog)
+	registerMeEditBundle(api, opt.Catalog)
 	registerMeCreations(api, opt.Catalog)
 	registerMergeRequests(api, opt.Catalog)
 	registerFolderHoldings(api, opt.Catalog)

@@ -1962,6 +1962,42 @@ components:
       required:
         - decision
       type: object
+    EditBundle:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EditBundle.json
+          format: uri
+          readOnly: true
+          type: string
+        capabilities:
+          $ref: "#/components/schemas/EditCapabilities"
+          description: The body GET /v2/me/edit-capabilities/{object}?entity_id={id} answers. Absent when that face would have answered an error.
+        context:
+          $ref: "#/components/schemas/EditContext"
+          description: The body GET /v2/me/edit-context/{object}/{id} answers. Absent when that face would have answered an error.
+        object:
+          description: Type discriminant. Always edit_bundle.
+          enum:
+            - edit_bundle
+          type: string
+          x-vocabulary-closed: true
+        quota:
+          $ref: "#/components/schemas/EditQuota"
+          description: The body GET /v2/me/edit-quota answers. Absent when that face would have answered an error.
+        schema:
+          $ref: "#/components/schemas/ObjectSchema"
+          description: The body GET /v2/catalog/schemas/{object} answers.
+        snapshot:
+          $ref: "#/components/schemas/SnapshotRecord"
+          description: The body GET /v2/moderation/snapshots/{object}/{id} answers.
+      required:
+        - object
+        - schema
+        - snapshot
+      type: object
     EditCapabilities:
       additionalProperties: true
       properties:
@@ -4386,6 +4422,62 @@ components:
           description: Members of this page. Empty array, never null.
           items:
             $ref: "#/components/schemas/Redirect"
+          type: array
+        missing:
+          description: ids requested but not visible. Present only on the ids=/refs= batch lane.
+          items:
+            type: string
+          type: array
+        next_cursor:
+          description: Opaque keyset cursor. Omitted on the last page.
+          maxLength: 512
+          pattern: ^cur_[A-Za-z0-9._~-]+$
+          type: string
+        object:
+          description: Type discriminant. Always list.
+          enum:
+            - list
+          type: string
+          x-vocabulary-closed: true
+        total:
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+          format: int64
+          minimum: 0
+          type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - items
+      type: object
+    ListRefName:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ListRefName.json
+          format: uri
+          readOnly: true
+          type: string
+        facets:
+          additionalProperties:
+            items:
+              $ref: "#/components/schemas/FacetValue"
+            type:
+              - array
+              - "null"
+          description: Named facet buckets. Present only when facets= is requested.
+          type: object
+        items:
+          description: Members of this page. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/RefName"
           type: array
         missing:
           description: ids requested but not visible. Present only on the ids=/refs= batch lane.
@@ -7887,6 +7979,57 @@ components:
         - source
         - external_id
       type: object
+    RefName:
+      additionalProperties: true
+      properties:
+        display_name:
+          description: The display_name the family's ids= batch lane answers; for a release, its title, empty when it has none. Must not be used as a discriminant.
+          maxLength: 512
+          type: string
+        family:
+          description: Family of the entity.
+          enum:
+            - work
+            - tag
+            - company
+            - engine
+            - series
+            - character
+            - credit_name
+            - person
+            - role
+            - trait
+            - release
+          type: string
+          x-vocabulary-closed: true
+        id:
+          description: Catalog id.
+          maxLength: 20
+          minLength: 1
+          pattern: ^[0-9]+$
+          type: string
+        key:
+          description: family:id as requested in keys=, e.g. tag:12.
+          maxLength: 64
+          pattern: ^[a-z_]+:[0-9]+$
+          type: string
+        name_zh:
+          description: "A Chinese name when one is recorded: a trait's name_zh, otherwise the zh-Hans, zh-Hant or zh entry of localized. Absent if none. Must not be used as a discriminant."
+          maxLength: 512
+          type: string
+        object:
+          description: Type discriminant. Always ref_name.
+          enum:
+            - ref_name
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - key
+        - family
+        - id
+        - display_name
+      type: object
     Relation:
       additionalProperties: true
       properties:
@@ -10599,7 +10742,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.60.0
+  version: 2.61.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -12554,6 +12697,85 @@ paths:
         - userToken: []
         - {}
       summary: Get one engine
+      tags:
+        - catalog
+  /v2/catalog/names:
+    get:
+      description: "Resolves display names for entities of several families in one call: each family's names come from that family's ids= batch lane under the same nsfw gate, so this face answers exactly what those lanes would. Items follow the order of keys=. Keys that name no visible entity land in missing[]. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit."
+      operationId: listCatalogNames
+      parameters:
+        - description: "Comma-separated family:id, max 500, e.g. tag:12,company:3. Families: work, tag, company, engine, series, character, credit_name, person, role, trait, release. Duplicates collapse."
+          explode: false
+          in: query
+          name: keys
+          schema:
+            description: "Comma-separated family:id, max 500, e.g. tag:12,company:3. Families: work, tag, company, engine, series, character, credit_name, person, role, trait, release. Duplicates collapse."
+            maxLength: 16384
+            type: string
+        - description: true includes r18. false or absent hides r18. Only true or false. Passed to each family's ids= batch lane unchanged.
+          explode: false
+          in: query
+          name: nsfw
+          schema:
+            description: true includes r18. false or absent hides r18. Only true or false. Passed to each family's ids= batch lane unchanged.
+            maxLength: 8
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListRefName"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - applicationKey: []
+        - userToken: []
+        - {}
+      summary: Display names across families
       tags:
         - catalog
   /v2/catalog/persons:
@@ -18996,6 +19218,102 @@ paths:
       security:
         - userToken: []
       summary: Propose a new entry
+      tags:
+        - me
+  /v2/me/edit-bundle/{object}/{id}:
+    get:
+      description: "One read for an editing screen: the family schema, the entity's snapshot, the bearer's capabilities on it, its edit context and the bearer's quota — each member the exact body its own face answers, so a client swaps five calls for one. The schema and the snapshot decide the answer: an unknown family or entity is 404 as on GET /v2/moderation/snapshots/{object}/{id}. capabilities, context and quota are left out when their own face would have answered an error. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope."
+      operationId: getMyEditBundle
+      parameters:
+        - description: Family of the entity. Unknown family is 404 NOT_FOUND.
+          in: path
+          name: object
+          required: true
+          schema:
+            description: Family of the entity. Unknown family is 404 NOT_FOUND.
+            enum:
+              - work
+              - company
+              - character
+              - release
+              - tag
+              - engine
+              - series
+              - person
+              - credit_name
+              - trait
+            maxLength: 32
+            type: string
+            x-vocabulary-closed: true
+        - description: Catalog id of the entity.
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Catalog id of the entity.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EditBundle"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Everything an editor needs to open one entity
       tags:
         - me
   /v2/me/edit-capabilities/{object}:

@@ -55,6 +55,8 @@ var liveReadPaths = []string{
 	"/v2/me/edit-quota",
 	"/v2/me/merge-requests",
 	"/v2/me/edit-context/{object}/{id}",
+	"/v2/me/edit-bundle/{object}/{id}",
+	"/v2/catalog/names",
 	"/v2/catalog/works",
 	"/v2/catalog/works/{id}",
 	"/v2/catalog/works/{id}/covers",
@@ -171,6 +173,7 @@ var liveReadRequiredQuery = map[string]func(fx liveFix) string{
 	"/v2/ratings":               func(fx liveFix) string { return "?work_id=" + idstr(fx.Work) },
 	"/v2/work-records":          func(liveFix) string { return "?user_id=" + idstr(liveUID) },
 	"/v2/catalog/tag-exclusion": func(fx liveFix) string { return "?exclude_tag_tree=" + idstr(fx.Tag) },
+	"/v2/catalog/names":         func(fx liveFix) string { return "?keys=work:" + idstr(fx.Work) + ",tag:" + idstr(fx.Tag) },
 }
 
 func liveReadURL(t *testing.T, tmpl string, fx liveFix) string {
@@ -203,6 +206,7 @@ func liveReadURL(t *testing.T, tmpl string, fx liveFix) string {
 		{"/v2/moderation/claims/", fx.Pending},
 		{"/v2/moderation/snapshots/work/", fx.Work},
 		{"/v2/me/edit-context/work/", fx.Work},
+		{"/v2/me/edit-bundle/work/", fx.Work},
 		{"/v2/me/news/", fx.NewsItem},
 		{"/v2/news/", fx.NewsItem},
 	} {
