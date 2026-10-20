@@ -60,12 +60,16 @@ NextMoe 资料库的唯一编辑入口。所有第一方站点的用户在这里
 | `catalog.open_proposals_max_reviewer` | 0 | 审核者（不限） |
 | `catalog.merge_requests_per_day` / `_editor` / `_reviewer` | 10 / 50 / 500 | 合并请求 |
 | `catalog.merge_cooling_off_hours` | 48 | 合并批准后的冷静期 |
+| `catalog.edit_merge_reward` | 1 | 提案被他人合并后给提案人发放的萌萌点（0 = 停发） |
+| `catalog.edit_merge_reward_window_days` | 7 | 编辑奖励任务每次回看的天数 |
 | `auth.sso_session_idle_days` | 30 | 账号中心会话闲置续期 |
 | `auth.sso_session_max_days` | 365 | 账号中心会话绝对上限 |
 | `auth.editor_application_cooldown_hours` | 24 | 编辑者申请被拒后的再申请冷却 |
 | `auth.creator_application_cooldown_hours` | 24 | 创作者申请同上 |
 
 定时任务 `catalog-merge-requests`（每小时）执行冷静期已过、由编辑台发起并已批准的合并请求；配置在 `jobs.catalog_merge_requests.*`。
+
+定时任务 `catalog-edit-rewards`（每 15 分钟，`jobs.catalog_edit_rewards.*`）给编辑奖励：回看 `catalog.edit_merge_reward_window_days` 天内合并、且合并人不是提案人的提案（不分来源站点与条目类型；自己合并、免审直编、回滚都不发），按 `catalog.edit_merge_reward` 给提案人记一笔 `content_approved`，来源 `nextmoe-editor`，幂等键 `catalog_edit_merged:<提案 id>`。论坛此前已用 `galgame_edit_merged:<提案 id>` 发过的跳过，不会重复发放。
 
 ## 可编辑范围
 
