@@ -73,6 +73,23 @@ const normalizeRow = (members: CatalogSchemaMember[], row: unknown) => {
   return out
 }
 
+const codePoints = (value: string) =>
+  Array.from(value, (char) => char.codePointAt(0) ?? 0)
+
+export const compareCodePoints = (a: string, b: string) => {
+  const left = codePoints(a)
+  const right = codePoints(b)
+  for (let i = 0; i < Math.min(left.length, right.length); i++) {
+    if (left[i] !== right[i]) {
+      return left[i]! - right[i]!
+    }
+  }
+  return left.length - right.length
+}
+
+export const sortedIdentities = (keys: Iterable<string>) =>
+  [...new Set(keys)].sort(compareCodePoints)
+
 export const normalizeFieldValue = (
   field: CatalogSchemaField,
   value: unknown
@@ -85,9 +102,12 @@ export const normalizeFieldValue = (
     return value.map((row) => normalizeRow(element.members ?? [], row))
   }
   if (element?.type === 'text') {
-    return value
+    const items = value
       .map((item) => (typeof item === 'string' ? item.trim() : item))
       .filter((item) => !isBlank(item))
+    return isSuppressedKey(field.key)
+      ? sortedIdentities(items.map(String))
+      : items
   }
   return value
 }

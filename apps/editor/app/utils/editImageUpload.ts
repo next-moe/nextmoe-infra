@@ -28,20 +28,3 @@ export const isImageFile = (file: File) =>
 
 export const hasDraggedFiles = (event: DragEvent) =>
   Array.from(event.dataTransfer?.types ?? []).includes('Files')
-
-const codePoints = (value: string) =>
-  Array.from(value, (char) => char.codePointAt(0) ?? 0)
-
-export const compareCodePoints = (a: string, b: string) => {
-  const left = codePoints(a)
-  const right = codePoints(b)
-  for (let i = 0; i < Math.min(left.length, right.length); i++) {
-    if (left[i] !== right[i]) {
-      return left[i]! - right[i]!
-    }
-  }
-  return left.length - right.length
-}
-
-export const sortedIdentities = (keys: Iterable<string>) =>
-  [...new Set(keys)].sort(compareCodePoints)
