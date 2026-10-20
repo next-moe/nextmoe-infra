@@ -38245,6 +38245,44 @@ export const docsModel: DocsModel = {
                                 "type": "object",
                                 "children": [
                                   {
+                                    "name": "amender",
+                                    "required": true,
+                                    "type": "object",
+                                    "children": [
+                                      {
+                                        "name": "avatar",
+                                        "required": true,
+                                        "nullable": true,
+                                        "doc": "Absolute avatar URL. null when the account has none.",
+                                        "format": "uri",
+                                        "type": "string"
+                                      },
+                                      {
+                                        "name": "id",
+                                        "required": true,
+                                        "doc": "The central account id, the same value the record's *_uid field carries.",
+                                        "type": "string"
+                                      },
+                                      {
+                                        "name": "name",
+                                        "required": true,
+                                        "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                                        "type": "string"
+                                      },
+                                      {
+                                        "name": "object",
+                                        "required": true,
+                                        "doc": "Type discriminant. Always user.",
+                                        "enum": [
+                                          "user"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    ],
+                                    "nullable": true,
+                                    "doc": "Account behind amender_uid. null only when the account directory could not be read."
+                                  },
+                                  {
                                     "name": "amender_uid",
                                     "required": true,
                                     "doc": "The claiming site's own user id of the amender. Not a catalog id.",
@@ -38311,6 +38349,44 @@ export const docsModel: DocsModel = {
                               "type": "string"
                             },
                             {
+                              "name": "decided_by",
+                              "required": true,
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "avatar",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Absolute avatar URL. null when the account has none.",
+                                  "format": "uri",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "id",
+                                  "required": true,
+                                  "doc": "The central account id, the same value the record's *_uid field carries.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "name",
+                                  "required": true,
+                                  "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "object",
+                                  "required": true,
+                                  "doc": "Type discriminant. Always user.",
+                                  "enum": [
+                                    "user"
+                                  ],
+                                  "type": "string"
+                                }
+                              ],
+                              "nullable": true,
+                              "doc": "Account behind decided_by_uid. null while open, or when the account directory could not be read."
+                            },
+                            {
                               "name": "decided_by_uid",
                               "required": true,
                               "nullable": true,
@@ -38365,6 +38441,44 @@ export const docsModel: DocsModel = {
                               "itemsOf": {
                                 "type": "object"
                               }
+                            },
+                            {
+                              "name": "proposer",
+                              "required": true,
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "avatar",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Absolute avatar URL. null when the account has none.",
+                                  "format": "uri",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "id",
+                                  "required": true,
+                                  "doc": "The central account id, the same value the record's *_uid field carries.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "name",
+                                  "required": true,
+                                  "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "object",
+                                  "required": true,
+                                  "doc": "Type discriminant. Always user.",
+                                  "enum": [
+                                    "user"
+                                  ],
+                                  "type": "string"
+                                }
+                              ],
+                              "nullable": true,
+                              "doc": "Account behind proposer_uid. null only when the account directory could not be read."
                             },
                             {
                               "name": "proposer_uid",
@@ -39733,6 +39847,44 @@ export const docsModel: DocsModel = {
                           "type": "object",
                           "children": [
                             {
+                              "name": "amender",
+                              "required": true,
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "avatar",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Absolute avatar URL. null when the account has none.",
+                                  "format": "uri",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "id",
+                                  "required": true,
+                                  "doc": "The central account id, the same value the record's *_uid field carries.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "name",
+                                  "required": true,
+                                  "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "object",
+                                  "required": true,
+                                  "doc": "Type discriminant. Always user.",
+                                  "enum": [
+                                    "user"
+                                  ],
+                                  "type": "string"
+                                }
+                              ],
+                              "nullable": true,
+                              "doc": "Account behind amender_uid. null only when the account directory could not be read."
+                            },
+                            {
                               "name": "amender_uid",
                               "required": true,
                               "doc": "The claiming site's own user id of the amender. Not a catalog id.",
@@ -39799,6 +39951,44 @@ export const docsModel: DocsModel = {
                         "type": "string"
                       },
                       {
+                        "name": "decided_by",
+                        "required": true,
+                        "type": "object",
+                        "children": [
+                          {
+                            "name": "avatar",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Absolute avatar URL. null when the account has none.",
+                            "format": "uri",
+                            "type": "string"
+                          },
+                          {
+                            "name": "id",
+                            "required": true,
+                            "doc": "The central account id, the same value the record's *_uid field carries.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "name",
+                            "required": true,
+                            "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "object",
+                            "required": true,
+                            "doc": "Type discriminant. Always user.",
+                            "enum": [
+                              "user"
+                            ],
+                            "type": "string"
+                          }
+                        ],
+                        "nullable": true,
+                        "doc": "Account behind decided_by_uid. null while open, or when the account directory could not be read."
+                      },
+                      {
                         "name": "decided_by_uid",
                         "required": true,
                         "nullable": true,
@@ -39853,6 +40043,44 @@ export const docsModel: DocsModel = {
                         "itemsOf": {
                           "type": "object"
                         }
+                      },
+                      {
+                        "name": "proposer",
+                        "required": true,
+                        "type": "object",
+                        "children": [
+                          {
+                            "name": "avatar",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Absolute avatar URL. null when the account has none.",
+                            "format": "uri",
+                            "type": "string"
+                          },
+                          {
+                            "name": "id",
+                            "required": true,
+                            "doc": "The central account id, the same value the record's *_uid field carries.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "name",
+                            "required": true,
+                            "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "object",
+                            "required": true,
+                            "doc": "Type discriminant. Always user.",
+                            "enum": [
+                              "user"
+                            ],
+                            "type": "string"
+                          }
+                        ],
+                        "nullable": true,
+                        "doc": "Account behind proposer_uid. null only when the account directory could not be read."
                       },
                       {
                         "name": "proposer_uid",
@@ -46004,10 +46232,86 @@ export const docsModel: DocsModel = {
                               "type": "string"
                             },
                             {
+                              "name": "actor",
+                              "required": true,
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "avatar",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Absolute avatar URL. null when the account has none.",
+                                  "format": "uri",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "id",
+                                  "required": true,
+                                  "doc": "The central account id, the same value the record's *_uid field carries.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "name",
+                                  "required": true,
+                                  "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "object",
+                                  "required": true,
+                                  "doc": "Type discriminant. Always user.",
+                                  "enum": [
+                                    "user"
+                                  ],
+                                  "type": "string"
+                                }
+                              ],
+                              "nullable": true,
+                              "doc": "Account behind actor_uid. null only when the account directory could not be read."
+                            },
+                            {
                               "name": "actor_uid",
                               "required": true,
                               "doc": "The claiming site's own user id of whoever caused this revision. Not a catalog id.",
                               "type": "string"
+                            },
+                            {
+                              "name": "amender",
+                              "required": true,
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "avatar",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Absolute avatar URL. null when the account has none.",
+                                  "format": "uri",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "id",
+                                  "required": true,
+                                  "doc": "The central account id, the same value the record's *_uid field carries.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "name",
+                                  "required": true,
+                                  "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "object",
+                                  "required": true,
+                                  "doc": "Type discriminant. Always user.",
+                                  "enum": [
+                                    "user"
+                                  ],
+                                  "type": "string"
+                                }
+                              ],
+                              "nullable": true,
+                              "doc": "Account behind amender_uid. null when nobody amended, or when the account directory could not be read."
                             },
                             {
                               "name": "amender_uid",
@@ -47461,10 +47765,86 @@ export const docsModel: DocsModel = {
                         "type": "string"
                       },
                       {
+                        "name": "actor",
+                        "required": true,
+                        "type": "object",
+                        "children": [
+                          {
+                            "name": "avatar",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Absolute avatar URL. null when the account has none.",
+                            "format": "uri",
+                            "type": "string"
+                          },
+                          {
+                            "name": "id",
+                            "required": true,
+                            "doc": "The central account id, the same value the record's *_uid field carries.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "name",
+                            "required": true,
+                            "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "object",
+                            "required": true,
+                            "doc": "Type discriminant. Always user.",
+                            "enum": [
+                              "user"
+                            ],
+                            "type": "string"
+                          }
+                        ],
+                        "nullable": true,
+                        "doc": "Account behind actor_uid. null only when the account directory could not be read."
+                      },
+                      {
                         "name": "actor_uid",
                         "required": true,
                         "doc": "The claiming site's own user id of whoever caused this revision. Not a catalog id.",
                         "type": "string"
+                      },
+                      {
+                        "name": "amender",
+                        "required": true,
+                        "type": "object",
+                        "children": [
+                          {
+                            "name": "avatar",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Absolute avatar URL. null when the account has none.",
+                            "format": "uri",
+                            "type": "string"
+                          },
+                          {
+                            "name": "id",
+                            "required": true,
+                            "doc": "The central account id, the same value the record's *_uid field carries.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "name",
+                            "required": true,
+                            "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "object",
+                            "required": true,
+                            "doc": "Type discriminant. Always user.",
+                            "enum": [
+                              "user"
+                            ],
+                            "type": "string"
+                          }
+                        ],
+                        "nullable": true,
+                        "doc": "Account behind amender_uid. null when nobody amended, or when the account directory could not be read."
                       },
                       {
                         "name": "amender_uid",
@@ -136891,6 +137271,1639 @@ export const docsModel: DocsModel = {
               "curl": "curl \"https://api.nextmoe.dev/v2/me/edit-capabilities/work\" \\\n  -H \"Authorization: Bearer <ACCESS_TOKEN>\""
             },
             {
+              "id": "getMyEditContext",
+              "method": "get",
+              "path": "/v2/me/edit-context/{object}/{id}",
+              "summary": "What an editor sees behind one entity",
+              "description": "Per field: the value a proposal is written against, who wrote each scalar column (field provenance, newest first), and, for list fields whose importers keep their own rows, every stored row grouped by source with its identity key, whether it is hidden, whether it is the human lane, plus suppressions whose row is gone. An editor shows what each upstream says from this face and sends rows[].identity in the field's .suppressed companion to hide a row. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.",
+              "scope": "",
+              "auth": {
+                "kind": "user_token",
+                "curl": "Authorization: Bearer <ACCESS_TOKEN>",
+                "display": "Authorization: Bearer <用户访问令牌>",
+                "note": "用户授权后的访问令牌,不是 API 密钥"
+              },
+              "params": [
+                {
+                  "name": "object",
+                  "in": "path",
+                  "required": true,
+                  "type": "string",
+                  "doc": "Family of the entity. Unknown family is 404 NOT_FOUND.",
+                  "enum": [
+                    "work",
+                    "company",
+                    "character",
+                    "release",
+                    "tag",
+                    "engine",
+                    "series",
+                    "person",
+                    "credit_name"
+                  ]
+                },
+                {
+                  "name": "id",
+                  "in": "path",
+                  "required": true,
+                  "type": "string",
+                  "doc": "Catalog id of the entity."
+                }
+              ],
+              "responses": [
+                {
+                  "status": "200",
+                  "description": "OK",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "entity_id",
+                        "required": true,
+                        "doc": "Catalog id of the entity.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "entity_type",
+                        "required": true,
+                        "doc": "Editing-engine type. Must not be used as a discriminant.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "fields",
+                        "required": true,
+                        "doc": "One entry per registered field, in the schema's order, including every .suppressed companion. Empty array, never null.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "key",
+                              "required": true,
+                              "doc": "Editing-engine field key. Joins /v2/catalog/schemas/{object} fields[].key. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "provenance",
+                              "required": true,
+                              "doc": "For a scalar field, who wrote each column it lands in, newest first. Empty array for list fields and for columns that record no provenance.",
+                              "type": "array",
+                              "itemsOf": {
+                                "type": "object",
+                                "children": [
+                                  {
+                                    "name": "column",
+                                    "required": true,
+                                    "doc": "Database column the field lands in. Must not be used as a discriminant.",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "name": "history",
+                                    "required": true,
+                                    "doc": "Recorded writes, newest first. The first entry is whoever set the current value. Empty array when nothing was recorded.",
+                                    "type": "array",
+                                    "itemsOf": {
+                                      "type": "object",
+                                      "children": [
+                                        {
+                                          "name": "at",
+                                          "required": true,
+                                          "nullable": true,
+                                          "doc": "When the write was recorded, as the writer stamped it (normally RFC 3339). null when it recorded no time. Must not be used as a discriminant.",
+                                          "type": "string"
+                                        },
+                                        {
+                                          "name": "human",
+                                          "required": true,
+                                          "doc": "true when a person wrote this value. Importers never overwrite a column whose newest entry is human.",
+                                          "type": "boolean"
+                                        },
+                                        {
+                                          "name": "source",
+                                          "required": true,
+                                          "doc": "Writer key: a catalog source (see the sources vocabulary), or user / curated for a person. Open vocabulary; must not be used as a discriminant.",
+                                          "type": "string"
+                                        }
+                                      ]
+                                    }
+                                  }
+                                ]
+                              }
+                            },
+                            {
+                              "name": "rows",
+                              "required": true,
+                              "doc": "For a list field whose rows are stored per source, every stored row plus every suppression whose row is gone. null for scalar fields, .suppressed companions, and list fields stored as one value on the entity row.",
+                              "type": "array",
+                              "itemsOf": {
+                                "type": "object",
+                                "children": [
+                                  {
+                                    "name": "field_provenance",
+                                    "required": true,
+                                    "doc": "Per-column write history of this one row, for tables that keep it. null otherwise.",
+                                    "type": "map",
+                                    "itemsOf": {
+                                      "type": "object"
+                                    }
+                                  },
+                                  {
+                                    "name": "human_lane",
+                                    "required": true,
+                                    "doc": "true when the row belongs to the human lane, which the field's value edits directly.",
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "name": "identity",
+                                    "required": true,
+                                    "nullable": true,
+                                    "doc": "Row identity key. Sending it in the field's .suppressed companion hides the row from every read face. null when the field has no suppression companion, or the row cannot be keyed (an upstream tag with no canonical tag). Opaque; must not be used as a discriminant.",
+                                    "type": "string"
+                                  },
+                                  {
+                                    "name": "machine_translated",
+                                    "required": true,
+                                    "doc": "true for a row machine-translated from another row.",
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "name": "present",
+                                    "required": true,
+                                    "doc": "false for a suppression whose row is no longer stored: the importer dropped it, and the suppression keeps it hidden if it comes back.",
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "name": "source",
+                                    "required": true,
+                                    "type": "object",
+                                    "children": [
+                                      {
+                                        "name": "display",
+                                        "required": true,
+                                        "doc": "Human-readable name from the sources vocabulary, or the key when the vocabulary has none. Must not be used as a discriminant.",
+                                        "type": "string"
+                                      },
+                                      {
+                                        "name": "key",
+                                        "required": true,
+                                        "doc": "catalog_source key. Open vocabulary (the sources vocabulary); must not be used as a discriminant.",
+                                        "type": "string"
+                                      }
+                                    ],
+                                    "nullable": true,
+                                    "doc": "Lane that stored the row. null when the table records no source, and for a suppression whose row is gone."
+                                  },
+                                  {
+                                    "name": "suppressed",
+                                    "required": true,
+                                    "doc": "true when the field's suppression set hides this row.",
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "name": "value",
+                                    "required": true,
+                                    "doc": "The stored row, using the field's element member names where they apply. null when present is false.",
+                                    "type": "object"
+                                  }
+                                ]
+                              }
+                            },
+                            {
+                              "name": "rows_truncated",
+                              "required": true,
+                              "doc": "true when the field holds more stored rows than the face returns; the first rows by source and position are kept.",
+                              "type": "boolean"
+                            },
+                            {
+                              "name": "value",
+                              "required": true,
+                              "doc": "The value a proposal is written against: the engine snapshot, in the shape a patch sends. For a list field whose importers keep their own rows this is the human lane only; rows lists everything stored. null when unset.",
+                              "type": "object"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "object",
+                        "required": true,
+                        "doc": "Type discriminant. Always edit_context.",
+                        "enum": [
+                          "edit_context"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "target_object",
+                        "required": true,
+                        "doc": "Family of the entity.",
+                        "enum": [
+                          "work",
+                          "company",
+                          "character",
+                          "release",
+                          "tag",
+                          "engine",
+                          "series",
+                          "person",
+                          "credit_name"
+                        ],
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "304",
+                  "description": "Not Modified. The representation is unchanged."
+                },
+                {
+                  "status": "400",
+                  "description": "Bad Request",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live works sharing a submitted title when code is DUPLICATE_SUSPECTS.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The live work's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog work id.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "401",
+                  "description": "Unauthorized",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live works sharing a submitted title when code is DUPLICATE_SUSPECTS.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The live work's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog work id.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "403",
+                  "description": "Forbidden",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live works sharing a submitted title when code is DUPLICATE_SUSPECTS.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The live work's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog work id.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "404",
+                  "description": "Not Found",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live works sharing a submitted title when code is DUPLICATE_SUSPECTS.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The live work's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog work id.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "422",
+                  "description": "Unprocessable Entity",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live works sharing a submitted title when code is DUPLICATE_SUSPECTS.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The live work's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog work id.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "429",
+                  "description": "Too Many Requests",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live works sharing a submitted title when code is DUPLICATE_SUSPECTS.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The live work's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog work id.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "500",
+                  "description": "Internal Server Error",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live works sharing a submitted title when code is DUPLICATE_SUSPECTS.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The live work's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog work id.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "status": "503",
+                  "description": "Service Unavailable",
+                  "schema": {
+                    "type": "object",
+                    "children": [
+                      {
+                        "name": "code",
+                        "required": true,
+                        "doc": "Top-level error code from the closed registry. UPPER_SNAKE.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "current_id",
+                        "doc": "Canonical id when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "detail",
+                        "required": true,
+                        "doc": "English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "errors",
+                        "required": true,
+                        "doc": "Field-level failures. Empty array when this is not a field-level error.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "detail",
+                              "required": true,
+                              "doc": "English, request-specific. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "header",
+                              "doc": "Request header name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "parameter",
+                              "doc": "Query or path parameter name. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "params",
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "allowed",
+                                  "doc": "Closed vocabulary members that were expected.",
+                                  "type": "array",
+                                  "itemsOf": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "name": "max_items",
+                                  "doc": "Maximum array length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "max_length",
+                                  "doc": "Maximum string length the value exceeded.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "maximum",
+                                  "doc": "Inclusive numeric upper bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                },
+                                {
+                                  "name": "min_items",
+                                  "doc": "Minimum array length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "min_length",
+                                  "doc": "Minimum string length the value failed.",
+                                  "format": "int64",
+                                  "type": "integer"
+                                },
+                                {
+                                  "name": "minimum",
+                                  "doc": "Inclusive numeric lower bound the value missed.",
+                                  "format": "double",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "pointer",
+                              "doc": "JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "reason",
+                              "required": true,
+                              "doc": "Field-level reason from the closed reason registry.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "instance",
+                        "required": true,
+                        "doc": "Request path and query string that failed. Empty only if the path is unknown.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "object",
+                        "doc": "Entity family when code is ENTITY_MERGED.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "request_id",
+                        "required": true,
+                        "doc": "Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "status",
+                        "required": true,
+                        "doc": "HTTP status. Matches the response status line.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
+                        "name": "suspects",
+                        "doc": "Live works sharing a submitted title when code is DUPLICATE_SUSPECTS.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "object",
+                          "children": [
+                            {
+                              "name": "display_name",
+                              "required": true,
+                              "doc": "The live work's display name. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "id",
+                              "required": true,
+                              "doc": "Catalog work id.",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "name": "title",
+                        "required": true,
+                        "doc": "Stable English phrase for this type. Does not vary per request.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "type",
+                        "required": true,
+                        "doc": "Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.",
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "curl": "curl \"https://api.nextmoe.dev/v2/me/edit-context/work/1\" \\\n  -H \"Authorization: Bearer <ACCESS_TOKEN>\""
+            },
+            {
               "id": "uploadMyEditImage",
               "method": "post",
               "path": "/v2/me/edit-images",
@@ -181528,6 +183541,44 @@ export const docsModel: DocsModel = {
                                 "type": "object",
                                 "children": [
                                   {
+                                    "name": "amender",
+                                    "required": true,
+                                    "type": "object",
+                                    "children": [
+                                      {
+                                        "name": "avatar",
+                                        "required": true,
+                                        "nullable": true,
+                                        "doc": "Absolute avatar URL. null when the account has none.",
+                                        "format": "uri",
+                                        "type": "string"
+                                      },
+                                      {
+                                        "name": "id",
+                                        "required": true,
+                                        "doc": "The central account id, the same value the record's *_uid field carries.",
+                                        "type": "string"
+                                      },
+                                      {
+                                        "name": "name",
+                                        "required": true,
+                                        "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                                        "type": "string"
+                                      },
+                                      {
+                                        "name": "object",
+                                        "required": true,
+                                        "doc": "Type discriminant. Always user.",
+                                        "enum": [
+                                          "user"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    ],
+                                    "nullable": true,
+                                    "doc": "Account behind amender_uid. null only when the account directory could not be read."
+                                  },
+                                  {
                                     "name": "amender_uid",
                                     "required": true,
                                     "doc": "The claiming site's own user id of the amender. Not a catalog id.",
@@ -181594,6 +183645,44 @@ export const docsModel: DocsModel = {
                               "type": "string"
                             },
                             {
+                              "name": "decided_by",
+                              "required": true,
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "avatar",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Absolute avatar URL. null when the account has none.",
+                                  "format": "uri",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "id",
+                                  "required": true,
+                                  "doc": "The central account id, the same value the record's *_uid field carries.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "name",
+                                  "required": true,
+                                  "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "object",
+                                  "required": true,
+                                  "doc": "Type discriminant. Always user.",
+                                  "enum": [
+                                    "user"
+                                  ],
+                                  "type": "string"
+                                }
+                              ],
+                              "nullable": true,
+                              "doc": "Account behind decided_by_uid. null while open, or when the account directory could not be read."
+                            },
+                            {
                               "name": "decided_by_uid",
                               "required": true,
                               "nullable": true,
@@ -181648,6 +183737,44 @@ export const docsModel: DocsModel = {
                               "itemsOf": {
                                 "type": "object"
                               }
+                            },
+                            {
+                              "name": "proposer",
+                              "required": true,
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "avatar",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Absolute avatar URL. null when the account has none.",
+                                  "format": "uri",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "id",
+                                  "required": true,
+                                  "doc": "The central account id, the same value the record's *_uid field carries.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "name",
+                                  "required": true,
+                                  "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "object",
+                                  "required": true,
+                                  "doc": "Type discriminant. Always user.",
+                                  "enum": [
+                                    "user"
+                                  ],
+                                  "type": "string"
+                                }
+                              ],
+                              "nullable": true,
+                              "doc": "Account behind proposer_uid. null only when the account directory could not be read."
                             },
                             {
                               "name": "proposer_uid",
@@ -183199,6 +185326,44 @@ export const docsModel: DocsModel = {
                           "type": "object",
                           "children": [
                             {
+                              "name": "amender",
+                              "required": true,
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "avatar",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Absolute avatar URL. null when the account has none.",
+                                  "format": "uri",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "id",
+                                  "required": true,
+                                  "doc": "The central account id, the same value the record's *_uid field carries.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "name",
+                                  "required": true,
+                                  "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "object",
+                                  "required": true,
+                                  "doc": "Type discriminant. Always user.",
+                                  "enum": [
+                                    "user"
+                                  ],
+                                  "type": "string"
+                                }
+                              ],
+                              "nullable": true,
+                              "doc": "Account behind amender_uid. null only when the account directory could not be read."
+                            },
+                            {
                               "name": "amender_uid",
                               "required": true,
                               "doc": "The claiming site's own user id of the amender. Not a catalog id.",
@@ -183265,6 +185430,44 @@ export const docsModel: DocsModel = {
                         "type": "string"
                       },
                       {
+                        "name": "decided_by",
+                        "required": true,
+                        "type": "object",
+                        "children": [
+                          {
+                            "name": "avatar",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Absolute avatar URL. null when the account has none.",
+                            "format": "uri",
+                            "type": "string"
+                          },
+                          {
+                            "name": "id",
+                            "required": true,
+                            "doc": "The central account id, the same value the record's *_uid field carries.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "name",
+                            "required": true,
+                            "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "object",
+                            "required": true,
+                            "doc": "Type discriminant. Always user.",
+                            "enum": [
+                              "user"
+                            ],
+                            "type": "string"
+                          }
+                        ],
+                        "nullable": true,
+                        "doc": "Account behind decided_by_uid. null while open, or when the account directory could not be read."
+                      },
+                      {
                         "name": "decided_by_uid",
                         "required": true,
                         "nullable": true,
@@ -183319,6 +185522,44 @@ export const docsModel: DocsModel = {
                         "itemsOf": {
                           "type": "object"
                         }
+                      },
+                      {
+                        "name": "proposer",
+                        "required": true,
+                        "type": "object",
+                        "children": [
+                          {
+                            "name": "avatar",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Absolute avatar URL. null when the account has none.",
+                            "format": "uri",
+                            "type": "string"
+                          },
+                          {
+                            "name": "id",
+                            "required": true,
+                            "doc": "The central account id, the same value the record's *_uid field carries.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "name",
+                            "required": true,
+                            "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "object",
+                            "required": true,
+                            "doc": "Type discriminant. Always user.",
+                            "enum": [
+                              "user"
+                            ],
+                            "type": "string"
+                          }
+                        ],
+                        "nullable": true,
+                        "doc": "Account behind proposer_uid. null only when the account directory could not be read."
                       },
                       {
                         "name": "proposer_uid",
@@ -185328,6 +187569,44 @@ export const docsModel: DocsModel = {
                           "type": "object",
                           "children": [
                             {
+                              "name": "amender",
+                              "required": true,
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "avatar",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Absolute avatar URL. null when the account has none.",
+                                  "format": "uri",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "id",
+                                  "required": true,
+                                  "doc": "The central account id, the same value the record's *_uid field carries.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "name",
+                                  "required": true,
+                                  "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "object",
+                                  "required": true,
+                                  "doc": "Type discriminant. Always user.",
+                                  "enum": [
+                                    "user"
+                                  ],
+                                  "type": "string"
+                                }
+                              ],
+                              "nullable": true,
+                              "doc": "Account behind amender_uid. null only when the account directory could not be read."
+                            },
+                            {
                               "name": "amender_uid",
                               "required": true,
                               "doc": "The claiming site's own user id of the amender. Not a catalog id.",
@@ -185394,6 +187673,44 @@ export const docsModel: DocsModel = {
                         "type": "string"
                       },
                       {
+                        "name": "decided_by",
+                        "required": true,
+                        "type": "object",
+                        "children": [
+                          {
+                            "name": "avatar",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Absolute avatar URL. null when the account has none.",
+                            "format": "uri",
+                            "type": "string"
+                          },
+                          {
+                            "name": "id",
+                            "required": true,
+                            "doc": "The central account id, the same value the record's *_uid field carries.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "name",
+                            "required": true,
+                            "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "object",
+                            "required": true,
+                            "doc": "Type discriminant. Always user.",
+                            "enum": [
+                              "user"
+                            ],
+                            "type": "string"
+                          }
+                        ],
+                        "nullable": true,
+                        "doc": "Account behind decided_by_uid. null while open, or when the account directory could not be read."
+                      },
+                      {
                         "name": "decided_by_uid",
                         "required": true,
                         "nullable": true,
@@ -185448,6 +187765,44 @@ export const docsModel: DocsModel = {
                         "itemsOf": {
                           "type": "object"
                         }
+                      },
+                      {
+                        "name": "proposer",
+                        "required": true,
+                        "type": "object",
+                        "children": [
+                          {
+                            "name": "avatar",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Absolute avatar URL. null when the account has none.",
+                            "format": "uri",
+                            "type": "string"
+                          },
+                          {
+                            "name": "id",
+                            "required": true,
+                            "doc": "The central account id, the same value the record's *_uid field carries.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "name",
+                            "required": true,
+                            "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "object",
+                            "required": true,
+                            "doc": "Type discriminant. Always user.",
+                            "enum": [
+                              "user"
+                            ],
+                            "type": "string"
+                          }
+                        ],
+                        "nullable": true,
+                        "doc": "Account behind proposer_uid. null only when the account directory could not be read."
                       },
                       {
                         "name": "proposer_uid",
@@ -186956,6 +189311,44 @@ export const docsModel: DocsModel = {
                           "type": "object",
                           "children": [
                             {
+                              "name": "amender",
+                              "required": true,
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "avatar",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Absolute avatar URL. null when the account has none.",
+                                  "format": "uri",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "id",
+                                  "required": true,
+                                  "doc": "The central account id, the same value the record's *_uid field carries.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "name",
+                                  "required": true,
+                                  "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "object",
+                                  "required": true,
+                                  "doc": "Type discriminant. Always user.",
+                                  "enum": [
+                                    "user"
+                                  ],
+                                  "type": "string"
+                                }
+                              ],
+                              "nullable": true,
+                              "doc": "Account behind amender_uid. null only when the account directory could not be read."
+                            },
+                            {
                               "name": "amender_uid",
                               "required": true,
                               "doc": "The claiming site's own user id of the amender. Not a catalog id.",
@@ -187022,6 +189415,44 @@ export const docsModel: DocsModel = {
                         "type": "string"
                       },
                       {
+                        "name": "decided_by",
+                        "required": true,
+                        "type": "object",
+                        "children": [
+                          {
+                            "name": "avatar",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Absolute avatar URL. null when the account has none.",
+                            "format": "uri",
+                            "type": "string"
+                          },
+                          {
+                            "name": "id",
+                            "required": true,
+                            "doc": "The central account id, the same value the record's *_uid field carries.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "name",
+                            "required": true,
+                            "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "object",
+                            "required": true,
+                            "doc": "Type discriminant. Always user.",
+                            "enum": [
+                              "user"
+                            ],
+                            "type": "string"
+                          }
+                        ],
+                        "nullable": true,
+                        "doc": "Account behind decided_by_uid. null while open, or when the account directory could not be read."
+                      },
+                      {
                         "name": "decided_by_uid",
                         "required": true,
                         "nullable": true,
@@ -187076,6 +189507,44 @@ export const docsModel: DocsModel = {
                         "itemsOf": {
                           "type": "object"
                         }
+                      },
+                      {
+                        "name": "proposer",
+                        "required": true,
+                        "type": "object",
+                        "children": [
+                          {
+                            "name": "avatar",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Absolute avatar URL. null when the account has none.",
+                            "format": "uri",
+                            "type": "string"
+                          },
+                          {
+                            "name": "id",
+                            "required": true,
+                            "doc": "The central account id, the same value the record's *_uid field carries.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "name",
+                            "required": true,
+                            "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "object",
+                            "required": true,
+                            "doc": "Type discriminant. Always user.",
+                            "enum": [
+                              "user"
+                            ],
+                            "type": "string"
+                          }
+                        ],
+                        "nullable": true,
+                        "doc": "Account behind proposer_uid. null only when the account directory could not be read."
                       },
                       {
                         "name": "proposer_uid",
@@ -189111,6 +191580,44 @@ export const docsModel: DocsModel = {
                           "type": "object",
                           "children": [
                             {
+                              "name": "amender",
+                              "required": true,
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "avatar",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Absolute avatar URL. null when the account has none.",
+                                  "format": "uri",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "id",
+                                  "required": true,
+                                  "doc": "The central account id, the same value the record's *_uid field carries.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "name",
+                                  "required": true,
+                                  "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "object",
+                                  "required": true,
+                                  "doc": "Type discriminant. Always user.",
+                                  "enum": [
+                                    "user"
+                                  ],
+                                  "type": "string"
+                                }
+                              ],
+                              "nullable": true,
+                              "doc": "Account behind amender_uid. null only when the account directory could not be read."
+                            },
+                            {
                               "name": "amender_uid",
                               "required": true,
                               "doc": "The claiming site's own user id of the amender. Not a catalog id.",
@@ -189177,6 +191684,44 @@ export const docsModel: DocsModel = {
                         "type": "string"
                       },
                       {
+                        "name": "decided_by",
+                        "required": true,
+                        "type": "object",
+                        "children": [
+                          {
+                            "name": "avatar",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Absolute avatar URL. null when the account has none.",
+                            "format": "uri",
+                            "type": "string"
+                          },
+                          {
+                            "name": "id",
+                            "required": true,
+                            "doc": "The central account id, the same value the record's *_uid field carries.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "name",
+                            "required": true,
+                            "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "object",
+                            "required": true,
+                            "doc": "Type discriminant. Always user.",
+                            "enum": [
+                              "user"
+                            ],
+                            "type": "string"
+                          }
+                        ],
+                        "nullable": true,
+                        "doc": "Account behind decided_by_uid. null while open, or when the account directory could not be read."
+                      },
+                      {
                         "name": "decided_by_uid",
                         "required": true,
                         "nullable": true,
@@ -189231,6 +191776,44 @@ export const docsModel: DocsModel = {
                         "itemsOf": {
                           "type": "object"
                         }
+                      },
+                      {
+                        "name": "proposer",
+                        "required": true,
+                        "type": "object",
+                        "children": [
+                          {
+                            "name": "avatar",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Absolute avatar URL. null when the account has none.",
+                            "format": "uri",
+                            "type": "string"
+                          },
+                          {
+                            "name": "id",
+                            "required": true,
+                            "doc": "The central account id, the same value the record's *_uid field carries.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "name",
+                            "required": true,
+                            "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "object",
+                            "required": true,
+                            "doc": "Type discriminant. Always user.",
+                            "enum": [
+                              "user"
+                            ],
+                            "type": "string"
+                          }
+                        ],
+                        "nullable": true,
+                        "doc": "Account behind proposer_uid. null only when the account directory could not be read."
                       },
                       {
                         "name": "proposer_uid",
@@ -221478,6 +224061,44 @@ export const docsModel: DocsModel = {
                                 "type": "object",
                                 "children": [
                                   {
+                                    "name": "amender",
+                                    "required": true,
+                                    "type": "object",
+                                    "children": [
+                                      {
+                                        "name": "avatar",
+                                        "required": true,
+                                        "nullable": true,
+                                        "doc": "Absolute avatar URL. null when the account has none.",
+                                        "format": "uri",
+                                        "type": "string"
+                                      },
+                                      {
+                                        "name": "id",
+                                        "required": true,
+                                        "doc": "The central account id, the same value the record's *_uid field carries.",
+                                        "type": "string"
+                                      },
+                                      {
+                                        "name": "name",
+                                        "required": true,
+                                        "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                                        "type": "string"
+                                      },
+                                      {
+                                        "name": "object",
+                                        "required": true,
+                                        "doc": "Type discriminant. Always user.",
+                                        "enum": [
+                                          "user"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    ],
+                                    "nullable": true,
+                                    "doc": "Account behind amender_uid. null only when the account directory could not be read."
+                                  },
+                                  {
                                     "name": "amender_uid",
                                     "required": true,
                                     "doc": "The claiming site's own user id of the amender. Not a catalog id.",
@@ -221544,6 +224165,44 @@ export const docsModel: DocsModel = {
                               "type": "string"
                             },
                             {
+                              "name": "decided_by",
+                              "required": true,
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "avatar",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Absolute avatar URL. null when the account has none.",
+                                  "format": "uri",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "id",
+                                  "required": true,
+                                  "doc": "The central account id, the same value the record's *_uid field carries.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "name",
+                                  "required": true,
+                                  "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "object",
+                                  "required": true,
+                                  "doc": "Type discriminant. Always user.",
+                                  "enum": [
+                                    "user"
+                                  ],
+                                  "type": "string"
+                                }
+                              ],
+                              "nullable": true,
+                              "doc": "Account behind decided_by_uid. null while open, or when the account directory could not be read."
+                            },
+                            {
                               "name": "decided_by_uid",
                               "required": true,
                               "nullable": true,
@@ -221598,6 +224257,44 @@ export const docsModel: DocsModel = {
                               "itemsOf": {
                                 "type": "object"
                               }
+                            },
+                            {
+                              "name": "proposer",
+                              "required": true,
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "avatar",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Absolute avatar URL. null when the account has none.",
+                                  "format": "uri",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "id",
+                                  "required": true,
+                                  "doc": "The central account id, the same value the record's *_uid field carries.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "name",
+                                  "required": true,
+                                  "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "object",
+                                  "required": true,
+                                  "doc": "Type discriminant. Always user.",
+                                  "enum": [
+                                    "user"
+                                  ],
+                                  "type": "string"
+                                }
+                              ],
+                              "nullable": true,
+                              "doc": "Account behind proposer_uid. null only when the account directory could not be read."
                             },
                             {
                               "name": "proposer_uid",
@@ -223132,6 +225829,44 @@ export const docsModel: DocsModel = {
                           "type": "object",
                           "children": [
                             {
+                              "name": "amender",
+                              "required": true,
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "avatar",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Absolute avatar URL. null when the account has none.",
+                                  "format": "uri",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "id",
+                                  "required": true,
+                                  "doc": "The central account id, the same value the record's *_uid field carries.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "name",
+                                  "required": true,
+                                  "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "object",
+                                  "required": true,
+                                  "doc": "Type discriminant. Always user.",
+                                  "enum": [
+                                    "user"
+                                  ],
+                                  "type": "string"
+                                }
+                              ],
+                              "nullable": true,
+                              "doc": "Account behind amender_uid. null only when the account directory could not be read."
+                            },
+                            {
                               "name": "amender_uid",
                               "required": true,
                               "doc": "The claiming site's own user id of the amender. Not a catalog id.",
@@ -223198,6 +225933,44 @@ export const docsModel: DocsModel = {
                         "type": "string"
                       },
                       {
+                        "name": "decided_by",
+                        "required": true,
+                        "type": "object",
+                        "children": [
+                          {
+                            "name": "avatar",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Absolute avatar URL. null when the account has none.",
+                            "format": "uri",
+                            "type": "string"
+                          },
+                          {
+                            "name": "id",
+                            "required": true,
+                            "doc": "The central account id, the same value the record's *_uid field carries.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "name",
+                            "required": true,
+                            "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "object",
+                            "required": true,
+                            "doc": "Type discriminant. Always user.",
+                            "enum": [
+                              "user"
+                            ],
+                            "type": "string"
+                          }
+                        ],
+                        "nullable": true,
+                        "doc": "Account behind decided_by_uid. null while open, or when the account directory could not be read."
+                      },
+                      {
                         "name": "decided_by_uid",
                         "required": true,
                         "nullable": true,
@@ -223252,6 +226025,44 @@ export const docsModel: DocsModel = {
                         "itemsOf": {
                           "type": "object"
                         }
+                      },
+                      {
+                        "name": "proposer",
+                        "required": true,
+                        "type": "object",
+                        "children": [
+                          {
+                            "name": "avatar",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Absolute avatar URL. null when the account has none.",
+                            "format": "uri",
+                            "type": "string"
+                          },
+                          {
+                            "name": "id",
+                            "required": true,
+                            "doc": "The central account id, the same value the record's *_uid field carries.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "name",
+                            "required": true,
+                            "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "object",
+                            "required": true,
+                            "doc": "Type discriminant. Always user.",
+                            "enum": [
+                              "user"
+                            ],
+                            "type": "string"
+                          }
+                        ],
+                        "nullable": true,
+                        "doc": "Account behind proposer_uid. null only when the account directory could not be read."
                       },
                       {
                         "name": "proposer_uid",
@@ -228190,6 +231001,44 @@ export const docsModel: DocsModel = {
                           "type": "object",
                           "children": [
                             {
+                              "name": "amender",
+                              "required": true,
+                              "type": "object",
+                              "children": [
+                                {
+                                  "name": "avatar",
+                                  "required": true,
+                                  "nullable": true,
+                                  "doc": "Absolute avatar URL. null when the account has none.",
+                                  "format": "uri",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "id",
+                                  "required": true,
+                                  "doc": "The central account id, the same value the record's *_uid field carries.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "name",
+                                  "required": true,
+                                  "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                                  "type": "string"
+                                },
+                                {
+                                  "name": "object",
+                                  "required": true,
+                                  "doc": "Type discriminant. Always user.",
+                                  "enum": [
+                                    "user"
+                                  ],
+                                  "type": "string"
+                                }
+                              ],
+                              "nullable": true,
+                              "doc": "Account behind amender_uid. null only when the account directory could not be read."
+                            },
+                            {
                               "name": "amender_uid",
                               "required": true,
                               "doc": "The claiming site's own user id of the amender. Not a catalog id.",
@@ -228256,6 +231105,44 @@ export const docsModel: DocsModel = {
                         "type": "string"
                       },
                       {
+                        "name": "decided_by",
+                        "required": true,
+                        "type": "object",
+                        "children": [
+                          {
+                            "name": "avatar",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Absolute avatar URL. null when the account has none.",
+                            "format": "uri",
+                            "type": "string"
+                          },
+                          {
+                            "name": "id",
+                            "required": true,
+                            "doc": "The central account id, the same value the record's *_uid field carries.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "name",
+                            "required": true,
+                            "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "object",
+                            "required": true,
+                            "doc": "Type discriminant. Always user.",
+                            "enum": [
+                              "user"
+                            ],
+                            "type": "string"
+                          }
+                        ],
+                        "nullable": true,
+                        "doc": "Account behind decided_by_uid. null while open, or when the account directory could not be read."
+                      },
+                      {
                         "name": "decided_by_uid",
                         "required": true,
                         "nullable": true,
@@ -228310,6 +231197,44 @@ export const docsModel: DocsModel = {
                         "itemsOf": {
                           "type": "object"
                         }
+                      },
+                      {
+                        "name": "proposer",
+                        "required": true,
+                        "type": "object",
+                        "children": [
+                          {
+                            "name": "avatar",
+                            "required": true,
+                            "nullable": true,
+                            "doc": "Absolute avatar URL. null when the account has none.",
+                            "format": "uri",
+                            "type": "string"
+                          },
+                          {
+                            "name": "id",
+                            "required": true,
+                            "doc": "The central account id, the same value the record's *_uid field carries.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "name",
+                            "required": true,
+                            "doc": "Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.",
+                            "type": "string"
+                          },
+                          {
+                            "name": "object",
+                            "required": true,
+                            "doc": "Type discriminant. Always user.",
+                            "enum": [
+                              "user"
+                            ],
+                            "type": "string"
+                          }
+                        ],
+                        "nullable": true,
+                        "doc": "Account behind proposer_uid. null only when the account directory could not be read."
                       },
                       {
                         "name": "proposer_uid",

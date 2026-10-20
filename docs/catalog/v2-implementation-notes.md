@@ -2273,3 +2273,18 @@ Two new editing families, both shared entities (`sharedEntityPolicy`: propose op
 - **Read faces.** Name aliases and person related links honour their suppressions everywhere they render (credit-name detail, localized names, person links shown on a credit name).
 
 **Spec is 2.54.0.** Additive: `person` and `credit_name` on every editing family enum (`target_object`, `/v2/catalog/schemas/{object}`, `/v2/me/edit-capabilities/{object}`, the proposal and revision filters), vocabularies `credit_name_kind` and `link_visibility`, `photo` on the edit-images `preset`. No migration.
+
+## Wave — editor support faces: edit context and people on edit records (2026-10-19)
+
+Two faces the editor at editor.nextmoe.com needs so it never shows a bare uid or guesses an identity key.
+
+- **`GET /v2/me/edit-context/{object}/{id}`** (catalog:edit, site-bound user token, same site rules as edit-capabilities). One entry per registered field, companions included:
+  - `value` — the engine snapshot, exactly what a proposal is written against. For a list field whose importers keep their own rows this is the human lane only.
+  - `provenance` — for scalar fields, the `field_provenance` history of every column the field lands in (`{column, history:[{source, human, at}]}`, newest first). Read off the entity's head row once per table.
+  - `rows` — for list fields stored per source, every stored row (`source {key, display}`, `human_lane`, `identity`, `suppressed`, `present`, `value`, `machine_translated`, per-row `field_provenance` where the table keeps one), then every suppression whose row is gone (`present: false`). Capped at 1000 rows per field with `rows_truncated`. `null` for scalars, `.suppressed` companions and list fields stored as one value on the entity row.
+  - `identity` is computed with the same SQL helpers the read paths filter on (`WorkTitleIdentitySQL`, `WorkTagIdentitySQL`, `CreditIdentitySQL`, `RosterIdentitySQL`, `CharacterAliasIdentitySQL`, `LabelAliasIdentitySQL`, the credit-name aliases' reuse of the character-alias formula, the `link:<source>:<external_id>` key of a person's related links, and the `trait:` / `relation:` keys the write-time suppression of traits and company relations matches), so a key taken from this face and sent in `<field>.suppressed` is accepted by the companion's KeyCheck and hides that row from every read face. An upstream tag with no canonical tag has no key.
+  - Source display names come from the `sources` vocabulary; `catalog_source` itself has no name column.
+  - The table behind every list field lives in `service/edit_context.go` (`contextRowSources`); `TestEditContextCoversEveryListField` fails when a list field is registered with no entry and no reason in `snapshotOnlyListFields`, or when a field with a `.suppressed` companion maps to rows without identity keys. A wave that registers a new list field adds its row source there.
+- **People on edit records.** `ProposalRecord` gains `proposer` and `decided_by`, `Amendment` gains `amender`, `Revision` gains `actor` and `amender`: `{object: "user", id, name, avatar}` for the uid the record already carries. A huma transformer fills them on every response body that is a proposal, a revision, or a list of either, with one batched read of the infra `users` table per response (`cmd/catalog/users.go`). Erased, soft-deleted and unknown accounts read `已注销#<id>` with no avatar, matching the name erasure writes. A failed lookup leaves the objects `null` and logs.
+
+**Spec is 2.55.0.** Additive only: one operation and new response properties. No migration.

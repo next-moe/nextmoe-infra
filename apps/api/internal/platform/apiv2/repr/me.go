@@ -69,6 +69,8 @@ type ProposalRecord struct {
 	Site            string          `json:"site" maxLength:"64" doc:"Tenant this proposal was filed under. Open vocabulary; must not be used as a discriminant."`
 	BaseRevisionSeq int             `json:"base_revision_seq" minimum:"0" doc:"Revision seq this proposal was written against."`
 	DecidedByUID    *string         `json:"decided_by_uid" pattern:"^[0-9]+$" maxLength:"20" doc:"The claiming site's own user id of the decider. null while open."`
+	Proposer        *UserRef        `json:"proposer" doc:"Account behind proposer_uid. null only when the account directory could not be read."`
+	DecidedBy       *UserRef        `json:"decided_by" doc:"Account behind decided_by_uid. null while open, or when the account directory could not be read."`
 	DecidedAt       *string         `json:"decided_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC. null while open."`
 	CreatedAt       string          `json:"created_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
 	UpdatedAt       string          `json:"updated_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`

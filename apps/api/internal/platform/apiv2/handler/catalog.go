@@ -38,6 +38,8 @@ type Catalog struct {
 	Claims         *catsvc.ClaimLifecycleService
 	Engine         *editing.Engine
 	EditHistory    *catsvc.EditHistoryService
+	EditContext    *catsvc.EditContextService
+	UsersOf        UsersOf
 	Uploads        EditImageUpload
 	NewsImages     NewsImageStore
 	Counters       protocol.Store
