@@ -66,7 +66,7 @@ const viewOf = (row: MergedRow): LinkView => {
   const externalId = String(raw.external_id ?? row.upstream?.label ?? '')
   const url = contextLinkUrl(family.value, source, externalId)
   const site = url ? siteOfUrl(url) : null
-  const internal = !url && (source === 'curated' || source === 'user')
+  const internal = !url && ['curated', 'galgame_wiki', 'user'].includes(source)
   const siteLabel = internal
     ? '站内锚点'
     : source === 'official_site'
@@ -95,6 +95,7 @@ const views = computed(() =>
   rows.value
     .filter((row) => showHidden.value || row.status !== 'hidden')
     .map(viewOf)
+    .filter((view) => view.siteKey !== 'internal')
 )
 const hiddenCount = computed(
   () => rows.value.filter((row) => row.status === 'hidden').length
