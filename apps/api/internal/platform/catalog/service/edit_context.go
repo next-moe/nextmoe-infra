@@ -178,7 +178,7 @@ var contextRowSources = map[string]contextRowSource{
 		from: "catalog_credit cr", owner: "cr.work_id", sourceID: "cr.source_id",
 		human:    humanLaneOf("cr.source_id"),
 		identity: editspec.CreditIdentitySQL("cr"),
-		value:    `json_build_object('role_id', cr.role_id, 'credit_name_id', cr.credit_name_id, 'character_id', cr.character_id, 'note', cr.note)`,
+		value:    `json_build_object('role_id', cr.role_id, 'credit_name_id', cr.credit_name_id, 'character_id', cr.character_id, 'note', cr.note, 'spoiler', cr.spoiler, 'release_id', cr.release_id, 'label_id', cr.label_id)`,
 		order:    "cr.source_id, cr.role_id, cr.id",
 	},
 	editspec.FieldWorkRoster: {
@@ -188,6 +188,45 @@ var contextRowSources = map[string]contextRowSource{
 		value:    `json_build_object('character_id', wc.character_id, 'kind', wc.kind, 'spoiler', wc.spoiler)`,
 		prov:     "wc.field_provenance",
 		order:    "wc.character_id",
+	},
+	editspec.FieldWorkRelations: {
+		from: `(SELECT r.a_work_id AS owner_id, r.b_work_id AS other_id, r.relation_type_id, 'f' AS dir,
+		               r.note, r.source_id FROM catalog_work_relation r
+		        UNION ALL
+		        SELECT r.b_work_id, r.a_work_id, r.relation_type_id, 'r', r.note, r.source_id
+		        FROM catalog_work_relation r) wr
+			JOIN catalog_relation_type rt ON rt.id = wr.relation_type_id`,
+		owner: "wr.owner_id", sourceID: "wr.source_id", human: humanLaneOf("wr.source_id"),
+		identity: editspec.WorkRelationIdentitySQL("wr"),
+		value: `json_build_object('work_id', wr.other_id, 'relation', rt.key,
+			'reverse', wr.dir = 'r' AND NOT rt.is_symmetric, 'note', wr.note)`,
+		order: "wr.source_id, rt.key, wr.other_id, wr.dir",
+	},
+	editspec.FieldWorkPlatforms: {
+		from: "catalog_work_platform wp", owner: "wp.work_id", sourceID: "wp.source_id",
+		human:    humanLaneOf("wp.source_id"),
+		identity: editspec.WorkPlatformIdentitySQL("wp.platform"),
+		value:    `to_json(wp.platform)`,
+		order:    "wp.source_id, wp.platform",
+	},
+	// series_members and tag_spoilers regrade the rows series_ids and tag_ids
+	// list; the per-row field_provenance is where their stamps land.
+	editspec.FieldWorkSeriesMembers: {
+		from:  "catalog_series_member sm JOIN catalog_series s ON s.id = sm.series_id",
+		owner: "sm.work_id", sourceID: "s.source_id", human: humanLaneOf("s.source_id"),
+		identity: editspec.SeriesIdentitySQL("s"),
+		value:    `json_build_object('series_id', sm.series_id, 'position', sm.position, 'kind', sm.kind)`,
+		prov:     "sm.field_provenance",
+		order:    "s.source_id, sm.series_id",
+	},
+	editspec.FieldWorkTagSpoilers: {
+		from: `catalog_work_tag wt
+			LEFT JOIN catalog_tag_source_map m ON m.source_id = wt.source_id AND m.source_name = wt.name`,
+		owner: "wt.work_id", sourceID: "wt.source_id", human: humanLaneOf("wt.source_id"),
+		identity: fmt.Sprintf("CASE WHEN m.tag_id IS NULL THEN NULL ELSE %s END", editspec.WorkTagIdentitySQL("m.tag_id")),
+		value:    `json_build_object('tag_id', m.tag_id, 'name', wt.name, 'spoiler', wt.spoiler)`,
+		prov:     "wt.field_provenance",
+		order:    "wt.source_id, m.tag_id NULLS LAST, wt.name",
 	},
 	editspec.FieldCharacterAliases: {
 		from: "catalog_character_alias a", owner: "a.character_id", sourceID: "a.source_id",

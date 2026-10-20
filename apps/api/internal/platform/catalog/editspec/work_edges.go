@@ -78,17 +78,36 @@ func applyTagIDs(ctx context.Context, tx *gorm.DB, entityID int64, value any) er
 			}
 		}
 	}
-	if err := tx.WithContext(ctx).
-		Where("work_id = ? AND source_id = ?", entityID, curatedSourceID).
-		Delete(&catmodel.CatalogWorkTag{}).Error; err != nil {
+	// A kept tag keeps its row: catalog.work.tag_spoilers stamps the spoiler on it.
+	leaving := `DELETE FROM catalog_work_tag wt WHERE wt.work_id = ? AND wt.source_id = ?`
+	args := []any{entityID, curatedSourceID}
+	if len(ids) > 0 {
+		leaving += ` AND NOT EXISTS (SELECT 1 FROM catalog_tag_source_map m
+			WHERE m.source_id = wt.source_id AND m.source_name = wt.name AND m.tag_id IN ?)`
+		args = append(args, ids)
+	}
+	if err := tx.WithContext(ctx).Exec(leaving, args...).Error; err != nil {
 		return err
 	}
 	if len(tags) == 0 {
 		return nil
 	}
+	var kept []int64
+	if err := tx.WithContext(ctx).Raw(`SELECT DISTINCT m.tag_id FROM catalog_work_tag wt
+		JOIN catalog_tag_source_map m ON m.source_id = wt.source_id AND m.source_name = wt.name
+		WHERE wt.work_id = ? AND wt.source_id = ?`, entityID, curatedSourceID).Scan(&kept).Error; err != nil {
+		return err
+	}
+	keptSet := make(map[int64]struct{}, len(kept))
+	for _, id := range kept {
+		keptSet[id] = struct{}{}
+	}
 	rows := make([]catmodel.CatalogWorkTag, 0, len(tags))
 	maps := make([]catmodel.CatalogTagSourceMap, 0, len(tags))
 	for _, t := range tags {
+		if _, ok := keptSet[t.ID]; ok {
+			continue
+		}
 		rows = append(rows, catmodel.CatalogWorkTag{
 			WorkID: entityID, Name: t.Name, SourceID: curatedSourceID,
 			Sexual: t.Sexual,
@@ -102,14 +121,16 @@ func applyTagIDs(ctx context.Context, tx *gorm.DB, entityID int64, value any) er
 	// 208 found 534 of them, and a tag the editor assigned from that set landed
 	// in catalog_work_tag invisible to the tag page, the facets and the snapshot
 	// below. The identity row is what keeps the map the single truth.
-	if err := tx.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "source_id"}, {Name: "source_name"}},
-		DoNothing: true,
-	}).Create(&maps).Error; err != nil {
-		return err
-	}
-	if err := tx.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(&rows).Error; err != nil {
-		return err
+	if len(rows) > 0 {
+		if err := tx.WithContext(ctx).Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "source_id"}, {Name: "source_name"}},
+			DoNothing: true,
+		}).Create(&maps).Error; err != nil {
+			return err
+		}
+		if err := tx.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(&rows).Error; err != nil {
+			return err
+		}
 	}
 	return rejectSuppressedCuratedTags(ctx, tx, entityID, FieldWorkTagIDs)
 }
@@ -319,11 +340,17 @@ func applySeriesIDs(ctx context.Context, tx *gorm.DB, entityID int64, value any)
 			}
 		}
 	}
-	if err := tx.WithContext(ctx).Exec(`
-		DELETE FROM catalog_series_member m
+	// Only the memberships that leave are deleted: a kept one carries the
+	// position and kind catalog.work.series_members may have set on it.
+	leaving := `DELETE FROM catalog_series_member m
 		USING catalog_series s
-		WHERE m.series_id = s.id AND m.work_id = ? AND s.source_id = ?`,
-		entityID, curatedSourceID).Error; err != nil {
+		WHERE m.series_id = s.id AND m.work_id = ? AND s.source_id = ?`
+	args := []any{entityID, curatedSourceID}
+	if len(ids) > 0 {
+		leaving += ` AND m.series_id NOT IN ?`
+		args = append(args, ids)
+	}
+	if err := tx.WithContext(ctx).Exec(leaving, args...).Error; err != nil {
 		return err
 	}
 	if len(ids) == 0 {

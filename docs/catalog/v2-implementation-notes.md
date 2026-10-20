@@ -2359,3 +2359,30 @@ Both vocabularies are shared entities under the taxonomy permissions (`sharedEnt
 - **Not done.** Tag names have no per-language display names in the model, so there is nothing more to expose; the search index picks a rename up at its next reindex.
 
 **Spec is 2.58.0.** Additive: `trait` on every editing family enum (`target_object`, `/v2/catalog/schemas/{object}`, `/v2/me/edit-capabilities/{object}`, `/v2/me/edit-context/{object}/{id}`, the proposal and revision filters). Migration: `go run ./cmd/migrate catalog` on `kun_catalog` (the prod `migrate-catalog` job) adds `catalog_tag.field_provenance`, `catalog_character_trait.field_provenance` (both `jsonb NOT NULL DEFAULT '{}'`) and `catalog_character_trait_parent.origin` (`smallint NOT NULL DEFAULT 0`) — constant defaults, no rewrite (3.5k, 3.3k and 3.3k rows).
+
+## Wave E2c — work relations, platforms, series placement, tag spoilers, credit extras, roster additions (2026-10-20)
+
+**New work fields** (owned-entity policy like every work field):
+
+| Field | Value | Rows it writes |
+|---|---|---|
+| `catalog.work.relations` (+ `.suppressed`) | `[{work_id, relation, reverse?, note?}]`, `relation` from the closed `work_relation` vocabulary (the twelve domain-0 rows of `catalog_relation_type`) | curated lane (`source_id = 12`) of `catalog_work_relation` |
+| `catalog.work.platforms` (+ `.suppressed`) | `["win", …]`, keys of active `catalog_platform` rows | curated lane of `catalog_work_platform` |
+| `catalog.work.series_members` | `[{series_id, position, kind}]`, kind from `member_kind` | `position` / `kind` of the work's existing memberships, curated and upstream |
+| `catalog.work.tag_spoilers` | `[{tag_id, spoiler}]` | `spoiler` of every `catalog_work_tag` row mapping to the tag, curated and upstream |
+
+**Relations.** An edge is stored the way the importers store it: a directed type once, from the work that *is* the relation (`a`); a symmetric type once, smaller work id first. The value is the curated lane *seen from this work*: an edge added on the other work's page appears here with `reverse: true` (never for symmetric types), so a save from either end echoes it back instead of deleting it. Editing one end therefore also changes what the other end shows, without a revision on the other work — the same trade-off as company relations. The suppression key is `relation:<type_id>:<f|r>:<other_work_id>` (`f` when this work is the `a` side); its last segment follows work merges. An edge hidden from either end is hidden from both (`NotSuppressedWorkRelationSQL` checks both keys): the work face, the series-sibling closure, `seriesorder` and `derivedseries` all filter on it. Re-adding an upstream edge, adding a still-suppressed one, relating a work to itself, and suppressing a curated edge are 422s.
+
+**Platforms.** The suppression key `platform:<key>` names the platform, not the source, so one key hides it from Bangumi and EGS alike. Read paths: `loadWorkPlatforms` and the works-list `platform=` filter's work-level arm. `workplatforms` only inserts (`ON CONFLICT DO NOTHING`), so hidden rows stay stored and stay hidden.
+
+**Series placement.** `series_members` never adds or removes a membership (that is `series_ids` / `series_ids.suppressed`); it updates in place and stamps each changed column in the new `catalog_series_member.field_provenance`. `seriesorder.Apply` — used by `workseries` and `derivedseries` — keeps a human-stamped `position` or `kind`. `series_ids` now deletes only the curated memberships that leave, so a kept one keeps its placement. Known limit: when `workseries` or `derivedseries` drops a whole series and rebuilds it under a new id, the rebuilt membership starts without the stamp.
+
+**Tag spoilers.** `tag_spoilers` stamps `spoiler` per row in the new `catalog_work_tag.field_provenance`; `vndbtags` still refreshes `count` but keeps a human-stamped `spoiler`. The snapshot value is the highest spoiler among the tag's rows on the work. `tag_ids` now deletes only the curated tags that leave and inserts only new ones, so a kept tag keeps its row and its spoiler.
+
+**Credits.** Elements gain optional `spoiler`, `release_id` (a release of this work, hidden ones included) and `label_id`. A member left out keeps the value the same credit (same role, credit name and character) already carries; `null` clears it. Clients that predate the members — the forum's editor among them — therefore cannot wipe values set elsewhere. The identity key is unchanged.
+
+**Roster additions.** `roster` may now name a character the work does not list yet: it becomes a curated row (`matched_by = 'curated'`). Curated rows the value leaves out are deleted; upstream rows are never deleted here (hiding stays with `roster.suppressed`). Because a roster edge is identity evidence — the vndb attach channel minted 35,714 permanent anchors from it — every identity and evidence reader now keeps importer rows only (`MachineRosterSQL`): the vndb attach channel, cross-source character pairs, LLM corroboration (both lanes), the dedup detector and the Getchu character matcher. Content readers (public faces, glossaries, intro extraction) see curated rows like any other. Naming a character that does not exist, or one hidden on this work, is a 422.
+
+**Edit context.** Row sources added for relations (both directions through a derived table, identity as above), platforms, series_members and tag_spoilers (with per-row `field_provenance`); credit rows now carry `spoiler`, `release_id` and `label_id`.
+
+**Migration.** `go run ./cmd/migrate catalog` on `kun_catalog` (the prod `migrate-catalog` job) adds `field_provenance jsonb NOT NULL DEFAULT '{}'` to `catalog_series_member` (24,203 rows) and `catalog_work_tag` (2.05M rows). The default is a constant, so neither table is rewritten. No spec change: the new vocabulary and fields are runtime data of `/v2/vocabularies` and `/v2/catalog/schemas/work`.
