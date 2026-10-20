@@ -28,6 +28,11 @@ components:
     Amendment:
       additionalProperties: true
       properties:
+        amender:
+          anyOf:
+            - $ref: "#/components/schemas/UserRef"
+            - type: "null"
+          description: Account behind amender_uid. null only when the account directory could not be read.
         amender_uid:
           description: The claiming site's own user id of the amender. Not a catalog id.
           maxLength: 20
@@ -65,6 +70,7 @@ components:
         - id
         - seq
         - amender_uid
+        - amender
         - note
         - created_at
       type: object
@@ -921,6 +927,22 @@ components:
           type: integer
       required:
         - "y"
+      type: object
+    ColumnProvenance:
+      additionalProperties: true
+      properties:
+        column:
+          description: Database column the field lands in. Must not be used as a discriminant.
+          maxLength: 64
+          type: string
+        history:
+          description: Recorded writes, newest first. The first entry is whoever set the current value. Empty array when nothing was recorded.
+          items:
+            $ref: "#/components/schemas/ProvenanceEntry"
+          type: array
+      required:
+        - column
+        - history
       type: object
     Company:
       additionalProperties: true
@@ -1861,6 +1883,132 @@ components:
         - central
         - fields
       type: object
+    EditContext:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EditContext.json
+          format: uri
+          readOnly: true
+          type: string
+        entity_id:
+          description: Catalog id of the entity.
+          maxLength: 20
+          minLength: 1
+          pattern: ^[0-9]+$
+          type: string
+        entity_type:
+          description: Editing-engine type. Must not be used as a discriminant.
+          maxLength: 64
+          type: string
+        fields:
+          description: One entry per registered field, in the schema's order, including every .suppressed companion. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/EditContextField"
+          type: array
+        object:
+          description: Type discriminant. Always edit_context.
+          enum:
+            - edit_context
+          type: string
+          x-vocabulary-closed: true
+        target_object:
+          description: Family of the entity.
+          enum:
+            - work
+            - company
+            - character
+            - release
+            - tag
+            - engine
+            - series
+            - person
+            - credit_name
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - target_object
+        - entity_type
+        - entity_id
+        - fields
+      type: object
+    EditContextField:
+      additionalProperties: true
+      properties:
+        key:
+          description: Editing-engine field key. Joins /v2/catalog/schemas/{object} fields[].key. Must not be used as a discriminant.
+          maxLength: 128
+          pattern: ^[a-z0-9_]+(\.[a-z0-9_]+)+$
+          type: string
+        provenance:
+          description: For a scalar field, who wrote each column it lands in, newest first. Empty array for list fields and for columns that record no provenance.
+          items:
+            $ref: "#/components/schemas/ColumnProvenance"
+          type: array
+        rows:
+          description: For a list field whose rows are stored per source, every stored row plus every suppression whose row is gone. null for scalar fields, .suppressed companions, and list fields stored as one value on the entity row.
+          items:
+            $ref: "#/components/schemas/EditContextRow"
+          type: array
+        rows_truncated:
+          description: true when the field holds more stored rows than the face returns; the first rows by source and position are kept.
+          type: boolean
+        value:
+          description: "The value a proposal is written against: the engine snapshot, in the shape a patch sends. For a list field whose importers keep their own rows this is the human lane only; rows lists everything stored. null when unset."
+      required:
+        - key
+        - value
+        - provenance
+        - rows
+        - rows_truncated
+      type: object
+    EditContextRow:
+      additionalProperties: true
+      properties:
+        field_provenance:
+          additionalProperties: {}
+          description: Per-column write history of this one row, for tables that keep it. null otherwise.
+          type: object
+        human_lane:
+          description: true when the row belongs to the human lane, which the field's value edits directly.
+          type: boolean
+        identity:
+          description: Row identity key. Sending it in the field's .suppressed companion hides the row from every read face. null when the field has no suppression companion, or the row cannot be keyed (an upstream tag with no canonical tag). Opaque; must not be used as a discriminant.
+          maxLength: 512
+          type:
+            - string
+            - "null"
+        machine_translated:
+          description: true for a row machine-translated from another row.
+          type: boolean
+        present:
+          description: "false for a suppression whose row is no longer stored: the importer dropped it, and the suppression keeps it hidden if it comes back."
+          type: boolean
+        source:
+          anyOf:
+            - $ref: "#/components/schemas/EditSource"
+            - type: "null"
+          description: Lane that stored the row. null when the table records no source, and for a suppression whose row is gone.
+          x-vocabulary: sources
+          x-vocabulary-closed: false
+        suppressed:
+          description: true when the field's suppression set hides this row.
+          type: boolean
+        value:
+          description: The stored row, using the field's element member names where they apply. null when present is false.
+      required:
+        - source
+        - human_lane
+        - identity
+        - suppressed
+        - present
+        - value
+        - machine_translated
+        - field_provenance
+      type: object
     EditImage:
       additionalProperties: true
       properties:
@@ -2007,6 +2155,21 @@ components:
         - proposals
         - direct_edits
         - open_proposals
+      type: object
+    EditSource:
+      additionalProperties: true
+      properties:
+        display:
+          description: Human-readable name from the sources vocabulary, or the key when the vocabulary has none. Must not be used as a discriminant.
+          maxLength: 128
+          type: string
+        key:
+          description: catalog_source key. Open vocabulary (the sources vocabulary); must not be used as a discriminant.
+          maxLength: 64
+          type: string
+      required:
+        - key
+        - display
       type: object
     Engine:
       additionalProperties: true
@@ -6657,6 +6820,11 @@ components:
           type:
             - string
             - "null"
+        decided_by:
+          anyOf:
+            - $ref: "#/components/schemas/UserRef"
+            - type: "null"
+          description: Account behind decided_by_uid. null while open, or when the account directory could not be read.
         decided_by_uid:
           description: The claiming site's own user id of the decider. null while open.
           maxLength: 20
@@ -6698,6 +6866,11 @@ components:
           additionalProperties: {}
           description: Present when include=patch, which only the me and moderation faces publish. Field key to proposed value.
           type: object
+        proposer:
+          anyOf:
+            - $ref: "#/components/schemas/UserRef"
+            - type: "null"
+          description: Account behind proposer_uid. null only when the account directory could not be read.
         proposer_uid:
           description: The claiming site's own user id of the proposer. Not a catalog id.
           maxLength: 20
@@ -6748,9 +6921,34 @@ components:
         - site
         - base_revision_seq
         - decided_by_uid
+        - proposer
+        - decided_by
         - decided_at
         - created_at
         - updated_at
+      type: object
+    ProvenanceEntry:
+      additionalProperties: true
+      properties:
+        at:
+          description: When the write was recorded, as the writer stamped it (normally RFC 3339). null when it recorded no time. Must not be used as a discriminant.
+          maxLength: 40
+          type:
+            - string
+            - "null"
+        human:
+          description: true when a person wrote this value. Importers never overwrite a column whose newest entry is human.
+          type: boolean
+        source:
+          description: "Writer key: a catalog source (see the sources vocabulary), or user / curated for a person. Open vocabulary; must not be used as a discriminant."
+          maxLength: 64
+          type: string
+          x-vocabulary: sources
+          x-vocabulary-closed: false
+      required:
+        - source
+        - human
+        - at
       type: object
     PutCoverVoteInputBody:
       additionalProperties: true
@@ -7464,12 +7662,22 @@ components:
             - reverted
           type: string
           x-vocabulary-closed: true
+        actor:
+          anyOf:
+            - $ref: "#/components/schemas/UserRef"
+            - type: "null"
+          description: Account behind actor_uid. null only when the account directory could not be read.
         actor_uid:
           description: The claiming site's own user id of whoever caused this revision. Not a catalog id.
           maxLength: 20
           minLength: 1
           pattern: ^[0-9]+$
           type: string
+        amender:
+          anyOf:
+            - $ref: "#/components/schemas/UserRef"
+            - type: "null"
+          description: Account behind amender_uid. null when nobody amended, or when the account directory could not be read.
         amender_uid:
           description: The claiming site's own user id of the last amender. null when nobody amended.
           maxLength: 20
@@ -7563,6 +7771,8 @@ components:
         - changed_fields
         - actor_uid
         - amender_uid
+        - actor
+        - amender
         - proposal_id
         - site
         - created_at
@@ -8944,6 +9154,38 @@ components:
         - work_state
         - updated_at
       type: object
+    UserRef:
+      additionalProperties: true
+      properties:
+        avatar:
+          description: Absolute avatar URL. null when the account has none.
+          format: uri
+          maxLength: 512
+          type:
+            - string
+            - "null"
+        id:
+          description: The central account id, the same value the record's *_uid field carries.
+          maxLength: 20
+          minLength: 1
+          pattern: ^[0-9]+$
+          type: string
+        name:
+          description: Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant.
+          maxLength: 64
+          type: string
+        object:
+          description: Type discriminant. Always user.
+          enum:
+            - user
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - id
+        - name
+        - avatar
+      type: object
     UserWork:
       additionalProperties: true
       properties:
@@ -9933,7 +10175,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.54.0
+  version: 2.55.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -18318,6 +18560,101 @@ paths:
       security:
         - userToken: []
       summary: What I may edit on one family
+      tags:
+        - me
+  /v2/me/edit-context/{object}/{id}:
+    get:
+      description: "Per field: the value a proposal is written against, who wrote each scalar column (field provenance, newest first), and, for list fields whose importers keep their own rows, every stored row grouped by source with its identity key, whether it is hidden, whether it is the human lane, plus suppressions whose row is gone. An editor shows what each upstream says from this face and sends rows[].identity in the field's .suppressed companion to hide a row. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope."
+      operationId: getMyEditContext
+      parameters:
+        - description: Family of the entity. Unknown family is 404 NOT_FOUND.
+          in: path
+          name: object
+          required: true
+          schema:
+            description: Family of the entity. Unknown family is 404 NOT_FOUND.
+            enum:
+              - work
+              - company
+              - character
+              - release
+              - tag
+              - engine
+              - series
+              - person
+              - credit_name
+            maxLength: 32
+            type: string
+            x-vocabulary-closed: true
+        - description: Catalog id of the entity.
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Catalog id of the entity.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EditContext"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: What an editor sees behind one entity
       tags:
         - me
   /v2/me/edit-images:

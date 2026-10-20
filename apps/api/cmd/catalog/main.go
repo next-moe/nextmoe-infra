@@ -410,6 +410,8 @@ func setupPublicCatalog(
 			Claims:         claimSvc,
 			Engine:         editEngine,
 			EditHistory:    service.NewEditHistoryService(catalogDB.DB()),
+			EditContext:    service.NewEditContextService(catalogDB.DB()),
+			UsersOf:        usersOf(application.DB.DB(), cfg.ImageService.CDNBase),
 			Uploads:        v2handler.EditImageUpload(editUpload),
 			NewsImages:     newsImages,
 			Counters:       v2Store,

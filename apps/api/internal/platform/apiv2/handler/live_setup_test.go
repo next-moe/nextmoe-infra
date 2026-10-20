@@ -257,6 +257,8 @@ func liveCatalog(t *testing.T) *liveEnv {
 			NewsWrite:      newssvc.NewSubmissionService(db, liveNewsCDNBase),
 		}
 		cat.EditHistory = catsvc.NewEditHistoryService(db)
+		cat.EditContext = catsvc.NewEditContextService(db)
+		cat.UsersOf = liveUsersOf
 		app := fiber.New(fiber.Config{ErrorHandler: problem.WriteFiberError})
 		SetupWith(app, Options{
 			Store:   &liveUnlimitedStore{},

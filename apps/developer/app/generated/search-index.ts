@@ -907,7 +907,7 @@ export const searchIndex: SearchEntry[] = [
     "r": "/docs/v2",
     "t": "Public API v2",
     "s": "端点参考",
-    "d": "/v2 · 143 个端点",
+    "d": "/v2 · 144 个端点",
     "b": "v2 /v2 API v2 Public API v2"
   },
   {
@@ -1469,6 +1469,13 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 我的",
     "d": "GET /v2/me/edit-capabilities/{object}",
     "b": "getMyEditCapabilities /v2/me/edit-capabilities/{object} get What I may edit on one family Per-field can_propose / can_review / would_automerge for the bearer, evaluated by the editing engine. The capability axis cannot ride on /v2/catalog/schemas/{object}: that face is credential-less and B34 forbids varying one URL's field set by credential, so the two are separate URLs and join on fields[].key. Pass entity_id= for the owner channel, or would_automerge answers the type-level question instead. The answer folds in the bearer's quota: an exhausted tier proposes nothing, and an editor past the daily direct-edit allowance no longer automerges. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 由编辑引擎实算的、针对本次调用者的逐字段 can_propose / can_review / would_automerge。能力轴不能挂在 /v2/catalog/schemas/{object} 上:那个面免凭证,而 B34 禁止同一个 URL 按凭证返回不同字段集,所以两者是两个 URL,按 fields[].key 关联。要求 owner 通道时请带上 entity_id=,否则 would_automerge 回答的是类型级问题。答案已计入调用者的配额:配额用尽的档位一律不可提案,超出每日免审直编额度的编辑者不再自动合并。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 object entity_id"
+  },
+  {
+    "r": "/docs/v2/getMyEditContext",
+    "t": "编辑者看到的单个条目的编辑上下文",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/edit-context/{object}/{id}",
+    "b": "getMyEditContext /v2/me/edit-context/{object}/{id} get What an editor sees behind one entity Per field: the value a proposal is written against, who wrote each scalar column (field provenance, newest first), and, for list fields whose importers keep their own rows, every stored row grouped by source with its identity key, whether it is hidden, whether it is the human lane, plus suppressions whose row is gone. An editor shows what each upstream says from this face and sends rows[].identity in the field's .suppressed companion to hide a row. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 逐字段给出：提案所基于的值；每个标量列由谁写入（字段溯源，最新在前）；对于导入器各自保留行的列表字段，按来源列出每一条已存储的行，附带其身份键、是否被隐藏、是否属于人工车道，以及对应行已不存在的隐藏记录。编辑器据此展示各上游的说法，并把 rows[].identity 放进该字段的 .suppressed 伴随字段来隐藏某一行。需要绑定到目录站点的用户访问令牌，令牌须带有 catalog:edit scope。 object id"
   },
   {
     "r": "/docs/v2/uploadMyEditImage",

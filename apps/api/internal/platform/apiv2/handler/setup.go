@@ -57,12 +57,13 @@ func SetupWith(app *fiber.App, opt Options) huma.API {
 	app.Use(protocol.RateLimit(opt.Store, credentialLimitIdentity))
 	app.Use(protocol.Idempotency(opt.Store, credentialLimitIdentity))
 
-	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.54.0")
+	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.55.0")
 	cfg.OpenAPIPath = ""
 	cfg.DocsPath = ""
 	cfg.SchemasPath = ""
 	cfg.Info.Description = "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
 	cfg.Info.Extensions = map[string]any{"x-stability": "stable"}
+	cfg.Transformers = append(cfg.Transformers, peopleTransformer(opt.Catalog))
 
 	api := humafiber.New(app, cfg)
 	api.UseMiddleware(func(ctx huma.Context, next func(huma.Context)) {
@@ -112,6 +113,7 @@ func SetupWith(app *fiber.App, opt Options) huma.API {
 	registerMeTagBlocks(api, opt.Catalog)
 	registerMeWrite(api, opt.Catalog)
 	registerMeCapabilities(api, opt.Catalog)
+	registerMeEditContext(api, opt.Catalog)
 	registerFolderHoldings(api, opt.Catalog)
 	registerMeWorks(api, opt.Catalog)
 	registerMeFolders(api, opt.Catalog)

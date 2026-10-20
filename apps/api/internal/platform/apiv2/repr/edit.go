@@ -12,6 +12,8 @@ type Revision struct {
 	ChangedFields []string     `json:"changed_fields" doc:"Field keys this revision touched. Empty array, never null."`
 	ActorUID      string       `json:"actor_uid" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"The claiming site's own user id of whoever caused this revision. Not a catalog id."`
 	AmenderUID    *string      `json:"amender_uid" pattern:"^[0-9]+$" maxLength:"20" doc:"The claiming site's own user id of the last amender. null when nobody amended."`
+	Actor         *UserRef     `json:"actor" doc:"Account behind actor_uid. null only when the account directory could not be read."`
+	Amender       *UserRef     `json:"amender" doc:"Account behind amender_uid. null when nobody amended, or when the account directory could not be read."`
 	ProposalID    *string      `json:"proposal_id" pattern:"^[0-9]+$" maxLength:"20" doc:"Proposal this revision merged. null for direct edits and imports."`
 	Site          string       `json:"site" maxLength:"64" doc:"Tenant this revision was recorded under. Open vocabulary; must not be used as a discriminant."`
 	CreatedAt     string       `json:"created_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
@@ -35,6 +37,7 @@ type Amendment struct {
 	ID         string   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Amendment id."`
 	Seq        int      `json:"seq" minimum:"1" doc:"Position in this proposal's amendment chain."`
 	AmenderUID string   `json:"amender_uid" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"The claiming site's own user id of the amender. Not a catalog id."`
+	Amender    *UserRef `json:"amender" doc:"Account behind amender_uid. null only when the account directory could not be read."`
 	Note       string   `json:"note" maxLength:"2000" doc:"Amender's own summary. Must not be used as a discriminant."`
 	CreatedAt  string   `json:"created_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
 }
