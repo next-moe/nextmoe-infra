@@ -152,11 +152,18 @@ func TestOnlyDeclaredFieldsStampProvenance(t *testing.T) {
 		"catalog.label.name -> catalog_label.display_name",
 		"catalog.label.note -> catalog_label.note",
 		"catalog.work.content_rating -> catalog_work.content_rating",
+		"catalog.work.covers_upstream -> catalog_work_cover.kind",
+		"catalog.work.covers_upstream -> catalog_work_cover.portrait_pinned",
+		"catalog.work.covers_upstream -> catalog_work_cover.sexual",
+		"catalog.work.covers_upstream -> catalog_work_cover.violence",
 		"catalog.work.display_name -> catalog_work.display_name",
 		"catalog.work.display_nsfw -> catalog_work.display_nsfw",
 		"catalog.work.olang -> catalog_work.olang",
 		"catalog.work.roster -> catalog_work_character.kind",
 		"catalog.work.roster -> catalog_work_character.spoiler",
+		"catalog.work.screenshots_upstream -> catalog_work_screenshot.caption",
+		"catalog.work.screenshots_upstream -> catalog_work_screenshot.sexual",
+		"catalog.work.screenshots_upstream -> catalog_work_screenshot.violence",
 	}
 	if len(got) != len(want) {
 		t.Fatalf("stamping fields = %v, want %v", got, want)

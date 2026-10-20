@@ -5115,6 +5115,12 @@ export const docsModel: DocsModel = {
                                     "type": "string"
                                   },
                                   {
+                                    "name": "identity",
+                                    "required": true,
+                                    "doc": "Opaque row identity for a catalog.work.covers.suppressed proposal; echo it back, never rebuild it. Must not be used as a discriminant.",
+                                    "type": "string"
+                                  },
+                                  {
                                     "name": "portrait_pinned",
                                     "required": true,
                                     "doc": "Whether this row is pinned as the portrait cover.",
@@ -5887,6 +5893,12 @@ export const docsModel: DocsModel = {
                                     "doc": "Pixel height. null if unknown.",
                                     "format": "int64",
                                     "type": "integer"
+                                  },
+                                  {
+                                    "name": "identity",
+                                    "required": true,
+                                    "doc": "Opaque row identity for a catalog.work.screenshots.suppressed proposal; echo it back, never rebuild it. Must not be used as a discriminant.",
+                                    "type": "string"
                                   },
                                   {
                                     "name": "sexual",
@@ -14309,6 +14321,12 @@ export const docsModel: DocsModel = {
                                         "type": "string"
                                       },
                                       {
+                                        "name": "identity",
+                                        "required": true,
+                                        "doc": "Opaque row identity for a catalog.work.covers.suppressed proposal; echo it back, never rebuild it. Must not be used as a discriminant.",
+                                        "type": "string"
+                                      },
+                                      {
                                         "name": "portrait_pinned",
                                         "required": true,
                                         "doc": "Whether this row is pinned as the portrait cover.",
@@ -15081,6 +15099,12 @@ export const docsModel: DocsModel = {
                                         "doc": "Pixel height. null if unknown.",
                                         "format": "int64",
                                         "type": "integer"
+                                      },
+                                      {
+                                        "name": "identity",
+                                        "required": true,
+                                        "doc": "Opaque row identity for a catalog.work.screenshots.suppressed proposal; echo it back, never rebuild it. Must not be used as a discriminant.",
+                                        "type": "string"
                                       },
                                       {
                                         "name": "sexual",
@@ -27888,6 +27912,12 @@ export const docsModel: DocsModel = {
                                         "type": "string"
                                       },
                                       {
+                                        "name": "identity",
+                                        "required": true,
+                                        "doc": "Opaque row identity for a catalog.work.covers.suppressed proposal; echo it back, never rebuild it. Must not be used as a discriminant.",
+                                        "type": "string"
+                                      },
+                                      {
                                         "name": "portrait_pinned",
                                         "required": true,
                                         "doc": "Whether this row is pinned as the portrait cover.",
@@ -28660,6 +28690,12 @@ export const docsModel: DocsModel = {
                                         "doc": "Pixel height. null if unknown.",
                                         "format": "int64",
                                         "type": "integer"
+                                      },
+                                      {
+                                        "name": "identity",
+                                        "required": true,
+                                        "doc": "Opaque row identity for a catalog.work.screenshots.suppressed proposal; echo it back, never rebuild it. Must not be used as a discriminant.",
+                                        "type": "string"
                                       },
                                       {
                                         "name": "sexual",
@@ -68402,6 +68438,12 @@ export const docsModel: DocsModel = {
                                     "type": "string"
                                   },
                                   {
+                                    "name": "identity",
+                                    "required": true,
+                                    "doc": "Opaque row identity for a catalog.work.covers.suppressed proposal; echo it back, never rebuild it. Must not be used as a discriminant.",
+                                    "type": "string"
+                                  },
+                                  {
                                     "name": "portrait_pinned",
                                     "required": true,
                                     "doc": "Whether this row is pinned as the portrait cover.",
@@ -69174,6 +69216,12 @@ export const docsModel: DocsModel = {
                                     "doc": "Pixel height. null if unknown.",
                                     "format": "int64",
                                     "type": "integer"
+                                  },
+                                  {
+                                    "name": "identity",
+                                    "required": true,
+                                    "doc": "Opaque row identity for a catalog.work.screenshots.suppressed proposal; echo it back, never rebuild it. Must not be used as a discriminant.",
+                                    "type": "string"
                                   },
                                   {
                                     "name": "sexual",
@@ -71764,6 +71812,12 @@ export const docsModel: DocsModel = {
                               "type": "string"
                             },
                             {
+                              "name": "identity",
+                              "required": true,
+                              "doc": "Opaque row identity for a catalog.work.covers.suppressed proposal; echo it back, never rebuild it. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
                               "name": "portrait_pinned",
                               "required": true,
                               "doc": "Whether this row is pinned as the portrait cover.",
@@ -72536,6 +72590,12 @@ export const docsModel: DocsModel = {
                               "doc": "Pixel height. null if unknown.",
                               "format": "int64",
                               "type": "integer"
+                            },
+                            {
+                              "name": "identity",
+                              "required": true,
+                              "doc": "Opaque row identity for a catalog.work.screenshots.suppressed proposal; echo it back, never rebuild it. Must not be used as a discriminant.",
+                              "type": "string"
                             },
                             {
                               "name": "sexual",
@@ -76395,6 +76455,12 @@ export const docsModel: DocsModel = {
                               "name": "id",
                               "required": true,
                               "doc": "catalog_work_cover row id, not the image hash.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "identity",
+                              "required": true,
+                              "doc": "Opaque row identity for a catalog.work.covers.suppressed proposal; echo it back, never rebuild it. Must not be used as a discriminant.",
                               "type": "string"
                             },
                             {
@@ -86867,6 +86933,12 @@ export const docsModel: DocsModel = {
                                         "type": "string"
                                       },
                                       {
+                                        "name": "identity",
+                                        "required": true,
+                                        "doc": "Opaque row identity for a catalog.work.covers.suppressed proposal; echo it back, never rebuild it. Must not be used as a discriminant.",
+                                        "type": "string"
+                                      },
+                                      {
                                         "name": "portrait_pinned",
                                         "required": true,
                                         "doc": "Whether this row is pinned as the portrait cover.",
@@ -87620,6 +87692,12 @@ export const docsModel: DocsModel = {
                                         "doc": "Pixel height. null if unknown.",
                                         "format": "int64",
                                         "type": "integer"
+                                      },
+                                      {
+                                        "name": "identity",
+                                        "required": true,
+                                        "doc": "Opaque row identity for a catalog.work.screenshots.suppressed proposal; echo it back, never rebuild it. Must not be used as a discriminant.",
+                                        "type": "string"
                                       },
                                       {
                                         "name": "sexual",
@@ -91094,6 +91172,12 @@ export const docsModel: DocsModel = {
                               "doc": "Pixel height. null if unknown.",
                               "format": "int64",
                               "type": "integer"
+                            },
+                            {
+                              "name": "identity",
+                              "required": true,
+                              "doc": "Opaque row identity for a catalog.work.screenshots.suppressed proposal; echo it back, never rebuild it. Must not be used as a discriminant.",
+                              "type": "string"
                             },
                             {
                               "name": "sexual",
@@ -119506,6 +119590,12 @@ export const docsModel: DocsModel = {
                                     "type": "string"
                                   },
                                   {
+                                    "name": "identity",
+                                    "required": true,
+                                    "doc": "Opaque row identity for a catalog.work.covers.suppressed proposal; echo it back, never rebuild it. Must not be used as a discriminant.",
+                                    "type": "string"
+                                  },
+                                  {
                                     "name": "portrait_pinned",
                                     "required": true,
                                     "doc": "Whether this row is pinned as the portrait cover.",
@@ -120278,6 +120368,12 @@ export const docsModel: DocsModel = {
                                     "doc": "Pixel height. null if unknown.",
                                     "format": "int64",
                                     "type": "integer"
+                                  },
+                                  {
+                                    "name": "identity",
+                                    "required": true,
+                                    "doc": "Opaque row identity for a catalog.work.screenshots.suppressed proposal; echo it back, never rebuild it. Must not be used as a discriminant.",
+                                    "type": "string"
                                   },
                                   {
                                     "name": "sexual",

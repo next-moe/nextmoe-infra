@@ -108,7 +108,7 @@ func loadCandidates(ctx context.Context, db *gorm.DB, reg registry, pop Populati
 		),
 		ja AS (
 			SELECT DISTINCT ON (work_id) work_id, source_id AS ja_source_id, intro AS ja_text
-			FROM catalog_work_intro WHERE lang = ?
+			FROM catalog_work_intro WHERE lang = ? AND `+editspec.NotSuppressedWorkIntroSQL("catalog_work_intro")+`
 			ORDER BY work_id, `+editspec.IntroFoldOrderSQL("source_id", "provenance")+`
 		),
 		mzh AS (

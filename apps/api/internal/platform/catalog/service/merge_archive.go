@@ -173,6 +173,11 @@ func restoreRow(tx *gorm.DB, table string, cols []string, refs []mergeRef, row s
 		r, ok := rewrite[c]
 		if !ok {
 			sel[i] = "t." + quoted[i]
+			// A row archived before its table grew field_provenance carries no
+			// such key, and NULL into the NOT NULL column skips the whole row.
+			if c == "field_provenance" {
+				sel[i] = `COALESCE(t."field_provenance", '{}'::jsonb)`
+			}
 			continue
 		}
 		sel[i] = fmt.Sprintf(`CASE WHEN t.%[1]q = ? AND (%[2]s) = ? THEN ? ELSE t.%[1]q END`, c, r.typeSQL)

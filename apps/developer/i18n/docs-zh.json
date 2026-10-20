@@ -539,6 +539,8 @@
   "Opaque keyset cursor. Omitted on the last page.": "不透明 keyset cursor。末页省略。",
   "Opaque roster row identity for a catalog.work.roster.suppressed proposal on THIS work; echo it back, never rebuild it. The same key the mirror-image works/{id}.characters[] row publishes. Absent when the work is reached only through a voice credit, where roster_role is unknown and spoiler is none. Must not be used as a discriminant.": "对本作品发起 catalog.work.roster.suppressed 提案时的不透明花名册行 identity；回传即可，切勿重建。与镜像的 works/{id}.characters[] 行下发的是同一把键。仅经配音署名触达该作品时缺席，此时 roster_role 为 unknown、spoiler 为 none。不得用作判别条件。",
   "Opaque roster row identity for a catalog.work.roster.suppressed proposal; echo it back, never rebuild it. Absent when the character is reached only through a voice credit, where roster_role is unknown and spoiler is none. Must not be used as a discriminant.": "catalog.work.roster.suppressed 提案的不透明花名册行 identity；回传即可，切勿重建。仅经配音署名触达该角色时缺席，此时 roster_role 为 unknown、spoiler 为 none。不得用作判别条件。",
+  "Opaque row identity for a catalog.work.covers.suppressed proposal; echo it back, never rebuild it. Must not be used as a discriminant.": "catalog.work.covers.suppressed 提案的不透明行 identity；回传即可，切勿重建。不得用作判别条件。",
+  "Opaque row identity for a catalog.work.screenshots.suppressed proposal; echo it back, never rebuild it. Must not be used as a discriminant.": "catalog.work.screenshots.suppressed 提案的不透明行 identity；回传即可，切勿重建。不得用作判别条件。",
   "Open grouping vocabulary. Empty if uncategorized. Must not be used as a discriminant.": "开放的分组词表。未分类则为空。不得用作判别条件。",
   "Open vocabulary platform token. Unknown matches nothing.": "开放词表平台令牌。未知值什么也匹配不到。",
   "Open vocabulary source key such as vndb. Must not be used as a discriminant.": "开放词表来源键，如 vndb。不得用作判别条件。",

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"api/internal/platform/catalog/editspec"
 	"context"
 )
 
@@ -35,7 +36,7 @@ func (s *ReadService) loadWorkSeries(ctx context.Context, subjects []claimSubjec
 		SELECT m.work_id, se.id, se.display_name AS name, se.source_id
 		FROM catalog_series_member m
 		JOIN catalog_series se ON se.id = m.series_id
-		WHERE m.work_id IN ?
+		WHERE m.work_id IN ? AND `+editspec.NotSuppressedWorkSeriesSQL("m")+`
 		ORDER BY m.work_id, se.id`, workIDs).Scan(&rows).Error; err != nil {
 		return nil, err
 	}

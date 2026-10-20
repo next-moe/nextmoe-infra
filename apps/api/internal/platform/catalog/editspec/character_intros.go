@@ -8,11 +8,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// The curated lane is the whole editable surface here: an upstream intro row is
-// its importer's, and there is no `.suppressed` companion because the read face
-// renders one row per lang — suppressing one would promote the next upstream row
-// for that lang rather than remove the text. Writing the curated row is enough,
-// because it now wins the fold (HumanLaneFirstSQL).
 var introTableCharacter = introTable{
 	ownerCol:      "character_id",
 	hasProvenance: true,

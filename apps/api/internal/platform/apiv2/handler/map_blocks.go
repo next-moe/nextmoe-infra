@@ -3,6 +3,7 @@ package handler
 import (
 	"api/internal/platform/apiv2/repr"
 	"api/internal/platform/catalog/dto"
+	"api/internal/platform/catalog/editspec"
 )
 
 func ptrSlice[T any](in []T) *[]T {
@@ -65,6 +66,7 @@ func coverFromPublic(c dto.PublicCover) *repr.Cover {
 		ID: id, VoteCount: c.VoteCount, PortraitPinned: c.PortraitPinned, Kind: c.Kind,
 		URL: img.URL, Hash: img.Hash, Width: img.Width, Height: img.Height,
 		Thumbhash: img.Thumbhash, Sexual: img.Sexual, Violence: img.Violence, Source: img.Source,
+		Identity: editspec.CoverIdentity(img.Hash),
 	}
 }
 
@@ -78,7 +80,8 @@ func screenshotsFrom(in []dto.PublicScreenshot) []repr.Screenshot {
 		out = append(out, repr.Screenshot{
 			URL: img.URL, Hash: img.Hash, Width: img.Width, Height: img.Height,
 			Thumbhash: img.Thumbhash, Sexual: img.Sexual, Violence: img.Violence, Source: img.Source,
-			Caption: s.Caption,
+			Caption:  s.Caption,
+			Identity: editspec.ScreenshotIdentity(img.Hash),
 		})
 	}
 	return out
