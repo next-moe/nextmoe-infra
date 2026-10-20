@@ -29,6 +29,28 @@ const props = withDefaults(
 
 const emit = defineEmits<{ select: [] }>()
 
+const root = ref<HTMLButtonElement | null>(null)
+
+const move = (step: number) => {
+  const list = root.value?.closest('[data-workspace-list]')
+  const rows = list
+    ? [...list.querySelectorAll<HTMLElement>('[data-workspace-row]')]
+    : []
+  const next = rows[rows.indexOf(root.value as HTMLElement) + step]
+  next?.focus()
+  next?.click()
+}
+watch(
+  () => props.selected,
+  async (selected) => {
+    if (selected) {
+      await nextTick()
+      root.value?.scrollIntoView({ block: 'nearest' })
+    }
+  },
+  { immediate: true }
+)
+
 const STATE = {
   added: { text: '新增', className: 'bg-success-100 text-success-700' },
   changed: { text: '已修改', className: 'bg-primary-100 text-primary-700' },
@@ -38,11 +60,13 @@ const STATE = {
 
 <template>
   <button
+    ref="root"
     type="button"
+    data-workspace-row
     :aria-current="props.selected ? 'true' : undefined"
     :class="
       cn(
-        'group relative flex w-full items-center gap-3 px-3 py-2 text-left transition-colors',
+        'group relative flex w-full scroll-mt-9 items-center gap-3 px-3 py-2 text-left transition-colors',
         props.selected
           ? 'bg-primary-50'
           : 'hover:bg-default-100 focus-visible:bg-default-100',
@@ -50,6 +74,8 @@ const STATE = {
       )
     "
     @click="emit('select')"
+    @keydown.down.prevent="move(1)"
+    @keydown.up.prevent="move(-1)"
   >
     <span
       v-if="props.selected"

@@ -180,10 +180,7 @@ watch(
   { immediate: true }
 )
 
-onMounted(() => {
-  related.load()
-  refs.loadRoles()
-})
+onMounted(() => related.load())
 </script>
 
 <template>

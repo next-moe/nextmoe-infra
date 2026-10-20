@@ -212,8 +212,16 @@ export const RELEASE_EDIT_CONFIG: EditEntityConfig = {
       control: 'ref',
       ref: 'engine'
     },
-    'catalog.release.freeware': { label: '免费发行', group: 'basic' },
-    'catalog.release.official': { label: '官方发行', group: 'basic' },
+    'catalog.release.freeware': {
+      label: '免费发行',
+      group: 'basic',
+      control: 'switch'
+    },
+    'catalog.release.official': {
+      label: '官方发行',
+      group: 'basic',
+      control: 'switch'
+    },
     'catalog.release.minage': { label: '年龄限制', group: 'basic' },
     'catalog.release.labels': {
       label: '开发与发行商',
@@ -227,6 +235,7 @@ export const RELEASE_EDIT_CONFIG: EditEntityConfig = {
     'catalog.release.hidden': {
       label: '隐藏这个发行',
       group: 'other',
+      control: 'switch',
       help: '隐藏后这个发行不再出现在任何页面上，可以随时恢复。'
     }
   }

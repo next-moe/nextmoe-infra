@@ -51,7 +51,7 @@ const remember = (next: number) => {
           >
             <slot name="header" />
           </div>
-          <div class="min-h-0 flex-1 overflow-y-auto">
+          <div class="min-h-0 flex-1 overflow-y-auto" data-workspace-list>
             <slot name="list" />
           </div>
           <div

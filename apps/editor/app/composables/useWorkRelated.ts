@@ -141,6 +141,7 @@ const inflight = new Map<string, Promise<void>>()
 
 export const useWorkRelated = (workId: MaybeRefOrGetter<string>) => {
   const api = useEditorApi()
+  const refs = useRefNames()
   const id = computed(() => toValue(workId))
   const store = useState<Record<string, RelatedDisplay>>(
     'workspace-related-display',
@@ -181,6 +182,32 @@ export const useWorkRelated = (workId: MaybeRefOrGetter<string>) => {
       return
     }
     const raw = work as Loose
+    const remember = (
+      family: Parameters<typeof refs.remember>[0],
+      items: unknown
+    ) => {
+      for (const item of (items as Loose[] | undefined) ?? []) {
+        if (item?.id != null && item.display_name) {
+          refs.remember(family, str(item.id), str(item.display_name))
+        }
+      }
+    }
+    remember('character', raw.characters)
+    remember('company', raw.companies)
+    remember('series', raw.series)
+    remember('engine', raw.engines)
+    remember(
+      'work',
+      ((raw.relations as Loose[] | undefined) ?? []).map(
+        (relation) => relation.work
+      )
+    )
+    for (const group of (raw.credits as Loose[] | undefined) ?? []) {
+      remember('credit_name', group.credits)
+    }
+    for (const character of (raw.characters as Loose[] | undefined) ?? []) {
+      remember('credit_name', character.voices)
+    }
     const characters = ((raw.characters as Loose[] | undefined) ?? []).map(
       characterOf
     )
@@ -298,6 +325,9 @@ export const useWorkRelated = (workId: MaybeRefOrGetter<string>) => {
       const list = await api<{ items?: Loose[] }>('/v2/catalog/credit-names', {
         query: { ids: chunk.join(','), nsfw: true, limit: chunk.length }
       }).catch(() => null)
+      for (const item of list?.items ?? []) {
+        refs.remember('credit_name', str(item.id), str(item.display_name))
+      }
       mergeInto(
         'creditPersons',
         Object.fromEntries(

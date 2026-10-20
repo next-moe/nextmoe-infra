@@ -251,9 +251,8 @@ watch(
   [() => idsOf('credit_name_id'), () => idsOf('character_id')],
   ([names, characters]) => {
     const split = (joined: string) => (joined ? joined.split(',') : [])
-    refs.resolve('credit_name', split(names))
-    refs.resolve('character', split(characters))
     related.ensureCreditPersons(split(names))
+    refs.resolve('character', split(characters))
   },
   { immediate: true }
 )
