@@ -716,3 +716,33 @@ describe('list reorder', () => {
     expect(moveItem(same, 0, 5)).toBe(same)
   })
 })
+
+describe('suppressed companions', () => {
+  const field = {
+    key: 'catalog.work.tag_ids.suppressed',
+    field_type: 'list',
+    element: { type: 'text' }
+  } as unknown as CatalogSchemaField
+
+  it('submits identity keys sorted by code point and unique, as the backend requires', () => {
+    expect(
+      normalizeFieldValue(field, [
+        'tag:9',
+        'tag:10',
+        'tag:9',
+        'title:1:ja:𝒜',
+        'title:1:ja:Z'
+      ])
+    ).toEqual(['tag:10', 'tag:9', 'title:1:ja:Z', 'title:1:ja:𝒜'])
+  })
+
+  it('does not report a change when only the order of hidden rows differs', () => {
+    expect(
+      changedFieldKeys(
+        [field],
+        { [field.key]: ['tag:1', 'tag:2'] },
+        { [field.key]: ['tag:2', 'tag:1'] }
+      )
+    ).toEqual([])
+  })
+})

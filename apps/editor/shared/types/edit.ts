@@ -107,6 +107,8 @@ export interface EditUpstreamRow {
   ref?: { family: EditRefFamily; id: string }
   machine?: boolean
   suppressed?: boolean
+  raw?: unknown
+  sourceKey?: string
 }
 
 export type EditFieldValues = Record<string, unknown>

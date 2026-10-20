@@ -19,7 +19,7 @@ const api = useEditorApi()
 const state = ref('open')
 const items = ref<CatalogMergeRequest[]>([])
 const nextCursor = ref<string | null>(null)
-const loading = ref(false)
+const loading = ref(true)
 const forbidden = ref(false)
 const now = ref(Date.now())
 const deciding = ref<string | null>(null)
@@ -109,7 +109,7 @@ onMounted(() => {
 onBeforeUnmount(() => clearInterval(ticker))
 
 watch(state, () => fetchPage(null))
-await fetchPage(null)
+fetchPage(null)
 </script>
 
 <template>
@@ -144,7 +144,8 @@ await fetchPage(null)
     />
 
     <KunCard v-else bordered padding="md">
-      <ul v-if="items.length" class="divide-default-200 divide-y">
+      <CommonSkeletonRows v-if="loading && !items.length" :rows="5" trailing />
+      <ul v-else-if="items.length" class="divide-default-200 divide-y">
         <MergeRow
           v-for="request in items"
           :key="request.id"
@@ -199,7 +200,7 @@ await fetchPage(null)
       </ul>
       <KunNull v-else-if="!loading" description="没有这个状态的合并请求" />
       <div class="flex justify-center pt-3">
-        <KunLoading v-if="loading" spinner />
+        <KunLoading v-if="loading && items.length" spinner />
         <KunButton
           v-else-if="nextCursor"
           variant="bordered"
@@ -221,7 +222,7 @@ await fetchPage(null)
           v-model="rejectReason"
           placeholder="驳回理由（必填）"
           aria-label="驳回理由"
-          max-height="8rem"
+          max-height="128px"
         />
         <div class="flex justify-end gap-2">
           <KunButton variant="light" @click="rejectOpen = false"

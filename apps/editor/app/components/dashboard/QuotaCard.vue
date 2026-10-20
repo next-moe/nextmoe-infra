@@ -2,7 +2,7 @@
 import type { EditQuota, EditQuotaCounter } from '#shared/types/quota'
 import { QUOTA_TIER_LABELS } from '~/constants/quota'
 
-const props = defineProps<{ quota: EditQuota | null }>()
+const props = defineProps<{ quota: EditQuota | null; loading?: boolean }>()
 
 const rows = computed<
   { label: string; hint: string; counter: EditQuotaCounter }[]
@@ -40,7 +40,18 @@ const rows = computed<
       </KunChip>
     </div>
 
-    <p v-if="!props.quota" class="text-default-400 text-sm">配额信息暂不可用</p>
+    <div v-if="props.loading && !props.quota" class="space-y-4">
+      <div v-for="index in 3" :key="index" class="space-y-2">
+        <div class="flex justify-between gap-3">
+          <KunSkeleton variant="text" class-name="text-sm" width="45%" />
+          <KunSkeleton variant="text" class-name="text-sm" width="3.5rem" />
+        </div>
+        <KunSkeleton height="0.375rem" rounded="full" />
+      </div>
+    </div>
+    <p v-else-if="!props.quota" class="text-default-400 text-sm">
+      配额信息暂不可用
+    </p>
     <dl v-else class="space-y-3">
       <div v-for="row in rows" :key="row.label">
         <div class="mb-1 flex items-baseline justify-between gap-3 text-sm">

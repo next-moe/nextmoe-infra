@@ -15,7 +15,7 @@ const fetchState = (state: 'merged' | 'declined') =>
     .then((list) => list.items ?? [])
     .catch(() => [] as CatalogProposal[])
 
-const { data, pending } = await useAsyncData(
+const { data, pending } = useLazyAsyncData(
   'dashboard-decided-proposals',
   async () => {
     const [merged, declined] = await Promise.all([
@@ -41,7 +41,7 @@ watch(data, (list) => names.resolve(list ?? []), { immediate: true })
       <h2 class="font-semibold">最近处理的提案</h2>
       <NuxtLink to="/me/proposals" class="text-primary text-sm">全部</NuxtLink>
     </div>
-    <KunLoading v-if="pending" spinner />
+    <CommonSkeletonRows v-if="pending && !data" :rows="4" />
     <ul v-else-if="data?.length" class="divide-default-200 divide-y">
       <li
         v-for="proposal in data"

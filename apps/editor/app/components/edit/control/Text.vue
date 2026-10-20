@@ -18,7 +18,9 @@ const text = computed({
     v-model="text"
     :aria-label="config?.label ?? props.fieldKey"
     :disabled="disabled"
-    max-height="24rem"
+    :rows="3"
+    auto-grow
+    max-height="512px"
   />
   <KunInput
     v-else

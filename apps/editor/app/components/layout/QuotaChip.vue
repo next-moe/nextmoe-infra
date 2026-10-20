@@ -5,7 +5,7 @@ import { QUOTA_TIER_LABELS } from '~/constants/quota'
 
 const api = useEditorApi()
 
-const { data: quota } = await useAsyncData('editor-quota', () =>
+const { data: quota, pending } = useLazyAsyncData('editor-quota', () =>
   api<EditQuota>('/v2/me/edit-quota').catch(() => null)
 )
 
@@ -86,4 +86,11 @@ const rows = computed(() =>
       </dl>
     </div>
   </KunPopover>
+  <KunSkeleton
+    v-else-if="pending"
+    width="5rem"
+    height="1.75rem"
+    rounded="full"
+    class-name="hidden md:block"
+  />
 </template>

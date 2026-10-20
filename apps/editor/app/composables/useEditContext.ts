@@ -13,16 +13,11 @@ export const useEditContext = (
   entityId: MaybeRefOrGetter<string>,
   editor: EntityEditor
 ) => {
-  const api = useEditorApi()
   const refs = useRefNames()
   const { byName } = useVocabularies()
-  const context = ref<CatalogEditContext | null>(null)
-
-  const load = async () => {
-    context.value = await api<CatalogEditContext>(
-      `/v2/me/edit-context/${config.family}/${toValue(entityId)}`
-    ).catch(() => null)
-  }
+  const context = computed<CatalogEditContext | null>(
+    () => editor.bundleContext.value
+  )
 
   const fieldMap = computed(() => contextFieldMap(context.value))
 
@@ -106,7 +101,7 @@ export const useEditContext = (
     }
   })
 
-  return { context, load, upstreamRows, rosterIdentity, provenance, images }
+  return { context, upstreamRows, rosterIdentity, provenance, images }
 }
 
 export type EditContextState = ReturnType<typeof useEditContext>

@@ -9,6 +9,7 @@ const props = defineProps<{
   entityId: string
   summary: CatalogEntitySummary | null
   mode: 'view' | 'edit'
+  loading?: boolean
 }>()
 
 const meta = computed(() => ENTITY_META[props.family])
@@ -103,7 +104,15 @@ const picture = computed(
           />
           {{ props.mode === 'edit' ? `编辑${meta.label}` : meta.label }}
         </p>
-        <h1 class="truncate text-xl font-bold sm:text-2xl">{{ name }}</h1>
+        <KunSkeleton
+          v-if="props.loading && !props.summary"
+          variant="text"
+          class-name="text-xl sm:text-2xl"
+          width="14rem"
+        />
+        <h1 v-else class="truncate text-xl font-bold sm:text-2xl">
+          {{ name }}
+        </h1>
         <p
           class="text-default-500 mt-0.5 flex flex-wrap items-center gap-2 text-sm"
         >
@@ -147,6 +156,7 @@ const picture = computed(
         <KunButton
           v-if="props.mode === 'view'"
           :href="`${meta.path}/${props.entityId}/edit`"
+          target="_blank"
           color="primary"
           size="sm"
         >

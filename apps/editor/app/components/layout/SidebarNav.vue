@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { cn } from '@kungal/ui-core'
-import { EDITOR_NAV } from '~/constants/navigation'
+import { EDITOR_NAV, currentNavPath } from '~/constants/navigation'
 
 const props = withDefaults(defineProps<{ collapsed?: boolean }>(), {
   collapsed: false
@@ -16,10 +16,12 @@ const groups = computed(() =>
   })).filter((group) => group.items.length > 0)
 )
 
-const isActive = (to: string) =>
-  to === '/'
-    ? route.path === '/'
-    : route.path === to || route.path.startsWith(`${to}/`)
+const current = computed(() =>
+  currentNavPath(
+    route.path,
+    groups.value.flatMap((group) => group.items)
+  )
+)
 </script>
 
 <template>
@@ -33,28 +35,39 @@ const isActive = (to: string) =>
       </p>
       <KunDivider v-else-if="group.label" class-name="mx-2 mb-2 w-auto" />
       <ul class="space-y-0.5">
-        <li v-for="item in group.items" :key="item.to">
-          <NuxtLink
-            :to="item.to"
-            :title="props.collapsed ? item.label : undefined"
-            :class="
-              cn(
-                'flex h-9 items-center gap-3 rounded-lg px-3 text-sm transition-colors',
-                isActive(item.to)
-                  ? 'bg-primary-50 text-primary font-medium'
-                  : 'text-default-600 hover:bg-default-100 hover:text-foreground',
-                props.collapsed && 'justify-center px-0'
-              )
-            "
+        <li
+          v-for="item in group.items"
+          :key="item.to"
+          :class="props.collapsed && 'flex justify-center'"
+        >
+          <KunTooltip
+            v-if="props.collapsed"
+            :text="item.label"
+            position="right"
           >
-            <KunIcon :name="item.icon" class="size-4 shrink-0" />
-            <template v-if="!props.collapsed">
-              <span class="min-w-0 flex-1 truncate">{{ item.label }}</span>
-              <span v-if="!item.ready" class="text-default-300 text-xs"
-                >筹备中</span
-              >
-            </template>
-          </NuxtLink>
+            <KunButton
+              :href="item.to"
+              :variant="current === item.to ? 'flat' : 'light'"
+              :color="current === item.to ? 'primary' : 'default'"
+              :disabled="!item.ready"
+              :aria-label="item.label"
+              :aria-current="current === item.to ? 'page' : undefined"
+              is-icon-only
+            >
+              <KunIcon :name="item.icon" class="size-4" />
+            </KunButton>
+          </KunTooltip>
+          <KunNavItem
+            v-else
+            :label="item.label"
+            :icon="item.icon"
+            :href="item.to"
+            :current="current === item.to"
+            :disabled="!item.ready"
+            :class-name="
+              cn('h-9 text-sm', current !== item.to && 'text-default-600')
+            "
+          />
         </li>
       </ul>
     </div>

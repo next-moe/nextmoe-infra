@@ -907,7 +907,7 @@ export const searchIndex: SearchEntry[] = [
     "r": "/docs/v2",
     "t": "Public API v2",
     "s": "端点参考",
-    "d": "/v2 · 151 个端点",
+    "d": "/v2 · 153 个端点",
     "b": "v2 /v2 API v2 Public API v2"
   },
   {
@@ -1042,6 +1042,13 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/engines/{id}",
     "b": "getCatalogEngine /v2/catalog/engines/{id} get Get one engine Engine detail. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. 引擎详情。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。 catalog:read id nsfw view include fields"
+  },
+  {
+    "r": "/docs/v2/listCatalogNames",
+    "t": "跨族显示名",
+    "s": "端点 · 目录",
+    "d": "GET /v2/catalog/names",
+    "b": "listCatalogNames /v2/catalog/names get Display names across families Resolves display names for entities of several families in one call: each family's names come from that family's ids= batch lane under the same nsfw gate, so this face answers exactly what those lanes would. Items follow the order of keys=. Keys that name no visible entity land in missing[]. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. 一次调用解析多个族的实体显示名：每个族的名字取自该族的 ids= 批量通道，nsfw 门相同，因此本面的回答与那些通道完全一致。items 按 keys= 的顺序排列。没有对应可见实体的键落入 missing[]。允许匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌走各自更高的额度。 catalog:read keys nsfw"
   },
   {
     "r": "/docs/v2/listCatalogPersons",
@@ -1469,6 +1476,13 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 我的",
     "d": "POST /v2/me/creations",
     "b": "createMyCreation /v2/me/creations post Propose a new entry Files a proposal that creates a new entry of one family. It is reviewed like any proposal (it appears in GET /v2/moderation/proposals with entity_id 0 and a creation block) unless the create policy lets the bearer apply it at once; once merged, entity_id is the new entry's id. Entries whose normalized name already exists are refused with 409 DUPLICATE_SUSPECTS unless confirm_duplicates=true. Counts against the same proposal quota as POST /v2/me/proposals. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 提交一条新建某家族条目的提案。它像其他提案一样接受审核（在 GET /v2/moderation/proposals 中以 entity_id 0 和 creation 块出现），除非创建策略允许调用者直接生效；合并后 entity_id 即为新条目的 id。规范化名称已存在的条目会以 409 DUPLICATE_SUSPECTS 拒绝，除非 confirm_duplicates=true。与 POST /v2/me/proposals 共用同一提案配额。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 Idempotency-Key"
+  },
+  {
+    "r": "/docs/v2/getMyEditBundle",
+    "t": "编辑器打开一个条目所需的全部数据",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/edit-bundle/{object}/{id}",
+    "b": "getMyEditBundle /v2/me/edit-bundle/{object}/{id} get Everything an editor needs to open one entity One read for an editing screen: the family schema, the entity's snapshot, the bearer's capabilities on it, its edit context and the bearer's quota — each member the exact body its own face answers, so a client swaps five calls for one. The schema and the snapshot decide the answer: an unknown family or entity is 404 as on GET /v2/moderation/snapshots/{object}/{id}. capabilities, context and quota are left out when their own face would have answered an error. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 为编辑页面一次读回：族的 schema、条目快照、持有者对它的能力、它的编辑上下文以及持有者的配额——每个成员都与各自单独的面回答的响应体完全相同，客户端用一次调用代替五次。schema 与快照决定结果：未知的族或条目返回 404，与 GET /v2/moderation/snapshots/{object}/{id} 相同。capabilities、context 与 quota 在其各自的面会返回错误时省略。需要绑定 catalog 站点的用户访问令牌，且令牌须带 catalog:edit 作用域。 object id"
   },
   {
     "r": "/docs/v2/getMyEditCapabilities",

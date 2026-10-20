@@ -9,9 +9,9 @@ const { session, isReviewer } = useEditorSession()
 const proposalNames = useEntityNames()
 const revisionNames = useEntityNames()
 
-const { data: quota } = await useEditQuota()
+const { data: quota, pending: quotaPending } = useEditQuota()
 
-const { data: openProposals, pending: proposalsPending } = await useAsyncData(
+const { data: openProposals, pending: proposalsPending } = useLazyAsyncData(
   'dashboard-open-proposals',
   () =>
     api<ActivityList<CatalogProposal>>('/v2/me/proposals', {
@@ -19,7 +19,7 @@ const { data: openProposals, pending: proposalsPending } = await useAsyncData(
     }).catch(() => null)
 )
 
-const { data: mergedProposals } = await useAsyncData(
+const { data: mergedProposals, pending: mergedPending } = useLazyAsyncData(
   'dashboard-merged-proposals',
   () =>
     api<ActivityList<CatalogProposal>>('/v2/me/proposals', {
@@ -27,7 +27,7 @@ const { data: mergedProposals } = await useAsyncData(
     }).catch(() => null)
 )
 
-const { data: recent, pending: recentPending } = await useAsyncData(
+const { data: recent, pending: recentPending } = useLazyAsyncData(
   'dashboard-recent',
   () =>
     api<ActivityList<CatalogRevision>>('/v2/catalog/revisions', {
@@ -58,12 +58,14 @@ const stats = computed(() => [
   {
     label: '待审中的提案',
     value: openProposals.value?.total ?? 0,
+    loading: proposalsPending.value && !openProposals.value,
     icon: 'lucide:clock',
     to: '/me/proposals?state=open'
   },
   {
     label: '已合并的提案',
     value: mergedProposals.value?.total ?? 0,
+    loading: mergedPending.value && !mergedProposals.value,
     icon: 'lucide:git-merge',
     to: '/me/proposals?state=merged'
   }
@@ -73,7 +75,7 @@ const stats = computed(() => [
 <template>
   <div class="mx-auto max-w-6xl space-y-6">
     <KunHeader
-      :name="`${greeting}，${session?.name ?? ''}`"
+      :name="session ? `${greeting}，${session.name}` : greeting"
       description="这里是 NextMoe 资料库的编辑台：查找条目、提交修改、跟进你的提案。"
     />
 
@@ -81,7 +83,7 @@ const stats = computed(() => [
 
     <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
       <div class="lg:col-span-1">
-        <DashboardQuotaCard :quota="quota ?? null" />
+        <DashboardQuotaCard :quota="quota ?? null" :loading="quotaPending" />
       </div>
 
       <div
@@ -99,7 +101,15 @@ const stats = computed(() => [
             <KunIcon :name="stat.icon" class="size-5" />
           </span>
           <div>
-            <p class="text-2xl font-semibold tabular-nums">{{ stat.value }}</p>
+            <KunSkeleton
+              v-if="stat.loading"
+              variant="text"
+              class-name="text-2xl"
+              width="2.5rem"
+            />
+            <p v-else class="text-2xl font-semibold tabular-nums">
+              {{ stat.value }}
+            </p>
             <p class="text-default-500 text-sm">{{ stat.label }}</p>
           </div>
         </NuxtLink>
@@ -120,7 +130,10 @@ const stats = computed(() => [
             >全部</NuxtLink
           >
         </div>
-        <KunLoading v-if="proposalsPending" spinner />
+        <CommonSkeletonRows
+          v-if="proposalsPending && !openProposals"
+          :rows="4"
+        />
         <ul
           v-else-if="openProposals?.items?.length"
           class="divide-default-200 divide-y"
@@ -148,7 +161,7 @@ const stats = computed(() => [
         <h2 class="font-semibold">全站最近修订</h2>
         <NuxtLink to="/changes" class="text-primary text-sm">全部</NuxtLink>
       </div>
-      <KunLoading v-if="recentPending" spinner />
+      <CommonSkeletonRows v-if="recentPending && !recent" :rows="6" />
       <ul v-else-if="recent?.items?.length" class="divide-default-200 divide-y">
         <DashboardRecentChange
           v-for="revision in recent.items"

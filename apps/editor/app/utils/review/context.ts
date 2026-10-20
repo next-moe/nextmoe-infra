@@ -8,6 +8,7 @@ import {
   TITLE_KIND_LABELS
 } from '~/constants/catalog'
 import { useEditorApi } from '~/composables/useEditorApi'
+import { preferredRefLabel, useRefNameBatcher } from '~/utils/refNameBatcher'
 import {
   refCollectionOf,
   type RefCollection,
@@ -89,8 +90,23 @@ export const collectRefs = (
   }
 }
 
+const FAMILY_OF_COLLECTION: Record<RefCollection, string> = {
+  works: 'work',
+  tags: 'tag',
+  companies: 'company',
+  engines: 'engine',
+  series: 'series',
+  characters: 'character',
+  'credit-names': 'credit_name',
+  roles: 'role',
+  persons: 'person',
+  traits: 'trait',
+  releases: 'release'
+}
+
 export const useDiffContext = () => {
   const api = useEditorApi()
+  const batcher = useRefNameBatcher()
   const vocabularies = ref<Record<string, VocabularyInfo>>({})
   const names = ref<Record<string, string>>({})
 
@@ -116,33 +132,31 @@ export const useDiffContext = () => {
   }
 
   const resolveRefs = async (refs: Map<RefCollection, Set<string>>) => {
-    const jobs: Promise<[string, string][]>[] = []
+    const keys: string[] = []
+    const nameKeyOf = new Map<string, string>()
     for (const [collection, ids] of refs) {
-      const pending = [...ids].filter(
-        (id) => !names.value[`${collection}:${id}`]
-      )
-      for (let i = 0; i < pending.length; i += 100) {
-        const chunk = pending.slice(i, i + 100)
-        jobs.push(
-          api<{ items?: { id: string; display_name?: string }[] }>(
-            `/v2/catalog/${collection}`,
-            { query: { ids: chunk.join(','), nsfw: true } }
-          )
-            .then((list) =>
-              (list.items ?? []).map(
-                (item) =>
-                  [`${collection}:${item.id}`, item.display_name ?? ''] as [
-                    string,
-                    string
-                  ]
-              )
-            )
-            .catch(() => [])
-        )
+      for (const id of ids) {
+        const nameKey = `${collection}:${id}`
+        if (names.value[nameKey] || !/^\d+$/.test(id)) {
+          continue
+        }
+        const key = `${FAMILY_OF_COLLECTION[collection]}:${id}`
+        nameKeyOf.set(key, nameKey)
+        keys.push(key)
       }
     }
-    const found = (await Promise.all(jobs)).flat()
-    names.value = { ...names.value, ...Object.fromEntries(found) }
+    if (!keys.length) {
+      return
+    }
+    const found = await batcher.request(keys)
+    const labels: Record<string, string> = {}
+    for (const [key, item] of found) {
+      const nameKey = nameKeyOf.get(key)
+      if (item && nameKey) {
+        labels[nameKey] = preferredRefLabel(item)
+      }
+    }
+    names.value = { ...names.value, ...labels }
   }
 
   const prepare = async (

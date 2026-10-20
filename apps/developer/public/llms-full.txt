@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-本文件内联全部 165 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
+本文件内联全部 167 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
 
 ## 给 AI 助手的指引
 
@@ -3442,7 +3442,7 @@ Closed · 12 tokens
 
 - 路径前缀：`/v2`
 - 凭据：Authorization: Bearer nmk_live_…（v2 应用密钥,门户自助铸造,无需申请）
-- 端点数：151
+- 端点数：153
 
 > 正式公开：形状按 additive-only 演进，删除与改名由 CI 的 oasdiff 门拦下。第三方在门户自助铸 nmk_ 密钥即可调用，不需要申请。
 
@@ -3955,6 +3955,25 @@ Engine detail. Anonymous calls are allowed and limited per IP address; an applic
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/engines/1"
+```
+
+### GET /v2/catalog/names
+
+Display names across families
+
+Resolves display names for entities of several families in one call: each family's names come from that family's ids= batch lane under the same nsfw gate, so this face answers exactly what those lanes would. Items follow the order of keys=. Keys that name no visible entity land in missing[]. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：可匿名调用
+- scope：catalog:read（仅在带凭据时）
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `keys` | query | 否 | string | Comma-separated family:id, max 500, e.g. tag:12,company:3. Families: work, tag, company, engine, series, character, credit_name, person, role, trait, release. Duplicates collapse. |
+| `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. Passed to each family's ids= batch lane unchanged. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/catalog/names"
 ```
 
 ### GET /v2/catalog/persons
@@ -5475,6 +5494,26 @@ curl -X POST "https://api.nextmoe.dev/v2/me/creations" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{"object":"company"}'
+```
+
+### GET /v2/me/edit-bundle/{object}/{id}
+
+Everything an editor needs to open one entity
+
+One read for an editing screen: the family schema, the entity's snapshot, the bearer's capabilities on it, its edit context and the bearer's quota — each member the exact body its own face answers, so a client swaps five calls for one. The schema and the snapshot decide the answer: an unknown family or entity is 404 as on GET /v2/moderation/snapshots/{object}/{id}. capabilities, context and quota are left out when their own face would have answered an error. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `object` | path | 是 | string | Family of the entity. Unknown family is 404 NOT_FOUND. 取值：work \| company \| character \| release \| tag \| engine \| series \| person \| credit_name \| trait |
+| `id` | path | 是 | string | Catalog id of the entity. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/me/edit-bundle/work/1" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
 ### GET /v2/me/edit-capabilities/{object}
@@ -7647,7 +7686,7 @@ curl "https://api.nextmoe.dev/v2/sticker/tags" \
 
 NextMoe 开放 API 同时以 MCP（Model Context Protocol）server 暴露：端点 https://mcp.nextmoe.dev/mcp，Streamable HTTP、stateless，带上同一把 API 密钥即可；不带密钥也能用，额度按你自己的 IP 计（默认每分钟 30 次、每天 1,000 次）。它是一层纯透传适配——每次工具调用就是一次对公开 /v2 GET 的请求，鉴权、限流、配额与用量与直连毫无区别。工具名就是 OpenAPI operationId，清单由 cmd/gen-v2-portal 从同一份 v2 spec 生成。
 
-## 工具（60 个）
+## 工具（61 个）
 
 - `getCatalogCharacter` `GET /v2/catalog/characters/{id}`（无需密钥）：按 id 取角色；view=full 追加性别、生日、三围、血型与 instance_of_id。nsfw 同时控 r18 作品与 sexual 系 traits 的可见性。
 - `getCatalogCharacterAppearances` `GET /v2/catalog/characters/{id}/appearances`（无需密钥）：一个角色出演的全部作品，各带 roster_role、剧透等级与配音署名，offset 游标分页。
@@ -7692,6 +7731,7 @@ NextMoe 开放 API 同时以 MCP（Model Context Protocol）server 暴露：端�
 - `listCatalogCompanies` `GET /v2/catalog/companies`（无需密钥）：浏览公司 / 厂牌词表本身（v1 的 labels）——用来发现 company id 再喂给 listCatalogWorks 的 company_id=。
 - `listCatalogCreditNames` `GET /v2/catalog/credit-names`（无需密钥）：keyset 分页浏览署名注册表，q= 按名字过滤。ids=/refs= 是批量水合泳道，不分页。
 - `listCatalogEngines` `GET /v2/catalog/engines`（无需密钥）：浏览引擎词表本身——用来发现 engine id 再喂给 listCatalogWorks 的 engine_id=。
+- `listCatalogNames` `GET /v2/catalog/names`（无需密钥）：一次解析多个族的显示名：keys=family:id,…（最多 500 个，如 tag:12,company:3），各族按自己的 ids= 批量通道取名，可见性与 nsfw 门完全一致；有中文名时另给 name_zh。只需要名字时用它代替逐族的 ids= 调用。
 - `listCatalogPersons` `GET /v2/catalog/persons`（无需密钥）：keyset 分页浏览人物身份注册表。ids=/refs= 是批量水合泳道，不分页。
 - `listCatalogProposals` `GET /v2/catalog/proposals`（无需密钥）：已提交的编辑提案流，最新优先。proposer_uid= + state=merged + include_total=true 就是按贡献者的合入计数。此面不下发 patch，也不下发审核意见。
 - `listCatalogRedirects` `GET /v2/catalog/redirects`（无需密钥）：合并去向流：被合并掉的 id 指向哪个继任者，最旧优先。存下游标增量消费，就能把本地副本里的死 id 换成活的。object= 收敛到单个家族；不接受 ids=。

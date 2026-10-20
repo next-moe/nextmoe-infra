@@ -15,10 +15,11 @@ const number = computed({
 </script>
 
 <template>
-  <KunNumberInput
-    v-model="number"
-    :aria-label="config?.label ?? props.fieldKey"
-    :disabled="disabled"
-    class="max-w-xs"
-  />
+  <div class="max-w-56">
+    <KunNumberInput
+      v-model="number"
+      :aria-label="config?.label ?? props.fieldKey"
+      :disabled="disabled"
+    />
+  </div>
 </template>

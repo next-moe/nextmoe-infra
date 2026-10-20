@@ -11,7 +11,7 @@
 
 NextMoe 开放 API 同时以 MCP（Model Context Protocol）server 暴露：端点 https://mcp.nextmoe.dev/mcp，Streamable HTTP、stateless，带上同一把 API 密钥即可；不带密钥也能用，额度按你自己的 IP 计（默认每分钟 30 次、每天 1,000 次）。它是一层纯透传适配——每次工具调用就是一次对公开 /v2 GET 的请求，鉴权、限流、配额与用量与直连毫无区别。工具名就是 OpenAPI operationId，清单由 cmd/gen-v2-portal 从同一份 v2 spec 生成。
 
-## 工具（60 个）
+## 工具（61 个）
 
 - `getCatalogCharacter` `GET /v2/catalog/characters/{id}`（无需密钥）：按 id 取角色；view=full 追加性别、生日、三围、血型与 instance_of_id。nsfw 同时控 r18 作品与 sexual 系 traits 的可见性。
 - `getCatalogCharacterAppearances` `GET /v2/catalog/characters/{id}/appearances`（无需密钥）：一个角色出演的全部作品，各带 roster_role、剧透等级与配音署名，offset 游标分页。
@@ -56,6 +56,7 @@ NextMoe 开放 API 同时以 MCP（Model Context Protocol）server 暴露：端�
 - `listCatalogCompanies` `GET /v2/catalog/companies`（无需密钥）：浏览公司 / 厂牌词表本身（v1 的 labels）——用来发现 company id 再喂给 listCatalogWorks 的 company_id=。
 - `listCatalogCreditNames` `GET /v2/catalog/credit-names`（无需密钥）：keyset 分页浏览署名注册表，q= 按名字过滤。ids=/refs= 是批量水合泳道，不分页。
 - `listCatalogEngines` `GET /v2/catalog/engines`（无需密钥）：浏览引擎词表本身——用来发现 engine id 再喂给 listCatalogWorks 的 engine_id=。
+- `listCatalogNames` `GET /v2/catalog/names`（无需密钥）：一次解析多个族的显示名：keys=family:id,…（最多 500 个，如 tag:12,company:3），各族按自己的 ids= 批量通道取名，可见性与 nsfw 门完全一致；有中文名时另给 name_zh。只需要名字时用它代替逐族的 ids= 调用。
 - `listCatalogPersons` `GET /v2/catalog/persons`（无需密钥）：keyset 分页浏览人物身份注册表。ids=/refs= 是批量水合泳道，不分页。
 - `listCatalogProposals` `GET /v2/catalog/proposals`（无需密钥）：已提交的编辑提案流，最新优先。proposer_uid= + state=merged + include_total=true 就是按贡献者的合入计数。此面不下发 patch，也不下发审核意见。
 - `listCatalogRedirects` `GET /v2/catalog/redirects`（无需密钥）：合并去向流：被合并掉的 id 指向哪个继任者，最旧优先。存下游标增量消费，就能把本地副本里的死 id 换成活的。object= 收敛到单个家族；不接受 ids=。

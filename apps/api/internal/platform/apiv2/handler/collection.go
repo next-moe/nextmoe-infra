@@ -295,6 +295,9 @@ func credentialLimitIdentity(c fiber.Ctx) (protocol.LimitIdentity, bool) {
 	case int64:
 		uid = id
 	}
+	if uid == 0 {
+		uid, _ = c.Locals(localsLimitUserID).(int64)
+	}
 	if uid > 0 {
 		return protocol.LimitIdentity{
 			Key:  "u" + strconv.FormatInt(uid, 10),
@@ -308,6 +311,13 @@ const (
 	securityAppKey    = "applicationKey"
 	securityUserToken = "userToken"
 )
+
+// The keyless lanes (vocabularies, schemas, stats) ignored a user token, so the
+// editor's BFF — one egress IP relaying every signed-in editor — metered all of
+// them in one anonymous 30/min bucket: one edit page spends about half of it, and
+// a nested entity panel opened right after answered 429. The uid is kept for the
+// limiter only; handlers on these lanes stay identity-free.
+const localsLimitUserID = "v2_limit_user_id"
 
 // One authority for "what credential does this path take", read by the runtime
 // gate and by the published document. The document carried no
@@ -358,21 +368,31 @@ func v2Security(path string) (schemes []string, scope string, anonymous bool) {
 // layer up, where a whole first-party backend shared one 10k/day quota behind
 // one egress IP. Best-effort on purpose: these lanes demand no credential, so a
 // bad key must stay anonymous rather than become a refusal.
-func attachOptionalCredential(c fiber.Ctx, lookup func(context.Context, string) (*devapi.Credential, error)) {
-	if lookup == nil {
-		return
-	}
+func attachOptionalCredential(
+	c fiber.Ctx,
+	lookup func(context.Context, string) (*devapi.Credential, error),
+	lookupUser func(context.Context, string) (UserIdentity, error),
+) {
 	const pfx = "Bearer "
 	h := c.Get("Authorization")
 	if !strings.HasPrefix(h, pfx) {
 		return
 	}
 	token := strings.TrimSpace(h[len(pfx):])
-	if !devapi.IsV2KeyPrefix(token) || !devapi.ValidV2Key(token) {
+	if devapi.IsV2KeyPrefix(token) {
+		if lookup == nil || !devapi.ValidV2Key(token) {
+			return
+		}
+		if cred, err := lookup(c.Context(), token); err == nil && cred != nil {
+			devapi.WithCredential(c, cred)
+		}
 		return
 	}
-	if cred, err := lookup(c.Context(), token); err == nil && cred != nil {
-		devapi.WithCredential(c, cred)
+	if lookupUser == nil || token == "" || devapi.HasKeyPrefix(token) {
+		return
+	}
+	if ident, err := lookupUser(c.Context(), token); err == nil && ident.UID > 0 {
+		c.Locals(localsLimitUserID, ident.UID)
 	}
 }
 
@@ -407,7 +427,7 @@ func catalogAuth(
 		path := routepath.Normalize(c.Path())
 		schemes, scope, anonymous := v2Security(path)
 		if !slices.Contains(schemes, securityAppKey) {
-			attachOptionalCredential(c, lookup)
+			attachOptionalCredential(c, lookup, lookupUser)
 			return c.Next()
 		}
 		h := c.Get("Authorization")

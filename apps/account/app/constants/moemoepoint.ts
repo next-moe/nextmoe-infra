@@ -21,6 +21,7 @@ const REF_TYPE_NOUN: Record<string, string> = {
   galgame_rating: 'Galgame 评分',
   galgame_resource: 'Galgame 资源',
   galgame_pr: 'Galgame 词条编辑',
+  catalog_edit: '资料编辑',
   galgame_toolset: 'Galgame 工具集',
   toolset: '工具集',
   toolset_resource: '工具集资源',
@@ -32,8 +33,12 @@ const REF_TYPE_NOUN: Record<string, string> = {
   resource: '资源'
 }
 
+const EDIT_REF_TYPES = new Set(['galgame_pr', 'catalog_edit'])
+
+const refType = (ref?: string | null) => (ref ?? '').split(':')[0] ?? ''
+
 const refTypeNoun = (ref?: string | null): string =>
-  REF_TYPE_NOUN[(ref ?? '').split(':')[0] ?? ''] ?? '内容'
+  REF_TYPE_NOUN[refType(ref)] ?? '内容'
 
 export const moemoepointReasonLabel = (
   reason: string,
@@ -41,7 +46,9 @@ export const moemoepointReasonLabel = (
 ): string => {
   switch (reason) {
     case 'content_approved':
-      return `创建了一个新${refTypeNoun(ref)}`
+      return EDIT_REF_TYPES.has(refType(ref))
+        ? `${refTypeNoun(ref)}被采纳`
+        : `创建了一个新${refTypeNoun(ref)}`
     case 'liked':
       return `${refTypeNoun(ref)}被点赞`
     default:

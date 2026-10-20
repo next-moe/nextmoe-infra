@@ -75,6 +75,11 @@ func Run(db *gorm.DB) error {
 		&model.CatalogWorkCover{},
 		&model.CatalogWorkScreenshot{},
 		&model.CatalogCoverVote{}, // advisory best-cover votes (wave 175); its cover FK is raw SQL below
+		// Editor UX wave (2026-10-20): the cover and screenshot order a person
+		// sets across every source (catalog.work.cover_order / screenshot_order).
+		// New and empty; a work with no rows keeps the order it was read in
+		// before — covers by sort_order, screenshots by source then sort_order.
+		&model.CatalogWorkMediaOrder{},
 		// Bodyless source-native ratings (step 58a media-aggregation facet A).
 		// Wave 205 added the nullable distribution/stats jsonb columns; both land
 		// NULL on every existing row and stay that way until backfill-work-ratings

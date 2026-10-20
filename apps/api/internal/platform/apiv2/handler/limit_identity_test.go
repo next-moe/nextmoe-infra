@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -85,4 +86,45 @@ func TestLimitIdentityUserTokenBucketOnACatalogPath(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, "u42", got.Key, "pooled per user, not per (client, user)")
 	require.Equal(t, int(keys.APIV2DefaultQuotaPerDay.Get()), got.Quota)
+}
+
+func TestLimitIdentityUserTokenBucketOnKeylessLanes(t *testing.T) {
+	lookupUser := func(_ context.Context, token string) (UserIdentity, error) {
+		if token != "a.user.token" {
+			return UserIdentity{}, errors.New("invalid token")
+		}
+		return UserIdentity{UID: 42, ClientID: "nextmoe-editor", Scopes: []string{devapi.ScopeCatalogRead}}, nil
+	}
+	for _, path := range []string{"/v2/vocabularies/olang", "/v2/catalog/schemas/work", "/v2/catalog/stats"} {
+		for _, tc := range []struct {
+			token string
+			want  string
+			ok    bool
+		}{
+			{token: "a.user.token", want: "u42", ok: true},
+			{token: "expired.or.forged", ok: false},
+			{token: "", ok: false},
+		} {
+			app := fiber.New()
+			app.Use(catalogAuth(nil, lookupUser))
+			var got protocol.LimitIdentity
+			var ok bool
+			var uidLocal any
+			app.Get(path, func(c fiber.Ctx) error {
+				got, ok = credentialLimitIdentity(c)
+				uidLocal = c.Locals("user_id")
+				return c.SendString("done")
+			})
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			if tc.token != "" {
+				req.Header.Set("Authorization", "Bearer "+tc.token)
+			}
+			resp, err := app.Test(req)
+			require.NoError(t, err)
+			require.Equalf(t, http.StatusOK, resp.StatusCode, "%s stays keyless", path)
+			require.Equalf(t, tc.ok, ok, "%s token %q", path, tc.token)
+			require.Equal(t, tc.want, got.Key)
+			require.Nilf(t, uidLocal, "%s must not hand the handler a user identity", path)
+		}
+	}
 }

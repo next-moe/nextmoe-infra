@@ -2440,3 +2440,32 @@ Both vocabularies are shared entities under the taxonomy permissions (`sharedEnt
 **Migration** (`go run ./cmd/migrate catalog` on `kun_catalog`, run by the `migrate-catalog` job): `edit_proposal.birth_params jsonb NULL` and `catalog_merge_proposal.origin text NOT NULL DEFAULT ''` — both metadata-only, no table rewrite. **Spec 2.60.0**, additive.
 
 **Family enums.** `EditCapabilities.entity_type` and `ObjectSchema.entity_type` now list `catalog.person`, `catalog.credit_name` and `catalog.trait` (wave E2b had shipped the first two without them). `TestFamilyEnumsCoverEveryEditingType` walks the editing registry and fails when a registered type is missing from any family enum (the capability, schema, proposal, revision and edit-context reprs, the three `{object}` routes, and the creations enum for every type with a birth spec).
+
+## Editor UX wave — a work's covers and screenshots follow a human-set order (2026-10-20)
+
+**New work fields** (owned-entity policy like every work field):
+
+| Field | Value | Rows it writes |
+|---|---|---|
+| `catalog.work.cover_order` | `["<image_hash>", …]`, ≤300, no duplicates | `catalog_work_media_order` rows with `kind = 0`, `position` = index |
+| `catalog.work.screenshot_order` | same | the same table, `kind = 1` |
+
+An empty list deletes the work's rows of that kind, which brings back the default order. The snapshot is the stored list (`[]` when none). The list may name any image of the work, curated or upstream, and may name a hash the same proposal uploads: fields apply in key order, so `cover_order` lands before `covers`, and the hashes are not checked against the work. A hash that matches no row orders nothing.
+
+**Read path.** `nativeWorkCovers` and `nativeWorkScreenshots` left-join the order (`WorkMediaOrderJoinSQL`): listed images come first, in list order; the rest keep the order they had before, after them — covers by `sort_order, image_hash` across every source, screenshots by `source_id, sort_order, image_hash`. A work without rows reads exactly as before. Cover slot election (`pickCoverSlots`) keeps its rules: a pin still wins, and the order only decides scan order and ties. The edit-context rows of `catalog.work.covers` / `.screenshots` (and their `_upstream` fields) are returned in the same effective order, so the editor shows what the read faces show. Both fields are snapshot-only (`snapshotOnlyListFields`): there is one order per work, not one per source.
+
+**Merges.** `catalog_work_media_order.work_id` is in `mergeRefExclusions`: the order describes the source work's own images, the target keeps its own order with the merged-in images after it, and an unmerge revives the source with its rows untouched.
+
+**v2.** No spec change: the fields are runtime data of `/v2/catalog/schemas/work`, and the faces' array order is not part of the contract.
+
+**Migration.** `go run ./cmd/migrate catalog` on `kun_catalog` (the prod `migrate-catalog` job) creates the empty table `catalog_work_media_order(work_id, kind, image_hash, position, created_at)`, primary key `(work_id, kind, image_hash)`, FK to `catalog_work`. No existing row changes.
+
+## Editor UX wave — one read per editor screen, one read for names (2026-10-20)
+
+The v2 person bucket (`u<uid>`, 100/min across apps) answered 429 after four editor page loads a minute: opening one entity cost schema + snapshot + capabilities + edit context + quota, and its references cost one `ids=` read per family. Per the bucket policy the answer is batch faces, not a larger first-party bucket.
+
+- **`GET /v2/me/edit-bundle/{object}/{id}`** (catalog:edit, site-bound user token — the editing plane's scope rules). `{object:"edit_bundle", schema, snapshot, capabilities?, context?, quota?}`; each member is the exact body its own face answers (`/v2/catalog/schemas/{object}`, `/v2/moderation/snapshots/{object}/{id}`, `/v2/me/edit-capabilities/{object}?entity_id={id}`, `/v2/me/edit-context/{object}/{id}`, `/v2/me/edit-quota`) — the handler calls the same `Catalog` methods. The schema and the snapshot decide the answer (unknown family or entity is 404); `capabilities`, `context` and `quota` are omitted when their own face would have answered an error, which is what the editor already tolerated per face.
+- **`GET /v2/catalog/names?keys=family:id,…&nsfw=`** (catalog read lane: anonymous per IP, a key or a catalog:read user token in its own bucket). Up to 500 keys across `work, tag, company, engine, series, character, credit_name, person, role, trait, release`; duplicates collapse; items follow `keys=` order as `{object:"ref_name", key, family, id, display_name, name_zh?}`; keys that name nothing visible land in `missing[]`. Each family is resolved by calling that family's `ids=` batch-lane handler in chunks of 100, so names, visibility and the nsfw gate are exactly what those lanes answer. `name_zh` is a trait's `name_zh`, otherwise the `zh-Hans` / `zh-Hant` / `zh` entry of the record's `localized` when the family carries one; `display_name` stays the lane's own label (a release's title, empty when it has none).
+- `TestLiveEditBundleIsTheSingleFacesInOneCall` compares every bundle member with its face's body; `TestLiveCatalogNamesMatchEachFamilysBatchLane` compares names and visibility with each family's lane under both `nsfw` values and requires the fixture to contain something `nsfw=true` reveals.
+
+**Spec 2.61.0**, additive. No migration.

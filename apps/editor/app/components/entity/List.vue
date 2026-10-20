@@ -23,7 +23,7 @@ const keyword = ref(
 const items = ref<CatalogEntitySummary[]>([])
 const nextCursor = ref<string | null>(null)
 const total = ref<number | null>(null)
-const loading = ref(false)
+const loading = ref(true)
 const failed = ref(false)
 
 const request = (cursor: string | null): Promise<CatalogEntityList> => {
@@ -72,7 +72,7 @@ const secondaryOf = (item: CatalogEntitySummary) =>
     .filter((part) => typeof part === 'string' && part)
     .join(' · ')
 
-await fetchPage(null)
+fetchPage(null)
 
 useHead({ title: `${meta.label} · 未萌编辑台` })
 </script>
@@ -120,8 +120,31 @@ useHead({ title: `${meta.label} · 未萌编辑台` })
       description="请稍后重试。"
     />
 
+    <ul
+      v-else-if="loading && items.length === 0"
+      class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+      aria-busy="true"
+      :aria-label="`正在加载${meta.label}`"
+    >
+      <li
+        v-for="index in 9"
+        :key="index"
+        class="border-default-200 bg-content1 flex items-center gap-3 rounded-xl border p-3"
+      >
+        <KunSkeleton width="3rem" height="3rem" rounded="lg" />
+        <div class="min-w-0 flex-1">
+          <KunSkeleton
+            variant="text"
+            class-name="font-medium"
+            :width="index % 3 ? '70%' : '55%'"
+          />
+          <KunSkeleton variant="text" class-name="text-xs" width="40%" />
+        </div>
+      </li>
+    </ul>
+
     <KunNull
-      v-else-if="!loading && items.length === 0"
+      v-else-if="items.length === 0"
       :description="keyword ? '没有找到匹配的条目' : '暂无条目'"
     />
 

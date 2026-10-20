@@ -14,8 +14,9 @@ const TITLES = 'catalog.work.titles'
 
 const api = useEditorApi()
 
-const { data: schema } = await useAsyncData('create-work-schema', () =>
-  api<CatalogObjectSchema>('/v2/catalog/schemas/work').catch(() => null)
+const { data: schema, pending: schemaPending } = useLazyAsyncData(
+  'create-work-schema',
+  () => api<CatalogObjectSchema>('/v2/catalog/schemas/work').catch(() => null)
 )
 
 const olangField = computed(() =>
@@ -132,6 +133,10 @@ const submit = async (confirmDuplicates = false) => {
         :field="olangField"
         :config="EDIT_CONFIGS.work.fields[OLANG]"
       />
+      <div v-else-if="schemaPending" class="space-y-1.5" aria-busy="true">
+        <KunSkeleton variant="text" class-name="text-sm" width="4rem" />
+        <KunSkeleton height="2.5rem" rounded="lg" />
+      </div>
 
       <div class="space-y-1">
         <span class="text-default-700 text-sm font-medium">原文标题</span>

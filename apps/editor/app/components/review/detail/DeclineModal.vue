@@ -36,7 +36,7 @@ const submit = () => {
         v-model="reason"
         placeholder="写下拒绝理由"
         aria-label="拒绝理由"
-        max-height="14rem"
+        max-height="224px"
         required
       />
       <div class="flex justify-end gap-2">

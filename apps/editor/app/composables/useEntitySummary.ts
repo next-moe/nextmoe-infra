@@ -6,7 +6,7 @@ export const useEntitySummary = (
   entityId: MaybeRefOrGetter<string>
 ) => {
   const api = useEditorApi()
-  return useAsyncData(
+  return useLazyAsyncData(
     () => `entity-summary-${family}-${toValue(entityId)}`,
     () =>
       api<CatalogEntitySummary>(

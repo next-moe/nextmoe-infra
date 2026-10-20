@@ -1,10 +1,15 @@
-import type { EditorImage } from './useEditorContext'
+import type { EditorContext, EditorImage } from './useEditorContext'
 import { EDIT_CONFIGS, type EditFamily } from '~/constants/editEntities'
 
-export const useEntityWorkspace = (
+export interface EntityWorkspaceOptions {
+  persist?: boolean
+  readonly?: boolean
+}
+
+export const createEntityWorkspace = (
   family: EditFamily,
   entityId: MaybeRefOrGetter<string>,
-  options: { persist?: boolean; readonly?: boolean } = {}
+  options: EntityWorkspaceOptions = {}
 ) => {
   const config = EDIT_CONFIGS[family]
   const id = computed(() => toValue(entityId))
@@ -12,8 +17,9 @@ export const useEntityWorkspace = (
   const editContext = useEditContext(config, id, editor)
   const refs = useRefNames()
   const images = ref<Record<string, EditorImage>>({})
+  const loaded = ref(false)
 
-  provideEditorContext({
+  const context: EditorContext = {
     editor,
     config,
     entityId: id,
@@ -23,11 +29,21 @@ export const useEntityWorkspace = (
     images,
     refs,
     readonly: options.readonly
-  })
+  }
 
-  const load = async () => {
-    await Promise.all([editor.load(), editContext.load()])
-    images.value = { ...editContext.images.value, ...images.value }
+  let pending: Promise<void> | null = null
+
+  const load = () => {
+    pending ??= editor.load().then(() => {
+      images.value = { ...editContext.images.value, ...images.value }
+      loaded.value = true
+    })
+    return pending
+  }
+
+  const reload = () => {
+    pending = null
+    return load()
   }
 
   const groupOf = (key: string) => config.fields[key]?.group ?? 'other'
@@ -53,13 +69,30 @@ export const useEntityWorkspace = (
   )
 
   return {
+    family,
+    id,
     config,
     editor,
     editContext,
     images,
+    context,
+    loaded,
     load,
+    reload,
     groupOf,
     fieldsByGroup,
     groups
   }
+}
+
+export type EntityWorkspace = ReturnType<typeof createEntityWorkspace>
+
+export const useEntityWorkspace = (
+  family: EditFamily,
+  entityId: MaybeRefOrGetter<string>,
+  options: EntityWorkspaceOptions = {}
+) => {
+  const workspace = createEntityWorkspace(family, entityId, options)
+  provideEditorContext(workspace.context)
+  return workspace
 }

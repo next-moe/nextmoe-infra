@@ -32,7 +32,7 @@ watch(tab, (value) => {
   })
 })
 
-const { data: work, error } = await useAsyncData(
+const { data: work, error } = useLazyAsyncData(
   () => `work-${id.value}`,
   () =>
     api<CatalogWork>(`/v2/catalog/works/${id.value}`, {
@@ -60,7 +60,7 @@ useHead(() => ({
         <KunIcon name="lucide:chevron-left" class="size-4" />
         作品
       </NuxtLink>
-      <div v-if="work" class="flex flex-wrap justify-end gap-2">
+      <div v-if="!error" class="flex flex-wrap justify-end gap-2">
         <KunButton
           :href="`/new/release?work_id=${id}`"
           variant="light"
@@ -69,11 +69,21 @@ useHead(() => ({
           <KunIcon name="lucide:package-plus" class="size-4" />
           新建发行
         </KunButton>
-        <KunButton variant="light" size="sm" @click="mergeOpen = true">
+        <KunButton
+          variant="light"
+          size="sm"
+          :disabled="!work"
+          @click="mergeOpen = true"
+        >
           <KunIcon name="lucide:git-merge" class="size-4" />
           合并
         </KunButton>
-        <KunButton :href="`/works/${id}/edit`" color="primary" size="sm">
+        <KunButton
+          :href="`/works/${id}/edit`"
+          target="_blank"
+          color="primary"
+          size="sm"
+        >
           <KunIcon name="lucide:pencil" class="size-4" />
           编辑资料
         </KunButton>
@@ -130,5 +140,7 @@ useHead(() => ({
         /></KunTabPanel>
       </KunTabPanels>
     </template>
+
+    <CommonDetailSkeleton v-else media="cover" :tabs="TABS.length" />
   </div>
 </template>

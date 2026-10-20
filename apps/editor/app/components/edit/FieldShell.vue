@@ -2,10 +2,27 @@
 import { cn } from '@kungal/ui-core'
 import { WRITER_LABELS } from '~/constants/editEntities'
 
-const props = defineProps<{ fieldKey: string }>()
+const props = withDefaults(
+  defineProps<{
+    fieldKey: string
+    layout?: 'row' | 'block'
+    label?: string
+    hideHeader?: boolean
+    inlineRowIssues?: boolean
+    sectionLabel?: string
+  }>(),
+  {
+    layout: 'block',
+    label: '',
+    hideHeader: false,
+    inlineRowIssues: false,
+    sectionLabel: ''
+  }
+)
 
-const { context, field, config, capability, issues, companionKey } =
-  useEditorField(() => props.fieldKey)
+const { context, config, capability, issues, companionKey } = useEditorField(
+  () => props.fieldKey
+)
 const editor = context.editor
 
 const provenance = computed(
@@ -13,19 +30,30 @@ const provenance = computed(
 )
 const writerLabel = (source: string) => WRITER_LABELS[source] ?? source
 const writer = computed(() => latestWriter(provenance.value))
-const writerHistory = computed(() =>
-  provenance.value
+const writerText = computed(() => {
+  if (!writer.value) {
+    return ''
+  }
+  const head = writer.value.human
+    ? '人工维护，导入任务不会覆盖'
+    : `当前值来自 ${writerLabel(writer.value.source)}`
+  const history = provenance.value
     .flatMap((column) =>
       (column.history ?? []).map(
         (entry) =>
           `${provenance.value.length > 1 ? `${column.column}：` : ''}${writerLabel(entry.source)}${entry.at ? ` ${formatDateTime(entry.at)}` : ''}`
       )
     )
-    .slice(0, 8)
-    .join('\n')
-)
+    .slice(0, 6)
+  return [head, ...history].join('\n')
+})
 
-const label = computed(() => config.value?.label ?? fieldLabel(props.fieldKey))
+const label = computed(
+  () => props.label || config.value?.label || fieldLabel(props.fieldKey)
+)
+const showLabel = computed(
+  () => props.layout === 'row' || label.value !== props.sectionLabel
+)
 const changed = computed(
   () =>
     editor.changedKeys.value.includes(props.fieldKey) ||
@@ -36,26 +64,28 @@ const serverErrors = computed(() => [
   ...(editor.serverErrors.value[companionKey.value] ?? [])
 ])
 
-const state = computed(() => {
+const lock = computed(() => {
+  if (context.readonly) {
+    return null
+  }
   const cap = capability.value
   if (!cap) {
-    return { label: '仅查看', color: 'default' as const, icon: 'lucide:eye' }
+    return { icon: 'lucide:eye', text: '这一项只能查看' }
   }
   if (cap.locked) {
-    return { label: '已锁定', color: 'default' as const, icon: 'lucide:lock' }
+    return { icon: 'lucide:lock', text: '这一项已被锁定' }
   }
   if (!cap.can_propose) {
-    return { label: '无权修改', color: 'default' as const, icon: 'lucide:ban' }
+    return { icon: 'lucide:lock', text: '你没有修改这一项的权限' }
   }
-  if (cap.would_automerge) {
-    return { label: '直接生效', color: 'success' as const, icon: 'lucide:zap' }
-  }
-  return {
-    label: '需审核',
-    color: 'warning' as const,
-    icon: 'lucide:hourglass'
-  }
+  return null
 })
+
+const shownIssues = computed(() =>
+  props.inlineRowIssues
+    ? issues.value.filter((issue) => issue.index === undefined)
+    : issues.value
+)
 
 const issueText = (issue: { index?: number; message: string }) =>
   issue.index === undefined
@@ -64,92 +94,125 @@ const issueText = (issue: { index?: number; message: string }) =>
 </script>
 
 <template>
-  <section
+  <div
     :id="`field-${props.fieldKey}`"
     :class="
       cn(
-        'border-default-200 bg-content1 scroll-mt-20 rounded-xl border p-4 transition-colors',
-        changed && 'border-primary-300'
+        'relative scroll-mt-24',
+        props.layout === 'row'
+          ? 'grid gap-x-6 gap-y-1.5 py-3 sm:grid-cols-[9rem_minmax(0,1fr)]'
+          : 'py-4',
+        changed &&
+          'before:bg-primary-500 before:absolute before:inset-y-3 before:-left-3 before:w-0.5 before:rounded-full'
       )
     "
   >
-    <header class="mb-3 flex flex-wrap items-start justify-between gap-2">
+    <div
+      v-if="!props.hideHeader"
+      :class="
+        cn(
+          'flex min-w-0 gap-2',
+          props.layout === 'row'
+            ? 'items-center sm:min-h-9'
+            : 'mb-3 items-start justify-between'
+        )
+      "
+    >
       <div class="min-w-0">
-        <div class="flex flex-wrap items-center gap-2">
-          <h3 class="font-semibold">{{ label }}</h3>
-          <KunChip v-if="changed" size="xs" variant="flat" color="primary">
-            已修改
-          </KunChip>
+        <div class="flex min-w-0 items-center gap-1.5">
+          <component
+            :is="props.layout === 'row' ? 'span' : 'h3'"
+            v-if="showLabel"
+            :class="
+              cn(
+                'truncate',
+                props.layout === 'row'
+                  ? 'text-default-600 text-sm'
+                  : 'text-foreground text-sm font-semibold'
+              )
+            "
+          >
+            {{ label }}
+          </component>
           <KunTooltip
-            v-if="!context.readonly"
-            :text="field?.key ?? props.fieldKey"
+            v-if="props.layout === 'row' && config?.help"
+            :text="config.help"
             position="top"
           >
-            <KunChip size="xs" variant="light" :color="state.color">
-              <span class="inline-flex items-center gap-1">
-                <KunIcon :name="state.icon" class="size-3" />
-                {{ state.label }}
-              </span>
-            </KunChip>
+            <KunIcon
+              name="lucide:circle-help"
+              class="text-default-400 size-3.5 shrink-0"
+            />
           </KunTooltip>
-          <KunTooltip v-if="writer" :text="writerHistory" position="top">
-            <KunChip
-              size="xs"
-              variant="light"
-              :color="writer.human ? 'secondary' : 'default'"
+          <KunTooltip v-if="lock" :text="lock.text" position="top">
+            <KunIcon :name="lock.icon" class="text-default-400 size-3.5" />
+          </KunTooltip>
+          <KunTooltip v-if="writer" :text="writerText" position="top">
+            <KunIcon
+              :name="writer.human ? 'lucide:user-pen' : 'lucide:database'"
+              :class="
+                cn(
+                  'size-3.5 shrink-0',
+                  writer.human ? 'text-secondary-500' : 'text-default-400'
+                )
+              "
+            />
+          </KunTooltip>
+          <KunTooltip v-if="changed" text="撤销这一项的修改" position="top">
+            <button
+              type="button"
+              class="text-primary-600 hover:bg-primary-50 inline-flex shrink-0 items-center gap-0.5 rounded px-1 text-xs"
+              @click="editor.revertField(props.fieldKey)"
             >
-              <span class="inline-flex items-center gap-1">
-                <KunIcon
-                  :name="writer.human ? 'lucide:user-pen' : 'lucide:database'"
-                  class="size-3"
-                />
-                {{
-                  writer.human
-                    ? '人工维护'
-                    : `来自 ${writerLabel(writer.source)}`
-                }}
-              </span>
-            </KunChip>
+              <KunIcon name="lucide:undo-2" class="size-3.5" />
+              <span v-if="props.layout === 'block'">撤销</span>
+            </button>
           </KunTooltip>
         </div>
-        <p v-if="config?.help" class="text-default-500 mt-1 text-xs leading-5">
+        <p
+          v-if="props.layout === 'block' && config?.help"
+          class="text-default-500 mt-1 text-xs leading-5"
+        >
           {{ config.help }}
         </p>
       </div>
-      <KunButton
-        v-if="changed"
-        size="xs"
-        variant="light"
-        color="default"
-        @click="editor.revertField(props.fieldKey)"
+      <div
+        v-if="props.layout === 'block' && $slots.actions"
+        class="flex shrink-0 items-center gap-1"
       >
-        <KunIcon name="lucide:undo-2" class="size-3.5" />
-        撤销修改
-      </KunButton>
-    </header>
+        <slot name="actions" />
+      </div>
+    </div>
 
-    <slot />
-
-    <ul
-      v-if="issues.length || serverErrors.length"
-      class="text-danger-600 mt-3 space-y-1 text-xs"
-    >
-      <li
-        v-for="(issue, i) in issues"
-        :key="`c${i}`"
-        class="flex items-start gap-1"
+    <div class="min-w-0">
+      <slot />
+      <ul
+        v-if="shownIssues.length || serverErrors.length"
+        class="text-danger-600 mt-2 space-y-1 text-xs"
       >
-        <KunIcon name="lucide:circle-alert" class="mt-0.5 size-3.5 shrink-0" />
-        {{ issueText(issue) }}
-      </li>
-      <li
-        v-for="(message, i) in serverErrors"
-        :key="`s${i}`"
-        class="flex items-start gap-1"
-      >
-        <KunIcon name="lucide:server-crash" class="mt-0.5 size-3.5 shrink-0" />
-        {{ message }}
-      </li>
-    </ul>
-  </section>
+        <li
+          v-for="(issue, i) in shownIssues"
+          :key="`c${i}`"
+          class="flex items-start gap-1"
+        >
+          <KunIcon
+            name="lucide:circle-alert"
+            class="mt-0.5 size-3.5 shrink-0"
+          />
+          {{ issueText(issue) }}
+        </li>
+        <li
+          v-for="(message, i) in serverErrors"
+          :key="`s${i}`"
+          class="flex items-start gap-1"
+        >
+          <KunIcon
+            name="lucide:server-crash"
+            class="mt-0.5 size-3.5 shrink-0"
+          />
+          {{ message }}
+        </li>
+      </ul>
+    </div>
+  </div>
 </template>

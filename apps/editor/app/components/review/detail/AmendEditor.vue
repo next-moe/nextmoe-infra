@@ -122,7 +122,7 @@ const applyJson = () => {
       <KunTextarea
         v-model="jsonText"
         :error="jsonError"
-        max-height="24rem"
+        max-height="384px"
         aria-label="以 JSON 编辑字段值"
         class-name="font-mono text-xs"
       />
@@ -203,7 +203,7 @@ const applyJson = () => {
       v-else-if="props.field.field_type === 'text' && multiline"
       v-model="textValue"
       :aria-label="fieldLabel(props.field.key)"
-      max-height="24rem"
+      max-height="384px"
     />
 
     <div v-else class="flex items-center gap-2">

@@ -54,14 +54,14 @@ export const WORK_EDIT_CONFIG: EditEntityConfig = {
       label: '简介',
       group: 'intros',
       control: 'intros',
-      help: '每种语言一段。这里写入的简介优先于资料源导入的简介显示。'
+      help: '每种语言一段。人工撰写的简介优先显示；没有时显示资料源的版本。'
     },
     'catalog.work.tag_ids': {
       label: '标签',
       group: 'tags',
       control: 'refList',
       ref: 'tag',
-      help: '这里是人工添加的标签；资料源导入的标签列在下方，可以单独隐藏。'
+      help: '人工添加的标签可以移除；资料源导入的标签可以隐藏。'
     },
     'catalog.work.tag_spoilers': {
       label: '标签剧透等级',
@@ -142,9 +142,14 @@ export const WORK_EDIT_CONFIG: EditEntityConfig = {
       imagePreset: 'cover'
     },
     'catalog.work.covers_upstream': {
-      label: '资料源封面分级',
+      label: '资料源封面',
       group: 'media',
       control: 'regrade'
+    },
+    'catalog.work.cover_order': {
+      label: '封面顺序',
+      group: 'media',
+      control: 'readonly'
     },
     'catalog.work.screenshots': {
       label: '截图',
@@ -153,9 +158,14 @@ export const WORK_EDIT_CONFIG: EditEntityConfig = {
       imagePreset: 'screenshot'
     },
     'catalog.work.screenshots_upstream': {
-      label: '资料源截图分级',
+      label: '资料源截图',
       group: 'media',
       control: 'regrade'
+    },
+    'catalog.work.screenshot_order': {
+      label: '截图顺序',
+      group: 'media',
+      control: 'readonly'
     },
     'catalog.work.credits': {
       label: '制作人员',

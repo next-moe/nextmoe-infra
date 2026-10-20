@@ -9,7 +9,10 @@ const router = useRouter()
 
 const meta = ENTITY_META[props.family]
 const entityId = computed(() => String(route.params.id))
-const { data: summary } = await useEntitySummary(props.family, entityId)
+const { data: summary, pending: summaryPending } = useEntitySummary(
+  props.family,
+  entityId
+)
 
 const workspace = useEntityWorkspace(props.family, entityId, {
   persist: false,
@@ -55,7 +58,7 @@ const publicFacts = computed(() =>
   )
 )
 
-await workspace.load()
+workspace.load()
 
 useHead(() => ({
   title: `${summary.value?.display_name || summary.value?.title || `${meta.label} #${entityId.value}`} · 未萌编辑台`
@@ -68,13 +71,15 @@ useHead(() => ({
       :family="props.family"
       :entity-id="entityId"
       :summary="summary ?? null"
+      :loading="summaryPending"
       mode="view"
     />
 
-    <KunLoading
+    <CommonDetailSkeleton
       v-if="editor.loading.value"
-      spinner
-      description="正在载入条目资料…"
+      :header="false"
+      :tabs="4"
+      :blocks="3"
     />
 
     <template v-else-if="editor.loadError.value">

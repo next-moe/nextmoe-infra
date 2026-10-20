@@ -406,6 +406,22 @@ var CatalogMergeRequestsPerDayReviewer = settings.Int(settings.Meta{
 	Max:    settings.F(100000),
 }, 500)
 
+var CatalogEditMergeReward = settings.Int(settings.Meta{
+	Name:   "catalog.edit_merge_reward",
+	DescEN: "Moemoepoints the catalog-edit-rewards job grants the proposer of an edit proposal that someone else merged, whichever site filed it and whatever entity it edits. Self-merges, automerges and reverts earn nothing. 0 stops new awards.",
+	DescZH: "catalog-edit-rewards 任务给「被他人合并的编辑提案」的提案人发放的萌萌点,不分来源站点与条目类型;自己合并、免审直编与回滚不发。0 表示停止发放。",
+	Min:    settings.F(0),
+	Max:    settings.F(1000),
+}, 1)
+
+var CatalogEditMergeRewardWindowDays = settings.Int(settings.Meta{
+	Name:   "catalog.edit_merge_reward_window_days",
+	DescEN: "How far back each catalog-edit-rewards run looks for merged proposals. Awards are idempotent per proposal, so this only bounds the scan and how long a run can be missed before a merge goes unrewarded.",
+	DescZH: "catalog-edit-rewards 每次回看多少天内合并的提案。发放按提案幂等,此值只限定扫描范围,以及任务停摆多久之内合并的提案仍能补发。",
+	Min:    settings.F(1),
+	Max:    settings.F(90),
+}, 7)
+
 var CatalogOpenProposalsMaxReviewer = settings.Int(settings.Meta{
 	Name:   "catalog.open_proposals_max_reviewer",
 	DescEN: "The same cap for the reviewer tier. 0 means no cap.",
@@ -480,6 +496,8 @@ var catalogDomain = settings.Domain{
 		CatalogMergeRequestsPerDayReviewer,
 		CatalogNewsSubmissionsPerDay,
 		CatalogNewsImageUploadsPerDay,
+		CatalogEditMergeReward,
+		CatalogEditMergeRewardWindowDays,
 	},
 }
 

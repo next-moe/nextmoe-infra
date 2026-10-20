@@ -1,8 +1,37 @@
 import {
   ATTRIBUTION_ROLE_LABELS,
+  MEDIUM_LABELS,
+  RELEASE_STATUS_LABELS,
   ROSTER_ROLE_LABELS,
   TITLE_KIND_LABELS
 } from './catalog'
+import { RELEASE_KIND_LABELS, SERIES_MEMBER_KIND_LABELS } from './related'
+
+const WORK_RELATION_LABELS: Record<string, string> = {
+  adaptation_of: '改编自',
+  sequel_of: '续作',
+  side_story_of: '外传',
+  fandisc_of: 'Fandisc',
+  collects: '收录',
+  remake_of: '重制',
+  same_series: '同系列',
+  same_setting: '同世界观',
+  crossover_with: '联动',
+  shares_character: '角色出演',
+  alternative_setting: '不同世界观',
+  alternative_version: '不同演绎'
+}
+
+const COMPANY_RELATION_LABELS: Record<string, string> = {
+  parent: '母公司',
+  subsidiary: '子公司',
+  imprint: '旗下品牌',
+  imprint_of: '所属品牌方',
+  spawned: '分出',
+  origin: '前身来源',
+  succeeded_by: '由…继承',
+  formerly: '曾用名'
+}
 
 export const EDIT_LANGUAGE_LABELS: Record<string, string> = {
   ja: '日语',
@@ -77,7 +106,32 @@ export const VOCAB_LABELS: Record<string, Record<string, string>> = {
     doujin_circle: '同人社团',
     group: '团体'
   },
-  gender: { male: '男', female: '女', other: '其他' }
+  gender: { male: '男', female: '女', other: '其他' },
+  medium: MEDIUM_LABELS,
+  release_status: RELEASE_STATUS_LABELS,
+  release_kind: RELEASE_KIND_LABELS,
+  member_kind: SERIES_MEMBER_KIND_LABELS,
+  work_relation: WORK_RELATION_LABELS,
+  relation_types: { ...WORK_RELATION_LABELS, ...COMPANY_RELATION_LABELS },
+  company_relation: COMPANY_RELATION_LABELS,
+  alias_kind: { translation: '译名', spelling_variant: '异写' },
+  credit_name_kind: {
+    main: '本名',
+    pen_name: '笔名',
+    distinct_persona: '独立马甲',
+    former_name: '曾用名'
+  },
+  link_visibility: { public: '公开', hidden: '隐藏' },
+  tag_kind: { content: '内容', meta: '元信息' },
+  tier: { core: '核心', longtail: '长尾', hidden: '隐藏' },
+  content_limit: { sfw: '全年龄', nsfw: 'NSFW' },
+  claim_state: {
+    live: '已上线',
+    draft: '草稿',
+    pending: '待审核',
+    declined: '已拒绝',
+    hidden: '已隐藏'
+  }
 }
 
 export const vocabLabel = (

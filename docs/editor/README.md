@@ -60,12 +60,16 @@ NextMoe 资料库的唯一编辑入口。所有第一方站点的用户在这里
 | `catalog.open_proposals_max_reviewer` | 0 | 审核者（不限） |
 | `catalog.merge_requests_per_day` / `_editor` / `_reviewer` | 10 / 50 / 500 | 合并请求 |
 | `catalog.merge_cooling_off_hours` | 48 | 合并批准后的冷静期 |
+| `catalog.edit_merge_reward` | 1 | 提案被他人合并后给提案人发放的萌萌点（0 = 停发） |
+| `catalog.edit_merge_reward_window_days` | 7 | 编辑奖励任务每次回看的天数 |
 | `auth.sso_session_idle_days` | 30 | 账号中心会话闲置续期 |
 | `auth.sso_session_max_days` | 365 | 账号中心会话绝对上限 |
 | `auth.editor_application_cooldown_hours` | 24 | 编辑者申请被拒后的再申请冷却 |
 | `auth.creator_application_cooldown_hours` | 24 | 创作者申请同上 |
 
 定时任务 `catalog-merge-requests`（每小时）执行冷静期已过、由编辑台发起并已批准的合并请求；配置在 `jobs.catalog_merge_requests.*`。
+
+定时任务 `catalog-edit-rewards`（每 15 分钟，`jobs.catalog_edit_rewards.*`）给编辑奖励：回看 `catalog.edit_merge_reward_window_days` 天内合并、且合并人不是提案人的提案（不分来源站点与条目类型；自己合并、免审直编、回滚都不发），按 `catalog.edit_merge_reward` 给提案人记一笔 `content_approved`，来源 `nextmoe-editor`，幂等键 `catalog_edit_merged:<提案 id>`。论坛此前已用 `galgame_edit_merged:<提案 id>` 发过的跳过，不会重复发放。
 
 ## 可编辑范围
 
@@ -92,7 +96,7 @@ NextMoe 资料库的唯一编辑入口。所有第一方站点的用户在这里
 | 路由 | 内容 |
 |---|---|
 | `/` | 工作台：配额、我的提案、最近修订、审核待办 |
-| `/works`、`/releases`、`/characters`、`/persons`、`/credit-names`、`/companies`、`/tags`、`/traits`、`/series`、`/engines` | 列表与搜索；`/{type}/{id}` 详情，`/{type}/{id}/edit` 编辑 |
+| `/works`、`/releases`、`/characters`、`/persons`、`/credit-names`、`/companies`、`/tags`、`/traits`、`/series`、`/engines` | 列表与搜索；`/{type}/{id}` 详情，`/{type}/{id}/edit` 编辑工作区（新标签页打开，见下节） |
 | `/new/{family}`、`/new/work` | 新建条目（作品走认领流程）；顶栏「+」与各列表页「新建」进入 |
 | `/review`、`/review/{id}` | 审核工作台：逐字段采纳 / 修正 / 拒绝 |
 | `/review/merges` | 合并请求审核：批准 / 驳回，冷静期倒计时后执行（仅审核者可见） |
@@ -102,6 +106,17 @@ NextMoe 资料库的唯一编辑入口。所有第一方站点的用户在这里
 | `/me/proposals`、`/me/contributions`、`/me/drafts` | 我的提案、贡献统计、本地草稿 |
 | `/apply` | 申请成为编辑者 |
 | `/guidelines` | 编辑规范 |
+
+## 编辑工作区
+
+`/{type}/{id}/edit` 是独立的整屏工作区，不套编辑台的导航；编辑台里所有「编辑资料」入口都在新标签页打开它，下游深链也直接落在这里。
+
+- 左栏只列这个条目的分区（作品：基础 / 标题 / 简介 / 标签 / 外链 / 封面 / 截图 / 角色 / 制作人员 / 厂商 / 引擎与平台 / 系列 / 关联作品 / 发行），每个分区显示条目数与未提交的修改数；顶部「返回工作台」，底部「编辑规范」。其他实体的分区按各自的字段分组生成。
+- 当前分区与选中项写在地址里（`?section=roster&item=7937`），可以直接分享或刷新。
+- 列表字段把人工行与资料源行合在一张表里：每行标来源，人工行可直接改、删，资料源行可隐藏 / 恢复（媒体可改分级、类型、主封面）；没有单独的「资料源导入」区块。封面、截图整体可拖拽排序（写 `catalog.work.cover_order` / `screenshot_order`），可把图片文件拖进来上传。
+- 关联条目（角色、制作人员、厂商、引擎、系列、关联作品、发行）用「列表 + 详情」两栏：选中一项后，上半部分编辑它在本作中的设定（出场程度、职位、身份、关系等），下半部分直接编辑这个实体本身（分 tab）。宽屏默认选中第一项；窄屏先列表、再进入详情。
+- 一次可以同时改作品和任意多个关联实体：切换不丢草稿，顶栏「查看更改」弹出全部改动的前后对比（新增 / 删除 / 修改 / 隐藏 / 调整顺序），「提交」把每个改动过的条目各生成一条提案，共用一段修改说明。草稿按条目保存在本机。
+- 页面先出骨架再并行取数据，切换分区不等待网络。
 
 ## 下游接入（尚未进行）
 

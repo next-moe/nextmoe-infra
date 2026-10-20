@@ -25,7 +25,7 @@ const SORT_OPTIONS: KunSelectOption<string>[] = [
 
 const api = useEditorApi()
 const names = useEntityNames()
-const { isReviewer } = useEditorSession()
+const { isReviewer, settled } = useEditorSession()
 const queueIds = useState<string[]>('review-queue-ids', () => [])
 
 const family = ref('')
@@ -39,7 +39,7 @@ const filters = reactive<QueueFilters>({
 const items = ref<CatalogProposal[]>([])
 const total = ref<number | null>(null)
 const nextCursor = ref<string | null>(null)
-const loading = ref(false)
+const loading = ref(true)
 const selected = ref(0)
 
 const familyOptions: KunSelectOption<string>[] = [
@@ -182,15 +182,31 @@ const onKey = (event: KeyboardEvent) => {
 onMounted(() => window.addEventListener('keydown', onKey))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 
-if (isReviewer.value) {
-  await fetchPage(null)
-}
+watch(
+  isReviewer,
+  (reviewer) => {
+    if (reviewer) {
+      fetchPage(null)
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
   <div class="mx-auto max-w-5xl space-y-5">
+    <template v-if="!settled">
+      <div class="space-y-2">
+        <KunSkeleton variant="text" class-name="text-2xl" width="8rem" />
+        <KunSkeleton variant="text" class-name="text-sm" width="16rem" />
+      </div>
+      <KunCard bordered padding="md">
+        <CommonSkeletonRows :rows="6" trailing />
+      </KunCard>
+    </template>
+
     <KunInfo
-      v-if="!isReviewer"
+      v-else-if="!isReviewer"
       color="warning"
       variant="flat"
       title="需要审核权限"
@@ -209,13 +225,10 @@ if (isReviewer.value) {
               : `所有站点共 ${total} 条待审提案。`
           "
         />
-        <p class="text-default-400 text-xs">
-          <kbd class="bg-default-100 rounded px-1">j</kbd>/<kbd
-            class="bg-default-100 rounded px-1"
-            >k</kbd
-          >
+        <p class="text-default-400 flex items-center gap-1 text-xs">
+          <KunKbd>j</KunKbd>/<KunKbd>k</KunKbd>
           上下移动 ·
-          <kbd class="bg-default-100 rounded px-1">Enter</kbd> 打开
+          <KunKbd keys="Enter" /> 打开
         </p>
       </div>
 
@@ -252,7 +265,13 @@ if (isReviewer.value) {
       </KunCard>
 
       <KunCard bordered padding="none">
-        <ul v-if="visible.length" class="divide-default-200 divide-y">
+        <CommonSkeletonRows
+          v-if="loading && !items.length"
+          :rows="8"
+          trailing
+          class-name="px-4"
+        />
+        <ul v-else-if="visible.length" class="divide-default-200 divide-y">
           <ReviewQueueItem
             v-for="(proposal, index) in visible"
             :key="proposal.id"
@@ -269,7 +288,7 @@ if (isReviewer.value) {
           :description="items.length ? '没有符合筛选条件的提案' : '队列已清空'"
         />
         <div class="flex justify-center p-3">
-          <KunLoading v-if="loading" spinner />
+          <KunLoading v-if="loading && items.length" spinner />
           <KunButton
             v-else-if="nextCursor"
             variant="bordered"

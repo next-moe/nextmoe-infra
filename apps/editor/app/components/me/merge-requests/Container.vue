@@ -14,7 +14,7 @@ const api = useEditorApi()
 const state = ref('')
 const items = ref<CatalogMergeRequest[]>([])
 const nextCursor = ref<string | null>(null)
-const loading = ref(false)
+const loading = ref(true)
 const now = ref(Date.now())
 
 const stateOptions: KunSelectOption<string>[] = [
@@ -62,7 +62,7 @@ const withdraw = async (request: CatalogMergeRequest) => {
 }
 
 watch(state, () => fetchPage(null))
-await fetchPage(null)
+fetchPage(null)
 </script>
 
 <template>
@@ -83,17 +83,15 @@ await fetchPage(null)
     </div>
 
     <KunCard bordered padding="md">
-      <ul v-if="items.length" class="divide-default-200 divide-y">
+      <CommonSkeletonRows v-if="loading && !items.length" :rows="5" trailing />
+      <ul v-else-if="items.length" class="divide-default-200 divide-y">
         <MergeRow
           v-for="request in items"
           :key="request.id"
           :request="request"
           :now="now"
         >
-          <div
-            v-if="request.state === 'open'"
-            class="flex justify-end"
-          >
+          <div v-if="request.state === 'open'" class="flex justify-end">
             <KunButton
               size="xs"
               variant="light"
@@ -110,7 +108,7 @@ await fetchPage(null)
         description="还没有合并请求。在条目页面点「合并」即可提交。"
       />
       <div class="flex justify-center pt-3">
-        <KunLoading v-if="loading" spinner />
+        <KunLoading v-if="loading && items.length" spinner />
         <KunButton
           v-else-if="nextCursor"
           variant="bordered"

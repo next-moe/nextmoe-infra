@@ -27,7 +27,7 @@ const familyInfo = computed(() => ENTITY_FAMILY[family.value])
 
 const revisions = ref<CatalogRevision[]>([])
 const nextCursor = ref<string | null>(null)
-const loading = ref(false)
+const loading = ref(true)
 const schema = ref<CatalogObjectSchema | null>(null)
 const capabilities = ref<CatalogEditCapabilities | null>(null)
 const expanded = ref<string | null>(null)
@@ -178,7 +178,7 @@ watch([family, entityId], loadAll)
 
 useHead(() => ({ title: `修订历史 · ${entityName.value} · 未萌编辑台` }))
 
-await loadAll()
+loadAll()
 </script>
 
 <template>
@@ -248,7 +248,8 @@ await loadAll()
       </KunCard>
 
       <KunCard bordered padding="md">
-        <ul v-if="revisions.length" class="divide-default-200 divide-y">
+        <CommonSkeletonRows v-if="loading && !revisions.length" :rows="6" />
+        <ul v-else-if="revisions.length" class="divide-default-200 divide-y">
           <HistoryRevisionRow
             v-for="revision in revisions"
             :key="revision.id"
@@ -319,7 +320,7 @@ await loadAll()
         </ul>
         <KunNull v-else-if="!loading" description="这个条目还没有人工修订" />
         <div class="flex justify-center pt-3">
-          <KunLoading v-if="loading" spinner />
+          <KunLoading v-if="loading && revisions.length" spinner />
           <KunButton
             v-else-if="nextCursor"
             variant="bordered"

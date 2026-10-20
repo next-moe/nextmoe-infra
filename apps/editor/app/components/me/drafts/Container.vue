@@ -100,10 +100,11 @@ const familyLabel = (family: string) => ENTITY_FAMILY[family]?.label ?? family
           <div class="flex shrink-0 gap-2">
             <KunButton
               v-if="draftEditPath(draft)"
+              :href="draftEditPath(draft)!"
+              target="_blank"
               size="sm"
               color="primary"
               variant="flat"
-              @click="navigateTo(draftEditPath(draft)!)"
             >
               继续编辑
             </KunButton>

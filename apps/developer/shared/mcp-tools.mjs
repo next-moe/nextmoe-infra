@@ -61,6 +61,8 @@ const DESCRIPTIONS = {
   getCatalogRole: '按 id 取署名职务注册表的一行。未知 id 为 404。',
   listCatalogRoles:
     '浏览署名职务注册表本身（全表约 231 行）——key 与署名组的 role_key 相接。refs= 对它不解析：职务没有外部锚类型。',
+  listCatalogNames:
+    '一次解析多个族的显示名：keys=family:id,…（最多 500 个，如 tag:12,company:3），各族按自己的 ids= 批量通道取名，可见性与 nsfw 门完全一致；有中文名时另给 name_zh。只需要名字时用它代替逐族的 ids= 调用。',
   getCatalogSeries:
     '按 id 取系列（身份、源锚与简介）；成员作品用 listCatalogWorks 的 series_id= 取——回答「这个系列按什么顺序玩」。',
   listCatalogSeries:

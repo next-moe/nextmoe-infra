@@ -31,7 +31,7 @@ const state = ref(
 const proposals = ref<CatalogProposal[]>([])
 const nextCursor = ref<string | null>(null)
 const total = ref<number | null>(null)
-const loading = ref(false)
+const loading = ref(true)
 
 const fetchPage = async (cursor: string | null) => {
   loading.value = true
@@ -63,7 +63,7 @@ watch(state, (value) => {
   fetchPage(null)
 })
 
-await fetchPage(null)
+fetchPage(null)
 </script>
 
 <template>
@@ -87,7 +87,8 @@ await fetchPage(null)
       >
         共 {{ total }} 条
       </p>
-      <ul v-if="proposals.length" class="divide-default-200 divide-y">
+      <CommonSkeletonRows v-if="loading && !proposals.length" :rows="6" />
+      <ul v-else-if="proposals.length" class="divide-default-200 divide-y">
         <CommonProposalItem
           v-for="proposal in proposals"
           :key="proposal.id"
@@ -101,7 +102,7 @@ await fetchPage(null)
         description="这里还没有提案。打开任意条目即可开始编辑。"
       />
       <div class="flex justify-center pt-3">
-        <KunLoading v-if="loading" spinner />
+        <KunLoading v-if="loading && proposals.length" spinner />
         <KunButton
           v-else-if="nextCursor"
           variant="bordered"
