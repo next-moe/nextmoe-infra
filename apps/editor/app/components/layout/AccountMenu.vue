@@ -2,7 +2,7 @@
 import { cn } from '@kungal/ui-core'
 import { ROLE_LABELS } from '~/constants/roles'
 
-const { session, logout } = useEditorSession()
+const { session, settled, logout } = useEditorSession()
 const colorMode = useColorMode()
 const config = useRuntimeConfig()
 
@@ -48,7 +48,8 @@ const handleLogout = async () => {
         class="hover:bg-default-100 flex items-center rounded-full p-0.5 transition-colors"
         aria-label="账号菜单"
       >
-        <KunAvatar :user="user" size="sm" :is-navigation="false" />
+        <KunSkeleton v-if="!settled" variant="circle" height="2rem" />
+        <KunAvatar v-else :user="user" size="sm" :is-navigation="false" />
       </button>
     </template>
 

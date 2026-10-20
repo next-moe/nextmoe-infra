@@ -85,7 +85,7 @@ const withdraw = async () => {
 
 useHead(() => ({ title: `提案 #${proposalId.value} · 未萌编辑台` }))
 
-await load()
+load()
 </script>
 
 <template>
@@ -142,6 +142,7 @@ await load()
             <KunButton
               v-if="editable"
               :href="`${ENTITY_META[family!].path}/${proposal.entity_id}/edit?from_proposal=${proposal.id}`"
+              target="_blank"
               variant="bordered"
               size="sm"
             >
@@ -191,5 +192,25 @@ await load()
         </ul>
       </KunCard>
     </template>
+
+    <div v-else class="space-y-5" aria-busy="true" aria-label="正在加载提案">
+      <div
+        class="border-default-200 bg-content1 space-y-2 rounded-xl border p-4"
+      >
+        <div class="flex items-center gap-2">
+          <KunSkeleton width="3.5rem" height="1.5rem" rounded="full" />
+          <KunSkeleton variant="text" class-name="text-lg" width="8rem" />
+        </div>
+        <KunSkeleton variant="text" class-name="text-sm" width="14rem" />
+        <KunSkeleton variant="text" class-name="text-xs" width="20rem" />
+      </div>
+      <div
+        class="border-default-200 bg-content1 space-y-3 rounded-xl border p-4"
+      >
+        <KunSkeleton variant="text" class-name="font-semibold" width="6rem" />
+        <KunSkeleton height="4.5rem" rounded="lg" />
+        <KunSkeleton height="4.5rem" rounded="lg" />
+      </div>
+    </div>
   </div>
 </template>

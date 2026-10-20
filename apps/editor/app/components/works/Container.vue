@@ -13,7 +13,7 @@ const keyword = ref(typeof route.query.q === 'string' ? route.query.q : '')
 const works = ref<CatalogWork[]>([])
 const nextCursor = ref<string | null>(null)
 const total = ref<number | null>(null)
-const loading = ref(false)
+const loading = ref(true)
 const failed = ref(false)
 
 const fetchPage = async (cursor: string | null) => {
@@ -49,7 +49,7 @@ watch(keyword, (value) => {
   }, 300)
 })
 
-await fetchPage(null)
+fetchPage(null)
 </script>
 
 <template>
@@ -96,10 +96,28 @@ await fetchPage(null)
     >
       <WorksCard v-for="work in works" :key="work.id" :work="work" />
     </div>
-    <KunNull v-else-if="!loading && !failed" description="没有找到作品" />
+    <div
+      v-else-if="loading"
+      class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6"
+      aria-busy="true"
+      aria-label="正在加载作品"
+    >
+      <div
+        v-for="index in 12"
+        :key="index"
+        class="border-default-200 bg-content1 overflow-hidden rounded-xl border"
+      >
+        <KunSkeleton height="auto" rounded="none" class-name="aspect-[3/4]" />
+        <div class="space-y-1 p-3">
+          <KunSkeleton variant="text" class-name="text-sm" width="85%" />
+          <KunSkeleton variant="text" class-name="text-xs" width="50%" />
+        </div>
+      </div>
+    </div>
+    <KunNull v-else-if="!failed" description="没有找到作品" />
 
     <div class="flex justify-center py-2">
-      <KunLoading v-if="loading" spinner />
+      <KunLoading v-if="loading && works.length" spinner />
       <KunButton
         v-else-if="nextCursor"
         variant="bordered"

@@ -3,7 +3,7 @@ import type { CatalogProposalList } from '#shared/types/catalog'
 
 const api = useEditorApi()
 
-const { data } = await useAsyncData('editor-review-count', () =>
+const { data } = useLazyAsyncData('editor-review-count', () =>
   api<CatalogProposalList>('/v2/moderation/proposals', {
     query: { limit: 1, include_total: true }
   }).catch(() => null)
