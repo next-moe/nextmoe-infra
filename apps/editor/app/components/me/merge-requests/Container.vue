@@ -72,7 +72,7 @@ await fetchPage(null)
     >
       <KunHeader
         name="我的合并请求"
-        description="你提交的重复条目合并请求。审核通过后要等冷却期结束才会执行，执行前都可以撤回。"
+        description="你提交的重复条目合并请求。审核通过后要等冷却期结束才会执行；审核前可以撤回。"
       />
       <KunSelect
         v-model="state"
@@ -91,7 +91,7 @@ await fetchPage(null)
           :now="now"
         >
           <div
-            v-if="request.state === 'open' || request.state === 'approved'"
+            v-if="request.state === 'open'"
             class="flex justify-end"
           >
             <KunButton
