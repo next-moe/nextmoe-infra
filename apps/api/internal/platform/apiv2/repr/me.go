@@ -57,28 +57,29 @@ type PlaytimeBatchItem struct {
 }
 
 type ProposalRecord struct {
-	_               struct{}        `json:"-" additionalProperties:"true"`
-	Object          string          `json:"object" enum:"proposal" doc:"Type discriminant. Always proposal."`
-	ID              string          `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Proposal id."`
-	State           string          `json:"state" enum:"open,merged,declined,withdrawn" doc:"Proposal lifecycle state."`
-	TargetObject    string          `json:"target_object" enum:"work,company,character,release,tag,engine,series,person,credit_name,trait" doc:"Family of the entity this proposal targets."`
-	EntityType      string          `json:"entity_type" maxLength:"64" doc:"Editing-engine type, e.g. catalog.work. Must not be used as a discriminant."`
-	EntityID        string          `json:"entity_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Target catalog id."`
-	Note            string          `json:"note" maxLength:"2000" doc:"Proposer's own summary. Must not be used as a discriminant."`
-	ProposerUID     string          `json:"proposer_uid" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"The claiming site's own user id of the proposer. Not a catalog id."`
-	Site            string          `json:"site" maxLength:"64" doc:"Tenant this proposal was filed under. Open vocabulary; must not be used as a discriminant."`
-	BaseRevisionSeq int             `json:"base_revision_seq" minimum:"0" doc:"Revision seq this proposal was written against."`
-	DecidedByUID    *string         `json:"decided_by_uid" pattern:"^[0-9]+$" maxLength:"20" doc:"The claiming site's own user id of the decider. null while open."`
-	Proposer        *UserRef        `json:"proposer" doc:"Account behind proposer_uid. null only when the account directory could not be read."`
-	DecidedBy       *UserRef        `json:"decided_by" doc:"Account behind decided_by_uid. null while open, or when the account directory could not be read."`
-	DecidedAt       *string         `json:"decided_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC. null while open."`
-	CreatedAt       string          `json:"created_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
-	UpdatedAt       string          `json:"updated_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
-	Amendments      *[]Amendment    `json:"amendments,omitempty" doc:"Present when include=amendments. Empty array if none."`
-	Patch           *map[string]any `json:"patch,omitempty" doc:"Present when include=patch, which only the me and moderation faces publish. Field key to proposed value."`
-	EffectivePatch  *map[string]any `json:"effective_patch,omitempty" doc:"Present when include=patch. The patch after every amendment is folded in; this is what a merge would write."`
-	ChangedFields   *[]string       `json:"changed_fields,omitempty" doc:"Present when include=patch. The field keys effective_patch writes, sorted."`
-	ConflictFields  *[]string       `json:"conflict_fields,omitempty" doc:"Present when include=patch on an open proposal. Keys of effective_patch that a revision recorded after base_revision_seq also changed: merging overwrites that later change. Empty array when none."`
+	_               struct{}          `json:"-" additionalProperties:"true"`
+	Object          string            `json:"object" enum:"proposal" doc:"Type discriminant. Always proposal."`
+	ID              string            `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Proposal id."`
+	State           string            `json:"state" enum:"open,merged,declined,withdrawn" doc:"Proposal lifecycle state."`
+	TargetObject    string            `json:"target_object" enum:"work,company,character,release,tag,engine,series,person,credit_name,trait" doc:"Family of the entity this proposal targets."`
+	EntityType      string            `json:"entity_type" maxLength:"64" doc:"Editing-engine type, e.g. catalog.work. Must not be used as a discriminant."`
+	EntityID        string            `json:"entity_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Target catalog id."`
+	Note            string            `json:"note" maxLength:"2000" doc:"Proposer's own summary. Must not be used as a discriminant."`
+	ProposerUID     string            `json:"proposer_uid" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"The claiming site's own user id of the proposer. Not a catalog id."`
+	Site            string            `json:"site" maxLength:"64" doc:"Tenant this proposal was filed under. Open vocabulary; must not be used as a discriminant."`
+	BaseRevisionSeq int               `json:"base_revision_seq" minimum:"0" doc:"Revision seq this proposal was written against."`
+	DecidedByUID    *string           `json:"decided_by_uid" pattern:"^[0-9]+$" maxLength:"20" doc:"The claiming site's own user id of the decider. null while open."`
+	Proposer        *UserRef          `json:"proposer" doc:"Account behind proposer_uid. null only when the account directory could not be read."`
+	DecidedBy       *UserRef          `json:"decided_by" doc:"Account behind decided_by_uid. null while open, or when the account directory could not be read."`
+	DecidedAt       *string           `json:"decided_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC. null while open."`
+	CreatedAt       string            `json:"created_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
+	UpdatedAt       string            `json:"updated_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
+	Amendments      *[]Amendment      `json:"amendments,omitempty" doc:"Present when include=amendments. Empty array if none."`
+	Patch           *map[string]any   `json:"patch,omitempty" doc:"Present when include=patch, which only the me and moderation faces publish. Field key to proposed value."`
+	EffectivePatch  *map[string]any   `json:"effective_patch,omitempty" doc:"Present when include=patch. The patch after every amendment is folded in; this is what a merge would write."`
+	ChangedFields   *[]string         `json:"changed_fields,omitempty" doc:"Present when include=patch. The field keys effective_patch writes, sorted."`
+	ConflictFields  *[]string         `json:"conflict_fields,omitempty" doc:"Present when include=patch on an open proposal. Keys of effective_patch that a revision recorded after base_revision_seq also changed: merging overwrites that later change. Empty array when none."`
+	Creation        *ProposalCreation `json:"creation,omitempty" doc:"Present when the proposal creates a new entry (POST /v2/me/creations). entity_id is 0 until it merges, then the new entry's id."`
 }
 
 // Split per route for the reason D35 split the decision inputs: one record

@@ -154,7 +154,7 @@ export const problemsZh: Record<string, { title: string; description: string }> 
   },
   "DUPLICATE_SUSPECTS": {
     "title": "疑似重复",
-    "description": "铸造的标题与同一 medium 的在用作品同名，suspects[] 列出了它们。一行未写。带 confirm_duplicates=true 重发即照旧铸造——这些对子仍会记入对账队列。"
+    "description": "提交的名称与在用条目同名（认领铸造时为同一 medium 的作品），suspects[] 列出了它们。一行未写。带 confirm_duplicates=true 重发即照旧进行——铸造作品时这些对子仍会记入对账队列。"
   },
   "INVALID_STATE_TRANSITION": {
     "title": "非法的状态流转",

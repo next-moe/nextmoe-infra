@@ -48,13 +48,13 @@ type Problem struct {
 	Errors    []FieldError `json:"errors" doc:"Field-level failures. Empty array when this is not a field-level error."`
 	Object    string       `json:"object,omitempty" maxLength:"32" pattern:"^[a-z][a-z0-9_]*$" doc:"Entity family when code is ENTITY_MERGED."`
 	CurrentID string       `json:"current_id,omitempty" pattern:"^[0-9]+$" maxLength:"20" doc:"Canonical id when code is ENTITY_MERGED."`
-	Suspects  []Suspect    `json:"suspects,omitempty" doc:"Live works sharing a submitted title when code is DUPLICATE_SUSPECTS."`
+	Suspects  []Suspect    `json:"suspects,omitempty" doc:"Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation."`
 }
 
 type Suspect struct {
 	_           struct{} `json:"-" additionalProperties:"true"`
-	ID          string   `json:"id" pattern:"^[0-9]+$" maxLength:"20" doc:"Catalog work id."`
-	DisplayName string   `json:"display_name" maxLength:"512" doc:"The live work's display name. Must not be used as a discriminant."`
+	ID          string   `json:"id" pattern:"^[0-9]+$" maxLength:"20" doc:"Catalog id of the matching entry."`
+	DisplayName string   `json:"display_name" maxLength:"512" doc:"The matching entry's display name. Must not be used as a discriminant."`
 }
 
 func (p *Problem) Error() string {

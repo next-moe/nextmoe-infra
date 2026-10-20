@@ -61,7 +61,7 @@
 | `SITE_NOT_BOUND` | 403 | Site not bound | The client behind the token is not bound to a catalog site. |
 | `RELEASE_CREATION_DISABLED` | 403 | Release creation disabled | The proposal tried to create a release. This is a product constraint, not a defect. |
 | `ALREADY_EXISTS` | 409 | Already exists | The same subject already has a live record for this target. |
-| `DUPLICATE_SUSPECTS` | 409 | Duplicate suspects | The mint's titles match live works of the same medium; suspects[] names them. Nothing was written. Re-send with confirm_duplicates=true to mint anyway — the pairs are still filed for reconciliation. |
+| `DUPLICATE_SUSPECTS` | 409 | Duplicate suspects | The submitted name matches live entries (for a claim mint: works of the same medium); suspects[] names them. Nothing was written. Re-send with confirm_duplicates=true to go ahead — a minted work's pairs are still filed for reconciliation. |
 | `INVALID_STATE_TRANSITION` | 409 | Invalid state transition | The current state does not allow this transition. detail names the current state and the legal targets. |
 | `CLAIM_NOT_OWNED` | 403 | Claim not owned | The claim has an owner and it is another user. Only the owner may publish, submit, or withdraw it; an unowned claim is adopted by its first claimant. |
 

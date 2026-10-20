@@ -907,7 +907,7 @@ export const searchIndex: SearchEntry[] = [
     "r": "/docs/v2",
     "t": "Public API v2",
     "s": "端点参考",
-    "d": "/v2 · 144 个端点",
+    "d": "/v2 · 151 个端点",
     "b": "v2 /v2 API v2 Public API v2"
   },
   {
@@ -1464,6 +1464,13 @@ export const searchIndex: SearchEntry[] = [
     "b": "deleteMyCoverVote /v2/me/cover-votes/{cover_id} delete Withdraw a cover vote 204 with no body. Requires a user access token. The token must carry the catalog:edit scope. 204 无响应体。需要用户访问令牌。令牌须带 catalog:edit scope。 cover_id"
   },
   {
+    "r": "/docs/v2/createMyCreation",
+    "t": "提议新建条目",
+    "s": "端点 · 我的",
+    "d": "POST /v2/me/creations",
+    "b": "createMyCreation /v2/me/creations post Propose a new entry Files a proposal that creates a new entry of one family. It is reviewed like any proposal (it appears in GET /v2/moderation/proposals with entity_id 0 and a creation block) unless the create policy lets the bearer apply it at once; once merged, entity_id is the new entry's id. Entries whose normalized name already exists are refused with 409 DUPLICATE_SUSPECTS unless confirm_duplicates=true. Counts against the same proposal quota as POST /v2/me/proposals. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 提交一条新建某家族条目的提案。它像其他提案一样接受审核（在 GET /v2/moderation/proposals 中以 entity_id 0 和 creation 块出现），除非创建策略允许调用者直接生效；合并后 entity_id 即为新条目的 id。规范化名称已存在的条目会以 409 DUPLICATE_SUSPECTS 拒绝，除非 confirm_duplicates=true。与 POST /v2/me/proposals 共用同一提案配额。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 Idempotency-Key"
+  },
+  {
     "r": "/docs/v2/getMyEditCapabilities",
     "t": "我在某个族上能编辑什么",
     "s": "端点 · 我的",
@@ -1588,6 +1595,27 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 我的",
     "d": "DELETE /v2/me/followed-companies/{company_id}",
     "b": "deleteMyCompanyFollow /v2/me/followed-companies/{company_id} delete Unfollow a company 204 with no body, also when the bearer was not following. Requires a user access token. Any app may call this; no scope is required. 204 无响应体；持有者本来就未关注时同样如此。需要用户访问令牌。任何应用均可调用；不要求任何 scope。 company_id"
+  },
+  {
+    "r": "/docs/v2/listMyMergeRequests",
+    "t": "列出我的合并请求",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/merge-requests",
+    "b": "listMyMergeRequests /v2/me/merge-requests get List my merge requests The bearer's own merge requests, newest first; follow next_cursor for more. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 调用者自己的合并请求，最新的在前；更多结果请跟随 next_cursor。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 state object cursor limit"
+  },
+  {
+    "r": "/docs/v2/createMyMergeRequest",
+    "t": "请求合并",
+    "s": "端点 · 我的",
+    "d": "POST /v2/me/merge-requests",
+    "b": "createMyMergeRequest /v2/me/merge-requests post Request a merge Asks reviewers to merge two entries of one family. Nothing merges on filing: a reviewer approves, the cooling-off runs, then the merge executes through the catalog merge machinery (redirect from source to target, survivorship, archive for unmerge). Two works of different mediums are refused 422. Quotas are tiered: catalog.merge_requests_per_day, _editor, _reviewer inside catalog.write_quota_window_hours; past it 429 QUOTA_EXCEEDED. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 请审核者合并同一家族的两个条目。提交时不会合并：审核者批准、冷却期结束后，才通过 catalog 合并机制执行（源重定向到目标、存活规则、为撤销合并留存档）。媒介不同的两部作品以 422 拒绝。配额分档：在 catalog.write_quota_window_hours 内适用 catalog.merge_requests_per_day、_editor、_reviewer；超出则 429 QUOTA_EXCEEDED。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 Idempotency-Key"
+  },
+  {
+    "r": "/docs/v2/patchMyMergeRequest",
+    "t": "撤回合并请求",
+    "s": "端点 · 我的",
+    "d": "PATCH /v2/me/merge-requests/{id}",
+    "b": "patchMyMergeRequest /v2/me/merge-requests/{id} patch Withdraw a merge request Withdraws an open request the bearer filed. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 撤回调用者提交的、仍处于 open 的请求。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 id"
   },
   {
     "r": "/docs/v2/listMyNews",
@@ -1833,6 +1861,27 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 审核",
     "d": "DELETE /v2/moderation/folders/{id}",
     "b": "deleteModerationFolder /v2/moderation/folders/{id} delete Delete any folder Deletes the folder and its items. Unlike the owner's own delete this accepts the default folder: is_default is set by the folder's owner, so honouring it here would let anyone make a folder undeletable. 204 with no body. Requires a user access token whose holder has catalog.folder.moderate: the moderator, admin and ren roles have it, and the permission console can grant it to another role. Reviewing catalog edits or claims does not include it. 删除该收藏夹及其条目。与夹主自己的删除不同，这里接受默认收藏夹：is_default 是夹主自己设的，如果这里也照办，任何人都能靠标成默认让收藏夹删不掉。返回 204 空响应。需要持有人具备 catalog.folder.moderate 权限的用户访问令牌：moderator、admin、ren 角色默认具备，权限控制台可以授予其他角色。审核目录编辑或投稿认领的权限不包含它。 id"
+  },
+  {
+    "r": "/docs/v2/listModerationMergeRequests",
+    "t": "合并请求队列",
+    "s": "端点 · 审核",
+    "d": "GET /v2/moderation/merge-requests",
+    "b": "listModerationMergeRequests /v2/moderation/merge-requests get Merge request queue Merge requests filed through the editor, newest first; follow next_cursor for more. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope. 经编辑台提交的合并请求，最新的在前；更多结果请跟随 next_cursor。需要 catalog.merge.review 权限。令牌须带 catalog:edit scope。 state object cursor limit"
+  },
+  {
+    "r": "/docs/v2/getModerationMergeRequest",
+    "t": "获取一条合并请求",
+    "s": "端点 · 审核",
+    "d": "GET /v2/moderation/merge-requests/{id}",
+    "b": "getModerationMergeRequest /v2/moderation/merge-requests/{id} get Get one merge request Requires the catalog.merge.review permission. The token must carry the catalog:edit scope. 需要 catalog.merge.review 权限。令牌须带 catalog:edit scope。 id"
+  },
+  {
+    "r": "/docs/v2/decideModerationMergeRequest",
+    "t": "处理合并请求",
+    "s": "端点 · 审核",
+    "d": "POST /v2/moderation/merge-requests/{id}/decisions",
+    "b": "decideModerationMergeRequest /v2/moderation/merge-requests/{id}/decisions post Decide a merge request decision=approve|reject|execute. Unmerge stays with the catalog admin console. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope. decision=approve|reject|execute。撤销合并仍在 catalog 管理台。需要 catalog.merge.review 权限。令牌须带 catalog:edit scope。 id Idempotency-Key"
   },
   {
     "r": "/docs/v2/listModerationProposals",
@@ -2273,7 +2322,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "疑似重复",
     "s": "错误码 · 用户面",
     "d": "DUPLICATE_SUSPECTS · HTTP 409",
-    "b": "DUPLICATE_SUSPECTS Duplicate suspects The mint's titles match live works of the same medium; suspects[] names them. Nothing was written. Re-send with confirm_duplicates=true to mint anyway — the pairs are still filed for reconciliation. 铸造的标题与同一 medium 的在用作品同名，suspects[] 列出了它们。一行未写。带 confirm_duplicates=true 重发即照旧铸造——这些对子仍会记入对账队列。 me"
+    "b": "DUPLICATE_SUSPECTS Duplicate suspects The submitted name matches live entries (for a claim mint: works of the same medium); suspects[] names them. Nothing was written. Re-send with confirm_duplicates=true to go ahead — a minted work's pairs are still filed for reconciliation. 提交的名称与在用条目同名（认领铸造时为同一 medium 的作品），suspects[] 列出了它们。一行未写。带 confirm_duplicates=true 重发即照旧进行——铸造作品时这些对子仍会记入对账队列。 me"
   },
   {
     "r": "/problems/me/invalid-state-transition",

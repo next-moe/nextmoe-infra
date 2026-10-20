@@ -21,5 +21,5 @@ func RegisterAll(reg *editing.Registry, db *gorm.DB) error {
 			return err
 		}
 	}
-	return nil
+	return RegisterBirths(reg, db)
 }

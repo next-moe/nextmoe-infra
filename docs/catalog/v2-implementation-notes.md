@@ -2410,3 +2410,33 @@ Both vocabularies are shared entities under the taxonomy permissions (`sharedEnt
 **Search.** `GET /v2/catalog/persons?q=` matches the display name or any credit name (`name`, `latin`) whose person link is public (`link_visibility = 0`) — a hidden link must not find its person. `GET /v2/catalog/releases?q=` matches the release title or the work's display name over the same dated-release lane. Both are bounded substring `ILIKE` with LIKE metacharacters escaped; `pg_trgm` is not installed. Measured on prod: person search ≈ 45 ms, release page ≈ 175 ms and its total ≈ 160 ms.
 
 **Spec 2.59.0**, additive (oasdiff 1.21.0: no breaking changes). No migration.
+
+## Wave E2g — new entries through the engine, and merge requests (2026-10-20)
+
+**Creating entries (births).** `POST /v2/me/creations` files a proposal with `entity_id = 0` and `edit_proposal.birth_params` (nullable jsonb; non-null marks a creation). It is reviewed like any proposal and appears in the moderation queue with a `creation` block. On merge, inside the engine transaction, the family's `Birth.Create` inserts the bare row, every patch field is applied through `editing.ApplyField` (so human provenance stamps land exactly as for edits), a revision `seq 1, action created` records the patch as its snapshot, and the proposal's `entity_id` is rewritten to the new id. A declined or withdrawn creation writes no row.
+
+| object | params | required fields | notes |
+|---|---|---|---|
+| `character` | — | `catalog.character.display_name` | |
+| `company` | — | `catalog.label.name` | |
+| `credit_name` | — | `catalog.credit_name.name` | born unattributed |
+| `person` | `credit_name_id` (an unattributed credit name) | — | the name becomes the person's primary name and is attributed to it in the same transaction (doc 10: credits point at names, a person is born from one) |
+| `engine` | — | `catalog.engine.name` | an existing name (case-insensitive) is a 422 |
+| `series` | — | `catalog.series.name` | born in the curated lane (`source_id 12`, `external_id editor:<uuid>`), so its name stays editable |
+| `release` | `work_id` (a live work) | `catalog.release.kind` | revisits doc 21 D8: a release can now be created, always under an existing work |
+| `tag` | — | `catalog.tag.name` | reviewer-only create policy; a name already on a tag (NFKC, case-insensitive) is a 422 |
+| `trait` | — | `catalog.trait.name` | reviewer-only create policy; born with `vndb_tid = editor:<uuid>`; a name already used in the same group (`catalog.trait.group_id`, or top level) is a 422 |
+
+**Not here:** works are still minted through the claims lane (`POST /v2/me/claims`, which owns anchors, the duplicate gate and claim state). Tags and traits are creatable with a reviewer-only create policy (propose and review need `edit.catalog.taxonomy.review`, never applied without a second reviewer): a new vocabulary entry changes what every list filters by.
+
+**Policy.** Each creatable type has a create policy: the family's `DefaultPolicy` unless its `BirthSpec` declares one, overridable at runtime with an `edit_policy_override` row whose `field_key` is `@create` (the type-level `""` row applies first). Field policies still apply to every field in a creation's patch. The owner channel is refused on a create policy (nothing owns an entry before it exists). Under the current defaults: characters, companies, credit names, persons, engines and series queue for review (`never` automerge); a release from an editor or reviewer applies at once (`trusted_or_review`). Creations count against the proposal quota.
+
+**Duplicates.** Unless `confirm_duplicates=true`, a creation whose name matches an existing entry is refused `409 DUPLICATE_SUSPECTS` with the matches in `suspects[]` (NFKC + lowercase over `display_name_norm`/`name_norm` and the alias tables for characters, companies and credit names; lower(name) for engines and series; same normalized title under the same work for releases). Nothing is written. The match is a seq scan bounded to ten hits; there is no index on the norm columns yet.
+
+**Capabilities.** `/v2/me/edit-capabilities/{object}` gains `creation` for creatable families: `can_create`, `would_automerge`, `param_specs[]`, `required_fields[]`. Absent for families that cannot be created (works).
+
+**Merge requests.** `POST /v2/me/merge-requests` files a `catalog_merge_proposal` with `origin = 'editor'` (new column, `text NOT NULL DEFAULT ''`; batch tools keep `''`). Families: work, company, character, person, credit_name — what the merge machinery supports. Two works of different mediums are refused 422 at filing (the cross-medium veto the work-dedup tool already applies at approval). Quotas: `catalog.merge_requests_per_day` / `_editor` / `_reviewer` (10 / 50 / 500) inside `catalog.write_quota_window_hours`. Reviewers holding `catalog.merge.review` (new permission; moderator, admin, ren) read the queue and decide: `approve` sets `execute_after` = now + `catalog.merge_cooling_off_hours`; `reject` needs a reason; `execute` runs an approved request whose cooling-off has ended. The scheduled job `catalog-merge-requests` (every hour, configurable under `jobs.catalog_merge_requests.*`) executes approved editor requests whose cooling-off has ended; it never touches proposals filed by batch tools, which execute their own. Unmerge stays in the catalog admin console.
+
+**Migration** (`go run ./cmd/migrate catalog` on `kun_catalog`, run by the `migrate-catalog` job): `edit_proposal.birth_params jsonb NULL` and `catalog_merge_proposal.origin text NOT NULL DEFAULT ''` — both metadata-only, no table rewrite. **Spec 2.60.0**, additive.
+
+**Family enums.** `EditCapabilities.entity_type` and `ObjectSchema.entity_type` now list `catalog.person`, `catalog.credit_name` and `catalog.trait` (wave E2b had shipped the first two without them). `TestFamilyEnumsCoverEveryEditingType` walks the editing registry and fails when a registered type is missing from any family enum (the capability, schema, proposal, revision and edit-context reprs, the three `{object}` routes, and the creations enum for every type with a birth spec).

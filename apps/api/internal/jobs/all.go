@@ -62,6 +62,12 @@ func RegisterAll(r *Registry) {
 	})
 
 	r.Register(Job{
+		Name: JobCatalogMergeRequests,
+		Desc: "catalog 合并请求执行（编辑台提交、已批准且冷却期已过的合并按原有合并机器执行）",
+		Run:  RunCatalogMergeRequests,
+	})
+
+	r.Register(Job{
 		Name: JobCatalogMergeStragglers,
 		Desc: "catalog 合并残留回收（仍指向已合并旧 id 的行，按合并本身的迁移逻辑重放一遍）",
 		Run:  RunCatalogMergeStragglers,

@@ -14,6 +14,7 @@ type Proposal struct {
 	EntityID        int64          `gorm:"not null;index:idx_edit_proposal_entity,priority:3" json:"entity_id"`
 	BaseRevisionSeq int            `gorm:"not null" json:"base_revision_seq"`
 	Patch           datatypes.JSON `gorm:"type:jsonb;not null" json:"patch"`
+	BirthParams     datatypes.JSON `gorm:"type:jsonb" json:"birth_params,omitempty"`
 	ProposerUID     int64          `gorm:"column:proposer_uid;not null;index:idx_edit_proposal_proposer,priority:1" json:"proposer_uid"`
 	Note            string         `gorm:"not null;default:''" json:"note"`
 	Site            string         `gorm:"not null;index:idx_edit_proposal_site,priority:1" json:"site"`

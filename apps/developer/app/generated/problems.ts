@@ -313,7 +313,7 @@ export const problems = [
     "kebab": "duplicate-suspects",
     "status": 409,
     "title": "Duplicate suspects",
-    "description": "The mint's titles match live works of the same medium; suspects[] names them. Nothing was written. Re-send with confirm_duplicates=true to mint anyway — the pairs are still filed for reconciliation.",
+    "description": "The submitted name matches live entries (for a claim mint: works of the same medium); suspects[] names them. Nothing was written. Re-send with confirm_duplicates=true to go ahead — a minted work's pairs are still filed for reconciliation.",
     "type": "https://developer.nextmoe.dev/problems/me/duplicate-suspects"
   },
   {

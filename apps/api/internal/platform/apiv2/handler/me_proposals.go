@@ -152,6 +152,13 @@ func proposalFrom(p *editing.Proposal) repr.ProposalRecord {
 		at := rfc3339(*p.DecidedAt)
 		rec.DecidedAt = &at
 	}
+	if p.IsBirth() {
+		params, _ := decodeCreationParams(p.BirthParams)
+		rec.Creation = &repr.ProposalCreation{Params: params}
+		if p.EntityID == 0 {
+			rec.EntityID = "0"
+		}
+	}
 	return rec
 }
 

@@ -61,6 +61,7 @@ type CatalogMergeProposal struct {
 	ExecuteAfter    *time.Time     `json:"execute_after"`
 	ExecutedAt      *time.Time     `json:"executed_at"`
 	Note            string         `gorm:"not null;default:''" json:"note"`
+	Origin          string         `gorm:"not null;default:''" json:"origin"`
 }
 
 func (CatalogMergeProposal) TableName() string { return "catalog_merge_proposal" }

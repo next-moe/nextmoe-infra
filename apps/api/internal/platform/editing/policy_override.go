@@ -67,7 +67,11 @@ func (r *Registry) ValidateOverride(o PolicyOverride) error {
 	if !ok {
 		return fmt.Errorf("unknown entity type %q", o.EntityType)
 	}
-	if o.FieldKey != "" {
+	if o.FieldKey == CreateFieldKey {
+		if spec.Birth == nil {
+			return fmt.Errorf("%s cannot be created through the engine, so it has no create policy", o.EntityType)
+		}
+	} else if o.FieldKey != "" {
 		if _, ok := spec.fields[o.FieldKey]; !ok {
 			return fmt.Errorf("unknown field %q on %s", o.FieldKey, o.EntityType)
 		}
@@ -176,6 +180,18 @@ func (r *Registry) PolicyMatrix() []PolicyMatrixRow {
 			typeRow.Effective = o.applyTo(spec.DefaultPolicy)
 		}
 		out = append(out, typeRow)
+		if spec.Birth != nil {
+			def := spec.DefaultPolicy
+			if spec.Birth.Policy != nil {
+				def = *spec.Birth.Policy
+			}
+			row := PolicyMatrixRow{EntityType: name, FieldKey: CreateFieldKey, Default: def, Effective: spec.CreatePolicy()}
+			if o, ok := table[name][CreateFieldKey]; ok {
+				o := o
+				row.Override = &o
+			}
+			out = append(out, row)
+		}
 		for i := range spec.Fields {
 			key := spec.Fields[i].Key
 			row := PolicyMatrixRow{EntityType: name, FieldKey: key, Default: spec.CodePolicy(key), Effective: spec.EffectivePolicy(key)}
