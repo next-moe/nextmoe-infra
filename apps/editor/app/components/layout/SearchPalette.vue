@@ -17,6 +17,19 @@ const runSearch = async (q: string) => {
   loading.value = true
   const results = await Promise.all(
     SEARCH_FAMILIES.map(async (family) => {
+      if (family.searchVia === 'list') {
+        const list = await api<{
+          items?: { id: string; display_name?: string; title?: string }[]
+        }>(`/v2/catalog/${family.collection}`, {
+          query: { q, limit: 5, nsfw: true }
+        }).catch(() => null)
+        const items: KunCommandItem[] = (list?.items ?? []).map((item) => ({
+          value: `${family.path}/${item.id}`,
+          label: item.display_name ?? item.title ?? `#${item.id}`,
+          icon: family.icon
+        }))
+        return { label: family.label, items }
+      }
       const list = await api<CatalogSearchList>('/v2/catalog/search', {
         query: { q, object: family.object, limit: 5, nsfw: true }
       }).catch(() => null)

@@ -10,6 +10,7 @@ export const WORK_EDIT_CONFIG: EditEntityConfig = {
     { value: 'tags', label: '标签', icon: 'lucide:tags' },
     { value: 'companies', label: '厂商与引擎', icon: 'lucide:building-2' },
     { value: 'series', label: '系列', icon: 'lucide:library' },
+    { value: 'relations', label: '关联作品', icon: 'lucide:git-fork' },
     { value: 'links', label: '外链', icon: 'lucide:link' },
     { value: 'media', label: '媒体', icon: 'lucide:images' },
     { value: 'credits', label: '职员', icon: 'lucide:clapperboard' },
@@ -62,6 +63,17 @@ export const WORK_EDIT_CONFIG: EditEntityConfig = {
       ref: 'tag',
       help: '这里是人工添加的标签；资料源导入的标签列在下方，可以单独隐藏。'
     },
+    'catalog.work.tag_spoilers': {
+      label: '标签剧透等级',
+      group: 'tags',
+      control: 'objectList',
+      emptyText: '还没有人工设置剧透等级的标签。',
+      help: '为这部作品上的某个标签设置剧透等级，会同时作用于该标签来自各资料源的记录，资料源再次同步也不会覆盖。',
+      members: {
+        tag_id: { label: '标签', ref: 'tag' },
+        spoiler: { label: '剧透等级' }
+      }
+    },
     'catalog.work.labels': {
       label: '厂商',
       group: 'companies',
@@ -71,6 +83,13 @@ export const WORK_EDIT_CONFIG: EditEntityConfig = {
         label_id: { label: '厂商', ref: 'company' },
         kind: { label: '身份' }
       }
+    },
+    'catalog.work.platforms': {
+      label: '平台',
+      group: 'companies',
+      control: 'vocabList',
+      vocabulary: 'platform',
+      help: '作品层面的平台（来自 Bangumi、ErogameScape 等）。各发行版本自己的平台在发行页编辑。'
     },
     'catalog.work.engine_ids': {
       label: '引擎',
@@ -84,6 +103,31 @@ export const WORK_EDIT_CONFIG: EditEntityConfig = {
       control: 'refList',
       ref: 'series',
       help: '只能加入人工维护的系列；资料源生成的系列由导入流程管理。'
+    },
+    'catalog.work.series_members': {
+      label: '系列内位置',
+      group: 'series',
+      control: 'objectList',
+      fixedRows: true,
+      emptyText: '这部作品还不属于任何系列。',
+      help: '调整这部作品在各系列中的序号与身份（正篇、FD、外传等）。加入或退出系列请编辑上面的「系列」。',
+      members: {
+        series_id: { label: '系列', ref: 'series', readonly: true },
+        position: { label: '序号' },
+        kind: { label: '身份' }
+      }
+    },
+    'catalog.work.relations': {
+      label: '关联作品',
+      group: 'relations',
+      control: 'objectList',
+      help: '续作、外传、FD、重制等关系。关系从本作出发描述：「本作 是 对方 的续作」。打开「反向」表示关系由对方指向本作（对方是本作的续作）。对称关系（同系列、联动等）无需反向。',
+      members: {
+        work_id: { label: '对方作品', ref: 'work' },
+        relation: { label: '关系' },
+        reverse: { label: '反向' },
+        note: { label: '备注', placeholder: '可选' }
+      }
     },
     'catalog.work.links': {
       label: '外链',
@@ -122,14 +166,17 @@ export const WORK_EDIT_CONFIG: EditEntityConfig = {
         role_id: { label: '职位', ref: 'role' },
         credit_name_id: { label: '署名', ref: 'credit_name' },
         character_id: { label: '配音角色', ref: 'character' },
-        note: { label: '备注', placeholder: '可选' }
+        note: { label: '备注', placeholder: '可选' },
+        spoiler: { label: '剧透等级' },
+        release_id: { label: '仅限发行', ref: 'release' },
+        label_id: { label: '所属厂商', ref: 'company' }
       }
     },
     'catalog.work.roster': {
       label: '登场角色',
       group: 'roster',
       control: 'roster',
-      help: '可以调整每个角色的出场程度与剧透等级；不属于这部作品的角色可以隐藏。'
+      help: '可以调整每个角色的出场程度与剧透等级，也可以添加缺失的角色；不属于这部作品的角色可以隐藏。'
     }
   }
 }

@@ -29,7 +29,9 @@ export const resolveEditControl = (
         return 'refList'
       }
       if (field.element?.type === 'text') {
-        return 'stringList'
+        return field.vocabulary || config?.vocabulary
+          ? 'vocabList'
+          : 'stringList'
       }
       return 'readonly'
     default:

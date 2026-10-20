@@ -30,6 +30,15 @@ export const problemMessage = (
   )
 }
 
+export const problemCode = (error: unknown) =>
+  (error as FetchFailure | null)?.data?.code ?? ''
+
+export const conflictFieldKeys = (error: unknown) =>
+  ((error as FetchFailure | null)?.data?.errors ?? [])
+    .map((entry) => entry.pointer ?? '')
+    .filter((pointer) => pointer.startsWith('/fields/'))
+    .map((pointer) => pointer.slice('/fields/'.length))
+
 export const isStale = (error: unknown) => {
   const status = problemStatus(error)
   return status === 412 || status === 409

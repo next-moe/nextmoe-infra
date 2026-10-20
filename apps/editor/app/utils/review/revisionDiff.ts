@@ -9,6 +9,8 @@ export interface DiffState {
   entries: FieldDiffLike[] | null
 }
 
+export const BASELINE_DIFF_BASE = 'baseline'
+
 export const diffCacheKey = (revisionId: string, baseId?: string | null) =>
   baseId ? `${revisionId}..${baseId}` : revisionId
 

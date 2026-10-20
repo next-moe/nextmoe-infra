@@ -33,6 +33,19 @@ const STATUS: Record<
 }
 
 const status = computed(() => STATUS[props.application.status])
+
+const now = ref(Date.now())
+let ticker: ReturnType<typeof setInterval> | undefined
+onMounted(() => {
+  ticker = setInterval(() => {
+    now.value = Date.now()
+  }, 30_000)
+})
+onBeforeUnmount(() => clearInterval(ticker))
+
+const waitMs = computed(() =>
+  reapplyWaitMs(props.application.reapply_after, now.value)
+)
 </script>
 
 <template>
@@ -88,8 +101,18 @@ const status = computed(() => STATUS[props.application.status])
               ：{{ props.application.decline_reason }}
             </template>
           </p>
-          <p class="text-default-500 text-sm">
-            被拒绝后需要等待一段冷却期才能再次申请；冷却期内提交会提示你稍后再试。
+          <p v-if="waitMs > 0" class="text-default-500 text-sm">
+            冷却期还剩
+            <span class="text-foreground font-medium tabular-nums">{{
+              formatWait(waitMs)
+            }}</span>
+            ，{{
+              formatDateTime(props.application.reapply_after)
+            }}
+            后可以再次申请。
+          </p>
+          <p v-else class="text-default-500 text-sm">
+            冷却期已过，可以在下方重新提交申请。
           </p>
         </template>
       </div>
