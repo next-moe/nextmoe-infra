@@ -20,7 +20,7 @@ func TestListNewCollectionsUnbound(t *testing.T) {
 	if p, ok = err.(*problem.Problem); !ok || p.Code != problem.CodeServiceUnavailable {
 		t.Fatalf("names %v", err)
 	}
-	_, err = (*Catalog)(nil).ListPersons(t.Context(), collect.Query{})
+	_, err = (*Catalog)(nil).ListPersons(t.Context(), collect.Query{}, "")
 	if p, ok = err.(*problem.Problem); !ok || p.Code != problem.CodeServiceUnavailable {
 		t.Fatalf("persons %v", err)
 	}

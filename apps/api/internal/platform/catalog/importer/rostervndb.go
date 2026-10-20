@@ -275,9 +275,11 @@ func (im *Importer) loadVNDBAttachTargets() (map[string]int64, error) {
 		existing AS (
 			SELECT wc.work_id, wc.character_id, ch.display_name_norm AS norm
 			FROM catalog_work_character wc JOIN catalog_character ch ON ch.id = wc.character_id AND ch.deleted_at IS NULL
+			WHERE wc.matched_by <> 'curated'
 			UNION
 			SELECT wc.work_id, wc.character_id, al.name_norm AS norm
 			FROM catalog_work_character wc JOIN catalog_character_alias al ON al.character_id = wc.character_id
+			WHERE wc.matched_by <> 'curated'
 		)
 		SELECT cv.id AS char_id, min(e.character_id) AS existing_id
 		FROM src_vndb.chars_vns cv

@@ -11,7 +11,7 @@ import { userChipOf } from '../app/utils/people'
 import { rowIdentity } from '../shared/utils/editModel'
 
 // Every field key the catalog's editing registry served when this test was
-// written (apps/api editspec, main 55b52170). A key added server-side still
+// written (apps/api editspec, feat/editor-platform 96677029). A key added server-side still
 // renders through the generic fallback; this list makes sure the ones that
 // already exist got a label and a group instead.
 const REGISTERED_KEYS = [
@@ -88,7 +88,37 @@ const REGISTERED_KEYS = [
   'catalog.work.screenshots',
   'catalog.work.series_ids',
   'catalog.work.tag_ids',
-  'catalog.work.titles'
+  'catalog.work.titles',
+  'catalog.release.freeware',
+  'catalog.release.labels',
+  'catalog.release.languages',
+  'catalog.release.minage',
+  'catalog.release.official',
+  'catalog.release.platforms',
+  'catalog.tag.kind',
+  'catalog.tag.name',
+  'catalog.tag.note',
+  'catalog.tag.parents',
+  'catalog.tag.sexual',
+  'catalog.tag.tier',
+  'catalog.trait.aliases',
+  'catalog.trait.applicable',
+  'catalog.trait.default_spoiler',
+  'catalog.trait.description',
+  'catalog.trait.description_zh',
+  'catalog.trait.group_id',
+  'catalog.trait.group_order',
+  'catalog.trait.name',
+  'catalog.trait.name_zh',
+  'catalog.trait.parents',
+  'catalog.trait.searchable',
+  'catalog.trait.sexual',
+  'catalog.work.covers_upstream',
+  'catalog.work.platforms',
+  'catalog.work.relations',
+  'catalog.work.screenshots_upstream',
+  'catalog.work.series_members',
+  'catalog.work.tag_spoilers'
 ]
 
 const configFor = (key: string) =>

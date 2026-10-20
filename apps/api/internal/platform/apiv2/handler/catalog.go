@@ -39,6 +39,7 @@ type Catalog struct {
 	Engine         *editing.Engine
 	EditHistory    *catsvc.EditHistoryService
 	EditContext    *catsvc.EditContextService
+	Merges         *catsvc.MergeService
 	UsersOf        UsersOf
 	Uploads        EditImageUpload
 	NewsImages     NewsImageStore

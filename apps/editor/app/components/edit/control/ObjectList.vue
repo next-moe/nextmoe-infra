@@ -77,6 +77,7 @@ const isNew = (row: Row) =>
   !baseIdentities.value.has(rowIdentity(props.fieldKey, row))
 
 const excluded = computed(() => [...baseIdentities.value])
+const fixed = computed(() => config.value?.fixedRows === true)
 </script>
 
 <template>
@@ -85,7 +86,7 @@ const excluded = computed(() => [...baseIdentities.value])
       <div
         v-for="(row, index) in rows"
         :key="index"
-        v-bind="disabled ? {} : reorder.dropAttrs(index)"
+        v-bind="disabled || fixed ? {} : reorder.dropAttrs(index)"
         :class="
           cn(
             'border-default-200 rounded-lg border p-2',
@@ -96,7 +97,7 @@ const excluded = computed(() => [...baseIdentities.value])
       >
         <div class="flex items-start gap-2">
           <EditDragHandle
-            v-if="!disabled"
+            v-if="!disabled && !fixed"
             v-bind="reorder.handleAttrs(index)"
             class="mt-6"
             @keydown="reorder.onKeydown($event, index)"
@@ -115,13 +116,14 @@ const excluded = computed(() => [...baseIdentities.value])
                 :member="member"
                 :config="config?.members?.[member.key]"
                 :model-value="row[member.key]"
-                :disabled="disabled"
+                :disabled="disabled || config?.members?.[member.key]?.readonly"
                 :invalid="memberInvalid(index, member.key)"
                 @update:model-value="setMember(index, member.key, $event)"
               />
             </div>
           </div>
           <EditRowActions
+            v-if="!fixed"
             :index="index"
             :count="rows.length"
             :disabled="disabled"
@@ -139,9 +141,11 @@ const excluded = computed(() => [...baseIdentities.value])
         </p>
       </div>
     </div>
-    <p v-else class="text-default-400 text-sm">还没有人工添加的条目。</p>
+    <p v-else class="text-default-400 text-sm">
+      {{ config?.emptyText ?? '还没有人工添加的条目。' }}
+    </p>
 
-    <div v-if="!disabled" class="mt-3 flex items-center gap-2">
+    <div v-if="!disabled && !fixed" class="mt-3 flex items-center gap-2">
       <KunButton
         variant="flat"
         size="sm"

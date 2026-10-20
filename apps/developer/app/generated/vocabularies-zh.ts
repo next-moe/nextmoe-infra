@@ -132,6 +132,10 @@ export const vocabularyMetaZh: Record<string, VocabularyZhMeta> = {
   "relation_types": {
     "label": "关联类型",
     "summary": "两个实体之间的关系。标了「对称关系」的，反向也成立。开放词表。"
+  },
+  "work_relation": {
+    "label": "作品关联",
+    "summary": "两部作品之间的关系，只含作品域的类型，封闭词表；编辑作品关联时只接受这些值。标了「对称关系」的，反向也成立。"
   }
 }
 
@@ -1176,6 +1180,56 @@ export const vocabularyValuesZh: Record<
     "member_of": {
       "displayName": "对方的成员",
       "description": "这家公司是另一家的成员。"
+    }
+  },
+  "work_relation": {
+    "adaptation_of": {
+      "displayName": "改编自对方",
+      "description": "这部作品改编自另一部。"
+    },
+    "sequel_of": {
+      "displayName": "对方的续作",
+      "description": "这部作品是另一部的续作。"
+    },
+    "side_story_of": {
+      "displayName": "对方的外传",
+      "description": "这部作品是另一部的外传。"
+    },
+    "fandisc_of": {
+      "displayName": "对方的 Fandisc",
+      "description": "这部作品是另一部的 Fandisc。"
+    },
+    "collects": {
+      "displayName": "收录对方",
+      "description": "这部作品收录了另一部。"
+    },
+    "remake_of": {
+      "displayName": "对方的重制",
+      "description": "这部作品是另一部的重制版。"
+    },
+    "same_series": {
+      "displayName": "同系列",
+      "description": "两部作品属于同一系列。对称关系。"
+    },
+    "same_setting": {
+      "displayName": "同一世界观",
+      "description": "两部作品共用同一世界观。对称关系。"
+    },
+    "crossover_with": {
+      "displayName": "与对方联动",
+      "description": "两部作品之间是联动。对称关系。"
+    },
+    "shares_character": {
+      "displayName": "与对方共用角色",
+      "description": "两部作品共用同一个角色。对称关系。"
+    },
+    "alternative_setting": {
+      "displayName": "同角色不同世界观",
+      "description": "两部作品用同一批角色，但世界观不同。对称关系。"
+    },
+    "alternative_version": {
+      "displayName": "同作的另一版本",
+      "description": "两部作品互为不同版本。对称关系。"
     }
   }
 }

@@ -24,6 +24,7 @@ export type EditControl =
   | 'text'
   | 'textarea'
   | 'vocab'
+  | 'vocabList'
   | 'switch'
   | 'int'
   | 'ref'
@@ -43,6 +44,7 @@ export interface EditMemberConfig {
   label?: string
   ref?: EditRefFamily
   placeholder?: string
+  readonly?: boolean
 }
 
 export interface EditFieldConfig {
@@ -54,6 +56,9 @@ export interface EditFieldConfig {
   help?: string
   imagePreset?: 'cover' | 'screenshot' | 'photo'
   upstreamTitle?: string
+  vocabulary?: string
+  fixedRows?: boolean
+  emptyText?: string
 }
 
 export interface EditGroup {

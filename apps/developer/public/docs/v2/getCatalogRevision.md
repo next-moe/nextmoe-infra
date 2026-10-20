@@ -25,7 +25,7 @@ include=diff adds the field-level change set against diff_base, or against the p
 | `include` | query | 否 | string | Comma-separated blocks. diff is the only token. Unknown token is 400 UNKNOWN_INCLUDE. |
 | `view` | query | 否 | string | basic (default) or full. full adds diff. |
 | `fields` | query | 否 | string | Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. |
-| `diff_base` | query | 否 | string | Revision id to diff against. Requires include=diff. Absent means the preceding revision of the same entity. |
+| `diff_base` | query | 否 | string | Revision id to diff against, or baseline for the state recorded before the entity's first edit. Requires include=diff. Absent means the preceding revision of the same entity, or the baseline on a first revision that has one. |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/revisions/1"

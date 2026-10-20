@@ -10,6 +10,7 @@ import (
 
 	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
+	"api/internal/platform/editing"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -220,6 +221,15 @@ func applyMerge(ctx context.Context, db *gorm.DB, curated int16, r mergeRec, st 
 		if err := tx.Exec(`DELETE FROM catalog_tag_parent WHERE tag_id = ? OR parent_id = ?`, r.FromID, r.FromID).Error; err != nil {
 			return err
 		}
+		moved, err = followTagParentSuppressions(tx, r.FromID, r.IntoID)
+		if err != nil {
+			return err
+		}
+		st.SuppressionsMoved += moved
+		if err := editing.DeclineOpenProposals(tx, editspec.TypeTag, r.FromID, nil,
+			fmt.Sprintf("条目已合并到 #%d，此提案随之关闭", r.IntoID)); err != nil {
+			return err
+		}
 
 		if err := tx.Exec(`
 			UPDATE catalog_user_tag_block w SET mode = ?, updated_at = now()
@@ -276,6 +286,47 @@ func followWorkTagSuppressions(tx *gorm.DB, fromID, intoID int64) (int, error) {
 		}
 	}
 	return int(res.RowsAffected), nil
+}
+
+// followTagParentSuppressions runs after the loser's edges moved to the
+// winner: a suppression the winner or the loser held must keep hiding the
+// edge it names, and the moved VNDB edges must not resurrect one.
+func followTagParentSuppressions(tx *gorm.DB, fromID, intoID int64) (int, error) {
+	from, into := editspec.ParentIdentity(fromID), editspec.ParentIdentity(intoID)
+	moved := 0
+	res := tx.Exec(`
+		UPDATE edit_suppressed_row s SET identity_key = ?
+		WHERE s.entity_type = ? AND s.field_key = ? AND s.identity_key = ? AND s.entity_id <> ?
+		  AND NOT EXISTS (SELECT 1 FROM edit_suppressed_row x
+		                   WHERE x.entity_type = s.entity_type AND x.entity_id = s.entity_id
+		                     AND x.field_key = s.field_key AND x.identity_key = ?)`,
+		into, editspec.TypeTag, editspec.FieldTagParents, from, intoID, into)
+	if res.Error != nil {
+		return 0, res.Error
+	}
+	moved += int(res.RowsAffected)
+	res = tx.Exec(`
+		UPDATE edit_suppressed_row s SET entity_id = ?
+		WHERE s.entity_type = ? AND s.entity_id = ? AND s.identity_key <> ?
+		  AND NOT EXISTS (SELECT 1 FROM edit_suppressed_row x
+		                   WHERE x.entity_type = s.entity_type AND x.entity_id = ?
+		                     AND x.field_key = s.field_key AND x.identity_key = s.identity_key)`,
+		intoID, editspec.TypeTag, fromID, into, intoID)
+	if res.Error != nil {
+		return 0, res.Error
+	}
+	moved += int(res.RowsAffected)
+	if err := tx.Exec(`DELETE FROM edit_suppressed_row
+		WHERE entity_type = ? AND (entity_id = ? OR (field_key = ? AND identity_key = ?))`,
+		editspec.TypeTag, fromID, editspec.FieldTagParents, from).Error; err != nil {
+		return 0, err
+	}
+	if err := tx.Exec(`DELETE FROM catalog_tag_parent p
+		WHERE (p.tag_id = ? OR p.parent_id = ?) AND p.origin = ? AND `+editspec.TagParentSuppressedSQL("p.tag_id", "p.parent_id"),
+		intoID, intoID, model.TagParentOriginVNDB).Error; err != nil {
+		return 0, err
+	}
+	return moved, nil
 }
 
 func tagNameByID(ctx context.Context, db *gorm.DB, id int64) (string, error) {

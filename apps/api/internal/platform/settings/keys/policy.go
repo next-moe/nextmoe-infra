@@ -382,6 +382,30 @@ var CatalogOpenProposalsMaxEditor = settings.Int(settings.Meta{
 	Max:    settings.F(100000),
 }, 100)
 
+var CatalogMergeRequestsPerDay = settings.Int(settings.Meta{
+	Name:   "catalog.merge_requests_per_day",
+	DescEN: "How many merge requests one user-tier account may file through the editor inside catalog.write_quota_window_hours. A merge request only asks reviewers to merge two entries; nothing merges until one approves and the cooling-off ends.",
+	DescZH: "普通档账号在 catalog.write_quota_window_hours 窗口内通过编辑台提交合并请求的上限。合并请求只是请审核者合并两个条目,须审核通过并度过冷却期才会执行。",
+	Min:    settings.F(0),
+	Max:    settings.F(100000),
+}, 10)
+
+var CatalogMergeRequestsPerDayEditor = settings.Int(settings.Meta{
+	Name:   "catalog.merge_requests_per_day_editor",
+	DescEN: "The same limit for the editor tier.",
+	DescZH: "编辑者档的同一限额。",
+	Min:    settings.F(0),
+	Max:    settings.F(100000),
+}, 50)
+
+var CatalogMergeRequestsPerDayReviewer = settings.Int(settings.Meta{
+	Name:   "catalog.merge_requests_per_day_reviewer",
+	DescEN: "The same limit for the reviewer tier.",
+	DescZH: "审核者档的同一限额。",
+	Min:    settings.F(0),
+	Max:    settings.F(100000),
+}, 500)
+
 var CatalogOpenProposalsMaxReviewer = settings.Int(settings.Meta{
 	Name:   "catalog.open_proposals_max_reviewer",
 	DescEN: "The same cap for the reviewer tier. 0 means no cap.",
@@ -451,6 +475,9 @@ var catalogDomain = settings.Domain{
 		CatalogOpenProposalsMaxUser,
 		CatalogOpenProposalsMaxEditor,
 		CatalogOpenProposalsMaxReviewer,
+		CatalogMergeRequestsPerDay,
+		CatalogMergeRequestsPerDayEditor,
+		CatalogMergeRequestsPerDayReviewer,
 		CatalogNewsSubmissionsPerDay,
 		CatalogNewsImageUploadsPerDay,
 	},

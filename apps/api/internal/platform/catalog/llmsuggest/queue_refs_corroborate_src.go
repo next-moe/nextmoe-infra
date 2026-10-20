@@ -199,7 +199,7 @@ const catalogWorkNeighbourSQL = `SELECT wc.work_id AS work, x.source_id, 'c:' ||
 	FROM catalog_work_character wc
 	JOIN catalog_external_ref x ON x.entity_type = 4 AND x.link_kind = 0 AND x.dead_at IS NULL
 		AND x.entity_id = wc.character_id
-	WHERE wc.work_id IN ?
+	WHERE wc.work_id IN ? AND wc.matched_by <> 'curated'
 	UNION
 	SELECT c.work_id, x.source_id, 'p:' || x.external_id
 	FROM catalog_credit c

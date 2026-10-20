@@ -154,7 +154,7 @@ export const problemsZh: Record<string, { title: string; description: string }> 
   },
   "DUPLICATE_SUSPECTS": {
     "title": "疑似重复",
-    "description": "铸造的标题与同一 medium 的在用作品同名，suspects[] 列出了它们。一行未写。带 confirm_duplicates=true 重发即照旧铸造——这些对子仍会记入对账队列。"
+    "description": "提交的名称与在用条目同名（认领铸造时为同一 medium 的作品），suspects[] 列出了它们。一行未写。带 confirm_duplicates=true 重发即照旧进行——铸造作品时这些对子仍会记入对账队列。"
   },
   "INVALID_STATE_TRANSITION": {
     "title": "非法的状态流转",
@@ -175,6 +175,10 @@ export const problemsZh: Record<string, { title: string; description: string }> 
   "DECISION_ALREADY_MADE": {
     "title": "已经裁决过",
     "description": "这一项已经被裁决过。detail 会给出是谁、在什么时候裁决的。"
+  },
+  "REVERT_CONFLICT": {
+    "title": "回滚冲突",
+    "description": "撤销会恢复一些之后的修订也改动过的字段。errors[] 逐一列出这些字段。没有写入任何内容。带 force=true 重新发送以覆盖那些后来的改动，或改为恢复整条修订。"
   },
   "SOURCE_NOT_YOURS": {
     "title": "该来源不属于你",

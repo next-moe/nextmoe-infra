@@ -3,6 +3,7 @@ package editspec_test
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -442,9 +443,16 @@ func TestIdentityFollowStmtsCoverEveryDeclaredRef(t *testing.T) {
 			t.Fatalf("tag %q followed %s with %d statements, want 2", editspec.TagLabel, field, covered[field])
 		}
 	}
-	for _, tag := range []string{editspec.TagWork, editspec.TagPerson} {
-		if got := reg.IdentityFollowStmts(tag, 7, 8, nil); len(got) != 0 {
-			t.Fatalf("tag %q is in no identity key but produced %d statements", tag, len(got))
+	workStmts := reg.IdentityFollowStmts(editspec.TagWork, 7, 8, nil)
+	if len(workStmts) == 0 {
+		t.Fatalf("tag %q is in catalog.work.relations keys but produced no statements", editspec.TagWork)
+	}
+	for _, s := range workStmts {
+		if !slices.Contains(s.Args, any(editspec.FieldWorkRelations)) {
+			t.Fatalf("tag %q statement touches a field other than %s: %+v", editspec.TagWork, editspec.FieldWorkRelations, s.Args)
 		}
+	}
+	if got := reg.IdentityFollowStmts(editspec.TagPerson, 7, 8, nil); len(got) != 0 {
+		t.Fatalf("tag %q is in no identity key but produced %d statements", editspec.TagPerson, len(got))
 	}
 }

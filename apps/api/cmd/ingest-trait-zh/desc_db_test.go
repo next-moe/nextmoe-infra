@@ -228,3 +228,24 @@ func TestMTDescResolvesBareTraitRefsInTheCSV(t *testing.T) {
 	}
 	assert.Equal(t, "接受方使用此特征，插入方使用「肛交」（主动(性)）。", got)
 }
+
+func TestApplyDescNeverOverwritesADescriptionZhAPersonEdited(t *testing.T) {
+	desc := "Has an ahoge."
+	hash := sourceHash(desc)
+	ids := seedDescTraits(t, []descSeed{{TID: "i80400", Name: "Ahoge", Desc: desc, DescZh: "人工撰写的说明", Hash: hash}})
+	require.NoError(t, testDB.Exec(`UPDATE catalog_character_trait SET field_provenance = ?::jsonb WHERE id = ?`,
+		`{"description_zh":[{"source":"curated","at":"2026-10-19T00:00:00Z"}]}`, ids["i80400"]).Error)
+	rows := []descCSVRow{{TraitID: ids["i80400"], VndbTID: "i80400", Name: "Ahoge", SourceHash: hash, SourceText: desc, DescriptionZh: "机翻说明"}}
+
+	writes, c, err := planDescWrites(context.Background(), testDB, rows)
+	require.NoError(t, err)
+	assert.Equal(t, 1, c.Human)
+	assert.Empty(t, writes)
+
+	n, err := applyDescWrites(context.Background(), testDB, []descWrite{{ID: ids["i80400"], Zh: "机翻说明", Hash: hash}})
+	require.NoError(t, err)
+	assert.Zero(t, n, "the write itself refuses a human-held description")
+	var got string
+	require.NoError(t, testDB.Raw(`SELECT description_zh FROM catalog_character_trait WHERE id = ?`, ids["i80400"]).Scan(&got).Error)
+	assert.Equal(t, "人工撰写的说明", got)
+}

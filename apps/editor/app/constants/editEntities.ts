@@ -22,6 +22,7 @@ export interface EntityMeta {
   description: string
   searchable: boolean
   listQuery: boolean
+  searchVia?: 'list'
   searchHint?: string
 }
 
@@ -43,9 +44,10 @@ export const ENTITY_META: Record<EditFamily, EntityMeta> = {
     collection: 'releases',
     icon: 'lucide:package',
     description: '作品的各个发行版本：平台、语言、发售日期与引擎。',
-    searchable: false,
-    listQuery: false,
-    searchHint: '发行没有独立的搜索。要找某部作品的发行，请先打开作品。'
+    searchable: true,
+    listQuery: true,
+    searchVia: 'list',
+    searchHint: '按发行标题或所属作品的标题搜索。'
   },
   character: {
     family: 'character',
@@ -64,10 +66,10 @@ export const ENTITY_META: Record<EditFamily, EntityMeta> = {
     collection: 'persons',
     icon: 'lucide:contact',
     description: '人物是署名名背后的同一个人：性别、生日、照片、简介与外链。',
-    searchable: false,
-    listQuery: false,
-    searchHint:
-      '人物没有独立的搜索。按名字查找请到「署名名」，从署名名进入对应人物。'
+    searchable: true,
+    listQuery: true,
+    searchVia: 'list',
+    searchHint: '按人物显示名或公开的署名名搜索。'
   },
   credit_name: {
     family: 'credit_name',
@@ -420,6 +422,9 @@ export const COMPANY_EDIT_CONFIG: EditEntityConfig = {
   }
 }
 
+const REVIEWER_ONLY_HELP =
+  '这一项决定默认列表隐藏哪些内容、SFW 页面不展示哪些内容，只有审核者可以提交修改。'
+
 export const TAG_EDIT_CONFIG: EditEntityConfig = {
   family: 'tag',
   entityType: 'catalog.tag',
@@ -427,15 +432,23 @@ export const TAG_EDIT_CONFIG: EditEntityConfig = {
   fields: {
     'catalog.tag.name': { label: '名称', group: 'basic' },
     'catalog.tag.kind': { label: '类型', group: 'basic' },
-    'catalog.tag.tier': { label: '层级', group: 'basic' },
-    'catalog.tag.sexual': { label: '色情相关', group: 'basic' },
+    'catalog.tag.tier': {
+      label: '层级',
+      group: 'basic',
+      help: REVIEWER_ONLY_HELP
+    },
+    'catalog.tag.sexual': {
+      label: '色情相关',
+      group: 'basic',
+      help: REVIEWER_ONLY_HELP
+    },
     'catalog.tag.note': { label: '备注', group: 'basic', control: 'textarea' },
-    'catalog.tag.aliases': { label: '别名', group: 'names' },
     'catalog.tag.parents': {
       label: '上级标签',
       group: 'relations',
       control: 'refList',
-      ref: 'tag'
+      ref: 'tag',
+      help: '不能把一个标签设为它自己的祖先，形成循环的修改会被拒绝。'
     },
     'catalog.tag.intros': introsField('每种语言一段标签说明。')
   }
@@ -447,18 +460,38 @@ export const TRAIT_EDIT_CONFIG: EditEntityConfig = {
   groups: [BASIC, NAMES, RELATIONS, INTROS, OTHER],
   fields: {
     'catalog.trait.name': { label: '名称', group: 'basic' },
-    'catalog.trait.name_zh': { label: '中文名', group: 'basic' },
-    'catalog.trait.group': { label: '分组', group: 'basic' },
-    'catalog.trait.applicable': { label: '可直接使用', group: 'basic' },
-    'catalog.trait.searchable': { label: '可搜索', group: 'basic' },
-    'catalog.trait.sexual': { label: '色情相关', group: 'basic' },
-    'catalog.trait.alias': { label: '别名', group: 'names' },
-    'catalog.trait.aliases': { label: '别名', group: 'names' },
+    'catalog.trait.name_zh': {
+      label: '中文名',
+      group: 'basic',
+      help: '机器翻译的中文名可以直接改写；改写后翻译任务不会再覆盖它。'
+    },
+    'catalog.trait.group_id': {
+      label: '所属分组',
+      group: 'basic',
+      control: 'ref',
+      ref: 'trait',
+      help: '分组本身也是一个特质（如「发色」「性格」）。'
+    },
+    'catalog.trait.group_order': { label: '分组内排序', group: 'basic' },
+    'catalog.trait.default_spoiler': { label: '默认剧透等级', group: 'basic' },
+    'catalog.trait.applicable': { label: '可直接标注', group: 'basic' },
+    'catalog.trait.searchable': { label: '可用于搜索', group: 'basic' },
+    'catalog.trait.sexual': {
+      label: '色情相关',
+      group: 'basic',
+      help: REVIEWER_ONLY_HELP
+    },
+    'catalog.trait.aliases': {
+      label: '别名',
+      group: 'names',
+      control: 'stringList'
+    },
     'catalog.trait.parents': {
       label: '上级特质',
       group: 'relations',
       control: 'refList',
-      ref: 'trait'
+      ref: 'trait',
+      help: '不能把一个特质设为它自己的祖先，形成循环的修改会被拒绝。'
     },
     'catalog.trait.description': {
       label: '说明',
@@ -468,7 +501,8 @@ export const TRAIT_EDIT_CONFIG: EditEntityConfig = {
     'catalog.trait.description_zh': {
       label: '中文说明',
       group: 'intros',
-      control: 'textarea'
+      control: 'textarea',
+      help: '机器翻译的中文说明可以直接改写；改写后翻译任务不会再覆盖它。'
     }
   }
 }

@@ -108,11 +108,14 @@ func TestOnlyDeclaredFieldsStampProvenance(t *testing.T) {
 	if err := editspec.RegisterCharacter(reg, testDB); err != nil {
 		t.Fatalf("register catalog.character: %v", err)
 	}
+	if err := editspec.RegisterTrait(reg, testDB); err != nil {
+		t.Fatalf("register catalog.trait: %v", err)
+	}
 
 	var got []string
 	for _, entityType := range []string{
 		editspec.TypeWork, editspec.TypeLabel, editspec.TypeTag, editspec.TypeEngine, editspec.TypeSeries,
-		editspec.TypeCharacter,
+		editspec.TypeCharacter, editspec.TypeTrait,
 	} {
 		spec, ok := reg.Type(entityType)
 		if !ok {
@@ -151,6 +154,22 @@ func TestOnlyDeclaredFieldsStampProvenance(t *testing.T) {
 		"catalog.label.logo_hash -> catalog_label.logo_hash",
 		"catalog.label.name -> catalog_label.display_name",
 		"catalog.label.note -> catalog_label.note",
+		"catalog.tag.kind -> catalog_tag.kind",
+		"catalog.tag.name -> catalog_tag.name",
+		"catalog.tag.note -> catalog_tag.note",
+		"catalog.tag.sexual -> catalog_tag.sexual",
+		"catalog.tag.tier -> catalog_tag.tier",
+		"catalog.trait.aliases -> catalog_character_trait.alias",
+		"catalog.trait.applicable -> catalog_character_trait.applicable",
+		"catalog.trait.default_spoiler -> catalog_character_trait.default_spoil",
+		"catalog.trait.description -> catalog_character_trait.description",
+		"catalog.trait.description_zh -> catalog_character_trait.description_zh",
+		"catalog.trait.group_id -> catalog_character_trait.group_tid",
+		"catalog.trait.group_order -> catalog_character_trait.gorder",
+		"catalog.trait.name -> catalog_character_trait.name",
+		"catalog.trait.name_zh -> catalog_character_trait.name_zh",
+		"catalog.trait.searchable -> catalog_character_trait.searchable",
+		"catalog.trait.sexual -> catalog_character_trait.sexual",
 		"catalog.work.content_rating -> catalog_work.content_rating",
 		"catalog.work.covers_upstream -> catalog_work_cover.kind",
 		"catalog.work.covers_upstream -> catalog_work_cover.portrait_pinned",
@@ -164,6 +183,9 @@ func TestOnlyDeclaredFieldsStampProvenance(t *testing.T) {
 		"catalog.work.screenshots_upstream -> catalog_work_screenshot.caption",
 		"catalog.work.screenshots_upstream -> catalog_work_screenshot.sexual",
 		"catalog.work.screenshots_upstream -> catalog_work_screenshot.violence",
+		"catalog.work.series_members -> catalog_series_member.kind",
+		"catalog.work.series_members -> catalog_series_member.position",
+		"catalog.work.tag_spoilers -> catalog_work_tag.spoiler",
 	}
 	if len(got) != len(want) {
 		t.Fatalf("stamping fields = %v, want %v", got, want)

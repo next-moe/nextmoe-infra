@@ -8,7 +8,10 @@ import type {
 import { ENTITY_FAMILY } from '~/constants/catalog'
 import { useDiffContext } from '~/utils/review/context'
 import { latestRevision, orderPair } from '~/utils/review/history'
-import { useRevisionDiffs } from '~/utils/review/revisionDiff'
+import {
+  BASELINE_DIFF_BASE,
+  useRevisionDiffs
+} from '~/utils/review/revisionDiff'
 
 const PAGE_SIZE = 50
 
@@ -33,9 +36,15 @@ const compare = ref<{ older: CatalogRevision; newer: CatalogRevision } | null>(
   null
 )
 const revertTarget = ref<CatalogRevision | null>(null)
+const revertBaseline = ref(false)
 const revertOpen = ref(false)
+const baselineOpen = ref(false)
 
 const fields = computed(() => schema.value?.fields ?? [])
+const firstRevision = computed(
+  () => revisions.value.find((revision) => revision.seq === 1) ?? null
+)
+const hasBaseline = computed(() => firstRevision.value?.has_baseline === true)
 const latest = computed(() => latestRevision(revisions.value))
 const canRevert = computed(
   () => capabilities.value?.fields.some((field) => field.can_review) ?? false
@@ -141,7 +150,28 @@ const compareState = computed(() =>
 
 const askRevert = (revision: CatalogRevision) => {
   revertTarget.value = revision
+  revertBaseline.value = false
   revertOpen.value = true
+}
+
+const askRevertBaseline = () => {
+  if (!firstRevision.value) {
+    return
+  }
+  revertTarget.value = firstRevision.value
+  revertBaseline.value = true
+  revertOpen.value = true
+}
+
+const baselineState = computed(() =>
+  latest.value ? diffs.stateOf(latest.value.id, BASELINE_DIFF_BASE) : undefined
+)
+
+const toggleBaseline = async () => {
+  baselineOpen.value = !baselineOpen.value
+  if (baselineOpen.value && latest.value) {
+    await prepareEntries(await diffs.load(latest.value.id, BASELINE_DIFF_BASE))
+  }
 }
 
 watch([family, entityId], loadAll)
@@ -233,7 +263,11 @@ await loadAll()
             @revert="askRevert(revision)"
           >
             <p v-if="revision.seq === 1" class="text-default-400 mb-2 text-xs">
-              这是第一次编辑；编辑前的原始值暂未通过接口公开，「之前」一栏显示为空。
+              {{
+                revision.has_baseline
+                  ? '这是第一次编辑；「修改前」一栏是资料源导入时的原始值。'
+                  : '这是第一次编辑，发生在系统开始保存原始状态之前，「修改前」一栏显示为空。'
+              }}
             </p>
             <HistoryDiffPanel
               :entries="diffs.stateOf(revision.id)?.entries ?? null"
@@ -246,6 +280,42 @@ await loadAll()
               empty-text="这一版没有字段差异"
             />
           </HistoryRevisionRow>
+          <li v-if="hasBaseline && !nextCursor" class="space-y-3 py-3">
+            <div class="flex flex-wrap items-center gap-2">
+              <KunIcon name="lucide:database" class="text-default-400 size-4" />
+              <span class="text-foreground text-sm font-medium"
+                >导入原始状态</span
+              >
+              <span class="text-default-400 text-xs"
+                >第一次人工编辑之前，资料源导入时的样子</span
+              >
+              <div class="ml-auto flex gap-2">
+                <KunButton size="xs" variant="light" @click="toggleBaseline">
+                  {{ baselineOpen ? '收起' : '与当前对比' }}
+                </KunButton>
+                <KunButton
+                  v-if="canRevert"
+                  size="xs"
+                  variant="light"
+                  color="warning"
+                  @click="askRevertBaseline"
+                >
+                  回滚到原始状态
+                </KunButton>
+              </div>
+            </div>
+            <HistoryDiffPanel
+              v-if="baselineOpen"
+              :entries="baselineState?.entries ?? null"
+              :fields="fields"
+              :context="context"
+              before-label="导入原始状态"
+              after-label="当前"
+              :loading="baselineState?.loading"
+              :error="baselineState?.error"
+              empty-text="当前值与导入原始状态一致"
+            />
+          </li>
         </ul>
         <KunNull v-else-if="!loading" description="这个条目还没有人工修订" />
         <div class="flex justify-center pt-3">
@@ -267,6 +337,7 @@ await loadAll()
         :fields="fields"
         :context="context"
         :prepare="prepareValues"
+        :baseline="revertBaseline"
         @done="loadAll"
       />
     </template>

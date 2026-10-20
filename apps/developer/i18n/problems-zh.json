@@ -112,7 +112,7 @@
     "The same subject already has a live record for this target.": "同一主体对这个目标已经有一条在用的记录。",
 
     "Duplicate suspects": "疑似重复",
-    "The mint's titles match live works of the same medium; suspects[] names them. Nothing was written. Re-send with confirm_duplicates=true to mint anyway — the pairs are still filed for reconciliation.": "铸造的标题与同一 medium 的在用作品同名，suspects[] 列出了它们。一行未写。带 confirm_duplicates=true 重发即照旧铸造——这些对子仍会记入对账队列。",
+    "The submitted name matches live entries (for a claim mint: works of the same medium); suspects[] names them. Nothing was written. Re-send with confirm_duplicates=true to go ahead — a minted work's pairs are still filed for reconciliation.": "提交的名称与在用条目同名（认领铸造时为同一 medium 的作品），suspects[] 列出了它们。一行未写。带 confirm_duplicates=true 重发即照旧进行——铸造作品时这些对子仍会记入对账队列。",
 
     "Invalid state transition": "非法的状态流转",
     "The current state does not allow this transition. detail names the current state and the legal targets.": "当前状态不允许这样流转。detail 会给出当前状态和合法的目标状态。",
@@ -128,6 +128,9 @@
 
     "Decision already made": "已经裁决过",
     "This item has already been decided. detail names who decided and when.": "这一项已经被裁决过。detail 会给出是谁、在什么时候裁决的。",
+
+    "Revert conflict": "回滚冲突",
+    "An undo would put back fields that a later revision also changed. errors[] names each field. Nothing was written. Re-send with force=true to overwrite those later changes, or restore a whole revision instead.": "撤销会恢复一些之后的修订也改动过的字段。errors[] 逐一列出这些字段。没有写入任何内容。带 force=true 重新发送以覆盖那些后来的改动，或改为恢复整条修订。",
 
     "Source not yours": "该来源不属于你",
     "The named news source is not bound to this user. A source that does not exist is not distinguished, so source names cannot be enumerated.": "点名的资讯来源没有绑定到这个用户。来源不存在的情况不与之区分，因此无法靠试探把有哪些来源枚举出来。",

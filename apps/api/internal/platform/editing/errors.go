@@ -16,6 +16,7 @@ var (
 	ErrNotOpen            = errors.New("editing: proposal is not open")
 	ErrNotProposer        = errors.New("editing: only the proposer may withdraw")
 	ErrNoEffectiveChanges = errors.New("editing: patch has no effective changes")
+	ErrNoBaseline         = errors.New("editing: no state before this entity's first edit was recorded")
 )
 
 type UnknownFieldError struct{ Key string }
@@ -52,4 +53,10 @@ type ConflictError struct{ Keys []string }
 
 func (e *ConflictError) Error() string {
 	return fmt.Sprintf("editing: conflicting fields: %s", strings.Join(e.Keys, ", "))
+}
+
+type UndoConflictError struct{ Keys []string }
+
+func (e *UndoConflictError) Error() string {
+	return fmt.Sprintf("editing: a later revision changed: %s", strings.Join(e.Keys, ", "))
 }

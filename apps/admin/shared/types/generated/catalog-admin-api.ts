@@ -829,6 +829,7 @@ export interface components {
             /** Format: int64 */
             id: number;
             note: string;
+            origin: string;
             /** Format: date-time */
             proposed_at: string;
             /** Format: int64 */

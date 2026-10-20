@@ -3,6 +3,7 @@ import type {
   CatalogEntityList,
   CatalogEntitySummary
 } from '#shared/types/catalog'
+import { CREATABLE_FAMILIES } from '~/constants/creation'
 import { ENTITY_META, type EditFamily } from '~/constants/editEntities'
 
 const PAGE_SIZE = 30
@@ -15,6 +16,7 @@ const route = useRoute()
 const router = useRouter()
 
 const canSearch = meta.searchable || meta.listQuery
+const creatable = CREATABLE_FAMILIES.includes(props.family)
 const keyword = ref(
   canSearch && typeof route.query.q === 'string' ? route.query.q : ''
 )
@@ -81,12 +83,20 @@ useHead({ title: `${meta.label} · 未萌编辑台` })
       class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"
     >
       <KunHeader :name="meta.label" :description="meta.description" />
-      <p
-        v-if="total !== null"
-        class="text-default-500 shrink-0 text-sm tabular-nums"
-      >
-        共 {{ total.toLocaleString() }} 条
-      </p>
+      <div class="flex shrink-0 items-center gap-3">
+        <p v-if="total !== null" class="text-default-500 text-sm tabular-nums">
+          共 {{ total.toLocaleString() }} 条
+        </p>
+        <KunButton
+          v-if="creatable"
+          :href="`/new/${props.family}`"
+          color="primary"
+          size="sm"
+        >
+          <KunIcon name="lucide:plus" class="size-4" />
+          新建{{ meta.label }}
+        </KunButton>
+      </div>
     </div>
 
     <div class="space-y-1">

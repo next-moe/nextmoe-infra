@@ -41,6 +41,8 @@ const { data: work, error } = await useAsyncData(
   { watch: [id] }
 )
 
+const mergeOpen = ref(false)
+
 useHead(() => ({
   title: work.value
     ? `${work.value.display_name} · 未萌编辑台`
@@ -58,16 +60,32 @@ useHead(() => ({
         <KunIcon name="lucide:chevron-left" class="size-4" />
         作品
       </NuxtLink>
-      <KunButton
-        v-if="work"
-        :href="`/works/${id}/edit`"
-        color="primary"
-        size="sm"
-      >
-        <KunIcon name="lucide:pencil" class="size-4" />
-        编辑资料
-      </KunButton>
+      <div v-if="work" class="flex flex-wrap justify-end gap-2">
+        <KunButton
+          :href="`/new/release?work_id=${id}`"
+          variant="light"
+          size="sm"
+        >
+          <KunIcon name="lucide:package-plus" class="size-4" />
+          新建发行
+        </KunButton>
+        <KunButton variant="light" size="sm" @click="mergeOpen = true">
+          <KunIcon name="lucide:git-merge" class="size-4" />
+          合并
+        </KunButton>
+        <KunButton :href="`/works/${id}/edit`" color="primary" size="sm">
+          <KunIcon name="lucide:pencil" class="size-4" />
+          编辑资料
+        </KunButton>
+      </div>
     </div>
+    <MergeRequestModal
+      v-if="work"
+      v-model="mergeOpen"
+      family="work"
+      :entity-id="String(id)"
+      :entity-name="work.display_name"
+    />
 
     <KunInfo
       v-if="error"

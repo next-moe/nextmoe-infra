@@ -205,7 +205,7 @@ func releaseFeedKinds() []int16 {
 	}
 }
 
-func (c *Catalog) ListReleases(ctx context.Context, q collect.Query) (repr.List[repr.Release], error) {
+func (c *Catalog) ListReleases(ctx context.Context, q collect.Query, titleQ string) (repr.List[repr.Release], error) {
 	if c == nil || c.Public == nil {
 		return repr.List[repr.Release]{}, problem.New(problem.CodeServiceUnavailable, "", "", "catalog read is not bound.")
 	}
@@ -226,7 +226,7 @@ func (c *Catalog) ListReleases(ctx context.Context, q collect.Query) (repr.List[
 	// sub-face and 404'd on /v2/catalog/releases/{id} (PR #87's defect again).
 	f := catsvc.ReleaseFeedFilter{
 		NSFW: q.NSFW, Sort: sort, Kinds: releaseFeedKinds(), IDs: ids,
-		OLang: catsvc.PublicOLang{All: true},
+		OLang: catsvc.PublicOLang{All: true}, TitleQuery: catsvc.NormalizeNameQuery(titleQ),
 	}
 	limit := q.Limit
 	if q.Batch {

@@ -1075,7 +1075,7 @@ components:
           minimum: 400
           type: integer
         suspects:
-          description: Live works sharing a submitted title when code is DUPLICATE_SUSPECTS.
+          description: "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation."
           items:
             $ref: "#/components/schemas/Suspect"
           type: array
@@ -1558,11 +1558,11 @@ components:
       additionalProperties: true
       properties:
         display_name:
-          description: The live work's display name. Must not be used as a discriminant.
+          description: The matching entry's display name. Must not be used as a discriminant.
           maxLength: 512
           type: string
         id:
-          description: Catalog work id.
+          description: Catalog id of the matching entry.
           maxLength: 20
           pattern: ^[0-9]+$
           type: string

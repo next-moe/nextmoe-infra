@@ -46,7 +46,7 @@ SELECT DISTINCT g.external_id AS getchu_id, rel.work_id, wc.character_id,
 FROM catalog_external_ref g
 JOIN catalog_release rel ON rel.id = g.entity_id AND rel.deleted_at IS NULL
 JOIN catalog_work w ON w.id = rel.work_id AND w.deleted_at IS NULL
-JOIN catalog_work_character wc ON wc.work_id = rel.work_id
+JOIN catalog_work_character wc ON wc.work_id = rel.work_id AND wc.matched_by <> 'curated'
 JOIN catalog_character ch ON ch.id = wc.character_id AND ch.deleted_at IS NULL
 LEFT JOIN catalog_character_alias al ON al.character_id = ch.id
 WHERE g.entity_type = ? AND g.source_id = ? AND g.link_kind = ?`

@@ -3,6 +3,8 @@ package seriesorder
 import (
 	"context"
 
+	"api/internal/platform/catalog/editspec"
+
 	"gorm.io/gorm"
 )
 
@@ -45,8 +47,11 @@ func Apply(ctx context.Context, db *gorm.DB, seriesID int64, want []Assignment,
 			continue
 		}
 		if err := db.WithContext(ctx).Exec(`
-			UPDATE catalog_series_member SET position = ?, kind = ?, updated_at = now()
-			WHERE series_id = ? AND work_id = ?`, a.Position, a.Kind, seriesID, a.WorkID).Error; err != nil {
+			UPDATE catalog_series_member sm
+			SET position = CASE WHEN `+editspec.SeriesMemberColumnIsHumanSQL("sm", "position")+` THEN sm.position ELSE ? END,
+			    kind = CASE WHEN `+editspec.SeriesMemberColumnIsHumanSQL("sm", "kind")+` THEN sm.kind ELSE ? END,
+			    updated_at = now()
+			WHERE sm.series_id = ? AND sm.work_id = ?`, a.Position, a.Kind, seriesID, a.WorkID).Error; err != nil {
 			return nil, err
 		}
 	}

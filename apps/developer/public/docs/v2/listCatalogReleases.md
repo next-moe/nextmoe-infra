@@ -13,7 +13,7 @@
 
 List releases
 
-Keyset-paginated dated releases, sorted by date_desc by default. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate.
+Keyset-paginated dated releases, sorted by date_desc by default. q= filters by release title or work display name. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：可匿名调用
@@ -32,6 +32,7 @@ Keyset-paginated dated releases, sorted by date_desc by default. Anonymous calls
 | `facets` | query | 否 | string | Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. |
 | `sort` | query | 否 | string | Closed per-collection sort key. |
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
+| `q` | query | 否 | string | Title search: the release title or its work's display name. Substring, case-insensitive, over the same dated releases this collection lists. Must not be used as a discriminant. |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/releases"

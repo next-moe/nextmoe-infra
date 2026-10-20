@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 )
 
@@ -27,7 +28,7 @@ func (s *ReadService) loadWorkRelations(ctx context.Context, workID int64) ([]Wo
 		FROM catalog_work_relation r
 		JOIN catalog_relation_type rt ON rt.id = r.relation_type_id
 		JOIN catalog_work w ON w.id = r.b_work_id AND w.deleted_at IS NULL AND w.status = ?
-		WHERE r.a_work_id = ?
+		WHERE r.a_work_id = ? AND `+editspec.NotSuppressedWorkRelationSQL("r")+`
 		UNION ALL
 		SELECT rt.key,
 		       CASE WHEN rt.is_symmetric THEN rt.forward_phrase ELSE rt.reverse_phrase END AS phrase,
@@ -36,7 +37,7 @@ func (s *ReadService) loadWorkRelations(ctx context.Context, workID int64) ([]Wo
 		FROM catalog_work_relation r
 		JOIN catalog_relation_type rt ON rt.id = r.relation_type_id
 		JOIN catalog_work w ON w.id = r.a_work_id AND w.deleted_at IS NULL AND w.status = ?
-		WHERE r.b_work_id = ?
+		WHERE r.b_work_id = ? AND `+editspec.NotSuppressedWorkRelationSQL("r")+`
 		ORDER BY key, other_id`, model.WorkStatusLive, workID, model.WorkStatusLive, workID).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
@@ -70,10 +71,10 @@ func (s *ReadService) loadSeriesSiblings(ctx context.Context, workID int64) ([]S
 			UNION
 			SELECT x.other FROM reach rc CROSS JOIN LATERAL (
 				SELECT r.b_work_id AS other FROM catalog_work_relation r
-				WHERE r.relation_type_id = ? AND r.a_work_id = rc.node
+				WHERE r.relation_type_id = ? AND r.a_work_id = rc.node AND `+editspec.NotSuppressedWorkRelationSQL("r")+`
 				UNION ALL
 				SELECT r.a_work_id FROM catalog_work_relation r
-				WHERE r.relation_type_id = ? AND r.b_work_id = rc.node
+				WHERE r.relation_type_id = ? AND r.b_work_id = rc.node AND `+editspec.NotSuppressedWorkRelationSQL("r")+`
 			) x
 		)
 		SELECT w.id AS work_id, w.display_name, w.medium_id, w.content_rating, w.status, w.site, w.product_work_id, w.claim_state

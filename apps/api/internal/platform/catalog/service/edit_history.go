@@ -105,6 +105,23 @@ func (s *EditHistoryService) RevisionByID(ctx context.Context, id int64) (*editi
 	return &rev, nil
 }
 
+func (s *EditHistoryService) RevisionsWithBaseline(ctx context.Context, ids []int64) (map[int64]bool, error) {
+	out := map[int64]bool{}
+	if s == nil || s.db == nil || len(ids) == 0 {
+		return out, nil
+	}
+	var hits []int64
+	if err := s.db.WithContext(ctx).Model(&editing.Revision{}).
+		Where("id IN ? AND seq = 1 AND baseline_snapshot IS NOT NULL", ids).
+		Pluck("id", &hits).Error; err != nil {
+		return nil, err
+	}
+	for _, id := range hits {
+		out[id] = true
+	}
+	return out, nil
+}
+
 func (s *EditHistoryService) PreviousRevisionID(ctx context.Context, rev *editing.Revision) (int64, error) {
 	if s == nil || s.db == nil || rev == nil || rev.Seq <= 1 {
 		return 0, nil

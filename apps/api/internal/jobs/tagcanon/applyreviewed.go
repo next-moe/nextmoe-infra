@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"sort"
 
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 
 	"gorm.io/gorm"
@@ -330,8 +331,14 @@ func writeMemberMap(ctx context.Context, db *gorm.DB, m vocabEntry, tagID int64,
 }
 
 func stampTierKind(ctx context.Context, db *gorm.DB, tagID int64, tier, kind int16) int {
-	res := db.WithContext(ctx).Exec(
-		`UPDATE catalog_tag SET tier = ?, kind = ?, updated_at = now() WHERE id = ? AND (tier <> ? OR kind <> ?)`,
+	humanTier := editspec.HumanFieldProvenanceSQL("field_provenance", "tier")
+	humanKind := editspec.HumanFieldProvenanceSQL("field_provenance", "kind")
+	res := db.WithContext(ctx).Exec(`UPDATE catalog_tag SET
+		    tier = CASE WHEN COALESCE(`+humanTier+`, false) THEN tier ELSE ? END,
+		    kind = CASE WHEN COALESCE(`+humanKind+`, false) THEN kind ELSE ? END,
+		    updated_at = now()
+		WHERE id = ? AND ((tier <> ? AND `+editspec.NotHumanFieldSQL("field_provenance", "tier")+`)
+		               OR (kind <> ? AND `+editspec.NotHumanFieldSQL("field_provenance", "kind")+`))`,
 		tier, kind, tagID, tier, kind)
 	if res.Error != nil {
 		slog.Warn("stamp tier/kind", "id", tagID, "err", res.Error)

@@ -138,8 +138,9 @@ func registerLabel(reg *editing.Registry, db *gorm.DB) error {
 }
 
 func registerTag(reg *editing.Registry, db *gorm.DB) error {
-	fields := []editing.FieldSpec{
-		{
+	parents := tagParentsFieldSpec()
+	fields := append(tagScalarFields(),
+		editing.FieldSpec{
 			Key: FieldTagIntros, Kind: editing.KindList, DiffHint: editing.DiffHintLines,
 			Value: &editing.ValueSpec{Element: &editing.ElementSpec{
 				Type: "object",
@@ -151,19 +152,37 @@ func registerTag(reg *editing.Registry, db *gorm.DB) error {
 			Validate: validateIntros,
 			Apply:    applyEntityIntros(introTableTag),
 		},
-	}
+		parents,
+		tagParentSuppressionSpec(parents),
+	)
 	return reg.Register(editing.EntityTypeSpec{
 		Family: "catalog", Type: TypeTag,
 		LoadSnapshot: func(ctx context.Context, entityID int64) (map[string]any, error) {
 			var t catmodel.CatalogTag
-			if err := firstEntity(ctx, db, &t, entityID, "id", "name"); err != nil {
+			if err := firstEntity(ctx, db, &t, entityID, "id", "name", "kind", "tier", "sexual", "note"); err != nil {
 				return nil, err
 			}
-			intros, err := loadEntityIntros(ctx, db, introTableTag, entityID)
-			if err != nil {
-				return nil, err
+			snapshot := map[string]any{
+				FieldTagName:   t.Name,
+				FieldTagKind:   int64(t.Kind),
+				FieldTagTier:   int64(t.Tier),
+				FieldTagSexual: t.Sexual,
+				FieldTagNote:   t.Note,
 			}
-			return map[string]any{FieldTagIntros: intros}, nil
+			for key, load := range map[string]func(context.Context, *gorm.DB, int64) ([]any, error){
+				FieldTagIntros: func(ctx context.Context, db *gorm.DB, id int64) ([]any, error) {
+					return loadEntityIntros(ctx, db, introTableTag, id)
+				},
+				FieldTagParents:      loadCuratedTagParents,
+				FieldTagParentsSuppr: loadSuppressedTagParents,
+			} {
+				value, err := load(ctx, db, entityID)
+				if err != nil {
+					return nil, err
+				}
+				snapshot[key] = value
+			}
+			return snapshot, nil
 		},
 		DefaultPolicy: sharedEntityPolicy(perm.EditTaxonomyReview),
 		Fields:        fields,

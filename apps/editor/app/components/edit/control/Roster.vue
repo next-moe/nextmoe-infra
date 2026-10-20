@@ -63,6 +63,38 @@ const changed = (row: Row) => {
   return !base || base.kind !== row.kind || base.spoiler !== row.spoiler
 }
 
+const isAdded = (row: Row) =>
+  !baseByCharacter.value.has(String(row.character_id))
+
+const wireBase = (key: string) => {
+  const member = memberOf(key)
+  const slot = member ? memberVocabSlot(member) : null
+  return slot?.base ?? 0
+}
+
+const pick = ref<string | null>(null)
+watch(pick, (id) => {
+  if (!id) {
+    return
+  }
+  pick.value = null
+  if (rows.value.some((row) => String(row.character_id) === id)) {
+    return
+  }
+  value.value = [
+    ...rows.value,
+    {
+      character_id: Number(id),
+      kind: wireBase('kind'),
+      spoiler: wireBase('spoiler')
+    }
+  ]
+})
+
+const removeAdded = (index: number) => {
+  value.value = rows.value.filter((_, i) => i !== index)
+}
+
 watch(
   rows,
   (list) =>
@@ -128,7 +160,16 @@ watch(
           @update:model-value="setMember(index, 'spoiler', $event)"
         />
         <KunButton
-          v-if="companion && identityOf(row) && !disabled"
+          v-if="isAdded(row) && !disabled"
+          size="xs"
+          variant="light"
+          color="danger"
+          @click="removeAdded(index)"
+        >
+          移除
+        </KunButton>
+        <KunButton
+          v-else-if="companion && identityOf(row) && !disabled"
           size="xs"
           variant="light"
           :color="isHidden(row) ? 'primary' : 'danger'"
@@ -139,5 +180,14 @@ watch(
         <span v-else />
       </li>
     </ul>
+    <div v-if="!disabled" class="mt-3 flex max-w-sm items-center gap-2">
+      <EditRefPicker
+        v-model="pick"
+        family="character"
+        :exclude="rows.map((row) => String(row.character_id))"
+        aria-label="添加登场角色"
+        placeholder="搜索角色并添加到这部作品"
+      />
+    </div>
   </div>
 </template>

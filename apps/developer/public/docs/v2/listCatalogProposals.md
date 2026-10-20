@@ -29,7 +29,7 @@ Filed proposals, newest first. proposer_uid=+state=merged with include_total=tru
 | `ids` | query | 否 | string | Comma-separated proposal ids, max 100. Batch lane: no pagination. |
 | `include_total` | query | 否 | string | true to include total. Only true or false. |
 | `sort` | query | 否 | string | filed_desc is the only key. Closed. |
-| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name. |
+| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait. |
 | `entity_id` | query | 否 | string | Catalog id of one entity. Requires object=. |
 | `site` | query | 否 | string | Tenant key. Open vocabulary; unknown values match nothing. |
 | `proposer_uid` | query | 否 | string | The claiming site's own user id of the proposer. Not a catalog id. |

@@ -72,12 +72,35 @@ func (s *EditorApplicationService) Apply(ctx context.Context, userID uint, reaso
 	return app, nil
 }
 
-func (s *EditorApplicationService) MyApplication(ctx context.Context, userID uint) (*model.EditorApplication, error) {
+type EditorApplicationStatus struct {
+	*model.EditorApplication
+	ReapplyAfter *time.Time `json:"reapply_after"`
+}
+
+func (s *EditorApplicationService) MyApplication(ctx context.Context, userID uint) (*EditorApplicationStatus, error) {
 	app, err := s.repo.FindLatestByUser(ctx, userID)
 	if err == gorm.ErrRecordNotFound {
 		return nil, nil
 	}
-	return app, err
+	if err != nil {
+		return nil, err
+	}
+	out := &EditorApplicationStatus{EditorApplication: app}
+	if app.Status == model.EditorAppDeclined {
+		out.ReapplyAfter = reapplyAfter(app.ReviewedAt, editorReapplyCooldown(), time.Now())
+	}
+	return out, nil
+}
+
+func reapplyAfter(reviewedAt *time.Time, cooldown time.Duration, now time.Time) *time.Time {
+	if reviewedAt == nil {
+		return nil
+	}
+	until := reviewedAt.Add(cooldown).UTC()
+	if !until.After(now) {
+		return nil
+	}
+	return &until
 }
 
 type AdminEditorApplicationItem struct {

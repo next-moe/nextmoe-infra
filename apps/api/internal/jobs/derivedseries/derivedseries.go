@@ -8,6 +8,7 @@ import (
 
 	"api/internal/infrastructure/database"
 	"api/internal/jobs/seriesorder"
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/repository"
 
@@ -107,7 +108,7 @@ func RunWithDB(ctx context.Context, db *gorm.DB, opts Opts) (*Stats, error) {
 		FROM catalog_work_relation r
 		JOIN catalog_work wa ON wa.id = r.a_work_id AND wa.deleted_at IS NULL
 		JOIN catalog_work wb ON wb.id = r.b_work_id AND wb.deleted_at IS NULL
-		WHERE r.relation_type_id IN ?`, seriesorder.SeriesEdgeTypes).Scan(&rawEdges).Error; err != nil {
+		WHERE r.relation_type_id IN ? AND `+editspec.NotSuppressedWorkRelationSQL("r"), seriesorder.SeriesEdgeTypes).Scan(&rawEdges).Error; err != nil {
 		return nil, fmt.Errorf("load edges: %w", err)
 	}
 	st.Edges = len(rawEdges)

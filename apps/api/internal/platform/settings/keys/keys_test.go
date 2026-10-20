@@ -81,6 +81,9 @@ var goldenNames = []string{
 	"catalog.open_proposals_max_user",
 	"catalog.open_proposals_max_editor",
 	"catalog.open_proposals_max_reviewer",
+	"catalog.merge_requests_per_day",
+	"catalog.merge_requests_per_day_editor",
+	"catalog.merge_requests_per_day_reviewer",
 	"catalog.news_submissions_per_day",
 	"catalog.news_image_uploads_per_day",
 	"community.sandbox_max_links",
@@ -106,6 +109,8 @@ var goldenNames = []string{
 	"jobs.image_ref_audit.schedule",
 	"jobs.catalog_merge_stragglers.enabled",
 	"jobs.catalog_merge_stragglers.schedule",
+	"jobs.catalog_merge_requests.enabled",
+	"jobs.catalog_merge_requests.schedule",
 	"jobs.catalog_tag_parents.enabled",
 	"jobs.catalog_tag_parents.schedule",
 	"jobs.artifact_gc.enabled",
@@ -221,8 +226,8 @@ func TestJobKeysLookup(t *testing.T) {
 	}
 
 	names := keys.JobNames()
-	if len(names) != 16 {
-		t.Fatalf("JobNames() = %d, want 16", len(names))
+	if len(names) != 17 {
+		t.Fatalf("JobNames() = %d, want 17", len(names))
 	}
 	seen := make(map[string]bool, len(names))
 	re := regexp.MustCompile(keys.JobSchedulePattern)

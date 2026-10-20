@@ -138,7 +138,7 @@ func (c *Catalog) ListCreditNames(ctx context.Context, q collect.Query, nameQ st
 	return finishList(items, data.NextCursor, data.Total, q, missing), nil
 }
 
-func (c *Catalog) ListPersons(ctx context.Context, q collect.Query) (repr.List[repr.Person], error) {
+func (c *Catalog) ListPersons(ctx context.Context, q collect.Query, nameQ string) (repr.List[repr.Person], error) {
 	if c == nil || c.Public == nil {
 		return repr.List[repr.Person]{}, problem.New(problem.CodeServiceUnavailable, "", "", "catalog read is not bound.")
 	}
@@ -149,7 +149,7 @@ func (c *Catalog) ListPersons(ctx context.Context, q collect.Query) (repr.List[r
 	if q.Batch && len(ids) == 0 {
 		return finishList([]repr.Person{}, nil, 0, q, missing), nil
 	}
-	data, lerr := c.Public.PersonsList(ctx, ids, q.Cursor, listLimit(q))
+	data, lerr := c.Public.PersonsList(ctx, ids, catsvc.NormalizeNameQuery(nameQ), q.Cursor, listLimit(q))
 	if lerr != nil {
 		return repr.List[repr.Person]{}, listCursorErr(lerr)
 	}

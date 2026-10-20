@@ -11,7 +11,7 @@
 
 ## Duplicate suspects
 
-The mint's titles match live works of the same medium; suspects[] names them. Nothing was written. Re-send with confirm_duplicates=true to mint anyway — the pairs are still filed for reconciliation.
+The submitted name matches live entries (for a claim mint: works of the same medium); suspects[] names them. Nothing was written. Re-send with confirm_duplicates=true to go ahead — a minted work's pairs are still filed for reconciliation.
 
 - `code`：`DUPLICATE_SUSPECTS`
 - HTTP：409

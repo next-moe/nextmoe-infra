@@ -122,8 +122,8 @@ func runIngest(ctx context.Context, db *gorm.DB, src source, prov int16, apply b
 	c := summarise(pairs, writes)
 
 	fmt.Printf("\n=== ingest-trait-zh %s (%s, provenance=%d) ===\n", mode(apply), src.label, prov)
-	fmt.Printf("proposals=%d  vocabulary_rows=%d  matched_rows=%d  write=%d  already_same=%d  conflict=%d\n",
-		c.Proposals, len(rows), c.Matched, c.Write, c.Same, c.Conflict)
+	fmt.Printf("proposals=%d  vocabulary_rows=%d  matched_rows=%d  write=%d  already_same=%d  conflict=%d  human_edited=%d\n",
+		c.Proposals, len(rows), c.Matched, c.Write, c.Same, c.Conflict, c.Human)
 	fmt.Printf("still_without_zh_after_run=%d\n", withoutZhAfter(rows, writes))
 	printSamples(writes, samples)
 	printConflicts(writes)

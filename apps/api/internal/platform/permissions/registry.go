@@ -159,6 +159,7 @@ var live = NewRegistry(
 			{catalogPerm.ClaimTrusted, "Mint a work submission straight to live, skipping claim review. Does not touch the editing engine.", "建档投稿直接上线、免认领审核(不影响编辑提案走不走审)"},
 			{catalogPerm.RatingModerate, "Delete anyone's rating; the deletion reaches every site at once. Counts only through a global role, never a site role.", "删除任何人的评分(全网同时生效);只认全局角色,站点角色授予无效"},
 			{catalogPerm.EditPolicyManage, "Change the editing policy at runtime: who may propose, who reviews and what applies without review, per entity type and field.", "运行时修改编辑策略:按实体类型与字段设定谁可提案、谁来审核、哪些免审生效"},
+			{catalogPerm.MergeReview, "Decide merge requests filed in the editor: approve (the merge runs after the cooling-off), reject, or execute an approved one whose cooling-off has ended.", "处理编辑台提交的合并请求:批准(冷却期后执行)、驳回,或执行冷却期已过的已批准请求"},
 			{catalogPerm.FolderModerate, "Rename, blank, hide or delete anyone's folder, and list or remove every folder an account holds; folders are shared by every site.", "改名、清空、隐藏或删除任何人的收藏夹,查看或清除某个账号的全部收藏夹(收藏夹全网共用)"},
 		},
 	},

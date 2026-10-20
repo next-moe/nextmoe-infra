@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-## 错误码注册表（顶层 `code`，共 49 个）
+## 错误码注册表（顶层 `code`，共 50 个）
 
 `code` 是封闭注册表里的稳定标识；`errors[].reason` 是另一套互不重叠的字段级词表。认不得的 `code` 一律按 `status` 兜底——我们会往注册表里加新成员。
 
@@ -61,7 +61,7 @@
 | `SITE_NOT_BOUND` | 403 | Site not bound | The client behind the token is not bound to a catalog site. |
 | `RELEASE_CREATION_DISABLED` | 403 | Release creation disabled | The proposal tried to create a release. This is a product constraint, not a defect. |
 | `ALREADY_EXISTS` | 409 | Already exists | The same subject already has a live record for this target. |
-| `DUPLICATE_SUSPECTS` | 409 | Duplicate suspects | The mint's titles match live works of the same medium; suspects[] names them. Nothing was written. Re-send with confirm_duplicates=true to mint anyway — the pairs are still filed for reconciliation. |
+| `DUPLICATE_SUSPECTS` | 409 | Duplicate suspects | The submitted name matches live entries (for a claim mint: works of the same medium); suspects[] names them. Nothing was written. Re-send with confirm_duplicates=true to go ahead — a minted work's pairs are still filed for reconciliation. |
 | `INVALID_STATE_TRANSITION` | 409 | Invalid state transition | The current state does not allow this transition. detail names the current state and the legal targets. |
 | `CLAIM_NOT_OWNED` | 403 | Claim not owned | The claim has an owner and it is another user. Only the owner may publish, submit, or withdraw it; an unowned claim is adopted by its first claimant. |
 
@@ -72,6 +72,7 @@
 | `PERMISSION_REQUIRED` | 403 | Permission required | The token lacks the permission this decision needs. |
 | `TENANT_MISMATCH` | 403 | Tenant mismatch | The target does not belong to the caller's catalog site. |
 | `DECISION_ALREADY_MADE` | 409 | Decision already made | This item has already been decided. detail names who decided and when. |
+| `REVERT_CONFLICT` | 409 | Revert conflict | An undo would put back fields that a later revision also changed. errors[] names each field. Nothing was written. Re-send with force=true to overwrite those later changes, or restore a whole revision instead. |
 
 ### news
 

@@ -10,7 +10,7 @@ import (
 )
 
 type getEditContextInput struct {
-	Object string `path:"object" maxLength:"32" enum:"work,company,character,release,tag,engine,series,person,credit_name" doc:"Family of the entity. Unknown family is 404 NOT_FOUND."`
+	Object string `path:"object" maxLength:"32" enum:"work,company,character,release,tag,engine,series,person,credit_name,trait" doc:"Family of the entity. Unknown family is 404 NOT_FOUND."`
 	ID     string `path:"id" pattern:"^[0-9]+$" maxLength:"20" doc:"Catalog id of the entity."`
 }
 

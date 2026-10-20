@@ -96,8 +96,16 @@ func TestEditorApplicationCooldownFollowsTheSetting(t *testing.T) {
 	settings.Override(t, keys.AuthEditorApplicationCooldownHours, 24)
 	_, err = svc.Apply(ctx, user.ID, "被拒后立刻再申请一次")
 	wantCode(t, err, errors.ErrEditorAppCooldown)
+	status, err := svc.MyApplication(ctx, user.ID)
+	if err != nil || status == nil || status.ReapplyAfter == nil ||
+		status.ReapplyAfter.Before(time.Now().Add(23*time.Hour)) {
+		t.Fatalf("status during the cooldown = %+v, %v; want reapply_after about 24h out", status, err)
+	}
 
 	settings.Override(t, keys.AuthEditorApplicationCooldownHours, 0)
+	if status, err := svc.MyApplication(ctx, user.ID); err != nil || status.ReapplyAfter != nil {
+		t.Fatalf("status after the cooldown = %+v, %v; want reapply_after null", status, err)
+	}
 	if _, err := svc.Apply(ctx, user.ID, "冷却期设为零后可以再申请"); err != nil {
 		t.Errorf("apply with a zero cooldown: %v", err)
 	}

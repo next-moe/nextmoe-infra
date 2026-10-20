@@ -276,6 +276,9 @@ var registry = []Vocabulary{
 		v("xxs", "Xbox X/S", ""),
 	}),
 	open("relation_types", relationTypeValues),
+	// relationTypeValues[:12] are the domain-0 (work) types; a new work type
+	// has to go in before index 12 or it never reaches this vocabulary.
+	closed("work_relation", relationTypeValues[:12]),
 }
 
 var olangValues = []Value{

@@ -207,16 +207,17 @@ func TestApplyRosterRejectsUnknownCharacter(t *testing.T) {
 	work := createWork(t, "参照テスト")
 	onRoster := createCharacter(t, "出演")
 	importRosterEdge(t, work.ID, onRoster.ID, model.WorkCharacterKindMain, model.SpoilerNone)
-	elsewhere := createCharacter(t, "他作品のキャラ")
-	other := createWork(t, "別作品")
-	importRosterEdge(t, other.ID, elsewhere.ID, model.WorkCharacterKindMain, model.SpoilerNone)
+	gone := createCharacter(t, "統合済みキャラ")
+	if err := testDB.Delete(gone).Error; err != nil {
+		t.Fatalf("soft-delete character: %v", err)
+	}
 
 	for _, c := range []struct {
 		name        string
 		characterID int64
 	}{
 		{"NoSuchCharacter", 9_000_001},
-		{"OnAnotherWorksRoster", elsewhere.ID},
+		{"MergedAway", gone.ID},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			if err := testDB.Exec(`DELETE FROM edit_proposal`).Error; err != nil {
@@ -236,8 +237,8 @@ func TestApplyRosterRejectsUnknownCharacter(t *testing.T) {
 			if _, err := e.MergeProposal(testCtx, prop.ID, realActor(200, "ren"), ""); !errors.As(err, &valErr) {
 				t.Fatalf("merge returned %v, want a ValidationError (422) rather than a raw foreign-key 500", err)
 			}
-			if !strings.Contains(valErr.Reason, editspec.FieldWorkRosterSuppr) {
-				t.Fatalf("the 422 must point at %s, got %q", editspec.FieldWorkRosterSuppr, valErr.Reason)
+			if !strings.Contains(valErr.Reason, "does not exist") {
+				t.Fatalf("the 422 must say the character does not exist, got %q", valErr.Reason)
 			}
 		})
 	}

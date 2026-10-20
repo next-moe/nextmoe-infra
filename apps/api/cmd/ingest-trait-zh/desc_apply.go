@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"api/internal/platform/catalog/editspec"
+
 	"gorm.io/gorm"
 )
 
@@ -34,6 +36,7 @@ type descCounts struct {
 	Same     int
 	Stale    int
 	Empty    int
+	Human    int
 	StaleIDs []int64
 }
 
@@ -123,12 +126,15 @@ func planDescWrites(ctx context.Context, db *gorm.DB, rows []descCSVRow) ([]desc
 		ID          int64  `gorm:"column:id"`
 		Description string `gorm:"column:description"`
 		Zh          string `gorm:"column:description_zh"`
+		Human       bool   `gorm:"column:human"`
 	}
 	current := map[int64]curRow{}
 	if len(ids) > 0 {
 		var found []curRow
 		if err := db.WithContext(ctx).Raw(
-			`SELECT id, description, description_zh FROM catalog_character_trait WHERE id IN ?`, ids).
+			`SELECT id, description, description_zh,
+			        COALESCE(`+editspec.HumanFieldProvenanceSQL("field_provenance", "description_zh")+`, false) AS human
+			   FROM catalog_character_trait WHERE id IN ?`, ids).
 			Scan(&found).Error; err != nil {
 			return nil, c, err
 		}
@@ -149,6 +155,10 @@ func planDescWrites(ctx context.Context, db *gorm.DB, rows []descCSVRow) ([]desc
 			c.StaleIDs = append(c.StaleIDs, r.TraitID)
 			continue
 		}
+		if cur.Human {
+			c.Human++
+			continue
+		}
 		if cur.Zh == zh {
 			c.Same++
 			continue
@@ -165,7 +175,8 @@ func applyDescWrites(ctx context.Context, db *gorm.DB, writes []descWrite) (int,
 		for _, w := range writes {
 			res := tx.Exec(`UPDATE catalog_character_trait
 				   SET description_zh = ?, description_zh_source_hash = ?, updated_at = now()
-				 WHERE id = ? AND `+descriptionHashSQL+` = ? AND description_zh IS DISTINCT FROM ?`,
+				 WHERE id = ? AND `+descriptionHashSQL+` = ? AND description_zh IS DISTINCT FROM ? AND `+
+				editspec.NotHumanFieldSQL("field_provenance", "description_zh"),
 				w.Zh, w.Hash, w.ID, w.Hash, w.Zh)
 			if res.Error != nil {
 				return res.Error
@@ -178,7 +189,7 @@ func applyDescWrites(ctx context.Context, db *gorm.DB, writes []descWrite) (int,
 }
 
 func printDescCounts(c descCounts) {
-	fmt.Printf("rows=%d write=%d same=%d stale=%d empty=%d\n", c.Rows, c.Write, c.Same, c.Stale, c.Empty)
+	fmt.Printf("rows=%d write=%d same=%d stale=%d empty=%d human_edited=%d\n", c.Rows, c.Write, c.Same, c.Stale, c.Empty, c.Human)
 	if len(c.StaleIDs) == 0 {
 		return
 	}

@@ -25,6 +25,10 @@ var enumsWithoutVocabulary = map[string]string{
 	editspec.FieldWorkDisplayNSFW: "bool-as-enum: forced-NSFW override flag, no token set worth publishing",
 	editspec.FieldReleaseFreeware: "nullable bool-as-enum: freeware flag, null when no source recorded it",
 	editspec.FieldReleaseOfficial: "nullable bool-as-enum: official-release flag, null when no source recorded it",
+	editspec.FieldTagSexual:       "bool-as-enum: the tag's sexual flag, no token set worth publishing",
+	editspec.FieldTraitApplicable: "bool-as-enum: whether the trait can be put on a character",
+	editspec.FieldTraitSearchable: "bool-as-enum: whether the trait is offered in search",
+	editspec.FieldTraitSexual:     "bool-as-enum: the trait's sexual flag, no token set worth publishing",
 }
 
 func TestSchemaValueSpecCompleteness(t *testing.T) {

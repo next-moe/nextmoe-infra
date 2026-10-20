@@ -196,6 +196,7 @@ type EntityTypeSpec struct {
 	OnMerge       func(ctx context.Context, ev MergeEvent) error
 	Fields        []FieldSpec
 	DefaultPolicy Policy
+	Birth         *BirthSpec
 
 	fields map[string]*FieldSpec
 	reg    *Registry
@@ -347,6 +348,11 @@ func (r *Registry) Register(spec EntityTypeSpec) error {
 		// cap back so MaxSuppressed reads as the effective limit everywhere.
 		if parent.MaxSuppressed <= 0 {
 			parent.MaxSuppressed = f.MaxSuppressed
+		}
+	}
+	if spec.Birth != nil {
+		if err := validateBirth(&spec, *spec.Birth); err != nil {
+			return err
 		}
 	}
 	spec.reg = r

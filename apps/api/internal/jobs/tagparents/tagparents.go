@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/vndbtagmap"
 
@@ -20,18 +21,22 @@ type Edge struct {
 }
 
 type SyncStats struct {
-	VNDBTags int
-	Mapped   int
-	Edges    int
-	Added    int
-	Deleted  int
-	Cycles   int
+	VNDBTags   int
+	Mapped     int
+	Edges      int
+	Added      int
+	Deleted    int
+	Cycles     int
+	Suppressed int
 }
 
 func Sync(ctx context.Context, db *gorm.DB, apply bool) (*SyncStats, error) {
 	st := &SyncStats{}
 	want, err := projectVNDB(ctx, db, st)
 	if err != nil {
+		return nil, err
+	}
+	if err := dropSuppressed(ctx, db, want, st); err != nil {
 		return nil, err
 	}
 	have, err := loadEdges(ctx, db, model.TagParentOriginVNDB)
@@ -90,6 +95,23 @@ func Sync(ctx context.Context, db *gorm.DB, apply bool) (*SyncStats, error) {
 		return nil, fmt.Errorf("write tag parents: %w", err)
 	}
 	return st, nil
+}
+
+func dropSuppressed(ctx context.Context, db *gorm.DB, want map[Edge]bool, st *SyncStats) error {
+	var rows []Edge
+	if err := db.WithContext(ctx).Raw(`
+		SELECT entity_id AS tag, split_part(identity_key, ':', 2)::bigint AS parent
+		FROM edit_suppressed_row WHERE entity_type = ? AND field_key = ?`,
+		editspec.TypeTag, editspec.FieldTagParents).Scan(&rows).Error; err != nil {
+		return fmt.Errorf("load suppressed tag parents: %w", err)
+	}
+	for _, e := range rows {
+		if want[e] {
+			delete(want, e)
+			st.Suppressed++
+		}
+	}
+	return nil
 }
 
 func projectVNDB(ctx context.Context, db *gorm.DB, st *SyncStats) (map[Edge]bool, error) {

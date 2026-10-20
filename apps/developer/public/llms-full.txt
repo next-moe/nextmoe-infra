@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-本文件内联全部 158 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
+本文件内联全部 165 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
 
 ## 给 AI 助手的指引
 
@@ -2833,7 +2833,7 @@ curl -i "https://api.nextmoe.dev/v2/sticker/works/61311/packs" \
 
 # Problem types
 
-## 错误码注册表（顶层 `code`，共 49 个）
+## 错误码注册表（顶层 `code`，共 50 个）
 
 `code` 是封闭注册表里的稳定标识；`errors[].reason` 是另一套互不重叠的字段级词表。认不得的 `code` 一律按 `status` 兜底——我们会往注册表里加新成员。
 
@@ -2885,7 +2885,7 @@ curl -i "https://api.nextmoe.dev/v2/sticker/works/61311/packs" \
 | `SITE_NOT_BOUND` | 403 | Site not bound | The client behind the token is not bound to a catalog site. |
 | `RELEASE_CREATION_DISABLED` | 403 | Release creation disabled | The proposal tried to create a release. This is a product constraint, not a defect. |
 | `ALREADY_EXISTS` | 409 | Already exists | The same subject already has a live record for this target. |
-| `DUPLICATE_SUSPECTS` | 409 | Duplicate suspects | The mint's titles match live works of the same medium; suspects[] names them. Nothing was written. Re-send with confirm_duplicates=true to mint anyway — the pairs are still filed for reconciliation. |
+| `DUPLICATE_SUSPECTS` | 409 | Duplicate suspects | The submitted name matches live entries (for a claim mint: works of the same medium); suspects[] names them. Nothing was written. Re-send with confirm_duplicates=true to go ahead — a minted work's pairs are still filed for reconciliation. |
 | `INVALID_STATE_TRANSITION` | 409 | Invalid state transition | The current state does not allow this transition. detail names the current state and the legal targets. |
 | `CLAIM_NOT_OWNED` | 403 | Claim not owned | The claim has an owner and it is another user. Only the owner may publish, submit, or withdraw it; an unowned claim is adopted by its first claimant. |
 
@@ -2896,6 +2896,7 @@ curl -i "https://api.nextmoe.dev/v2/sticker/works/61311/packs" \
 | `PERMISSION_REQUIRED` | 403 | Permission required | The token lacks the permission this decision needs. |
 | `TENANT_MISMATCH` | 403 | Tenant mismatch | The target does not belong to the caller's catalog site. |
 | `DECISION_ALREADY_MADE` | 409 | Decision already made | This item has already been decided. detail names who decided and when. |
+| `REVERT_CONFLICT` | 409 | Revert conflict | An undo would put back fields that a later revision also changed. errors[] names each field. Nothing was written. Re-send with force=true to overwrite those later changes, or restore a whole revision instead. |
 
 ### news
 
@@ -2925,7 +2926,7 @@ curl -i "https://api.nextmoe.dev/v2/sticker/works/61311/packs" \
 
 # Vocabularies
 
-## 词表（共 29 个）
+## 词表（共 30 个）
 
 封闭词表（`closed`）不加不减成员就是它的承诺——你的 `switch` 可以没有 `default`。开放词表相反：提前告诉你会有新值，客户端必须容忍没见过的取值。运行时以 `https://api.nextmoe.dev/v2/vocabularies` 为准，它比任何文档都新，且不需要凭据。
 
@@ -3416,13 +3417,32 @@ Open · 16 tokens
 | `subsidiary_of` | Subsidiary of | This company is a subsidiary of the other. |
 | `member_of` | Member of | This company is a member of the other. |
 
+### `work_relation`
+
+Closed · 12 tokens
+
+| value | display_name | description |
+| --- | --- | --- |
+| `adaptation_of` | Adaptation of | This work is an adaptation of the other. |
+| `sequel_of` | Sequel of | This work is a sequel of the other. |
+| `side_story_of` | Side story of | This work is a side story of the other. |
+| `fandisc_of` | Fandisc of | This work is a fandisc of the other. |
+| `collects` | Collects | This work collects the other. |
+| `remake_of` | Remake of | This work is a remake of the other. |
+| `same_series` | Same series | The two works belong to the same series. Symmetric. |
+| `same_setting` | Same setting | The two works share a setting. Symmetric. |
+| `crossover_with` | Crossover with | The two works crossover. Symmetric. |
+| `shares_character` | Shares character | The two works share a character. Symmetric. |
+| `alternative_setting` | Alternative setting | The two works share characters in a different setting. Symmetric. |
+| `alternative_version` | Alternative version | The two works are alternative versions. Symmetric. |
+
 ---
 
 # Public API v2
 
 - 路径前缀：`/v2`
 - 凭据：Authorization: Bearer nmk_live_…（v2 应用密钥,门户自助铸造,无需申请）
-- 端点数：144
+- 端点数：151
 
 > 正式公开：形状按 additive-only 演进，删除与改名由 CI 的 oasdiff 门拦下。第三方在门户自助铸 nmk_ 密钥即可调用，不需要申请。
 
@@ -3941,7 +3961,7 @@ curl "https://api.nextmoe.dev/v2/catalog/engines/1"
 
 List persons
 
-Keyset-paginated persons. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.
+Keyset-paginated persons. q= searches the display name and every credit name whose person link is public. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：可匿名调用
@@ -3960,6 +3980,7 @@ Keyset-paginated persons. Anonymous calls are allowed and limited per IP address
 | `facets` | query | 否 | string | Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. |
 | `sort` | query | 否 | string | Closed per-collection sort key. |
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
+| `q` | query | 否 | string | Name search: the person's display name, or any of their credit names (name or latin) whose person link is public. Substring, case-insensitive. Must not be used as a discriminant. |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/persons"
@@ -4029,7 +4050,7 @@ Filed proposals, newest first. proposer_uid=+state=merged with include_total=tru
 | `ids` | query | 否 | string | Comma-separated proposal ids, max 100. Batch lane: no pagination. |
 | `include_total` | query | 否 | string | true to include total. Only true or false. |
 | `sort` | query | 否 | string | filed_desc is the only key. Closed. |
-| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name. |
+| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait. |
 | `entity_id` | query | 否 | string | Catalog id of one entity. Requires object=. |
 | `site` | query | 否 | string | Tenant key. Open vocabulary; unknown values match nothing. |
 | `proposer_uid` | query | 否 | string | The claiming site's own user id of the proposer. Not a catalog id. |
@@ -4093,7 +4114,7 @@ curl "https://api.nextmoe.dev/v2/catalog/redirects"
 
 List releases
 
-Keyset-paginated dated releases, sorted by date_desc by default. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate.
+Keyset-paginated dated releases, sorted by date_desc by default. q= filters by release title or work display name. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：可匿名调用
@@ -4112,6 +4133,7 @@ Keyset-paginated dated releases, sorted by date_desc by default. Anonymous calls
 | `facets` | query | 否 | string | Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. |
 | `sort` | query | 否 | string | Closed per-collection sort key. |
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
+| `q` | query | 否 | string | Title search: the release title or its work's display name. Substring, case-insensitive, over the same dated releases this collection lists. Must not be used as a discriminant. |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/releases"
@@ -4159,7 +4181,7 @@ Every merged edit, newest first by default. sort=recorded_asc walks the same col
 | `ids` | query | 否 | string | Comma-separated revision ids, max 100. Batch lane: no pagination. |
 | `include_total` | query | 否 | string | true to include total. Only true or false. |
 | `sort` | query | 否 | string | recorded_desc (default) or recorded_asc. Closed. |
-| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name. |
+| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait. |
 | `entity_id` | query | 否 | string | Catalog id of one entity. Requires object=. |
 | `site` | query | 否 | string | Tenant key. Open vocabulary; unknown values match nothing. |
 | `actor_uid` | query | 否 | string | The claiming site's own user id of the actor. Not a catalog id. |
@@ -4184,7 +4206,7 @@ include=diff adds the field-level change set against diff_base, or against the p
 | `include` | query | 否 | string | Comma-separated blocks. diff is the only token. Unknown token is 400 UNKNOWN_INCLUDE. |
 | `view` | query | 否 | string | basic (default) or full. full adds diff. |
 | `fields` | query | 否 | string | Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. |
-| `diff_base` | query | 否 | string | Revision id to diff against. Requires include=diff. Absent means the preceding revision of the same entity. |
+| `diff_base` | query | 否 | string | Revision id to diff against, or baseline for the state recorded before the entity's first edit. Requires include=diff. Absent means the preceding revision of the same entity, or the baseline on a first revision that has one. |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/revisions/1"
@@ -4252,7 +4274,7 @@ Unauthenticated metadata: include tokens, FULL_SET, and editing-engine fields. i
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
-| `object` | path | 是 | string | Family this schema describes. Unknown family is 404 NOT_FOUND. 取值：work \| company \| character \| release \| tag \| engine \| series \| person \| credit_name |
+| `object` | path | 是 | string | Family this schema describes. Unknown family is 404 NOT_FOUND. 取值：work \| company \| character \| release \| tag \| engine \| series \| person \| credit_name \| trait |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/schemas/work"
@@ -5422,6 +5444,39 @@ curl -X DELETE "https://api.nextmoe.dev/v2/me/cover-votes/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
+### POST /v2/me/creations
+
+Propose a new entry
+
+Files a proposal that creates a new entry of one family. It is reviewed like any proposal (it appears in GET /v2/moderation/proposals with entity_id 0 and a creation block) unless the create policy lets the bearer apply it at once; once merged, entity_id is the new entry's id. Entries whose normalized name already exists are refused with 409 DUPLICATE_SUSPECTS unless confirm_duplicates=true. Counts against the same proposal quota as POST /v2/me/proposals. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
+
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `confirm_duplicates` | 否 | boolean | Create even when entries with the same normalized name exist. Without it such a request is refused with 409 DUPLICATE_SUSPECTS naming them, and nothing is written. |
+| `note` | 否 | string | Proposer's own summary. Must not be used as a discriminant. |
+| `object` | 是 | string | Family of the new entry. Works are created through POST /v2/me/claims. Tags and traits take a reviewer-only create policy. 取值：company \| character \| release \| engine \| series \| person \| credit_name \| tag \| trait |
+| `params` | 否 | map<string, object> | Creation parameters; /v2/me/edit-capabilities/{object} creation.param_specs lists them (release takes work_id, person takes credit_name_id of an unattributed credit name). |
+| `params.«key»` | 否 | object |  |
+| `patch` | 否 | map<string, object> | Field key to initial value, the same keys and values POST /v2/me/proposals accepts for that family. creation.required_fields must be present. |
+| `patch.«key»` | 否 | object |  |
+
+```bash
+curl -X POST "https://api.nextmoe.dev/v2/me/creations" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"object":"company"}'
+```
+
 ### GET /v2/me/edit-capabilities/{object}
 
 What I may edit on one family
@@ -5434,7 +5489,7 @@ Per-field can_propose / can_review / would_automerge for the bearer, evaluated b
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
-| `object` | path | 是 | string | Family these capabilities describe. Unknown family is 404 NOT_FOUND. 取值：work \| company \| character \| release \| tag \| engine \| series \| person \| credit_name |
+| `object` | path | 是 | string | Family these capabilities describe. Unknown family is 404 NOT_FOUND. 取值：work \| company \| character \| release \| tag \| engine \| series \| person \| credit_name \| trait |
 | `entity_id` | query | 否 | integer (int64) | Evaluate against one entity. Omit for the type-level answer, which cannot express the owner channel: a policy that grants owner-review or owner-automerge answers would_automerge=false without it. |
 
 ```bash
@@ -5454,7 +5509,7 @@ Per field: the value a proposal is written against, who wrote each scalar column
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
-| `object` | path | 是 | string | Family of the entity. Unknown family is 404 NOT_FOUND. 取值：work \| company \| character \| release \| tag \| engine \| series \| person \| credit_name |
+| `object` | path | 是 | string | Family of the entity. Unknown family is 404 NOT_FOUND. 取值：work \| company \| character \| release \| tag \| engine \| series \| person \| credit_name \| trait |
 | `id` | path | 是 | string | Catalog id of the entity. |
 
 ```bash
@@ -5831,6 +5886,85 @@ curl -X DELETE "https://api.nextmoe.dev/v2/me/followed-companies/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
+### GET /v2/me/merge-requests
+
+List my merge requests
+
+The bearer's own merge requests, newest first; follow next_cursor for more. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `state` | query | 否 | string | Narrow to one state. 取值：open \| approved \| executed \| rejected \| withdrawn |
+| `object` | query | 否 | string | Narrow to one family. 取值：work \| company \| character \| person \| credit_name |
+| `cursor` | query | 否 | string | Opaque keyset cursor from next_cursor. |
+| `limit` | query | 否 | integer (int64) | Page size, 1-100. Default 20. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/me/merge-requests" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### POST /v2/me/merge-requests
+
+Request a merge
+
+Asks reviewers to merge two entries of one family. Nothing merges on filing: a reviewer approves, the cooling-off runs, then the merge executes through the catalog merge machinery (redirect from source to target, survivorship, archive for unmerge). Two works of different mediums are refused 422. Quotas are tiered: catalog.merge_requests_per_day, _editor, _reviewer inside catalog.write_quota_window_hours; past it 429 QUOTA_EXCEEDED. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
+
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `object` | 是 | string | Family of the two entries. 取值：work \| company \| character \| person \| credit_name |
+| `reason` | 是 | string | Why these are the same entry. Reviewers read it. Must not be used as a discriminant. |
+| `source_id` | 是 | string | The entry to fold away. |
+| `target_id` | 是 | string | The entry that survives. |
+
+```bash
+curl -X POST "https://api.nextmoe.dev/v2/me/merge-requests" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"object":"work","reason":"string","source_id":"1","target_id":"1"}'
+```
+
+### PATCH /v2/me/merge-requests/{id}
+
+Withdraw a merge request
+
+Withdraws an open request the bearer filed. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `id` | path | 是 | string | Merge request id. |
+
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `state` | 是 | string | Set withdrawn to withdraw an open request you filed. 取值：withdrawn |
+
+```bash
+curl -X PATCH "https://api.nextmoe.dev/v2/me/merge-requests/1" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"state":"withdrawn"}'
+```
+
 ### GET /v2/me/news
 
 List my news items
@@ -6139,7 +6273,7 @@ curl -X PATCH "https://api.nextmoe.dev/v2/me/privacy" \
 
 List my proposals
 
-The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch and effective_patch, the same pair GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. Requires a user access token. The token must carry the catalog:edit scope.
+The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch, effective_patch, changed_fields and (open rows) conflict_fields, the same block GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. field=, has_conflict= and updated_since= filter; sort=filed_desc (default), filed_asc, updated_desc or updated_asc. Requires a user access token. The token must carry the catalog:edit scope.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
@@ -6159,9 +6293,13 @@ The bearer's own proposals filed on the token's catalog site; on the central edi
 | `sort` | query | 否 | string | Closed per-collection sort key. |
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
 | `state` | query | 否 | string | Closed: open, pending, merged, declined, withdrawn. Unknown value is 400 UNKNOWN_ENUM_VALUE. |
-| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name. |
+| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait. |
 | `entity_type` | query | 否 | string | Editing-engine type, e.g. catalog.work. The same spelling POST /v2/me/proposals takes in its body. Names the same filter as object=; sending both with different families is 400. |
 | `entity_id` | query | 否 | string | Catalog id of one entity. Accepted alone on this lane, which is already fenced to the bearer's own proposals; pair it with object= or entity_type= when ids collide across families. |
+| `site` | query | 否 | string | Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing. |
+| `field` | query | 否 | string | A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it. |
+| `has_conflict` | query | 否 | string | true keeps open proposals that a revision recorded after their base_revision_seq overlaps on a field; false keeps the rest. Only true or false. |
+| `updated_since` | query | 否 | string | RFC 3339 UTC ending in Z. Keeps proposals whose updated_at is later. |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/me/proposals" \
@@ -6770,11 +6908,81 @@ curl -X DELETE "https://api.nextmoe.dev/v2/moderation/folders/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
+### GET /v2/moderation/merge-requests
+
+Merge request queue
+
+Merge requests filed through the editor, newest first; follow next_cursor for more. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `state` | query | 否 | string | Narrow to one state. 取值：open \| approved \| executed \| rejected \| withdrawn |
+| `object` | query | 否 | string | Narrow to one family. 取值：work \| company \| character \| person \| credit_name |
+| `cursor` | query | 否 | string | Opaque keyset cursor from next_cursor. |
+| `limit` | query | 否 | integer (int64) | Page size, 1-100. Default 20. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/moderation/merge-requests" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### GET /v2/moderation/merge-requests/{id}
+
+Get one merge request
+
+Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `id` | path | 是 | string | Merge request id. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/moderation/merge-requests/1" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### POST /v2/moderation/merge-requests/{id}/decisions
+
+Decide a merge request
+
+decision=approve|reject|execute. Unmerge stays with the catalog admin console. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `id` | path | 是 | string | Merge request id. |
+| `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
+
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `decision` | 是 | string | approve starts the cooling-off (catalog.merge_cooling_off_hours) after which the catalog-merge-requests job executes it; reject closes it; execute runs an approved request whose cooling-off has ended without waiting for the job. 取值：approve \| reject \| execute |
+| `reason` | 否 | string | Required to reject. Must not be used as a discriminant. |
+
+```bash
+curl -X POST "https://api.nextmoe.dev/v2/moderation/merge-requests/1/decisions" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"decision":"approve"}'
+```
+
 ### GET /v2/moderation/proposals
 
 Moderation proposal queue
 
-Open proposals on the token site; on the central editor (catalog site editor), on every site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. The token must carry the catalog:edit scope.
+Open proposals on the token site; on the central editor (catalog site editor), on every site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. site= narrows the central editor's queue to one site of origin; field=, has_conflict= and updated_since= filter; sort=filed_desc (default), filed_asc (oldest waiting first), updated_desc or updated_asc. include=patch (or view=full) adds each row's patch, effective_patch, changed_fields and conflict_fields, so a queue page needs no read per row. The token must carry the catalog:edit scope.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
@@ -6793,9 +7001,13 @@ Open proposals on the token site; on the central editor (catalog site editor), o
 | `facets` | query | 否 | string | Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. |
 | `sort` | query | 否 | string | Closed per-collection sort key. |
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
-| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name. |
+| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait. |
 | `entity_type` | query | 否 | string | Editing-engine type, e.g. catalog.work. Names the same filter as object=; sending both with different families is 400. |
 | `entity_id` | query | 否 | string | Catalog id of one entity. Requires object= or entity_type=. Narrows the queue to that entity, which its owner may read without a review permission. |
+| `site` | query | 否 | string | Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing. |
+| `field` | query | 否 | string | A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it. |
+| `has_conflict` | query | 否 | string | true keeps open proposals that a revision recorded after their base_revision_seq overlaps on a field; false keeps the rest. Only true or false. |
+| `updated_since` | query | 否 | string | RFC 3339 UTC ending in Z. Keeps proposals whose updated_at is later. |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/moderation/proposals" \
@@ -6876,7 +7088,7 @@ curl -X DELETE "https://api.nextmoe.dev/v2/moderation/ratings/1" \
 
 Revert to a revision
 
-Body names revision_id. A downstream site may not revert an entity another site claims; the central editor (catalog site editor) may revert any. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+Body names revision_id. mode=restore (default) brings every registered field back to its value after that revision, or with baseline=true to the state recorded before the entity's first edit. mode=undo puts back, for only the fields that revision changed, the values they held just before it; when a later revision changed one of those fields the answer is 409 REVERT_CONFLICT naming them, unless force=true. A downstream site may not revert an entity another site claims; the central editor (catalog site editor) may revert any. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
@@ -6890,6 +7102,9 @@ Body names revision_id. A downstream site may not revert an entity another site 
 
 | 字段 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- |
+| `baseline` | 否 | boolean | With mode=restore: restore the state recorded before the entity's first edit instead of the state after revision_id, which then only names the entity. 422 when no such state was recorded. |
+| `force` | 否 | boolean | With mode=undo: overwrite fields a later revision also changed instead of answering 409 REVERT_CONFLICT. |
+| `mode` | 否 | string | restore (default) brings every field back to its value after revision_id. undo puts back, for only the fields revision_id changed, the values they held just before it. 取值：restore \| undo |
 | `reason` | 否 | string | Must not be used as a discriminant. |
 | `revision_id` | 是 | string | edit_revision id. |
 
@@ -6912,7 +7127,7 @@ Registered field values. Requires a user access token. The token must carry the 
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
-| `object` | path | 是 | string | Family: work, company, character, release, tag, engine, series, person, credit_name. |
+| `object` | path | 是 | string | Family: work, company, character, release, tag, engine, series, person, credit_name, trait. |
 | `id` | path | 是 | string | Catalog id. |
 
 ```bash

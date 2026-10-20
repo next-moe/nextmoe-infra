@@ -73,12 +73,24 @@ func (s *CreatorApplicationService) Apply(ctx context.Context, userID uint, sour
 	return app, nil
 }
 
-func (s *CreatorApplicationService) MyApplication(ctx context.Context, userID uint) (*model.CreatorApplication, error) {
+type CreatorApplicationStatus struct {
+	*model.CreatorApplication
+	ReapplyAfter *time.Time `json:"reapply_after"`
+}
+
+func (s *CreatorApplicationService) MyApplication(ctx context.Context, userID uint) (*CreatorApplicationStatus, error) {
 	app, err := s.repo.FindLatestByUser(ctx, userID)
 	if err == gorm.ErrRecordNotFound {
 		return nil, nil
 	}
-	return app, err
+	if err != nil {
+		return nil, err
+	}
+	out := &CreatorApplicationStatus{CreatorApplication: app}
+	if app.Status == model.CreatorAppDeclined {
+		out.ReapplyAfter = reapplyAfter(app.ReviewedAt, creatorReapplyCooldown(), time.Now())
+	}
+	return out, nil
 }
 
 type AdminApplicationItem struct {

@@ -10,6 +10,7 @@ export interface EditorApplication {
   decline_reason: string
   created_at: string
   updated_at: string
+  reapply_after?: string | null
 }
 
 export interface EditorApplicationReply {

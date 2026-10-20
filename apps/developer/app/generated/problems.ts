@@ -313,7 +313,7 @@ export const problems = [
     "kebab": "duplicate-suspects",
     "status": 409,
     "title": "Duplicate suspects",
-    "description": "The mint's titles match live works of the same medium; suspects[] names them. Nothing was written. Re-send with confirm_duplicates=true to mint anyway — the pairs are still filed for reconciliation.",
+    "description": "The submitted name matches live entries (for a claim mint: works of the same medium); suspects[] names them. Nothing was written. Re-send with confirm_duplicates=true to go ahead — a minted work's pairs are still filed for reconciliation.",
     "type": "https://developer.nextmoe.dev/problems/me/duplicate-suspects"
   },
   {
@@ -360,6 +360,15 @@ export const problems = [
     "title": "Decision already made",
     "description": "This item has already been decided. detail names who decided and when.",
     "type": "https://developer.nextmoe.dev/problems/moderation/decision-already-made"
+  },
+  {
+    "code": "REVERT_CONFLICT",
+    "domain": "moderation",
+    "kebab": "revert-conflict",
+    "status": 409,
+    "title": "Revert conflict",
+    "description": "An undo would put back fields that a later revision also changed. errors[] names each field. Nothing was written. Re-send with force=true to overwrite those later changes, or restore a whole revision instead.",
+    "type": "https://developer.nextmoe.dev/problems/moderation/revert-conflict"
   },
   {
     "code": "SOURCE_NOT_YOURS",

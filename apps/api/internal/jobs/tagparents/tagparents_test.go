@@ -5,10 +5,12 @@ import (
 	"os"
 	"testing"
 
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/migrate"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/seed"
 	"api/internal/platform/catalog/srcvndb"
+	"api/internal/platform/editing"
 	"api/internal/testsupport/dbtest"
 
 	"github.com/stretchr/testify/assert"
@@ -223,4 +225,32 @@ func TestApplyCuratedRefusesToRemoveAVNDBEdge(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, st.Errors)
 	assert.Len(t, edges(t), 1)
+}
+
+func TestSyncNeverWritesASuppressedEdge(t *testing.T) {
+	clean(t)
+	require.NoError(t, testDB.Exec("TRUNCATE edit_suppressed_row RESTART IDENTITY").Error)
+	defer setTagMap(nil)()
+	ctx := context.Background()
+	a, b, c := mkTag(t, "甲"), mkTag(t, "乙"), mkTag(t, "丙")
+	mapVNDB(t, "A", a)
+	mapVNDB(t, "B", b)
+	mapVNDB(t, "C", c)
+	mkSrcTag(t, "g1", "A", "")
+	mkSrcTag(t, "g2", "B", "")
+	mkSrcTag(t, "g3", "C", "")
+	mkSrcParent(t, "g1", "g2")
+	mkSrcParent(t, "g3", "g2")
+	require.NoError(t, testDB.Create(&model.CatalogTagParent{TagID: c, ParentID: b, Origin: model.TagParentOriginVNDB}).Error)
+	for _, child := range []int64{a, c} {
+		require.NoError(t, testDB.Create(&editing.SuppressedRow{
+			EntityType: editspec.TypeTag, EntityID: child, FieldKey: editspec.FieldTagParents,
+			IdentityKey: editspec.ParentIdentity(b),
+		}).Error)
+	}
+
+	st, err := Sync(ctx, testDB, true)
+	require.NoError(t, err)
+	assert.Equal(t, 2, st.Suppressed)
+	assert.Empty(t, edges(t), "a hidden edge is neither added nor kept")
 }

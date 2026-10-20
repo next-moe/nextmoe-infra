@@ -37,7 +37,7 @@ func NewMergeService(db *gorm.DB, resolve *ResolveService) *MergeService {
 }
 
 func (s *MergeService) ProposeMerge(ctx context.Context, entityType int16, sourceID, targetID, proposedBy int64, note string) (*model.CatalogMergeProposal, error) {
-	return s.propose(ctx, entityType, sourceID, targetID, proposedBy, note, false)
+	return s.propose(ctx, entityType, sourceID, targetID, proposedBy, note, false, "")
 }
 
 // ProposeAbsorb files a merge that folds an edition work into its base work:
@@ -45,7 +45,7 @@ func (s *MergeService) ProposeMerge(ctx context.Context, entityType int16, sourc
 // rows are archived, not moved. Executing it refuses a source that holds a
 // VNDB exact anchor, and so does filing it.
 func (s *MergeService) ProposeAbsorb(ctx context.Context, sourceID, targetID, proposedBy int64, note string) (*model.CatalogMergeProposal, error) {
-	return s.propose(ctx, model.EntityTypeWork, sourceID, targetID, proposedBy, note, true)
+	return s.propose(ctx, model.EntityTypeWork, sourceID, targetID, proposedBy, note, true, "")
 }
 
 func (s *MergeService) CheckAbsorbable(ctx context.Context, sourceID int64) error {
@@ -56,7 +56,7 @@ func (s *MergeService) CheckSurvivor(ctx context.Context, entityType int16, sour
 	return assertSurvivorNotHidden(s.db.WithContext(ctx), entityType, sourceID, targetID)
 }
 
-func (s *MergeService) propose(ctx context.Context, entityType int16, sourceID, targetID, proposedBy int64, note string, absorb bool) (*model.CatalogMergeProposal, error) {
+func (s *MergeService) propose(ctx context.Context, entityType int16, sourceID, targetID, proposedBy int64, note string, absorb bool, origin string) (*model.CatalogMergeProposal, error) {
 	src, _, err := s.resolve.Resolve(ctx, entityType, sourceID)
 	if err != nil {
 		return nil, err
@@ -91,6 +91,7 @@ func (s *MergeService) propose(ctx context.Context, entityType int16, sourceID, 
 		FieldResolution: resolution,
 		ProposedBy:      proposedBy,
 		Note:            note,
+		Origin:          origin,
 	}
 	if err := s.db.WithContext(ctx).Create(p).Error; err != nil {
 		if isUniqueViolation(err, "uq_catalog_merge_proposal_open") {

@@ -236,14 +236,25 @@ func (s *PublicService) NamesList(ctx context.Context, ids []int64, q, cursor st
 	})
 }
 
-func (s *PublicService) PersonsList(ctx context.Context, ids []int64, cursor string, limit int) (EntityListPage, error) {
-	return s.entityIDList(ctx, entityListSpec{
+func (s *PublicService) PersonsList(ctx context.Context, ids []int64, q, cursor string, limit int) (EntityListPage, error) {
+	spec := entityListSpec{
 		lane:      taxonomyLanePersons,
 		table:     "catalog_person",
 		selectSQL: "id, display_name, primary_credit_name_id, gender",
 		deleted:   true,
 		ids:       ids, cursor: cursor, limit: limit,
-	})
+	}
+	// A credit name whose person link is hidden must not find its person: the
+	// detail and name faces both withhold that attribution (link_visibility).
+	if q != "" {
+		pat := "%" + escapeLikePattern(q) + "%"
+		spec.extraWhere = []string{`(display_name ILIKE ? ESCAPE '\' OR EXISTS (
+			SELECT 1 FROM catalog_credit_name cn
+			WHERE cn.person_id = catalog_person.id AND cn.link_visibility = 0
+			  AND (cn.name ILIKE ? ESCAPE '\' OR cn.latin ILIKE ? ESCAPE '\')))`}
+		spec.extraArgs = []any{pat, pat, pat}
+	}
+	return s.entityIDList(ctx, spec)
 }
 
 type entityListSpec struct {

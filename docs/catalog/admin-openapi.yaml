@@ -1070,6 +1070,8 @@ components:
           type: integer
         note:
           type: string
+        origin:
+          type: string
         proposed_at:
           format: date-time
           type: string
@@ -1103,6 +1105,7 @@ components:
         - execute_after
         - executed_at
         - note
+        - origin
       type: object
     PutEditPolicyData:
       additionalProperties: false

@@ -258,6 +258,7 @@ func liveCatalog(t *testing.T) *liveEnv {
 		}
 		cat.EditHistory = catsvc.NewEditHistoryService(db)
 		cat.EditContext = catsvc.NewEditContextService(db)
+		cat.Merges = catsvc.NewMergeService(db, resolve)
 		cat.UsersOf = liveUsersOf
 		app := fiber.New(fiber.Config{ErrorHandler: problem.WriteFiberError})
 		SetupWith(app, Options{
@@ -365,7 +366,8 @@ func seedLiveFixtures(db *gorm.DB, claims *catsvc.ClaimLifecycleService) (liveFi
 		catalog_character_alias, catalog_character_intro,
 		catalog_work_character, catalog_tag_source_map, catalog_redirect,
 		catalog_user_folder_item, catalog_user_folder, catalog_user_entity_follow,
-		edit_revision, edit_proposal, edit_proposal_amendment
+		edit_revision, edit_proposal, edit_proposal_amendment, edit_suppressed_row,
+		catalog_work_relation, catalog_work_platform
 		RESTART IDENTITY CASCADE`).Error; err != nil {
 		return liveFix{}, err
 	}

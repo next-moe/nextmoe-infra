@@ -29,7 +29,7 @@ Every merged edit, newest first by default. sort=recorded_asc walks the same col
 | `ids` | query | 否 | string | Comma-separated revision ids, max 100. Batch lane: no pagination. |
 | `include_total` | query | 否 | string | true to include total. Only true or false. |
 | `sort` | query | 否 | string | recorded_desc (default) or recorded_asc. Closed. |
-| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name. |
+| `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait. |
 | `entity_id` | query | 否 | string | Catalog id of one entity. Requires object=. |
 | `site` | query | 否 | string | Tenant key. Open vocabulary; unknown values match nothing. |
 | `actor_uid` | query | 否 | string | The claiming site's own user id of the actor. Not a catalog id. |

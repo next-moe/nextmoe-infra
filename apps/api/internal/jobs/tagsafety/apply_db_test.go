@@ -83,3 +83,31 @@ func TestSetWorkTagSexualSkipsCuratedLane(t *testing.T) {
 	assert.False(t, human)
 	assert.True(t, machine)
 }
+
+func TestVocabularyFlagsLeaveHumanEditsAlone(t *testing.T) {
+	if testDB == nil {
+		dbtest.Skip(t)
+	}
+	require.NoError(t, testDB.Exec(`TRUNCATE catalog_tag RESTART IDENTITY CASCADE`).Error)
+	stamp := `{"sexual":[{"source":"curated","at":"2026-10-19T00:00:00Z"}],"tier":[{"source":"curated","at":"2026-10-19T00:00:00Z"}]}`
+	require.NoError(t, testDB.Exec(`INSERT INTO catalog_tag (name, tier, kind, sexual, field_provenance, created_at, updated_at)
+		VALUES ('百合', ?, 0, false, ?::jsonb, now(), now()), ('凌辱', ?, 0, false, '{}'::jsonb, now(), now())`,
+		model.TagTierCore, stamp, model.TagTierCore).Error)
+
+	g := &gormWriter{db: testDB}
+	ctx := context.Background()
+	for _, name := range []string{"百合", "凌辱"} {
+		_, err := g.setTagSexual(ctx, name)
+		require.NoError(t, err)
+		_, err = g.setTagHidden(ctx, name)
+		require.NoError(t, err)
+	}
+
+	var human, machine model.CatalogTag
+	require.NoError(t, testDB.Where("name = ?", "百合").First(&human).Error)
+	require.NoError(t, testDB.Where("name = ?", "凌辱").First(&machine).Error)
+	assert.False(t, human.Sexual, "a sexual flag a person cleared stays cleared")
+	assert.Equal(t, model.TagTierCore, human.Tier, "a tier a person set is not hidden by the classifier")
+	assert.True(t, machine.Sexual)
+	assert.Equal(t, model.TagTierHidden, machine.Tier)
+}

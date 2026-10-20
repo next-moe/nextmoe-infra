@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { CatalogEntitySummary } from '#shared/types/catalog'
+import { MERGEABLE_FAMILIES } from '~/constants/creation'
 import { ENTITY_META, type EditFamily } from '~/constants/editEntities'
+import { newIdempotencyKey, problemMessage } from '~/utils/review/problem'
 
 const props = defineProps<{
   family: EditFamily
@@ -16,6 +18,53 @@ const name = computed(
     props.summary?.title ||
     `${meta.value.label} #${props.entityId}`
 )
+const mergeable = computed(
+  () => props.mode === 'view' && MERGEABLE_FAMILIES.includes(props.family)
+)
+const mergeOpen = ref(false)
+
+const unattributed = computed(
+  () =>
+    props.mode === 'view' &&
+    props.family === 'credit_name' &&
+    props.summary !== null &&
+    (props.summary.person_id === null || props.summary.person_id === undefined)
+)
+const creatingPerson = ref(false)
+const api = useEditorApi()
+
+const createPerson = async () => {
+  if (creatingPerson.value) {
+    return
+  }
+  creatingPerson.value = true
+  try {
+    const proposal = await api<{
+      id: string
+      state: string
+      entity_id: string
+    }>('/v2/me/creations', {
+      method: 'POST',
+      headers: { 'Idempotency-Key': newIdempotencyKey() },
+      body: {
+        object: 'person',
+        params: { credit_name_id: Number(props.entityId) }
+      }
+    })
+    if (proposal.state === 'merged' && proposal.entity_id !== '0') {
+      useKunMessage('人物已创建', 'success')
+      await navigateTo(`/persons/${proposal.entity_id}/edit`)
+      return
+    }
+    useKunMessage('新建人物的提案已提交，审核通过后生效', 'success')
+    await navigateTo(`/me/proposals/${proposal.id}`)
+  } catch (error) {
+    useKunMessage(problemMessage(error, '新建人物失败'), 'error')
+  } finally {
+    creatingPerson.value = false
+  }
+}
+
 const picture = computed(
   () =>
     props.summary?.image ?? props.summary?.photo ?? props.summary?.logo ?? null
@@ -69,6 +118,25 @@ const picture = computed(
       </div>
       <div class="flex shrink-0 flex-wrap justify-end gap-2">
         <KunButton
+          v-if="unattributed"
+          variant="light"
+          size="sm"
+          :loading="creatingPerson"
+          @click="createPerson"
+        >
+          <KunIcon name="lucide:user-plus" class="size-4" />
+          以此新建人物
+        </KunButton>
+        <KunButton
+          v-if="mergeable"
+          variant="light"
+          size="sm"
+          @click="mergeOpen = true"
+        >
+          <KunIcon name="lucide:git-merge" class="size-4" />
+          合并
+        </KunButton>
+        <KunButton
           :href="`/history/${props.family}/${props.entityId}`"
           variant="light"
           size="sm"
@@ -96,5 +164,12 @@ const picture = computed(
         </KunButton>
       </div>
     </header>
+    <MergeRequestModal
+      v-if="mergeable"
+      v-model="mergeOpen"
+      :family="props.family"
+      :entity-id="props.entityId"
+      :entity-name="name"
+    />
   </div>
 </template>

@@ -144,6 +144,9 @@ func (e *Engine) AmendProposal(ctx context.Context, proposalID int64, in AmendIn
 		if err := e.deriveOwnership(ctx, spec, prop.EntityID, &in.Actor); err != nil {
 			return err
 		}
+		if prop.IsBirth() && !spec.CreatePolicy().AllowsReview(in.Actor) {
+			return &PermissionError{Key: CreateFieldKey, Action: "review"}
+		}
 		amendments, err := loadAmendments(etx, proposalID)
 		if err != nil {
 			return err
@@ -222,11 +225,30 @@ func (e *Engine) MergeProposal(ctx context.Context, proposalID int64, actor Poli
 		if prop.Status != StatusOpen {
 			return ErrNotOpen
 		}
-		if err := lockEntity(etx, prop.EntityType, prop.EntityID); err != nil {
-			return err
-		}
 		spec, err := e.resolveSpec(prop.EntityType)
 		if err != nil {
+			return err
+		}
+		if prop.IsBirth() {
+			amendments, err := loadAmendments(etx, proposalID)
+			if err != nil {
+				return err
+			}
+			eff, _, err := effectivePatch(prop, amendments)
+			if err != nil {
+				return err
+			}
+			if err := e.reviewBirth(spec, eff, actor); err != nil {
+				return err
+			}
+			var amender *int64
+			if n := len(amendments); n > 0 {
+				amender = &amendments[n-1].AmenderUID
+			}
+			rev, err = e.mergeBirthLocked(ctx, etx, spec, prop, eff, amender, actor.UserID, note)
+			return err
+		}
+		if err := lockEntity(etx, prop.EntityType, prop.EntityID); err != nil {
 			return err
 		}
 		if err := e.deriveOwnership(ctx, spec, prop.EntityID, &actor); err != nil {
@@ -316,6 +338,9 @@ func (e *Engine) DeclineProposal(ctx context.Context, proposalID int64, actor Po
 				return err
 			}
 			keys = sortedKeys(orig)
+		}
+		if prop.IsBirth() && !spec.CreatePolicy().AllowsReview(actor) {
+			return &PermissionError{Key: CreateFieldKey, Action: "review"}
 		}
 		for _, key := range keys {
 			if !spec.EffectivePolicy(key).AllowsReview(actor) {

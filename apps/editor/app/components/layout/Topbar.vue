@@ -40,6 +40,7 @@ const { isReviewer } = useEditorSession()
         <KunIcon name="lucide:arrow-left" class="size-4" />
         返回{{ link.label }}
       </KunButton>
+      <LayoutCreateMenu />
       <LayoutQuotaChip />
       <LayoutReviewInbox v-if="isReviewer" />
       <NotificationsBell />

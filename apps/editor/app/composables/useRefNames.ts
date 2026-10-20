@@ -145,6 +145,31 @@ export const useRefNames = () => {
     return family ? (names.value[keyOf(family, String(id))] ?? '') : ''
   }
 
+  const searchListFace = async (
+    family: 'person' | 'release',
+    q: string
+  ): Promise<RefOption[]> => {
+    const list = await api<{
+      items?: {
+        id: string
+        display_name?: string
+        title?: string
+        date?: string | null
+      }[]
+    }>(`/v2/catalog/${family === 'person' ? 'persons' : 'releases'}`, {
+      query: { q, limit: 12, nsfw: true }
+    }).catch(() => null)
+    return (list?.items ?? []).map((item) => {
+      const label = item.display_name ?? item.title ?? `#${item.id}`
+      remember(family, item.id, label)
+      return {
+        value: item.id,
+        label,
+        hint: [item.date, `#${item.id}`].filter(Boolean).join(' · ')
+      }
+    })
+  }
+
   const search = async (
     family: EditRefFamily,
     query: string
@@ -160,6 +185,9 @@ export const useRefNames = () => {
       if (label) {
         return [{ value: q, label, hint: `#${q}` }]
       }
+    }
+    if (q && (family === 'person' || family === 'release')) {
+      return searchListFace(family, q)
     }
     if (!q || !REF_SEARCHABLE.has(family)) {
       return []

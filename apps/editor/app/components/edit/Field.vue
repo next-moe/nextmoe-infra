@@ -20,6 +20,10 @@ const control = computed(() =>
       v-else-if="control === 'vocab'"
       :field-key="props.fieldKey"
     />
+    <EditControlVocabList
+      v-else-if="control === 'vocabList'"
+      :field-key="props.fieldKey"
+    />
     <EditControlSwitch
       v-else-if="control === 'switch'"
       :field-key="props.fieldKey"

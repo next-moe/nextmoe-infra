@@ -42,6 +42,16 @@ type listTraitsOutput struct {
 	Body repr.List[repr.Trait]
 }
 
+type listPersonsInput struct {
+	CollectionInput
+	Q string `query:"q" maxLength:"512" doc:"Name search: the person's display name, or any of their credit names (name or latin) whose person link is public. Substring, case-insensitive. Must not be used as a discriminant."`
+}
+
+type listReleasesInput struct {
+	CollectionInput
+	Q string `query:"q" maxLength:"512" doc:"Title search: the release title or its work's display name. Substring, case-insensitive, over the same dated releases this collection lists. Must not be used as a discriminant."`
+}
+
 type listCreditNamesInput struct {
 	CollectionInput
 	Q string `query:"q" maxLength:"512" doc:"Name search. Empty lists by id. Must not be used as a discriminant."`
@@ -131,7 +141,7 @@ func registerCatalogLists(api huma.API, cat *Catalog) {
 		Method:             http.MethodGet,
 		Path:               "/v2/catalog/releases",
 		Summary:            "List releases",
-		Description:        "Keyset-paginated dated releases, sorted by date_desc by default. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate.",
+		Description:        "Keyset-paginated dated releases, sorted by date_desc by default. q= filters by release title or work display name. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate.",
 		Tags:               catalog,
 		Errors:             errs,
 		SkipValidateParams: true,
@@ -161,7 +171,7 @@ func registerCatalogLists(api huma.API, cat *Catalog) {
 		Method:             http.MethodGet,
 		Path:               "/v2/catalog/persons",
 		Summary:            "List persons",
-		Description:        "Keyset-paginated persons. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.",
+		Description:        "Keyset-paginated persons. q= searches the display name and every credit name whose person link is public. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.",
 		Tags:               catalog,
 		Errors:             errs,
 		SkipValidateParams: true,
@@ -270,13 +280,16 @@ func listCatalogRoles(cat *Catalog) func(context.Context, *CollectionInput) (*li
 	}
 }
 
-func listCatalogReleases(cat *Catalog) func(context.Context, *CollectionInput) (*listReleasesOutput, error) {
-	return func(ctx context.Context, in *CollectionInput) (*listReleasesOutput, error) {
-		q, err := parseCatalogList(ctx, in, collect.ReleaseSpec())
+func listCatalogReleases(cat *Catalog) func(context.Context, *listReleasesInput) (*listReleasesOutput, error) {
+	return func(ctx context.Context, in *listReleasesInput) (*listReleasesOutput, error) {
+		if in == nil {
+			in = &listReleasesInput{}
+		}
+		q, err := parseCatalogList(ctx, &in.CollectionInput, collect.ReleaseSpec())
 		if err != nil {
 			return nil, err
 		}
-		page, lerr := cat.ListReleases(ctx, q)
+		page, lerr := cat.ListReleases(ctx, q, in.Q)
 		if lerr != nil {
 			return nil, catalogErr(ctx, lerr)
 		}
@@ -324,13 +337,16 @@ func listCatalogCreditNames(cat *Catalog) func(context.Context, *listCreditNames
 	}
 }
 
-func listCatalogPersons(cat *Catalog) func(context.Context, *CollectionInput) (*listPersonsOutput, error) {
-	return func(ctx context.Context, in *CollectionInput) (*listPersonsOutput, error) {
-		q, err := parseCatalogList(ctx, in, collect.PersonSpec())
+func listCatalogPersons(cat *Catalog) func(context.Context, *listPersonsInput) (*listPersonsOutput, error) {
+	return func(ctx context.Context, in *listPersonsInput) (*listPersonsOutput, error) {
+		if in == nil {
+			in = &listPersonsInput{}
+		}
+		q, err := parseCatalogList(ctx, &in.CollectionInput, collect.PersonSpec())
 		if err != nil {
 			return nil, err
 		}
-		page, lerr := cat.ListPersons(ctx, q)
+		page, lerr := cat.ListPersons(ctx, q, in.Q)
 		if lerr != nil {
 			return nil, catalogErr(ctx, lerr)
 		}

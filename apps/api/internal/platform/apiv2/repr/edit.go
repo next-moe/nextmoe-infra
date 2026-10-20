@@ -4,7 +4,7 @@ type Revision struct {
 	_             struct{}     `json:"-" additionalProperties:"true"`
 	Object        string       `json:"object" enum:"revision" doc:"Type discriminant. Always revision."`
 	ID            string       `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Revision id. This is the value POST /v2/moderation/reverts takes as revision_id."`
-	TargetObject  string       `json:"target_object" enum:"work,company,character,release,tag,engine,series,person,credit_name" doc:"Family of the entity this revision is on."`
+	TargetObject  string       `json:"target_object" enum:"work,company,character,release,tag,engine,series,person,credit_name,trait" doc:"Family of the entity this revision is on."`
 	EntityID      string       `json:"entity_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Catalog id of the entity this revision is on."`
 	SiteWorkID    *string      `json:"site_work_id" pattern:"^[0-9]+$" maxLength:"20" doc:"The claiming site's own work id, which on kungal, moyu and letmoe is the catalog id. null unless target_object is work and the claiming site equals site."`
 	Seq           int          `json:"seq" minimum:"1" doc:"Position in this entity's revision chain, 1-based and contiguous."`
@@ -19,6 +19,8 @@ type Revision struct {
 	CreatedAt     string       `json:"created_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
 	Diff          *[]FieldDiff `json:"diff,omitempty" doc:"Present when include=diff. Field-level change set against diff_base, or against the preceding revision when diff_base is absent. Empty array if nothing differs."`
 	DiffBase      *string      `json:"diff_base,omitempty" pattern:"^[0-9]+$" maxLength:"20" doc:"Present when include=diff. Revision the diff was taken against. null when this is the first revision of the entity."`
+	HasBaseline   *bool        `json:"has_baseline,omitempty" doc:"true on an entity's first revision when the state before that edit was recorded. diff_base=baseline diffs against it, and POST /v2/moderation/reverts with baseline=true restores it. Absent otherwise."`
+	DiffFromBase  *bool        `json:"diff_from_baseline,omitempty" doc:"Present with diff when the diff was taken against the state recorded before the entity's first edit — asked for with diff_base=baseline, or taken by default on a first revision that has one. diff_base is then null."`
 }
 
 // field_type and diff_hint are deliberately not repeated here: they belong to

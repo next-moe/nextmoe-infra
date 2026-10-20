@@ -81,12 +81,14 @@ func validateRoster(v any) error {
 	return err
 }
 
-// applyRoster patches the named rows of this work's roster in place. It holds
-// no INSERT and no DELETE by construction: a roster edge is the input of the
-// vndb attach channel, which has minted 35,714 permanent identity anchors from
-// "this name is already on this work's roster", so creating one from the content
-// write face would mint anchors sideways. Removing an edge is what
-// catalog.work.roster.suppressed is for.
+// applyRoster patches the named rows of this work's roster in place, adds the
+// characters it does not list yet as curated rows, and removes curated rows the
+// value leaves out; an upstream row is never deleted here — hiding one is what
+// catalog.work.roster.suppressed is for. A roster edge is the input of the vndb
+// attach channel, which has minted 35,714 permanent identity anchors from "this
+// name is already on this work's roster", so every identity and evidence
+// reader filters curated rows out with MachineRosterSQL: a person adding a
+// character must not mint anchors sideways.
 func applyRoster(ctx context.Context, tx *gorm.DB, entityID int64, value any) error {
 	edges, err := parseRoster(value)
 	if err != nil {
@@ -99,15 +101,46 @@ func applyRoster(ctx context.Context, tx *gorm.DB, entityID int64, value any) er
 		}
 		return err
 	}
+	if err := rejectUnknownRosterReferences(ctx, tx, entityID, edges); err != nil {
+		return err
+	}
+	listed := make([]int64, 0, len(edges))
+	for _, e := range edges {
+		listed = append(listed, e.CharacterID)
+	}
+	leaving := `DELETE FROM catalog_work_character WHERE work_id = ? AND matched_by = ?`
+	args := []any{entityID, curatedMatchedBy}
+	if len(listed) > 0 {
+		leaving += ` AND character_id NOT IN ?`
+		args = append(args, listed)
+	}
+	if err := tx.WithContext(ctx).Exec(leaving, args...).Error; err != nil {
+		return err
+	}
 	if len(edges) == 0 {
 		return nil
 	}
-	if err := rejectUnknownRosterReferences(ctx, tx, entityID, edges); err != nil {
+	var onRoster []int64
+	if err := tx.WithContext(ctx).Raw(`SELECT character_id FROM catalog_work_character
+		WHERE work_id = ? AND character_id IN ?`, entityID, listed).Scan(&onRoster).Error; err != nil {
 		return err
+	}
+	present := make(map[int64]struct{}, len(onRoster))
+	for _, id := range onRoster {
+		present[id] = struct{}{}
 	}
 	type valuePair struct{ Kind, Spoiler int16 }
 	groups := make(map[valuePair][]int64, len(edges))
 	for _, e := range edges {
+		if _, ok := present[e.CharacterID]; !ok {
+			if err := tx.WithContext(ctx).Exec(`INSERT INTO catalog_work_character
+				  (work_id, character_id, kind, spoiler, matched_by, created_at, updated_at)
+				VALUES (?, ?, ?, ?, ?, now(), now())`,
+				entityID, e.CharacterID, e.Kind, e.Spoiler, curatedMatchedBy).Error; err != nil {
+				return err
+			}
+			continue
+		}
 		p := valuePair{Kind: e.Kind, Spoiler: e.Spoiler}
 		groups[p] = append(groups[p], e.CharacterID)
 	}
@@ -135,38 +168,57 @@ func applyRoster(ctx context.Context, tx *gorm.DB, entityID int64, value any) er
 	return nil
 }
 
-// rejectUnknownRosterReferences turns a dangling or off-roster character into a
-// 422 the proposer sees. character_id is a real foreign key and the update is
-// scoped to this work, so without this an id from another work silently patches
-// nothing while a soft-deleted id would look the same — and the 08-wave lesson
-// was that an unvalidated reference reaches the reviewer as a 500 carrying a
-// Postgres constraint name, with the proposal stuck in the queue forever.
+// rejectUnknownRosterReferences turns a dangling character, or one whose row a
+// person hid on this work, into a 422 the proposer sees. character_id is a real
+// foreign key, and the 08-wave lesson was that an unvalidated reference reaches
+// the reviewer as a 500 carrying a Postgres constraint name, with the proposal
+// stuck in the queue forever.
 //
 // catalog_character carries gorm.DeletedAt, so a character merged away since the
-// proposal was written is simply not on the roster any more.
+// proposal was written does not exist any more.
 func rejectUnknownRosterReferences(ctx context.Context, tx *gorm.DB, workID int64, edges []rosterEdge) error {
+	if len(edges) == 0 {
+		return nil
+	}
 	ids := make([]int64, 0, len(edges))
 	for _, e := range edges {
 		ids = append(ids, e.CharacterID)
 	}
 	var known []int64
 	if err := tx.WithContext(ctx).Raw(
-		`SELECT wc.character_id FROM catalog_work_character wc
-		 JOIN catalog_character ch ON ch.id = wc.character_id AND ch.deleted_at IS NULL
-		 WHERE wc.work_id = ? AND wc.character_id IN ?`, workID, ids).Scan(&known).Error; err != nil {
+		`SELECT id FROM catalog_character WHERE id IN ? AND deleted_at IS NULL`, ids).Scan(&known).Error; err != nil {
 		return err
 	}
-	missing := missingIDs(ids, known)
-	if len(missing) == 0 {
-		return nil
+	if missing := missingIDs(ids, known); len(missing) > 0 {
+		return &editing.ValidationError{
+			Key:    FieldWorkRoster,
+			Reason: fmt.Sprintf("character %s does not exist", idList(missing)),
+		}
 	}
-	return &editing.ValidationError{
-		Key: FieldWorkRoster,
-		Reason: fmt.Sprintf(
-			"character %s is not on this work's roster: this field edits the appearance of characters upstream already lists, "+
-				"it cannot add one; to hide a row use %s",
-			idList(missing), FieldWorkRosterSuppr),
+	var hidden []int64
+	if err := tx.WithContext(ctx).Raw(`SELECT c.id FROM catalog_character c
+		WHERE c.id IN ?
+		  AND NOT EXISTS (SELECT 1 FROM catalog_work_character wc WHERE wc.work_id = ? AND wc.character_id = c.id)
+		  AND EXISTS (SELECT 1 FROM edit_suppressed_row esr
+		    WHERE esr.entity_type = ? AND esr.field_key = ? AND esr.entity_id = ?
+		      AND esr.identity_key = 'roster:' || c.id)`,
+		ids, workID, TypeWork, FieldWorkRoster, workID).Scan(&hidden).Error; err != nil {
+		return err
 	}
+	if len(hidden) > 0 {
+		return &editing.ValidationError{
+			Key: FieldWorkRoster,
+			Reason: fmt.Sprintf("character %s is hidden on this work; lift %s in an edit of its own first",
+				idList(hidden), FieldWorkRosterSuppr),
+		}
+	}
+	return nil
+}
+
+// MachineRosterSQL keeps the rows an importer wrote, for readers that treat a
+// roster edge as identity evidence.
+func MachineRosterSQL(alias string) string {
+	return fmt.Sprintf("%s.matched_by <> '%s'", alias, curatedMatchedBy)
 }
 
 // rosterRowsWhoseValueChanges resolves the submitted value to the ids of the
