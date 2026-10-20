@@ -362,6 +362,15 @@ export const problems = [
     "type": "https://developer.nextmoe.dev/problems/moderation/decision-already-made"
   },
   {
+    "code": "REVERT_CONFLICT",
+    "domain": "moderation",
+    "kebab": "revert-conflict",
+    "status": 409,
+    "title": "Revert conflict",
+    "description": "An undo would put back fields that a later revision also changed. errors[] names each field. Nothing was written. Re-send with force=true to overwrite those later changes, or restore a whole revision instead.",
+    "type": "https://developer.nextmoe.dev/problems/moderation/revert-conflict"
+  },
+  {
     "code": "SOURCE_NOT_YOURS",
     "domain": "news",
     "kebab": "source-not-yours",

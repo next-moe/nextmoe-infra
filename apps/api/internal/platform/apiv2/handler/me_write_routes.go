@@ -60,7 +60,7 @@ func registerMeWrite(api huma.API, cat *Catalog) {
 	huma.Register(api, huma.Operation{
 		OperationID: "listMyProposals", Method: http.MethodGet, Path: "/v2/me/proposals",
 		Summary:     "List my proposals",
-		Description: "The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch and effective_patch, the same pair GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. Requires a user access token.",
+		Description: "The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch, effective_patch, changed_fields and (open rows) conflict_fields, the same block GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. field=, has_conflict= and updated_since= filter; sort=filed_desc (default), filed_asc, updated_desc or updated_asc. Requires a user access token.",
 		Tags:        me, Errors: errs, SkipValidateParams: true,
 	}, listMyProposals(cat))
 	huma.Register(api, huma.Operation{
@@ -97,7 +97,7 @@ func registerMeWrite(api huma.API, cat *Catalog) {
 	huma.Register(api, huma.Operation{
 		OperationID: "listModerationProposals", Method: http.MethodGet, Path: "/v2/moderation/proposals",
 		Summary:     "Moderation proposal queue",
-		Description: "Open proposals on the token site; on the central editor (catalog site editor), on every site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422.",
+		Description: "Open proposals on the token site; on the central editor (catalog site editor), on every site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. site= narrows the central editor's queue to one site of origin; field=, has_conflict= and updated_since= filter; sort=filed_desc (default), filed_asc (oldest waiting first), updated_desc or updated_asc. include=patch (or view=full) adds each row's patch, effective_patch, changed_fields and conflict_fields, so a queue page needs no read per row.",
 		Tags:        mod, Errors: errs, SkipValidateParams: true,
 	}, listModerationProposals(cat))
 	huma.Register(api, huma.Operation{
@@ -113,7 +113,7 @@ func registerMeWrite(api huma.API, cat *Catalog) {
 	}, decideModerationProposal(cat))
 	huma.Register(api, huma.Operation{
 		OperationID: "revertModeration", Method: http.MethodPost, Path: "/v2/moderation/reverts",
-		Summary: "Revert to a revision", Description: "Body names revision_id. A downstream site may not revert an entity another site claims; the central editor (catalog site editor) may revert any. Requires a user access token bound to a catalog site.",
+		Summary: "Revert to a revision", Description: "Body names revision_id. mode=restore (default) brings every registered field back to its value after that revision, or with baseline=true to the state recorded before the entity's first edit. mode=undo puts back, for only the fields that revision changed, the values they held just before it; when a later revision changed one of those fields the answer is 409 REVERT_CONFLICT naming them, unless force=true. A downstream site may not revert an entity another site claims; the central editor (catalog site editor) may revert any. Requires a user access token bound to a catalog site.",
 		Tags: mod, Errors: writeErrs, DefaultStatus: http.StatusCreated, SkipValidateParams: true,
 	}, revertModeration(cat))
 	huma.Register(api, huma.Operation{
@@ -191,16 +191,24 @@ type getClaimOutput struct {
 }
 type listProposalsInput struct {
 	CollectionInput
-	State      string `query:"state" maxLength:"16" doc:"Closed: open, pending, merged, declined, withdrawn. Unknown value is 400 UNKNOWN_ENUM_VALUE."`
-	Object     string `query:"object" maxLength:"32" doc:"Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait."`
-	EntityType string `query:"entity_type" maxLength:"64" doc:"Editing-engine type, e.g. catalog.work. The same spelling POST /v2/me/proposals takes in its body. Names the same filter as object=; sending both with different families is 400."`
-	EntityID   string `query:"entity_id" maxLength:"20" doc:"Catalog id of one entity. Accepted alone on this lane, which is already fenced to the bearer's own proposals; pair it with object= or entity_type= when ids collide across families."`
+	State        string `query:"state" maxLength:"16" doc:"Closed: open, pending, merged, declined, withdrawn. Unknown value is 400 UNKNOWN_ENUM_VALUE."`
+	Object       string `query:"object" maxLength:"32" doc:"Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait."`
+	EntityType   string `query:"entity_type" maxLength:"64" doc:"Editing-engine type, e.g. catalog.work. The same spelling POST /v2/me/proposals takes in its body. Names the same filter as object=; sending both with different families is 400."`
+	EntityID     string `query:"entity_id" maxLength:"20" doc:"Catalog id of one entity. Accepted alone on this lane, which is already fenced to the bearer's own proposals; pair it with object= or entity_type= when ids collide across families."`
+	Site         string `query:"site" maxLength:"64" doc:"Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing."`
+	Field        string `query:"field" maxLength:"128" doc:"A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it."`
+	HasConflict  string `query:"has_conflict" maxLength:"8" doc:"true keeps open proposals that a revision recorded after their base_revision_seq overlaps on a field; false keeps the rest. Only true or false."`
+	UpdatedSince string `query:"updated_since" maxLength:"32" doc:"RFC 3339 UTC ending in Z. Keeps proposals whose updated_at is later."`
 }
 type listModerationProposalsInput struct {
 	CollectionInput
-	Object     string `query:"object" maxLength:"32" doc:"Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait."`
-	EntityType string `query:"entity_type" maxLength:"64" doc:"Editing-engine type, e.g. catalog.work. Names the same filter as object=; sending both with different families is 400."`
-	EntityID   string `query:"entity_id" maxLength:"20" doc:"Catalog id of one entity. Requires object= or entity_type=. Narrows the queue to that entity, which its owner may read without a review permission."`
+	Object       string `query:"object" maxLength:"32" doc:"Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait."`
+	EntityType   string `query:"entity_type" maxLength:"64" doc:"Editing-engine type, e.g. catalog.work. Names the same filter as object=; sending both with different families is 400."`
+	EntityID     string `query:"entity_id" maxLength:"20" doc:"Catalog id of one entity. Requires object= or entity_type=. Narrows the queue to that entity, which its owner may read without a review permission."`
+	Site         string `query:"site" maxLength:"64" doc:"Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing."`
+	Field        string `query:"field" maxLength:"128" doc:"A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it."`
+	HasConflict  string `query:"has_conflict" maxLength:"8" doc:"true keeps open proposals that a revision recorded after their base_revision_seq overlaps on a field; false keeps the rest. Only true or false."`
+	UpdatedSince string `query:"updated_since" maxLength:"32" doc:"RFC 3339 UTC ending in Z. Keeps proposals whose updated_at is later."`
 }
 type listProposalsOutput struct {
 	Body repr.List[repr.ProposalRecord]
@@ -261,6 +269,9 @@ type revertInput struct {
 	Body struct {
 		RevisionID string `json:"revision_id" pattern:"^[0-9]+$" maxLength:"20" doc:"edit_revision id."`
 		Reason     string `json:"reason,omitempty" maxLength:"2000" doc:"Must not be used as a discriminant."`
+		Mode       string `json:"mode,omitempty" enum:"restore,undo" doc:"restore (default) brings every field back to its value after revision_id. undo puts back, for only the fields revision_id changed, the values they held just before it."`
+		Baseline   bool   `json:"baseline,omitempty" doc:"With mode=restore: restore the state recorded before the entity's first edit instead of the state after revision_id, which then only names the entity. 422 when no such state was recorded."`
+		Force      bool   `json:"force,omitempty" doc:"With mode=undo: overwrite fields a later revision also changed instead of answering 409 REVERT_CONFLICT."`
 	}
 }
 type snapshotInput struct {
@@ -387,6 +398,8 @@ func listMyProposals(cat *Catalog) func(context.Context, *listProposalsInput) (*
 		}
 		page, lerr := cat.ListMyProposals(ctx, q, proposalFilter{
 			Object: in.Object, EntityType: in.EntityType, EntityID: in.EntityID, State: in.State,
+		}, proposalQueueParams{
+			Site: in.Site, Field: in.Field, HasConflict: in.HasConflict, UpdatedSince: in.UpdatedSince,
 		})
 		if lerr != nil {
 			return nil, catalogErr(ctx, lerr)
@@ -535,7 +548,9 @@ func listModerationProposals(cat *Catalog) func(context.Context, *listModeration
 		if err != nil {
 			return nil, err
 		}
-		page, lerr := cat.ListModerationProposals(ctx, q, in.Object, in.EntityType, in.EntityID)
+		page, lerr := cat.ListModerationProposals(ctx, q, in.Object, in.EntityType, in.EntityID, proposalQueueParams{
+			Site: in.Site, Field: in.Field, HasConflict: in.HasConflict, UpdatedSince: in.UpdatedSince,
+		})
 		if lerr != nil {
 			return nil, catalogErr(ctx, lerr)
 		}
@@ -565,7 +580,10 @@ func revertModeration(cat *Catalog) func(context.Context, *revertInput) (*getPro
 		if in == nil {
 			in = &revertInput{}
 		}
-		rec, etag, err := cat.RevertRevision(ctx, in.Body.RevisionID, in.Body.Reason)
+		rec, etag, err := cat.RevertRevision(ctx, revertRequest{
+			RevisionID: in.Body.RevisionID, Reason: in.Body.Reason,
+			Mode: in.Body.Mode, Baseline: in.Body.Baseline, Force: in.Body.Force,
+		})
 		if err != nil {
 			return nil, catalogErr(ctx, err)
 		}

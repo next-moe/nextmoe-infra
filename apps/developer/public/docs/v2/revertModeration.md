@@ -13,7 +13,7 @@
 
 Revert to a revision
 
-Body names revision_id. A downstream site may not revert an entity another site claims; the central editor (catalog site editor) may revert any. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+Body names revision_id. mode=restore (default) brings every registered field back to its value after that revision, or with baseline=true to the state recorded before the entity's first edit. mode=undo puts back, for only the fields that revision changed, the values they held just before it; when a later revision changed one of those fields the answer is 409 REVERT_CONFLICT naming them, unless force=true. A downstream site may not revert an entity another site claims; the central editor (catalog site editor) may revert any. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
@@ -27,6 +27,9 @@ Body names revision_id. A downstream site may not revert an entity another site 
 
 | 字段 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- |
+| `baseline` | 否 | boolean | With mode=restore: restore the state recorded before the entity's first edit instead of the state after revision_id, which then only names the entity. 422 when no such state was recorded. |
+| `force` | 否 | boolean | With mode=undo: overwrite fields a later revision also changed instead of answering 409 REVERT_CONFLICT. |
+| `mode` | 否 | string | restore (default) brings every field back to its value after revision_id. undo puts back, for only the fields revision_id changed, the values they held just before it. 取值：restore \| undo |
 | `reason` | 否 | string | Must not be used as a discriminant. |
 | `revision_id` | 是 | string | edit_revision id. |
 

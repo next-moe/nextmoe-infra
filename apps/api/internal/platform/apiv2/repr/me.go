@@ -77,6 +77,8 @@ type ProposalRecord struct {
 	Amendments      *[]Amendment    `json:"amendments,omitempty" doc:"Present when include=amendments. Empty array if none."`
 	Patch           *map[string]any `json:"patch,omitempty" doc:"Present when include=patch, which only the me and moderation faces publish. Field key to proposed value."`
 	EffectivePatch  *map[string]any `json:"effective_patch,omitempty" doc:"Present when include=patch. The patch after every amendment is folded in; this is what a merge would write."`
+	ChangedFields   *[]string       `json:"changed_fields,omitempty" doc:"Present when include=patch. The field keys effective_patch writes, sorted."`
+	ConflictFields  *[]string       `json:"conflict_fields,omitempty" doc:"Present when include=patch on an open proposal. Keys of effective_patch that a revision recorded after base_revision_seq also changed: merging overwrites that later change. Empty array when none."`
 }
 
 // Split per route for the reason D35 split the decision inputs: one record

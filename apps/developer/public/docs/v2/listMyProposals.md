@@ -13,7 +13,7 @@
 
 List my proposals
 
-The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch and effective_patch, the same pair GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. Requires a user access token. The token must carry the catalog:edit scope.
+The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch, effective_patch, changed_fields and (open rows) conflict_fields, the same block GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. field=, has_conflict= and updated_since= filter; sort=filed_desc (default), filed_asc, updated_desc or updated_asc. Requires a user access token. The token must carry the catalog:edit scope.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
@@ -36,6 +36,10 @@ The bearer's own proposals filed on the token's catalog site; on the central edi
 | `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait. |
 | `entity_type` | query | 否 | string | Editing-engine type, e.g. catalog.work. The same spelling POST /v2/me/proposals takes in its body. Names the same filter as object=; sending both with different families is 400. |
 | `entity_id` | query | 否 | string | Catalog id of one entity. Accepted alone on this lane, which is already fenced to the bearer's own proposals; pair it with object= or entity_type= when ids collide across families. |
+| `site` | query | 否 | string | Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing. |
+| `field` | query | 否 | string | A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it. |
+| `has_conflict` | query | 否 | string | true keeps open proposals that a revision recorded after their base_revision_seq overlaps on a field; false keeps the rest. Only true or false. |
+| `updated_since` | query | 否 | string | RFC 3339 UTC ending in Z. Keeps proposals whose updated_at is later. |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/me/proposals" \

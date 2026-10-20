@@ -19,6 +19,8 @@ type Revision struct {
 	CreatedAt     string       `json:"created_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
 	Diff          *[]FieldDiff `json:"diff,omitempty" doc:"Present when include=diff. Field-level change set against diff_base, or against the preceding revision when diff_base is absent. Empty array if nothing differs."`
 	DiffBase      *string      `json:"diff_base,omitempty" pattern:"^[0-9]+$" maxLength:"20" doc:"Present when include=diff. Revision the diff was taken against. null when this is the first revision of the entity."`
+	HasBaseline   *bool        `json:"has_baseline,omitempty" doc:"true on an entity's first revision when the state before that edit was recorded. diff_base=baseline diffs against it, and POST /v2/moderation/reverts with baseline=true restores it. Absent otherwise."`
+	DiffFromBase  *bool        `json:"diff_from_baseline,omitempty" doc:"Present with diff when the diff was taken against the state recorded before the entity's first edit — asked for with diff_base=baseline, or taken by default on a first revision that has one. diff_base is then null."`
 }
 
 // field_type and diff_hint are deliberately not repeated here: they belong to

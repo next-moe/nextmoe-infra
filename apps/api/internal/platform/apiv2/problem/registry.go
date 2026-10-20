@@ -76,6 +76,7 @@ const (
 	CodePermissionRequired           = "PERMISSION_REQUIRED"
 	CodeTenantMismatch               = "TENANT_MISMATCH"
 	CodeDecisionAlreadyMade          = "DECISION_ALREADY_MADE"
+	CodeRevertConflict               = "REVERT_CONFLICT"
 	CodeSourceNotYours               = "SOURCE_NOT_YOURS"
 	CodeSourceInactive               = "SOURCE_INACTIVE"
 	CodeStoreQuotaExceeded           = "STORE_QUOTA_EXCEEDED"
@@ -155,6 +156,7 @@ var Codes = []Def{
 	{CodePermissionRequired, DomainModeration, http.StatusForbidden, "Permission required", "The token lacks the permission this decision needs."},
 	{CodeTenantMismatch, DomainModeration, http.StatusForbidden, "Tenant mismatch", "The target does not belong to the caller's catalog site."},
 	{CodeDecisionAlreadyMade, DomainModeration, http.StatusConflict, "Decision already made", "This item has already been decided. detail names who decided and when."},
+	{CodeRevertConflict, DomainModeration, http.StatusConflict, "Revert conflict", "An undo would put back fields that a later revision also changed. errors[] names each field. Nothing was written. Re-send with force=true to overwrite those later changes, or restore a whole revision instead."},
 	{CodeSourceNotYours, DomainNews, http.StatusForbidden, "Source not yours", "The named news source is not bound to this user. A source that does not exist is not distinguished, so source names cannot be enumerated."},
 	{CodeSourceInactive, DomainNews, http.StatusUnprocessableEntity, "Source inactive", "The news source is bound correctly but has been deactivated. detail names who to ask to restore it."},
 	{CodeStoreQuotaExceeded, DomainStore, http.StatusForbidden, "Store quota exceeded", "The application has minted the maximum number of purchase links."},

@@ -86,8 +86,8 @@ func TestRevertToSeqZeroNeedsARecordedBaseline(t *testing.T) {
 	_, _, err := eng.Revert(testCtx, editing.RevertInput{
 		EntityType: "test.widget", EntityID: 1, ToSeq: 0, Actor: reviewer,
 	})
-	if !errors.Is(err, editing.ErrRevisionNotFound) {
-		t.Fatalf("revert without a baseline: err = %v, want ErrRevisionNotFound", err)
+	if !errors.Is(err, editing.ErrNoBaseline) {
+		t.Fatalf("revert without a baseline: err = %v, want ErrNoBaseline", err)
 	}
 }
 

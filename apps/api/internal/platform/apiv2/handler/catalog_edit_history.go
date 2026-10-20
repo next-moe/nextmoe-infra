@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strconv"
 	"time"
 
@@ -200,10 +201,24 @@ func (c *Catalog) ListRevisions(ctx context.Context, q collect.Query, f revision
 	if cerr != nil {
 		return repr.List[repr.Revision]{}, cerr
 	}
+	firsts := make([]int64, 0, len(rows))
+	for i := range rows {
+		if rows[i].Seq == 1 {
+			firsts = append(firsts, rows[i].ID)
+		}
+	}
+	baselined, berr := c.EditHistory.RevisionsWithBaseline(ctx, firsts)
+	if berr != nil {
+		return repr.List[repr.Revision]{}, berr
+	}
 	items := make([]repr.Revision, 0, len(rows))
 	found := map[string]bool{}
 	for i := range rows {
-		items = append(items, revisionFrom(&rows[i], siteWorkIDFor(claims, &rows[i])))
+		item := revisionFrom(&rows[i], siteWorkIDFor(claims, &rows[i]))
+		if baselined[rows[i].ID] {
+			item.HasBaseline = boolPtr(true)
+		}
+		items = append(items, item)
 		found[repr.ID(rows[i].ID)] = true
 	}
 	if q.Batch {
@@ -232,6 +247,10 @@ func (c *Catalog) GetRevision(ctx context.Context, id int64, q collect.Query, di
 		return repr.Revision{}, cerr
 	}
 	out := revisionFrom(rev, siteWorkIDFor(claims, rev))
+	hasBaseline := rev.Seq == 1 && len(rev.BaselineSnapshot) > 0
+	if hasBaseline {
+		out.HasBaseline = boolPtr(true)
+	}
 	if !hasToken(q.Include, "diff") {
 		if diffBase != "" {
 			p := problem.New(problem.CodeValidationFailed, "", "", "diff_base= only means something with include=diff.")
@@ -239,6 +258,15 @@ func (c *Catalog) GetRevision(ctx context.Context, id int64, q collect.Query, di
 				Detail: "pass include=diff to request the change set"}}
 			return repr.Revision{}, p
 		}
+		return out, nil
+	}
+	if diffBase == diffBaseBaseline || (diffBase == "" && hasBaseline) {
+		diff, derr := c.baselineDiff(ctx, rev)
+		if derr != nil {
+			return repr.Revision{}, derr
+		}
+		out.Diff = &diff
+		out.DiffFromBase = boolPtr(true)
 		return out, nil
 	}
 	base, berr := c.diffBaseRevision(ctx, rev, diffBase)
@@ -251,6 +279,31 @@ func (c *Catalog) GetRevision(ctx context.Context, id int64, q collect.Query, di
 	}
 	out.Diff = &diff
 	out.DiffBase = optionalRevisionID(base)
+	return out, nil
+}
+
+const diffBaseBaseline = "baseline"
+
+func boolPtr(v bool) *bool { return &v }
+
+func (c *Catalog) baselineDiff(ctx context.Context, rev *editing.Revision) ([]repr.FieldDiff, error) {
+	if c.Engine == nil {
+		return nil, problem.New(problem.CodeServiceUnavailable, "", "", "the editing engine is not bound.")
+	}
+	diffs, err := c.Engine.Diff(ctx, rev.EntityType, rev.EntityID, 0, rev.Seq)
+	if errors.Is(err, editing.ErrRevisionNotFound) {
+		p := problem.New(problem.CodeValidationFailed, "", "", "this entity has no recorded state before its first edit.")
+		p.Errors = []problem.FieldError{{Parameter: "diff_base", Reason: problem.ReasonNotAllowedValue,
+			Detail: "the entity was first edited before pre-edit states were recorded"}}
+		return nil, p
+	}
+	if err != nil {
+		return nil, proposalErr(err)
+	}
+	out := make([]repr.FieldDiff, 0, len(diffs))
+	for _, d := range diffs {
+		out = append(out, repr.FieldDiff{Key: d.Key, From: d.From, To: d.To})
+	}
 	return out, nil
 }
 

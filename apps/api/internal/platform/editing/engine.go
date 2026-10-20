@@ -155,15 +155,114 @@ func (e *Engine) EffectivePatches(ctx context.Context, props []Proposal) (map[in
 	return out, nil
 }
 
+const (
+	ProposalOrderFiledDesc   = ""
+	ProposalOrderFiledAsc    = "filed_asc"
+	ProposalOrderUpdatedDesc = "updated_desc"
+	ProposalOrderUpdatedAsc  = "updated_asc"
+)
+
 type ProposalFilter struct {
-	EntityType  string
-	EntityID    int64
-	Site        string
-	ProposerUID int64
-	Status      int16
-	Limit       int
-	BeforeID    int64
+	EntityType   string
+	EntityID     int64
+	Site         string
+	ProposerUID  int64
+	Status       int16
+	FieldKey     string
+	HasConflict  *bool
+	UpdatedSince *time.Time
+	Order        string
+	Limit        int
+	BeforeID     int64
+	Cursor       ProposalCursor
 }
+
+// ConflictFields answers, for each open proposal, the keys of its effective
+// patch that a revision recorded after its base revision also changed.
+func (e *Engine) ConflictFields(ctx context.Context, props []Proposal, effective map[int64]map[string]any) (map[int64][]string, error) {
+	out := make(map[int64][]string, len(props))
+	type entityKey struct {
+		typ string
+		id  int64
+	}
+	minBase := map[entityKey]int{}
+	var pairs [][]any
+	for i := range props {
+		if props[i].Status != StatusOpen {
+			continue
+		}
+		k := entityKey{props[i].EntityType, props[i].EntityID}
+		if base, seen := minBase[k]; !seen {
+			minBase[k] = props[i].BaseRevisionSeq
+			pairs = append(pairs, []any{k.typ, k.id})
+		} else if props[i].BaseRevisionSeq < base {
+			minBase[k] = props[i].BaseRevisionSeq
+		}
+	}
+	if len(pairs) == 0 {
+		return out, nil
+	}
+	var revs []Revision
+	if err := e.db.WithContext(ctx).Select("entity_type", "entity_id", "seq", "changed_fields").
+		Where("(entity_type, entity_id) IN ?", pairs).Find(&revs).Error; err != nil {
+		return nil, err
+	}
+	byEntity := map[entityKey][]Revision{}
+	for i := range revs {
+		k := entityKey{revs[i].EntityType, revs[i].EntityID}
+		if revs[i].Seq > minBase[k] {
+			byEntity[k] = append(byEntity[k], revs[i])
+		}
+	}
+	for i := range props {
+		p := &props[i]
+		if p.Status != StatusOpen {
+			continue
+		}
+		drifted := map[string]struct{}{}
+		for _, r := range byEntity[entityKey{p.EntityType, p.EntityID}] {
+			if r.Seq <= p.BaseRevisionSeq {
+				continue
+			}
+			keys, err := decodeKeys(r.ChangedFields)
+			if err != nil {
+				return nil, err
+			}
+			for _, k := range keys {
+				drifted[k] = struct{}{}
+			}
+		}
+		hit := []string{}
+		for _, k := range sortedKeys(effective[p.ID]) {
+			if _, ok := drifted[k]; ok {
+				hit = append(hit, k)
+			}
+		}
+		out[p.ID] = hit
+	}
+	return out, nil
+}
+
+type ProposalCursor struct {
+	ID        int64
+	UpdatedAt time.Time
+}
+
+// An amendment that unsets a key still counts as touching it: a reviewer
+// reading the queue for one field wants the proposals that argued about it.
+const touchedFieldSQL = `(jsonb_exists(edit_proposal.patch, ?) OR EXISTS (
+	SELECT 1 FROM edit_proposal_amendment a WHERE a.proposal_id = edit_proposal.id
+	  AND (jsonb_exists(COALESCE(a.patch_delta->'set', '{}'::jsonb), ?)
+	       OR jsonb_exists(COALESCE(a.patch_delta->'unset', '[]'::jsonb), ?))))`
+
+const conflictSQL = `(edit_proposal.status = 0 AND EXISTS (
+	SELECT 1 FROM edit_revision r
+	WHERE r.entity_family = edit_proposal.entity_family AND r.entity_type = edit_proposal.entity_type
+	  AND r.entity_id = edit_proposal.entity_id AND r.seq > edit_proposal.base_revision_seq
+	  AND jsonb_exists_any(r.changed_fields, ARRAY(
+	      SELECT jsonb_object_keys(edit_proposal.patch)
+	      UNION SELECT jsonb_object_keys(COALESCE(a.patch_delta->'set', '{}'::jsonb))
+	      FROM edit_proposal_amendment a WHERE a.proposal_id = edit_proposal.id))))`
 
 func (e *Engine) ListProposals(ctx context.Context, f ProposalFilter) ([]Proposal, error) {
 	items, _, err := e.ListProposalsWithTotal(ctx, f)
@@ -187,6 +286,19 @@ func (e *Engine) ListProposalsWithTotal(ctx context.Context, f ProposalFilter) (
 	if f.Status >= 0 {
 		q = q.Where("status = ?", f.Status)
 	}
+	if f.FieldKey != "" {
+		q = q.Where(touchedFieldSQL, f.FieldKey, f.FieldKey, f.FieldKey)
+	}
+	if f.HasConflict != nil {
+		if *f.HasConflict {
+			q = q.Where(conflictSQL)
+		} else {
+			q = q.Where("NOT " + conflictSQL)
+		}
+	}
+	if f.UpdatedSince != nil {
+		q = q.Where("updated_at > ?", *f.UpdatedSince)
+	}
 	limit := f.Limit
 	if limit <= 0 || limit > 200 {
 		limit = 50
@@ -200,11 +312,32 @@ func (e *Engine) ListProposalsWithTotal(ctx context.Context, f ProposalFilter) (
 		return nil, 0, err
 	}
 	page := q.Session(&gorm.Session{})
-	if f.BeforeID > 0 {
-		page = page.Where("id < ?", f.BeforeID)
+	order := "id DESC"
+	switch f.Order {
+	case ProposalOrderFiledAsc:
+		order = "id ASC"
+		if f.Cursor.ID > 0 {
+			page = page.Where("id > ?", f.Cursor.ID)
+		}
+	case ProposalOrderUpdatedDesc:
+		order = "updated_at DESC, id DESC"
+		if f.Cursor.ID > 0 {
+			page = page.Where("(updated_at < ? OR (updated_at = ? AND id < ?))",
+				f.Cursor.UpdatedAt, f.Cursor.UpdatedAt, f.Cursor.ID)
+		}
+	case ProposalOrderUpdatedAsc:
+		order = "updated_at ASC, id ASC"
+		if f.Cursor.ID > 0 {
+			page = page.Where("(updated_at > ? OR (updated_at = ? AND id > ?))",
+				f.Cursor.UpdatedAt, f.Cursor.UpdatedAt, f.Cursor.ID)
+		}
+	default:
+		if f.BeforeID > 0 {
+			page = page.Where("id < ?", f.BeforeID)
+		}
 	}
 	var out []Proposal
-	if err := page.Order("id DESC").Limit(limit).Find(&out).Error; err != nil {
+	if err := page.Order(order).Limit(limit).Find(&out).Error; err != nil {
 		return nil, 0, err
 	}
 	return out, total, nil

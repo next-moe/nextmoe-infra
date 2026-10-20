@@ -176,6 +176,10 @@ export const problemsZh: Record<string, { title: string; description: string }> 
     "title": "已经裁决过",
     "description": "这一项已经被裁决过。detail 会给出是谁、在什么时候裁决的。"
   },
+  "REVERT_CONFLICT": {
+    "title": "回滚冲突",
+    "description": "撤销会恢复一些之后的修订也改动过的字段。errors[] 逐一列出这些字段。没有写入任何内容。带 force=true 重新发送以覆盖那些后来的改动，或改为恢复整条修订。"
+  },
   "SOURCE_NOT_YOURS": {
     "title": "该来源不属于你",
     "description": "点名的资讯来源没有绑定到这个用户。来源不存在的情况不与之区分，因此无法靠试探把有哪些来源枚举出来。"

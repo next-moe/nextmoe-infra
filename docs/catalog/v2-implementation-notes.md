@@ -2386,3 +2386,27 @@ Both vocabularies are shared entities under the taxonomy permissions (`sharedEnt
 **Edit context.** Row sources added for relations (both directions through a derived table, identity as above), platforms, series_members and tag_spoilers (with per-row `field_provenance`); credit rows now carry `spoiler`, `release_id` and `label_id`.
 
 **Migration.** `go run ./cmd/migrate catalog` on `kun_catalog` (the prod `migrate-catalog` job) adds `field_provenance jsonb NOT NULL DEFAULT '{}'` to `catalog_series_member` (24,203 rows) and `catalog_work_tag` (2.05M rows). The default is a constant, so neither table is rewritten. No spec change: the new vocabulary and fields are runtime data of `/v2/vocabularies` and `/v2/catalog/schemas/work`.
+
+## Wave E1c — editor backend gaps: queue filters, baseline and undo, person and release search (2026-10-20)
+
+**Proposal queues.** `GET /v2/moderation/proposals` and `GET /v2/me/proposals` take:
+
+| parameter | meaning |
+|---|---|
+| `site=` | central editor: narrow to one site of origin. A downstream site may only name itself (else 403 `TENANT_MISMATCH`). |
+| `field=` | a field key; keeps proposals whose patch or any amendment's `set`/`unset` names it. |
+| `has_conflict=` | `true` keeps open proposals that a revision recorded after their `base_revision_seq` overlaps on a field (patch keys ∪ amendment `set` keys); `false` keeps the rest. Only open proposals can conflict. |
+| `updated_since=` | RFC 3339 UTC; `updated_at` strictly later. |
+| `sort=` | `filed_desc` (default), `filed_asc` (oldest waiting first), `updated_desc`, `updated_asc`. Each non-default order carries its own tagged cursor; a cursor replayed under another sort is 400 `INVALID_CURSOR`. |
+| `include=patch` | now also on the moderation list: `patch`, `effective_patch`, plus `changed_fields` (sorted keys of `effective_patch`) and, on open proposals, `conflict_fields` (the keys a later revision also changed; `[]` when none). The same block is on both detail faces. |
+
+**Baseline.** A revision's `action` is a closed enum and `seq` is 1-based, so the pre-edit state is not a synthetic revision. Instead: `has_baseline: true` on an entity's first revision when #430 recorded one; `diff_base=baseline` on `GET /v2/catalog/revisions/{id}?include=diff` diffs against it, and a first revision with a baseline diffs against it by default (previously every `from` was null); `diff_from_baseline: true` marks either case, `diff_base` stays null. `diff_base=baseline` on an entity without one is 422.
+
+**Reverts.** `POST /v2/moderation/reverts` body gains `mode` (`restore`, default — today's behaviour; `undo`), `baseline` and `force`:
+- `restore` + `baseline: true` restores the recorded pre-edit state (`revision_id` only names the entity); 422 when none was recorded (engine `ErrNoBaseline`, which `Revert(ToSeq: 0)` now returns instead of `ErrRevisionNotFound`).
+- `undo` puts back, for only the fields revision N changed, their values in revision N−1 (the baseline for N = 1). When a revision after N changed one of those fields the answer is 409 `REVERT_CONFLICT` (new problem code, moderation domain) with one `errors[]` entry per field at `/fields/<key>`; nothing is written. `force: true` overwrites them.
+- `undo` + `baseline` and `force` without `undo` are 422. Both modes need review standing on every written field and are recorded as a `reverted` revision, exactly like a restore.
+
+**Search.** `GET /v2/catalog/persons?q=` matches the display name or any credit name (`name`, `latin`) whose person link is public (`link_visibility = 0`) — a hidden link must not find its person. `GET /v2/catalog/releases?q=` matches the release title or the work's display name over the same dated-release lane. Both are bounded substring `ILIKE` with LIKE metacharacters escaped; `pg_trgm` is not installed. Measured on prod: person search ≈ 45 ms, release page ≈ 175 ms and its total ≈ 160 ms.
+
+**Spec 2.59.0**, additive (oasdiff 1.21.0: no breaking changes). No migration.

@@ -57,7 +57,7 @@ type getRevisionInput struct {
 	Include  string `query:"include" maxLength:"1024" doc:"Comma-separated blocks. diff is the only token. Unknown token is 400 UNKNOWN_INCLUDE."`
 	View     string `query:"view" maxLength:"16" doc:"basic (default) or full. full adds diff."`
 	Fields   string `query:"fields" maxLength:"1024" doc:"Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD."`
-	DiffBase string `query:"diff_base" maxLength:"20" doc:"Revision id to diff against. Requires include=diff. Absent means the preceding revision of the same entity."`
+	DiffBase string `query:"diff_base" maxLength:"20" doc:"Revision id to diff against, or baseline for the state recorded before the entity's first edit. Requires include=diff. Absent means the preceding revision of the same entity, or the baseline on a first revision that has one."`
 }
 
 type getPublicProposalInput struct {

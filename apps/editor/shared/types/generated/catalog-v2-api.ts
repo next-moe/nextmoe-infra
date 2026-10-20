@@ -301,7 +301,7 @@ export interface paths {
         };
         /**
          * List persons
-         * @description Keyset-paginated persons. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.
+         * @description Keyset-paginated persons. q= searches the display name and every credit name whose person link is public. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.
          */
         get: operations["listCatalogPersons"];
         put?: never;
@@ -421,7 +421,7 @@ export interface paths {
         };
         /**
          * List releases
-         * @description Keyset-paginated dated releases, sorted by date_desc by default. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate.
+         * @description Keyset-paginated dated releases, sorted by date_desc by default. q= filters by release title or work display name. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate.
          */
         get: operations["listCatalogReleases"];
         put?: never;
@@ -1657,7 +1657,7 @@ export interface paths {
         };
         /**
          * List my proposals
-         * @description The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch and effective_patch, the same pair GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. Requires a user access token. The token must carry the catalog:edit scope.
+         * @description The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch, effective_patch, changed_fields and (open rows) conflict_fields, the same block GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. field=, has_conflict= and updated_since= filter; sort=filed_desc (default), filed_asc, updated_desc or updated_asc. Requires a user access token. The token must carry the catalog:edit scope.
          */
         get: operations["listMyProposals"];
         put?: never;
@@ -1973,7 +1973,7 @@ export interface paths {
         };
         /**
          * Moderation proposal queue
-         * @description Open proposals on the token site; on the central editor (catalog site editor), on every site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. The token must carry the catalog:edit scope.
+         * @description Open proposals on the token site; on the central editor (catalog site editor), on every site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. site= narrows the central editor's queue to one site of origin; field=, has_conflict= and updated_since= filter; sort=filed_desc (default), filed_asc (oldest waiting first), updated_desc or updated_asc. include=patch (or view=full) adds each row's patch, effective_patch, changed_fields and conflict_fields, so a queue page needs no read per row. The token must carry the catalog:edit scope.
          */
         get: operations["listModerationProposals"];
         put?: never;
@@ -2055,7 +2055,7 @@ export interface paths {
         put?: never;
         /**
          * Revert to a revision
-         * @description Body names revision_id. A downstream site may not revert an entity another site claims; the central editor (catalog site editor) may revert any. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+         * @description Body names revision_id. mode=restore (default) brings every registered field back to its value after that revision, or with baseline=true to the state recorded before the entity's first edit. mode=undo puts back, for only the fields that revision changed, the values they held just before it; when a later revision changed one of those fields the answer is 409 REVERT_CONFLICT naming them, unless force=true. A downstream site may not revert an entity another site claims; the central editor (catalog site editor) may revert any. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
          */
         post: operations["revertModeration"];
         delete?: never;
@@ -6467,6 +6467,10 @@ export interface components {
              * @description Revision seq this proposal was written against.
              */
             base_revision_seq: number;
+            /** @description Present when include=patch. The field keys effective_patch writes, sorted. */
+            changed_fields?: string[];
+            /** @description Present when include=patch on an open proposal. Keys of effective_patch that a revision recorded after base_revision_seq also changed: merging overwrites that later change. Empty array when none. */
+            conflict_fields?: string[];
             /**
              * Format: date-time
              * @description RFC 3339 UTC.
@@ -6972,6 +6976,15 @@ export interface components {
              * @example https://example.com/RevertInputBody.json
              */
             readonly $schema?: string;
+            /** @description With mode=restore: restore the state recorded before the entity's first edit instead of the state after revision_id, which then only names the entity. 422 when no such state was recorded. */
+            baseline?: boolean;
+            /** @description With mode=undo: overwrite fields a later revision also changed instead of answering 409 REVERT_CONFLICT. */
+            force?: boolean;
+            /**
+             * @description restore (default) brings every field back to its value after revision_id. undo puts back, for only the fields revision_id changed, the values they held just before it.
+             * @enum {string}
+             */
+            mode?: "restore" | "undo";
             /** @description Must not be used as a discriminant. */
             reason?: string;
             /** @description edit_revision id. */
@@ -7010,8 +7023,12 @@ export interface components {
             diff?: components["schemas"]["FieldDiff"][];
             /** @description Present when include=diff. Revision the diff was taken against. null when this is the first revision of the entity. */
             diff_base?: string;
+            /** @description Present with diff when the diff was taken against the state recorded before the entity's first edit — asked for with diff_base=baseline, or taken by default on a first revision that has one. diff_base is then null. */
+            diff_from_baseline?: boolean;
             /** @description Catalog id of the entity this revision is on. */
             entity_id: string;
+            /** @description true on an entity's first revision when the state before that edit was recorded. diff_base=baseline diffs against it, and POST /v2/moderation/reverts with baseline=true restores it. Absent otherwise. */
+            has_baseline?: boolean;
             /** @description Revision id. This is the value POST /v2/moderation/reverts takes as revision_id. */
             id: string;
             /**
@@ -9990,6 +10007,8 @@ export interface operations {
                 sort?: string;
                 /** @description true includes r18. false or absent hides r18. Only true or false. */
                 nsfw?: string;
+                /** @description Name search: the person's display name, or any of their credit names (name or latin) whose person link is public. Substring, case-insensitive. Must not be used as a discriminant. */
+                q?: string;
             };
             header?: never;
             path?: never;
@@ -10666,6 +10685,8 @@ export interface operations {
                 sort?: string;
                 /** @description true includes r18. false or absent hides r18. Only true or false. */
                 nsfw?: string;
+                /** @description Title search: the release title or its work's display name. Substring, case-insensitive, over the same dated releases this collection lists. Must not be used as a discriminant. */
+                q?: string;
             };
             header?: never;
             path?: never;
@@ -10989,7 +11010,7 @@ export interface operations {
                 view?: string;
                 /** @description Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. */
                 fields?: string;
-                /** @description Revision id to diff against. Requires include=diff. Absent means the preceding revision of the same entity. */
+                /** @description Revision id to diff against, or baseline for the state recorded before the entity's first edit. Requires include=diff. Absent means the preceding revision of the same entity, or the baseline on a first revision that has one. */
                 diff_base?: string;
             };
             header?: never;
@@ -19051,6 +19072,14 @@ export interface operations {
                 entity_type?: string;
                 /** @description Catalog id of one entity. Accepted alone on this lane, which is already fenced to the bearer's own proposals; pair it with object= or entity_type= when ids collide across families. */
                 entity_id?: string;
+                /** @description Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing. */
+                site?: string;
+                /** @description A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it. */
+                field?: string;
+                /** @description true keeps open proposals that a revision recorded after their base_revision_seq overlaps on a field; false keeps the rest. Only true or false. */
+                has_conflict?: string;
+                /** @description RFC 3339 UTC ending in Z. Keeps proposals whose updated_at is later. */
+                updated_since?: string;
             };
             header?: never;
             path?: never;
@@ -21621,6 +21650,14 @@ export interface operations {
                 entity_type?: string;
                 /** @description Catalog id of one entity. Requires object= or entity_type=. Narrows the queue to that entity, which its owner may read without a review permission. */
                 entity_id?: string;
+                /** @description Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing. */
+                site?: string;
+                /** @description A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it. */
+                field?: string;
+                /** @description true keeps open proposals that a revision recorded after their base_revision_seq overlaps on a field; false keeps the rest. Only true or false. */
+                has_conflict?: string;
+                /** @description RFC 3339 UTC ending in Z. Keeps proposals whose updated_at is later. */
+                updated_since?: string;
             };
             header?: never;
             path?: never;

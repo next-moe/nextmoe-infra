@@ -33449,7 +33449,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/persons",
               "summary": "List persons",
-              "description": "Keyset-paginated persons. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.",
+              "description": "Keyset-paginated persons. q= searches the display name and every credit name whose person link is public. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.",
               "scope": "catalog:read",
               "auth": {
                 "kind": "optional",
@@ -33534,6 +33534,13 @@ export const docsModel: DocsModel = {
                   "required": false,
                   "type": "string",
                   "doc": "true includes r18. false or absent hides r18. Only true or false."
+                },
+                {
+                  "name": "q",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Name search: the person's display name, or any of their credit names (name or latin) whose person link is public. Substring, case-insensitive. Must not be used as a discriminant."
                 }
               ],
               "responses": [
@@ -38463,6 +38470,22 @@ export const docsModel: DocsModel = {
                               "type": "integer"
                             },
                             {
+                              "name": "changed_fields",
+                              "doc": "Present when include=patch. The field keys effective_patch writes, sorted.",
+                              "type": "array",
+                              "itemsOf": {
+                                "type": "string"
+                              }
+                            },
+                            {
+                              "name": "conflict_fields",
+                              "doc": "Present when include=patch on an open proposal. Keys of effective_patch that a revision recorded after base_revision_seq also changed: merging overwrites that later change. Empty array when none.",
+                              "type": "array",
+                              "itemsOf": {
+                                "type": "string"
+                              }
+                            },
+                            {
                               "name": "created_at",
                               "required": true,
                               "doc": "RFC 3339 UTC.",
@@ -40064,6 +40087,22 @@ export const docsModel: DocsModel = {
                         "doc": "Revision seq this proposal was written against.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "changed_fields",
+                        "doc": "Present when include=patch. The field keys effective_patch writes, sorted.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
+                      },
+                      {
+                        "name": "conflict_fields",
+                        "doc": "Present when include=patch on an open proposal. Keys of effective_patch that a revision recorded after base_revision_seq also changed: merging overwrites that later change. Empty array when none.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
                       },
                       {
                         "name": "created_at",
@@ -43112,7 +43151,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/catalog/releases",
               "summary": "List releases",
-              "description": "Keyset-paginated dated releases, sorted by date_desc by default. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate.",
+              "description": "Keyset-paginated dated releases, sorted by date_desc by default. q= filters by release title or work display name. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate.",
               "scope": "catalog:read",
               "auth": {
                 "kind": "optional",
@@ -43197,6 +43236,13 @@ export const docsModel: DocsModel = {
                   "required": false,
                   "type": "string",
                   "doc": "true includes r18. false or absent hides r18. Only true or false."
+                },
+                {
+                  "name": "q",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Title search: the release title or its work's display name. Substring, case-insensitive, over the same dated releases this collection lists. Must not be used as a discriminant."
                 }
               ],
               "responses": [
@@ -46563,10 +46609,20 @@ export const docsModel: DocsModel = {
                               "type": "string"
                             },
                             {
+                              "name": "diff_from_baseline",
+                              "doc": "Present with diff when the diff was taken against the state recorded before the entity's first edit — asked for with diff_base=baseline, or taken by default on a first revision that has one. diff_base is then null.",
+                              "type": "boolean"
+                            },
+                            {
                               "name": "entity_id",
                               "required": true,
                               "doc": "Catalog id of the entity this revision is on.",
                               "type": "string"
+                            },
+                            {
+                              "name": "has_baseline",
+                              "doc": "true on an entity's first revision when the state before that edit was recorded. diff_base=baseline diffs against it, and POST /v2/moderation/reverts with baseline=true restores it. Absent otherwise.",
+                              "type": "boolean"
                             },
                             {
                               "name": "id",
@@ -47936,7 +47992,7 @@ export const docsModel: DocsModel = {
                   "in": "query",
                   "required": false,
                   "type": "string",
-                  "doc": "Revision id to diff against. Requires include=diff. Absent means the preceding revision of the same entity."
+                  "doc": "Revision id to diff against, or baseline for the state recorded before the entity's first edit. Requires include=diff. Absent means the preceding revision of the same entity, or the baseline on a first revision that has one."
                 }
               ],
               "responses": [
@@ -48097,10 +48153,20 @@ export const docsModel: DocsModel = {
                         "type": "string"
                       },
                       {
+                        "name": "diff_from_baseline",
+                        "doc": "Present with diff when the diff was taken against the state recorded before the entity's first edit — asked for with diff_base=baseline, or taken by default on a first revision that has one. diff_base is then null.",
+                        "type": "boolean"
+                      },
+                      {
                         "name": "entity_id",
                         "required": true,
                         "doc": "Catalog id of the entity this revision is on.",
                         "type": "string"
+                      },
+                      {
+                        "name": "has_baseline",
+                        "doc": "true on an entity's first revision when the state before that edit was recorded. diff_base=baseline diffs against it, and POST /v2/moderation/reverts with baseline=true restores it. Absent otherwise.",
+                        "type": "boolean"
                       },
                       {
                         "name": "id",
@@ -183786,7 +183852,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/me/proposals",
               "summary": "List my proposals",
-              "description": "The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch and effective_patch, the same pair GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. Requires a user access token. The token must carry the catalog:edit scope.",
+              "description": "The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch, effective_patch, changed_fields and (open rows) conflict_fields, the same block GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. field=, has_conflict= and updated_since= filter; sort=filed_desc (default), filed_asc, updated_desc or updated_asc. Requires a user access token. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -183899,6 +183965,34 @@ export const docsModel: DocsModel = {
                   "required": false,
                   "type": "string",
                   "doc": "Catalog id of one entity. Accepted alone on this lane, which is already fenced to the bearer's own proposals; pair it with object= or entity_type= when ids collide across families."
+                },
+                {
+                  "name": "site",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing."
+                },
+                {
+                  "name": "field",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it."
+                },
+                {
+                  "name": "has_conflict",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "true keeps open proposals that a revision recorded after their base_revision_seq overlaps on a field; false keeps the rest. Only true or false."
+                },
+                {
+                  "name": "updated_since",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "RFC 3339 UTC ending in Z. Keeps proposals whose updated_at is later."
                 }
               ],
               "responses": [
@@ -184044,6 +184138,22 @@ export const docsModel: DocsModel = {
                               "doc": "Revision seq this proposal was written against.",
                               "format": "int64",
                               "type": "integer"
+                            },
+                            {
+                              "name": "changed_fields",
+                              "doc": "Present when include=patch. The field keys effective_patch writes, sorted.",
+                              "type": "array",
+                              "itemsOf": {
+                                "type": "string"
+                              }
+                            },
+                            {
+                              "name": "conflict_fields",
+                              "doc": "Present when include=patch on an open proposal. Keys of effective_patch that a revision recorded after base_revision_seq also changed: merging overwrites that later change. Empty array when none.",
+                              "type": "array",
+                              "itemsOf": {
+                                "type": "string"
+                              }
                             },
                             {
                               "name": "created_at",
@@ -185830,6 +185940,22 @@ export const docsModel: DocsModel = {
                         "doc": "Revision seq this proposal was written against.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "changed_fields",
+                        "doc": "Present when include=patch. The field keys effective_patch writes, sorted.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
+                      },
+                      {
+                        "name": "conflict_fields",
+                        "doc": "Present when include=patch on an open proposal. Keys of effective_patch that a revision recorded after base_revision_seq also changed: merging overwrites that later change. Empty array when none.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
                       },
                       {
                         "name": "created_at",
@@ -188076,6 +188202,22 @@ export const docsModel: DocsModel = {
                         "type": "integer"
                       },
                       {
+                        "name": "changed_fields",
+                        "doc": "Present when include=patch. The field keys effective_patch writes, sorted.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
+                      },
+                      {
+                        "name": "conflict_fields",
+                        "doc": "Present when include=patch on an open proposal. Keys of effective_patch that a revision recorded after base_revision_seq also changed: merging overwrites that later change. Empty array when none.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
+                      },
+                      {
                         "name": "created_at",
                         "required": true,
                         "doc": "RFC 3339 UTC.",
@@ -189817,6 +189959,22 @@ export const docsModel: DocsModel = {
                         "doc": "Revision seq this proposal was written against.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "changed_fields",
+                        "doc": "Present when include=patch. The field keys effective_patch writes, sorted.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
+                      },
+                      {
+                        "name": "conflict_fields",
+                        "doc": "Present when include=patch on an open proposal. Keys of effective_patch that a revision recorded after base_revision_seq also changed: merging overwrites that later change. Empty array when none.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
                       },
                       {
                         "name": "created_at",
@@ -192087,6 +192245,22 @@ export const docsModel: DocsModel = {
                         "doc": "Revision seq this proposal was written against.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "changed_fields",
+                        "doc": "Present when include=patch. The field keys effective_patch writes, sorted.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
+                      },
+                      {
+                        "name": "conflict_fields",
+                        "doc": "Present when include=patch on an open proposal. Keys of effective_patch that a revision recorded after base_revision_seq also changed: merging overwrites that later change. Empty array when none.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
                       },
                       {
                         "name": "created_at",
@@ -224318,7 +224492,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/moderation/proposals",
               "summary": "Moderation proposal queue",
-              "description": "Open proposals on the token site; on the central editor (catalog site editor), on every site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. The token must carry the catalog:edit scope.",
+              "description": "Open proposals on the token site; on the central editor (catalog site editor), on every site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. site= narrows the central editor's queue to one site of origin; field=, has_conflict= and updated_since= filter; sort=filed_desc (default), filed_asc (oldest waiting first), updated_desc or updated_asc. include=patch (or view=full) adds each row's patch, effective_patch, changed_fields and conflict_fields, so a queue page needs no read per row. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -224424,6 +224598,34 @@ export const docsModel: DocsModel = {
                   "required": false,
                   "type": "string",
                   "doc": "Catalog id of one entity. Requires object= or entity_type=. Narrows the queue to that entity, which its owner may read without a review permission."
+                },
+                {
+                  "name": "site",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing."
+                },
+                {
+                  "name": "field",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it."
+                },
+                {
+                  "name": "has_conflict",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "true keeps open proposals that a revision recorded after their base_revision_seq overlaps on a field; false keeps the rest. Only true or false."
+                },
+                {
+                  "name": "updated_since",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "RFC 3339 UTC ending in Z. Keeps proposals whose updated_at is later."
                 }
               ],
               "responses": [
@@ -224569,6 +224771,22 @@ export const docsModel: DocsModel = {
                               "doc": "Revision seq this proposal was written against.",
                               "format": "int64",
                               "type": "integer"
+                            },
+                            {
+                              "name": "changed_fields",
+                              "doc": "Present when include=patch. The field keys effective_patch writes, sorted.",
+                              "type": "array",
+                              "itemsOf": {
+                                "type": "string"
+                              }
+                            },
+                            {
+                              "name": "conflict_fields",
+                              "doc": "Present when include=patch on an open proposal. Keys of effective_patch that a revision recorded after base_revision_seq also changed: merging overwrites that later change. Empty array when none.",
+                              "type": "array",
+                              "itemsOf": {
+                                "type": "string"
+                              }
                             },
                             {
                               "name": "created_at",
@@ -226338,6 +226556,22 @@ export const docsModel: DocsModel = {
                         "doc": "Revision seq this proposal was written against.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "changed_fields",
+                        "doc": "Present when include=patch. The field keys effective_patch writes, sorted.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
+                      },
+                      {
+                        "name": "conflict_fields",
+                        "doc": "Present when include=patch on an open proposal. Keys of effective_patch that a revision recorded after base_revision_seq also changed: merging overwrites that later change. Empty array when none.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
                       },
                       {
                         "name": "created_at",
@@ -231376,7 +231610,7 @@ export const docsModel: DocsModel = {
               "method": "post",
               "path": "/v2/moderation/reverts",
               "summary": "Revert to a revision",
-              "description": "Body names revision_id. A downstream site may not revert an entity another site claims; the central editor (catalog site editor) may revert any. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.",
+              "description": "Body names revision_id. mode=restore (default) brings every registered field back to its value after that revision, or with baseline=true to the state recorded before the entity's first edit. mode=undo puts back, for only the fields that revision changed, the values they held just before it; when a later revision changed one of those fields the answer is 409 REVERT_CONFLICT naming them, unless force=true. A downstream site may not revert an entity another site claims; the central editor (catalog site editor) may revert any. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -231396,6 +231630,25 @@ export const docsModel: DocsModel = {
               "requestBody": {
                 "type": "object",
                 "children": [
+                  {
+                    "name": "baseline",
+                    "doc": "With mode=restore: restore the state recorded before the entity's first edit instead of the state after revision_id, which then only names the entity. 422 when no such state was recorded.",
+                    "type": "boolean"
+                  },
+                  {
+                    "name": "force",
+                    "doc": "With mode=undo: overwrite fields a later revision also changed instead of answering 409 REVERT_CONFLICT.",
+                    "type": "boolean"
+                  },
+                  {
+                    "name": "mode",
+                    "doc": "restore (default) brings every field back to its value after revision_id. undo puts back, for only the fields revision_id changed, the values they held just before it.",
+                    "enum": [
+                      "restore",
+                      "undo"
+                    ],
+                    "type": "string"
+                  },
                   {
                     "name": "reason",
                     "doc": "Must not be used as a discriminant.",
@@ -231511,6 +231764,22 @@ export const docsModel: DocsModel = {
                         "doc": "Revision seq this proposal was written against.",
                         "format": "int64",
                         "type": "integer"
+                      },
+                      {
+                        "name": "changed_fields",
+                        "doc": "Present when include=patch. The field keys effective_patch writes, sorted.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
+                      },
+                      {
+                        "name": "conflict_fields",
+                        "doc": "Present when include=patch on an open proposal. Keys of effective_patch that a revision recorded after base_revision_seq also changed: merging overwrites that later change. Empty array when none.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
                       },
                       {
                         "name": "created_at",

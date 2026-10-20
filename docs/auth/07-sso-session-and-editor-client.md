@@ -91,6 +91,13 @@ application (`POST /api/v1/editor/applications`, admin review under
 (default 24). The creator flow's cooldown moved from a hardcoded 24 h to
 `auth.creator_application_cooldown_hours` (default 24) at the same time.
 
+`GET /api/v1/editor/applications/me` (and `GET /api/v1/creator/applications/me`)
+answers the latest application with one more field, `reapply_after`: the
+moment a declined applicant may apply again (`reviewed_at` + the current
+cooldown setting), or `null` when they may apply now — always `null` for a
+pending or approved application. A public client cannot read the settings
+center, so this is how the editor shows the countdown (wave E1c).
+
 ## 6. Silent authorize (no account-center page)
 
 Shipped with wave E0b. Before it, a silent sign-in still passed through the

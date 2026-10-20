@@ -1048,7 +1048,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "列出人物",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/persons",
-    "b": "listCatalogPersons /v2/catalog/persons get List persons Keyset-paginated persons. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. keyset 分页的人物。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。ids=/refs= 是批量车道，不分页。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw"
+    "b": "listCatalogPersons /v2/catalog/persons get List persons Keyset-paginated persons. q= searches the display name and every credit name whose person link is public. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. keyset 分页的人物。q= 搜索显示名以及人物关联公开的所有署名名。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。ids=/refs= 是批量车道，不分页。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw q"
   },
   {
     "r": "/docs/v2/getCatalogPerson",
@@ -1090,7 +1090,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "列出发售",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/releases",
-    "b": "listCatalogReleases /v2/catalog/releases get List releases Keyset-paginated dated releases, sorted by date_desc by default. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate. keyset 分页的带日期发售行，默认按 date_desc 排序。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。ids= 是批量车道，不分页。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw"
+    "b": "listCatalogReleases /v2/catalog/releases get List releases Keyset-paginated dated releases, sorted by date_desc by default. q= filters by release title or work display name. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate. keyset 分页的带日期发售行，默认按 date_desc 排序。q= 按发行标题或作品显示名筛选。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。ids= 是批量车道，不分页。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw q"
   },
   {
     "r": "/docs/v2/getCatalogRelease",
@@ -1678,7 +1678,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "列出我的提案",
     "s": "端点 · 我的",
     "d": "GET /v2/me/proposals",
-    "b": "listMyProposals /v2/me/proposals get List my proposals The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch and effective_patch, the same pair GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. Requires a user access token. The token must carry the catalog:edit scope. 持有者在令牌所属 catalog 站点上提交的自己的提案;在中央编辑站(catalog 站点 editor)上则为所有站点的。state= 是封闭词表，未知值返回 400。object= 或 entity_type= 收窄到一族，entity_id= 收窄到一个实体——本车道在不带族的情况下也接受 entity_id=，因为每一行已属于调用方。include=patch（或 view=full）给每一行加上 patch 与 effective_patch，与 GET /v2/me/proposals/{id}?include=patch 答的是同一对，列表页不必逐行再读。需要用户访问令牌。令牌须带 catalog:edit scope。 cursor limit view include fields ids refs include_total facets sort nsfw state object entity_type entity_id"
+    "b": "listMyProposals /v2/me/proposals get List my proposals The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch, effective_patch, changed_fields and (open rows) conflict_fields, the same block GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. field=, has_conflict= and updated_since= filter; sort=filed_desc (default), filed_asc, updated_desc or updated_asc. Requires a user access token. The token must carry the catalog:edit scope. 持有者在令牌所属 catalog 站点上提交的自己的提案;在中央编辑站(catalog 站点 editor)上则为所有站点的。state= 是封闭词表，未知值返回 400。object= 或 entity_type= 收窄到一族，entity_id= 收窄到一个实体——本车道在不带族的情况下也接受 entity_id=，因为每一行已属于调用方。include=patch（或 view=full）给每一行加上 patch、effective_patch、changed_fields 以及（未关闭的行）conflict_fields，与 GET /v2/me/proposals/{id}?include=patch 答的是同一块，列表页不必逐行再读。field=、has_conflict= 与 updated_since= 用于筛选；sort=filed_desc（默认）、filed_asc、updated_desc 或 updated_asc。需要用户访问令牌。令牌须带 catalog:edit scope。 cursor limit view include fields ids refs include_total facets sort nsfw state object entity_type entity_id site field has_conflict updated_since"
   },
   {
     "r": "/docs/v2/createMyProposal",
@@ -1839,7 +1839,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "审核提案队列",
     "s": "端点 · 审核",
     "d": "GET /v2/moderation/proposals",
-    "b": "listModerationProposals /v2/moderation/proposals get Moderation proposal queue Open proposals on the token site; on the central editor (catalog site editor), on every site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. The token must carry the catalog:edit scope. 令牌站点上未关闭的提案;在中央编辑站(catalog 站点 editor)上则为所有站点的。整条队列需要 catalog 审核权限。object=（或 entity_type=）配 entity_id= 收敛到单个实体，该实体的所有者无需该权限即可读取——即编辑引擎按字段解析的同一条所有者审核通道。不带家族的 entity_id= 为 422。令牌须带 catalog:edit scope。 cursor limit view include fields ids refs include_total facets sort nsfw object entity_type entity_id"
+    "b": "listModerationProposals /v2/moderation/proposals get Moderation proposal queue Open proposals on the token site; on the central editor (catalog site editor), on every site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. site= narrows the central editor's queue to one site of origin; field=, has_conflict= and updated_since= filter; sort=filed_desc (default), filed_asc (oldest waiting first), updated_desc or updated_asc. include=patch (or view=full) adds each row's patch, effective_patch, changed_fields and conflict_fields, so a queue page needs no read per row. The token must carry the catalog:edit scope. 令牌站点上未关闭的提案;在中央编辑站(catalog 站点 editor)上则为所有站点的。整条队列需要 catalog 审核权限。object=（或 entity_type=）配 entity_id= 收敛到单个实体，该实体的所有者无需该权限即可读取——即编辑引擎按字段解析的同一条所有者审核通道。不带家族的 entity_id= 为 422。site= 把中央编辑站的队列收窄到一个来源站点;field=、has_conflict= 与 updated_since= 用于筛选;sort=filed_desc（默认）、filed_asc（等待最久的在前）、updated_desc 或 updated_asc。include=patch（或 view=full）给每一行加上 patch、effective_patch、changed_fields 与 conflict_fields，队列页不必逐行再读。令牌须带 catalog:edit scope。 cursor limit view include fields ids refs include_total facets sort nsfw object entity_type entity_id site field has_conflict updated_since"
   },
   {
     "r": "/docs/v2/getModerationProposal",
@@ -1867,7 +1867,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "回退到一条修订",
     "s": "端点 · 审核",
     "d": "POST /v2/moderation/reverts",
-    "b": "revertModeration /v2/moderation/reverts post Revert to a revision Body names revision_id. A downstream site may not revert an entity another site claims; the central editor (catalog site editor) may revert any. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 请求体给出 revision_id。下游站点不可回滚其他站点认领的实体;中央编辑站(catalog 站点 editor)可回滚任何实体。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 Idempotency-Key"
+    "b": "revertModeration /v2/moderation/reverts post Revert to a revision Body names revision_id. mode=restore (default) brings every registered field back to its value after that revision, or with baseline=true to the state recorded before the entity's first edit. mode=undo puts back, for only the fields that revision changed, the values they held just before it; when a later revision changed one of those fields the answer is 409 REVERT_CONFLICT naming them, unless force=true. A downstream site may not revert an entity another site claims; the central editor (catalog site editor) may revert any. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 请求体给出 revision_id。mode=restore（默认）把所有已注册字段恢复到该修订之后的值，带 baseline=true 时则恢复到实体第一次编辑前记录下的状态。mode=undo 只把该修订改动过的字段恢复为它之前的值;若之后的修订也改动了其中某个字段，返回 409 REVERT_CONFLICT 并列出这些字段，除非 force=true。下游站点不可回滚其他站点认领的实体;中央编辑站(catalog 站点 editor)可回滚任何实体。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 Idempotency-Key"
   },
   {
     "r": "/docs/v2/getModerationSnapshot",
@@ -2309,6 +2309,13 @@ export const searchIndex: SearchEntry[] = [
     "s": "错误码 · 审核面",
     "d": "DECISION_ALREADY_MADE · HTTP 409",
     "b": "DECISION_ALREADY_MADE Decision already made This item has already been decided. detail names who decided and when. 这一项已经被裁决过。detail 会给出是谁、在什么时候裁决的。 moderation"
+  },
+  {
+    "r": "/problems/moderation/revert-conflict",
+    "t": "回滚冲突",
+    "s": "错误码 · 审核面",
+    "d": "REVERT_CONFLICT · HTTP 409",
+    "b": "REVERT_CONFLICT Revert conflict An undo would put back fields that a later revision also changed. errors[] names each field. Nothing was written. Re-send with force=true to overwrite those later changes, or restore a whole revision instead. 撤销会恢复一些之后的修订也改动过的字段。errors[] 逐一列出这些字段。没有写入任何内容。带 force=true 重新发送以覆盖那些后来的改动，或改为恢复整条修订。 moderation"
   },
   {
     "r": "/problems/news/source-not-yours",

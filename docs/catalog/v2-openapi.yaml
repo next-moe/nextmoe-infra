@@ -6816,6 +6816,16 @@ components:
           format: int64
           minimum: 0
           type: integer
+        changed_fields:
+          description: Present when include=patch. The field keys effective_patch writes, sorted.
+          items:
+            type: string
+          type: array
+        conflict_fields:
+          description: "Present when include=patch on an open proposal. Keys of effective_patch that a revision recorded after base_revision_seq also changed: merging overwrites that later change. Empty array when none."
+          items:
+            type: string
+          type: array
         created_at:
           description: RFC 3339 UTC.
           format: date-time
@@ -7667,6 +7677,19 @@ components:
           format: uri
           readOnly: true
           type: string
+        baseline:
+          description: "With mode=restore: restore the state recorded before the entity's first edit instead of the state after revision_id, which then only names the entity. 422 when no such state was recorded."
+          type: boolean
+        force:
+          description: "With mode=undo: overwrite fields a later revision also changed instead of answering 409 REVERT_CONFLICT."
+          type: boolean
+        mode:
+          description: restore (default) brings every field back to its value after revision_id. undo puts back, for only the fields revision_id changed, the values they held just before it.
+          enum:
+            - restore
+            - undo
+          type: string
+          x-vocabulary-closed: true
         reason:
           description: Must not be used as a discriminant.
           maxLength: 2000
@@ -7741,12 +7764,18 @@ components:
           maxLength: 20
           pattern: ^[0-9]+$
           type: string
+        diff_from_baseline:
+          description: Present with diff when the diff was taken against the state recorded before the entity's first edit — asked for with diff_base=baseline, or taken by default on a first revision that has one. diff_base is then null.
+          type: boolean
         entity_id:
           description: Catalog id of the entity this revision is on.
           maxLength: 20
           minLength: 1
           pattern: ^[0-9]+$
           type: string
+        has_baseline:
+          description: true on an entity's first revision when the state before that edit was recorded. diff_base=baseline diffs against it, and POST /v2/moderation/reverts with baseline=true restores it. Absent otherwise.
+          type: boolean
         id:
           description: Revision id. This is the value POST /v2/moderation/reverts takes as revision_id.
           maxLength: 20
@@ -10217,7 +10246,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.58.0
+  version: 2.59.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -12176,7 +12205,7 @@ paths:
         - catalog
   /v2/catalog/persons:
     get:
-      description: Keyset-paginated persons. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.
+      description: Keyset-paginated persons. q= searches the display name and every credit name whose person link is public. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.
       operationId: listCatalogPersons
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -12266,6 +12295,14 @@ paths:
           schema:
             description: true includes r18. false or absent hides r18. Only true or false.
             maxLength: 8
+            type: string
+        - description: "Name search: the person's display name, or any of their credit names (name or latin) whose person link is public. Substring, case-insensitive. Must not be used as a discriminant."
+          explode: false
+          in: query
+          name: q
+          schema:
+            description: "Name search: the person's display name, or any of their credit names (name or latin) whose person link is public. Substring, case-insensitive. Must not be used as a discriminant."
+            maxLength: 512
             type: string
       responses:
         "200":
@@ -12978,7 +13015,7 @@ paths:
         - catalog
   /v2/catalog/releases:
     get:
-      description: Keyset-paginated dated releases, sorted by date_desc by default. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate.
+      description: Keyset-paginated dated releases, sorted by date_desc by default. q= filters by release title or work display name. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate.
       operationId: listCatalogReleases
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -13068,6 +13105,14 @@ paths:
           schema:
             description: true includes r18. false or absent hides r18. Only true or false.
             maxLength: 8
+            type: string
+        - description: "Title search: the release title or its work's display name. Substring, case-insensitive, over the same dated releases this collection lists. Must not be used as a discriminant."
+          explode: false
+          in: query
+          name: q
+          schema:
+            description: "Title search: the release title or its work's display name. Substring, case-insensitive, over the same dated releases this collection lists. Must not be used as a discriminant."
+            maxLength: 512
             type: string
       responses:
         "200":
@@ -13436,12 +13481,12 @@ paths:
             description: Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD.
             maxLength: 1024
             type: string
-        - description: Revision id to diff against. Requires include=diff. Absent means the preceding revision of the same entity.
+        - description: Revision id to diff against, or baseline for the state recorded before the entity's first edit. Requires include=diff. Absent means the preceding revision of the same entity, or the baseline on a first revision that has one.
           explode: false
           in: query
           name: diff_base
           schema:
-            description: Revision id to diff against. Requires include=diff. Absent means the preceding revision of the same entity.
+            description: Revision id to diff against, or baseline for the state recorded before the entity's first edit. Requires include=diff. Absent means the preceding revision of the same entity, or the baseline on a first revision that has one.
             maxLength: 20
             type: string
       responses:
@@ -21377,7 +21422,7 @@ paths:
         - me
   /v2/me/proposals:
     get:
-      description: The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch and effective_patch, the same pair GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. Requires a user access token. The token must carry the catalog:edit scope.
+      description: The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch, effective_patch, changed_fields and (open rows) conflict_fields, the same block GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. field=, has_conflict= and updated_since= filter; sort=filed_desc (default), filed_asc, updated_desc or updated_asc. Requires a user access token. The token must carry the catalog:edit scope.
       operationId: listMyProposals
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -21499,6 +21544,38 @@ paths:
           schema:
             description: Catalog id of one entity. Accepted alone on this lane, which is already fenced to the bearer's own proposals; pair it with object= or entity_type= when ids collide across families.
             maxLength: 20
+            type: string
+        - description: Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing.
+          explode: false
+          in: query
+          name: site
+          schema:
+            description: Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing.
+            maxLength: 64
+            type: string
+        - description: A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it.
+          explode: false
+          in: query
+          name: field
+          schema:
+            description: A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it.
+            maxLength: 128
+            type: string
+        - description: true keeps open proposals that a revision recorded after their base_revision_seq overlaps on a field; false keeps the rest. Only true or false.
+          explode: false
+          in: query
+          name: has_conflict
+          schema:
+            description: true keeps open proposals that a revision recorded after their base_revision_seq overlaps on a field; false keeps the rest. Only true or false.
+            maxLength: 8
+            type: string
+        - description: RFC 3339 UTC ending in Z. Keeps proposals whose updated_at is later.
+          explode: false
+          in: query
+          name: updated_since
+          schema:
+            description: RFC 3339 UTC ending in Z. Keeps proposals whose updated_at is later.
+            maxLength: 32
             type: string
       responses:
         "200":
@@ -23861,7 +23938,7 @@ paths:
         - moderation
   /v2/moderation/proposals:
     get:
-      description: Open proposals on the token site; on the central editor (catalog site editor), on every site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. The token must carry the catalog:edit scope.
+      description: Open proposals on the token site; on the central editor (catalog site editor), on every site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. site= narrows the central editor's queue to one site of origin; field=, has_conflict= and updated_since= filter; sort=filed_desc (default), filed_asc (oldest waiting first), updated_desc or updated_asc. include=patch (or view=full) adds each row's patch, effective_patch, changed_fields and conflict_fields, so a queue page needs no read per row. The token must carry the catalog:edit scope.
       operationId: listModerationProposals
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -23975,6 +24052,38 @@ paths:
           schema:
             description: Catalog id of one entity. Requires object= or entity_type=. Narrows the queue to that entity, which its owner may read without a review permission.
             maxLength: 20
+            type: string
+        - description: Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing.
+          explode: false
+          in: query
+          name: site
+          schema:
+            description: Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing.
+            maxLength: 64
+            type: string
+        - description: A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it.
+          explode: false
+          in: query
+          name: field
+          schema:
+            description: A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it.
+            maxLength: 128
+            type: string
+        - description: true keeps open proposals that a revision recorded after their base_revision_seq overlaps on a field; false keeps the rest. Only true or false.
+          explode: false
+          in: query
+          name: has_conflict
+          schema:
+            description: true keeps open proposals that a revision recorded after their base_revision_seq overlaps on a field; false keeps the rest. Only true or false.
+            maxLength: 8
+            type: string
+        - description: RFC 3339 UTC ending in Z. Keeps proposals whose updated_at is later.
+          explode: false
+          in: query
+          name: updated_since
+          schema:
+            description: RFC 3339 UTC ending in Z. Keeps proposals whose updated_at is later.
+            maxLength: 32
             type: string
       responses:
         "200":
@@ -24323,7 +24432,7 @@ paths:
         - moderation
   /v2/moderation/reverts:
     post:
-      description: Body names revision_id. A downstream site may not revert an entity another site claims; the central editor (catalog site editor) may revert any. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+      description: Body names revision_id. mode=restore (default) brings every registered field back to its value after that revision, or with baseline=true to the state recorded before the entity's first edit. mode=undo puts back, for only the fields that revision changed, the values they held just before it; when a later revision changed one of those fields the answer is 409 REVERT_CONFLICT naming them, unless force=true. A downstream site may not revert an entity another site claims; the central editor (catalog site editor) may revert any. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
       operationId: revertModeration
       parameters:
         - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
