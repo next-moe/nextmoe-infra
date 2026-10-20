@@ -1,0 +1,2 @@
+export const APPLICATION_REASON_MIN = 10
+export const APPLICATION_REASON_MAX = 1000

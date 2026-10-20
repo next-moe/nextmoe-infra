@@ -41,8 +41,18 @@ export const EDITOR_NAV: EditorNavGroup[] = [
         to: '/me/proposals',
         ready: true
       },
-      { label: '草稿', icon: 'lucide:file-pen-line', to: '/me/drafts' },
-      { label: '贡献', icon: 'lucide:award', to: '/me/contributions' }
+      {
+        label: '草稿',
+        icon: 'lucide:file-pen-line',
+        to: '/me/drafts',
+        ready: true
+      },
+      {
+        label: '贡献',
+        icon: 'lucide:award',
+        to: '/me/contributions',
+        ready: true
+      }
     ]
   },
   {
@@ -65,7 +75,12 @@ export const EDITOR_NAV: EditorNavGroup[] = [
         to: '/changes',
         ready: true
       },
-      { label: '编辑规范', icon: 'lucide:book-open', to: '/guidelines' }
+      {
+        label: '编辑规范',
+        icon: 'lucide:book-open',
+        to: '/guidelines',
+        ready: true
+      }
     ]
   }
 ]
