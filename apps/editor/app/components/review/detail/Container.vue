@@ -31,7 +31,7 @@ interface SnapshotRecord {
 const api = useEditorApi()
 const route = useRoute()
 const names = useEntityNames()
-const { isReviewer } = useEditorSession()
+const { isReviewer, settled } = useEditorSession()
 const queueIds = useState<string[]>('review-queue-ids', () => [])
 const { prepare, context } = useDiffContext()
 
@@ -291,9 +291,15 @@ watch(id, load)
 
 useHead(() => ({ title: `审核提案 #${id.value} · 未萌编辑台` }))
 
-if (isReviewer.value) {
-  await load()
-}
+watch(
+  isReviewer,
+  (reviewer) => {
+    if (reviewer && !proposal.value) {
+      load()
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
@@ -338,7 +344,7 @@ if (isReviewer.value) {
     <ReviewDetailShortcuts v-if="helpOpen" />
 
     <KunInfo
-      v-if="!isReviewer"
+      v-if="settled && !isReviewer"
       color="warning"
       variant="flat"
       title="需要审核权限"
@@ -444,5 +450,38 @@ if (isReviewer.value) {
         @confirm="decline"
       />
     </template>
+
+    <div v-else class="space-y-5" aria-busy="true" aria-label="正在加载提案">
+      <div class="space-y-2">
+        <KunSkeleton variant="text" class-name="text-xl" width="18rem" />
+        <KunSkeleton variant="text" class-name="text-sm" width="12rem" />
+      </div>
+      <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
+        <div class="space-y-3">
+          <div
+            v-for="index in 3"
+            :key="index"
+            class="border-default-200 bg-content1 space-y-3 rounded-xl border p-4"
+          >
+            <KunSkeleton
+              variant="text"
+              class-name="font-semibold"
+              width="7rem"
+            />
+            <div class="grid gap-3 sm:grid-cols-2">
+              <KunSkeleton height="4.5rem" rounded="lg" />
+              <KunSkeleton height="4.5rem" rounded="lg" />
+            </div>
+          </div>
+        </div>
+        <div
+          class="border-default-200 bg-content1 space-y-3 self-start rounded-xl border p-4"
+        >
+          <KunSkeleton variant="text" class-name="text-xs" width="60%" />
+          <KunSkeleton height="5rem" rounded="lg" />
+          <KunSkeleton height="2.5rem" rounded="lg" />
+        </div>
+      </div>
+    </div>
   </div>
 </template>

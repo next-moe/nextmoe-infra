@@ -144,7 +144,7 @@ const submit = async (confirmDuplicates = false) => {
 }
 
 watch(familyParam, load)
-await load()
+load()
 
 useHead(() => ({
   title: `新建${meta.value?.label ?? '条目'} · 未萌编辑台`
@@ -169,7 +169,18 @@ useHead(() => ({
         description="先填写最基本的信息创建条目，创建后可以在编辑页继续完善全部资料。"
       />
 
-      <KunLoading v-if="loading" spinner />
+      <div
+        v-if="loading"
+        class="border-default-200 bg-content1 space-y-5 rounded-xl border p-4"
+        aria-busy="true"
+        aria-label="正在加载表单"
+      >
+        <KunSkeleton height="3.5rem" rounded="lg" />
+        <div v-for="index in 3" :key="index" class="space-y-1.5">
+          <KunSkeleton variant="text" class-name="text-sm" width="6rem" />
+          <KunSkeleton height="2.5rem" rounded="lg" />
+        </div>
+      </div>
 
       <KunInfo
         v-else-if="creation && !creation.can_create"

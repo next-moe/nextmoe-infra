@@ -22,7 +22,7 @@ const countOf = (state?: string) =>
     .then((list) => list.total ?? null)
     .catch(() => null)
 
-const { data: stats } = await useAsyncData(
+const { data: stats, pending: statsPending } = useLazyAsyncData(
   () => `review-proposer-${props.proposal.proposer_uid}`,
   async () => {
     const [all, merged, declined] = await Promise.all([
@@ -45,7 +45,13 @@ const amendments = computed(() => props.proposal.amendments ?? [])
         :user="props.proposal.proposer"
         :uid="props.proposal.proposer_uid"
       />
-      <p v-if="stats" class="text-default-500 mt-1 text-xs">
+      <KunSkeleton
+        v-if="statsPending && !stats"
+        variant="text"
+        class-name="mt-1 text-xs"
+        width="80%"
+      />
+      <p v-else-if="stats" class="text-default-500 mt-1 text-xs">
         共 {{ stats.all ?? '—' }} 条提案 · 已合并 {{ stats.merged ?? '—' }} ·
         被拒绝
         {{ stats.declined ?? '—' }}

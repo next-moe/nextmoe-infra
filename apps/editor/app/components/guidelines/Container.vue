@@ -4,7 +4,7 @@ import { QUOTA_TIER_LABELS } from '~/constants/quota'
 
 useHead({ title: '编辑规范 · 未萌编辑台' })
 
-const { data: quota } = await useEditQuota()
+const { data: quota, pending: quotaPending } = useEditQuota()
 </script>
 
 <template>
@@ -69,7 +69,13 @@ const { data: quota } = await useEditQuota()
           <KunIcon name="lucide:gauge" class="text-primary size-4" />
           我的配额
         </h2>
-        <p v-if="!quota" class="text-default-400 text-sm">配额信息暂不可用</p>
+        <div v-if="quotaPending && !quota" class="space-y-2" aria-busy="true">
+          <KunSkeleton variant="text" class-name="text-sm" width="70%" />
+          <KunSkeleton height="4rem" rounded="lg" />
+        </div>
+        <p v-else-if="!quota" class="text-default-400 text-sm">
+          配额信息暂不可用
+        </p>
         <template v-else>
           <p class="text-default-600 mb-3 text-sm">
             你当前的身份是「{{

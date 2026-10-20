@@ -29,7 +29,7 @@ const action = ref('')
 const mine = ref(false)
 const revisions = ref<CatalogRevision[]>([])
 const nextCursor = ref<string | null>(null)
-const loading = ref(false)
+const loading = ref(true)
 const expanded = ref<string | null>(null)
 const schemas = ref<Record<string, CatalogObjectSchema>>({})
 
@@ -120,7 +120,7 @@ const toggleDiff = async (revision: CatalogRevision) => {
 
 watch([family, site, mine], () => fetchPage(null))
 
-await fetchPage(null)
+fetchPage(null)
 </script>
 
 <template>
@@ -155,7 +155,8 @@ await fetchPage(null)
     </div>
 
     <KunCard bordered padding="md">
-      <ul v-if="visible.length" class="divide-default-200 divide-y">
+      <CommonSkeletonRows v-if="loading && !revisions.length" :rows="8" />
+      <ul v-else-if="visible.length" class="divide-default-200 divide-y">
         <HistoryRevisionRow
           v-for="revision in visible"
           :key="revision.id"
@@ -184,7 +185,7 @@ await fetchPage(null)
         "
       />
       <div class="flex justify-center pt-3">
-        <KunLoading v-if="loading" spinner />
+        <KunLoading v-if="loading && revisions.length" spinner />
         <KunButton
           v-else-if="nextCursor"
           variant="bordered"

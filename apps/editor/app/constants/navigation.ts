@@ -118,3 +118,16 @@ export const findNavItem = (path: string) =>
     (item) =>
       item.to !== '/' && (path === item.to || path.startsWith(`${item.to}/`))
   )
+
+export const currentNavPath = (path: string, items: EditorNavItem[]) =>
+  items
+    .filter((item) =>
+      item.to === '/'
+        ? path === '/'
+        : path === item.to || path.startsWith(`${item.to}/`)
+    )
+    .reduce<string | null>(
+      (best, item) =>
+        best === null || item.to.length > best.length ? item.to : best,
+      null
+    )

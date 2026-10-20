@@ -8,7 +8,7 @@ const props = defineProps<{ workId: string }>()
 
 const api = useEditorApi()
 
-const { data, pending } = await useAsyncData(
+const { data, pending } = useLazyAsyncData(
   `work-edit-preview-${props.workId}`,
   async () => {
     const [schema, capabilities] = await Promise.all([
@@ -45,6 +45,7 @@ const mark = (value: boolean | undefined) =>
     >
       <KunButton
         :href="`/works/${props.workId}/edit`"
+        target="_blank"
         color="primary"
         size="sm"
         class="mt-2"
@@ -55,7 +56,7 @@ const mark = (value: boolean | undefined) =>
     </KunInfo>
 
     <WorksDetailSection title="可编辑字段" :count="rows.length">
-      <KunLoading v-if="pending" spinner />
+      <CommonSkeletonRows v-if="pending && !data" :rows="6" trailing />
       <div v-else-if="rows.length" class="overflow-x-auto">
         <table class="w-full min-w-[520px] text-sm">
           <thead class="text-default-400 text-left text-xs">
