@@ -21,9 +21,14 @@ const (
 	RefPrefix = "catalog_edit:"
 
 	forumSiteDomain = "www.kungal.com"
-	forumKeyPrefix  = "galgame_edit_merged:"
 	lookupChunk     = 1000
 )
+
+// The forum's moemoepoint.Key prepends "kungal:", so its merge awards sit in the
+// ledger as kungal:galgame_edit_merged:<id>. The first cut matched the bare
+// galgame_edit_merged:<id>, found none of them, and would have paid every forum
+// merge inside the window a second time.
+const forumKeyPrefix = "kungal:galgame_edit_merged:"
 
 type Opts struct {
 	Amount int64

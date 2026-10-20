@@ -176,7 +176,7 @@ func TestSkipsProposalsTheForumAlreadyAwarded(t *testing.T) {
 	t.Cleanup(func() { testDB.Exec(`DELETE FROM oauth_clients WHERE id = ?`, clientID) })
 	if _, err := service.New(testDB).Award(context.Background(), service.Award{
 		UserID: proposer, Delta: 1, Reason: ledgerModel.ReasonContentApproved, SourceApp: clientID,
-		IdempotencyKey: "galgame_edit_merged:" + strconv.FormatInt(id, 10),
+		IdempotencyKey: "kungal:galgame_edit_merged:" + strconv.FormatInt(id, 10),
 	}); err != nil {
 		t.Fatalf("forum award: %v", err)
 	}
