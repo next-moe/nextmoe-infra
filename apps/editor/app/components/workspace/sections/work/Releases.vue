@@ -70,6 +70,7 @@ const selected = computed(
 const select = (release: RelatedRelease | null) => {
   nav.item.value = release?.id ?? null
 }
+useAutoSelectFirst(selected, () => groups.value[0]?.items[0]?.value, select)
 
 const refresh = async () => {
   refreshing.value = true

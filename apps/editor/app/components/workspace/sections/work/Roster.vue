@@ -100,6 +100,7 @@ const selected = computed(
 const select = (row: Row | null) => {
   nav.item.value = row?.id ?? null
 }
+useAutoSelectFirst(selected, () => groups.value[0]?.items[0], select)
 
 const voicesOf = (characterId: string) => {
   const mergedCredits = mergeRelatedRows({

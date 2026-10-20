@@ -74,6 +74,7 @@ const selected = computed(
 const select = (row: Row | null) => {
   nav.item.value = row?.key ?? null
 }
+useAutoSelectFirst(selected, () => visible.value[0], select)
 
 const kindOptions = computed(() =>
   members.memberOptions('kind', SERIES_MEMBER_KIND_LABELS)

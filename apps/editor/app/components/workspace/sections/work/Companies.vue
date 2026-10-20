@@ -85,6 +85,7 @@ const selected = computed(
 const select = (company: Company | null) => {
   nav.item.value = company?.id ?? null
 }
+useAutoSelectFirst(selected, () => visible.value[0], select)
 
 const takenRoles = (companyId: string) =>
   new Set(

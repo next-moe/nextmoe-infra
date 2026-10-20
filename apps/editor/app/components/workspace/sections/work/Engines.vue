@@ -109,6 +109,7 @@ const selected = computed(
 const select = (row: EngineRow | null) => {
   nav.item.value = row?.key ?? null
 }
+useAutoSelectFirst(selected, () => visibleEngines.value[0], select)
 
 const removeEngine = (row: EngineRow) => {
   if (row.origin === 'human') {

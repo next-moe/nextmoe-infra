@@ -86,6 +86,7 @@ const selected = computed(
 const select = (entry: Entry | null) => {
   nav.item.value = entry?.row.key ?? null
 }
+useAutoSelectFirst(selected, () => groups.value[0]?.items[0], select)
 
 const directionOptions = computed(() =>
   relations.memberOptions('relation').flatMap((option) => {

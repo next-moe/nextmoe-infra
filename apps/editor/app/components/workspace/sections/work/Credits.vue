@@ -99,6 +99,7 @@ const selected = computed(
 const select = (entry: Entry | null) => {
   nav.item.value = entry?.row.key ?? null
 }
+useAutoSelectFirst(selected, () => groups.value[0]?.items[0], select)
 
 const panel = ref<'credit_name' | 'person'>('credit_name')
 const personId = computed(() =>
