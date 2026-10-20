@@ -17,6 +17,20 @@ const familyLabel = computed(
     props.proposal.target_object
 )
 
+const creationName = computed(() => {
+  if (!props.proposal.creation) {
+    return ''
+  }
+  const patch = (props.proposal.effective_patch ??
+    props.proposal.patch ??
+    {}) as Record<string, unknown>
+  const named = Object.entries(patch).find(
+    ([key, value]) =>
+      /\.(display_name|name|title)$/.test(key) && typeof value === 'string'
+  )
+  return named ? String(named[1]) : ''
+})
+
 const conflictCount = computed(
   () => Object.keys(props.analysis?.conflicts ?? {}).length
 )
@@ -38,8 +52,18 @@ const conflictCount = computed(
       </KunChip>
       <div class="min-w-0 flex-1">
         <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          <KunChip
+            v-if="props.proposal.creation"
+            size="xs"
+            color="success"
+            variant="flat"
+          >
+            新建
+          </KunChip>
           <span class="text-foreground truncate font-medium">{{
-            props.name
+            props.proposal.creation
+              ? creationName || `新${familyLabel}`
+              : props.name
           }}</span>
           <span class="text-default-400 text-xs"
             >提案 #{{ props.proposal.id }}</span

@@ -106,9 +106,7 @@ const waitMs = computed(() =>
             <span class="text-foreground font-medium tabular-nums">{{
               formatWait(waitMs)
             }}</span>
-            ，{{
-              formatDateTime(props.application.reapply_after)
-            }}
+            ，{{ formatDateTime(props.application.reapply_after) }}
             后可以再次申请。
           </p>
           <p v-else class="text-default-500 text-sm">

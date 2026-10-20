@@ -61,12 +61,18 @@ await fetchPage(null)
         name="作品"
         description="浏览与搜索资料库中的全部作品，进入条目查看与编辑。"
       />
-      <p
-        v-if="total !== null"
-        class="text-default-500 shrink-0 text-sm tabular-nums"
-      >
-        共 {{ total.toLocaleString() }} 部
-      </p>
+      <div class="flex shrink-0 items-center gap-3">
+        <p
+          v-if="total !== null"
+          class="text-default-500 shrink-0 text-sm tabular-nums"
+        >
+          共 {{ total.toLocaleString() }} 部
+        </p>
+        <KunButton href="/new/work" color="primary" size="sm">
+          <KunIcon name="lucide:plus" class="size-4" />
+          新建作品
+        </KunButton>
+      </div>
     </div>
 
     <KunInput
