@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import type { ActivityList, ActivityProposal } from '#shared/types/activity'
+import type { ActivityList } from '#shared/types/activity'
+import type { CatalogProposal } from '#shared/types/catalog'
 
 const PAGE = 100
 
 const api = useEditorApi()
 
 const { data, pending } = await useAsyncData('dashboard-reviewer-queue', () =>
-  api<ActivityList<ActivityProposal>>('/v2/moderation/proposals', {
+  api<ActivityList<CatalogProposal>>('/v2/moderation/proposals', {
     query: { limit: PAGE, include_total: true }
   }).catch(() => null)
 )

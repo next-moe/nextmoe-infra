@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { cn } from '@kungal/ui-core'
-import type {
-  ActivityList,
-  ActivityProposal,
-  ActivityRevision
-} from '#shared/types/activity'
+import type { ActivityList } from '#shared/types/activity'
+import type { CatalogProposal, CatalogRevision } from '#shared/types/catalog'
 import {
   ACTIVITY_WEEKS,
   CONTRIBUTION_FAMILIES,
@@ -19,7 +16,7 @@ const { session } = useEditorSession()
 const names = useEntityNames()
 
 const totalOf = (query: Record<string, string | number | boolean>) =>
-  api<ActivityList<ActivityProposal>>('/v2/me/proposals', {
+  api<ActivityList<CatalogProposal>>('/v2/me/proposals', {
     query: { ...query, limit: 1, include_total: true }
   })
     .then((list) => list.total ?? 0)
@@ -55,18 +52,18 @@ const { data: familyTotals } = await useAsyncData(
 const { data: recentProposals } = await useAsyncData(
   'contributions-recent-proposals',
   () =>
-    api<ActivityList<ActivityProposal>>('/v2/me/proposals', {
+    api<ActivityList<CatalogProposal>>('/v2/me/proposals', {
       query: { limit: 100 }
     })
       .then((list) => list.items ?? [])
-      .catch(() => [] as ActivityProposal[])
+      .catch(() => [] as CatalogProposal[])
 )
 
 const { data: revisions, pending: revisionsPending } = await useAsyncData(
   'contributions-revisions',
   () =>
     session.value
-      ? api<ActivityList<ActivityRevision>>('/v2/catalog/revisions', {
+      ? api<ActivityList<CatalogRevision>>('/v2/catalog/revisions', {
           query: { actor_uid: session.value.id, limit: 20, include_total: true }
         }).catch(() => null)
       : Promise.resolve(null)
