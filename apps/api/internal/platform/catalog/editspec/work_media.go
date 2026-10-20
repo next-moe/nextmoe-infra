@@ -47,6 +47,10 @@ func parseCovers(v any) ([]workCover, error) {
 	if err != nil {
 		return nil, err
 	}
+	return parseCoversN(arr)
+}
+
+func parseCoversN(arr []any) ([]workCover, error) {
 	out := make([]workCover, 0, len(arr))
 	seen := make(map[string]struct{}, len(arr))
 	pinned := 0
@@ -151,8 +155,8 @@ func rejectUpstreamCoverCollisions(ctx context.Context, tx *gorm.DB, entityID in
 	return &editing.ValidationError{
 		Key: FieldWorkCovers,
 		Reason: fmt.Sprintf("image %s is already collected upstream for this work; "+
-			"upstream media rows cannot be restyled through the editor yet",
-			clash[0].ImageHash),
+			"regrade it through %s instead",
+			clash[0].ImageHash, FieldWorkCoversUpstream),
 	}
 }
 
@@ -188,6 +192,10 @@ func parseScreenshots(v any) ([]workScreenshot, error) {
 	if err != nil {
 		return nil, err
 	}
+	return parseScreenshotsN(arr)
+}
+
+func parseScreenshotsN(arr []any) ([]workScreenshot, error) {
 	out := make([]workScreenshot, 0, len(arr))
 	seen := make(map[string]struct{}, len(arr))
 	for i, el := range arr {
@@ -280,8 +288,8 @@ func rejectUpstreamScreenshotCollisions(ctx context.Context, tx *gorm.DB, entity
 	return &editing.ValidationError{
 		Key: FieldWorkScreenshots,
 		Reason: fmt.Sprintf("image %s is already collected upstream for this work; "+
-			"upstream media rows cannot be restyled through the editor yet",
-			clash[0].ImageHash),
+			"regrade it through %s instead",
+			clash[0].ImageHash, FieldWorkScreenshotsUpstream),
 	}
 }
 

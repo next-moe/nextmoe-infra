@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"api/internal/platform/catalog/dto"
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 
 	"gorm.io/datatypes"
@@ -393,9 +394,9 @@ type taxonomyEdge struct {
 }
 
 var (
-	labelWorkEdge  = taxonomyEdge{sql: `(SELECT label_id AS key_id, work_id FROM catalog_work_label) e`}
-	engineWorkEdge = taxonomyEdge{sql: `(SELECT engine_id AS key_id, work_id FROM ` + model.WorkEnginesSQL + ` x) e`}
-	seriesWorkEdge = taxonomyEdge{sql: `(SELECT series_id AS key_id, work_id FROM catalog_series_member) e`}
+	labelWorkEdge  = taxonomyEdge{sql: `(SELECT vwl.label_id AS key_id, vwl.work_id FROM catalog_work_label vwl WHERE ` + editspec.NotSuppressedWorkLabelSQL("vwl") + `) e`}
+	engineWorkEdge = taxonomyEdge{sql: `(SELECT engine_id AS key_id, work_id FROM ` + editspec.VisibleWorkEnginesSQL + ` x) e`}
+	seriesWorkEdge = taxonomyEdge{sql: `(SELECT vsm.series_id AS key_id, vsm.work_id FROM catalog_series_member vsm WHERE ` + editspec.NotSuppressedWorkSeriesSQL("vsm") + `) e`}
 	tagWorkEdge    = taxonomyEdge{
 		sql: `(SELECT m.tag_id AS key_id, wt.work_id
 		FROM catalog_work_tag wt

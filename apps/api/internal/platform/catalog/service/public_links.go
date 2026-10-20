@@ -210,6 +210,7 @@ func (s *PublicService) linkAnchors(ctx context.Context, entityType int16, ids [
 		SELECT r.entity_id, src.key AS source, r.external_id, r.link_kind
 		FROM catalog_external_ref r JOIN catalog_source src ON src.id = r.source_id
 		WHERE r.entity_type = ? AND r.entity_id IN ? AND r.link_kind IN ? AND r.dead_at IS NULL`+live+`
+		  AND `+editspec.NotSuppressedExternalRefSQL("r")+`
 		ORDER BY r.entity_id, r.source_id, r.external_id`,
 		entityType, ids, []int16{model.LinkKindExact, model.LinkKindRelated}).Scan(&rows).Error
 	return rows, err

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"api/internal/platform/catalog/dto"
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/search/spec"
 )
@@ -142,7 +143,7 @@ func (f CalendarFilter) population() (where []string, args []any) {
 		args = append(args, pargs...)
 	}
 	if f.FollowedBy > 0 {
-		where = append(where, `w.id IN (SELECT fwl.work_id FROM catalog_work_label fwl JOIN catalog_user_entity_follow uf ON uf.entity_id = fwl.label_id AND uf.entity_type = ? WHERE uf.actor_uid = ?)`)
+		where = append(where, `w.id IN (SELECT fwl.work_id FROM catalog_work_label fwl JOIN catalog_user_entity_follow uf ON uf.entity_id = fwl.label_id AND uf.entity_type = ? WHERE uf.actor_uid = ? AND `+editspec.NotSuppressedWorkLabelSQL("fwl")+`)`)
 		args = append(args, model.EntityTypeLabel, f.FollowedBy)
 	}
 	if pred, pargs := tagExclusionWhere("w.id", f.ExcludeTagIDs); pred != "" {
@@ -167,10 +168,10 @@ func (f CalendarFilter) companyKindExclusion(workID string) (string, []any) {
 	}
 	return `NOT EXISTS (SELECT 1 FROM catalog_work_label xwl
 		JOIN catalog_label xl ON xl.id = xwl.label_id AND xl.deleted_at IS NULL
-		WHERE xwl.work_id = ` + workID + ` AND xl.kind IN ?
+		WHERE xwl.work_id = ` + workID + ` AND xl.kind IN ? AND ` + editspec.NotSuppressedWorkLabelSQL("xwl") + `
 		  AND NOT EXISTS (SELECT 1 FROM catalog_work_label kwl
 			JOIN catalog_label kl ON kl.id = kwl.label_id AND kl.deleted_at IS NULL
-			WHERE kwl.work_id = ` + workID + ` AND kl.kind NOT IN ?))`, []any{kinds, kinds}
+			WHERE kwl.work_id = ` + workID + ` AND kl.kind NOT IN ? AND ` + editspec.NotSuppressedWorkLabelSQL("kwl") + `))`, []any{kinds, kinds}
 }
 
 func (s *PublicService) CalendarMeta(ctx context.Context, b CalendarBucket, f CalendarFilter) (int64, time.Time, error) {

@@ -282,7 +282,8 @@ func (s *ReadService) loadWorkDetail(ctx context.Context, workID int64, opts wor
 	if want("labels") {
 		if err := db.Raw(`SELECT wl.label_id, l.display_name, l.kind AS label_kind, wl.kind AS kind, l.lang, l.logo_hash
 			FROM catalog_work_label wl JOIN catalog_label l ON l.id = wl.label_id AND l.deleted_at IS NULL
-			WHERE wl.work_id = ? ORDER BY wl.kind, l.display_name`, workID).Scan(&detail.Labels).Error; err != nil {
+			WHERE wl.work_id = ? AND `+editspec.NotSuppressedWorkLabelSQL("wl")+`
+			ORDER BY wl.kind, l.display_name`, workID).Scan(&detail.Labels).Error; err != nil {
 			return nil, err
 		}
 	}
@@ -517,7 +518,7 @@ func (s *ReadService) nativeWorkIntros(ctx context.Context, workIDs []int64, out
 		Provenance int16  `gorm:"column:provenance"`
 	}
 	if err := db.Raw(`SELECT work_id, lang, intro, source_id, provenance FROM catalog_work_intro
-		WHERE work_id IN ? ORDER BY work_id, lang, `+
+		WHERE work_id IN ? AND `+editspec.NotSuppressedWorkIntroSQL("catalog_work_intro")+` ORDER BY work_id, lang, `+
 		editspec.IntroFoldOrderSQL("source_id", "provenance"), workIDs).Scan(&rows).Error; err != nil {
 		return err
 	}
@@ -583,7 +584,7 @@ func (s *ReadService) nativeWorkCovers(ctx context.Context, workIDs []int64, out
 	}
 	if err := db.Raw(`WITH wc AS (
 			SELECT id, work_id, image_hash, sort_order, kind, portrait_pinned, sexual, violence, source_id, merged_in
-			FROM catalog_work_cover WHERE work_id IN ?
+			FROM catalog_work_cover vc WHERE vc.work_id IN ? AND `+editspec.NotSuppressedWorkCoverSQL("vc")+`
 		), shared AS (
 			SELECT c.image_hash
 			FROM catalog_work_cover c
@@ -636,7 +637,7 @@ func (s *ReadService) nativeWorkScreenshots(ctx context.Context, workIDs []int64
 		MergedIn  bool   `gorm:"column:merged_in"`
 	}
 	if err := db.Raw(`SELECT work_id, image_hash, sort_order, caption, sexual, violence, source_id, merged_in
-		FROM catalog_work_screenshot WHERE work_id IN ?
+		FROM catalog_work_screenshot vs WHERE vs.work_id IN ? AND `+editspec.NotSuppressedWorkScreenshotSQL("vs")+`
 		ORDER BY work_id, source_id, sort_order, image_hash`, workIDs).Scan(&rows).Error; err != nil {
 		return err
 	}
@@ -782,12 +783,12 @@ func (s *ReadService) LabelWorks(ctx context.Context, labelID int64, limit, offs
 		head = &h
 	}
 	if err = db.Raw(`SELECT count(*) FROM catalog_work_label wl JOIN catalog_work w ON w.id = wl.work_id
-		WHERE wl.label_id = ? AND w.deleted_at IS NULL AND w.status = ?`, labelID, model.WorkStatusLive).Scan(&total).Error; err != nil {
+		WHERE wl.label_id = ? AND w.deleted_at IS NULL AND w.status = ? AND `+editspec.NotSuppressedWorkLabelSQL("wl"), labelID, model.WorkStatusLive).Scan(&total).Error; err != nil {
 		return nil, nil, 0, err
 	}
 	err = db.Raw(`SELECT w.id AS work_id, w.display_name, w.medium_id, w.content_rating, w.status, wl.kind
 		FROM catalog_work_label wl JOIN catalog_work w ON w.id = wl.work_id
-		WHERE wl.label_id = ? AND w.deleted_at IS NULL AND w.status = ? ORDER BY w.id LIMIT ? OFFSET ?`,
+		WHERE wl.label_id = ? AND w.deleted_at IS NULL AND w.status = ? AND `+editspec.NotSuppressedWorkLabelSQL("wl")+` ORDER BY w.id LIMIT ? OFFSET ?`,
 		labelID, model.WorkStatusLive, limit, offset).Scan(&items).Error
 	return head, items, total, err
 }
@@ -1255,7 +1256,7 @@ func (s *ReadService) CharacterByID(ctx context.Context, characterID int64, maxS
 		Provenance int16  `gorm:"column:provenance"`
 	}
 	if err := db.Raw(`SELECT lang, intro, source_id, provenance FROM catalog_character_intro
-		WHERE character_id = ? ORDER BY lang, provenance, `+
+		WHERE character_id = ? AND `+editspec.NotSuppressedCharacterIntroSQL("catalog_character_intro")+` ORDER BY lang, provenance, `+
 		editspec.HumanLaneFirstSQL("source_id", "provenance")+`,
 		(provenance = 1 AND source_id = ?) DESC, source_id`, characterID, sourceDerived).Scan(&introRows).Error; err != nil {
 		return nil, err

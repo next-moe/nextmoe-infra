@@ -41,6 +41,7 @@ type Cover struct {
 	Sexual         *string  `json:"sexual" enum:"safe,suggestive,explicit" doc:"Sexual depiction. null means not assessed."`
 	Violence       *string  `json:"violence" enum:"tame,violent,brutal" doc:"Violent depiction. null means not assessed. Currently always null."`
 	Source         string   `json:"source" maxLength:"64" doc:"Open vocabulary sources. Must not be used as a discriminant."`
+	Identity       string   `json:"identity" maxLength:"256" doc:"Opaque row identity for a catalog.work.covers.suppressed proposal; echo it back, never rebuild it. Must not be used as a discriminant."`
 }
 
 func NewImage(cdnBase, hash, source string, width, height *int, thumbhash *string, sexual, violence *int16) (*Image, bool) {

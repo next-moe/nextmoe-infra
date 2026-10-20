@@ -69,6 +69,12 @@ func curatedMatch(col string) string {
 	return fmt.Sprintf("%s = '%s'", col, provenance.SourceCurated)
 }
 
+func suppressibleIntroRows(table, ownerCol string) contextRowSource {
+	src := introRows(table, ownerCol, true)
+	src.identity = editspec.IntroIdentitySQL("i")
+	return src
+}
+
 func introRows(table, ownerCol string, machine bool) contextRowSource {
 	src := contextRowSource{
 		from: table + " i", owner: "i." + ownerCol, sourceID: "i.source_id",
@@ -89,8 +95,33 @@ func linkRows(entityType int16) contextRowSource {
 		owner:    fmt.Sprintf("r.entity_type = %d AND r.entity_id", entityType),
 		sourceID: "r.source_id",
 		human:    curatedMatch("r.matched_by"),
+		identity: fmt.Sprintf("CASE WHEN r.link_kind <> %d THEN %s END", catmodel.LinkKindExact, editspec.ExternalRefIdentitySQL("r")),
 		value:    `json_build_object('external_id', r.external_id, 'link_kind', r.link_kind, 'matched_by', r.matched_by, 'dead', r.dead_at IS NOT NULL)`,
 		order:    "r.source_id, r.external_id",
+	}
+}
+
+// The curated lane and the *_upstream regrade fields read the same rows; the
+// per-row field_provenance is where a regrade's stamp lands.
+func coverRows() contextRowSource {
+	return contextRowSource{
+		from: "catalog_work_cover c", owner: "c.work_id", sourceID: "c.source_id",
+		human:    humanLaneOf("c.source_id"),
+		identity: editspec.CoverIdentitySQL("c"),
+		value:    `json_build_object('image_hash', c.image_hash, 'kind', c.kind, 'portrait_pinned', c.portrait_pinned, 'sexual', c.sexual, 'violence', c.violence)`,
+		prov:     "c.field_provenance",
+		order:    "c.source_id, c.sort_order, c.image_hash",
+	}
+}
+
+func screenshotRows() contextRowSource {
+	return contextRowSource{
+		from: "catalog_work_screenshot ss", owner: "ss.work_id", sourceID: "ss.source_id",
+		human:    humanLaneOf("ss.source_id"),
+		identity: editspec.ScreenshotIdentitySQL("ss"),
+		value:    `json_build_object('image_hash', ss.image_hash, 'caption', ss.caption, 'sexual', ss.sexual, 'violence', ss.violence)`,
+		prov:     "ss.field_provenance",
+		order:    "ss.source_id, ss.sort_order, ss.image_hash",
 	}
 }
 
@@ -108,7 +139,7 @@ var contextRowSources = map[string]contextRowSource{
 		machine:  fmt.Sprintf("t.provenance = %d", catmodel.IntroProvenanceMachine),
 		order:    "t.kind, t.lang, t.id",
 	},
-	editspec.FieldWorkIntros: introRows("catalog_work_intro", "work_id", true),
+	editspec.FieldWorkIntros: suppressibleIntroRows("catalog_work_intro", "work_id"),
 	editspec.FieldWorkTagIDs: {
 		from: `catalog_work_tag wt
 			LEFT JOIN catalog_tag_source_map m ON m.source_id = wt.source_id AND m.source_name = wt.name`,
@@ -119,35 +150,30 @@ var contextRowSources = map[string]contextRowSource{
 	},
 	editspec.FieldWorkLabels: {
 		from: "catalog_work_label wl", owner: "wl.work_id", sourceID: "wl.source_id",
-		human: humanLaneOf("wl.source_id"),
-		value: `json_build_object('label_id', wl.label_id, 'kind', wl.kind)`,
-		order: "wl.source_id NULLS FIRST, wl.label_id, wl.kind",
+		human:    humanLaneOf("wl.source_id"),
+		identity: editspec.WorkLabelIdentitySQL("wl"),
+		value:    `json_build_object('label_id', wl.label_id, 'kind', wl.kind)`,
+		order:    "wl.source_id NULLS FIRST, wl.label_id, wl.kind",
 	},
 	editspec.FieldWorkEngineIDs: {
 		from: "catalog_work_engine we", owner: "we.work_id", sourceID: "we.source_id",
-		human: humanLaneOf("we.source_id"),
-		value: `to_json(we.engine_id)`,
-		order: "we.source_id, we.engine_id",
+		human:    humanLaneOf("we.source_id"),
+		identity: editspec.WorkEngineIdentitySQL("we.engine_id"),
+		value:    `to_json(we.engine_id)`,
+		order:    "we.source_id, we.engine_id",
 	},
 	editspec.FieldWorkSeriesIDs: {
 		from:  "catalog_series_member sm JOIN catalog_series s ON s.id = sm.series_id",
 		owner: "sm.work_id", sourceID: "s.source_id", human: humanLaneOf("s.source_id"),
-		value: `json_build_object('series_id', sm.series_id, 'position', sm.position, 'kind', sm.kind)`,
-		order: "s.source_id, sm.series_id",
+		identity: editspec.SeriesIdentitySQL("s"),
+		value:    `json_build_object('series_id', sm.series_id, 'position', sm.position, 'kind', sm.kind)`,
+		order:    "s.source_id, sm.series_id",
 	},
-	editspec.FieldWorkLinks: linkRows(catmodel.EntityTypeWork),
-	editspec.FieldWorkCovers: {
-		from: "catalog_work_cover c", owner: "c.work_id", sourceID: "c.source_id",
-		human: humanLaneOf("c.source_id"),
-		value: `json_build_object('image_hash', c.image_hash, 'kind', c.kind, 'portrait_pinned', c.portrait_pinned, 'sexual', c.sexual, 'violence', c.violence)`,
-		order: "c.source_id, c.sort_order, c.image_hash",
-	},
-	editspec.FieldWorkScreenshots: {
-		from: "catalog_work_screenshot ss", owner: "ss.work_id", sourceID: "ss.source_id",
-		human: humanLaneOf("ss.source_id"),
-		value: `json_build_object('image_hash', ss.image_hash, 'caption', ss.caption, 'sexual', ss.sexual, 'violence', ss.violence)`,
-		order: "ss.source_id, ss.sort_order, ss.image_hash",
-	},
+	editspec.FieldWorkLinks:               linkRows(catmodel.EntityTypeWork),
+	editspec.FieldWorkCovers:              coverRows(),
+	editspec.FieldWorkCoversUpstream:      coverRows(),
+	editspec.FieldWorkScreenshots:         screenshotRows(),
+	editspec.FieldWorkScreenshotsUpstream: screenshotRows(),
 	editspec.FieldWorkCredits: {
 		from: "catalog_credit cr", owner: "cr.work_id", sourceID: "cr.source_id",
 		human:    humanLaneOf("cr.source_id"),
@@ -171,7 +197,7 @@ var contextRowSources = map[string]contextRowSource{
 		machine:  fmt.Sprintf("a.provenance = %d", catmodel.IntroProvenanceMachine),
 		order:    "a.source_id, a.kind, a.lang, a.id",
 	},
-	editspec.FieldCharacterIntros: introRows("catalog_character_intro", "character_id", true),
+	editspec.FieldCharacterIntros: suppressibleIntroRows("catalog_character_intro", "character_id"),
 	editspec.FieldCharacterTraits: {
 		from: "catalog_character_trait_link l", owner: "l.character_id", sourceID: "l.source_id",
 		human:    humanLaneOf("l.source_id"),
@@ -195,7 +221,7 @@ var contextRowSources = map[string]contextRowSource{
 		value:    `json_build_object('label_id', lr.other_label_id, 'relation', lr.relation)`,
 		order:    "lr.source_id, lr.relation, lr.other_label_id",
 	},
-	editspec.FieldLabelIntros:  introRows("catalog_label_intro", "label_id", true),
+	editspec.FieldLabelIntros:  suppressibleIntroRows("catalog_label_intro", "label_id"),
 	editspec.FieldPersonIntros: introRows("catalog_person_intro", "person_id", true),
 	editspec.FieldPersonLinks: {
 		from:     "catalog_external_ref r JOIN catalog_source cs ON cs.id = r.source_id",

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"api/internal/platform/catalog/dto"
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 )
 
@@ -19,9 +20,10 @@ var labelImprintWorkEdge = taxonomyEdge{sql: fmt.Sprintf(`(SELECT r.label_id AS 
 	JOIN catalog_label c ON c.id = r.other_label_id AND c.deleted_at IS NULL
 	JOIN catalog_work_label wl ON wl.label_id = r.other_label_id
 	WHERE r.relation IN (%d, %d)
+	  AND %s
 	  AND NOT EXISTS (SELECT 1 FROM catalog_work_label own
 	    WHERE own.work_id = wl.work_id AND own.label_id = r.label_id)) e`,
-	model.LabelRelationSubsidiary, model.LabelRelationImprint)}
+	model.LabelRelationSubsidiary, model.LabelRelationImprint, editspec.NotSuppressedWorkLabelSQL("wl"))}
 
 func (s *PublicService) labelRollupVia(ctx context.Context, seedID int64, workIDs []int64) (map[int64]dto.PublicLabelVia, error) {
 	out := map[int64]dto.PublicLabelVia{}
@@ -39,6 +41,7 @@ func (s *PublicService) labelRollupVia(ctx context.Context, seedID int64, workID
 		JOIN catalog_label c ON c.id = wl.label_id AND c.deleted_at IS NULL
 		WHERE wl.work_id IN ?
 		  AND wl.label_id IN (`+labelRollupChildren+`)
+		  AND `+editspec.NotSuppressedWorkLabelSQL("wl")+`
 		  AND NOT EXISTS (SELECT 1 FROM catalog_work_label own
 		    WHERE own.work_id = wl.work_id AND own.label_id = ?)
 		ORDER BY wl.work_id, wl.label_id`,

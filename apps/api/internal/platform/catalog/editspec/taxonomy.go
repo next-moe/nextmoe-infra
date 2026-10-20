@@ -88,7 +88,7 @@ func registerLabel(reg *editing.Registry, db *gorm.DB) error {
 		aliases, editing.SuppressedFieldSpec(TypeLabel, aliases),
 		relations, labelRelationSuppressionSpec(relations),
 	)
-	return reg.Register(editing.EntityTypeSpec{
+	return reg.Register(withUpstreamRows(db, editing.EntityTypeSpec{
 		Family: "catalog", Type: TypeLabel,
 		LoadSnapshot: func(ctx context.Context, entityID int64) (map[string]any, error) {
 			var l catmodel.CatalogLabel
@@ -134,7 +134,7 @@ func registerLabel(reg *editing.Registry, db *gorm.DB) error {
 		},
 		DefaultPolicy: sharedEntityPolicy(perm.EditTaxonomyReview),
 		Fields:        fields,
-	})
+	}))
 }
 
 func registerTag(reg *editing.Registry, db *gorm.DB) error {

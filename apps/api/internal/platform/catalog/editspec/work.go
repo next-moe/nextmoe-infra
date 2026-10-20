@@ -52,9 +52,9 @@ func init() {
 }
 
 func RegisterWork(reg *editing.Registry, db *gorm.DB) error {
-	fields := workFieldSpecs()
+	fields := append(workFieldSpecs(), upstreamMediaFieldSpecs()...)
 
-	return reg.Register(editing.EntityTypeSpec{
+	return reg.Register(withUpstreamRows(db, editing.EntityTypeSpec{
 		Family: "catalog",
 		Type:   TypeWork,
 		LoadSnapshot: func(ctx context.Context, entityID int64) (map[string]any, error) {
@@ -75,21 +75,23 @@ func RegisterWork(reg *editing.Registry, db *gorm.DB) error {
 				FieldWorkDisplayNSFW:   w.DisplayNSFW,
 			}
 			for key, load := range map[string]func(context.Context, *gorm.DB, int64) ([]any, error){
-				FieldWorkTitles:       loadTitles,
-				FieldWorkTitlesSuppr:  loadSuppressedTitles,
-				FieldWorkIntros:       loadIntros,
-				FieldWorkTagIDs:       loadTagIDs,
-				FieldWorkTagIDsSuppr:  loadSuppressedTagIDs,
-				FieldWorkLabels:       loadLabels,
-				FieldWorkEngineIDs:    loadEngineIDs,
-				FieldWorkSeriesIDs:    loadSeriesIDs,
-				FieldWorkLinks:        loadLinks,
-				FieldWorkCovers:       loadCovers,
-				FieldWorkScreenshots:  loadScreenshots,
-				FieldWorkCredits:      loadCredits,
-				FieldWorkCreditsSuppr: loadSuppressedCredits,
-				FieldWorkRoster:       loadRoster,
-				FieldWorkRosterSuppr:  loadSuppressedRoster,
+				FieldWorkTitles:              loadTitles,
+				FieldWorkTitlesSuppr:         loadSuppressedTitles,
+				FieldWorkIntros:              loadIntros,
+				FieldWorkTagIDs:              loadTagIDs,
+				FieldWorkTagIDsSuppr:         loadSuppressedTagIDs,
+				FieldWorkLabels:              loadLabels,
+				FieldWorkEngineIDs:           loadEngineIDs,
+				FieldWorkSeriesIDs:           loadSeriesIDs,
+				FieldWorkLinks:               loadLinks,
+				FieldWorkCovers:              loadCovers,
+				FieldWorkScreenshots:         loadScreenshots,
+				FieldWorkCoversUpstream:      loadUpstreamCovers,
+				FieldWorkScreenshotsUpstream: loadUpstreamScreenshots,
+				FieldWorkCredits:             loadCredits,
+				FieldWorkCreditsSuppr:        loadSuppressedCredits,
+				FieldWorkRoster:              loadRoster,
+				FieldWorkRosterSuppr:         loadSuppressedRoster,
 			} {
 				value, err := load(ctx, db, entityID)
 				if err != nil {
@@ -124,7 +126,7 @@ func RegisterWork(reg *editing.Registry, db *gorm.DB) error {
 		},
 		DefaultPolicy: ownedEntityPolicy(perm.EditWorkReview),
 		Fields:        fields,
-	})
+	}))
 }
 
 func workFieldSpecs() []editing.FieldSpec {

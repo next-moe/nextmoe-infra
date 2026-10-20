@@ -1,6 +1,9 @@
 package service
 
-import "context"
+import (
+	"api/internal/platform/catalog/editspec"
+	"context"
+)
 
 func (s *ReadService) loadWorkLabels(ctx context.Context, workIDs []int64) (map[int64][]LabelAttribution, error) {
 	out := make(map[int64][]LabelAttribution, len(workIDs))
@@ -19,7 +22,7 @@ func (s *ReadService) loadWorkLabels(ctx context.Context, workIDs []int64) (map[
 	if err := s.db.WithContext(ctx).Raw(`
 		SELECT wl.work_id, wl.label_id, l.display_name, l.kind AS label_kind, wl.kind AS kind, l.lang, l.logo_hash
 		FROM catalog_work_label wl JOIN catalog_label l ON l.id = wl.label_id AND l.deleted_at IS NULL
-		WHERE wl.work_id IN ?
+		WHERE wl.work_id IN ? AND `+editspec.NotSuppressedWorkLabelSQL("wl")+`
 		ORDER BY wl.work_id, wl.kind, l.display_name`, workIDs).Scan(&rows).Error; err != nil {
 		return nil, err
 	}

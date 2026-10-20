@@ -532,7 +532,7 @@ func (s *PublicService) characterIntrosBatch(ctx context.Context, ids []int64) (
 		Provenance  int16  `gorm:"column:provenance"`
 	}
 	if err := s.db.WithContext(ctx).Raw(`SELECT character_id, lang, intro, source_id, provenance
-		FROM catalog_character_intro WHERE character_id IN ?
+		FROM catalog_character_intro WHERE character_id IN ? AND `+editspec.NotSuppressedCharacterIntroSQL("catalog_character_intro")+`
 		ORDER BY character_id, lang, provenance, `+editspec.HumanLaneFirstSQL("source_id", "provenance")+
 		`, (provenance = 1 AND source_id = ?) DESC, source_id`,
 		ids, sourceDerived).Scan(&rows).Error; err != nil {

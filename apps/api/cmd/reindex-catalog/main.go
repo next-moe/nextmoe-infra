@@ -138,7 +138,7 @@ func loadSources(db *gorm.DB, entityType int16) (map[int64][]string, map[int64][
 		Ext      string `gorm:"column:external_id"`
 	}
 	if err := db.Raw(`SELECT r.entity_id, s.key, r.external_id FROM catalog_external_ref r
-		JOIN catalog_source s ON s.id = r.source_id WHERE r.entity_type = ? ORDER BY r.entity_id`, entityType).Scan(&rows).Error; err != nil {
+		JOIN catalog_source s ON s.id = r.source_id WHERE r.entity_type = ? AND `+editspec.NotSuppressedExternalRefSQL("r")+` ORDER BY r.entity_id`, entityType).Scan(&rows).Error; err != nil {
 		return nil, nil, err
 	}
 	srcs := map[int64][]string{}
@@ -414,7 +414,7 @@ func loadWorkIntros(db *gorm.DB) (map[int64][]workIntro, error) {
 	}
 	if err := db.Raw(`SELECT i.work_id, i.lang, i.intro
 		FROM catalog_work_intro i JOIN catalog_work w ON w.id = i.work_id
-		WHERE ` + population + `
+		WHERE ` + population + ` AND ` + editspec.NotSuppressedWorkIntroSQL("i") + `
 		ORDER BY i.work_id, i.lang, ` +
 		editspec.IntroFoldOrderSQL("i.source_id", "i.provenance") +
 		`, i.id`).Scan(&native).Error; err != nil {

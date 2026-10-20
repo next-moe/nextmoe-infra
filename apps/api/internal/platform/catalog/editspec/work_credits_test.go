@@ -410,20 +410,25 @@ func TestIdentityFollowStmtsCoverEveryDeclaredRef(t *testing.T) {
 		}
 	}
 	labelStmts := reg.IdentityFollowStmts(editspec.TagLabel, 7, 8, nil)
-	if len(labelStmts) != 2 {
-		t.Fatalf("tag %q produced %d statements, want the move + drop pair of %s", editspec.TagLabel, len(labelStmts), editspec.FieldLabelRelations)
+	if len(labelStmts) != 4 {
+		t.Fatalf("tag %q produced %d statements, want the move + drop pairs of %s.%s and %s.%s", editspec.TagLabel, len(labelStmts),
+			editspec.TypeLabel, editspec.FieldLabelRelations, editspec.TypeWork, editspec.FieldWorkLabels)
 	}
+	seen := map[string]int{}
 	for _, s := range labelStmts {
-		var hasType, hasField bool
+		var typ, field string
 		for _, a := range s.Args {
-			str, _ := a.(string)
-			hasType = hasType || str == editspec.TypeLabel
-			hasField = hasField || str == editspec.FieldLabelRelations
+			switch str, _ := a.(string); str {
+			case editspec.TypeLabel, editspec.TypeWork:
+				typ = str
+			case editspec.FieldLabelRelations, editspec.FieldWorkLabels:
+				field = str
+			}
 		}
-		if !hasType || !hasField {
-			t.Fatalf("tag %q produced a statement not addressed to %s.%s: %s",
-				editspec.TagLabel, editspec.TypeLabel, editspec.FieldLabelRelations, s.SQL)
-		}
+		seen[typ+"/"+field]++
+	}
+	if seen[editspec.TypeLabel+"/"+editspec.FieldLabelRelations] != 2 || seen[editspec.TypeWork+"/"+editspec.FieldWorkLabels] != 2 {
+		t.Fatalf("tag %q statements by type/field = %v", editspec.TagLabel, seen)
 	}
 	for _, tag := range []string{editspec.TagWork, editspec.TagPerson} {
 		if got := reg.IdentityFollowStmts(tag, 7, 8, nil); len(got) != 0 {

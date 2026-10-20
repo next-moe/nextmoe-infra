@@ -842,7 +842,7 @@ func (s *PublicService) labelIntros(ctx context.Context, labelID int64) ([]dto.P
 	if err := s.db.WithContext(ctx).Raw(`
 		SELECT i.lang, i.intro, src.key AS source, i.provenance
 		FROM catalog_label_intro i JOIN catalog_source src ON src.id = i.source_id
-		WHERE i.label_id = ? ORDER BY i.lang, `+
+		WHERE i.label_id = ? AND `+editspec.NotSuppressedLabelIntroSQL("i")+` ORDER BY i.lang, `+
 		editspec.IntroFoldOrderSQL("i.source_id", "i.provenance"), labelID).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
@@ -914,7 +914,7 @@ func (s *PublicService) workEngines(ctx context.Context, workID int64) ([]dto.Pu
 		Name string `gorm:"column:name"`
 	}
 	if err := s.db.WithContext(ctx).Raw(`
-		SELECT e.id, e.name FROM `+model.WorkEnginesSQL+` we
+		SELECT e.id, e.name FROM `+editspec.VisibleWorkEnginesSQL+` we
 		JOIN catalog_engine e ON e.id = we.engine_id
 		WHERE we.work_id = ? ORDER BY e.name, e.id`, workID).Scan(&rows).Error; err != nil {
 		return nil, err
@@ -1310,7 +1310,7 @@ func (s *PublicService) characterIntros(ctx context.Context, characterID int64) 
 		Provenance int16 `gorm:"column:provenance"`
 	}
 	if err := s.db.WithContext(ctx).Raw(`SELECT lang, intro, source_id, provenance
-		FROM catalog_character_intro WHERE character_id = ?
+		FROM catalog_character_intro WHERE character_id = ? AND `+editspec.NotSuppressedCharacterIntroSQL("catalog_character_intro")+`
 		ORDER BY lang, provenance, `+editspec.HumanLaneFirstSQL("source_id", "provenance")+
 		`, (provenance = 1 AND source_id = ?) DESC, source_id`,
 		characterID, sourceDerived).Scan(&rows).Error; err != nil {

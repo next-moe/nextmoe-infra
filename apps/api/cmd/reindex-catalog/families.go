@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"api/internal/platform/catalog/model"
+	"api/internal/platform/catalog/editspec"
 	catalogSearch "api/internal/platform/catalog/search"
 
 	"gorm.io/gorm"
@@ -30,7 +30,7 @@ func loadGroupedCount(db *gorm.DB, table, col string) (map[int64]int, error) {
 }
 
 func reindexSeries(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, batch int) error {
-	pop, err := loadGroupedCount(db, "catalog_series_member", "series_id")
+	pop, err := loadGroupedCount(db, "(SELECT vsm.series_id FROM catalog_series_member vsm WHERE "+editspec.NotSuppressedWorkSeriesSQL("vsm")+") x", "series_id")
 	if err != nil {
 		return err
 	}
@@ -76,7 +76,7 @@ func reindexSeries(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer,
 }
 
 func reindexEngines(ctx context.Context, db *gorm.DB, idx *catalogSearch.Indexer, batch int) error {
-	pop, err := loadGroupedCount(db, model.WorkEnginesSQL+" x", "engine_id")
+	pop, err := loadGroupedCount(db, editspec.VisibleWorkEnginesSQL+" x", "engine_id")
 	if err != nil {
 		return err
 	}

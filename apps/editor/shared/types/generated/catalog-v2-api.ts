@@ -1276,6 +1276,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/me/edit-context/{object}/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What an editor sees behind one entity
+         * @description Per field: the value a proposal is written against, who wrote each scalar column (field provenance, newest first), and, for list fields whose importers keep their own rows, every stored row grouped by source with its identity key, whether it is hidden, whether it is the human lane, plus suppressions whose row is gone. An editor shows what each upstream says from this face and sends rows[].identity in the field's .suppressed companion to hide a row. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+         */
+        get: operations["getMyEditContext"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/me/edit-images": {
         parameters: {
             query?: never;
@@ -2431,6 +2451,8 @@ export interface components {
             [key: string]: unknown;
         };
         Amendment: {
+            /** @description Account behind amender_uid. null only when the account directory could not be read. */
+            amender: components["schemas"]["UserRef"] | null;
             /** @description The claiming site's own user id of the amender. Not a catalog id. */
             amender_uid: string;
             /**
@@ -2927,6 +2949,14 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        ColumnProvenance: {
+            /** @description Database column the field lands in. Must not be used as a discriminant. */
+            column: string;
+            /** @description Recorded writes, newest first. The first entry is whoever set the current value. Empty array when nothing was recorded. */
+            history: components["schemas"]["ProvenanceEntry"][];
+        } & {
+            [key: string]: unknown;
+        };
         Company: {
             /**
              * Format: uri
@@ -3072,6 +3102,8 @@ export interface components {
             height: number | null;
             /** @description catalog_work_cover row id, not the image hash. */
             id: string;
+            /** @description Opaque row identity for a catalog.work.covers.suppressed proposal; echo it back, never rebuild it. Must not be used as a discriminant. */
+            identity: string;
             /** @description Whether this row is pinned as the portrait cover. */
             portrait_pinned: boolean;
             /**
@@ -3453,6 +3485,68 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        EditContext: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EditContext.json
+             */
+            readonly $schema?: string;
+            /** @description Catalog id of the entity. */
+            entity_id: string;
+            /** @description Editing-engine type. Must not be used as a discriminant. */
+            entity_type: string;
+            /** @description One entry per registered field, in the schema's order, including every .suppressed companion. Empty array, never null. */
+            fields: components["schemas"]["EditContextField"][];
+            /**
+             * @description Type discriminant. Always edit_context.
+             * @enum {string}
+             */
+            object: "edit_context";
+            /**
+             * @description Family of the entity.
+             * @enum {string}
+             */
+            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name";
+        } & {
+            [key: string]: unknown;
+        };
+        EditContextField: {
+            /** @description Editing-engine field key. Joins /v2/catalog/schemas/{object} fields[].key. Must not be used as a discriminant. */
+            key: string;
+            /** @description For a scalar field, who wrote each column it lands in, newest first. Empty array for list fields and for columns that record no provenance. */
+            provenance: components["schemas"]["ColumnProvenance"][];
+            /** @description For a list field whose rows are stored per source, every stored row plus every suppression whose row is gone. null for scalar fields, .suppressed companions, and list fields stored as one value on the entity row. */
+            rows: components["schemas"]["EditContextRow"][];
+            /** @description true when the field holds more stored rows than the face returns; the first rows by source and position are kept. */
+            rows_truncated: boolean;
+            /** @description The value a proposal is written against: the engine snapshot, in the shape a patch sends. For a list field whose importers keep their own rows this is the human lane only; rows lists everything stored. null when unset. */
+            value: unknown;
+        } & {
+            [key: string]: unknown;
+        };
+        EditContextRow: {
+            /** @description Per-column write history of this one row, for tables that keep it. null otherwise. */
+            field_provenance: {
+                [key: string]: unknown;
+            };
+            /** @description true when the row belongs to the human lane, which the field's value edits directly. */
+            human_lane: boolean;
+            /** @description Row identity key. Sending it in the field's .suppressed companion hides the row from every read face. null when the field has no suppression companion, or the row cannot be keyed (an upstream tag with no canonical tag). Opaque; must not be used as a discriminant. */
+            identity: string | null;
+            /** @description true for a row machine-translated from another row. */
+            machine_translated: boolean;
+            /** @description false for a suppression whose row is no longer stored: the importer dropped it, and the suppression keeps it hidden if it comes back. */
+            present: boolean;
+            /** @description Lane that stored the row. null when the table records no source, and for a suppression whose row is gone. */
+            source: components["schemas"]["EditSource"] | null;
+            /** @description true when the field's suppression set hides this row. */
+            suppressed: boolean;
+            /** @description The stored row, using the field's element member names where they apply. null when present is false. */
+            value: unknown;
+        } & {
+            [key: string]: unknown;
+        };
         EditImage: {
             /**
              * Format: uri
@@ -3537,6 +3631,14 @@ export interface components {
              * @description Length of the sliding window the daily counters are counted over.
              */
             window_hours: number;
+        } & {
+            [key: string]: unknown;
+        };
+        EditSource: {
+            /** @description Human-readable name from the sources vocabulary, or the key when the vocabulary has none. Must not be used as a discriminant. */
+            display: string;
+            /** @description catalog_source key. Open vocabulary (the sources vocabulary); must not be used as a discriminant. */
+            key: string;
         } & {
             [key: string]: unknown;
         };
@@ -6375,6 +6477,8 @@ export interface components {
              * @description RFC 3339 UTC. null while open.
              */
             decided_at: string | null;
+            /** @description Account behind decided_by_uid. null while open, or when the account directory could not be read. */
+            decided_by: components["schemas"]["UserRef"] | null;
             /** @description The claiming site's own user id of the decider. null while open. */
             decided_by_uid: string | null;
             /** @description Present when include=patch. The patch after every amendment is folded in; this is what a merge would write. */
@@ -6398,6 +6502,8 @@ export interface components {
             patch?: {
                 [key: string]: unknown;
             };
+            /** @description Account behind proposer_uid. null only when the account directory could not be read. */
+            proposer: components["schemas"]["UserRef"] | null;
             /** @description The claiming site's own user id of the proposer. Not a catalog id. */
             proposer_uid: string;
             /** @description Tenant this proposal was filed under. Open vocabulary; must not be used as a discriminant. */
@@ -6417,6 +6523,16 @@ export interface components {
              * @description RFC 3339 UTC.
              */
             updated_at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        ProvenanceEntry: {
+            /** @description When the write was recorded, as the writer stamped it (normally RFC 3339). null when it recorded no time. Must not be used as a discriminant. */
+            at: string | null;
+            /** @description true when a person wrote this value. Importers never overwrite a column whose newest entry is human. */
+            human: boolean;
+            /** @description Writer key: a catalog source (see the sources vocabulary), or user / curated for a person. Open vocabulary; must not be used as a discriminant. */
+            source: string;
         } & {
             [key: string]: unknown;
         };
@@ -6864,8 +6980,12 @@ export interface components {
              * @enum {string}
              */
             action: "created" | "merged" | "direct" | "reverted";
+            /** @description Account behind actor_uid. null only when the account directory could not be read. */
+            actor: components["schemas"]["UserRef"] | null;
             /** @description The claiming site's own user id of whoever caused this revision. Not a catalog id. */
             actor_uid: string;
+            /** @description Account behind amender_uid. null when nobody amended, or when the account directory could not be read. */
+            amender: components["schemas"]["UserRef"] | null;
             /** @description The claiming site's own user id of the last amender. null when nobody amended. */
             amender_uid: string | null;
             /** @description Field keys this revision touched. Empty array, never null. */
@@ -7021,6 +7141,8 @@ export interface components {
              * @description Pixel height. null if unknown.
              */
             height: number | null;
+            /** @description Opaque row identity for a catalog.work.screenshots.suppressed proposal; echo it back, never rebuild it. Must not be used as a discriminant. */
+            identity: string;
             /**
              * @description Sexual depiction. null means not assessed.
              * @enum {string|null}
@@ -7687,6 +7809,24 @@ export interface components {
             work_id: string;
             /** @description The author's play state on this work as it stands now, not when the rating was written. null when the author has none. A change to it surfaces the rating on /v2/ratings/changes. */
             work_state: components["schemas"]["RatingAuthorState"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        UserRef: {
+            /**
+             * Format: uri
+             * @description Absolute avatar URL. null when the account has none.
+             */
+            avatar: string | null;
+            /** @description The central account id, the same value the record's *_uid field carries. */
+            id: string;
+            /** @description Display name. An erased or removed account reads 已注销#<id>. Must not be used as a discriminant. */
+            name: string;
+            /**
+             * @description Type discriminant. Always user.
+             * @enum {string}
+             */
+            object: "user";
         } & {
             [key: string]: unknown;
         };
@@ -15699,6 +15839,110 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EditCapabilities"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getMyEditContext: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Family of the entity. Unknown family is 404 NOT_FOUND. */
+                object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name";
+                /** @description Catalog id of the entity. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditContext"];
                 };
             };
             /** @description Not Modified. The representation is unchanged. */

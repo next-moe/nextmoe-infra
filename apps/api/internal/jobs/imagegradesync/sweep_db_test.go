@@ -180,6 +180,21 @@ func seedFixture(t *testing.T) fixture {
 	return f
 }
 
+func TestSyncLeavesAGradeAPersonSet(t *testing.T) {
+	reset(t)
+	w := mkWork(t, "regraded by hand")
+	mkImage(t, hashOf("b1"), 0)
+	id := mkCover(t, w, hashOf("b1"), "bangumi", 2, 0)
+	require.NoError(t, catalogDB.Exec(`UPDATE catalog_work_cover
+		SET field_provenance = '{"sexual":[{"source":"curated","at":"2026-10-19T00:00:00Z"}]}' WHERE id = ?`, id).Error)
+
+	st, err := Run(context.Background(), Opts{DSN: catalogDSN, ImagesDSN: imagesDSN, Apply: true})
+	require.NoError(t, err)
+	assert.Equal(t, 0, st.Updated)
+	sexual, _ := sexualOf(t, "catalog_work_cover", id)
+	assert.Equal(t, int16(2), sexual, "a grade set through catalog.work.covers_upstream outranks the image grader")
+}
+
 func TestSyncDryRunForecastsWithoutWriting(t *testing.T) {
 	f := seedFixture(t)
 	st, err := Run(context.Background(), Opts{DSN: catalogDSN, ImagesDSN: imagesDSN})

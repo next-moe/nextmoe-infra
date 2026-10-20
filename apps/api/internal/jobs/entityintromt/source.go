@@ -44,7 +44,7 @@ func loadCandidates(ctx context.Context, db *gorm.DB, lane laneDef, limit, offse
 		WITH src AS (
 			SELECT DISTINCT ON (` + id + `) ` + id + ` AS entity_id, lang, source_id, intro
 			FROM ` + t + `
-			WHERE lang IN ('ja','en') AND provenance = 0
+			WHERE lang IN ('ja','en') AND provenance = 0 AND ` + editspec.NotSuppressedIntroTableSQL(t) + `
 			ORDER BY ` + id + `, (lang <> 'ja'), ` + editspec.IntroFoldOrderSQL("source_id", "provenance") + `
 		),
 		has_zh_source AS (

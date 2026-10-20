@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 	"api/pkg/imageclient"
 	"api/pkg/imageshrink"
@@ -87,11 +88,14 @@ func (r *runner) fill(ctx context.Context, row planRow) {
 	// left alone; the legacy rows this clause was written for were relabeled by
 	// those September runs.
 	tx := r.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "work_id"}, {Name: "image_hash"}},
-		DoUpdates: clause.AssignmentColumns([]string{"source_id", "kind", "portrait_pinned", "sexual", "violence", "updated_at"}),
+		Columns: []clause.Column{{Name: "work_id"}, {Name: "image_hash"}},
+		DoUpdates: append(clause.AssignmentColumns([]string{"source_id", "updated_at"}),
+			keepHumanCoverValue("kind"), keepHumanCoverValue("portrait_pinned"),
+			keepHumanCoverValue("sexual"), keepHumanCoverValue("violence")),
 		Where: clause.Where{Exprs: []clause.Expression{
 			clause.Expr{
-				SQL:  "catalog_work_cover.source_id <> ? AND (catalog_work_cover.source_id <> excluded.source_id OR catalog_work_cover.kind <> excluded.kind)",
+				SQL: "catalog_work_cover.source_id <> ? AND (catalog_work_cover.source_id <> excluded.source_id OR " +
+					"(catalog_work_cover.kind <> excluded.kind AND (" + humanCoverStamp("kind") + ") IS NOT TRUE))",
 				Vars: []any{r.curatedSource},
 			},
 		}},
@@ -261,5 +265,17 @@ func (r *runner) classify(err error, row planRow) (quota bool) {
 		r.stats.Errors++
 		slog.Warn("upload vndb cover", "work", row.WorkID, "vn", row.VNDBID, "err", err)
 		return false
+	}
+}
+
+func humanCoverStamp(column string) string {
+	return editspec.HumanFieldProvenanceSQL("catalog_work_cover.field_provenance", column)
+}
+
+func keepHumanCoverValue(column string) clause.Assignment {
+	return clause.Assignment{
+		Column: clause.Column{Name: column},
+		Value: clause.Expr{SQL: fmt.Sprintf("CASE WHEN (%s) THEN catalog_work_cover.%s ELSE excluded.%s END",
+			humanCoverStamp(column), column, column)},
 	}
 }

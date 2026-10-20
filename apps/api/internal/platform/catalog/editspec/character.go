@@ -40,13 +40,13 @@ const maxCupRunes = 8
 func RegisterCharacter(reg *editing.Registry, db *gorm.DB) error {
 	fields := characterFieldSpecs()
 
-	return reg.Register(editing.EntityTypeSpec{
+	return reg.Register(withUpstreamRows(db, editing.EntityTypeSpec{
 		Family:        "catalog",
 		Type:          TypeCharacter,
 		LoadSnapshot:  loadCharacterSnapshot(db),
 		DefaultPolicy: sharedEntityPolicy(perm.EditCharacterReview),
 		Fields:        fields,
-	})
+	}))
 }
 
 func characterFieldSpecs() []editing.FieldSpec {

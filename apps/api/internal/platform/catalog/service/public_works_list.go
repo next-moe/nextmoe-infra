@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"api/internal/platform/catalog/dto"
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 )
 
@@ -198,10 +199,10 @@ func worksListWhere(f WorksListFilter) ([]string, []any) {
 	if f.LabelID > 0 {
 		if f.LabelRollup {
 			where = append(where, `EXISTS (SELECT 1 FROM catalog_work_label wl
-				WHERE wl.work_id = w.id AND (wl.label_id = ? OR wl.label_id IN (`+labelRollupChildren+`)))`)
+				WHERE wl.work_id = w.id AND (wl.label_id = ? OR wl.label_id IN (`+labelRollupChildren+`)) AND `+editspec.NotSuppressedWorkLabelSQL("wl")+`)`)
 			args = append(args, f.LabelID, f.LabelID, labelRollupRelations)
 		} else {
-			where = append(where, "EXISTS (SELECT 1 FROM catalog_work_label wl WHERE wl.work_id = w.id AND wl.label_id = ?)")
+			where = append(where, "EXISTS (SELECT 1 FROM catalog_work_label wl WHERE wl.work_id = w.id AND wl.label_id = ? AND "+editspec.NotSuppressedWorkLabelSQL("wl")+")")
 			args = append(args, f.LabelID)
 		}
 	}
@@ -216,11 +217,11 @@ func worksListWhere(f WorksListFilter) ([]string, []any) {
 		args = append(args, pargs...)
 	}
 	if f.SeriesID > 0 {
-		where = append(where, "EXISTS (SELECT 1 FROM catalog_series_member sm WHERE sm.work_id = w.id AND sm.series_id = ?)")
+		where = append(where, "EXISTS (SELECT 1 FROM catalog_series_member sm WHERE sm.work_id = w.id AND sm.series_id = ? AND "+editspec.NotSuppressedWorkSeriesSQL("sm")+")")
 		args = append(args, f.SeriesID)
 	}
 	if f.EngineID > 0 {
-		where = append(where, "EXISTS (SELECT 1 FROM "+model.WorkEnginesSQL+" we WHERE we.work_id = w.id AND we.engine_id = ?)")
+		where = append(where, "EXISTS (SELECT 1 FROM "+editspec.VisibleWorkEnginesSQL+" we WHERE we.work_id = w.id AND we.engine_id = ?)")
 		args = append(args, f.EngineID)
 	}
 	if f.Platform != "" {
