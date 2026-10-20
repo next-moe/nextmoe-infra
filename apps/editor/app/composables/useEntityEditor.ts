@@ -15,6 +15,11 @@ import type {
 import type { EditQuota } from '#shared/types/quota'
 
 const DRAFT_SAVE_DELAY_MS = 800
+const QUOTA_MAX_AGE_MS = 15_000
+
+const schemaRequests = new Map<string, Promise<CatalogObjectSchema>>()
+let quotaRequest: { at: number; promise: Promise<EditQuota | null> } | null =
+  null
 
 const readStorage = (key: string): EditStoredDraft | null => {
   try {
@@ -115,8 +120,32 @@ export const useEntityEditor = (
       `/v2/moderation/snapshots/${config.family}/${id.value}`
     )
 
-  const refreshQuota = async () => {
-    quota.value = await api<EditQuota>('/v2/me/edit-quota').catch(() => null)
+  const refreshQuota = async (force = false) => {
+    if (
+      force ||
+      !quotaRequest ||
+      Date.now() - quotaRequest.at > QUOTA_MAX_AGE_MS
+    ) {
+      quotaRequest = {
+        at: Date.now(),
+        promise: api<EditQuota>('/v2/me/edit-quota').catch(() => null)
+      }
+    }
+    quota.value = await quotaRequest.promise
+  }
+
+  const fetchSchema = () => {
+    let request = schemaRequests.get(config.family)
+    if (!request) {
+      request = api<CatalogObjectSchema>(
+        `/v2/catalog/schemas/${config.family}`
+      ).catch((error) => {
+        schemaRequests.delete(config.family)
+        throw error
+      })
+      schemaRequests.set(config.family, request)
+    }
+    return request
   }
 
   const load = async () => {
@@ -125,7 +154,7 @@ export const useEntityEditor = (
     loadStatus.value = 0
     try {
       const [schemaRes, capRes, snapshot] = await Promise.all([
-        api<CatalogObjectSchema>(`/v2/catalog/schemas/${config.family}`),
+        fetchSchema(),
         api<CatalogEditCapabilities>(
           `/v2/me/edit-capabilities/${config.family}`,
           { query: { entity_id: id.value } }
@@ -294,6 +323,7 @@ export const useEntityEditor = (
         headers: { 'Idempotency-Key': idempotencyKey }
       })
       idempotencyKey = null
+      quotaRequest = null
       writeStorage(storageKey.value, null)
       serverErrors.value = {}
       return { ok: true as const, proposal }

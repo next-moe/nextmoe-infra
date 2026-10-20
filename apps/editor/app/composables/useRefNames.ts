@@ -58,6 +58,11 @@ interface RoleList {
   next_cursor?: string | null
 }
 
+const ROLES_CACHE_KEY = 'nextmoe-editor:roles:v1'
+const ROLES_CACHE_MAX_AGE_MS = 6 * 60 * 60 * 1000
+
+let rolesRequest: Promise<RoleList['items']> | null = null
+
 export const useRefNames = () => {
   const api = useEditorApi()
   const names = useState<Record<string, string>>('edit-ref-names', () => ({}))
@@ -76,32 +81,52 @@ export const useRefNames = () => {
     }
   }
 
-  const loadRoles = async () => {
-    if (roles.value) {
-      return roles.value
+  const fetchRoles = async () => {
+    const cached = readLocalCache<RoleList['items']>(
+      ROLES_CACHE_KEY,
+      ROLES_CACHE_MAX_AGE_MS
+    )
+    if (cached?.length) {
+      return cached
     }
-    const all: RefOption[] = []
-    const keys: Record<string, string> = {}
+    const items: NonNullable<RoleList['items']> = []
     let cursor: string | null = null
     for (let page = 0; page < 10; page++) {
       const list: RoleList | null = await api<RoleList>('/v2/catalog/roles', {
         query: { limit: 100, ...(cursor ? { cursor } : {}) }
       }).catch(() => null)
-      for (const role of list?.items ?? []) {
-        keys[role.key] = role.id
-        all.push({
-          value: role.id,
-          label: role.display_name,
-          hint: role.deprecated ? '已停用' : undefined
-        })
-      }
+      items.push(...(list?.items ?? []))
       cursor = list?.next_cursor ?? null
       if (!cursor) {
         break
       }
     }
+    if (items.length) {
+      writeLocalCache(ROLES_CACHE_KEY, items)
+    }
+    return items
+  }
+
+  const loadRoles = async () => {
+    if (roles.value) {
+      return roles.value
+    }
+    rolesRequest ??= fetchRoles().finally(() => {
+      rolesRequest = null
+    })
+    const items = (await rolesRequest) ?? []
+    if (roles.value) {
+      return roles.value
+    }
+    const all: RefOption[] = items.map((role) => ({
+      value: role.id,
+      label: role.display_name,
+      hint: role.deprecated ? '已停用' : undefined
+    }))
     roles.value = all
-    roleIdByKey.value = keys
+    roleIdByKey.value = Object.fromEntries(
+      items.map((role) => [role.key, role.id])
+    )
     names.value = {
       ...names.value,
       ...Object.fromEntries(all.map((r) => [keyOf('role', r.value), r.label]))
