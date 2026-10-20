@@ -595,7 +595,8 @@ func (s *ReadService) nativeWorkCovers(ctx context.Context, workIDs []int64, out
 		)
 		SELECT wc.*, shared.image_hash IS NOT NULL AS shared
 		FROM wc LEFT JOIN shared USING (image_hash)
-		ORDER BY wc.work_id, wc.sort_order, wc.image_hash`,
+		`+editspec.WorkMediaOrderJoinSQL("wc", model.WorkMediaOrderCover)+`
+		ORDER BY wc.work_id, mo.position NULLS LAST, wc.sort_order, wc.image_hash`,
 		workIDs, model.WorkStatusLive, sharedCoverMinWorks).Scan(&rows).Error; err != nil {
 		return err
 	}
@@ -636,9 +637,11 @@ func (s *ReadService) nativeWorkScreenshots(ctx context.Context, workIDs []int64
 		SourceID  int16  `gorm:"column:source_id"`
 		MergedIn  bool   `gorm:"column:merged_in"`
 	}
-	if err := db.Raw(`SELECT work_id, image_hash, sort_order, caption, sexual, violence, source_id, merged_in
-		FROM catalog_work_screenshot vs WHERE vs.work_id IN ? AND `+editspec.NotSuppressedWorkScreenshotSQL("vs")+`
-		ORDER BY work_id, source_id, sort_order, image_hash`, workIDs).Scan(&rows).Error; err != nil {
+	if err := db.Raw(`SELECT vs.work_id, vs.image_hash, vs.sort_order, vs.caption, vs.sexual, vs.violence, vs.source_id, vs.merged_in
+		FROM catalog_work_screenshot vs
+		`+editspec.WorkMediaOrderJoinSQL("vs", model.WorkMediaOrderScreenshot)+`
+		WHERE vs.work_id IN ? AND `+editspec.NotSuppressedWorkScreenshotSQL("vs")+`
+		ORDER BY vs.work_id, mo.position NULLS LAST, vs.source_id, vs.sort_order, vs.image_hash`, workIDs).Scan(&rows).Error; err != nil {
 		return err
 	}
 	for _, r := range rows {
