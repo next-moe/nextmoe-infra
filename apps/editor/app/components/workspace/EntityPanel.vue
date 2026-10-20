@@ -44,10 +44,8 @@ const activeKey = computed({
     tab.value = next
   }
 })
-const activeFields = computed(
-  () =>
-    sections.value.find((section) => section.key === activeKey.value)?.fields ??
-    []
+const activeSection = computed(() =>
+  sections.value.find((section) => section.key === activeKey.value)
 )
 
 const changeCount = computed(() => changedParentKeys(workspace).length)
@@ -150,7 +148,10 @@ const name = computed(() => session.nameOf(entity))
             />
           </div>
           <div class="px-5 py-4">
-            <WorkspaceFormSection :fields="activeFields" />
+            <WorkspaceFormSection
+              :fields="activeSection?.fields ?? []"
+              :section-label="activeSection?.label"
+            />
           </div>
         </template>
       </WorkspaceScope>

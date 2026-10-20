@@ -79,6 +79,30 @@ const introDiffs = computed(() => {
     }))
 })
 
+const ADDED_TONE = {
+  box: 'border-success-300 bg-success-50',
+  row: 'bg-success-50 text-success-800',
+  label: 'text-success-600'
+}
+const REMOVED_TONE = {
+  box: 'border-danger-300 bg-danger-50',
+  row: 'bg-danger-50 text-danger-800',
+  label: 'text-danger-600'
+}
+const HIDDEN_TONE = {
+  box: 'border-default-300 bg-default-100',
+  row: 'bg-default-100 text-default-700',
+  label: 'text-default-500'
+}
+const RESTORED_TONE = {
+  box: 'border-primary-300 bg-primary-50',
+  row: 'bg-primary-50 text-primary-800',
+  label: 'text-primary-600'
+}
+const addedTone = computed(() => (suppressed.value ? HIDDEN_TONE : ADDED_TONE))
+const removedTone = computed(() =>
+  suppressed.value ? RESTORED_TONE : REMOVED_TONE
+)
 const addedLabel = computed(() => (suppressed.value ? '隐藏' : '新增'))
 const removedLabel = computed(() => (suppressed.value ? '恢复显示' : '删除'))
 
@@ -148,7 +172,7 @@ watch(
         <figure
           v-for="(row, i) in listDiff.added"
           :key="`a${i}`"
-          class="border-success-300 bg-success-50 w-24 overflow-hidden rounded-lg border"
+          :class="cn('w-24 overflow-hidden rounded-lg border', addedTone.box)"
         >
           <KunImage
             v-if="imageOf(row)"
@@ -157,14 +181,14 @@ watch(
             aspect-ratio="1 / 1"
             object-fit="cover"
           />
-          <figcaption class="text-success-700 px-1.5 py-0.5 text-[11px]">
+          <figcaption :class="cn('px-1.5 py-0.5 text-[11px]', addedTone.label)">
             {{ addedLabel }}
           </figcaption>
         </figure>
         <figure
           v-for="(row, i) in listDiff.removed"
           :key="`r${i}`"
-          class="border-danger-300 bg-danger-50 w-24 overflow-hidden rounded-lg border"
+          :class="cn('w-24 overflow-hidden rounded-lg border', removedTone.box)"
         >
           <KunImage
             v-if="imageOf(row)"
@@ -174,7 +198,9 @@ watch(
             object-fit="cover"
             class-name="opacity-60"
           />
-          <figcaption class="text-danger-700 px-1.5 py-0.5 text-[11px]">
+          <figcaption
+            :class="cn('px-1.5 py-0.5 text-[11px]', removedTone.label)"
+          >
             {{ removedLabel }}
           </figcaption>
         </figure>
@@ -210,9 +236,11 @@ watch(
       <li
         v-for="(row, i) in listDiff.added"
         :key="`a${i}`"
-        class="bg-success-50 text-success-800 flex items-start gap-2 rounded-md px-2 py-1"
+        :class="
+          cn('flex items-start gap-2 rounded-md px-2 py-1', addedTone.row)
+        "
       >
-        <span class="text-success-600 shrink-0 text-xs leading-5">
+        <span :class="cn('shrink-0 text-xs leading-5', addedTone.label)">
           {{ addedLabel }}
         </span>
         <span class="break-all">{{ rowText(props.fieldKey, row) }}</span>
@@ -220,9 +248,11 @@ watch(
       <li
         v-for="(row, i) in listDiff.removed"
         :key="`r${i}`"
-        class="bg-danger-50 text-danger-800 flex items-start gap-2 rounded-md px-2 py-1"
+        :class="
+          cn('flex items-start gap-2 rounded-md px-2 py-1', removedTone.row)
+        "
       >
-        <span class="text-danger-600 shrink-0 text-xs leading-5">
+        <span :class="cn('shrink-0 text-xs leading-5', removedTone.label)">
           {{ removedLabel }}
         </span>
         <span :class="cn('break-all', !suppressed && 'line-through')">{{

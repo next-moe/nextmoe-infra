@@ -12,8 +12,12 @@ const ROW_CONTROLS = new Set<EditControl>([
 ])
 
 const props = withDefaults(
-  defineProps<{ fieldKey: string; layout?: 'row' | 'block' | 'auto' }>(),
-  { layout: 'auto' }
+  defineProps<{
+    fieldKey: string
+    layout?: 'row' | 'block' | 'auto'
+    sectionLabel?: string
+  }>(),
+  { layout: 'auto', sectionLabel: '' }
 )
 
 const { field, config } = useEditorField(() => props.fieldKey)
@@ -41,6 +45,7 @@ const resolvedLayout = computed(() =>
     v-if="field"
     :field-key="props.fieldKey"
     :layout="resolvedLayout"
+    :section-label="props.sectionLabel"
     :inline-row-issues="INLINE_ROW_ISSUES.has(control)"
   >
     <EditControlText v-if="control === 'text'" :field-key="props.fieldKey" />

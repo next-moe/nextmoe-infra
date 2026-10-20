@@ -13,8 +13,12 @@ const ROW_CONTROLS = new Set<EditControl>([
 ])
 
 const props = withDefaults(
-  defineProps<{ fields: string[]; className?: string }>(),
-  { className: '' }
+  defineProps<{
+    fields: string[]
+    sectionLabel?: string
+    className?: string
+  }>(),
+  { sectionLabel: '', className: '' }
 )
 
 const { editor, config } = useEditorContext()
@@ -57,7 +61,11 @@ const blockKeys = computed(() =>
       :key="key"
       class="border-default-200 bg-content1 rounded-xl border px-5"
     >
-      <EditField :field-key="key" layout="block" />
+      <EditField
+        :field-key="key"
+        layout="block"
+        :section-label="props.sectionLabel"
+      />
     </div>
   </div>
 </template>

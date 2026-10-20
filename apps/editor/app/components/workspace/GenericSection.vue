@@ -6,6 +6,9 @@ const props = defineProps<{ section: WorkspaceSectionDef }>()
 
 <template>
   <WorkspacePage :section="props.section">
-    <WorkspaceFormSection :fields="props.section.fields" />
+    <WorkspaceFormSection
+      :fields="props.section.fields"
+      :section-label="props.section.label"
+    />
   </WorkspacePage>
 </template>

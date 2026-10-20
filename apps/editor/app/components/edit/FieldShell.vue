@@ -9,8 +9,15 @@ const props = withDefaults(
     label?: string
     hideHeader?: boolean
     inlineRowIssues?: boolean
+    sectionLabel?: string
   }>(),
-  { layout: 'block', label: '', hideHeader: false, inlineRowIssues: false }
+  {
+    layout: 'block',
+    label: '',
+    hideHeader: false,
+    inlineRowIssues: false,
+    sectionLabel: ''
+  }
 )
 
 const { context, config, capability, issues, companionKey } = useEditorField(
@@ -43,6 +50,9 @@ const writerText = computed(() => {
 
 const label = computed(
   () => props.label || config.value?.label || fieldLabel(props.fieldKey)
+)
+const showLabel = computed(
+  () => props.layout === 'row' || label.value !== props.sectionLabel
 )
 const changed = computed(
   () =>
@@ -112,6 +122,7 @@ const issueText = (issue: { index?: number; message: string }) =>
         <div class="flex min-w-0 items-center gap-1.5">
           <component
             :is="props.layout === 'row' ? 'span' : 'h3'"
+            v-if="showLabel"
             :class="
               cn(
                 'truncate',
