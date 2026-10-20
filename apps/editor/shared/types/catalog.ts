@@ -24,3 +24,30 @@ export type CatalogObjectSchema = Schemas['ObjectSchema']
 export type CatalogSchemaField = Schemas['SchemaField']
 export type CatalogEditCapabilities = Schemas['EditCapabilities']
 export type CatalogFieldCapability = Schemas['FieldCapability']
+export type CatalogEditContext = Schemas['EditContext']
+export type CatalogEditContextField = Schemas['EditContextField']
+export type CatalogEditContextRow = Schemas['EditContextRow']
+export type CatalogColumnProvenance = Schemas['ColumnProvenance']
+export type CatalogUserRef = Schemas['UserRef']
+
+export interface CatalogEntityPicture {
+  url: string
+  thumbhash?: string | null
+}
+
+export interface CatalogEntitySummary {
+  id: string
+  display_name?: string
+  title?: string
+  latin?: string
+  image?: CatalogEntityPicture | null
+  photo?: CatalogEntityPicture | null
+  logo?: CatalogEntityPicture | null
+  [key: string]: unknown
+}
+
+export interface CatalogEntityList {
+  items: CatalogEntitySummary[]
+  next_cursor?: string | null
+  total?: number | null
+}

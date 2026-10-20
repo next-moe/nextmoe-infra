@@ -14,7 +14,7 @@ import {
   type VocabularyInfo,
   type VocabularyValue
 } from './describe'
-import { asList } from './listDiff'
+import { asList } from '#shared/utils/diff'
 
 const LABEL_OVERRIDES: Record<string, Record<string, string>> = {
   content_rating: Object.fromEntries(

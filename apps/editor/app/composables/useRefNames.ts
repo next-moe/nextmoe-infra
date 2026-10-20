@@ -124,14 +124,14 @@ export const useRefNames = () => {
     for (let i = 0; i < missing.length; i += IDS_PER_REQUEST) {
       const chunk = missing.slice(i, i + IDS_PER_REQUEST)
       const list = await api<{
-        items?: { id: string; display_name?: string }[]
+        items?: { id: string; display_name?: string; title?: string }[]
       }>(`/v2/catalog/${REF_COLLECTION[family]}`, {
         query: { ids: chunk.join(','), nsfw: true, limit: chunk.length }
       }).catch(() => null)
       const found = Object.fromEntries(
         (list?.items ?? []).map((item) => [
           keyOf(family, item.id),
-          item.display_name ?? ''
+          item.display_name ?? item.title ?? ''
         ])
       )
       names.value = { ...names.value, ...found }

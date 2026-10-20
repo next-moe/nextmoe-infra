@@ -3,7 +3,7 @@ import { cn } from '@kungal/ui-core'
 import type { CatalogSchemaField } from '#shared/types/catalog'
 import type { DiffContext } from '~/utils/review/context'
 import type { FieldDecision, FieldVerdict } from '~/utils/review/decision'
-import { cloneValue } from '~/utils/review/equal'
+import { cloneValue } from '#shared/utils/editModel'
 
 const props = defineProps<{
   field: CatalogSchemaField

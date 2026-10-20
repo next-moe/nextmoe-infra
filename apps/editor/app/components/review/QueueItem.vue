@@ -75,7 +75,10 @@ const conflictCount = computed(
         <p
           class="text-default-400 mt-1 flex flex-wrap items-center gap-x-1 text-xs"
         >
-          <HistoryUser :uid="props.proposal.proposer_uid" />
+          <HistoryUser
+            :user="props.proposal.proposer"
+            :uid="props.proposal.proposer_uid"
+          />
           <span>· {{ labelOf(SITE_LABELS, props.proposal.site) }} ·</span>
           <time
             :datetime="props.proposal.created_at"

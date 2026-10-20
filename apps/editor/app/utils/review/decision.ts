@@ -1,4 +1,4 @@
-import { valuesEqual } from './equal'
+import { valuesEqual } from '#shared/utils/diff'
 
 export type FieldVerdict = 'accept' | 'reject' | 'amend'
 
