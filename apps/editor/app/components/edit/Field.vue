@@ -1,15 +1,41 @@
 <script setup lang="ts">
-const props = defineProps<{ fieldKey: string }>()
+import type { EditControl } from '#shared/types/edit'
+
+const ROW_CONTROLS = new Set<EditControl>([
+  'text',
+  'vocab',
+  'switch',
+  'int',
+  'ref',
+  'date',
+  'readonly'
+])
+
+const props = withDefaults(
+  defineProps<{ fieldKey: string; layout?: 'row' | 'block' | 'auto' }>(),
+  { layout: 'auto' }
+)
 
 const { field, config } = useEditorField(() => props.fieldKey)
 
 const control = computed(() =>
   field.value ? resolveEditControl(field.value, config.value) : 'readonly'
 )
+const resolvedLayout = computed(() =>
+  props.layout === 'auto'
+    ? ROW_CONTROLS.has(control.value)
+      ? 'row'
+      : 'block'
+    : props.layout
+)
 </script>
 
 <template>
-  <EditFieldShell v-if="field" :field-key="props.fieldKey">
+  <EditFieldShell
+    v-if="field"
+    :field-key="props.fieldKey"
+    :layout="resolvedLayout"
+  >
     <EditControlText v-if="control === 'text'" :field-key="props.fieldKey" />
     <EditControlText
       v-else-if="control === 'textarea'"
