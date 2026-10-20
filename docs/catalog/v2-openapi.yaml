@@ -7560,6 +7560,11 @@ components:
         engine:
           $ref: "#/components/schemas/EngineRef"
           description: The engine this release runs on. Absent when unrecorded.
+        freeware:
+          description: Whether the release is free of charge. null if unrecorded.
+          type:
+            - boolean
+            - "null"
         id:
           description: Catalog release id.
           maxLength: 20
@@ -7571,12 +7576,30 @@ components:
           format: bcp47
           maxLength: 32
           type: string
+        languages:
+          description: Every language this release is available in, BCP-47. Empty array, never null. lang is the release's original language, a separate fact.
+          items:
+            type: string
+          type: array
+        min_age:
+          description: Minimum age rating in years. null if unrecorded.
+          format: int64
+          maximum: 18
+          minimum: 0
+          type:
+            - integer
+            - "null"
         object:
           description: Type discriminant. Always release.
           enum:
             - release
           type: string
           x-vocabulary-closed: true
+        official:
+          description: "Whether the release is an official one (false: a fan translation or other unofficial release). null if unrecorded."
+          type:
+            - boolean
+            - "null"
         platform:
           description: Must not be used as a discriminant.
           maxLength: 64
@@ -7624,6 +7647,10 @@ components:
         - lang
         - platform
         - platforms
+        - languages
+        - freeware
+        - official
+        - min_age
         - refs
       type: object
     RevertInputBody:
@@ -10185,7 +10212,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.56.0
+  version: 2.57.0
   x-stability: stable
 openapi: 3.1.0
 paths:

@@ -55,6 +55,14 @@ func TestReleaseSchemaProjection(t *testing.T) {
 		editspec.FieldReleaseEngine:   editing.KindRef,
 		editspec.FieldReleaseReleased: editing.KindDate,
 		editspec.FieldReleaseHidden:   editing.KindEnum,
+
+		editspec.FieldReleasePlatforms:   editing.KindList,
+		editspec.FieldReleaseLanguages:   editing.KindList,
+		editspec.FieldReleaseFreeware:    editing.KindEnum,
+		editspec.FieldReleaseOfficial:    editing.KindEnum,
+		editspec.FieldReleaseMinAge:      editing.KindInt,
+		editspec.FieldReleaseLabels:      editing.KindList,
+		editspec.FieldReleaseLabelsSuppr: editing.KindList,
 	}
 	if len(spec.Fields) != len(want) {
 		t.Fatalf("fields = %d, want %d", len(spec.Fields), len(want))
@@ -111,6 +119,9 @@ func TestReleaseSchemaProjection(t *testing.T) {
 	if n := len(releasePlatformCodes(t, spec)); n != 47 {
 		t.Fatalf("platform vocab size = %d, want 47", n)
 	}
+	if !mustField(editspec.FieldReleasePlatform).Deprecated {
+		t.Fatal("catalog.release.platform must be deprecated in favour of catalog.release.platforms")
+	}
 }
 
 func releasePlatformCodes(t *testing.T, spec *editing.EntityTypeSpec) []string {
@@ -140,28 +151,25 @@ func TestReleaseScalarEditsStampProvenance(t *testing.T) {
 	rel := createReleaseOn(t, work.ID)
 	title := "限定版"
 	lang := "ck"
-	plat := "swi"
 
 	snap := mergeOn(t, e, editspec.TypeRelease, rel.ID, map[string]any{
-		editspec.FieldReleaseKind:     float64(model.ReleaseKindPhysical),
-		editspec.FieldReleaseTitle:    title,
-		editspec.FieldReleaseLang:     lang,
-		editspec.FieldReleasePlatform: plat,
+		editspec.FieldReleaseKind:  float64(model.ReleaseKindPhysical),
+		editspec.FieldReleaseTitle: title,
+		editspec.FieldReleaseLang:  lang,
 	})
 	if snap[editspec.FieldReleaseKind] != int64(model.ReleaseKindPhysical) {
 		t.Fatalf("snapshot kind = %#v", snap[editspec.FieldReleaseKind])
 	}
-	if snap[editspec.FieldReleaseTitle] != title || snap[editspec.FieldReleaseLang] != lang ||
-		snap[editspec.FieldReleasePlatform] != plat {
+	if snap[editspec.FieldReleaseTitle] != title || snap[editspec.FieldReleaseLang] != lang {
 		t.Fatalf("snapshot scalars = %#v", snap)
 	}
 
 	got := reloadRelease(t, rel.ID)
 	if got.Kind != model.ReleaseKindPhysical || got.Title == nil || *got.Title != title ||
-		got.Lang == nil || *got.Lang != lang || got.Platform == nil || *got.Platform != plat {
+		got.Lang == nil || *got.Lang != lang {
 		t.Fatalf("release after merge: %+v", got)
 	}
-	for _, column := range []string{"kind", "title", "lang", "platform"} {
+	for _, column := range []string{"kind", "title", "lang"} {
 		if head := provenance.FirstSource(got.FieldProvenance, column); head != provenance.SourceCurated {
 			t.Errorf("catalog_release.field_provenance[%s] head = %q, want %q",
 				column, head, provenance.SourceCurated)
@@ -169,12 +177,11 @@ func TestReleaseScalarEditsStampProvenance(t *testing.T) {
 	}
 
 	mergeOn(t, e, editspec.TypeRelease, rel.ID, map[string]any{
-		editspec.FieldReleaseTitle:    nil,
-		editspec.FieldReleaseLang:     nil,
-		editspec.FieldReleasePlatform: nil,
+		editspec.FieldReleaseTitle: nil,
+		editspec.FieldReleaseLang:  nil,
 	})
 	cleared := reloadRelease(t, rel.ID)
-	if cleared.Title != nil || cleared.Lang != nil || cleared.Platform != nil {
+	if cleared.Title != nil || cleared.Lang != nil {
 		t.Fatalf("clearing nullable scalars left %+v", cleared)
 	}
 }
@@ -316,7 +323,18 @@ func TestReleaseValidatorsAndMissing(t *testing.T) {
 		{editspec.FieldReleaseTitle: 1},
 		{editspec.FieldReleaseLang: "xx"},
 		{editspec.FieldReleaseLang: ""},
-		{editspec.FieldReleasePlatform: "pc"},
+		{editspec.FieldReleasePlatform: "win"},
+		{editspec.FieldReleasePlatforms: []any{"pc"}},
+		{editspec.FieldReleasePlatforms: []any{"win", "win"}},
+		{editspec.FieldReleasePlatforms: "win"},
+		{editspec.FieldReleaseLanguages: []any{"xx"}},
+		{editspec.FieldReleaseFreeware: "yes"},
+		{editspec.FieldReleaseOfficial: float64(1)},
+		{editspec.FieldReleaseMinAge: float64(19)},
+		{editspec.FieldReleaseMinAge: float64(-1)},
+		{editspec.FieldReleaseLabels: []any{map[string]any{"label_id": float64(1), "kind": float64(9)}}},
+		{editspec.FieldReleaseLabelsSuppr: []any{"label:1"}},
+		{editspec.FieldReleaseLabelsSuppr: []any{"label:01:2"}},
 		{editspec.FieldReleaseHidden: "yes"},
 	}
 	for i, patch := range cases {

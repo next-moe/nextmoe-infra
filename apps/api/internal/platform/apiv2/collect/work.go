@@ -402,7 +402,8 @@ func ReleaseSpec() Spec {
 		Sort:    []string{"date_desc", "date_asc"},
 		Include: []string{},
 		FullSet: []string{},
-		Fields:  []string{"object", "id", "work_id", "release_kind", "date", "title", "lang", "platform", "platforms", "refs"},
+		Fields: []string{"object", "id", "work_id", "release_kind", "date", "title", "lang", "platform", "platforms",
+			"languages", "freeware", "official", "min_age", "refs"},
 	}
 }
 
