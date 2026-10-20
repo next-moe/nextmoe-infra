@@ -142,9 +142,14 @@ export const WORK_EDIT_CONFIG: EditEntityConfig = {
       imagePreset: 'cover'
     },
     'catalog.work.covers_upstream': {
-      label: '资料源封面分级',
+      label: '资料源封面',
       group: 'media',
       control: 'regrade'
+    },
+    'catalog.work.cover_order': {
+      label: '封面顺序',
+      group: 'media',
+      control: 'readonly'
     },
     'catalog.work.screenshots': {
       label: '截图',
@@ -153,9 +158,14 @@ export const WORK_EDIT_CONFIG: EditEntityConfig = {
       imagePreset: 'screenshot'
     },
     'catalog.work.screenshots_upstream': {
-      label: '资料源截图分级',
+      label: '资料源截图',
       group: 'media',
       control: 'regrade'
+    },
+    'catalog.work.screenshot_order': {
+      label: '截图顺序',
+      group: 'media',
+      control: 'readonly'
     },
     'catalog.work.credits': {
       label: '制作人员',

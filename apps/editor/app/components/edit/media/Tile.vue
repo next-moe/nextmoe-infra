@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { cn } from '@kungal/ui-core'
-import type { MediaKind, MediaTile } from '~/utils/mediaGallery'
+import {
+  coverKindLabel,
+  type MediaKind,
+  type MediaTile
+} from '~/utils/mediaGallery'
 
 const SEXUAL = ['', '擦边', '露骨']
 const VIOLENCE = ['', '暴力', '血腥']
@@ -32,10 +36,11 @@ const sexual = computed(() => Number(props.tile.row.sexual ?? 0))
 const violence = computed(() => Number(props.tile.row.violence ?? 0))
 const pinned = computed(() => Boolean(props.tile.row.portrait_pinned))
 const caption = computed(() =>
-  String(
-    (props.kind === 'cover' ? props.tile.row.kind : props.tile.row.caption) ??
-      ''
-  )
+  props.kind === 'cover'
+    ? props.tile.row.kind
+      ? coverKindLabel(props.tile.row.kind)
+      : ''
+    : String(props.tile.row.caption ?? '')
 )
 
 const onKeydown = (event: KeyboardEvent) => {

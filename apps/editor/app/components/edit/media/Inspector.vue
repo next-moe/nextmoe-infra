@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import type { MediaKind, MediaTile } from '~/utils/mediaGallery'
+import {
+  COVER_KINDS,
+  type MediaKind,
+  type MediaTile
+} from '~/utils/mediaGallery'
 
 const props = defineProps<{
   tile: MediaTile
@@ -11,6 +15,7 @@ const props = defineProps<{
   canHide: boolean
   canReorder: boolean
   canPin: boolean
+  anyPinned: boolean
 }>()
 
 const emit = defineEmits<{
@@ -25,10 +30,19 @@ const emit = defineEmits<{
 }>()
 
 const pinned = computed(() => Boolean(props.tile.row.portrait_pinned))
-const textKey = computed(() => (props.kind === 'cover' ? 'kind' : 'caption'))
 const text = computed({
-  get: () => String(props.tile.row[textKey.value] ?? ''),
-  set: (next: string | number) => emit('update', textKey.value, String(next))
+  get: () => String(props.tile.row.caption ?? ''),
+  set: (next: string | number) => emit('update', 'caption', String(next))
+})
+const coverKind = computed({
+  get: () => String(props.tile.row.kind ?? ''),
+  set: (next: string) => emit('update', 'kind', next)
+})
+const coverKindOptions = computed(() => {
+  const current = String(props.tile.row.kind ?? '')
+  return COVER_KINDS.some((entry) => entry.value === current)
+    ? COVER_KINDS
+    : [...COVER_KINDS, { value: current, label: current }]
 })
 const grade = (axis: 'sexual' | 'violence') =>
   computed({
@@ -88,17 +102,19 @@ const origin = computed(() =>
     <div class="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
       <button
         type="button"
-        class="group bg-default-100 border-default-200 relative block w-full overflow-hidden rounded-lg border"
+        class="group bg-default-100 border-default-200 relative flex min-h-40 w-full items-center justify-center overflow-hidden rounded-lg border"
         aria-label="查看大图"
         @click="emit('preview')"
       >
         <KunImage
           v-if="props.image"
+          :key="props.tile.hash"
           :src="props.image.url"
           :thumbhash="props.image.thumbhash ?? undefined"
           alt=""
-          :aspect-ratio="props.kind === 'cover' ? '3 / 4' : '16 / 9'"
           object-fit="contain"
+          class-name="block"
+          image-class-name="max-h-[55vh] w-auto max-w-full"
         />
         <span
           class="bg-background/85 text-default-700 absolute right-2 bottom-2 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
@@ -109,6 +125,12 @@ const origin = computed(() =>
       </button>
 
       <p class="text-default-500 text-xs leading-5">{{ origin }}</p>
+      <p
+        v-if="props.kind === 'cover' && !props.anyPinned"
+        class="text-default-500 bg-default-100 rounded-lg px-3 py-2 text-xs leading-5"
+      >
+        还没有指定主封面，页面会自动挑选最合适的竖版图片。想固定某一张，点「设为主封面」。
+      </p>
 
       <div class="flex flex-wrap gap-2">
         <KunButton
@@ -203,24 +225,36 @@ const origin = computed(() =>
         </KunButtonGroup>
       </div>
 
-      <div class="space-y-1.5">
+      <div v-if="props.kind === 'cover'" class="space-y-1.5">
         <div class="flex items-center gap-1.5 text-sm">
-          <span class="text-default-600">
-            {{ props.kind === 'cover' ? '类型' : '说明' }}
-          </span>
+          <span class="text-default-600">类型</span>
           <span
-            v-if="changedMember(textKey)"
+            v-if="changedMember('kind')"
+            class="bg-primary-500 size-1.5 rounded-full"
+          />
+        </div>
+        <KunRadioGroup
+          v-model="coverKind"
+          :options="coverKindOptions"
+          variant="pill"
+          orientation="horizontal"
+          size="sm"
+          :disabled="!props.canEdit"
+          aria-label="封面类型"
+        />
+      </div>
+      <div v-else class="space-y-1.5">
+        <div class="flex items-center gap-1.5 text-sm">
+          <span class="text-default-600">说明</span>
+          <span
+            v-if="changedMember('caption')"
             class="bg-primary-500 size-1.5 rounded-full"
           />
         </div>
         <KunInput
           v-model="text"
-          :placeholder="
-            props.kind === 'cover'
-              ? '例如：主视觉、包装正面、通常版'
-              : '例如：OP、标题画面、战斗场景'
-          "
-          :aria-label="props.kind === 'cover' ? '封面类型' : '截图说明'"
+          placeholder="例如：OP、标题画面、战斗场景"
+          aria-label="截图说明"
           :disabled="!props.canEdit"
         />
       </div>
@@ -241,10 +275,15 @@ const origin = computed(() =>
       <div
         class="border-default-200 text-default-500 space-y-1 border-t pt-4 text-xs"
       >
-        <p class="flex items-center gap-1">
-          图片哈希
-          <KunCopy :text="props.tile.hash" size="xs" variant="light" />
-        </p>
+        <div class="flex items-center justify-between gap-2">
+          <span>图片哈希</span>
+          <KunCopy
+            :text="props.tile.hash"
+            name="复制"
+            size="xs"
+            variant="light"
+          />
+        </div>
         <p class="font-mono break-all">{{ props.tile.hash }}</p>
         <a
           v-if="props.image"

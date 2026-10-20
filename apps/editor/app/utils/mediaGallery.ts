@@ -260,3 +260,57 @@ export const setRowMember = (
       value === false
     return omitEmpty && empty ? withoutKey(row, key) : { ...row, [key]: value }
   })
+
+export const COVER_KINDS: { value: string; label: string }[] = [
+  { value: 'main', label: '主视觉' },
+  { value: 'pkgfront', label: '包装正面' },
+  { value: 'pkgback', label: '包装背面' },
+  { value: 'pkgside', label: '包装侧面' },
+  { value: 'pkgcontent', label: '包装内容' },
+  { value: 'pkgmed', label: '光盘介质' },
+  { value: 'dig', label: '数字版封面' },
+  { value: '', label: '未分类' }
+]
+
+export const coverKindLabel = (kind: unknown) => {
+  const value = String(kind ?? '')
+  return COVER_KINDS.find((entry) => entry.value === value)?.label ?? value
+}
+
+const GRADE_LABELS: Record<string, string[]> = {
+  sexual: ['安全', '擦边', '露骨'],
+  violence: ['无', '暴力', '血腥']
+}
+
+const MEMBER_CHANGE_LABELS: Record<string, string> = {
+  portrait_pinned: '主封面',
+  kind: '类型',
+  caption: '说明',
+  sexual: '性暗示',
+  violence: '暴力'
+}
+
+const memberText = (key: string, value: unknown) => {
+  if (key === 'portrait_pinned') {
+    return value ? '是' : '否'
+  }
+  if (key === 'kind') {
+    return coverKindLabel(value)
+  }
+  if (key in GRADE_LABELS) {
+    return GRADE_LABELS[key]![Number(value ?? 0)] ?? String(value)
+  }
+  return String(value ?? '') || '（空）'
+}
+
+export const mediaRowChanges = (before: MediaRow | null, after: MediaRow) =>
+  Object.keys(MEMBER_CHANGE_LABELS)
+    .filter((key) => key in after || (before && key in before))
+    .filter(
+      (key) => memberText(key, before?.[key]) !== memberText(key, after[key])
+    )
+    .map((key) => ({
+      label: MEMBER_CHANGE_LABELS[key]!,
+      before: memberText(key, before?.[key]),
+      after: memberText(key, after[key])
+    }))

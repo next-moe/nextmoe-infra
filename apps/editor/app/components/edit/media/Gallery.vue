@@ -345,6 +345,10 @@ const lightboxImages = computed(() =>
   }))
 )
 
+const anyPinned = computed(() =>
+  tiles.value.some((tile) => tile.row.portrait_pinned)
+)
+
 const sourceSummary = computed(() => {
   const counts = new Map<string, number>()
   for (const tile of tiles.value) {
@@ -559,6 +563,7 @@ watch(
         :can-hide="canHide"
         :can-reorder="canReorder"
         :can-pin="canUpload && canRegrade"
+        :any-pinned="anyPinned"
         @close="selectedHash = null"
         @preview="lightboxOpen = true"
         @pin="togglePin(selected)"
@@ -596,6 +601,7 @@ watch(
         :can-hide="canHide"
         :can-reorder="canReorder"
         :can-pin="canUpload && canRegrade"
+        :any-pinned="anyPinned"
         @close="selectedHash = null"
         @preview="lightboxOpen = true"
         @pin="togglePin(selected)"

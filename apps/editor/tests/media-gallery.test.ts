@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   applyOrder,
   buildMediaTiles,
+  coverKindLabel,
+  mediaRowChanges,
   contextMediaRows,
   displaySequence,
   moveHash,
@@ -182,5 +184,36 @@ describe('media gallery model', () => {
     expect(
       removedHumanRows(state({ human: [] })).map((r) => r.image_hash)
     ).toEqual(['h1'])
+  })
+
+  it('labels cover kinds and keeps unknown ones verbatim', () => {
+    expect(coverKindLabel('pkgfront')).toBe('包装正面')
+    expect(coverKindLabel('')).toBe('未分类')
+    expect(coverKindLabel('poster')).toBe('poster')
+  })
+
+  it('describes a regrade in plain language', () => {
+    expect(
+      mediaRowChanges(
+        {
+          image_hash: 'u1',
+          kind: 'dig',
+          portrait_pinned: false,
+          sexual: 0,
+          violence: 0
+        },
+        {
+          image_hash: 'u1',
+          kind: 'main',
+          portrait_pinned: true,
+          sexual: 2,
+          violence: 0
+        }
+      )
+    ).toEqual([
+      { label: '主封面', before: '否', after: '是' },
+      { label: '类型', before: '数字版封面', after: '主视觉' },
+      { label: '性暗示', before: '安全', after: '露骨' }
+    ])
   })
 })
