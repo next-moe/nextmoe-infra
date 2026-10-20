@@ -34,7 +34,11 @@ export const useProposalNotices = () => {
       }
     }
     const list = await api<ActivityList<CatalogProposal>>('/v2/me/proposals', {
-      query: { limit: WINDOW_LIMIT }
+      query: {
+        limit: WINDOW_LIMIT,
+        sort: 'updated_desc',
+        ...(seenAt.value ? { updated_since: seenAt.value } : {})
+      }
     }).catch(() => null)
     if (list) {
       notices.value = proposalNotices(list.items ?? [], seenAt.value)

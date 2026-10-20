@@ -21,7 +21,7 @@ Registered field values. Requires a user access token. The token must carry the 
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
-| `object` | path | 是 | string | Family: work, company, character, release, tag, engine, series, person, credit_name. |
+| `object` | path | 是 | string | Family: work, company, character, release, tag, engine, series, person, credit_name, trait. |
 | `id` | path | 是 | string | Catalog id. |
 
 ```bash

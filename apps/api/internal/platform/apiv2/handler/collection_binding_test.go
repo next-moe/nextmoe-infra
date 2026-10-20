@@ -36,10 +36,12 @@ var subCollectionParams = []string{"cursor", "limit", "nsfw"}
 // were never checked at all. A fourth custom face is a failure here until it is
 // named and its reason written down.
 var customCollectionFaces = map[string]string{
-	"/v2/catalog/claim-events": "operator feed: ids= but no refs=, and no nsfw/facets/include",
-	"/v2/catalog/proposals":    "edit-history feed: no refs=, nsfw or facets",
-	"/v2/catalog/revisions":    "edit-history feed: no refs=, nsfw or facets",
-	"/v2/folders/holders":      "s2s fan-out lane: work_id=, cursor= and limit= and nothing else — every other parameter would widen what the uid list discloses",
+	"/v2/catalog/claim-events":      "operator feed: ids= but no refs=, and no nsfw/facets/include",
+	"/v2/catalog/proposals":         "edit-history feed: no refs=, nsfw or facets",
+	"/v2/catalog/revisions":         "edit-history feed: no refs=, nsfw or facets",
+	"/v2/folders/holders":           "s2s fan-out lane: work_id=, cursor= and limit= and nothing else — every other parameter would widen what the uid list discloses",
+	"/v2/me/merge-requests":         "merge-request queue: state=/object= filters over a small keyset feed, no refs=, nsfw or facets",
+	"/v2/moderation/merge-requests": "merge-request queue: state=/object= filters over a small keyset feed, no refs=, nsfw or facets",
 }
 
 func bindingApp(t *testing.T) (*fiber.App, huma.API, string, string) {
@@ -293,14 +295,17 @@ func TestProposalListFieldVocabulary(t *testing.T) {
 		require.Equal(t, http.StatusBadRequest, status, path)
 		require.Equal(t, problem.CodeUnknownSort, liveProblem(t, raw).Code, path)
 	}
-	// Only the bearer's own list publishes patches.
-	for _, field := range []string{"patch", "effective_patch"} {
-		status, _, raw := liveDo(t, env, http.MethodGet, "/v2/me/proposals?include=patch&fields="+field, liveUserToken, "")
-		require.Equalf(t, http.StatusOK, status, "/v2/me/proposals?fields=%s: %s", field, raw)
-		status, _, raw = liveDo(t, env, http.MethodGet, "/v2/moderation/proposals?fields="+field, liveUserToken, "")
-		require.Equalf(t, http.StatusBadRequest, status, "/v2/moderation/proposals?fields=%s: %s", field, raw)
+	// The bearer's own list and the review queue publish patches; the public
+	// transparency list never does.
+	for _, field := range []string{"patch", "effective_patch", "changed_fields", "conflict_fields"} {
+		for _, path := range []string{"/v2/me/proposals", "/v2/moderation/proposals"} {
+			status, _, raw := liveDo(t, env, http.MethodGet, path+"?include=patch&fields="+field, liveUserToken, "")
+			require.Equalf(t, http.StatusOK, status, "%s?fields=%s: %s", path, field, raw)
+		}
+		status, _, raw := liveDo(t, env, http.MethodGet, "/v2/catalog/proposals?fields="+field, "", "")
+		require.Equalf(t, http.StatusBadRequest, status, "/v2/catalog/proposals?fields=%s: %s", field, raw)
 	}
-	status, _, raw := liveDo(t, env, http.MethodGet, "/v2/moderation/proposals?include=patch", liveUserToken, "")
+	status, _, raw := liveDo(t, env, http.MethodGet, "/v2/catalog/proposals?include=patch", "", "")
 	require.Equal(t, http.StatusBadRequest, status, string(raw))
 	require.Equal(t, problem.CodeUnknownInclude, liveProblem(t, raw).Code)
 }

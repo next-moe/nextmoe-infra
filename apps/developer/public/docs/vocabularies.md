@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-## 词表（共 29 个）
+## 词表（共 30 个）
 
 封闭词表（`closed`）不加不减成员就是它的承诺——你的 `switch` 可以没有 `default`。开放词表相反：提前告诉你会有新值，客户端必须容忍没见过的取值。运行时以 `https://api.nextmoe.dev/v2/vocabularies` 为准，它比任何文档都新，且不需要凭据。
 
@@ -499,6 +499,25 @@ Open · 16 tokens
 | `renamed_from` | Renamed from | This company was renamed from the other. |
 | `subsidiary_of` | Subsidiary of | This company is a subsidiary of the other. |
 | `member_of` | Member of | This company is a member of the other. |
+
+### `work_relation`
+
+Closed · 12 tokens
+
+| value | display_name | description |
+| --- | --- | --- |
+| `adaptation_of` | Adaptation of | This work is an adaptation of the other. |
+| `sequel_of` | Sequel of | This work is a sequel of the other. |
+| `side_story_of` | Side story of | This work is a side story of the other. |
+| `fandisc_of` | Fandisc of | This work is a fandisc of the other. |
+| `collects` | Collects | This work collects the other. |
+| `remake_of` | Remake of | This work is a remake of the other. |
+| `same_series` | Same series | The two works belong to the same series. Symmetric. |
+| `same_setting` | Same setting | The two works share a setting. Symmetric. |
+| `crossover_with` | Crossover with | The two works crossover. Symmetric. |
+| `shares_character` | Shares character | The two works share a character. Symmetric. |
+| `alternative_setting` | Alternative setting | The two works share characters in a different setting. Symmetric. |
+| `alternative_version` | Alternative version | The two works are alternative versions. Symmetric. |
 
 ---
 本页来源 · NextMoe 开发者平台 · https://developer.nextmoe.dev/docs/vocabularies

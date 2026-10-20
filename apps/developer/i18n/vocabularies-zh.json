@@ -108,6 +108,10 @@
       "label": "关联类型",
       "summary": "两个实体之间的关系。标了「对称关系」的，反向也成立。开放词表。"
     },
+    "work_relation": {
+      "label": "作品关联",
+      "summary": "两部作品之间的关系，只含作品域的类型，封闭词表；编辑作品关联时只接受这些值。标了「对称关系」的，反向也成立。"
+    },
     "credit_name_kind": {
       "label": "署名名类型",
       "summary": "一个署名名在其人物名下扮演的角色：本名、笔名、另立人格或曾用名。"
@@ -132,42 +136,36 @@
     "A doujin game that is not classified as galgame.": "不归类为 galgame 的同人游戏。",
     "Music": "音乐",
     "A music work.": "音乐作品。",
-
     "All ages": "全年龄",
     "Rated suitable for all ages.": "面向全年龄。",
     "Sensitive": "敏感",
     "Sexual or violent content below the r18 line.": "有性或暴力内容，但没到 r18 那条线。",
     "R18": "R18",
     "Adult-only content.": "仅限成人。",
-
     "Safe": "无",
     "No sexual depiction.": "没有性描写。",
     "Suggestive": "暗示",
     "Suggestive sexual depiction.": "带性暗示的描写。",
     "Explicit": "露骨",
     "Explicit sexual depiction.": "露骨的性描写。",
-
     "Tame": "无",
     "No violent depiction.": "没有暴力描写。",
     "Violent": "暴力",
     "Violent depiction short of brutality.": "有暴力描写，但没到残虐的程度。",
     "Brutal": "残虐",
     "Brutal violent depiction.": "残虐的暴力描写。",
-
     "None": "无",
     "Not a spoiler.": "不算剧透。",
     "Minor": "轻微",
     "Minor spoiler.": "轻微剧透。",
     "Major": "重大",
     "Major spoiler.": "重大剧透。",
-
     "Male": "男",
     "Male.": "男性。",
     "Female": "女",
     "Female.": "女性。",
     "Other": "其他",
     "Recorded as other. Absence of a record is null, not a value.": "明确记为其他。没有记录时是 null，不是这个值。",
-
     "A": "A",
     "Blood type A.": "A 型血。",
     "B": "B",
@@ -176,7 +174,6 @@
     "Blood type AB.": "AB 型血。",
     "O": "O",
     "Blood type O.": "O 型血。",
-
     "Released": "已发售",
     "The release has shipped.": "这个 release 已经发售。",
     "Dated": "已定档",
@@ -187,7 +184,6 @@
     "Cancelled.": "已取消。",
     "Unknown": "未知",
     "We have not determined the status.": "我们还没有裁定它的状态。",
-
     "Live": "生效中",
     "The claim is live.": "这条认领已经生效。",
     "Draft": "草稿",
@@ -198,30 +194,25 @@
     "The claim was declined.": "这条认领被驳回了。",
     "Hidden": "隐藏",
     "The claim is hidden.": "这条认领已被隐藏。",
-
     "SFW": "SFW",
     "Safe to render in an SFW context.": "可以在 SFW 场景里直接展示。",
     "NSFW": "NSFW",
     "Not safe to render in an SFW context.": "不适合在 SFW 场景里展示。",
-
     "Core": "核心",
     "Core vocabulary tag.": "核心词表里的标签。",
     "Longtail": "长尾",
     "Long-tail tag.": "长尾标签。",
     "Hidden from default listings.": "默认列表里不展示。",
-
     "Official": "官方名",
     "Official title.": "官方标题。",
     "Alias": "别名",
     "Alternate title.": "别名标题。",
     "Abbreviation": "简称",
     "Abbreviated title. search_hint is internal and is not in this vocabulary.": "标题简称。search_hint 是内部用的，不在这个词表里。",
-
     "Translation": "译名",
     "A translated name.": "翻译过来的名字。",
     "Spelling variant": "拼写变体",
     "A spelling variant. search_hint is internal and is not in this vocabulary.": "同一个名字的拼写变体。search_hint 是内部用的，不在这个词表里。",
-
     "roster_role/Main": "主要",
     "The roster role was not recorded.": "没有记录这个角色的出场分量。",
     "A main character.": "主要角色。",
@@ -229,7 +220,6 @@
     "A secondary character.": "次要角色。",
     "Appears": "出场",
     "A character who appears.": "有出场的角色。",
-
     "Circle": "社团",
     "Circle / doujin group attribution.": "以社团 / 同人团体的身份参与。",
     "attribution_role/Publisher": "发行",
@@ -238,7 +228,6 @@
     "Developer attribution.": "以开发方的身份参与。",
     "Brand": "厂牌",
     "Brand attribution.": "以厂牌的身份参与。",
-
     "Game brand": "游戏厂牌",
     "A game brand.": "游戏厂牌。",
     "Bunko": "文库",
@@ -251,7 +240,6 @@
     "A doujin circle.": "同人社团。",
     "Group": "团体",
     "A group.": "泛指的团体。",
-
     "company_relation/Parent": "母公司",
     "The other company owns this one.": "对方公司拥有本公司。",
     "company_relation/Subsidiary": "子公司",
@@ -268,12 +256,10 @@
     "The other company succeeded this one.": "对方公司承继了本公司。",
     "company_relation/Formerly": "前身",
     "This company succeeded the other one.": "本公司承继了对方公司。",
-
     "Content": "内容",
     "A content tag.": "描述作品内容本身的标签。",
     "Meta": "元信息",
     "A meta tag.": "描述元信息的标签。",
-
     "Default": "默认",
     "The default / unspecified edition.": "默认 / 未指明的版本。",
     "Digital": "数字版",
@@ -284,7 +270,6 @@
     "A trial / demo edition.": "体验版 / 试玩版。",
     "Patch": "补丁",
     "A patch, including fan translations.": "补丁，含民间汉化与翻译补丁。",
-
     "member_kind/Main": "本篇",
     "The series-member role was not recorded.": "没有记录它在系列里的位置。",
     "The main entry of the series.": "系列的本篇。",
@@ -294,7 +279,6 @@
     "A side story.": "外传。",
     "Collection": "合集",
     "A collection / omnibus.": "合集 / 复刻合并版。",
-
     "Platform": "平台通用",
     "Errors any face may emit.": "任何一个面都可能抛出的错误。",
     "Catalog": "目录数据",
@@ -307,7 +291,6 @@
     "News-face errors. Both codes come from the source-row-as-grant model on /v2/me/news.": "资讯面的错误。两个码都出自 /v2/me/news 的「来源行即授权」模型。",
     "Store": "商店面",
     "Store-face errors from the purchase-link minter.": "商店面的错误，来自购买链接铸造器。",
-
     "User": "用户",
     "Manual curation, not an import source.": "人工整理，不是一个导入源。",
     "VNDB": "VNDB",
@@ -350,7 +333,6 @@
     "HowLongToBeat playtime and rating aggregates.": "HowLongToBeat 的时长与评分聚合。",
     "Censored": "打码替身",
     "First-party blurred stand-in derived from explicit official art.": "一方从官方 R18 原图派生的重模糊替身图。",
-
     "Arabic": "阿拉伯语",
     "Belarusian": "白俄罗斯语",
     "Bulgarian": "保加利亚语",
@@ -400,14 +382,12 @@
     "Chinese": "中文",
     "Simplified Chinese": "简体中文",
     "Traditional Chinese": "繁体中文",
-
     "Cherokee": "切罗基语",
     "Estonian": "爱沙尼亚语",
     "Basque": "巴斯克语",
     "Persian": "波斯语",
     "Galician": "加利西亚语",
     "Kazakh": "哈萨克语",
-
     "Android": "Android",
     "Blu-ray Player": "Blu-ray 播放器",
     "DOS": "DOS",
@@ -454,7 +434,6 @@
     "Xbox 360": "Xbox 360",
     "Xbox One": "Xbox One",
     "Xbox X/S": "Xbox X/S",
-
     "Adaptation of": "改编自对方",
     "This work is an adaptation of the other.": "这部作品改编自另一部。",
     "Sequel of": "对方的续作",
@@ -487,7 +466,6 @@
     "This company is a subsidiary of the other.": "这家公司是另一家的子公司。",
     "Member of": "对方的成员",
     "This company is a member of the other.": "这家公司是另一家的成员。",
-
     "Main": "本名",
     "The person's main name.": "这个人的主名。",
     "Pen name": "笔名",
@@ -496,7 +474,6 @@
     "A persona kept apart from the person's other names.": "与此人其他名字分开经营的人格。",
     "Former name": "曾用名",
     "A name the person no longer uses.": "此人已不再使用的名字。",
-
     "Public": "公开",
     "The link between this credit name and its person is shown.": "这个署名名与其人物的关联会被展示。",
     "The link between this credit name and its person is withheld from public faces.": "这个署名名与其人物的关联不在公开接口中出现。"

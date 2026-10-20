@@ -2,17 +2,13 @@
 import type { KunSelectOption } from '@kungal/ui-vue'
 import type {
   CatalogProposal,
-  CatalogProposalList,
-  CatalogRevisionList
+  CatalogProposalList
 } from '#shared/types/catalog'
 import { ENTITY_FAMILY, SITE_LABELS } from '~/constants/catalog'
-import { conflictingFields } from '~/utils/review/history'
+import { EDIT_CONFIGS, isEditFamily } from '~/constants/editEntities'
 import {
   AGE_OPTIONS,
-  countBy,
   filterQueue,
-  needsAnalysis,
-  runLimited,
   type QueueAnalysis,
   type QueueFilters
 } from '~/utils/review/queue'
@@ -21,16 +17,19 @@ useHead({ title: '待审队列 · 未萌编辑台' })
 
 const PAGE_SIZE = 30
 
+const SORT_OPTIONS: KunSelectOption<string>[] = [
+  { value: 'filed_desc', label: '最新提交' },
+  { value: 'filed_asc', label: '等待最久' },
+  { value: 'updated_desc', label: '最近更新' }
+]
+
 const api = useEditorApi()
 const names = useEntityNames()
 const { isReviewer } = useEditorSession()
 const queueIds = useState<string[]>('review-queue-ids', () => [])
-const analyses = useState<Record<string, QueueAnalysis>>(
-  'review-queue-analyses',
-  () => ({})
-)
 
 const family = ref('')
+const sort = ref('filed_desc')
 const filters = reactive<QueueFilters>({
   site: '',
   age: '',
@@ -41,7 +40,6 @@ const items = ref<CatalogProposal[]>([])
 const total = ref<number | null>(null)
 const nextCursor = ref<string | null>(null)
 const loading = ref(false)
-const analysing = ref(false)
 const selected = ref(0)
 
 const familyOptions: KunSelectOption<string>[] = [
@@ -52,87 +50,51 @@ const familyOptions: KunSelectOption<string>[] = [
   }))
 ]
 
-const siteOptions = computed<KunSelectOption<string>[]>(() => [
+const siteOptions: KunSelectOption<string>[] = [
   { value: '', label: '全部来源' },
-  ...Object.entries(countBy(items.value, (item) => item.site)).map(
-    ([site, count]) => ({
-      value: site,
-      label: `${labelOf(SITE_LABELS, site)} (${count})`
-    })
-  )
-])
+  ...Object.entries(SITE_LABELS).map(([value, label]) => ({ value, label }))
+]
 
 const ageOptions: KunSelectOption<string>[] = AGE_OPTIONS.map(
   ({ value, label }) => ({ value, label })
 )
 
 const fieldOptions = computed<KunSelectOption<string>[]>(() => {
-  const counts = countBy(
-    Object.entries(analyses.value)
-      .filter(([id]) => items.value.some((item) => item.id === id))
-      .flatMap(([, analysis]) => analysis.fields),
-    (key) => key
-  )
+  const configs = isEditFamily(family.value)
+    ? [EDIT_CONFIGS[family.value]]
+    : Object.values(EDIT_CONFIGS)
   return [
     { value: '', label: '全部字段' },
-    ...Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .map(([key, count]) => ({
+    ...configs.flatMap((config) =>
+      Object.keys(config.fields).map((key) => ({
         value: key,
-        label: `${fieldLabel(key)} (${count})`
+        label: fieldLabel(key)
       }))
+    )
   ]
 })
 
-const visible = computed(() =>
-  filterQueue(items.value, filters, analyses.value)
+const analyses = computed<Record<string, QueueAnalysis>>(() =>
+  Object.fromEntries(
+    items.value.map((item) => [
+      item.id,
+      {
+        fields: item.changed_fields ?? [],
+        conflicts: Object.fromEntries(
+          (item.conflict_fields ?? []).map((key) => [key, 1])
+        )
+      }
+    ])
+  )
 )
 
-const analyse = async (proposal: CatalogProposal) => {
-  if (analyses.value[proposal.id]) {
-    return
-  }
-  const [detail, revisions] = await Promise.all([
-    api<CatalogProposal>(`/v2/moderation/proposals/${proposal.id}`, {
-      query: { include: 'patch' }
-    }).catch(() => null),
-    api<CatalogRevisionList>('/v2/catalog/revisions', {
-      query: {
-        object: proposal.target_object,
-        entity_id: proposal.entity_id,
-        limit: 100
-      }
-    }).catch(() => null)
-  ])
-  const fields = Object.keys(detail?.effective_patch ?? detail?.patch ?? {})
-  analyses.value = {
-    ...analyses.value,
-    [proposal.id]: {
-      fields,
-      conflicts: conflictingFields(
-        proposal.base_revision_seq,
-        revisions?.items ?? [],
-        fields
-      )
-    }
-  }
-}
-
-const analyseLoaded = async () => {
-  if (analysing.value) {
-    return
-  }
-  analysing.value = true
-  try {
-    await runLimited(
-      items.value.filter((item) => !analyses.value[item.id]),
-      3,
-      analyse
-    )
-  } finally {
-    analysing.value = false
-  }
-}
+const visible = computed(() =>
+  filterQueue(
+    items.value,
+    { site: '', age: filters.age, field: '', conflictOnly: false },
+    analyses.value
+  )
+)
 
 const fetchPage = async (cursor: string | null) => {
   loading.value = true
@@ -141,7 +103,12 @@ const fetchPage = async (cursor: string | null) => {
       query: {
         limit: PAGE_SIZE,
         include_total: true,
+        include: 'patch',
+        sort: sort.value,
         ...(family.value ? { object: family.value } : {}),
+        ...(filters.site ? { site: filters.site } : {}),
+        ...(filters.field ? { field: filters.field } : {}),
+        ...(filters.conflictOnly ? { has_conflict: true } : {}),
         ...(cursor ? { cursor } : {})
       }
     })
@@ -149,9 +116,6 @@ const fetchPage = async (cursor: string | null) => {
     total.value = list.total ?? null
     nextCursor.value = list.next_cursor ?? null
     await names.resolve(list.items)
-    if (needsAnalysis(filters)) {
-      await analyseLoaded()
-    }
   } catch {
     if (!cursor) {
       items.value = []
@@ -163,14 +127,18 @@ const fetchPage = async (cursor: string | null) => {
   }
 }
 
-watch(family, () => fetchPage(null))
-watch(
-  () => needsAnalysis(filters),
-  (needed) => {
-    if (needed) {
-      analyseLoaded()
-    }
+watch(family, () => {
+  if (
+    filters.field &&
+    !fieldOptions.value.some((o) => o.value === filters.field)
+  ) {
+    filters.field = ''
   }
+  fetchPage(null)
+})
+watch(
+  () => [sort.value, filters.site, filters.field, filters.conflictOnly],
+  () => fetchPage(null)
 )
 watch(visible, (list) => {
   queueIds.value = list.map((item) => item.id)
@@ -252,7 +220,7 @@ if (isReviewer.value) {
       </div>
 
       <KunCard bordered padding="md">
-        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <KunSelect
             v-model="family"
             :options="familyOptions"
@@ -264,31 +232,23 @@ if (isReviewer.value) {
             aria-label="来源站点"
           />
           <KunSelect
+            v-model="filters.field"
+            :options="fieldOptions"
+            :searchable="fieldOptions.length > 12"
+            aria-label="涉及字段"
+          />
+          <KunSelect
             v-model="filters.age"
             :options="ageOptions"
             aria-label="提交时间"
           />
-          <KunSelect
-            v-model="filters.field"
-            :options="fieldOptions"
-            aria-label="涉及字段"
-            :disabled="analysing"
-          />
+          <KunSelect v-model="sort" :options="SORT_OPTIONS" aria-label="排序" />
           <KunSwitch
             v-model="filters.conflictOnly"
             label="只看可能冲突"
             class-name="self-center"
           />
         </div>
-        <p
-          v-if="needsAnalysis(filters)"
-          class="text-default-400 mt-2 flex items-center gap-1 text-xs"
-        >
-          <KunLoading v-if="analysing" spinner />
-          按字段和冲突筛选会逐条读取已加载的提案{{
-            analysing ? '，正在分析…' : '。'
-          }}
-        </p>
       </KunCard>
 
       <KunCard bordered padding="none">

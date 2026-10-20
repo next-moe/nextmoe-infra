@@ -389,13 +389,15 @@ func (g *gormWriter) setWorkTagSexual(ctx context.Context, source, name string) 
 
 func (g *gormWriter) setTagSexual(ctx context.Context, name string) (int64, error) {
 	res := g.db.WithContext(ctx).Exec(
-		`UPDATE catalog_tag SET sexual = true, updated_at = now() WHERE name = ? AND sexual = false`, name)
+		`UPDATE catalog_tag SET sexual = true, updated_at = now() WHERE name = ? AND sexual = false AND `+
+			editspec.NotHumanFieldSQL("field_provenance", "sexual"), name)
 	return res.RowsAffected, res.Error
 }
 
 func (g *gormWriter) setTagHidden(ctx context.Context, name string) (int64, error) {
 	res := g.db.WithContext(ctx).Exec(
-		`UPDATE catalog_tag SET tier = ?, updated_at = now() WHERE name = ? AND tier <> ?`,
+		`UPDATE catalog_tag SET tier = ?, updated_at = now() WHERE name = ? AND tier <> ? AND `+
+			editspec.NotHumanFieldSQL("field_provenance", "tier"),
 		model.TagTierHidden, name, model.TagTierHidden)
 	return res.RowsAffected, res.Error
 }

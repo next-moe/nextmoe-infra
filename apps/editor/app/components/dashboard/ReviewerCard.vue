@@ -2,23 +2,18 @@
 import type { ActivityList } from '#shared/types/activity'
 import type { CatalogProposal } from '#shared/types/catalog'
 
-const PAGE = 100
-
 const api = useEditorApi()
 
 const { data, pending } = await useAsyncData('dashboard-reviewer-queue', () =>
   api<ActivityList<CatalogProposal>>('/v2/moderation/proposals', {
-    query: { limit: PAGE, include_total: true }
+    query: { limit: 1, include_total: true, sort: 'filed_asc' }
   }).catch(() => null)
 )
 
 const total = computed(
   () => data.value?.total ?? data.value?.items?.length ?? 0
 )
-const oldest = computed(() => data.value?.items?.at(-1) ?? null)
-const oldestIsPartial = computed(
-  () => (data.value?.items?.length ?? 0) < total.value
-)
+const oldest = computed(() => data.value?.items?.[0] ?? null)
 </script>
 
 <template>
@@ -37,9 +32,7 @@ const oldestIsPartial = computed(
         <p class="text-lg font-semibold">
           {{ oldest ? formatRelative(oldest.created_at) : '—' }}
         </p>
-        <p class="text-default-500 text-sm">
-          {{ oldestIsPartial ? `最早等待（前 ${PAGE} 条）` : '最早等待' }}
-        </p>
+        <p class="text-default-500 text-sm">最早等待</p>
       </div>
     </div>
   </KunCard>

@@ -907,7 +907,7 @@ export const searchIndex: SearchEntry[] = [
     "r": "/docs/v2",
     "t": "Public API v2",
     "s": "端点参考",
-    "d": "/v2 · 144 个端点",
+    "d": "/v2 · 151 个端点",
     "b": "v2 /v2 API v2 Public API v2"
   },
   {
@@ -1048,7 +1048,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "列出人物",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/persons",
-    "b": "listCatalogPersons /v2/catalog/persons get List persons Keyset-paginated persons. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. keyset 分页的人物。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。ids=/refs= 是批量车道，不分页。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw"
+    "b": "listCatalogPersons /v2/catalog/persons get List persons Keyset-paginated persons. q= searches the display name and every credit name whose person link is public. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate. keyset 分页的人物。q= 搜索显示名以及人物关联公开的所有署名名。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。ids=/refs= 是批量车道，不分页。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw q"
   },
   {
     "r": "/docs/v2/getCatalogPerson",
@@ -1090,7 +1090,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "列出发售",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/releases",
-    "b": "listCatalogReleases /v2/catalog/releases get List releases Keyset-paginated dated releases, sorted by date_desc by default. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate. keyset 分页的带日期发售行，默认按 date_desc 排序。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。ids= 是批量车道，不分页。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw"
+    "b": "listCatalogReleases /v2/catalog/releases get List releases Keyset-paginated dated releases, sorted by date_desc by default. q= filters by release title or work display name. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate. keyset 分页的带日期发售行，默认按 date_desc 排序。q= 按发行标题或作品显示名筛选。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。ids= 是批量车道，不分页。 catalog:read cursor limit view include fields ids refs include_total facets sort nsfw q"
   },
   {
     "r": "/docs/v2/getCatalogRelease",
@@ -1464,6 +1464,13 @@ export const searchIndex: SearchEntry[] = [
     "b": "deleteMyCoverVote /v2/me/cover-votes/{cover_id} delete Withdraw a cover vote 204 with no body. Requires a user access token. The token must carry the catalog:edit scope. 204 无响应体。需要用户访问令牌。令牌须带 catalog:edit scope。 cover_id"
   },
   {
+    "r": "/docs/v2/createMyCreation",
+    "t": "提议新建条目",
+    "s": "端点 · 我的",
+    "d": "POST /v2/me/creations",
+    "b": "createMyCreation /v2/me/creations post Propose a new entry Files a proposal that creates a new entry of one family. It is reviewed like any proposal (it appears in GET /v2/moderation/proposals with entity_id 0 and a creation block) unless the create policy lets the bearer apply it at once; once merged, entity_id is the new entry's id. Entries whose normalized name already exists are refused with 409 DUPLICATE_SUSPECTS unless confirm_duplicates=true. Counts against the same proposal quota as POST /v2/me/proposals. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 提交一条新建某家族条目的提案。它像其他提案一样接受审核（在 GET /v2/moderation/proposals 中以 entity_id 0 和 creation 块出现），除非创建策略允许调用者直接生效；合并后 entity_id 即为新条目的 id。规范化名称已存在的条目会以 409 DUPLICATE_SUSPECTS 拒绝，除非 confirm_duplicates=true。与 POST /v2/me/proposals 共用同一提案配额。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 Idempotency-Key"
+  },
+  {
     "r": "/docs/v2/getMyEditCapabilities",
     "t": "我在某个族上能编辑什么",
     "s": "端点 · 我的",
@@ -1590,6 +1597,27 @@ export const searchIndex: SearchEntry[] = [
     "b": "deleteMyCompanyFollow /v2/me/followed-companies/{company_id} delete Unfollow a company 204 with no body, also when the bearer was not following. Requires a user access token. Any app may call this; no scope is required. 204 无响应体；持有者本来就未关注时同样如此。需要用户访问令牌。任何应用均可调用；不要求任何 scope。 company_id"
   },
   {
+    "r": "/docs/v2/listMyMergeRequests",
+    "t": "列出我的合并请求",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/merge-requests",
+    "b": "listMyMergeRequests /v2/me/merge-requests get List my merge requests The bearer's own merge requests, newest first; follow next_cursor for more. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 调用者自己的合并请求，最新的在前；更多结果请跟随 next_cursor。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 state object cursor limit"
+  },
+  {
+    "r": "/docs/v2/createMyMergeRequest",
+    "t": "请求合并",
+    "s": "端点 · 我的",
+    "d": "POST /v2/me/merge-requests",
+    "b": "createMyMergeRequest /v2/me/merge-requests post Request a merge Asks reviewers to merge two entries of one family. Nothing merges on filing: a reviewer approves, the cooling-off runs, then the merge executes through the catalog merge machinery (redirect from source to target, survivorship, archive for unmerge). Two works of different mediums are refused 422. Quotas are tiered: catalog.merge_requests_per_day, _editor, _reviewer inside catalog.write_quota_window_hours; past it 429 QUOTA_EXCEEDED. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 请审核者合并同一家族的两个条目。提交时不会合并：审核者批准、冷却期结束后，才通过 catalog 合并机制执行（源重定向到目标、存活规则、为撤销合并留存档）。媒介不同的两部作品以 422 拒绝。配额分档：在 catalog.write_quota_window_hours 内适用 catalog.merge_requests_per_day、_editor、_reviewer；超出则 429 QUOTA_EXCEEDED。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 Idempotency-Key"
+  },
+  {
+    "r": "/docs/v2/patchMyMergeRequest",
+    "t": "撤回合并请求",
+    "s": "端点 · 我的",
+    "d": "PATCH /v2/me/merge-requests/{id}",
+    "b": "patchMyMergeRequest /v2/me/merge-requests/{id} patch Withdraw a merge request Withdraws an open request the bearer filed. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 撤回调用者提交的、仍处于 open 的请求。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 id"
+  },
+  {
     "r": "/docs/v2/listMyNews",
     "t": "列出我的资讯条目",
     "s": "端点 · 我的",
@@ -1678,7 +1706,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "列出我的提案",
     "s": "端点 · 我的",
     "d": "GET /v2/me/proposals",
-    "b": "listMyProposals /v2/me/proposals get List my proposals The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch and effective_patch, the same pair GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. Requires a user access token. The token must carry the catalog:edit scope. 持有者在令牌所属 catalog 站点上提交的自己的提案;在中央编辑站(catalog 站点 editor)上则为所有站点的。state= 是封闭词表，未知值返回 400。object= 或 entity_type= 收窄到一族，entity_id= 收窄到一个实体——本车道在不带族的情况下也接受 entity_id=，因为每一行已属于调用方。include=patch（或 view=full）给每一行加上 patch 与 effective_patch，与 GET /v2/me/proposals/{id}?include=patch 答的是同一对，列表页不必逐行再读。需要用户访问令牌。令牌须带 catalog:edit scope。 cursor limit view include fields ids refs include_total facets sort nsfw state object entity_type entity_id"
+    "b": "listMyProposals /v2/me/proposals get List my proposals The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch, effective_patch, changed_fields and (open rows) conflict_fields, the same block GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. field=, has_conflict= and updated_since= filter; sort=filed_desc (default), filed_asc, updated_desc or updated_asc. Requires a user access token. The token must carry the catalog:edit scope. 持有者在令牌所属 catalog 站点上提交的自己的提案;在中央编辑站(catalog 站点 editor)上则为所有站点的。state= 是封闭词表，未知值返回 400。object= 或 entity_type= 收窄到一族，entity_id= 收窄到一个实体——本车道在不带族的情况下也接受 entity_id=，因为每一行已属于调用方。include=patch（或 view=full）给每一行加上 patch、effective_patch、changed_fields 以及（未关闭的行）conflict_fields，与 GET /v2/me/proposals/{id}?include=patch 答的是同一块，列表页不必逐行再读。field=、has_conflict= 与 updated_since= 用于筛选；sort=filed_desc（默认）、filed_asc、updated_desc 或 updated_asc。需要用户访问令牌。令牌须带 catalog:edit scope。 cursor limit view include fields ids refs include_total facets sort nsfw state object entity_type entity_id site field has_conflict updated_since"
   },
   {
     "r": "/docs/v2/createMyProposal",
@@ -1835,11 +1863,32 @@ export const searchIndex: SearchEntry[] = [
     "b": "deleteModerationFolder /v2/moderation/folders/{id} delete Delete any folder Deletes the folder and its items. Unlike the owner's own delete this accepts the default folder: is_default is set by the folder's owner, so honouring it here would let anyone make a folder undeletable. 204 with no body. Requires a user access token whose holder has catalog.folder.moderate: the moderator, admin and ren roles have it, and the permission console can grant it to another role. Reviewing catalog edits or claims does not include it. 删除该收藏夹及其条目。与夹主自己的删除不同，这里接受默认收藏夹：is_default 是夹主自己设的，如果这里也照办，任何人都能靠标成默认让收藏夹删不掉。返回 204 空响应。需要持有人具备 catalog.folder.moderate 权限的用户访问令牌：moderator、admin、ren 角色默认具备，权限控制台可以授予其他角色。审核目录编辑或投稿认领的权限不包含它。 id"
   },
   {
+    "r": "/docs/v2/listModerationMergeRequests",
+    "t": "合并请求队列",
+    "s": "端点 · 审核",
+    "d": "GET /v2/moderation/merge-requests",
+    "b": "listModerationMergeRequests /v2/moderation/merge-requests get Merge request queue Merge requests filed through the editor, newest first; follow next_cursor for more. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope. 经编辑台提交的合并请求，最新的在前；更多结果请跟随 next_cursor。需要 catalog.merge.review 权限。令牌须带 catalog:edit scope。 state object cursor limit"
+  },
+  {
+    "r": "/docs/v2/getModerationMergeRequest",
+    "t": "获取一条合并请求",
+    "s": "端点 · 审核",
+    "d": "GET /v2/moderation/merge-requests/{id}",
+    "b": "getModerationMergeRequest /v2/moderation/merge-requests/{id} get Get one merge request Requires the catalog.merge.review permission. The token must carry the catalog:edit scope. 需要 catalog.merge.review 权限。令牌须带 catalog:edit scope。 id"
+  },
+  {
+    "r": "/docs/v2/decideModerationMergeRequest",
+    "t": "处理合并请求",
+    "s": "端点 · 审核",
+    "d": "POST /v2/moderation/merge-requests/{id}/decisions",
+    "b": "decideModerationMergeRequest /v2/moderation/merge-requests/{id}/decisions post Decide a merge request decision=approve|reject|execute. Unmerge stays with the catalog admin console. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope. decision=approve|reject|execute。撤销合并仍在 catalog 管理台。需要 catalog.merge.review 权限。令牌须带 catalog:edit scope。 id Idempotency-Key"
+  },
+  {
     "r": "/docs/v2/listModerationProposals",
     "t": "审核提案队列",
     "s": "端点 · 审核",
     "d": "GET /v2/moderation/proposals",
-    "b": "listModerationProposals /v2/moderation/proposals get Moderation proposal queue Open proposals on the token site; on the central editor (catalog site editor), on every site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. The token must carry the catalog:edit scope. 令牌站点上未关闭的提案;在中央编辑站(catalog 站点 editor)上则为所有站点的。整条队列需要 catalog 审核权限。object=（或 entity_type=）配 entity_id= 收敛到单个实体，该实体的所有者无需该权限即可读取——即编辑引擎按字段解析的同一条所有者审核通道。不带家族的 entity_id= 为 422。令牌须带 catalog:edit scope。 cursor limit view include fields ids refs include_total facets sort nsfw object entity_type entity_id"
+    "b": "listModerationProposals /v2/moderation/proposals get Moderation proposal queue Open proposals on the token site; on the central editor (catalog site editor), on every site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. site= narrows the central editor's queue to one site of origin; field=, has_conflict= and updated_since= filter; sort=filed_desc (default), filed_asc (oldest waiting first), updated_desc or updated_asc. include=patch (or view=full) adds each row's patch, effective_patch, changed_fields and conflict_fields, so a queue page needs no read per row. The token must carry the catalog:edit scope. 令牌站点上未关闭的提案;在中央编辑站(catalog 站点 editor)上则为所有站点的。整条队列需要 catalog 审核权限。object=（或 entity_type=）配 entity_id= 收敛到单个实体，该实体的所有者无需该权限即可读取——即编辑引擎按字段解析的同一条所有者审核通道。不带家族的 entity_id= 为 422。site= 把中央编辑站的队列收窄到一个来源站点;field=、has_conflict= 与 updated_since= 用于筛选;sort=filed_desc（默认）、filed_asc（等待最久的在前）、updated_desc 或 updated_asc。include=patch（或 view=full）给每一行加上 patch、effective_patch、changed_fields 与 conflict_fields，队列页不必逐行再读。令牌须带 catalog:edit scope。 cursor limit view include fields ids refs include_total facets sort nsfw object entity_type entity_id site field has_conflict updated_since"
   },
   {
     "r": "/docs/v2/getModerationProposal",
@@ -1867,7 +1916,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "回退到一条修订",
     "s": "端点 · 审核",
     "d": "POST /v2/moderation/reverts",
-    "b": "revertModeration /v2/moderation/reverts post Revert to a revision Body names revision_id. A downstream site may not revert an entity another site claims; the central editor (catalog site editor) may revert any. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 请求体给出 revision_id。下游站点不可回滚其他站点认领的实体;中央编辑站(catalog 站点 editor)可回滚任何实体。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 Idempotency-Key"
+    "b": "revertModeration /v2/moderation/reverts post Revert to a revision Body names revision_id. mode=restore (default) brings every registered field back to its value after that revision, or with baseline=true to the state recorded before the entity's first edit. mode=undo puts back, for only the fields that revision changed, the values they held just before it; when a later revision changed one of those fields the answer is 409 REVERT_CONFLICT naming them, unless force=true. A downstream site may not revert an entity another site claims; the central editor (catalog site editor) may revert any. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 请求体给出 revision_id。mode=restore（默认）把所有已注册字段恢复到该修订之后的值，带 baseline=true 时则恢复到实体第一次编辑前记录下的状态。mode=undo 只把该修订改动过的字段恢复为它之前的值;若之后的修订也改动了其中某个字段，返回 409 REVERT_CONFLICT 并列出这些字段，除非 force=true。下游站点不可回滚其他站点认领的实体;中央编辑站(catalog 站点 editor)可回滚任何实体。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 Idempotency-Key"
   },
   {
     "r": "/docs/v2/getModerationSnapshot",
@@ -2273,7 +2322,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "疑似重复",
     "s": "错误码 · 用户面",
     "d": "DUPLICATE_SUSPECTS · HTTP 409",
-    "b": "DUPLICATE_SUSPECTS Duplicate suspects The mint's titles match live works of the same medium; suspects[] names them. Nothing was written. Re-send with confirm_duplicates=true to mint anyway — the pairs are still filed for reconciliation. 铸造的标题与同一 medium 的在用作品同名，suspects[] 列出了它们。一行未写。带 confirm_duplicates=true 重发即照旧铸造——这些对子仍会记入对账队列。 me"
+    "b": "DUPLICATE_SUSPECTS Duplicate suspects The submitted name matches live entries (for a claim mint: works of the same medium); suspects[] names them. Nothing was written. Re-send with confirm_duplicates=true to go ahead — a minted work's pairs are still filed for reconciliation. 提交的名称与在用条目同名（认领铸造时为同一 medium 的作品），suspects[] 列出了它们。一行未写。带 confirm_duplicates=true 重发即照旧进行——铸造作品时这些对子仍会记入对账队列。 me"
   },
   {
     "r": "/problems/me/invalid-state-transition",
@@ -2309,6 +2358,13 @@ export const searchIndex: SearchEntry[] = [
     "s": "错误码 · 审核面",
     "d": "DECISION_ALREADY_MADE · HTTP 409",
     "b": "DECISION_ALREADY_MADE Decision already made This item has already been decided. detail names who decided and when. 这一项已经被裁决过。detail 会给出是谁、在什么时候裁决的。 moderation"
+  },
+  {
+    "r": "/problems/moderation/revert-conflict",
+    "t": "回滚冲突",
+    "s": "错误码 · 审核面",
+    "d": "REVERT_CONFLICT · HTTP 409",
+    "b": "REVERT_CONFLICT Revert conflict An undo would put back fields that a later revision also changed. errors[] names each field. Nothing was written. Re-send with force=true to overwrite those later changes, or restore a whole revision instead. 撤销会恢复一些之后的修订也改动过的字段。errors[] 逐一列出这些字段。没有写入任何内容。带 force=true 重新发送以覆盖那些后来的改动，或改为恢复整条修订。 moderation"
   },
   {
     "r": "/problems/news/source-not-yours",
@@ -2575,5 +2631,12 @@ export const searchIndex: SearchEntry[] = [
     "s": "词表 · 开放",
     "d": "relation_types · 16 个成员",
     "b": "relation_types 两个实体之间的关系。标了「对称关系」的，反向也成立。开放词表。 adaptation_of Adaptation of This work is an adaptation of the other. 改编自对方 这部作品改编自另一部。 sequel_of Sequel of This work is a sequel of the other. 对方的续作 这部作品是另一部的续作。 side_story_of Side story of This work is a side story of the other. 对方的外传 这部作品是另一部的外传。 fandisc_of Fandisc of This work is a fandisc of the other. 对方的 Fandisc 这部作品是另一部的 Fandisc。 collects Collects This work collects the other. 收录对方 这部作品收录了另一部。 remake_of Remake of This work is a remake of the other. 对方的重制 这部作品是另一部的重制版。 same_series Same series The two works belong to the same series. Symmetric. 同系列 两部作品属于同一系列。对称关系。 same_setting Same setting The two works share a setting. Symmetric. 同一世界观 两部作品共用同一世界观。对称关系。 crossover_with Crossover with The two works crossover. Symmetric. 与对方联动 两部作品之间是联动。对称关系。 shares_character Shares character The two works share a character. Symmetric. 与对方共用角色 两部作品共用同一个角色。对称关系。 alternative_setting Alternative setting The two works share characters in a different setting. Symmetric. 同角色不同世界观 两部作品用同一批角色，但世界观不同。对称关系。 alternative_version Alternative version The two works are alternative versions. Symmetric. 同作的另一版本 两部作品互为不同版本。对称关系。 imprint_of Imprint of This company is an imprint of the other. 对方旗下的文库 / 品牌 这家公司是另一家旗下的文库 / 品牌。 renamed_from Renamed from This company was renamed from the other. 由对方更名而来 这家公司由另一家更名而来。 subsidiary_of Subsidiary of This company is a subsidiary of the other. 对方的子公司 这家公司是另一家的子公司。 member_of Member of This company is a member of the other. 对方的成员 这家公司是另一家的成员。"
+  },
+  {
+    "r": "/docs/vocabularies/work_relation",
+    "t": "作品关联",
+    "s": "词表 · 封闭",
+    "d": "work_relation · 12 个成员",
+    "b": "work_relation 两部作品之间的关系，只含作品域的类型，封闭词表；编辑作品关联时只接受这些值。标了「对称关系」的，反向也成立。 adaptation_of Adaptation of This work is an adaptation of the other. 改编自对方 这部作品改编自另一部。 sequel_of Sequel of This work is a sequel of the other. 对方的续作 这部作品是另一部的续作。 side_story_of Side story of This work is a side story of the other. 对方的外传 这部作品是另一部的外传。 fandisc_of Fandisc of This work is a fandisc of the other. 对方的 Fandisc 这部作品是另一部的 Fandisc。 collects Collects This work collects the other. 收录对方 这部作品收录了另一部。 remake_of Remake of This work is a remake of the other. 对方的重制 这部作品是另一部的重制版。 same_series Same series The two works belong to the same series. Symmetric. 同系列 两部作品属于同一系列。对称关系。 same_setting Same setting The two works share a setting. Symmetric. 同一世界观 两部作品共用同一世界观。对称关系。 crossover_with Crossover with The two works crossover. Symmetric. 与对方联动 两部作品之间是联动。对称关系。 shares_character Shares character The two works share a character. Symmetric. 与对方共用角色 两部作品共用同一个角色。对称关系。 alternative_setting Alternative setting The two works share characters in a different setting. Symmetric. 同角色不同世界观 两部作品用同一批角色，但世界观不同。对称关系。 alternative_version Alternative version The two works are alternative versions. Symmetric. 同作的另一版本 两部作品互为不同版本。对称关系。"
   }
 ]

@@ -301,7 +301,7 @@ export interface paths {
         };
         /**
          * List persons
-         * @description Keyset-paginated persons. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.
+         * @description Keyset-paginated persons. q= searches the display name and every credit name whose person link is public. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.
          */
         get: operations["listCatalogPersons"];
         put?: never;
@@ -421,7 +421,7 @@ export interface paths {
         };
         /**
          * List releases
-         * @description Keyset-paginated dated releases, sorted by date_desc by default. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate.
+         * @description Keyset-paginated dated releases, sorted by date_desc by default. q= filters by release title or work display name. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate.
          */
         get: operations["listCatalogReleases"];
         put?: never;
@@ -1256,6 +1256,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/me/creations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Propose a new entry
+         * @description Files a proposal that creates a new entry of one family. It is reviewed like any proposal (it appears in GET /v2/moderation/proposals with entity_id 0 and a creation block) unless the create policy lets the bearer apply it at once; once merged, entity_id is the new entry's id. Entries whose normalized name already exists are refused with 409 DUPLICATE_SUSPECTS unless confirm_duplicates=true. Counts against the same proposal quota as POST /v2/me/proposals. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+         */
+        post: operations["createMyCreation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/me/edit-capabilities/{object}": {
         parameters: {
             query?: never;
@@ -1504,6 +1524,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/me/merge-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List my merge requests
+         * @description The bearer's own merge requests, newest first; follow next_cursor for more. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+         */
+        get: operations["listMyMergeRequests"];
+        put?: never;
+        /**
+         * Request a merge
+         * @description Asks reviewers to merge two entries of one family. Nothing merges on filing: a reviewer approves, the cooling-off runs, then the merge executes through the catalog merge machinery (redirect from source to target, survivorship, archive for unmerge). Two works of different mediums are refused 422. Quotas are tiered: catalog.merge_requests_per_day, _editor, _reviewer inside catalog.write_quota_window_hours; past it 429 QUOTA_EXCEEDED. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+         */
+        post: operations["createMyMergeRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/me/merge-requests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Withdraw a merge request
+         * @description Withdraws an open request the bearer filed. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+         */
+        patch: operations["patchMyMergeRequest"];
+        trace?: never;
+    };
     "/v2/me/news": {
         parameters: {
             query?: never;
@@ -1657,7 +1721,7 @@ export interface paths {
         };
         /**
          * List my proposals
-         * @description The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch and effective_patch, the same pair GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. Requires a user access token. The token must carry the catalog:edit scope.
+         * @description The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch, effective_patch, changed_fields and (open rows) conflict_fields, the same block GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. field=, has_conflict= and updated_since= filter; sort=filed_desc (default), filed_asc, updated_desc or updated_asc. Requires a user access token. The token must carry the catalog:edit scope.
          */
         get: operations["listMyProposals"];
         put?: never;
@@ -1964,6 +2028,66 @@ export interface paths {
         patch: operations["patchModerationFolder"];
         trace?: never;
     };
+    "/v2/moderation/merge-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Merge request queue
+         * @description Merge requests filed through the editor, newest first; follow next_cursor for more. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+         */
+        get: operations["listModerationMergeRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/moderation/merge-requests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get one merge request
+         * @description Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+         */
+        get: operations["getModerationMergeRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/moderation/merge-requests/{id}/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decide a merge request
+         * @description decision=approve|reject|execute. Unmerge stays with the catalog admin console. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+         */
+        post: operations["decideModerationMergeRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/moderation/proposals": {
         parameters: {
             query?: never;
@@ -1973,7 +2097,7 @@ export interface paths {
         };
         /**
          * Moderation proposal queue
-         * @description Open proposals on the token site; on the central editor (catalog site editor), on every site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. The token must carry the catalog:edit scope.
+         * @description Open proposals on the token site; on the central editor (catalog site editor), on every site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. site= narrows the central editor's queue to one site of origin; field=, has_conflict= and updated_since= filter; sort=filed_desc (default), filed_asc (oldest waiting first), updated_desc or updated_asc. include=patch (or view=full) adds each row's patch, effective_patch, changed_fields and conflict_fields, so a queue page needs no read per row. The token must carry the catalog:edit scope.
          */
         get: operations["listModerationProposals"];
         put?: never;
@@ -2055,7 +2179,7 @@ export interface paths {
         put?: never;
         /**
          * Revert to a revision
-         * @description Body names revision_id. A downstream site may not revert an entity another site claims; the central editor (catalog site editor) may revert any. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+         * @description Body names revision_id. mode=restore (default) brings every registered field back to its value after that revision, or with baseline=true to the state recorded before the entity's first edit. mode=undo puts back, for only the fields that revision changed, the values they held just before it; when a later revision changed one of those fields the answer is 409 REVERT_CONFLICT naming them, unless force=true. A downstream site may not revert an entity another site claims; the central editor (catalog site editor) may revert any. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
          */
         post: operations["revertModeration"];
         delete?: never;
@@ -3202,6 +3326,18 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        CreateCapability: {
+            /** @description true when the bearer may file a creation of this family now: the create policy allows it and the bearer's quota is not exhausted. */
+            can_create: boolean;
+            /** @description Creation parameters POST /v2/me/creations accepts for this family in params. Empty array, never null. */
+            param_specs: components["schemas"]["CreateParam"][];
+            /** @description Field keys a creation's patch must carry. Empty array, never null. */
+            required_fields: string[];
+            /** @description true when such a creation would apply at once instead of queueing for review. */
+            would_automerge: boolean;
+        } & {
+            [key: string]: unknown;
+        };
         CreateClaimInputBody: {
             /**
              * Format: uri
@@ -3228,6 +3364,33 @@ export interface components {
              * @example 1
              */
             work_id?: string;
+        } & {
+            [key: string]: unknown;
+        };
+        CreateCreationInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/CreateCreationInputBody.json
+             */
+            readonly $schema?: string;
+            /** @description Create even when entries with the same normalized name exist. Without it such a request is refused with 409 DUPLICATE_SUSPECTS naming them, and nothing is written. */
+            confirm_duplicates?: boolean;
+            /** @description Proposer's own summary. Must not be used as a discriminant. */
+            note?: string;
+            /**
+             * @description Family of the new entry. Works are created through POST /v2/me/claims. Tags and traits take a reviewer-only create policy.
+             * @enum {string}
+             */
+            object: "company" | "character" | "release" | "engine" | "series" | "person" | "credit_name" | "tag" | "trait";
+            /** @description Creation parameters; /v2/me/edit-capabilities/{object} creation.param_specs lists them (release takes work_id, person takes credit_name_id of an unattributed credit name). */
+            params?: {
+                [key: string]: unknown;
+            };
+            /** @description Field key to initial value, the same keys and values POST /v2/me/proposals accepts for that family. creation.required_fields must be present. */
+            patch?: {
+                [key: string]: unknown;
+            };
         } & {
             [key: string]: unknown;
         };
@@ -3262,6 +3425,27 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        CreateMergeRequestInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/CreateMergeRequestInputBody.json
+             */
+            readonly $schema?: string;
+            /**
+             * @description Family of the two entries.
+             * @enum {string}
+             */
+            object: "work" | "company" | "character" | "person" | "credit_name";
+            /** @description Why these are the same entry. Reviewers read it. Must not be used as a discriminant. */
+            reason: string;
+            /** @description The entry to fold away. */
+            source_id: string;
+            /** @description The entry that survives. */
+            target_id: string;
+        } & {
+            [key: string]: unknown;
+        };
         CreateNewsInputBody: {
             /**
              * Format: uri
@@ -3293,6 +3477,16 @@ export interface components {
             title: string;
             /** @description Catalog work ids to link. Stored with manual confidence. */
             work_ids?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        CreateParam: {
+            /** @description Value kind in the schema face's field-type vocabulary (ref = a catalog id). Must not be used as a discriminant. */
+            field_type: string;
+            /** @description Parameter name. Must not be used as a discriminant. */
+            key: string;
+            /** @description true when a creation without it is refused. */
+            required: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -3430,6 +3624,23 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        DecideMergeRequestInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/DecideMergeRequestInputBody.json
+             */
+            readonly $schema?: string;
+            /**
+             * @description approve starts the cooling-off (catalog.merge_cooling_off_hours) after which the catalog-merge-requests job executes it; reject closes it; execute runs an approved request whose cooling-off has ended without waiting for the job.
+             * @enum {string}
+             */
+            decision: "approve" | "reject" | "execute";
+            /** @description Required to reject. Must not be used as a discriminant. */
+            reason?: string;
+        } & {
+            [key: string]: unknown;
+        };
         DecideProposalInputBody: {
             /**
              * Format: uri
@@ -3456,13 +3667,15 @@ export interface components {
             readonly $schema?: string;
             /** @description true when the token's client is the central editor, which sees, decides and reverts proposals filed on any catalog site. */
             central: boolean;
+            /** @description Present when this family can be created through POST /v2/me/creations. */
+            creation?: components["schemas"]["CreateCapability"];
             /** @description The entity these capabilities were evaluated against. null when the answer is type-level, which cannot express the owner channel. */
             entity_id: string | null;
             /**
              * @description Editing-engine type this family writes as.
              * @enum {string}
              */
-            entity_type: "catalog.work" | "catalog.label" | "catalog.character" | "catalog.release" | "catalog.tag" | "catalog.engine" | "catalog.series";
+            entity_type: "catalog.work" | "catalog.label" | "catalog.character" | "catalog.release" | "catalog.tag" | "catalog.engine" | "catalog.series" | "catalog.person" | "catalog.credit_name" | "catalog.trait";
             /** @description One entry per editable field, in the schema's order. Empty array, never null. */
             fields: components["schemas"]["FieldCapability"][];
             /**
@@ -3481,7 +3694,7 @@ export interface components {
              * @description Family these capabilities describe.
              * @enum {string}
              */
-            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name";
+            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait";
         } & {
             [key: string]: unknown;
         };
@@ -3507,7 +3720,7 @@ export interface components {
              * @description Family of the entity.
              * @enum {string}
              */
-            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name";
+            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait";
         } & {
             [key: string]: unknown;
         };
@@ -4471,6 +4684,41 @@ export interface components {
             };
             /** @description Members of this page. Empty array, never null. */
             items: components["schemas"]["Intro"][];
+            /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
+            missing?: string[];
+            /** @description Opaque keyset cursor. Omitted on the last page. */
+            next_cursor?: string;
+            /**
+             * @description Type discriminant. Always list.
+             * @enum {string}
+             */
+            object: "list";
+            /**
+             * Format: int64
+             * @description Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+             */
+            total?: number;
+            /**
+             * @description Present in page mode only. eq: total is exact. gte: total is a lower bound.
+             * @enum {string}
+             */
+            total_relation?: "eq" | "gte";
+        } & {
+            [key: string]: unknown;
+        };
+        ListMergeRequestRecord: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/ListMergeRequestRecord.json
+             */
+            readonly $schema?: string;
+            /** @description Named facet buckets. Present only when facets= is requested. */
+            facets?: {
+                [key: string]: components["schemas"]["FacetValue"][] | null;
+            };
+            /** @description Members of this page. Empty array, never null. */
+            items: components["schemas"]["MergeRequestRecord"][];
             /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
             missing?: string[];
             /** @description Opaque keyset cursor. Omitted on the last page. */
@@ -5834,6 +6082,60 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        MergeRequestRecord: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/MergeRequestRecord.json
+             */
+            readonly $schema?: string;
+            /**
+             * Format: date-time
+             * @description End of the cooling-off once approved. null before approval.
+             */
+            execute_after: string | null;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC. null until executed.
+             */
+            executed_at: string | null;
+            /** @description Merge request id. */
+            id: string;
+            /** @description The requester's reason followed by decision notes. Must not be used as a discriminant. */
+            note: string;
+            /**
+             * @description Type discriminant. Always merge_request.
+             * @enum {string}
+             */
+            object: "merge_request";
+            /** @description Lane that filed it: editor for these faces; batch tools file their own. Open vocabulary; must not be used as a discriminant. */
+            origin: string;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC.
+             */
+            proposed_at: string;
+            /** @description Account behind proposed_by_uid. null only when the account directory could not be read. */
+            proposed_by: components["schemas"]["UserRef"] | null;
+            /** @description Central account id of the requester. */
+            proposed_by_uid: string;
+            /** @description The entry that is folded away. Its id redirects to target_id once executed. */
+            source_id: string;
+            /**
+             * @description open awaits a reviewer; approved waits out the cooling-off, after which the merge runs; executed is done.
+             * @enum {string}
+             */
+            state: "open" | "approved" | "executed" | "rejected" | "withdrawn";
+            /** @description The entry that survives. */
+            target_id: string;
+            /**
+             * @description Family of the two entries.
+             * @enum {string}
+             */
+            target_object: "work" | "company" | "character" | "person" | "credit_name";
+        } & {
+            [key: string]: unknown;
+        };
         Money: {
             /** @description Decimal string with two fraction digits, tax-inclusive as the store shows it. */
             amount: string;
@@ -6043,7 +6345,7 @@ export interface components {
              * @description Editing-engine type this family writes as.
              * @enum {string}
              */
-            entity_type: "catalog.work" | "catalog.label" | "catalog.character" | "catalog.release" | "catalog.tag" | "catalog.engine" | "catalog.series";
+            entity_type: "catalog.work" | "catalog.label" | "catalog.character" | "catalog.release" | "catalog.tag" | "catalog.engine" | "catalog.series" | "catalog.person" | "catalog.credit_name" | "catalog.trait";
             /** @description Editable fields. Empty array, never null. Actor capabilities are not evaluated. */
             fields: components["schemas"]["SchemaField"][];
             /** @description Tokens view=full expands on the detail face. A subset of include. Empty array, never null. */
@@ -6063,7 +6365,7 @@ export interface components {
              * @description Family this schema describes.
              * @enum {string}
              */
-            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name";
+            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait";
         } & {
             [key: string]: unknown;
         };
@@ -6110,6 +6412,21 @@ export interface components {
              * @enum {string}
              */
             visibility?: "private" | "public";
+        } & {
+            [key: string]: unknown;
+        };
+        PatchMergeRequestInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/PatchMergeRequestInputBody.json
+             */
+            readonly $schema?: string;
+            /**
+             * @description Set withdrawn to withdraw an open request you filed.
+             * @enum {string}
+             */
+            state: "withdrawn";
         } & {
             [key: string]: unknown;
         };
@@ -6354,7 +6671,7 @@ export interface components {
              * @description HTTP status. Matches the response status line.
              */
             status: number;
-            /** @description Live works sharing a submitted title when code is DUPLICATE_SUSPECTS. */
+            /** @description Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation. */
             suspects?: components["schemas"]["Suspect"][];
             /** @description Stable English phrase for this type. Does not vary per request. */
             title: string;
@@ -6419,6 +6736,14 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        ProposalCreation: {
+            /** @description The creation parameters the proposal was filed with (e.g. work_id for a release). Empty object when the family takes none. */
+            params: {
+                [key: string]: unknown;
+            };
+        } & {
+            [key: string]: unknown;
+        };
         ProposalDecisionRecord: {
             /**
              * Format: uri
@@ -6467,11 +6792,17 @@ export interface components {
              * @description Revision seq this proposal was written against.
              */
             base_revision_seq: number;
+            /** @description Present when include=patch. The field keys effective_patch writes, sorted. */
+            changed_fields?: string[];
+            /** @description Present when include=patch on an open proposal. Keys of effective_patch that a revision recorded after base_revision_seq also changed: merging overwrites that later change. Empty array when none. */
+            conflict_fields?: string[];
             /**
              * Format: date-time
              * @description RFC 3339 UTC.
              */
             created_at: string;
+            /** @description Present when the proposal creates a new entry (POST /v2/me/creations). entity_id is 0 until it merges, then the new entry's id. */
+            creation?: components["schemas"]["ProposalCreation"];
             /**
              * Format: date-time
              * @description RFC 3339 UTC. null while open.
@@ -6517,7 +6848,7 @@ export interface components {
              * @description Family of the entity this proposal targets.
              * @enum {string}
              */
-            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name";
+            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait";
             /**
              * Format: date-time
              * @description RFC 3339 UTC.
@@ -6972,6 +7303,15 @@ export interface components {
              * @example https://example.com/RevertInputBody.json
              */
             readonly $schema?: string;
+            /** @description With mode=restore: restore the state recorded before the entity's first edit instead of the state after revision_id, which then only names the entity. 422 when no such state was recorded. */
+            baseline?: boolean;
+            /** @description With mode=undo: overwrite fields a later revision also changed instead of answering 409 REVERT_CONFLICT. */
+            force?: boolean;
+            /**
+             * @description restore (default) brings every field back to its value after revision_id. undo puts back, for only the fields revision_id changed, the values they held just before it.
+             * @enum {string}
+             */
+            mode?: "restore" | "undo";
             /** @description Must not be used as a discriminant. */
             reason?: string;
             /** @description edit_revision id. */
@@ -7010,8 +7350,12 @@ export interface components {
             diff?: components["schemas"]["FieldDiff"][];
             /** @description Present when include=diff. Revision the diff was taken against. null when this is the first revision of the entity. */
             diff_base?: string;
+            /** @description Present with diff when the diff was taken against the state recorded before the entity's first edit — asked for with diff_base=baseline, or taken by default on a first revision that has one. diff_base is then null. */
+            diff_from_baseline?: boolean;
             /** @description Catalog id of the entity this revision is on. */
             entity_id: string;
+            /** @description true on an entity's first revision when the state before that edit was recorded. diff_base=baseline diffs against it, and POST /v2/moderation/reverts with baseline=true restores it. Absent otherwise. */
+            has_baseline?: boolean;
             /** @description Revision id. This is the value POST /v2/moderation/reverts takes as revision_id. */
             id: string;
             /**
@@ -7034,7 +7378,7 @@ export interface components {
              * @description Family of the entity this revision is on.
              * @enum {string}
              */
-            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name";
+            target_object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait";
         } & {
             [key: string]: unknown;
         };
@@ -7405,9 +7749,9 @@ export interface components {
             [key: string]: unknown;
         };
         Suspect: {
-            /** @description The live work's display name. Must not be used as a discriminant. */
+            /** @description The matching entry's display name. Must not be used as a discriminant. */
             display_name: string;
-            /** @description Catalog work id. */
+            /** @description Catalog id of the matching entry. */
             id: string;
         } & {
             [key: string]: unknown;
@@ -9990,6 +10334,8 @@ export interface operations {
                 sort?: string;
                 /** @description true includes r18. false or absent hides r18. Only true or false. */
                 nsfw?: string;
+                /** @description Name search: the person's display name, or any of their credit names (name or latin) whose person link is public. Substring, case-insensitive. Must not be used as a discriminant. */
+                q?: string;
             };
             header?: never;
             path?: never;
@@ -10319,7 +10665,7 @@ export interface operations {
                 include_total?: string;
                 /** @description filed_desc is the only key. Closed. */
                 sort?: string;
-                /** @description Closed family filter: work, company, character, release, tag, engine, series, person, credit_name. */
+                /** @description Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait. */
                 object?: string;
                 /** @description Catalog id of one entity. Requires object=. */
                 entity_id?: string;
@@ -10666,6 +11012,8 @@ export interface operations {
                 sort?: string;
                 /** @description true includes r18. false or absent hides r18. Only true or false. */
                 nsfw?: string;
+                /** @description Title search: the release title or its work's display name. Substring, case-insensitive, over the same dated releases this collection lists. Must not be used as a discriminant. */
+                q?: string;
             };
             header?: never;
             path?: never;
@@ -10884,7 +11232,7 @@ export interface operations {
                 include_total?: string;
                 /** @description recorded_desc (default) or recorded_asc. Closed. */
                 sort?: string;
-                /** @description Closed family filter: work, company, character, release, tag, engine, series, person, credit_name. */
+                /** @description Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait. */
                 object?: string;
                 /** @description Catalog id of one entity. Requires object=. */
                 entity_id?: string;
@@ -10989,7 +11337,7 @@ export interface operations {
                 view?: string;
                 /** @description Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD. */
                 fields?: string;
-                /** @description Revision id to diff against. Requires include=diff. Absent means the preceding revision of the same entity. */
+                /** @description Revision id to diff against, or baseline for the state recorded before the entity's first edit. Requires include=diff. Absent means the preceding revision of the same entity, or the baseline on a first revision that has one. */
                 diff_base?: string;
             };
             header?: never;
@@ -11321,7 +11669,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description Family this schema describes. Unknown family is 404 NOT_FOUND. */
-                object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name";
+                object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait";
             };
             cookie?: never;
         };
@@ -15828,6 +16176,115 @@ export interface operations {
             };
         };
     };
+    createMyCreation: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCreationInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalRecord"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getMyEditCapabilities: {
         parameters: {
             query?: {
@@ -15837,7 +16294,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description Family these capabilities describe. Unknown family is 404 NOT_FOUND. */
-                object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name";
+                object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait";
             };
             cookie?: never;
         };
@@ -15939,7 +16396,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description Family of the entity. Unknown family is 404 NOT_FOUND. */
-                object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name";
+                object: "work" | "company" | "character" | "release" | "tag" | "engine" | "series" | "person" | "credit_name" | "trait";
                 /** @description Catalog id of the entity. */
                 id: string;
             };
@@ -17717,6 +18174,339 @@ export interface operations {
             };
         };
     };
+    listMyMergeRequests: {
+        parameters: {
+            query?: {
+                /** @description Narrow to one state. */
+                state?: "open" | "approved" | "executed" | "rejected" | "withdrawn";
+                /** @description Narrow to one family. */
+                object?: "work" | "company" | "character" | "person" | "credit_name";
+                /** @description Opaque keyset cursor from next_cursor. */
+                cursor?: string;
+                /** @description Page size, 1-100. Default 20. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListMergeRequestRecord"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createMyMergeRequest: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateMergeRequestInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MergeRequestRecord"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    patchMyMergeRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Merge request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchMergeRequestInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MergeRequestRecord"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listMyNews: {
         parameters: {
             query?: {
@@ -19045,12 +19835,20 @@ export interface operations {
                 nsfw?: string;
                 /** @description Closed: open, pending, merged, declined, withdrawn. Unknown value is 400 UNKNOWN_ENUM_VALUE. */
                 state?: string;
-                /** @description Closed family filter: work, company, character, release, tag, engine, series, person, credit_name. */
+                /** @description Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait. */
                 object?: string;
                 /** @description Editing-engine type, e.g. catalog.work. The same spelling POST /v2/me/proposals takes in its body. Names the same filter as object=; sending both with different families is 400. */
                 entity_type?: string;
                 /** @description Catalog id of one entity. Accepted alone on this lane, which is already fenced to the bearer's own proposals; pair it with object= or entity_type= when ids collide across families. */
                 entity_id?: string;
+                /** @description Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing. */
+                site?: string;
+                /** @description A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it. */
+                field?: string;
+                /** @description true keeps open proposals that a revision recorded after their base_revision_seq overlaps on a field; false keeps the rest. Only true or false. */
+                has_conflict?: string;
+                /** @description RFC 3339 UTC ending in Z. Keeps proposals whose updated_at is later. */
+                updated_since?: string;
             };
             header?: never;
             path?: never;
@@ -21590,6 +22388,345 @@ export interface operations {
             };
         };
     };
+    listModerationMergeRequests: {
+        parameters: {
+            query?: {
+                /** @description Narrow to one state. */
+                state?: "open" | "approved" | "executed" | "rejected" | "withdrawn";
+                /** @description Narrow to one family. */
+                object?: "work" | "company" | "character" | "person" | "credit_name";
+                /** @description Opaque keyset cursor from next_cursor. */
+                cursor?: string;
+                /** @description Page size, 1-100. Default 20. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListMergeRequestRecord"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getModerationMergeRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Merge request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MergeRequestRecord"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    decideModerationMergeRequest: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                /** @description Merge request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecideMergeRequestInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MergeRequestRecord"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listModerationProposals: {
         parameters: {
             query?: {
@@ -21615,12 +22752,20 @@ export interface operations {
                 sort?: string;
                 /** @description true includes r18. false or absent hides r18. Only true or false. */
                 nsfw?: string;
-                /** @description Closed family filter: work, company, character, release, tag, engine, series, person, credit_name. */
+                /** @description Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait. */
                 object?: string;
                 /** @description Editing-engine type, e.g. catalog.work. Names the same filter as object=; sending both with different families is 400. */
                 entity_type?: string;
                 /** @description Catalog id of one entity. Requires object= or entity_type=. Narrows the queue to that entity, which its owner may read without a review permission. */
                 entity_id?: string;
+                /** @description Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing. */
+                site?: string;
+                /** @description A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it. */
+                field?: string;
+                /** @description true keeps open proposals that a revision recorded after their base_revision_seq overlaps on a field; false keeps the rest. Only true or false. */
+                has_conflict?: string;
+                /** @description RFC 3339 UTC ending in Z. Keeps proposals whose updated_at is later. */
+                updated_since?: string;
             };
             header?: never;
             path?: never;
@@ -22182,7 +23327,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Family: work, company, character, release, tag, engine, series, person, credit_name. */
+                /** @description Family: work, company, character, release, tag, engine, series, person, credit_name, trait. */
                 object: string;
                 /** @description Catalog id. */
                 id: string;

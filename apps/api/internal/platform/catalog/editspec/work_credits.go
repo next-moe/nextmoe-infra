@@ -29,7 +29,20 @@ type workCredit struct {
 	CreditNameID int64
 	CharacterID  int64
 	Note         string
+	// Spoiler, ReleaseID and LabelID are optional members: an element that
+	// leaves one out keeps the value the same credit already carries, so a
+	// client that predates them cannot wipe what another one set.
+	Spoiler    *int16
+	ReleaseID  *int64
+	LabelID    *int64
+	HasSpoiler bool
+	HasRelease bool
+	HasLabel   bool
 }
+
+type creditKey struct{ RoleID, CreditNameID, CharacterID int64 }
+
+func (c workCredit) key() creditKey { return creditKey{c.RoleID, c.CreditNameID, c.CharacterID} }
 
 func parseCredits(v any) ([]workCredit, error) {
 	arr, err := asArrayN(v, "credit objects", maxCreditElements)
@@ -37,9 +50,9 @@ func parseCredits(v any) ([]workCredit, error) {
 		return nil, err
 	}
 	out := make([]workCredit, 0, len(arr))
-	seen := make(map[workCredit]struct{}, len(arr))
+	seen := make(map[creditKey]struct{}, len(arr))
 	for i, el := range arr {
-		obj, err := asObject(el, i, "role_id", "credit_name_id", "character_id", "note")
+		obj, err := asObject(el, i, "role_id", "credit_name_id", "character_id", "note", "spoiler", "release_id", "label_id")
 		if err != nil {
 			return nil, err
 		}
@@ -72,11 +85,33 @@ func parseCredits(v any) ([]workCredit, error) {
 			return nil, err
 		}
 		row := workCredit{RoleID: roleID, CreditNameID: creditNameID, CharacterID: characterID}
-		if _, dup := seen[row]; dup {
+		if _, dup := seen[row.key()]; dup {
 			return nil, fmt.Errorf("element %d: duplicate (role_id, credit_name_id, character_id)", i)
 		}
-		seen[row] = struct{}{}
+		seen[row.key()] = struct{}{}
 		row.Note = note
+		if raw, present := obj["spoiler"]; present {
+			row.HasSpoiler = true
+			if raw != nil {
+				sp, err := objInt(obj, "spoiler", i, true)
+				if err != nil {
+					return nil, err
+				}
+				switch int16(sp) {
+				case catmodel.SpoilerNone, catmodel.SpoilerMild, catmodel.SpoilerSevere:
+				default:
+					return nil, fmt.Errorf("element %d: spoiler must be 0 (none), 1 (minor) or 2 (major)", i)
+				}
+				v := int16(sp)
+				row.Spoiler = &v
+			}
+		}
+		if row.HasRelease, row.ReleaseID, err = optionalRef(obj, "release_id", i); err != nil {
+			return nil, err
+		}
+		if row.HasLabel, row.LabelID, err = optionalRef(obj, "label_id", i); err != nil {
+			return nil, err
+		}
 		out = append(out, row)
 	}
 	return out, nil
@@ -105,6 +140,23 @@ func applyCredits(ctx context.Context, tx *gorm.DB, entityID int64, value any) e
 	if err := rejectUpstreamCreditCollisions(ctx, tx, entityID, credits); err != nil {
 		return err
 	}
+	if err := rejectUnknownCreditScopes(ctx, tx, entityID, credits); err != nil {
+		return err
+	}
+	var existing []catmodel.CatalogCredit
+	if err := tx.WithContext(ctx).
+		Where("work_id = ? AND source_id = ?", entityID, curatedSourceID).
+		Find(&existing).Error; err != nil {
+		return err
+	}
+	prior := make(map[creditKey]catmodel.CatalogCredit, len(existing))
+	for _, e := range existing {
+		k := creditKey{RoleID: e.RoleID, CreditNameID: e.CreditNameID}
+		if e.CharacterID != nil {
+			k.CharacterID = *e.CharacterID
+		}
+		prior[k] = e
+	}
 	if err := tx.WithContext(ctx).
 		Where("work_id = ? AND source_id = ?", entityID, curatedSourceID).
 		Delete(&catmodel.CatalogCredit{}).Error; err != nil {
@@ -116,9 +168,23 @@ func applyCredits(ctx context.Context, tx *gorm.DB, entityID int64, value any) e
 	source := curatedSourceID
 	rows := make([]catmodel.CatalogCredit, 0, len(credits))
 	for _, c := range credits {
+		was := prior[c.key()]
 		row := catmodel.CatalogCredit{
 			WorkID: entityID, CreditNameID: c.CreditNameID, RoleID: c.RoleID,
-			Note: c.Note, Spoiler: catmodel.SpoilerNone, SourceID: &source,
+			Note: c.Note, Spoiler: was.Spoiler, ReleaseID: was.ReleaseID, LabelID: was.LabelID,
+			SourceID: &source,
+		}
+		if c.HasSpoiler {
+			row.Spoiler = catmodel.SpoilerNone
+			if c.Spoiler != nil {
+				row.Spoiler = *c.Spoiler
+			}
+		}
+		if c.HasRelease {
+			row.ReleaseID = c.ReleaseID
+		}
+		if c.HasLabel {
+			row.LabelID = c.LabelID
 		}
 		if c.CharacterID != 0 {
 			characterID := c.CharacterID
@@ -353,7 +419,61 @@ func loadCredits(ctx context.Context, db *gorm.DB, workID int64) ([]any, error) 
 		if r.Note != "" {
 			el["note"] = r.Note
 		}
+		if r.Spoiler != catmodel.SpoilerNone {
+			el["spoiler"] = int64(r.Spoiler)
+		}
+		if r.ReleaseID != nil {
+			el["release_id"] = *r.ReleaseID
+		}
+		if r.LabelID != nil {
+			el["label_id"] = *r.LabelID
+		}
 		out = append(out, el)
 	}
 	return out, nil
+}
+
+func optionalRef(obj map[string]any, key string, index int) (bool, *int64, error) {
+	raw, present := obj[key]
+	if !present {
+		return false, nil, nil
+	}
+	if raw == nil {
+		return true, nil, nil
+	}
+	id, err := objInt(obj, key, index, true)
+	if err != nil {
+		return true, nil, err
+	}
+	if id <= 0 {
+		return true, nil, fmt.Errorf("element %d: %s must be a positive id; send null to clear it", index, key)
+	}
+	return true, &id, nil
+}
+
+// rejectUnknownCreditScopes refuses a release of another work and a company
+// that does not exist, as a 422 the proposer sees instead of a foreign-key 500.
+func rejectUnknownCreditScopes(ctx context.Context, tx *gorm.DB, workID int64, credits []workCredit) error {
+	var releases, labels []int64
+	for _, c := range credits {
+		if c.ReleaseID != nil {
+			releases = append(releases, *c.ReleaseID)
+		}
+		if c.LabelID != nil {
+			labels = append(labels, *c.LabelID)
+		}
+	}
+	if len(releases) > 0 {
+		releases = uniqueIDs(releases)
+		var own []int64
+		if err := tx.WithContext(ctx).Unscoped().Model(&catmodel.CatalogRelease{}).
+			Where("id IN ? AND work_id = ?", releases, workID).Pluck("id", &own).Error; err != nil {
+			return err
+		}
+		if missing := missingIDs(releases, own); len(missing) > 0 {
+			return &editing.ValidationError{Key: FieldWorkCredits,
+				Reason: fmt.Sprintf("release %s is not a release of this work", idList(missing))}
+		}
+	}
+	return assertEntitiesExist(ctx, tx, &catmodel.CatalogLabel{}, uniqueIDs(labels), FieldWorkCredits)
 }

@@ -152,6 +152,13 @@ func proposalFrom(p *editing.Proposal) repr.ProposalRecord {
 		at := rfc3339(*p.DecidedAt)
 		rec.DecidedAt = &at
 	}
+	if p.IsBirth() {
+		params, _ := decodeCreationParams(p.BirthParams)
+		rec.Creation = &repr.ProposalCreation{Params: params}
+		if p.EntityID == 0 {
+			rec.EntityID = "0"
+		}
+	}
 	return rec
 }
 
@@ -169,11 +176,15 @@ func (c *Catalog) proposalDetail(ctx context.Context, id int64, include []string
 	}
 	if hasToken(include, "patch") {
 		patch := decodeJSONObject(prop.Patch)
-		rec.Patch = &patch
 		if effective == nil {
 			effective = map[string]any{}
 		}
-		rec.EffectivePatch = &effective
+		conflicts, cerr := c.Engine.ConflictFields(ctx, []editing.Proposal{*prop},
+			map[int64]map[string]any{prop.ID: effective})
+		if cerr != nil {
+			return repr.ProposalRecord{}, "", cerr
+		}
+		attachPatch(&rec, prop, patch, effective, conflicts[prop.ID])
 	}
 	return rec, proposalETag(prop), nil
 }
@@ -190,7 +201,7 @@ func proposalETag(p *editing.Proposal) string {
 // state= was dropped by a bare `if ok` and the face answered every state. Both
 // die by routing this lane through the same query builder the public and queue
 // lanes already use.
-func (c *Catalog) ListMyProposals(ctx context.Context, q collect.Query, f proposalFilter) (repr.List[repr.ProposalRecord], error) {
+func (c *Catalog) ListMyProposals(ctx context.Context, q collect.Query, f proposalFilter, qp proposalQueueParams) (repr.List[repr.ProposalRecord], error) {
 	if c == nil || c.Engine == nil {
 		return repr.List[repr.ProposalRecord]{}, problem.New(problem.CodeServiceUnavailable, "", "", "proposals are not bound.")
 	}
@@ -202,19 +213,29 @@ func (c *Catalog) ListMyProposals(ctx context.Context, q collect.Query, f propos
 	if limit <= 0 {
 		limit = collect.DefaultLimit
 	}
-	before, berr := claimEventCursor(q.Cursor)
-	if berr != nil {
-		return repr.List[repr.ProposalRecord]{}, berr
-	}
-	if site := siteFrom(ctx); !isCentralSite(site) {
+	site := siteFrom(ctx)
+	switch {
+	case !isCentralSite(site):
+		if qp.Site != "" && qp.Site != site {
+			return repr.List[repr.ProposalRecord]{}, siteFilterMismatch()
+		}
 		f.Site = site
+	default:
+		f.Site = qp.Site
 	}
 	f.ProposerScoped = true
-	filter, ferr := c.proposalQuery(f, limit+1, before)
+	filter, ferr := c.proposalQuery(f, limit+1, 0)
 	if ferr != nil {
 		return repr.List[repr.ProposalRecord]{}, ferr
 	}
 	filter.ProposerUID = uid
+	order := proposalOrder(q.Sort)
+	if cerr := applyProposalCursor(order, q.Cursor, &filter); cerr != nil {
+		return repr.List[repr.ProposalRecord]{}, cerr
+	}
+	if perr := qp.apply(&filter); perr != nil {
+		return repr.List[repr.ProposalRecord]{}, perr
+	}
 	rows, total, lerr := c.Engine.ListProposalsWithTotal(ctx, filter)
 	if lerr != nil {
 		return repr.List[repr.ProposalRecord]{}, lerr
@@ -222,30 +243,21 @@ func (c *Catalog) ListMyProposals(ctx context.Context, q collect.Query, f propos
 	var next *string
 	if len(rows) > limit {
 		rows = rows[:limit]
-		s := strconv.FormatInt(rows[len(rows)-1].ID, 10)
+		s := proposalCursorFor(order, &rows[len(rows)-1])
 		next = &s
 	}
-	var effective map[int64]map[string]any
-	withPatch := hasToken(q.Include, "patch")
-	if withPatch {
-		if effective, lerr = c.Engine.EffectivePatches(ctx, rows); lerr != nil {
-			return repr.List[repr.ProposalRecord]{}, lerr
-		}
-	}
-	items := make([]repr.ProposalRecord, 0, len(rows))
-	for i := range rows {
-		rec := proposalFrom(&rows[i])
-		if withPatch {
-			patch := decodeJSONObject(rows[i].Patch)
-			eff := effective[rows[i].ID]
-			if eff == nil {
-				eff = map[string]any{}
-			}
-			rec.Patch, rec.EffectivePatch = &patch, &eff
-		}
-		items = append(items, rec)
+	items, ierr := c.proposalRecords(ctx, rows, hasToken(q.Include, "patch"))
+	if ierr != nil {
+		return repr.List[repr.ProposalRecord]{}, ierr
 	}
 	return finishList(items, next, total, q, nil), nil
+}
+
+func siteFilterMismatch() *problem.Problem {
+	p := problem.New(problem.CodeTenantMismatch, "", "", "site= may name another site only on the central editor.")
+	p.Errors = []problem.FieldError{{Parameter: "site", Reason: problem.ReasonNotPermitted,
+		Detail: "a downstream site reads only its own proposals"}}
+	return p
 }
 
 func (c *Catalog) GetMyProposal(ctx context.Context, id int64, include []string) (repr.ProposalRecord, string, error) {
@@ -400,7 +412,7 @@ func (c *Catalog) proposalAfterWrite(ctx context.Context, id int64) (repr.Propos
 // must never be reachable through the owner arm — that is the failure this
 // split exists to prevent, and the entity filter is applied to the query, not
 // only to the check.
-func (c *Catalog) ListModerationProposals(ctx context.Context, q collect.Query, object, entityType, entityID string) (repr.List[repr.ProposalRecord], error) {
+func (c *Catalog) ListModerationProposals(ctx context.Context, q collect.Query, object, entityType, entityID string, qp proposalQueueParams) (repr.List[repr.ProposalRecord], error) {
 	if c == nil || c.Engine == nil {
 		return repr.List[repr.ProposalRecord]{}, problem.New(problem.CodeServiceUnavailable, "", "", "proposals are not bound.")
 	}
@@ -412,21 +424,27 @@ func (c *Catalog) ListModerationProposals(ctx context.Context, q collect.Query, 
 	if limit <= 0 {
 		limit = collect.DefaultLimit
 	}
-	before, berr := claimEventCursor(q.Cursor)
-	if berr != nil {
-		return repr.List[repr.ProposalRecord]{}, berr
-	}
 	queueSite := actor.Site
-	if isCentralSite(queueSite) {
-		queueSite = ""
+	switch {
+	case isCentralSite(queueSite):
+		queueSite = qp.Site
+	case qp.Site != "" && qp.Site != queueSite:
+		return repr.List[repr.ProposalRecord]{}, siteFilterMismatch()
 	}
 	f, ferr := c.proposalQuery(proposalFilter{
 		Object: object, EntityType: entityType, EntityID: entityID, Site: queueSite,
-	}, limit+1, before)
+	}, limit+1, 0)
 	if ferr != nil {
 		return repr.List[repr.ProposalRecord]{}, ferr
 	}
 	f.Status = editing.StatusOpen
+	order := proposalOrder(q.Sort)
+	if cerr := applyProposalCursor(order, q.Cursor, &f); cerr != nil {
+		return repr.List[repr.ProposalRecord]{}, cerr
+	}
+	if perr := qp.apply(&f); perr != nil {
+		return repr.List[repr.ProposalRecord]{}, perr
+	}
 	if f.EntityID > 0 {
 		if terr := c.fenceEntitySite(ctx, f.EntityType, f.EntityID, actor.Site); terr != nil {
 			return repr.List[repr.ProposalRecord]{}, terr
@@ -446,12 +464,12 @@ func (c *Catalog) ListModerationProposals(ctx context.Context, q collect.Query, 
 	var next *string
 	if len(rows) > limit {
 		rows = rows[:limit]
-		s := strconv.FormatInt(rows[len(rows)-1].ID, 10)
+		s := proposalCursorFor(order, &rows[len(rows)-1])
 		next = &s
 	}
-	items := make([]repr.ProposalRecord, 0, len(rows))
-	for i := range rows {
-		items = append(items, proposalFrom(&rows[i]))
+	items, ierr := c.proposalRecords(ctx, rows, hasToken(q.Include, "patch"))
+	if ierr != nil {
+		return repr.List[repr.ProposalRecord]{}, ierr
 	}
 	return finishList(items, next, total, q, nil), nil
 }
@@ -513,7 +531,12 @@ func decisionEndState(decision string) string {
 	return editing.StatusName[editing.StatusDeclined]
 }
 
-func (c *Catalog) RevertRevision(ctx context.Context, revisionID, reason string) (repr.ProposalRecord, string, error) {
+type revertRequest struct {
+	RevisionID, Reason, Mode string
+	Baseline, Force          bool
+}
+
+func (c *Catalog) RevertRevision(ctx context.Context, req revertRequest) (repr.ProposalRecord, string, error) {
 	if c == nil || c.Engine == nil {
 		return repr.ProposalRecord{}, "", problem.New(problem.CodeServiceUnavailable, "", "", "proposals are not bound.")
 	}
@@ -521,10 +544,23 @@ func (c *Catalog) RevertRevision(ctx context.Context, revisionID, reason string)
 	if err != nil {
 		return repr.ProposalRecord{}, "", err
 	}
-	rid, ok := repr.ParseID(revisionID)
+	rid, ok := repr.ParseID(req.RevisionID)
 	if !ok {
 		p := problem.New(problem.CodeValidationFailed, "", "", "revision_id must be a decimal id.")
-		p.Errors = []problem.FieldError{{Pointer: "/revision_id", Reason: problem.ReasonInvalidFormat, Detail: revisionID}}
+		p.Errors = []problem.FieldError{{Pointer: "/revision_id", Reason: problem.ReasonInvalidFormat, Detail: req.RevisionID}}
+		return repr.ProposalRecord{}, "", p
+	}
+	undo := req.Mode == "undo"
+	if undo && req.Baseline {
+		p := problem.New(problem.CodeValidationFailed, "", "", "baseline only means something with mode=restore.")
+		p.Errors = []problem.FieldError{{Pointer: "/baseline", Reason: problem.ReasonInconsistentWith,
+			Detail: "mode=undo always puts back the state just before revision_id"}}
+		return repr.ProposalRecord{}, "", p
+	}
+	if req.Force && !undo {
+		p := problem.New(problem.CodeValidationFailed, "", "", "force only means something with mode=undo.")
+		p.Errors = []problem.FieldError{{Pointer: "/force", Reason: problem.ReasonInconsistentWith,
+			Detail: "restore overwrites every field by definition"}}
 		return repr.ProposalRecord{}, "", p
 	}
 	rev, rerr := c.Engine.RevisionByID(ctx, rid)
@@ -534,9 +570,23 @@ func (c *Catalog) RevertRevision(ctx context.Context, revisionID, reason string)
 	if ferr := c.fenceEntitySite(ctx, rev.EntityType, rev.EntityID, actor.Site); ferr != nil {
 		return repr.ProposalRecord{}, "", ferr
 	}
-	prop, _, verr := c.Engine.Revert(ctx, editing.RevertInput{
-		EntityType: rev.EntityType, EntityID: rev.EntityID, ToSeq: rev.Seq, Note: reason, Actor: actor,
-	})
+	var prop *editing.Proposal
+	var verr error
+	switch {
+	case undo:
+		prop, _, verr = c.Engine.Undo(ctx, editing.UndoInput{
+			EntityType: rev.EntityType, EntityID: rev.EntityID, Seq: rev.Seq,
+			Force: req.Force, Note: req.Reason, Actor: actor,
+		})
+	default:
+		toSeq := rev.Seq
+		if req.Baseline {
+			toSeq = 0
+		}
+		prop, _, verr = c.Engine.Revert(ctx, editing.RevertInput{
+			EntityType: rev.EntityType, EntityID: rev.EntityID, ToSeq: toSeq, Note: req.Reason, Actor: actor,
+		})
+	}
 	if verr != nil {
 		return repr.ProposalRecord{}, "", proposalErr(verr)
 	}
@@ -605,6 +655,23 @@ func proposalErr(err error) error {
 		return problem.New(problem.CodeDecisionAlreadyMade, "", "", err.Error())
 	case errors.Is(err, editing.ErrNotProposer):
 		return problem.New(problem.CodePermissionRequired, "", "", err.Error())
+	}
+	if errors.Is(err, editing.ErrNoBaseline) {
+		p := problem.New(problem.CodeValidationFailed, "", "", err.Error())
+		p.Errors = []problem.FieldError{{Pointer: "/revision_id", Reason: problem.ReasonNotAllowedValue,
+			Detail: "this entity was first edited before the engine recorded pre-edit states"}}
+		return p
+	}
+	var undoConflict *editing.UndoConflictError
+	if errors.As(err, &undoConflict) {
+		p := problem.New(problem.CodeRevertConflict, "", "", undoConflict.Error())
+		for _, key := range undoConflict.Keys {
+			p.Errors = append(p.Errors, problem.FieldError{
+				Pointer: "/fields/" + key, Reason: problem.ReasonInconsistentWith,
+				Detail: "a later revision changed this field; re-send with force=true to overwrite it",
+			})
+		}
+		return p
 	}
 	var conflict *editing.ConflictError
 	if errors.As(err, &conflict) {

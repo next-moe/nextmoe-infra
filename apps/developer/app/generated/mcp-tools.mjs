@@ -636,7 +636,8 @@ export const mcpTools = [
       "include_total",
       "facets",
       "sort",
-      "nsfw"
+      "nsfw",
+      "q"
     ]
   },
   {
@@ -699,7 +700,8 @@ export const mcpTools = [
       "include_total",
       "facets",
       "sort",
-      "nsfw"
+      "nsfw",
+      "q"
     ]
   },
   {

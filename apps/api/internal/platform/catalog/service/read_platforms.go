@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+
+	"api/internal/platform/catalog/editspec"
 )
 
 type WorkPlatformRow struct {
@@ -24,10 +26,10 @@ func (s *ReadService) loadWorkPlatforms(ctx context.Context, subjects []claimSub
 		SourceID int16  `gorm:"column:source_id"`
 	}
 	if err := s.db.WithContext(ctx).Raw(`
-		SELECT work_id, platform, source_id
-		FROM catalog_work_platform
-		WHERE work_id IN ?
-		ORDER BY work_id, platform, source_id`, workIDs).Scan(&rows).Error; err != nil {
+		SELECT wp.work_id, wp.platform, wp.source_id
+		FROM catalog_work_platform wp
+		WHERE wp.work_id IN ? AND `+editspec.NotSuppressedWorkPlatformSQL("wp.work_id", "wp.platform")+`
+		ORDER BY wp.work_id, wp.platform, wp.source_id`, workIDs).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	for _, r := range rows {

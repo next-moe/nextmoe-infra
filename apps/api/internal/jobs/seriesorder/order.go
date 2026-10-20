@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 
 	"gorm.io/gorm"
@@ -59,9 +60,10 @@ func LoadFacts(ctx context.Context, db *gorm.DB, workIDs []int64) (*Facts, error
 
 	var edges []Edge
 	if err := db.WithContext(ctx).Raw(`
-		SELECT a_work_id AS a, b_work_id AS b, relation_type_id AS type
-		FROM catalog_work_relation
-		WHERE relation_type_id IN ? AND a_work_id IN ? AND b_work_id IN ?`,
+		SELECT r.a_work_id AS a, r.b_work_id AS b, r.relation_type_id AS type
+		FROM catalog_work_relation r
+		WHERE r.relation_type_id IN ? AND r.a_work_id IN ? AND r.b_work_id IN ?
+		  AND `+editspec.NotSuppressedWorkRelationSQL("r"),
 		SeriesEdgeTypes, workIDs, workIDs).Scan(&edges).Error; err != nil {
 		return nil, err
 	}

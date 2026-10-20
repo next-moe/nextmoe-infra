@@ -16,7 +16,8 @@ const showForm = computed(
     !alreadyEditing.value &&
     !loadError.value &&
     application.value?.status !== 'pending' &&
-    application.value?.status !== 'approved'
+    application.value?.status !== 'approved' &&
+    reapplyWaitMs(application.value?.reapply_after) === 0
 )
 </script>
 

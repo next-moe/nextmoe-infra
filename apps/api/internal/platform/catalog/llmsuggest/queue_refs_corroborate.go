@@ -133,7 +133,7 @@ var catalogNeighbourWorkSQL = map[int16]string{
 	model.EntityTypeCharacter: `SELECT DISTINCT wc.character_id AS owner, wc.work_id AS work
 		FROM catalog_work_character wc
 		JOIN catalog_work w ON w.id = wc.work_id AND w.deleted_at IS NULL
-		WHERE wc.character_id IN ?`,
+		WHERE wc.character_id IN ? AND wc.matched_by <> 'curated'`,
 }
 
 func catalogNeighbourWorks(db *gorm.DB, rows []QueueVerdict) (map[int64][]int64, error) {

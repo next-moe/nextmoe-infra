@@ -43,6 +43,7 @@ func (c *Catalog) GetEditCapabilities(ctx context.Context, object string, entity
 		Object: "edit_capabilities", TargetObject: object,
 		EntityType: entityType, QuotaTier: quota.tier, QuotaExhausted: blocked,
 		Central: isCentralSite(actor.Site), Fields: fields,
+		Creation: c.createCapability(entityType, actor, blocked),
 	}
 	if entityID != 0 {
 		id := repr.ID(entityID)

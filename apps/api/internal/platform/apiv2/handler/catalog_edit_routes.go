@@ -30,7 +30,7 @@ type listRevisionsInput struct {
 	IDs          string `query:"ids" maxLength:"4096" doc:"Comma-separated revision ids, max 100. Batch lane: no pagination."`
 	IncludeTotal string `query:"include_total" maxLength:"8" doc:"true to include total. Only true or false."`
 	Sort         string `query:"sort" maxLength:"32" doc:"recorded_desc (default) or recorded_asc. Closed."`
-	Object       string `query:"object" maxLength:"32" doc:"Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."`
+	Object       string `query:"object" maxLength:"32" doc:"Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait."`
 	EntityID     string `query:"entity_id" maxLength:"20" doc:"Catalog id of one entity. Requires object=."`
 	Site         string `query:"site" maxLength:"64" doc:"Tenant key. Open vocabulary; unknown values match nothing."`
 	ActorUID     string `query:"actor_uid" maxLength:"20" doc:"The claiming site's own user id of the actor. Not a catalog id."`
@@ -45,7 +45,7 @@ type listPublicProposalsInput struct {
 	IDs          string `query:"ids" maxLength:"4096" doc:"Comma-separated proposal ids, max 100. Batch lane: no pagination."`
 	IncludeTotal string `query:"include_total" maxLength:"8" doc:"true to include total. Only true or false."`
 	Sort         string `query:"sort" maxLength:"32" doc:"filed_desc is the only key. Closed."`
-	Object       string `query:"object" maxLength:"32" doc:"Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."`
+	Object       string `query:"object" maxLength:"32" doc:"Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait."`
 	EntityID     string `query:"entity_id" maxLength:"20" doc:"Catalog id of one entity. Requires object=."`
 	Site         string `query:"site" maxLength:"64" doc:"Tenant key. Open vocabulary; unknown values match nothing."`
 	ProposerUID  string `query:"proposer_uid" maxLength:"20" doc:"The claiming site's own user id of the proposer. Not a catalog id."`
@@ -57,7 +57,7 @@ type getRevisionInput struct {
 	Include  string `query:"include" maxLength:"1024" doc:"Comma-separated blocks. diff is the only token. Unknown token is 400 UNKNOWN_INCLUDE."`
 	View     string `query:"view" maxLength:"16" doc:"basic (default) or full. full adds diff."`
 	Fields   string `query:"fields" maxLength:"1024" doc:"Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD."`
-	DiffBase string `query:"diff_base" maxLength:"20" doc:"Revision id to diff against. Requires include=diff. Absent means the preceding revision of the same entity."`
+	DiffBase string `query:"diff_base" maxLength:"20" doc:"Revision id to diff against, or baseline for the state recorded before the entity's first edit. Requires include=diff. Absent means the preceding revision of the same entity, or the baseline on a first revision that has one."`
 }
 
 type getPublicProposalInput struct {

@@ -1594,5 +1594,71 @@ export const vocabularies = [
         "description": "This company is a member of the other."
       }
     ]
+  },
+  {
+    "name": "work_relation",
+    "closed": true,
+    "values": [
+      {
+        "value": "adaptation_of",
+        "display_name": "Adaptation of",
+        "description": "This work is an adaptation of the other."
+      },
+      {
+        "value": "sequel_of",
+        "display_name": "Sequel of",
+        "description": "This work is a sequel of the other."
+      },
+      {
+        "value": "side_story_of",
+        "display_name": "Side story of",
+        "description": "This work is a side story of the other."
+      },
+      {
+        "value": "fandisc_of",
+        "display_name": "Fandisc of",
+        "description": "This work is a fandisc of the other."
+      },
+      {
+        "value": "collects",
+        "display_name": "Collects",
+        "description": "This work collects the other."
+      },
+      {
+        "value": "remake_of",
+        "display_name": "Remake of",
+        "description": "This work is a remake of the other."
+      },
+      {
+        "value": "same_series",
+        "display_name": "Same series",
+        "description": "The two works belong to the same series. Symmetric."
+      },
+      {
+        "value": "same_setting",
+        "display_name": "Same setting",
+        "description": "The two works share a setting. Symmetric."
+      },
+      {
+        "value": "crossover_with",
+        "display_name": "Crossover with",
+        "description": "The two works crossover. Symmetric."
+      },
+      {
+        "value": "shares_character",
+        "display_name": "Shares character",
+        "description": "The two works share a character. Symmetric."
+      },
+      {
+        "value": "alternative_setting",
+        "display_name": "Alternative setting",
+        "description": "The two works share characters in a different setting. Symmetric."
+      },
+      {
+        "value": "alternative_version",
+        "display_name": "Alternative version",
+        "description": "The two works are alternative versions. Symmetric."
+      }
+    ]
   }
 ] as const

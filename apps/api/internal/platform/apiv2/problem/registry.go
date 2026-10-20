@@ -76,6 +76,7 @@ const (
 	CodePermissionRequired           = "PERMISSION_REQUIRED"
 	CodeTenantMismatch               = "TENANT_MISMATCH"
 	CodeDecisionAlreadyMade          = "DECISION_ALREADY_MADE"
+	CodeRevertConflict               = "REVERT_CONFLICT"
 	CodeSourceNotYours               = "SOURCE_NOT_YOURS"
 	CodeSourceInactive               = "SOURCE_INACTIVE"
 	CodeStoreQuotaExceeded           = "STORE_QUOTA_EXCEEDED"
@@ -149,12 +150,13 @@ var Codes = []Def{
 	{CodeSiteNotBound, DomainMe, http.StatusForbidden, "Site not bound", "The client behind the token is not bound to a catalog site."},
 	{CodeReleaseCreationDisabled, DomainMe, http.StatusForbidden, "Release creation disabled", "The proposal tried to create a release. This is a product constraint, not a defect."},
 	{CodeAlreadyExists, DomainMe, http.StatusConflict, "Already exists", "The same subject already has a live record for this target."},
-	{CodeDuplicateSuspects, DomainMe, http.StatusConflict, "Duplicate suspects", "The mint's titles match live works of the same medium; suspects[] names them. Nothing was written. Re-send with confirm_duplicates=true to mint anyway — the pairs are still filed for reconciliation."},
+	{CodeDuplicateSuspects, DomainMe, http.StatusConflict, "Duplicate suspects", "The submitted name matches live entries (for a claim mint: works of the same medium); suspects[] names them. Nothing was written. Re-send with confirm_duplicates=true to go ahead — a minted work's pairs are still filed for reconciliation."},
 	{CodeInvalidStateTransition, DomainMe, http.StatusConflict, "Invalid state transition", "The current state does not allow this transition. detail names the current state and the legal targets."},
 	{CodeClaimNotOwned, DomainMe, http.StatusForbidden, "Claim not owned", "The claim has an owner and it is another user. Only the owner may publish, submit, or withdraw it; an unowned claim is adopted by its first claimant."},
 	{CodePermissionRequired, DomainModeration, http.StatusForbidden, "Permission required", "The token lacks the permission this decision needs."},
 	{CodeTenantMismatch, DomainModeration, http.StatusForbidden, "Tenant mismatch", "The target does not belong to the caller's catalog site."},
 	{CodeDecisionAlreadyMade, DomainModeration, http.StatusConflict, "Decision already made", "This item has already been decided. detail names who decided and when."},
+	{CodeRevertConflict, DomainModeration, http.StatusConflict, "Revert conflict", "An undo would put back fields that a later revision also changed. errors[] names each field. Nothing was written. Re-send with force=true to overwrite those later changes, or restore a whole revision instead."},
 	{CodeSourceNotYours, DomainNews, http.StatusForbidden, "Source not yours", "The named news source is not bound to this user. A source that does not exist is not distinguished, so source names cannot be enumerated."},
 	{CodeSourceInactive, DomainNews, http.StatusUnprocessableEntity, "Source inactive", "The news source is bound correctly but has been deactivated. detail names who to ask to restore it."},
 	{CodeStoreQuotaExceeded, DomainStore, http.StatusForbidden, "Store quota exceeded", "The application has minted the maximum number of purchase links."},

@@ -13,7 +13,7 @@
 
 List persons
 
-Keyset-paginated persons. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.
+Keyset-paginated persons. q= searches the display name and every credit name whose person link is public. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：可匿名调用
@@ -32,6 +32,7 @@ Keyset-paginated persons. Anonymous calls are allowed and limited per IP address
 | `facets` | query | 否 | string | Comma-separated facet names. Unknown token is 400 UNKNOWN_FACET. |
 | `sort` | query | 否 | string | Closed per-collection sort key. |
 | `nsfw` | query | 否 | string | true includes r18. false or absent hides r18. Only true or false. |
+| `q` | query | 否 | string | Name search: the person's display name, or any of their credit names (name or latin) whose person link is public. Substring, case-insensitive. Must not be used as a discriminant. |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/persons"

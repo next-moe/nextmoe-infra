@@ -5,11 +5,12 @@ var RevisionSort = []string{"recorded_desc", "recorded_asc"}
 var RevisionBasicFields = []string{
 	"object", "id", "target_object", "entity_id", "site_work_id", "seq", "action",
 	"changed_fields", "actor_uid", "amender_uid", "proposal_id", "site", "created_at",
+	"has_baseline",
 }
 
 func RevisionSpec() Spec {
 	fields := append([]string{}, RevisionBasicFields...)
-	fields = append(fields, "diff", "diff_base")
+	fields = append(fields, "diff", "diff_base", "diff_from_baseline")
 	return Spec{
 		Sort:    RevisionSort,
 		Include: []string{"diff"},
@@ -55,21 +56,27 @@ func PublicProposalSpec() Spec {
 // are proposals, while fields=acted_count and fields=product_work_id were
 // accepted and then projected away to nothing. ProposalSpec is the detail spec
 // and is not NoBatch, which would open a hydration lane this list does not have.
+var ProposalQueueSort = []string{"filed_desc", "filed_asc", "updated_desc", "updated_asc"}
+
+var ProposalPatchFields = []string{"patch", "effective_patch", "changed_fields", "conflict_fields"}
+
 func ProposalListSpec() Spec {
+	fields := append([]string{}, ProposalBasicFields...)
+	fields = append(fields, ProposalPatchFields...)
 	return Spec{
-		Sort:    []string{"filed_desc"},
-		Include: []string{},
-		FullSet: []string{},
-		Fields:  append([]string{}, ProposalBasicFields...),
+		Sort:    ProposalQueueSort,
+		Include: []string{"patch"},
+		FullSet: []string{"patch"},
+		Fields:  fields,
 		NoBatch: true,
 	}
 }
 
 func MyProposalListSpec() Spec {
 	fields := append([]string{}, ProposalBasicFields...)
-	fields = append(fields, "patch", "effective_patch")
+	fields = append(fields, ProposalPatchFields...)
 	return Spec{
-		Sort:    []string{"filed_desc"},
+		Sort:    ProposalQueueSort,
 		Include: []string{"patch"},
 		FullSet: []string{"patch"},
 		Fields:  fields,
@@ -79,7 +86,8 @@ func MyProposalListSpec() Spec {
 
 func ProposalSpec() Spec {
 	fields := append([]string{}, ProposalBasicFields...)
-	fields = append(fields, "amendments", "patch", "effective_patch")
+	fields = append(fields, "amendments")
+	fields = append(fields, ProposalPatchFields...)
 	return Spec{
 		Sort:    []string{"filed_desc"},
 		Include: []string{"amendments", "patch"},

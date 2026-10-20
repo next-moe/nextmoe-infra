@@ -2341,3 +2341,102 @@ An empty list or a null removes the key from `extra`; `vndb_id` and the other ke
 **Importers.** The VNDB release lane only inserts releases it has not seen (keyed `(work_id, rid)`), so edited extras are never rewritten; `TestVNDBReleaseRerunKeepsHumanExtras` pins it. The DLsite lane of workplatforms fills only an empty head with no human stamp on `platform`, which an emptied `platforms` edit carries. `import-release-labels` inserts with `ON CONFLICT DO NOTHING` and never deletes, so a suppressed upstream edge stays stored and stays hidden: release labels are filtered on read (`NotSuppressedReleaseLabelSQL` in `releaseLabelsFor`, shared by work detail and the release feed). Re-adding an upstream attribution through `labels` is a 422 pointing at `labels.suppressed`; suppressing a curated attribution, or adding one that is still suppressed, is a 422 too.
 
 **v2.** `Release` gains `languages` (array, never null), `freeware`, `official` and `min_age` (null when unrecorded), and `platforms` now includes the head of a release that has no list. **Spec is 2.57.0**, additive. No migration.
+
+## Wave E2f — the tag and trait vocabularies are editable (2026-10-19)
+
+Both vocabularies are shared entities under the taxonomy permissions (`sharedEntityPolicy`: propose open, review by `perm:edit.catalog.taxonomy.review`, never automerge). Three fields are reviewer-only to propose as well (`propose: perm:edit.catalog.taxonomy.review`): `catalog.tag.tier`, `catalog.tag.sexual` and `catalog.trait.sexual` — they decide what a default listing hides and what an SFW face withholds.
+
+- **`catalog.tag`** gains `name` (unique: renaming onto another tag's name is a 422, merge the tags instead), `kind` (vocabulary `tag_kind`), `tier` (vocabulary `tier`), `sexual` (bool), `note`, `parents` (curated edges, `origin = 1`; naming an edge the VNDB sync already wrote endorses it in place, dropping a curated element hands the edge back to the next sync) and `parents.suppressed` (identity `parent:<tag_id>`; hiding deletes the VNDB edge and `tagparents.Sync` never writes it back). A parent set that would make a tag its own ancestor is a 422.
+- **`catalog.trait`** (new family, object `trait`): `name`, `name_zh` (also marks `name_zh_provenance` curated), `aliases` (a list over the newline-separated `alias` column), `description`, `description_zh`, `group_id` (a top-level trait, i.e. one with no group; a trait that is the group of others cannot join a group), `group_order`, `default_spoiler` (vocabulary `spoiler`), `applicable`, `searchable`, `sexual`, `parents` and `parents.suppressed` with the same lane, suppression and cycle rules as tags. Editing `sexual` or the parents re-derives `sexual_family` in the same transaction. Traits have no merge path, so nothing follows a trait id elsewhere.
+- **Human edits survive the jobs.** Every scalar column is stamped `curated`.
+  - `tagsafety` no longer sets `sexual` or `tier = hidden` on a column a person set.
+  - tagcanon's reviewed apply (`stampTierKind`) skips human-held `tier` / `kind`.
+  - tagcanon resolves a canonical group by its members' existing source maps before its name, so a tag a person renamed is not minted again under the old name.
+  - tagcanon's merge carries `parent:<loser>` suppressions over to the winner, moves the loser's own suppressions, drops a moved VNDB edge the winner hides, and declines the loser's open proposals.
+  - `chartraits` keeps every human-stamped vocabulary column (and stops counting them as written on every run), prunes only VNDB-origin parent edges and skips suppressed ones.
+  - `ingest-trait-zh` never writes a human-stamped `name_zh` or `description_zh`, in the plan or in the UPDATE itself.
+- **Edit context.** `catalog.tag.parents` and `catalog.trait.parents` list their rows (source `curated` or `vndb` by origin, identity `parent:<id>`); `catalog.trait.aliases` is snapshot-only (one column on the trait row).
+- **Not done.** Tag names have no per-language display names in the model, so there is nothing more to expose; the search index picks a rename up at its next reindex.
+
+**Spec is 2.58.0.** Additive: `trait` on every editing family enum (`target_object`, `/v2/catalog/schemas/{object}`, `/v2/me/edit-capabilities/{object}`, `/v2/me/edit-context/{object}/{id}`, the proposal and revision filters). Migration: `go run ./cmd/migrate catalog` on `kun_catalog` (the prod `migrate-catalog` job) adds `catalog_tag.field_provenance`, `catalog_character_trait.field_provenance` (both `jsonb NOT NULL DEFAULT '{}'`) and `catalog_character_trait_parent.origin` (`smallint NOT NULL DEFAULT 0`) — constant defaults, no rewrite (3.5k, 3.3k and 3.3k rows).
+
+## Wave E2c — work relations, platforms, series placement, tag spoilers, credit extras, roster additions (2026-10-20)
+
+**New work fields** (owned-entity policy like every work field):
+
+| Field | Value | Rows it writes |
+|---|---|---|
+| `catalog.work.relations` (+ `.suppressed`) | `[{work_id, relation, reverse?, note?}]`, `relation` from the closed `work_relation` vocabulary (the twelve domain-0 rows of `catalog_relation_type`) | curated lane (`source_id = 12`) of `catalog_work_relation` |
+| `catalog.work.platforms` (+ `.suppressed`) | `["win", …]`, keys of active `catalog_platform` rows | curated lane of `catalog_work_platform` |
+| `catalog.work.series_members` | `[{series_id, position, kind}]`, kind from `member_kind` | `position` / `kind` of the work's existing memberships, curated and upstream |
+| `catalog.work.tag_spoilers` | `[{tag_id, spoiler}]` | `spoiler` of every `catalog_work_tag` row mapping to the tag, curated and upstream |
+
+**Relations.** An edge is stored the way the importers store it: a directed type once, from the work that *is* the relation (`a`); a symmetric type once, smaller work id first. The value is the curated lane *seen from this work*: an edge added on the other work's page appears here with `reverse: true` (never for symmetric types), so a save from either end echoes it back instead of deleting it. Editing one end therefore also changes what the other end shows, without a revision on the other work — the same trade-off as company relations. The suppression key is `relation:<type_id>:<f|r>:<other_work_id>` (`f` when this work is the `a` side); its last segment follows work merges. An edge hidden from either end is hidden from both (`NotSuppressedWorkRelationSQL` checks both keys): the work face, the series-sibling closure, `seriesorder` and `derivedseries` all filter on it. Re-adding an upstream edge, adding a still-suppressed one, relating a work to itself, and suppressing a curated edge are 422s.
+
+**Platforms.** The suppression key `platform:<key>` names the platform, not the source, so one key hides it from Bangumi and EGS alike. Read paths: `loadWorkPlatforms` and the works-list `platform=` filter's work-level arm. `workplatforms` only inserts (`ON CONFLICT DO NOTHING`), so hidden rows stay stored and stay hidden.
+
+**Series placement.** `series_members` never adds or removes a membership (that is `series_ids` / `series_ids.suppressed`); it updates in place and stamps each changed column in the new `catalog_series_member.field_provenance`. `seriesorder.Apply` — used by `workseries` and `derivedseries` — keeps a human-stamped `position` or `kind`. `series_ids` now deletes only the curated memberships that leave, so a kept one keeps its placement. Known limit: when `workseries` or `derivedseries` drops a whole series and rebuilds it under a new id, the rebuilt membership starts without the stamp.
+
+**Tag spoilers.** `tag_spoilers` stamps `spoiler` per row in the new `catalog_work_tag.field_provenance`; `vndbtags` still refreshes `count` but keeps a human-stamped `spoiler`. The snapshot value is the highest spoiler among the tag's rows on the work. `tag_ids` now deletes only the curated tags that leave and inserts only new ones, so a kept tag keeps its row and its spoiler.
+
+**Credits.** Elements gain optional `spoiler`, `release_id` (a release of this work, hidden ones included) and `label_id`. A member left out keeps the value the same credit (same role, credit name and character) already carries; `null` clears it. Clients that predate the members — the forum's editor among them — therefore cannot wipe values set elsewhere. The identity key is unchanged.
+
+**Roster additions.** `roster` may now name a character the work does not list yet: it becomes a curated row (`matched_by = 'curated'`). Curated rows the value leaves out are deleted; upstream rows are never deleted here (hiding stays with `roster.suppressed`). Because a roster edge is identity evidence — the vndb attach channel minted 35,714 permanent anchors from it — every identity and evidence reader now keeps importer rows only (`MachineRosterSQL`): the vndb attach channel, cross-source character pairs, LLM corroboration (both lanes), the dedup detector and the Getchu character matcher. Content readers (public faces, glossaries, intro extraction) see curated rows like any other. Naming a character that does not exist, or one hidden on this work, is a 422.
+
+**Edit context.** Row sources added for relations (both directions through a derived table, identity as above), platforms, series_members and tag_spoilers (with per-row `field_provenance`); credit rows now carry `spoiler`, `release_id` and `label_id`.
+
+**Migration.** `go run ./cmd/migrate catalog` on `kun_catalog` (the prod `migrate-catalog` job) adds `field_provenance jsonb NOT NULL DEFAULT '{}'` to `catalog_series_member` (24,203 rows) and `catalog_work_tag` (2.05M rows). The default is a constant, so neither table is rewritten. No spec change: the new vocabulary and fields are runtime data of `/v2/vocabularies` and `/v2/catalog/schemas/work`.
+
+## Wave E1c — editor backend gaps: queue filters, baseline and undo, person and release search (2026-10-20)
+
+**Proposal queues.** `GET /v2/moderation/proposals` and `GET /v2/me/proposals` take:
+
+| parameter | meaning |
+|---|---|
+| `site=` | central editor: narrow to one site of origin. A downstream site may only name itself (else 403 `TENANT_MISMATCH`). |
+| `field=` | a field key; keeps proposals whose patch or any amendment's `set`/`unset` names it. |
+| `has_conflict=` | `true` keeps open proposals that a revision recorded after their `base_revision_seq` overlaps on a field (patch keys ∪ amendment `set` keys); `false` keeps the rest. Only open proposals can conflict. |
+| `updated_since=` | RFC 3339 UTC; `updated_at` strictly later. |
+| `sort=` | `filed_desc` (default), `filed_asc` (oldest waiting first), `updated_desc`, `updated_asc`. Each non-default order carries its own tagged cursor; a cursor replayed under another sort is 400 `INVALID_CURSOR`. |
+| `include=patch` | now also on the moderation list: `patch`, `effective_patch`, plus `changed_fields` (sorted keys of `effective_patch`) and, on open proposals, `conflict_fields` (the keys a later revision also changed; `[]` when none). The same block is on both detail faces. |
+
+**Baseline.** A revision's `action` is a closed enum and `seq` is 1-based, so the pre-edit state is not a synthetic revision. Instead: `has_baseline: true` on an entity's first revision when #430 recorded one; `diff_base=baseline` on `GET /v2/catalog/revisions/{id}?include=diff` diffs against it, and a first revision with a baseline diffs against it by default (previously every `from` was null); `diff_from_baseline: true` marks either case, `diff_base` stays null. `diff_base=baseline` on an entity without one is 422.
+
+**Reverts.** `POST /v2/moderation/reverts` body gains `mode` (`restore`, default — today's behaviour; `undo`), `baseline` and `force`:
+- `restore` + `baseline: true` restores the recorded pre-edit state (`revision_id` only names the entity); 422 when none was recorded (engine `ErrNoBaseline`, which `Revert(ToSeq: 0)` now returns instead of `ErrRevisionNotFound`).
+- `undo` puts back, for only the fields revision N changed, their values in revision N−1 (the baseline for N = 1). When a revision after N changed one of those fields the answer is 409 `REVERT_CONFLICT` (new problem code, moderation domain) with one `errors[]` entry per field at `/fields/<key>`; nothing is written. `force: true` overwrites them.
+- `undo` + `baseline` and `force` without `undo` are 422. Both modes need review standing on every written field and are recorded as a `reverted` revision, exactly like a restore.
+
+**Search.** `GET /v2/catalog/persons?q=` matches the display name or any credit name (`name`, `latin`) whose person link is public (`link_visibility = 0`) — a hidden link must not find its person. `GET /v2/catalog/releases?q=` matches the release title or the work's display name over the same dated-release lane. Both are bounded substring `ILIKE` with LIKE metacharacters escaped; `pg_trgm` is not installed. Measured on prod: person search ≈ 45 ms, release page ≈ 175 ms and its total ≈ 160 ms.
+
+**Spec 2.59.0**, additive (oasdiff 1.21.0: no breaking changes). No migration.
+
+## Wave E2g — new entries through the engine, and merge requests (2026-10-20)
+
+**Creating entries (births).** `POST /v2/me/creations` files a proposal with `entity_id = 0` and `edit_proposal.birth_params` (nullable jsonb; non-null marks a creation). It is reviewed like any proposal and appears in the moderation queue with a `creation` block. On merge, inside the engine transaction, the family's `Birth.Create` inserts the bare row, every patch field is applied through `editing.ApplyField` (so human provenance stamps land exactly as for edits), a revision `seq 1, action created` records the patch as its snapshot, and the proposal's `entity_id` is rewritten to the new id. A declined or withdrawn creation writes no row.
+
+| object | params | required fields | notes |
+|---|---|---|---|
+| `character` | — | `catalog.character.display_name` | |
+| `company` | — | `catalog.label.name` | |
+| `credit_name` | — | `catalog.credit_name.name` | born unattributed |
+| `person` | `credit_name_id` (an unattributed credit name) | — | the name becomes the person's primary name and is attributed to it in the same transaction (doc 10: credits point at names, a person is born from one) |
+| `engine` | — | `catalog.engine.name` | an existing name (case-insensitive) is a 422 |
+| `series` | — | `catalog.series.name` | born in the curated lane (`source_id 12`, `external_id editor:<uuid>`), so its name stays editable |
+| `release` | `work_id` (a live work) | `catalog.release.kind` | revisits doc 21 D8: a release can now be created, always under an existing work |
+| `tag` | — | `catalog.tag.name` | reviewer-only create policy; a name already on a tag (NFKC, case-insensitive) is a 422 |
+| `trait` | — | `catalog.trait.name` | reviewer-only create policy; born with `vndb_tid = editor:<uuid>`; a name already used in the same group (`catalog.trait.group_id`, or top level) is a 422 |
+
+**Not here:** works are still minted through the claims lane (`POST /v2/me/claims`, which owns anchors, the duplicate gate and claim state). Tags and traits are creatable with a reviewer-only create policy (propose and review need `edit.catalog.taxonomy.review`, never applied without a second reviewer): a new vocabulary entry changes what every list filters by.
+
+**Policy.** Each creatable type has a create policy: the family's `DefaultPolicy` unless its `BirthSpec` declares one, overridable at runtime with an `edit_policy_override` row whose `field_key` is `@create` (the type-level `""` row applies first). Field policies still apply to every field in a creation's patch. The owner channel is refused on a create policy (nothing owns an entry before it exists). Under the current defaults: characters, companies, credit names, persons, engines and series queue for review (`never` automerge); a release from an editor or reviewer applies at once (`trusted_or_review`). Creations count against the proposal quota.
+
+**Duplicates.** Unless `confirm_duplicates=true`, a creation whose name matches an existing entry is refused `409 DUPLICATE_SUSPECTS` with the matches in `suspects[]` (NFKC + lowercase over `display_name_norm`/`name_norm` and the alias tables for characters, companies and credit names; lower(name) for engines and series; same normalized title under the same work for releases). Nothing is written. The match is a seq scan bounded to ten hits; there is no index on the norm columns yet.
+
+**Capabilities.** `/v2/me/edit-capabilities/{object}` gains `creation` for creatable families: `can_create`, `would_automerge`, `param_specs[]`, `required_fields[]`. Absent for families that cannot be created (works).
+
+**Merge requests.** `POST /v2/me/merge-requests` files a `catalog_merge_proposal` with `origin = 'editor'` (new column, `text NOT NULL DEFAULT ''`; batch tools keep `''`). Families: work, company, character, person, credit_name — what the merge machinery supports. Two works of different mediums are refused 422 at filing (the cross-medium veto the work-dedup tool already applies at approval). Quotas: `catalog.merge_requests_per_day` / `_editor` / `_reviewer` (10 / 50 / 500) inside `catalog.write_quota_window_hours`. Reviewers holding `catalog.merge.review` (new permission; moderator, admin, ren) read the queue and decide: `approve` sets `execute_after` = now + `catalog.merge_cooling_off_hours`; `reject` needs a reason; `execute` runs an approved request whose cooling-off has ended. The scheduled job `catalog-merge-requests` (every hour, configurable under `jobs.catalog_merge_requests.*`) executes approved editor requests whose cooling-off has ended; it never touches proposals filed by batch tools, which execute their own. Unmerge stays in the catalog admin console.
+
+**Migration** (`go run ./cmd/migrate catalog` on `kun_catalog`, run by the `migrate-catalog` job): `edit_proposal.birth_params jsonb NULL` and `catalog_merge_proposal.origin text NOT NULL DEFAULT ''` — both metadata-only, no table rewrite. **Spec 2.60.0**, additive.
+
+**Family enums.** `EditCapabilities.entity_type` and `ObjectSchema.entity_type` now list `catalog.person`, `catalog.credit_name` and `catalog.trait` (wave E2b had shipped the first two without them). `TestFamilyEnumsCoverEveryEditingType` walks the editing registry and fails when a registered type is missing from any family enum (the capability, schema, proposal, revision and edit-context reprs, the three `{object}` routes, and the creations enum for every type with a birth spec).

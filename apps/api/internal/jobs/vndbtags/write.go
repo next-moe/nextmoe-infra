@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 
 	"gorm.io/gorm"
@@ -93,8 +94,10 @@ func applyInsert(tx *gorm.DB, workID int64, sourceID int16, ins Insert) (int64, 
 
 func applyUpdate(tx *gorm.DB, workID int64, sourceID int16, u Update) (int64, receipt, error) {
 	res := tx.Exec(
-		`UPDATE catalog_work_tag SET spoiler = ?, count = ?, updated_at = now()
-		 WHERE id = ? AND source_id = ? AND spoiler = ? AND count = ?`,
+		`UPDATE catalog_work_tag wt
+		 SET spoiler = CASE WHEN `+editspec.WorkTagSpoilerIsHumanSQL("wt")+` THEN wt.spoiler ELSE ? END,
+		     count = ?, updated_at = now()
+		 WHERE wt.id = ? AND wt.source_id = ? AND wt.spoiler = ? AND wt.count = ?`,
 		u.NewSpoiler, u.NewCount, u.ID, sourceID, u.OldSpoiler, u.OldCount)
 	if res.Error != nil {
 		return 0, receipt{}, res.Error

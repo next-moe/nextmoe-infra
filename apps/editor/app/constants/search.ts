@@ -5,6 +5,8 @@ export interface SearchFamily {
   label: string
   icon: string
   path: string
+  collection: string
+  searchVia?: 'list'
 }
 
 export const SEARCH_FAMILIES: SearchFamily[] = Object.values(ENTITY_META)
@@ -13,5 +15,7 @@ export const SEARCH_FAMILIES: SearchFamily[] = Object.values(ENTITY_META)
     object: meta.family,
     label: meta.label,
     icon: meta.icon,
-    path: meta.path
+    path: meta.path,
+    collection: meta.collection,
+    searchVia: meta.searchVia
   }))

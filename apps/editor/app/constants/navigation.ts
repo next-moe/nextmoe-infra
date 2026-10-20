@@ -63,6 +63,12 @@ export const EDITOR_NAV: EditorNavGroup[] = [
         ready: true
       },
       {
+        label: '合并请求',
+        icon: 'lucide:merge',
+        to: '/me/merge-requests',
+        ready: true
+      },
+      {
         label: '贡献',
         icon: 'lucide:award',
         to: '/me/contributions',
@@ -77,6 +83,13 @@ export const EDITOR_NAV: EditorNavGroup[] = [
         label: '待审队列',
         icon: 'lucide:inbox',
         to: '/review',
+        ready: true,
+        reviewerOnly: true
+      },
+      {
+        label: '合并审核',
+        icon: 'lucide:git-merge',
+        to: '/review/merges',
         ready: true,
         reviewerOnly: true
       }

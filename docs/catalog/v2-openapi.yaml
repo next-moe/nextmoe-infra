@@ -1398,6 +1398,31 @@ components:
         - work_id
         - vote
       type: object
+    CreateCapability:
+      additionalProperties: true
+      properties:
+        can_create:
+          description: "true when the bearer may file a creation of this family now: the create policy allows it and the bearer's quota is not exhausted."
+          type: boolean
+        param_specs:
+          description: Creation parameters POST /v2/me/creations accepts for this family in params. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/CreateParam"
+          type: array
+        required_fields:
+          description: Field keys a creation's patch must carry. Empty array, never null.
+          items:
+            type: string
+          type: array
+        would_automerge:
+          description: true when such a creation would apply at once instead of queueing for review.
+          type: boolean
+      required:
+        - can_create
+        - would_automerge
+        - param_specs
+        - required_fields
+      type: object
     CreateClaimInputBody:
       additionalProperties: true
       properties:
@@ -1441,6 +1466,48 @@ components:
           pattern: ^[0-9]+$
           type: string
       type: object
+    CreateCreationInputBody:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/CreateCreationInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        confirm_duplicates:
+          description: Create even when entries with the same normalized name exist. Without it such a request is refused with 409 DUPLICATE_SUSPECTS naming them, and nothing is written.
+          type: boolean
+        note:
+          description: Proposer's own summary. Must not be used as a discriminant.
+          maxLength: 2000
+          type: string
+        object:
+          description: Family of the new entry. Works are created through POST /v2/me/claims. Tags and traits take a reviewer-only create policy.
+          enum:
+            - company
+            - character
+            - release
+            - engine
+            - series
+            - person
+            - credit_name
+            - tag
+            - trait
+          type: string
+          x-vocabulary-closed: true
+        params:
+          additionalProperties: {}
+          description: Creation parameters; /v2/me/edit-capabilities/{object} creation.param_specs lists them (release takes work_id, person takes credit_name_id of an unattributed credit name).
+          type: object
+        patch:
+          additionalProperties: {}
+          description: Field key to initial value, the same keys and values POST /v2/me/proposals accepts for that family. creation.required_fields must be present.
+          type: object
+      required:
+        - object
+      type: object
     CreateFolderInputBody:
       additionalProperties: true
       properties:
@@ -1480,6 +1547,47 @@ components:
           x-vocabulary-closed: true
       required:
         - name
+      type: object
+    CreateMergeRequestInputBody:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/CreateMergeRequestInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        object:
+          description: Family of the two entries.
+          enum:
+            - work
+            - company
+            - character
+            - person
+            - credit_name
+          type: string
+          x-vocabulary-closed: true
+        reason:
+          description: Why these are the same entry. Reviewers read it. Must not be used as a discriminant.
+          maxLength: 2000
+          minLength: 4
+          type: string
+        source_id:
+          description: The entry to fold away.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+        target_id:
+          description: The entry that survives.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+      required:
+        - object
+        - source_id
+        - target_id
+        - reason
       type: object
     CreateNewsInputBody:
       additionalProperties: true
@@ -1542,6 +1650,25 @@ components:
       required:
         - title
         - summary
+      type: object
+    CreateParam:
+      additionalProperties: true
+      properties:
+        field_type:
+          description: Value kind in the schema face's field-type vocabulary (ref = a catalog id). Must not be used as a discriminant.
+          maxLength: 32
+          type: string
+        key:
+          description: Parameter name. Must not be used as a discriminant.
+          maxLength: 64
+          type: string
+        required:
+          description: true when a creation without it is refused.
+          type: boolean
+      required:
+        - key
+        - field_type
+        - required
       type: object
     CreateProposalInputBody:
       additionalProperties: true
@@ -1786,6 +1913,31 @@ components:
       required:
         - decision
       type: object
+    DecideMergeRequestInputBody:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/DecideMergeRequestInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        decision:
+          description: approve starts the cooling-off (catalog.merge_cooling_off_hours) after which the catalog-merge-requests job executes it; reject closes it; execute runs an approved request whose cooling-off has ended without waiting for the job.
+          enum:
+            - approve
+            - reject
+            - execute
+          type: string
+          x-vocabulary-closed: true
+        reason:
+          description: Required to reject. Must not be used as a discriminant.
+          maxLength: 2000
+          type: string
+      required:
+        - decision
+      type: object
     DecideProposalInputBody:
       additionalProperties: true
       properties:
@@ -1823,6 +1975,9 @@ components:
         central:
           description: true when the token's client is the central editor, which sees, decides and reverts proposals filed on any catalog site.
           type: boolean
+        creation:
+          $ref: "#/components/schemas/CreateCapability"
+          description: Present when this family can be created through POST /v2/me/creations.
         entity_id:
           description: The entity these capabilities were evaluated against. null when the answer is type-level, which cannot express the owner channel.
           maxLength: 20
@@ -1840,6 +1995,9 @@ components:
             - catalog.tag
             - catalog.engine
             - catalog.series
+            - catalog.person
+            - catalog.credit_name
+            - catalog.trait
           type: string
           x-vocabulary-closed: true
         fields:
@@ -1876,6 +2034,7 @@ components:
             - series
             - person
             - credit_name
+            - trait
           type: string
           x-vocabulary-closed: true
       required:
@@ -1931,6 +2090,7 @@ components:
             - series
             - person
             - credit_name
+            - trait
           type: string
           x-vocabulary-closed: true
       required:
@@ -3529,6 +3689,62 @@ components:
           description: Members of this page. Empty array, never null.
           items:
             $ref: "#/components/schemas/Intro"
+          type: array
+        missing:
+          description: ids requested but not visible. Present only on the ids=/refs= batch lane.
+          items:
+            type: string
+          type: array
+        next_cursor:
+          description: Opaque keyset cursor. Omitted on the last page.
+          maxLength: 512
+          pattern: ^cur_[A-Za-z0-9._~-]+$
+          type: string
+        object:
+          description: Type discriminant. Always list.
+          enum:
+            - list
+          type: string
+          x-vocabulary-closed: true
+        total:
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+          format: int64
+          minimum: 0
+          type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - items
+      type: object
+    ListMergeRequestRecord:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ListMergeRequestRecord.json
+          format: uri
+          readOnly: true
+          type: string
+        facets:
+          additionalProperties:
+            items:
+              $ref: "#/components/schemas/FacetValue"
+            type:
+              - array
+              - "null"
+          description: Named facet buckets. Present only when facets= is requested.
+          type: object
+        items:
+          description: Members of this page. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/MergeRequestRecord"
           type: array
         missing:
           description: ids requested but not visible. Present only on the ids=/refs= batch lane.
@@ -5709,6 +5925,110 @@ components:
         - hip_cm
         - cup
       type: object
+    MergeRequestRecord:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/MergeRequestRecord.json
+          format: uri
+          readOnly: true
+          type: string
+        execute_after:
+          description: End of the cooling-off once approved. null before approval.
+          format: date-time
+          maxLength: 32
+          type:
+            - string
+            - "null"
+        executed_at:
+          description: RFC 3339 UTC. null until executed.
+          format: date-time
+          maxLength: 32
+          type:
+            - string
+            - "null"
+        id:
+          description: Merge request id.
+          maxLength: 20
+          minLength: 1
+          pattern: ^[0-9]+$
+          type: string
+        note:
+          description: The requester's reason followed by decision notes. Must not be used as a discriminant.
+          maxLength: 4000
+          type: string
+        object:
+          description: Type discriminant. Always merge_request.
+          enum:
+            - merge_request
+          type: string
+          x-vocabulary-closed: true
+        origin:
+          description: "Lane that filed it: editor for these faces; batch tools file their own. Open vocabulary; must not be used as a discriminant."
+          maxLength: 32
+          type: string
+        proposed_at:
+          description: RFC 3339 UTC.
+          format: date-time
+          maxLength: 32
+          type: string
+        proposed_by:
+          anyOf:
+            - $ref: "#/components/schemas/UserRef"
+            - type: "null"
+          description: Account behind proposed_by_uid. null only when the account directory could not be read.
+        proposed_by_uid:
+          description: Central account id of the requester.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+        source_id:
+          description: The entry that is folded away. Its id redirects to target_id once executed.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+        state:
+          description: open awaits a reviewer; approved waits out the cooling-off, after which the merge runs; executed is done.
+          enum:
+            - open
+            - approved
+            - executed
+            - rejected
+            - withdrawn
+          type: string
+          x-vocabulary-closed: true
+        target_id:
+          description: The entry that survives.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+        target_object:
+          description: Family of the two entries.
+          enum:
+            - work
+            - company
+            - character
+            - person
+            - credit_name
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - id
+        - state
+        - target_object
+        - source_id
+        - target_id
+        - note
+        - proposed_by_uid
+        - proposed_by
+        - origin
+        - proposed_at
+        - execute_after
+        - executed_at
+      type: object
     Money:
       additionalProperties: true
       properties:
@@ -6088,6 +6408,9 @@ components:
             - catalog.tag
             - catalog.engine
             - catalog.series
+            - catalog.person
+            - catalog.credit_name
+            - catalog.trait
           type: string
           x-vocabulary-closed: true
         fields:
@@ -6133,6 +6456,7 @@ components:
             - series
             - person
             - credit_name
+            - trait
           type: string
           x-vocabulary-closed: true
       required:
@@ -6205,6 +6529,25 @@ components:
             - public
           type: string
           x-vocabulary-closed: true
+      type: object
+    PatchMergeRequestInputBody:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/PatchMergeRequestInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        state:
+          description: Set withdrawn to withdraw an open request you filed.
+          enum:
+            - withdrawn
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - state
       type: object
     PatchModerationFolderInputBody:
       additionalProperties: true
@@ -6601,7 +6944,7 @@ components:
           minimum: 400
           type: integer
         suspects:
-          description: Live works sharing a submitted title when code is DUPLICATE_SUSPECTS.
+          description: "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation."
           items:
             $ref: "#/components/schemas/Suspect"
           type: array
@@ -6731,6 +7074,16 @@ components:
         - title
         - description
       type: object
+    ProposalCreation:
+      additionalProperties: true
+      properties:
+        params:
+          additionalProperties: {}
+          description: The creation parameters the proposal was filed with (e.g. work_id for a release). Empty object when the family takes none.
+          type: object
+      required:
+        - params
+      type: object
     ProposalDecisionRecord:
       additionalProperties: true
       properties:
@@ -6813,11 +7166,24 @@ components:
           format: int64
           minimum: 0
           type: integer
+        changed_fields:
+          description: Present when include=patch. The field keys effective_patch writes, sorted.
+          items:
+            type: string
+          type: array
+        conflict_fields:
+          description: "Present when include=patch on an open proposal. Keys of effective_patch that a revision recorded after base_revision_seq also changed: merging overwrites that later change. Empty array when none."
+          items:
+            type: string
+          type: array
         created_at:
           description: RFC 3339 UTC.
           format: date-time
           maxLength: 32
           type: string
+        creation:
+          $ref: "#/components/schemas/ProposalCreation"
+          description: Present when the proposal creates a new entry (POST /v2/me/creations). entity_id is 0 until it merges, then the new entry's id.
         decided_at:
           description: RFC 3339 UTC. null while open.
           format: date-time
@@ -6907,6 +7273,7 @@ components:
             - series
             - person
             - credit_name
+            - trait
           type: string
           x-vocabulary-closed: true
         updated_at:
@@ -7663,6 +8030,19 @@ components:
           format: uri
           readOnly: true
           type: string
+        baseline:
+          description: "With mode=restore: restore the state recorded before the entity's first edit instead of the state after revision_id, which then only names the entity. 422 when no such state was recorded."
+          type: boolean
+        force:
+          description: "With mode=undo: overwrite fields a later revision also changed instead of answering 409 REVERT_CONFLICT."
+          type: boolean
+        mode:
+          description: restore (default) brings every field back to its value after revision_id. undo puts back, for only the fields revision_id changed, the values they held just before it.
+          enum:
+            - restore
+            - undo
+          type: string
+          x-vocabulary-closed: true
         reason:
           description: Must not be used as a discriminant.
           maxLength: 2000
@@ -7737,12 +8117,18 @@ components:
           maxLength: 20
           pattern: ^[0-9]+$
           type: string
+        diff_from_baseline:
+          description: Present with diff when the diff was taken against the state recorded before the entity's first edit — asked for with diff_base=baseline, or taken by default on a first revision that has one. diff_base is then null.
+          type: boolean
         entity_id:
           description: Catalog id of the entity this revision is on.
           maxLength: 20
           minLength: 1
           pattern: ^[0-9]+$
           type: string
+        has_baseline:
+          description: true on an entity's first revision when the state before that edit was recorded. diff_base=baseline diffs against it, and POST /v2/moderation/reverts with baseline=true restores it. Absent otherwise.
+          type: boolean
         id:
           description: Revision id. This is the value POST /v2/moderation/reverts takes as revision_id.
           maxLength: 20
@@ -7790,6 +8176,7 @@ components:
             - series
             - person
             - credit_name
+            - trait
           type: string
           x-vocabulary-closed: true
       required:
@@ -8474,11 +8861,11 @@ components:
       additionalProperties: true
       properties:
         display_name:
-          description: The live work's display name. Must not be used as a discriminant.
+          description: The matching entry's display name. Must not be used as a discriminant.
           maxLength: 512
           type: string
         id:
-          description: Catalog work id.
+          description: Catalog id of the matching entry.
           maxLength: 20
           pattern: ^[0-9]+$
           type: string
@@ -10212,7 +10599,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.57.0
+  version: 2.60.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -12171,7 +12558,7 @@ paths:
         - catalog
   /v2/catalog/persons:
     get:
-      description: Keyset-paginated persons. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.
+      description: Keyset-paginated persons. q= searches the display name and every credit name whose person link is public. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids=/refs= is a batch lane and does not paginate.
       operationId: listCatalogPersons
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -12261,6 +12648,14 @@ paths:
           schema:
             description: true includes r18. false or absent hides r18. Only true or false.
             maxLength: 8
+            type: string
+        - description: "Name search: the person's display name, or any of their credit names (name or latin) whose person link is public. Substring, case-insensitive. Must not be used as a discriminant."
+          explode: false
+          in: query
+          name: q
+          schema:
+            description: "Name search: the person's display name, or any of their credit names (name or latin) whose person link is public. Substring, case-insensitive. Must not be used as a discriminant."
+            maxLength: 512
             type: string
       responses:
         "200":
@@ -12611,12 +13006,12 @@ paths:
             description: filed_desc is the only key. Closed.
             maxLength: 32
             type: string
-        - description: "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."
+        - description: "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait."
           explode: false
           in: query
           name: object
           schema:
-            description: "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."
+            description: "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait."
             maxLength: 32
             type: string
         - description: Catalog id of one entity. Requires object=.
@@ -12973,7 +13368,7 @@ paths:
         - catalog
   /v2/catalog/releases:
     get:
-      description: Keyset-paginated dated releases, sorted by date_desc by default. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate.
+      description: Keyset-paginated dated releases, sorted by date_desc by default. q= filters by release title or work display name. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. ids= is a batch lane and does not paginate.
       operationId: listCatalogReleases
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -13063,6 +13458,14 @@ paths:
           schema:
             description: true includes r18. false or absent hides r18. Only true or false.
             maxLength: 8
+            type: string
+        - description: "Title search: the release title or its work's display name. Substring, case-insensitive, over the same dated releases this collection lists. Must not be used as a discriminant."
+          explode: false
+          in: query
+          name: q
+          schema:
+            description: "Title search: the release title or its work's display name. Substring, case-insensitive, over the same dated releases this collection lists. Must not be used as a discriminant."
+            maxLength: 512
             type: string
       responses:
         "200":
@@ -13302,12 +13705,12 @@ paths:
             description: recorded_desc (default) or recorded_asc. Closed.
             maxLength: 32
             type: string
-        - description: "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."
+        - description: "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait."
           explode: false
           in: query
           name: object
           schema:
-            description: "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."
+            description: "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait."
             maxLength: 32
             type: string
         - description: Catalog id of one entity. Requires object=.
@@ -13431,12 +13834,12 @@ paths:
             description: Comma-separated top-level keys. Unknown token is 400 UNKNOWN_FIELD.
             maxLength: 1024
             type: string
-        - description: Revision id to diff against. Requires include=diff. Absent means the preceding revision of the same entity.
+        - description: Revision id to diff against, or baseline for the state recorded before the entity's first edit. Requires include=diff. Absent means the preceding revision of the same entity, or the baseline on a first revision that has one.
           explode: false
           in: query
           name: diff_base
           schema:
-            description: Revision id to diff against. Requires include=diff. Absent means the preceding revision of the same entity.
+            description: Revision id to diff against, or baseline for the state recorded before the entity's first edit. Requires include=diff. Absent means the preceding revision of the same entity, or the baseline on a first revision that has one.
             maxLength: 20
             type: string
       responses:
@@ -13786,6 +14189,7 @@ paths:
               - series
               - person
               - credit_name
+              - trait
             maxLength: 32
             type: string
             x-vocabulary-closed: true
@@ -18504,6 +18908,96 @@ paths:
       summary: Cast a cover vote
       tags:
         - me
+  /v2/me/creations:
+    post:
+      description: Files a proposal that creates a new entry of one family. It is reviewed like any proposal (it appears in GET /v2/moderation/proposals with entity_id 0 and a creation block) unless the create policy lets the bearer apply it at once; once merged, entity_id is the new entry's id. Entries whose normalized name already exists are refused with 409 DUPLICATE_SUSPECTS unless confirm_duplicates=true. Counts against the same proposal quota as POST /v2/me/proposals. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+      operationId: createMyCreation
+      parameters:
+        - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCreationInputBody"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProposalRecord"
+          description: Created
+          headers:
+            ETag:
+              schema:
+                description: Opaque validator. Send it back as If-Match to amend, withdraw, or decide this proposal.
+                type: string
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Propose a new entry
+      tags:
+        - me
   /v2/me/edit-capabilities/{object}:
     get:
       description: "Per-field can_propose / can_review / would_automerge for the bearer, evaluated by the editing engine. The capability axis cannot ride on /v2/catalog/schemas/{object}: that face is credential-less and B34 forbids varying one URL's field set by credential, so the two are separate URLs and join on fields[].key. Pass entity_id= for the owner channel, or would_automerge answers the type-level question instead. The answer folds in the bearer's quota: an exhausted tier proposes nothing, and an editor past the daily direct-edit allowance no longer automerges. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope."
@@ -18525,6 +19019,7 @@ paths:
               - series
               - person
               - credit_name
+              - trait
             maxLength: 32
             type: string
             x-vocabulary-closed: true
@@ -18620,6 +19115,7 @@ paths:
               - series
               - person
               - credit_name
+              - trait
             maxLength: 32
             type: string
             x-vocabulary-closed: true
@@ -20222,6 +20718,296 @@ paths:
       summary: Follow a company
       tags:
         - me
+  /v2/me/merge-requests:
+    get:
+      description: The bearer's own merge requests, newest first; follow next_cursor for more. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+      operationId: listMyMergeRequests
+      parameters:
+        - description: Narrow to one state.
+          explode: false
+          in: query
+          name: state
+          schema:
+            description: Narrow to one state.
+            enum:
+              - open
+              - approved
+              - executed
+              - rejected
+              - withdrawn
+            type: string
+            x-vocabulary-closed: true
+        - description: Narrow to one family.
+          explode: false
+          in: query
+          name: object
+          schema:
+            description: Narrow to one family.
+            enum:
+              - work
+              - company
+              - character
+              - person
+              - credit_name
+            type: string
+            x-vocabulary-closed: true
+        - description: Opaque keyset cursor from next_cursor.
+          explode: false
+          in: query
+          name: cursor
+          schema:
+            description: Opaque keyset cursor from next_cursor.
+            maxLength: 32
+            pattern: ^cur_[0-9]+$
+            type: string
+        - description: Page size, 1-100. Default 20.
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: Page size, 1-100. Default 20.
+            format: int64
+            maximum: 100
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListMergeRequestRecord"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: List my merge requests
+      tags:
+        - me
+    post:
+      description: "Asks reviewers to merge two entries of one family. Nothing merges on filing: a reviewer approves, the cooling-off runs, then the merge executes through the catalog merge machinery (redirect from source to target, survivorship, archive for unmerge). Two works of different mediums are refused 422. Quotas are tiered: catalog.merge_requests_per_day, _editor, _reviewer inside catalog.write_quota_window_hours; past it 429 QUOTA_EXCEEDED. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope."
+      operationId: createMyMergeRequest
+      parameters:
+        - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMergeRequestInputBody"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MergeRequestRecord"
+          description: Created
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Request a merge
+      tags:
+        - me
+  /v2/me/merge-requests/{id}:
+    patch:
+      description: Withdraws an open request the bearer filed. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+      operationId: patchMyMergeRequest
+      parameters:
+        - description: Merge request id.
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Merge request id.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchMergeRequestInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MergeRequestRecord"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Withdraw a merge request
+      tags:
+        - me
   /v2/me/news:
     get:
       description: Items the bearer submitted, plus every item under a partner source bound to the bearer, pending included. Keyset-paginated. Requires a user access token.
@@ -21369,7 +22155,7 @@ paths:
         - me
   /v2/me/proposals:
     get:
-      description: The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch and effective_patch, the same pair GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. Requires a user access token. The token must carry the catalog:edit scope.
+      description: The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch, effective_patch, changed_fields and (open rows) conflict_fields, the same block GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. field=, has_conflict= and updated_since= filter; sort=filed_desc (default), filed_asc, updated_desc or updated_asc. Requires a user access token. The token must carry the catalog:edit scope.
       operationId: listMyProposals
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -21468,12 +22254,12 @@ paths:
             description: "Closed: open, pending, merged, declined, withdrawn. Unknown value is 400 UNKNOWN_ENUM_VALUE."
             maxLength: 16
             type: string
-        - description: "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."
+        - description: "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait."
           explode: false
           in: query
           name: object
           schema:
-            description: "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."
+            description: "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait."
             maxLength: 32
             type: string
         - description: Editing-engine type, e.g. catalog.work. The same spelling POST /v2/me/proposals takes in its body. Names the same filter as object=; sending both with different families is 400.
@@ -21491,6 +22277,38 @@ paths:
           schema:
             description: Catalog id of one entity. Accepted alone on this lane, which is already fenced to the bearer's own proposals; pair it with object= or entity_type= when ids collide across families.
             maxLength: 20
+            type: string
+        - description: Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing.
+          explode: false
+          in: query
+          name: site
+          schema:
+            description: Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing.
+            maxLength: 64
+            type: string
+        - description: A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it.
+          explode: false
+          in: query
+          name: field
+          schema:
+            description: A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it.
+            maxLength: 128
+            type: string
+        - description: true keeps open proposals that a revision recorded after their base_revision_seq overlaps on a field; false keeps the rest. Only true or false.
+          explode: false
+          in: query
+          name: has_conflict
+          schema:
+            description: true keeps open proposals that a revision recorded after their base_revision_seq overlaps on a field; false keeps the rest. Only true or false.
+            maxLength: 8
+            type: string
+        - description: RFC 3339 UTC ending in Z. Keeps proposals whose updated_at is later.
+          explode: false
+          in: query
+          name: updated_since
+          schema:
+            description: RFC 3339 UTC ending in Z. Keeps proposals whose updated_at is later.
+            maxLength: 32
             type: string
       responses:
         "200":
@@ -23851,9 +24669,305 @@ paths:
       summary: Moderate a folder's text
       tags:
         - moderation
+  /v2/moderation/merge-requests:
+    get:
+      description: Merge requests filed through the editor, newest first; follow next_cursor for more. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+      operationId: listModerationMergeRequests
+      parameters:
+        - description: Narrow to one state.
+          explode: false
+          in: query
+          name: state
+          schema:
+            description: Narrow to one state.
+            enum:
+              - open
+              - approved
+              - executed
+              - rejected
+              - withdrawn
+            type: string
+            x-vocabulary-closed: true
+        - description: Narrow to one family.
+          explode: false
+          in: query
+          name: object
+          schema:
+            description: Narrow to one family.
+            enum:
+              - work
+              - company
+              - character
+              - person
+              - credit_name
+            type: string
+            x-vocabulary-closed: true
+        - description: Opaque keyset cursor from next_cursor.
+          explode: false
+          in: query
+          name: cursor
+          schema:
+            description: Opaque keyset cursor from next_cursor.
+            maxLength: 32
+            pattern: ^cur_[0-9]+$
+            type: string
+        - description: Page size, 1-100. Default 20.
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: Page size, 1-100. Default 20.
+            format: int64
+            maximum: 100
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListMergeRequestRecord"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Merge request queue
+      tags:
+        - moderation
+  /v2/moderation/merge-requests/{id}:
+    get:
+      description: Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+      operationId: getModerationMergeRequest
+      parameters:
+        - description: Merge request id.
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Merge request id.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MergeRequestRecord"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Get one merge request
+      tags:
+        - moderation
+  /v2/moderation/merge-requests/{id}/decisions:
+    post:
+      description: decision=approve|reject|execute. Unmerge stays with the catalog admin console. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+      operationId: decideModerationMergeRequest
+      parameters:
+        - description: Merge request id.
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Merge request id.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+        - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DecideMergeRequestInputBody"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MergeRequestRecord"
+          description: Created
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Decide a merge request
+      tags:
+        - moderation
   /v2/moderation/proposals:
     get:
-      description: Open proposals on the token site; on the central editor (catalog site editor), on every site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. The token must carry the catalog:edit scope.
+      description: Open proposals on the token site; on the central editor (catalog site editor), on every site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. site= narrows the central editor's queue to one site of origin; field=, has_conflict= and updated_since= filter; sort=filed_desc (default), filed_asc (oldest waiting first), updated_desc or updated_asc. include=patch (or view=full) adds each row's patch, effective_patch, changed_fields and conflict_fields, so a queue page needs no read per row. The token must carry the catalog:edit scope.
       operationId: listModerationProposals
       parameters:
         - description: Opaque keyset cursor from a prior next_cursor. Must start with cur_.
@@ -23944,12 +25058,12 @@ paths:
             description: true includes r18. false or absent hides r18. Only true or false.
             maxLength: 8
             type: string
-        - description: "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."
+        - description: "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait."
           explode: false
           in: query
           name: object
           schema:
-            description: "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name."
+            description: "Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait."
             maxLength: 32
             type: string
         - description: Editing-engine type, e.g. catalog.work. Names the same filter as object=; sending both with different families is 400.
@@ -23967,6 +25081,38 @@ paths:
           schema:
             description: Catalog id of one entity. Requires object= or entity_type=. Narrows the queue to that entity, which its owner may read without a review permission.
             maxLength: 20
+            type: string
+        - description: Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing.
+          explode: false
+          in: query
+          name: site
+          schema:
+            description: Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing.
+            maxLength: 64
+            type: string
+        - description: A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it.
+          explode: false
+          in: query
+          name: field
+          schema:
+            description: A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it.
+            maxLength: 128
+            type: string
+        - description: true keeps open proposals that a revision recorded after their base_revision_seq overlaps on a field; false keeps the rest. Only true or false.
+          explode: false
+          in: query
+          name: has_conflict
+          schema:
+            description: true keeps open proposals that a revision recorded after their base_revision_seq overlaps on a field; false keeps the rest. Only true or false.
+            maxLength: 8
+            type: string
+        - description: RFC 3339 UTC ending in Z. Keeps proposals whose updated_at is later.
+          explode: false
+          in: query
+          name: updated_since
+          schema:
+            description: RFC 3339 UTC ending in Z. Keeps proposals whose updated_at is later.
+            maxLength: 32
             type: string
       responses:
         "200":
@@ -24315,7 +25461,7 @@ paths:
         - moderation
   /v2/moderation/reverts:
     post:
-      description: Body names revision_id. A downstream site may not revert an entity another site claims; the central editor (catalog site editor) may revert any. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+      description: Body names revision_id. mode=restore (default) brings every registered field back to its value after that revision, or with baseline=true to the state recorded before the entity's first edit. mode=undo puts back, for only the fields that revision changed, the values they held just before it; when a later revision changed one of those fields the answer is 409 REVERT_CONFLICT naming them, unless force=true. A downstream site may not revert an entity another site claims; the central editor (catalog site editor) may revert any. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
       operationId: revertModeration
       parameters:
         - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
@@ -24420,12 +25566,12 @@ paths:
       description: Registered field values. Requires a user access token. The token must carry the catalog:edit scope.
       operationId: getModerationSnapshot
       parameters:
-        - description: "Family: work, company, character, release, tag, engine, series, person, credit_name."
+        - description: "Family: work, company, character, release, tag, engine, series, person, credit_name, trait."
           in: path
           name: object
           required: true
           schema:
-            description: "Family: work, company, character, release, tag, engine, series, person, credit_name."
+            description: "Family: work, company, character, release, tag, engine, series, person, credit_name, trait."
             maxLength: 32
             type: string
         - description: Catalog id.
