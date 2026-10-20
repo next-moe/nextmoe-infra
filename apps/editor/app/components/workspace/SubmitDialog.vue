@@ -195,7 +195,7 @@ const stateIcon: Record<RowState, string> = {
           placeholder="简单说明修改原因和资料出处，方便审核者判断"
           :rows="3"
           auto-grow
-          max-height="12rem"
+          max-height="192px"
           :description="`${note.length} / ${NOTE_MAX}`"
           :error="note.length > NOTE_MAX ? `最多 ${NOTE_MAX} 字` : ''"
         />

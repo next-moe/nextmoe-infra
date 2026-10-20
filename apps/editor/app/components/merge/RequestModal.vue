@@ -118,7 +118,7 @@ const submit = async () => {
         v-model="reason"
         placeholder="理由（必填）：为什么认为它们是同一个条目，有哪些依据"
         aria-label="合并理由"
-        max-height="8rem"
+        max-height="128px"
       />
       <div class="flex justify-end gap-2">
         <KunButton variant="light" @click="open = false">取消</KunButton>

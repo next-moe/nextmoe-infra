@@ -238,7 +238,7 @@ useHead(() => ({
           v-model="note"
           placeholder="说明（可选）：资料来源、为什么需要这个条目"
           aria-label="说明"
-          max-height="8rem"
+          max-height="128px"
         />
 
         <div class="flex items-center justify-end gap-3">

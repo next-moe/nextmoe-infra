@@ -222,7 +222,7 @@ fetchPage(null)
           v-model="rejectReason"
           placeholder="驳回理由（必填）"
           aria-label="驳回理由"
-          max-height="8rem"
+          max-height="128px"
         />
         <div class="flex justify-end gap-2">
           <KunButton variant="light" @click="rejectOpen = false"

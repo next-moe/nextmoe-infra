@@ -417,7 +417,7 @@ watch(
               v-model="note"
               placeholder="审核备注（可选；拒绝时必填）"
               aria-label="审核备注"
-              max-height="10rem"
+              max-height="160px"
             />
             <KunButton
               full-width

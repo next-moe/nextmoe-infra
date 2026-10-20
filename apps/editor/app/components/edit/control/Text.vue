@@ -20,7 +20,7 @@ const text = computed({
     :disabled="disabled"
     :rows="3"
     auto-grow
-    max-height="32rem"
+    max-height="512px"
   />
   <KunInput
     v-else
