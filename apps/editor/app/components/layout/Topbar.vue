@@ -42,17 +42,7 @@ const { isReviewer } = useEditorSession()
       </KunButton>
       <LayoutQuotaChip />
       <LayoutReviewInbox v-if="isReviewer" />
-      <KunTooltip text="通知即将推出" position="bottom">
-        <KunButton
-          variant="light"
-          size="sm"
-          is-icon-only
-          aria-label="通知"
-          disabled
-        >
-          <KunIcon name="lucide:bell" class="size-5" />
-        </KunButton>
-      </KunTooltip>
+      <NotificationsBell />
       <LayoutAccountMenu />
     </div>
   </header>

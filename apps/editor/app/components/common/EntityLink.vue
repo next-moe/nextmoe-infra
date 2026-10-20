@@ -11,7 +11,7 @@ const family = computed(() => ENTITY_FAMILY[props.family])
 </script>
 
 <template>
-  <span class="inline-flex min-w-0 items-center gap-1.5">
+  <span class="inline-flex max-w-full min-w-0 items-center gap-1.5">
     <span v-if="family" class="text-default-400 shrink-0 text-xs">{{
       family.label
     }}</span>
