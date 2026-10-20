@@ -6924,6 +6924,8 @@ export interface components {
             date: string | null;
             /** @description The engine this release runs on. Absent when unrecorded. */
             engine?: components["schemas"]["EngineRef"];
+            /** @description Whether the release is free of charge. null if unrecorded. */
+            freeware: boolean | null;
             /** @description Catalog release id. */
             id: string;
             /**
@@ -6931,11 +6933,20 @@ export interface components {
              * @description BCP-47. Empty if unrecorded.
              */
             lang: string;
+            /** @description Every language this release is available in, BCP-47. Empty array, never null. lang is the release's original language, a separate fact. */
+            languages: string[];
+            /**
+             * Format: int64
+             * @description Minimum age rating in years. null if unrecorded.
+             */
+            min_age: number | null;
             /**
              * @description Type discriminant. Always release.
              * @enum {string}
              */
             object: "release";
+            /** @description Whether the release is an official one (false: a fan translation or other unofficial release). null if unrecorded. */
+            official: boolean | null;
             /** @description Must not be used as a discriminant. */
             platform: string;
             /** @description Every platform on this release. Empty array, never null. */

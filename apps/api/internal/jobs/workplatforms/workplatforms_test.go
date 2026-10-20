@@ -248,7 +248,7 @@ func TestDlsitePlatformSkipsEngineCleared(t *testing.T) {
 	}
 	_, rev, err := e.CreateProposal(context.Background(), editing.CreateProposalInput{
 		EntityType: editspec.TypeRelease, EntityID: ruled,
-		Patch: map[string]any{editspec.FieldReleasePlatform: nil},
+		Patch: map[string]any{editspec.FieldReleasePlatforms: []any{}},
 		Actor: actor,
 	})
 	require.NoError(t, err)
@@ -256,6 +256,7 @@ func TestDlsitePlatformSkipsEngineCleared(t *testing.T) {
 	var stamped model.CatalogRelease
 	require.NoError(t, testDB.Unscoped().First(&stamped, ruled).Error)
 	require.Equal(t, provenance.SourceCurated, provenance.FirstSource(stamped.FieldProvenance, "platform"))
+	require.Equal(t, provenance.SourceCurated, provenance.FirstSource(stamped.FieldProvenance, "platforms"))
 
 	st, err := Run(context.Background(), Opts{DSN: testDSN, DlsiteDSN: dlTestDSN, Source: "dlsite", Apply: true})
 	require.NoError(t, err)

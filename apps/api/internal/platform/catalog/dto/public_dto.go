@@ -398,6 +398,14 @@ type PublicRelease struct {
 	Engine    *PublicEngineRef   `json:"engine,omitempty"`
 	Refs      []PublicCatalogRef `json:"refs"`
 	Labels    []PublicWorkLabel  `json:"labels"`
+	PublicReleaseAttributes
+}
+
+type PublicReleaseAttributes struct {
+	Languages []string `json:"languages,omitempty"`
+	Freeware  *bool    `json:"freeware,omitempty"`
+	Official  *bool    `json:"official,omitempty"`
+	MinAge    *int16   `json:"min_age,omitempty"`
 }
 
 type PublicEngineRef struct {
@@ -622,6 +630,7 @@ type PublicReleaseFeedItem struct {
 	Labels    []PublicWorkLabel  `json:"labels"`
 	IsFirst   bool               `json:"is_first"`
 	Work      PublicWorkListItem `json:"work"`
+	PublicReleaseAttributes
 }
 
 type PublicReleaseFeedData struct {

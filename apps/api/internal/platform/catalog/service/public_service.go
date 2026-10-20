@@ -549,17 +549,26 @@ func releaseDate(r model.CatalogRelease) *string {
 	return &d
 }
 
-func publicPlatformsFromExtra(extra datatypes.JSON) []string {
-	if len(extra) == 0 {
-		return nil
-	}
+// A release whose platform head was written without the list still lists that
+// platform: 4,791 releases carried a head and no list on 2026-10-20.
+func publicReleaseAttributes(extra datatypes.JSON, head *string) ([]string, dto.PublicReleaseAttributes) {
 	var e struct {
 		Platforms []string `json:"platforms"`
+		Languages []string `json:"languages"`
+		Freeware  *bool    `json:"freeware"`
+		Official  *bool    `json:"official"`
+		MinAge    *int16   `json:"minage"`
 	}
-	if err := json.Unmarshal(extra, &e); err != nil {
-		return nil
+	if len(extra) > 0 {
+		_ = json.Unmarshal(extra, &e)
 	}
-	return e.Platforms
+	platforms := e.Platforms
+	if len(platforms) == 0 && head != nil && *head != "" {
+		platforms = []string{*head}
+	}
+	return platforms, dto.PublicReleaseAttributes{
+		Languages: e.Languages, Freeware: e.Freeware, Official: e.Official, MinAge: e.MinAge,
+	}
 }
 
 func (s *PublicService) workCredits(ctx context.Context, workID int64) ([]dto.PublicCreditGroup, error) {

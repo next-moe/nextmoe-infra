@@ -225,9 +225,9 @@ func worksListWhere(f WorksListFilter) ([]string, []any) {
 		args = append(args, f.EngineID)
 	}
 	if f.Platform != "" {
-		where = append(where, `(EXISTS (SELECT 1 FROM catalog_release r WHERE r.work_id = w.id AND r.deleted_at IS NULL AND r.platform = ?)
+		where = append(where, `(EXISTS (SELECT 1 FROM catalog_release r WHERE r.work_id = w.id AND r.deleted_at IS NULL AND `+releaseOnPlatformSQL("r")+`)
 			OR EXISTS (SELECT 1 FROM catalog_work_platform wp WHERE wp.work_id = w.id AND wp.platform = ?))`)
-		args = append(args, f.Platform, f.Platform)
+		args = append(args, f.Platform, f.Platform, f.Platform)
 	}
 	if f.ReleasedAfter > 0 || f.ReleasedBefore > 0 {
 		earliest := `(SELECT min(r.released_y::int*10000 + coalesce(r.released_m,0)::int*100 + coalesce(r.released_d,0)::int)

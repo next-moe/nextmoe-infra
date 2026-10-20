@@ -195,10 +195,24 @@ func releaseFromFeed(it dto.PublicReleaseFeedItem) repr.Release {
 		s := repr.ID(it.Work.ID)
 		workID = &s
 	}
-	return repr.Release{
+	rel := repr.Release{
 		Object: "release", ID: repr.ID(it.ID), WorkID: workID, ReleaseKind: kind, Date: it.Date,
 		Title: optString(it.Title), Lang: it.Lang, Platform: it.Platform, Platforms: plats,
 		Engine: engineRefFrom(it.Engine), Refs: refsFrom(it.Refs),
+	}
+	withReleaseAttributes(&rel, it.PublicReleaseAttributes)
+	return rel
+}
+
+func withReleaseAttributes(rel *repr.Release, a dto.PublicReleaseAttributes) {
+	rel.Languages = a.Languages
+	if rel.Languages == nil {
+		rel.Languages = []string{}
+	}
+	rel.Freeware, rel.Official = a.Freeware, a.Official
+	if a.MinAge != nil {
+		n := int(*a.MinAge)
+		rel.MinAge = &n
 	}
 }
 
@@ -220,11 +234,13 @@ func releasesFrom(in []dto.PublicRelease) []repr.Release {
 		if plats == nil {
 			plats = []string{}
 		}
-		out = append(out, repr.Release{
+		rel := repr.Release{
 			Object: "release", ID: repr.ID(r.ID), ReleaseKind: kind, Date: r.Date,
 			Title: optString(r.Title), Lang: r.Lang, Platform: r.Platform, Platforms: plats,
 			Engine: engineRefFrom(r.Engine), Refs: refsFrom(r.Refs),
-		})
+		}
+		withReleaseAttributes(&rel, r.PublicReleaseAttributes)
+		out = append(out, rel)
 	}
 	return out
 }

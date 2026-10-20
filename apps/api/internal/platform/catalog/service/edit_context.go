@@ -242,13 +242,22 @@ var contextRowSources = map[string]contextRowSource{
 	},
 	editspec.FieldTagIntros:    introRows("catalog_tag_intro", "tag_id", false),
 	editspec.FieldSeriesIntros: introRows("catalog_series_intro", "series_id", false),
+	editspec.FieldReleaseLabels: {
+		from: "catalog_release_label rl", owner: "rl.release_id", sourceID: "rl.source_id",
+		human:    humanLaneOf("rl.source_id"),
+		identity: editspec.ReleaseLabelIdentitySQL("rl"),
+		value:    `json_build_object('label_id', rl.label_id, 'kind', rl.kind)`,
+		order:    "rl.source_id NULLS FIRST, rl.label_id, rl.kind",
+	},
 }
 
 // snapshotOnlyListFields are the list fields deliberately absent from
 // contextRowSources: each is stored as one value on the entity's own row, so
 // there is no per-source row to list and the snapshot is the whole story.
 var snapshotOnlyListFields = map[string]string{
-	editspec.FieldEngineAliases: "catalog_engine.aliases is one array column on the engine row",
+	editspec.FieldEngineAliases:    "catalog_engine.aliases is one array column on the engine row",
+	editspec.FieldReleasePlatforms: "catalog_release.extra.platforms is one array on the release row",
+	editspec.FieldReleaseLanguages: "catalog_release.extra.languages is one array on the release row",
 }
 
 func HasContextRows(fieldKey string) bool {

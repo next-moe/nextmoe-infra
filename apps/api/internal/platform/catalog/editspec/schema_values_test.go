@@ -23,6 +23,8 @@ func fullRegistry(t *testing.T) *editing.Registry {
 var enumsWithoutVocabulary = map[string]string{
 	editspec.FieldReleaseHidden:   "bool-as-enum: hidden/visible, no token set worth publishing",
 	editspec.FieldWorkDisplayNSFW: "bool-as-enum: forced-NSFW override flag, no token set worth publishing",
+	editspec.FieldReleaseFreeware: "nullable bool-as-enum: freeware flag, null when no source recorded it",
+	editspec.FieldReleaseOfficial: "nullable bool-as-enum: official-release flag, null when no source recorded it",
 }
 
 func TestSchemaValueSpecCompleteness(t *testing.T) {

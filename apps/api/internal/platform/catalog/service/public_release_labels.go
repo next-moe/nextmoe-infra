@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"api/internal/platform/catalog/dto"
+	"api/internal/platform/catalog/editspec"
 )
 
 func (s *PublicService) releaseLabelsFor(ctx context.Context, releaseIDs []int64) (map[int64][]dto.PublicWorkLabel, error) {
@@ -25,7 +26,7 @@ func (s *PublicService) releaseLabelsFor(ctx context.Context, releaseIDs []int64
 			rl.kind AS kind, l.lang, l.logo_hash
 		FROM catalog_release_label rl
 		JOIN catalog_label l ON l.id = rl.label_id AND l.deleted_at IS NULL
-		WHERE rl.release_id IN ?
+		WHERE rl.release_id IN ? AND `+editspec.NotSuppressedReleaseLabelSQL("rl")+`
 		ORDER BY rl.release_id, rl.kind, l.display_name`, releaseIDs).Scan(&rows).Error; err != nil {
 		return nil, err
 	}

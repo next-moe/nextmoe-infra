@@ -16,11 +16,13 @@ func (s *PublicService) publicWorkReleases(rows []ReleaseDetail) []dto.PublicRel
 	out := make([]dto.PublicRelease, 0, len(rows))
 	for _, rd := range rows {
 		r := rd.Release
+		platforms, attrs := publicReleaseAttributes(r.Extra, r.Platform)
 		pr := dto.PublicRelease{
 			ID: r.ID, Kind: releaseKindKey(r.Kind), Date: releaseDate(r),
 			Title: derefStrPub(r.Title), Lang: derefStrPub(r.Lang),
-			Platform: derefStrPub(r.Platform), Platforms: publicPlatformsFromExtra(r.Extra),
-			Refs: make([]dto.PublicCatalogRef, 0, len(rd.Anchors)),
+			Platform: derefStrPub(r.Platform), Platforms: platforms,
+			PublicReleaseAttributes: attrs,
+			Refs:                    make([]dto.PublicCatalogRef, 0, len(rd.Anchors)),
 		}
 		if r.EngineID != nil {
 			pr.Engine = &dto.PublicEngineRef{ID: *r.EngineID, Name: rd.EngineName}

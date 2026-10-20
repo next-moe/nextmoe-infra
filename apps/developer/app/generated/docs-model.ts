@@ -5778,6 +5778,13 @@ export const docsModel: DocsModel = {
                                     ]
                                   },
                                   {
+                                    "name": "freeware",
+                                    "required": true,
+                                    "nullable": true,
+                                    "doc": "Whether the release is free of charge. null if unrecorded.",
+                                    "type": "boolean"
+                                  },
+                                  {
                                     "name": "id",
                                     "required": true,
                                     "doc": "Catalog release id.",
@@ -5791,6 +5798,23 @@ export const docsModel: DocsModel = {
                                     "type": "string"
                                   },
                                   {
+                                    "name": "languages",
+                                    "required": true,
+                                    "doc": "Every language this release is available in, BCP-47. Empty array, never null. lang is the release's original language, a separate fact.",
+                                    "type": "array",
+                                    "itemsOf": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  {
+                                    "name": "min_age",
+                                    "required": true,
+                                    "nullable": true,
+                                    "doc": "Minimum age rating in years. null if unrecorded.",
+                                    "format": "int64",
+                                    "type": "integer"
+                                  },
+                                  {
                                     "name": "object",
                                     "required": true,
                                     "doc": "Type discriminant. Always release.",
@@ -5798,6 +5822,13 @@ export const docsModel: DocsModel = {
                                       "release"
                                     ],
                                     "type": "string"
+                                  },
+                                  {
+                                    "name": "official",
+                                    "required": true,
+                                    "nullable": true,
+                                    "doc": "Whether the release is an official one (false: a fan translation or other unofficial release). null if unrecorded.",
+                                    "type": "boolean"
                                   },
                                   {
                                     "name": "platform",
@@ -14984,6 +15015,13 @@ export const docsModel: DocsModel = {
                                         ]
                                       },
                                       {
+                                        "name": "freeware",
+                                        "required": true,
+                                        "nullable": true,
+                                        "doc": "Whether the release is free of charge. null if unrecorded.",
+                                        "type": "boolean"
+                                      },
+                                      {
                                         "name": "id",
                                         "required": true,
                                         "doc": "Catalog release id.",
@@ -14997,6 +15035,23 @@ export const docsModel: DocsModel = {
                                         "type": "string"
                                       },
                                       {
+                                        "name": "languages",
+                                        "required": true,
+                                        "doc": "Every language this release is available in, BCP-47. Empty array, never null. lang is the release's original language, a separate fact.",
+                                        "type": "array",
+                                        "itemsOf": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      {
+                                        "name": "min_age",
+                                        "required": true,
+                                        "nullable": true,
+                                        "doc": "Minimum age rating in years. null if unrecorded.",
+                                        "format": "int64",
+                                        "type": "integer"
+                                      },
+                                      {
                                         "name": "object",
                                         "required": true,
                                         "doc": "Type discriminant. Always release.",
@@ -15004,6 +15059,13 @@ export const docsModel: DocsModel = {
                                           "release"
                                         ],
                                         "type": "string"
+                                      },
+                                      {
+                                        "name": "official",
+                                        "required": true,
+                                        "nullable": true,
+                                        "doc": "Whether the release is an official one (false: a fan translation or other unofficial release). null if unrecorded.",
+                                        "type": "boolean"
                                       },
                                       {
                                         "name": "platform",
@@ -28575,6 +28637,13 @@ export const docsModel: DocsModel = {
                                         ]
                                       },
                                       {
+                                        "name": "freeware",
+                                        "required": true,
+                                        "nullable": true,
+                                        "doc": "Whether the release is free of charge. null if unrecorded.",
+                                        "type": "boolean"
+                                      },
+                                      {
                                         "name": "id",
                                         "required": true,
                                         "doc": "Catalog release id.",
@@ -28588,6 +28657,23 @@ export const docsModel: DocsModel = {
                                         "type": "string"
                                       },
                                       {
+                                        "name": "languages",
+                                        "required": true,
+                                        "doc": "Every language this release is available in, BCP-47. Empty array, never null. lang is the release's original language, a separate fact.",
+                                        "type": "array",
+                                        "itemsOf": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      {
+                                        "name": "min_age",
+                                        "required": true,
+                                        "nullable": true,
+                                        "doc": "Minimum age rating in years. null if unrecorded.",
+                                        "format": "int64",
+                                        "type": "integer"
+                                      },
+                                      {
                                         "name": "object",
                                         "required": true,
                                         "doc": "Type discriminant. Always release.",
@@ -28595,6 +28681,13 @@ export const docsModel: DocsModel = {
                                           "release"
                                         ],
                                         "type": "string"
+                                      },
+                                      {
+                                        "name": "official",
+                                        "required": true,
+                                        "nullable": true,
+                                        "doc": "Whether the release is an official one (false: a fan translation or other unofficial release). null if unrecorded.",
+                                        "type": "boolean"
                                       },
                                       {
                                         "name": "platform",
@@ -43188,6 +43281,13 @@ export const docsModel: DocsModel = {
                               ]
                             },
                             {
+                              "name": "freeware",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "Whether the release is free of charge. null if unrecorded.",
+                              "type": "boolean"
+                            },
+                            {
                               "name": "id",
                               "required": true,
                               "doc": "Catalog release id.",
@@ -43201,6 +43301,23 @@ export const docsModel: DocsModel = {
                               "type": "string"
                             },
                             {
+                              "name": "languages",
+                              "required": true,
+                              "doc": "Every language this release is available in, BCP-47. Empty array, never null. lang is the release's original language, a separate fact.",
+                              "type": "array",
+                              "itemsOf": {
+                                "type": "string"
+                              }
+                            },
+                            {
+                              "name": "min_age",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "Minimum age rating in years. null if unrecorded.",
+                              "format": "int64",
+                              "type": "integer"
+                            },
+                            {
                               "name": "object",
                               "required": true,
                               "doc": "Type discriminant. Always release.",
@@ -43208,6 +43325,13 @@ export const docsModel: DocsModel = {
                                 "release"
                               ],
                               "type": "string"
+                            },
+                            {
+                              "name": "official",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "Whether the release is an official one (false: a fan translation or other unofficial release). null if unrecorded.",
+                              "type": "boolean"
                             },
                             {
                               "name": "platform",
@@ -44628,6 +44752,13 @@ export const docsModel: DocsModel = {
                         ]
                       },
                       {
+                        "name": "freeware",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "Whether the release is free of charge. null if unrecorded.",
+                        "type": "boolean"
+                      },
+                      {
                         "name": "id",
                         "required": true,
                         "doc": "Catalog release id.",
@@ -44641,6 +44772,23 @@ export const docsModel: DocsModel = {
                         "type": "string"
                       },
                       {
+                        "name": "languages",
+                        "required": true,
+                        "doc": "Every language this release is available in, BCP-47. Empty array, never null. lang is the release's original language, a separate fact.",
+                        "type": "array",
+                        "itemsOf": {
+                          "type": "string"
+                        }
+                      },
+                      {
+                        "name": "min_age",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "Minimum age rating in years. null if unrecorded.",
+                        "format": "int64",
+                        "type": "integer"
+                      },
+                      {
                         "name": "object",
                         "required": true,
                         "doc": "Type discriminant. Always release.",
@@ -44648,6 +44796,13 @@ export const docsModel: DocsModel = {
                           "release"
                         ],
                         "type": "string"
+                      },
+                      {
+                        "name": "official",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "Whether the release is an official one (false: a fan translation or other unofficial release). null if unrecorded.",
+                        "type": "boolean"
                       },
                       {
                         "name": "platform",
@@ -69101,6 +69256,13 @@ export const docsModel: DocsModel = {
                                     ]
                                   },
                                   {
+                                    "name": "freeware",
+                                    "required": true,
+                                    "nullable": true,
+                                    "doc": "Whether the release is free of charge. null if unrecorded.",
+                                    "type": "boolean"
+                                  },
+                                  {
                                     "name": "id",
                                     "required": true,
                                     "doc": "Catalog release id.",
@@ -69114,6 +69276,23 @@ export const docsModel: DocsModel = {
                                     "type": "string"
                                   },
                                   {
+                                    "name": "languages",
+                                    "required": true,
+                                    "doc": "Every language this release is available in, BCP-47. Empty array, never null. lang is the release's original language, a separate fact.",
+                                    "type": "array",
+                                    "itemsOf": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  {
+                                    "name": "min_age",
+                                    "required": true,
+                                    "nullable": true,
+                                    "doc": "Minimum age rating in years. null if unrecorded.",
+                                    "format": "int64",
+                                    "type": "integer"
+                                  },
+                                  {
                                     "name": "object",
                                     "required": true,
                                     "doc": "Type discriminant. Always release.",
@@ -69121,6 +69300,13 @@ export const docsModel: DocsModel = {
                                       "release"
                                     ],
                                     "type": "string"
+                                  },
+                                  {
+                                    "name": "official",
+                                    "required": true,
+                                    "nullable": true,
+                                    "doc": "Whether the release is an official one (false: a fan translation or other unofficial release). null if unrecorded.",
+                                    "type": "boolean"
                                   },
                                   {
                                     "name": "platform",
@@ -72475,6 +72661,13 @@ export const docsModel: DocsModel = {
                               ]
                             },
                             {
+                              "name": "freeware",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "Whether the release is free of charge. null if unrecorded.",
+                              "type": "boolean"
+                            },
+                            {
                               "name": "id",
                               "required": true,
                               "doc": "Catalog release id.",
@@ -72488,6 +72681,23 @@ export const docsModel: DocsModel = {
                               "type": "string"
                             },
                             {
+                              "name": "languages",
+                              "required": true,
+                              "doc": "Every language this release is available in, BCP-47. Empty array, never null. lang is the release's original language, a separate fact.",
+                              "type": "array",
+                              "itemsOf": {
+                                "type": "string"
+                              }
+                            },
+                            {
+                              "name": "min_age",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "Minimum age rating in years. null if unrecorded.",
+                              "format": "int64",
+                              "type": "integer"
+                            },
+                            {
                               "name": "object",
                               "required": true,
                               "doc": "Type discriminant. Always release.",
@@ -72495,6 +72705,13 @@ export const docsModel: DocsModel = {
                                 "release"
                               ],
                               "type": "string"
+                            },
+                            {
+                              "name": "official",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "Whether the release is an official one (false: a fan translation or other unofficial release). null if unrecorded.",
+                              "type": "boolean"
                             },
                             {
                               "name": "platform",
@@ -87577,6 +87794,13 @@ export const docsModel: DocsModel = {
                                         ]
                                       },
                                       {
+                                        "name": "freeware",
+                                        "required": true,
+                                        "nullable": true,
+                                        "doc": "Whether the release is free of charge. null if unrecorded.",
+                                        "type": "boolean"
+                                      },
+                                      {
                                         "name": "id",
                                         "required": true,
                                         "doc": "Catalog release id.",
@@ -87590,6 +87814,23 @@ export const docsModel: DocsModel = {
                                         "type": "string"
                                       },
                                       {
+                                        "name": "languages",
+                                        "required": true,
+                                        "doc": "Every language this release is available in, BCP-47. Empty array, never null. lang is the release's original language, a separate fact.",
+                                        "type": "array",
+                                        "itemsOf": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      {
+                                        "name": "min_age",
+                                        "required": true,
+                                        "nullable": true,
+                                        "doc": "Minimum age rating in years. null if unrecorded.",
+                                        "format": "int64",
+                                        "type": "integer"
+                                      },
+                                      {
                                         "name": "object",
                                         "required": true,
                                         "doc": "Type discriminant. Always release.",
@@ -87597,6 +87838,13 @@ export const docsModel: DocsModel = {
                                           "release"
                                         ],
                                         "type": "string"
+                                      },
+                                      {
+                                        "name": "official",
+                                        "required": true,
+                                        "nullable": true,
+                                        "doc": "Whether the release is an official one (false: a fan translation or other unofficial release). null if unrecorded.",
+                                        "type": "boolean"
                                       },
                                       {
                                         "name": "platform",
@@ -89542,6 +89790,13 @@ export const docsModel: DocsModel = {
                               ]
                             },
                             {
+                              "name": "freeware",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "Whether the release is free of charge. null if unrecorded.",
+                              "type": "boolean"
+                            },
+                            {
                               "name": "id",
                               "required": true,
                               "doc": "Catalog release id.",
@@ -89555,6 +89810,23 @@ export const docsModel: DocsModel = {
                               "type": "string"
                             },
                             {
+                              "name": "languages",
+                              "required": true,
+                              "doc": "Every language this release is available in, BCP-47. Empty array, never null. lang is the release's original language, a separate fact.",
+                              "type": "array",
+                              "itemsOf": {
+                                "type": "string"
+                              }
+                            },
+                            {
+                              "name": "min_age",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "Minimum age rating in years. null if unrecorded.",
+                              "format": "int64",
+                              "type": "integer"
+                            },
+                            {
                               "name": "object",
                               "required": true,
                               "doc": "Type discriminant. Always release.",
@@ -89562,6 +89834,13 @@ export const docsModel: DocsModel = {
                                 "release"
                               ],
                               "type": "string"
+                            },
+                            {
+                              "name": "official",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "Whether the release is an official one (false: a fan translation or other unofficial release). null if unrecorded.",
+                              "type": "boolean"
                             },
                             {
                               "name": "platform",
@@ -120253,6 +120532,13 @@ export const docsModel: DocsModel = {
                                     ]
                                   },
                                   {
+                                    "name": "freeware",
+                                    "required": true,
+                                    "nullable": true,
+                                    "doc": "Whether the release is free of charge. null if unrecorded.",
+                                    "type": "boolean"
+                                  },
+                                  {
                                     "name": "id",
                                     "required": true,
                                     "doc": "Catalog release id.",
@@ -120266,6 +120552,23 @@ export const docsModel: DocsModel = {
                                     "type": "string"
                                   },
                                   {
+                                    "name": "languages",
+                                    "required": true,
+                                    "doc": "Every language this release is available in, BCP-47. Empty array, never null. lang is the release's original language, a separate fact.",
+                                    "type": "array",
+                                    "itemsOf": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  {
+                                    "name": "min_age",
+                                    "required": true,
+                                    "nullable": true,
+                                    "doc": "Minimum age rating in years. null if unrecorded.",
+                                    "format": "int64",
+                                    "type": "integer"
+                                  },
+                                  {
                                     "name": "object",
                                     "required": true,
                                     "doc": "Type discriminant. Always release.",
@@ -120273,6 +120576,13 @@ export const docsModel: DocsModel = {
                                       "release"
                                     ],
                                     "type": "string"
+                                  },
+                                  {
+                                    "name": "official",
+                                    "required": true,
+                                    "nullable": true,
+                                    "doc": "Whether the release is an official one (false: a fan translation or other unofficial release). null if unrecorded.",
+                                    "type": "boolean"
                                   },
                                   {
                                     "name": "platform",

@@ -2317,3 +2317,27 @@ Read points that now filter: work labels (detail, `read_labels`, label works lis
 **Titles.** Title rows carry no source, so the field keeps whole-set replacement plus its existing `.suppressed` companion. A removal sticks only when the same proposal also suppresses the row: of 224 titles people removed since titles became an engine field (111 works), 22 are back today. The editor must therefore send the removal and the suppression together; enforcing it in the engine needs a patch-normalization hook and is left open.
 
 **Migration.** `go run ./cmd/migrate catalog` on `kun_catalog` (the prod `migrate-catalog` job): `field_provenance jsonb NOT NULL DEFAULT '{}'` on `catalog_work_cover` (134,103 rows) and `catalog_work_screenshot` (325,308 rows); a constant default, so no rewrite. Merge-archive restore now coalesces a missing `field_provenance`, so a row archived before the column existed still restores. Label merges now carry the loser's suppression rows to the survivor.
+
+## Wave E2d — release attributes and release-level companies are editable (2026-10-20)
+
+New `catalog.release` field keys (releases stay `ownedEntityPolicy`):
+
+| field | shape | stored in | protection |
+|---|---|---|---|
+| `platforms` | platform tokens, unique, ≤64 (vocab `platform`) | `extra.platforms`, and `platform` = its first element (NULL when empty) | stamps `platform` + `platforms` |
+| `languages` | release-language tokens, unique, ≤64 (vocab `release_lang`) | `extra.languages` | stamp `languages` |
+| `freeware`, `official` | bool or null | `extra.freeware`, `extra.official` | stamps |
+| `minage` | 0–18 or null | `extra.minage` | stamp |
+| `labels` | `{label_id, kind (vocab attribution_role)}`, ≤50 | `catalog_release_label`, curated lane (`source_id = 12`) | `labels.suppressed` (`label:<label_id>:<kind>`, segment 2 follows company merges) |
+
+An empty list or a null removes the key from `extra`; `vndb_id` and the other keys are untouched. `catalog.release.platform` is now **deprecated** (read-only, kept for the field-key contract): it is the head of `platforms`, and it is left out of the snapshot because it changes whenever `platforms` does.
+
+**Which copy is the truth.**
+- **Release platforms:** `extra.platforms` is the list; `catalog_release.platform` is its head, as every importer already wrote it (VNDB: `plats[0]`; the DLsite lane of workplatforms: `codes[0]`; 0 mismatches in prod). 4,791 releases carry a head with no list; the snapshot and every read face read them as `[head]`. The works-list and release-feed `platform=` filters now match any listed platform (`releaseOnPlatformSQL`); before, the 47,073 multi-platform releases matched only their first.
+- **Work platforms** (`catalog_work_platform`) are a separate, work-level fact (Bangumi and EGS state platforms for a work, not per release), not a copy of the release lists; the works-list filter keeps OR-ing the two. Editing them is a work field (wave E2c).
+- **Language:** `catalog_release.lang` is the release's original language and `extra.languages` every language it is available in — two facts, not two copies (0 releases in prod where `lang` is missing from a recorded list). Not cross-validated.
+- **Engine:** `catalog_release.engine_id` is the release's engine and `catalog_work_engine` the work-level set; the work's displayed engines are their union (`WorkEnginesSQL`). Granularities differ, so neither is derived from the other.
+
+**Importers.** The VNDB release lane only inserts releases it has not seen (keyed `(work_id, rid)`), so edited extras are never rewritten; `TestVNDBReleaseRerunKeepsHumanExtras` pins it. The DLsite lane of workplatforms fills only an empty head with no human stamp on `platform`, which an emptied `platforms` edit carries. `import-release-labels` inserts with `ON CONFLICT DO NOTHING` and never deletes, so a suppressed upstream edge stays stored and stays hidden: release labels are filtered on read (`NotSuppressedReleaseLabelSQL` in `releaseLabelsFor`, shared by work detail and the release feed). Re-adding an upstream attribution through `labels` is a 422 pointing at `labels.suppressed`; suppressing a curated attribution, or adding one that is still suppressed, is a 422 too.
+
+**v2.** `Release` gains `languages` (array, never null), `freeware`, `official` and `min_age` (null when unrecorded), and `platforms` now includes the head of a release that has no list. **Spec is 2.57.0**, additive. No migration.

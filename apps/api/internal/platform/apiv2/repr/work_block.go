@@ -70,6 +70,10 @@ type Release struct {
 	Lang        string     `json:"lang" maxLength:"32" format:"bcp47" doc:"BCP-47. Empty if unrecorded."`
 	Platform    string     `json:"platform" maxLength:"64" doc:"Must not be used as a discriminant."`
 	Platforms   []string   `json:"platforms" doc:"Every platform on this release. Empty array, never null."`
+	Languages   []string   `json:"languages" doc:"Every language this release is available in, BCP-47. Empty array, never null. lang is the release's original language, a separate fact."`
+	Freeware    *bool      `json:"freeware" doc:"Whether the release is free of charge. null if unrecorded."`
+	Official    *bool      `json:"official" doc:"Whether the release is an official one (false: a fan translation or other unofficial release). null if unrecorded."`
+	MinAge      *int       `json:"min_age" minimum:"0" maximum:"18" doc:"Minimum age rating in years. null if unrecorded."`
 	Engine      *EngineRef `json:"engine,omitempty" doc:"The engine this release runs on. Absent when unrecorded."`
 	Refs        []Ref      `json:"refs" doc:"Exact upstream anchors. Empty array, never null."`
 }

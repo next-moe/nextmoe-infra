@@ -70,7 +70,7 @@ func RegisterRelease(reg *editing.Registry, db *gorm.DB) error {
 }
 
 func releaseFieldSpecs() []editing.FieldSpec {
-	return []editing.FieldSpec{
+	return append([]editing.FieldSpec{
 		{
 			Key: FieldReleaseKind, Kind: editing.KindEnum, DiffHint: editing.DiffHintInline,
 			Value:      &editing.ValueSpec{Vocabulary: "release_kind", Coded: true},
@@ -103,9 +103,11 @@ func releaseFieldSpecs() []editing.FieldSpec {
 			Provenance: releaseProvenance("lang"),
 		},
 		{
+			// Superseded by catalog.release.platforms, whose head it now is.
 			Key: FieldReleasePlatform, Kind: editing.KindEnum, DiffHint: editing.DiffHintInline,
-			Value:    &editing.ValueSpec{Vocabulary: "platform", Nullable: true},
-			Validate: validateReleasePlatform,
+			Deprecated: true,
+			Value:      &editing.ValueSpec{Vocabulary: "platform", Nullable: true},
+			Validate:   validateReleasePlatform,
 			Apply: applyReleaseColumn("platform", func(v any) (any, error) {
 				if v == nil {
 					return nil, nil
@@ -138,7 +140,7 @@ func releaseFieldSpecs() []editing.FieldSpec {
 			Apply:      applyHidden,
 			Provenance: releaseProvenance("deleted_at"),
 		},
-	}
+	}, releaseExtraFieldSpecs()...)
 }
 
 func releaseProvenance(column string) []editing.ProvenanceTarget {
@@ -357,7 +359,7 @@ func loadReleaseSnapshot(db *gorm.DB) func(context.Context, int64) (map[string]a
 	return func(ctx context.Context, entityID int64) (map[string]any, error) {
 		var r catmodel.CatalogRelease
 		err := db.WithContext(ctx).Unscoped().
-			Select("id", "kind", "title", "lang", "platform", "engine_id", "released_y", "released_m", "released_d", "deleted_at").
+			Select("id", "kind", "title", "lang", "platform", "engine_id", "released_y", "released_m", "released_d", "extra", "deleted_at").
 			First(&r, entityID).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, editing.ErrEntityNotFound
@@ -365,14 +367,33 @@ func loadReleaseSnapshot(db *gorm.DB) func(context.Context, int64) (map[string]a
 		if err != nil {
 			return nil, err
 		}
+		extras := decodeReleaseExtras(r.Extra)
+		labels, err := loadReleaseLabels(ctx, db, entityID)
+		if err != nil {
+			return nil, err
+		}
+		hidden, err := editing.LoadSuppressedValue(ctx, db, TypeRelease, entityID, FieldReleaseLabels)
+		if err != nil {
+			return nil, err
+		}
+		var minAge any
+		if extras.MinAge != nil {
+			minAge = int64(*extras.MinAge)
+		}
 		return map[string]any{
-			FieldReleaseKind:     int64(r.Kind),
-			FieldReleaseTitle:    nullableString(r.Title),
-			FieldReleaseLang:     nullableString(r.Lang),
-			FieldReleasePlatform: nullableString(r.Platform),
-			FieldReleaseEngine:   nullableInt64(r.EngineID),
-			FieldReleaseReleased: releasedSnapshot(r.ReleasedY, r.ReleasedM, r.ReleasedD),
-			FieldReleaseHidden:   r.DeletedAt.Valid,
+			FieldReleaseKind:        int64(r.Kind),
+			FieldReleaseTitle:       nullableString(r.Title),
+			FieldReleaseLang:        nullableString(r.Lang),
+			FieldReleaseEngine:      nullableInt64(r.EngineID),
+			FieldReleaseReleased:    releasedSnapshot(r.ReleasedY, r.ReleasedM, r.ReleasedD),
+			FieldReleaseHidden:      r.DeletedAt.Valid,
+			FieldReleasePlatforms:   releasePlatformsValue(extras, r.Platform),
+			FieldReleaseLanguages:   stringsToAny(extras.Languages),
+			FieldReleaseFreeware:    nullableBool(extras.Freeware),
+			FieldReleaseOfficial:    nullableBool(extras.Official),
+			FieldReleaseMinAge:      minAge,
+			FieldReleaseLabels:      labels,
+			FieldReleaseLabelsSuppr: hidden,
 		}, nil
 	}
 }
