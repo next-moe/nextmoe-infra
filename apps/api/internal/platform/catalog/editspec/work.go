@@ -92,6 +92,10 @@ func RegisterWork(reg *editing.Registry, db *gorm.DB) error {
 				FieldWorkCreditsSuppr:        loadSuppressedCredits,
 				FieldWorkRoster:              loadRoster,
 				FieldWorkRosterSuppr:         loadSuppressedRoster,
+				FieldWorkRelations:           loadWorkRelations,
+				FieldWorkPlatforms:           loadWorkPlatforms,
+				FieldWorkSeriesMembers:       loadWorkSeriesMembers,
+				FieldWorkTagSpoilers:         loadWorkTagSpoilers,
 			} {
 				value, err := load(ctx, db, entityID)
 				if err != nil {
@@ -166,6 +170,9 @@ func workFieldSpecs() []editing.FieldSpec {
 				{Key: "credit_name_id", Type: "ref"},
 				{Key: "character_id", Type: "ref", Nullable: true},
 				{Key: "note", Type: "text", Nullable: true},
+				{Key: "spoiler", Type: "int", Vocabulary: "spoiler", Nullable: true},
+				{Key: "release_id", Type: "ref", Nullable: true},
+				{Key: "label_id", Type: "ref", Nullable: true},
 			},
 		}},
 		Validate: validateCredits,
@@ -319,6 +326,10 @@ func workFieldSpecs() []editing.FieldSpec {
 		editing.SuppressedFieldSpec(TypeWork, credits),
 		roster,
 		editing.SuppressedFieldSpec(TypeWork, roster),
+		workRelationsFieldSpec(),
+		workPlatformsFieldSpec(),
+		workSeriesMembersFieldSpec(),
+		workTagSpoilersFieldSpec(),
 	}
 }
 

@@ -63,7 +63,7 @@ func detectCharacters(db *gorm.DB) ([]mergeGroup, detectStats, error) {
 	var rows []charRow
 	if err := db.Raw(`
 		WITH char_work AS (
-		  SELECT character_id, work_id FROM catalog_work_character
+		  SELECT character_id, work_id FROM catalog_work_character WHERE matched_by <> 'curated'
 		  UNION
 		  SELECT character_id, work_id FROM catalog_credit WHERE character_id IS NOT NULL),
 		folded AS (
