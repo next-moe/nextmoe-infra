@@ -105,6 +105,7 @@ provideWorkspaceNav({
   jumpToField
 })
 
+const relatedCounts = useWorkRelatedCounts(workspace)
 const counts = computed<Record<string, number | null>>(() => {
   const lengthOf = (key: string) => {
     const value = editor.draft.value[key]
@@ -112,7 +113,8 @@ const counts = computed<Record<string, number | null>>(() => {
   }
   return {
     titles: lengthOf(`catalog.${props.family}.titles`),
-    roster: lengthOf(`catalog.${props.family}.roster`)
+    roster: lengthOf(`catalog.${props.family}.roster`),
+    ...relatedCounts.value
   }
 })
 

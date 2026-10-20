@@ -141,7 +141,10 @@ const ROW_IDENTITY: Record<string, (row: Record<string, unknown>) => string> = {
     `${str(row.role_id)}:${str(row.credit_name_id)}:${str(row.character_id) || '0'}`,
   roster: (row) => str(row.character_id),
   traits: (row) => str(row.trait_id),
-  relations: (row) => `${str(row.relation)}:${str(row.label_id)}`,
+  relations: (row) =>
+    row.work_id != null
+      ? `${str(row.relation)}:${str(row.work_id)}:${row.reverse ? 1 : 0}`
+      : `${str(row.relation)}:${str(row.label_id)}`,
   aliases: (row) => `${str(row.kind)}:${str(row.lang)}:${str(row.name)}`
 }
 
