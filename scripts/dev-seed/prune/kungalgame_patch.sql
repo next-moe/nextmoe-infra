@@ -124,6 +124,20 @@ TRUNCATE user_message;
 TRUNCATE admin_log;
 TRUNCATE trust_disposition_applied, trust_subject_watermark, dlsite_store_link;
 
+-- 2026-10-21 (moyu 052): merge records snapshot resources, including
+-- moderation-hidden ones with their links, and comments as JSON.
+DO $$
+DECLARE
+    present text;
+BEGIN
+    SELECT string_agg(format('public.%I', t), ', ') INTO present
+    FROM unnest(ARRAY['patch_merge_record_row', 'patch_merge_record']) AS t
+    WHERE to_regclass('public.' || t) IS NOT NULL;
+    IF present IS NOT NULL THEN
+        EXECUTE 'TRUNCATE TABLE ' || present;
+    END IF;
+END $$;
+
 -- refresh-dev-db clears user.ip, but local logins write it again.
 UPDATE "user" SET ip = '' WHERE ip <> '';
 
