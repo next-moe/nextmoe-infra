@@ -13,11 +13,15 @@ import { newIdempotencyKey, problemMessage } from '~/utils/review/problem'
 
 type Decision = 'approve' | 'reject' | 'execute' | 'restore'
 
-const props = defineProps<{
-  request: CatalogDeletionRequest
-  mode: 'review' | 'mine'
-  now: number
-}>()
+const props = withDefaults(
+  defineProps<{
+    request: CatalogDeletionRequest
+    mode: 'review' | 'mine'
+    now: number
+    narrow?: boolean
+  }>(),
+  { narrow: false }
+)
 const emit = defineEmits<{ changed: [request: CatalogDeletionRequest] }>()
 
 const api = useEditorApi()
@@ -29,6 +33,14 @@ const noteText = ref('')
 
 const timing = computed(() =>
   mergeTiming(props.request.state, props.request.execute_after, props.now)
+)
+const closed = computed(() =>
+  ['rejected', 'withdrawn', 'restored'].includes(props.request.state)
+)
+const reviewActions = computed(
+  () =>
+    props.mode === 'review' &&
+    ['open', 'approved', 'executed'].includes(props.request.state)
 )
 const name = computed(
   () => props.request.target_name || `作品 #${props.request.target_id}`
@@ -141,7 +153,11 @@ const askNote = (kind: 'reject' | 'restore') => {
       </p>
     </header>
 
-    <DeleteTimeline :request="props.request" :now="props.now" />
+    <DeleteTimeline
+      :request="props.request"
+      :now="props.now"
+      :orientation="props.narrow ? 'vertical' : 'horizontal'"
+    />
 
     <section class="space-y-2">
       <h3 class="text-default-700 text-sm font-medium">
@@ -170,7 +186,7 @@ const askNote = (kind: 'reject' | 'restore') => {
       />
     </section>
 
-    <section class="space-y-2">
+    <section v-if="!closed" class="space-y-2">
       <h3 class="text-default-700 text-sm font-medium">
         {{
           props.request.state === 'executed'
@@ -182,7 +198,7 @@ const askNote = (kind: 'reject' | 'restore') => {
     </section>
 
     <footer
-      v-if="props.mode === 'review'"
+      v-if="reviewActions"
       class="border-default-200 flex flex-wrap justify-end gap-2 border-t pt-4"
     >
       <template v-if="props.request.state === 'open'">
@@ -225,7 +241,7 @@ const askNote = (kind: 'reject' | 'restore') => {
       </KunButton>
     </footer>
     <footer
-      v-else-if="props.request.state === 'open'"
+      v-else-if="props.mode === 'mine' && props.request.state === 'open'"
       class="border-default-200 flex justify-end border-t pt-4"
     >
       <KunButton

@@ -88,7 +88,7 @@ const userDataTotal = computed(() =>
         <KunSkeleton variant="text" width="50%" />
       </template>
       <template v-else-if="props.preview">
-        <ul class="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
+        <ul class="space-y-1 text-sm">
           <li
             v-for="item in userData"
             :key="item.label"

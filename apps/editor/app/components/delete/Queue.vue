@@ -228,6 +228,7 @@ fetchPage(null)
         :request="selected"
         :mode="props.mode"
         :now="now"
+        narrow
         @changed="onChanged"
       />
     </KunDrawer>
