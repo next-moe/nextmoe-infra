@@ -11,7 +11,7 @@
 # custom KUN_* env names at BUILD time, so it is passed as build args and
 # baked. (Nitro can still override any public key at runtime via the canonical
 # NUXT_PUBLIC_* names — see docker/README.md.)
-ARG NODE_VERSION=24
+ARG NODE_VERSION=24.22.1
 
 FROM node:${NODE_VERSION}-trixie-slim AS base
 RUN corepack enable

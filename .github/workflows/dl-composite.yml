@@ -30,7 +30,7 @@ jobs:
           package_json_file: workers/dl-composite/package.json
       - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 24.22.1
       - run: pnpm install --frozen-lockfile
       - run: pnpm run typecheck
       - run: pnpm test
