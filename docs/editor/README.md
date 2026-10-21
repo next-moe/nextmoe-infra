@@ -60,6 +60,7 @@ NextMoe 资料库的唯一编辑入口。所有第一方站点的用户在这里
 | `catalog.open_proposals_max_reviewer` | 0 | 审核者（不限） |
 | `catalog.merge_requests_per_day` / `_editor` / `_reviewer` | 10 / 50 / 500 | 合并请求 |
 | `catalog.merge_cooling_off_hours` | 48 | 合并批准后的冷静期 |
+| `catalog.merge_undo_window_days` | 30 | 合并执行后可撤销的天数（撤销保留原编号） |
 | `catalog.discussion_posts_per_hour` | 30 | 每人每小时可发的讨论留言 |
 | `catalog.deletion_requests_per_day` / `_editor` / `_reviewer` | 5 / 20 / 200 | 删除请求 |
 | `catalog.deletion_cooling_off_hours` | 48 | 删除批准后的冷静期 |

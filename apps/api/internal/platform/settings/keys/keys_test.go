@@ -71,6 +71,7 @@ var goldenNames = []string{
 	"apiv2.auth_fail_block_seconds",
 	"catalog.totals_cache_ttl_seconds",
 	"catalog.merge_cooling_off_hours",
+	"catalog.merge_undo_window_days",
 	"catalog.write_quota_window_hours",
 	"catalog.claim_writes_per_day",
 	"catalog.claim_writes_per_day_trusted",
