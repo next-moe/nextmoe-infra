@@ -182,6 +182,22 @@ TRUNCATE catalog_user_folder, catalog_user_folder_item, catalog_user_folder_impo
 -- among them, where the user-id guard below cannot see them.
 TRUNCATE catalog_merge_archive;
 
+-- Editor phase 2 (2026-10-21): merge movements snapshot user rows as JSON like
+-- the archive, and discussions and deletion / split requests name their users
+-- in columns (proposed_by, author, watcher) the user-id guard's pattern misses.
+-- to_regclass lets the prune run on snapshots taken before these existed.
+DO $$
+DECLARE
+    present text;
+BEGIN
+    SELECT string_agg(format('public.%I', t), ', ') INTO present
+    FROM unnest(ARRAY['catalog_merge_movement', 'edit_discussion_post', 'edit_discussion_watcher', 'catalog_deletion_request', 'catalog_split_request']) AS t
+    WHERE to_regclass('public.' || t) IS NOT NULL;
+    IF present IS NOT NULL THEN
+        EXECUTE 'TRUNCATE TABLE ' || present;
+    END IF;
+END $$;
+
 -- The source-mirror families (subject*, tags_vn, chars_traits, extlinks,
 -- releases_extlinks, person_character, ...) live in dedicated schemas:
 -- src_bangumi, src_llm, src_vndb, src_wiki (~3.2 GB total). Verified: not a
