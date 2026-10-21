@@ -96,10 +96,11 @@ func (b mergeChoicesBody) choices() (catsvc.MergeChoices, error) {
 }
 
 type listMergeRequestsInput struct {
-	State  string `query:"state" enum:"open,approved,executed,rejected,withdrawn,undone" doc:"Narrow to one state."`
-	Object string `query:"object" enum:"work,company,character,person,credit_name" doc:"Narrow to one family."`
-	Cursor string `query:"cursor" pattern:"^cur_[0-9]+$" maxLength:"32" doc:"Opaque keyset cursor from next_cursor."`
-	Limit  int    `query:"limit" minimum:"1" maximum:"100" doc:"Page size, 1-100. Default 20."`
+	State      string `query:"state" enum:"open,approved,executed,rejected,withdrawn,undone" doc:"Narrow to one state."`
+	Object     string `query:"object" enum:"work,company,character,person,credit_name" doc:"Narrow to one family."`
+	OriginSite string `query:"origin_site" enum:"kungal,moyu,letmoe,nextmoe,editor" doc:"Narrow to requests filed from one first-party property."`
+	Cursor     string `query:"cursor" pattern:"^cur_[0-9]+$" maxLength:"32" doc:"Opaque keyset cursor from next_cursor."`
+	Limit      int    `query:"limit" minimum:"1" maximum:"100" doc:"Page size, 1-100. Default 20."`
 }
 
 type mergeRequestIDInput struct {
@@ -404,6 +405,7 @@ func mergeRequestFilter(in *listMergeRequestsInput) catsvc.MergeRequestFilter {
 	if et, ok := mergeEntityTypeOf(in.Object); ok {
 		f.EntityType = &et
 	}
+	f.OriginSite = in.OriginSite
 	return f
 }
 
@@ -477,7 +479,7 @@ func mergeRequestFrom(p *model.CatalogMergeProposal) repr.MergeRequestRecord {
 		Object: "merge_request", ID: repr.ID(p.ID), State: mergeRequestState(p.Status),
 		TargetObject: mergeObjectOf(p.EntityType),
 		SourceID:     repr.ID(p.SourceEntityID), TargetID: repr.ID(p.TargetEntityID),
-		Note: p.Note, ProposedByUID: repr.ID(p.ProposedBy), Origin: p.Origin,
+		Note: p.Note, ProposedByUID: repr.ID(p.ProposedBy), Origin: p.Origin, OriginSite: p.OriginSite,
 		ProposedAt: rfc3339(p.ProposedAt),
 	}
 	if p.ExecuteAfter != nil {

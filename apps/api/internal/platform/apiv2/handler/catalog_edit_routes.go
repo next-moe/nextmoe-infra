@@ -33,7 +33,8 @@ type listRevisionsInput struct {
 	Object       string `query:"object" maxLength:"32" doc:"Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait."`
 	EntityID     string `query:"entity_id" maxLength:"20" doc:"Catalog id of one entity. Requires object=."`
 	Site         string `query:"site" maxLength:"64" doc:"Tenant key. Open vocabulary; unknown values match nothing."`
-	ActorUID     string `query:"actor_uid" maxLength:"20" doc:"The claiming site's own user id of the actor. Not a catalog id."`
+	ActorUID     string `query:"actor_uid" maxLength:"20" doc:"Central account id of the actor. Not a catalog id."`
+	OriginSite   string `query:"origin_site" maxLength:"16" doc:"Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps revisions made from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE."`
 }
 
 type listPublicProposalsInput struct {
@@ -48,7 +49,8 @@ type listPublicProposalsInput struct {
 	Object       string `query:"object" maxLength:"32" doc:"Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait."`
 	EntityID     string `query:"entity_id" maxLength:"20" doc:"Catalog id of one entity. Requires object=."`
 	Site         string `query:"site" maxLength:"64" doc:"Tenant key. Open vocabulary; unknown values match nothing."`
-	ProposerUID  string `query:"proposer_uid" maxLength:"20" doc:"The claiming site's own user id of the proposer. Not a catalog id."`
+	ProposerUID  string `query:"proposer_uid" maxLength:"20" doc:"Central account id of the proposer. Not a catalog id."`
+	OriginSite   string `query:"origin_site" maxLength:"16" doc:"Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps proposals filed from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE."`
 	State        string `query:"state" maxLength:"16" doc:"Closed: open, merged, declined, withdrawn."`
 }
 
@@ -121,7 +123,7 @@ func listCatalogRevisions(cat *Catalog) func(context.Context, *listRevisionsInpu
 			return nil, withIdent(ctx, perr)
 		}
 		page, lerr := cat.ListRevisions(ctx, q, revisionFilter{
-			Object: in.Object, EntityID: in.EntityID, Site: in.Site, ActorUID: in.ActorUID,
+			Object: in.Object, EntityID: in.EntityID, Site: in.Site, OriginSite: in.OriginSite, ActorUID: in.ActorUID,
 		})
 		if lerr != nil {
 			return nil, catalogErr(ctx, lerr)
@@ -166,7 +168,7 @@ func listCatalogProposals(cat *Catalog) func(context.Context, *listPublicProposa
 			return nil, withIdent(ctx, perr)
 		}
 		page, lerr := cat.ListPublicProposals(ctx, q, proposalFilter{
-			Object: in.Object, EntityID: in.EntityID, Site: in.Site,
+			Object: in.Object, EntityID: in.EntityID, Site: in.Site, OriginSite: in.OriginSite,
 			ProposerUID: in.ProposerUID, State: in.State,
 		})
 		if lerr != nil {

@@ -10,12 +10,13 @@ type Revision struct {
 	Seq           int          `json:"seq" minimum:"1" doc:"Position in this entity's revision chain, 1-based and contiguous."`
 	Action        string       `json:"action" enum:"created,merged,direct,reverted" doc:"How this revision came about."`
 	ChangedFields []string     `json:"changed_fields" doc:"Field keys this revision touched. Empty array, never null."`
-	ActorUID      string       `json:"actor_uid" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"The claiming site's own user id of whoever caused this revision. Not a catalog id."`
-	AmenderUID    *string      `json:"amender_uid" pattern:"^[0-9]+$" maxLength:"20" doc:"The claiming site's own user id of the last amender. null when nobody amended."`
+	ActorUID      string       `json:"actor_uid" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Central account id of whoever caused this revision, the same id on every first-party site. Not a catalog id."`
+	AmenderUID    *string      `json:"amender_uid" pattern:"^[0-9]+$" maxLength:"20" doc:"Central account id of the last amender. null when nobody amended."`
 	Actor         *UserRef     `json:"actor" doc:"Account behind actor_uid. null only when the account directory could not be read."`
 	Amender       *UserRef     `json:"amender" doc:"Account behind amender_uid. null when nobody amended, or when the account directory could not be read."`
 	ProposalID    *string      `json:"proposal_id" pattern:"^[0-9]+$" maxLength:"20" doc:"Proposal this revision merged. null for direct edits and imports."`
 	Site          string       `json:"site" maxLength:"64" doc:"Tenant this revision was recorded under. Open vocabulary; must not be used as a discriminant."`
+	OriginSite    *string      `json:"origin_site" enum:"kungal,moyu,letmoe,nextmoe,editor" doc:"Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template."`
 	CreatedAt     string       `json:"created_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
 	Diff          *[]FieldDiff `json:"diff,omitempty" doc:"Present when include=diff. Field-level change set against diff_base, or against the preceding revision when diff_base is absent. Empty array if nothing differs."`
 	DiffBase      *string      `json:"diff_base,omitempty" pattern:"^[0-9]+$" maxLength:"20" doc:"Present when include=diff. Revision the diff was taken against. null when this is the first revision of the entity."`
@@ -38,7 +39,7 @@ type Amendment struct {
 	Object     string   `json:"object" enum:"amendment" doc:"Type discriminant. Always amendment."`
 	ID         string   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Amendment id."`
 	Seq        int      `json:"seq" minimum:"1" doc:"Position in this proposal's amendment chain."`
-	AmenderUID string   `json:"amender_uid" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"The claiming site's own user id of the amender. Not a catalog id."`
+	AmenderUID string   `json:"amender_uid" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Central account id of the amender. Not a catalog id."`
 	Amender    *UserRef `json:"amender" doc:"Account behind amender_uid. null only when the account directory could not be read."`
 	Note       string   `json:"note" maxLength:"2000" doc:"Amender's own summary. Must not be used as a discriminant."`
 	CreatedAt  string   `json:"created_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"sort"
 
+	"api/internal/platform/editorigin"
+
 	"gorm.io/gorm"
 )
 
@@ -151,6 +153,7 @@ func (e *Engine) commitRevert(ctx context.Context, spec *EntityTypeSpec, entityI
 		EntityFamily: spec.Family, EntityType: spec.Type, EntityID: entityID,
 		BaseRevisionSeq: baseSeq, Patch: rawPatch,
 		ProposerUID: actor.UserID, Note: note, Site: actor.Site, Status: StatusOpen,
+		OriginSite: editorigin.Ptr(ctx),
 	}
 	var rev *Revision
 	err = e.db.WithContext(ctx).Transaction(func(etx *gorm.DB) error {

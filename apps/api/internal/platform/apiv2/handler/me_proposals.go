@@ -143,7 +143,7 @@ func proposalFrom(p *editing.Proposal) repr.ProposalRecord {
 		Object: "proposal", ID: repr.ID(p.ID), State: st,
 		TargetObject: schemaObject(p.EntityType),
 		EntityType:   p.EntityType, EntityID: repr.ID(p.EntityID), Note: p.Note,
-		ProposerUID: repr.ID(p.ProposerUID), Site: p.Site,
+		ProposerUID: repr.ID(p.ProposerUID), Site: p.Site, OriginSite: p.OriginSite,
 		BaseRevisionSeq: p.BaseRevisionSeq,
 		DecidedByUID:    idPtr(p.DecidedByUID),
 		CreatedAt:       rfc3339(p.CreatedAt), UpdatedAt: rfc3339(p.UpdatedAt),

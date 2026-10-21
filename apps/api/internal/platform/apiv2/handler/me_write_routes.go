@@ -196,6 +196,7 @@ type listProposalsInput struct {
 	EntityType   string `query:"entity_type" maxLength:"64" doc:"Editing-engine type, e.g. catalog.work. The same spelling POST /v2/me/proposals takes in its body. Names the same filter as object=; sending both with different families is 400."`
 	EntityID     string `query:"entity_id" maxLength:"20" doc:"Catalog id of one entity. Accepted alone on this lane, which is already fenced to the bearer's own proposals; pair it with object= or entity_type= when ids collide across families."`
 	Site         string `query:"site" maxLength:"64" doc:"Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing."`
+	OriginSite   string `query:"origin_site" maxLength:"16" doc:"Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps proposals filed from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE."`
 	Field        string `query:"field" maxLength:"128" doc:"A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it."`
 	HasConflict  string `query:"has_conflict" maxLength:"8" doc:"true keeps open proposals that a revision recorded after their base_revision_seq overlaps on a field; false keeps the rest. Only true or false."`
 	UpdatedSince string `query:"updated_since" maxLength:"32" doc:"RFC 3339 UTC ending in Z. Keeps proposals whose updated_at is later."`
@@ -206,6 +207,7 @@ type listModerationProposalsInput struct {
 	EntityType   string `query:"entity_type" maxLength:"64" doc:"Editing-engine type, e.g. catalog.work. Names the same filter as object=; sending both with different families is 400."`
 	EntityID     string `query:"entity_id" maxLength:"20" doc:"Catalog id of one entity. Requires object= or entity_type=. Narrows the queue to that entity, which its owner may read without a review permission."`
 	Site         string `query:"site" maxLength:"64" doc:"Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing."`
+	OriginSite   string `query:"origin_site" maxLength:"16" doc:"Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps proposals filed from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE."`
 	Field        string `query:"field" maxLength:"128" doc:"A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it."`
 	HasConflict  string `query:"has_conflict" maxLength:"8" doc:"true keeps open proposals that a revision recorded after their base_revision_seq overlaps on a field; false keeps the rest. Only true or false."`
 	UpdatedSince string `query:"updated_since" maxLength:"32" doc:"RFC 3339 UTC ending in Z. Keeps proposals whose updated_at is later."`
@@ -399,7 +401,7 @@ func listMyProposals(cat *Catalog) func(context.Context, *listProposalsInput) (*
 		page, lerr := cat.ListMyProposals(ctx, q, proposalFilter{
 			Object: in.Object, EntityType: in.EntityType, EntityID: in.EntityID, State: in.State,
 		}, proposalQueueParams{
-			Site: in.Site, Field: in.Field, HasConflict: in.HasConflict, UpdatedSince: in.UpdatedSince,
+			Site: in.Site, OriginSite: in.OriginSite, Field: in.Field, HasConflict: in.HasConflict, UpdatedSince: in.UpdatedSince,
 		})
 		if lerr != nil {
 			return nil, catalogErr(ctx, lerr)
@@ -549,7 +551,7 @@ func listModerationProposals(cat *Catalog) func(context.Context, *listModeration
 			return nil, err
 		}
 		page, lerr := cat.ListModerationProposals(ctx, q, in.Object, in.EntityType, in.EntityID, proposalQueueParams{
-			Site: in.Site, Field: in.Field, HasConflict: in.HasConflict, UpdatedSince: in.UpdatedSince,
+			Site: in.Site, OriginSite: in.OriginSite, Field: in.Field, HasConflict: in.HasConflict, UpdatedSince: in.UpdatedSince,
 		})
 		if lerr != nil {
 			return nil, catalogErr(ctx, lerr)

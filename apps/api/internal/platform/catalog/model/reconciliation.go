@@ -66,6 +66,7 @@ type CatalogMergeProposal struct {
 	AmendedAt       *time.Time     `json:"amended_at"`
 	UndoneBy        *int64         `json:"undone_by"`
 	UndoneAt        *time.Time     `json:"undone_at"`
+	OriginSite      *string        `gorm:"column:origin_site;size:16" json:"origin_site"`
 }
 
 func (CatalogMergeProposal) TableName() string { return "catalog_merge_proposal" }

@@ -23,6 +23,7 @@ type MergeRequestFilter struct {
 	Status     *int16
 	EntityType *int16
 	Origin     string
+	OriginSite string
 	BeforeID   int64
 	Limit      int
 }
@@ -89,6 +90,9 @@ func (s *MergeService) ListMergeRequests(ctx context.Context, f MergeRequestFilt
 	}
 	if f.Origin != "" {
 		q = q.Where("origin = ?", f.Origin)
+	}
+	if f.OriginSite != "" {
+		q = q.Where("origin_site = ?", f.OriginSite)
 	}
 	if f.BeforeID > 0 {
 		q = q.Where("id < ?", f.BeforeID)

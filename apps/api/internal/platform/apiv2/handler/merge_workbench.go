@@ -184,7 +184,7 @@ func previewFrom(object string, p *catsvc.MergePreview) repr.MergePreview {
 		Object: "merge_preview", TargetObject: object,
 		Source: side(p.Source), Target: side(p.Target),
 		Blockers: issues(p.Blockers), Warnings: issues(p.Warnings), Facts: nonNil(p.Facts),
-		Fields:   []repr.MergePreviewField{}, Anchors: []repr.MergePreviewAnchor{},
+		Fields: []repr.MergePreviewField{}, Anchors: []repr.MergePreviewAnchor{},
 		Releases: []repr.MergePreviewRelease{}, Titles: []repr.MergePreviewTitle{},
 		Intros: []repr.MergePreviewIntro{}, Counts: []repr.MergePreviewCount{},
 	}

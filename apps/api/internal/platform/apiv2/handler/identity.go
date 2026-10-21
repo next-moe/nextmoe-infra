@@ -9,6 +9,7 @@ import (
 	"api/internal/platform/apiv2/problem"
 	"api/internal/platform/apiv2/protocol"
 	"api/internal/platform/devapi"
+	"api/internal/platform/editorigin"
 	"api/pkg/routepath"
 
 	"github.com/gofiber/fiber/v3"
@@ -33,6 +34,7 @@ const (
 type SiteBinding struct {
 	Site       string
 	ThirdParty bool
+	Origin     string
 }
 
 func appClientFrom(ctx context.Context) string {
@@ -263,6 +265,10 @@ func userAuth(lookup func(context.Context, string) (UserIdentity, error), lookup
 					}
 					if bind.ThirdParty {
 						c.Locals("catalog_third_party", true)
+					}
+					origin := editorigin.Resolve(bind.Origin, bind.Site == centralEditorSite, c.Get(editorigin.Header))
+					if origin != "" {
+						c.Locals("edit_origin", origin)
 					}
 				}
 			}

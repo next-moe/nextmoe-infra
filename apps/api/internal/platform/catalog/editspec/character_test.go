@@ -53,7 +53,6 @@ func TestCharacterScalarEdits(t *testing.T) {
 		editspec.FieldCharacterDisplayName: "本名",
 		editspec.FieldCharacterLatin:       "Honmyou",
 		editspec.FieldCharacterLang:        "ja",
-		editspec.FieldCharacterDescription: "人手で書いた説明",
 		editspec.FieldCharacterGender:      float64(model.GenderFemale),
 		editspec.FieldCharacterHeightCm:    float64(158),
 		editspec.FieldCharacterBloodType:   float64(model.BloodTypeAB),
@@ -65,14 +64,14 @@ func TestCharacterScalarEdits(t *testing.T) {
 
 	got := reloadCharacter(t, ch.ID)
 	if got.DisplayName != "本名" || got.Latin == nil || *got.Latin != "Honmyou" ||
-		got.Description != "人手で書いた説明" || got.Gender == nil || *got.Gender != model.GenderFemale ||
+		got.Gender == nil || *got.Gender != model.GenderFemale ||
 		got.HeightCm == nil || *got.HeightCm != 158 || got.Cup == nil || *got.Cup != "C" {
 		t.Fatalf("character after merge: %+v", got)
 	}
 
 	prov := reloadCharacter(t, ch.ID).FieldProvenance
 	for _, column := range []string{
-		"display_name", "latin", "lang", "description", "gender", "height_cm", "blood_type", "cup",
+		"display_name", "latin", "lang", "gender", "height_cm", "blood_type", "cup",
 	} {
 		if head := provenance.FirstSource(prov, column); head != provenance.SourceCurated {
 			t.Errorf("catalog_character.field_provenance[%s] head = %q, want %q",
@@ -89,6 +88,24 @@ func TestCharacterScalarEdits(t *testing.T) {
 	cleared := reloadCharacter(t, ch.ID)
 	if cleared.HeightCm != nil || cleared.Latin != nil {
 		t.Fatalf("clearing a nullable scalar left %+v", cleared)
+	}
+}
+
+func TestCharacterDescriptionIsDeprecated(t *testing.T) {
+	e := newCharacterEngine(t)
+	ch := createCharacter(t, "説明なし")
+	_, _, err := e.CreateProposal(testCtx, editing.CreateProposalInput{
+		EntityType: editspec.TypeCharacter, EntityID: ch.ID,
+		Patch: map[string]any{editspec.FieldCharacterDescription: "書いても表示されない"},
+		Actor: realActor(100, "admin"),
+	})
+	var valErr *editing.ValidationError
+	if !errors.As(err, &valErr) || valErr.Key != editspec.FieldCharacterDescription {
+		t.Fatalf("a write of the dead description column must be refused, got %v", err)
+	}
+	spec, _ := e.Registry().Type(editspec.TypeCharacter)
+	if f, ok := spec.Field(editspec.FieldCharacterDescription); !ok || !f.Deprecated {
+		t.Fatal("the schema face must mark description deprecated")
 	}
 }
 

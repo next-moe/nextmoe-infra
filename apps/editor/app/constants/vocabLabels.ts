@@ -1,6 +1,7 @@
 import {
   ATTRIBUTION_ROLE_LABELS,
   MEDIUM_LABELS,
+  ORIGIN_SITE_LABELS,
   RELEASE_STATUS_LABELS,
   ROSTER_ROLE_LABELS,
   TITLE_KIND_LABELS
@@ -122,6 +123,7 @@ export const VOCAB_LABELS: Record<string, Record<string, string>> = {
     former_name: '曾用名'
   },
   link_visibility: { public: '公开', hidden: '隐藏' },
+  origin_site: ORIGIN_SITE_LABELS,
   tag_kind: { content: '内容', meta: '元信息' },
   tier: { core: '核心', longtail: '长尾', hidden: '隐藏' },
   content_limit: { sfw: '全年龄', nsfw: 'NSFW' },

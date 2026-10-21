@@ -336,6 +336,37 @@ export const vocabularies = [
     ]
   },
   {
+    "name": "origin_site",
+    "closed": true,
+    "values": [
+      {
+        "value": "kungal",
+        "display_name": "KUN Galgame forum",
+        "description": "kungal.com."
+      },
+      {
+        "value": "moyu",
+        "display_name": "KUN Galgame patch",
+        "description": "moyu.moe."
+      },
+      {
+        "value": "letmoe",
+        "display_name": "LetMoe",
+        "description": "letmoe.com."
+      },
+      {
+        "value": "nextmoe",
+        "display_name": "NextMoe",
+        "description": "nextmoe.com, which has no user pages."
+      },
+      {
+        "value": "editor",
+        "display_name": "NextMoe editor",
+        "description": "editor.nextmoe.com opened directly rather than from a site's link."
+      }
+    ]
+  },
+  {
     "name": "link_visibility",
     "closed": true,
     "values": [

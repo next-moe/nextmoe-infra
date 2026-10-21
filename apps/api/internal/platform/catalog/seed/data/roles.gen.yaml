@@ -75,6 +75,7 @@ roles:
       name_en: Animation Direction
       name_cn: 作画监督
       name_ja: 作監 アニメーション演出
+      deprecated: true
     - id: 112
       key: animation-producer
       category: producer
@@ -135,6 +136,7 @@ roles:
       name_en: Assistance
       name_cn: 协力
       name_ja: 協力
+      deprecated: true
     - id: 122
       key: assistant-animation-direction
       category: assistant
@@ -315,6 +317,7 @@ roles:
       name_en: Cinematography
       name_cn: 摄影
       name_ja: ""
+      deprecated: true
     - id: 152
       key: co-director
       category: director
@@ -363,6 +366,7 @@ roles:
       name_en: Composer
       name_cn: 音乐
       name_ja: ""
+      deprecated: true
     - id: 160
       key: concept-art
       category: design
@@ -399,6 +403,7 @@ roles:
       name_en: Creative Director
       name_cn: 创意总监
       name_ja: ""
+      deprecated: true
     - id: 166
       key: creative-producer
       category: producer
@@ -417,6 +422,7 @@ roles:
       name_en: Creator
       name_cn: 原作
       name_ja: ""
+      deprecated: true
     - id: 169
       key: design-manager
       category: design
@@ -453,6 +459,7 @@ roles:
       name_en: Director/Direction
       name_cn: 导演
       name_ja: 監督 シリーズ監督
+      deprecated: true
     - id: 175
       key: director-of-photography
       category: director
@@ -471,6 +478,7 @@ roles:
       name_en: Editor
       name_cn: 剪辑
       name_ja: ""
+      deprecated: true
     - id: 178
       key: episode-direction
       category: direction
@@ -735,6 +743,7 @@ roles:
       name_en: Original Creator/Original Work
       name_cn: 原作
       name_ja: ""
+      deprecated: true
     - id: 222
       key: original-plan
       category: storyboard
@@ -753,6 +762,7 @@ roles:
       name_en: Planning
       name_cn: 企画
       name_ja: プランニング  企画開発
+      deprecated: true
     - id: 225
       key: planning-cooperation
       category: producer
@@ -915,6 +925,7 @@ roles:
       name_en: Script/Screenplay
       name_cn: 脚本
       name_ja: シナリオ
+      deprecated: true
     - id: 252
       key: sd原画
       category: art
@@ -927,6 +938,7 @@ roles:
       name_en: Series Composition
       name_cn: 系列构成
       name_ja: シナリオディレクター  構成  シリーズ構成  脚本構成
+      deprecated: true
     - id: 254
       key: series-composition-cooperation
       category: storyboard
@@ -1053,6 +1065,7 @@ roles:
       name_en: Supervision/Supervisor
       name_cn: 监修
       name_ja: シリーズ監修 スーパーバイザー
+      deprecated: true
     - id: 275
       key: supporting-actor
       category: ""
@@ -1272,6 +1285,7 @@ roles:
       name_en: ""
       name_cn: 插图
       name_ja: イラスト
+      deprecated: true
     - id: 311
       key: 构图作画监督
       category: director
@@ -1332,6 +1346,7 @@ roles:
       name_en: ""
       name_cn: 脚本
       name_ja: シナリオ
+      deprecated: true
     - id: 321
       key: 色彩检查
       category: colorist
