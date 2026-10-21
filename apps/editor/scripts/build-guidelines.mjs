@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 
 import matter from 'gray-matter'
 import MarkdownIt from 'markdown-it'
+import cjkFriendly from 'markdown-it-cjk-friendly'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const CONTENT_DIR = join(ROOT, 'content/guidelines')
@@ -32,7 +33,11 @@ const slugify = (text) =>
     .replace(/[^\w一-龥]+/g, '-')
     .replace(/^-+|-+$/g, '')
 
-const md = MarkdownIt({ html: false, linkify: false, typographer: false })
+const md = MarkdownIt({
+  html: false,
+  linkify: false,
+  typographer: false
+}).use(cjkFriendly)
 
 md.core.ruler.push('heading_ids', (state) => {
   const used = new Set()
@@ -130,14 +135,16 @@ const plainText = (tokens) => {
 const required = (data, field, slug) => {
   const value = data[field]
   if (typeof value === 'string' && value.trim()) return value.trim()
-  throw new Error(`content/guidelines/${slug}.md: missing frontmatter "${field}"`)
+  throw new Error(
+    `content/guidelines/${slug}.md: missing frontmatter "${field}"`
+  )
 }
 
 export const buildGuidelines = () => {
   const files = readdirSync(CONTENT_DIR)
     .filter((name) => name.endsWith('.md'))
     .sort()
-  const docs = files.map((name) => {
+  const entries = files.map((name) => {
     const slug = name.slice(0, -'.md'.length)
     const { content, data } = matter(
       readFileSync(join(CONTENT_DIR, name), 'utf8')
@@ -148,32 +155,34 @@ export const buildGuidelines = () => {
     }
     const tokens = md.parse(content, {})
     return {
-      slug,
-      title: required(data, 'title', slug),
-      description: required(data, 'description', slug),
-      category,
-      order: Number(data.order ?? 0),
-      icon: required(data, 'icon', slug),
-      related: Array.isArray(data.related) ? data.related.map(String) : [],
-      headings: headingsOf(tokens),
+      doc: {
+        slug,
+        title: required(data, 'title', slug),
+        description: required(data, 'description', slug),
+        category,
+        order: Number(data.order ?? 0),
+        icon: required(data, 'icon', slug),
+        related: Array.isArray(data.related) ? data.related.map(String) : [],
+        headings: headingsOf(tokens),
+        text: plainText(tokens),
+        html: md.renderer.render(tokens, md.options, {})
+      },
       links: linksOf(tokens),
       anchors: tokens
         .filter((token) => token.type === 'heading_open')
-        .map((token) => token.attrGet('id')),
-      text: plainText(tokens),
-      html: md.renderer.render(tokens, md.options, {})
+        .map((token) => token.attrGet('id'))
     }
   })
 
-  const bySlug = new Map(docs.map((doc) => [doc.slug, doc]))
+  const bySlug = new Map(entries.map((entry) => [entry.doc.slug, entry]))
   const problems = []
-  for (const doc of docs) {
+  for (const { doc, links } of entries) {
     for (const slug of doc.related) {
       if (!bySlug.has(slug)) {
         problems.push(`${doc.slug}.md: related "${slug}" does not exist`)
       }
     }
-    for (const href of doc.links) {
+    for (const href of links) {
       if (!href?.startsWith('/guidelines')) continue
       const [path, anchor] = href.split('#')
       const target = path.replace(/^\/guidelines\/?/, '')
@@ -187,17 +196,19 @@ export const buildGuidelines = () => {
     }
   }
   if (problems.length) {
-    throw new Error(`guidelines have broken references:\n${problems.join('\n')}`)
+    throw new Error(
+      `guidelines have broken references:\n${problems.join('\n')}`
+    )
   }
 
-  return docs
+  return entries
+    .map((entry) => entry.doc)
     .sort(
       (a, b) =>
         CATEGORIES.indexOf(a.category) - CATEGORIES.indexOf(b.category) ||
         a.order - b.order ||
         a.slug.localeCompare(b.slug)
     )
-    .map(({ links: _links, anchors: _anchors, ...doc }) => doc)
 }
 
 export const renderGuidelinesModule = () =>
@@ -214,7 +225,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   if (process.argv.includes('--check')) {
     const current = readFileSync(OUTPUT, 'utf8')
     if (current !== next) {
-      console.error('app/generated/guidelines.ts is stale — run pnpm guidelines')
+      console.error(
+        'app/generated/guidelines.ts is stale — run pnpm guidelines'
+      )
       process.exit(1)
     }
   } else {

@@ -15,15 +15,16 @@ related: [create-and-merge, upstream-data, proposals-and-review]
 
 身份链接有两种状态：
 
-| 状态 | 含义 | 从哪里来 |
-|---|---|---|
-| **身份链接** | 已确认的对应关系，是导入数据的依据 | 资料源导入时建立（VNDB、Bangumi、ErogameScape、HowLongToBeat 等） |
-| **待确认身份** | 有人提交了对应关系，尚未被确认 | 人工添加的 VNDB 作品页、Bangumi 条目页链接 |
+| 状态           | 含义                               | 从哪里来                                                          |
+| -------------- | ---------------------------------- | ----------------------------------------------------------------- |
+| **身份链接**   | 已确认的对应关系，是导入数据的依据 | 资料源导入时建立（VNDB、Bangumi、ErogameScape、HowLongToBeat 等） |
+| **待确认身份** | 有人提交了对应关系，尚未被确认     | 人工添加的 VNDB 作品页、Bangumi 条目页链接                        |
 
 > [!IMPORTANT]
 > **已确认的身份链接不能隐藏。** 隐藏它等于把这部作品和资料源断开，后续导入会出错，所以系统直接拒绝这类操作。
 >
 > 如果发现身份链接指向了**错误的条目**：
+>
 > - 指向的其实是另一部已经存在的作品 → 这两部很可能是重复条目，请发起 [合并请求](/guidelines/create-and-merge)；
 > - 单纯认错了条目 → 在修改说明或审核意见里说明情况，由审核者在匹配审核中更正。
 
@@ -40,16 +41,16 @@ related: [create-and-merge, upstream-data, proposals-and-review]
 
 系统会把常见网站的链接**整理成标准写法**后保存：
 
-| 网站 | 识别规则 | 保存后 |
-|---|---|---|
-| VNDB | `vndb.org/v数字` | `https://vndb.org/v数字`，记为**待确认身份** |
-| Bangumi | `bgm.tv`、`bangumi.tv`、`chii.in` 的 `/subject/数字` | `https://bgm.tv/subject/数字`，记为**待确认身份** |
-| X（Twitter） | `twitter.com/账号`、`x.com/账号` | `https://x.com/账号`，相关链接 |
-| Steam | `store.steampowered.com/app/数字` | 标准商店页地址，相关链接 |
-| DLsite | 网址中含作品编号（RJ/VJ/BJ 开头） | 标准作品页地址，相关链接 |
-| pixiv | 用户页 | `https://www.pixiv.net/users/数字`，相关链接 |
-| Ci-en | 创作者页 | 标准创作者页地址，相关链接 |
-| 其他网站 | — | 原样保存，相关链接 |
+| 网站         | 识别规则                                             | 保存后                                            |
+| ------------ | ---------------------------------------------------- | ------------------------------------------------- |
+| VNDB         | `vndb.org/v数字`                                     | `https://vndb.org/v数字`，记为**待确认身份**      |
+| Bangumi      | `bgm.tv`、`bangumi.tv`、`chii.in` 的 `/subject/数字` | `https://bgm.tv/subject/数字`，记为**待确认身份** |
+| X（Twitter） | `twitter.com/账号`、`x.com/账号`                     | `https://x.com/账号`，相关链接                    |
+| Steam        | `store.steampowered.com/app/数字`                    | 标准商店页地址，相关链接                          |
+| DLsite       | 网址中含作品编号（RJ/VJ/BJ 开头）                    | 标准作品页地址，相关链接                          |
+| pixiv        | 用户页                                               | `https://www.pixiv.net/users/数字`，相关链接      |
+| Ci-en        | 创作者页                                             | 标准创作者页地址，相关链接                        |
+| 其他网站     | —                                                    | 原样保存，相关链接                                |
 
 > [!WARNING]
 > **不要用网页存档链接代替原链接。** 粘贴 `web.archive.org` 的存档地址时，系统会取出其中的**原始网址**保存，存档前缀会被去掉。
@@ -78,7 +79,7 @@ related: [create-and-merge, upstream-data, proposals-and-review]
 
 ## 字段对照 {#field-reference}
 
-| 界面名称 | 字段 | 说明 |
-|---|---|---|
-| 人工添加的链接 | `catalog.work.links` | 网址列表 |
+| 界面名称           | 字段                            | 说明                         |
+| ------------------ | ------------------------------- | ---------------------------- |
+| 人工添加的链接     | `catalog.work.links`            | 网址列表                     |
 | 已隐藏的资料源链接 | `catalog.work.links.suppressed` | 已确认的身份链接不能放进这里 |

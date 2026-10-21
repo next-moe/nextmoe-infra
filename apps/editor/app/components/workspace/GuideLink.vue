@@ -16,7 +16,11 @@ const target = computed(
 </script>
 
 <template>
-  <KunTooltip v-if="target" text="在新标签页查看这一部分的编辑规范" position="bottom">
+  <KunTooltip
+    v-if="target"
+    text="在新标签页查看这一部分的编辑规范"
+    position="bottom"
+  >
     <KunButton
       :href="`/guidelines/${target}`"
       target="_blank"

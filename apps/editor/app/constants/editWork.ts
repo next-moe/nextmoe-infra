@@ -121,7 +121,7 @@ export const WORK_EDIT_CONFIG: EditEntityConfig = {
       label: '关联作品',
       group: 'relations',
       control: 'objectList',
-      help: '续作、外传、FD、重制等关系。关系从本作出发描述：「本作 是 对方 的续作」。打开「反向」表示关系由对方指向本作（对方是本作的续作）。对称关系（同系列、联动等）无需反向。',
+      help: '续作、外传、FD、重制等关系。关系按「本作 → 对方」来读：本作是对方的续作选「是…的续作」，对方是本作的续作选「有续作」。同系列、同世界观、联动不分方向。',
       members: {
         work_id: { label: '对方作品', ref: 'work' },
         relation: { label: '关系' },
@@ -133,7 +133,7 @@ export const WORK_EDIT_CONFIG: EditEntityConfig = {
       label: '外链',
       group: 'links',
       control: 'stringList',
-      help: '填写完整网址。已知资料站（VNDB、Bangumi 等）的作品页会被识别为身份链接。'
+      help: '填写完整网址。VNDB、Bangumi 的作品页会记为待确认的身份链接，其他网站（包括批评空间）记为相关链接。'
     },
     'catalog.work.covers': {
       label: '封面',
@@ -171,7 +171,7 @@ export const WORK_EDIT_CONFIG: EditEntityConfig = {
       label: '制作人员',
       group: 'credits',
       control: 'objectList',
-      help: '这里是人工添加的署名；资料源导入的署名列在下方，可以单独隐藏。',
+      help: '人工添加和资料源导入的署名列在同一张表里。资料源导入的不能直接修改，只能单独隐藏。',
       members: {
         role_id: { label: '职位', ref: 'role' },
         credit_name_id: { label: '署名', ref: 'credit_name' },

@@ -1,10 +1,5 @@
 export type GuidelineCategory =
-  | 'start'
-  | 'rules'
-  | 'work'
-  | 'people'
-  | 'vocab'
-  | 'appendix'
+  'start' | 'rules' | 'work' | 'people' | 'vocab' | 'appendix'
 
 export interface GuidelineHeading {
   id: string

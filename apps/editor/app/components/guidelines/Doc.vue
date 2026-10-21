@@ -84,10 +84,7 @@ useHead(() => ({ title: `${doc.value.title} · 编辑规范 · 未萌编辑台` 
         </ul>
       </section>
 
-      <nav
-        class="mt-10 grid gap-3 sm:grid-cols-2"
-        aria-label="上一篇与下一篇"
-      >
+      <nav class="mt-10 grid gap-3 sm:grid-cols-2" aria-label="上一篇与下一篇">
         <NuxtLink
           v-if="previous"
           :to="`/guidelines/${previous.slug}`"

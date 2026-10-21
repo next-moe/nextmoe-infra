@@ -36,6 +36,7 @@
     "eslint": "^10.10.0",
     "gray-matter": "^4.0.3",
     "markdown-it": "^15.0.2",
+    "markdown-it-cjk-friendly": "^3.0.0",
     "prettier": "^3.9.7",
     "prettier-plugin-tailwindcss": "^0.8.1",
     "vite": "^8.3.0",

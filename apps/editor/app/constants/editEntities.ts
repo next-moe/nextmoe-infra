@@ -364,7 +364,7 @@ export const CREDIT_NAME_EDIT_CONFIG: EditEntityConfig = {
     'catalog.credit_name.lang': { label: '语言', group: 'basic' },
     'catalog.credit_name.kind': { label: '类型', group: 'basic' },
     'catalog.credit_name.link_visibility': {
-      label: '外链可见性',
+      label: '归属可见性',
       group: 'basic'
     },
     'catalog.credit_name.note': {

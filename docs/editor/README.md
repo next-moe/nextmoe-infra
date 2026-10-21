@@ -2,7 +2,7 @@
 
 NextMoe 资料库的唯一编辑入口。所有第一方站点的用户在这里编辑作品、发行、角色、人物、署名名、厂商、标签、特质、系列、引擎，提交提案、审核、查看修订历史与回滚、新建条目、发起合并请求。
 
-下游站点（论坛、moyu、LetMoe、App）暂不改动；接入方式见「下游接入」一节，接入完成后各站自己的编辑页、编辑 BFF 与 `@nextmoe/edit-ui` 退役。
+论坛、moyu、LetMoe 的编辑入口都已改为深链到这里（2026-10-21），各站自己的编辑页、编辑 BFF 与 `@nextmoe/edit-ui` 依赖已删除；App 没有资料编辑入口。`@nextmoe/edit-ui` 已退役：npm 包标记废弃、仓库归档、edit-ui.nextmoe.dev 下线。
 
 ## 架构
 
@@ -118,7 +118,7 @@ NextMoe 资料库的唯一编辑入口。所有第一方站点的用户在这里
 - 一次可以同时改作品和任意多个关联实体：切换不丢草稿，顶栏「查看更改」弹出全部改动的前后对比（新增 / 删除 / 修改 / 隐藏 / 调整顺序），「提交」把每个改动过的条目各生成一条提案，共用一段修改说明。草稿按条目保存在本机。
 - 页面先出骨架再并行取数据，切换分区不等待网络。
 
-## 下游接入（尚未进行）
+## 下游接入
 
 下游站点的「编辑」按钮改为新标签页打开深链：
 
@@ -129,7 +129,6 @@ https://editor.nextmoe.com/{type}/{id}/edit?from={site}&return={url}&login_hint=
 - `type`：`works`、`releases`、`characters`、`persons`、`credit-names`、`companies`、`tags`、`traits`、`series`、`engines`。
 - `from`：`kungal`、`moyu`、`letmoe`、`nextmoe`；`return` 必须是该站点的源（`apps/editor/app/constants/returnSites.ts`），编辑台顶栏据此显示「返回 X」。
 - `login_hint`：当前用户的 `sub`（UUID），保证同一浏览器多账号时进入的是同一个账号。
-- 接入后：各站删除编辑页、编辑 BFF 与 `@nextmoe/edit-ui` 依赖；npm 包标记废弃、仓库归档、下线 edit-ui.nextmoe.dev。
 - 尚未做：按来源站点归因提案（目前编辑台发起的提案 `site=editor`）。若需要在原站显示贡献或发萌萌点，需给提案加来源字段。
 
 ## 部署

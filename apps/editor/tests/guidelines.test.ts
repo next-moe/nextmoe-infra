@@ -28,6 +28,12 @@ describe('guidelines content', () => {
     expect(readFileSync(GENERATED, 'utf8')).toBe(renderGuidelinesModule())
   })
 
+  it('renders every emphasis mark, including next to CJK punctuation', () => {
+    for (const doc of GUIDELINE_DOCS) {
+      expect(doc.html, doc.slug).not.toMatch(/\*\*|__/)
+    }
+  })
+
   it('links every overview pitfall to an existing document and heading', () => {
     for (const pitfall of GUIDELINE_PITFALLS) {
       expect(resolves(pitfall.to), pitfall.to).toBe(true)
@@ -46,7 +52,10 @@ describe('guidelines content', () => {
 })
 
 describe('searchGuidelines', () => {
-  const doc = (slug: string, overrides: Partial<GuidelineDoc>): GuidelineDoc => ({
+  const doc = (
+    slug: string,
+    overrides: Partial<GuidelineDoc>
+  ): GuidelineDoc => ({
     slug,
     title: slug,
     description: '',
@@ -60,7 +69,10 @@ describe('searchGuidelines', () => {
     ...overrides
   })
   const docs = [
-    doc('body', { title: '正文', text: '这里提到署名名与人物的区别，以及更多内容。' }),
+    doc('body', {
+      title: '正文',
+      text: '这里提到署名名与人物的区别，以及更多内容。'
+    }),
     doc('heading', {
       title: '小节',
       headings: [{ id: 'credit', text: '署名名是什么', depth: 2 }]
@@ -69,11 +81,9 @@ describe('searchGuidelines', () => {
   ]
 
   it('ranks title matches above headings above body text', () => {
-    expect(searchGuidelines(docs, '署名名').map((hit) => hit.doc.slug)).toEqual([
-      'title',
-      'heading',
-      'body'
-    ])
+    expect(searchGuidelines(docs, '署名名').map((hit) => hit.doc.slug)).toEqual(
+      ['title', 'heading', 'body']
+    )
   })
 
   it('deep-links heading hits and quotes body hits', () => {
