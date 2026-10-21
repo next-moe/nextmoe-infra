@@ -148,7 +148,7 @@ func (s *MergeService) ExecuteMerge(ctx context.Context, proposalID int64, execu
 		}
 		if editType, ok := editTypeOfFamily[et]; ok {
 			if err := editing.DeclineOpenProposals(tx, editType, src, executedBy,
-				fmt.Sprintf("条目已合并到 #%d，此提案随之关闭", dst)); err != nil {
+				mergeDeclineNote(dst)); err != nil {
 				return fmt.Errorf("close proposals: %w", err)
 			}
 		}
@@ -197,4 +197,8 @@ func retireSource(tx *gorm.DB, entityType int16, src int64) error {
 		return tx.Delete(&model.CatalogWork{}, src).Error
 	}
 	return fmt.Errorf("catalog merge: unsupported entity type %d", entityType)
+}
+
+func mergeDeclineNote(dst int64) string {
+	return fmt.Sprintf("条目已合并到 #%d，此提案随之关闭", dst)
 }

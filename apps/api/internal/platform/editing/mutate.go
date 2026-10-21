@@ -465,6 +465,18 @@ func DeclineOpenProposals(tx *gorm.DB, entityType string, entityID int64, decide
 		}).Error
 }
 
+// ReopenDeclinedProposals is DeclineOpenProposals' inverse for a structural
+// operation that is undone: it reopens exactly the proposals that operation
+// closed, recognised by the note it wrote, and leaves a proposal a reviewer
+// declined for its own reasons alone.
+func ReopenDeclinedProposals(tx *gorm.DB, entityType string, entityID int64, note string, closedFrom time.Time) (int64, error) {
+	res := tx.Model(&Proposal{}).
+		Where("entity_type = ? AND entity_id = ? AND status = ? AND decision_note = ? AND decided_at >= ?",
+			entityType, entityID, StatusDeclined, note, closedFrom.Add(-time.Minute)).
+		Updates(map[string]any{"status": StatusOpen, "decided_by_uid": nil, "decided_at": nil, "decision_note": ""})
+	return res.RowsAffected, res.Error
+}
+
 func closeProposal(etx *gorm.DB, id int64, status int16, decidedBy int64, note string) error {
 	now := time.Now()
 	return etx.Model(&Proposal{}).Where("id = ?", id).Updates(map[string]any{

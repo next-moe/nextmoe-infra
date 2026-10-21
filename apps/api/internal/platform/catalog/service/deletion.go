@@ -198,7 +198,7 @@ func (s *DeletionService) Execute(ctx context.Context, id int64, by *int64) (clo
 			return err
 		}
 		if err := editing.DeclineOpenProposals(tx, editspec.TypeWork, w.ID, by,
-			fmt.Sprintf("作品已删除（删除请求 #%d），此提案随之关闭", r.ID)); err != nil {
+			deletionDeclineNote(r.ID)); err != nil {
 			return fmt.Errorf("close proposals: %w", err)
 		}
 		changed, err := marshalChangedFields(map[string]any{"status": model.WorkStatusDeleted, "deleted": true})
@@ -256,6 +256,18 @@ func (s *DeletionService) Restore(ctx context.Context, id, by int64, note string
 		if err := writeRevision(tx, model.EntityTypeWork, w.ID, model.RevisionActionRestored, snap, changed, &by,
 			fmt.Sprintf("deletion request %d restored", r.ID)); err != nil {
 			return err
+		}
+		closedAt := time.Now()
+		if r.ExecutedAt != nil {
+			closedAt = *r.ExecutedAt
+		}
+		if _, err := editing.ReopenDeclinedProposals(tx, editspec.TypeWork, w.ID, deletionDeclineNote(r.ID), closedAt); err != nil {
+			return fmt.Errorf("reopen proposals: %w", err)
+		}
+		for _, table := range []string{"catalog_user_folder_item", "catalog_user_playtime", "catalog_user_work_state"} {
+			if err := tx.Exec(`UPDATE `+table+` SET updated_at = now() WHERE work_id = ?`, w.ID).Error; err != nil {
+				return fmt.Errorf("resurface %s: %w", table, err)
+			}
 		}
 		if err := refreshHiddenWorkUserData(ctx, tx, w.ID); err != nil {
 			return err
@@ -407,4 +419,8 @@ func refreshHiddenWorkUserData(ctx context.Context, tx *gorm.DB, workID int64) e
 		return err
 	}
 	return repository.TouchWorks(ctx, tx, related)
+}
+
+func deletionDeclineNote(requestID int64) string {
+	return fmt.Sprintf("作品已删除（删除请求 #%d），此提案随之关闭", requestID)
 }
