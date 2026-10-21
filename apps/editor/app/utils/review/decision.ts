@@ -1,6 +1,7 @@
 import { valuesEqual } from '#shared/utils/diff'
 
-export type FieldVerdict = 'accept' | 'reject' | 'amend'
+export type FieldVerdict =
+  'accept' | 'reject' | 'amend' | 'pending' | 'auto' | 'override' | 'keep'
 
 export interface FieldDecision {
   verdict: FieldVerdict
@@ -14,16 +15,23 @@ export interface Amendment {
   unset: string[]
 }
 
+const DROPS: FieldVerdict[] = ['reject', 'keep']
+
 export const initialDecisions = (
-  effective: Record<string, unknown>
+  effective: Record<string, unknown>,
+  conflictKeys: readonly string[] = []
 ): FieldDecisions =>
   Object.fromEntries(
-    Object.keys(effective).map((key) => [key, { verdict: 'accept' }])
+    Object.keys(effective).map((key) => [
+      key,
+      { verdict: conflictKeys.includes(key) ? 'pending' : 'accept' }
+    ])
   )
 
 export const buildAmendment = (
   effective: Record<string, unknown>,
-  decisions: FieldDecisions
+  decisions: FieldDecisions,
+  conflictKeys: readonly string[] = []
 ): Amendment | null => {
   const set: Record<string, unknown> = {}
   const unset: string[] = []
@@ -32,11 +40,16 @@ export const buildAmendment = (
     if (!decision) {
       continue
     }
-    if (decision.verdict === 'reject') {
+    const conflicting = conflictKeys.includes(key)
+    if (DROPS.includes(decision.verdict)) {
       unset.push(key)
+    } else if (decision.verdict === 'override') {
+      set[key] = effective[key]
+    } else if (decision.verdict === 'auto') {
+      set[key] = decision.value
     } else if (
       decision.verdict === 'amend' &&
-      !valuesEqual(decision.value, effective[key])
+      (conflicting || !valuesEqual(decision.value, effective[key]))
     ) {
       set[key] = decision.value
     }
@@ -48,15 +61,27 @@ export const keysToMerge = (
   effective: Record<string, unknown>,
   decisions: FieldDecisions
 ) =>
-  Object.keys(effective).filter((key) => decisions[key]?.verdict !== 'reject')
+  Object.keys(effective).filter(
+    (key) => !DROPS.includes(decisions[key]?.verdict ?? 'accept')
+  )
 
 export const decisionCounts = (decisions: FieldDecisions) => {
   const counts = { accept: 0, reject: 0, amend: 0 }
   for (const decision of Object.values(decisions)) {
-    counts[decision.verdict]++
+    if (decision.verdict in counts) {
+      counts[decision.verdict as keyof typeof counts]++
+    }
   }
   return counts
 }
+
+export const unresolvedConflicts = (
+  conflictKeys: readonly string[],
+  decisions: FieldDecisions
+) =>
+  conflictKeys.filter((key) =>
+    ['pending', 'accept'].includes(decisions[key]?.verdict ?? 'pending')
+  )
 
 export const neighbourIds = (ids: readonly string[], current: string) => {
   const index = ids.indexOf(current)
