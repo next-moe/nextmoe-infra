@@ -1,6 +1,6 @@
 export interface QueueProposal {
   id: string
-  site: string
+  origin_site?: string | null
   created_at: string
 }
 
@@ -10,7 +10,7 @@ export interface QueueAnalysis {
 }
 
 export interface QueueFilters {
-  site: string
+  origin: string
   age: string
   field: string
   conflictOnly: boolean
@@ -40,7 +40,7 @@ export const filterQueue = <T extends QueueProposal>(
 ) => {
   const age = AGE_OPTIONS.find((option) => option.value === filters.age)
   return items.filter((item) => {
-    if (filters.site && item.site !== filters.site) {
+    if (filters.origin && item.origin_site !== filters.origin) {
       return false
     }
     if (age && age.value) {

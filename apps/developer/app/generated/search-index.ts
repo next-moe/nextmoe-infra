@@ -907,7 +907,7 @@ export const searchIndex: SearchEntry[] = [
     "r": "/docs/v2",
     "t": "Public API v2",
     "s": "端点参考",
-    "d": "/v2 · 153 个端点",
+    "d": "/v2 · 181 个端点",
     "b": "v2 /v2 API v2 Public API v2"
   },
   {
@@ -1030,6 +1030,13 @@ export const searchIndex: SearchEntry[] = [
     "b": "getCatalogCreditNameCredits /v2/catalog/credit-names/{id}/credits get Credits of one credit name Works this name is credited on. Offset cursor. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. 该署名出现过的作品。offset cursor。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。 catalog:read id nsfw cursor limit"
   },
   {
+    "r": "/docs/v2/listCatalogDiscussion",
+    "t": "提案或请求下的讨论",
+    "s": "端点 · 目录",
+    "d": "GET /v2/catalog/discussions/{object}/{id}",
+    "b": "listCatalogDiscussion /v2/catalog/discussions/{object}/{id} get Discussion under a proposal or request Posts oldest first; follow next_cursor for newer ones. A proposal's thread is public like the proposal; a merge request's is readable by its requester and by catalog.merge.review holders. With a user token the page carries viewer: whether the caller may post or moderate here, and whether the thread reaches their notices. Anonymous calls are allowed and limited per IP address; they read public threads only. 留言按最旧在前排列；更新的留言请跟随 next_cursor。提案的讨论串与提案一样公开；合并请求的讨论串只有其请求者和持有 catalog.merge.review 的人可读。带用户令牌时，页面携带 viewer：调用者能否在此留言或管理，以及该讨论串是否进入其通知。可匿名调用，按 IP 地址限流；匿名调用只能读取公开的讨论串。 catalog:read object id cursor limit"
+  },
+  {
     "r": "/docs/v2/listCatalogEngines",
     "t": "列出引擎",
     "s": "端点 · 目录",
@@ -1076,7 +1083,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "编辑提案历史",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/proposals",
-    "b": "listCatalogProposals /v2/catalog/proposals get Edit proposal history Filed proposals, newest first. proposer_uid=+state=merged with include_total=true is the per-contributor tally. This face publishes no patch and no decision note. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. 已提交的提案，最新在前。proposer_uid=+state=merged 且 include_total=true 即按贡献者的计数。本面不下发 patch 与裁决备注。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。 catalog:read cursor limit view include fields ids include_total sort object entity_id site proposer_uid state"
+    "b": "listCatalogProposals /v2/catalog/proposals get Edit proposal history Filed proposals, newest first. proposer_uid=+state=merged with include_total=true is the per-contributor tally. This face publishes no patch and no decision note. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. 已提交的提案，最新在前。proposer_uid=+state=merged 且 include_total=true 即按贡献者的计数。本面不下发 patch 与裁决备注。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。 catalog:read cursor limit view include fields ids include_total sort object entity_id site proposer_uid origin_site state"
   },
   {
     "r": "/docs/v2/getCatalogProposal",
@@ -1111,7 +1118,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "实体修订历史",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/revisions",
-    "b": "listCatalogRevisions /v2/catalog/revisions get Entity revision history Every merged edit, newest first by default. sort=recorded_asc walks the same collection oldest-first by id, which is the shape a mirror or a contributor tally reads with a watermark. object=+entity_id= narrows to one entity's history. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. 全部已合并编辑，缺省最新在前。sort=recorded_asc 按 id 从最旧走同一集合，这是镜像或贡献者计数用水位读取的形状。object=+entity_id= 收窄到某一实体的历史。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。 catalog:read cursor limit view include fields ids include_total sort object entity_id site actor_uid"
+    "b": "listCatalogRevisions /v2/catalog/revisions get Entity revision history Every merged edit, newest first by default. sort=recorded_asc walks the same collection oldest-first by id, which is the shape a mirror or a contributor tally reads with a watermark. object=+entity_id= narrows to one entity's history. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. 全部已合并编辑，缺省最新在前。sort=recorded_asc 按 id 从最旧走同一集合，这是镜像或贡献者计数用水位读取的形状。object=+entity_id= 收窄到某一实体的历史。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。 catalog:read cursor limit view include fields ids include_total sort object entity_id site actor_uid origin_site"
   },
   {
     "r": "/docs/v2/getCatalogRevision",
@@ -1161,6 +1168,13 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/series/{id}",
     "b": "getCatalogSeries /v2/catalog/series/{id} get Get one series Series detail. has_nsfw reports whether any member work sits behind the r18 display gate. include=intros,refs adds the corresponding blocks. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. 系列详情。has_nsfw 报告是否有成员作品落在 r18 展示闸之后。include=intros,refs 追加对应块。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。 catalog:read id nsfw view include fields"
+  },
+  {
+    "r": "/docs/v2/listCatalogSplits",
+    "t": "作品拆分 feed",
+    "s": "端点 · 目录",
+    "d": "GET /v2/catalog/splits",
+    "b": "listCatalogSplits /v2/catalog/splits get Work split feed Executed and undone splits, oldest change first. Keyset-paginated. A split moves releases from original_id to a new work: the new id also appears on /v2/catalog/changes, and the moved releases keep their ids. A mirror that hangs its own data off releases or editions should follow them to new_work_id. An undo re-surfaces the split with state=undone: the releases are back on original_id and new_work_id redirects there (/v2/catalog/redirects). Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. 已执行与已撤销的拆分，最早的变更在前。keyset 分页。一次拆分把发行从 original_id 移到一部新作品：新 id 也会出现在 /v2/catalog/changes 上，被移动的发行保留各自的 id。把自己的数据挂在发行或版本上的镜像应跟随它们移到 new_work_id。撤销会让该拆分以 state=undone 重新出现：发行回到 original_id，new_work_id 重定向到那里（/v2/catalog/redirects）。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。 catalog:read cursor limit"
   },
   {
     "r": "/docs/v2/getCatalogStats",
@@ -1478,6 +1492,69 @@ export const searchIndex: SearchEntry[] = [
     "b": "createMyCreation /v2/me/creations post Propose a new entry Files a proposal that creates a new entry of one family. It is reviewed like any proposal (it appears in GET /v2/moderation/proposals with entity_id 0 and a creation block) unless the create policy lets the bearer apply it at once; once merged, entity_id is the new entry's id. Entries whose normalized name already exists are refused with 409 DUPLICATE_SUSPECTS unless confirm_duplicates=true. Counts against the same proposal quota as POST /v2/me/proposals. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 提交一条新建某家族条目的提案。它像其他提案一样接受审核（在 GET /v2/moderation/proposals 中以 entity_id 0 和 creation 块出现），除非创建策略允许调用者直接生效；合并后 entity_id 即为新条目的 id。规范化名称已存在的条目会以 409 DUPLICATE_SUSPECTS 拒绝，除非 confirm_duplicates=true。与 POST /v2/me/proposals 共用同一提案配额。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 Idempotency-Key"
   },
   {
+    "r": "/docs/v2/getMyDeletionPreview",
+    "t": "预览删除会影响什么",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/deletion-preview",
+    "b": "getMyDeletionPreview /v2/me/deletion-preview get Preview what a deletion affects What deleting the entry would touch: its links to source entries, releases, user records that would be hidden, open edit proposals that would be declined, the claiming site, and any pending request. Also answers for an entry that is already deleted. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope. 删除这个条目会牵涉到什么：它与资料源条目的对应、发行、将被隐藏的用户记录、将被驳回的待审编辑提案、认领它的站点，以及进行中的删除请求。对已删除的条目同样可用。需要绑定第一方 catalog 站点的用户访问令牌，令牌须带 catalog:edit scope。 object target_id"
+  },
+  {
+    "r": "/docs/v2/listMyDeletionRequests",
+    "t": "列出我的删除请求",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/deletion-requests",
+    "b": "listMyDeletionRequests /v2/me/deletion-requests get List my deletion requests The bearer's own deletion requests, newest first; follow next_cursor for more. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope. 令牌持有者自己提交的删除请求，最新的在前；跟随 next_cursor 取更多。需要绑定第一方 catalog 站点的用户访问令牌，令牌须带 catalog:edit scope。 state target_id origin_site cursor limit"
+  },
+  {
+    "r": "/docs/v2/createMyDeletionRequest",
+    "t": "提交删除请求",
+    "s": "端点 · 我的",
+    "d": "POST /v2/me/deletion-requests",
+    "b": "createMyDeletionRequest /v2/me/deletion-requests post Request a deletion Asks reviewers to delete a catalog entry; only works can be deleted today. Nothing is deleted on filing: a reviewer approves, the cooling-off runs, then the entry is soft-deleted. Its links to source entries stay as a tombstone so the importers do not create it again, and user records on it are kept but hidden until a reviewer restores it under the same id. A duplicate is refused 422: merge it with /v2/me/merge-requests instead. One open or approved request per entry; another is 409. Quotas are tiered: catalog.deletion_requests_per_day, _editor, _reviewer inside catalog.write_quota_window_hours; past it 429 QUOTA_EXCEEDED. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope. 请审核者删除一个 catalog 条目；目前只能删除作品。提交时什么都不会删除：审核者批准、冷静期结束后，条目才会被软删除。它与资料源条目的对应会作为墓碑保留，导入任务不会再建出它；条目上的用户记录保留但不显示，直到审核者用同一个 id 恢复它。重复条目会被拒绝（422），请改用 /v2/me/merge-requests 合并。每个条目同时只能有一个待审或已批准的请求，再提交返回 409。额度分档：catalog.deletion_requests_per_day、_editor、_reviewer，统计窗口为 catalog.write_quota_window_hours；超出返回 429 QUOTA_EXCEEDED。需要绑定第一方 catalog 站点的用户访问令牌，令牌须带 catalog:edit scope。 Idempotency-Key"
+  },
+  {
+    "r": "/docs/v2/patchMyDeletionRequest",
+    "t": "撤回删除请求",
+    "s": "端点 · 我的",
+    "d": "PATCH /v2/me/deletion-requests/{id}",
+    "b": "patchMyDeletionRequest /v2/me/deletion-requests/{id} patch Withdraw a deletion request Withdraws an open request the bearer filed. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope. 撤回令牌持有者提交的、仍待审的请求。需要绑定第一方 catalog 站点的用户访问令牌，令牌须带 catalog:edit scope。 id"
+  },
+  {
+    "r": "/docs/v2/listMyDiscussionNotices",
+    "t": "给我的新留言",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/discussion-notices",
+    "b": "listMyDiscussionNotices /v2/me/discussion-notices get New posts for me Posts by others, newer than since, in threads the caller watches or that mention them; a muted thread reaches the caller only through mentions. Requires a user access token from a first-party site with the catalog:edit scope. The token must carry the catalog:edit scope. 他人发表、晚于 since 的留言：位于调用者关注的讨论串中，或提及了调用者；已静音的讨论串只通过提及触达调用者。需要来自第一方站点、带 catalog:edit scope 的用户访问令牌。令牌须带 catalog:edit scope。 since limit"
+  },
+  {
+    "r": "/docs/v2/watchMyDiscussion",
+    "t": "关注或静音讨论",
+    "s": "端点 · 我的",
+    "d": "PUT /v2/me/discussion-watches",
+    "b": "watchMyDiscussion /v2/me/discussion-watches put Watch or mute a discussion Requires a user access token from a first-party site with the catalog:edit scope. The token must carry the catalog:edit scope. 需要来自第一方站点、带 catalog:edit scope 的用户访问令牌。令牌须带 catalog:edit scope。"
+  },
+  {
+    "r": "/docs/v2/createMyDiscussionPost",
+    "t": "在讨论中留言",
+    "s": "端点 · 我的",
+    "d": "POST /v2/me/discussions",
+    "b": "createMyDiscussionPost /v2/me/discussions post Post in a discussion Adds a post under a proposal or request the caller can read. The author, everyone mentioned, and the anchor's participants (proposer or requester, decider, amenders) start watching the thread; their notices pick up later posts. Limited per account by catalog.discussion_posts_per_hour; past it 429 QUOTA_EXCEEDED. Text refused by the content check is 422. Requires a user access token from a first-party site with the catalog:edit scope. The token must carry the catalog:edit scope. 在调用者可读的提案或请求下添加一条留言。作者、所有被提及的人以及锚点的参与者（提案者或请求者、裁决者、修正者）开始关注该讨论串；之后的留言会进入他们的通知。按账号以 catalog.discussion_posts_per_hour 限流；超出则 429 QUOTA_EXCEEDED。内容检查拒绝的文本返回 422。需要来自第一方站点、带 catalog:edit scope 的用户访问令牌。令牌须带 catalog:edit scope。 Idempotency-Key"
+  },
+  {
+    "r": "/docs/v2/editMyDiscussionPost",
+    "t": "编辑我的留言",
+    "s": "端点 · 我的",
+    "d": "PATCH /v2/me/discussions/{id}",
+    "b": "editMyDiscussionPost /v2/me/discussions/{id} patch Edit my post Replaces the text of a visible post the caller wrote and stamps edited_at. Requires a user access token from a first-party site with the catalog:edit scope. The token must carry the catalog:edit scope. 替换调用者所写的一条可见留言的文本，并记下 edited_at。需要来自第一方站点、带 catalog:edit scope 的用户访问令牌。令牌须带 catalog:edit scope。 id"
+  },
+  {
+    "r": "/docs/v2/deleteMyDiscussionPost",
+    "t": "删除我的留言",
+    "s": "端点 · 我的",
+    "d": "DELETE /v2/me/discussions/{id}",
+    "b": "deleteMyDiscussionPost /v2/me/discussions/{id} delete Delete my post The post stays in the thread as deleted, with its text removed. Requires a user access token from a first-party site with the catalog:edit scope. The token must carry the catalog:edit scope. 留言以已删除状态留在讨论串中，文本被清除。需要来自第一方站点、带 catalog:edit scope 的用户访问令牌。令牌须带 catalog:edit scope。 id"
+  },
+  {
     "r": "/docs/v2/getMyEditBundle",
     "t": "编辑器打开一个条目所需的全部数据",
     "s": "端点 · 我的",
@@ -1611,18 +1688,39 @@ export const searchIndex: SearchEntry[] = [
     "b": "deleteMyCompanyFollow /v2/me/followed-companies/{company_id} delete Unfollow a company 204 with no body, also when the bearer was not following. Requires a user access token. Any app may call this; no scope is required. 204 无响应体；持有者本来就未关注时同样如此。需要用户访问令牌。任何应用均可调用；不要求任何 scope。 company_id"
   },
   {
+    "r": "/docs/v2/listMyMergeCandidates",
+    "t": "推荐合并对象",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/merge-candidates",
+    "b": "listMyMergeCandidates /v2/me/merge-candidates get Suggest merge partners Up to ten entries that may duplicate id: undecided pairs from the reconciliation queue first, then live entries with exactly the same name. A single page; there is no cursor. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 最多十个可能与 id 重复的条目：先列出对账队列中尚未裁定的配对，再列出名字完全相同的在用条目。只有一页；没有 cursor。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 object id"
+  },
+  {
+    "r": "/docs/v2/previewMyMerge",
+    "t": "预览合并",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/merge-preview",
+    "b": "previewMyMerge /v2/me/merge-preview get Preview a merge Computes what merging source_id into target_id would do, without writing: both sides' values for the resolvable fields, the fate of every external id, the releases of both works with source duplicates marked, title and intro outcomes, row counts, the site claim, and blockers and warnings. An entry already merged away or deleted comes back with a not_live blocker rather than an error. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 计算把 source_id 合并进 target_id 会产生什么结果，但不写入：可选字段在两侧的值、每个外部 id 的去向、两部作品的发行（标出源方的重复发行）、标题与简介的处理结果、行数、站点认领，以及阻断项与警告。已被合并走或已删除的条目会带一个 not_live 阻断项返回，而不是报错。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 object source_id target_id"
+  },
+  {
     "r": "/docs/v2/listMyMergeRequests",
     "t": "列出我的合并请求",
     "s": "端点 · 我的",
     "d": "GET /v2/me/merge-requests",
-    "b": "listMyMergeRequests /v2/me/merge-requests get List my merge requests The bearer's own merge requests, newest first; follow next_cursor for more. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 调用者自己的合并请求，最新的在前；更多结果请跟随 next_cursor。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 state object cursor limit"
+    "b": "listMyMergeRequests /v2/me/merge-requests get List my merge requests The bearer's own merge requests, newest first; follow next_cursor for more. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 调用者自己的合并请求，最新的在前；更多结果请跟随 next_cursor。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 state object origin_site cursor limit"
   },
   {
     "r": "/docs/v2/createMyMergeRequest",
     "t": "请求合并",
     "s": "端点 · 我的",
     "d": "POST /v2/me/merge-requests",
-    "b": "createMyMergeRequest /v2/me/merge-requests post Request a merge Asks reviewers to merge two entries of one family. Nothing merges on filing: a reviewer approves, the cooling-off runs, then the merge executes through the catalog merge machinery (redirect from source to target, survivorship, archive for unmerge). Two works of different mediums are refused 422. Quotas are tiered: catalog.merge_requests_per_day, _editor, _reviewer inside catalog.write_quota_window_hours; past it 429 QUOTA_EXCEEDED. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 请审核者合并同一家族的两个条目。提交时不会合并：审核者批准、冷却期结束后，才通过 catalog 合并机制执行（源重定向到目标、存活规则、为撤销合并留存档）。媒介不同的两部作品以 422 拒绝。配额分档：在 catalog.write_quota_window_hours 内适用 catalog.merge_requests_per_day、_editor、_reviewer；超出则 429 QUOTA_EXCEEDED。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 Idempotency-Key"
+    "b": "createMyMergeRequest /v2/me/merge-requests post Request a merge Asks reviewers to merge two entries of one family. Nothing merges on filing: a reviewer approves, the cooling-off runs, then the merge executes through the catalog merge machinery (redirect from source to target, survivorship, archive for unmerge). Two works of different mediums are refused 422. Quotas are tiered: catalog.merge_requests_per_day, _editor, _reviewer inside catalog.write_quota_window_hours; past it 429 QUOTA_EXCEEDED. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 请审核者合并同一家族的两个条目。提交时不会合并：审核者批准、冷静期结束后，才通过 catalog 合并机制执行（源重定向到目标、存活规则、为撤销合并留存档）。媒介不同的两部作品以 422 拒绝。配额分档：在 catalog.write_quota_window_hours 内适用 catalog.merge_requests_per_day、_editor、_reviewer；超出则 429 QUOTA_EXCEEDED。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 Idempotency-Key"
+  },
+  {
+    "r": "/docs/v2/getMyMergeRequest",
+    "t": "获取一条合并请求",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/merge-requests/{id}",
+    "b": "getMyMergeRequest /v2/me/merge-requests/{id} get Get one merge request Any editor-filed merge request by id, for the requester and everyone following it. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 按 id 读取任意一条经编辑台提交的合并请求，供请求者及所有关注它的人使用。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 id"
   },
   {
     "r": "/docs/v2/patchMyMergeRequest",
@@ -1720,7 +1818,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "列出我的提案",
     "s": "端点 · 我的",
     "d": "GET /v2/me/proposals",
-    "b": "listMyProposals /v2/me/proposals get List my proposals The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch, effective_patch, changed_fields and (open rows) conflict_fields, the same block GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. field=, has_conflict= and updated_since= filter; sort=filed_desc (default), filed_asc, updated_desc or updated_asc. Requires a user access token. The token must carry the catalog:edit scope. 持有者在令牌所属 catalog 站点上提交的自己的提案;在中央编辑站(catalog 站点 editor)上则为所有站点的。state= 是封闭词表，未知值返回 400。object= 或 entity_type= 收窄到一族，entity_id= 收窄到一个实体——本车道在不带族的情况下也接受 entity_id=，因为每一行已属于调用方。include=patch（或 view=full）给每一行加上 patch、effective_patch、changed_fields 以及（未关闭的行）conflict_fields，与 GET /v2/me/proposals/{id}?include=patch 答的是同一块，列表页不必逐行再读。field=、has_conflict= 与 updated_since= 用于筛选；sort=filed_desc（默认）、filed_asc、updated_desc 或 updated_asc。需要用户访问令牌。令牌须带 catalog:edit scope。 cursor limit view include fields ids refs include_total facets sort nsfw state object entity_type entity_id site field has_conflict updated_since"
+    "b": "listMyProposals /v2/me/proposals get List my proposals The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch, effective_patch, changed_fields and (open rows) conflict_fields, the same block GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. field=, has_conflict= and updated_since= filter; sort=filed_desc (default), filed_asc, updated_desc or updated_asc. Requires a user access token. The token must carry the catalog:edit scope. 持有者在令牌所属 catalog 站点上提交的自己的提案;在中央编辑站(catalog 站点 editor)上则为所有站点的。state= 是封闭词表，未知值返回 400。object= 或 entity_type= 收窄到一族，entity_id= 收窄到一个实体——本车道在不带族的情况下也接受 entity_id=，因为每一行已属于调用方。include=patch（或 view=full）给每一行加上 patch、effective_patch、changed_fields 以及（未关闭的行）conflict_fields，与 GET /v2/me/proposals/{id}?include=patch 答的是同一块，列表页不必逐行再读。field=、has_conflict= 与 updated_since= 用于筛选；sort=filed_desc（默认）、filed_asc、updated_desc 或 updated_asc。需要用户访问令牌。令牌须带 catalog:edit scope。 cursor limit view include fields ids refs include_total facets sort nsfw state object entity_type entity_id site origin_site field has_conflict updated_since"
   },
   {
     "r": "/docs/v2/createMyProposal",
@@ -1777,6 +1875,41 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 我的",
     "d": "DELETE /v2/me/ratings/{work_id}",
     "b": "deleteMyRating /v2/me/ratings/{work_id} delete Delete my rating of one work 204 with no body, also when there was none. The deletion reaches /v2/ratings/changes as a gone entry. Requires a user access token. Any app may call this; no scope is required. 204，无响应体，原本没有评分时也一样。删除会以 gone 条目出现在 /v2/ratings/changes。需要用户访问令牌。任何应用均可调用；不要求任何 scope。 work_id"
+  },
+  {
+    "r": "/docs/v2/getMySplitPreview",
+    "t": "预览拆分",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/split-preview",
+    "b": "getMySplitPreview /v2/me/split-preview get Preview a split Every live release of the work, the registry entries that could become the new work's identity, what moves and what stays, titles suggested from the chosen releases, and the blockers, warnings and registry facts for the choice in release_ids= and promote=. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope. 作品的全部在用发行、可能成为新作品身份对应的资料站条目、哪些移走哪些留下、根据所选发行建议的标题，以及针对 release_ids= 与 promote= 所作选择的阻断项、警告和资料站事实。需要绑定第一方 catalog 站点的用户访问令牌，令牌须带 catalog:edit scope。 object target_id release_ids promote request_id"
+  },
+  {
+    "r": "/docs/v2/listMySplitRequests",
+    "t": "列出我的拆分请求",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/split-requests",
+    "b": "listMySplitRequests /v2/me/split-requests get List my split requests The bearer's own split requests, newest first; follow next_cursor for more. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope. 令牌持有者自己提交的拆分请求，最新的在前；跟随 next_cursor 取更多。需要绑定第一方 catalog 站点的用户访问令牌，令牌须带 catalog:edit scope。 state target_id origin_site cursor limit"
+  },
+  {
+    "r": "/docs/v2/createMySplitRequest",
+    "t": "提交拆分请求",
+    "s": "端点 · 我的",
+    "d": "POST /v2/me/split-requests",
+    "b": "createMySplitRequest /v2/me/split-requests post Request a split Asks reviewers to move some releases of a work into a work of their own, for an edition that deserves its own entry although VNDB lists it under the same VN. Nothing changes on filing: a reviewer approves (and may amend the selection), the cooling-off runs, then the new work is created. One open or approved request per work; another is 409. Quotas are tiered: catalog.split_requests_per_day, _editor, _reviewer inside catalog.write_quota_window_hours; past it 429 QUOTA_EXCEEDED. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope. 请审核者把一部作品的部分发行移到一部独立的作品中，适用于 VNDB 虽列在同一个 VN 下、却值得单独立条目的版本。提交时什么都不会改变：审核者批准（并可修正所选内容）、冷静期结束后，才会新建作品。每部作品同时只能有一个待审或已批准的请求，再提交返回 409。额度分档：catalog.split_requests_per_day、_editor、_reviewer，统计窗口为 catalog.write_quota_window_hours；超出返回 429 QUOTA_EXCEEDED。需要绑定第一方 catalog 站点的用户访问令牌，令牌须带 catalog:edit scope。 Idempotency-Key"
+  },
+  {
+    "r": "/docs/v2/getMySplitRequest",
+    "t": "读取一条拆分请求",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/split-requests/{id}",
+    "b": "getMySplitRequest /v2/me/split-requests/{id} get Get one split request Any split request, for its page in the editor. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope. 任意一条拆分请求，供编辑台中它的页面使用。需要绑定第一方 catalog 站点的用户访问令牌，令牌须带 catalog:edit scope。 id"
+  },
+  {
+    "r": "/docs/v2/patchMySplitRequest",
+    "t": "撤回拆分请求",
+    "s": "端点 · 我的",
+    "d": "PATCH /v2/me/split-requests/{id}",
+    "b": "patchMySplitRequest /v2/me/split-requests/{id} patch Withdraw a split request Withdraws an open request the bearer filed. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope. 撤回令牌持有者提交的、仍待审的请求。需要绑定第一方 catalog 站点的用户访问令牌，令牌须带 catalog:edit scope。 id"
   },
   {
     "r": "/docs/v2/listMyWorkRecords",
@@ -1863,6 +1996,34 @@ export const searchIndex: SearchEntry[] = [
     "b": "decideModerationClaim /v2/moderation/claims/{id}/decisions post Decide a claim decision=approve|decline|ban|unban. unban restores the state the claim was hidden from. If-Match required, and the ETag comes from GET /v2/moderation/claims/{id}. Requires the catalog.claim.review permission. The token must carry the catalog:edit scope. decision=approve|decline|ban|unban。unban 恢复该认领被隐藏前所处的状态。需要 If-Match，ETag 来自 GET /v2/moderation/claims/{id}。需要 catalog.claim.review 权限。令牌须带 catalog:edit scope。 id If-Match Idempotency-Key"
   },
   {
+    "r": "/docs/v2/listModerationDeletionRequests",
+    "t": "删除请求队列",
+    "s": "端点 · 审核",
+    "d": "GET /v2/moderation/deletion-requests",
+    "b": "listModerationDeletionRequests /v2/moderation/deletion-requests get Deletion request queue Deletion requests, newest first; follow next_cursor for more. Requires the catalog.delete.review permission. The token must carry the catalog:edit scope. 删除请求，最新的在前；跟随 next_cursor 取更多。需要 catalog.delete.review 权限。令牌须带 catalog:edit scope。 state target_id origin_site cursor limit"
+  },
+  {
+    "r": "/docs/v2/getModerationDeletionRequest",
+    "t": "读取一条删除请求",
+    "s": "端点 · 审核",
+    "d": "GET /v2/moderation/deletion-requests/{id}",
+    "b": "getModerationDeletionRequest /v2/moderation/deletion-requests/{id} get Get one deletion request Requires the catalog.delete.review permission. The token must carry the catalog:edit scope. 需要 catalog.delete.review 权限。令牌须带 catalog:edit scope。 id"
+  },
+  {
+    "r": "/docs/v2/decideModerationDeletionRequest",
+    "t": "处理删除请求",
+    "s": "端点 · 审核",
+    "d": "POST /v2/moderation/deletion-requests/{id}/decisions",
+    "b": "decideModerationDeletionRequest /v2/moderation/deletion-requests/{id}/decisions post Decide a deletion request decision=approve|reject|execute|restore. Requires the catalog.delete.review permission. The token must carry the catalog:edit scope. decision=approve|reject|execute|restore。需要 catalog.delete.review 权限。令牌须带 catalog:edit scope。 id Idempotency-Key"
+  },
+  {
+    "r": "/docs/v2/moderateDiscussionPost",
+    "t": "隐藏或恢复显示留言",
+    "s": "端点 · 审核",
+    "d": "POST /v2/moderation/discussions/{id}/visibility",
+    "b": "moderateDiscussionPost /v2/moderation/discussions/{id}/visibility post Hide or restore a post Requires the catalog.discussion.moderate permission. The token must carry the catalog:edit scope. 需要 catalog.discussion.moderate 权限。令牌须带 catalog:edit scope。 id Idempotency-Key"
+  },
+  {
     "r": "/docs/v2/patchModerationFolder",
     "t": "处置收藏夹的文本",
     "s": "端点 · 审核",
@@ -1881,7 +2042,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "合并请求队列",
     "s": "端点 · 审核",
     "d": "GET /v2/moderation/merge-requests",
-    "b": "listModerationMergeRequests /v2/moderation/merge-requests get Merge request queue Merge requests filed through the editor, newest first; follow next_cursor for more. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope. 经编辑台提交的合并请求，最新的在前；更多结果请跟随 next_cursor。需要 catalog.merge.review 权限。令牌须带 catalog:edit scope。 state object cursor limit"
+    "b": "listModerationMergeRequests /v2/moderation/merge-requests get Merge request queue Merge requests filed through the editor, newest first; follow next_cursor for more. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope. 经编辑台提交的合并请求，最新的在前；更多结果请跟随 next_cursor。需要 catalog.merge.review 权限。令牌须带 catalog:edit scope。 state object origin_site cursor limit"
   },
   {
     "r": "/docs/v2/getModerationMergeRequest",
@@ -1891,18 +2052,25 @@ export const searchIndex: SearchEntry[] = [
     "b": "getModerationMergeRequest /v2/moderation/merge-requests/{id} get Get one merge request Requires the catalog.merge.review permission. The token must carry the catalog:edit scope. 需要 catalog.merge.review 权限。令牌须带 catalog:edit scope。 id"
   },
   {
+    "r": "/docs/v2/amendModerationMergeRequest",
+    "t": "修改合并请求的选择",
+    "s": "端点 · 审核",
+    "d": "PATCH /v2/moderation/merge-requests/{id}",
+    "b": "amendModerationMergeRequest /v2/moderation/merge-requests/{id} patch Change a merge request's choices Replaces field_resolution and hide_release_ids on an open or approved request; amended_by and amended_at record who. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope. 替换 open 或 approved 请求上的 field_resolution 与 hide_release_ids；由 amended_by 与 amended_at 记录是谁改的。需要 catalog.merge.review 权限。令牌须带 catalog:edit scope。 id"
+  },
+  {
     "r": "/docs/v2/decideModerationMergeRequest",
     "t": "处理合并请求",
     "s": "端点 · 审核",
     "d": "POST /v2/moderation/merge-requests/{id}/decisions",
-    "b": "decideModerationMergeRequest /v2/moderation/merge-requests/{id}/decisions post Decide a merge request decision=approve|reject|execute. Unmerge stays with the catalog admin console. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope. decision=approve|reject|execute。撤销合并仍在 catalog 管理台。需要 catalog.merge.review 权限。令牌须带 catalog:edit scope。 id Idempotency-Key"
+    "b": "decideModerationMergeRequest /v2/moderation/merge-requests/{id}/decisions post Decide a merge request decision=approve|reject|execute|undo. undo revives the source under its own id, moves back what the merge moved, restores what it archived and revokes the redirect (the redirects feed then lists it with revoked=true); the response carries undo_report. A merge executed before undo was recorded, or past catalog.merge_undo_window_days, is refused 409. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope. decision=approve|reject|execute|undo。undo 以源方自己的 id 恢复源方，把合并移走的内容移回、恢复合并存档的内容，并撤销重定向（之后重定向 feed 会以 revoked=true 列出它）；响应携带 undo_report。执行于开始记录撤销数据之前、或已超过 catalog.merge_undo_window_days 的合并，以 409 拒绝。需要 catalog.merge.review 权限。令牌须带 catalog:edit scope。 id Idempotency-Key"
   },
   {
     "r": "/docs/v2/listModerationProposals",
     "t": "审核提案队列",
     "s": "端点 · 审核",
     "d": "GET /v2/moderation/proposals",
-    "b": "listModerationProposals /v2/moderation/proposals get Moderation proposal queue Open proposals on the token site; on the central editor (catalog site editor), on every site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. site= narrows the central editor's queue to one site of origin; field=, has_conflict= and updated_since= filter; sort=filed_desc (default), filed_asc (oldest waiting first), updated_desc or updated_asc. include=patch (or view=full) adds each row's patch, effective_patch, changed_fields and conflict_fields, so a queue page needs no read per row. The token must carry the catalog:edit scope. 令牌站点上未关闭的提案;在中央编辑站(catalog 站点 editor)上则为所有站点的。整条队列需要 catalog 审核权限。object=（或 entity_type=）配 entity_id= 收敛到单个实体，该实体的所有者无需该权限即可读取——即编辑引擎按字段解析的同一条所有者审核通道。不带家族的 entity_id= 为 422。site= 把中央编辑站的队列收窄到一个来源站点;field=、has_conflict= 与 updated_since= 用于筛选;sort=filed_desc（默认）、filed_asc（等待最久的在前）、updated_desc 或 updated_asc。include=patch（或 view=full）给每一行加上 patch、effective_patch、changed_fields 与 conflict_fields，队列页不必逐行再读。令牌须带 catalog:edit scope。 cursor limit view include fields ids refs include_total facets sort nsfw object entity_type entity_id site field has_conflict updated_since"
+    "b": "listModerationProposals /v2/moderation/proposals get Moderation proposal queue Open proposals on the token site; on the central editor (catalog site editor), on every site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. site= narrows the central editor's queue to one site of origin; field=, has_conflict= and updated_since= filter; sort=filed_desc (default), filed_asc (oldest waiting first), updated_desc or updated_asc. include=patch (or view=full) adds each row's patch, effective_patch, changed_fields and conflict_fields, so a queue page needs no read per row. The token must carry the catalog:edit scope. 令牌站点上未关闭的提案;在中央编辑站(catalog 站点 editor)上则为所有站点的。整条队列需要 catalog 审核权限。object=（或 entity_type=）配 entity_id= 收敛到单个实体，该实体的所有者无需该权限即可读取——即编辑引擎按字段解析的同一条所有者审核通道。不带家族的 entity_id= 为 422。site= 把中央编辑站的队列收窄到一个来源站点;field=、has_conflict= 与 updated_since= 用于筛选;sort=filed_desc（默认）、filed_asc（等待最久的在前）、updated_desc 或 updated_asc。include=patch（或 view=full）给每一行加上 patch、effective_patch、changed_fields 与 conflict_fields，队列页不必逐行再读。令牌须带 catalog:edit scope。 cursor limit view include fields ids refs include_total facets sort nsfw object entity_type entity_id site origin_site field has_conflict updated_since"
   },
   {
     "r": "/docs/v2/getModerationProposal",
@@ -1938,6 +2106,34 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 审核",
     "d": "GET /v2/moderation/snapshots/{object}/{id}",
     "b": "getModerationSnapshot /v2/moderation/snapshots/{object}/{id} get Current edit snapshot Registered field values. Requires a user access token. The token must carry the catalog:edit scope. 已登记字段的当前值。需要用户访问令牌。令牌须带 catalog:edit scope。 object id"
+  },
+  {
+    "r": "/docs/v2/listModerationSplitRequests",
+    "t": "拆分请求队列",
+    "s": "端点 · 审核",
+    "d": "GET /v2/moderation/split-requests",
+    "b": "listModerationSplitRequests /v2/moderation/split-requests get Split request queue Split requests, newest first; follow next_cursor for more. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope. 拆分请求，最新的在前；跟随 next_cursor 取更多。需要 catalog.merge.review 权限。令牌须带 catalog:edit scope。 state target_id origin_site cursor limit"
+  },
+  {
+    "r": "/docs/v2/getModerationSplitRequest",
+    "t": "为审核读取一条拆分请求",
+    "s": "端点 · 审核",
+    "d": "GET /v2/moderation/split-requests/{id}",
+    "b": "getModerationSplitRequest /v2/moderation/split-requests/{id} get Get one split request for review Requires the catalog.merge.review permission. The token must carry the catalog:edit scope. 需要 catalog.merge.review 权限。令牌须带 catalog:edit scope。 id"
+  },
+  {
+    "r": "/docs/v2/amendModerationSplitRequest",
+    "t": "修正拆分请求",
+    "s": "端点 · 审核",
+    "d": "PATCH /v2/moderation/split-requests/{id}",
+    "b": "amendModerationSplitRequest /v2/moderation/split-requests/{id} patch Amend a split request Replaces the chosen releases, the new work's name, language and titles, and the entries to promote, while the request is open or approved. Validated like a filing; records who amended. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope. 在请求处于 open 或 approved 时，替换所选发行、新作品的名称、语言与标题，以及要提升的条目。校验方式与提交相同；记录修正者。需要 catalog.merge.review 权限。令牌须带 catalog:edit scope。 id"
+  },
+  {
+    "r": "/docs/v2/decideModerationSplitRequest",
+    "t": "处理拆分请求",
+    "s": "端点 · 审核",
+    "d": "POST /v2/moderation/split-requests/{id}/decisions",
+    "b": "decideModerationSplitRequest /v2/moderation/split-requests/{id}/decisions post Decide a split request decision=approve|reject|execute|undo. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope. decision=approve|reject|execute|undo。需要 catalog.merge.review 权限。令牌须带 catalog:edit scope。 id Idempotency-Key"
   },
   {
     "r": "/docs/v2/listUserFolders",
@@ -2297,6 +2493,13 @@ export const searchIndex: SearchEntry[] = [
     "b": "ENTITY_MERGED Entity merged The entity was merged into another. object and current_id are present, and Link rel=canonical is sent. 该实体已被合并进另一个实体。响应里带 object 与 current_id，同时回一个 Link rel=canonical。 catalog"
   },
   {
+    "r": "/problems/catalog/entity-deleted",
+    "t": "实体已被删除",
+    "s": "错误码 · 目录数据",
+    "d": "ENTITY_DELETED · HTTP 410",
+    "b": "ENTITY_DELETED Entity deleted The entity was deleted through a reviewed deletion request. object, deleted_reason and deleted_at are present. A reviewer may restore it under the same id, so treat it as hidden, not as never having existed. 该实体经审核的删除请求删除。响应里带 object、deleted_reason 与 deleted_at。审核者可以用同一个 id 恢复它，所以请把它当作「已隐藏」，而不是「从未存在」。 catalog"
+  },
+  {
     "r": "/problems/catalog/play-records-private",
     "t": "游玩记录未公开",
     "s": "错误码 · 目录数据",
@@ -2540,6 +2743,13 @@ export const searchIndex: SearchEntry[] = [
     "s": "词表 · 封闭",
     "d": "credit_name_kind · 4 个成员",
     "b": "credit_name_kind 一个署名名在其人物名下扮演的角色：本名、笔名、另立人格或曾用名。 main Main The person's main name. 本名 这个人的主名。 pen_name Pen name A pen name. 笔名 一个笔名。 distinct_persona Distinct persona A persona kept apart from the person's other names. 另立人格 与此人其他名字分开经营的人格。 former_name Former name A name the person no longer uses. 曾用名 此人已不再使用的名字。"
+  },
+  {
+    "r": "/docs/vocabularies/origin_site",
+    "t": "来源站点",
+    "s": "词表 · 封闭",
+    "d": "origin_site · 5 个成员",
+    "b": "origin_site 一条编辑记录是从哪个第一方站点发起的。仅用于展示与统计；有用户主页的站点附带 profile_url 模板，{id} 为中央账号 id。 kungal KUN Galgame forum kungal.com. 鲲 Galgame 论坛 kungal.com。 moyu KUN Galgame patch moyu.moe. 鲲 Galgame 补丁 moyu.moe。 letmoe LetMoe letmoe.com. LetMoe letmoe.com。 nextmoe NextMoe nextmoe.com, which has no user pages. NextMoe nextmoe.com，没有用户主页。 editor NextMoe editor editor.nextmoe.com opened directly rather than from a site's link. 未萌编辑台 直接打开 editor.nextmoe.com，而不是从某个站点的链接进入。"
   },
   {
     "r": "/docs/vocabularies/link_visibility",

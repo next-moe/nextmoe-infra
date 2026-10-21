@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import type { KunTabItem } from '@kungal/ui-vue'
+import type { KunDropdownItem, KunTabItem } from '@kungal/ui-vue'
 import type { CatalogWork } from '#shared/types/catalog'
 import { WORK_DETAIL_INCLUDE } from '~/constants/catalog'
+import { deletedProblem } from '~/utils/review/problem'
 
 const TABS: KunTabItem[] = [
   { value: 'overview', textValue: '概览', icon: 'lucide:info' },
@@ -32,7 +33,11 @@ watch(tab, (value) => {
   })
 })
 
-const { data: work, error } = useLazyAsyncData(
+const {
+  data: work,
+  error,
+  refresh
+} = useLazyAsyncData(
   () => `work-${id.value}`,
   () =>
     api<CatalogWork>(`/v2/catalog/works/${id.value}`, {
@@ -41,7 +46,22 @@ const { data: work, error } = useLazyAsyncData(
   { watch: [id] }
 )
 
-const mergeOpen = ref(false)
+const deleteOpen = ref(false)
+const deleted = computed(() => deletedProblem(error.value))
+
+const moreItems: KunDropdownItem[] = [
+  {
+    key: 'delete',
+    label: '申请删除',
+    icon: 'lucide:trash-2',
+    color: 'danger'
+  }
+]
+const onMore = (item: KunDropdownItem) => {
+  if (item.key === 'delete') {
+    deleteOpen.value = true
+  }
+}
 
 useHead(() => ({
   title: work.value
@@ -70,13 +90,24 @@ useHead(() => ({
           新建发行
         </KunButton>
         <KunButton
+          :href="`/merge/new?object=work&source=${id}`"
+          target="_blank"
           variant="light"
           size="sm"
           :disabled="!work"
-          @click="mergeOpen = true"
         >
           <KunIcon name="lucide:git-merge" class="size-4" />
           合并
+        </KunButton>
+        <KunButton
+          :href="`/split/new?work=${id}`"
+          target="_blank"
+          variant="light"
+          size="sm"
+          :disabled="!work"
+        >
+          <KunIcon name="lucide:split" class="size-4" />
+          拆分
         </KunButton>
         <KunButton
           :href="`/works/${id}/edit`"
@@ -87,18 +118,42 @@ useHead(() => ({
           <KunIcon name="lucide:pencil" class="size-4" />
           编辑资料
         </KunButton>
+        <KunDropdown
+          :items="moreItems"
+          position="bottom-end"
+          :disabled="!work"
+          @select="onMore"
+        >
+          <template #trigger>
+            <KunButton
+              variant="light"
+              size="sm"
+              is-icon-only
+              aria-label="更多操作"
+              :disabled="!work"
+            >
+              <KunIcon name="lucide:ellipsis" class="size-4" />
+            </KunButton>
+          </template>
+        </KunDropdown>
       </div>
     </div>
-    <MergeRequestModal
+    <DeleteRequestModal
       v-if="work"
-      v-model="mergeOpen"
-      family="work"
-      :entity-id="String(id)"
-      :entity-name="work.display_name"
+      v-model="deleteOpen"
+      :work-id="String(id)"
+      :work-name="work.display_name"
     />
 
+    <DeleteDeletedState
+      v-if="deleted"
+      :work-id="String(id)"
+      :reason="deleted.reason"
+      :deleted-at="deleted.deletedAt"
+      @restored="refresh()"
+    />
     <KunInfo
-      v-if="error"
+      v-else-if="error"
       color="danger"
       variant="flat"
       title="无法加载这部作品"

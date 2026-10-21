@@ -295,6 +295,14 @@ var CatalogMergeCoolingOffHours = settings.Int(settings.Meta{
 	Max:    settings.F(720),
 }, 48)
 
+var CatalogMergeUndoWindowDays = settings.Int(settings.Meta{
+	Name:   "catalog.merge_undo_window_days",
+	DescEN: "Days after a merge executes during which a reviewer may undo it under the original id; 0 turns undo off.",
+	DescZH: "合并执行后审核者可以撤销(恢复原 id)的天数;0 表示关闭撤销。",
+	Min:    settings.F(0),
+	Max:    settings.F(365),
+}, 30)
+
 var CatalogWriteQuotaWindowHours = settings.Int(settings.Meta{
 	Name:   "catalog.write_quota_window_hours",
 	DescEN: "Sliding window over which a contributor's claim writes and proposals are counted.",
@@ -406,6 +414,62 @@ var CatalogMergeRequestsPerDayReviewer = settings.Int(settings.Meta{
 	Max:    settings.F(100000),
 }, 500)
 
+var CatalogDeletionCoolingOffHours = settings.Int(settings.Meta{
+	Name:   "catalog.deletion_cooling_off_hours",
+	DescEN: "Hours an approved deletion request waits before it may execute; 0 means it executes as soon as a reviewer or the job runs it.",
+	DescZH: "已批准的删除请求在可执行前等待的小时数;0 表示审核者或定时任务可立即执行。",
+	Min:    settings.F(0),
+	Max:    settings.F(720),
+}, 48)
+
+var CatalogDeletionRequestsPerDay = settings.Int(settings.Meta{
+	Name:   "catalog.deletion_requests_per_day",
+	DescEN: "How many deletion requests one user-tier account may file through the editor inside catalog.write_quota_window_hours. Nothing is deleted until a reviewer approves and the cooling-off ends.",
+	DescZH: "普通档账号在 catalog.write_quota_window_hours 窗口内通过编辑台提交删除请求的上限。须审核通过并度过冷静期才会删除。",
+	Min:    settings.F(0),
+	Max:    settings.F(100000),
+}, 5)
+
+var CatalogDeletionRequestsPerDayEditor = settings.Int(settings.Meta{
+	Name:   "catalog.deletion_requests_per_day_editor",
+	DescEN: "The same limit for the editor tier.",
+	DescZH: "编辑者档的同一限额。",
+	Min:    settings.F(0),
+	Max:    settings.F(100000),
+}, 20)
+
+var CatalogDeletionRequestsPerDayReviewer = settings.Int(settings.Meta{
+	Name:   "catalog.deletion_requests_per_day_reviewer",
+	DescEN: "The same limit for the reviewer tier.",
+	DescZH: "审核者档的同一限额。",
+	Min:    settings.F(0),
+	Max:    settings.F(100000),
+}, 200)
+
+var CatalogSplitRequestsPerDay = settings.Int(settings.Meta{
+	Name:   "catalog.split_requests_per_day",
+	DescEN: "How many split requests one user-tier account may file through the editor inside catalog.write_quota_window_hours. Nothing is split until a reviewer approves and the cooling-off (catalog.merge_cooling_off_hours) ends.",
+	DescZH: "普通档账号在 catalog.write_quota_window_hours 窗口内通过编辑台提交拆分请求的上限。须审核通过并度过冷静期（catalog.merge_cooling_off_hours）才会拆分。",
+	Min:    settings.F(0),
+	Max:    settings.F(100000),
+}, 5)
+
+var CatalogSplitRequestsPerDayEditor = settings.Int(settings.Meta{
+	Name:   "catalog.split_requests_per_day_editor",
+	DescEN: "The same limit for the editor tier.",
+	DescZH: "编辑者档的同一限额。",
+	Min:    settings.F(0),
+	Max:    settings.F(100000),
+}, 20)
+
+var CatalogSplitRequestsPerDayReviewer = settings.Int(settings.Meta{
+	Name:   "catalog.split_requests_per_day_reviewer",
+	DescEN: "The same limit for the reviewer tier.",
+	DescZH: "审核者档的同一限额。",
+	Min:    settings.F(0),
+	Max:    settings.F(100000),
+}, 200)
+
 var CatalogEditMergeReward = settings.Int(settings.Meta{
 	Name:   "catalog.edit_merge_reward",
 	DescEN: "Moemoepoints the catalog-edit-rewards job grants the proposer of an edit proposal that someone else merged, whichever site filed it and whatever entity it edits. Self-merges, automerges and reverts earn nothing. 0 stops new awards.",
@@ -481,6 +545,7 @@ var catalogDomain = settings.Domain{
 	Keys: []settings.Entry{
 		CatalogTotalsCacheTTLSeconds,
 		CatalogMergeCoolingOffHours,
+		CatalogMergeUndoWindowDays,
 		CatalogWriteQuotaWindowHours,
 		CatalogClaimWritesPerDay,
 		CatalogClaimWritesPerDayTrusted,
@@ -494,6 +559,14 @@ var catalogDomain = settings.Domain{
 		CatalogMergeRequestsPerDay,
 		CatalogMergeRequestsPerDayEditor,
 		CatalogMergeRequestsPerDayReviewer,
+		CatalogDiscussionPostsPerHour,
+		CatalogDeletionCoolingOffHours,
+		CatalogDeletionRequestsPerDay,
+		CatalogDeletionRequestsPerDayEditor,
+		CatalogDeletionRequestsPerDayReviewer,
+		CatalogSplitRequestsPerDay,
+		CatalogSplitRequestsPerDayEditor,
+		CatalogSplitRequestsPerDayReviewer,
 		CatalogNewsSubmissionsPerDay,
 		CatalogNewsImageUploadsPerDay,
 		CatalogEditMergeReward,

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { cn } from '@kungal/ui-core'
 import type { CatalogRevision } from '#shared/types/catalog'
-import { REVISION_ACTION, SITE_LABELS } from '~/constants/catalog'
+import { REVISION_ACTION } from '~/constants/catalog'
 
 const props = defineProps<{
   revision: CatalogRevision
@@ -50,12 +50,16 @@ const fields = computed(() =>
           {{ field }}
         </KunChip>
       </div>
-      <p class="text-default-400 mt-1 flex items-center gap-1 text-xs">
-        <HistoryUser
+      <p
+        class="text-default-400 mt-1 flex flex-wrap items-center gap-1 text-xs"
+      >
+        <HistoryAuthor
           :user="props.revision.actor"
           :uid="props.revision.actor_uid"
+          :origin="props.revision.origin_site"
+          :site="props.revision.site"
         />
-        · {{ labelOf(SITE_LABELS, props.revision.site) }} ·
+        ·
         <time
           :datetime="props.revision.created_at"
           :title="formatDateTime(props.revision.created_at)"

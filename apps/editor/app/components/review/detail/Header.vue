@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { CatalogProposal } from '#shared/types/catalog'
-import { PROPOSAL_STATE, SITE_LABELS } from '~/constants/catalog'
+import { PROPOSAL_STATE } from '~/constants/catalog'
 
 const props = defineProps<{
   proposal: CatalogProposal
@@ -49,14 +49,14 @@ const state = computed(
     </div>
     <p class="text-default-500 flex flex-wrap items-center gap-x-1 text-sm">
       <span>提案 #{{ props.proposal.id }} ·</span>
-      <HistoryUser
+      <HistoryAuthor
         :user="props.proposal.proposer"
         :uid="props.proposal.proposer_uid"
+        :origin="props.proposal.origin_site"
+        :site="props.proposal.site"
+        size="sm"
       />
-      <span
-        >· 来自 {{ labelOf(SITE_LABELS, props.proposal.site) }} · 基于第
-        {{ props.proposal.base_revision_seq }} 版 ·</span
-      >
+      <span>· 基于第 {{ props.proposal.base_revision_seq }} 版 ·</span>
       <time
         :datetime="props.proposal.created_at"
         :title="formatDateTime(props.proposal.created_at)"

@@ -57,6 +57,9 @@ func (e *Engine) afterMerge(ctx context.Context, rev *Revision) {
 	if rev == nil {
 		return
 	}
+	for _, m := range rev.mirrored {
+		e.afterMerge(ctx, m)
+	}
 	spec, ok := e.reg.Type(rev.EntityType)
 	if !ok || spec.OnMerge == nil {
 		return
@@ -166,6 +169,7 @@ type ProposalFilter struct {
 	EntityType   string
 	EntityID     int64
 	Site         string
+	OriginSite   string
 	ProposerUID  int64
 	Status       int16
 	FieldKey     string
@@ -279,6 +283,9 @@ func (e *Engine) ListProposalsWithTotal(ctx context.Context, f ProposalFilter) (
 	}
 	if f.Site != "" {
 		q = q.Where("site = ?", f.Site)
+	}
+	if f.OriginSite != "" {
+		q = q.Where("origin_site = ?", f.OriginSite)
 	}
 	if f.ProposerUID != 0 {
 		q = q.Where("proposer_uid = ?", f.ProposerUID)

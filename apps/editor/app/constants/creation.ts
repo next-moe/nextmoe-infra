@@ -47,8 +47,9 @@ export const CREATION_PARAM_LABELS: Record<
 
 export const MERGE_STATE_LABELS: Record<string, string> = {
   open: '待审核',
-  approved: '已批准，冷却中',
+  approved: '已批准，冷静期中',
   executed: '已合并',
   rejected: '已驳回',
-  withdrawn: '已撤回'
+  withdrawn: '已撤回',
+  undone: '已撤销'
 }

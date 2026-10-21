@@ -53,6 +53,7 @@ func init() {
 
 func RegisterWork(reg *editing.Registry, db *gorm.DB) error {
 	fields := append(append(workFieldSpecs(), upstreamMediaFieldSpecs()...), workMediaOrderFieldSpecs()...)
+	fields = append(fields, creditsUpstreamFieldSpec())
 
 	return reg.Register(withUpstreamRows(db, editing.EntityTypeSpec{
 		Family: "catalog",
@@ -92,6 +93,7 @@ func RegisterWork(reg *editing.Registry, db *gorm.DB) error {
 				FieldWorkScreenshotOrder:     loadWorkMediaOrder(catmodel.WorkMediaOrderScreenshot),
 				FieldWorkCredits:             loadCredits,
 				FieldWorkCreditsSuppr:        loadSuppressedCredits,
+				FieldWorkCreditsUpstream:     loadUpstreamCredits,
 				FieldWorkRoster:              loadRoster,
 				FieldWorkRosterSuppr:         loadSuppressedRoster,
 				FieldWorkRelations:           loadWorkRelations,

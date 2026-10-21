@@ -30,6 +30,7 @@ type proposalFilter struct {
 	EntityType  string
 	EntityID    string
 	Site        string
+	OriginSite  string
 	ProposerUID string
 	State       string
 	// The me lane's rows are already fenced to one proposer, so entity_id=
@@ -43,6 +44,11 @@ type proposalFilter struct {
 
 func (c *Catalog) proposalQuery(f proposalFilter, limit int, cursor int64) (editing.ProposalFilter, error) {
 	out := editing.ProposalFilter{Site: f.Site, Status: -1, Limit: limit, BeforeID: cursor}
+	origin, oerr := originSiteParam(f.OriginSite)
+	if oerr != nil {
+		return out, oerr
+	}
+	out.OriginSite = origin
 	if f.Object != "" {
 		entityType := schemaEntityType(f.Object)
 		if entityType == "" {

@@ -252,6 +252,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/catalog/discussions/{object}/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Discussion under a proposal or request
+         * @description Posts oldest first; follow next_cursor for newer ones. A proposal's thread is public like the proposal; a merge request's is readable by its requester and by catalog.merge.review holders. With a user token the page carries viewer: whether the caller may post or moderate here, and whether the thread reaches their notices. Anonymous calls are allowed and limited per IP address; they read public threads only.
+         */
+        get: operations["listCatalogDiscussion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/catalog/engines": {
         parameters: {
             query?: never;
@@ -624,6 +644,26 @@ export interface paths {
          * @description Series detail. has_nsfw reports whether any member work sits behind the r18 display gate. include=intros,refs adds the corresponding blocks. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
          */
         get: operations["getCatalogSeries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/catalog/splits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Work split feed
+         * @description Executed and undone splits, oldest change first. Keyset-paginated. A split moves releases from original_id to a new work: the new id also appears on /v2/catalog/changes, and the moved releases keep their ids. A mirror that hangs its own data off releases or editions should follow them to new_work_id. An undo re-surfaces the split with state=undone: the releases are back on original_id and new_work_id redirects there (/v2/catalog/redirects). Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+         */
+        get: operations["listCatalogSplits"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1296,6 +1336,154 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/me/deletion-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview what a deletion affects
+         * @description What deleting the entry would touch: its links to source entries, releases, user records that would be hidden, open edit proposals that would be declined, the claiming site, and any pending request. Also answers for an entry that is already deleted. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+         */
+        get: operations["getMyDeletionPreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/me/deletion-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List my deletion requests
+         * @description The bearer's own deletion requests, newest first; follow next_cursor for more. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+         */
+        get: operations["listMyDeletionRequests"];
+        put?: never;
+        /**
+         * Request a deletion
+         * @description Asks reviewers to delete a catalog entry; only works can be deleted today. Nothing is deleted on filing: a reviewer approves, the cooling-off runs, then the entry is soft-deleted. Its links to source entries stay as a tombstone so the importers do not create it again, and user records on it are kept but hidden until a reviewer restores it under the same id. A duplicate is refused 422: merge it with /v2/me/merge-requests instead. One open or approved request per entry; another is 409. Quotas are tiered: catalog.deletion_requests_per_day, _editor, _reviewer inside catalog.write_quota_window_hours; past it 429 QUOTA_EXCEEDED. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+         */
+        post: operations["createMyDeletionRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/me/deletion-requests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Withdraw a deletion request
+         * @description Withdraws an open request the bearer filed. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+         */
+        patch: operations["patchMyDeletionRequest"];
+        trace?: never;
+    };
+    "/v2/me/discussion-notices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * New posts for me
+         * @description Posts by others, newer than since, in threads the caller watches or that mention them; a muted thread reaches the caller only through mentions. Requires a user access token from a first-party site with the catalog:edit scope. The token must carry the catalog:edit scope.
+         */
+        get: operations["listMyDiscussionNotices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/me/discussion-watches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Watch or mute a discussion
+         * @description Requires a user access token from a first-party site with the catalog:edit scope. The token must carry the catalog:edit scope.
+         */
+        put: operations["watchMyDiscussion"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/me/discussions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post in a discussion
+         * @description Adds a post under a proposal or request the caller can read. The author, everyone mentioned, and the anchor's participants (proposer or requester, decider, amenders) start watching the thread; their notices pick up later posts. Limited per account by catalog.discussion_posts_per_hour; past it 429 QUOTA_EXCEEDED. Text refused by the content check is 422. Requires a user access token from a first-party site with the catalog:edit scope. The token must carry the catalog:edit scope.
+         */
+        post: operations["createMyDiscussionPost"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/me/discussions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete my post
+         * @description The post stays in the thread as deleted, with its text removed. Requires a user access token from a first-party site with the catalog:edit scope. The token must carry the catalog:edit scope.
+         */
+        delete: operations["deleteMyDiscussionPost"];
+        options?: never;
+        head?: never;
+        /**
+         * Edit my post
+         * @description Replaces the text of a visible post the caller wrote and stamps edited_at. Requires a user access token from a first-party site with the catalog:edit scope. The token must carry the catalog:edit scope.
+         */
+        patch: operations["editMyDiscussionPost"];
+        trace?: never;
+    };
     "/v2/me/edit-bundle/{object}/{id}": {
         parameters: {
             query?: never;
@@ -1564,6 +1752,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/me/merge-candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Suggest merge partners
+         * @description Up to ten entries that may duplicate id: undecided pairs from the reconciliation queue first, then live entries with exactly the same name. A single page; there is no cursor. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+         */
+        get: operations["listMyMergeCandidates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/me/merge-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview a merge
+         * @description Computes what merging source_id into target_id would do, without writing: both sides' values for the resolvable fields, the fate of every external id, the releases of both works with source duplicates marked, title and intro outcomes, row counts, the site claim, and blockers and warnings. An entry already merged away or deleted comes back with a not_live blocker rather than an error. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+         */
+        get: operations["previewMyMerge"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/me/merge-requests": {
         parameters: {
             query?: never;
@@ -1595,7 +1823,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Get one merge request
+         * @description Any editor-filed merge request by id, for the requester and everyone following it. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+         */
+        get: operations["getMyMergeRequest"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1868,6 +2100,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/me/split-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview a split
+         * @description Every live release of the work, the registry entries that could become the new work's identity, what moves and what stays, titles suggested from the chosen releases, and the blockers, warnings and registry facts for the choice in release_ids= and promote=. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+         */
+        get: operations["getMySplitPreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/me/split-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List my split requests
+         * @description The bearer's own split requests, newest first; follow next_cursor for more. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+         */
+        get: operations["listMySplitRequests"];
+        put?: never;
+        /**
+         * Request a split
+         * @description Asks reviewers to move some releases of a work into a work of their own, for an edition that deserves its own entry although VNDB lists it under the same VN. Nothing changes on filing: a reviewer approves (and may amend the selection), the cooling-off runs, then the new work is created. One open or approved request per work; another is 409. Quotas are tiered: catalog.split_requests_per_day, _editor, _reviewer inside catalog.write_quota_window_hours; past it 429 QUOTA_EXCEEDED. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+         */
+        post: operations["createMySplitRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/me/split-requests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get one split request
+         * @description Any split request, for its page in the editor. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+         */
+        get: operations["getMySplitRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Withdraw a split request
+         * @description Withdraws an open request the bearer filed. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+         */
+        patch: operations["patchMySplitRequest"];
+        trace?: never;
+    };
     "/v2/me/work-records": {
         parameters: {
             query?: never;
@@ -2044,6 +2344,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/moderation/deletion-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Deletion request queue
+         * @description Deletion requests, newest first; follow next_cursor for more. Requires the catalog.delete.review permission. The token must carry the catalog:edit scope.
+         */
+        get: operations["listModerationDeletionRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/moderation/deletion-requests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get one deletion request
+         * @description Requires the catalog.delete.review permission. The token must carry the catalog:edit scope.
+         */
+        get: operations["getModerationDeletionRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/moderation/deletion-requests/{id}/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decide a deletion request
+         * @description decision=approve|reject|execute|restore. Requires the catalog.delete.review permission. The token must carry the catalog:edit scope.
+         */
+        post: operations["decideModerationDeletionRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/moderation/discussions/{id}/visibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hide or restore a post
+         * @description Requires the catalog.discussion.moderate permission. The token must carry the catalog:edit scope.
+         */
+        post: operations["moderateDiscussionPost"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/moderation/folders/{id}": {
         parameters: {
             query?: never;
@@ -2105,7 +2485,11 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Change a merge request's choices
+         * @description Replaces field_resolution and hide_release_ids on an open or approved request; amended_by and amended_at record who. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+         */
+        patch: operations["amendModerationMergeRequest"];
         trace?: never;
     };
     "/v2/moderation/merge-requests/{id}/decisions": {
@@ -2119,7 +2503,7 @@ export interface paths {
         put?: never;
         /**
          * Decide a merge request
-         * @description decision=approve|reject|execute. Unmerge stays with the catalog admin console. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+         * @description decision=approve|reject|execute|undo. undo revives the source under its own id, moves back what the merge moved, restores what it archived and revokes the redirect (the redirects feed then lists it with revoked=true); the response carries undo_report. A merge executed before undo was recorded, or past catalog.merge_undo_window_days, is refused 409. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
          */
         post: operations["decideModerationMergeRequest"];
         delete?: never;
@@ -2242,6 +2626,70 @@ export interface paths {
         get: operations["getModerationSnapshot"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/moderation/split-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Split request queue
+         * @description Split requests, newest first; follow next_cursor for more. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+         */
+        get: operations["listModerationSplitRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/moderation/split-requests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get one split request for review
+         * @description Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+         */
+        get: operations["getModerationSplitRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Amend a split request
+         * @description Replaces the chosen releases, the new work's name, language and titles, and the entries to promote, while the request is open or approved. Validated like a filing; records who amended. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+         */
+        patch: operations["amendModerationSplitRequest"];
+        trace?: never;
+    };
+    "/v2/moderation/split-requests/{id}/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decide a split request
+         * @description decision=approve|reject|execute|undo. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+         */
+        post: operations["decideModerationSplitRequest"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2617,7 +3065,7 @@ export interface components {
         Amendment: {
             /** @description Account behind amender_uid. null only when the account directory could not be read. */
             amender: components["schemas"]["UserRef"] | null;
-            /** @description The claiming site's own user id of the amender. Not a catalog id. */
+            /** @description Central account id of the amender. Not a catalog id. */
             amender_uid: string;
             /**
              * Format: date-time
@@ -3434,6 +3882,50 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        CreateDeletionRequestInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/CreateDeletionRequestInputBody.json
+             */
+            readonly $schema?: string;
+            /** @description Evidence reviewers can check. Must not be used as a discriminant. */
+            note: string;
+            /**
+             * @description Family of the entry. Only works can be deleted today.
+             * @enum {string}
+             */
+            object: "work";
+            /**
+             * @description Why it should go. duplicate is refused 422: a duplicate is merged into the entry it duplicates through /v2/me/merge-requests.
+             * @enum {string}
+             */
+            reason: "not_a_work" | "out_of_scope" | "spam_or_test" | "other" | "duplicate";
+            /** @description The entry to delete. */
+            target_id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        CreateDiscussionInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/CreateDiscussionInputBody.json
+             */
+            readonly $schema?: string;
+            /** @description Id of the proposal or request. */
+            anchor_id: string;
+            /** @description proposal, merge_request, or a kind a later request type registers. */
+            anchor_kind: string;
+            /** @description Plain text, at most 2000 characters after trimming. Must not be used as a discriminant. */
+            body: string;
+            /** @description Central account ids to notify; the author is dropped. More than 10 people is 422. */
+            mention_uids?: string[];
+            /** @description A post in the same thread this one quotes. */
+            reply_to_id?: string;
+        } & {
+            [key: string]: unknown;
+        };
         CreateFolderInputBody: {
             /**
              * Format: uri
@@ -3547,6 +4039,25 @@ export interface components {
             patch: {
                 [key: string]: unknown;
             };
+        } & {
+            [key: string]: unknown;
+        };
+        CreateSplitRequestInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/CreateSplitRequestInputBody.json
+             */
+            readonly $schema?: string;
+            /** @description Why these releases are a work of their own. Must not be used as a discriminant. */
+            note: string;
+            /**
+             * @description Family of the entry. Only works can be split today.
+             * @enum {string}
+             */
+            object: "work";
+            /** @description The work to split. */
+            target_id: string;
         } & {
             [key: string]: unknown;
         };
@@ -3664,6 +4175,23 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        DecideDeletionRequestInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/DecideDeletionRequestInputBody.json
+             */
+            readonly $schema?: string;
+            /**
+             * @description approve starts the cooling-off (catalog.deletion_cooling_off_hours) after which the catalog-deletion-requests job deletes the entry; reject closes it; execute runs an approved request whose cooling-off has ended without waiting for the job; restore brings an executed deletion back under the same id.
+             * @enum {string}
+             */
+            decision: "approve" | "reject" | "execute" | "restore";
+            /** @description Required to reject; an optional note to restore. Must not be used as a discriminant. */
+            reason?: string;
+        } & {
+            [key: string]: unknown;
+        };
         DecideMergeRequestInputBody: {
             /**
              * Format: uri
@@ -3672,11 +4200,11 @@ export interface components {
              */
             readonly $schema?: string;
             /**
-             * @description approve starts the cooling-off (catalog.merge_cooling_off_hours) after which the catalog-merge-requests job executes it; reject closes it; execute runs an approved request whose cooling-off has ended without waiting for the job.
+             * @description approve starts the cooling-off (catalog.merge_cooling_off_hours) after which the catalog-merge-requests job executes it; reject closes it; execute runs an approved request whose cooling-off has ended without waiting for the job; undo takes an executed merge back under the source's original id while undo_until has not passed.
              * @enum {string}
              */
-            decision: "approve" | "reject" | "execute";
-            /** @description Required to reject. Must not be used as a discriminant. */
+            decision: "approve" | "reject" | "execute" | "undo";
+            /** @description Required to reject and to undo. Must not be used as a discriminant. */
             reason?: string;
         } & {
             [key: string]: unknown;
@@ -3695,6 +4223,321 @@ export interface components {
             decision: "merge" | "decline";
             /** @description Must not be used as a discriminant. */
             note?: string;
+        } & {
+            [key: string]: unknown;
+        };
+        DecideSplitRequestInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/DecideSplitRequestInputBody.json
+             */
+            readonly $schema?: string;
+            /**
+             * @description approve starts the cooling-off (catalog.merge_cooling_off_hours) after which the catalog-split-requests job executes it; reject closes it; execute runs an approved request whose cooling-off has ended without waiting for the job; undo puts an executed split back while undo_until has not passed: the releases return and the new work is merged into the original.
+             * @enum {string}
+             */
+            decision: "approve" | "reject" | "execute" | "undo";
+            /** @description Required to reject and to undo. Must not be used as a discriminant. */
+            reason?: string;
+        } & {
+            [key: string]: unknown;
+        };
+        DeletionAnchor: {
+            /**
+             * @description identity and probable links keep the importers from creating the work again while it is deleted; related links are ordinary links.
+             * @enum {string}
+             */
+            anchor_kind: "identity" | "probable" | "related";
+            /** @description Verbatim upstream id. Must not be used as a discriminant beyond exact match. It is an identity anchor at this entity's own granularity, not necessarily an addressable page: a credit-name vndb ref is a staff-alias id with no page of its own. Browseable URLs come from links. */
+            external_id: string;
+            /** @description Open vocabulary sources. Must not be used as a discriminant. */
+            source: string;
+        } & {
+            [key: string]: unknown;
+        };
+        DeletionPreview: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/DeletionPreview.json
+             */
+            readonly $schema?: string;
+            /** @description Links to source entries the work holds. */
+            anchors: components["schemas"]["DeletionAnchor"][];
+            /** @description Site that claimed the work. null when unclaimed. */
+            claim_site: string | null;
+            /** @description true when the entry is already deleted. */
+            deleted: boolean;
+            /** @description The entry's display name. Must not be used as a discriminant. */
+            display_name: string;
+            /** @description Set when the entry was merged into another; it cannot be deleted then. */
+            merged_into_id: string | null;
+            /**
+             * @description Type discriminant. Always deletion_preview.
+             * @enum {string}
+             */
+            object: "deletion_preview";
+            /**
+             * Format: int64
+             * @description Open edit proposals on the work. A deletion declines them.
+             */
+            open_proposal_count: number;
+            /** @description An open or approved deletion request on the entry. null when none. */
+            pending_request_id: string | null;
+            /**
+             * Format: int64
+             * @description Releases of the work.
+             */
+            release_count: number;
+            /** @description The entry. */
+            target_id: string;
+            /**
+             * @description Family of the entry.
+             * @enum {string}
+             */
+            target_object: "work";
+            /** @description User records keyed to the work. */
+            user_data: components["schemas"]["DeletionUserData"];
+        } & {
+            [key: string]: unknown;
+        };
+        DeletionRequestRecord: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/DeletionRequestRecord.json
+             */
+            readonly $schema?: string;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC. null before a decision.
+             */
+            decided_at: string | null;
+            /** @description Account behind decided_by_uid. */
+            decided_by: components["schemas"]["UserRef"] | null;
+            /** @description Central account id of the reviewer who approved or rejected it. null before a decision and when the request closed by itself. */
+            decided_by_uid: string | null;
+            /** @description The reviewer's reason for a rejection, or why the request closed by itself. Empty otherwise. Must not be used as a discriminant. */
+            decision_note: string;
+            /**
+             * Format: date-time
+             * @description End of the cooling-off once approved. null before approval.
+             */
+            execute_after: string | null;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC. null until executed.
+             */
+            executed_at: string | null;
+            /** @description Deletion request id. */
+            id: string;
+            /** @description The requester's explanation. Must not be used as a discriminant. */
+            note: string;
+            /**
+             * @description Type discriminant. Always deletion_request.
+             * @enum {string}
+             */
+            object: "deletion_request";
+            /**
+             * @description Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.
+             * @enum {string|null}
+             */
+            origin_site: "kungal" | "moyu" | "letmoe" | "nextmoe" | "editor" | null;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC.
+             */
+            proposed_at: string;
+            /** @description Account behind proposed_by_uid. null only when the account directory could not be read. */
+            proposed_by: components["schemas"]["UserRef"] | null;
+            /** @description Central account id of the requester. */
+            proposed_by_uid: string;
+            /**
+             * @description not_a_work: no such work exists; out_of_scope: it exists but the catalog does not collect it; spam_or_test: vandalism or a test entry; other: see note. A duplicate is merged, not deleted.
+             * @enum {string}
+             */
+            reason: "not_a_work" | "out_of_scope" | "spam_or_test" | "other";
+            /** @description The reviewer's note when restoring. Empty otherwise. Must not be used as a discriminant. */
+            restore_note: string;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC. null unless restored.
+             */
+            restored_at: string | null;
+            /** @description Account behind restored_by_uid. */
+            restored_by: components["schemas"]["UserRef"] | null;
+            /** @description Central account id of the reviewer who restored the entry. null unless restored. */
+            restored_by_uid: string | null;
+            /**
+             * @description open awaits a reviewer; approved waits out the cooling-off (catalog.deletion_cooling_off_hours), after which the deletion runs; executed means the entry is deleted; restored means a reviewer brought it back under the same id.
+             * @enum {string}
+             */
+            state: "open" | "approved" | "executed" | "rejected" | "withdrawn" | "restored";
+            /** @description The entry to delete. */
+            target_id: string;
+            /** @description The entry's display name, also once it is deleted. Must not be used as a discriminant. */
+            target_name: string;
+            /**
+             * @description Family of the entry. Only works can be deleted today.
+             * @enum {string}
+             */
+            target_object: "work";
+        } & {
+            [key: string]: unknown;
+        };
+        DeletionUserData: {
+            /**
+             * Format: int64
+             * @description Folder memberships of the work. Kept but hidden while it is deleted.
+             */
+            folder_item_count: number;
+            /**
+             * Format: int64
+             * @description Playtime reports on the work. Kept but hidden while it is deleted.
+             */
+            playtime_count: number;
+            /**
+             * Format: int64
+             * @description Ratings on the work. Kept but hidden while it is deleted.
+             */
+            rating_count: number;
+            /**
+             * Format: int64
+             * @description Play states on the work. Kept but hidden while it is deleted.
+             */
+            work_state_count: number;
+        } & {
+            [key: string]: unknown;
+        };
+        DiscussionNotice: {
+            /**
+             * @description Type discriminant. Always discussion_notice.
+             * @enum {string}
+             */
+            object: "discussion_notice";
+            /** @description The new post. */
+            post: components["schemas"]["DiscussionPost"];
+            /**
+             * @description mention: the post names the caller. reply: a new post in a thread the caller watches.
+             * @enum {string}
+             */
+            reason: "reply" | "mention";
+            /** @description true when the caller filed the anchor; clients use it to pick which page to open. */
+            viewer_is_owner: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        DiscussionPage: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/DiscussionPage.json
+             */
+            readonly $schema?: string;
+            /** @description Posts oldest first. Empty array, never null. */
+            items: components["schemas"]["DiscussionPost"][];
+            /** @description Opaque cursor for the next, newer page. Omitted on the last page. */
+            next_cursor?: string;
+            /**
+             * @description Type discriminant. Always list.
+             * @enum {string}
+             */
+            object: "list";
+            /** @description Central account id of whoever filed the anchor: the proposer or the requester. */
+            owner_uid: string | null;
+            /**
+             * Format: int64
+             * @description Posts in the thread, deleted ones excluded.
+             */
+            total: number;
+            /** @description Present when the call carries a user token. */
+            viewer?: components["schemas"]["DiscussionViewer"];
+        } & {
+            [key: string]: unknown;
+        };
+        DiscussionPost: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/DiscussionPost.json
+             */
+            readonly $schema?: string;
+            /** @description Id of the proposal or request. */
+            anchor_id: string;
+            /** @description Object discriminant of what the thread hangs under: proposal, merge_request, and the kinds later request types register. Open vocabulary. */
+            anchor_kind: string;
+            /** @description Account behind author_uid. null only when the account directory could not be read. */
+            author: components["schemas"]["UserRef"] | null;
+            /** @description true when the author could review this kind of anchor when posting. */
+            author_reviewer: boolean;
+            /** @description Central account id of the author. */
+            author_uid: string;
+            /** @description Plain text; clients render a small markdown subset (bold, inline code, links, line breaks). Empty when deleted, and when hidden unless the caller moderates discussions. Must not be used as a discriminant. */
+            body: string;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC with the stored fractional seconds, so it can be sent back as since= without matching the same post again.
+             */
+            created_at: string;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC of the author's last edit. null when never edited.
+             */
+            edited_at: string | null;
+            /** @description Post id. */
+            id: string;
+            /** @description Central account ids the author mentioned; each is notified. Empty array when none. */
+            mention_uids: string[];
+            /** @description Present only to discussion moderators, on a post that was ever hidden or restored. Must not be used as a discriminant. */
+            moderation_note?: string;
+            /**
+             * @description Type discriminant. Always discussion_post.
+             * @enum {string}
+             */
+            object: "discussion_post";
+            /** @description The post this one quotes. null when none. */
+            reply_to_id: string | null;
+            /**
+             * @description hidden: a discussion moderator hid it. deleted: its author deleted it.
+             * @enum {string}
+             */
+            state: "visible" | "hidden" | "deleted";
+        } & {
+            [key: string]: unknown;
+        };
+        DiscussionViewer: {
+            /** @description true when the caller holds catalog.discussion.moderate. */
+            can_moderate: boolean;
+            /** @description true for any signed-in caller who can read the thread. Posting itself also needs a first-party site's token, checked on POST /v2/me/discussions. */
+            can_post: boolean;
+            /** @description true when the caller muted this thread; mentions still reach them. */
+            muted: boolean;
+            /** @description true when new posts here reach the caller's notices. */
+            watching: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        DiscussionWatch: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/DiscussionWatch.json
+             */
+            readonly $schema?: string;
+            /** @description Anchor id. */
+            anchor_id: string;
+            /** @description Anchor kind. */
+            anchor_kind: string;
+            /** @description true when the caller muted the thread. */
+            muted: boolean;
+            /**
+             * @description Type discriminant. Always discussion_watch.
+             * @enum {string}
+             */
+            object: "discussion_watch";
+            /** @description true when new posts reach the caller. */
+            watching: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -3822,6 +4665,18 @@ export interface components {
             suppressed: boolean;
             /** @description The stored row, using the field's element member names where they apply. null when present is false. */
             value: unknown;
+        } & {
+            [key: string]: unknown;
+        };
+        EditDiscussionInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/EditDiscussionInputBody.json
+             */
+            readonly $schema?: string;
+            /** @description The new text. Must not be used as a discriminant. */
+            body: string;
         } & {
             [key: string]: unknown;
         };
@@ -4596,6 +5451,76 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        ListDeletionRequestRecord: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/ListDeletionRequestRecord.json
+             */
+            readonly $schema?: string;
+            /** @description Named facet buckets. Present only when facets= is requested. */
+            facets?: {
+                [key: string]: components["schemas"]["FacetValue"][] | null;
+            };
+            /** @description Members of this page. Empty array, never null. */
+            items: components["schemas"]["DeletionRequestRecord"][];
+            /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
+            missing?: string[];
+            /** @description Opaque keyset cursor. Omitted on the last page. */
+            next_cursor?: string;
+            /**
+             * @description Type discriminant. Always list.
+             * @enum {string}
+             */
+            object: "list";
+            /**
+             * Format: int64
+             * @description Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+             */
+            total?: number;
+            /**
+             * @description Present in page mode only. eq: total is exact. gte: total is a lower bound.
+             * @enum {string}
+             */
+            total_relation?: "eq" | "gte";
+        } & {
+            [key: string]: unknown;
+        };
+        ListDiscussionNotice: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/ListDiscussionNotice.json
+             */
+            readonly $schema?: string;
+            /** @description Named facet buckets. Present only when facets= is requested. */
+            facets?: {
+                [key: string]: components["schemas"]["FacetValue"][] | null;
+            };
+            /** @description Members of this page. Empty array, never null. */
+            items: components["schemas"]["DiscussionNotice"][];
+            /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
+            missing?: string[];
+            /** @description Opaque keyset cursor. Omitted on the last page. */
+            next_cursor?: string;
+            /**
+             * @description Type discriminant. Always list.
+             * @enum {string}
+             */
+            object: "list";
+            /**
+             * Format: int64
+             * @description Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+             */
+            total?: number;
+            /**
+             * @description Present in page mode only. eq: total is exact. gte: total is a lower bound.
+             * @enum {string}
+             */
+            total_relation?: "eq" | "gte";
+        } & {
+            [key: string]: unknown;
+        };
         ListEngine: {
             /**
              * Format: uri
@@ -4749,6 +5674,41 @@ export interface components {
             };
             /** @description Members of this page. Empty array, never null. */
             items: components["schemas"]["Intro"][];
+            /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
+            missing?: string[];
+            /** @description Opaque keyset cursor. Omitted on the last page. */
+            next_cursor?: string;
+            /**
+             * @description Type discriminant. Always list.
+             * @enum {string}
+             */
+            object: "list";
+            /**
+             * Format: int64
+             * @description Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+             */
+            total?: number;
+            /**
+             * @description Present in page mode only. eq: total is exact. gte: total is a lower bound.
+             * @enum {string}
+             */
+            total_relation?: "eq" | "gte";
+        } & {
+            [key: string]: unknown;
+        };
+        ListMergeCandidate: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/ListMergeCandidate.json
+             */
+            readonly $schema?: string;
+            /** @description Named facet buckets. Present only when facets= is requested. */
+            facets?: {
+                [key: string]: components["schemas"]["FacetValue"][] | null;
+            };
+            /** @description Members of this page. Empty array, never null. */
+            items: components["schemas"]["MergeCandidate"][];
             /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
             missing?: string[];
             /** @description Opaque keyset cursor. Omitted on the last page. */
@@ -5488,6 +6448,76 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        ListSplitEvent: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/ListSplitEvent.json
+             */
+            readonly $schema?: string;
+            /** @description Named facet buckets. Present only when facets= is requested. */
+            facets?: {
+                [key: string]: components["schemas"]["FacetValue"][] | null;
+            };
+            /** @description Members of this page. Empty array, never null. */
+            items: components["schemas"]["SplitEvent"][];
+            /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
+            missing?: string[];
+            /** @description Opaque keyset cursor. Omitted on the last page. */
+            next_cursor?: string;
+            /**
+             * @description Type discriminant. Always list.
+             * @enum {string}
+             */
+            object: "list";
+            /**
+             * Format: int64
+             * @description Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+             */
+            total?: number;
+            /**
+             * @description Present in page mode only. eq: total is exact. gte: total is a lower bound.
+             * @enum {string}
+             */
+            total_relation?: "eq" | "gte";
+        } & {
+            [key: string]: unknown;
+        };
+        ListSplitRequestRecord: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/ListSplitRequestRecord.json
+             */
+            readonly $schema?: string;
+            /** @description Named facet buckets. Present only when facets= is requested. */
+            facets?: {
+                [key: string]: components["schemas"]["FacetValue"][] | null;
+            };
+            /** @description Members of this page. Empty array, never null. */
+            items: components["schemas"]["SplitRequestRecord"][];
+            /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
+            missing?: string[];
+            /** @description Opaque keyset cursor. Omitted on the last page. */
+            next_cursor?: string;
+            /**
+             * @description Type discriminant. Always list.
+             * @enum {string}
+             */
+            object: "list";
+            /**
+             * Format: int64
+             * @description Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+             */
+            total?: number;
+            /**
+             * @description Present in page mode only. eq: total is exact. gte: total is a lower bound.
+             * @enum {string}
+             */
+            total_relation?: "eq" | "gte";
+        } & {
+            [key: string]: unknown;
+        };
         ListTag: {
             /**
              * Format: uri
@@ -6182,6 +7212,293 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        MergeCandidate: {
+            /** @description Catalog id of the suggested entry. */
+            id: string;
+            /** @description Display name. Must not be used as a discriminant. */
+            name: string;
+            /**
+             * @description Type discriminant. Always merge_candidate.
+             * @enum {string}
+             */
+            object: "merge_candidate";
+            /**
+             * @description queue: an undecided pair in the reconciliation queue; same_name: a live entry with exactly the same name.
+             * @enum {string}
+             */
+            reason: "queue" | "same_name";
+        } & {
+            [key: string]: unknown;
+        };
+        MergeChoicesBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/MergeChoicesBody.json
+             */
+            readonly $schema?: string;
+            /** @description Optional. Field → source|target for the fields GET /v2/me/merge-preview lists under fields. A field not named keeps that preview's default. 422 for a field the family cannot resolve. */
+            field_resolution?: {
+                [key: string]: string;
+            };
+            /** @description Optional, works only. Source releases to hide once they land on the target — normally the ones the preview marks duplicate_of. 422 for a release that is not the source's own. */
+            hide_release_ids?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        MergeMovedCount: {
+            /**
+             * Format: int64
+             * @description Rows of that kind.
+             */
+            count: number;
+            /**
+             * @description Kind of row. Closed vocabulary; several catalog tables can share a kind.
+             * @enum {string}
+             */
+            key: "releases" | "titles" | "intros" | "tags" | "credits" | "characters" | "character_instances" | "companies" | "release_companies" | "relations" | "entity_relations" | "company_relations" | "series" | "covers" | "screenshots" | "platforms" | "engines" | "anchors" | "site_usage" | "source_ratings" | "popularity" | "source_playtime" | "user_ratings" | "user_folders" | "user_states" | "user_playtime" | "cover_votes" | "follows" | "hidden_rows" | "aliases" | "intro_checks" | "traits" | "credit_names" | "persons" | "redirects";
+        } & {
+            [key: string]: unknown;
+        };
+        MergePreview: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/MergePreview.json
+             */
+            readonly $schema?: string;
+            /** @description Every external id on either side and where it ends up. */
+            anchors: components["schemas"]["MergePreviewAnchor"][];
+            /** @description Reasons the merge cannot be filed or run as it stands. Empty array when nothing blocks it. */
+            blockers: components["schemas"]["MergePreviewIssue"][];
+            /** @description Site claims on the two works and which one survives (works only). null for other families. */
+            claim: components["schemas"]["MergePreviewClaim"] | null;
+            /** @description Rows on each side by kind, and how many of the source's already exist on the target. */
+            counts: components["schemas"]["MergePreviewCount"][];
+            /** @description Plain sentences stating evidence found in the data (shared releases, VNDB coverage, identical titles), offered as a starting point for the reason. Must not be used as a discriminant. */
+            facts: string[];
+            /** @description Fields whose surviving value can be chosen, with both sides' values. */
+            fields: components["schemas"]["MergePreviewField"][];
+            /** @description Per language, which intro survives (works only). Empty array for other families. */
+            intros: components["schemas"]["MergePreviewIntro"][];
+            /**
+             * @description Type discriminant. Always merge_preview.
+             * @enum {string}
+             */
+            object: "merge_preview";
+            /** @description An open request for this same pair, when there is one; filing another is refused 409. */
+            open_request_id: string | null;
+            /** @description Live releases of both works (works only), with source releases that repeat a target release marked. Empty array for other families. */
+            releases: components["schemas"]["MergePreviewRelease"][];
+            /** @description The entry that would be folded away. */
+            source: components["schemas"]["MergePreviewSide"];
+            /** @description The entry that would survive. */
+            target: components["schemas"]["MergePreviewSide"];
+            /**
+             * @description Family of the two entries.
+             * @enum {string}
+             */
+            target_object: "work" | "company" | "character" | "person" | "credit_name";
+            /** @description Titles of both works and the fate of each source title (works only). Empty array for other families. */
+            titles: components["schemas"]["MergePreviewTitle"][];
+            /** @description Consequences a reviewer should read before deciding, such as a source anchor being demoted. Empty array, never null. */
+            warnings: components["schemas"]["MergePreviewIssue"][];
+        } & {
+            [key: string]: unknown;
+        };
+        MergePreviewAnchor: {
+            /** @description Verbatim upstream id. Must not be used as a discriminant beyond exact match. */
+            external_id: string;
+            /**
+             * @description stays: a target id, unchanged. moves: carried to the target as it is. demoted_*: carried over at a weaker kind because the target already holds a different id from that source. duplicate: the target holds the same id; the source copy is dropped.
+             * @enum {string}
+             */
+            fate: "moves" | "stays" | "demoted_related" | "demoted_probable" | "duplicate";
+            /**
+             * @description Link kind after the merge.
+             * @enum {string}
+             */
+            kind_after: "identity" | "probable" | "related";
+            /**
+             * @description Link kind now.
+             * @enum {string}
+             */
+            kind_before: "identity" | "probable" | "related";
+            /** @description Why, for a demotion or duplicate. Empty otherwise. Must not be used as a discriminant. */
+            reason: string;
+            /**
+             * @description Which entry holds the id now.
+             * @enum {string}
+             */
+            side: "source" | "target";
+            /** @description Registry key (vndb, bangumi, erogamescape, …). Must not be used as a discriminant. */
+            source_key: string;
+        } & {
+            [key: string]: unknown;
+        };
+        MergePreviewClaim: {
+            /**
+             * @description moves: the target is unclaimed and takes the source's claim; dropped: both are claimed and the target's stays; none: the source is unclaimed.
+             * @enum {string}
+             */
+            fate: "none" | "moves" | "dropped";
+            /** @description Site claiming the source; null when unclaimed. */
+            source_site: string | null;
+            /** @description Site claiming the target; null when unclaimed. */
+            target_site: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        MergePreviewCount: {
+            /**
+             * Format: int64
+             * @description Of the source's rows, how many the target already has; they fold into one.
+             */
+            already_on_target: number;
+            /** @description What is counted: tags, credits, characters, companies, relations, series, covers, screenshots, platforms, user_ratings, user_folders, user_states, user_playtime for works; table.column for other families. Open vocabulary. */
+            key: string;
+            /**
+             * Format: int64
+             * @description Rows on the source.
+             */
+            on_source: number;
+            /**
+             * Format: int64
+             * @description Rows on the target.
+             */
+            on_target: number;
+        } & {
+            [key: string]: unknown;
+        };
+        MergePreviewField: {
+            /**
+             * @description What survives with no choice made: the target's value, or the source's when the target has none.
+             * @enum {string}
+             */
+            default: "source" | "target";
+            /** @description true when a person entered the target's value and the source's is a machine value: choosing source has no effect. */
+            human_protected: boolean;
+            /** @description Field name as field_resolution takes it. */
+            key: string;
+            /** @description The source's value; null when empty. */
+            source_value: unknown;
+            /** @description The target's value; null when empty. */
+            target_value: unknown;
+        } & {
+            [key: string]: unknown;
+        };
+        MergePreviewIntro: {
+            /**
+             * @description moves: the target has none; kept_out: the target's own text stays and the source's is archived; replaces_machine: the source's source text replaces the target's machine translation.
+             * @enum {string}
+             */
+            fate: "stays" | "moves" | "kept_out" | "replaces_machine";
+            /**
+             * Format: bcp47
+             * @description BCP-47.
+             */
+            lang: string;
+            /** @description The source has an intro in this language. */
+            source_has: boolean;
+            /** @description Start of the source's intro. Must not be used as a discriminant. */
+            source_text: string;
+            /** @description The target has an intro in this language. */
+            target_has: boolean;
+            /** @description Start of the target's intro. Must not be used as a discriminant. */
+            target_text: string;
+        } & {
+            [key: string]: unknown;
+        };
+        MergePreviewIssue: {
+            /** @description Machine-readable kind: same_entity, not_live, cross_medium, hidden_survivor, conflicting_anchor, claim_dropped. Open vocabulary. */
+            code: string;
+            /** @description Explanation for people, in Chinese. Must not be used as a discriminant. */
+            message: string;
+        } & {
+            [key: string]: unknown;
+        };
+        MergePreviewRelease: {
+            /**
+             * @description How duplicate_of was matched: vndb (same VNDB release) or platform_date (same platform and full date, compatible release class). null when not a duplicate.
+             * @enum {string|null}
+             */
+            duplicate_by: "vndb" | "platform_date" | null;
+            /** @description For a source release, the target release it repeats; null when none. */
+            duplicate_of: string | null;
+            /** @description Release id. */
+            id: string;
+            /**
+             * Format: bcp47
+             * @description BCP-47. Empty if unrecorded.
+             */
+            lang: string;
+            /** @description Empty when unrecorded. Must not be used as a discriminant. */
+            platform: string;
+            /**
+             * Format: date
+             * @description Calendar date. null if undated.
+             */
+            release_date: string | null;
+            /**
+             * @description null when release_date is null. month dates sit on the 1st; year dates sit on January 1.
+             * @enum {string|null}
+             */
+            release_date_precision: "day" | "month" | "year" | null;
+            /**
+             * @description Release class.
+             * @enum {string}
+             */
+            release_kind: "default" | "digital" | "physical" | "trial" | "patch";
+            /**
+             * @description Which work the release belongs to now.
+             * @enum {string}
+             */
+            side: "source" | "target";
+            /** @description Release title; empty when unrecorded. Must not be used as a discriminant. */
+            title: string;
+            /** @description VNDB release id. null when none. */
+            vndb_rid: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        MergePreviewSide: {
+            /** @description Catalog id. */
+            id: string;
+            /** @description false when the entry is already merged away or deleted. */
+            live: boolean;
+            /** @description Display name. Must not be used as a discriminant. */
+            name: string;
+            /** @description Site that claims the work, null when unclaimed or for other families. */
+            site: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        MergePreviewTitle: {
+            /**
+             * @description For a source title: moves as it is; becomes_alias when the target already shows a title in that language; duplicate when the target has it; dropped for a machine translation in a taken language.
+             * @enum {string}
+             */
+            fate: "stays" | "moves" | "becomes_alias" | "duplicate" | "dropped";
+            /**
+             * Format: bcp47
+             * @description BCP-47. Empty for a language-less alias.
+             */
+            lang: string;
+            /**
+             * @description Which work holds the title now.
+             * @enum {string}
+             */
+            side: "source" | "target";
+            /** @description The title. Must not be used as a discriminant. */
+            title: string;
+            /**
+             * @description search_hint is internal and never appears on this type.
+             * @enum {string}
+             */
+            title_kind: "official" | "alias" | "abbreviation";
+        } & {
+            [key: string]: unknown;
+        };
         MergeRequestRecord: {
             /**
              * Format: uri
@@ -6189,6 +7506,15 @@ export interface components {
              * @example https://example.com/MergeRequestRecord.json
              */
             readonly $schema?: string;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC. null when unchanged.
+             */
+            amended_at: string | null;
+            /** @description Account behind amended_by_uid. null when unchanged or when the account directory could not be read. */
+            amended_by: components["schemas"]["UserRef"] | null;
+            /** @description Central account id of the reviewer who last changed the choices. null when unchanged. */
+            amended_by_uid: string | null;
             /**
              * Format: date-time
              * @description End of the cooling-off once approved. null before approval.
@@ -6199,8 +7525,16 @@ export interface components {
              * @description RFC 3339 UTC. null until executed.
              */
             executed_at: string | null;
+            /** @description Fields resolved to the source's value, as field → source. A field not listed keeps the target's value (the source fills it only where the target is empty), and a value a person entered on the target is never replaced by a machine value from the source. Empty object when nothing was chosen. */
+            field_resolution: {
+                [key: string]: string;
+            };
+            /** @description Source releases hidden once they land on the target, usually duplicates of a target release. Empty array, never null. */
+            hide_release_ids: string[];
             /** @description Merge request id. */
             id: string;
+            /** @description For an executed or undone merge, how many rows of each kind pointed at the source when it ran. Empty array otherwise. */
+            moved: components["schemas"]["MergeMovedCount"][];
             /** @description The requester's reason followed by decision notes. Must not be used as a discriminant. */
             note: string;
             /**
@@ -6210,6 +7544,11 @@ export interface components {
             object: "merge_request";
             /** @description Lane that filed it: editor for these faces; batch tools file their own. Open vocabulary; must not be used as a discriminant. */
             origin: string;
+            /**
+             * @description Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.
+             * @enum {string|null}
+             */
+            origin_site: "kungal" | "moyu" | "letmoe" | "nextmoe" | "editor" | null;
             /**
              * Format: date-time
              * @description RFC 3339 UTC.
@@ -6221,18 +7560,74 @@ export interface components {
             proposed_by_uid: string;
             /** @description The entry that is folded away. Its id redirects to target_id once executed. */
             source_id: string;
+            /** @description source_id's display name now; for an entry merged away, its name when it was retired. Empty when unreadable. Must not be used as a discriminant. */
+            source_name: string;
             /**
-             * @description open awaits a reviewer; approved waits out the cooling-off, after which the merge runs; executed is done.
+             * @description open awaits a reviewer; approved waits out the cooling-off, after which the merge runs; executed is done; undone means a reviewer took an executed merge back and source_id is live again.
              * @enum {string}
              */
-            state: "open" | "approved" | "executed" | "rejected" | "withdrawn";
+            state: "open" | "approved" | "executed" | "rejected" | "withdrawn" | "undone";
             /** @description The entry that survives. */
             target_id: string;
+            /** @description target_id's display name now. Empty when unreadable. Must not be used as a discriminant. */
+            target_name: string;
             /**
              * @description Family of the two entries.
              * @enum {string}
              */
             target_object: "work" | "company" | "character" | "person" | "credit_name";
+            /** @description Present only on the response to decision=undo. */
+            undo_report?: components["schemas"]["MergeUndoReport"];
+            /**
+             * Format: date-time
+             * @description Last moment a reviewer may undo this executed merge under the original id (catalog.merge_undo_window_days). null when it cannot be undone: not executed, undo switched off, or executed before undo was recorded.
+             */
+            undo_until: string | null;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC. null unless state is undone.
+             */
+            undone_at: string | null;
+            /** @description Account behind undone_by_uid. null unless state is undone or when the account directory could not be read. */
+            undone_by: components["schemas"]["UserRef"] | null;
+            /** @description Central account id of the reviewer who undid the merge. null unless state is undone. */
+            undone_by_uid: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        MergeUndoReport: {
+            /** @description Target columns the merge overwrote but someone has edited since; left as they are. */
+            kept_fields: string[];
+            /** @description Recorded rows that could not come back, by kind: data both sides held and the merge folded into one row, or rows deleted since. Empty array when everything came back. */
+            not_restored: components["schemas"]["MergeMovedCount"][];
+            /**
+             * Format: int64
+             * @description Title and alias copies the merge had added to the target, removed.
+             */
+            removed_inserted: number;
+            /** @description Rows back on the source, by kind. */
+            restored: components["schemas"]["MergeMovedCount"][];
+            /** @description Target columns put back to their pre-merge value. */
+            reverted_fields: string[];
+            /**
+             * Format: int64
+             * @description Releases the merge had hidden as duplicates, shown again.
+             */
+            unhidden_releases: number;
+        } & {
+            [key: string]: unknown;
+        };
+        ModerateDiscussionInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/ModerateDiscussionInputBody.json
+             */
+            readonly $schema?: string;
+            /** @description true hides the post from everyone but discussion moderators; false restores it. */
+            hidden: boolean;
+            /** @description Why. Shown to discussion moderators only. Must not be used as a discriminant. */
+            note?: string;
         } & {
             [key: string]: unknown;
         };
@@ -6484,6 +7879,21 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        PatchDeletionRequestInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/PatchDeletionRequestInputBody.json
+             */
+            readonly $schema?: string;
+            /**
+             * @description Set withdrawn to withdraw an open request you filed.
+             * @enum {string}
+             */
+            state: "withdrawn";
+        } & {
+            [key: string]: unknown;
+        };
         PatchFolderInputBody: {
             /**
              * Format: uri
@@ -6611,6 +8021,21 @@ export interface components {
              * @enum {string}
              */
             state?: "withdrawn";
+        } & {
+            [key: string]: unknown;
+        };
+        PatchSplitRequestInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/PatchSplitRequestInputBody.json
+             */
+            readonly $schema?: string;
+            /**
+             * @description Set withdrawn to withdraw an open request you filed.
+             * @enum {string}
+             */
+            state: "withdrawn";
         } & {
             [key: string]: unknown;
         };
@@ -6756,13 +8181,23 @@ export interface components {
             code: string;
             /** @description Canonical id when code is ENTITY_MERGED. */
             current_id?: string;
+            /**
+             * Format: date-time
+             * @description When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.
+             */
+            deleted_at?: string;
+            /**
+             * @description Why the entity was deleted, when code is ENTITY_DELETED.
+             * @enum {string}
+             */
+            deleted_reason?: "not_a_work" | "out_of_scope" | "spam_or_test" | "other";
             /** @description English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add. */
             detail: string;
             /** @description Field-level failures. Empty array when this is not a field-level error. */
             errors: components["schemas"]["FieldError"][];
             /** @description Request path and query string that failed. Empty only if the path is unknown. */
             instance: string;
-            /** @description Entity family when code is ENTITY_MERGED. */
+            /** @description Entity family when code is ENTITY_MERGED or ENTITY_DELETED. */
             object?: string;
             /** @description Same value as X-Request-ID. Prefix req_ plus a 26-character ULID. */
             request_id: string;
@@ -6910,7 +8345,7 @@ export interface components {
             decided_at: string | null;
             /** @description Account behind decided_by_uid. null while open, or when the account directory could not be read. */
             decided_by: components["schemas"]["UserRef"] | null;
-            /** @description The claiming site's own user id of the decider. null while open. */
+            /** @description Central account id of the decider. null while open. */
             decided_by_uid: string | null;
             /** @description Present when include=patch. The patch after every amendment is folded in; this is what a merge would write. */
             effective_patch?: {
@@ -6929,13 +8364,18 @@ export interface components {
              * @enum {string}
              */
             object: "proposal";
+            /**
+             * @description Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.
+             * @enum {string|null}
+             */
+            origin_site: "kungal" | "moyu" | "letmoe" | "nextmoe" | "editor" | null;
             /** @description Present when include=patch, which only the me and moderation faces publish. Field key to proposed value. */
             patch?: {
                 [key: string]: unknown;
             };
             /** @description Account behind proposer_uid. null only when the account directory could not be read. */
             proposer: components["schemas"]["UserRef"] | null;
-            /** @description The claiming site's own user id of the proposer. Not a catalog id. */
+            /** @description Central account id of the proposer, the same id on every first-party site. Not a catalog id. */
             proposer_uid: string;
             /** @description Tenant this proposal was filed under. Open vocabulary; must not be used as a discriminant. */
             site: string;
@@ -7301,11 +8741,11 @@ export interface components {
             [key: string]: unknown;
         };
         Redirect: {
-            /** @description Canonical catalog id. */
+            /** @description Canonical catalog id. Equals old_id on a revoked redirect. */
             current_id: string;
             /**
              * Format: date-time
-             * @description RFC 3339 UTC.
+             * @description RFC 3339 UTC. The moment this redirect last changed — it was created, re-pointed when its target was merged on, or revoked — and the value the cursor resumes from, so a change re-surfaces the row at the tail of the feed.
              */
             merged_at: string;
             /**
@@ -7315,6 +8755,8 @@ export interface components {
             object: "redirect";
             /** @description Retired catalog id. */
             old_id: string;
+            /** @description Present and true when the merge behind this redirect was undone: old_id is live again under its own id. Drop the mirrored redirect. Absent means the redirect stands — never sent as false. */
+            revoked?: boolean;
             /**
              * @description Family that was merged.
              * @enum {string}
@@ -7455,11 +8897,11 @@ export interface components {
             action: "created" | "merged" | "direct" | "reverted";
             /** @description Account behind actor_uid. null only when the account directory could not be read. */
             actor: components["schemas"]["UserRef"] | null;
-            /** @description The claiming site's own user id of whoever caused this revision. Not a catalog id. */
+            /** @description Central account id of whoever caused this revision, the same id on every first-party site. Not a catalog id. */
             actor_uid: string;
             /** @description Account behind amender_uid. null when nobody amended, or when the account directory could not be read. */
             amender: components["schemas"]["UserRef"] | null;
-            /** @description The claiming site's own user id of the last amender. null when nobody amended. */
+            /** @description Central account id of the last amender. null when nobody amended. */
             amender_uid: string | null;
             /** @description Field keys this revision touched. Empty array, never null. */
             changed_fields: string[];
@@ -7485,6 +8927,11 @@ export interface components {
              * @enum {string}
              */
             object: "revision";
+            /**
+             * @description Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.
+             * @enum {string|null}
+             */
+            origin_site: "kungal" | "moyu" | "letmoe" | "nextmoe" | "editor" | null;
             /** @description Proposal this revision merged. null for direct edits and imports. */
             proposal_id: string | null;
             /**
@@ -7742,6 +9189,349 @@ export interface components {
              * @enum {string}
              */
             object: "snapshot";
+        } & {
+            [key: string]: unknown;
+        };
+        SplitDraftBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/SplitDraftBody.json
+             */
+            readonly $schema?: string;
+            /** @description The new work's display name. Must not be used as a discriminant. */
+            display_name: string;
+            /**
+             * Format: bcp47
+             * @description The new work's original language, BCP-47.
+             */
+            olang: string;
+            /** @description Bangumi or ErogameScape entries linked to the work as related or probable that become the new work's identity. */
+            promote_refs?: components["schemas"]["SplitRef"][];
+            /** @description Releases of the work that move to the new work. At least one release has to stay. */
+            release_ids: string[];
+            /** @description Titles the new work starts with. */
+            titles?: components["schemas"]["SplitTitle"][];
+        } & {
+            [key: string]: unknown;
+        };
+        SplitEvent: {
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC. When the split was executed or undone, whichever is later; the cursor resumes from it, so an undo re-surfaces the split at the tail.
+             */
+            changed_at: string;
+            /** @description Split request id. */
+            id: string;
+            /** @description The work the split created. */
+            new_work_id: string;
+            /**
+             * @description Type discriminant. Always split.
+             * @enum {string}
+             */
+            object: "split";
+            /** @description The work the releases left. */
+            original_id: string;
+            /** @description Releases that moved. */
+            release_ids: string[];
+            /**
+             * @description executed: new_work_id now holds release_ids. undone: they are back on original_id and new_work_id redirects to it (see /v2/catalog/redirects).
+             * @enum {string}
+             */
+            state: "executed" | "undone";
+        } & {
+            [key: string]: unknown;
+        };
+        SplitMovedCount: {
+            /**
+             * Format: int64
+             * @description Rows.
+             */
+            count: number;
+            /**
+             * @description releases: releases moved to the new work; tombstones: retired rows left on the original so the VNDB import does not mint the moved releases there again; titles: titles created on the new work; credits: credits limited to a moved release, moved with it; refs: source entries promoted to the new work's identity; rejections: records that keep those entries from being matched back to the original.
+             * @enum {string}
+             */
+            key: "releases" | "tombstones" | "titles" | "credits" | "refs" | "rejections";
+        } & {
+            [key: string]: unknown;
+        };
+        SplitPreview: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/SplitPreview.json
+             */
+            readonly $schema?: string;
+            /** @description Reasons the split cannot be filed as chosen. */
+            blockers: components["schemas"]["MergePreviewIssue"][];
+            /** @description Separate registry entries linked to the work that could become the new work's identity. */
+            candidates: components["schemas"]["SplitPreviewRef"][];
+            /** @description What the registries say about the chosen releases, for the reviewer to weigh. */
+            facts: components["schemas"]["MergePreviewIssue"][];
+            /** @description What goes to the new work. */
+            moves: components["schemas"]["SplitPreviewCount"][];
+            /**
+             * @description Type discriminant. Always split_preview.
+             * @enum {string}
+             */
+            object: "split_preview";
+            /**
+             * Format: bcp47
+             * @description Its original language.
+             */
+            olang: string;
+            /** @description An open or approved split request on the work. null when none. */
+            pending_request_id: string | null;
+            /** @description Every live release of the work, oldest first. */
+            releases: components["schemas"]["SplitPreviewRelease"][];
+            /** @description What stays with the original. */
+            stays: components["schemas"]["SplitPreviewCount"][];
+            /**
+             * Format: bcp47
+             * @description The original language to start from.
+             */
+            suggested_lang: string;
+            /** @description A display name derived from the chosen releases' titles. Empty when nothing is chosen. Must not be used as a discriminant. */
+            suggested_name: string;
+            /** @description The work. */
+            target_id: string;
+            /** @description Its display name. Must not be used as a discriminant. */
+            target_name: string;
+            /**
+             * @description Family of the entry.
+             * @enum {string}
+             */
+            target_object: "work";
+            /** @description Titles derived from the chosen releases. */
+            titles: components["schemas"]["SplitTitle"][];
+            /** @description The VNDB VN the work is anchored to. null when none. */
+            vndb_anchor: string | null;
+            /** @description Consequences to read before filing. */
+            warnings: components["schemas"]["MergePreviewIssue"][];
+        } & {
+            [key: string]: unknown;
+        };
+        SplitPreviewCount: {
+            /**
+             * Format: int64
+             * @description Rows.
+             */
+            count: number;
+            /**
+             * @description What is counted.
+             * @enum {string}
+             */
+            key: "releases" | "release_labels" | "release_refs" | "credits" | "tombstones" | "characters" | "tags" | "titles";
+        } & {
+            [key: string]: unknown;
+        };
+        SplitPreviewRef: {
+            /**
+             * @description How it is linked to the original today.
+             * @enum {string}
+             */
+            anchor_kind: "probable" | "related";
+            /** @description Entry id. Must not be used as a discriminant beyond exact match. */
+            external_id: string;
+            /** @description A work that already holds it as its identity; it cannot be promoted then. null when free. */
+            held_by_id: string | null;
+            /** @description Whether promote= chose it. */
+            selected: boolean;
+            /**
+             * @description Registry.
+             * @enum {string}
+             */
+            source: "bangumi" | "erogamescape";
+        } & {
+            [key: string]: unknown;
+        };
+        SplitPreviewRelease: {
+            /**
+             * Format: int64
+             * @description Credits limited to this release; they move with it.
+             */
+            credit_count: number;
+            /** @description Release id. */
+            id: string;
+            /**
+             * Format: int64
+             * @description Companies credited on the release; they move with it.
+             */
+            label_count: number;
+            /**
+             * Format: bcp47
+             * @description BCP-47. Empty if unrecorded.
+             */
+            lang: string;
+            /** @description Empty when unrecorded. Must not be used as a discriminant. */
+            platform: string;
+            /**
+             * Format: date
+             * @description Calendar date. null if undated.
+             */
+            release_date: string | null;
+            /**
+             * @description null when release_date is null.
+             * @enum {string|null}
+             */
+            release_date_precision: "day" | "month" | "year" | null;
+            /**
+             * @description Release class.
+             * @enum {string}
+             */
+            release_kind: "default" | "digital" | "physical" | "trial" | "patch";
+            /** @description Whether release_ids= chose it. */
+            selected: boolean;
+            /** @description Registries that hold this release, e.g. vndb, dlsite, getchu. Open vocabulary. */
+            sources: string[];
+            /** @description Release title; empty when unrecorded. Must not be used as a discriminant. */
+            title: string;
+            /** @description Whether moving it leaves a retired row on the original for the VNDB import. */
+            tombstone: boolean;
+            /** @description VNDB release id. null when none. */
+            vndb_rid: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        SplitRef: {
+            /** @description The entry's id in that registry. Must not be used as a discriminant beyond exact match. */
+            external_id: string;
+            /**
+             * @description A registry that lists editions as separate entries.
+             * @enum {string}
+             */
+            source: "bangumi" | "erogamescape";
+        } & {
+            [key: string]: unknown;
+        };
+        SplitRequestRecord: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/SplitRequestRecord.json
+             */
+            readonly $schema?: string;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC. null when never amended.
+             */
+            amended_at: string | null;
+            /** @description Account behind amended_by_uid. */
+            amended_by: components["schemas"]["UserRef"] | null;
+            /** @description Central account id of the reviewer who last changed the selection. null when never amended. */
+            amended_by_uid: string | null;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC. null before a decision.
+             */
+            decided_at: string | null;
+            /** @description Account behind decided_by_uid. */
+            decided_by: components["schemas"]["UserRef"] | null;
+            /** @description Central account id of the reviewer who approved or rejected. */
+            decided_by_uid: string | null;
+            /** @description The reviewer's reason for a rejection, or why the request closed by itself. Must not be used as a discriminant. */
+            decision_note: string;
+            /** @description The new work's display name. Must not be used as a discriminant. */
+            display_name: string;
+            /**
+             * Format: date-time
+             * @description End of the cooling-off once approved. null before approval.
+             */
+            execute_after: string | null;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC. null until executed.
+             */
+            executed_at: string | null;
+            /** @description Split request id. */
+            id: string;
+            /** @description What the execution created or moved. Empty before execution. */
+            moved: components["schemas"]["SplitMovedCount"][];
+            /** @description The work the split created. null until executed; after an undo it redirects to target_id. */
+            new_work_id: string | null;
+            /** @description The created work's display name, empty until executed. Must not be used as a discriminant. */
+            new_work_name: string;
+            /** @description The requester's reason. Must not be used as a discriminant. */
+            note: string;
+            /**
+             * @description Type discriminant. Always split_request.
+             * @enum {string}
+             */
+            object: "split_request";
+            /**
+             * Format: bcp47
+             * @description The new work's original language, BCP-47.
+             */
+            olang: string;
+            /**
+             * @description Property the edit was made from: kungal (the KUN Visual Novel forum), moyu, letmoe, nextmoe or editor (the NextMoe editor itself). null on rows recorded before attribution existed.
+             * @enum {string|null}
+             */
+            origin_site: "kungal" | "moyu" | "letmoe" | "nextmoe" | "editor" | null;
+            /** @description Source entries that become the new work's identity. */
+            promote_refs: components["schemas"]["SplitRef"][];
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC.
+             */
+            proposed_at: string;
+            /** @description Account behind proposed_by_uid. null only when the account directory could not be read. */
+            proposed_by: components["schemas"]["UserRef"] | null;
+            /** @description Central account id of the requester. */
+            proposed_by_uid: string;
+            /** @description Releases that move to the new work. */
+            release_ids: string[];
+            /**
+             * @description open awaits a reviewer; approved waits out the cooling-off; executed created the new work; rejected and withdrawn are closed; undone was executed and then put back.
+             * @enum {string}
+             */
+            state: "open" | "approved" | "executed" | "rejected" | "withdrawn" | "undone";
+            /** @description The work the releases are split off. */
+            target_id: string;
+            /** @description Its display name. Must not be used as a discriminant. */
+            target_name: string;
+            /**
+             * @description Family of the entry. Only works can be split today.
+             * @enum {string}
+             */
+            target_object: "work";
+            /** @description Titles the new work starts with. */
+            titles: components["schemas"]["SplitTitle"][];
+            /** @description The merge that folded the new work back into target_id on undo. null unless undone. */
+            undo_merge_id: string | null;
+            /** @description The reviewer's note when undoing. Must not be used as a discriminant. */
+            undo_note: string;
+            /**
+             * Format: date-time
+             * @description Last moment a reviewer can undo the split. null unless executed.
+             */
+            undo_until: string | null;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC. null unless undone.
+             */
+            undone_at: string | null;
+            /** @description Account behind undone_by_uid. */
+            undone_by: components["schemas"]["UserRef"] | null;
+            /** @description Central account id of the reviewer who undid the split. */
+            undone_by_uid: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        SplitTitle: {
+            /**
+             * Format: bcp47
+             * @description BCP-47, or empty for a title with no language.
+             */
+            lang: string;
+            /** @description Must not be used as a discriminant. */
+            title: string;
+            /**
+             * @description How the new work holds the title.
+             * @enum {string}
+             */
+            title_kind: "official" | "alias" | "abbreviation";
         } & {
             [key: string]: unknown;
         };
@@ -8368,6 +10158,11 @@ export interface components {
             description: string;
             /** @description English label for this token. Must not be used as a discriminant. */
             display_name: string;
+            /**
+             * Format: uri-template
+             * @description origin_site only: the property's user profile URL, with {id} standing for the central account id (every first-party site uses it as its own user id). Absent when the property has no user pages.
+             */
+            profile_url?: string;
             /** @description Token as it appears on the wire. Must not be used as a discriminant. */
             value: string;
         } & {
@@ -8408,6 +10203,22 @@ export interface components {
             object: "vocabulary";
             /** @description Every value currently published. Empty array, never null. */
             values: components["schemas"]["Value"][];
+        } & {
+            [key: string]: unknown;
+        };
+        WatchDiscussionInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/WatchDiscussionInputBody.json
+             */
+            readonly $schema?: string;
+            /** @description Anchor id. */
+            anchor_id: string;
+            /** @description Anchor kind. */
+            anchor_kind: string;
+            /** @description true mutes the thread (mentions still arrive); false watches it. */
+            muted: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -10207,6 +12018,115 @@ export interface operations {
             };
         };
     };
+    listCatalogDiscussion: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from next_cursor. */
+                cursor?: string;
+                /** @description Page size, 1-100. Default 50. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Object discriminant of the anchor: proposal, merge_request, or one a later request type registers. */
+                object: string;
+                /** @description Id of the proposal or request. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscussionPage"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listCatalogEngines: {
         parameters: {
             query?: {
@@ -10888,8 +12808,10 @@ export interface operations {
                 entity_id?: string;
                 /** @description Tenant key. Open vocabulary; unknown values match nothing. */
                 site?: string;
-                /** @description The claiming site's own user id of the proposer. Not a catalog id. */
+                /** @description Central account id of the proposer. Not a catalog id. */
                 proposer_uid?: string;
+                /** @description Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps proposals filed from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE. */
+                origin_site?: string;
                 /** @description Closed: open, merged, declined, withdrawn. */
                 state?: string;
             };
@@ -11455,8 +13377,10 @@ export interface operations {
                 entity_id?: string;
                 /** @description Tenant key. Open vocabulary; unknown values match nothing. */
                 site?: string;
-                /** @description The claiming site's own user id of the actor. Not a catalog id. */
+                /** @description Central account id of the actor. Not a catalog id. */
                 actor_uid?: string;
+                /** @description Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps revisions made from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE. */
+                origin_site?: string;
             };
             header?: never;
             path?: never;
@@ -12264,6 +14188,119 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listCatalogSplits: {
+        parameters: {
+            query?: {
+                /** @description Opaque keyset cursor from next_cursor. Omit to start from the first split. */
+                cursor?: string;
+                /** @description Page size, 1-100. Default 50. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListSplitEvent"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -16502,6 +18539,981 @@ export interface operations {
             };
         };
     };
+    getMyDeletionPreview: {
+        parameters: {
+            query?: {
+                /** @description Family of the entry. */
+                object?: "work";
+                /** @description The entry. */
+                target_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionPreview"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listMyDeletionRequests: {
+        parameters: {
+            query?: {
+                /** @description Narrow to one state. */
+                state?: "open" | "approved" | "executed" | "rejected" | "withdrawn" | "restored";
+                /** @description Narrow to requests about one work. */
+                target_id?: string;
+                /** @description Narrow to requests filed from one first-party property. */
+                origin_site?: "kungal" | "moyu" | "letmoe" | "nextmoe" | "editor";
+                /** @description Opaque keyset cursor from next_cursor. */
+                cursor?: string;
+                /** @description Page size, 1-100. Default 20. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListDeletionRequestRecord"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createMyDeletionRequest: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDeletionRequestInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionRequestRecord"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    patchMyDeletionRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Deletion request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchDeletionRequestInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionRequestRecord"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listMyDiscussionNotices: {
+        parameters: {
+            query?: {
+                /** @description RFC 3339. Only posts newer than this. Default: 14 days ago. */
+                since?: string;
+                /** @description At most this many, newest first. Default 50. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListDiscussionNotice"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    watchMyDiscussion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WatchDiscussionInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscussionWatch"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createMyDiscussionPost: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDiscussionInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscussionPost"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteMyDiscussionPost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Post id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    editMyDiscussionPost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Post id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EditDiscussionInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscussionPost"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getMyEditBundle: {
         parameters: {
             query?: never;
@@ -18495,13 +21507,243 @@ export interface operations {
             };
         };
     };
+    listMyMergeCandidates: {
+        parameters: {
+            query: {
+                /** @description Family of the entry. */
+                object: "work" | "company" | "character" | "person" | "credit_name";
+                /** @description The entry to find duplicates of. */
+                id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListMergeCandidate"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    previewMyMerge: {
+        parameters: {
+            query: {
+                /** @description Family of the two entries. */
+                object: "work" | "company" | "character" | "person" | "credit_name";
+                /** @description The entry to fold away. */
+                source_id: string;
+                /** @description The entry that survives. */
+                target_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MergePreview"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listMyMergeRequests: {
         parameters: {
             query?: {
                 /** @description Narrow to one state. */
-                state?: "open" | "approved" | "executed" | "rejected" | "withdrawn";
+                state?: "open" | "approved" | "executed" | "rejected" | "withdrawn" | "undone";
                 /** @description Narrow to one family. */
                 object?: "work" | "company" | "character" | "person" | "credit_name";
+                /** @description Narrow to requests filed from one first-party property. */
+                origin_site?: "kungal" | "moyu" | "letmoe" | "nextmoe" | "editor";
                 /** @description Opaque keyset cursor from next_cursor. */
                 cursor?: string;
                 /** @description Page size, 1-100. Default 20. */
@@ -18636,6 +21878,117 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MergeRequestRecord"];
                 };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getMyMergeRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Merge request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MergeRequestRecord"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Bad Request */
             400: {
@@ -20164,6 +23517,8 @@ export interface operations {
                 entity_id?: string;
                 /** @description Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing. */
                 site?: string;
+                /** @description Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps proposals filed from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE. */
+                origin_site?: string;
                 /** @description A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it. */
                 field?: string;
                 /** @description true keeps open proposals that a revision recorded after their base_revision_seq overlaps on a field; false keeps the rest. Only true or false. */
@@ -21137,6 +24492,571 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getMySplitPreview: {
+        parameters: {
+            query?: {
+                /** @description Family of the entry. */
+                object?: "work";
+                /** @description The work. */
+                target_id?: string;
+                /** @description Comma-separated release ids chosen to move. */
+                release_ids?: string;
+                /** @description Comma-separated source:external_id entries chosen to promote. */
+                promote?: string;
+                /** @description The split request being reviewed, left out of the one-pending-request check so its own page does not report it. */
+                request_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitPreview"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listMySplitRequests: {
+        parameters: {
+            query?: {
+                /** @description Narrow to one state. */
+                state?: "open" | "approved" | "executed" | "rejected" | "withdrawn" | "undone";
+                /** @description Narrow to requests about one work. */
+                target_id?: string;
+                /** @description Narrow to requests filed from one first-party property. */
+                origin_site?: "kungal" | "moyu" | "letmoe" | "nextmoe" | "editor";
+                /** @description Opaque keyset cursor from next_cursor. */
+                cursor?: string;
+                /** @description Page size, 1-100. Default 20. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListSplitRequestRecord"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createMySplitRequest: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSplitRequestInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitRequestRecord"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getMySplitRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Split request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitRequestRecord"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    patchMySplitRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Split request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchSplitRequestInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitRequestRecord"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -22517,6 +26437,458 @@ export interface operations {
             };
         };
     };
+    listModerationDeletionRequests: {
+        parameters: {
+            query?: {
+                /** @description Narrow to one state. */
+                state?: "open" | "approved" | "executed" | "rejected" | "withdrawn" | "restored";
+                /** @description Narrow to requests about one work. */
+                target_id?: string;
+                /** @description Narrow to requests filed from one first-party property. */
+                origin_site?: "kungal" | "moyu" | "letmoe" | "nextmoe" | "editor";
+                /** @description Opaque keyset cursor from next_cursor. */
+                cursor?: string;
+                /** @description Page size, 1-100. Default 20. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListDeletionRequestRecord"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getModerationDeletionRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Deletion request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionRequestRecord"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    decideModerationDeletionRequest: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                /** @description Deletion request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecideDeletionRequestInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionRequestRecord"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    moderateDiscussionPost: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                /** @description Post id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModerateDiscussionInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscussionPost"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     deleteModerationFolder: {
         parameters: {
             query?: never;
@@ -22713,9 +27085,11 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Narrow to one state. */
-                state?: "open" | "approved" | "executed" | "rejected" | "withdrawn";
+                state?: "open" | "approved" | "executed" | "rejected" | "withdrawn" | "undone";
                 /** @description Narrow to one family. */
                 object?: "work" | "company" | "character" | "person" | "credit_name";
+                /** @description Narrow to requests filed from one first-party property. */
+                origin_site?: "kungal" | "moyu" | "letmoe" | "nextmoe" | "editor";
                 /** @description Opaque keyset cursor from next_cursor. */
                 cursor?: string;
                 /** @description Page size, 1-100. Default 20. */
@@ -22853,6 +27227,114 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    amendModerationMergeRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Merge request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MergeChoicesBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MergeRequestRecord"];
+                };
             };
             /** @description Bad Request */
             400: {
@@ -23081,6 +27563,8 @@ export interface operations {
                 entity_id?: string;
                 /** @description Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing. */
                 site?: string;
+                /** @description Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps proposals filed from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE. */
+                origin_site?: string;
                 /** @description A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it. */
                 field?: string;
                 /** @description true keeps open proposals that a revision recorded after their base_revision_seq overlaps on a field; false keeps the rest. Only true or false. */
@@ -23702,6 +28186,455 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listModerationSplitRequests: {
+        parameters: {
+            query?: {
+                /** @description Narrow to one state. */
+                state?: "open" | "approved" | "executed" | "rejected" | "withdrawn" | "undone";
+                /** @description Narrow to requests about one work. */
+                target_id?: string;
+                /** @description Narrow to requests filed from one first-party property. */
+                origin_site?: "kungal" | "moyu" | "letmoe" | "nextmoe" | "editor";
+                /** @description Opaque keyset cursor from next_cursor. */
+                cursor?: string;
+                /** @description Page size, 1-100. Default 20. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListSplitRequestRecord"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getModerationSplitRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Split request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitRequestRecord"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    amendModerationSplitRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Split request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SplitDraftBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitRequestRecord"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    decideModerationSplitRequest: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                /** @description Split request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecideSplitRequestInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitRequestRecord"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

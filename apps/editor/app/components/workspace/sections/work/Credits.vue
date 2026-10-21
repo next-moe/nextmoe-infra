@@ -1,21 +1,44 @@
 <script setup lang="ts">
 import type { EditRefFamily } from '#shared/types/edit'
 import type { WorkspaceSectionDef } from '~/constants/workspace'
-import { vocabLabel } from '~/constants/vocabLabels'
 import type { RelatedRow, RelatedValue } from '~/utils/relatedRows'
+import { rowIdentity } from '#shared/utils/editModel'
 
 const props = defineProps<{ section: WorkspaceSectionDef }>()
 
 const FIELD = 'catalog.work.credits'
+const UPSTREAM_FIELD = 'catalog.work.credits_upstream'
 
 const nav = useWorkspaceNav()
 const { entityId, refs } = useEditorContext()
 const related = useWorkRelated(entityId)
 const credits = useRelatedField(FIELD)
+const upstreamCredits = useRelatedField(UPSTREAM_FIELD)
 
 const query = ref('')
 const adding = ref(false)
 const roleOrder = ref<string[]>([])
+
+const creditKey = (row: unknown) => rowIdentity(UPSTREAM_FIELD, row)
+
+const upstreamDraft = computed(
+  () =>
+    new Map(
+      upstreamCredits.list.value.map((row, index) => [
+        creditKey(row),
+        { row: row as RelatedValue, index }
+      ])
+    )
+)
+const upstreamBase = computed(
+  () =>
+    new Map(
+      upstreamCredits.baseList.value.map((row) => [
+        creditKey(row),
+        row as RelatedValue
+      ])
+    )
+)
 
 const merged = computed(() =>
   mergeRelatedRows({
@@ -24,6 +47,22 @@ const merged = computed(() =>
     base: credits.baseList.value,
     context: credits.contextRows.value,
     suppressed: credits.suppressed.value
+  }).map((row) => {
+    const draft =
+      row.origin === 'upstream'
+        ? upstreamDraft.value.get(creditKey(row.value))
+        : null
+    if (!draft) {
+      return row
+    }
+    const base = upstreamBase.value.get(creditKey(row.value))
+    const changed = base ? !sameCreditAttrs(base, draft.row) : false
+    return {
+      ...row,
+      value: { ...row.value, ...creditAttrsOf(draft.row) },
+      index: draft.index,
+      state: row.state ?? (changed ? ('changed' as const) : null)
+    }
   })
 )
 
@@ -126,12 +165,30 @@ const clashes = computed(() =>
 )
 
 const setMember = (key: string, next: unknown) => {
-  if (selected.value?.row.origin !== 'human') {
+  const row = selected.value?.row
+  if (!row || row.index < 0) {
     return
   }
-  credits.setAt(selected.value.row.index, {
-    [key]: next === '' ? null : next
-  })
+  const target = row.origin === 'human' ? credits : upstreamCredits
+  target.setAt(row.index, { [key]: next === '' ? null : next })
+}
+
+const attrsDisabled = computed(() => {
+  const row = selected.value?.row
+  if (!row) {
+    return true
+  }
+  return row.origin === 'human'
+    ? credits.disabled.value
+    : upstreamCredits.disabled.value || row.index < 0 || row.state === 'hidden'
+})
+
+const undoCorrection = () => {
+  const row = selected.value?.row
+  const base = row ? upstreamBase.value.get(creditKey(row.value)) : undefined
+  if (row?.origin === 'upstream' && row.index >= 0 && base) {
+    upstreamCredits.setAt(row.index, creditAttrsOf(base))
+  }
 }
 
 const refModel = (key: string) =>
@@ -161,18 +218,6 @@ const remove = () => {
     credits.removeAt(selected.value.row.index)
     select(null)
   }
-}
-
-const correct = () => {
-  const entry = selected.value
-  if (!entry || entry.row.origin !== 'upstream' || !entry.row.identity) {
-    return
-  }
-  if (!credits.suppressed.value.includes(entry.row.identity)) {
-    credits.toggleSuppressed(entry.row.identity)
-  }
-  const index = credits.append({ ...entry.row.value })
-  nav.item.value = humanRowKey(index)
 }
 
 const draft = reactive<{
@@ -211,32 +256,15 @@ const addCredit = () => {
   nav.item.value = humanRowKey(index)
 }
 
-const readonlyAttrs = computed(() => {
-  const entry = selected.value
-  if (!entry) {
-    return []
-  }
-  const value = entry.row.value
-  const spoiler = credits.tokenOf('spoiler', value.spoiler)
-  return [
-    { label: '职位', text: entry.roleName },
-    { label: '署名', text: entry.name },
-    { label: '配音角色', text: entry.characterName },
-    { label: '备注', text: entry.note },
-    {
-      label: '剧透',
-      text: spoiler && spoiler !== 'none' ? vocabLabel('spoiler', spoiler) : ''
-    },
-    {
-      label: '仅限发行',
-      text: nameOf('release', value.release_id, '发行')
-    },
-    {
-      label: '所属厂商',
-      text: nameOf('company', value.label_id, '厂商')
-    }
-  ].filter((attr) => attr.text)
-})
+const identityAttrs = computed(() =>
+  selected.value
+    ? [
+        { label: '职位', text: selected.value.roleName },
+        { label: '署名名', text: selected.value.name },
+        { label: '配音角色', text: selected.value.characterName }
+      ]
+    : []
+)
 
 const idsOf = (key: string) =>
   [
@@ -448,14 +476,14 @@ onMounted(async () => {
               <template #actions>
                 <template v-if="selected.row.origin === 'upstream'">
                   <KunButton
-                    v-if="selected.row.state !== 'hidden'"
+                    v-if="selected.row.state === 'changed'"
                     size="xs"
                     variant="light"
-                    :disabled="credits.disabled.value"
-                    @click="correct"
+                    :disabled="upstreamCredits.disabled.value"
+                    @click="undoCorrection"
                   >
-                    <KunIcon name="lucide:pencil" class="size-3.5" />
-                    隐藏并添加修正记录
+                    <KunIcon name="lucide:undo-2" class="size-3.5" />
+                    撤销修改
                   </KunButton>
                   <KunButton
                     size="xs"
@@ -490,44 +518,56 @@ onMounted(async () => {
                 </KunButton>
               </template>
 
-              <div
-                v-if="selected.row.origin === 'human'"
-                class="grid gap-4 sm:grid-cols-2"
-              >
-                <WorkspaceRelatedAttr label="职位">
-                  <EditRefPicker
-                    v-model="roleModel"
-                    family="role"
-                    aria-label="职位"
-                    :disabled="credits.disabled.value"
-                  />
-                </WorkspaceRelatedAttr>
-                <WorkspaceRelatedAttr label="署名名">
-                  <EditRefPicker
-                    v-model="creditNameModel"
-                    family="credit_name"
-                    aria-label="署名名"
-                    :disabled="credits.disabled.value"
-                  />
-                </WorkspaceRelatedAttr>
-                <WorkspaceRelatedAttr
-                  label="配音角色"
-                  hint="声优署名填写所配的角色，其他职位留空。"
-                >
-                  <EditRefPicker
-                    v-model="characterModel"
-                    family="character"
-                    aria-label="配音角色"
-                    :disabled="credits.disabled.value"
-                  />
-                </WorkspaceRelatedAttr>
+              <div class="grid gap-4 sm:grid-cols-2">
+                <template v-if="selected.row.origin === 'human'">
+                  <WorkspaceRelatedAttr label="职位">
+                    <EditRefPicker
+                      v-model="roleModel"
+                      family="role"
+                      aria-label="职位"
+                      :disabled="credits.disabled.value"
+                    />
+                  </WorkspaceRelatedAttr>
+                  <WorkspaceRelatedAttr label="署名名">
+                    <EditRefPicker
+                      v-model="creditNameModel"
+                      family="credit_name"
+                      aria-label="署名名"
+                      :disabled="credits.disabled.value"
+                    />
+                  </WorkspaceRelatedAttr>
+                  <WorkspaceRelatedAttr
+                    label="配音角色"
+                    hint="声优署名填写所配的角色，其他职位留空。"
+                  >
+                    <EditRefPicker
+                      v-model="characterModel"
+                      family="character"
+                      aria-label="配音角色"
+                      :disabled="credits.disabled.value"
+                    />
+                  </WorkspaceRelatedAttr>
+                </template>
+                <template v-else>
+                  <WorkspaceRelatedAttr
+                    v-for="attr in identityAttrs"
+                    :key="attr.label"
+                    :label="attr.label"
+                  >
+                    <p
+                      class="border-default-200 bg-default-50 text-default-700 flex h-8 items-center truncate rounded-lg border px-3 text-sm"
+                    >
+                      {{ attr.text || '—' }}
+                    </p>
+                  </WorkspaceRelatedAttr>
+                </template>
                 <WorkspaceRelatedAttr label="备注">
                   <KunInput
                     v-model="noteModel"
                     size="sm"
                     placeholder="可选，例如「仅限 FD」"
                     aria-label="备注"
-                    :disabled="credits.disabled.value"
+                    :disabled="attrsDisabled"
                   />
                 </WorkspaceRelatedAttr>
                 <WorkspaceRelatedAttr label="剧透等级" wide>
@@ -537,7 +577,7 @@ onMounted(async () => {
                     "
                     :options="spoilerOptions"
                     label="剧透等级"
-                    :disabled="credits.disabled.value"
+                    :disabled="attrsDisabled"
                     @update:model-value="setMember('spoiler', $event)"
                   />
                 </WorkspaceRelatedAttr>
@@ -549,7 +589,7 @@ onMounted(async () => {
                     v-model="releaseModel"
                     family="release"
                     aria-label="仅限发行"
-                    :disabled="credits.disabled.value"
+                    :disabled="attrsDisabled"
                   />
                 </WorkspaceRelatedAttr>
                 <WorkspaceRelatedAttr label="所属厂商">
@@ -557,31 +597,23 @@ onMounted(async () => {
                     v-model="labelModel"
                     family="company"
                     aria-label="所属厂商"
-                    :disabled="credits.disabled.value"
+                    :disabled="attrsDisabled"
                   />
                 </WorkspaceRelatedAttr>
                 <p v-if="clashes" class="text-danger-600 text-xs sm:col-span-2">
                   资料源里已有职位、署名、角色都相同的记录。请至少修改其中一项，否则提交会被拒绝。
                 </p>
-              </div>
-
-              <template v-else>
-                <dl class="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-                  <div
-                    v-for="attr in readonlyAttrs"
-                    :key="attr.label"
-                    class="flex min-w-0 gap-3"
-                  >
-                    <dt class="text-default-500 w-16 shrink-0">
-                      {{ attr.label }}
-                    </dt>
-                    <dd class="min-w-0 break-all">{{ attr.text }}</dd>
-                  </div>
-                </dl>
-                <p class="text-default-500 text-xs leading-5">
-                  资料源导入的署名不能直接修改。信息有误时，可以隐藏它并添加一条修正后的人工记录。
+                <p
+                  v-if="selected.row.origin === 'upstream'"
+                  class="text-default-500 text-xs leading-5 sm:col-span-2"
+                >
+                  {{
+                    selected.row.state === 'hidden'
+                      ? '这条署名已隐藏，恢复显示后才能修改。'
+                      : '备注、剧透、发行、厂商可以直接修改，资料源以后同步也不会覆盖。职位、署名名、配音角色错了的话，请隐藏这条，再添加一条正确的署名。'
+                  }}
                 </p>
-              </template>
+              </div>
             </WorkspaceRelatedContextCard>
 
             <div

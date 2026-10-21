@@ -9,6 +9,7 @@ import (
 	"api/internal/platform/apiv2/problem"
 	"api/internal/platform/apiv2/protocol"
 	"api/internal/platform/devapi"
+	"api/internal/platform/editorigin"
 	"api/pkg/routepath"
 
 	"github.com/gofiber/fiber/v3"
@@ -33,6 +34,7 @@ const (
 type SiteBinding struct {
 	Site       string
 	ThirdParty bool
+	Origin     string
 }
 
 func appClientFrom(ctx context.Context) string {
@@ -125,18 +127,30 @@ var editingPlanePrefixes = []string{
 	"/v2/me/claims",
 	"/v2/me/cover-votes",
 	"/v2/me/creations",
+	"/v2/me/deletion-preview",
+	"/v2/me/deletion-requests",
+	"/v2/me/discussion-notices",
+	"/v2/me/discussion-watches",
+	"/v2/me/discussions",
 	"/v2/me/edit-bundle",
 	"/v2/me/edit-capabilities",
 	"/v2/me/edit-context",
 	"/v2/me/edit-images",
 	"/v2/me/edit-quota",
+	"/v2/me/merge-candidates",
+	"/v2/me/merge-preview",
 	"/v2/me/merge-requests",
 	"/v2/me/proposals",
+	"/v2/me/split-preview",
+	"/v2/me/split-requests",
 	"/v2/moderation/claims",
+	"/v2/moderation/deletion-requests",
+	"/v2/moderation/discussions",
 	"/v2/moderation/merge-requests",
 	"/v2/moderation/proposals",
 	"/v2/moderation/reverts",
 	"/v2/moderation/snapshots",
+	"/v2/moderation/split-requests",
 }
 
 func underPrefix(path, prefix string) bool {
@@ -263,6 +277,10 @@ func userAuth(lookup func(context.Context, string) (UserIdentity, error), lookup
 					}
 					if bind.ThirdParty {
 						c.Locals("catalog_third_party", true)
+					}
+					origin := editorigin.Resolve(bind.Origin, bind.Site == centralEditorSite, c.Get(editorigin.Header))
+					if origin != "" {
+						c.Locals("edit_origin", origin)
 					}
 				}
 			}

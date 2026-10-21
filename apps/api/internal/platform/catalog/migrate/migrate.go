@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"api/internal/platform/accountpurge"
+	"api/internal/platform/catalog/discussion"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/editing"
 
@@ -171,9 +172,30 @@ func Run(db *gorm.DB) error {
 		// restored only the work row and its titles. New and empty; nothing is
 		// backfilled, since rows dropped by earlier merges are gone.
 		&model.CatalogMergeArchive{},
+		// 2026-10-21: undoing a merge under the source's original id. The
+		// archive above only holds rows a merge dropped; rows it moved by
+		// UPDATE left no trace, so an unmerge could not take them back and had
+		// to mint a new id, which downstream sites (same ids as the catalog)
+		// cannot follow. catalog_merge_movement records, per executed merge,
+		// every row that referenced the source before it ran, every row the
+		// merge inserted on the survivor, and both entity rows as they were.
+		// catalog_merge_proposal gains amended_by/amended_at (a reviewer
+		// changed the requester's field and release choices) and
+		// undone_by/undone_at (status 5, undone); catalog_redirect gains
+		// revoked_at, set when an undo hands the old id back. All additive and
+		// empty: merges executed before this have no movement rows, and the
+		// editor offers undo only where they exist. A movement row belongs to its
+		// proposal and is deleted with it.
+		&model.CatalogMergeMovement{},
 		&model.CatalogSurvivorshipRule{},
 
-		// Credit edges (step 05).
+		// Credit edges (step 05). 2026-10-21 adds field_provenance jsonb NOT NULL
+		// DEFAULT '{}' for catalog.work.credits_upstream, the in-place correction
+		// of an imported credit's note / spoiler / release / company. Until now
+		// the only way was hide-and-re-add, which uq_catalog_credit refused. The
+		// constant default means PG 11+ adds the column as metadata without
+		// rewriting the ~1.02M existing rows, all of which take '{}' ("nobody has
+		// claimed any column on this row").
 		&model.CatalogCredit{},
 
 		// 2026-09-25: how far this service has read the deleted-accounts list
@@ -190,10 +212,22 @@ func Run(db *gorm.DB) error {
 	if err := editing.AutoMigrate(db); err != nil {
 		return fmt.Errorf("editing automigrate: %w", err)
 	}
+	// edit_discussion_post / edit_discussion_watcher (2026-10, editor phase 2):
+	// new empty tables for threads under proposals and merge/split/deletion
+	// requests. Additive; no existing rows are touched.
+	if err := discussion.AutoMigrate(db); err != nil {
+		return fmt.Errorf("discussion automigrate: %w", err)
+	}
 	if err := EditLegacyColumns(db); err != nil {
 		return err
 	}
 	if err := dropRetiredOrg(db); err != nil {
+		return err
+	}
+	if err := migrateDeletionRequests(db); err != nil {
+		return err
+	}
+	if err := migrateSplitRequests(db); err != nil {
 		return err
 	}
 	return rawSQL(db)

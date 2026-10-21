@@ -438,3 +438,24 @@ func TestProbableBucketHidesRefsWhoseExactSlotIsTaken(t *testing.T) {
 		SourceID: 3, ExternalID: "bgm-8",
 	}, 7))
 }
+
+func TestRejectRefKeepsTheAnchorOfADeletedWork(t *testing.T) {
+	cleanTables(t)
+	ctx := t.Context()
+
+	work := createWork(t, "deleted with its anchor")
+	addExternalRef(t, model.EntityTypeWork, work.ID, 2, "v424242", model.LinkKindExact)
+	require.NoError(t, testDB.Exec(`UPDATE catalog_work SET status = ?, deleted_at = now() WHERE id = ?`,
+		model.WorkStatusDeleted, work.ID).Error)
+
+	err := testQueues.RejectRef(ctx, RefKey{
+		EntityType: model.EntityTypeWork, EntityID: work.ID, SourceID: 2, ExternalID: "v424242",
+	}, "wrong match", 9)
+	require.ErrorIs(t, err, ErrEntityNotLive)
+
+	var n int64
+	require.NoError(t, testDB.Model(&model.CatalogExternalRef{}).
+		Where("entity_type = ? AND entity_id = ? AND external_id = ?", model.EntityTypeWork, work.ID, "v424242").
+		Count(&n).Error)
+	assert.Equal(t, int64(1), n, "the deleted work's anchor is its tombstone; rejecting it would let the import mint the work again")
+}

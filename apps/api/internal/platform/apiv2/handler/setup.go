@@ -11,6 +11,7 @@ import (
 	"api/internal/platform/apiv2/protocol"
 	"api/internal/platform/apiv2/repr"
 	"api/internal/platform/devapi"
+	"api/internal/platform/editorigin"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humafiber"
@@ -57,7 +58,7 @@ func SetupWith(app *fiber.App, opt Options) huma.API {
 	app.Use(protocol.RateLimit(opt.Store, credentialLimitIdentity))
 	app.Use(protocol.Idempotency(opt.Store, credentialLimitIdentity))
 
-	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.61.0")
+	cfg := huma.DefaultConfig("NextMoe Public API v2", "2.62.0")
 	cfg.OpenAPIPath = ""
 	cfg.DocsPath = ""
 	cfg.SchemasPath = ""
@@ -92,6 +93,9 @@ func SetupWith(app *fiber.App, opt Options) huma.API {
 		if tp, ok := fc.Locals("catalog_third_party").(bool); ok {
 			ctx = huma.WithValue(ctx, ctxThirdParty, tp)
 		}
+		if origin, ok := fc.Locals("edit_origin").(string); ok {
+			ctx = huma.WithValue(ctx, editorigin.Key(), origin)
+		}
 		if cred := devapi.CredentialFrom(fc); cred != nil {
 			ctx = huma.WithValue(ctx, ctxCredClient, cred.ClientID)
 		}
@@ -118,6 +122,9 @@ func SetupWith(app *fiber.App, opt Options) huma.API {
 	registerMeEditBundle(api, opt.Catalog)
 	registerMeCreations(api, opt.Catalog)
 	registerMergeRequests(api, opt.Catalog)
+	registerDiscussions(api, opt.Catalog)
+	registerDeletionRequests(api, opt.Catalog)
+	registerSplitRequests(api, opt.Catalog)
 	registerFolderHoldings(api, opt.Catalog)
 	registerMeWorks(api, opt.Catalog)
 	registerMeFolders(api, opt.Catalog)

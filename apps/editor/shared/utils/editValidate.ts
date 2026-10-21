@@ -20,6 +20,7 @@ const DUPLICATE_MESSAGE: Record<string, string> = {
   covers: '同一张图片重复了',
   screenshots: '同一张图片重复了',
   credits: '同一职位下重复的署名',
+  credits_upstream: '同一职位下重复的署名',
   roster: '同一角色重复了',
   traits: '同一特质重复了',
   relations: '同一厂商的同一关系重复了',

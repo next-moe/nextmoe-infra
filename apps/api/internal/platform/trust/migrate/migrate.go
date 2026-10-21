@@ -53,6 +53,9 @@ func Run(db *gorm.DB) error {
 	if err := seedCatalogRatingKind(db); err != nil {
 		return err
 	}
+	if err := seedCatalogDiscussionKind(db); err != nil {
+		return err
+	}
 	if err := classifyImportedTermPurpose(db); err != nil {
 		return err
 	}
@@ -313,6 +316,22 @@ func seedCatalogRatingKind(db *gorm.DB) error {
 		ON CONFLICT (site, key) DO NOTHING
 	`).Error; err != nil {
 		return fmt.Errorf("seed catalog rating subject kind: %w", err)
+	}
+	return nil
+}
+
+// seedCatalogDiscussionKind registers (nextmoe, edit_discussion), the subject
+// the catalog scans discussion posts under (2026-10, editor phase 2), seeded
+// here for the same reason as user_rating. No callback: a flagged post is
+// hidden through the catalog's discussion moderation face. Inserts only when
+// missing.
+func seedCatalogDiscussionKind(db *gorm.DB) error {
+	if err := db.Exec(`
+		INSERT INTO trust_subject_kind (site, key, created_at)
+		VALUES ('nextmoe', 'edit_discussion', now())
+		ON CONFLICT (site, key) DO NOTHING
+	`).Error; err != nil {
+		return fmt.Errorf("seed catalog discussion subject kind: %w", err)
 	}
 	return nil
 }

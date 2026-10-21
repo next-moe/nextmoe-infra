@@ -171,12 +171,26 @@ export const WORK_EDIT_CONFIG: EditEntityConfig = {
       label: '制作人员',
       group: 'credits',
       control: 'objectList',
-      help: '人工添加和资料源导入的署名列在同一张表里。资料源导入的不能直接修改，只能单独隐藏。',
+      help: '人工添加和资料源导入的署名列在同一张表里。资料源导入的可以直接改备注、剧透、发行和厂商，也可以单独隐藏。',
       members: {
         role_id: { label: '职位', ref: 'role' },
         credit_name_id: { label: '署名', ref: 'credit_name' },
         character_id: { label: '配音角色', ref: 'character' },
         note: { label: '备注', placeholder: '可选' },
+        spoiler: { label: '剧透等级' },
+        release_id: { label: '仅限发行', ref: 'release' },
+        label_id: { label: '所属厂商', ref: 'company' }
+      }
+    },
+    'catalog.work.credits_upstream': {
+      label: '资料源署名',
+      group: 'credits',
+      control: 'objectList',
+      members: {
+        role_id: { label: '职位', ref: 'role' },
+        credit_name_id: { label: '署名', ref: 'credit_name' },
+        character_id: { label: '配音角色', ref: 'character' },
+        note: { label: '备注' },
         spoiler: { label: '剧透等级' },
         release_id: { label: '仅限发行', ref: 'release' },
         label_id: { label: '所属厂商', ref: 'company' }

@@ -69,6 +69,18 @@ export const EDITOR_NAV: EditorNavGroup[] = [
         ready: true
       },
       {
+        label: '拆分请求',
+        icon: 'lucide:split',
+        to: '/me/split-requests',
+        ready: true
+      },
+      {
+        label: '删除请求',
+        icon: 'lucide:trash',
+        to: '/me/deletion-requests',
+        ready: true
+      },
+      {
         label: '贡献',
         icon: 'lucide:award',
         to: '/me/contributions',
@@ -87,9 +99,9 @@ export const EDITOR_NAV: EditorNavGroup[] = [
         reviewerOnly: true
       },
       {
-        label: '合并审核',
+        label: '请求审核',
         icon: 'lucide:git-merge',
-        to: '/review/merges',
+        to: '/review/requests',
         ready: true,
         reviewerOnly: true
       }

@@ -108,6 +108,9 @@ var mergeRefExclusions = map[string]string{
 	"catalog_match_rejection.entity_id":          "audit trail of what was actually compared",
 	"catalog_merge_proposal.source_entity_id":    "the merge's own record of its source",
 	"catalog_merge_proposal.target_entity_id":    "the merge's own record of its target",
+	"catalog_deletion_request.entity_id":         "the request's own record of what it asked to delete; an executor that finds the entry merged away closes the request",
+	"catalog_split_request.entity_id":            "the split's own record of the work it split; an executor that finds the work merged away closes the request",
+	"catalog_split_request.new_work_id":          "the split's own record of the work it created; undo merges that work back into entity_id",
 	"catalog_work.product_work_id":               "a product-side claim id, not a catalog entity id; retireSource frees it",
 	"catalog_user_work_rating_tombstone.work_id": "deletion log, addressed to the work the rating was on when it was deleted",
 	"catalog_work_media_order.work_id":           "the order of the source work's own images; the target keeps its own order, merged-in images sort after it, and an unmerge revives the source with its order intact",
@@ -163,6 +166,9 @@ func rehangStmts(reg *editing.Registry, p mergePlan) ([]mergeStmt, error) {
 			                       AND d.role_id = c.role_id
 			                       AND COALESCE(d.character_id, 0) = COALESCE(c.character_id, 0))
 			  RETURNING c.work_id`, []any{dst, src, dst}, true},
+			creditStampCarryStmt(`d.credit_name_id = ? AND s.credit_name_id = ?
+			    AND s.work_id = d.work_id AND s.role_id = d.role_id
+			    AND COALESCE(s.character_id, 0) = COALESCE(d.character_id, 0)`, dst, src),
 			archiveDeleteReturning(p, "catalog_credit", "t.credit_name_id = ?", []any{src}, "work_id"),
 		}
 		stmts = append(stmts, aliasDemoteStmts(p, nameAliasTable)...)
@@ -241,6 +247,9 @@ func rehangStmts(reg *editing.Registry, p mergePlan) ([]mergeStmt, error) {
 			                     WHERE d.work_id = c.work_id AND d.credit_name_id = c.credit_name_id
 			                       AND d.role_id = c.role_id AND COALESCE(d.character_id, 0) = ?)
 			  RETURNING c.work_id`, []any{dst, src, dst}, true},
+			creditStampCarryStmt(`d.character_id = ? AND s.character_id = ?
+			    AND s.work_id = d.work_id AND s.credit_name_id = d.credit_name_id
+			    AND s.role_id = d.role_id`, dst, src),
 			archiveDeleteReturning(p, "catalog_credit", "t.character_id = ?", []any{src}, "work_id"),
 			mergeStmt{`UPDATE catalog_character_alias a SET character_id = ? WHERE a.character_id = ?
 			    AND NOT EXISTS (SELECT 1 FROM catalog_character_alias b
@@ -310,6 +319,19 @@ var (
 		        ELSE GREATEST(d.spoiler, s.spoiler) END,
 		    updated_at = now()`
 )
+
+// The NOT EXISTS + archive pairs above keep the survivor's row on a credit key
+// collision; this runs between them so a person's correction on the archived
+// imported row is not lost with it.
+func creditStampCarryStmt(pairing string, args ...any) mergeStmt {
+	return mergeStmt{sql: `UPDATE catalog_credit d
+		    ` + editspec.CreditStampCarrySet("d", "s") + `
+		    FROM catalog_credit s
+		    WHERE ` + pairing + `
+		      AND ` + editspec.NotCuratedLaneSQL("d.source_id") + `
+		      AND ` + editspec.NotCuratedLaneSQL("s.source_id") + `
+		      AND ` + editspec.CreditHumanStampedSQL("s"), args: args}
+}
 
 func identityFollowStmts(reg *editing.Registry, entityTag string, src, dst int64) []mergeStmt {
 	follow := reg.IdentityFollowStmts(entityTag, src, dst, nil)

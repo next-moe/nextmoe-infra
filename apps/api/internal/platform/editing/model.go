@@ -18,6 +18,7 @@ type Proposal struct {
 	ProposerUID     int64          `gorm:"column:proposer_uid;not null;index:idx_edit_proposal_proposer,priority:1" json:"proposer_uid"`
 	Note            string         `gorm:"not null;default:''" json:"note"`
 	Site            string         `gorm:"not null;index:idx_edit_proposal_site,priority:1" json:"site"`
+	OriginSite      *string        `gorm:"column:origin_site;size:16" json:"origin_site"`
 	Status          int16          `gorm:"not null;index:idx_edit_proposal_entity,priority:4;index:idx_edit_proposal_site,priority:2" json:"status"`
 	DecidedByUID    *int64         `gorm:"column:decided_by_uid" json:"decided_by_uid"`
 	DecidedAt       *time.Time     `json:"decided_at"`
@@ -56,11 +57,14 @@ type Revision struct {
 	AmenderUID       *int64         `gorm:"column:amender_uid" json:"amender_uid"`
 	ProposalID       *int64         `gorm:"index" json:"proposal_id"`
 	Site             string         `gorm:"not null" json:"site"`
+	OriginSite       *string        `gorm:"column:origin_site;size:16" json:"origin_site"`
 	CreatedAt        time.Time      `gorm:"index:idx_edit_revision_actor,priority:2" json:"created_at"`
 
 	LegacyAction *string        `gorm:"->;column:legacy_action;type:text" json:"legacy_action,omitempty"`
 	LegacyMeta   datatypes.JSON `gorm:"->;column:legacy_meta;type:jsonb" json:"legacy_meta,omitempty"`
 	LegacyID     *int64         `gorm:"->;column:legacy_id" json:"legacy_id,omitempty"`
+
+	mirrored []*Revision
 }
 
 func (Revision) TableName() string { return "edit_revision" }

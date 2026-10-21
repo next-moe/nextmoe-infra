@@ -73,6 +73,7 @@ func workRelationsFieldSpec() editing.FieldSpec {
 		}},
 		Validate: validateWorkRelations,
 		Apply:    applyWorkRelations,
+		Mirror:   mirrorOf("work_id", loadWorkRelations),
 	}
 }
 

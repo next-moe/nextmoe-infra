@@ -819,6 +819,10 @@ export interface components {
             reason?: string;
         };
         ProposalItem: {
+            /** Format: date-time */
+            amended_at: string | null;
+            /** Format: int64 */
+            amended_by: number | null;
             /** Format: int32 */
             entity_type: number;
             /** Format: date-time */
@@ -830,6 +834,7 @@ export interface components {
             id: number;
             note: string;
             origin: string;
+            origin_site: string | null;
             /** Format: date-time */
             proposed_at: string;
             /** Format: int64 */
@@ -842,6 +847,10 @@ export interface components {
             target: components["schemas"]["EntitySummary"];
             /** Format: int64 */
             target_entity_id: number;
+            /** Format: date-time */
+            undone_at: string | null;
+            /** Format: int64 */
+            undone_by: number | null;
         };
         PutEditPolicyData: {
             override: components["schemas"]["PolicyOverrideBody"];

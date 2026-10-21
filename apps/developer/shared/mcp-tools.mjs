@@ -106,6 +106,10 @@ const DESCRIPTIONS = {
     '已提交的编辑提案流，最新优先。proposer_uid= + state=merged + include_total=true 就是按贡献者的合入计数。此面不下发 patch，也不下发审核意见。',
   getCatalogProposal:
     '按 id 取单条提案的公开透明视图：提案人、状态、目标实体与时间戳；include=amendments 追加修订链。',
+  listCatalogSplits:
+    '拆分流:哪部作品把哪些发行拆成了哪部新作品,按变化时间升序。存下游标增量消费,就能把挂在这些发行上的本地数据跟到 new_work_id;撤销的拆分以 state=undone 重新出现在尾部,新作品经 redirects 指回原作品。',
+  listCatalogDiscussion:
+    '一条提案（或合并请求）下的讨论串，按时间正序：留言人、是否审核者、回复的上一条与正文。提案的讨论公开可读；合并请求的讨论只对请求人与合并审核者可见。',
   listCatalogRedirects:
     '合并去向流：被合并掉的 id 指向哪个继任者，最旧优先。存下游标增量消费，就能把本地副本里的死 id 换成活的。object= 收敛到单个家族；不接受 ids=。',
   getCatalogSchema:

@@ -2,6 +2,7 @@
 import type { EditRefFamily } from '#shared/types/edit'
 import { cn } from '@kungal/ui-core'
 import type { RefOption } from '~/composables/useRefNames'
+import { rolePickerOptions } from '~/utils/roleOptions'
 
 const props = withDefaults(
   defineProps<{
@@ -35,6 +36,9 @@ const searching = ref(false)
 const roleOptions = ref<RefOption[]>([])
 
 const isRole = computed(() => props.family === 'role')
+const pickerOptions = computed(() =>
+  rolePickerOptions(roleOptions.value, props.modelValue)
+)
 const selectedName = computed(() => refs.nameOf(props.family, props.modelValue))
 const familyLabel = computed(() => REF_FAMILY_LABEL[props.family])
 
@@ -96,7 +100,7 @@ onMounted(async () => {
     <KunSelect
       v-if="isRole"
       v-model="roleModel"
-      :options="roleOptions"
+      :options="pickerOptions"
       :placeholder="props.placeholder || `选择${familyLabel}`"
       :aria-label="props.ariaLabel || familyLabel"
       :disabled="props.disabled"
