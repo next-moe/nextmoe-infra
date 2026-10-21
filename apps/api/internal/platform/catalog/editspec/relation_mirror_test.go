@@ -8,6 +8,7 @@ import (
 	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/editing"
+	"api/internal/platform/editorigin"
 )
 
 func revisionsOf(t *testing.T, entityType string, id int64) []editing.Revision {
@@ -129,4 +130,30 @@ func TestLabelRelationEditGivesTheOtherCompanyARevision(t *testing.T) {
 	sameJSON(t, "changed fields", changedFields(t, revs[0]), []string{editspec.FieldLabelRelations})
 	sameJSON(t, "snapshot on parent", snapshotField(t, revs[0].Snapshot, editspec.FieldLabelRelations),
 		[]any{map[string]any{"label_id": brand.ID, "relation": int64(model.LabelRelationSubsidiary)}})
+}
+
+func TestCounterpartRevisionKeepsTheOriginSite(t *testing.T) {
+	e := newEngine(t)
+	a := createWork(t, "本編")
+	b := createWork(t, "外伝")
+	ctx := editorigin.With(testCtx, "moyu")
+
+	prop, _, err := e.CreateProposal(ctx, editing.CreateProposalInput{
+		EntityType: editspec.TypeWork, EntityID: b.ID,
+		Patch: map[string]any{editspec.FieldWorkRelations: []any{
+			map[string]any{"work_id": float64(a.ID), "relation": "side_story_of"},
+		}},
+		Actor: realActor(100),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.MergeProposal(testCtx, prop.ID, realActor(200, "ren"), ""); err != nil {
+		t.Fatal(err)
+	}
+
+	revs := revisionsOf(t, editspec.TypeWork, a.ID)
+	if len(revs) != 1 || revs[0].OriginSite == nil || *revs[0].OriginSite != "moyu" {
+		t.Fatalf("the other end's revision must carry the proposal's origin site: %+v", revs)
+	}
 }

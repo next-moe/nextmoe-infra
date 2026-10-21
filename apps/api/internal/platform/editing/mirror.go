@@ -111,7 +111,7 @@ func writeMirrorRevisions(
 			Seq: seq + 1, Action: action,
 			ChangedFields: rawChanged, Snapshot: rawSnapshot,
 			ActorUID: prop.ProposerUID, AmenderUID: amenderUID, ProposalID: &prop.ID,
-			Site: prop.Site,
+			Site: prop.Site, OriginSite: prop.OriginSite,
 		}
 		if seq == 0 {
 			if rev.BaselineSnapshot, err = encodeJSON(base); err != nil {
