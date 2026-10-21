@@ -247,3 +247,46 @@ func TestDeletionRequestRecordsItsOriginSite(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, got)
 }
+
+func TestDeletionAndRestoreResurfaceTheWorksRatingsInTheFeed(t *testing.T) {
+	cleanDeletionTables(t)
+	ctx := t.Context()
+	svc := NewDeletionService(testDB, testResolve)
+	ratings := NewUserRatingService(testDB)
+	w := createWork(t, "rated then deleted")
+	_, err := ratings.Set(ctx, 42, w.ID, "c", "kungal", RatingInput{Overall: 7, Recommend: model.RecommendYes})
+	require.NoError(t, err)
+	require.NoError(t, testDB.Exec(`UPDATE catalog_user_work_rating SET changed_at = now() - interval '1 hour' WHERE work_id = ?`, w.ID).Error)
+	settle := func() {
+		require.NoError(t, testDB.Exec(`UPDATE catalog_user_work_rating SET changed_at = changed_at - interval '10 seconds' WHERE work_id = ?`, w.ID).Error)
+	}
+	ratingOn := func(changes []RatingChange) *RatingChange {
+		for i := range changes {
+			if changes[i].WorkID == w.ID {
+				return &changes[i]
+			}
+		}
+		return nil
+	}
+
+	cursor := time.Now().Add(-30 * time.Minute)
+	id := approvedDeletion(t, svc, w.ID)
+	_, err = svc.Execute(ctx, id, nil)
+	require.NoError(t, err)
+	settle()
+	changes, err := ratings.Changes(ctx, cursor, 0, 50)
+	require.NoError(t, err)
+	got := ratingOn(changes)
+	require.NotNil(t, got, "a mirror already past the rating must still learn it is gone")
+	assert.True(t, got.Gone)
+
+	cursor = got.ChangedAt
+	require.NoError(t, svc.Restore(ctx, id, 7, "it exists"))
+	settle()
+	changes, err = ratings.Changes(ctx, cursor, got.ID, 50)
+	require.NoError(t, err)
+	got = ratingOn(changes)
+	require.NotNil(t, got, "a mirror that dropped the rating must get it back on restore")
+	assert.False(t, got.Gone)
+	require.NotNil(t, got.Rating)
+}
