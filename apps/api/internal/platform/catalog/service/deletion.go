@@ -264,6 +264,11 @@ func (s *DeletionService) Restore(ctx context.Context, id, by int64, note string
 		if _, err := editing.ReopenDeclinedProposals(tx, editspec.TypeWork, w.ID, deletionDeclineNote(r.ID), closedAt); err != nil {
 			return fmt.Errorf("reopen proposals: %w", err)
 		}
+		for _, table := range []string{"catalog_user_folder_item", "catalog_user_playtime", "catalog_user_work_state"} {
+			if err := tx.Exec(`UPDATE `+table+` SET updated_at = now() WHERE work_id = ?`, w.ID).Error; err != nil {
+				return fmt.Errorf("resurface %s: %w", table, err)
+			}
+		}
 		if err := refreshHiddenWorkUserData(ctx, tx, w.ID); err != nil {
 			return err
 		}

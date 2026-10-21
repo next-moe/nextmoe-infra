@@ -121,3 +121,41 @@ func TestRestoreReopensProposalsTheDeletionClosed(t *testing.T) {
 	assert.Equal(t, editing.StatusOpen, proposalStatus(t, pending), "restore reopens what the deletion closed")
 	assert.Equal(t, editing.StatusDeclined, proposalStatus(t, closedEarlier), "a proposal declined for its own reasons stays declined")
 }
+
+func TestRestoreResurfacesUserRowsForMirrorsPastThem(t *testing.T) {
+	cleanDeletionTables(t)
+	ctx := t.Context()
+	svc := NewDeletionService(testDB, testResolve)
+	folders := NewUserFolderService(testDB)
+	playtime := NewUserPlaytimeService(testDB)
+	states := NewUserWorkStateService(testDB)
+	const uid = int64(88)
+	w := createWork(t, "synced, deleted, restored")
+	f, err := folders.Create(ctx, FolderCreate{OwnerUID: uid, Name: "box"})
+	require.NoError(t, err)
+	_, err = folders.PutItem(ctx, uid, f.ID, w.ID)
+	require.NoError(t, err)
+	_, err = playtime.Report(ctx, PlaytimeReport{ActorUID: uid, WorkID: w.ID, ClientID: "c", Minutes: 40})
+	require.NoError(t, err)
+	_, err = states.Set(ctx, uid, w.ID, model.WorkStateDone, nil)
+	require.NoError(t, err)
+	for _, tbl := range []string{"catalog_user_folder_item", "catalog_user_playtime", "catalog_user_work_state"} {
+		require.NoError(t, testDB.Exec(`UPDATE `+tbl+` SET updated_at = now() - interval '1 hour' WHERE work_id = ?`, w.ID).Error)
+	}
+	cursor := time.Now().Add(-30 * time.Minute)
+
+	id := approvedDeletion(t, svc, w.ID)
+	_, err = svc.Execute(ctx, id, nil)
+	require.NoError(t, err)
+	require.NoError(t, svc.Restore(ctx, id, 7, "it exists"))
+
+	items, err := folders.ListItems(ctx, uid, f.ID, cursor, 0, 50)
+	require.NoError(t, err)
+	assert.Len(t, items, 1, "a folder mirror past the item gets it back")
+	plays, err := playtime.ListMine(ctx, uid, cursor, 0, 50)
+	require.NoError(t, err)
+	assert.Len(t, plays, 1, "a playtime mirror past the row gets it back")
+	st, err := states.ListMine(ctx, uid, cursor, 0, 50)
+	require.NoError(t, err)
+	assert.Len(t, st, 1, "a play-state mirror past the row gets it back")
+}
