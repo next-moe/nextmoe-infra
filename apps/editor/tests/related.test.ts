@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { CatalogEditContextRow } from '../shared/types/catalog'
 import {
+  creditAttrsOf,
   creditKeyClash,
   groupRows,
   hiddenRows,
@@ -10,6 +11,7 @@ import {
   mergeIdRows,
   mergeRelatedRows,
   relationPhrase,
+  sameCreditAttrs,
   sourceLabel,
   upstreamRowKey,
   visibleRows
@@ -218,6 +220,50 @@ describe('helpers', () => {
     )
     expect(rowIdentity(fieldKey, { relation: 'imprint_of', label_id: 9 })).toBe(
       'imprint_of:9'
+    )
+  })
+})
+
+describe('imported credit corrections', () => {
+  const imported = { role_id: 3, credit_name_id: 7, spoiler: 0 }
+
+  it('treats an absent and an empty attribute as the same value', () => {
+    expect(
+      sameCreditAttrs(imported, {
+        ...imported,
+        note: '',
+        release_id: null,
+        label_id: ''
+      })
+    ).toBe(true)
+    expect(creditAttrsOf(imported)).toEqual({
+      note: '',
+      spoiler: 0,
+      release_id: null,
+      label_id: null
+    })
+  })
+
+  it('notices each attribute a person can correct', () => {
+    expect(sameCreditAttrs(imported, { ...imported, note: '仅限 FD' })).toBe(
+      false
+    )
+    expect(sameCreditAttrs(imported, { ...imported, spoiler: 2 })).toBe(false)
+    expect(sameCreditAttrs(imported, { ...imported, release_id: '12' })).toBe(
+      false
+    )
+    expect(
+      sameCreditAttrs(
+        { ...imported, label_id: 5 },
+        { ...imported, label_id: '5' }
+      )
+    ).toBe(true)
+  })
+
+  it('keys an imported row the same way in both credit fields', () => {
+    const value = { role_id: 3, credit_name_id: 7, character_id: null }
+    expect(rowIdentity('catalog.work.credits_upstream', value)).toBe(
+      rowIdentity('catalog.work.credits', value)
     )
   })
 })

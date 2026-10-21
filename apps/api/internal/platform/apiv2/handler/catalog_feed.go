@@ -106,11 +106,16 @@ func (c *Catalog) ListRedirects(ctx context.Context, q collect.Query, object str
 		if !ok {
 			continue
 		}
-		items = append(items, repr.Redirect{
+		rd := repr.Redirect{
 			Object: "redirect", TargetObject: target,
 			OldID: repr.ID(it.OldID), CurrentID: repr.ID(it.CurrentID),
 			MergedAt: it.MergedAt.UTC().Format("2006-01-02T15:04:05Z"),
-		})
+		}
+		if it.Revoked {
+			revoked := true
+			rd.Revoked = &revoked
+		}
+		items = append(items, rd)
 	}
 	var next *string
 	if len(rows) == limit {

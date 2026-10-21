@@ -10,7 +10,7 @@ mappings:
       role_id: 292
       note: 作画
     - source_role: 1:2003
-      role_id: 310
+      role_id: 185
       note: 插图
     - source_role: 1:2004
       role_id: 297
@@ -22,7 +22,7 @@ mappings:
       role_id: 322
       note: 译者
     - source_role: 1:2007
-      role_id: 221
+      role_id: 307
       note: 原作
     - source_role: 1:2008
       role_id: 182
@@ -31,7 +31,7 @@ mappings:
       role_id: 220
       note: 人物原案
     - source_role: 1:2010
-      role_id: 320
+      role_id: 247
       note: 脚本
     - source_role: 1:2011
       role_id: 193
@@ -43,13 +43,13 @@ mappings:
       role_id: 138
       note: 图书品牌
     - source_role: "2:1"
-      role_id: 221
+      role_id: 307
       note: 原作
     - source_role: "2:2"
-      role_id: 174
+      role_id: 173
       note: 导演
     - source_role: "2:3"
-      role_id: 251
+      role_id: 247
       note: 脚本
     - source_role: "2:4"
       role_id: 271
@@ -70,7 +70,7 @@ mappings:
       role_id: 195
       note: 构图
     - source_role: "2:10"
-      role_id: 253
+      role_id: 315
       note: 系列构成
     - source_role: "2:11"
       role_id: 117
@@ -82,7 +82,7 @@ mappings:
       role_id: 146
       note: 总作画监督
     - source_role: "2:15"
-      role_id: 111
+      role_id: 293
       note: 作画监督
     - source_role: "2:16"
       role_id: 203
@@ -91,7 +91,7 @@ mappings:
       role_id: 175
       note: 摄影监督
     - source_role: "2:18"
-      role_id: 274
+      role_id: 314
       note: 监修
     - source_role: "2:19"
       role_id: 239
@@ -142,7 +142,7 @@ mappings:
       role_id: 190
       note: 插入歌演出
     - source_role: "2:35"
-      role_id: 224
+      role_id: 291
       note: 企画
     - source_role: "2:36"
       role_id: 226
@@ -271,7 +271,7 @@ mappings:
       role_id: 273
       note: 监制
     - source_role: 2:81
-      role_id: 121
+      role_id: 305
       note: 协力
     - source_role: 2:82
       role_id: 223
@@ -544,7 +544,7 @@ mappings:
       role_id: 194
       note: 厂牌
     - source_role: 3:3005
-      role_id: 221
+      role_id: 307
       note: 原作
     - source_role: 3:3006
       role_id: 199
@@ -676,7 +676,7 @@ mappings:
       role_id: 164
       note: 海报
     - source_role: 6:4001
-      role_id: 168
+      role_id: 307
       note: 原作
     - source_role: 6:4002
       role_id: 173
@@ -685,7 +685,7 @@ mappings:
       role_id: 288
       note: 编剧
     - source_role: 6:4004
-      role_id: 159
+      role_id: 209
       note: 音乐
     - source_role: 6:4005
       role_id: 179
@@ -709,13 +709,13 @@ mappings:
       role_id: 270
       note: 编审
     - source_role: 6:4012
-      role_id: 177
+      role_id: 176
       note: 剪辑
     - source_role: 6:4013
-      role_id: 165
+      role_id: 167
       note: 创意总监
     - source_role: 6:4014
-      role_id: 151
+      role_id: 223
       note: 摄影
     - source_role: 6:4015
       role_id: 280

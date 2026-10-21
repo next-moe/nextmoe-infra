@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"sort"
 
+	"api/internal/platform/editorigin"
+
 	"gorm.io/gorm"
 )
 
@@ -224,6 +226,7 @@ func (e *Engine) CreateBirth(ctx context.Context, in CreateBirthInput) (*Proposa
 		EntityFamily: spec.Family, EntityType: spec.Type,
 		Patch: rawPatch, BirthParams: rawParams,
 		ProposerUID: in.Actor.UserID, Note: in.Note, Site: in.Actor.Site, Status: StatusOpen,
+		OriginSite: editorigin.Ptr(ctx),
 	}
 	if !automerge {
 		if err := e.db.WithContext(ctx).Create(prop).Error; err != nil {
@@ -288,6 +291,10 @@ func (e *Engine) mergeBirthLocked(
 		return nil, err
 	}
 	keys := sortedKeys(eff)
+	mirrors, err := lockMirrors(ctx, etx, spec, entityID, keys, map[string]any{}, eff)
+	if err != nil {
+		return nil, err
+	}
 	for _, key := range keys {
 		f, _ := spec.Field(key)
 		if err := ApplyField(ctx, etx, f, entityID, eff[key]); err != nil {
@@ -308,9 +315,12 @@ func (e *Engine) mergeBirthLocked(
 		Seq: 1, Action: ActionCreated,
 		ChangedFields: rawChanged, Snapshot: rawSnapshot,
 		ActorUID: prop.ProposerUID, AmenderUID: amenderUID, ProposalID: &prop.ID,
-		Site: prop.Site,
+		Site: prop.Site, OriginSite: prop.OriginSite,
 	}
 	if err := etx.Create(rev).Error; err != nil {
+		return nil, err
+	}
+	if rev.mirrored, err = writeMirrorRevisions(ctx, etx, spec, prop, mirrors, ActionMerged, amenderUID); err != nil {
 		return nil, err
 	}
 	if err := etx.Model(&Proposal{}).Where("id = ?", prop.ID).UpdateColumn("entity_id", entityID).Error; err != nil {

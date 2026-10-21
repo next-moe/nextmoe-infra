@@ -147,6 +147,7 @@ const NATURAL_KEYS: Record<string, string[]> = {
   intros: ['lang'],
   labels: ['label_id', 'kind'],
   credits: ['role_id', 'credit_name_id', 'character_id'],
+  credits_upstream: ['role_id', 'credit_name_id', 'character_id'],
   roster: ['character_id'],
   covers: ['image_hash'],
   screenshots: ['image_hash'],

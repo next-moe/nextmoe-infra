@@ -32,7 +32,8 @@ Every merged edit, newest first by default. sort=recorded_asc walks the same col
 | `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait. |
 | `entity_id` | query | 否 | string | Catalog id of one entity. Requires object=. |
 | `site` | query | 否 | string | Tenant key. Open vocabulary; unknown values match nothing. |
-| `actor_uid` | query | 否 | string | The claiming site's own user id of the actor. Not a catalog id. |
+| `actor_uid` | query | 否 | string | Central account id of the actor. Not a catalog id. |
+| `origin_site` | query | 否 | string | Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps revisions made from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE. |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/revisions"

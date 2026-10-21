@@ -364,6 +364,7 @@ func labelRelationsFieldSpec() editing.FieldSpec {
 		}},
 		Validate: validateLabelRelations,
 		Apply:    applyLabelRelations,
+		Mirror:   mirrorOf("label_id", loadCuratedLabelRelations),
 	}
 }
 

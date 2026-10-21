@@ -99,6 +99,15 @@ func run(ctx context.Context, db *gorm.DB, gameRoleToShared map[int64]int64, app
 				continue
 			}
 			if len(deleteIDs) > 0 {
+				if err := tx.Exec(`UPDATE catalog_credit d
+					`+editspec.CreditStampCarrySet("d", "s")+`
+					FROM catalog_credit s
+					WHERE s.id IN ? AND d.work_id = s.work_id AND d.credit_name_id = s.credit_name_id
+					  AND d.role_id = ? AND COALESCE(d.character_id, 0) = COALESCE(s.character_id, 0)
+					  AND `+editspec.NotCuratedLaneSQL("d.source_id")+`
+					  AND `+editspec.CreditHumanStampedSQL("s"), deleteIDs, shared).Error; err != nil {
+					return err
+				}
 				if err := tx.Exec(`DELETE FROM catalog_credit WHERE id IN ?`, deleteIDs).Error; err != nil {
 					return err
 				}

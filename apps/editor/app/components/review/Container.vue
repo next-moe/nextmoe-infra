@@ -4,7 +4,7 @@ import type {
   CatalogProposal,
   CatalogProposalList
 } from '#shared/types/catalog'
-import { ENTITY_FAMILY, SITE_LABELS } from '~/constants/catalog'
+import { ENTITY_FAMILY, ORIGIN_SITE_LABELS } from '~/constants/catalog'
 import { EDIT_CONFIGS, isEditFamily } from '~/constants/editEntities'
 import {
   AGE_OPTIONS,
@@ -31,7 +31,7 @@ const queueIds = useState<string[]>('review-queue-ids', () => [])
 const family = ref('')
 const sort = ref('filed_desc')
 const filters = reactive<QueueFilters>({
-  site: '',
+  origin: '',
   age: '',
   field: '',
   conflictOnly: false
@@ -50,9 +50,12 @@ const familyOptions: KunSelectOption<string>[] = [
   }))
 ]
 
-const siteOptions: KunSelectOption<string>[] = [
+const originOptions: KunSelectOption<string>[] = [
   { value: '', label: '全部来源' },
-  ...Object.entries(SITE_LABELS).map(([value, label]) => ({ value, label }))
+  ...Object.entries(ORIGIN_SITE_LABELS).map(([value, label]) => ({
+    value,
+    label
+  }))
 ]
 
 const ageOptions: KunSelectOption<string>[] = AGE_OPTIONS.map(
@@ -91,7 +94,7 @@ const analyses = computed<Record<string, QueueAnalysis>>(() =>
 const visible = computed(() =>
   filterQueue(
     items.value,
-    { site: '', age: filters.age, field: '', conflictOnly: false },
+    { origin: '', age: filters.age, field: '', conflictOnly: false },
     analyses.value
   )
 )
@@ -106,7 +109,7 @@ const fetchPage = async (cursor: string | null) => {
         include: 'patch',
         sort: sort.value,
         ...(family.value ? { object: family.value } : {}),
-        ...(filters.site ? { site: filters.site } : {}),
+        ...(filters.origin ? { origin_site: filters.origin } : {}),
         ...(filters.field ? { field: filters.field } : {}),
         ...(filters.conflictOnly ? { has_conflict: true } : {}),
         ...(cursor ? { cursor } : {})
@@ -137,7 +140,7 @@ watch(family, () => {
   fetchPage(null)
 })
 watch(
-  () => [sort.value, filters.site, filters.field, filters.conflictOnly],
+  () => [sort.value, filters.origin, filters.field, filters.conflictOnly],
   () => fetchPage(null)
 )
 watch(visible, (list) => {
@@ -240,8 +243,8 @@ watch(
             aria-label="条目类型"
           />
           <KunSelect
-            v-model="filters.site"
-            :options="siteOptions"
+            v-model="filters.origin"
+            :options="originOptions"
             aria-label="来源站点"
           />
           <KunSelect

@@ -24,7 +24,7 @@ func (r *RedirectRepository) Get(ctx context.Context, entityType int16, oldID in
 func (r *RedirectRepository) GetBatch(ctx context.Context, entityType int16, ids []int64) (map[int64]int64, error) {
 	var rows []model.CatalogRedirect
 	if err := r.db.WithContext(ctx).
-		Where("entity_type = ? AND old_id IN ?", entityType, ids).
+		Where("entity_type = ? AND old_id IN ? AND revoked_at IS NULL", entityType, ids).
 		Find(&rows).Error; err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func (r *RedirectRepository) Count(ctx context.Context, entityType *int16) (int6
 
 func getRedirect(db *gorm.DB, entityType int16, oldID int64) (*model.CatalogRedirect, error) {
 	var row model.CatalogRedirect
-	err := db.Where("entity_type = ? AND old_id = ?", entityType, oldID).First(&row).Error
+	err := db.Where("entity_type = ? AND old_id = ? AND revoked_at IS NULL", entityType, oldID).First(&row).Error
 	if err == gorm.ErrRecordNotFound {
 		return nil, nil
 	}
@@ -82,26 +82,38 @@ func getRedirect(db *gorm.DB, entityType int16, oldID int64) (*model.CatalogRedi
 	return &row, nil
 }
 
+// The feed is ordered by merged_at, so a redirect whose current_id changes
+// without merged_at moving is invisible to every mirror already past it: an
+// older merge into the source kept pointing at the retired id downstream.
+// Flattening and repointing therefore bump merged_at, which the feed documents
+// as the time the redirect last changed.
 func FlattenRedirectsTo(tx *gorm.DB, entityType int16, sourceID, targetID int64) error {
 	return tx.Model(&model.CatalogRedirect{}).
-		Where("entity_type = ? AND current_id = ?", entityType, sourceID).
-		Update("current_id", targetID).Error
+		Where("entity_type = ? AND current_id = ? AND revoked_at IS NULL", entityType, sourceID).
+		Updates(map[string]any{"current_id": targetID, "merged_at": time.Now()}).Error
 }
 
 func InsertRedirect(tx *gorm.DB, entityType int16, oldID, currentID int64, mergedBy *int64, reason string) error {
-	now := time.Now()
-	return tx.Create(&model.CatalogRedirect{
-		EntityType: entityType,
-		OldID:      oldID,
-		CurrentID:  currentID,
-		MergedAt:   &now,
-		MergedBy:   mergedBy,
-		Reason:     reason,
-	}).Error
+	return tx.Exec(`INSERT INTO catalog_redirect (entity_type, old_id, current_id, merged_at, merged_by, reason)
+		VALUES (?, ?, ?, now(), ?, ?)
+		ON CONFLICT (entity_type, old_id) DO UPDATE
+		SET current_id = EXCLUDED.current_id, merged_at = EXCLUDED.merged_at, merged_by = EXCLUDED.merged_by,
+		    reason = EXCLUDED.reason, revoked_at = NULL`,
+		entityType, oldID, currentID, mergedBy, reason).Error
 }
 
 func RepointRedirect(tx *gorm.DB, entityType int16, oldID, newCurrentID int64, reason string) error {
 	return tx.Model(&model.CatalogRedirect{}).
-		Where("entity_type = ? AND old_id = ?", entityType, oldID).
-		Updates(map[string]any{"current_id": newCurrentID, "reason": reason}).Error
+		Where("entity_type = ? AND old_id = ? AND revoked_at IS NULL", entityType, oldID).
+		Updates(map[string]any{"current_id": newCurrentID, "reason": reason, "merged_at": time.Now()}).Error
+}
+
+// RevokeRedirect hands oldID back: the row stays so the feed can tell mirrors
+// the id is live again (current_id = old_id, revoked), and every reader that
+// resolves ids skips it.
+func RevokeRedirect(tx *gorm.DB, entityType int16, oldID int64, reason string) error {
+	return tx.Exec(`UPDATE catalog_redirect SET current_id = old_id, revoked_at = now(), merged_at = now(),
+		    reason = CASE WHEN reason = '' THEN ? ELSE reason || '; ' || ? END
+		WHERE entity_type = ? AND old_id = ? AND revoked_at IS NULL`,
+		reason, reason, entityType, oldID).Error
 }

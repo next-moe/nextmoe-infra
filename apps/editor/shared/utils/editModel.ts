@@ -159,6 +159,8 @@ const ROW_IDENTITY: Record<string, (row: Record<string, unknown>) => string> = {
   screenshots_upstream: (row) => str(row.image_hash),
   credits: (row) =>
     `${str(row.role_id)}:${str(row.credit_name_id)}:${str(row.character_id) || '0'}`,
+  credits_upstream: (row) =>
+    `${str(row.role_id)}:${str(row.credit_name_id)}:${str(row.character_id) || '0'}`,
   roster: (row) => str(row.character_id),
   traits: (row) => str(row.trait_id),
   relations: (row) =>

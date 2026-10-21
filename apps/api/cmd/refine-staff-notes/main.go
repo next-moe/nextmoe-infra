@@ -27,8 +27,12 @@ const otherStaffRoleID = 2
 // mints a machine-made row wearing source_id 12 — which the curated apply
 // ("delete every source 12 row for this work, re-insert the list") then reaps
 // the next time a person saves, after it has been live on the read faces for a
-// while and never once visible in their editor.
-var notCuratedSource = editspec.NotCuratedLaneSQL("c.source_id")
+// while and never once visible in their editor. A note a person corrected in
+// place (catalog.work.credits_upstream) is theirs too: this job reads the note
+// as the importer's text, and would move the row to whatever role the person's
+// wording happens to name.
+var notCuratedSource = editspec.NotCuratedLaneSQL("c.source_id") +
+	" AND NOT COALESCE(" + editspec.HumanFieldProvenanceSQL("c.field_provenance", "note") + ", false)"
 
 func main() {
 	dsn := flag.String("dsn", "", "postgres DSN (required, always explicit)")

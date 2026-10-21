@@ -116,6 +116,10 @@
       "label": "署名名类型",
       "summary": "一个署名名在其人物名下扮演的角色：本名、笔名、另立人格或曾用名。"
     },
+    "origin_site": {
+      "label": "来源站点",
+      "summary": "一条编辑记录是从哪个第一方站点发起的。仅用于展示与统计；有用户主页的站点附带 profile_url 模板，{id} 为中央账号 id。"
+    },
     "link_visibility": {
       "label": "关联可见性",
       "summary": "署名名与其人物之间的关联是否对外公开。"
@@ -476,6 +480,15 @@
     "A name the person no longer uses.": "此人已不再使用的名字。",
     "Public": "公开",
     "The link between this credit name and its person is shown.": "这个署名名与其人物的关联会被展示。",
-    "The link between this credit name and its person is withheld from public faces.": "这个署名名与其人物的关联不在公开接口中出现。"
+    "The link between this credit name and its person is withheld from public faces.": "这个署名名与其人物的关联不在公开接口中出现。",
+    "KUN Galgame forum": "鲲 Galgame 论坛",
+    "kungal.com.": "kungal.com。",
+    "KUN Galgame patch": "鲲 Galgame 补丁",
+    "moyu.moe.": "moyu.moe。",
+    "LetMoe": "LetMoe",
+    "letmoe.com.": "letmoe.com。",
+    "nextmoe.com, which has no user pages.": "nextmoe.com，没有用户主页。",
+    "NextMoe editor": "未萌编辑台",
+    "editor.nextmoe.com opened directly rather than from a site's link.": "直接打开 editor.nextmoe.com，而不是从某个站点的链接进入。"
   }
 }

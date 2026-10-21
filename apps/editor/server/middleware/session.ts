@@ -8,6 +8,7 @@ export default defineEventHandler(async (event) => {
   if (!navigation) {
     return
   }
+  rememberOrigin(event)
   if (await ensureEditorSession(event)) {
     return
   }

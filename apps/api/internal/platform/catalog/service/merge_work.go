@@ -110,6 +110,9 @@ func workCreditStmts(p mergePlan) []mergeStmt {
 		                     WHERE d.work_id = ? AND d.credit_name_id = c.credit_name_id
 		                       AND d.role_id = c.role_id
 		                       AND COALESCE(d.character_id, 0) = COALESCE(c.character_id, 0))`, []any{dst, src, dst}, false},
+		creditStampCarryStmt(`d.work_id = ? AND s.work_id = ?
+		    AND s.credit_name_id = d.credit_name_id AND s.role_id = d.role_id
+		    AND COALESCE(s.character_id, 0) = COALESCE(d.character_id, 0)`, dst, src),
 		archiveDelete(p, "catalog_credit", "t.work_id = ?", src),
 	}
 }
@@ -161,7 +164,8 @@ func workFacetStmts(p mergePlan) []mergeStmt {
 		// was repointed to dst; a duplicate was deleted because dst was already
 		// there), so recounting the dst holders repairs every drifted count.
 		{`UPDATE catalog_user_folder f
-		    SET item_count = (SELECT count(*) FROM catalog_user_folder_item i WHERE i.folder_id = f.id),
+		    SET item_count = (SELECT count(*) FROM catalog_user_folder_item i
+		                       WHERE i.folder_id = f.id AND ` + liveWorkCond("i.work_id") + `),
 		        updated_at = now()
 		    WHERE f.id IN (SELECT folder_id FROM catalog_user_folder_item WHERE work_id = ?)`, []any{dst}, false},
 		// Work states sync incrementally off updated_at like folder items, so

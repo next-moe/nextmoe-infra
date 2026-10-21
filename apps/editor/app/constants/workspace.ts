@@ -116,7 +116,7 @@ export const WORK_SECTIONS: WorkspaceSectionDef[] = [
     icon: 'lucide:clapperboard',
     group: 'related',
     view: 'work:credits',
-    fields: [work('credits')]
+    fields: [work('credits'), work('credits_upstream')]
   },
   {
     key: 'companies',

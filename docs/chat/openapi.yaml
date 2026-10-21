@@ -1043,6 +1043,19 @@ components:
           maxLength: 20
           pattern: ^[0-9]+$
           type: string
+        deleted_at:
+          description: When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.
+          format: date-time
+          maxLength: 32
+          type: string
+        deleted_reason:
+          description: Why the entity was deleted, when code is ENTITY_DELETED.
+          enum:
+            - not_a_work
+            - out_of_scope
+            - spam_or_test
+            - other
+          type: string
         detail:
           description: English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.
           maxLength: 2048
@@ -1058,7 +1071,7 @@ components:
           pattern: ^(/.*)?$
           type: string
         object:
-          description: Entity family when code is ENTITY_MERGED.
+          description: Entity family when code is ENTITY_MERGED or ENTITY_DELETED.
           maxLength: 32
           pattern: ^[a-z][a-z0-9_]*$
           type: string

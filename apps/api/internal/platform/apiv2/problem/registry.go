@@ -65,6 +65,7 @@ const (
 	CodeInternalError                = "INTERNAL_ERROR"
 	CodeServiceUnavailable           = "SERVICE_UNAVAILABLE"
 	CodeEntityMerged                 = "ENTITY_MERGED"
+	CodeEntityDeleted                = "ENTITY_DELETED"
 	CodePlayRecordsPrivate           = "PLAY_RECORDS_PRIVATE"
 	CodeUserIdentityRequired         = "USER_IDENTITY_REQUIRED"
 	CodeSiteNotBound                 = "SITE_NOT_BOUND"
@@ -145,6 +146,7 @@ var Codes = []Def{
 	{CodeInternalError, DomainPlatform, http.StatusInternalServerError, "Internal error", "A bug on our side, including the output of panic recovery."},
 	{CodeServiceUnavailable, DomainPlatform, http.StatusServiceUnavailable, "Service unavailable", "A dependency is unavailable. The request may be retried."},
 	{CodeEntityMerged, DomainCatalog, http.StatusNotFound, "Entity merged", "The entity was merged into another. object and current_id are present, and Link rel=canonical is sent."},
+	{CodeEntityDeleted, DomainCatalog, http.StatusGone, "Entity deleted", "The entity was deleted through a reviewed deletion request. object, deleted_reason and deleted_at are present. A reviewer may restore it under the same id, so treat it as hidden, not as never having existed."},
 	{CodePlayRecordsPrivate, DomainCatalog, http.StatusForbidden, "Play records private", "The account keeps its play states and playtimes private. Only the account itself may read them, through its own user token. Its ratings stay public on /v2/ratings."},
 	{CodeUserIdentityRequired, DomainMe, http.StatusForbidden, "User identity required", "An application key was used for an operation that needs a user token."},
 	{CodeSiteNotBound, DomainMe, http.StatusForbidden, "Site not bound", "The client behind the token is not bound to a catalog site."},

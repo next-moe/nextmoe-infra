@@ -8,7 +8,6 @@ import (
 	"api/internal/platform/apiv2/parse"
 	"api/internal/platform/apiv2/problem"
 	"api/internal/platform/apiv2/repr"
-	catmodel "api/internal/platform/catalog/model"
 )
 
 func (c *Catalog) subPage(cursor string, limit int) (int, int, error) {
@@ -33,7 +32,7 @@ func (c *Catalog) subPage(cursor string, limit int) (int, int, error) {
 }
 
 func (c *Catalog) missWork(ctx context.Context, id int64) error {
-	return c.mergedOrNotFound(ctx, catmodel.EntityTypeWork, "work", id)
+	return c.missingWork(ctx, id)
 }
 
 func (c *Catalog) WorkCovers(ctx context.Context, id int64, nsfw bool, cursor string, limit int) (repr.List[repr.Cover], error) {

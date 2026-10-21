@@ -142,7 +142,7 @@ func censusStragglers(db *gorm.DB) ([]stragglerRow, error) {
 			N          int64  `gorm:"column:n"`
 		}
 		q := fmt.Sprintf(`SELECT r.entity_type, r.old_id, r.current_id, r.reason, count(*) AS n
-			FROM %s t JOIN catalog_redirect r ON r.entity_type = %s AND r.old_id = t.%s
+			FROM %s t JOIN catalog_redirect r ON r.entity_type = %s AND r.old_id = t.%s AND r.revoked_at IS NULL
 			GROUP BY 1, 2, 3, 4`, ref.table, ref.typeSQL, ref.column)
 		if err := db.Raw(q).Scan(&rows).Error; err != nil {
 			return nil, fmt.Errorf("census %s.%s: %w", ref.table, ref.column, err)

@@ -47,7 +47,14 @@ const isImageList = computed(
       members.value.some((member) => member.type === 'imagehash'))
 )
 
+const booleanField = computed(
+  () => typeof props.before === 'boolean' || typeof props.after === 'boolean'
+)
+
 const scalarDisplay = (value: unknown) => {
+  if (booleanField.value && (value === null || value === undefined)) {
+    return '未知'
+  }
   if (props.field.field_type === 'ref') {
     const collection = refCollectionOf(props.field.key)
     return value === null || value === undefined

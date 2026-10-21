@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { cn } from '@kungal/ui-core'
 import type { CatalogProposal } from '#shared/types/catalog'
-import { ENTITY_FAMILY, SITE_LABELS } from '~/constants/catalog'
+import { ENTITY_FAMILY } from '~/constants/catalog'
 import type { QueueAnalysis } from '~/utils/review/queue'
 
 const props = defineProps<{
@@ -102,11 +102,14 @@ const conflictCount = computed(
         <p
           class="text-default-400 mt-1 flex flex-wrap items-center gap-x-1 text-xs"
         >
-          <HistoryUser
+          <HistoryAuthor
             :user="props.proposal.proposer"
             :uid="props.proposal.proposer_uid"
+            :origin="props.proposal.origin_site"
+            :site="props.proposal.site"
+            :linked="false"
           />
-          <span>· {{ labelOf(SITE_LABELS, props.proposal.site) }} ·</span>
+          <span>·</span>
           <time
             :datetime="props.proposal.created_at"
             :title="formatDateTime(props.proposal.created_at)"

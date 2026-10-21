@@ -141,7 +141,7 @@ func (s *UserWorkStateService) ListMineFor(ctx context.Context, uid int64, workI
 	}
 	var rows []model.CatalogUserWorkState
 	if err := s.db.WithContext(ctx).
-		Where("actor_uid = ? AND work_id IN ?", uid, workIDs).
+		Where("actor_uid = ? AND work_id IN ?", uid, workIDs).Where(liveWorkCond("catalog_user_work_state.work_id")).
 		Order("work_id ASC").Find(&rows).Error; err != nil {
 		return nil, err
 	}
@@ -159,7 +159,7 @@ func (s *UserWorkStateService) ListMine(ctx context.Context, uid int64, since ti
 	if uid <= 0 {
 		return nil, ErrWorkStateActorRequired
 	}
-	q := s.db.WithContext(ctx).Model(&model.CatalogUserWorkState{}).Where("actor_uid = ?", uid)
+	q := s.db.WithContext(ctx).Model(&model.CatalogUserWorkState{}).Where("actor_uid = ?", uid).Where(liveWorkCond("catalog_user_work_state.work_id"))
 	if !since.IsZero() {
 		if sinceWorkID > 0 {
 			q = q.Where("updated_at > ? OR (updated_at = ? AND work_id > ?)", since, since, sinceWorkID)
@@ -187,7 +187,7 @@ func (s *UserWorkStateService) CountMine(ctx context.Context, uid int64) (int64,
 	}
 	var n int64
 	err := s.db.WithContext(ctx).Model(&model.CatalogUserWorkState{}).
-		Where("actor_uid = ?", uid).Count(&n).Error
+		Where("actor_uid = ?", uid).Where(liveWorkCond("catalog_user_work_state.work_id")).Count(&n).Error
 	return n, err
 }
 

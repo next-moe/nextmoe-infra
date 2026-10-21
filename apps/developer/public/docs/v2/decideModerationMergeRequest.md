@@ -13,7 +13,7 @@
 
 Decide a merge request
 
-decision=approve|reject|execute. Unmerge stays with the catalog admin console. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+decision=approve|reject|execute|undo. undo revives the source under its own id, moves back what the merge moved, restores what it archived and revokes the redirect (the redirects feed then lists it with revoked=true); the response carries undo_report. A merge executed before undo was recorded, or past catalog.merge_undo_window_days, is refused 409. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
@@ -28,8 +28,8 @@ decision=approve|reject|execute. Unmerge stays with the catalog admin console. R
 
 | 字段 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- |
-| `decision` | 是 | string | approve starts the cooling-off (catalog.merge_cooling_off_hours) after which the catalog-merge-requests job executes it; reject closes it; execute runs an approved request whose cooling-off has ended without waiting for the job. 取值：approve \| reject \| execute |
-| `reason` | 否 | string | Required to reject. Must not be used as a discriminant. |
+| `decision` | 是 | string | approve starts the cooling-off (catalog.merge_cooling_off_hours) after which the catalog-merge-requests job executes it; reject closes it; execute runs an approved request whose cooling-off has ended without waiting for the job; undo takes an executed merge back under the source's original id while undo_until has not passed. 取值：approve \| reject \| execute \| undo |
+| `reason` | 否 | string | Required to reject and to undo. Must not be used as a discriminant. |
 
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/moderation/merge-requests/1/decisions" \

@@ -25,6 +25,10 @@ export default defineEventHandler(async (event) => {
       headers.set(name, value)
     }
   }
+  const origin = rememberedOrigin(event)
+  if (origin) {
+    headers.set(ORIGIN_HEADER, origin)
+  }
   const raw = isMutatingMethod(event.method)
     ? await readRawBody(event, false)
     : undefined

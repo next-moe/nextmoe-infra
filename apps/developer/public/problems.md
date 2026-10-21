@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-## 错误码注册表（顶层 `code`，共 50 个）
+## 错误码注册表（顶层 `code`，共 51 个）
 
 `code` 是封闭注册表里的稳定标识；`errors[].reason` 是另一套互不重叠的字段级词表。认不得的 `code` 一律按 `status` 兜底——我们会往注册表里加新成员。
 
@@ -51,6 +51,7 @@
 | code | HTTP | title | description |
 | --- | --- | --- | --- |
 | `ENTITY_MERGED` | 404 | Entity merged | The entity was merged into another. object and current_id are present, and Link rel=canonical is sent. |
+| `ENTITY_DELETED` | 410 | Entity deleted | The entity was deleted through a reviewed deletion request. object, deleted_reason and deleted_at are present. A reviewer may restore it under the same id, so treat it as hidden, not as never having existed. |
 | `PLAY_RECORDS_PRIVATE` | 403 | Play records private | The account keeps its play states and playtimes private. Only the account itself may read them, through its own user token. Its ratings stay public on /v2/ratings. |
 
 ### me

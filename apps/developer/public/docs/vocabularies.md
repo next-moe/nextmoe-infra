@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-## 词表（共 30 个）
+## 词表（共 31 个）
 
 封闭词表（`closed`）不加不减成员就是它的承诺——你的 `switch` 可以没有 `default`。开放词表相反：提前告诉你会有新值，客户端必须容忍没见过的取值。运行时以 `https://api.nextmoe.dev/v2/vocabularies` 为准，它比任何文档都新，且不需要凭据。
 
@@ -160,6 +160,18 @@ Closed · 4 tokens
 | `pen_name` | Pen name | A pen name. |
 | `distinct_persona` | Distinct persona | A persona kept apart from the person's other names. |
 | `former_name` | Former name | A name the person no longer uses. |
+
+### `origin_site`
+
+Closed · 5 tokens
+
+| value | display_name | description |
+| --- | --- | --- |
+| `kungal` | KUN Galgame forum | kungal.com. |
+| `moyu` | KUN Galgame patch | moyu.moe. |
+| `letmoe` | LetMoe | letmoe.com. |
+| `nextmoe` | NextMoe | nextmoe.com, which has no user pages. |
+| `editor` | NextMoe editor | editor.nextmoe.com opened directly rather than from a site's link. |
 
 ### `link_visibility`
 

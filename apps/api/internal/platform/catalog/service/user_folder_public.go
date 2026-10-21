@@ -53,7 +53,7 @@ func (s *UserFolderService) ListPublicItems(ctx context.Context, folderID int64,
 	if _, err := s.GetPublic(ctx, folderID); err != nil {
 		return nil, err
 	}
-	q := s.db.WithContext(ctx).Where("folder_id = ?", folderID)
+	q := s.db.WithContext(ctx).Where("folder_id = ?", folderID).Where(liveWorkCond("catalog_user_folder_item.work_id"))
 	if !since.IsZero() {
 		if sinceWorkID > 0 {
 			q = q.Where("updated_at > ? OR (updated_at = ? AND work_id > ?)", since, since, sinceWorkID)
@@ -72,7 +72,7 @@ func (s *UserFolderService) CountPublicItems(ctx context.Context, folderID int64
 	}
 	var n int64
 	err := s.db.WithContext(ctx).Model(&model.CatalogUserFolderItem{}).
-		Where("folder_id = ?", folderID).Count(&n).Error
+		Where("folder_id = ?", folderID).Where(liveWorkCond("catalog_user_folder_item.work_id")).Count(&n).Error
 	return n, err
 }
 
@@ -85,7 +85,7 @@ func (s *UserFolderService) ListMineContaining(ctx context.Context, uid, workID,
 	}
 	q := s.db.WithContext(ctx).Model(&model.CatalogUserFolder{}).
 		Joins("JOIN catalog_user_folder_item i ON i.folder_id = catalog_user_folder.id AND i.work_id = ?", workID).
-		Where("catalog_user_folder.owner_uid = ?", uid)
+		Where("catalog_user_folder.owner_uid = ?", uid).Where(liveWorkCond("i.work_id"))
 	if sinceID > 0 {
 		q = q.Where("catalog_user_folder.id > ?", sinceID)
 	}
@@ -101,7 +101,7 @@ func (s *UserFolderService) CountMineContaining(ctx context.Context, uid, workID
 	var n int64
 	err := s.db.WithContext(ctx).Model(&model.CatalogUserFolder{}).
 		Joins("JOIN catalog_user_folder_item i ON i.folder_id = catalog_user_folder.id AND i.work_id = ?", workID).
-		Where("catalog_user_folder.owner_uid = ?", uid).Count(&n).Error
+		Where("catalog_user_folder.owner_uid = ?", uid).Where(liveWorkCond("i.work_id")).Count(&n).Error
 	return n, err
 }
 

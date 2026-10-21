@@ -149,7 +149,7 @@ func strandedAmong(db *gorm.DB, site string, anchorKind int16, rows []stranded) 
 			                WHERE c.product_work_id = a.id AND c.site = ?
 			                  AND c.deleted_at IS NULL) AS claimed_gid
 			FROM a
-			JOIN catalog_redirect r ON r.entity_type = ? AND r.old_id = a.id
+			JOIN catalog_redirect r ON r.entity_type = ? AND r.old_id = a.id AND r.revoked_at IS NULL
 			LEFT JOIN catalog_work s ON s.id = r.current_id
 			     AND s.deleted_at IS NULL AND s.site = ?`, args...).Scan(&found).Error
 		if err != nil {

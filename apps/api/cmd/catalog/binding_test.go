@@ -39,3 +39,30 @@ func TestIsThirdPartyEditClient(t *testing.T) {
 		})
 	}
 }
+
+func TestSiteBindingOrigin(t *testing.T) {
+	owner := uint(2)
+	dev := uint(7311)
+	cases := []struct {
+		name string
+		cl   *siteModel.OAuthClient
+		site string
+		want string
+	}{
+		{"forum", &siteModel.OAuthClient{CatalogSite: "kungal", OwnerUserID: &owner}, "kungal", "kungal"},
+		{"forum app", &siteModel.OAuthClient{ID: "kungal-app", CatalogSite: "kungal"}, "kungal", "kungal"},
+		{"moyu files under the forum's catalog site", &siteModel.OAuthClient{CatalogSite: "kungal", CommunitySite: "moyu", OwnerUserID: &owner}, "kungal", "moyu"},
+		{"letmoe", &siteModel.OAuthClient{CatalogSite: "letmoe", OwnerUserID: &owner}, "letmoe", "letmoe"},
+		{"editor", &siteModel.OAuthClient{CatalogSite: "editor"}, "editor", "editor"},
+		{"news is no edit origin", &siteModel.OAuthClient{CatalogSite: "news"}, "news", ""},
+		{"developer app", &siteModel.OAuthClient{OwnerUserID: &dev}, "", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			b := siteBindingOf(c.cl)
+			if b.Site != c.site || b.Origin != c.want {
+				t.Fatalf("siteBindingOf() = %+v, want site %q origin %q", b, c.site, c.want)
+			}
+		})
+	}
+}

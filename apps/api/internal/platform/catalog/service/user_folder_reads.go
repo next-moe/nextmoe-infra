@@ -24,6 +24,7 @@ func (s *UserFolderService) Holdings(ctx context.Context, uid int64, workIDs []i
 		Select("catalog_user_folder_item.work_id AS work_id, catalog_user_folder_item.folder_id AS folder_id").
 		Joins("JOIN catalog_user_folder f ON f.id = catalog_user_folder_item.folder_id").
 		Where("f.owner_uid = ? AND catalog_user_folder_item.work_id IN ?", uid, workIDs).
+		Where(liveWorkCond("catalog_user_folder_item.work_id")).
 		Order("catalog_user_folder_item.work_id ASC, catalog_user_folder_item.folder_id ASC").
 		Scan(&rows).Error
 	return rows, err
@@ -37,7 +38,8 @@ func (s *UserFolderService) HoldersOfWork(ctx context.Context, workID, sinceUID 
 	q := s.db.WithContext(ctx).
 		Model(&model.CatalogUserFolder{}).
 		Distinct().
-		Joins("JOIN catalog_user_folder_item i ON i.folder_id = catalog_user_folder.id AND i.work_id = ?", workID)
+		Joins("JOIN catalog_user_folder_item i ON i.folder_id = catalog_user_folder.id AND i.work_id = ?", workID).
+		Where(liveWorkCond("i.work_id"))
 	if sinceUID > 0 {
 		q = q.Where("catalog_user_folder.owner_uid > ?", sinceUID)
 	}

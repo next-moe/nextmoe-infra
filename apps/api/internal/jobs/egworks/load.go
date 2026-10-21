@@ -38,6 +38,7 @@ type snapshot struct {
 	games          []game
 	holdings       map[int64][]holding
 	exactAnywhere  map[int64]struct{}
+	heldByDeleted  map[int64]struct{}
 	workHasPrimary map[int64]bool
 	packSubjects   map[int64][]int64
 	transplantObj  map[int64][]int64
@@ -77,6 +78,7 @@ func loadSnapshot(ctx context.Context, db, egDB *gorm.DB, ids registryIDs, now t
 		now: now, ids: ids,
 		holdings:       map[int64][]holding{},
 		exactAnywhere:  map[int64]struct{}{},
+		heldByDeleted:  map[int64]struct{}{},
 		workHasPrimary: map[int64]bool{},
 		packSubjects:   map[int64][]int64{},
 		transplantObj:  map[int64][]int64{},
@@ -229,6 +231,19 @@ func loadHoldings(ctx context.Context, db *gorm.DB, source int16, snap *snapshot
 	for _, id := range exact {
 		if egID, err := strconv.ParseInt(id, 10, 64); err == nil {
 			snap.exactAnywhere[egID] = struct{}{}
+		}
+	}
+	var onDeleted []string
+	if err := db.WithContext(ctx).Raw(`
+		SELECT r.external_id FROM catalog_external_ref r
+		JOIN catalog_work w ON w.id = r.entity_id AND w.deleted_at IS NOT NULL
+		WHERE r.entity_type = ? AND r.source_id = ? AND r.link_kind = ? AND r.dead_at IS NULL`,
+		model.EntityTypeWork, source, model.LinkKindProbable).Scan(&onDeleted).Error; err != nil {
+		return fmt.Errorf("load eg ids held by deleted works: %w", err)
+	}
+	for _, id := range onDeleted {
+		if egID, err := strconv.ParseInt(id, 10, 64); err == nil {
+			snap.heldByDeleted[egID] = struct{}{}
 		}
 	}
 	for _, r := range rows {

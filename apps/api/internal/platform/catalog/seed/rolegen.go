@@ -48,6 +48,31 @@ var bangumiSharedRoles = map[string]int64{
 	"4:1018": roleExecutiveProducer,
 }
 
+// Positions of other subject types that name the same job under the same
+// Chinese name generated a role each, so the editor's role picker offered two
+// or three identical choices (脚本 three times). Each copy's positions take
+// the role kept here, and the copy is retired; on 2026-10-21 none of the
+// retired roles held a credit in production. Two same-name pairs are left
+// alone on purpose because they are different jobs: 制作助理 (associate-producer
+// / production-assistant) and 海报 (cover-art / poster).
+var sameNameRoleKeys = map[string]string{
+	"planning":                       "企画",
+	"animation-direction":            "作画监督",
+	"creative-director":              "creative-supervisor-director",
+	"editor":                         "editing",
+	"assistance":                     "协力",
+	"creator":                        "原作",
+	"original-creator-original-work": "原作",
+	"director-direction":             "director",
+	"插图":                             "illustrator",
+	"cinematography":                 "photography",
+	"supervision-supervisor":         "监修",
+	"series-composition":             "系列构成",
+	"script-screenplay":              "scenario",
+	"脚本":                             "scenario",
+	"composer-2":                     "music",
+}
+
 func GenerateBangumiRoles() (GeneratedRoles, error) {
 	staffs, err := bangumicommon.LoadStaffPositions()
 	if err != nil {
@@ -148,6 +173,20 @@ func GenerateBangumiRoles() (GeneratedRoles, error) {
 		r.ID = roleIDBase + int64(i)
 	}
 
+	idByKey := make(map[string]int64, len(roles))
+	for _, r := range roles {
+		idByKey[r.Key] = r.ID
+	}
+	sameNameRoles := make(map[int64]int64, len(sameNameRoleKeys))
+	for from, to := range sameNameRoleKeys {
+		fromID, okFrom := idByKey[from]
+		toID, okTo := idByKey[to]
+		if !okFrom || !okTo {
+			return GeneratedRoles{}, fmt.Errorf("catalog seed: same-name role %q -> %q names a role the snapshot no longer has", from, to)
+		}
+		sameNameRoles[fromID] = toID
+	}
+
 	mappings := make([]RoleMapSeed, 0, len(walk))
 	targeted := make(map[int64]bool, len(roles))
 	gameRoleToShared := make(map[int64]int64, len(bangumiSharedRoles))
@@ -158,6 +197,9 @@ func GenerateBangumiRoles() (GeneratedRoles, error) {
 		if shared, ok := bangumiSharedRoles[sourceRole]; ok {
 			gameRoleToShared[roleID] = shared
 			roleID = shared
+		}
+		if kept, ok := sameNameRoles[roleID]; ok {
+			roleID = kept
 		}
 		targeted[roleID] = true
 		mappings = append(mappings, RoleMapSeed{SourceRole: sourceRole, RoleID: roleID, Note: occ.pos.CN})

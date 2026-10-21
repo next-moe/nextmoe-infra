@@ -217,7 +217,7 @@ func rowDiffers(table string, cols []string) string {
 
 func (s *UserRatingService) Get(ctx context.Context, id int64) (*RatingRecord, error) {
 	var row model.CatalogUserWorkRating
-	err := s.db.WithContext(ctx).Where("id = ?", id).Take(&row).Error
+	err := s.db.WithContext(ctx).Where("id = ?", id).Where(liveWorkCond("catalog_user_work_rating.work_id")).Take(&row).Error
 	if stderrors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrRatingNotFound
 	}
@@ -244,7 +244,7 @@ func (s *UserRatingService) ListMineFor(ctx context.Context, uid int64, workIDs 
 	}
 	var rows []model.CatalogUserWorkRating
 	if err := s.db.WithContext(ctx).
-		Where("actor_uid = ? AND work_id IN ?", uid, workIDs).
+		Where("actor_uid = ? AND work_id IN ?", uid, workIDs).Where(liveWorkCond("catalog_user_work_rating.work_id")).
 		Order("work_id ASC").Find(&rows).Error; err != nil {
 		return nil, err
 	}
@@ -255,7 +255,7 @@ func (s *UserRatingService) ListMine(ctx context.Context, uid int64, since time.
 	if uid <= 0 {
 		return nil, ErrRatingActorRequired
 	}
-	q := s.db.WithContext(ctx).Where("actor_uid = ?", uid)
+	q := s.db.WithContext(ctx).Where("actor_uid = ?", uid).Where(liveWorkCond("catalog_user_work_rating.work_id"))
 	if !since.IsZero() {
 		q = q.Where("(changed_at, work_id) > (?, ?)", since, sinceWorkID)
 	}
@@ -271,7 +271,8 @@ func (s *UserRatingService) CountMine(ctx context.Context, uid int64) (int64, er
 		return 0, ErrRatingActorRequired
 	}
 	var n int64
-	err := s.db.WithContext(ctx).Model(&model.CatalogUserWorkRating{}).Where("actor_uid = ?", uid).Count(&n).Error
+	err := s.db.WithContext(ctx).Model(&model.CatalogUserWorkRating{}).Where("actor_uid = ?", uid).
+		Where(liveWorkCond("catalog_user_work_rating.work_id")).Count(&n).Error
 	return n, err
 }
 
@@ -328,6 +329,7 @@ type RatingFilter struct {
 }
 
 func (f RatingFilter) scope(q *gorm.DB) *gorm.DB {
+	q = q.Where(liveWorkCond("catalog_user_work_rating.work_id"))
 	if f.WorkID > 0 {
 		q = q.Where("work_id = ?", f.WorkID)
 	}
@@ -403,7 +405,7 @@ func (s *UserRatingService) Changes(ctx context.Context, afterAt time.Time, afte
 	byID := map[int64]RatingRecord{}
 	if len(live) > 0 {
 		var rows []model.CatalogUserWorkRating
-		if err := s.db.WithContext(ctx).Where("id IN ?", live).Find(&rows).Error; err != nil {
+		if err := s.db.WithContext(ctx).Where("id IN ?", live).Where(liveWorkCond("catalog_user_work_rating.work_id")).Find(&rows).Error; err != nil {
 			return nil, err
 		}
 		recs, err := ratingRecords(s.db.WithContext(ctx), rows)
@@ -418,11 +420,11 @@ func (s *UserRatingService) Changes(ctx context.Context, afterAt time.Time, afte
 	for _, h := range heads {
 		ch := RatingChange{ID: h.ID, WorkID: h.WorkID, ChangedAt: h.ChangedAt, Gone: h.Gone}
 		if !h.Gone {
-			rec, ok := byID[h.ID]
-			if !ok {
-				continue
+			if rec, ok := byID[h.ID]; ok {
+				ch.Rating = &rec
+			} else {
+				ch.Gone = true
 			}
-			ch.Rating = &rec
 		}
 		out = append(out, ch)
 	}

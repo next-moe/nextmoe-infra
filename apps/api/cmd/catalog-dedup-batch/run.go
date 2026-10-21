@@ -320,21 +320,24 @@ const cleanupMatch = `e.character_id IS NULL
 	             WHERE d.work_id = e.work_id AND d.credit_name_id = e.credit_name_id
 	               AND d.role_id = e.role_id AND d.character_id IS NOT NULL)`
 
-// A machine deduplicator may not delete a hand-written row. There is no receipt
-// for it anywhere — no revision, no rejection row — so the person would re-add
-// it and watch it disappear again. The curated rows it steps around are counted
-// and printed instead of being passed over in silence.
+// A machine deduplicator may not delete a hand-written row, nor an imported row
+// a person corrected in place. There is no receipt for it anywhere — no
+// revision, no rejection row — so the person would re-add it and watch it
+// disappear again. The rows it steps around are counted and printed instead of
+// being passed over in silence.
 var (
-	cleanupScope   = cleanupMatch + ` AND ` + editspec.NotCuratedLaneSQL("e.source_id")
-	cleanupCurated = cleanupMatch + ` AND ` + editspec.CuratedLaneSQL("e.source_id")
+	cleanupScope = cleanupMatch + ` AND ` + editspec.NotCuratedLaneSQL("e.source_id") +
+		` AND NOT ` + editspec.CreditHumanStampedSQL("e")
+	cleanupHuman = cleanupMatch + ` AND (` + editspec.CuratedLaneSQL("e.source_id") +
+		` OR ` + editspec.CreditHumanStampedSQL("e") + `)`
 )
 
 func runCleanup(db *gorm.DB, w io.Writer, run bool) error {
-	var redundant, keptCurated int64
+	var redundant, keptHuman int64
 	if err := db.Raw(`SELECT count(*) FROM catalog_credit e WHERE ` + cleanupScope).Row().Scan(&redundant); err != nil {
 		return err
 	}
-	if err := db.Raw(`SELECT count(*) FROM catalog_credit e WHERE ` + cleanupCurated).Row().Scan(&keptCurated); err != nil {
+	if err := db.Raw(`SELECT count(*) FROM catalog_credit e WHERE ` + cleanupHuman).Row().Scan(&keptHuman); err != nil {
 		return err
 	}
 	var samples []struct {
@@ -349,18 +352,18 @@ func runCleanup(db *gorm.DB, w io.Writer, run bool) error {
 		ORDER BY e.work_id, e.id LIMIT 5`).Scan(&samples).Error; err != nil {
 		return err
 	}
-	fmt.Fprintf(w, "[cleanup] redundant empty-role VA credits: %d (kept_curated=%d)\n", redundant, keptCurated)
+	fmt.Fprintf(w, "[cleanup] redundant empty-role VA credits: %d (kept_human=%d)\n", redundant, keptHuman)
 	for _, s := range samples {
 		fmt.Fprintf(w, "    credit id=%d work=%d cn=%d name=%q\n", s.ID, s.WorkID, s.CreditNameID, s.Name)
 	}
 	if !run {
-		fmt.Fprintf(w, "DRY-RUN (pass -run to delete) [cleanup] would_delete=%d kept_curated=%d\n", redundant, keptCurated)
+		fmt.Fprintf(w, "DRY-RUN (pass -run to delete) [cleanup] would_delete=%d kept_human=%d\n", redundant, keptHuman)
 		return nil
 	}
 	res := db.Exec(`DELETE FROM catalog_credit e WHERE ` + cleanupScope)
 	if res.Error != nil {
 		return res.Error
 	}
-	fmt.Fprintf(w, "APPLIED [cleanup] deleted=%d kept_curated=%d\n", res.RowsAffected, keptCurated)
+	fmt.Fprintf(w, "APPLIED [cleanup] deleted=%d kept_human=%d\n", res.RowsAffected, keptHuman)
 	return nil
 }

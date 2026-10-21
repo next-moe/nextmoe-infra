@@ -42,6 +42,29 @@ const { prepare, context } = useDiffContext()
 const id = computed(() => String(route.params.id))
 
 const proposal = ref<CatalogProposal | null>(null)
+
+const discussionParticipants = computed(() => {
+  const p = proposal.value
+  if (!p) {
+    return []
+  }
+  return [
+    { uid: p.proposer_uid, user: p.proposer, role: '提案人' },
+    ...(p.decided_by_uid
+      ? [{ uid: p.decided_by_uid, user: p.decided_by, role: '处理人' }]
+      : []),
+    ...(p.amendments ?? []).map((amendment) => ({
+      uid: amendment.amender_uid,
+      user: amendment.amender,
+      role: '修正者'
+    }))
+  ]
+})
+
+const jumpToDiscussion = () =>
+  document
+    .getElementById('discussion')
+    ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 const etag = ref<string | null>(null)
 const schema = ref<CatalogObjectSchema | null>(null)
 const current = ref<Record<string, unknown>>({})
@@ -551,6 +574,11 @@ watch(
             v-if="!fields.length"
             description="这条提案没有可识别的字段改动"
           />
+          <DiscussionThread
+            anchor-kind="proposal"
+            :anchor-id="proposal.id"
+            :participants="discussionParticipants"
+          />
         </div>
 
         <aside class="space-y-3 lg:sticky lg:top-16 lg:self-start">
@@ -640,6 +668,15 @@ watch(
             </KunButton>
           </KunCard>
           <ReviewDetailSidebar :proposal="proposal" />
+          <KunButton
+            full-width
+            variant="light"
+            size="sm"
+            @click="jumpToDiscussion"
+          >
+            <KunIcon name="lucide:messages-square" class="size-4" />
+            跳到讨论
+          </KunButton>
         </aside>
       </div>
 

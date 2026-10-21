@@ -113,10 +113,19 @@ export const LANGUAGE_LABELS: Record<string, string> = {
 
 export const SITE_LABELS: Record<string, string> = {
   kungal: '鲲 Galgame',
+  moyu: '鲲 Galgame 补丁',
   letmoe: 'LetMoe',
   editor: '未萌编辑台',
   nextmoe: 'NextMoe',
   galgame_wiki: '旧 Galgame Wiki'
+}
+
+export const ORIGIN_SITE_LABELS: Record<string, string> = {
+  kungal: '论坛',
+  moyu: '补丁站',
+  letmoe: 'LetMoe',
+  nextmoe: 'NextMoe',
+  editor: '编辑台'
 }
 
 export const WORK_DETAIL_INCLUDE = [

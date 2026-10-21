@@ -128,6 +128,18 @@ type FieldSpec struct {
 	Value         *ValueSpec
 	Validate      func(value any) error
 	Apply         ApplyFunc
+	Mirror        *MirrorSpec
+}
+
+// MirrorSpec is for a field whose Apply also rewrites the same field on other
+// entities of its type: a relation stored once and read from both ends.
+type MirrorSpec struct {
+	// Others lists the entities, besides the one written, whose value of the
+	// field can change when before is replaced by after.
+	Others func(before, after any) []int64
+	// Load reads one entity's value of the field through db, so the engine
+	// sees what its own transaction wrote.
+	Load func(ctx context.Context, db *gorm.DB, entityID int64) (any, error)
 }
 
 // ValueSpec is the declarative twin of Validate: it states, for the schema

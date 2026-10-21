@@ -511,6 +511,11 @@ func (s *AdminQueueService) RejectRef(ctx context.Context, key RefKey, reason st
 		if matchedBy == matchedByCurated {
 			return fmt.Errorf("%w: %w", ErrProposalState, ErrCuratedRef)
 		}
+		if _, ok := entityTableName(key.EntityType); ok {
+			if err := assertEntityAlive(tx, key.EntityType, key.EntityID); err != nil {
+				return err
+			}
+		}
 		res := tx.Exec(`DELETE FROM catalog_external_ref
 		                 WHERE entity_type = ? AND entity_id = ? AND source_id = ? AND external_id = ?`,
 			key.EntityType, key.EntityID, key.SourceID, key.ExternalID)

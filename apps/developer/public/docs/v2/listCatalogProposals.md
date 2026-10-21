@@ -32,7 +32,8 @@ Filed proposals, newest first. proposer_uid=+state=merged with include_total=tru
 | `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait. |
 | `entity_id` | query | 否 | string | Catalog id of one entity. Requires object=. |
 | `site` | query | 否 | string | Tenant key. Open vocabulary; unknown values match nothing. |
-| `proposer_uid` | query | 否 | string | The claiming site's own user id of the proposer. Not a catalog id. |
+| `proposer_uid` | query | 否 | string | Central account id of the proposer. Not a catalog id. |
+| `origin_site` | query | 否 | string | Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps proposals filed from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE. |
 | `state` | query | 否 | string | Closed: open, merged, declined, withdrawn. |
 
 ```bash

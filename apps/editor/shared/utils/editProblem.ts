@@ -38,6 +38,7 @@ const CODE_MESSAGES: Record<string, string> = {
   PRECONDITION_REQUIRED: '缺少版本校验信息，请刷新后再试',
   NOT_FOUND: '条目不存在',
   ENTITY_MERGED: '这个条目已被合并到另一个条目',
+  ENTITY_DELETED: '这个条目已被删除',
   SITE_NOT_BOUND: '当前登录状态不能提交修改',
   SCOPE_REQUIRED: '当前登录状态不能提交修改，请重新登录',
   PERMISSION_REQUIRED: '你没有执行这项操作的权限',

@@ -1,12 +1,17 @@
 package vocab
 
-import "sort"
+import (
+	"sort"
+
+	"api/internal/platform/editorigin"
+)
 
 type Value struct {
 	_           struct{} `json:"-" additionalProperties:"true"`
 	Value       string   `json:"value" maxLength:"64" doc:"Token as it appears on the wire. Must not be used as a discriminant."`
 	DisplayName string   `json:"display_name" maxLength:"512" doc:"English label for this token. Must not be used as a discriminant."`
 	Description string   `json:"description" maxLength:"512" doc:"English prose. Must not be used as a discriminant."`
+	ProfileURL  string   `json:"profile_url,omitempty" format:"uri-template" maxLength:"256" doc:"origin_site only: the property's user profile URL, with {id} standing for the central account id (every first-party site uses it as its own user id). Absent when the property has no user pages."`
 }
 
 type Vocabulary struct {
@@ -54,6 +59,10 @@ func open(name string, values []Value) Vocabulary {
 
 func v(value, display, desc string) Value {
 	return Value{Value: value, DisplayName: display, Description: desc}
+}
+
+func site(value, display, desc, profileURL string) Value {
+	return Value{Value: value, DisplayName: display, Description: desc, ProfileURL: profileURL}
 }
 
 var registry = []Vocabulary{
@@ -134,6 +143,13 @@ var registry = []Vocabulary{
 		v("pen_name", "Pen name", "A pen name."),
 		v("distinct_persona", "Distinct persona", "A persona kept apart from the person's other names."),
 		v("former_name", "Former name", "A name the person no longer uses."),
+	}),
+	closed("origin_site", []Value{
+		site(editorigin.Kungal, "KUN Galgame forum", "kungal.com.", "https://www.kungal.com/user/{id}"),
+		site(editorigin.Moyu, "KUN Galgame patch", "moyu.moe.", "https://www.moyu.moe/user/{id}"),
+		site(editorigin.Letmoe, "LetMoe", "letmoe.com.", "https://www.letmoe.com/user/{id}"),
+		site(editorigin.Nextmoe, "NextMoe", "nextmoe.com, which has no user pages.", ""),
+		site(editorigin.Editor, "NextMoe editor", "editor.nextmoe.com opened directly rather than from a site's link.", ""),
 	}),
 	closed("link_visibility", []Value{
 		v("public", "Public", "The link between this credit name and its person is shown."),

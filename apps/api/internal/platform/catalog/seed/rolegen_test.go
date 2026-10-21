@@ -86,8 +86,27 @@ func TestGenerateBangumiRoles(t *testing.T) {
 			retired = append(retired, r.Key)
 		}
 	}
-	assert.ElementsMatch(t, []string{"制作总指挥", "剧本", "原画", "音乐"}, retired)
+	assert.ElementsMatch(t, []string{
+		"制作总指挥", "剧本", "原画", "音乐",
+		"planning", "animation-direction", "creative-director", "editor", "assistance",
+		"creator", "original-creator-original-work", "director-direction", "插图",
+		"cinematography", "supervision-supervisor", "series-composition",
+		"script-screenplay", "脚本", "composer-2",
+	}, retired)
 	assert.Len(t, generated.GameRoleToShared, len(shared))
+
+	byName := map[string][]string{}
+	for _, r := range roles {
+		if !r.Deprecated {
+			byName[r.NameCN] = append(byName[r.NameCN], r.Key)
+		}
+	}
+	differentJobs := map[string]bool{"制作助理": true, "海报": true}
+	for name, keys := range byName {
+		if len(keys) > 1 && !differentJobs[name] {
+			t.Errorf("active roles %v share the name %s: the role picker shows it twice", keys, name)
+		}
+	}
 }
 
 func findMapping(mappings []RoleMapSeed, sourceRole string) (RoleMapSeed, bool) {

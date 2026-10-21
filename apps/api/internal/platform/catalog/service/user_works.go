@@ -19,7 +19,7 @@ func (s *UserFolderService) RecordedWorkIDs(ctx context.Context, uid, afterWorkI
 	}
 	var ids []int64
 	err := s.db.WithContext(ctx).Raw(
-		`SELECT work_id FROM (`+recordedWorksSQL+`) w ORDER BY work_id LIMIT @limit`,
+		`SELECT work_id FROM (`+recordedWorksSQL+`) w WHERE `+liveWorkCond("w.work_id")+` ORDER BY work_id LIMIT @limit`,
 		map[string]any{"uid": uid, "after": afterWorkID, "limit": limit},
 	).Scan(&ids).Error
 	return ids, err
@@ -31,7 +31,7 @@ func (s *UserFolderService) CountRecordedWorks(ctx context.Context, uid int64) (
 	}
 	var n int64
 	err := s.db.WithContext(ctx).Raw(
-		`SELECT count(*) FROM (`+recordedWorksSQL+`) w`,
+		`SELECT count(*) FROM (`+recordedWorksSQL+`) w WHERE `+liveWorkCond("w.work_id"),
 		map[string]any{"uid": uid, "after": int64(0)},
 	).Scan(&n).Error
 	return n, err

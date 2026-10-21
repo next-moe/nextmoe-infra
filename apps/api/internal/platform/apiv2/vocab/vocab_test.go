@@ -1,6 +1,12 @@
 package vocab
 
-import "testing"
+import (
+	"slices"
+	"strings"
+	"testing"
+
+	"api/internal/platform/editorigin"
+)
 
 func TestLookupRoundTrip(t *testing.T) {
 	all := All()
@@ -44,5 +50,24 @@ func TestLookupRoundTrip(t *testing.T) {
 	medium, ok := Lookup("medium")
 	if !ok || !medium.Closed || len(medium.Values) != 7 {
 		t.Fatalf("medium: %+v ok=%v", medium, ok)
+	}
+}
+
+func TestOriginSiteVocabularyMatchesEditOrigins(t *testing.T) {
+	v, ok := Lookup("origin_site")
+	if !ok || !v.Closed {
+		t.Fatalf("origin_site: %+v ok=%v", v, ok)
+	}
+	got := make([]string, 0, len(v.Values))
+	for _, x := range v.Values {
+		got = append(got, x.Value)
+	}
+	if !slices.Equal(got, editorigin.Sites()) {
+		t.Fatalf("origin_site tokens %v, editorigin %v", got, editorigin.Sites())
+	}
+	for _, x := range v.Values {
+		if x.ProfileURL != "" && !strings.Contains(x.ProfileURL, "{id}") {
+			t.Errorf("%s profile_url %q has no {id}", x.Value, x.ProfileURL)
+		}
 	}
 }

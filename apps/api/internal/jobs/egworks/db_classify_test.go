@@ -351,6 +351,21 @@ func TestHoldingsOnDeletedWorksDoNotCount(t *testing.T) {
 	assert.Len(t, egRefByGame(t, 601), 2)
 }
 
+func TestProbableHoldingOnDeletedWorkBlocksMint(t *testing.T) {
+	requireDB(t)
+	eg := sourceID(t, "erogamescape")
+	gone := mkWorkStatus(t, "Deleted Probable Holder", model.WorkStatusDeleted)
+	mkRef(t, model.EntityTypeWork, gone, eg, "602", model.LinkKindProbable)
+	require.NoError(t, testDB.Delete(&model.CatalogWork{}, gone).Error)
+	insertGame(t, game{ID: 602, Gamename: "Probably The Deleted One", Model: "PC"})
+
+	st := runLane(t, true, "")
+	assert.Zero(t, st.Errors)
+	assert.Zero(t, st.Population, "a deleted work that probably is this game keeps it from being minted again")
+	assert.Zero(t, st.MintedLive)
+	assert.Len(t, egRefByGame(t, 602), 1)
+}
+
 func TestDeletedReleaseDateDoesNotCorroborate(t *testing.T) {
 	requireDB(t)
 	w := mkWork(t, "Deleted Date Title")

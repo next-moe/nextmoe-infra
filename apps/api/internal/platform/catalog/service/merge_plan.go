@@ -1,7 +1,6 @@
 package service
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -27,23 +26,21 @@ const (
 )
 
 type mergePlan struct {
-	entityType int16
-	src, dst   int64
-	proposalID int64
-	absorb     bool
+	entityType   int16
+	src, dst     int64
+	proposalID   int64
+	absorb       bool
+	hideReleases []int64
 }
 
 func planFromProposal(p *model.CatalogMergeProposal) (mergePlan, error) {
 	plan := mergePlan{entityType: p.EntityType, src: p.SourceEntityID, dst: p.TargetEntityID, proposalID: p.ID}
-	var doc struct {
-		Mode string `json:"mode"`
+	doc, err := parseMergeDoc(p.FieldResolution)
+	if err != nil {
+		return plan, err
 	}
-	if len(p.FieldResolution) > 0 {
-		if err := json.Unmarshal(p.FieldResolution, &doc); err != nil {
-			return plan, fmt.Errorf("parse field_resolution: %w", err)
-		}
-	}
-	switch doc.Mode {
+	plan.hideReleases = doc.HideReleases
+	switch doc.mode {
 	case "":
 	case mergeModeAbsorb:
 		if p.EntityType != model.EntityTypeWork {
@@ -52,7 +49,7 @@ func planFromProposal(p *model.CatalogMergeProposal) (mergePlan, error) {
 		}
 		plan.absorb = true
 	default:
-		return plan, fmt.Errorf("%w: %q on proposal %d", ErrMergeMode, doc.Mode, p.ID)
+		return plan, fmt.Errorf("%w: %q on proposal %d", ErrMergeMode, doc.mode, p.ID)
 	}
 	return plan, nil
 }

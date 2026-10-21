@@ -22,7 +22,6 @@ const name = computed(
 const mergeable = computed(
   () => props.mode === 'view' && MERGEABLE_FAMILIES.includes(props.family)
 )
-const mergeOpen = ref(false)
 
 const unattributed = computed(
   () =>
@@ -138,9 +137,10 @@ const picture = computed(
         </KunButton>
         <KunButton
           v-if="mergeable"
+          :href="`/merge/new?object=${props.family}&source=${props.entityId}`"
+          target="_blank"
           variant="light"
           size="sm"
-          @click="mergeOpen = true"
         >
           <KunIcon name="lucide:git-merge" class="size-4" />
           合并
@@ -174,12 +174,5 @@ const picture = computed(
         </KunButton>
       </div>
     </header>
-    <MergeRequestModal
-      v-if="mergeable"
-      v-model="mergeOpen"
-      :family="props.family"
-      :entity-id="props.entityId"
-      :entity-name="name"
-    />
   </div>
 </template>

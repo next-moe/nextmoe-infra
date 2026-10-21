@@ -1049,6 +1049,16 @@ components:
     ProposalItem:
       additionalProperties: false
       properties:
+        amended_at:
+          format: date-time
+          type:
+            - string
+            - "null"
+        amended_by:
+          format: int64
+          type:
+            - integer
+            - "null"
         entity_type:
           format: int32
           type: integer
@@ -1072,6 +1082,10 @@ components:
           type: string
         origin:
           type: string
+        origin_site:
+          type:
+            - string
+            - "null"
         proposed_at:
           format: date-time
           type: string
@@ -1091,6 +1105,16 @@ components:
         target_entity_id:
           format: int64
           type: integer
+        undone_at:
+          format: date-time
+          type:
+            - string
+            - "null"
+        undone_by:
+          format: int64
+          type:
+            - integer
+            - "null"
       required:
         - source
         - target
@@ -1106,6 +1130,11 @@ components:
         - executed_at
         - note
         - origin
+        - amended_by
+        - amended_at
+        - undone_by
+        - undone_at
+        - origin_site
       type: object
     PutEditPolicyData:
       additionalProperties: false

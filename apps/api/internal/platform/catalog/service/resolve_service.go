@@ -88,6 +88,7 @@ func (s *ResolveService) RedirectsSince(ctx context.Context, entityType *int16, 
 			OldID:      row.OldID,
 			CurrentID:  row.CurrentID,
 			MergedAt:   merged,
+			Revoked:    row.RevokedAt != nil,
 		}
 		next = repository.RedirectCursor{MergedAt: merged, EntityType: row.EntityType, OldID: row.OldID}
 	}
@@ -103,4 +104,5 @@ type RedirectFeedItem struct {
 	OldID      int64     `json:"old_id"`
 	CurrentID  int64     `json:"current_id"`
 	MergedAt   time.Time `json:"merged_at"`
+	Revoked    bool      `json:"revoked"`
 }

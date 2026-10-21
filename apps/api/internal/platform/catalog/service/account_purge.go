@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 
+	"api/internal/platform/catalog/discussion"
 	"api/internal/platform/catalog/model"
 
 	"gorm.io/gorm"
@@ -11,12 +12,14 @@ import (
 
 type AccountPurged struct {
 	Folders, FolderItems, Playtimes, WorkStates, Ratings, CoverVotes, EntityFollows, TagBlocks, Privacy int64
+	DiscussionPosts, DiscussionWatches                                                                  int64
 }
 
 // Every kun_catalog table that names a user is purged here, except the edit
 // history, which stays on purpose: catalog_work.owner_user_id (the claim),
 // catalog_claim_event, catalog_revision, and the editing engine's proposal,
 // amendment and revision rows. OAuth has already renamed the account they name.
+// Discussion posts are blanked rather than deleted, so replies keep their place.
 // A new per-user table belongs in this function or in that list.
 func PurgeAccount(ctx context.Context, db *gorm.DB, uid int64) (AccountPurged, error) {
 	var out AccountPurged
@@ -48,6 +51,18 @@ func PurgeAccount(ctx context.Context, db *gorm.DB, uid int64) (AccountPurged, e
 			}
 			*step.n = res.RowsAffected
 		}
+		res := tx.Model(&discussion.Post{}).
+			Where("author_uid = ? AND status <> ?", uid, discussion.StatusDeleted).
+			Updates(map[string]any{"status": discussion.StatusDeleted, "body": ""})
+		if res.Error != nil {
+			return res.Error
+		}
+		out.DiscussionPosts = res.RowsAffected
+		res = tx.Where("user_id = ?", uid).Delete(&discussion.Watcher{})
+		if res.Error != nil {
+			return res.Error
+		}
+		out.DiscussionWatches = res.RowsAffected
 		return nil
 	})
 	if err != nil {
@@ -57,7 +72,8 @@ func PurgeAccount(ctx context.Context, db *gorm.DB, uid int64) (AccountPurged, e
 		slog.Info("catalog account purge", "user_id", uid,
 			"folders", out.Folders, "folder_items", out.FolderItems, "playtimes", out.Playtimes,
 			"work_states", out.WorkStates, "ratings", out.Ratings, "cover_votes", out.CoverVotes, "entity_follows", out.EntityFollows,
-			"tag_blocks", out.TagBlocks, "privacy", out.Privacy)
+			"tag_blocks", out.TagBlocks, "privacy", out.Privacy,
+			"discussion_posts", out.DiscussionPosts, "discussion_watches", out.DiscussionWatches)
 	}
 	return out, nil
 }

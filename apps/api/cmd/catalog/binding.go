@@ -1,6 +1,10 @@
 package main
 
-import siteModel "api/internal/platform/site/model"
+import (
+	v2handler "api/internal/platform/apiv2/handler"
+	"api/internal/platform/editorigin"
+	siteModel "api/internal/platform/site/model"
+)
 
 // The v2 editing cap keys on this, and keying it on owner_user_id alone froze
 // the whole editing pipeline: 47 open proposals and not one merge between
@@ -13,4 +17,12 @@ import siteModel "api/internal/platform/site/model"
 // writes it, so an app registered through the portal cannot have one.
 func isThirdPartyEditClient(cl *siteModel.OAuthClient) bool {
 	return cl != nil && cl.CatalogSite == "" && cl.OwnerUserID != nil
+}
+
+func siteBindingOf(cl *siteModel.OAuthClient) v2handler.SiteBinding {
+	return v2handler.SiteBinding{
+		Site:       cl.CatalogSite,
+		ThirdParty: isThirdPartyEditClient(cl),
+		Origin:     editorigin.OfClient(cl.CommunityTenant()),
+	}
 }

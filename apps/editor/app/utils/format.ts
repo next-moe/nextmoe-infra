@@ -1,5 +1,6 @@
 import { format, formatDistanceToNowStrict } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
+import { EDIT_CONFIGS } from '~/constants/editEntities'
 import { FIELD_LABELS } from '~/constants/fields'
 
 export const labelOf = (
@@ -7,14 +8,17 @@ export const labelOf = (
   key: string | null | undefined
 ) => (key ? (map[key] ?? key) : '')
 
+const CONFIG_LABELS: Record<string, string> = Object.fromEntries(
+  Object.values(EDIT_CONFIGS).flatMap((config) =>
+    Object.entries(config.fields).map(([key, field]) => [key, field.label])
+  )
+)
+
 export const fieldLabel = (key: string) => {
   const suppressed = key.endsWith('.suppressed')
-  const bare =
-    key
-      .replace(/\.suppressed$/, '')
-      .split('.')
-      .pop() ?? key
-  const label = FIELD_LABELS[bare] ?? bare
+  const full = key.replace(/\.suppressed$/, '')
+  const bare = full.split('.').pop() ?? full
+  const label = CONFIG_LABELS[full] ?? FIELD_LABELS[bare] ?? bare
   return suppressed ? `${label}(屏蔽)` : label
 }
 

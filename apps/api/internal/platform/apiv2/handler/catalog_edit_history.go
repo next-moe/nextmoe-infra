@@ -80,7 +80,7 @@ func revisionFrom(r *editing.Revision, siteWorkID *string) repr.Revision {
 		SiteWorkID: siteWorkID, Seq: r.Seq, Action: editing.ActionName[r.Action],
 		ChangedFields: decodeFieldKeys(r.ChangedFields),
 		ActorUID:      repr.ID(r.ActorUID), AmenderUID: idPtr(r.AmenderUID),
-		ProposalID: idPtr(r.ProposalID), Site: r.Site, CreatedAt: rfc3339(r.CreatedAt),
+		ProposalID: idPtr(r.ProposalID), Site: r.Site, OriginSite: r.OriginSite, CreatedAt: rfc3339(r.CreatedAt),
 	}
 }
 
@@ -119,18 +119,23 @@ func siteWorkIDFor(claims map[int64]catsvc.ClaimIdentity, r *editing.Revision) *
 }
 
 type revisionFilter struct {
-	Object   string
-	EntityID string
-	Site     string
-	ActorUID string
+	Object     string
+	EntityID   string
+	Site       string
+	OriginSite string
+	ActorUID   string
 }
 
 func (c *Catalog) ListRevisions(ctx context.Context, q collect.Query, f revisionFilter) (repr.List[repr.Revision], error) {
 	if c == nil || c.EditHistory == nil {
 		return repr.List[repr.Revision]{}, problem.New(problem.CodeServiceUnavailable, "", "", "edit history is not bound.")
 	}
+	origin, oerr := originSiteParam(f.OriginSite)
+	if oerr != nil {
+		return repr.List[repr.Revision]{}, oerr
+	}
 	page := catsvc.RevisionPage{
-		Site: f.Site, Ascending: q.Sort == "recorded_asc", WithTotal: q.IncludeTotal,
+		Site: f.Site, OriginSite: origin, Ascending: q.Sort == "recorded_asc", WithTotal: q.IncludeTotal,
 	}
 	if f.Object != "" {
 		entityType := schemaEntityType(f.Object)

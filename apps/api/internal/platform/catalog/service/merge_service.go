@@ -11,9 +11,9 @@ import (
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/repository"
 	"api/internal/platform/editing"
+	"api/internal/platform/editorigin"
 	"api/internal/platform/settings/keys"
 
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -57,6 +57,14 @@ func (s *MergeService) CheckSurvivor(ctx context.Context, entityType int16, sour
 }
 
 func (s *MergeService) propose(ctx context.Context, entityType int16, sourceID, targetID, proposedBy int64, note string, absorb bool, origin string) (*model.CatalogMergeProposal, error) {
+	doc := mergeDoc{}
+	if absorb {
+		doc.mode = mergeModeAbsorb
+	}
+	return s.proposeWith(ctx, entityType, sourceID, targetID, proposedBy, note, origin, doc)
+}
+
+func (s *MergeService) proposeWith(ctx context.Context, entityType int16, sourceID, targetID, proposedBy int64, note string, origin string, doc mergeDoc) (*model.CatalogMergeProposal, error) {
 	src, _, err := s.resolve.Resolve(ctx, entityType, sourceID)
 	if err != nil {
 		return nil, err
@@ -76,12 +84,14 @@ func (s *MergeService) propose(ctx context.Context, entityType int16, sourceID, 
 	if err := assertSurvivorNotHidden(s.db.WithContext(ctx), entityType, src, dst); err != nil {
 		return nil, err
 	}
-	resolution := datatypes.JSON(`{}`)
-	if absorb {
+	if doc.mode == mergeModeAbsorb {
 		if err := assertAbsorbable(s.db.WithContext(ctx), src); err != nil {
 			return nil, err
 		}
-		resolution = absorbResolution()
+	}
+	resolution, err := doc.encode()
+	if err != nil {
+		return nil, err
 	}
 	p := &model.CatalogMergeProposal{
 		EntityType:      entityType,
@@ -92,6 +102,7 @@ func (s *MergeService) propose(ctx context.Context, entityType int16, sourceID, 
 		ProposedBy:      proposedBy,
 		Note:            note,
 		Origin:          origin,
+		OriginSite:      editorigin.Ptr(ctx),
 	}
 	if err := s.db.WithContext(ctx).Create(p).Error; err != nil {
 		if isUniqueViolation(err, "uq_catalog_merge_proposal_open") {

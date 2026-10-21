@@ -476,7 +476,7 @@ func (s *AdminServer) rejectRef(ctx context.Context, in *rejectRefInput) (*refAc
 		switch {
 		case stderrors.Is(err, service.ErrNotFound):
 			return nil, apiErr(http.StatusNotFound, errors.ErrNotFound)
-		case stderrors.Is(err, service.ErrProposalState):
+		case stderrors.Is(err, service.ErrProposalState), stderrors.Is(err, service.ErrEntityNotLive):
 			return nil, apiErrMsg(http.StatusBadRequest, errors.ErrValidationFailed, err.Error())
 		}
 		slog.Error("catalog admin reject ref", "err", err)

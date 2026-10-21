@@ -31,7 +31,7 @@ func TestDedupBatchKeepsCuratedCredits(t *testing.T) {
 		require.NoError(t, testDB.Create(&cn).Error)
 		return cn.ID
 	}
-	curatedName, upstreamName := mkName("人手声優"), mkName("上流声優")
+	curatedName, upstreamName, stampedName := mkName("人手声優"), mkName("上流声優"), mkName("修正声優")
 	curated, upstream := int16(12), int16(2)
 
 	mk := func(nameID int64, charID *int64, source int16) int64 {
@@ -44,23 +44,28 @@ func TestDedupBatchKeepsCuratedCredits(t *testing.T) {
 	// character makes redundant — the exact shape runCleanup deletes.
 	curatedRedundant := mk(curatedName, nil, curated)
 	upstreamRedundant := mk(upstreamName, nil, upstream)
+	stampedRedundant := mk(stampedName, nil, upstream)
 	mk(curatedName, &ch.ID, upstream)
 	mk(upstreamName, &ch.ID, upstream)
+	mk(stampedName, &ch.ID, upstream)
+	require.NoError(t, testDB.Exec(`UPDATE catalog_credit SET note = '仅限 FD',
+		field_provenance = '{"note":[{"source":"curated","at":"2026-10-21T00:00:00Z"}]}'
+		WHERE id = ?`, stampedRedundant).Error)
 
 	var out bytes.Buffer
 	require.NoError(t, runCleanup(testDB, &out, false))
-	assert.Contains(t, out.String(), "would_delete=1 kept_curated=1",
-		"the dry run must say out loud that it is stepping around a hand-written row")
+	assert.Contains(t, out.String(), "would_delete=1 kept_human=2",
+		"the dry run must say out loud that it is stepping around hand-written and corrected rows")
 
 	out.Reset()
 	require.NoError(t, runCleanup(testDB, &out, true))
-	assert.Contains(t, out.String(), "deleted=1 kept_curated=1")
+	assert.Contains(t, out.String(), "deleted=1 kept_human=2")
 
 	var ids []int64
 	require.NoError(t, testDB.Model(&model.CatalogCredit{}).
 		Where("character_id IS NULL").Order("id").Pluck("id", &ids).Error)
-	assert.Equal(t, []int64{curatedRedundant}, ids,
-		"the hand-written row survives and only the upstream one is deleted")
+	assert.Equal(t, []int64{curatedRedundant, stampedRedundant}, ids,
+		"the hand-written row and the corrected imported row survive; only the untouched upstream one is deleted")
 	var gone int64
 	require.NoError(t, testDB.Model(&model.CatalogCredit{}).Where("id = ?", upstreamRedundant).Count(&gone).Error)
 	assert.Zero(t, gone)

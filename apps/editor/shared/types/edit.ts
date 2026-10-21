@@ -78,6 +78,7 @@ export interface EditVocabularyValue {
   value: string
   display_name: string
   description?: string
+  profile_url?: string
 }
 
 export interface EditVocabulary {

@@ -98,6 +98,10 @@ func TestLiveMergeRequestQuotaAndModeration(t *testing.T) {
 	require.NoError(t, env.db.Create(&a).Error)
 	require.NoError(t, env.db.Create(&b).Error)
 	t.Cleanup(func() {
+		env.db.Exec(`DELETE FROM catalog_merge_movement WHERE proposal_id IN (SELECT id FROM catalog_merge_proposal WHERE source_entity_id = ? AND target_entity_id = ?)`, a.ID, b.ID)
+		env.db.Exec(`DELETE FROM catalog_merge_archive WHERE proposal_id IN (SELECT id FROM catalog_merge_proposal WHERE source_entity_id = ? AND target_entity_id = ?)`, a.ID, b.ID)
+		env.db.Exec(`DELETE FROM catalog_redirect WHERE old_id = ? AND entity_type = ?`, a.ID, catmodel.EntityTypeLabel)
+		env.db.Exec(`DELETE FROM catalog_revision WHERE entity_id IN (?, ?) AND entity_type = ?`, a.ID, b.ID, catmodel.EntityTypeLabel)
 		env.db.Exec(`DELETE FROM catalog_merge_proposal WHERE source_entity_id = ? AND target_entity_id = ?`, a.ID, b.ID)
 		env.db.Unscoped().Delete(&catmodel.CatalogLabel{}, []int64{a.ID, b.ID})
 	})
@@ -132,4 +136,65 @@ func TestLiveMergeRequestQuotaAndModeration(t *testing.T) {
 
 	status, _, raw = liveDo(t, env, http.MethodPost, "/v2/moderation/merge-requests/"+rec.ID+"/decisions", liveUserToken, `{"decision":"execute"}`)
 	require.Equal(t, http.StatusConflict, status, "execute inside the cooling-off is refused: %s", raw)
+
+	status, _, raw = liveDo(t, env, http.MethodGet, "/v2/me/merge-requests/"+rec.ID, livePlainToken, "")
+	require.Equal(t, http.StatusOK, status, "anyone following a request can read it: %s", raw)
+
+	status, _, raw = liveDo(t, env, http.MethodGet, fmt.Sprintf("/v2/me/merge-candidates?object=company&id=%d", a.ID), livePlainToken, "")
+	require.Equal(t, http.StatusOK, status, string(raw))
+
+	preview := fmt.Sprintf("/v2/me/merge-preview?object=company&source_id=%d&target_id=%d", a.ID, b.ID)
+	status, _, raw = liveDo(t, env, http.MethodGet, preview, livePlainToken, "")
+	require.Equal(t, http.StatusOK, status, string(raw))
+	var pv struct {
+		Object        string            `json:"object"`
+		Blockers      []json.RawMessage `json:"blockers"`
+		OpenRequestID *string           `json:"open_request_id"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &pv))
+	require.Equal(t, "merge_preview", pv.Object)
+	require.Empty(t, pv.Blockers)
+	require.Nil(t, pv.OpenRequestID, "the request is approved, no longer open")
+
+	status, _, raw = liveDo(t, env, http.MethodPatch, "/v2/moderation/merge-requests/"+rec.ID, livePlainToken, `{"field_resolution":{"display_name":"source"}}`)
+	require.Equal(t, http.StatusForbidden, status, "only a reviewer amends: %s", raw)
+	status, _, raw = liveDo(t, env, http.MethodPatch, "/v2/moderation/merge-requests/"+rec.ID, liveUserToken, `{"field_resolution":{"display_name":"source"}}`)
+	require.Equal(t, http.StatusOK, status, string(raw))
+	var amended struct {
+		FieldResolution map[string]string `json:"field_resolution"`
+		AmendedByUID    *string           `json:"amended_by_uid"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &amended))
+	require.Equal(t, "source", amended.FieldResolution["display_name"])
+	require.NotNil(t, amended.AmendedByUID)
+
+	require.NoError(t, env.db.Exec(`UPDATE catalog_merge_proposal SET execute_after = now() - interval '1 minute' WHERE id = ?`, rec.ID).Error)
+	status, _, raw = liveDo(t, env, http.MethodPost, "/v2/moderation/merge-requests/"+rec.ID+"/decisions", liveUserToken, `{"decision":"execute"}`)
+	require.Equal(t, http.StatusCreated, status, string(raw))
+	var executed struct {
+		State     string  `json:"state"`
+		UndoUntil *string `json:"undo_until"`
+		Moved     []struct {
+			Key   string `json:"key"`
+			Count int64  `json:"count"`
+		} `json:"moved"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &executed))
+	require.Equal(t, "executed", executed.State)
+	require.NotNil(t, executed.UndoUntil, "a merge with a movement record can be undone")
+
+	status, _, raw = liveDo(t, env, http.MethodPost, "/v2/moderation/merge-requests/"+rec.ID+"/decisions", liveUserToken, `{"decision":"undo"}`)
+	require.Equal(t, http.StatusUnprocessableEntity, status, "an undo needs a reason: %s", raw)
+	status, _, raw = liveDo(t, env, http.MethodPost, "/v2/moderation/merge-requests/"+rec.ID+"/decisions", liveUserToken, `{"decision":"undo","reason":"different brands"}`)
+	require.Equal(t, http.StatusCreated, status, string(raw))
+	var undone struct {
+		State      string          `json:"state"`
+		UndoReport json.RawMessage `json:"undo_report"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &undone))
+	require.Equal(t, "undone", undone.State)
+	require.NotEmpty(t, undone.UndoReport)
+	var alive bool
+	require.NoError(t, env.db.Raw(`SELECT deleted_at IS NULL FROM catalog_label WHERE id = ?`, a.ID).Scan(&alive).Error)
+	require.True(t, alive, "the company is back under its own id")
 }

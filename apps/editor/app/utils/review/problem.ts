@@ -2,6 +2,8 @@ interface ProblemBody {
   title?: string
   detail?: string
   code?: string
+  deleted_reason?: string
+  deleted_at?: string
   errors?: { detail?: string; pointer?: string; reason?: string }[]
 }
 
@@ -32,6 +34,13 @@ export const problemMessage = (
 
 export const problemCode = (error: unknown) =>
   (error as FetchFailure | null)?.data?.code ?? ''
+
+export const deletedProblem = (error: unknown) => {
+  const body = (error as FetchFailure | null)?.data
+  return body?.code === 'ENTITY_DELETED'
+    ? { reason: body.deleted_reason ?? '', deletedAt: body.deleted_at ?? '' }
+    : null
+}
 
 export const conflictFieldKeys = (error: unknown) =>
   ((error as FetchFailure | null)?.data?.errors ?? [])

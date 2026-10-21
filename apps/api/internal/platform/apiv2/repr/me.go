@@ -65,10 +65,11 @@ type ProposalRecord struct {
 	EntityType      string            `json:"entity_type" maxLength:"64" doc:"Editing-engine type, e.g. catalog.work. Must not be used as a discriminant."`
 	EntityID        string            `json:"entity_id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Target catalog id."`
 	Note            string            `json:"note" maxLength:"2000" doc:"Proposer's own summary. Must not be used as a discriminant."`
-	ProposerUID     string            `json:"proposer_uid" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"The claiming site's own user id of the proposer. Not a catalog id."`
+	ProposerUID     string            `json:"proposer_uid" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Central account id of the proposer, the same id on every first-party site. Not a catalog id."`
 	Site            string            `json:"site" maxLength:"64" doc:"Tenant this proposal was filed under. Open vocabulary; must not be used as a discriminant."`
+	OriginSite      *string           `json:"origin_site" enum:"kungal,moyu,letmoe,nextmoe,editor" doc:"Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template."`
 	BaseRevisionSeq int               `json:"base_revision_seq" minimum:"0" doc:"Revision seq this proposal was written against."`
-	DecidedByUID    *string           `json:"decided_by_uid" pattern:"^[0-9]+$" maxLength:"20" doc:"The claiming site's own user id of the decider. null while open."`
+	DecidedByUID    *string           `json:"decided_by_uid" pattern:"^[0-9]+$" maxLength:"20" doc:"Central account id of the decider. null while open."`
 	Proposer        *UserRef          `json:"proposer" doc:"Account behind proposer_uid. null only when the account directory could not be read."`
 	DecidedBy       *UserRef          `json:"decided_by" doc:"Account behind decided_by_uid. null while open, or when the account directory could not be read."`
 	DecidedAt       *string           `json:"decided_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC. null while open."`

@@ -70,7 +70,7 @@ B 波删掉的四件(**均为 breaking,逐条声明在 `public-openapi-breaking-
 
 按 `merged_at` 升序的 keyset 分页,吐出所有「旧 id → 新 id」的合并边,供产品站的清理 cron 增量消费(把本地存的旧 catalog id 批量改写到新 id)。
 
-- 响应:`{ "items": [{entity_type, old_id, current_id, merged_at}], "next_cursor": "…" }`。
+- 响应:`{ "items": [{entity_type, old_id, current_id, merged_at}], "next_cursor": "…" }`。v2 面(`/v2/catalog/redirects`)另有 `revoked`:合并被撤销时为 true,`current_id = old_id`;`merged_at` 是该行最后一次变化的时间。
 - 客户端持久化 `next_cursor`,下次轮询回传;`next_cursor` 为空表示当前页未满(已追平)。**不受 site 绑定限制。**
 
 ### 2.3 `POST /catalog/works/claim` — 作品认领/注册(写)
@@ -142,6 +142,7 @@ B 波删掉的四件(**均为 breaking,逐条声明在 `public-openapi-breaking-
 - **压制**:被 `catalog.work.credits.suppressed` 记为负知识的上游行**不出任何读面**(行本身留在表里由 importer 所有,与标题压制同规),分页总数与其列表同谓词。
 - **各源职位落到同一个 role(2026-10-13 起)**:Bangumi 游戏条目的 剧本 / 原画 / 音乐 / 导演 / 制作总指挥 改映射到 VNDB、EGS、DLsite 共用的 `scenario` / `illustration` / `music` / `director` / `executive-producer`;存量 credit 由 `cmd/repair-bangumi-game-roles` 迁过去,同名义已有同 role 行的直接删除。此前同一人在同一作品会以「脚本」和「剧本」各出一次。原先的 `剧本`、`原画`、`音乐`、`制作总指挥` 四个 role 不再有映射,`GET /v2/catalog/roles` 上 `deprecated=true`。同一作品里同名、不同来源的多条名义合并是另一步(catalog-dedup-batch),不在本条。
 - **人工车道**:`source_id=12`(`curated`)的行由编辑面增删改,上游行只读+可压制;人工新建的 credit 若与上游行撞 `(role_id, credit_name_id, character_id)`,写面返回 **422 并指向 `.suppressed`**(唯一索引不含 source,不加宽——加宽等于同一条 credit 在读面出现两次)。
+- **就地修正上游行(2026-10-21 起)**:上游行的 `note` / `spoiler` / `release_id` / `label_id` 经 **`catalog.work.credits_upstream`** 就地改写(行仍属 importer、身份键不变),改过的列在 `catalog_credit.field_provenance` 记人工戳;导入只增不改,合并与清理工具保留带戳的列。职位 / 名义 / 角色错了仍是「压制原行 + 新增身份不同的人工行」。
 
 ### 2.6 `GET /catalog/search/entities?q=&type=&locale=&limit=` — 实体搜索(只读)
 
@@ -598,7 +599,8 @@ nsfw  若 cover_art_all_explicit(有可选封面且全部被判 explicit),不论
 1. **冷启动**:从空游标翻本 feed。它按「最旧更新优先」枚举**整个人口**,所以第一次翻完就是一次全量清点——不需要另一个「列全部 id」的面。每页拿到的 id 以 **≤100 一批**打 `/v2/catalog/works?ids=`,**两道闸全开**(`nsfw=true`,且**不传** `content_limit`),否则被闸掉的作品会在本地留成空洞。
 2. **稳态**:存下 `next_cursor`,按自己的节奏轮询;游标是不透明串,原样回传。注意 feed 有 5 秒的在途事务水位,刚写的行会晚一拍出现——这不是丢失。
 3. **`gone: true`**:该 id 已离开公开人口(被合并,或不再被服务),删掉本地行。
-4. **被合并的 id** 同时出现在 `/v2/catalog/redirects`,那里给出接替它的规范 id——有 redirect 就**重指**而不是删除。
+4. **被合并的 id** 同时出现在 `/v2/catalog/redirects`,那里给出接替它的规范 id——有 redirect 就**重指**而不是删除。redirect 每次变化(新建、被并入的幸存者又被合并而改指、合并被撤销)都会刷新 `merged_at`,从而重新出现在 feed 尾部,按 `(entity_type, old_id)` upsert 即可;`revoked: true` 表示合并已撤销、`old_id` 以原 id 恢复上线(此时 `current_id = old_id`),删掉本地的重定向。
+5. **拆分**(2026-10-21 起):审核通过的拆分会把一部作品的若干发行移到一部新作品。新作品以新 id 出现在本 feed;`GET /v2/catalog/splits` 按变化时间升序列出每次拆分(`original_id`、`new_work_id`、`release_ids`、`state`)。发行 id 不变,只是改挂到新作品——按发行或版本挂了本站资源的镜像,应把这些资源跟到 `new_work_id`(是否搬、搬哪些由站点自己决定)。拆分被撤销时同一条以 `state: undone` 重新出现在 feed 尾部:发行回到 `original_id`,`new_work_id` 经 `/v2/catalog/redirects` 重定向到 `original_id`。
 
 **本地谓词写法**:缓存列用可空列,`NULL` 表示「尚未同步」并且**放行**,例如 `WHERE content_limit IS NULL OR content_limit = 'sfw'`。冷启动期间未水合的行因此照常可见而不是整站空白;真正的权威始终是水合时 catalog 自己的闸,本地列只是列表页的快筛。
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"api/internal/platform/catalog/discussion"
 	"context"
 	"encoding/json"
 	"errors"
@@ -356,7 +357,7 @@ func setupPublicCatalog(
 		if err != nil || cl == nil {
 			return v2handler.SiteBinding{}, err
 		}
-		return v2handler.SiteBinding{Site: cl.CatalogSite, ThirdParty: isThirdPartyEditClient(cl)}, nil
+		return siteBindingOf(cl), nil
 	}
 	siteOfClient := func(ctx context.Context, clientID string) (string, error) {
 		bind, err := bindingOfClient(ctx, clientID)
@@ -415,6 +416,8 @@ func setupPublicCatalog(
 			EditHistory:    service.NewEditHistoryService(catalogDB.DB()),
 			EditContext:    service.NewEditContextService(catalogDB.DB()),
 			Merges:         service.NewMergeService(catalogDB.DB(), resolveSvc),
+			Deletions:      service.NewDeletionService(catalogDB.DB(), resolveSvc),
+			Splits:         service.NewSplitService(catalogDB.DB(), resolveSvc, service.NewMergeService(catalogDB.DB(), resolveSvc)),
 			UsersOf:        usersOf(application.DB.DB(), cfg.ImageService.CDNBase),
 			Uploads:        v2handler.EditImageUpload(editUpload),
 			NewsImages:     newsImages,
@@ -422,6 +425,9 @@ func setupPublicCatalog(
 			Store:          storeSvc,
 			Prices:         priceSvc,
 			RatingTrust:    ratingTrust,
+			Discussions: discussion.New(catalogDB.DB(),
+				discussion.ProposalKind(), discussion.MergeRequestKind(), discussion.DeletionRequestKind(), discussion.SplitRequestKind()),
+			DiscussionTrust: ratingTrust,
 
 			SiteOfAppClient: siteOfClient,
 		},

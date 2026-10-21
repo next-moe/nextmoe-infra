@@ -1,5 +1,6 @@
 import type { CatalogSearchList } from '#shared/types/catalog'
 import type { EditRefFamily } from '#shared/types/edit'
+import { roleOptionsOf, type RoleListItem } from '~/utils/roleOptions'
 
 export const REF_COLLECTION: Record<EditRefFamily, string> = {
   work: 'works',
@@ -44,19 +45,15 @@ export interface RefOption {
   value: string
   label: string
   hint?: string
+  deprecated?: boolean
 }
 
 interface RoleList {
-  items?: {
-    id: string
-    key: string
-    display_name: string
-    deprecated?: boolean
-  }[]
+  items?: RoleListItem[]
   next_cursor?: string | null
 }
 
-const ROLES_CACHE_KEY = 'nextmoe-editor:roles:v1'
+const ROLES_CACHE_KEY = 'nextmoe-editor:roles:v2'
 const ROLES_CACHE_MAX_AGE_MS = 6 * 60 * 60 * 1000
 
 let rolesRequest: Promise<RoleList['items']> | null = null
@@ -118,11 +115,7 @@ export const useRefNames = () => {
     if (roles.value) {
       return roles.value
     }
-    const all: RefOption[] = items.map((role) => ({
-      value: role.id,
-      label: role.display_name,
-      hint: role.deprecated ? '已停用' : undefined
-    }))
+    const all: RefOption[] = roleOptionsOf(items)
     roles.value = all
     roleIdByKey.value = Object.fromEntries(
       items.map((role) => [role.key, role.id])

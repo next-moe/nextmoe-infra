@@ -73,6 +73,10 @@ export const vocabularyMetaZh: Record<string, VocabularyZhMeta> = {
     "label": "署名名类型",
     "summary": "一个署名名在其人物名下扮演的角色：本名、笔名、另立人格或曾用名。"
   },
+  "origin_site": {
+    "label": "来源站点",
+    "summary": "一条编辑记录是从哪个第一方站点发起的。仅用于展示与统计；有用户主页的站点附带 profile_url 模板，{id} 为中央账号 id。"
+  },
   "link_visibility": {
     "label": "关联可见性",
     "summary": "署名名与其人物之间的关联是否对外公开。"
@@ -369,6 +373,28 @@ export const vocabularyValuesZh: Record<
     "former_name": {
       "displayName": "曾用名",
       "description": "此人已不再使用的名字。"
+    }
+  },
+  "origin_site": {
+    "kungal": {
+      "displayName": "鲲 Galgame 论坛",
+      "description": "kungal.com。"
+    },
+    "moyu": {
+      "displayName": "鲲 Galgame 补丁",
+      "description": "moyu.moe。"
+    },
+    "letmoe": {
+      "displayName": "LetMoe",
+      "description": "letmoe.com。"
+    },
+    "nextmoe": {
+      "displayName": "NextMoe",
+      "description": "nextmoe.com，没有用户主页。"
+    },
+    "editor": {
+      "displayName": "未萌编辑台",
+      "description": "直接打开 editor.nextmoe.com，而不是从某个站点的链接进入。"
     }
   },
   "link_visibility": {

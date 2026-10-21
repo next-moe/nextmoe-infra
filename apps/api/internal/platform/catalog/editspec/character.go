@@ -73,7 +73,9 @@ func characterFieldSpecs() []editing.FieldSpec {
 		charText(FieldCharacterDisplayName, "display_name", maxNameRunes),
 		withValue(charLang(FieldCharacterLang, "lang"), &editing.ValueSpec{Vocabulary: "olang"}),
 		withValue(charNullableText(FieldCharacterLatin, "latin", maxNameRunes), &editing.ValueSpec{Nullable: true}),
-		charLongText(FieldCharacterDescription, "description"),
+		// Never populated: all 210,261 characters had an empty description (prod,
+		// 2026-10-21) and no face publishes it, so an edit here showed nowhere.
+		deprecatedField(charLongText(FieldCharacterDescription, "description")),
 		withValue(charEnum(FieldCharacterGender, "gender",
 			catmodel.GenderMale, catmodel.GenderFemale, catmodel.GenderOther),
 			&editing.ValueSpec{Vocabulary: "gender", Coded: true, Base: 1, Nullable: true}),
@@ -126,6 +128,11 @@ func charText(key, column string, maxRunes int) editing.FieldSpec {
 		Apply:      applyCharacterColumn(column, asString),
 		Provenance: characterProvenance(column),
 	}
+}
+
+func deprecatedField(f editing.FieldSpec) editing.FieldSpec {
+	f.Deprecated = true
+	return f
 }
 
 func charLongText(key, column string) editing.FieldSpec {

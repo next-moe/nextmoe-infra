@@ -576,7 +576,7 @@ func loadRedirects(db *gorm.DB, ids map[int64]bool) (map[int64]int64, error) {
 		}
 		var rows []rrow
 		if err := db.Raw(`SELECT old_id, current_id FROM catalog_redirect
-			WHERE entity_type = 4 AND old_id IN ?`, chunk).Scan(&rows).Error; err != nil {
+			WHERE entity_type = 4 AND old_id IN ? AND revoked_at IS NULL`, chunk).Scan(&rows).Error; err != nil {
 			return nil, fmt.Errorf("redirects: %w", err)
 		}
 		for _, r := range rows {

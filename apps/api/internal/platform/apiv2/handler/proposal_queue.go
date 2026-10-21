@@ -16,6 +16,7 @@ import (
 
 type proposalQueueParams struct {
 	Site         string
+	OriginSite   string
 	Field        string
 	HasConflict  string
 	UpdatedSince string
@@ -24,6 +25,11 @@ type proposalQueueParams struct {
 var proposalFieldKey = regexp.MustCompile(`^[a-z0-9_]+(\.[a-z0-9_]+)+$`)
 
 func (p proposalQueueParams) apply(f *editing.ProposalFilter) error {
+	origin, err := originSiteParam(p.OriginSite)
+	if err != nil {
+		return err
+	}
+	f.OriginSite = origin
 	if p.Field != "" {
 		if !proposalFieldKey.MatchString(p.Field) {
 			pr := problem.New(problem.CodeInvalidParameter, "", "", "field= is not a field key.")

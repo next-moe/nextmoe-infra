@@ -123,6 +123,27 @@ export const creditKeyClash = (
   )
 }
 
+const optionalId = (value: unknown) =>
+  value === null || value === undefined || value === '' ? null : Number(value)
+
+export const creditAttrsOf = (row: RelatedValue) => ({
+  note: String(row.note ?? ''),
+  spoiler: Number(row.spoiler ?? 0),
+  release_id: optionalId(row.release_id),
+  label_id: optionalId(row.label_id)
+})
+
+export const sameCreditAttrs = (a: RelatedValue, b: RelatedValue) => {
+  const left = creditAttrsOf(a)
+  const right = creditAttrsOf(b)
+  return (
+    left.note.trim() === right.note.trim() &&
+    left.spoiler === right.spoiler &&
+    left.release_id === right.release_id &&
+    left.label_id === right.label_id
+  )
+}
+
 const SOURCE_PATTERNS: [RegExp, string][] = [
   [/vndb/i, 'VNDB'],
   [/bangumi|bgm/i, 'Bangumi'],

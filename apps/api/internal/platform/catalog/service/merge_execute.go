@@ -63,6 +63,9 @@ func (s *MergeService) ExecuteMerge(ctx context.Context, proposalID int64, execu
 		if err != nil {
 			return fmt.Errorf("snapshot source: %w", err)
 		}
+		if err := captureMovements(tx, plan); err != nil {
+			return fmt.Errorf("record movements: %w", err)
+		}
 
 		changed, err := applySurvivorship(tx, et, src, dst, p.FieldResolution)
 		if err != nil {
@@ -79,6 +82,11 @@ func (s *MergeService) ExecuteMerge(ctx context.Context, proposalID int64, execu
 		}
 		if et == model.EntityTypeWork {
 			touched = append(touched, dst)
+			if len(plan.hideReleases) > 0 {
+				if _, err := execAll(tx, []mergeStmt{hideReleasesStmt(plan)}); err != nil {
+					return fmt.Errorf("hide releases: %w", err)
+				}
+			}
 		}
 
 		refs := mergeExternalRefs

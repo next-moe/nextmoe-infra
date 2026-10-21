@@ -273,12 +273,12 @@ describe('queue navigation', () => {
     expect(afterDecision(['5'], '5')).toEqual({ remaining: [], target: null })
   })
 
-  it('filters by site, age, field and conflict', () => {
+  it('filters by origin site, age, field and conflict', () => {
     const now = Date.parse('2026-10-20T00:00:00Z')
     const items = [
-      { id: '1', site: 'kungal', created_at: '2026-10-19T12:00:00Z' },
-      { id: '2', site: 'letmoe', created_at: '2026-10-01T00:00:00Z' },
-      { id: '3', site: 'kungal', created_at: '2026-09-01T00:00:00Z' }
+      { id: '1', origin_site: 'moyu', created_at: '2026-10-19T12:00:00Z' },
+      { id: '2', origin_site: 'letmoe', created_at: '2026-10-01T00:00:00Z' },
+      { id: '3', origin_site: 'moyu', created_at: '2026-09-01T00:00:00Z' }
     ]
     const analyses = {
       '1': { fields: ['catalog.work.titles'], conflicts: {} },
@@ -287,9 +287,9 @@ describe('queue navigation', () => {
         conflicts: { 'catalog.work.intros': 9 }
       }
     }
-    const base = { site: '', age: '', field: '', conflictOnly: false }
+    const base = { origin: '', age: '', field: '', conflictOnly: false }
     expect(
-      filterQueue(items, { ...base, site: 'kungal' }, {}, now).map((i) => i.id)
+      filterQueue(items, { ...base, origin: 'moyu' }, {}, now).map((i) => i.id)
     ).toEqual(['1', '3'])
     expect(
       filterQueue(items, { ...base, age: 'gt7' }, {}, now).map((i) => i.id)

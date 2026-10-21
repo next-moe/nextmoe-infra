@@ -71,6 +71,7 @@ var goldenNames = []string{
 	"apiv2.auth_fail_block_seconds",
 	"catalog.totals_cache_ttl_seconds",
 	"catalog.merge_cooling_off_hours",
+	"catalog.merge_undo_window_days",
 	"catalog.write_quota_window_hours",
 	"catalog.claim_writes_per_day",
 	"catalog.claim_writes_per_day_trusted",
@@ -84,6 +85,14 @@ var goldenNames = []string{
 	"catalog.merge_requests_per_day",
 	"catalog.merge_requests_per_day_editor",
 	"catalog.merge_requests_per_day_reviewer",
+	"catalog.deletion_cooling_off_hours",
+	"catalog.deletion_requests_per_day",
+	"catalog.deletion_requests_per_day_editor",
+	"catalog.deletion_requests_per_day_reviewer",
+	"catalog.split_requests_per_day",
+	"catalog.split_requests_per_day_editor",
+	"catalog.split_requests_per_day_reviewer",
+	"catalog.discussion_posts_per_hour",
 	"catalog.news_submissions_per_day",
 	"catalog.news_image_uploads_per_day",
 	"catalog.edit_merge_reward",
@@ -116,6 +125,10 @@ var goldenNames = []string{
 	"jobs.catalog_merge_stragglers.schedule",
 	"jobs.catalog_merge_requests.enabled",
 	"jobs.catalog_merge_requests.schedule",
+	"jobs.catalog_deletion_requests.enabled",
+	"jobs.catalog_deletion_requests.schedule",
+	"jobs.catalog_split_requests.enabled",
+	"jobs.catalog_split_requests.schedule",
 	"jobs.catalog_edit_rewards.enabled",
 	"jobs.catalog_edit_rewards.schedule",
 	"jobs.catalog_tag_parents.enabled",
@@ -233,8 +246,8 @@ func TestJobKeysLookup(t *testing.T) {
 	}
 
 	names := keys.JobNames()
-	if len(names) != 18 {
-		t.Fatalf("JobNames() = %d, want 18", len(names))
+	if len(names) != 20 {
+		t.Fatalf("JobNames() = %d, want 20", len(names))
 	}
 	seen := make(map[string]bool, len(names))
 	re := regexp.MustCompile(keys.JobSchedulePattern)

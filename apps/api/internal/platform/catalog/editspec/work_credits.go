@@ -140,7 +140,7 @@ func applyCredits(ctx context.Context, tx *gorm.DB, entityID int64, value any) e
 	if err := rejectUpstreamCreditCollisions(ctx, tx, entityID, credits); err != nil {
 		return err
 	}
-	if err := rejectUnknownCreditScopes(ctx, tx, entityID, credits); err != nil {
+	if err := rejectUnknownCreditScopes(ctx, tx, entityID, credits, FieldWorkCredits); err != nil {
 		return err
 	}
 	var existing []catmodel.CatalogCredit
@@ -453,7 +453,7 @@ func optionalRef(obj map[string]any, key string, index int) (bool, *int64, error
 
 // rejectUnknownCreditScopes refuses a release of another work and a company
 // that does not exist, as a 422 the proposer sees instead of a foreign-key 500.
-func rejectUnknownCreditScopes(ctx context.Context, tx *gorm.DB, workID int64, credits []workCredit) error {
+func rejectUnknownCreditScopes(ctx context.Context, tx *gorm.DB, workID int64, credits []workCredit, field string) error {
 	var releases, labels []int64
 	for _, c := range credits {
 		if c.ReleaseID != nil {
@@ -471,9 +471,9 @@ func rejectUnknownCreditScopes(ctx context.Context, tx *gorm.DB, workID int64, c
 			return err
 		}
 		if missing := missingIDs(releases, own); len(missing) > 0 {
-			return &editing.ValidationError{Key: FieldWorkCredits,
+			return &editing.ValidationError{Key: field,
 				Reason: fmt.Sprintf("release %s is not a release of this work", idList(missing))}
 		}
 	}
-	return assertEntitiesExist(ctx, tx, &catmodel.CatalogLabel{}, uniqueIDs(labels), FieldWorkCredits)
+	return assertEntitiesExist(ctx, tx, &catmodel.CatalogLabel{}, uniqueIDs(labels), field)
 }

@@ -600,6 +600,19 @@ export const mcpTools = [
     ]
   },
   {
+    "name": "listCatalogDiscussion",
+    "method": "GET",
+    "path": "/v2/catalog/discussions/{object}/{id}",
+    "summary": "Discussion under a proposal or request",
+    "needs_key": false,
+    "params": [
+      "object",
+      "id",
+      "cursor",
+      "limit"
+    ]
+  },
+  {
     "name": "listCatalogEngines",
     "method": "GET",
     "path": "/v2/catalog/engines",
@@ -670,6 +683,7 @@ export const mcpTools = [
       "entity_id",
       "site",
       "proposer_uid",
+      "origin_site",
       "state"
     ]
   },
@@ -733,7 +747,8 @@ export const mcpTools = [
       "object",
       "entity_id",
       "site",
-      "actor_uid"
+      "actor_uid",
+      "origin_site"
     ]
   },
   {
@@ -774,6 +789,17 @@ export const mcpTools = [
       "facets",
       "sort",
       "nsfw"
+    ]
+  },
+  {
+    "name": "listCatalogSplits",
+    "method": "GET",
+    "path": "/v2/catalog/splits",
+    "summary": "Work split feed",
+    "needs_key": false,
+    "params": [
+      "cursor",
+      "limit"
     ]
   },
   {

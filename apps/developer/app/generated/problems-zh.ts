@@ -132,6 +132,10 @@ export const problemsZh: Record<string, { title: string; description: string }> 
     "title": "实体已被合并",
     "description": "该实体已被合并进另一个实体。响应里带 object 与 current_id，同时回一个 Link rel=canonical。"
   },
+  "ENTITY_DELETED": {
+    "title": "实体已被删除",
+    "description": "该实体经审核的删除请求删除。响应里带 object、deleted_reason 与 deleted_at。审核者可以用同一个 id 恢复它，所以请把它当作「已隐藏」，而不是「从未存在」。"
+  },
   "PLAY_RECORDS_PRIVATE": {
     "title": "游玩记录未公开",
     "description": "该账号把游玩状态与时长设为私密，只有账号本人用自己的用户令牌才能读到。它的评分仍在 /v2/ratings 公开。"

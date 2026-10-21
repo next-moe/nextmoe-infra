@@ -127,6 +127,17 @@ func screenshotRows() contextRowSource {
 	}
 }
 
+func creditRows() contextRowSource {
+	return contextRowSource{
+		from: "catalog_credit cr", owner: "cr.work_id", sourceID: "cr.source_id",
+		human:    humanLaneOf("cr.source_id"),
+		identity: editspec.CreditIdentitySQL("cr"),
+		value:    `json_build_object('role_id', cr.role_id, 'credit_name_id', cr.credit_name_id, 'character_id', cr.character_id, 'note', cr.note, 'spoiler', cr.spoiler, 'release_id', cr.release_id, 'label_id', cr.label_id)`,
+		prov:     "cr.field_provenance",
+		order:    "cr.source_id, cr.role_id, cr.id",
+	}
+}
+
 // contextRowSources names the table behind every stored row of a multi-source
 // list field. It is a hand-maintained list over a growing registry:
 // TestEditContextCoversEveryListField fails when a list field is registered with
@@ -176,13 +187,8 @@ var contextRowSources = map[string]contextRowSource{
 	editspec.FieldWorkCoversUpstream:      coverRows(),
 	editspec.FieldWorkScreenshots:         screenshotRows(),
 	editspec.FieldWorkScreenshotsUpstream: screenshotRows(),
-	editspec.FieldWorkCredits: {
-		from: "catalog_credit cr", owner: "cr.work_id", sourceID: "cr.source_id",
-		human:    humanLaneOf("cr.source_id"),
-		identity: editspec.CreditIdentitySQL("cr"),
-		value:    `json_build_object('role_id', cr.role_id, 'credit_name_id', cr.credit_name_id, 'character_id', cr.character_id, 'note', cr.note, 'spoiler', cr.spoiler, 'release_id', cr.release_id, 'label_id', cr.label_id)`,
-		order:    "cr.source_id, cr.role_id, cr.id",
-	},
+	editspec.FieldWorkCredits:             creditRows(),
+	editspec.FieldWorkCreditsUpstream:     creditRows(),
 	editspec.FieldWorkRoster: {
 		from: "catalog_work_character wc", owner: "wc.work_id", sourceKey: "wc.matched_by",
 		human:    curatedMatch("wc.matched_by"),

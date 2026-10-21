@@ -19,6 +19,7 @@ type RevisionPage struct {
 	EntityType string
 	EntityID   int64
 	Site       string
+	OriginSite string
 	ActorUID   int64
 	IDs        []int64
 	Ascending  bool
@@ -30,7 +31,7 @@ type RevisionPage struct {
 // The snapshot column is a whole entity per row; the list face never renders it
 // and selecting it turned a 100-row page into megabytes.
 const revisionListColumns = `id, entity_family, entity_type, entity_id, seq, action,
-	changed_fields, actor_uid, amender_uid, proposal_id, site, created_at`
+	changed_fields, actor_uid, amender_uid, proposal_id, site, origin_site, created_at`
 
 func (s *EditHistoryService) Revisions(ctx context.Context, p RevisionPage) ([]editing.Revision, int64, error) {
 	if s == nil || s.db == nil {
@@ -45,6 +46,9 @@ func (s *EditHistoryService) Revisions(ctx context.Context, p RevisionPage) ([]e
 	}
 	if p.Site != "" {
 		q = q.Where("site = ?", p.Site)
+	}
+	if p.OriginSite != "" {
+		q = q.Where("origin_site = ?", p.OriginSite)
 	}
 	if p.ActorUID > 0 {
 		q = q.Where("actor_uid = ?", p.ActorUID)
