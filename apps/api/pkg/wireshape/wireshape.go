@@ -34,6 +34,26 @@ func Publish(doc *huma.OpenAPI) {
 	}
 }
 
+// Huma published every error as its own ErrorModel; these faces send problem.Problem.
+func PublishProblems(doc *huma.OpenAPI, problemType reflect.Type, name string) {
+	if Skip {
+		return
+	}
+	ref := doc.Components.Schemas.Schema(problemType, true, name)
+	Publish(doc)
+	for _, item := range doc.Paths {
+		for _, op := range Operations(item) {
+			for status, resp := range op.Responses {
+				if status >= "400" && resp != nil {
+					resp.Content = map[string]*huma.MediaType{"application/problem+json": {Schema: ref}}
+				}
+			}
+		}
+	}
+	delete(doc.Components.Schemas.Map(), "ErrorModel")
+	delete(doc.Components.Schemas.Map(), "ErrorDetail")
+}
+
 func Operations(item *huma.PathItem) []*huma.Operation {
 	var ops []*huma.Operation
 	for _, op := range []*huma.Operation{item.Get, item.Put, item.Post, item.Patch, item.Delete} {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"api/internal/platform/chat/service"
 	"api/internal/platform/devapi"
 	"api/pkg/routepath"
+	"api/pkg/wireshape"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humafiber"
@@ -91,7 +93,7 @@ func Setup(app *fiber.App, opt Options) huma.API {
 	})
 	h := &Handler{opt: opt}
 	h.register(api)
-	publishWireShapes(api.OpenAPI())
+	wireshape.PublishProblems(api.OpenAPI(), reflect.TypeFor[problem.Problem](), "Problem")
 	return api
 }
 
