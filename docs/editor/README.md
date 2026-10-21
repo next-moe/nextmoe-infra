@@ -60,6 +60,7 @@ NextMoe 资料库的唯一编辑入口。所有第一方站点的用户在这里
 | `catalog.open_proposals_max_reviewer` | 0 | 审核者（不限） |
 | `catalog.merge_requests_per_day` / `_editor` / `_reviewer` | 10 / 50 / 500 | 合并请求 |
 | `catalog.merge_cooling_off_hours` | 48 | 合并批准后的冷静期 |
+| `catalog.discussion_posts_per_hour` | 30 | 每人每小时可发的讨论留言 |
 | `catalog.edit_merge_reward` | 1 | 提案被他人合并后给提案人发放的萌萌点（0 = 停发） |
 | `catalog.edit_merge_reward_window_days` | 7 | 编辑奖励任务每次回看的天数 |
 | `auth.sso_session_idle_days` | 30 | 账号中心会话闲置续期 |
@@ -90,6 +91,18 @@ NextMoe 资料库的唯一编辑入口。所有第一方站点的用户在这里
 
 - 每次生效都追加一条 `edit_revision`（改了哪些字段 + 改后完整快照）；实体第一次被编辑时另存编辑前的原始状态（`baseline_snapshot`），历史页显示为「导入原始状态」。
 - `POST /v2/moderation/reverts`：`mode=restore` 恢复到某一版（整份覆盖）；`mode=undo` 只撤销某一版改动过的字段，后续版本动过同一字段时返回 409 `REVERT_CONFLICT`，审核者可 `force`；`baseline=true` 回到导入原始状态。回滚本身也是一条新修订，可以再回滚。
+
+## 讨论
+
+每条提案、合并请求（之后的拆分、删除请求同理）下面都有讨论区，挂在「锚点」`(anchor_kind, anchor_id)` 上，`anchor_kind` 就是锚点的对象类型（`proposal`、`merge_request`）。数据在 kun_catalog（`edit_discussion_post`、`edit_discussion_watcher`），不走社区服务：社区服务只接受带客户端密钥的站点服务端调用，编辑台是没有密钥的公开客户端，而谁能看某条合并请求、谁发起、谁处理这些判断都在 kun_catalog。
+
+- 读：`GET /v2/catalog/discussions/{object}/{id}`。提案的讨论和提案一样公开；合并请求的讨论只有发起人和 `catalog.merge.review` 持有者能看。
+- 写：`POST /v2/me/discussions`（仅第一方站点），作者可 `PATCH` 改、`DELETE` 删（留下「已删除」占位）。正文 ≤ 2000 字，最多提及 10 人，过内容审查（拒绝 = 422，扫描主体 `(nextmoe, edit_discussion)`）。
+- 关注：发言人、被提及的人和锚点的参与者（提案人、处理人、修正者；合并请求的发起人）自动关注；`PUT /v2/me/discussion-watches` 关注或静音。静音后只有提及自己的留言会通知。
+- 通知：`GET /v2/me/discussion-notices?since=` 与提案状态变化一起出现在顶栏通知里；点开直达提案页或审核页的 `#discussion`。
+- 管理：`POST /v2/moderation/discussions/{id}/visibility` 隐藏或恢复，需要新权限 `catalog.discussion.moderate`（moderator / admin / ren）；被隐藏的原文和隐藏原因只有讨论管理员看得到。
+- 注销账号：该账号的留言变为「已删除」占位，关注记录删除。
+- 新的请求类型接入：在 `cmd/catalog/main.go` 给 `discussion.New` 注册一个 `discussion.Kind`（是否公开、存在性、谁能看、发起人、参与者、谁算审核者），前端在 `app/constants/discussion.ts` 加标签与跳转路由，页面里放 `<DiscussionThread anchor-kind="…" :anchor-id="…" />`。
 
 ## 编辑台页面
 

@@ -2118,9 +2118,9 @@ components:
           maxLength: 2000
           type: string
         created_at:
-          description: RFC 3339 UTC.
+          description: RFC 3339 UTC with the stored fractional seconds, so it can be sent back as since= without matching the same post again.
           format: date-time
-          maxLength: 32
+          maxLength: 40
           type: string
         edited_at:
           description: RFC 3339 UTC of the author's last edit. null when never edited.

@@ -205,7 +205,7 @@ func discussionPostFrom(p *discussion.Post, moderator bool) repr.DiscussionPost 
 	out := repr.DiscussionPost{
 		Object: "discussion_post", ID: repr.ID(p.ID), AnchorKind: p.AnchorKind, AnchorID: repr.ID(p.AnchorID),
 		AuthorUID: repr.ID(p.AuthorUID), AuthorReviewer: p.AuthorReviewer, Body: p.Body,
-		MentionUIDs: []string{}, CreatedAt: p.CreatedAt.UTC().Format(time.RFC3339),
+		MentionUIDs: []string{}, CreatedAt: p.CreatedAt.UTC().Format(time.RFC3339Nano),
 	}
 	switch p.Status {
 	case discussion.StatusHidden:

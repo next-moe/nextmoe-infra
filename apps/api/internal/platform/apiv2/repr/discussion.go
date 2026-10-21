@@ -14,7 +14,7 @@ type DiscussionPost struct {
 	ReplyToID      *string  `json:"reply_to_id" pattern:"^[0-9]+$" maxLength:"20" doc:"The post this one quotes. null when none."`
 	MentionUIDs    []string `json:"mention_uids" doc:"Central account ids the author mentioned; each is notified. Empty array when none."`
 	ModerationNote *string  `json:"moderation_note,omitempty" maxLength:"500" doc:"Present only to discussion moderators, on a post that was ever hidden or restored. Must not be used as a discriminant."`
-	CreatedAt      string   `json:"created_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
+	CreatedAt      string   `json:"created_at" format:"date-time" maxLength:"40" doc:"RFC 3339 UTC with the stored fractional seconds, so it can be sent back as since= without matching the same post again."`
 	EditedAt       *string  `json:"edited_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC of the author's last edit. null when never edited."`
 }
 
