@@ -396,6 +396,9 @@ func refreshHiddenWorkUserData(ctx context.Context, tx *gorm.DB, workID int64) e
 		 WHERE f.id IN (SELECT folder_id FROM catalog_user_folder_item WHERE work_id = ?)`, workID).Error; err != nil {
 		return fmt.Errorf("recount folders: %w", err)
 	}
+	if err := tx.Exec(`UPDATE catalog_user_work_rating SET changed_at = now() WHERE work_id = ?`, workID).Error; err != nil {
+		return fmt.Errorf("resurface ratings: %w", err)
+	}
 	var related []int64
 	if err := tx.Raw(`
 		SELECT b_work_id FROM catalog_work_relation WHERE a_work_id = ?
