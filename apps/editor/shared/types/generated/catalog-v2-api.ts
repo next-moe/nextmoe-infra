@@ -24548,6 +24548,8 @@ export interface operations {
                 release_ids?: string;
                 /** @description Comma-separated source:external_id entries chosen to promote. */
                 promote?: string;
+                /** @description The split request being reviewed, left out of the one-pending-request check so its own page does not report it. */
+                request_id?: string;
             };
             header?: never;
             path?: never;

@@ -163,7 +163,7 @@ func TestSplitPreviewLaysOutTheFacts(t *testing.T) {
 	svc := NewSplitService(testDB, testResolve, NewMergeService(testDB, testResolve))
 	f := seedSplitFixture(t)
 
-	p, err := svc.Preview(t.Context(), f.orig.ID, []int64{f.moveA.ID, f.moveB.ID}, []model.SplitRef{{Source: "bangumi", ExternalID: "491620"}})
+	p, err := svc.Preview(t.Context(), f.orig.ID, []int64{f.moveA.ID, f.moveB.ID}, []model.SplitRef{{Source: "bangumi", ExternalID: "491620"}}, 0)
 	require.NoError(t, err)
 	assert.Equal(t, "v751", p.VNDBAnchor)
 	require.Len(t, p.Releases, 3)
@@ -190,9 +190,18 @@ func TestSplitPreviewLaysOutTheFacts(t *testing.T) {
 	assert.Equal(t, int64(1), moves["tombstones"], "only the release VNDB knows needs a tombstone")
 	assert.Equal(t, int64(1), moves["credits"])
 
-	all, err := svc.Preview(t.Context(), f.orig.ID, []int64{f.keep.ID, f.moveA.ID, f.moveB.ID}, nil)
+	all, err := svc.Preview(t.Context(), f.orig.ID, []int64{f.keep.ID, f.moveA.ID, f.moveB.ID}, nil, 0)
 	require.NoError(t, err)
 	assert.Contains(t, codes(all.Blockers), "all_releases")
+
+	r, err := svc.Request(t.Context(), splitPlus(f), 3)
+	require.NoError(t, err)
+	other, err := svc.Preview(t.Context(), f.orig.ID, nil, nil, 0)
+	require.NoError(t, err)
+	assert.Contains(t, codes(other.Blockers), "pending_request", "another filer is told a split is pending")
+	own, err := svc.Preview(t.Context(), f.orig.ID, nil, nil, r.ID)
+	require.NoError(t, err)
+	assert.NotContains(t, codes(own.Blockers), "pending_request", "the request's own page does not report itself")
 }
 
 func TestSplitExecuteAndUndoRoundTrip(t *testing.T) {

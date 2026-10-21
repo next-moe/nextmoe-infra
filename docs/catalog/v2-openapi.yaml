@@ -27432,6 +27432,15 @@ paths:
             maxLength: 1000
             pattern: ^[a-z_]+:[^,]+(,[a-z_]+:[^,]+)*$
             type: string
+        - description: The split request being reviewed, left out of the one-pending-request check so its own page does not report it.
+          explode: false
+          in: query
+          name: request_id
+          schema:
+            description: The split request being reviewed, left out of the one-pending-request check so its own page does not report it.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
       responses:
         "200":
           content:

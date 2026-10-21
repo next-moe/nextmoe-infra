@@ -92,9 +92,14 @@ export const rangeSelect = (
   return on ? [...rest, ...span] : rest
 }
 
-export const previewQuery = (workId: string, selection: SplitSelection) => ({
+export const previewQuery = (
+  workId: string,
+  selection: SplitSelection,
+  requestId?: string
+) => ({
   object: 'work',
   target_id: workId,
+  ...(requestId ? { request_id: requestId } : {}),
   ...(selection.releases.length
     ? { release_ids: [...selection.releases].sort(byNumber).join(',') }
     : {}),

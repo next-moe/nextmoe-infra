@@ -71,7 +71,7 @@ export const createSplitWorkbench = (options: {
     previewError.value = ''
     try {
       const result = await api<CatalogSplitPreview>('/v2/me/split-preview', {
-        query: previewQuery(workId.value, selection.value)
+        query: previewQuery(workId.value, selection.value, request.value?.id)
       })
       if (mine !== token) {
         return

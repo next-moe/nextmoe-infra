@@ -37,9 +37,11 @@ const releaseCount = computed(() => request.value?.release_ids.length ?? 0)
             <p class="text-default-500 flex items-center gap-2 text-xs">
               <span class="bg-warning-500 size-2 rounded-full" />
               {{
-                request.new_work_id
-                  ? `新作品 #${request.new_work_id}`
-                  : '新作品（未创建）'
+                !request.new_work_id
+                  ? '新作品（未创建）'
+                  : request.state === 'undone'
+                    ? `新作品 #${request.new_work_id} · 已并回原作品`
+                    : `新作品 #${request.new_work_id}`
               }}
             </p>
             <p class="mt-1 font-semibold">
@@ -52,9 +54,7 @@ const releaseCount = computed(() => request.value?.release_ids.length ?? 0)
             {{ releaseCount }} 个发行已移到新作品。
           </template>
           <template v-else-if="request.state === 'undone'">
-            拆分已撤销：{{
-              releaseCount
-            }}
+            拆分已撤销：{{ releaseCount }}
             个发行已回到原作品，新作品的编号重定向到原作品。
           </template>
           <template v-else-if="request.state === 'rejected'">
@@ -66,13 +66,11 @@ const releaseCount = computed(() => request.value?.release_ids.length ?? 0)
 
       <SplitWorkbenchRequestPanel />
 
-      <KunCard bordered padding="md">
-        <DiscussionThread
-          anchor-kind="split_request"
-          :anchor-id="request.id"
-          :participants="splitParticipants(request)"
-        />
-      </KunCard>
+      <DiscussionThread
+        anchor-kind="split_request"
+        :anchor-id="request.id"
+        :participants="splitParticipants(request)"
+      />
     </div>
   </main>
 </template>

@@ -52,9 +52,7 @@ const moved = computed(() =>
       >
         <KunIcon name="lucide:pencil-line" class="size-3.5" />
         审核者 {{ request.amended_by?.name ?? `#${request.amended_by_uid}` }} 于
-        {{
-          formatDateTime(request.amended_at ?? '')
-        }}
+        {{ formatDateTime(request.amended_at ?? '') }}
         修改过所选发行或新作品资料
       </p>
       <KunInfo

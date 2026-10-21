@@ -136,24 +136,26 @@ const onDragOver = (event: DragEvent) => {
         </span>
       </div>
       <div class="flex items-center gap-2">
-        <KunInput
-          v-model="query"
-          size="sm"
-          placeholder="按标题、平台、语言、VNDB 编号筛选"
-          aria-label="筛选发行"
-          class-name="min-w-0 flex-1"
-        >
-          <template #prefix>
-            <KunIcon name="lucide:search" class="text-default-400 size-4" />
-          </template>
-        </KunInput>
-        <KunSelect
-          v-model="groupBy"
-          :options="[...SPLIT_GROUP_OPTIONS]"
-          aria-label="分组方式"
-          size="sm"
-          class="w-32 shrink-0"
-        />
+        <div class="min-w-0 flex-1">
+          <KunInput
+            v-model="query"
+            size="sm"
+            placeholder="按标题、平台、语言、VNDB 编号筛选"
+            aria-label="筛选发行"
+          >
+            <template #prefix>
+              <KunIcon name="lucide:search" class="text-default-400 size-4" />
+            </template>
+          </KunInput>
+        </div>
+        <div class="w-32 shrink-0">
+          <KunSelect
+            v-model="groupBy"
+            :options="[...SPLIT_GROUP_OPTIONS]"
+            aria-label="分组方式"
+            size="sm"
+          />
+        </div>
       </div>
       <div
         v-if="canEdit && visibleIds.length"
@@ -185,7 +187,7 @@ const onDragOver = (event: DragEvent) => {
         <div v-for="group in groups" :key="group.key" class="pb-2">
           <p
             v-if="groupBy !== 'none'"
-            class="text-default-400 bg-background sticky top-0 z-[1] px-2 py-1.5 text-xs font-medium"
+            class="text-default-400 bg-content1 sticky top-0 z-[1] px-2 py-1.5 text-xs font-medium"
           >
             {{ groupLabel(group.key) }} · {{ group.releases.length }}
           </p>

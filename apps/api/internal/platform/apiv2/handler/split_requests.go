@@ -96,6 +96,7 @@ type splitPreviewInput struct {
 	TargetID   string `query:"target_id" pattern:"^[0-9]+$" maxLength:"20" doc:"The work."`
 	ReleaseIDs string `query:"release_ids" maxLength:"4000" pattern:"^[0-9]+(,[0-9]+)*$" doc:"Comma-separated release ids chosen to move."`
 	Promote    string `query:"promote" maxLength:"1000" pattern:"^[a-z_]+:[^,]+(,[a-z_]+:[^,]+)*$" doc:"Comma-separated source:external_id entries chosen to promote."`
+	RequestID  string `query:"request_id" pattern:"^[0-9]+$" maxLength:"20" doc:"The split request being reviewed, left out of the one-pending-request check so its own page does not report it."`
 }
 
 type listSplitEventsInput struct {
@@ -349,7 +350,8 @@ func getMySplitPreview(cat *Catalog) func(context.Context, *splitPreviewInput) (
 				promote = append(promote, model.SplitRef{Source: source, ExternalID: ext})
 			}
 		}
-		p, err := cat.Splits.Preview(ctx, workID, selected, promote)
+		own, _ := repr.ParseID(in.RequestID)
+		p, err := cat.Splits.Preview(ctx, workID, selected, promote, own)
 		if err != nil {
 			return nil, catalogErr(ctx, splitRequestErr(err))
 		}

@@ -63,7 +63,7 @@ type SplitPreview struct {
 	PendingID     *int64
 }
 
-func (s *SplitService) Preview(ctx context.Context, workID int64, selected []int64, promote []model.SplitRef) (*SplitPreview, error) {
+func (s *SplitService) Preview(ctx context.Context, workID int64, selected []int64, promote []model.SplitRef, ownRequestID int64) (*SplitPreview, error) {
 	db := s.db.WithContext(ctx)
 	var w model.CatalogWork
 	if err := db.First(&w, workID).Error; err != nil {
@@ -149,15 +149,15 @@ func (s *SplitService) Preview(ctx context.Context, workID int64, selected []int
 	}
 
 	var pending int64
-	if err := db.Raw(`SELECT id FROM catalog_split_request WHERE entity_type = ? AND entity_id = ? AND status IN (?, ?) ORDER BY id DESC LIMIT 1`,
-		model.EntityTypeWork, w.ID, model.ProposalStatusOpen, model.ProposalStatusApproved).Scan(&pending).Error; err != nil {
+	if err := db.Raw(`SELECT id FROM catalog_split_request WHERE entity_type = ? AND entity_id = ? AND status IN (?, ?) AND id <> ? ORDER BY id DESC LIMIT 1`,
+		model.EntityTypeWork, w.ID, model.ProposalStatusOpen, model.ProposalStatusApproved, ownRequestID).Scan(&pending).Error; err != nil {
 		return nil, err
 	}
 	if pending != 0 {
 		p.PendingID = &pending
 	}
 
-	p.Titles, p.SuggestedName = suggestSplitTitles(p.Releases)
+	p.Titles, p.SuggestedName = suggestSplitTitles(p.Releases, w.OLang)
 	if err := s.splitCounts(db, p, w.ID); err != nil {
 		return nil, err
 	}
@@ -254,12 +254,27 @@ func splitIssues(p *SplitPreview, live, selected []int64, promote []model.SplitR
 		}
 	}
 	separate := 0
+	bySource := map[string][]string{}
+	var order []string
 	for _, c := range p.Candidates {
-		if c.HeldBy == nil {
-			separate++
-			p.Facts = append(p.Facts, PreviewIssue{"listed_separately",
-				fmt.Sprintf("%s %s 单独收录了一个条目，目前以%s挂在原作品上；可以设为新作品的正式对应。", sourceLabel(c.Source), c.ExternalID, linkKindLabel(c.LinkKind))})
+		if c.HeldBy != nil {
+			continue
 		}
+		separate++
+		if _, seen := bySource[c.Source]; !seen {
+			order = append(order, c.Source)
+		}
+		bySource[c.Source] = append(bySource[c.Source], c.ExternalID)
+	}
+	for _, source := range order {
+		ids := bySource[source]
+		what := "一个条目"
+		if len(ids) > 1 {
+			what = fmt.Sprintf("%d 个条目", len(ids))
+		}
+		p.Facts = append(p.Facts, PreviewIssue{"listed_separately",
+			fmt.Sprintf("%s 单独收录了%s（%s），目前以相关或待确认链接挂在原作品上；可以把对应这个版本的那一个设为新作品的正式对应。",
+				sourceLabel(source), what, strings.Join(ids, "、"))})
 	}
 	if separate == 0 {
 		p.Facts = append(p.Facts, PreviewIssue{"no_separate_entry", "Bangumi 和批评空间都没有以相关链接挂着单独的条目；新作品不会有资料源对应，标题、标签、制作人员要靠人工补。"})
@@ -269,10 +284,9 @@ func splitIssues(p *SplitPreview, live, selected []int64, promote []model.SplitR
 	}
 }
 
-func suggestSplitTitles(releases []SplitPreviewRelease) ([]model.SplitTitle, string) {
+func suggestSplitTitles(releases []SplitPreviewRelease, olang string) ([]model.SplitTitle, string) {
 	var out []model.SplitTitle
-	seen := map[string]bool{}
-	name := ""
+	at := map[string]int{}
 	for _, r := range releases {
 		if !r.Selected {
 			continue
@@ -281,21 +295,38 @@ func suggestSplitTitles(releases []SplitPreviewRelease) ([]model.SplitTitle, str
 		if base == "" {
 			continue
 		}
-		key := r.Lang + "\x00" + base
-		if seen[key] {
+		if i, seen := at[base]; seen {
+			if r.Lang == olang {
+				out[i].Lang = olang
+			}
 			continue
 		}
-		seen[key] = true
-		out = append(out, model.SplitTitle{Lang: r.Lang, Title: base, Kind: model.WorkTitleKindOfficial})
-		if name == "" || len([]rune(base)) < len([]rune(name)) {
-			name = base
+		at[base] = len(out)
+		out = append(out, model.SplitTitle{Lang: r.Lang, Title: base, Kind: model.WorkTitleKindAlias})
+	}
+	best := -1
+	for i, t := range out {
+		if best < 0 || better(t, out[best], olang) {
+			best = i
 		}
 	}
-	return out, name
+	if best < 0 {
+		return out, ""
+	}
+	out[best].Kind = model.WorkTitleKindOfficial
+	out[0], out[best] = out[best], out[0]
+	return out, out[0].Title
+}
+
+func better(a, b model.SplitTitle, olang string) bool {
+	if (a.Lang == olang) != (b.Lang == olang) {
+		return a.Lang == olang
+	}
+	return len([]rune(a.Title)) < len([]rune(b.Title))
 }
 
 var editionSuffixes = []string{
-	" - Download Edition", " - Regular Edition", " Steam Edition", " Improvement Patch",
+	" - Download Edition", " - Regular Edition", " Steam Edition", " Improvement Patch", " Physical edition",
 	" ダウンロード版", " パッケージ版", " 通常版", " 初回限定版", " 体験版", " 体验版",
 }
 
