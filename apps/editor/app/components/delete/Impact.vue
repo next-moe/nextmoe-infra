@@ -11,10 +11,10 @@ const props = defineProps<{
 const sourceLabel = (key: string) => WRITER_LABELS[key] ?? key
 
 const blocking = computed(() =>
-  (props.preview?.anchors ?? []).filter((a) => a.kind !== 'related')
+  (props.preview?.anchors ?? []).filter((a) => a.anchor_kind !== 'related')
 )
 const related = computed(() =>
-  (props.preview?.anchors ?? []).filter((a) => a.kind === 'related')
+  (props.preview?.anchors ?? []).filter((a) => a.anchor_kind === 'related')
 )
 
 const userData = computed(() => {
@@ -23,10 +23,18 @@ const userData = computed(() => {
     return []
   }
   return [
-    { label: '评分', count: data.ratings, icon: 'lucide:star' },
-    { label: '收藏', count: data.folder_items, icon: 'lucide:folder-heart' },
-    { label: '游玩时长', count: data.playtimes, icon: 'lucide:timer' },
-    { label: '游玩状态', count: data.work_states, icon: 'lucide:gamepad-2' }
+    { label: '评分', count: data.rating_count, icon: 'lucide:star' },
+    {
+      label: '收藏',
+      count: data.folder_item_count,
+      icon: 'lucide:folder-heart'
+    },
+    { label: '游玩时长', count: data.playtime_count, icon: 'lucide:timer' },
+    {
+      label: '游玩状态',
+      count: data.work_state_count,
+      icon: 'lucide:gamepad-2'
+    }
   ]
 })
 const userDataTotal = computed(() =>
@@ -55,10 +63,12 @@ const userDataTotal = computed(() =>
             :key="`${anchor.source}:${anchor.external_id}`"
             size="sm"
             variant="flat"
-            :color="anchor.kind === 'identity' ? 'primary' : 'warning'"
+            :color="anchor.anchor_kind === 'identity' ? 'primary' : 'warning'"
           >
             {{ sourceLabel(anchor.source) }} {{ anchor.external_id }}
-            <template v-if="anchor.kind === 'probable'">（待确认）</template>
+            <template v-if="anchor.anchor_kind === 'probable'"
+              >（待确认）</template
+            >
           </KunChip>
         </div>
         <p class="text-default-500 text-xs leading-relaxed">
@@ -129,12 +139,12 @@ const userDataTotal = computed(() =>
       <ul v-else-if="props.preview" class="text-default-600 space-y-1 text-sm">
         <li class="flex items-center gap-1.5">
           <KunIcon name="lucide:package" class="text-default-400 size-3.5" />
-          {{ props.preview.releases }} 个发行随作品一起隐藏
+          {{ props.preview.release_count }} 个发行随作品一起隐藏
         </li>
         <li class="flex items-center gap-1.5">
           <KunIcon name="lucide:inbox" class="text-default-400 size-3.5" />
-          <template v-if="props.preview.open_proposals">
-            {{ props.preview.open_proposals }} 条待审提案会被驳回
+          <template v-if="props.preview.open_proposal_count">
+            {{ props.preview.open_proposal_count }} 条待审提案会被驳回
           </template>
           <template v-else>没有待审的编辑提案</template>
         </li>

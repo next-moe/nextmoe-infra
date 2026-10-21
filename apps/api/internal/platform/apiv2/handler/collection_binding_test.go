@@ -30,18 +30,20 @@ var fullCollectionParams = []string{
 // credit-names/{id}/credits share.
 var subCollectionParams = []string{"cursor", "limit", "nsfw"}
 
-// The three faces with an input of their own. Named rather than inferred: the
+// The faces with an input of their own. Named rather than inferred: the
 // list this file used to carry was six hand-written paths against a document
 // that declares forty collection GETs, so /v2/me/news and thirty-three others
-// were never checked at all. A fourth custom face is a failure here until it is
+// were never checked at all. A new custom face is a failure here until it is
 // named and its reason written down.
 var customCollectionFaces = map[string]string{
-	"/v2/catalog/claim-events":      "operator feed: ids= but no refs=, and no nsfw/facets/include",
-	"/v2/catalog/proposals":         "edit-history feed: no refs=, nsfw or facets",
-	"/v2/catalog/revisions":         "edit-history feed: no refs=, nsfw or facets",
-	"/v2/folders/holders":           "s2s fan-out lane: work_id=, cursor= and limit= and nothing else — every other parameter would widen what the uid list discloses",
-	"/v2/me/merge-requests":         "merge-request queue: state=/object= filters over a small keyset feed, no refs=, nsfw or facets",
-	"/v2/moderation/merge-requests": "merge-request queue: state=/object= filters over a small keyset feed, no refs=, nsfw or facets",
+	"/v2/catalog/claim-events":         "operator feed: ids= but no refs=, and no nsfw/facets/include",
+	"/v2/catalog/proposals":            "edit-history feed: no refs=, nsfw or facets",
+	"/v2/catalog/revisions":            "edit-history feed: no refs=, nsfw or facets",
+	"/v2/folders/holders":              "s2s fan-out lane: work_id=, cursor= and limit= and nothing else — every other parameter would widen what the uid list discloses",
+	"/v2/me/merge-requests":            "merge-request queue: state=/object= filters over a small keyset feed, no refs=, nsfw or facets",
+	"/v2/moderation/merge-requests":    "merge-request queue: state=/object= filters over a small keyset feed, no refs=, nsfw or facets",
+	"/v2/me/deletion-requests":         "deletion-request queue: state=/target_id=/origin_site= filters over a small keyset feed, no refs=, nsfw or facets",
+	"/v2/moderation/deletion-requests": "deletion-request queue: state=/target_id=/origin_site= filters over a small keyset feed, no refs=, nsfw or facets",
 }
 
 func bindingApp(t *testing.T) (*fiber.App, huma.API, string, string) {

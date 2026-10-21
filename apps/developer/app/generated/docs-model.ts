@@ -149906,13 +149906,7 @@ export const docsModel: DocsModel = {
                           "type": "object",
                           "children": [
                             {
-                              "name": "external_id",
-                              "required": true,
-                              "doc": "The entry's id at that source.",
-                              "type": "string"
-                            },
-                            {
-                              "name": "kind",
+                              "name": "anchor_kind",
                               "required": true,
                               "doc": "identity and probable links keep the importers from creating the work again while it is deleted; related links are ordinary links.",
                               "enum": [
@@ -149923,9 +149917,15 @@ export const docsModel: DocsModel = {
                               "type": "string"
                             },
                             {
+                              "name": "external_id",
+                              "required": true,
+                              "doc": "Verbatim upstream id. Must not be used as a discriminant beyond exact match. It is an identity anchor at this entity's own granularity, not necessarily an addressable page: a credit-name vndb ref is a staff-alias id with no page of its own. Browseable URLs come from links.",
+                              "type": "string"
+                            },
+                            {
                               "name": "source",
                               "required": true,
-                              "doc": "Source key, e.g. vndb, bangumi, erogamescape.",
+                              "doc": "Open vocabulary sources. Must not be used as a discriminant.",
                               "type": "string"
                             }
                           ]
@@ -149967,7 +149967,7 @@ export const docsModel: DocsModel = {
                         "type": "string"
                       },
                       {
-                        "name": "open_proposals",
+                        "name": "open_proposal_count",
                         "required": true,
                         "doc": "Open edit proposals on the work. A deletion declines them.",
                         "format": "int64",
@@ -149981,7 +149981,7 @@ export const docsModel: DocsModel = {
                         "type": "string"
                       },
                       {
-                        "name": "releases",
+                        "name": "release_count",
                         "required": true,
                         "doc": "Releases of the work.",
                         "format": "int64",
@@ -150008,28 +150008,28 @@ export const docsModel: DocsModel = {
                         "type": "object",
                         "children": [
                           {
-                            "name": "folder_items",
+                            "name": "folder_item_count",
                             "required": true,
                             "doc": "Folder memberships of the work. Kept but hidden while it is deleted.",
                             "format": "int64",
                             "type": "integer"
                           },
                           {
-                            "name": "playtimes",
+                            "name": "playtime_count",
                             "required": true,
                             "doc": "Playtime reports on the work. Kept but hidden while it is deleted.",
                             "format": "int64",
                             "type": "integer"
                           },
                           {
-                            "name": "ratings",
+                            "name": "rating_count",
                             "required": true,
                             "doc": "Ratings on the work. Kept but hidden while it is deleted.",
                             "format": "int64",
                             "type": "integer"
                           },
                           {
-                            "name": "work_states",
+                            "name": "work_state_count",
                             "required": true,
                             "doc": "Play states on the work. Kept but hidden while it is deleted.",
                             "format": "int64",

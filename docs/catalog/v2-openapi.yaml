@@ -2033,11 +2033,7 @@ components:
     DeletionAnchor:
       additionalProperties: true
       properties:
-        external_id:
-          description: The entry's id at that source.
-          maxLength: 256
-          type: string
-        kind:
+        anchor_kind:
           description: identity and probable links keep the importers from creating the work again while it is deleted; related links are ordinary links.
           enum:
             - identity
@@ -2045,16 +2041,20 @@ components:
             - related
           type: string
           x-vocabulary-closed: true
+        external_id:
+          description: "Verbatim upstream id. Must not be used as a discriminant beyond exact match. It is an identity anchor at this entity's own granularity, not necessarily an addressable page: a credit-name vndb ref is a staff-alias id with no page of its own. Browseable URLs come from links."
+          maxLength: 256
+          type: string
         source:
-          description: Source key, e.g. vndb, bangumi, erogamescape.
-          maxLength: 32
+          description: Open vocabulary sources. Must not be used as a discriminant.
+          maxLength: 64
           type: string
           x-vocabulary: sources
           x-vocabulary-closed: false
       required:
         - source
         - external_id
-        - kind
+        - anchor_kind
       type: object
     DeletionPreview:
       additionalProperties: true
@@ -2074,6 +2074,7 @@ components:
         claim_site:
           description: Site that claimed the work. null when unclaimed.
           maxLength: 32
+          pattern: ^[a-z][a-z0-9_]*$
           type:
             - string
             - "null"
@@ -2097,7 +2098,7 @@ components:
             - deletion_preview
           type: string
           x-vocabulary-closed: true
-        open_proposals:
+        open_proposal_count:
           description: Open edit proposals on the work. A deletion declines them.
           format: int64
           minimum: 0
@@ -2109,7 +2110,7 @@ components:
           type:
             - string
             - "null"
-        releases:
+        release_count:
           description: Releases of the work.
           format: int64
           minimum: 0
@@ -2136,9 +2137,9 @@ components:
         - deleted
         - merged_into_id
         - anchors
-        - releases
+        - release_count
         - user_data
-        - open_proposals
+        - open_proposal_count
         - claim_site
         - pending_request_id
       type: object
@@ -2318,31 +2319,31 @@ components:
     DeletionUserData:
       additionalProperties: true
       properties:
-        folder_items:
+        folder_item_count:
           description: Folder memberships of the work. Kept but hidden while it is deleted.
           format: int64
           minimum: 0
           type: integer
-        playtimes:
+        playtime_count:
           description: Playtime reports on the work. Kept but hidden while it is deleted.
           format: int64
           minimum: 0
           type: integer
-        ratings:
+        rating_count:
           description: Ratings on the work. Kept but hidden while it is deleted.
           format: int64
           minimum: 0
           type: integer
-        work_states:
+        work_state_count:
           description: Play states on the work. Kept but hidden while it is deleted.
           format: int64
           minimum: 0
           type: integer
       required:
-        - ratings
-        - folder_items
-        - playtimes
-        - work_states
+        - rating_count
+        - folder_item_count
+        - playtime_count
+        - work_state_count
       type: object
     EditBundle:
       additionalProperties: true

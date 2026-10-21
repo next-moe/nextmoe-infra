@@ -515,11 +515,11 @@ func deletionPreviewFrom(p *catsvc.DeletionPreview) repr.DeletionPreview {
 	out := repr.DeletionPreview{
 		Object: "deletion_preview", TargetObject: "work", TargetID: repr.ID(p.WorkID),
 		DisplayName: p.DisplayName, Deleted: p.Deleted, MergedIntoID: optIDPtr(p.MergedInto),
-		Anchors: make([]repr.DeletionAnchor, 0, len(p.Anchors)), Releases: p.Releases,
+		Anchors: make([]repr.DeletionAnchor, 0, len(p.Anchors)), ReleaseCount: p.Releases,
 		UserData: repr.DeletionUserData{
-			Ratings: p.Ratings, FolderItems: p.FolderItems, Playtimes: p.Playtimes, WorkStates: p.WorkStates,
+			RatingCount: p.Ratings, FolderItemCount: p.FolderItems, PlaytimeCount: p.Playtimes, WorkStateCount: p.WorkStates,
 		},
-		OpenProposals: p.OpenProposals, PendingRequestID: optIDPtr(p.PendingRequestID),
+		OpenProposalCount: p.OpenProposals, PendingRequestID: optIDPtr(p.PendingRequestID),
 	}
 	if p.ClaimSite != "" {
 		site := p.ClaimSite
@@ -530,7 +530,7 @@ func deletionPreviewFrom(p *catsvc.DeletionPreview) repr.DeletionPreview {
 		if !ok {
 			continue
 		}
-		out.Anchors = append(out.Anchors, repr.DeletionAnchor{Source: a.Source, ExternalID: a.ExternalID, Kind: kind})
+		out.Anchors = append(out.Anchors, repr.DeletionAnchor{Source: a.Source, ExternalID: a.ExternalID, AnchorKind: kind})
 	}
 	return out
 }

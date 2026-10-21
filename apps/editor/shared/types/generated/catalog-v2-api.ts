@@ -3864,14 +3864,14 @@ export interface components {
             [key: string]: unknown;
         };
         DeletionAnchor: {
-            /** @description The entry's id at that source. */
-            external_id: string;
             /**
              * @description identity and probable links keep the importers from creating the work again while it is deleted; related links are ordinary links.
              * @enum {string}
              */
-            kind: "identity" | "probable" | "related";
-            /** @description Source key, e.g. vndb, bangumi, erogamescape. */
+            anchor_kind: "identity" | "probable" | "related";
+            /** @description Verbatim upstream id. Must not be used as a discriminant beyond exact match. It is an identity anchor at this entity's own granularity, not necessarily an addressable page: a credit-name vndb ref is a staff-alias id with no page of its own. Browseable URLs come from links. */
+            external_id: string;
+            /** @description Open vocabulary sources. Must not be used as a discriminant. */
             source: string;
         } & {
             [key: string]: unknown;
@@ -3902,14 +3902,14 @@ export interface components {
              * Format: int64
              * @description Open edit proposals on the work. A deletion declines them.
              */
-            open_proposals: number;
+            open_proposal_count: number;
             /** @description An open or approved deletion request on the entry. null when none. */
             pending_request_id: string | null;
             /**
              * Format: int64
              * @description Releases of the work.
              */
-            releases: number;
+            release_count: number;
             /** @description The entry. */
             target_id: string;
             /**
@@ -4011,22 +4011,22 @@ export interface components {
              * Format: int64
              * @description Folder memberships of the work. Kept but hidden while it is deleted.
              */
-            folder_items: number;
+            folder_item_count: number;
             /**
              * Format: int64
              * @description Playtime reports on the work. Kept but hidden while it is deleted.
              */
-            playtimes: number;
+            playtime_count: number;
             /**
              * Format: int64
              * @description Ratings on the work. Kept but hidden while it is deleted.
              */
-            ratings: number;
+            rating_count: number;
             /**
              * Format: int64
              * @description Play states on the work. Kept but hidden while it is deleted.
              */
-            work_states: number;
+            work_state_count: number;
         } & {
             [key: string]: unknown;
         };

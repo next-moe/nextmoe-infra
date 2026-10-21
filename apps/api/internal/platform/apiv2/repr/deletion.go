@@ -28,31 +28,31 @@ type DeletionRequestRecord struct {
 
 type DeletionAnchor struct {
 	_          struct{} `json:"-" additionalProperties:"true"`
-	Source     string   `json:"source" maxLength:"32" doc:"Source key, e.g. vndb, bangumi, erogamescape."`
-	ExternalID string   `json:"external_id" maxLength:"256" doc:"The entry's id at that source."`
-	Kind       string   `json:"kind" enum:"identity,probable,related" doc:"identity and probable links keep the importers from creating the work again while it is deleted; related links are ordinary links."`
+	Source     string   `json:"source" maxLength:"64" doc:"Open vocabulary sources. Must not be used as a discriminant."`
+	ExternalID string   `json:"external_id" maxLength:"256" doc:"Verbatim upstream id. Must not be used as a discriminant beyond exact match. It is an identity anchor at this entity's own granularity, not necessarily an addressable page: a credit-name vndb ref is a staff-alias id with no page of its own. Browseable URLs come from links."`
+	AnchorKind string   `json:"anchor_kind" enum:"identity,probable,related" doc:"identity and probable links keep the importers from creating the work again while it is deleted; related links are ordinary links."`
 }
 
 type DeletionUserData struct {
-	_           struct{} `json:"-" additionalProperties:"true"`
-	Ratings     int64    `json:"ratings" minimum:"0" doc:"Ratings on the work. Kept but hidden while it is deleted."`
-	FolderItems int64    `json:"folder_items" minimum:"0" doc:"Folder memberships of the work. Kept but hidden while it is deleted."`
-	Playtimes   int64    `json:"playtimes" minimum:"0" doc:"Playtime reports on the work. Kept but hidden while it is deleted."`
-	WorkStates  int64    `json:"work_states" minimum:"0" doc:"Play states on the work. Kept but hidden while it is deleted."`
+	_               struct{} `json:"-" additionalProperties:"true"`
+	RatingCount     int64    `json:"rating_count" minimum:"0" doc:"Ratings on the work. Kept but hidden while it is deleted."`
+	FolderItemCount int64    `json:"folder_item_count" minimum:"0" doc:"Folder memberships of the work. Kept but hidden while it is deleted."`
+	PlaytimeCount   int64    `json:"playtime_count" minimum:"0" doc:"Playtime reports on the work. Kept but hidden while it is deleted."`
+	WorkStateCount  int64    `json:"work_state_count" minimum:"0" doc:"Play states on the work. Kept but hidden while it is deleted."`
 }
 
 type DeletionPreview struct {
-	_                struct{}         `json:"-" additionalProperties:"true"`
-	Object           string           `json:"object" enum:"deletion_preview" doc:"Type discriminant. Always deletion_preview."`
-	TargetObject     string           `json:"target_object" enum:"work" doc:"Family of the entry."`
-	TargetID         string           `json:"target_id" pattern:"^[0-9]+$" maxLength:"20" doc:"The entry."`
-	DisplayName      string           `json:"display_name" maxLength:"512" doc:"The entry's display name. Must not be used as a discriminant."`
-	Deleted          bool             `json:"deleted" doc:"true when the entry is already deleted."`
-	MergedIntoID     *string          `json:"merged_into_id" pattern:"^[0-9]+$" maxLength:"20" doc:"Set when the entry was merged into another; it cannot be deleted then."`
-	Anchors          []DeletionAnchor `json:"anchors" doc:"Links to source entries the work holds."`
-	Releases         int64            `json:"releases" minimum:"0" doc:"Releases of the work."`
-	UserData         DeletionUserData `json:"user_data" doc:"User records keyed to the work."`
-	OpenProposals    int64            `json:"open_proposals" minimum:"0" doc:"Open edit proposals on the work. A deletion declines them."`
-	ClaimSite        *string          `json:"claim_site" maxLength:"32" doc:"Site that claimed the work. null when unclaimed."`
-	PendingRequestID *string          `json:"pending_request_id" pattern:"^[0-9]+$" maxLength:"20" doc:"An open or approved deletion request on the entry. null when none."`
+	_                 struct{}         `json:"-" additionalProperties:"true"`
+	Object            string           `json:"object" enum:"deletion_preview" doc:"Type discriminant. Always deletion_preview."`
+	TargetObject      string           `json:"target_object" enum:"work" doc:"Family of the entry."`
+	TargetID          string           `json:"target_id" pattern:"^[0-9]+$" maxLength:"20" doc:"The entry."`
+	DisplayName       string           `json:"display_name" maxLength:"512" doc:"The entry's display name. Must not be used as a discriminant."`
+	Deleted           bool             `json:"deleted" doc:"true when the entry is already deleted."`
+	MergedIntoID      *string          `json:"merged_into_id" pattern:"^[0-9]+$" maxLength:"20" doc:"Set when the entry was merged into another; it cannot be deleted then."`
+	Anchors           []DeletionAnchor `json:"anchors" doc:"Links to source entries the work holds."`
+	ReleaseCount      int64            `json:"release_count" minimum:"0" doc:"Releases of the work."`
+	UserData          DeletionUserData `json:"user_data" doc:"User records keyed to the work."`
+	OpenProposalCount int64            `json:"open_proposal_count" minimum:"0" doc:"Open edit proposals on the work. A deletion declines them."`
+	ClaimSite         *string          `json:"claim_site" maxLength:"32" pattern:"^[a-z][a-z0-9_]*$" doc:"Site that claimed the work. null when unclaimed."`
+	PendingRequestID  *string          `json:"pending_request_id" pattern:"^[0-9]+$" maxLength:"20" doc:"An open or approved deletion request on the entry. null when none."`
 }
