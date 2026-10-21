@@ -494,6 +494,7 @@ var catalogDomain = settings.Domain{
 		CatalogMergeRequestsPerDay,
 		CatalogMergeRequestsPerDayEditor,
 		CatalogMergeRequestsPerDayReviewer,
+		CatalogDiscussionPostsPerHour,
 		CatalogNewsSubmissionsPerDay,
 		CatalogNewsImageUploadsPerDay,
 		CatalogEditMergeReward,

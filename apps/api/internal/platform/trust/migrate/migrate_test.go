@@ -90,6 +90,16 @@ func TestCatalogRatingKindSeeded(t *testing.T) {
 	}
 }
 
+func TestCatalogDiscussionKindSeeded(t *testing.T) {
+	var rows []model.TrustSubjectKind
+	if err := testDB.Where("site = 'nextmoe' AND key = 'edit_discussion'").Find(&rows).Error; err != nil {
+		t.Fatalf("read kind: %v", err)
+	}
+	if len(rows) != 1 || rows[0].CallbackURL != nil || rows[0].IsDeprecated {
+		t.Fatalf("(nextmoe, edit_discussion) rows = %+v after two migrations, want one live row with no callback", rows)
+	}
+}
+
 // TestPartialUniqueIndexes asserts the invariant-bearing partial uniques carry
 // both their columns and their predicates verbatim (invariants 4/5).
 func TestPartialUniqueIndexes(t *testing.T) {

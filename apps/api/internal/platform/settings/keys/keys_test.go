@@ -84,6 +84,7 @@ var goldenNames = []string{
 	"catalog.merge_requests_per_day",
 	"catalog.merge_requests_per_day_editor",
 	"catalog.merge_requests_per_day_reviewer",
+	"catalog.discussion_posts_per_hour",
 	"catalog.news_submissions_per_day",
 	"catalog.news_image_uploads_per_day",
 	"catalog.edit_merge_reward",

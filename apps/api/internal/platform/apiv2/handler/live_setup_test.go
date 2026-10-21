@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"api/internal/platform/apiv2/problem"
+	"api/internal/platform/catalog/discussion"
 	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/migrate"
 	"api/internal/platform/catalog/model"
@@ -81,6 +82,15 @@ var (
 	liveCentralToken  = "user-live-central-token"
 	liveCentralUID    = int64(14)
 	liveCentralClient = "editor-client"
+)
+
+// The editor's own token carries catalog:read and catalog:edit together; the
+// discussion thread is read on /v2/catalog and written on /v2/me.
+var (
+	liveAdminBothToken   = "user-live-admin-both-token"
+	livePlainBothToken   = "user-live-plain-both-token"
+	liveSecondBothToken  = "user-live-second-both-token"
+	liveCentralBothToken = "user-live-central-both-token"
 )
 
 // liveUnlimitedStore never rate-limits, but it does remember: without a real
@@ -260,6 +270,7 @@ func liveCatalog(t *testing.T) *liveEnv {
 		cat.EditHistory = catsvc.NewEditHistoryService(db)
 		cat.EditContext = catsvc.NewEditContextService(db)
 		cat.Merges = catsvc.NewMergeService(db, resolve)
+		cat.Discussions = discussion.New(db, discussion.ProposalKind(), discussion.MergeRequestKind())
 		cat.UsersOf = liveUsersOf
 		app := fiber.New(fiber.Config{ErrorHandler: problem.WriteFiberError})
 		SetupWith(app, Options{
@@ -318,6 +329,18 @@ func liveCatalog(t *testing.T) *liveEnv {
 				case liveEditorToken:
 					return UserIdentity{UID: liveEditorUID, ClientID: liveClient, Roles: []string{"user", "editor"},
 						Scopes: []string{devapi.ScopeCatalogEdit}}, nil
+				case liveAdminBothToken:
+					return UserIdentity{UID: liveUID, ClientID: liveClient, Roles: []string{"admin"},
+						Scopes: []string{devapi.ScopeCatalogRead, devapi.ScopeCatalogEdit}}, nil
+				case livePlainBothToken:
+					return UserIdentity{UID: livePlainUID, ClientID: liveClient, Roles: []string{"user"},
+						Scopes: []string{devapi.ScopeCatalogRead, devapi.ScopeCatalogEdit}}, nil
+				case liveSecondBothToken:
+					return UserIdentity{UID: liveSecondPlainUID, ClientID: liveClient, Roles: []string{"user"},
+						Scopes: []string{devapi.ScopeCatalogRead, devapi.ScopeCatalogEdit}}, nil
+				case liveCentralBothToken:
+					return UserIdentity{UID: liveCentralUID, ClientID: liveCentralClient, Roles: []string{"moderator"},
+						Scopes: []string{devapi.ScopeCatalogRead, devapi.ScopeCatalogEdit}}, nil
 				case liveCentralToken:
 					return UserIdentity{UID: liveCentralUID, ClientID: liveCentralClient, Roles: []string{"moderator"},
 						Scopes: []string{devapi.ScopeCatalogEdit}}, nil
@@ -368,6 +391,7 @@ func seedLiveFixtures(db *gorm.DB, claims *catsvc.ClaimLifecycleService) (liveFi
 		catalog_work_character, catalog_tag_source_map, catalog_redirect,
 		catalog_user_folder_item, catalog_user_folder, catalog_user_entity_follow,
 		edit_revision, edit_proposal, edit_proposal_amendment, edit_suppressed_row,
+		edit_discussion_post, edit_discussion_watcher,
 		catalog_work_relation, catalog_work_platform
 		RESTART IDENTITY CASCADE`).Error; err != nil {
 		return liveFix{}, err

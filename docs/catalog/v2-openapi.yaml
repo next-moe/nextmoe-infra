@@ -1508,6 +1508,47 @@ components:
       required:
         - object
       type: object
+    CreateDiscussionInputBody:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/CreateDiscussionInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        anchor_id:
+          description: Id of the proposal or request.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+        anchor_kind:
+          description: proposal, merge_request, or a kind a later request type registers.
+          maxLength: 32
+          pattern: ^[a-z_]{1,32}$
+          type: string
+        body:
+          description: Plain text, at most 2000 characters after trimming. Must not be used as a discriminant.
+          maxLength: 8000
+          minLength: 1
+          type: string
+        mention_uids:
+          description: Central account ids to notify; the author is dropped. More than 10 people is 422.
+          items:
+            type: string
+          maxItems: 100
+          type: array
+        reply_to_id:
+          description: A post in the same thread this one quotes.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+      required:
+        - anchor_kind
+        - anchor_id
+        - body
+      type: object
     CreateFolderInputBody:
       additionalProperties: true
       properties:
@@ -1962,6 +2003,244 @@ components:
       required:
         - decision
       type: object
+    DiscussionNotice:
+      additionalProperties: true
+      properties:
+        object:
+          description: Type discriminant. Always discussion_notice.
+          enum:
+            - discussion_notice
+          type: string
+          x-vocabulary-closed: true
+        post:
+          $ref: "#/components/schemas/DiscussionPost"
+          description: The new post.
+        reason:
+          description: "mention: the post names the caller. reply: a new post in a thread the caller watches."
+          enum:
+            - reply
+            - mention
+          type: string
+          x-vocabulary-closed: true
+        viewer_is_owner:
+          description: true when the caller filed the anchor; clients use it to pick which page to open.
+          type: boolean
+      required:
+        - object
+        - reason
+        - viewer_is_owner
+        - post
+      type: object
+    DiscussionPage:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/DiscussionPage.json
+          format: uri
+          readOnly: true
+          type: string
+        items:
+          description: Posts oldest first. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/DiscussionPost"
+          type: array
+        next_cursor:
+          description: Opaque cursor for the next, newer page. Omitted on the last page.
+          maxLength: 32
+          pattern: ^cur_[0-9]+$
+          type: string
+        object:
+          description: Type discriminant. Always list.
+          enum:
+            - list
+          type: string
+          x-vocabulary-closed: true
+        owner_uid:
+          description: "Central account id of whoever filed the anchor: the proposer or the requester."
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type:
+            - string
+            - "null"
+        total:
+          description: Posts in the thread, deleted ones excluded.
+          format: int64
+          minimum: 0
+          type: integer
+        viewer:
+          $ref: "#/components/schemas/DiscussionViewer"
+          description: Present when the call carries a user token.
+      required:
+        - object
+        - items
+        - total
+        - owner_uid
+      type: object
+    DiscussionPost:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/DiscussionPost.json
+          format: uri
+          readOnly: true
+          type: string
+        anchor_id:
+          description: Id of the proposal or request.
+          maxLength: 20
+          minLength: 1
+          pattern: ^[0-9]+$
+          type: string
+        anchor_kind:
+          description: "Object discriminant of what the thread hangs under: proposal, merge_request, and the kinds later request types register. Open vocabulary."
+          maxLength: 32
+          pattern: ^[a-z_]{1,32}$
+          type: string
+        author:
+          anyOf:
+            - $ref: "#/components/schemas/UserRef"
+            - type: "null"
+          description: Account behind author_uid. null only when the account directory could not be read.
+        author_reviewer:
+          description: true when the author could review this kind of anchor when posting.
+          type: boolean
+        author_uid:
+          description: Central account id of the author.
+          maxLength: 20
+          minLength: 1
+          pattern: ^[0-9]+$
+          type: string
+        body:
+          description: Plain text; clients render a small markdown subset (bold, inline code, links, line breaks). Empty when deleted, and when hidden unless the caller moderates discussions. Must not be used as a discriminant.
+          maxLength: 2000
+          type: string
+        created_at:
+          description: RFC 3339 UTC with the stored fractional seconds, so it can be sent back as since= without matching the same post again.
+          format: date-time
+          maxLength: 40
+          type: string
+        edited_at:
+          description: RFC 3339 UTC of the author's last edit. null when never edited.
+          format: date-time
+          maxLength: 32
+          type:
+            - string
+            - "null"
+        id:
+          description: Post id.
+          maxLength: 20
+          minLength: 1
+          pattern: ^[0-9]+$
+          type: string
+        mention_uids:
+          description: Central account ids the author mentioned; each is notified. Empty array when none.
+          items:
+            type: string
+          type: array
+        moderation_note:
+          description: Present only to discussion moderators, on a post that was ever hidden or restored. Must not be used as a discriminant.
+          maxLength: 500
+          type: string
+        object:
+          description: Type discriminant. Always discussion_post.
+          enum:
+            - discussion_post
+          type: string
+          x-vocabulary-closed: true
+        reply_to_id:
+          description: The post this one quotes. null when none.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type:
+            - string
+            - "null"
+        state:
+          description: "hidden: a discussion moderator hid it. deleted: its author deleted it."
+          enum:
+            - visible
+            - hidden
+            - deleted
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - id
+        - anchor_kind
+        - anchor_id
+        - author_uid
+        - author
+        - author_reviewer
+        - state
+        - body
+        - reply_to_id
+        - mention_uids
+        - created_at
+        - edited_at
+      type: object
+    DiscussionViewer:
+      additionalProperties: true
+      properties:
+        can_moderate:
+          description: true when the caller holds catalog.discussion.moderate.
+          type: boolean
+        can_post:
+          description: true for any signed-in caller who can read the thread. Posting itself also needs a first-party site's token, checked on POST /v2/me/discussions.
+          type: boolean
+        muted:
+          description: true when the caller muted this thread; mentions still reach them.
+          type: boolean
+        watching:
+          description: true when new posts here reach the caller's notices.
+          type: boolean
+      required:
+        - can_post
+        - can_moderate
+        - watching
+        - muted
+      type: object
+    DiscussionWatch:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/DiscussionWatch.json
+          format: uri
+          readOnly: true
+          type: string
+        anchor_id:
+          description: Anchor id.
+          maxLength: 20
+          minLength: 1
+          pattern: ^[0-9]+$
+          type: string
+        anchor_kind:
+          description: Anchor kind.
+          maxLength: 32
+          pattern: ^[a-z_]{1,32}$
+          type: string
+        muted:
+          description: true when the caller muted the thread.
+          type: boolean
+        object:
+          description: Type discriminant. Always discussion_watch.
+          enum:
+            - discussion_watch
+          type: string
+          x-vocabulary-closed: true
+        watching:
+          description: true when new posts reach the caller.
+          type: boolean
+      required:
+        - object
+        - anchor_kind
+        - anchor_id
+        - watching
+        - muted
+      type: object
     EditBundle:
       additionalProperties: true
       properties:
@@ -2209,6 +2488,24 @@ components:
         - value
         - machine_translated
         - field_provenance
+      type: object
+    EditDiscussionInputBody:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/EditDiscussionInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        body:
+          description: The new text. Must not be used as a discriminant.
+          maxLength: 8000
+          minLength: 1
+          type: string
+      required:
+        - body
       type: object
     EditImage:
       additionalProperties: true
@@ -3445,6 +3742,62 @@ components:
           description: Members of this page. Empty array, never null.
           items:
             $ref: "#/components/schemas/CreditName"
+          type: array
+        missing:
+          description: ids requested but not visible. Present only on the ids=/refs= batch lane.
+          items:
+            type: string
+          type: array
+        next_cursor:
+          description: Opaque keyset cursor. Omitted on the last page.
+          maxLength: 512
+          pattern: ^cur_[A-Za-z0-9._~-]+$
+          type: string
+        object:
+          description: Type discriminant. Always list.
+          enum:
+            - list
+          type: string
+          x-vocabulary-closed: true
+        total:
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+          format: int64
+          minimum: 0
+          type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - items
+      type: object
+    ListDiscussionNotice:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ListDiscussionNotice.json
+          format: uri
+          readOnly: true
+          type: string
+        facets:
+          additionalProperties:
+            items:
+              $ref: "#/components/schemas/FacetValue"
+            type:
+              - array
+              - "null"
+          description: Named facet buckets. Present only when facets= is requested.
+          type: object
+        items:
+          description: Members of this page. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/DiscussionNotice"
           type: array
         missing:
           description: ids requested but not visible. Present only on the ids=/refs= batch lane.
@@ -6134,6 +6487,26 @@ components:
         - proposed_at
         - execute_after
         - executed_at
+      type: object
+    ModerateDiscussionInputBody:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ModerateDiscussionInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        hidden:
+          description: true hides the post from everyone but discussion moderators; false restores it.
+          type: boolean
+        note:
+          description: Why. Shown to discussion moderators only. Must not be used as a discriminant.
+          maxLength: 500
+          type: string
+      required:
+        - hidden
       type: object
     Money:
       additionalProperties: true
@@ -9989,6 +10362,34 @@ components:
         - closed
         - values
       type: object
+    WatchDiscussionInputBody:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/WatchDiscussionInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        anchor_id:
+          description: Anchor id.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+        anchor_kind:
+          description: Anchor kind.
+          maxLength: 32
+          pattern: ^[a-z_]{1,32}$
+          type: string
+        muted:
+          description: true mutes the thread (mentions still arrive); false watches it.
+          type: boolean
+      required:
+        - anchor_kind
+        - anchor_id
+        - muted
+      type: object
     Work:
       additionalProperties: true
       properties:
@@ -12482,6 +12883,112 @@ paths:
         - userToken: []
         - {}
       summary: Credits of one credit name
+      tags:
+        - catalog
+  /v2/catalog/discussions/{object}/{id}:
+    get:
+      description: "Posts oldest first; follow next_cursor for newer ones. A proposal's thread is public like the proposal; a merge request's is readable by its requester and by catalog.merge.review holders. With a user token the page carries viewer: whether the caller may post or moderate here, and whether the thread reaches their notices. Anonymous calls are allowed and limited per IP address; they read public threads only."
+      operationId: listCatalogDiscussion
+      parameters:
+        - description: "Object discriminant of the anchor: proposal, merge_request, or one a later request type registers."
+          in: path
+          name: object
+          required: true
+          schema:
+            description: "Object discriminant of the anchor: proposal, merge_request, or one a later request type registers."
+            maxLength: 32
+            pattern: ^[a-z_]{1,32}$
+            type: string
+        - description: Id of the proposal or request.
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Id of the proposal or request.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+        - description: Opaque cursor from next_cursor.
+          explode: false
+          in: query
+          name: cursor
+          schema:
+            description: Opaque cursor from next_cursor.
+            maxLength: 32
+            pattern: ^cur_[0-9]+$
+            type: string
+        - description: Page size, 1-100. Default 50.
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: Page size, 1-100. Default 50.
+            format: int64
+            maximum: 100
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscussionPage"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - applicationKey: []
+        - userToken: []
+        - {}
+      summary: Discussion under a proposal or request
       tags:
         - catalog
   /v2/catalog/engines:
@@ -19283,6 +19790,414 @@ paths:
       summary: Propose a new entry
       tags:
         - me
+  /v2/me/discussion-notices:
+    get:
+      description: Posts by others, newer than since, in threads the caller watches or that mention them; a muted thread reaches the caller only through mentions. Requires a user access token from a first-party site with the catalog:edit scope. The token must carry the catalog:edit scope.
+      operationId: listMyDiscussionNotices
+      parameters:
+        - description: "RFC 3339. Only posts newer than this. Default: 14 days ago."
+          explode: false
+          in: query
+          name: since
+          schema:
+            description: "RFC 3339. Only posts newer than this. Default: 14 days ago."
+            format: date-time
+            maxLength: 40
+            type: string
+        - description: At most this many, newest first. Default 50.
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: At most this many, newest first. Default 50.
+            format: int64
+            maximum: 100
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListDiscussionNotice"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: New posts for me
+      tags:
+        - me
+  /v2/me/discussion-watches:
+    put:
+      description: Requires a user access token from a first-party site with the catalog:edit scope. The token must carry the catalog:edit scope.
+      operationId: watchMyDiscussion
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WatchDiscussionInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscussionWatch"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Watch or mute a discussion
+      tags:
+        - me
+  /v2/me/discussions:
+    post:
+      description: Adds a post under a proposal or request the caller can read. The author, everyone mentioned, and the anchor's participants (proposer or requester, decider, amenders) start watching the thread; their notices pick up later posts. Limited per account by catalog.discussion_posts_per_hour; past it 429 QUOTA_EXCEEDED. Text refused by the content check is 422. Requires a user access token from a first-party site with the catalog:edit scope. The token must carry the catalog:edit scope.
+      operationId: createMyDiscussionPost
+      parameters:
+        - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDiscussionInputBody"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscussionPost"
+          description: Created
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Post in a discussion
+      tags:
+        - me
+  /v2/me/discussions/{id}:
+    delete:
+      description: The post stays in the thread as deleted, with its text removed. Requires a user access token from a first-party site with the catalog:edit scope. The token must carry the catalog:edit scope.
+      operationId: deleteMyDiscussionPost
+      parameters:
+        - description: Post id.
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Post id.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Delete my post
+      tags:
+        - me
+    patch:
+      description: Replaces the text of a visible post the caller wrote and stamps edited_at. Requires a user access token from a first-party site with the catalog:edit scope. The token must carry the catalog:edit scope.
+      operationId: editMyDiscussionPost
+      parameters:
+        - description: Post id.
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Post id.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EditDiscussionInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscussionPost"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Edit my post
+      tags:
+        - me
   /v2/me/edit-bundle/{object}/{id}:
     get:
       description: "One read for an editing screen: the family schema, the entity's snapshot, the bearer's capabilities on it, its edit context and the bearer's quota — each member the exact body its own face answers, so a client swaps five calls for one. The schema and the snapshot decide the answer: an unknown family or entity is 404 as on GET /v2/moderation/snapshots/{object}/{id}. capabilities, context and quota are left out when their own face would have answered an error. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope."
@@ -24919,6 +25834,100 @@ paths:
       security:
         - userToken: []
       summary: Decide a claim
+      tags:
+        - moderation
+  /v2/moderation/discussions/{id}/visibility:
+    post:
+      description: Requires the catalog.discussion.moderate permission. The token must carry the catalog:edit scope.
+      operationId: moderateDiscussionPost
+      parameters:
+        - description: Post id.
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Post id.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+        - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModerateDiscussionInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscussionPost"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Hide or restore a post
       tags:
         - moderation
   /v2/moderation/folders/{id}:

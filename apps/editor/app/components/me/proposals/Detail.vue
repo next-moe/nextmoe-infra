@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { CatalogProposal } from '#shared/types/catalog'
+import type { DiscussionParticipant } from '#shared/types/discussion'
 import { PROPOSAL_STATE, SITE_LABELS } from '~/constants/catalog'
 import { ENTITY_META, isEditFamily } from '~/constants/editEntities'
 
@@ -83,6 +84,23 @@ const withdraw = async () => {
     withdrawing.value = false
   }
 }
+
+const participants = computed<DiscussionParticipant[]>(() => {
+  const p = proposal.value
+  if (!p) {
+    return []
+  }
+  return [
+    ...(p.decided_by_uid
+      ? [{ uid: p.decided_by_uid, user: p.decided_by, role: '处理人' }]
+      : []),
+    ...(p.amendments ?? []).map((amendment) => ({
+      uid: amendment.amender_uid,
+      user: amendment.amender,
+      role: '修正者'
+    }))
+  ]
+})
 
 useHead(() => ({ title: `提案 #${proposalId.value} · 未萌编辑台` }))
 
@@ -198,6 +216,12 @@ load()
           <li v-for="key in patchKeys" :key="key">{{ fieldLabel(key) }}</li>
         </ul>
       </KunCard>
+
+      <DiscussionThread
+        anchor-kind="proposal"
+        :anchor-id="proposal.id"
+        :participants="participants"
+      />
     </template>
 
     <div v-else class="space-y-5" aria-busy="true" aria-label="正在加载提案">

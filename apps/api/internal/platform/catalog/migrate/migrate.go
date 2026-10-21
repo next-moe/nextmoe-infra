@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"api/internal/platform/accountpurge"
+	"api/internal/platform/catalog/discussion"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/editing"
 
@@ -195,6 +196,12 @@ func Run(db *gorm.DB) error {
 	// DDL; catalog imports editing (platform-internal), never the reverse.
 	if err := editing.AutoMigrate(db); err != nil {
 		return fmt.Errorf("editing automigrate: %w", err)
+	}
+	// edit_discussion_post / edit_discussion_watcher (2026-10, editor phase 2):
+	// new empty tables for threads under proposals and merge/split/deletion
+	// requests. Additive; no existing rows are touched.
+	if err := discussion.AutoMigrate(db); err != nil {
+		return fmt.Errorf("discussion automigrate: %w", err)
 	}
 	if err := EditLegacyColumns(db); err != nil {
 		return err

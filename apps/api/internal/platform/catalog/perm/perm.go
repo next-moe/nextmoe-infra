@@ -46,6 +46,8 @@ const EditPolicyManage authz.Permission = "edit.policy.manage"
 
 const MergeReview authz.Permission = "catalog.merge.review"
 
+const DiscussionModerate authz.Permission = "catalog.discussion.moderate"
+
 var editProposePerms = []authz.Permission{EditWork, EditTaxonomy, EditCharacter, EditRelease, EditPerson}
 
 var editReviewPerms = []authz.Permission{EditWorkReview, EditTaxonomyReview, EditCharacterReview, EditReleaseReview, EditPersonReview}
@@ -53,7 +55,7 @@ var editReviewPerms = []authz.Permission{EditWorkReview, EditTaxonomyReview, Edi
 var editorPerms = append(append([]authz.Permission{}, editProposePerms...), EditTrusted)
 
 var moderatorPerms = concat(
-	[]authz.Permission{ClaimReview, RatingModerate, FolderModerate, EditTrusted, ClaimTrusted, MergeReview},
+	[]authz.Permission{ClaimReview, RatingModerate, FolderModerate, EditTrusted, ClaimTrusted, MergeReview, DiscussionModerate},
 	editProposePerms, editReviewPerms)
 
 var adminPerms = append(append([]authz.Permission{}, moderatorPerms...), EditPolicyManage)

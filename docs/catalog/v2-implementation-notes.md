@@ -2491,3 +2491,22 @@ Nothing machine-side overwrites a stamped column. The importers only insert cred
 The hide-and-re-add correction the editor used to offer never worked: `uq_catalog_credit` has no lane column, so the re-added copy was refused (and would have been hidden with the original, whose suppression key it shares). Hiding stays the way to say an imported credit is wrong altogether; a wrong role, name or character is fixed by hiding the row and adding a human credit with a different identity.
 
 **Migration.** `go run ./cmd/migrate catalog` on `kun_catalog` (the prod `migrate-catalog` job): `field_provenance jsonb NOT NULL DEFAULT '{}'` on `catalog_credit` (~1.02M rows; constant default, no rewrite). Additive; no backfill.
+
+## Editor phase 2 — discussions under proposals and requests (2026-10-21)
+
+A thread hangs under an **anchor**: `(anchor_kind, anchor_id)`, where `anchor_kind` is the anchor's object discriminant (`proposal`, `merge_request`; split and deletion requests register theirs the same way). The catalog owns the threads rather than the community service: community authenticates sites server-to-server with a client secret, the editor is a public client without one, and every visibility rule a thread needs (who may read a merge request, who filed it, who decided it) lives in `kun_catalog` next to the anchor.
+
+- **`GET /v2/catalog/discussions/{object}/{id}`** — posts oldest first, keyset `cur_<id>`, `total` excludes deleted posts, `owner_uid` is the proposer or requester. A `proposal` thread is public like the proposal (anonymous per IP, a key, or a catalog:read user token); a `merge_request` thread is readable by its requester and by `catalog.merge.review` holders, and is 404 to everyone else. With a user token the page carries `viewer {can_post, can_moderate, watching, muted}`.
+- **`POST /v2/me/discussions`** `{anchor_kind, anchor_id, body, reply_to_id?, mention_uids?}` — first-party sites only (catalog:edit, site-bound, not third-party); the caller must be able to read the anchor. `body` ≤ 2000 characters after trimming; `reply_to_id` must be a post in the same thread; at most 10 mentions (the author is dropped). `author_reviewer` records whether the author held the anchor kind's review permission when posting (`ReviewsEdits` for proposals, `catalog.merge.review` for merge requests). Limited by `catalog.discussion_posts_per_hour` (default 30) → 429. The text goes through the trust check (`deny` → 422, error → fail-open) and is scanned afterwards under `(nextmoe, edit_discussion)`.
+- **`PATCH /v2/me/discussions/{id}`** edits the author's visible post (stamps `edited_at`, re-checked and re-scanned); **`DELETE`** leaves a `deleted` placeholder with the text removed.
+- **`GET /v2/me/discussion-notices?since=`** — posts by others newer than `since` (default 14 days) in threads the caller watches, plus posts that mention them; a muted thread reaches the caller only through mentions. `reason` is `reply` or `mention`; `viewer_is_owner` lets a client pick the page to open.
+- **`PUT /v2/me/discussion-watches`** `{anchor_kind, anchor_id, muted}` watches or mutes a thread.
+- **`POST /v2/moderation/discussions/{id}/visibility`** `{hidden, note?}` — new permission `catalog.discussion.moderate` (moderator, admin, ren). A hidden post's text and the note are served to moderators only.
+
+**Watchers.** Every post puts its author, everyone it mentions and the anchor kind's participants (proposal: proposer, decider, amenders; merge request: requester) on `edit_discussion_watcher`; existing rows keep their `muted` flag.
+
+**Anchor contract for new request types.** Register a `discussion.Kind` in `cmd/catalog/main.go` (`discussion.New(db, …kinds)`): `Name` (the object discriminant), `Public`, `Exists(id)`, `CanSee(viewer, id)` for non-public kinds, `Owner(id)`, `Participants(id)` and `Reviewer(roles)`. Nothing else changes; the faces, notices and watchers are generic.
+
+**Account erasure.** `PurgeAccount` blanks the erased account's posts to `deleted` placeholders (replies keep their place) and drops its watcher rows.
+
+**Migration.** `go run ./cmd/migrate catalog` on `kun_catalog` (the `migrate-catalog` job) creates the empty tables `edit_discussion_post` and `edit_discussion_watcher`. `go run ./cmd/migrate trust` on `kun_trust` (the `migrate-trust` job) seeds the subject kind `(nextmoe, edit_discussion)`. Both additive. Spec: additive (the version is set by the integration PR).
