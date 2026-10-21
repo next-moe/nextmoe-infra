@@ -286,6 +286,7 @@ var live = settings.NewRegistry(
 	catalogDomain,
 	communityDomain,
 	developerDomain,
+	appDomain,
 	jobsDomain,
 )
 
