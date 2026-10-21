@@ -12,6 +12,8 @@ import (
 	"gorm.io/gorm"
 )
 
+const pendingMoved = "it is no longer where this run left it; a later move is reversed first"
+
 type savedPost struct {
 	ID            int64 `json:"id"`
 	PostNumber    int32 `json:"post_number"`
@@ -74,8 +76,11 @@ func writeLog(tx *gorm.DB, r stranded, anchorKind, action int16, into *int64, of
 // live thread already holds the old anchor.
 func restoreUndone(cat, com *gorm.DB, site string, anchorKind int16, apply bool, out io.Writer) (int, error) {
 	var logs []commodel.CommunityRehomeLog
+	// Newest first: when one conversation went B -> A -> Z and both merges
+	// are undone, the A -> Z move has to come back before the B -> A one can
+	// find the thread where its log left it.
 	if err := com.Where("site = ? AND anchor_kind = ? AND reverted_at IS NULL", site, anchorKind).
-		Order("id").Find(&logs).Error; err != nil {
+		Order("id DESC").Find(&logs).Error; err != nil {
 		return 0, err
 	}
 	if len(logs) == 0 {
@@ -132,12 +137,44 @@ func restoreUndone(cat, com *gorm.DB, site string, anchorKind int16, apply bool,
 	return done, nil
 }
 
-func liveCommentsThreadOn(tx *gorm.DB, l commodel.CommunityRehomeLog, except int64) (bool, error) {
+// claimOldAnchor retires any live comments thread on the old anchor that holds
+// no posts — the resolve face mints one on a mere page view — so the partial
+// unique index lets the conversation back in, and reports whether a thread
+// with posts still holds the anchor.
+func claimOldAnchor(tx *gorm.DB, l commodel.CommunityRehomeLog, except int64) (bool, error) {
+	if err := tx.Exec(`UPDATE community_thread t SET status = ?, updated_at = now()
+		WHERE t.site = ? AND t.anchor_kind = ? AND t.anchor_id = ? AND t.kind = ? AND t.status <> ? AND t.id <> ?
+		  AND NOT EXISTS (SELECT 1 FROM community_post p WHERE p.thread_id = t.id)`,
+		threadStatusDeleted, l.Site, l.AnchorKind, l.OldAnchorID, threadKindComments, threadStatusDeleted, except).Error; err != nil {
+		return false, err
+	}
 	var n int64
 	err := tx.Raw(`SELECT count(*) FROM community_thread
 		WHERE site = ? AND anchor_kind = ? AND anchor_id = ? AND kind = ? AND status <> ? AND id <> ?`,
 		l.Site, l.AnchorKind, l.OldAnchorID, threadKindComments, threadStatusDeleted, except).Scan(&n).Error
 	return n > 0, err
+}
+
+// stillWhereLogged says whether the conversation is where this log left it; a
+// later action (another merge's sweep, a moderator) moved it otherwise, and
+// the log waits until that action is reversed first.
+func stillWhereLogged(tx *gorm.DB, l commodel.CommunityRehomeLog, st threadState) (bool, error) {
+	var n int64
+	switch l.Action {
+	case commodel.RehomeMoved:
+		err := tx.Raw(`SELECT count(*) FROM community_thread WHERE id = ? AND anchor_id = ? AND status <> ?`,
+			l.ThreadID, l.NewAnchorID, threadStatusDeleted).Scan(&n).Error
+		return n == 1, err
+	case commodel.RehomeFolded:
+		if l.IntoThreadID == nil {
+			return false, nil
+		}
+		err := tx.Raw(`SELECT count(*) FROM community_post WHERE thread_id = ? AND id IN ?`,
+			*l.IntoThreadID, postIDs(st)).Scan(&n).Error
+		return n == int64(len(st.Posts)), err
+	default:
+		return true, nil
+	}
 }
 
 // reverse returns a non-empty reason when it leaves the conversation where it is.
@@ -146,7 +183,14 @@ func reverse(tx *gorm.DB, l commodel.CommunityRehomeLog) (string, error) {
 	if err := json.Unmarshal(l.State, &st); err != nil {
 		return "", err
 	}
-	occupied, err := liveCommentsThreadOn(tx, l, l.ThreadID)
+	where, err := stillWhereLogged(tx, l, st)
+	if err != nil {
+		return "", err
+	}
+	if !where {
+		return pendingMoved, nil
+	}
+	occupied, err := claimOldAnchor(tx, l, l.ThreadID)
 	if err != nil {
 		return "", err
 	}

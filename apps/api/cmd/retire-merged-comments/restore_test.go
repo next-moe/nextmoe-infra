@@ -114,3 +114,91 @@ func TestAnUndoneMergeGetsItsConversationBack(t *testing.T) {
 	require.NoError(t, testDB.Raw(`SELECT count(*) FROM community_rehome_log WHERE reverted_at IS NULL`).Scan(&open).Error)
 	assert.Zero(t, open, "every logged action was reversed")
 }
+
+func resetRestoreTables(t *testing.T) {
+	t.Helper()
+	for _, tbl := range []string{"community_post", "community_thread", "community_thread_user", "community_anchor_user",
+		"community_notification", "community_rehome_log", "catalog_redirect", "catalog_work"} {
+		require.NoError(t, testDB.Exec("TRUNCATE "+tbl+" RESTART IDENTITY CASCADE").Error)
+	}
+}
+
+func mkWork(t *testing.T, id int64, deleted bool) {
+	t.Helper()
+	require.NoError(t, testDB.Create(&catmodel.CatalogWork{ID: id, MediumID: 1, OLang: "ja", DisplayName: "w",
+		Extra: []byte(`{}`), FieldProvenance: []byte(`{}`)}).Error)
+	if deleted {
+		require.NoError(t, testDB.Exec(`UPDATE catalog_work SET deleted_at = now() WHERE id = ?`, id).Error)
+	}
+}
+
+func mkThreadWithPosts(t *testing.T, anchor string, posts int) int64 {
+	t.Helper()
+	th := commodel.CommunityThread{Site: testSite, Kind: threadKindComments, AnchorKind: 3, AnchorID: anchor, CreatedBy: 1}
+	require.NoError(t, testDB.Create(&th).Error)
+	for i := 1; i <= posts; i++ {
+		require.NoError(t, testDB.Create(&commodel.CommunityPost{ThreadID: th.ID, PostNumber: int32(i), AuthorID: 1,
+			ContentRaw: "hi", ContentHTML: "<p>hi</p>", SanitizerVersion: 1}).Error)
+	}
+	require.NoError(t, testDB.Exec(`UPDATE community_thread SET posts_count = ?, highest_post_number = ? WHERE id = ?`, posts, posts, th.ID).Error)
+	return th.ID
+}
+
+func anchorOf(t *testing.T, threadID int64) string {
+	t.Helper()
+	var a string
+	require.NoError(t, testDB.Raw(`SELECT anchor_id FROM community_thread WHERE id = ?`, threadID).Scan(&a).Error)
+	return a
+}
+
+func TestAChainOfUndoneMergesUnwindsInReverse(t *testing.T) {
+	if testDB == nil {
+		t.Skip("no test DB")
+	}
+	resetRestoreTables(t)
+	mkWork(t, 940001, true)
+	mkWork(t, 940002, false)
+	mkWork(t, 940003, false)
+	now := time.Now()
+	require.NoError(t, testDB.Create(&catmodel.CatalogRedirect{EntityType: entityTypeWork, OldID: 940001, CurrentID: 940002, MergedAt: &now}).Error)
+	b := mkThreadWithPosts(t, "940001", 2)
+	_, _, err := run(testDB, testDB, []string{testSite}, 3, 0, true, io.Discard)
+	require.NoError(t, err)
+	require.Equal(t, "940002", anchorOf(t, b))
+
+	require.NoError(t, testDB.Exec(`UPDATE catalog_work SET deleted_at = now() WHERE id = 940002`).Error)
+	require.NoError(t, testDB.Exec(`UPDATE catalog_redirect SET current_id = 940003 WHERE old_id = 940001`).Error)
+	require.NoError(t, testDB.Create(&catmodel.CatalogRedirect{EntityType: entityTypeWork, OldID: 940002, CurrentID: 940003, MergedAt: &now}).Error)
+	_, _, err = run(testDB, testDB, []string{testSite}, 3, 0, true, io.Discard)
+	require.NoError(t, err)
+	require.Equal(t, "940003", anchorOf(t, b))
+
+	require.NoError(t, testDB.Exec(`UPDATE catalog_work SET deleted_at = NULL WHERE id IN (940001, 940002)`).Error)
+	require.NoError(t, testDB.Exec(`UPDATE catalog_redirect SET revoked_at = now() WHERE old_id IN (940001, 940002)`).Error)
+	_, _, err = run(testDB, testDB, []string{testSite}, 3, 0, true, io.Discard)
+	require.NoError(t, err)
+	assert.Equal(t, "940001", anchorOf(t, b), "the conversation unwinds both moves back to its own page")
+}
+
+func TestAnEmptyThreadMintedOnTheRestoredPageDoesNotBlockTheReturn(t *testing.T) {
+	if testDB == nil {
+		t.Skip("no test DB")
+	}
+	resetRestoreTables(t)
+	mkWork(t, 950001, true)
+	mkWork(t, 950002, false)
+	now := time.Now()
+	require.NoError(t, testDB.Create(&catmodel.CatalogRedirect{EntityType: entityTypeWork, OldID: 950001, CurrentID: 950002, MergedAt: &now}).Error)
+	conv := mkThreadWithPosts(t, "950001", 2)
+	_, _, err := run(testDB, testDB, []string{testSite}, 3, 0, true, io.Discard)
+	require.NoError(t, err)
+
+	require.NoError(t, testDB.Exec(`UPDATE catalog_work SET deleted_at = NULL WHERE id = 950001`).Error)
+	require.NoError(t, testDB.Exec(`UPDATE catalog_redirect SET revoked_at = now() WHERE old_id = 950001`).Error)
+	minted := mkThreadWithPosts(t, "950001", 0)
+
+	_, _, err = run(testDB, testDB, []string{testSite}, 3, 0, true, io.Discard)
+	require.NoError(t, err)
+	assert.Equal(t, "950001", anchorOf(t, conv), "a page view's empty thread does not keep the conversation away")
+	assertStatus(t, map[int64]int16{minted: threadStatusDeleted, conv: 0})
+}

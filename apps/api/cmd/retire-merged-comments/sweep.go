@@ -185,12 +185,6 @@ func rehome(db *gorm.DB, rows []stranded, anchorKind int16) (int, error) {
 			if err != nil {
 				return err
 			}
-			var base int32
-			if err := tx.Raw(`SELECT COALESCE(max(highest_post_number), 0) FROM community_thread
-				WHERE site = ? AND anchor_kind = ? AND anchor_id = ? AND kind = ? AND status <> ?`,
-				r.Site, anchorKind, r.SurvivorAnchor, threadKindComments, threadStatusDeleted).Scan(&base).Error; err != nil {
-				return err
-			}
 			out, err := comrepo.RehomeCommentsThreadTx(tx, r.ThreadID, r.SurvivorAnchor)
 			if err != nil {
 				return err
@@ -199,7 +193,7 @@ func rehome(db *gorm.DB, rows []stranded, anchorKind int16) (int, error) {
 				return writeLog(tx, r, anchorKind, commodel.RehomeMoved, nil, 0, state)
 			}
 			into := out.IntoThreadID
-			return writeLog(tx, r, anchorKind, commodel.RehomeFolded, &into, base, state)
+			return writeLog(tx, r, anchorKind, commodel.RehomeFolded, &into, out.PostOffset, state)
 		})
 		if err != nil {
 			return n, fmt.Errorf("thread %d -> %s: %w", r.ThreadID, r.SurvivorAnchor, err)
