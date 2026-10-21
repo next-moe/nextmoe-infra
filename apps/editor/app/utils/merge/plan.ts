@@ -142,7 +142,12 @@ export const demotedAnchors = (preview: CatalogMergePreview) =>
       (anchor.fate === 'demoted_related' || anchor.fate === 'demoted_probable')
   )
 
-export const releaseDateText = (release: CatalogMergePreviewRelease) => {
+export const releaseDateText = (
+  release: Pick<
+    CatalogMergePreviewRelease,
+    'release_date' | 'release_date_precision'
+  >
+) => {
   if (!release.release_date) {
     return '日期不明'
   }

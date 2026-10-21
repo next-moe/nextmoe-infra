@@ -100,6 +100,16 @@ useHead(() => ({
           合并
         </KunButton>
         <KunButton
+          :href="`/split/new?work=${id}`"
+          target="_blank"
+          variant="light"
+          size="sm"
+          :disabled="!work"
+        >
+          <KunIcon name="lucide:split" class="size-4" />
+          拆分
+        </KunButton>
+        <KunButton
           :href="`/works/${id}/edit`"
           target="_blank"
           color="primary"

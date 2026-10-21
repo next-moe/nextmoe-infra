@@ -4,13 +4,15 @@ export const DISCUSSION_MAX_MENTIONS = 10
 export const DISCUSSION_ANCHOR_LABELS: Record<string, string> = {
   proposal: '提案',
   merge_request: '合并请求',
-  deletion_request: '删除请求'
+  deletion_request: '删除请求',
+  split_request: '拆分请求'
 }
 
 export const DISCUSSION_OWNER_LABELS: Record<string, string> = {
   proposal: '提案人',
   merge_request: '发起人',
-  deletion_request: '发起人'
+  deletion_request: '发起人',
+  split_request: '发起人'
 }
 
 type AnchorRoute = (id: string, viewerIsOwner: boolean) => string
@@ -18,6 +20,7 @@ type AnchorRoute = (id: string, viewerIsOwner: boolean) => string
 export const DISCUSSION_ANCHOR_ROUTES: Record<string, AnchorRoute> = {
   proposal: (id, owner) => (owner ? `/me/proposals/${id}` : `/review/${id}`),
   merge_request: (id) => `/merge/${id}`,
+  split_request: (id) => `/split/${id}`,
   deletion_request: (id, owner) =>
     owner
       ? `/me/deletion-requests?id=${id}`

@@ -69,6 +69,12 @@ export const EDITOR_NAV: EditorNavGroup[] = [
         ready: true
       },
       {
+        label: '拆分请求',
+        icon: 'lucide:split',
+        to: '/me/split-requests',
+        ready: true
+      },
+      {
         label: '删除请求',
         icon: 'lucide:trash',
         to: '/me/deletion-requests',
@@ -98,7 +104,7 @@ export const EDITOR_NAV: EditorNavGroup[] = [
         to: '/review/requests',
         ready: true,
         reviewerOnly: true
-      },
+      }
     ]
   },
   {

@@ -13,9 +13,38 @@ export interface TimelineStep {
 const time = (iso: string | null | undefined) =>
   iso ? new Date(iso).getTime() : null
 
-export const mergeTimeline = (
-  request: CatalogMergeRequest,
-  now: number
+export interface TimelineWording {
+  execute: string
+  executeDetail: string
+  done: string
+  undo: string
+  undoneDetail: string
+  undoWindowDetail: string
+}
+
+export const MERGE_WORDING: TimelineWording = {
+  execute: '执行合并',
+  executeDetail: '冷静期结束后自动执行，审核者也可以手动执行',
+  done: '已合并',
+  undo: '撤销合并',
+  undoneDetail: '审核者撤销了这次合并，被并入的条目已恢复',
+  undoWindowDetail: '期间审核者可以撤销，恢复原编号'
+}
+
+export type TimelineRequest = Pick<
+  CatalogMergeRequest,
+  | 'state'
+  | 'execute_after'
+  | 'undo_until'
+  | 'proposed_at'
+  | 'executed_at'
+  | 'undone_at'
+>
+
+export const requestTimeline = (
+  request: TimelineRequest,
+  now: number,
+  wording: TimelineWording
 ): TimelineStep[] => {
   const state = request.state
   const after = time(request.execute_after)
@@ -53,13 +82,13 @@ export const mergeTimeline = (
 
   const executed: TimelineStep = {
     key: 'executed',
-    label: '执行合并',
+    label: wording.execute,
     state: stopped ? 'stopped' : 'upcoming',
     at: request.executed_at ?? null,
-    detail: '冷静期结束后自动执行，审核者也可以手动执行'
+    detail: wording.executeDetail
   }
   if (ran) {
-    Object.assign(executed, { state: 'done', detail: '已合并' })
+    Object.assign(executed, { state: 'done', detail: wording.done })
   } else if (state === 'approved' && after !== null && after <= now) {
     Object.assign(executed, { state: 'current', detail: '等待执行' })
   }
@@ -79,10 +108,10 @@ export const mergeTimeline = (
   if (state === 'undone') {
     steps.push({
       key: 'undo',
-      label: '撤销合并',
+      label: wording.undo,
       state: 'stopped',
       at: request.undone_at ?? null,
-      detail: '审核者撤销了这次合并，被并入的条目已恢复'
+      detail: wording.undoneDetail
     })
   } else if (state === 'executed' && undoUntil !== null) {
     steps.push({
@@ -90,11 +119,16 @@ export const mergeTimeline = (
       label: '可撤销期',
       state: undoUntil > now ? 'current' : 'done',
       at: request.undo_until ?? null,
-      detail: undoUntil > now ? '期间审核者可以撤销，恢复原编号' : '撤销期已过'
+      detail: undoUntil > now ? wording.undoWindowDetail : '撤销期已过'
     })
   }
   return steps
 }
+
+export const mergeTimeline = (
+  request: CatalogMergeRequest,
+  now: number
+): TimelineStep[] => requestTimeline(request, now, MERGE_WORDING)
 
 export interface NoteEntry {
   kind:
