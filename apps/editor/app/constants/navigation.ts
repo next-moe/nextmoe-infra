@@ -87,9 +87,9 @@ export const EDITOR_NAV: EditorNavGroup[] = [
         reviewerOnly: true
       },
       {
-        label: '合并审核',
+        label: '请求审核',
         icon: 'lucide:git-merge',
-        to: '/review/merges',
+        to: '/review/requests',
         ready: true,
         reviewerOnly: true
       }

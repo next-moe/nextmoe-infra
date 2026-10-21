@@ -50,5 +50,6 @@ export const MERGE_STATE_LABELS: Record<string, string> = {
   approved: '已批准，冷却中',
   executed: '已合并',
   rejected: '已驳回',
-  withdrawn: '已撤回'
+  withdrawn: '已撤回',
+  undone: '已撤销'
 }

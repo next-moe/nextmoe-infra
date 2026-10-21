@@ -15,7 +15,7 @@ describe('current sidebar item', () => {
   })
 
   it('prefers the most specific item when two prefixes match', () => {
-    expect(currentNavPath('/review/merges', items)).toBe('/review/merges')
+    expect(currentNavPath('/review/requests', items)).toBe('/review/requests')
     expect(currentNavPath('/review/123', items)).toBe('/review')
   })
 

@@ -41,8 +41,6 @@ const { data: work, error } = useLazyAsyncData(
   { watch: [id] }
 )
 
-const mergeOpen = ref(false)
-
 useHead(() => ({
   title: work.value
     ? `${work.value.display_name} · 未萌编辑台`
@@ -70,10 +68,11 @@ useHead(() => ({
           新建发行
         </KunButton>
         <KunButton
+          :href="`/merge/new?object=work&source=${id}`"
+          target="_blank"
           variant="light"
           size="sm"
           :disabled="!work"
-          @click="mergeOpen = true"
         >
           <KunIcon name="lucide:git-merge" class="size-4" />
           合并
@@ -89,13 +88,6 @@ useHead(() => ({
         </KunButton>
       </div>
     </div>
-    <MergeRequestModal
-      v-if="work"
-      v-model="mergeOpen"
-      family="work"
-      :entity-id="String(id)"
-      :entity-name="work.display_name"
-    />
 
     <KunInfo
       v-if="error"
