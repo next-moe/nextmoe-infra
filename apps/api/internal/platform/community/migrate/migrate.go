@@ -35,6 +35,12 @@ func Run(db *gorm.DB) error {
 		&model.CommunityReviewItem{},
 		&model.CommunityPurgeArchive{},
 		&model.CommunityWriteRequest{},
+		// 2026-10-21: what retire-merged-comments did to each conversation on a
+		// merged-away work (moved, folded into the survivor's thread, retired),
+		// so an undone catalog merge can put it back. A new table with no rows:
+		// conversations the sweep moved before this have no record and stay
+		// where they are.
+		&model.CommunityRehomeLog{},
 		// 2026-09-25: how far this service has read the deleted-accounts list
 		// (oauth doc 17). A new table with no rows; the first run starts from
 		// the beginning of the list.

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	catmodel "api/internal/platform/catalog/model"
+	commodel "api/internal/platform/community/model"
 	comrepo "api/internal/platform/community/repository"
 
 	"gorm.io/gorm"
@@ -174,13 +175,31 @@ func strandedAmong(db *gorm.DB, site string, anchorKind int16, rows []stranded) 
 }
 
 // rehome moves each conversation to its survivor's page, one transaction per
-// thread so a failure leaves every other thread where it was.
-func rehome(db *gorm.DB, rows []stranded) (int, error) {
+// thread so a failure leaves every other thread where it was. Each move is
+// logged with the thread as it stood, so an undone merge can put it back.
+func rehome(db *gorm.DB, rows []stranded, anchorKind int16) (int, error) {
 	n := 0
 	for _, r := range rows {
 		err := db.Transaction(func(tx *gorm.DB) error {
-			_, err := comrepo.RehomeCommentsThreadTx(tx, r.ThreadID, r.SurvivorAnchor)
-			return err
+			state, err := captureState(tx, r.ThreadID)
+			if err != nil {
+				return err
+			}
+			var base int32
+			if err := tx.Raw(`SELECT COALESCE(max(highest_post_number), 0) FROM community_thread
+				WHERE site = ? AND anchor_kind = ? AND anchor_id = ? AND kind = ? AND status <> ?`,
+				r.Site, anchorKind, r.SurvivorAnchor, threadKindComments, threadStatusDeleted).Scan(&base).Error; err != nil {
+				return err
+			}
+			out, err := comrepo.RehomeCommentsThreadTx(tx, r.ThreadID, r.SurvivorAnchor)
+			if err != nil {
+				return err
+			}
+			if out.IntoThreadID == r.ThreadID {
+				return writeLog(tx, r, anchorKind, commodel.RehomeMoved, nil, 0, state)
+			}
+			into := out.IntoThreadID
+			return writeLog(tx, r, anchorKind, commodel.RehomeFolded, &into, base, state)
 		})
 		if err != nil {
 			return n, fmt.Errorf("thread %d -> %s: %w", r.ThreadID, r.SurvivorAnchor, err)
@@ -192,20 +211,26 @@ func rehome(db *gorm.DB, rows []stranded) (int, error) {
 
 // retire soft-deletes the threads. status 3 is the only value the partial
 // uniques exclude, so it can never break one, and the row keeps every post.
-func retire(db *gorm.DB, rows []stranded) (int64, error) {
+// Each retirement is logged so an undone merge can bring the thread back.
+func retire(db *gorm.DB, rows []stranded, anchorKind int16) (int64, error) {
 	var n int64
-	ids := make([]int64, 0, len(rows))
 	for _, r := range rows {
-		ids = append(ids, r.ThreadID)
-	}
-	for _, chunk := range chunkBy(ids, 500) {
-		res := db.Exec(`UPDATE community_thread SET status = ?, updated_at = now()
-		                 WHERE id IN ? AND status <> ?`,
-			threadStatusDeleted, chunk, threadStatusDeleted)
-		if res.Error != nil {
-			return n, res.Error
+		err := db.Transaction(func(tx *gorm.DB) error {
+			state, err := captureState(tx, r.ThreadID)
+			if err != nil {
+				return err
+			}
+			res := tx.Exec(`UPDATE community_thread SET status = ?, updated_at = now() WHERE id = ? AND status <> ?`,
+				threadStatusDeleted, r.ThreadID, threadStatusDeleted)
+			if res.Error != nil || res.RowsAffected == 0 {
+				return res.Error
+			}
+			n++
+			return writeLog(tx, r, anchorKind, commodel.RehomeRetired, nil, 0, state)
+		})
+		if err != nil {
+			return n, err
 		}
-		n += res.RowsAffected
 	}
 	return n, nil
 }
