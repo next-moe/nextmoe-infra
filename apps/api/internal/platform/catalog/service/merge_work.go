@@ -161,7 +161,8 @@ func workFacetStmts(p mergePlan) []mergeStmt {
 		// was repointed to dst; a duplicate was deleted because dst was already
 		// there), so recounting the dst holders repairs every drifted count.
 		{`UPDATE catalog_user_folder f
-		    SET item_count = (SELECT count(*) FROM catalog_user_folder_item i WHERE i.folder_id = f.id),
+		    SET item_count = (SELECT count(*) FROM catalog_user_folder_item i
+		                       WHERE i.folder_id = f.id AND ` + liveWorkCond("i.work_id") + `),
 		        updated_at = now()
 		    WHERE f.id IN (SELECT folder_id FROM catalog_user_folder_item WHERE work_id = ?)`, []any{dst}, false},
 		// Work states sync incrementally off updated_at like folder items, so

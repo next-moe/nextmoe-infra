@@ -42,7 +42,7 @@ NextMoe 资料库的唯一编辑入口。所有第一方站点的用户在这里
 - 标签的 `tier`/`sexual`、特质的 `sexual` 只有审核者可以提案。
 - 新建条目走同一套策略（字段键 `@create`）；标签、特质的新建只有审核者可以提案。
 - 策略可在运行时覆盖：表 `edit_policy_override`（按实体类型或单个字段），管理接口 `GET /api/v1/admin/catalog/edit-policy`、`PUT`/`DELETE .../edit-policy/overrides`、`GET .../edit-policy/audit`，需要 `edit.policy.manage`（admin、ren）。覆盖写入即生效，其他进程 30 秒内跟随。
-- 角色：`moderator`、`admin`、`ren` 具有全部编辑与审核权限；`creator` 的权限维持生产覆盖层现状；`editor`（编辑者）通过申请获得，提案免审直接生效（受每日额度限制），不能审核他人。合并请求的决定需要 `catalog.merge.review`（moderator、admin、ren）。
+- 角色：`moderator`、`admin`、`ren` 具有全部编辑与审核权限；`creator` 的权限维持生产覆盖层现状；`editor`（编辑者）通过申请获得，提案免审直接生效（受每日额度限制），不能审核他人。合并请求的决定需要 `catalog.merge.review`（moderator、admin、ren）；删除请求的决定需要 `catalog.delete.review`（同样默认 moderator、admin、ren）。
 
 ## 配额与配置键
 
@@ -60,6 +60,8 @@ NextMoe 资料库的唯一编辑入口。所有第一方站点的用户在这里
 | `catalog.open_proposals_max_reviewer` | 0 | 审核者（不限） |
 | `catalog.merge_requests_per_day` / `_editor` / `_reviewer` | 10 / 50 / 500 | 合并请求 |
 | `catalog.merge_cooling_off_hours` | 48 | 合并批准后的冷静期 |
+| `catalog.deletion_requests_per_day` / `_editor` / `_reviewer` | 5 / 20 / 200 | 删除请求 |
+| `catalog.deletion_cooling_off_hours` | 48 | 删除批准后的冷静期 |
 | `catalog.edit_merge_reward` | 1 | 提案被他人合并后给提案人发放的萌萌点（0 = 停发） |
 | `catalog.edit_merge_reward_window_days` | 7 | 编辑奖励任务每次回看的天数 |
 | `auth.sso_session_idle_days` | 30 | 账号中心会话闲置续期 |
@@ -69,6 +71,8 @@ NextMoe 资料库的唯一编辑入口。所有第一方站点的用户在这里
 
 定时任务 `catalog-merge-requests`（每小时）执行冷静期已过、由编辑台发起并已批准的合并请求；配置在 `jobs.catalog_merge_requests.*`。
 
+定时任务 `catalog-deletion-requests`（每小时，`jobs.catalog_deletion_requests.*`）执行冷静期已过、已批准的删除请求；作品在此期间已被合并或删除的，请求自动关闭。
+
 定时任务 `catalog-edit-rewards`（每 15 分钟，`jobs.catalog_edit_rewards.*`）给编辑奖励：回看 `catalog.edit_merge_reward_window_days` 天内合并、且合并人不是提案人的提案（不分来源站点与条目类型；自己合并、免审直编、回滚都不发），按 `catalog.edit_merge_reward` 给提案人记一笔 `content_approved`，来源 `nextmoe-editor`，幂等键 `catalog_edit_merged:<提案 id>`。论坛此前已用 `galgame_edit_merged:<提案 id>` 发过的跳过，不会重复发放。
 
 ## 可编辑范围
@@ -77,7 +81,8 @@ NextMoe 资料库的唯一编辑入口。所有第一方站点的用户在这里
 
 - 列表字段的上游行（各导入源写入的行）可以「隐藏」（`.suppressed` 伴随字段，行身份键见 `GET /v2/me/edit-context/{object}/{id}`），媒体行可以改分级；人工行写在 `source_id=12` 人工车道。
 - 新建：`POST /v2/me/creations`（角色、厂商、署名名、系列、引擎、人物〈从未归属的署名名〉、发行〈挂在已有作品下〉、标签、特质）；同名可疑重复时返回 409 `DUPLICATE_SUSPECTS`，确认后带 `confirm_duplicates=true` 重提。作品仍通过认领流程 `POST /v2/me/claims` 新建；注意：认领流程目前只建 galgame 媒介的作品，其他媒介的作品暂不能在编辑台新建。
-- 合并请求：`POST /v2/me/merge-requests`；审核者在 `/v2/moderation/merge-requests` 批准后进入冷静期，到期由定时任务或审核者执行；跨媒介的作品合并会被拒绝。拆分（unmerge）仍只有管理员可用。
+- 合并请求：`POST /v2/me/merge-requests`；审核者在 `/v2/moderation/merge-requests` 批准后进入冷静期，到期由定时任务或审核者执行；跨媒介的作品合并会被拒绝。
+- 删除请求（目前只限作品）：`POST /v2/me/deletion-requests`（原因 `not_a_work` / `out_of_scope` / `spam_or_test` / `other`；`duplicate` 返回 422，重复条目走合并），`GET /v2/me/deletion-preview` 预览影响；审核者在 `/v2/moderation/deletion-requests` 批准后进入冷静期，到期执行。删除是软删除：外部对应全部保留作墓碑（导入不会重建），条目上的评分、收藏、游玩时长与状态保留但不显示；`decision=restore` 用同一个 id 恢复，数据一并回来。已删除作品的读接口返回 410 `ENTITY_DELETED`（带原因与时间）。编辑台入口：作品详情页 ⋯ 菜单「删除」，审核在 `/review/deletions`。拆分（unmerge）仍只有管理员可用。
 
 ## 人工编辑不会被导入任务覆盖
 

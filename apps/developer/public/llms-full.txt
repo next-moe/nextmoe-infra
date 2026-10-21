@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-本文件内联全部 167 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
+本文件内联全部 174 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
 
 ## 给 AI 助手的指引
 
@@ -2833,7 +2833,7 @@ curl -i "https://api.nextmoe.dev/v2/sticker/works/61311/packs" \
 
 # Problem types
 
-## 错误码注册表（顶层 `code`，共 50 个）
+## 错误码注册表（顶层 `code`，共 51 个）
 
 `code` 是封闭注册表里的稳定标识；`errors[].reason` 是另一套互不重叠的字段级词表。认不得的 `code` 一律按 `status` 兜底——我们会往注册表里加新成员。
 
@@ -2875,6 +2875,7 @@ curl -i "https://api.nextmoe.dev/v2/sticker/works/61311/packs" \
 | code | HTTP | title | description |
 | --- | --- | --- | --- |
 | `ENTITY_MERGED` | 404 | Entity merged | The entity was merged into another. object and current_id are present, and Link rel=canonical is sent. |
+| `ENTITY_DELETED` | 410 | Entity deleted | The entity was deleted through a reviewed deletion request. object, deleted_reason and deleted_at are present. A reviewer may restore it under the same id, so treat it as hidden, not as never having existed. |
 | `PLAY_RECORDS_PRIVATE` | 403 | Play records private | The account keeps its play states and playtimes private. Only the account itself may read them, through its own user token. Its ratings stay public on /v2/ratings. |
 
 ### me
@@ -3442,7 +3443,7 @@ Closed · 12 tokens
 
 - 路径前缀：`/v2`
 - 凭据：Authorization: Bearer nmk_live_…（v2 应用密钥,门户自助铸造,无需申请）
-- 端点数：153
+- 端点数：160
 
 > 正式公开：形状按 additive-only 演进，删除与改名由 CI 的 oasdiff 门拦下。第三方在门户自助铸 nmk_ 密钥即可调用，不需要申请。
 
@@ -5496,6 +5497,105 @@ curl -X POST "https://api.nextmoe.dev/v2/me/creations" \
   -d '{"object":"company"}'
 ```
 
+### GET /v2/me/deletion-preview
+
+Preview what a deletion affects
+
+What deleting the entry would touch: its links to source entries, releases, user records that would be hidden, open edit proposals that would be declined, the claiming site, and any pending request. Also answers for an entry that is already deleted. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `object` | query | 否 | string | Family of the entry. 取值：work |
+| `target_id` | query | 否 | string | The entry. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/me/deletion-preview" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### GET /v2/me/deletion-requests
+
+List my deletion requests
+
+The bearer's own deletion requests, newest first; follow next_cursor for more. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `state` | query | 否 | string | Narrow to one state. 取值：open \| approved \| executed \| rejected \| withdrawn \| restored |
+| `target_id` | query | 否 | string | Narrow to requests about one work. |
+| `cursor` | query | 否 | string | Opaque keyset cursor from next_cursor. |
+| `limit` | query | 否 | integer (int64) | Page size, 1-100. Default 20. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/me/deletion-requests" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### POST /v2/me/deletion-requests
+
+Request a deletion
+
+Asks reviewers to delete a catalog entry; only works can be deleted today. Nothing is deleted on filing: a reviewer approves, the cooling-off runs, then the entry is soft-deleted. Its links to source entries stay as a tombstone so the importers do not create it again, and user records on it are kept but hidden until a reviewer restores it under the same id. A duplicate is refused 422: merge it with /v2/me/merge-requests instead. One open or approved request per entry; another is 409. Quotas are tiered: catalog.deletion_requests_per_day, _editor, _reviewer inside catalog.write_quota_window_hours; past it 429 QUOTA_EXCEEDED. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
+
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `note` | 是 | string | Evidence reviewers can check. Must not be used as a discriminant. |
+| `object` | 是 | string | Family of the entry. Only works can be deleted today. 取值：work |
+| `reason` | 是 | string | Why it should go. duplicate is refused 422: a duplicate is merged into the entry it duplicates through /v2/me/merge-requests. 取值：not_a_work \| out_of_scope \| spam_or_test \| other \| duplicate |
+| `target_id` | 是 | string | The entry to delete. |
+
+```bash
+curl -X POST "https://api.nextmoe.dev/v2/me/deletion-requests" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"note":"string","object":"work","reason":"not_a_work","target_id":"1"}'
+```
+
+### PATCH /v2/me/deletion-requests/{id}
+
+Withdraw a deletion request
+
+Withdraws an open request the bearer filed. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `id` | path | 是 | string | Deletion request id. |
+
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `state` | 是 | string | Set withdrawn to withdraw an open request you filed. 取值：withdrawn |
+
+```bash
+curl -X PATCH "https://api.nextmoe.dev/v2/me/deletion-requests/1" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"state":"withdrawn"}'
+```
+
 ### GET /v2/me/edit-bundle/{object}/{id}
 
 Everything an editor needs to open one entity
@@ -6894,6 +6994,76 @@ decision=approve|decline|ban|unban. unban restores the state the claim was hidde
 
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/moderation/claims/1/decisions" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"decision":"approve"}'
+```
+
+### GET /v2/moderation/deletion-requests
+
+Deletion request queue
+
+Deletion requests, newest first; follow next_cursor for more. Requires the catalog.delete.review permission. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `state` | query | 否 | string | Narrow to one state. 取值：open \| approved \| executed \| rejected \| withdrawn \| restored |
+| `target_id` | query | 否 | string | Narrow to requests about one work. |
+| `cursor` | query | 否 | string | Opaque keyset cursor from next_cursor. |
+| `limit` | query | 否 | integer (int64) | Page size, 1-100. Default 20. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/moderation/deletion-requests" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### GET /v2/moderation/deletion-requests/{id}
+
+Get one deletion request
+
+Requires the catalog.delete.review permission. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `id` | path | 是 | string | Deletion request id. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/moderation/deletion-requests/1" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### POST /v2/moderation/deletion-requests/{id}/decisions
+
+Decide a deletion request
+
+decision=approve|reject|execute|restore. Requires the catalog.delete.review permission. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `id` | path | 是 | string | Deletion request id. |
+| `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
+
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `decision` | 是 | string | approve starts the cooling-off (catalog.deletion_cooling_off_hours) after which the catalog-deletion-requests job deletes the entry; reject closes it; execute runs an approved request whose cooling-off has ended without waiting for the job; restore brings an executed deletion back under the same id. 取值：approve \| reject \| execute \| restore |
+| `reason` | 否 | string | Required to reject; an optional note to restore. Must not be used as a discriminant. |
+
+```bash
+curl -X POST "https://api.nextmoe.dev/v2/moderation/deletion-requests/1/decisions" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{"decision":"approve"}'

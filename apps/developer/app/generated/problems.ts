@@ -263,6 +263,15 @@ export const problems = [
     "type": "https://developer.nextmoe.dev/problems/catalog/entity-merged"
   },
   {
+    "code": "ENTITY_DELETED",
+    "domain": "catalog",
+    "kebab": "entity-deleted",
+    "status": 410,
+    "title": "Entity deleted",
+    "description": "The entity was deleted through a reviewed deletion request. object, deleted_reason and deleted_at are present. A reviewer may restore it under the same id, so treat it as hidden, not as never having existed.",
+    "type": "https://developer.nextmoe.dev/problems/catalog/entity-deleted"
+  },
+  {
     "code": "PLAY_RECORDS_PRIVATE",
     "domain": "catalog",
     "kebab": "play-records-private",

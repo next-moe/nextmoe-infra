@@ -68,6 +68,12 @@ func RegisterAll(r *Registry) {
 	})
 
 	r.Register(Job{
+		Name: JobCatalogDeletionRequests,
+		Desc: "catalog 删除请求执行（编辑台提交、已批准且冷静期已过的删除：软删除并保留全部外部锚作墓碑）",
+		Run:  RunCatalogDeletionRequests,
+	})
+
+	r.Register(Job{
 		Name: JobCatalogEditRewards,
 		Desc: "编辑奖励（他人合并的编辑提案按 catalog.edit_merge_reward 给提案人发萌萌点，按提案幂等）",
 		Run:  RunCatalogEditRewards,

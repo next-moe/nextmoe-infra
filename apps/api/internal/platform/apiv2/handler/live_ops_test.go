@@ -54,6 +54,8 @@ var liveReadPaths = []string{
 	"/v2/me/edit-capabilities/{object}",
 	"/v2/me/edit-quota",
 	"/v2/me/merge-requests",
+	"/v2/me/deletion-requests",
+	"/v2/me/deletion-preview",
 	"/v2/me/edit-context/{object}/{id}",
 	"/v2/me/edit-bundle/{object}/{id}",
 	"/v2/catalog/names",
@@ -135,6 +137,7 @@ var liveReadPaths = []string{
 	"/v2/moderation/claims",
 	"/v2/moderation/claims/{id}",
 	"/v2/moderation/merge-requests",
+	"/v2/moderation/deletion-requests",
 	"/v2/moderation/proposals",
 	"/v2/moderation/snapshots/{object}/{id}",
 	"/v2/moderation/users/{uid}/folders",
@@ -149,6 +152,7 @@ var liveReadsNotSwept = map[string]string{
 	"/v2/me/proposals/{id}":                  "same: no proposal id to address",
 	"/v2/moderation/proposals/{id}":          "same: no proposal id to address",
 	"/v2/moderation/merge-requests/{id}":     "no merge request survives seedLiveFixtures; TestMergeRequestLifecycle files the only one",
+	"/v2/moderation/deletion-requests/{id}":  "no deletion request survives seedLiveFixtures; TestLiveDeletionRequestLifecycle files the only ones",
 	"/v2/me/playtimes/{work_id}":             "404 until a playtime is written, which is TestLiveWrites200's job",
 	"/v2/me/work-states/{work_id}":           "404 until a state is written, which is TestLiveWorkStateLifecycle's job",
 	"/v2/me/followed-companies/{company_id}": "404 until a follow is written, which is TestLiveCompanyFollowLifecycle's job",
@@ -174,6 +178,7 @@ var liveReadRequiredQuery = map[string]func(fx liveFix) string{
 	"/v2/work-records":          func(liveFix) string { return "?user_id=" + idstr(liveUID) },
 	"/v2/catalog/tag-exclusion": func(fx liveFix) string { return "?exclude_tag_tree=" + idstr(fx.Tag) },
 	"/v2/catalog/names":         func(fx liveFix) string { return "?keys=work:" + idstr(fx.Work) + ",tag:" + idstr(fx.Tag) },
+	"/v2/me/deletion-preview":   func(fx liveFix) string { return "?object=work&target_id=" + idstr(fx.Work) },
 }
 
 func liveReadURL(t *testing.T, tmpl string, fx liveFix) string {

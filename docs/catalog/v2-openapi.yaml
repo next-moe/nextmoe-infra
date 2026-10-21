@@ -1508,6 +1508,48 @@ components:
       required:
         - object
       type: object
+    CreateDeletionRequestInputBody:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/CreateDeletionRequestInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        note:
+          description: Evidence reviewers can check. Must not be used as a discriminant.
+          maxLength: 2000
+          minLength: 4
+          type: string
+        object:
+          description: Family of the entry. Only works can be deleted today.
+          enum:
+            - work
+          type: string
+          x-vocabulary-closed: true
+        reason:
+          description: "Why it should go. duplicate is refused 422: a duplicate is merged into the entry it duplicates through /v2/me/merge-requests."
+          enum:
+            - not_a_work
+            - out_of_scope
+            - spam_or_test
+            - other
+            - duplicate
+          type: string
+          x-vocabulary-closed: true
+        target_id:
+          description: The entry to delete.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+      required:
+        - object
+        - target_id
+        - reason
+        - note
+      type: object
     CreateFolderInputBody:
       additionalProperties: true
       properties:
@@ -1913,6 +1955,32 @@ components:
       required:
         - decision
       type: object
+    DecideDeletionRequestInputBody:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/DecideDeletionRequestInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        decision:
+          description: approve starts the cooling-off (catalog.deletion_cooling_off_hours) after which the catalog-deletion-requests job deletes the entry; reject closes it; execute runs an approved request whose cooling-off has ended without waiting for the job; restore brings an executed deletion back under the same id.
+          enum:
+            - approve
+            - reject
+            - execute
+            - restore
+          type: string
+          x-vocabulary-closed: true
+        reason:
+          description: Required to reject; an optional note to restore. Must not be used as a discriminant.
+          maxLength: 2000
+          type: string
+      required:
+        - decision
+      type: object
     DecideMergeRequestInputBody:
       additionalProperties: true
       properties:
@@ -1961,6 +2029,308 @@ components:
           type: string
       required:
         - decision
+      type: object
+    DeletionAnchor:
+      additionalProperties: true
+      properties:
+        external_id:
+          description: The entry's id at that source.
+          maxLength: 256
+          type: string
+        kind:
+          description: identity and probable links keep the importers from creating the work again while it is deleted; related links are ordinary links.
+          enum:
+            - identity
+            - probable
+            - related
+          type: string
+          x-vocabulary-closed: true
+        source:
+          description: Source key, e.g. vndb, bangumi, erogamescape.
+          maxLength: 32
+          type: string
+          x-vocabulary: sources
+          x-vocabulary-closed: false
+      required:
+        - source
+        - external_id
+        - kind
+      type: object
+    DeletionPreview:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/DeletionPreview.json
+          format: uri
+          readOnly: true
+          type: string
+        anchors:
+          description: Links to source entries the work holds.
+          items:
+            $ref: "#/components/schemas/DeletionAnchor"
+          type: array
+        claim_site:
+          description: Site that claimed the work. null when unclaimed.
+          maxLength: 32
+          type:
+            - string
+            - "null"
+        deleted:
+          description: true when the entry is already deleted.
+          type: boolean
+        display_name:
+          description: The entry's display name. Must not be used as a discriminant.
+          maxLength: 512
+          type: string
+        merged_into_id:
+          description: Set when the entry was merged into another; it cannot be deleted then.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type:
+            - string
+            - "null"
+        object:
+          description: Type discriminant. Always deletion_preview.
+          enum:
+            - deletion_preview
+          type: string
+          x-vocabulary-closed: true
+        open_proposals:
+          description: Open edit proposals on the work. A deletion declines them.
+          format: int64
+          minimum: 0
+          type: integer
+        pending_request_id:
+          description: An open or approved deletion request on the entry. null when none.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type:
+            - string
+            - "null"
+        releases:
+          description: Releases of the work.
+          format: int64
+          minimum: 0
+          type: integer
+        target_id:
+          description: The entry.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+        target_object:
+          description: Family of the entry.
+          enum:
+            - work
+          type: string
+          x-vocabulary-closed: true
+        user_data:
+          $ref: "#/components/schemas/DeletionUserData"
+          description: User records keyed to the work.
+      required:
+        - object
+        - target_object
+        - target_id
+        - display_name
+        - deleted
+        - merged_into_id
+        - anchors
+        - releases
+        - user_data
+        - open_proposals
+        - claim_site
+        - pending_request_id
+      type: object
+    DeletionRequestRecord:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/DeletionRequestRecord.json
+          format: uri
+          readOnly: true
+          type: string
+        decided_at:
+          description: RFC 3339 UTC. null before a decision.
+          format: date-time
+          maxLength: 32
+          type:
+            - string
+            - "null"
+        decided_by:
+          anyOf:
+            - $ref: "#/components/schemas/UserRef"
+            - type: "null"
+          description: Account behind decided_by_uid.
+        decided_by_uid:
+          description: Central account id of the reviewer who approved or rejected it. null before a decision and when the request closed by itself.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type:
+            - string
+            - "null"
+        decision_note:
+          description: The reviewer's reason for a rejection, or why the request closed by itself. Empty otherwise. Must not be used as a discriminant.
+          maxLength: 2000
+          type: string
+        execute_after:
+          description: End of the cooling-off once approved. null before approval.
+          format: date-time
+          maxLength: 32
+          type:
+            - string
+            - "null"
+        executed_at:
+          description: RFC 3339 UTC. null until executed.
+          format: date-time
+          maxLength: 32
+          type:
+            - string
+            - "null"
+        id:
+          description: Deletion request id.
+          maxLength: 20
+          minLength: 1
+          pattern: ^[0-9]+$
+          type: string
+        note:
+          description: The requester's explanation. Must not be used as a discriminant.
+          maxLength: 2000
+          type: string
+        object:
+          description: Type discriminant. Always deletion_request.
+          enum:
+            - deletion_request
+          type: string
+          x-vocabulary-closed: true
+        origin_site:
+          description: Site the requester came from. null when not recorded. Must not be used as a discriminant.
+          maxLength: 32
+          type:
+            - string
+            - "null"
+        proposed_at:
+          description: RFC 3339 UTC.
+          format: date-time
+          maxLength: 32
+          type: string
+        proposed_by:
+          anyOf:
+            - $ref: "#/components/schemas/UserRef"
+            - type: "null"
+          description: Account behind proposed_by_uid. null only when the account directory could not be read.
+        proposed_by_uid:
+          description: Central account id of the requester.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+        reason:
+          description: "not_a_work: no such work exists; out_of_scope: it exists but the catalog does not collect it; spam_or_test: vandalism or a test entry; other: see note. A duplicate is merged, not deleted."
+          enum:
+            - not_a_work
+            - out_of_scope
+            - spam_or_test
+            - other
+          type: string
+          x-vocabulary-closed: true
+        restore_note:
+          description: The reviewer's note when restoring. Empty otherwise. Must not be used as a discriminant.
+          maxLength: 2000
+          type: string
+        restored_at:
+          description: RFC 3339 UTC. null unless restored.
+          format: date-time
+          maxLength: 32
+          type:
+            - string
+            - "null"
+        restored_by:
+          anyOf:
+            - $ref: "#/components/schemas/UserRef"
+            - type: "null"
+          description: Account behind restored_by_uid.
+        restored_by_uid:
+          description: Central account id of the reviewer who restored the entry. null unless restored.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type:
+            - string
+            - "null"
+        state:
+          description: open awaits a reviewer; approved waits out the cooling-off (catalog.deletion_cooling_off_hours), after which the deletion runs; executed means the entry is deleted; restored means a reviewer brought it back under the same id.
+          enum:
+            - open
+            - approved
+            - executed
+            - rejected
+            - withdrawn
+            - restored
+          type: string
+          x-vocabulary-closed: true
+        target_id:
+          description: The entry to delete.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+        target_object:
+          description: Family of the entry. Only works can be deleted today.
+          enum:
+            - work
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - id
+        - state
+        - target_object
+        - target_id
+        - reason
+        - note
+        - decision_note
+        - restore_note
+        - proposed_by_uid
+        - proposed_by
+        - decided_by_uid
+        - decided_by
+        - restored_by_uid
+        - restored_by
+        - origin_site
+        - proposed_at
+        - decided_at
+        - execute_after
+        - executed_at
+        - restored_at
+      type: object
+    DeletionUserData:
+      additionalProperties: true
+      properties:
+        folder_items:
+          description: Folder memberships of the work. Kept but hidden while it is deleted.
+          format: int64
+          minimum: 0
+          type: integer
+        playtimes:
+          description: Playtime reports on the work. Kept but hidden while it is deleted.
+          format: int64
+          minimum: 0
+          type: integer
+        ratings:
+          description: Ratings on the work. Kept but hidden while it is deleted.
+          format: int64
+          minimum: 0
+          type: integer
+        work_states:
+          description: Play states on the work. Kept but hidden while it is deleted.
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - ratings
+        - folder_items
+        - playtimes
+        - work_states
       type: object
     EditBundle:
       additionalProperties: true
@@ -3445,6 +3815,62 @@ components:
           description: Members of this page. Empty array, never null.
           items:
             $ref: "#/components/schemas/CreditName"
+          type: array
+        missing:
+          description: ids requested but not visible. Present only on the ids=/refs= batch lane.
+          items:
+            type: string
+          type: array
+        next_cursor:
+          description: Opaque keyset cursor. Omitted on the last page.
+          maxLength: 512
+          pattern: ^cur_[A-Za-z0-9._~-]+$
+          type: string
+        object:
+          description: Type discriminant. Always list.
+          enum:
+            - list
+          type: string
+          x-vocabulary-closed: true
+        total:
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+          format: int64
+          minimum: 0
+          type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - items
+      type: object
+    ListDeletionRequestRecord:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ListDeletionRequestRecord.json
+          format: uri
+          readOnly: true
+          type: string
+        facets:
+          additionalProperties:
+            items:
+              $ref: "#/components/schemas/FacetValue"
+            type:
+              - array
+              - "null"
+          description: Named facet buckets. Present only when facets= is requested.
+          type: object
+        items:
+          description: Members of this page. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/DeletionRequestRecord"
           type: array
         missing:
           description: ids requested but not visible. Present only on the ids=/refs= batch lane.
@@ -6584,6 +7010,25 @@ components:
       required:
         - state
       type: object
+    PatchDeletionRequestInputBody:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/PatchDeletionRequestInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        state:
+          description: Set withdrawn to withdraw an open request you filed.
+          enum:
+            - withdrawn
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - state
+      type: object
     PatchFolderInputBody:
       additionalProperties: true
       properties:
@@ -7004,6 +7449,20 @@ components:
           maxLength: 20
           pattern: ^[0-9]+$
           type: string
+        deleted_at:
+          description: When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.
+          format: date-time
+          maxLength: 32
+          type: string
+        deleted_reason:
+          description: Why the entity was deleted, when code is ENTITY_DELETED.
+          enum:
+            - not_a_work
+            - out_of_scope
+            - spam_or_test
+            - other
+          type: string
+          x-vocabulary-closed: true
         detail:
           description: English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.
           maxLength: 2048
@@ -7019,7 +7478,7 @@ components:
           pattern: ^(/.*)?$
           type: string
         object:
-          description: Entity family when code is ENTITY_MERGED.
+          description: Entity family when code is ENTITY_MERGED or ENTITY_DELETED.
           maxLength: 32
           pattern: ^[a-z][a-z0-9_]*$
           type: string
@@ -19220,6 +19679,384 @@ paths:
       summary: Propose a new entry
       tags:
         - me
+  /v2/me/deletion-preview:
+    get:
+      description: "What deleting the entry would touch: its links to source entries, releases, user records that would be hidden, open edit proposals that would be declined, the claiming site, and any pending request. Also answers for an entry that is already deleted. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope."
+      operationId: getMyDeletionPreview
+      parameters:
+        - description: Family of the entry.
+          explode: false
+          in: query
+          name: object
+          schema:
+            description: Family of the entry.
+            enum:
+              - work
+            type: string
+            x-vocabulary-closed: true
+        - description: The entry.
+          explode: false
+          in: query
+          name: target_id
+          schema:
+            description: The entry.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeletionPreview"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Preview what a deletion affects
+      tags:
+        - me
+  /v2/me/deletion-requests:
+    get:
+      description: The bearer's own deletion requests, newest first; follow next_cursor for more. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+      operationId: listMyDeletionRequests
+      parameters:
+        - description: Narrow to one state.
+          explode: false
+          in: query
+          name: state
+          schema:
+            description: Narrow to one state.
+            enum:
+              - open
+              - approved
+              - executed
+              - rejected
+              - withdrawn
+              - restored
+            type: string
+            x-vocabulary-closed: true
+        - description: Narrow to requests about one work.
+          explode: false
+          in: query
+          name: target_id
+          schema:
+            description: Narrow to requests about one work.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+        - description: Opaque keyset cursor from next_cursor.
+          explode: false
+          in: query
+          name: cursor
+          schema:
+            description: Opaque keyset cursor from next_cursor.
+            maxLength: 32
+            pattern: ^cur_[0-9]+$
+            type: string
+        - description: Page size, 1-100. Default 20.
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: Page size, 1-100. Default 20.
+            format: int64
+            maximum: 100
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListDeletionRequestRecord"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: List my deletion requests
+      tags:
+        - me
+    post:
+      description: "Asks reviewers to delete a catalog entry; only works can be deleted today. Nothing is deleted on filing: a reviewer approves, the cooling-off runs, then the entry is soft-deleted. Its links to source entries stay as a tombstone so the importers do not create it again, and user records on it are kept but hidden until a reviewer restores it under the same id. A duplicate is refused 422: merge it with /v2/me/merge-requests instead. One open or approved request per entry; another is 409. Quotas are tiered: catalog.deletion_requests_per_day, _editor, _reviewer inside catalog.write_quota_window_hours; past it 429 QUOTA_EXCEEDED. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope."
+      operationId: createMyDeletionRequest
+      parameters:
+        - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDeletionRequestInputBody"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeletionRequestRecord"
+          description: Created
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Request a deletion
+      tags:
+        - me
+  /v2/me/deletion-requests/{id}:
+    patch:
+      description: Withdraws an open request the bearer filed. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+      operationId: patchMyDeletionRequest
+      parameters:
+        - description: Deletion request id.
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Deletion request id.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchDeletionRequestInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeletionRequestRecord"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Withdraw a deletion request
+      tags:
+        - me
   /v2/me/edit-bundle/{object}/{id}:
     get:
       description: "One read for an editing screen: the family schema, the entity's snapshot, the bearer's capabilities on it, its edit context and the bearer's quota — each member the exact body its own face answers, so a client swaps five calls for one. The schema and the snapshot decide the answer: an unknown family or entity is 404 as on GET /v2/moderation/snapshots/{object}/{id}. capabilities, context and quota are left out when their own face would have answered an error. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope."
@@ -24834,6 +25671,298 @@ paths:
       security:
         - userToken: []
       summary: Decide a claim
+      tags:
+        - moderation
+  /v2/moderation/deletion-requests:
+    get:
+      description: Deletion requests, newest first; follow next_cursor for more. Requires the catalog.delete.review permission. The token must carry the catalog:edit scope.
+      operationId: listModerationDeletionRequests
+      parameters:
+        - description: Narrow to one state.
+          explode: false
+          in: query
+          name: state
+          schema:
+            description: Narrow to one state.
+            enum:
+              - open
+              - approved
+              - executed
+              - rejected
+              - withdrawn
+              - restored
+            type: string
+            x-vocabulary-closed: true
+        - description: Narrow to requests about one work.
+          explode: false
+          in: query
+          name: target_id
+          schema:
+            description: Narrow to requests about one work.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+        - description: Opaque keyset cursor from next_cursor.
+          explode: false
+          in: query
+          name: cursor
+          schema:
+            description: Opaque keyset cursor from next_cursor.
+            maxLength: 32
+            pattern: ^cur_[0-9]+$
+            type: string
+        - description: Page size, 1-100. Default 20.
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: Page size, 1-100. Default 20.
+            format: int64
+            maximum: 100
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListDeletionRequestRecord"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Deletion request queue
+      tags:
+        - moderation
+  /v2/moderation/deletion-requests/{id}:
+    get:
+      description: Requires the catalog.delete.review permission. The token must carry the catalog:edit scope.
+      operationId: getModerationDeletionRequest
+      parameters:
+        - description: Deletion request id.
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Deletion request id.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeletionRequestRecord"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Get one deletion request
+      tags:
+        - moderation
+  /v2/moderation/deletion-requests/{id}/decisions:
+    post:
+      description: decision=approve|reject|execute|restore. Requires the catalog.delete.review permission. The token must carry the catalog:edit scope.
+      operationId: decideModerationDeletionRequest
+      parameters:
+        - description: Deletion request id.
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Deletion request id.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+        - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DecideDeletionRequestInputBody"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeletionRequestRecord"
+          description: Created
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Decide a deletion request
       tags:
         - moderation
   /v2/moderation/folders/{id}:

@@ -9,7 +9,6 @@ import (
 	"api/internal/platform/apiv2/problem"
 	"api/internal/platform/apiv2/protocol"
 	"api/internal/platform/apiv2/repr"
-	catmodel "api/internal/platform/catalog/model"
 	catsearch "api/internal/platform/catalog/search"
 	catsvc "api/internal/platform/catalog/service"
 	"api/internal/platform/editing"
@@ -40,6 +39,7 @@ type Catalog struct {
 	EditHistory    *catsvc.EditHistoryService
 	EditContext    *catsvc.EditContextService
 	Merges         *catsvc.MergeService
+	Deletions      *catsvc.DeletionService
 	UsersOf        UsersOf
 	Uploads        EditImageUpload
 	NewsImages     NewsImageStore
@@ -109,7 +109,7 @@ func (c *Catalog) GetWork(ctx context.Context, id int64, nsfw bool, spoiler int1
 	if found {
 		return workFromDetail(rec, include, c.imageURL), nil
 	}
-	return repr.Work{}, c.mergedOrNotFound(ctx, catmodel.EntityTypeWork, "work", id)
+	return repr.Work{}, c.missingWork(ctx, id)
 }
 
 func workDetailSel(include []string) catsvc.PublicFields {

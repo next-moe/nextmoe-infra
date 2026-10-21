@@ -100,6 +100,9 @@ func unanchored(snap snapshot) []game {
 		if _, retired := snap.exactAnywhere[g.ID]; retired {
 			continue
 		}
+		if _, retired := snap.heldByDeleted[g.ID]; retired {
+			continue
+		}
 		if len(snap.holdings[g.ID]) == 0 {
 			out = append(out, g)
 		}

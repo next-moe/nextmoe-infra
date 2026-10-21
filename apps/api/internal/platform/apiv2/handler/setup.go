@@ -118,6 +118,7 @@ func SetupWith(app *fiber.App, opt Options) huma.API {
 	registerMeEditBundle(api, opt.Catalog)
 	registerMeCreations(api, opt.Catalog)
 	registerMergeRequests(api, opt.Catalog)
+	registerDeletionRequests(api, opt.Catalog)
 	registerFolderHoldings(api, opt.Catalog)
 	registerMeWorks(api, opt.Catalog)
 	registerMeFolders(api, opt.Catalog)

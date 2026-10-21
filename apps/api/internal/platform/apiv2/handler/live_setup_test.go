@@ -259,6 +259,7 @@ func liveCatalog(t *testing.T) *liveEnv {
 		cat.EditHistory = catsvc.NewEditHistoryService(db)
 		cat.EditContext = catsvc.NewEditContextService(db)
 		cat.Merges = catsvc.NewMergeService(db, resolve)
+		cat.Deletions = catsvc.NewDeletionService(db, resolve)
 		cat.UsersOf = liveUsersOf
 		app := fiber.New(fiber.Config{ErrorHandler: problem.WriteFiberError})
 		SetupWith(app, Options{

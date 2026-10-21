@@ -907,7 +907,7 @@ export const searchIndex: SearchEntry[] = [
     "r": "/docs/v2",
     "t": "Public API v2",
     "s": "端点参考",
-    "d": "/v2 · 153 个端点",
+    "d": "/v2 · 160 个端点",
     "b": "v2 /v2 API v2 Public API v2"
   },
   {
@@ -1478,6 +1478,34 @@ export const searchIndex: SearchEntry[] = [
     "b": "createMyCreation /v2/me/creations post Propose a new entry Files a proposal that creates a new entry of one family. It is reviewed like any proposal (it appears in GET /v2/moderation/proposals with entity_id 0 and a creation block) unless the create policy lets the bearer apply it at once; once merged, entity_id is the new entry's id. Entries whose normalized name already exists are refused with 409 DUPLICATE_SUSPECTS unless confirm_duplicates=true. Counts against the same proposal quota as POST /v2/me/proposals. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 提交一条新建某家族条目的提案。它像其他提案一样接受审核（在 GET /v2/moderation/proposals 中以 entity_id 0 和 creation 块出现），除非创建策略允许调用者直接生效；合并后 entity_id 即为新条目的 id。规范化名称已存在的条目会以 409 DUPLICATE_SUSPECTS 拒绝，除非 confirm_duplicates=true。与 POST /v2/me/proposals 共用同一提案配额。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 Idempotency-Key"
   },
   {
+    "r": "/docs/v2/getMyDeletionPreview",
+    "t": "预览删除会影响什么",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/deletion-preview",
+    "b": "getMyDeletionPreview /v2/me/deletion-preview get Preview what a deletion affects What deleting the entry would touch: its links to source entries, releases, user records that would be hidden, open edit proposals that would be declined, the claiming site, and any pending request. Also answers for an entry that is already deleted. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope. 删除这个条目会牵涉到什么：它与资料源条目的对应、发行、将被隐藏的用户记录、将被驳回的待审编辑提案、认领它的站点，以及进行中的删除请求。对已删除的条目同样可用。需要绑定第一方 catalog 站点的用户访问令牌，令牌须带 catalog:edit scope。 object target_id"
+  },
+  {
+    "r": "/docs/v2/listMyDeletionRequests",
+    "t": "列出我的删除请求",
+    "s": "端点 · 我的",
+    "d": "GET /v2/me/deletion-requests",
+    "b": "listMyDeletionRequests /v2/me/deletion-requests get List my deletion requests The bearer's own deletion requests, newest first; follow next_cursor for more. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope. 令牌持有者自己提交的删除请求，最新的在前；跟随 next_cursor 取更多。需要绑定第一方 catalog 站点的用户访问令牌，令牌须带 catalog:edit scope。 state target_id cursor limit"
+  },
+  {
+    "r": "/docs/v2/createMyDeletionRequest",
+    "t": "提交删除请求",
+    "s": "端点 · 我的",
+    "d": "POST /v2/me/deletion-requests",
+    "b": "createMyDeletionRequest /v2/me/deletion-requests post Request a deletion Asks reviewers to delete a catalog entry; only works can be deleted today. Nothing is deleted on filing: a reviewer approves, the cooling-off runs, then the entry is soft-deleted. Its links to source entries stay as a tombstone so the importers do not create it again, and user records on it are kept but hidden until a reviewer restores it under the same id. A duplicate is refused 422: merge it with /v2/me/merge-requests instead. One open or approved request per entry; another is 409. Quotas are tiered: catalog.deletion_requests_per_day, _editor, _reviewer inside catalog.write_quota_window_hours; past it 429 QUOTA_EXCEEDED. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope. 请审核者删除一个 catalog 条目；目前只能删除作品。提交时什么都不会删除：审核者批准、冷静期结束后，条目才会被软删除。它与资料源条目的对应会作为墓碑保留，导入任务不会再建出它；条目上的用户记录保留但不显示，直到审核者用同一个 id 恢复它。重复条目会被拒绝（422），请改用 /v2/me/merge-requests 合并。每个条目同时只能有一个待审或已批准的请求，再提交返回 409。额度分档：catalog.deletion_requests_per_day、_editor、_reviewer，统计窗口为 catalog.write_quota_window_hours；超出返回 429 QUOTA_EXCEEDED。需要绑定第一方 catalog 站点的用户访问令牌，令牌须带 catalog:edit scope。 Idempotency-Key"
+  },
+  {
+    "r": "/docs/v2/patchMyDeletionRequest",
+    "t": "撤回删除请求",
+    "s": "端点 · 我的",
+    "d": "PATCH /v2/me/deletion-requests/{id}",
+    "b": "patchMyDeletionRequest /v2/me/deletion-requests/{id} patch Withdraw a deletion request Withdraws an open request the bearer filed. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope. 撤回令牌持有者提交的、仍待审的请求。需要绑定第一方 catalog 站点的用户访问令牌，令牌须带 catalog:edit scope。 id"
+  },
+  {
     "r": "/docs/v2/getMyEditBundle",
     "t": "编辑器打开一个条目所需的全部数据",
     "s": "端点 · 我的",
@@ -1861,6 +1889,27 @@ export const searchIndex: SearchEntry[] = [
     "s": "端点 · 审核",
     "d": "POST /v2/moderation/claims/{id}/decisions",
     "b": "decideModerationClaim /v2/moderation/claims/{id}/decisions post Decide a claim decision=approve|decline|ban|unban. unban restores the state the claim was hidden from. If-Match required, and the ETag comes from GET /v2/moderation/claims/{id}. Requires the catalog.claim.review permission. The token must carry the catalog:edit scope. decision=approve|decline|ban|unban。unban 恢复该认领被隐藏前所处的状态。需要 If-Match，ETag 来自 GET /v2/moderation/claims/{id}。需要 catalog.claim.review 权限。令牌须带 catalog:edit scope。 id If-Match Idempotency-Key"
+  },
+  {
+    "r": "/docs/v2/listModerationDeletionRequests",
+    "t": "删除请求队列",
+    "s": "端点 · 审核",
+    "d": "GET /v2/moderation/deletion-requests",
+    "b": "listModerationDeletionRequests /v2/moderation/deletion-requests get Deletion request queue Deletion requests, newest first; follow next_cursor for more. Requires the catalog.delete.review permission. The token must carry the catalog:edit scope. 删除请求，最新的在前；跟随 next_cursor 取更多。需要 catalog.delete.review 权限。令牌须带 catalog:edit scope。 state target_id cursor limit"
+  },
+  {
+    "r": "/docs/v2/getModerationDeletionRequest",
+    "t": "读取一条删除请求",
+    "s": "端点 · 审核",
+    "d": "GET /v2/moderation/deletion-requests/{id}",
+    "b": "getModerationDeletionRequest /v2/moderation/deletion-requests/{id} get Get one deletion request Requires the catalog.delete.review permission. The token must carry the catalog:edit scope. 需要 catalog.delete.review 权限。令牌须带 catalog:edit scope。 id"
+  },
+  {
+    "r": "/docs/v2/decideModerationDeletionRequest",
+    "t": "处理删除请求",
+    "s": "端点 · 审核",
+    "d": "POST /v2/moderation/deletion-requests/{id}/decisions",
+    "b": "decideModerationDeletionRequest /v2/moderation/deletion-requests/{id}/decisions post Decide a deletion request decision=approve|reject|execute|restore. Requires the catalog.delete.review permission. The token must carry the catalog:edit scope. decision=approve|reject|execute|restore。需要 catalog.delete.review 权限。令牌须带 catalog:edit scope。 id Idempotency-Key"
   },
   {
     "r": "/docs/v2/patchModerationFolder",
@@ -2295,6 +2344,13 @@ export const searchIndex: SearchEntry[] = [
     "s": "错误码 · 目录数据",
     "d": "ENTITY_MERGED · HTTP 404",
     "b": "ENTITY_MERGED Entity merged The entity was merged into another. object and current_id are present, and Link rel=canonical is sent. 该实体已被合并进另一个实体。响应里带 object 与 current_id，同时回一个 Link rel=canonical。 catalog"
+  },
+  {
+    "r": "/problems/catalog/entity-deleted",
+    "t": "实体已被删除",
+    "s": "错误码 · 目录数据",
+    "d": "ENTITY_DELETED · HTTP 410",
+    "b": "ENTITY_DELETED Entity deleted The entity was deleted through a reviewed deletion request. object, deleted_reason and deleted_at are present. A reviewer may restore it under the same id, so treat it as hidden, not as never having existed. 该实体经审核的删除请求删除。响应里带 object、deleted_reason 与 deleted_at。审核者可以用同一个 id 恢复它，所以请把它当作「已隐藏」，而不是「从未存在」。 catalog"
   },
   {
     "r": "/problems/catalog/play-records-private",

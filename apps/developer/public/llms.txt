@@ -36,7 +36,7 @@
 
 ## 3 个 API
 
-- [Public API v2](https://developer.nextmoe.dev/docs/v2.md)：`/v2`，153 个端点，凭据 Authorization: Bearer nmk_live_…。
+- [Public API v2](https://developer.nextmoe.dev/docs/v2.md)：`/v2`，160 个端点，凭据 Authorization: Bearer nmk_live_…。
 - [moyu 补丁面](https://developer.nextmoe.dev/docs/moyu.md)：`/v2/moyu`，5 个端点，凭据 Authorization: Bearer nmk_live_…。
 - [sticker 表情包面](https://developer.nextmoe.dev/docs/sticker.md)：`/v2/sticker`，9 个端点，凭据 Authorization: Bearer nmk_live_…。
 
@@ -102,7 +102,7 @@
 - https://developer.nextmoe.dev/docs/moyu-patches.md — moyu 补丁面接入
 - https://developer.nextmoe.dev/docs/sticker-packs.md — sticker 表情包面接入
 - https://developer.nextmoe.dev/docs/<face>/<operationId>.md — 单个端点
-- https://developer.nextmoe.dev/problems.md — 全部 50 个错误码（RFC 9457 problem types）
+- https://developer.nextmoe.dev/problems.md — 全部 51 个错误码（RFC 9457 problem types）
 - https://developer.nextmoe.dev/problems/<domain>/<kebab-code>.md — 单个错误码
 - https://developer.nextmoe.dev/docs/vocabularies.md — 全部 30 个词表的成员
 - https://developer.nextmoe.dev/docs/vocabularies/<name>.md — 单个词表
