@@ -291,6 +291,10 @@ func (e *Engine) mergeBirthLocked(
 		return nil, err
 	}
 	keys := sortedKeys(eff)
+	mirrors, err := lockMirrors(ctx, etx, spec, entityID, keys, map[string]any{}, eff)
+	if err != nil {
+		return nil, err
+	}
 	for _, key := range keys {
 		f, _ := spec.Field(key)
 		if err := ApplyField(ctx, etx, f, entityID, eff[key]); err != nil {
@@ -314,6 +318,9 @@ func (e *Engine) mergeBirthLocked(
 		Site: prop.Site, OriginSite: prop.OriginSite,
 	}
 	if err := etx.Create(rev).Error; err != nil {
+		return nil, err
+	}
+	if rev.mirrored, err = writeMirrorRevisions(ctx, etx, spec, prop, mirrors, ActionMerged, amenderUID); err != nil {
 		return nil, err
 	}
 	if err := etx.Model(&Proposal{}).Where("id = ?", prop.ID).UpdateColumn("entity_id", entityID).Error; err != nil {

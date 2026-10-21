@@ -107,7 +107,16 @@ func TestSeedMapsBangumiGamePositionsToSharedRoles(t *testing.T) {
 
 	var retired []string
 	require.NoError(t, testDB.Raw(`SELECT key FROM catalog_role WHERE is_deprecated ORDER BY key`).Scan(&retired).Error)
-	assert.ElementsMatch(t, []string{"制作总指挥", "剧本", "原画", "音乐"}, retired)
+	generated, err := seed.GenerateBangumiRoles()
+	require.NoError(t, err)
+	var want []string
+	for _, r := range generated.Roles {
+		if r.Deprecated {
+			want = append(want, r.Key)
+		}
+	}
+	assert.ElementsMatch(t, want, retired, "the seed must write exactly the roles the generator retires")
+	assert.Subset(t, retired, []string{"制作总指挥", "剧本", "原画", "音乐"})
 }
 
 func TestRepairMovesBangumiCreditsOntoSharedRoles(t *testing.T) {

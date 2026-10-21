@@ -387,6 +387,10 @@ func (e *Engine) mergeLocked(
 	if len(changed) == 0 {
 		return nil, ErrNoEffectiveChanges
 	}
+	mirrors, err := lockMirrors(ctx, etx, spec, prop.EntityID, changed, base, eff)
+	if err != nil {
+		return nil, err
+	}
 	snapshot := make(map[string]any, len(base))
 	for k, v := range base {
 		snapshot[k] = v
@@ -434,6 +438,9 @@ func (e *Engine) mergeLocked(
 		if err := ApplyField(ctx, etx, f, prop.EntityID, eff[key]); err != nil {
 			return nil, err
 		}
+	}
+	if rev.mirrored, err = writeMirrorRevisions(ctx, etx, spec, prop, mirrors, action, amenderUID); err != nil {
+		return nil, err
 	}
 	return rev, nil
 }

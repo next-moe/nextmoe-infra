@@ -57,6 +57,9 @@ func (e *Engine) afterMerge(ctx context.Context, rev *Revision) {
 	if rev == nil {
 		return
 	}
+	for _, m := range rev.mirrored {
+		e.afterMerge(ctx, m)
+	}
 	spec, ok := e.reg.Type(rev.EntityType)
 	if !ok || spec.OnMerge == nil {
 		return
