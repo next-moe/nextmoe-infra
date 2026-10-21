@@ -6,6 +6,8 @@ import type {
   CatalogMergePreviewRelease,
   CatalogMergePreviewTitle
 } from '#shared/types/catalog'
+import { WRITER_LABELS } from '~/constants/editEntities'
+import { LINK_SOURCE_LABELS } from '~/utils/externalLinks'
 
 export type MergeSide = 'source' | 'target'
 
@@ -158,3 +160,6 @@ export const swapQuery = (source: string | null, target: string | null) => ({
   source: target ?? undefined,
   target: source ?? undefined
 })
+
+export const sourceLabel = (key: string) =>
+  LINK_SOURCE_LABELS[key] ?? WRITER_LABELS[key] ?? key.toUpperCase()

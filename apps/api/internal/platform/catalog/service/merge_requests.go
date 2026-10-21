@@ -70,6 +70,32 @@ func (s *MergeService) AmendMergeRequest(ctx context.Context, proposalID, amende
 	})
 }
 
+// EntityNames reads display names for ids of one family, retired rows
+// included, so a merge request keeps naming the entry it folded away.
+func (s *MergeService) EntityNames(ctx context.Context, entityType int16, ids []int64) (map[int64]string, error) {
+	table, ok := entityTableName(entityType)
+	if !ok || len(ids) == 0 {
+		return map[int64]string{}, nil
+	}
+	nameCol := "display_name"
+	if entityType == model.EntityTypeCreditName {
+		nameCol = "name"
+	}
+	var rows []struct {
+		ID   int64
+		Name string
+	}
+	if err := s.db.WithContext(ctx).Raw(fmt.Sprintf(`SELECT id, %s AS name FROM %s WHERE id IN ?`, nameCol, table), ids).
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	out := make(map[int64]string, len(rows))
+	for _, r := range rows {
+		out[r.ID] = r.Name
+	}
+	return out, nil
+}
+
 // MergeChoicesOf reads the choices stored on a request.
 func MergeChoicesOf(p *model.CatalogMergeProposal) (MergeChoices, error) {
 	doc, err := parseMergeDoc(p.FieldResolution)

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/provenance"
@@ -307,7 +308,7 @@ func previewAnchorWarnings(anchors []PreviewAnchor) []PreviewIssue {
 			continue
 		}
 		msg := fmt.Sprintf("两边在 %s 对应不同的条目，被并入方的 %s 会降为%s，以后不再从它导入数据。",
-			a.SourceKey, a.ExternalID, map[string]string{FateDemotedRelated: "相关链接", FateDemotedProbable: "待确认对应"}[a.Fate])
+			sourceDisplayName(a.SourceKey), a.ExternalID, map[string]string{FateDemotedRelated: "相关链接", FateDemotedProbable: "待确认对应"}[a.Fate])
 		if a.SourceKey == "vndb" {
 			msg = fmt.Sprintf("两边对应不同的 VNDB 条目（被并入方 %s）：VNDB 认为它们是不同的作品，请确认真的是重复。", a.ExternalID)
 		}
@@ -332,9 +333,9 @@ func previewFacts(p *MergePreview) []string {
 			facts = append(facts, fmt.Sprintf("两边都有 VNDB 发行 %s。", r.VNDBRid))
 		} else if other.VNDBRid != "" {
 			facts = append(facts, fmt.Sprintf("「%s」的发行与「%s」的 VNDB 发行 %s 平台、发售日一致（%s，%s）。",
-				p.Source.Name, p.Target.Name, other.VNDBRid, r.Platform, dateText(r.Y, r.M, r.D)))
+				p.Source.Name, p.Target.Name, other.VNDBRid, strings.ToUpper(r.Platform), dateText(r.Y, r.M, r.D)))
 		} else {
-			facts = append(facts, fmt.Sprintf("两边有平台、发售日相同的发行（%s，%s）。", r.Platform, dateText(r.Y, r.M, r.D)))
+			facts = append(facts, fmt.Sprintf("两边有平台、发售日相同的发行（%s，%s）。", strings.ToUpper(r.Platform), dateText(r.Y, r.M, r.D)))
 		}
 	}
 	var srcVNDB, dstVNDB string
@@ -357,6 +358,18 @@ func previewFacts(p *MergePreview) []string {
 		}
 	}
 	return slices.Compact(facts)
+}
+
+var sourceDisplayNames = map[string]string{
+	"vndb": "VNDB", "bangumi": "Bangumi", "erogamescape": "ErogameScape", "dlsite": "DLsite",
+	"getchu": "Getchu", "dmm": "DMM", "steam": "Steam", "howlongtobeat": "HowLongToBeat",
+}
+
+func sourceDisplayName(key string) string {
+	if name, ok := sourceDisplayNames[key]; ok {
+		return name
+	}
+	return key
 }
 
 func dateText(y, m, d *int16) string {

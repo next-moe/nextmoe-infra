@@ -446,6 +446,7 @@ func (c *Catalog) listMergeRequests(ctx context.Context, f catsvc.MergeRequestFi
 		out.Items = append(out.Items, rec)
 	}
 	c.attachMergeRequestPeople(ctx, out.Items)
+	c.attachMergeRequestNames(ctx, out.Items)
 	return out, nil
 }
 
@@ -471,6 +472,7 @@ func (c *Catalog) mergeRequestRecord(ctx context.Context, p *model.CatalogMergeP
 		}
 	}
 	c.attachMergeRequestPeople(ctx, items)
+	c.attachMergeRequestNames(ctx, items)
 	return items[0]
 }
 
@@ -516,6 +518,38 @@ func mergeRequestFrom(p *model.CatalogMergeProposal) repr.MergeRequestRecord {
 		rec.UndoneAt = &at
 	}
 	return rec
+}
+
+func (c *Catalog) attachMergeRequestNames(ctx context.Context, items []repr.MergeRequestRecord) {
+	byFamily := map[int16][]int64{}
+	for _, it := range items {
+		et, ok := mergeEntityTypeOf(it.TargetObject)
+		if !ok {
+			continue
+		}
+		for _, raw := range []string{it.SourceID, it.TargetID} {
+			if id, ok := repr.ParseID(raw); ok {
+				byFamily[et] = append(byFamily[et], id)
+			}
+		}
+	}
+	names := map[int16]map[int64]string{}
+	for et, ids := range byFamily {
+		got, err := c.Merges.EntityNames(ctx, et, ids)
+		if err != nil {
+			return
+		}
+		names[et] = got
+	}
+	for i := range items {
+		et, _ := mergeEntityTypeOf(items[i].TargetObject)
+		if id, ok := repr.ParseID(items[i].SourceID); ok {
+			items[i].SourceName = names[et][id]
+		}
+		if id, ok := repr.ParseID(items[i].TargetID); ok {
+			items[i].TargetName = names[et][id]
+		}
+	}
 }
 
 func (c *Catalog) attachMergeRequestPeople(ctx context.Context, items []repr.MergeRequestRecord) {

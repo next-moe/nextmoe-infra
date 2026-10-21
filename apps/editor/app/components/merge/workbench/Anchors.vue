@@ -2,8 +2,8 @@
 import { cn } from '@kungal/ui-core'
 import type { CatalogMergePreviewAnchor } from '#shared/types/catalog'
 import { MERGE_LINK_KIND_LABELS } from '~/constants/merge'
-import { LINK_SOURCE_LABELS, contextLinkUrl } from '~/utils/externalLinks'
-import { mergedAnchors } from '~/utils/merge/plan'
+import { contextLinkUrl } from '~/utils/externalLinks'
+import { mergedAnchors, sourceLabel } from '~/utils/merge/plan'
 
 const { preview, family } = useMergeWorkbench()
 
@@ -13,7 +13,7 @@ const bySide = (side: 'source' | 'target') =>
 const result = computed(() => mergedAnchors(anchors.value))
 
 const label = (anchor: CatalogMergePreviewAnchor) =>
-  LINK_SOURCE_LABELS[anchor.source_key] ?? anchor.source_key
+  sourceLabel(anchor.source_key)
 const url = (anchor: CatalogMergePreviewAnchor) =>
   contextLinkUrl(family.value, anchor.source_key, anchor.external_id)
 const KIND_TONE: Record<string, string> = {

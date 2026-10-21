@@ -77,7 +77,7 @@ func previewAnchors(db *gorm.DB, et int16, src, dst int64) ([]PreviewAnchor, err
 			if edition(r.SourceID) {
 				a.KindAfter, a.Fate = model.LinkKindRelated, FateDemotedRelated
 			}
-			a.Reason = fmt.Sprintf("保留方在 %s 已对应 %s", r.SourceKey, strings.Join(dstExact[r.SourceID], "、"))
+			a.Reason = fmt.Sprintf("保留方在 %s 已对应 %s", sourceDisplayName(r.SourceKey), strings.Join(dstExact[r.SourceID], "、"))
 		case edition(r.SourceID) && len(srcExact[r.SourceID]) > 1 && srcExact[r.SourceID][0] != r.ExternalID:
 			a.KindAfter, a.Fate = model.LinkKindRelated, FateDemotedRelated
 			a.Reason = fmt.Sprintf("同一来源只保留一个正式对应（%s）", srcExact[r.SourceID][0])

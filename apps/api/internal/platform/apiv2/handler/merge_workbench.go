@@ -174,12 +174,8 @@ func undoReportFrom(r catsvc.UndoReport) *repr.MergeUndoReport {
 		}
 		return out
 	}
-	restored := widen(r.Restored)
-	for k, v := range r.Archive.Restored {
-		restored[k] += int64(v)
-	}
 	return &repr.MergeUndoReport{
-		Restored: restored, NotRestored: widen(r.Missing),
+		Restored: widen(r.Restored), NotRestored: widen(r.Missing),
 		RevertedFields: nonNil(r.RevertedFields), KeptFields: nonNil(r.KeptFields),
 		RemovedInserted: int64(r.RemovedInserted), UnhiddenRelease: int64(r.UnhiddenRelease),
 	}

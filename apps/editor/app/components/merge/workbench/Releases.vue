@@ -133,6 +133,7 @@ const hidden = (id: string) => choices.value.hide.includes(id)
               v-if="side === 'source'"
               :model-value="hidden(release.id)"
               :disabled="!canEditChoices"
+              color="primary"
               label="合并后隐藏"
               size="sm"
               class-name="shrink-0"

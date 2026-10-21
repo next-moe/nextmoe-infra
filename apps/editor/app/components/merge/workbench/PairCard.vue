@@ -107,7 +107,7 @@ const REASONS: Record<string, string> = {
           class="text-default-500 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
         >
           <span class="inline-flex items-center gap-1">
-            {{ meta.label }} #{{ props.entityId }}
+            {{ meta.label }}
             <KunCopy :text="props.entityId" size="xs" variant="light" />
           </span>
           <span v-if="info?.site" class="inline-flex items-center gap-1">

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { MERGE_FIELD_LABELS, MERGE_LINK_KIND_LABELS } from '~/constants/merge'
 import { EDIT_LANGUAGE_LABELS } from '~/constants/vocabLabels'
-import { LINK_SOURCE_LABELS } from '~/utils/externalLinks'
 import { diffText } from '#shared/utils/diff'
 import {
+  sourceLabel,
   chosenValue,
   countAfter,
   mergedTitles,
@@ -136,7 +136,7 @@ const asText = (value: unknown) =>
             v-for="anchor in anchors"
             :key="`${anchor.source_key}:${anchor.external_id}`"
           >
-            {{ LINK_SOURCE_LABELS[anchor.source_key] ?? anchor.source_key }}
+            {{ sourceLabel(anchor.source_key) }}
             {{ anchor.external_id }}：
             <span
               :class="

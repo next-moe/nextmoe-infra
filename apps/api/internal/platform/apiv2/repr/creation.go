@@ -46,6 +46,8 @@ type MergeRequestRecord struct {
 	UndoneBy        *UserRef          `json:"undone_by" doc:"Account behind undone_by_uid. null unless state is undone or when the account directory could not be read."`
 	UndoUntil       *string           `json:"undo_until" format:"date-time" maxLength:"32" doc:"Last moment a reviewer may undo this executed merge under the original id (catalog.merge_undo_window_days). null when it cannot be undone: not executed, undo switched off, or executed before undo was recorded."`
 	Moved           map[string]int64  `json:"moved" doc:"For an executed or undone merge, how many rows of each table pointed at the source when it ran, keyed by table name. Empty object otherwise."`
+	SourceName      string            `json:"source_name" maxLength:"512" doc:"source_id's display name now; for an entry merged away, its name when it was retired. Empty when unreadable. Must not be used as a discriminant."`
+	TargetName      string            `json:"target_name" maxLength:"512" doc:"target_id's display name now. Empty when unreadable. Must not be used as a discriminant."`
 	UndoReport      *MergeUndoReport  `json:"undo_report,omitempty" doc:"Present only on the response to decision=undo."`
 }
 

@@ -24,38 +24,42 @@ const survivor = (intro: CatalogMergePreviewIntro) =>
       </p>
       <div class="grid gap-3 md:grid-cols-3">
         <MergeWorkbenchCell side="source">
-          <p
-            :class="
-              cn(
-                'line-clamp-5 px-3 py-2.5 text-sm leading-6 whitespace-pre-line',
-                !intro.source_has && 'text-default-400',
-                intro.source_has &&
-                  intro.fate === 'kept_out' &&
-                  'text-default-400'
-              )
-            "
-          >
-            {{ intro.source_has ? intro.source_text : '（无）' }}
-          </p>
+          <div class="px-3 py-2.5">
+            <p
+              :class="
+                cn(
+                  'line-clamp-5 text-sm leading-6 whitespace-pre-line',
+                  !intro.source_has && 'text-default-400',
+                  intro.source_has &&
+                    intro.fate === 'kept_out' &&
+                    'text-default-400'
+                )
+              "
+            >
+              {{ intro.source_has ? intro.source_text : '（无）' }}
+            </p>
+          </div>
         </MergeWorkbenchCell>
         <MergeWorkbenchCell side="target">
-          <p
-            :class="
-              cn(
-                'line-clamp-5 px-3 py-2.5 text-sm leading-6 whitespace-pre-line',
-                !intro.target_has && 'text-default-400'
-              )
-            "
-          >
-            {{ intro.target_has ? intro.target_text : '（无）' }}
-          </p>
+          <div class="px-3 py-2.5">
+            <p
+              :class="
+                cn(
+                  'line-clamp-5 text-sm leading-6 whitespace-pre-line',
+                  !intro.target_has && 'text-default-400'
+                )
+              "
+            >
+              {{ intro.target_has ? intro.target_text : '（无）' }}
+            </p>
+          </div>
         </MergeWorkbenchCell>
         <MergeWorkbenchCell side="result">
-          <p
-            class="line-clamp-5 px-3 py-2.5 text-sm leading-6 whitespace-pre-line"
-          >
-            {{ survivor(intro) || '（无）' }}
-          </p>
+          <div class="px-3 py-2.5">
+            <p class="line-clamp-5 text-sm leading-6 whitespace-pre-line">
+              {{ survivor(intro) || '（无）' }}
+            </p>
+          </div>
         </MergeWorkbenchCell>
       </div>
     </div>
