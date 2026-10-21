@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { cn } from '@kungal/ui-core'
 import type {
   CatalogSplitRequest,
   CatalogSplitRequestList
@@ -70,32 +69,22 @@ const fetchPage = async (cursor: string | null) => {
 
 watch(state, () => fetchPage(null))
 onMounted(() => fetchPage(null))
+
+const stateOptions = computed(() =>
+  props.mode === 'mine' ? [{ value: '', label: '全部' }, ...STATES] : STATES
+)
 </script>
 
 <template>
   <div class="space-y-4">
-    <div class="flex flex-wrap gap-2" role="radiogroup" aria-label="状态">
-      <button
-        v-for="item in props.mode === 'mine'
-          ? [{ value: '', label: '全部' }, ...STATES]
-          : STATES"
-        :key="item.value"
-        type="button"
-        role="radio"
-        :aria-checked="state === item.value"
-        :class="
-          cn(
-            'rounded-full border px-3 py-1 text-sm transition-colors',
-            state === item.value
-              ? 'border-primary-300 bg-primary-50 text-primary-700'
-              : 'border-default-200 text-default-600 hover:bg-default-100'
-          )
-        "
-        @click="state = item.value"
-      >
-        {{ item.label }}
-      </button>
-    </div>
+    <KunRadioGroup
+      v-model="state"
+      :options="stateOptions"
+      variant="pill"
+      orientation="horizontal"
+      size="sm"
+      aria-label="状态"
+    />
 
     <KunInfo
       v-if="forbidden"

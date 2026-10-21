@@ -104,6 +104,7 @@ const submit = async () => {
     title="申请删除作品"
     :description="`「${props.workName}」会在审核通过、度过冷静期后删除；删除后可以原样恢复。`"
     size="xl"
+    scroll-behavior="inside"
   >
     <div class="space-y-5">
       <section class="space-y-2">
@@ -165,7 +166,9 @@ const submit = async () => {
         </section>
       </template>
 
-      <div class="flex items-center justify-between gap-3">
+      <div
+        class="border-default-200 bg-content1 sticky bottom-0 z-10 flex items-center justify-between gap-3 border-t pt-3"
+      >
         <NuxtLink
           to="/guidelines/create-and-merge#deleting"
           target="_blank"

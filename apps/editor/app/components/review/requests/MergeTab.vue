@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { cn } from '@kungal/ui-core'
 import type {
   CatalogMergeRequest,
   CatalogMergeRequestList
@@ -14,6 +13,8 @@ const STATES = [
   { value: 'rejected', label: '已驳回' },
   { value: 'withdrawn', label: '已撤回' }
 ]
+
+const STATE_OPTIONS = STATES.map(({ value, label }) => ({ value, label }))
 
 const api = useEditorApi()
 const route = useRoute()
@@ -64,26 +65,14 @@ onMounted(() => fetchPage(null))
 
 <template>
   <div class="space-y-4">
-    <div class="flex flex-wrap gap-2" role="radiogroup" aria-label="状态">
-      <button
-        v-for="item in STATES"
-        :key="item.value"
-        type="button"
-        role="radio"
-        :aria-checked="state === item.value"
-        :class="
-          cn(
-            'rounded-full border px-3 py-1 text-sm transition-colors',
-            state === item.value
-              ? 'border-primary-300 bg-primary-50 text-primary-700'
-              : 'border-default-200 text-default-600 hover:bg-default-100'
-          )
-        "
-        @click="state = item.value"
-      >
-        {{ item.label }}
-      </button>
-    </div>
+    <KunRadioGroup
+      v-model="state"
+      :options="STATE_OPTIONS"
+      variant="pill"
+      orientation="horizontal"
+      size="sm"
+      aria-label="状态"
+    />
 
     <KunInfo
       v-if="forbidden"

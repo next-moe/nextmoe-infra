@@ -23,6 +23,12 @@ const MINE_TABS: KunTabItem[] = [
   { value: 'executed', textValue: '已删除', icon: 'lucide:trash-2' }
 ]
 const tabs = computed(() => (props.mode === 'review' ? REVIEW_TABS : MINE_TABS))
+const tabOptions = computed(() =>
+  tabs.value.map((tab) => ({
+    value: String(tab.value),
+    label: tab.textValue ?? ''
+  }))
+)
 
 const api = useEditorApi()
 const route = useRoute()
@@ -143,11 +149,13 @@ fetchPage(null)
 
 <template>
   <div class="space-y-4">
-    <KunTab
+    <KunRadioGroup
       v-model="state"
-      :items="tabs"
-      variant="underlined"
-      :name="`deletion-${props.mode}`"
+      :options="tabOptions"
+      variant="pill"
+      orientation="horizontal"
+      size="sm"
+      aria-label="状态"
     />
 
     <KunInfo
@@ -157,6 +165,16 @@ fetchPage(null)
       title="需要删除审核权限"
       description="删除请求由版主、管理员审核。"
     />
+
+    <KunCard v-else-if="!loading && !items.length" bordered padding="md">
+      <KunNull
+        :description="
+          props.mode === 'review'
+            ? '没有这个状态的删除请求'
+            : '你还没有提交过删除请求'
+        "
+      />
+    </KunCard>
 
     <div
       v-else
@@ -174,14 +192,6 @@ fetchPage(null)
             @select="select(request.id)"
           />
         </ul>
-        <KunNull
-          v-else-if="!loading"
-          :description="
-            props.mode === 'review'
-              ? '没有这个状态的删除请求'
-              : '你还没有提交过删除请求'
-          "
-        />
         <div class="flex justify-center pt-2">
           <KunLoading v-if="loading && items.length" spinner />
           <KunButton
