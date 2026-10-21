@@ -57,6 +57,9 @@ var liveReadPaths = []string{
 	"/v2/me/discussion-notices",
 	"/v2/me/deletion-requests",
 	"/v2/me/deletion-preview",
+	"/v2/me/split-requests",
+	"/v2/me/split-preview",
+	"/v2/catalog/splits",
 	"/v2/me/edit-context/{object}/{id}",
 	"/v2/me/edit-bundle/{object}/{id}",
 	"/v2/catalog/names",
@@ -139,6 +142,7 @@ var liveReadPaths = []string{
 	"/v2/moderation/claims/{id}",
 	"/v2/moderation/merge-requests",
 	"/v2/moderation/deletion-requests",
+	"/v2/moderation/split-requests",
 	"/v2/moderation/proposals",
 	"/v2/moderation/snapshots/{object}/{id}",
 	"/v2/moderation/users/{uid}/folders",
@@ -155,6 +159,8 @@ var liveReadsNotSwept = map[string]string{
 	"/v2/moderation/proposals/{id}":          "same: no proposal id to address",
 	"/v2/moderation/merge-requests/{id}":     "no merge request survives seedLiveFixtures; TestMergeRequestLifecycle files the only one",
 	"/v2/moderation/deletion-requests/{id}":  "no deletion request survives seedLiveFixtures; TestLiveDeletionRequestLifecycle files the only ones",
+	"/v2/moderation/split-requests/{id}":     "no split request survives seedLiveFixtures; TestLiveSplitRequestLifecycle files the only one",
+	"/v2/me/split-requests/{id}":             "same; TestLiveSplitRequestLifecycle reads the one it files",
 	"/v2/me/merge-requests/{id}":             "same; TestLiveMergeRequestQuotaAndModeration reads the one it files",
 	"/v2/me/merge-preview":                   "needs two live entities in its query; TestLiveMergeRequestQuotaAndModeration previews the pair it files",
 	"/v2/me/merge-candidates":                "needs a live entity in its query; TestLiveMergeRequestQuotaAndModeration reads it for the pair it files",
@@ -184,6 +190,7 @@ var liveReadRequiredQuery = map[string]func(fx liveFix) string{
 	"/v2/catalog/tag-exclusion": func(fx liveFix) string { return "?exclude_tag_tree=" + idstr(fx.Tag) },
 	"/v2/catalog/names":         func(fx liveFix) string { return "?keys=work:" + idstr(fx.Work) + ",tag:" + idstr(fx.Tag) },
 	"/v2/me/deletion-preview":   func(fx liveFix) string { return "?object=work&target_id=" + idstr(fx.Work) },
+	"/v2/me/split-preview":      func(fx liveFix) string { return "?object=work&target_id=" + idstr(fx.Work) },
 }
 
 func liveReadURL(t *testing.T, tmpl string, fx liveFix) string {

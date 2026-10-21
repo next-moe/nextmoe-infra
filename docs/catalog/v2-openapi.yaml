@@ -1785,6 +1785,37 @@ components:
         - entity_id
         - patch
       type: object
+    CreateSplitRequestInputBody:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/CreateSplitRequestInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        note:
+          description: Why these releases are a work of their own. Must not be used as a discriminant.
+          maxLength: 2000
+          minLength: 4
+          type: string
+        object:
+          description: Family of the entry. Only works can be split today.
+          enum:
+            - work
+          type: string
+          x-vocabulary-closed: true
+        target_id:
+          description: The work to split.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+      required:
+        - object
+        - target_id
+        - note
+      type: object
     CreditEntry:
       additionalProperties: true
       properties:
@@ -2067,6 +2098,32 @@ components:
           x-vocabulary-closed: true
         note:
           description: Must not be used as a discriminant.
+          maxLength: 2000
+          type: string
+      required:
+        - decision
+      type: object
+    DecideSplitRequestInputBody:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/DecideSplitRequestInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        decision:
+          description: "approve starts the cooling-off (catalog.merge_cooling_off_hours) after which the catalog-split-requests job executes it; reject closes it; execute runs an approved request whose cooling-off has ended without waiting for the job; undo puts an executed split back while undo_until has not passed: the releases return and the new work is merged into the original."
+          enum:
+            - approve
+            - reject
+            - execute
+            - undo
+          type: string
+          x-vocabulary-closed: true
+        reason:
+          description: Required to reject and to undo. Must not be used as a discriminant.
           maxLength: 2000
           type: string
       required:
@@ -5752,6 +5809,118 @@ components:
         - object
         - items
       type: object
+    ListSplitEvent:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ListSplitEvent.json
+          format: uri
+          readOnly: true
+          type: string
+        facets:
+          additionalProperties:
+            items:
+              $ref: "#/components/schemas/FacetValue"
+            type:
+              - array
+              - "null"
+          description: Named facet buckets. Present only when facets= is requested.
+          type: object
+        items:
+          description: Members of this page. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/SplitEvent"
+          type: array
+        missing:
+          description: ids requested but not visible. Present only on the ids=/refs= batch lane.
+          items:
+            type: string
+          type: array
+        next_cursor:
+          description: Opaque keyset cursor. Omitted on the last page.
+          maxLength: 512
+          pattern: ^cur_[A-Za-z0-9._~-]+$
+          type: string
+        object:
+          description: Type discriminant. Always list.
+          enum:
+            - list
+          type: string
+          x-vocabulary-closed: true
+        total:
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+          format: int64
+          minimum: 0
+          type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - items
+      type: object
+    ListSplitRequestRecord:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ListSplitRequestRecord.json
+          format: uri
+          readOnly: true
+          type: string
+        facets:
+          additionalProperties:
+            items:
+              $ref: "#/components/schemas/FacetValue"
+            type:
+              - array
+              - "null"
+          description: Named facet buckets. Present only when facets= is requested.
+          type: object
+        items:
+          description: Members of this page. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/SplitRequestRecord"
+          type: array
+        missing:
+          description: ids requested but not visible. Present only on the ids=/refs= batch lane.
+          items:
+            type: string
+          type: array
+        next_cursor:
+          description: Opaque keyset cursor. Omitted on the last page.
+          maxLength: 512
+          pattern: ^cur_[A-Za-z0-9._~-]+$
+          type: string
+        object:
+          description: Type discriminant. Always list.
+          enum:
+            - list
+          type: string
+          x-vocabulary-closed: true
+        total:
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+          format: int64
+          minimum: 0
+          type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - items
+      type: object
     ListTag:
       additionalProperties: true
       properties:
@@ -8359,6 +8528,25 @@ components:
           type: string
           x-vocabulary-closed: true
       type: object
+    PatchSplitRequestInputBody:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/PatchSplitRequestInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        state:
+          description: Set withdrawn to withdraw an open request you filed.
+          enum:
+            - withdrawn
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - state
+      type: object
     Person:
       additionalProperties: true
       properties:
@@ -10449,6 +10637,693 @@ components:
         - entity_type
         - entity_id
         - field_values
+      type: object
+    SplitDraftBody:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/SplitDraftBody.json
+          format: uri
+          readOnly: true
+          type: string
+        display_name:
+          description: The new work's display name. Must not be used as a discriminant.
+          maxLength: 512
+          minLength: 1
+          type: string
+        olang:
+          description: The new work's original language, BCP-47.
+          format: bcp47
+          maxLength: 16
+          minLength: 2
+          type: string
+        promote_refs:
+          description: Bangumi or ErogameScape entries linked to the work as related or probable that become the new work's identity.
+          items:
+            $ref: "#/components/schemas/SplitRef"
+          maxItems: 8
+          type: array
+        release_ids:
+          description: Releases of the work that move to the new work. At least one release has to stay.
+          items:
+            type: string
+          maxItems: 200
+          minItems: 1
+          type: array
+        titles:
+          description: Titles the new work starts with.
+          items:
+            $ref: "#/components/schemas/SplitTitle"
+          maxItems: 32
+          type: array
+      required:
+        - release_ids
+        - display_name
+        - olang
+      type: object
+    SplitEvent:
+      additionalProperties: true
+      properties:
+        changed_at:
+          description: RFC 3339 UTC. When the split was executed or undone, whichever is later; the cursor resumes from it, so an undo re-surfaces the split at the tail.
+          format: date-time
+          maxLength: 32
+          type: string
+        id:
+          description: Split request id.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+        new_work_id:
+          description: The work the split created.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+        object:
+          description: Type discriminant. Always split.
+          enum:
+            - split
+          type: string
+          x-vocabulary-closed: true
+        original_id:
+          description: The work the releases left.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+        release_ids:
+          description: Releases that moved.
+          items:
+            type: string
+          type: array
+        state:
+          description: "executed: new_work_id now holds release_ids. undone: they are back on original_id and new_work_id redirects to it (see /v2/catalog/redirects)."
+          enum:
+            - executed
+            - undone
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - id
+        - state
+        - original_id
+        - new_work_id
+        - release_ids
+        - changed_at
+      type: object
+    SplitMovedCount:
+      additionalProperties: true
+      properties:
+        count:
+          description: Rows.
+          format: int64
+          minimum: 0
+          type: integer
+        key:
+          description: "releases: releases moved to the new work; tombstones: retired rows left on the original so the VNDB import does not mint the moved releases there again; titles: titles created on the new work; credits: credits limited to a moved release, moved with it; refs: source entries promoted to the new work's identity; rejections: records that keep those entries from being matched back to the original."
+          enum:
+            - releases
+            - tombstones
+            - titles
+            - credits
+            - refs
+            - rejections
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - key
+        - count
+      type: object
+    SplitPreview:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/SplitPreview.json
+          format: uri
+          readOnly: true
+          type: string
+        blockers:
+          description: Reasons the split cannot be filed as chosen.
+          items:
+            $ref: "#/components/schemas/MergePreviewIssue"
+          type: array
+        candidates:
+          description: Separate registry entries linked to the work that could become the new work's identity.
+          items:
+            $ref: "#/components/schemas/SplitPreviewRef"
+          type: array
+        facts:
+          description: What the registries say about the chosen releases, for the reviewer to weigh.
+          items:
+            $ref: "#/components/schemas/MergePreviewIssue"
+          type: array
+        moves:
+          description: What goes to the new work.
+          items:
+            $ref: "#/components/schemas/SplitPreviewCount"
+          type: array
+        object:
+          description: Type discriminant. Always split_preview.
+          enum:
+            - split_preview
+          type: string
+          x-vocabulary-closed: true
+        olang:
+          description: Its original language.
+          format: bcp47
+          maxLength: 16
+          type: string
+        pending_request_id:
+          description: An open or approved split request on the work. null when none.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type:
+            - string
+            - "null"
+        releases:
+          description: Every live release of the work, oldest first.
+          items:
+            $ref: "#/components/schemas/SplitPreviewRelease"
+          type: array
+        stays:
+          description: What stays with the original.
+          items:
+            $ref: "#/components/schemas/SplitPreviewCount"
+          type: array
+        suggested_lang:
+          description: The original language to start from.
+          format: bcp47
+          maxLength: 16
+          type: string
+        suggested_name:
+          description: A display name derived from the chosen releases' titles. Empty when nothing is chosen. Must not be used as a discriminant.
+          maxLength: 512
+          type: string
+        target_id:
+          description: The work.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+        target_name:
+          description: Its display name. Must not be used as a discriminant.
+          maxLength: 512
+          type: string
+        target_object:
+          description: Family of the entry.
+          enum:
+            - work
+          type: string
+          x-vocabulary-closed: true
+        titles:
+          description: Titles derived from the chosen releases.
+          items:
+            $ref: "#/components/schemas/SplitTitle"
+          type: array
+        vndb_anchor:
+          description: The VNDB VN the work is anchored to. null when none.
+          maxLength: 16
+          pattern: ^v[0-9]+$
+          type:
+            - string
+            - "null"
+        warnings:
+          description: Consequences to read before filing.
+          items:
+            $ref: "#/components/schemas/MergePreviewIssue"
+          type: array
+      required:
+        - object
+        - target_object
+        - target_id
+        - target_name
+        - olang
+        - vndb_anchor
+        - releases
+        - candidates
+        - suggested_name
+        - suggested_lang
+        - titles
+        - moves
+        - stays
+        - blockers
+        - warnings
+        - facts
+        - pending_request_id
+      type: object
+    SplitPreviewCount:
+      additionalProperties: true
+      properties:
+        count:
+          description: Rows.
+          format: int64
+          minimum: 0
+          type: integer
+        key:
+          description: What is counted.
+          enum:
+            - releases
+            - release_labels
+            - release_refs
+            - credits
+            - tombstones
+            - characters
+            - tags
+            - titles
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - key
+        - count
+      type: object
+    SplitPreviewRef:
+      additionalProperties: true
+      properties:
+        anchor_kind:
+          description: How it is linked to the original today.
+          enum:
+            - probable
+            - related
+          type: string
+          x-vocabulary-closed: true
+        external_id:
+          description: Entry id. Must not be used as a discriminant beyond exact match.
+          maxLength: 64
+          type: string
+        held_by_id:
+          description: A work that already holds it as its identity; it cannot be promoted then. null when free.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type:
+            - string
+            - "null"
+        selected:
+          description: Whether promote= chose it.
+          type: boolean
+        source:
+          description: Registry.
+          enum:
+            - bangumi
+            - erogamescape
+          type: string
+          x-vocabulary: sources
+          x-vocabulary-closed: false
+      required:
+        - source
+        - external_id
+        - anchor_kind
+        - held_by_id
+        - selected
+      type: object
+    SplitPreviewRelease:
+      additionalProperties: true
+      properties:
+        credit_count:
+          description: Credits limited to this release; they move with it.
+          format: int64
+          minimum: 0
+          type: integer
+        id:
+          description: Release id.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+        label_count:
+          description: Companies credited on the release; they move with it.
+          format: int64
+          minimum: 0
+          type: integer
+        lang:
+          description: BCP-47. Empty if unrecorded.
+          format: bcp47
+          maxLength: 32
+          type: string
+        platform:
+          description: Empty when unrecorded. Must not be used as a discriminant.
+          maxLength: 64
+          type: string
+        release_date:
+          description: Calendar date. null if undated.
+          format: date
+          maxLength: 10
+          type:
+            - string
+            - "null"
+        release_date_precision:
+          description: null when release_date is null.
+          enum:
+            - day
+            - month
+            - year
+            - null
+          type:
+            - string
+            - "null"
+          x-vocabulary-closed: true
+        release_kind:
+          description: Release class.
+          enum:
+            - default
+            - digital
+            - physical
+            - trial
+            - patch
+          type: string
+          x-vocabulary-closed: true
+        selected:
+          description: Whether release_ids= chose it.
+          type: boolean
+        sources:
+          description: Registries that hold this release, e.g. vndb, dlsite, getchu. Open vocabulary.
+          items:
+            type: string
+          type: array
+        title:
+          description: Release title; empty when unrecorded. Must not be used as a discriminant.
+          maxLength: 512
+          type: string
+        tombstone:
+          description: Whether moving it leaves a retired row on the original for the VNDB import.
+          type: boolean
+        vndb_rid:
+          description: VNDB release id. null when none.
+          maxLength: 16
+          pattern: ^r[0-9]+$
+          type:
+            - string
+            - "null"
+      required:
+        - id
+        - title
+        - release_kind
+        - platform
+        - lang
+        - release_date
+        - release_date_precision
+        - vndb_rid
+        - sources
+        - label_count
+        - credit_count
+        - selected
+        - tombstone
+      type: object
+    SplitRef:
+      additionalProperties: true
+      properties:
+        external_id:
+          description: The entry's id in that registry. Must not be used as a discriminant beyond exact match.
+          maxLength: 64
+          minLength: 1
+          type: string
+        source:
+          description: A registry that lists editions as separate entries.
+          enum:
+            - bangumi
+            - erogamescape
+          type: string
+          x-vocabulary: sources
+          x-vocabulary-closed: false
+      required:
+        - source
+        - external_id
+      type: object
+    SplitRequestRecord:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/SplitRequestRecord.json
+          format: uri
+          readOnly: true
+          type: string
+        amended_at:
+          description: RFC 3339 UTC. null when never amended.
+          format: date-time
+          maxLength: 32
+          type:
+            - string
+            - "null"
+        amended_by:
+          anyOf:
+            - $ref: "#/components/schemas/UserRef"
+            - type: "null"
+          description: Account behind amended_by_uid.
+        amended_by_uid:
+          description: Central account id of the reviewer who last changed the selection. null when never amended.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type:
+            - string
+            - "null"
+        decided_at:
+          description: RFC 3339 UTC. null before a decision.
+          format: date-time
+          maxLength: 32
+          type:
+            - string
+            - "null"
+        decided_by:
+          anyOf:
+            - $ref: "#/components/schemas/UserRef"
+            - type: "null"
+          description: Account behind decided_by_uid.
+        decided_by_uid:
+          description: Central account id of the reviewer who approved or rejected.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type:
+            - string
+            - "null"
+        decision_note:
+          description: The reviewer's reason for a rejection, or why the request closed by itself. Must not be used as a discriminant.
+          maxLength: 2000
+          type: string
+        display_name:
+          description: The new work's display name. Must not be used as a discriminant.
+          maxLength: 512
+          type: string
+        execute_after:
+          description: End of the cooling-off once approved. null before approval.
+          format: date-time
+          maxLength: 32
+          type:
+            - string
+            - "null"
+        executed_at:
+          description: RFC 3339 UTC. null until executed.
+          format: date-time
+          maxLength: 32
+          type:
+            - string
+            - "null"
+        id:
+          description: Split request id.
+          maxLength: 20
+          minLength: 1
+          pattern: ^[0-9]+$
+          type: string
+        moved:
+          description: What the execution created or moved. Empty before execution.
+          items:
+            $ref: "#/components/schemas/SplitMovedCount"
+          type: array
+        new_work_id:
+          description: The work the split created. null until executed; after an undo it redirects to target_id.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type:
+            - string
+            - "null"
+        new_work_name:
+          description: The created work's display name, empty until executed. Must not be used as a discriminant.
+          maxLength: 512
+          type: string
+        note:
+          description: The requester's reason. Must not be used as a discriminant.
+          maxLength: 2000
+          type: string
+        object:
+          description: Type discriminant. Always split_request.
+          enum:
+            - split_request
+          type: string
+          x-vocabulary-closed: true
+        olang:
+          description: The new work's original language, BCP-47.
+          format: bcp47
+          maxLength: 16
+          type: string
+        origin_site:
+          description: "Property the edit was made from: kungal (the KUN Visual Novel forum), moyu, letmoe, nextmoe or editor (the NextMoe editor itself). null on rows recorded before attribution existed."
+          enum:
+            - kungal
+            - moyu
+            - letmoe
+            - nextmoe
+            - editor
+            - null
+          type:
+            - string
+            - "null"
+          x-vocabulary-closed: true
+        promote_refs:
+          description: Source entries that become the new work's identity.
+          items:
+            $ref: "#/components/schemas/SplitRef"
+          type: array
+        proposed_at:
+          description: RFC 3339 UTC.
+          format: date-time
+          maxLength: 32
+          type: string
+        proposed_by:
+          anyOf:
+            - $ref: "#/components/schemas/UserRef"
+            - type: "null"
+          description: Account behind proposed_by_uid. null only when the account directory could not be read.
+        proposed_by_uid:
+          description: Central account id of the requester.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+        release_ids:
+          description: Releases that move to the new work.
+          items:
+            type: string
+          type: array
+        state:
+          description: open awaits a reviewer; approved waits out the cooling-off; executed created the new work; rejected and withdrawn are closed; undone was executed and then put back.
+          enum:
+            - open
+            - approved
+            - executed
+            - rejected
+            - withdrawn
+            - undone
+          type: string
+          x-vocabulary-closed: true
+        target_id:
+          description: The work the releases are split off.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+        target_name:
+          description: Its display name. Must not be used as a discriminant.
+          maxLength: 512
+          type: string
+        target_object:
+          description: Family of the entry. Only works can be split today.
+          enum:
+            - work
+          type: string
+          x-vocabulary-closed: true
+        titles:
+          description: Titles the new work starts with.
+          items:
+            $ref: "#/components/schemas/SplitTitle"
+          type: array
+        undo_merge_id:
+          description: The merge that folded the new work back into target_id on undo. null unless undone.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type:
+            - string
+            - "null"
+        undo_note:
+          description: The reviewer's note when undoing. Must not be used as a discriminant.
+          maxLength: 2000
+          type: string
+        undo_until:
+          description: Last moment a reviewer can undo the split. null unless executed.
+          format: date-time
+          maxLength: 32
+          type:
+            - string
+            - "null"
+        undone_at:
+          description: RFC 3339 UTC. null unless undone.
+          format: date-time
+          maxLength: 32
+          type:
+            - string
+            - "null"
+        undone_by:
+          anyOf:
+            - $ref: "#/components/schemas/UserRef"
+            - type: "null"
+          description: Account behind undone_by_uid.
+        undone_by_uid:
+          description: Central account id of the reviewer who undid the split.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type:
+            - string
+            - "null"
+      required:
+        - object
+        - id
+        - state
+        - target_object
+        - target_id
+        - target_name
+        - new_work_id
+        - new_work_name
+        - release_ids
+        - display_name
+        - olang
+        - titles
+        - promote_refs
+        - note
+        - decision_note
+        - undo_note
+        - proposed_by_uid
+        - proposed_by
+        - amended_by_uid
+        - amended_by
+        - decided_by_uid
+        - decided_by
+        - undone_by_uid
+        - undone_by
+        - origin_site
+        - proposed_at
+        - amended_at
+        - decided_at
+        - execute_after
+        - executed_at
+        - undone_at
+        - undo_until
+        - undo_merge_id
+        - moved
+      type: object
+    SplitTitle:
+      additionalProperties: true
+      properties:
+        lang:
+          description: BCP-47, or empty for a title with no language.
+          format: bcp47
+          maxLength: 32
+          type: string
+        title:
+          description: Must not be used as a discriminant.
+          maxLength: 512
+          minLength: 1
+          type: string
+        title_kind:
+          description: How the new work holds the title.
+          enum:
+            - official
+            - alias
+            - abbreviation
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - lang
+        - title
+        - title_kind
       type: object
     StoreCampaign:
       additionalProperties: true
@@ -16709,6 +17584,100 @@ paths:
         - userToken: []
         - {}
       summary: Get one series
+      tags:
+        - catalog
+  /v2/catalog/splits:
+    get:
+      description: "Executed and undone splits, oldest change first. Keyset-paginated. A split moves releases from original_id to a new work: the new id also appears on /v2/catalog/changes, and the moved releases keep their ids. A mirror that hangs its own data off releases or editions should follow them to new_work_id. An undo re-surfaces the split with state=undone: the releases are back on original_id and new_work_id redirects there (/v2/catalog/redirects). Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit."
+      operationId: listCatalogSplits
+      parameters:
+        - description: Opaque keyset cursor from next_cursor. Omit to start from the first split.
+          explode: false
+          in: query
+          name: cursor
+          schema:
+            description: Opaque keyset cursor from next_cursor. Omit to start from the first split.
+            maxLength: 48
+            pattern: ^sp_[0-9]+_[0-9]+$
+            type: string
+        - description: Page size, 1-100. Default 50.
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: Page size, 1-100. Default 50.
+            format: int64
+            maximum: 100
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListSplitEvent"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - applicationKey: []
+        - userToken: []
+        - {}
+      summary: Work split feed
       tags:
         - catalog
   /v2/catalog/stats:
@@ -26421,6 +27390,497 @@ paths:
       summary: Rate a work, or replace my rating of it
       tags:
         - me
+  /v2/me/split-preview:
+    get:
+      description: Every live release of the work, the registry entries that could become the new work's identity, what moves and what stays, titles suggested from the chosen releases, and the blockers, warnings and registry facts for the choice in release_ids= and promote=. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+      operationId: getMySplitPreview
+      parameters:
+        - description: Family of the entry.
+          explode: false
+          in: query
+          name: object
+          schema:
+            description: Family of the entry.
+            enum:
+              - work
+            type: string
+            x-vocabulary-closed: true
+        - description: The work.
+          explode: false
+          in: query
+          name: target_id
+          schema:
+            description: The work.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+        - description: Comma-separated release ids chosen to move.
+          explode: false
+          in: query
+          name: release_ids
+          schema:
+            description: Comma-separated release ids chosen to move.
+            maxLength: 4000
+            pattern: ^[0-9]+(,[0-9]+)*$
+            type: string
+        - description: Comma-separated source:external_id entries chosen to promote.
+          explode: false
+          in: query
+          name: promote
+          schema:
+            description: Comma-separated source:external_id entries chosen to promote.
+            maxLength: 1000
+            pattern: ^[a-z_]+:[^,]+(,[a-z_]+:[^,]+)*$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SplitPreview"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Preview a split
+      tags:
+        - me
+  /v2/me/split-requests:
+    get:
+      description: The bearer's own split requests, newest first; follow next_cursor for more. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+      operationId: listMySplitRequests
+      parameters:
+        - description: Narrow to one state.
+          explode: false
+          in: query
+          name: state
+          schema:
+            description: Narrow to one state.
+            enum:
+              - open
+              - approved
+              - executed
+              - rejected
+              - withdrawn
+              - undone
+            type: string
+            x-vocabulary-closed: true
+        - description: Narrow to requests about one work.
+          explode: false
+          in: query
+          name: target_id
+          schema:
+            description: Narrow to requests about one work.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+        - description: Narrow to requests filed from one first-party property.
+          explode: false
+          in: query
+          name: origin_site
+          schema:
+            description: Narrow to requests filed from one first-party property.
+            enum:
+              - kungal
+              - moyu
+              - letmoe
+              - nextmoe
+              - editor
+            type: string
+            x-vocabulary-closed: true
+        - description: Opaque keyset cursor from next_cursor.
+          explode: false
+          in: query
+          name: cursor
+          schema:
+            description: Opaque keyset cursor from next_cursor.
+            maxLength: 32
+            pattern: ^cur_[0-9]+$
+            type: string
+        - description: Page size, 1-100. Default 20.
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: Page size, 1-100. Default 20.
+            format: int64
+            maximum: 100
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListSplitRequestRecord"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: List my split requests
+      tags:
+        - me
+    post:
+      description: "Asks reviewers to move some releases of a work into a work of their own, for an edition that deserves its own entry although VNDB lists it under the same VN. Nothing changes on filing: a reviewer approves (and may amend the selection), the cooling-off runs, then the new work is created. One open or approved request per work; another is 409. Quotas are tiered: catalog.split_requests_per_day, _editor, _reviewer inside catalog.write_quota_window_hours; past it 429 QUOTA_EXCEEDED. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope."
+      operationId: createMySplitRequest
+      parameters:
+        - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSplitRequestInputBody"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SplitRequestRecord"
+          description: Created
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Request a split
+      tags:
+        - me
+  /v2/me/split-requests/{id}:
+    get:
+      description: Any split request, for its page in the editor. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+      operationId: getMySplitRequest
+      parameters:
+        - description: Split request id.
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Split request id.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SplitRequestRecord"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Get one split request
+      tags:
+        - me
+    patch:
+      description: Withdraws an open request the bearer filed. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+      operationId: patchMySplitRequest
+      parameters:
+        - description: Split request id.
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Split request id.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchSplitRequestInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SplitRequestRecord"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Withdraw a split request
+      tags:
+        - me
   /v2/me/work-records:
     get:
       description: "The bearer's own play records: the works they have a play state on, each with its playtime and rating, with the filters and facets of /v2/work-records. The privacy switch does not apply: this is the owner's view of their own profile. Newest first by the play state's updated_at; a work with only a playtime or only a rating is not listed. Works that are no longer live in the catalog are left out. facets=state counts the works per state after the same filters as the items, state= included, as every v2 facet does: all five states are present, 0 when empty. Ask for it on a request without state= to fill a row of tabs. include_total counts the items. Requires a user access token. Any app may call this; no scope is required."
@@ -29383,6 +30843,397 @@ paths:
       security:
         - userToken: []
       summary: Current edit snapshot
+      tags:
+        - moderation
+  /v2/moderation/split-requests:
+    get:
+      description: Split requests, newest first; follow next_cursor for more. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+      operationId: listModerationSplitRequests
+      parameters:
+        - description: Narrow to one state.
+          explode: false
+          in: query
+          name: state
+          schema:
+            description: Narrow to one state.
+            enum:
+              - open
+              - approved
+              - executed
+              - rejected
+              - withdrawn
+              - undone
+            type: string
+            x-vocabulary-closed: true
+        - description: Narrow to requests about one work.
+          explode: false
+          in: query
+          name: target_id
+          schema:
+            description: Narrow to requests about one work.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+        - description: Narrow to requests filed from one first-party property.
+          explode: false
+          in: query
+          name: origin_site
+          schema:
+            description: Narrow to requests filed from one first-party property.
+            enum:
+              - kungal
+              - moyu
+              - letmoe
+              - nextmoe
+              - editor
+            type: string
+            x-vocabulary-closed: true
+        - description: Opaque keyset cursor from next_cursor.
+          explode: false
+          in: query
+          name: cursor
+          schema:
+            description: Opaque keyset cursor from next_cursor.
+            maxLength: 32
+            pattern: ^cur_[0-9]+$
+            type: string
+        - description: Page size, 1-100. Default 20.
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: Page size, 1-100. Default 20.
+            format: int64
+            maximum: 100
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListSplitRequestRecord"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Split request queue
+      tags:
+        - moderation
+  /v2/moderation/split-requests/{id}:
+    get:
+      description: Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+      operationId: getModerationSplitRequest
+      parameters:
+        - description: Split request id.
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Split request id.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SplitRequestRecord"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Get one split request for review
+      tags:
+        - moderation
+    patch:
+      description: Replaces the chosen releases, the new work's name, language and titles, and the entries to promote, while the request is open or approved. Validated like a filing; records who amended. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+      operationId: amendModerationSplitRequest
+      parameters:
+        - description: Split request id.
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Split request id.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SplitDraftBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SplitRequestRecord"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Amend a split request
+      tags:
+        - moderation
+  /v2/moderation/split-requests/{id}/decisions:
+    post:
+      description: decision=approve|reject|execute|undo. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+      operationId: decideModerationSplitRequest
+      parameters:
+        - description: Split request id.
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Split request id.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+        - description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+          in: header
+          name: Idempotency-Key
+          schema:
+            description: "Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path."
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DecideSplitRequestInputBody"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SplitRequestRecord"
+          description: Created
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Decide a split request
       tags:
         - moderation
   /v2/moderation/users/{uid}/folders:

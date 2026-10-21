@@ -600,6 +600,7 @@ nsfw  若 cover_art_all_explicit(有可选封面且全部被判 explicit),不论
 2. **稳态**:存下 `next_cursor`,按自己的节奏轮询;游标是不透明串,原样回传。注意 feed 有 5 秒的在途事务水位,刚写的行会晚一拍出现——这不是丢失。
 3. **`gone: true`**:该 id 已离开公开人口(被合并,或不再被服务),删掉本地行。
 4. **被合并的 id** 同时出现在 `/v2/catalog/redirects`,那里给出接替它的规范 id——有 redirect 就**重指**而不是删除。redirect 每次变化(新建、被并入的幸存者又被合并而改指、合并被撤销)都会刷新 `merged_at`,从而重新出现在 feed 尾部,按 `(entity_type, old_id)` upsert 即可;`revoked: true` 表示合并已撤销、`old_id` 以原 id 恢复上线(此时 `current_id = old_id`),删掉本地的重定向。
+5. **拆分**(2026-10-21 起):审核通过的拆分会把一部作品的若干发行移到一部新作品。新作品以新 id 出现在本 feed;`GET /v2/catalog/splits` 按变化时间升序列出每次拆分(`original_id`、`new_work_id`、`release_ids`、`state`)。发行 id 不变,只是改挂到新作品——按发行或版本挂了本站资源的镜像,应把这些资源跟到 `new_work_id`(是否搬、搬哪些由站点自己决定)。拆分被撤销时同一条以 `state: undone` 重新出现在 feed 尾部:发行回到 `original_id`,`new_work_id` 经 `/v2/catalog/redirects` 重定向到 `original_id`。
 
 **本地谓词写法**:缓存列用可空列,`NULL` 表示「尚未同步」并且**放行**,例如 `WHERE content_limit IS NULL OR content_limit = 'sfw'`。冷启动期间未水合的行因此照常可见而不是整站空白;真正的权威始终是水合时 catalog 自己的闸,本地列只是列表页的快筛。
 

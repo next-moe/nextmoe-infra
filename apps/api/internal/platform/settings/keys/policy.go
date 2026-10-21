@@ -446,6 +446,30 @@ var CatalogDeletionRequestsPerDayReviewer = settings.Int(settings.Meta{
 	Max:    settings.F(100000),
 }, 200)
 
+var CatalogSplitRequestsPerDay = settings.Int(settings.Meta{
+	Name:   "catalog.split_requests_per_day",
+	DescEN: "How many split requests one user-tier account may file through the editor inside catalog.write_quota_window_hours. Nothing is split until a reviewer approves and the cooling-off (catalog.merge_cooling_off_hours) ends.",
+	DescZH: "普通档账号在 catalog.write_quota_window_hours 窗口内通过编辑台提交拆分请求的上限。须审核通过并度过冷静期（catalog.merge_cooling_off_hours）才会拆分。",
+	Min:    settings.F(0),
+	Max:    settings.F(100000),
+}, 5)
+
+var CatalogSplitRequestsPerDayEditor = settings.Int(settings.Meta{
+	Name:   "catalog.split_requests_per_day_editor",
+	DescEN: "The same limit for the editor tier.",
+	DescZH: "编辑者档的同一限额。",
+	Min:    settings.F(0),
+	Max:    settings.F(100000),
+}, 20)
+
+var CatalogSplitRequestsPerDayReviewer = settings.Int(settings.Meta{
+	Name:   "catalog.split_requests_per_day_reviewer",
+	DescEN: "The same limit for the reviewer tier.",
+	DescZH: "审核者档的同一限额。",
+	Min:    settings.F(0),
+	Max:    settings.F(100000),
+}, 200)
+
 var CatalogEditMergeReward = settings.Int(settings.Meta{
 	Name:   "catalog.edit_merge_reward",
 	DescEN: "Moemoepoints the catalog-edit-rewards job grants the proposer of an edit proposal that someone else merged, whichever site filed it and whatever entity it edits. Self-merges, automerges and reverts earn nothing. 0 stops new awards.",
@@ -540,6 +564,9 @@ var catalogDomain = settings.Domain{
 		CatalogDeletionRequestsPerDay,
 		CatalogDeletionRequestsPerDayEditor,
 		CatalogDeletionRequestsPerDayReviewer,
+		CatalogSplitRequestsPerDay,
+		CatalogSplitRequestsPerDayEditor,
+		CatalogSplitRequestsPerDayReviewer,
 		CatalogNewsSubmissionsPerDay,
 		CatalogNewsImageUploadsPerDay,
 		CatalogEditMergeReward,

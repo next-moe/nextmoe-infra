@@ -414,6 +414,7 @@ func setupPublicCatalog(
 			EditContext:    service.NewEditContextService(catalogDB.DB()),
 			Merges:         service.NewMergeService(catalogDB.DB(), resolveSvc),
 			Deletions:      service.NewDeletionService(catalogDB.DB(), resolveSvc),
+			Splits:         service.NewSplitService(catalogDB.DB(), resolveSvc, service.NewMergeService(catalogDB.DB(), resolveSvc)),
 			UsersOf:        usersOf(application.DB.DB(), cfg.ImageService.CDNBase),
 			Uploads:        v2handler.EditImageUpload(editUpload),
 			NewsImages:     newsImages,
@@ -422,7 +423,7 @@ func setupPublicCatalog(
 			Prices:         priceSvc,
 			RatingTrust:    ratingTrust,
 			Discussions: discussion.New(catalogDB.DB(),
-				discussion.ProposalKind(), discussion.MergeRequestKind(), discussion.DeletionRequestKind()),
+				discussion.ProposalKind(), discussion.MergeRequestKind(), discussion.DeletionRequestKind(), discussion.SplitRequestKind()),
 			DiscussionTrust: ratingTrust,
 
 			SiteOfAppClient: siteOfClient,

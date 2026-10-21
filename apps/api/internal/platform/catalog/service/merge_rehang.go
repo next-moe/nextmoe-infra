@@ -109,6 +109,8 @@ var mergeRefExclusions = map[string]string{
 	"catalog_merge_proposal.source_entity_id":    "the merge's own record of its source",
 	"catalog_merge_proposal.target_entity_id":    "the merge's own record of its target",
 	"catalog_deletion_request.entity_id":         "the request's own record of what it asked to delete; an executor that finds the entry merged away closes the request",
+	"catalog_split_request.entity_id":            "the split's own record of the work it split; an executor that finds the work merged away closes the request",
+	"catalog_split_request.new_work_id":          "the split's own record of the work it created; undo merges that work back into entity_id",
 	"catalog_work.product_work_id":               "a product-side claim id, not a catalog entity id; retireSource frees it",
 	"catalog_user_work_rating_tombstone.work_id": "deletion log, addressed to the work the rating was on when it was deleted",
 	"catalog_work_media_order.work_id":           "the order of the source work's own images; the target keeps its own order, merged-in images sort after it, and an unmerge revives the source with its order intact",

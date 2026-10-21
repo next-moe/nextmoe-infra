@@ -93,7 +93,7 @@ path style、PG 连接池、OIDC 签名算法、aff URL 模板等启动期接线
 - `trust.*`:`report_rate_window_minutes` / `report_rate_max_per_window` / `aggregate_threshold` / `new_account_age_days` / `new_account_reporter_weight` / `policy_cache_ttl_seconds` / `term_cache_ttl_seconds`
 - `ai.moderate_max_tokens`
 - `community.*`:`sandbox_max_links` / `sandbox_max_images` / `sandbox_max_mentions` / `sandbox_max_topics_per_day` / `sandbox_max_replies_per_day` / `sandbox_window_hours` / `flag_hide_threshold`
-- `catalog.*`:`totals_cache_ttl_seconds` / `merge_cooling_off_hours` / `write_quota_window_hours` / `claim_writes_per_day` / `claim_writes_per_day_trusted` / `proposals_per_day` / `proposals_per_day_editor` / `proposals_per_day_reviewer` / `direct_edits_per_day_editor` / `open_proposals_max_user` / `open_proposals_max_editor` / `open_proposals_max_reviewer`(2026-10-19 按用户/编辑者/审核者分档,取代 `proposals_per_day_trusted`) / `news_submissions_per_day` / `news_image_uploads_per_day` / `edit_merge_reward` / `edit_merge_reward_window_days`(2026-10-20 编辑奖励统一由 infra 发放) / `deletion_cooling_off_hours` / `deletion_requests_per_day` / `deletion_requests_per_day_editor` / `deletion_requests_per_day_reviewer`(2026-10-21 删除请求)
+- `catalog.*`:`totals_cache_ttl_seconds` / `merge_cooling_off_hours` / `write_quota_window_hours` / `claim_writes_per_day` / `claim_writes_per_day_trusted` / `proposals_per_day` / `proposals_per_day_editor` / `proposals_per_day_reviewer` / `direct_edits_per_day_editor` / `open_proposals_max_user` / `open_proposals_max_editor` / `open_proposals_max_reviewer`(2026-10-19 按用户/编辑者/审核者分档,取代 `proposals_per_day_trusted`) / `news_submissions_per_day` / `news_image_uploads_per_day` / `edit_merge_reward` / `edit_merge_reward_window_days`(2026-10-20 编辑奖励统一由 infra 发放) / `deletion_cooling_off_hours` / `deletion_requests_per_day` / `deletion_requests_per_day_editor` / `deletion_requests_per_day_reviewer` / `split_requests_per_day` / `split_requests_per_day_editor` / `split_requests_per_day_reviewer`(2026-10-21 删除请求)
 - `developer.*`:`credential_cache_ttl_seconds` / `credential_cache_negative_ttl_seconds`
 
 ### 启动期旋钮收编(W3-b,13 个)
@@ -126,6 +126,7 @@ oauth 上的调度器(`internal/jobs`)每个任务两把键,没有环境变量�
 | `catalog-merge-stragglers` | true | `daily@21:40` |
 | `catalog-merge-requests` | true | `every:1h` |
 | `catalog-deletion-requests` | true | `every:1h` |
+| `catalog-split-requests` | true | `every:1h` |
 | `catalog-edit-rewards` | true | `every:15m` |
 | `catalog-tag-parents` | true | `daily@21:20` |
 | `artifact-gc` | true | `daily@05:30` |

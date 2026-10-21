@@ -141,6 +141,8 @@ var editingPlanePrefixes = []string{
 	"/v2/me/merge-preview",
 	"/v2/me/merge-requests",
 	"/v2/me/proposals",
+	"/v2/me/split-preview",
+	"/v2/me/split-requests",
 	"/v2/moderation/claims",
 	"/v2/moderation/deletion-requests",
 	"/v2/moderation/discussions",
@@ -148,6 +150,7 @@ var editingPlanePrefixes = []string{
 	"/v2/moderation/proposals",
 	"/v2/moderation/reverts",
 	"/v2/moderation/snapshots",
+	"/v2/moderation/split-requests",
 }
 
 func underPrefix(path, prefix string) bool {

@@ -45,6 +45,9 @@ var customCollectionFaces = map[string]string{
 	"/v2/moderation/merge-requests":         "merge-request queue: state=/object= filters over a small keyset feed, no refs=, nsfw or facets",
 	"/v2/me/deletion-requests":              "deletion-request queue: state=/target_id=/origin_site= filters over a small keyset feed, no refs=, nsfw or facets",
 	"/v2/moderation/deletion-requests":      "deletion-request queue: state=/target_id=/origin_site= filters over a small keyset feed, no refs=, nsfw or facets",
+	"/v2/me/split-requests":                 "split-request queue: state=/target_id=/origin_site= filters over a small keyset feed, no refs=, nsfw or facets",
+	"/v2/moderation/split-requests":         "split-request queue: state=/target_id=/origin_site= filters over a small keyset feed, no refs=, nsfw or facets",
+	"/v2/catalog/splits":                    "split event feed: an oldest-change-first keyset over executed and undone splits, cursor= and limit= only",
 }
 
 func bindingApp(t *testing.T) (*fiber.App, huma.API, string, string) {

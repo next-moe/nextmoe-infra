@@ -124,6 +124,7 @@ func SetupWith(app *fiber.App, opt Options) huma.API {
 	registerMergeRequests(api, opt.Catalog)
 	registerDiscussions(api, opt.Catalog)
 	registerDeletionRequests(api, opt.Catalog)
+	registerSplitRequests(api, opt.Catalog)
 	registerFolderHoldings(api, opt.Catalog)
 	registerMeWorks(api, opt.Catalog)
 	registerMeFolders(api, opt.Catalog)

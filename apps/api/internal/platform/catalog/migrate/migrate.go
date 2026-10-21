@@ -227,6 +227,9 @@ func Run(db *gorm.DB) error {
 	if err := migrateDeletionRequests(db); err != nil {
 		return err
 	}
+	if err := migrateSplitRequests(db); err != nil {
+		return err
+	}
 	return rawSQL(db)
 }
 
