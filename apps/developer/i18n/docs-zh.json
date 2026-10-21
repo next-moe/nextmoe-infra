@@ -1322,5 +1322,6 @@
   "Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps revisions made from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE.": "封闭：kungal、moyu、letmoe、nextmoe、editor。只保留来自该站点的修订。未知值为 400 UNKNOWN_ENUM_VALUE。",
   "Narrow to requests filed from one first-party property.": "只看从某一个第一方站点提交的请求。",
   "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.": "这次编辑来自哪个站点：kungal（鲲 Galgame 论坛）、moyu、letmoe、nextmoe，直接打开编辑台时为 editor。仅用于归因，从不作为权限依据。早于来源记录（2026-10-21）的记录与批处理工具写入的记录为 null。GET /v2/vocabularies/origin_site 给出各站点的显示名与用户主页 URL 模板。",
-  "origin_site only: the property's user profile URL, with {id} standing for the central account id (every first-party site uses it as its own user id). Absent when the property has no user pages.": "仅 origin_site 使用：该站点的用户主页 URL，其中 {id} 代表中央账号 id（每个第一方站点都把它用作自己的用户 id）。站点没有用户主页时不出现。"
+  "origin_site only: the property's user profile URL, with {id} standing for the central account id (every first-party site uses it as its own user id). Absent when the property has no user pages.": "仅 origin_site 使用：该站点的用户主页 URL，其中 {id} 代表中央账号 id（每个第一方站点都把它用作自己的用户 id）。站点没有用户主页时不出现。",
+  "The entry's display name, also once it is deleted. Must not be used as a discriminant.": "条目的显示名，删除后也照样给出。不得用作判别依据。"
 }

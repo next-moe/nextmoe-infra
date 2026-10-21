@@ -3996,6 +3996,8 @@ export interface components {
             state: "open" | "approved" | "executed" | "rejected" | "withdrawn" | "restored";
             /** @description The entry to delete. */
             target_id: string;
+            /** @description The entry's display name, also once it is deleted. Must not be used as a discriminant. */
+            target_name: string;
             /**
              * @description Family of the entry. Only works can be deleted today.
              * @enum {string}

@@ -7,6 +7,7 @@ type DeletionRequestRecord struct {
 	State         string   `json:"state" enum:"open,approved,executed,rejected,withdrawn,restored" doc:"open awaits a reviewer; approved waits out the cooling-off (catalog.deletion_cooling_off_hours), after which the deletion runs; executed means the entry is deleted; restored means a reviewer brought it back under the same id."`
 	TargetObject  string   `json:"target_object" enum:"work" doc:"Family of the entry. Only works can be deleted today."`
 	TargetID      string   `json:"target_id" pattern:"^[0-9]+$" maxLength:"20" doc:"The entry to delete."`
+	TargetName    string   `json:"target_name" maxLength:"512" doc:"The entry's display name, also once it is deleted. Must not be used as a discriminant."`
 	Reason        string   `json:"reason" enum:"not_a_work,out_of_scope,spam_or_test,other" doc:"not_a_work: no such work exists; out_of_scope: it exists but the catalog does not collect it; spam_or_test: vandalism or a test entry; other: see note. A duplicate is merged, not deleted."`
 	Note          string   `json:"note" maxLength:"2000" doc:"The requester's explanation. Must not be used as a discriminant."`
 	DecisionNote  string   `json:"decision_note" maxLength:"2000" doc:"The reviewer's reason for a rejection, or why the request closed by itself. Empty otherwise. Must not be used as a discriminant."`

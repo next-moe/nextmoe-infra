@@ -116,7 +116,10 @@ const userDataTotal = computed(() =>
       aria-label="编辑与站点"
     >
       <h3 class="flex items-center gap-1.5 text-sm font-medium">
-        <KunIcon name="lucide:git-pull-request" class="text-default-500 size-4" />
+        <KunIcon
+          name="lucide:git-pull-request"
+          class="text-default-500 size-4"
+        />
         编辑与站点
       </h3>
       <template v-if="props.loading && !props.preview">
@@ -138,7 +141,10 @@ const userDataTotal = computed(() =>
         <li class="flex items-center gap-1.5">
           <KunIcon name="lucide:globe" class="text-default-400 size-3.5" />
           <template v-if="props.preview.claim_site">
-            由 {{ SITE_LABELS[props.preview.claim_site] ?? props.preview.claim_site }}
+            由
+            {{
+              SITE_LABELS[props.preview.claim_site] ?? props.preview.claim_site
+            }}
             认领，该站作品页会显示已删除
           </template>
           <template v-else>没有站点认领</template>

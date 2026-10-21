@@ -152124,6 +152124,12 @@ export const docsModel: DocsModel = {
                               "type": "string"
                             },
                             {
+                              "name": "target_name",
+                              "required": true,
+                              "doc": "The entry's display name, also once it is deleted. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
                               "name": "target_object",
                               "required": true,
                               "doc": "Family of the entry. Only works can be deleted today.",
@@ -154213,6 +154219,12 @@ export const docsModel: DocsModel = {
                         "type": "string"
                       },
                       {
+                        "name": "target_name",
+                        "required": true,
+                        "doc": "The entry's display name, also once it is deleted. Must not be used as a discriminant.",
+                        "type": "string"
+                      },
+                      {
                         "name": "target_object",
                         "required": true,
                         "doc": "Family of the entry. Only works can be deleted today.",
@@ -156230,6 +156242,12 @@ export const docsModel: DocsModel = {
                         "name": "target_id",
                         "required": true,
                         "doc": "The entry to delete.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "target_name",
+                        "required": true,
+                        "doc": "The entry's display name, also once it is deleted. Must not be used as a discriminant.",
                         "type": "string"
                       },
                       {
@@ -259481,6 +259499,12 @@ export const docsModel: DocsModel = {
                               "type": "string"
                             },
                             {
+                              "name": "target_name",
+                              "required": true,
+                              "doc": "The entry's display name, also once it is deleted. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
                               "name": "target_object",
                               "required": true,
                               "doc": "Family of the entry. Only works can be deleted today.",
@@ -261531,6 +261555,12 @@ export const docsModel: DocsModel = {
                         "type": "string"
                       },
                       {
+                        "name": "target_name",
+                        "required": true,
+                        "doc": "The entry's display name, also once it is deleted. Must not be used as a discriminant.",
+                        "type": "string"
+                      },
+                      {
                         "name": "target_object",
                         "required": true,
                         "doc": "Family of the entry. Only works can be deleted today.",
@@ -263567,6 +263597,12 @@ export const docsModel: DocsModel = {
                         "name": "target_id",
                         "required": true,
                         "doc": "The entry to delete.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "target_name",
+                        "required": true,
+                        "doc": "The entry's display name, also once it is deleted. Must not be used as a discriminant.",
                         "type": "string"
                       },
                       {

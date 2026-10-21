@@ -297,6 +297,24 @@ func (s *DeletionService) ExecuteDue(ctx context.Context) (DueDeletionReport, er
 	return rep, firstErr
 }
 
+func (s *DeletionService) WorkNames(ctx context.Context, ids []int64) (map[int64]string, error) {
+	out := make(map[int64]string, len(ids))
+	if len(ids) == 0 {
+		return out, nil
+	}
+	var rows []struct {
+		ID          int64
+		DisplayName string
+	}
+	if err := s.db.WithContext(ctx).Raw(`SELECT id, display_name FROM catalog_work WHERE id IN ?`, ids).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, r := range rows {
+		out[r.ID] = r.DisplayName
+	}
+	return out, nil
+}
+
 type DeletedWork struct {
 	RequestID int64
 	Reason    string

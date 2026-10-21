@@ -12,8 +12,10 @@ const open = defineModel<boolean>({ required: true })
 const emit = defineEmits<{ submitted: [request: CatalogDeletionRequest] }>()
 
 const NOTE_HINTS: Record<string, string> = {
-  not_a_work: '写出你查过的地方，例如：官网、DLsite、批评空间、VNDB 都查不到这部作品。',
-  out_of_scope: '写出它是什么、为什么不属于收录范围，例如：这是一部动画，不是视觉小说。',
+  not_a_work:
+    '写出你查过的地方，例如：官网、DLsite、批评空间、VNDB 都查不到这部作品。',
+  out_of_scope:
+    '写出它是什么、为什么不属于收录范围，例如：这是一部动画，不是视觉小说。',
   spam_or_test: '写出判断依据，例如：标题是乱码、简介是广告。',
   other: '写清楚为什么要删除，以及审核者可以怎样核实。'
 }

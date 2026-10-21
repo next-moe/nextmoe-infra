@@ -2281,6 +2281,10 @@ components:
           maxLength: 20
           pattern: ^[0-9]+$
           type: string
+        target_name:
+          description: The entry's display name, also once it is deleted. Must not be used as a discriminant.
+          maxLength: 512
+          type: string
         target_object:
           description: Family of the entry. Only works can be deleted today.
           enum:
@@ -2293,6 +2297,7 @@ components:
         - state
         - target_object
         - target_id
+        - target_name
         - reason
         - note
         - decision_note

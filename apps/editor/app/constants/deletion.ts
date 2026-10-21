@@ -1,10 +1,7 @@
 import type { KunUIColor } from '@kungal/ui-core'
 
 export type DeletionReason =
-  | 'not_a_work'
-  | 'out_of_scope'
-  | 'spam_or_test'
-  | 'other'
+  'not_a_work' | 'out_of_scope' | 'spam_or_test' | 'other'
 
 export const DELETION_REASONS: {
   value: DeletionReason | 'duplicate'

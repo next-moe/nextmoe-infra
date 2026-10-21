@@ -391,6 +391,7 @@ func (c *Catalog) listDeletionRequests(ctx context.Context, f catsvc.DeletionReq
 		out.Items = append(out.Items, deletionRequestFrom(&rows[i]))
 	}
 	c.attachDeletionRequestPeople(ctx, out.Items)
+	c.attachDeletionRequestNames(ctx, out.Items)
 	return out, nil
 }
 
@@ -405,7 +406,26 @@ func (c *Catalog) deletionRequestAfterWrite(ctx context.Context, id int64) (*del
 func (c *Catalog) deletionRequestRecord(ctx context.Context, r *model.CatalogDeletionRequest) repr.DeletionRequestRecord {
 	items := []repr.DeletionRequestRecord{deletionRequestFrom(r)}
 	c.attachDeletionRequestPeople(ctx, items)
+	c.attachDeletionRequestNames(ctx, items)
 	return items[0]
+}
+
+func (c *Catalog) attachDeletionRequestNames(ctx context.Context, items []repr.DeletionRequestRecord) {
+	ids := make([]int64, 0, len(items))
+	for _, it := range items {
+		if id, ok := repr.ParseID(it.TargetID); ok {
+			ids = append(ids, id)
+		}
+	}
+	names, err := c.Deletions.WorkNames(ctx, ids)
+	if err != nil {
+		return
+	}
+	for i := range items {
+		if id, ok := repr.ParseID(items[i].TargetID); ok {
+			items[i].TargetName = names[id]
+		}
+	}
 }
 
 func optRFC3339(t *time.Time) *string {
