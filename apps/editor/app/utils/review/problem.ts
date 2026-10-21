@@ -39,6 +39,15 @@ export const conflictFieldKeys = (error: unknown) =>
     .filter((pointer) => pointer.startsWith('/fields/'))
     .map((pointer) => pointer.slice('/fields/'.length))
 
+export const mergeConflictKeys = (error: unknown) =>
+  ((error as FetchFailure | null)?.data?.errors ?? [])
+    .filter(
+      (entry) =>
+        entry.reason === 'inconsistent_with' &&
+        (entry.pointer ?? '').startsWith('/patch/')
+    )
+    .map((entry) => (entry.pointer ?? '').slice('/patch/'.length))
+
 export const isStale = (error: unknown) => {
   const status = problemStatus(error)
   return status === 412 || status === 409

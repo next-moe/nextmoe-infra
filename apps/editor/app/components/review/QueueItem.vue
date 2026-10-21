@@ -74,7 +74,10 @@ const conflictCount = computed(
             color="warning"
             variant="flat"
           >
-            {{ conflictCount }} 个字段可能冲突
+            <span class="inline-flex items-center gap-1">
+              <KunIcon name="lucide:triangle-alert" class="size-3" />
+              {{ conflictCount }} 处冲突需处理
+            </span>
           </KunChip>
         </div>
         <p

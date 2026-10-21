@@ -16,7 +16,8 @@ import {
   decisionCounts,
   initialDecisions,
   keysToMerge,
-  neighbourIds
+  neighbourIds,
+  unresolvedConflicts
 } from '../app/utils/review/decision'
 import {
   conflictingFields,
@@ -25,6 +26,7 @@ import {
   revertChanges
 } from '../app/utils/review/history'
 import { filterQueue } from '../app/utils/review/queue'
+import { mergeConflictKeys } from '../app/utils/review/problem'
 import { imageUrl, vocabularyLabel } from '../app/utils/review/describe'
 
 const join = (segments: { op: string; text: string }[], op: string) =>
@@ -181,6 +183,80 @@ describe('field decisions', () => {
       Object.keys(effective).map((key) => [key, { verdict: 'reject' as const }])
     )
     expect(keysToMerge(effective, decisions)).toEqual([])
+  })
+})
+
+describe('conflict resolutions', () => {
+  const effective = {
+    'catalog.work.display_name': 'B',
+    'catalog.work.tag_ids': ['1', '2'],
+    'catalog.work.olang': 'ja'
+  }
+  const conflicts = ['catalog.work.display_name', 'catalog.work.tag_ids']
+
+  it('starts conflicting fields as pending and blocks the merge until each is resolved', () => {
+    const decisions = initialDecisions(effective, conflicts)
+    expect(decisions['catalog.work.display_name']?.verdict).toBe('pending')
+    expect(decisions['catalog.work.olang']?.verdict).toBe('accept')
+    expect(unresolvedConflicts(conflicts, decisions)).toEqual(conflicts)
+  })
+
+  it('re-sends the proposed value on override so the engine counts it as decided', () => {
+    const decisions = {
+      ...initialDecisions(effective, conflicts),
+      'catalog.work.display_name': { verdict: 'override' as const },
+      'catalog.work.tag_ids': { verdict: 'keep' as const }
+    }
+    expect(buildAmendment(effective, decisions, conflicts)).toEqual({
+      set: { 'catalog.work.display_name': 'B' },
+      unset: ['catalog.work.tag_ids']
+    })
+    expect(unresolvedConflicts(conflicts, decisions)).toEqual([])
+    expect(keysToMerge(effective, decisions)).toEqual([
+      'catalog.work.display_name',
+      'catalog.work.olang'
+    ])
+  })
+
+  it('sends the auto-merged value and a manual edit equal to the proposal', () => {
+    const decisions = {
+      ...initialDecisions(effective, conflicts),
+      'catalog.work.display_name': { verdict: 'amend' as const, value: 'B' },
+      'catalog.work.tag_ids': {
+        verdict: 'auto' as const,
+        value: ['1', '2', '9']
+      }
+    }
+    expect(buildAmendment(effective, decisions, conflicts)).toEqual({
+      set: {
+        'catalog.work.display_name': 'B',
+        'catalog.work.tag_ids': ['1', '2', '9']
+      },
+      unset: []
+    })
+  })
+})
+
+describe('merge conflict errors', () => {
+  it('reads the keys a concurrent revision changed from the 422 body', () => {
+    const error = {
+      statusCode: 422,
+      data: {
+        errors: [
+          {
+            pointer: '/patch/catalog.work.titles',
+            reason: 'inconsistent_with'
+          },
+          { pointer: '/patch/catalog.work.olang', reason: 'not_allowed_value' },
+          {
+            pointer: '/fields/catalog.work.intros',
+            reason: 'inconsistent_with'
+          }
+        ]
+      }
+    }
+    expect(mergeConflictKeys(error)).toEqual(['catalog.work.titles'])
+    expect(mergeConflictKeys(new Error('network'))).toEqual([])
   })
 })
 
