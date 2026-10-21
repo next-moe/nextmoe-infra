@@ -12,6 +12,7 @@ import (
 
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/repository"
+	"api/internal/platform/editing"
 	"api/internal/platform/settings/keys"
 
 	"gorm.io/gorm"
@@ -116,6 +117,8 @@ func (s *MergeService) UndoMerge(ctx context.Context, proposalID, actorID int64,
 		groups := map[[2]string][]string{}
 		for _, m := range moves {
 			switch m.Column {
+			case movementSurvivorUser:
+				continue
 			case movementSource, movementTarget, movementInserted, movementHidden, movementIdentity:
 				byKind[m.Column] = append(byKind[m.Column], m)
 			default:
@@ -181,6 +184,18 @@ func (s *MergeService) UndoMerge(ctx context.Context, proposalID, actorID int64,
 
 		if err := restoreIdentityKeys(tx, byKind[movementIdentity]); err != nil {
 			return fmt.Errorf("restore suppression keys: %w", err)
+		}
+		executedAt := time.Now()
+		if p.ExecutedAt != nil {
+			executedAt = *p.ExecutedAt
+		}
+		if err := restoreUserCollisions(tx, et, p.ID, src, dst, executedAt); err != nil {
+			return fmt.Errorf("restore folded user rows: %w", err)
+		}
+		if editType, ok := editTypeOfFamily[et]; ok {
+			if _, err := editing.ReopenDeclinedProposals(tx, editType, src, mergeDeclineNote(dst), executedAt); err != nil {
+				return fmt.Errorf("reopen proposals: %w", err)
+			}
 		}
 		if et == model.EntityTypeWork {
 			if err := refreshUserAggregates(tx, src, dst); err != nil {

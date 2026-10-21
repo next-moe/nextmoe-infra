@@ -87,6 +87,11 @@ func run(cat, com *gorm.DB, sites []string, anchorKind int16, limit int, apply b
 		if err != nil {
 			return found, done, fmt.Errorf("%s: %w", site, err)
 		}
+		restored, err := restoreUndone(cat, com, site, anchorKind, apply, out)
+		done += restored
+		if err != nil {
+			return found, done, fmt.Errorf("%s: restore undone merges: %w", site, err)
+		}
 		live, err := liveAnchors(com, sweepOpts{Site: site, AnchorKind: anchorKind})
 		if err != nil {
 			return found, done, fmt.Errorf("%s: read anchors: %w", site, err)
@@ -116,12 +121,12 @@ func run(cat, com *gorm.DB, sites []string, anchorKind int16, limit int, apply b
 		if !apply {
 			continue
 		}
-		moved, err := rehome(com, move)
+		moved, err := rehome(com, move, anchorKind)
 		done += moved
 		if err != nil {
 			return found, done, fmt.Errorf("%s: rehome: %w", site, err)
 		}
-		retired, err := retire(com, drop)
+		retired, err := retire(com, drop, anchorKind)
 		done += int(retired)
 		if err != nil {
 			return found, done, fmt.Errorf("%s: retire: %w", site, err)

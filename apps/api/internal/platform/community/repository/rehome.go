@@ -12,6 +12,9 @@ import (
 type RehomeOutcome struct {
 	IntoThreadID int64
 	MovedPosts   int64
+	// PostOffset is what the folded posts' numbers were shifted by, read
+	// under the lock on the receiving thread.
+	PostOffset int32
 }
 
 // RehomeCommentsThreadTx moves a comments thread's conversation to another
@@ -97,7 +100,7 @@ func RehomeCommentsThreadTx(tx *gorm.DB, threadID int64, toAnchorID string) (Reh
 			return RehomeOutcome{}, err
 		}
 	}
-	return RehomeOutcome{IntoThreadID: into.ID, MovedPosts: moved.RowsAffected}, nil
+	return RehomeOutcome{IntoThreadID: into.ID, MovedPosts: moved.RowsAffected, PostOffset: int32(base)}, nil
 }
 
 func rehomeAnchorSubscriptionsTx(tx *gorm.DB, from *model.CommunityThread, toAnchorID string) error {

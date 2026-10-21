@@ -602,6 +602,19 @@ nsfw  若 cover_art_all_explicit(有可选封面且全部被判 explicit),不论
 4. **被合并的 id** 同时出现在 `/v2/catalog/redirects`,那里给出接替它的规范 id——有 redirect 就**重指**而不是删除。redirect 每次变化(新建、被并入的幸存者又被合并而改指、合并被撤销)都会刷新 `merged_at`,从而重新出现在 feed 尾部,按 `(entity_type, old_id)` upsert 即可;`revoked: true` 表示合并已撤销、`old_id` 以原 id 恢复上线(此时 `current_id = old_id`),删掉本地的重定向。
 5. **拆分**(2026-10-21 起):审核通过的拆分会把一部作品的若干发行移到一部新作品。新作品以新 id 出现在本 feed;`GET /v2/catalog/splits` 按变化时间升序列出每次拆分(`original_id`、`new_work_id`、`release_ids`、`state`)。发行 id 不变,只是改挂到新作品——按发行或版本挂了本站资源的镜像,应把这些资源跟到 `new_work_id`(是否搬、搬哪些由站点自己决定)。拆分被撤销时同一条以 `state: undone` 重新出现在 feed 尾部:发行回到 `original_id`,`new_work_id` 经 `/v2/catalog/redirects` 重定向到 `original_id`。
 
+**结构性操作对照表**(2026-10-21 起;用户裁定「合并等操作的所有副作用必须被彻底处理，尽力保留」)。每种操作 catalog 侧的副作用都有逆操作完整还原;下游要做的,是对**自己的数据**做同样的事——尤其是**记下合并/拆分时自己搬了哪些行**,撤销时按记录搬回,合并之后在幸存者上新产生的行留在幸存者:
+
+| 操作 | 下游会看到 | catalog 侧同时发生 | 下游应做 |
+|---|---|---|---|
+| 合并 A→B | redirects 新增 `A→B`(此前指向 A 的 redirect 一并改指 B,各自刷新 `merged_at`);changes 里 A `gone`、B 变化;`/v2/catalog/works/A` 回 404 `ENTITY_MERGED` + `current_id=B`;`/v2/ratings/changes` 以原 id、`work_id=B` 重发 A 的评分,同一用户两边都有评分时较旧的一条以 `gone` 出现 | 收藏夹条目、游玩状态、时长移到 B(`updated_at` 刷新);A 上未决的编辑提案关闭;每夜 23:30(北京时间)的评论回收把 A 页面上的评论串移到 B(或并入 B 已有的串),并逐条记录 | 把本站挂在 A 上的数据改挂 B,并按 `(old_id, merged_at)` **记下搬了哪些行**;A 作为 B 的别名保留 |
+| 撤销合并 | redirects 里 A 那条以 `revoked: true`、`current_id=A` 重现(合并时被改指的 redirect 指回 A,同样刷新 `merged_at`);changes 里 A、B 都变化;`works/A` 回 200;`/v2/ratings/changes` 以原 id 重发所有搬过的评分(`work_id` 回到 A),合并时因重复被删的评分以原 id 复活 | 用户数据(含合并时因同一用户两边都有而被折叠、被覆盖的行)按记录还原到合并前——只在被折叠进去的那一行仍然存在时才拆回;合并后用户自己删掉或改过的、所在收藏夹已删除的、账号已注销的,都保持现状;被合并关闭的提案重新打开;下一次评论回收把评论串放回 A(A 页上已经有人开了新串时保留在 B,并在报告里列出) | 按合并时的记录把行搬回 A;合并后在 B 上新产生的行留在 B;删掉本地 redirect |
+| 拆分 O→N | `/v2/catalog/splits` 出现 `{original_id: O, new_work_id: N, release_ids, state: executed}`;changes 里 O、N 都变化(N 是新 id) | `release_ids` 改挂到 N(发行 id 不变);用户数据、评论都留在 O | 按发行挂的本站数据可改挂到 N(记下搬了哪些);按作品挂的不动 |
+| 撤销拆分 | 同一条拆分以 `state: undone` 重现;redirects 新增 `N→O`(按合并处理) | 发行回到 O;N 在存续期间收到的用户数据并入 O(折叠规则同合并) | 按拆分时的记录搬回;N 上新产生的数据按合并处理并入 O |
+| 删除 W | `works/W` 回 410 `ENTITY_DELETED`(带 `deleted_reason`、`deleted_at`);changes 里 W `gone`;`/v2/ratings/changes` 把 W 的每条评分以 `gone: true` 重发 | 外部锚全部保留(导入不会重铸);用户数据保留但各读面隐藏;W 上未决的编辑提案关闭;评论串原样保留 | 隐藏 W 与本站挂在它上面的数据,**不要清除** |
+| 恢复 W | `works/W` 回 200;changes 里 W 变化;`/v2/ratings/changes` 把 W 的每条评分作为在用记录重发 | 用户数据重新可见,收藏夹条目、游玩状态、时长刷新 `updated_at`(增量镜像会重新收到);被删除关闭的提案重新打开 | 取消隐藏 |
+
+按 id 直接读的面立即反映上述变化;站内搜索由每夜重建索引追上(新出现的作品——拆分出的 N、撤销合并复活的 A、恢复的 W——最迟在下一次重建后可搜到)。
+
 **本地谓词写法**:缓存列用可空列,`NULL` 表示「尚未同步」并且**放行**,例如 `WHERE content_limit IS NULL OR content_limit = 'sfw'`。冷启动期间未水合的行因此照常可见而不是整站空白;真正的权威始终是水合时 catalog 自己的闸,本地列只是列表页的快筛。
 
 ## 9. 作品合并的存留语义:幸存者优先(2026-10-12)
