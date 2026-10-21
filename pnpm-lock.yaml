@@ -317,6 +317,15 @@ importers:
       eslint:
         specifier: ^10.10.0
         version: 10.10.0(jiti@2.7.0)(supports-color@10.2.2)
+      gray-matter:
+        specifier: ^4.0.3
+        version: 4.0.3
+      markdown-it:
+        specifier: ^15.0.2
+        version: 15.0.2
+      markdown-it-cjk-friendly:
+        specifier: ^3.0.0
+        version: 3.0.0(markdown-it@15.0.2)
       prettier:
         specifier: ^3.9.7
         version: 3.9.7
@@ -3813,6 +3822,16 @@ packages:
 
   magicast@0.5.5:
     resolution: {integrity: sha512-UicdXN8zQ3JHlxVq+28afMXPr1z7WNY6+7EJnzTdQWkTAlMLF5fNCCKxJHBQwGaNGR11581EiQmQzx73+MvszA==}
+
+  markdown-it-cjk-friendly@3.0.0:
+    resolution: {integrity: sha512-y4OkqwenFXmb1i3w7qfh9E60qNX6U4KzECke8N/7io9SARFSvbR/wde0q/l6/Az9doieLOIw7ZsbDSgl27DR4g==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@types/markdown-it': '>=14.2.0'
+      markdown-it: '*'
+    peerDependenciesMeta:
+      '@types/markdown-it':
+        optional: true
 
   markdown-it@14.3.2:
     resolution: {integrity: sha512-sHHjZ5fJKlgrG4qns2YwVcdNep35h5fERrfkD2YNsb9UFk0UIHarbiTaHKVMlPuWAoiilyK8Fv/jAm11slsY7Q==}
@@ -10100,6 +10119,11 @@ snapshots:
       '@babel/parser': 7.29.8
       '@babel/types': 7.29.8
       source-map-js: 1.2.1
+
+  markdown-it-cjk-friendly@3.0.0(markdown-it@15.0.2):
+    dependencies:
+      get-east-asian-width: 1.6.0
+      markdown-it: 15.0.2
 
   markdown-it@14.3.2:
     dependencies:

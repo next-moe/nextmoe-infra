@@ -13,7 +13,8 @@ const OTHER_SECTION: Omit<WorkspaceSectionDef, 'fields'> = {
   key: 'other',
   label: '其他',
   icon: 'lucide:ellipsis',
-  group: 'other'
+  group: 'other',
+  guide: 'work-basics'
 }
 
 export const useWorkspaceSections = (workspace: EntityWorkspace) => {
@@ -21,6 +22,7 @@ export const useWorkspaceSections = (workspace: EntityWorkspace) => {
     const preset = FAMILY_SECTIONS[workspace.family]
     if (!preset) {
       return sectionsFromGroups(
+        workspace.family,
         workspace.groups.value,
         workspace.fieldsByGroup.value
       )

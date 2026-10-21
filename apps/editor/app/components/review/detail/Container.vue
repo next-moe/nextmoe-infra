@@ -13,13 +13,17 @@ import {
   initialDecisions,
   keysToMerge,
   neighbourIds,
+  unresolvedConflicts,
   type FieldDecision,
   type FieldDecisions
 } from '~/utils/review/decision'
 import { cloneValue } from '#shared/utils/editModel'
-import { conflictingFields } from '~/utils/review/history'
+import { threeWayMerge, type ThreeWayMerge } from '#shared/utils/threeWay'
+import { conflictingFields, type FieldDiffLike } from '~/utils/review/history'
+import { basesFromDiff, conflictBaseQuery } from '~/utils/review/conflictBase'
 import {
   isStale,
+  mergeConflictKeys,
   newIdempotencyKey,
   problemMessage
 } from '~/utils/review/problem'
@@ -43,6 +47,8 @@ const schema = ref<CatalogObjectSchema | null>(null)
 const current = ref<Record<string, unknown>>({})
 const capabilities = ref<CatalogEditCapabilities | null>(null)
 const conflicts = ref<Record<string, number>>({})
+const bases = ref<Record<string, unknown>>({})
+const basesKnown = ref(false)
 const decisions = ref<FieldDecisions>({})
 const note = ref('')
 const loadError = ref('')
@@ -55,12 +61,38 @@ const effective = computed<Record<string, unknown>>(
   () => proposal.value?.effective_patch ?? proposal.value?.patch ?? {}
 )
 
+const conflictKeys = computed(() =>
+  Object.keys(conflicts.value).filter((key) => key in effective.value)
+)
+
 const fields = computed(() => {
   const keys = Object.keys(effective.value)
-  return (schema.value?.fields ?? []).filter((field) =>
+  const present = (schema.value?.fields ?? []).filter((field) =>
     keys.includes(field.key)
   )
+  return [
+    ...present.filter((field) => conflictKeys.value.includes(field.key)),
+    ...present.filter((field) => !conflictKeys.value.includes(field.key))
+  ]
 })
+
+const merges = computed<Record<string, ThreeWayMerge | null>>(() =>
+  Object.fromEntries(
+    fields.value
+      .filter((field) => conflictKeys.value.includes(field.key))
+      .map((field) => [
+        field.key,
+        basesKnown.value
+          ? threeWayMerge(
+              field,
+              bases.value[field.key],
+              current.value[field.key],
+              effective.value[field.key]
+            )
+          : null
+      ])
+  )
+)
 
 const canReviewField = (key: string) =>
   capabilities.value?.fields.find((field) => field.key === key)?.can_review ??
@@ -68,8 +100,22 @@ const canReviewField = (key: string) =>
 
 const isOpen = computed(() => proposal.value?.state === 'open')
 const counts = computed(() => decisionCounts(decisions.value))
+const unresolved = computed(() =>
+  unresolvedConflicts(conflictKeys.value, decisions.value)
+)
+const autoMergeable = computed(() =>
+  unresolved.value.filter((key) => merges.value[key]?.clean)
+)
 const mergeable = computed(
-  () => keysToMerge(effective.value, decisions.value).length > 0
+  () =>
+    keysToMerge(effective.value, decisions.value).length > 0 &&
+    unresolved.value.length === 0
+)
+const amending = computed(
+  () =>
+    counts.value.amend > 0 ||
+    counts.value.reject > 0 ||
+    conflictKeys.value.length > 0
 )
 const reviewable = computed(() =>
   fields.value.some((field) => canReviewField(field.key))
@@ -88,9 +134,6 @@ const load = async () => {
     const record = res._data!
     proposal.value = record
     etag.value = res.headers.get('etag')
-    decisions.value = initialDecisions(
-      record.effective_patch ?? record.patch ?? {}
-    )
     focusIndex.value = 0
     const family = record.target_object
     const [schemaRes, snapshot, caps, revisions] = await Promise.all([
@@ -109,24 +152,53 @@ const load = async () => {
     current.value = snapshot?.field_values ?? {}
     capabilities.value = caps
     const patch = record.effective_patch ?? record.patch ?? {}
-    conflicts.value = conflictingFields(
+    const found = conflictingFields(
       record.base_revision_seq,
       revisions?.items ?? [],
       Object.keys(patch)
     )
+    for (const key of record.conflict_fields ?? []) {
+      found[key] ??= 0
+    }
+    conflicts.value = record.state === 'open' ? found : {}
+    const keys = Object.keys(conflicts.value)
+    decisions.value = initialDecisions(patch, keys)
+    await loadBases(record.base_revision_seq, revisions?.items ?? [], keys)
     await Promise.all([
       names.resolve([record]),
       prepare(
         schemaRes.fields,
         Object.keys(patch).flatMap((key) => [
           { key, value: patch[key] },
-          { key, value: current.value[key] }
+          { key, value: current.value[key] },
+          { key, value: bases.value[key] }
         ])
       )
     ])
   } catch (error) {
     proposal.value = null
     loadError.value = problemMessage(error, '无法加载这条提案')
+  }
+}
+
+const loadBases = async (
+  baseSeq: number,
+  revisions: readonly { id: string; seq: number; changed_fields: string[] }[],
+  keys: string[]
+) => {
+  bases.value = {}
+  basesKnown.value = false
+  const query = keys.length ? conflictBaseQuery(baseSeq, revisions) : null
+  if (!query) {
+    return
+  }
+  const revision = await api<{ diff?: FieldDiffLike[] }>(
+    `/v2/catalog/revisions/${query.revisionId}`,
+    { query: { include: 'diff', diff_base: query.diffBase } }
+  ).catch(() => null)
+  if (revision?.diff) {
+    bases.value = basesFromDiff(revision.diff, keys, current.value)
+    basesKnown.value = true
   }
 }
 
@@ -142,6 +214,15 @@ const finish = async (message: string) => {
 }
 
 const handleFailure = async (error: unknown) => {
+  const fresh = mergeConflictKeys(error)
+  if (fresh.length) {
+    useKunMessage(
+      `合并时发现新的冲突：${fresh.map((key) => fieldLabel(key)).join('、')} 刚被改过，已重新加载并标出`,
+      'warn'
+    )
+    await load()
+    return
+  }
   if (isStale(error)) {
     useKunMessage('提案刚被其他人修改过，已重新加载，请再确认一遍', 'warn')
     await load()
@@ -154,6 +235,10 @@ const merge = async () => {
   if (acting.value || !proposal.value || !isOpen.value) {
     return
   }
+  if (unresolved.value.length) {
+    useKunMessage(`还有 ${unresolved.value.length} 处冲突没有处理`, 'warn')
+    return
+  }
   if (!mergeable.value) {
     useKunMessage('所有字段都被拒绝了，请直接拒绝这条提案', 'warn')
     return
@@ -161,7 +246,11 @@ const merge = async () => {
   acting.value = true
   try {
     let validator = etag.value
-    const amendment = buildAmendment(effective.value, decisions.value)
+    const amendment = buildAmendment(
+      effective.value,
+      decisions.value,
+      conflictKeys.value
+    )
     if (amendment) {
       const amended = await api.raw<CatalogProposal>(
         `/v2/me/proposals/${id.value}/amendments`,
@@ -225,9 +314,51 @@ const decline = async (reason: string) => {
 
 const focusedField = computed(() => fields.value[focusIndex.value])
 
-const verdictOnFocused = (verdict: 'accept' | 'reject' | 'amend') => {
+const resolveConflict = (
+  key: string,
+  verdict: 'auto' | 'override' | 'keep' | 'amend'
+) => {
+  const merge = merges.value[key]
+  if (verdict === 'auto') {
+    if (merge?.clean) {
+      setDecision(key, { verdict, value: cloneValue(merge.value) })
+    }
+  } else if (verdict === 'amend') {
+    const existing = decisions.value[key]
+    setDecision(key, {
+      verdict,
+      value:
+        existing?.verdict === 'amend'
+          ? existing.value
+          : cloneValue(
+              merge?.value ?? current.value[key] ?? effective.value[key]
+            )
+    })
+  } else {
+    setDecision(key, { verdict })
+  }
+}
+
+const autoResolveAll = () => {
+  for (const key of autoMergeable.value) {
+    resolveConflict(key, 'auto')
+  }
+}
+
+const verdictOnFocused = (
+  verdict: 'accept' | 'reject' | 'amend' | 'override' | 'keep'
+) => {
   const field = focusedField.value
   if (!field || !canReviewField(field.key) || !isOpen.value) {
+    return
+  }
+  if (conflictKeys.value.includes(field.key)) {
+    const mapped =
+      verdict === 'accept' ? 'auto' : verdict === 'reject' ? 'keep' : verdict
+    resolveConflict(field.key, mapped)
+    return
+  }
+  if (verdict === 'override' || verdict === 'keep') {
     return
   }
   const proposed = effective.value[field.key]
@@ -268,6 +399,8 @@ const onKey = (event: KeyboardEvent) => {
     a: () => verdictOnFocused('accept'),
     r: () => verdictOnFocused('reject'),
     e: () => verdictOnFocused('amend'),
+    o: () => verdictOnFocused('override'),
+    c: () => verdictOnFocused('keep'),
     m: () => reviewable.value && merge(),
     d: () => isOpen.value && (declineOpen.value = true),
     ']': () =>
@@ -381,21 +514,39 @@ watch(
             title="你无权审核这条提案涉及的字段"
             description="按当前编辑策略，这些字段需要其他审核权限。"
           />
-          <ReviewDetailFieldCard
-            v-for="(field, index) in fields"
-            :key="field.key"
-            :field="field"
-            :current="current[field.key]"
-            :proposed="effective[field.key]"
-            :decision="decisions[field.key] ?? { verdict: 'accept' }"
-            :context="context"
-            :conflict-seq="conflicts[field.key]"
-            :can-review="canReviewField(field.key)"
-            :focused="index === focusIndex"
-            :disabled="!isOpen || acting"
-            @focus="focusIndex = index"
-            @update:decision="setDecision(field.key, $event)"
-          />
+          <template v-for="(field, index) in fields" :key="field.key">
+            <ReviewDetailConflictCard
+              v-if="conflictKeys.includes(field.key)"
+              :field="field"
+              :base="bases[field.key]"
+              :base-known="basesKnown"
+              :current="current[field.key]"
+              :proposed="effective[field.key]"
+              :merge="merges[field.key] ?? null"
+              :decision="decisions[field.key] ?? { verdict: 'pending' }"
+              :context="context"
+              :conflict-seq="conflicts[field.key] || undefined"
+              :can-review="canReviewField(field.key)"
+              :focused="index === focusIndex"
+              :disabled="!isOpen || acting"
+              @focus="focusIndex = index"
+              @update:decision="setDecision(field.key, $event)"
+            />
+            <ReviewDetailFieldCard
+              v-else
+              :field="field"
+              :current="current[field.key]"
+              :proposed="effective[field.key]"
+              :decision="decisions[field.key] ?? { verdict: 'accept' }"
+              :context="context"
+              :conflict-seq="conflicts[field.key]"
+              :can-review="canReviewField(field.key)"
+              :focused="index === focusIndex"
+              :disabled="!isOpen || acting"
+              @focus="focusIndex = index"
+              @update:decision="setDecision(field.key, $event)"
+            />
+          </template>
           <KunNull
             v-if="!fields.length"
             description="这条提案没有可识别的字段改动"
@@ -409,7 +560,50 @@ watch(
             padding="md"
             content-class="space-y-3"
           >
-            <p class="text-default-500 text-xs">
+            <div
+              v-if="conflictKeys.length"
+              :class="[
+                'rounded-lg border px-3 py-2 text-xs',
+                unresolved.length
+                  ? 'border-warning-200 bg-warning-50 text-warning-800'
+                  : 'border-success-200 bg-success-50 text-success-800'
+              ]"
+            >
+              <p class="flex items-center gap-1.5 font-medium">
+                <KunIcon
+                  :name="
+                    unresolved.length
+                      ? 'lucide:triangle-alert'
+                      : 'lucide:circle-check'
+                  "
+                  class="size-3.5"
+                />
+                {{
+                  unresolved.length
+                    ? `${unresolved.length} 处冲突待处理`
+                    : `${conflictKeys.length} 处冲突已处理`
+                }}
+                <template v-if="autoMergeable.length">
+                  · {{ autoMergeable.length }} 处可自动合并
+                </template>
+              </p>
+              <KunButton
+                v-if="autoMergeable.length"
+                size="xs"
+                variant="flat"
+                color="primary"
+                class-name="mt-2"
+                :disabled="acting"
+                @click="autoResolveAll"
+              >
+                <KunIcon name="lucide:git-merge" class="size-3.5" />
+                可自动合并的全部采用自动合并
+              </KunButton>
+            </div>
+            <p
+              v-if="fields.length > conflictKeys.length"
+              class="text-default-500 text-xs"
+            >
               采纳 {{ counts.accept }} · 修正 {{ counts.amend }} · 拒绝
               {{ counts.reject }}
             </p>
@@ -426,7 +620,13 @@ watch(
               :disabled="!mergeable"
               @click="merge"
             >
-              {{ counts.amend || counts.reject ? '修正并合并' : '合并' }}
+              {{
+                unresolved.length
+                  ? `还有 ${unresolved.length} 处冲突待处理`
+                  : amending
+                    ? '修正并合并'
+                    : '合并'
+              }}
               <kbd class="ml-1 text-[10px] opacity-70">m</kbd>
             </KunButton>
             <KunButton

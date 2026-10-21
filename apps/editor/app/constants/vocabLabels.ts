@@ -28,9 +28,9 @@ const COMPANY_RELATION_LABELS: Record<string, string> = {
   imprint: '旗下品牌',
   imprint_of: '所属品牌方',
   spawned: '分出',
-  origin: '前身来源',
-  succeeded_by: '由…继承',
-  formerly: '曾用名'
+  origin: '分出自',
+  succeeded_by: '继任者',
+  formerly: '前身'
 }
 
 export const EDIT_LANGUAGE_LABELS: Record<string, string> = {
@@ -116,7 +116,7 @@ export const VOCAB_LABELS: Record<string, Record<string, string>> = {
   company_relation: COMPANY_RELATION_LABELS,
   alias_kind: { translation: '译名', spelling_variant: '异写' },
   credit_name_kind: {
-    main: '本名',
+    main: '主名',
     pen_name: '笔名',
     distinct_persona: '独立马甲',
     former_name: '曾用名'

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { KunTabItem } from '@kungal/ui-vue'
 import { ENTITY_META, type EditFamily } from '~/constants/editEntities'
+import { FAMILY_GUIDES } from '~/constants/workspace'
 
 const props = withDefaults(
   defineProps<{
@@ -86,6 +87,7 @@ const name = computed(() => session.nameOf(entity))
         </p>
       </div>
       <slot name="actions" />
+      <WorkspaceGuideLink :slug="FAMILY_GUIDES[props.family]" icon-only />
       <KunTooltip
         :text="`在新标签页单独编辑这个${meta.label}`"
         position="bottom"

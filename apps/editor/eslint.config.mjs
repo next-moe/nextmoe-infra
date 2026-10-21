@@ -2,9 +2,16 @@ import withNuxt from './.nuxt/eslint.config.mjs'
 import a11y from 'eslint-plugin-vuejs-accessibility'
 
 export default withNuxt(
-  // Tool output, regenerated rather than edited: the openapi-typescript types
-  // and the inline-SVG icon registry written by scripts/generate-icons.mjs.
-  { ignores: ['shared/types/generated/**', 'app/assets/kun-icons.ts'] },
+  // Tool output, regenerated rather than edited: the openapi-typescript types,
+  // the inline-SVG icon registry written by scripts/generate-icons.mjs, and the
+  // guideline docs compiled by scripts/build-guidelines.mjs.
+  {
+    ignores: [
+      'shared/types/generated/**',
+      'app/assets/kun-icons.ts',
+      'app/generated/**'
+    ]
+  },
   a11y.configs['flat/recommended'],
   {
     rules: {
