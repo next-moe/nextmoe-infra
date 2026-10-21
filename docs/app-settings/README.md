@@ -47,7 +47,9 @@ App 的产品参数放进平台配置中心,是项目所有者 2026-10-20 的决
 }
 ```
 
-**条件请求**:200 带强 `ETag`;下次请求带 `If-None-Match: <ETag>`,内容没变回 304、无 body。
+**条件请求**:200 带 `ETag`;下次请求带 `If-None-Match: <ETag>`,内容没变回 304、无 body。源站发的是强 ETag,
+但请求带 `Accept-Encoding: gzip` 时 Cloudflare 压缩响应,会把它改成弱形式 `W/"…"`。原样带回即可:
+源站按弱比较匹配,两种形式都回 304。
 ETag 由整个 body 计算,任一值变化即变化。
 
 **错误**:全部是 `application/problem+json`(v2 的 Problem 结构,按 `code` 判断,不要按 `detail`):

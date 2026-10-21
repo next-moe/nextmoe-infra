@@ -248,7 +248,7 @@ components:
 info:
   description: "Runtime settings for first-party native apps, read from the NextMoe config center. No credential: an app holds no secret, so it names itself by its public OAuth client_id. Calls without a credential share the anonymous /v2 rate limit and daily quota of their IPv4 address or IPv6 /64; a signed-in app may send its user access token as Authorization: Bearer, which changes only the bucket it is counted in."
   title: NextMoe App Settings API
-  version: 1.0.0
+  version: 1.0.1
 openapi: 3.1.0
 paths:
   /v2/apps/{client_id}/settings:
@@ -265,11 +265,11 @@ paths:
             maxLength: 50
             pattern: ^[A-Za-z0-9._-]+$
             type: string
-        - description: The ETag of the last 200 this app stored. A match answers 304.
+        - description: The ETag of the last 200 this app stored, sent back exactly as received. Compared weakly, so the strong and the W/ form both match; a match answers 304.
           in: header
           name: If-None-Match
           schema:
-            description: The ETag of the last 200 this app stored. A match answers 304.
+            description: The ETag of the last 200 this app stored, sent back exactly as received. Compared weakly, so the strong and the W/ form both match; a match answers 304.
             type: string
       responses:
         "200":
@@ -281,7 +281,7 @@ paths:
           headers:
             ETag:
               schema:
-                description: Strong validator of this body. Send it back as If-None-Match.
+                description: Validator of this body. The origin sends it strong; a response the CDN compressed carries it as W/"...". Send it back unchanged as If-None-Match.
                 type: string
         "304":
           description: Not Modified. The settings are unchanged since the ETag sent as If-None-Match.

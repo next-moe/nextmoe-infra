@@ -229,7 +229,7 @@ env 行已拔。此后删掉某行 DB 值,回落的是**代码默认**(不再有
 ## 18.8 下发给原生 App 的读面
 
 一方原生 App 是公开客户端,没有 secret,读 `GET https://api.nextmoe.dev/v2/apps/{client_id}/settings`
-(catalog 上,免凭证、走匿名 `/v2` 限额、强 ETag)。它返回该 client 所属站点的全部公开键(按站点覆盖,
+(catalog 上,免凭证、走匿名 `/v2` 限额、带 ETag 与 304)。它返回该 client 所属站点的全部公开键(按站点覆盖,
 与 18.7 的读面同值)加上为这个 App 声明的 `app.<app>.*` 键。App 的产品参数放进配置中心是所有者
 2026-10-20 的决定;站点网页自己的产品开关仍留在站点。`app` 域的键不标 `Public`,所以不会出现在
 18.7 给站点的读面里。契约与客户端行为见 [docs/app-settings/README.md](../app-settings/README.md)。
