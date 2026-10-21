@@ -78,7 +78,11 @@ watch(
       {{ request.note }}
     </p>
     <div class="text-default-400 flex flex-wrap items-center gap-2 text-xs">
-      <HistoryUser :user="request.proposed_by" :uid="request.proposed_by_uid" />
+      <HistoryAuthor
+        :user="request.proposed_by"
+        :uid="request.proposed_by_uid"
+        :origin="request.origin_site"
+      />
       <span>提交于 {{ formatDateTime(request.proposed_at) }}</span>
       <span v-if="request.state === 'approved' && timing.waitMs > 0">
         · 冷却期还剩 {{ formatWait(timing.waitMs) }}

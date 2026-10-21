@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"time"
 
+	"api/internal/platform/editorigin"
+
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -88,6 +90,7 @@ func (e *Engine) CreateProposal(ctx context.Context, in CreateProposalInput) (*P
 		EntityFamily: spec.Family, EntityType: spec.Type, EntityID: in.EntityID,
 		BaseRevisionSeq: baseSeq, Patch: rawPatch,
 		ProposerUID: in.Actor.UserID, Note: in.Note, Site: in.Actor.Site, Status: StatusOpen,
+		OriginSite: editorigin.Ptr(ctx),
 	}
 	if !automerge {
 		if err := e.db.WithContext(ctx).Create(prop).Error; err != nil {
@@ -408,7 +411,7 @@ func (e *Engine) mergeLocked(
 		Seq: seq + 1, Action: action,
 		ChangedFields: rawChanged, Snapshot: rawSnapshot,
 		ActorUID: prop.ProposerUID, AmenderUID: amenderUID, ProposalID: &prop.ID,
-		Site: prop.Site,
+		Site: prop.Site, OriginSite: prop.OriginSite,
 	}
 	if seq == 0 {
 		if rev.BaselineSnapshot, err = encodeJSON(base); err != nil {

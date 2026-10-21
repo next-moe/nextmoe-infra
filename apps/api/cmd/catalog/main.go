@@ -353,7 +353,7 @@ func setupPublicCatalog(
 		if err != nil || cl == nil {
 			return v2handler.SiteBinding{}, err
 		}
-		return v2handler.SiteBinding{Site: cl.CatalogSite, ThirdParty: isThirdPartyEditClient(cl)}, nil
+		return siteBindingOf(cl), nil
 	}
 	siteOfClient := func(ctx context.Context, clientID string) (string, error) {
 		bind, err := bindingOfClient(ctx, clientID)

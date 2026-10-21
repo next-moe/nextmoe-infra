@@ -41,9 +41,11 @@ const amendments = computed(() => props.proposal.amendments ?? [])
   <KunCard bordered padding="md" content-class="space-y-3">
     <div>
       <p class="text-default-400 mb-1 text-xs">提案人</p>
-      <HistoryUser
+      <HistoryAuthor
         :user="props.proposal.proposer"
         :uid="props.proposal.proposer_uid"
+        :origin="props.proposal.origin_site"
+        :site="props.proposal.site"
       />
       <KunSkeleton
         v-if="statsPending && !stats"

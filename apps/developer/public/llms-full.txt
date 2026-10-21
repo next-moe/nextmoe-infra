@@ -2926,7 +2926,7 @@ curl -i "https://api.nextmoe.dev/v2/sticker/works/61311/packs" \
 
 # Vocabularies
 
-## 词表（共 30 个）
+## 词表（共 31 个）
 
 封闭词表（`closed`）不加不减成员就是它的承诺——你的 `switch` 可以没有 `default`。开放词表相反：提前告诉你会有新值，客户端必须容忍没见过的取值。运行时以 `https://api.nextmoe.dev/v2/vocabularies` 为准，它比任何文档都新，且不需要凭据。
 
@@ -3077,6 +3077,18 @@ Closed · 4 tokens
 | `pen_name` | Pen name | A pen name. |
 | `distinct_persona` | Distinct persona | A persona kept apart from the person's other names. |
 | `former_name` | Former name | A name the person no longer uses. |
+
+### `origin_site`
+
+Closed · 5 tokens
+
+| value | display_name | description |
+| --- | --- | --- |
+| `kungal` | KUN Galgame forum | kungal.com. |
+| `moyu` | KUN Galgame patch | moyu.moe. |
+| `letmoe` | LetMoe | letmoe.com. |
+| `nextmoe` | NextMoe | nextmoe.com, which has no user pages. |
+| `editor` | NextMoe editor | editor.nextmoe.com opened directly rather than from a site's link. |
 
 ### `link_visibility`
 
@@ -4072,7 +4084,8 @@ Filed proposals, newest first. proposer_uid=+state=merged with include_total=tru
 | `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait. |
 | `entity_id` | query | 否 | string | Catalog id of one entity. Requires object=. |
 | `site` | query | 否 | string | Tenant key. Open vocabulary; unknown values match nothing. |
-| `proposer_uid` | query | 否 | string | The claiming site's own user id of the proposer. Not a catalog id. |
+| `proposer_uid` | query | 否 | string | Central account id of the proposer. Not a catalog id. |
+| `origin_site` | query | 否 | string | Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps proposals filed from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE. |
 | `state` | query | 否 | string | Closed: open, merged, declined, withdrawn. |
 
 ```bash
@@ -4203,7 +4216,8 @@ Every merged edit, newest first by default. sort=recorded_asc walks the same col
 | `object` | query | 否 | string | Closed family filter: work, company, character, release, tag, engine, series, person, credit_name, trait. |
 | `entity_id` | query | 否 | string | Catalog id of one entity. Requires object=. |
 | `site` | query | 否 | string | Tenant key. Open vocabulary; unknown values match nothing. |
-| `actor_uid` | query | 否 | string | The claiming site's own user id of the actor. Not a catalog id. |
+| `actor_uid` | query | 否 | string | Central account id of the actor. Not a catalog id. |
+| `origin_site` | query | 否 | string | Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps revisions made from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE. |
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/revisions"
@@ -5939,6 +5953,7 @@ The bearer's own merge requests, newest first; follow next_cursor for more. Requ
 | --- | --- | --- | --- | --- |
 | `state` | query | 否 | string | Narrow to one state. 取值：open \| approved \| executed \| rejected \| withdrawn |
 | `object` | query | 否 | string | Narrow to one family. 取值：work \| company \| character \| person \| credit_name |
+| `origin_site` | query | 否 | string | Narrow to requests filed from one first-party property. 取值：kungal \| moyu \| letmoe \| nextmoe \| editor |
 | `cursor` | query | 否 | string | Opaque keyset cursor from next_cursor. |
 | `limit` | query | 否 | integer (int64) | Page size, 1-100. Default 20. |
 
@@ -6336,6 +6351,7 @@ The bearer's own proposals filed on the token's catalog site; on the central edi
 | `entity_type` | query | 否 | string | Editing-engine type, e.g. catalog.work. The same spelling POST /v2/me/proposals takes in its body. Names the same filter as object=; sending both with different families is 400. |
 | `entity_id` | query | 否 | string | Catalog id of one entity. Accepted alone on this lane, which is already fenced to the bearer's own proposals; pair it with object= or entity_type= when ids collide across families. |
 | `site` | query | 否 | string | Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing. |
+| `origin_site` | query | 否 | string | Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps proposals filed from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE. |
 | `field` | query | 否 | string | A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it. |
 | `has_conflict` | query | 否 | string | true keeps open proposals that a revision recorded after their base_revision_seq overlaps on a field; false keeps the rest. Only true or false. |
 | `updated_since` | query | 否 | string | RFC 3339 UTC ending in Z. Keeps proposals whose updated_at is later. |
@@ -6961,6 +6977,7 @@ Merge requests filed through the editor, newest first; follow next_cursor for mo
 | --- | --- | --- | --- | --- |
 | `state` | query | 否 | string | Narrow to one state. 取值：open \| approved \| executed \| rejected \| withdrawn |
 | `object` | query | 否 | string | Narrow to one family. 取值：work \| company \| character \| person \| credit_name |
+| `origin_site` | query | 否 | string | Narrow to requests filed from one first-party property. 取值：kungal \| moyu \| letmoe \| nextmoe \| editor |
 | `cursor` | query | 否 | string | Opaque keyset cursor from next_cursor. |
 | `limit` | query | 否 | integer (int64) | Page size, 1-100. Default 20. |
 
@@ -7044,6 +7061,7 @@ Open proposals on the token site; on the central editor (catalog site editor), o
 | `entity_type` | query | 否 | string | Editing-engine type, e.g. catalog.work. Names the same filter as object=; sending both with different families is 400. |
 | `entity_id` | query | 否 | string | Catalog id of one entity. Requires object= or entity_type=. Narrows the queue to that entity, which its owner may read without a review permission. |
 | `site` | query | 否 | string | Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing. |
+| `origin_site` | query | 否 | string | Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps proposals filed from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE. |
 | `field` | query | 否 | string | A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it. |
 | `has_conflict` | query | 否 | string | true keeps open proposals that a revision recorded after their base_revision_seq overlaps on a field; false keeps the rest. Only true or false. |
 | `updated_since` | query | 否 | string | RFC 3339 UTC ending in Z. Keeps proposals whose updated_at is later. |

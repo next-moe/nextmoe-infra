@@ -11,6 +11,7 @@ import (
 	"api/internal/platform/apiv2/protocol"
 	"api/internal/platform/apiv2/repr"
 	"api/internal/platform/devapi"
+	"api/internal/platform/editorigin"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humafiber"
@@ -91,6 +92,9 @@ func SetupWith(app *fiber.App, opt Options) huma.API {
 		}
 		if tp, ok := fc.Locals("catalog_third_party").(bool); ok {
 			ctx = huma.WithValue(ctx, ctxThirdParty, tp)
+		}
+		if origin, ok := fc.Locals("edit_origin").(string); ok {
+			ctx = huma.WithValue(ctx, editorigin.Key(), origin)
 		}
 		if cred := devapi.CredentialFrom(fc); cred != nil {
 			ctx = huma.WithValue(ctx, ctxCredClient, cred.ClientID)

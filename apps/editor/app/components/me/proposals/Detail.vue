@@ -6,6 +6,7 @@ import { ENTITY_META, isEditFamily } from '~/constants/editEntities'
 const route = useRoute()
 const api = useEditorApi()
 const names = useEntityNames()
+const { originLabel } = useOriginSites()
 
 const proposalId = computed(() => String(route.params.id))
 const proposal = ref<CatalogProposal | null>(null)
@@ -127,7 +128,13 @@ load()
               :name="names.nameOf(proposal)"
             />
             <p class="text-default-400 text-xs">
-              {{ labelOf(SITE_LABELS, proposal.site) }} · 提交于
+              来自
+              {{
+                proposal.origin_site
+                  ? originLabel(proposal.origin_site)
+                  : labelOf(SITE_LABELS, proposal.site)
+              }}
+              · 提交于
               {{ formatDateTime(proposal.created_at) }}
               <template v-if="proposal.decided_at">
                 · 处理于 {{ formatDateTime(proposal.decided_at) }}

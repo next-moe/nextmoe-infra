@@ -34,7 +34,7 @@ components:
             - type: "null"
           description: Account behind amender_uid. null only when the account directory could not be read.
         amender_uid:
-          description: The claiming site's own user id of the amender. Not a catalog id.
+          description: Central account id of the amender. Not a catalog id.
           maxLength: 20
           minLength: 1
           pattern: ^[0-9]+$
@@ -6061,6 +6061,19 @@ components:
           description: "Lane that filed it: editor for these faces; batch tools file their own. Open vocabulary; must not be used as a discriminant."
           maxLength: 32
           type: string
+        origin_site:
+          description: "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template."
+          enum:
+            - kungal
+            - moyu
+            - letmoe
+            - nextmoe
+            - editor
+            - null
+          type:
+            - string
+            - "null"
+          x-vocabulary-closed: true
         proposed_at:
           description: RFC 3339 UTC.
           format: date-time
@@ -6117,6 +6130,7 @@ components:
         - proposed_by_uid
         - proposed_by
         - origin
+        - origin_site
         - proposed_at
         - execute_after
         - executed_at
@@ -7289,7 +7303,7 @@ components:
             - type: "null"
           description: Account behind decided_by_uid. null while open, or when the account directory could not be read.
         decided_by_uid:
-          description: The claiming site's own user id of the decider. null while open.
+          description: Central account id of the decider. null while open.
           maxLength: 20
           pattern: ^[0-9]+$
           type:
@@ -7325,6 +7339,19 @@ components:
             - proposal
           type: string
           x-vocabulary-closed: true
+        origin_site:
+          description: "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template."
+          enum:
+            - kungal
+            - moyu
+            - letmoe
+            - nextmoe
+            - editor
+            - null
+          type:
+            - string
+            - "null"
+          x-vocabulary-closed: true
         patch:
           additionalProperties: {}
           description: Present when include=patch, which only the me and moderation faces publish. Field key to proposed value.
@@ -7335,7 +7362,7 @@ components:
             - type: "null"
           description: Account behind proposer_uid. null only when the account directory could not be read.
         proposer_uid:
-          description: The claiming site's own user id of the proposer. Not a catalog id.
+          description: Central account id of the proposer, the same id on every first-party site. Not a catalog id.
           maxLength: 20
           minLength: 1
           pattern: ^[0-9]+$
@@ -7383,6 +7410,7 @@ components:
         - note
         - proposer_uid
         - site
+        - origin_site
         - base_revision_seq
         - decided_by_uid
         - proposer
@@ -8223,7 +8251,7 @@ components:
             - type: "null"
           description: Account behind actor_uid. null only when the account directory could not be read.
         actor_uid:
-          description: The claiming site's own user id of whoever caused this revision. Not a catalog id.
+          description: Central account id of whoever caused this revision, the same id on every first-party site. Not a catalog id.
           maxLength: 20
           minLength: 1
           pattern: ^[0-9]+$
@@ -8234,7 +8262,7 @@ components:
             - type: "null"
           description: Account behind amender_uid. null when nobody amended, or when the account directory could not be read.
         amender_uid:
-          description: The claiming site's own user id of the last amender. null when nobody amended.
+          description: Central account id of the last amender. null when nobody amended.
           maxLength: 20
           pattern: ^[0-9]+$
           type:
@@ -8283,6 +8311,19 @@ components:
           enum:
             - revision
           type: string
+          x-vocabulary-closed: true
+        origin_site:
+          description: "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template."
+          enum:
+            - kungal
+            - moyu
+            - letmoe
+            - nextmoe
+            - editor
+            - null
+          type:
+            - string
+            - "null"
           x-vocabulary-closed: true
         proposal_id:
           description: Proposal this revision merged. null for direct edits and imports.
@@ -8337,6 +8378,7 @@ components:
         - amender
         - proposal_id
         - site
+        - origin_site
         - created_at
       type: object
     Role:
@@ -9867,6 +9909,11 @@ components:
         display_name:
           description: English label for this token. Must not be used as a discriminant.
           maxLength: 512
+          type: string
+        profile_url:
+          description: "origin_site only: the property's user profile URL, with {id} standing for the central account id (every first-party site uses it as its own user id). Absent when the property has no user pages."
+          format: uri-template
+          maxLength: 256
           type: string
         value:
           description: Token as it appears on the wire. Must not be used as a discriminant.
@@ -13252,13 +13299,21 @@ paths:
             description: Tenant key. Open vocabulary; unknown values match nothing.
             maxLength: 64
             type: string
-        - description: The claiming site's own user id of the proposer. Not a catalog id.
+        - description: Central account id of the proposer. Not a catalog id.
           explode: false
           in: query
           name: proposer_uid
           schema:
-            description: The claiming site's own user id of the proposer. Not a catalog id.
+            description: Central account id of the proposer. Not a catalog id.
             maxLength: 20
+            type: string
+        - description: "Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps proposals filed from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE."
+          explode: false
+          in: query
+          name: origin_site
+          schema:
+            description: "Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps proposals filed from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE."
+            maxLength: 16
             type: string
         - description: "Closed: open, merged, declined, withdrawn."
           explode: false
@@ -13951,13 +14006,21 @@ paths:
             description: Tenant key. Open vocabulary; unknown values match nothing.
             maxLength: 64
             type: string
-        - description: The claiming site's own user id of the actor. Not a catalog id.
+        - description: Central account id of the actor. Not a catalog id.
           explode: false
           in: query
           name: actor_uid
           schema:
-            description: The claiming site's own user id of the actor. Not a catalog id.
+            description: Central account id of the actor. Not a catalog id.
             maxLength: 20
+            type: string
+        - description: "Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps revisions made from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE."
+          explode: false
+          in: query
+          name: origin_site
+          schema:
+            description: "Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps revisions made from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE."
+            maxLength: 16
             type: string
       responses:
         "200":
@@ -21069,6 +21132,20 @@ paths:
               - credit_name
             type: string
             x-vocabulary-closed: true
+        - description: Narrow to requests filed from one first-party property.
+          explode: false
+          in: query
+          name: origin_site
+          schema:
+            description: Narrow to requests filed from one first-party property.
+            enum:
+              - kungal
+              - moyu
+              - letmoe
+              - nextmoe
+              - editor
+            type: string
+            x-vocabulary-closed: true
         - description: Opaque keyset cursor from next_cursor.
           explode: false
           in: query
@@ -22603,6 +22680,14 @@ paths:
           schema:
             description: Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing.
             maxLength: 64
+            type: string
+        - description: "Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps proposals filed from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE."
+          explode: false
+          in: query
+          name: origin_site
+          schema:
+            description: "Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps proposals filed from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE."
+            maxLength: 16
             type: string
         - description: A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it.
           explode: false
@@ -25020,6 +25105,20 @@ paths:
               - credit_name
             type: string
             x-vocabulary-closed: true
+        - description: Narrow to requests filed from one first-party property.
+          explode: false
+          in: query
+          name: origin_site
+          schema:
+            description: Narrow to requests filed from one first-party property.
+            enum:
+              - kungal
+              - moyu
+              - letmoe
+              - nextmoe
+              - editor
+            type: string
+            x-vocabulary-closed: true
         - description: Opaque keyset cursor from next_cursor.
           explode: false
           in: query
@@ -25407,6 +25506,14 @@ paths:
           schema:
             description: Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing.
             maxLength: 64
+            type: string
+        - description: "Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps proposals filed from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE."
+          explode: false
+          in: query
+          name: origin_site
+          schema:
+            description: "Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps proposals filed from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE."
+            maxLength: 16
             type: string
         - description: A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it.
           explode: false

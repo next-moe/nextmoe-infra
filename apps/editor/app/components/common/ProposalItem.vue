@@ -8,6 +8,13 @@ const props = defineProps<{
   to?: string
 }>()
 
+const { originLabel } = useOriginSites()
+const source = computed(() =>
+  props.proposal.origin_site
+    ? originLabel(props.proposal.origin_site)
+    : labelOf(SITE_LABELS, props.proposal.site)
+)
+
 const state = computed(
   () =>
     PROPOSAL_STATE[props.proposal.state] ?? {
@@ -44,8 +51,7 @@ const state = computed(
           提案 #{{ props.proposal.id }}
         </NuxtLink>
         <template v-else>提案 #{{ props.proposal.id }}</template>
-        ·
-        {{ labelOf(SITE_LABELS, props.proposal.site) }} ·
+        · 来自 {{ source }} ·
         <time
           :datetime="props.proposal.created_at"
           :title="formatDateTime(props.proposal.created_at)"

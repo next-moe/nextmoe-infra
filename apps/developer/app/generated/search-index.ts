@@ -1076,7 +1076,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "编辑提案历史",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/proposals",
-    "b": "listCatalogProposals /v2/catalog/proposals get Edit proposal history Filed proposals, newest first. proposer_uid=+state=merged with include_total=true is the per-contributor tally. This face publishes no patch and no decision note. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. 已提交的提案，最新在前。proposer_uid=+state=merged 且 include_total=true 即按贡献者的计数。本面不下发 patch 与裁决备注。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。 catalog:read cursor limit view include fields ids include_total sort object entity_id site proposer_uid state"
+    "b": "listCatalogProposals /v2/catalog/proposals get Edit proposal history Filed proposals, newest first. proposer_uid=+state=merged with include_total=true is the per-contributor tally. This face publishes no patch and no decision note. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. 已提交的提案，最新在前。proposer_uid=+state=merged 且 include_total=true 即按贡献者的计数。本面不下发 patch 与裁决备注。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。 catalog:read cursor limit view include fields ids include_total sort object entity_id site proposer_uid origin_site state"
   },
   {
     "r": "/docs/v2/getCatalogProposal",
@@ -1111,7 +1111,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "实体修订历史",
     "s": "端点 · 目录",
     "d": "GET /v2/catalog/revisions",
-    "b": "listCatalogRevisions /v2/catalog/revisions get Entity revision history Every merged edit, newest first by default. sort=recorded_asc walks the same collection oldest-first by id, which is the shape a mirror or a contributor tally reads with a watermark. object=+entity_id= narrows to one entity's history. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. 全部已合并编辑，缺省最新在前。sort=recorded_asc 按 id 从最旧走同一集合，这是镜像或贡献者计数用水位读取的形状。object=+entity_id= 收窄到某一实体的历史。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。 catalog:read cursor limit view include fields ids include_total sort object entity_id site actor_uid"
+    "b": "listCatalogRevisions /v2/catalog/revisions get Entity revision history Every merged edit, newest first by default. sort=recorded_asc walks the same collection oldest-first by id, which is the shape a mirror or a contributor tally reads with a watermark. object=+entity_id= narrows to one entity's history. Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit. 全部已合并编辑，缺省最新在前。sort=recorded_asc 按 id 从最旧走同一集合，这是镜像或贡献者计数用水位读取的形状。object=+entity_id= 收窄到某一实体的历史。可匿名调用，按 IP 地址限流；应用密钥或带 catalog:read 的用户访问令牌各有更高的额度。 catalog:read cursor limit view include fields ids include_total sort object entity_id site actor_uid origin_site"
   },
   {
     "r": "/docs/v2/getCatalogRevision",
@@ -1615,7 +1615,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "列出我的合并请求",
     "s": "端点 · 我的",
     "d": "GET /v2/me/merge-requests",
-    "b": "listMyMergeRequests /v2/me/merge-requests get List my merge requests The bearer's own merge requests, newest first; follow next_cursor for more. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 调用者自己的合并请求，最新的在前；更多结果请跟随 next_cursor。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 state object cursor limit"
+    "b": "listMyMergeRequests /v2/me/merge-requests get List my merge requests The bearer's own merge requests, newest first; follow next_cursor for more. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 调用者自己的合并请求，最新的在前；更多结果请跟随 next_cursor。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 state object origin_site cursor limit"
   },
   {
     "r": "/docs/v2/createMyMergeRequest",
@@ -1720,7 +1720,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "列出我的提案",
     "s": "端点 · 我的",
     "d": "GET /v2/me/proposals",
-    "b": "listMyProposals /v2/me/proposals get List my proposals The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch, effective_patch, changed_fields and (open rows) conflict_fields, the same block GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. field=, has_conflict= and updated_since= filter; sort=filed_desc (default), filed_asc, updated_desc or updated_asc. Requires a user access token. The token must carry the catalog:edit scope. 持有者在令牌所属 catalog 站点上提交的自己的提案;在中央编辑站(catalog 站点 editor)上则为所有站点的。state= 是封闭词表，未知值返回 400。object= 或 entity_type= 收窄到一族，entity_id= 收窄到一个实体——本车道在不带族的情况下也接受 entity_id=，因为每一行已属于调用方。include=patch（或 view=full）给每一行加上 patch、effective_patch、changed_fields 以及（未关闭的行）conflict_fields，与 GET /v2/me/proposals/{id}?include=patch 答的是同一块，列表页不必逐行再读。field=、has_conflict= 与 updated_since= 用于筛选；sort=filed_desc（默认）、filed_asc、updated_desc 或 updated_asc。需要用户访问令牌。令牌须带 catalog:edit scope。 cursor limit view include fields ids refs include_total facets sort nsfw state object entity_type entity_id site field has_conflict updated_since"
+    "b": "listMyProposals /v2/me/proposals get List my proposals The bearer's own proposals filed on the token's catalog site; on the central editor (catalog site editor), on every site. state= is a closed vocabulary and an unknown value is 400. object= or entity_type= narrows to one family, entity_id= to one entity — on this lane entity_id= is accepted without a family because every row already belongs to the caller. include=patch (or view=full) adds each row's patch, effective_patch, changed_fields and (open rows) conflict_fields, the same block GET /v2/me/proposals/{id}?include=patch answers, so a list page needs no read per row. field=, has_conflict= and updated_since= filter; sort=filed_desc (default), filed_asc, updated_desc or updated_asc. Requires a user access token. The token must carry the catalog:edit scope. 持有者在令牌所属 catalog 站点上提交的自己的提案;在中央编辑站(catalog 站点 editor)上则为所有站点的。state= 是封闭词表，未知值返回 400。object= 或 entity_type= 收窄到一族，entity_id= 收窄到一个实体——本车道在不带族的情况下也接受 entity_id=，因为每一行已属于调用方。include=patch（或 view=full）给每一行加上 patch、effective_patch、changed_fields 以及（未关闭的行）conflict_fields，与 GET /v2/me/proposals/{id}?include=patch 答的是同一块，列表页不必逐行再读。field=、has_conflict= 与 updated_since= 用于筛选；sort=filed_desc（默认）、filed_asc、updated_desc 或 updated_asc。需要用户访问令牌。令牌须带 catalog:edit scope。 cursor limit view include fields ids refs include_total facets sort nsfw state object entity_type entity_id site origin_site field has_conflict updated_since"
   },
   {
     "r": "/docs/v2/createMyProposal",
@@ -1881,7 +1881,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "合并请求队列",
     "s": "端点 · 审核",
     "d": "GET /v2/moderation/merge-requests",
-    "b": "listModerationMergeRequests /v2/moderation/merge-requests get Merge request queue Merge requests filed through the editor, newest first; follow next_cursor for more. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope. 经编辑台提交的合并请求，最新的在前；更多结果请跟随 next_cursor。需要 catalog.merge.review 权限。令牌须带 catalog:edit scope。 state object cursor limit"
+    "b": "listModerationMergeRequests /v2/moderation/merge-requests get Merge request queue Merge requests filed through the editor, newest first; follow next_cursor for more. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope. 经编辑台提交的合并请求，最新的在前；更多结果请跟随 next_cursor。需要 catalog.merge.review 权限。令牌须带 catalog:edit scope。 state object origin_site cursor limit"
   },
   {
     "r": "/docs/v2/getModerationMergeRequest",
@@ -1902,7 +1902,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "审核提案队列",
     "s": "端点 · 审核",
     "d": "GET /v2/moderation/proposals",
-    "b": "listModerationProposals /v2/moderation/proposals get Moderation proposal queue Open proposals on the token site; on the central editor (catalog site editor), on every site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. site= narrows the central editor's queue to one site of origin; field=, has_conflict= and updated_since= filter; sort=filed_desc (default), filed_asc (oldest waiting first), updated_desc or updated_asc. include=patch (or view=full) adds each row's patch, effective_patch, changed_fields and conflict_fields, so a queue page needs no read per row. The token must carry the catalog:edit scope. 令牌站点上未关闭的提案;在中央编辑站(catalog 站点 editor)上则为所有站点的。整条队列需要 catalog 审核权限。object=（或 entity_type=）配 entity_id= 收敛到单个实体，该实体的所有者无需该权限即可读取——即编辑引擎按字段解析的同一条所有者审核通道。不带家族的 entity_id= 为 422。site= 把中央编辑站的队列收窄到一个来源站点;field=、has_conflict= 与 updated_since= 用于筛选;sort=filed_desc（默认）、filed_asc（等待最久的在前）、updated_desc 或 updated_asc。include=patch（或 view=full）给每一行加上 patch、effective_patch、changed_fields 与 conflict_fields，队列页不必逐行再读。令牌须带 catalog:edit scope。 cursor limit view include fields ids refs include_total facets sort nsfw object entity_type entity_id site field has_conflict updated_since"
+    "b": "listModerationProposals /v2/moderation/proposals get Moderation proposal queue Open proposals on the token site; on the central editor (catalog site editor), on every site. The whole queue requires a catalog review permission. object= (or entity_type=) with entity_id= narrows it to one entity, which that entity's owner may read without one — the same owner-review channel the editing engine resolves per field. entity_id= without a family is 422. site= narrows the central editor's queue to one site of origin; field=, has_conflict= and updated_since= filter; sort=filed_desc (default), filed_asc (oldest waiting first), updated_desc or updated_asc. include=patch (or view=full) adds each row's patch, effective_patch, changed_fields and conflict_fields, so a queue page needs no read per row. The token must carry the catalog:edit scope. 令牌站点上未关闭的提案;在中央编辑站(catalog 站点 editor)上则为所有站点的。整条队列需要 catalog 审核权限。object=（或 entity_type=）配 entity_id= 收敛到单个实体，该实体的所有者无需该权限即可读取——即编辑引擎按字段解析的同一条所有者审核通道。不带家族的 entity_id= 为 422。site= 把中央编辑站的队列收窄到一个来源站点;field=、has_conflict= 与 updated_since= 用于筛选;sort=filed_desc（默认）、filed_asc（等待最久的在前）、updated_desc 或 updated_asc。include=patch（或 view=full）给每一行加上 patch、effective_patch、changed_fields 与 conflict_fields，队列页不必逐行再读。令牌须带 catalog:edit scope。 cursor limit view include fields ids refs include_total facets sort nsfw object entity_type entity_id site origin_site field has_conflict updated_since"
   },
   {
     "r": "/docs/v2/getModerationProposal",
@@ -2540,6 +2540,13 @@ export const searchIndex: SearchEntry[] = [
     "s": "词表 · 封闭",
     "d": "credit_name_kind · 4 个成员",
     "b": "credit_name_kind 一个署名名在其人物名下扮演的角色：本名、笔名、另立人格或曾用名。 main Main The person's main name. 本名 这个人的主名。 pen_name Pen name A pen name. 笔名 一个笔名。 distinct_persona Distinct persona A persona kept apart from the person's other names. 另立人格 与此人其他名字分开经营的人格。 former_name Former name A name the person no longer uses. 曾用名 此人已不再使用的名字。"
+  },
+  {
+    "r": "/docs/vocabularies/origin_site",
+    "t": "来源站点",
+    "s": "词表 · 封闭",
+    "d": "origin_site · 5 个成员",
+    "b": "origin_site 一条编辑记录是从哪个第一方站点发起的。仅用于展示与统计；有用户主页的站点附带 profile_url 模板，{id} 为中央账号 id。 kungal KUN Galgame forum kungal.com. 鲲 Galgame 论坛 kungal.com。 moyu KUN Galgame patch moyu.moe. 鲲 Galgame 补丁 moyu.moe。 letmoe LetMoe letmoe.com. LetMoe letmoe.com。 nextmoe NextMoe nextmoe.com, which has no user pages. NextMoe nextmoe.com，没有用户主页。 editor NextMoe editor editor.nextmoe.com opened directly rather than from a site's link. 未萌编辑台 直接打开 editor.nextmoe.com，而不是从某个站点的链接进入。"
   },
   {
     "r": "/docs/vocabularies/link_visibility",
