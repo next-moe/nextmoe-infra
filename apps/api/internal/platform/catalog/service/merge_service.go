@@ -11,6 +11,7 @@ import (
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/repository"
 	"api/internal/platform/editing"
+	"api/internal/platform/editorigin"
 	"api/internal/platform/settings/keys"
 
 	"gorm.io/datatypes"
@@ -92,6 +93,7 @@ func (s *MergeService) propose(ctx context.Context, entityType int16, sourceID, 
 		ProposedBy:      proposedBy,
 		Note:            note,
 		Origin:          origin,
+		OriginSite:      editorigin.Ptr(ctx),
 	}
 	if err := s.db.WithContext(ctx).Create(p).Error; err != nil {
 		if isUniqueViolation(err, "uq_catalog_merge_proposal_open") {

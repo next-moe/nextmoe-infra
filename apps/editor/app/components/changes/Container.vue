@@ -7,8 +7,8 @@ import type {
 } from '#shared/types/catalog'
 import {
   ENTITY_FAMILY,
-  REVISION_ACTION,
-  SITE_LABELS
+  ORIGIN_SITE_LABELS,
+  REVISION_ACTION
 } from '~/constants/catalog'
 import { useDiffContext } from '~/utils/review/context'
 import { useRevisionDiffs } from '~/utils/review/revisionDiff'
@@ -24,7 +24,7 @@ const { session } = useEditorSession()
 const { prepare, context } = useDiffContext()
 
 const family = ref('')
-const site = ref('')
+const origin = ref('')
 const action = ref('')
 const mine = ref(false)
 const revisions = ref<CatalogRevision[]>([])
@@ -41,9 +41,12 @@ const familyOptions: KunSelectOption<string>[] = [
   }))
 ]
 
-const siteOptions: KunSelectOption<string>[] = [
-  { value: '', label: '全部站点' },
-  ...Object.entries(SITE_LABELS).map(([value, label]) => ({ value, label }))
+const originOptions: KunSelectOption<string>[] = [
+  { value: '', label: '全部来源' },
+  ...Object.entries(ORIGIN_SITE_LABELS).map(([value, label]) => ({
+    value,
+    label
+  }))
 ]
 
 const actionOptions: KunSelectOption<string>[] = [
@@ -67,7 +70,7 @@ const fetchPage = async (cursor: string | null) => {
       query: {
         limit: PAGE_SIZE,
         ...(family.value ? { object: family.value } : {}),
-        ...(site.value ? { site: site.value } : {}),
+        ...(origin.value ? { origin_site: origin.value } : {}),
         ...(mine.value && session.value ? { actor_uid: session.value.id } : {}),
         ...(cursor ? { cursor } : {})
       }
@@ -118,7 +121,7 @@ const toggleDiff = async (revision: CatalogRevision) => {
   }
 }
 
-watch([family, site, mine], () => fetchPage(null))
+watch([family, origin, mine], () => fetchPage(null))
 
 fetchPage(null)
 </script>
@@ -137,8 +140,8 @@ fetchPage(null)
           aria-label="条目类型"
         />
         <KunSelect
-          v-model="site"
-          :options="siteOptions"
+          v-model="origin"
+          :options="originOptions"
           aria-label="来源站点"
         />
         <KunSelect

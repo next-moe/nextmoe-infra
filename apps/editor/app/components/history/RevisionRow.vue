@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { cn } from '@kungal/ui-core'
 import type { CatalogRevision } from '#shared/types/catalog'
-import { REVISION_ACTION, SITE_LABELS } from '~/constants/catalog'
+import { REVISION_ACTION } from '~/constants/catalog'
 
 const props = defineProps<{
   revision: CatalogRevision
@@ -92,9 +92,11 @@ const action = computed(
         <p
           class="text-default-400 mt-1 flex flex-wrap items-center gap-x-1 text-xs"
         >
-          <HistoryUser
+          <HistoryAuthor
             :user="props.revision.actor"
             :uid="props.revision.actor_uid"
+            :origin="props.revision.origin_site"
+            :site="props.revision.site"
           />
           <template v-if="props.revision.amender_uid">
             <span>· 修正</span>
@@ -103,7 +105,7 @@ const action = computed(
               :uid="props.revision.amender_uid"
             />
           </template>
-          <span>· {{ labelOf(SITE_LABELS, props.revision.site) }} ·</span>
+          <span>·</span>
           <time
             :datetime="props.revision.created_at"
             :title="formatDateTime(props.revision.created_at)"

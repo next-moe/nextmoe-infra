@@ -134,7 +134,7 @@ https://editor.nextmoe.com/{type}/{id}/edit?from={site}&return={url}&login_hint=
 - `type`：`works`、`releases`、`characters`、`persons`、`credit-names`、`companies`、`tags`、`traits`、`series`、`engines`。
 - `from`：`kungal`、`moyu`、`letmoe`、`nextmoe`；`return` 必须是该站点的源（`apps/editor/app/constants/returnSites.ts`），编辑台顶栏据此显示「返回 X」。
 - `login_hint`：当前用户的 `sub`（UUID），保证同一浏览器多账号时进入的是同一个账号。
-- 尚未做：按来源站点归因提案（目前编辑台发起的提案 `site=editor`）。若需要在原站显示贡献或发萌萌点，需给提案加来源字段。
+- 来源站归因：提案、修订、合并请求都带 `origin_site`（`kungal` / `moyu` / `letmoe` / `nextmoe` / `editor`），表示这次编辑是从哪个站来的。下游站直接调 API 时由服务端按 OAuth 客户端判定（moyu 与论坛共用 `catalog_site=kungal`，按客户端的社区租户区分）；从深链进入编辑台时，编辑台 BFF 把校验过的 `from` 记进 httpOnly cookie（30 天，新标签页也带着），代理 `/v2` 时以 `X-NextMoe-Origin-Site` 头发给 catalog，只有 `catalog_site=editor` 的令牌声明的来源才被采纳。`origin_site` 只用于展示与统计，不参与权限、配额、萌萌点。2026-10-21 之前的记录为 `null`，编辑台退回显示它归属的站点（`site`）。列表接口支持 `origin_site=` 筛选；`GET /v2/vocabularies/origin_site` 给出各站显示名与用户主页 URL 模板（`{id}` 即中央用户 id，各站自己的用户 id 与之相同）。
 
 ## 部署
 

@@ -1,6 +1,6 @@
 import type { CatalogVocabulary, EditVocabulary } from '#shared/types/edit'
 
-const CACHE_KEY = 'nextmoe-editor:vocabularies:v1'
+const CACHE_KEY = 'nextmoe-editor:vocabularies:v2'
 const CACHE_MAX_AGE_MS = 6 * 60 * 60 * 1000
 
 let catalogue: Promise<Record<string, EditVocabulary> | null> | null = null
@@ -10,7 +10,8 @@ const toEditVocabulary = (vocab: CatalogVocabulary): EditVocabulary => ({
   values: (vocab.values ?? []).map((entry) => ({
     value: entry.value,
     display_name: entry.display_name,
-    description: entry.description
+    description: entry.description,
+    ...(entry.profile_url ? { profile_url: entry.profile_url } : {})
   }))
 })
 

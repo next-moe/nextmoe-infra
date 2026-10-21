@@ -2473,3 +2473,15 @@ The v2 person bucket (`u<uid>`, 100/min across apps) answered 429 after four edi
 - `TestLiveEditBundleIsTheSingleFacesInOneCall` compares every bundle member with its face's body; `TestLiveCatalogNamesMatchEachFamilysBatchLane` compares names and visibility with each family's lane under both `nsfw` values and requires the fixture to contain something `nsfw=true` reveals.
 
 **Spec 2.61.0**, additive. No migration.
+
+## Edit origin attribution (2026-10-21)
+
+`site` on an edit record is the token's catalog site — a tenant fence that also drives owner automerge, queue scope and `site_work_id`. It could not say where an edit came from: every proposal filed through the editor was `site=editor`, and moyu files under the forum's `catalog_site=kungal`. Attribution is therefore a separate column and never feeds permissions, quotas, rewards or fencing.
+
+- **`origin_site`** (nullable `varchar(16)`, closed: `kungal, moyu, letmoe, nextmoe, editor`) on `edit_proposal`, `edit_revision` and `catalog_merge_proposal`. A revision copies its proposal's value — the proposer's origin, not the reviewer's; a revert records the reverting actor's. Batch tools and jobs write NULL. Rows written before this change stay NULL: editor-filed rows never recorded an origin and `kungal`-tenant rows cannot be split between the forum and moyu, so there is no backfill.
+- **Derivation** (`internal/platform/editorigin`): a site token's origin is its client's community tenant (`community_site`, else `catalog_site`) when that is on the list — the same "which property" key community and trust use. The central editor token (`catalog_site=editor`) may declare an origin in `X-NextMoe-Origin-Site`; off-list values fall back to `editor`, and the header is ignored on every other token. The editor BFF sets the header itself from an httpOnly cookie written when a validated `from=`/`return=` deep link lands; a browser-sent header is not forwarded.
+- **Faces**: `origin_site` on revision, proposal and merge-request records; `origin_site=` filters on `/v2/catalog/revisions`, `/v2/catalog/proposals`, `/v2/me/proposals`, `/v2/moderation/proposals` (400 `UNKNOWN_ENUM_VALUE` off the list) and on the merge-request lists (schema enum, like their `state=`). The `*_uid` field docs on edit records now say what they are: the central account id, which kungal, moyu and letmoe also use as their own user id.
+- **Vocabulary `origin_site`** carries display names and, for properties with user pages, `profile_url` (`format: uri-template`, `{id}` = central account id). `TestOriginSiteVocabularyMatchesEditOrigins` keeps its tokens equal to `editorigin.Sites()`.
+- Tests: `TestLiveOriginSiteAttribution` (site token, spoof attempt from a site token, moyu's shared catalog site, editor declaration, off-list fallback, revision copy, filters, 400 on unknown), `TestLiveMergeRequestOriginSite`, `TestSiteBindingOrigin` (production client shapes), `editorigin` unit tests.
+
+**Migration**: `cmd/migrate catalog` (prod `migrate-catalog` job) adds the three nullable `origin_site` columns through GORM AutoMigrate. Additive; existing rows stay NULL.

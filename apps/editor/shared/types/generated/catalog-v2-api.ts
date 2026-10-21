@@ -2741,7 +2741,7 @@ export interface components {
         Amendment: {
             /** @description Account behind amender_uid. null only when the account directory could not be read. */
             amender: components["schemas"]["UserRef"] | null;
-            /** @description The claiming site's own user id of the amender. Not a catalog id. */
+            /** @description Central account id of the amender. Not a catalog id. */
             amender_uid: string;
             /**
              * Format: date-time
@@ -6573,6 +6573,11 @@ export interface components {
             /** @description Lane that filed it: editor for these faces; batch tools file their own. Open vocabulary; must not be used as a discriminant. */
             origin: string;
             /**
+             * @description Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.
+             * @enum {string|null}
+             */
+            origin_site: "kungal" | "moyu" | "letmoe" | "nextmoe" | "editor" | null;
+            /**
              * Format: date-time
              * @description RFC 3339 UTC.
              */
@@ -7297,7 +7302,7 @@ export interface components {
             decided_at: string | null;
             /** @description Account behind decided_by_uid. null while open, or when the account directory could not be read. */
             decided_by: components["schemas"]["UserRef"] | null;
-            /** @description The claiming site's own user id of the decider. null while open. */
+            /** @description Central account id of the decider. null while open. */
             decided_by_uid: string | null;
             /** @description Present when include=patch. The patch after every amendment is folded in; this is what a merge would write. */
             effective_patch?: {
@@ -7316,13 +7321,18 @@ export interface components {
              * @enum {string}
              */
             object: "proposal";
+            /**
+             * @description Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.
+             * @enum {string|null}
+             */
+            origin_site: "kungal" | "moyu" | "letmoe" | "nextmoe" | "editor" | null;
             /** @description Present when include=patch, which only the me and moderation faces publish. Field key to proposed value. */
             patch?: {
                 [key: string]: unknown;
             };
             /** @description Account behind proposer_uid. null only when the account directory could not be read. */
             proposer: components["schemas"]["UserRef"] | null;
-            /** @description The claiming site's own user id of the proposer. Not a catalog id. */
+            /** @description Central account id of the proposer, the same id on every first-party site. Not a catalog id. */
             proposer_uid: string;
             /** @description Tenant this proposal was filed under. Open vocabulary; must not be used as a discriminant. */
             site: string;
@@ -7842,11 +7852,11 @@ export interface components {
             action: "created" | "merged" | "direct" | "reverted";
             /** @description Account behind actor_uid. null only when the account directory could not be read. */
             actor: components["schemas"]["UserRef"] | null;
-            /** @description The claiming site's own user id of whoever caused this revision. Not a catalog id. */
+            /** @description Central account id of whoever caused this revision, the same id on every first-party site. Not a catalog id. */
             actor_uid: string;
             /** @description Account behind amender_uid. null when nobody amended, or when the account directory could not be read. */
             amender: components["schemas"]["UserRef"] | null;
-            /** @description The claiming site's own user id of the last amender. null when nobody amended. */
+            /** @description Central account id of the last amender. null when nobody amended. */
             amender_uid: string | null;
             /** @description Field keys this revision touched. Empty array, never null. */
             changed_fields: string[];
@@ -7872,6 +7882,11 @@ export interface components {
              * @enum {string}
              */
             object: "revision";
+            /**
+             * @description Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.
+             * @enum {string|null}
+             */
+            origin_site: "kungal" | "moyu" | "letmoe" | "nextmoe" | "editor" | null;
             /** @description Proposal this revision merged. null for direct edits and imports. */
             proposal_id: string | null;
             /**
@@ -8755,6 +8770,11 @@ export interface components {
             description: string;
             /** @description English label for this token. Must not be used as a discriminant. */
             display_name: string;
+            /**
+             * Format: uri-template
+             * @description origin_site only: the property's user profile URL, with {id} standing for the central account id (every first-party site uses it as its own user id). Absent when the property has no user pages.
+             */
+            profile_url?: string;
             /** @description Token as it appears on the wire. Must not be used as a discriminant. */
             value: string;
         } & {
@@ -11275,8 +11295,10 @@ export interface operations {
                 entity_id?: string;
                 /** @description Tenant key. Open vocabulary; unknown values match nothing. */
                 site?: string;
-                /** @description The claiming site's own user id of the proposer. Not a catalog id. */
+                /** @description Central account id of the proposer. Not a catalog id. */
                 proposer_uid?: string;
+                /** @description Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps proposals filed from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE. */
+                origin_site?: string;
                 /** @description Closed: open, merged, declined, withdrawn. */
                 state?: string;
             };
@@ -11842,8 +11864,10 @@ export interface operations {
                 entity_id?: string;
                 /** @description Tenant key. Open vocabulary; unknown values match nothing. */
                 site?: string;
-                /** @description The claiming site's own user id of the actor. Not a catalog id. */
+                /** @description Central account id of the actor. Not a catalog id. */
                 actor_uid?: string;
+                /** @description Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps revisions made from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE. */
+                origin_site?: string;
             };
             header?: never;
             path?: never;
@@ -19335,6 +19359,8 @@ export interface operations {
                 state?: "open" | "approved" | "executed" | "rejected" | "withdrawn";
                 /** @description Narrow to one family. */
                 object?: "work" | "company" | "character" | "person" | "credit_name";
+                /** @description Narrow to requests filed from one first-party property. */
+                origin_site?: "kungal" | "moyu" | "letmoe" | "nextmoe" | "editor";
                 /** @description Opaque keyset cursor from next_cursor. */
                 cursor?: string;
                 /** @description Page size, 1-100. Default 20. */
@@ -20997,6 +21023,8 @@ export interface operations {
                 entity_id?: string;
                 /** @description Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing. */
                 site?: string;
+                /** @description Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps proposals filed from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE. */
+                origin_site?: string;
                 /** @description A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it. */
                 field?: string;
                 /** @description true keeps open proposals that a revision recorded after their base_revision_seq overlaps on a field; false keeps the rest. Only true or false. */
@@ -23888,6 +23916,8 @@ export interface operations {
                 state?: "open" | "approved" | "executed" | "rejected" | "withdrawn";
                 /** @description Narrow to one family. */
                 object?: "work" | "company" | "character" | "person" | "credit_name";
+                /** @description Narrow to requests filed from one first-party property. */
+                origin_site?: "kungal" | "moyu" | "letmoe" | "nextmoe" | "editor";
                 /** @description Opaque keyset cursor from next_cursor. */
                 cursor?: string;
                 /** @description Page size, 1-100. Default 20. */
@@ -24253,6 +24283,8 @@ export interface operations {
                 entity_id?: string;
                 /** @description Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing. */
                 site?: string;
+                /** @description Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps proposals filed from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE. */
+                origin_site?: string;
                 /** @description A field key such as catalog.work.titles. Keeps proposals whose patch or any amendment names it. */
                 field?: string;
                 /** @description true keeps open proposals that a revision recorded after their base_revision_seq overlaps on a field; false keeps the rest. Only true or false. */

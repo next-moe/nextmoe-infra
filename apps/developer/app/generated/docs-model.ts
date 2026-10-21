@@ -2561,6 +2561,12 @@ export const docsModel: DocsModel = {
                                     "type": "string"
                                   },
                                   {
+                                    "name": "profile_url",
+                                    "doc": "origin_site only: the property's user profile URL, with {id} standing for the central account id (every first-party site uses it as its own user id). Absent when the property has no user pages.",
+                                    "format": "uri-template",
+                                    "type": "string"
+                                  },
+                                  {
                                     "name": "value",
                                     "required": true,
                                     "doc": "Token as it appears on the wire. Must not be used as a discriminant.",
@@ -3447,6 +3453,12 @@ export const docsModel: DocsModel = {
                               "name": "display_name",
                               "required": true,
                               "doc": "English label for this token. Must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "profile_url",
+                              "doc": "origin_site only: the property's user profile URL, with {id} standing for the central account id (every first-party site uses it as its own user id). Absent when the property has no user pages.",
+                              "format": "uri-template",
                               "type": "string"
                             },
                             {
@@ -42305,7 +42317,14 @@ export const docsModel: DocsModel = {
                   "in": "query",
                   "required": false,
                   "type": "string",
-                  "doc": "The claiming site's own user id of the proposer. Not a catalog id."
+                  "doc": "Central account id of the proposer. Not a catalog id."
+                },
+                {
+                  "name": "origin_site",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps proposals filed from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE."
                 },
                 {
                   "name": "state",
@@ -42411,7 +42430,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "amender_uid",
                                     "required": true,
-                                    "doc": "The claiming site's own user id of the amender. Not a catalog id.",
+                                    "doc": "Central account id of the amender. Not a catalog id.",
                                     "type": "string"
                                   },
                                   {
@@ -42547,7 +42566,7 @@ export const docsModel: DocsModel = {
                               "name": "decided_by_uid",
                               "required": true,
                               "nullable": true,
-                              "doc": "The claiming site's own user id of the decider. null while open.",
+                              "doc": "Central account id of the decider. null while open.",
                               "type": "string"
                             },
                             {
@@ -42588,6 +42607,20 @@ export const docsModel: DocsModel = {
                               "doc": "Type discriminant. Always proposal.",
                               "enum": [
                                 "proposal"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "origin_site",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.",
+                              "enum": [
+                                "kungal",
+                                "moyu",
+                                "letmoe",
+                                "nextmoe",
+                                "editor"
                               ],
                               "type": "string"
                             },
@@ -42640,7 +42673,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "proposer_uid",
                               "required": true,
-                              "doc": "The claiming site's own user id of the proposer. Not a catalog id.",
+                              "doc": "Central account id of the proposer, the same id on every first-party site. Not a catalog id.",
                               "type": "string"
                             },
                             {
@@ -44164,7 +44197,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "amender_uid",
                               "required": true,
-                              "doc": "The claiming site's own user id of the amender. Not a catalog id.",
+                              "doc": "Central account id of the amender. Not a catalog id.",
                               "type": "string"
                             },
                             {
@@ -44300,7 +44333,7 @@ export const docsModel: DocsModel = {
                         "name": "decided_by_uid",
                         "required": true,
                         "nullable": true,
-                        "doc": "The claiming site's own user id of the decider. null while open.",
+                        "doc": "Central account id of the decider. null while open.",
                         "type": "string"
                       },
                       {
@@ -44341,6 +44374,20 @@ export const docsModel: DocsModel = {
                         "doc": "Type discriminant. Always proposal.",
                         "enum": [
                           "proposal"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "origin_site",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.",
+                        "enum": [
+                          "kungal",
+                          "moyu",
+                          "letmoe",
+                          "nextmoe",
+                          "editor"
                         ],
                         "type": "string"
                       },
@@ -44393,7 +44440,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "proposer_uid",
                         "required": true,
-                        "doc": "The claiming site's own user id of the proposer. Not a catalog id.",
+                        "doc": "Central account id of the proposer, the same id on every first-party site. Not a catalog id.",
                         "type": "string"
                       },
                       {
@@ -51056,7 +51103,14 @@ export const docsModel: DocsModel = {
                   "in": "query",
                   "required": false,
                   "type": "string",
-                  "doc": "The claiming site's own user id of the actor. Not a catalog id."
+                  "doc": "Central account id of the actor. Not a catalog id."
+                },
+                {
+                  "name": "origin_site",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps revisions made from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE."
                 }
               ],
               "responses": [
@@ -51160,7 +51214,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "actor_uid",
                               "required": true,
-                              "doc": "The claiming site's own user id of whoever caused this revision. Not a catalog id.",
+                              "doc": "Central account id of whoever caused this revision, the same id on every first-party site. Not a catalog id.",
                               "type": "string"
                             },
                             {
@@ -51205,7 +51259,7 @@ export const docsModel: DocsModel = {
                               "name": "amender_uid",
                               "required": true,
                               "nullable": true,
-                              "doc": "The claiming site's own user id of the last amender. null when nobody amended.",
+                              "doc": "Central account id of the last amender. null when nobody amended.",
                               "type": "string"
                             },
                             {
@@ -51285,6 +51339,20 @@ export const docsModel: DocsModel = {
                               "doc": "Type discriminant. Always revision.",
                               "enum": [
                                 "revision"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "origin_site",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.",
+                              "enum": [
+                                "kungal",
+                                "moyu",
+                                "letmoe",
+                                "nextmoe",
+                                "editor"
                               ],
                               "type": "string"
                             },
@@ -52823,7 +52891,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "actor_uid",
                         "required": true,
-                        "doc": "The claiming site's own user id of whoever caused this revision. Not a catalog id.",
+                        "doc": "Central account id of whoever caused this revision, the same id on every first-party site. Not a catalog id.",
                         "type": "string"
                       },
                       {
@@ -52868,7 +52936,7 @@ export const docsModel: DocsModel = {
                         "name": "amender_uid",
                         "required": true,
                         "nullable": true,
-                        "doc": "The claiming site's own user id of the last amender. null when nobody amended.",
+                        "doc": "Central account id of the last amender. null when nobody amended.",
                         "type": "string"
                       },
                       {
@@ -52948,6 +53016,20 @@ export const docsModel: DocsModel = {
                         "doc": "Type discriminant. Always revision.",
                         "enum": [
                           "revision"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "origin_site",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.",
+                        "enum": [
+                          "kungal",
+                          "moyu",
+                          "letmoe",
+                          "nextmoe",
+                          "editor"
                         ],
                         "type": "string"
                       },
@@ -147771,7 +147853,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "amender_uid",
                               "required": true,
-                              "doc": "The claiming site's own user id of the amender. Not a catalog id.",
+                              "doc": "Central account id of the amender. Not a catalog id.",
                               "type": "string"
                             },
                             {
@@ -147907,7 +147989,7 @@ export const docsModel: DocsModel = {
                         "name": "decided_by_uid",
                         "required": true,
                         "nullable": true,
-                        "doc": "The claiming site's own user id of the decider. null while open.",
+                        "doc": "Central account id of the decider. null while open.",
                         "type": "string"
                       },
                       {
@@ -147948,6 +148030,20 @@ export const docsModel: DocsModel = {
                         "doc": "Type discriminant. Always proposal.",
                         "enum": [
                           "proposal"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "origin_site",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.",
+                        "enum": [
+                          "kungal",
+                          "moyu",
+                          "letmoe",
+                          "nextmoe",
+                          "editor"
                         ],
                         "type": "string"
                       },
@@ -148000,7 +148096,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "proposer_uid",
                         "required": true,
-                        "doc": "The claiming site's own user id of the proposer. Not a catalog id.",
+                        "doc": "Central account id of the proposer, the same id on every first-party site. Not a catalog id.",
                         "type": "string"
                       },
                       {
@@ -190629,6 +190725,20 @@ export const docsModel: DocsModel = {
                   ]
                 },
                 {
+                  "name": "origin_site",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Narrow to requests filed from one first-party property.",
+                  "enum": [
+                    "kungal",
+                    "moyu",
+                    "letmoe",
+                    "nextmoe",
+                    "editor"
+                  ]
+                },
+                {
                   "name": "cursor",
                   "in": "query",
                   "required": false,
@@ -190733,6 +190843,20 @@ export const docsModel: DocsModel = {
                               "name": "origin",
                               "required": true,
                               "doc": "Lane that filed it: editor for these faces; batch tools file their own. Open vocabulary; must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "origin_site",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.",
+                              "enum": [
+                                "kungal",
+                                "moyu",
+                                "letmoe",
+                                "nextmoe",
+                                "editor"
+                              ],
                               "type": "string"
                             },
                             {
@@ -192693,6 +192817,20 @@ export const docsModel: DocsModel = {
                         "type": "string"
                       },
                       {
+                        "name": "origin_site",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.",
+                        "enum": [
+                          "kungal",
+                          "moyu",
+                          "letmoe",
+                          "nextmoe",
+                          "editor"
+                        ],
+                        "type": "string"
+                      },
+                      {
                         "name": "proposed_at",
                         "required": true,
                         "doc": "RFC 3339 UTC.",
@@ -194581,6 +194719,20 @@ export const docsModel: DocsModel = {
                         "name": "origin",
                         "required": true,
                         "doc": "Lane that filed it: editor for these faces; batch tools file their own. Open vocabulary; must not be used as a discriminant.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "origin_site",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.",
+                        "enum": [
+                          "kungal",
+                          "moyu",
+                          "letmoe",
+                          "nextmoe",
+                          "editor"
+                        ],
                         "type": "string"
                       },
                       {
@@ -218095,6 +218247,13 @@ export const docsModel: DocsModel = {
                   "doc": "Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing."
                 },
                 {
+                  "name": "origin_site",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps proposals filed from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE."
+                },
+                {
                   "name": "field",
                   "in": "query",
                   "required": false,
@@ -218212,7 +218371,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "amender_uid",
                                     "required": true,
-                                    "doc": "The claiming site's own user id of the amender. Not a catalog id.",
+                                    "doc": "Central account id of the amender. Not a catalog id.",
                                     "type": "string"
                                   },
                                   {
@@ -218348,7 +218507,7 @@ export const docsModel: DocsModel = {
                               "name": "decided_by_uid",
                               "required": true,
                               "nullable": true,
-                              "doc": "The claiming site's own user id of the decider. null while open.",
+                              "doc": "Central account id of the decider. null while open.",
                               "type": "string"
                             },
                             {
@@ -218389,6 +218548,20 @@ export const docsModel: DocsModel = {
                               "doc": "Type discriminant. Always proposal.",
                               "enum": [
                                 "proposal"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "origin_site",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.",
+                              "enum": [
+                                "kungal",
+                                "moyu",
+                                "letmoe",
+                                "nextmoe",
+                                "editor"
                               ],
                               "type": "string"
                             },
@@ -218441,7 +218614,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "proposer_uid",
                               "required": true,
-                              "doc": "The claiming site's own user id of the proposer. Not a catalog id.",
+                              "doc": "Central account id of the proposer, the same id on every first-party site. Not a catalog id.",
                               "type": "string"
                             },
                             {
@@ -220165,7 +220338,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "amender_uid",
                               "required": true,
-                              "doc": "The claiming site's own user id of the amender. Not a catalog id.",
+                              "doc": "Central account id of the amender. Not a catalog id.",
                               "type": "string"
                             },
                             {
@@ -220301,7 +220474,7 @@ export const docsModel: DocsModel = {
                         "name": "decided_by_uid",
                         "required": true,
                         "nullable": true,
-                        "doc": "The claiming site's own user id of the decider. null while open.",
+                        "doc": "Central account id of the decider. null while open.",
                         "type": "string"
                       },
                       {
@@ -220342,6 +220515,20 @@ export const docsModel: DocsModel = {
                         "doc": "Type discriminant. Always proposal.",
                         "enum": [
                           "proposal"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "origin_site",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.",
+                        "enum": [
+                          "kungal",
+                          "moyu",
+                          "letmoe",
+                          "nextmoe",
+                          "editor"
                         ],
                         "type": "string"
                       },
@@ -220394,7 +220581,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "proposer_uid",
                         "required": true,
-                        "doc": "The claiming site's own user id of the proposer. Not a catalog id.",
+                        "doc": "Central account id of the proposer, the same id on every first-party site. Not a catalog id.",
                         "type": "string"
                       },
                       {
@@ -222627,7 +222814,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "amender_uid",
                               "required": true,
-                              "doc": "The claiming site's own user id of the amender. Not a catalog id.",
+                              "doc": "Central account id of the amender. Not a catalog id.",
                               "type": "string"
                             },
                             {
@@ -222763,7 +222950,7 @@ export const docsModel: DocsModel = {
                         "name": "decided_by_uid",
                         "required": true,
                         "nullable": true,
-                        "doc": "The claiming site's own user id of the decider. null while open.",
+                        "doc": "Central account id of the decider. null while open.",
                         "type": "string"
                       },
                       {
@@ -222804,6 +222991,20 @@ export const docsModel: DocsModel = {
                         "doc": "Type discriminant. Always proposal.",
                         "enum": [
                           "proposal"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "origin_site",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.",
+                        "enum": [
+                          "kungal",
+                          "moyu",
+                          "letmoe",
+                          "nextmoe",
+                          "editor"
                         ],
                         "type": "string"
                       },
@@ -222856,7 +223057,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "proposer_uid",
                         "required": true,
-                        "doc": "The claiming site's own user id of the proposer. Not a catalog id.",
+                        "doc": "Central account id of the proposer, the same id on every first-party site. Not a catalog id.",
                         "type": "string"
                       },
                       {
@@ -224537,7 +224738,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "amender_uid",
                               "required": true,
-                              "doc": "The claiming site's own user id of the amender. Not a catalog id.",
+                              "doc": "Central account id of the amender. Not a catalog id.",
                               "type": "string"
                             },
                             {
@@ -224673,7 +224874,7 @@ export const docsModel: DocsModel = {
                         "name": "decided_by_uid",
                         "required": true,
                         "nullable": true,
-                        "doc": "The claiming site's own user id of the decider. null while open.",
+                        "doc": "Central account id of the decider. null while open.",
                         "type": "string"
                       },
                       {
@@ -224714,6 +224915,20 @@ export const docsModel: DocsModel = {
                         "doc": "Type discriminant. Always proposal.",
                         "enum": [
                           "proposal"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "origin_site",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.",
+                        "enum": [
+                          "kungal",
+                          "moyu",
+                          "letmoe",
+                          "nextmoe",
+                          "editor"
                         ],
                         "type": "string"
                       },
@@ -224766,7 +224981,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "proposer_uid",
                         "required": true,
-                        "doc": "The claiming site's own user id of the proposer. Not a catalog id.",
+                        "doc": "Central account id of the proposer, the same id on every first-party site. Not a catalog id.",
                         "type": "string"
                       },
                       {
@@ -227025,7 +227240,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "amender_uid",
                               "required": true,
-                              "doc": "The claiming site's own user id of the amender. Not a catalog id.",
+                              "doc": "Central account id of the amender. Not a catalog id.",
                               "type": "string"
                             },
                             {
@@ -227161,7 +227376,7 @@ export const docsModel: DocsModel = {
                         "name": "decided_by_uid",
                         "required": true,
                         "nullable": true,
-                        "doc": "The claiming site's own user id of the decider. null while open.",
+                        "doc": "Central account id of the decider. null while open.",
                         "type": "string"
                       },
                       {
@@ -227202,6 +227417,20 @@ export const docsModel: DocsModel = {
                         "doc": "Type discriminant. Always proposal.",
                         "enum": [
                           "proposal"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "origin_site",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.",
+                        "enum": [
+                          "kungal",
+                          "moyu",
+                          "letmoe",
+                          "nextmoe",
+                          "editor"
                         ],
                         "type": "string"
                       },
@@ -227254,7 +227483,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "proposer_uid",
                         "required": true,
-                        "doc": "The claiming site's own user id of the proposer. Not a catalog id.",
+                        "doc": "Central account id of the proposer, the same id on every first-party site. Not a catalog id.",
                         "type": "string"
                       },
                       {
@@ -268237,6 +268466,20 @@ export const docsModel: DocsModel = {
                   ]
                 },
                 {
+                  "name": "origin_site",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Narrow to requests filed from one first-party property.",
+                  "enum": [
+                    "kungal",
+                    "moyu",
+                    "letmoe",
+                    "nextmoe",
+                    "editor"
+                  ]
+                },
+                {
                   "name": "cursor",
                   "in": "query",
                   "required": false,
@@ -268341,6 +268584,20 @@ export const docsModel: DocsModel = {
                               "name": "origin",
                               "required": true,
                               "doc": "Lane that filed it: editor for these faces; batch tools file their own. Open vocabulary; must not be used as a discriminant.",
+                              "type": "string"
+                            },
+                            {
+                              "name": "origin_site",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.",
+                              "enum": [
+                                "kungal",
+                                "moyu",
+                                "letmoe",
+                                "nextmoe",
+                                "editor"
+                              ],
                               "type": "string"
                             },
                             {
@@ -270265,6 +270522,20 @@ export const docsModel: DocsModel = {
                         "type": "string"
                       },
                       {
+                        "name": "origin_site",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.",
+                        "enum": [
+                          "kungal",
+                          "moyu",
+                          "letmoe",
+                          "nextmoe",
+                          "editor"
+                        ],
+                        "type": "string"
+                      },
+                      {
                         "name": "proposed_at",
                         "required": true,
                         "doc": "RFC 3339 UTC.",
@@ -272171,6 +272442,20 @@ export const docsModel: DocsModel = {
                         "name": "origin",
                         "required": true,
                         "doc": "Lane that filed it: editor for these faces; batch tools file their own. Open vocabulary; must not be used as a discriminant.",
+                        "type": "string"
+                      },
+                      {
+                        "name": "origin_site",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.",
+                        "enum": [
+                          "kungal",
+                          "moyu",
+                          "letmoe",
+                          "nextmoe",
+                          "editor"
+                        ],
                         "type": "string"
                       },
                       {
@@ -274098,6 +274383,13 @@ export const docsModel: DocsModel = {
                   "doc": "Tenant key. Only the central editor (catalog site editor) may name a site other than its own; elsewhere it must equal the token's site or the call is 403 TENANT_MISMATCH. Open vocabulary; unknown values match nothing."
                 },
                 {
+                  "name": "origin_site",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Closed: kungal, moyu, letmoe, nextmoe, editor. Keeps proposals filed from that property. Unknown value is 400 UNKNOWN_ENUM_VALUE."
+                },
+                {
                   "name": "field",
                   "in": "query",
                   "required": false,
@@ -274215,7 +274507,7 @@ export const docsModel: DocsModel = {
                                   {
                                     "name": "amender_uid",
                                     "required": true,
-                                    "doc": "The claiming site's own user id of the amender. Not a catalog id.",
+                                    "doc": "Central account id of the amender. Not a catalog id.",
                                     "type": "string"
                                   },
                                   {
@@ -274351,7 +274643,7 @@ export const docsModel: DocsModel = {
                               "name": "decided_by_uid",
                               "required": true,
                               "nullable": true,
-                              "doc": "The claiming site's own user id of the decider. null while open.",
+                              "doc": "Central account id of the decider. null while open.",
                               "type": "string"
                             },
                             {
@@ -274392,6 +274684,20 @@ export const docsModel: DocsModel = {
                               "doc": "Type discriminant. Always proposal.",
                               "enum": [
                                 "proposal"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "name": "origin_site",
+                              "required": true,
+                              "nullable": true,
+                              "doc": "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.",
+                              "enum": [
+                                "kungal",
+                                "moyu",
+                                "letmoe",
+                                "nextmoe",
+                                "editor"
                               ],
                               "type": "string"
                             },
@@ -274444,7 +274750,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "proposer_uid",
                               "required": true,
-                              "doc": "The claiming site's own user id of the proposer. Not a catalog id.",
+                              "doc": "Central account id of the proposer, the same id on every first-party site. Not a catalog id.",
                               "type": "string"
                             },
                             {
@@ -276151,7 +276457,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "amender_uid",
                               "required": true,
-                              "doc": "The claiming site's own user id of the amender. Not a catalog id.",
+                              "doc": "Central account id of the amender. Not a catalog id.",
                               "type": "string"
                             },
                             {
@@ -276287,7 +276593,7 @@ export const docsModel: DocsModel = {
                         "name": "decided_by_uid",
                         "required": true,
                         "nullable": true,
-                        "doc": "The claiming site's own user id of the decider. null while open.",
+                        "doc": "Central account id of the decider. null while open.",
                         "type": "string"
                       },
                       {
@@ -276328,6 +276634,20 @@ export const docsModel: DocsModel = {
                         "doc": "Type discriminant. Always proposal.",
                         "enum": [
                           "proposal"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "origin_site",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.",
+                        "enum": [
+                          "kungal",
+                          "moyu",
+                          "letmoe",
+                          "nextmoe",
+                          "editor"
                         ],
                         "type": "string"
                       },
@@ -276380,7 +276700,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "proposer_uid",
                         "required": true,
-                        "doc": "The claiming site's own user id of the proposer. Not a catalog id.",
+                        "doc": "Central account id of the proposer, the same id on every first-party site. Not a catalog id.",
                         "type": "string"
                       },
                       {
@@ -281833,7 +282153,7 @@ export const docsModel: DocsModel = {
                             {
                               "name": "amender_uid",
                               "required": true,
-                              "doc": "The claiming site's own user id of the amender. Not a catalog id.",
+                              "doc": "Central account id of the amender. Not a catalog id.",
                               "type": "string"
                             },
                             {
@@ -281969,7 +282289,7 @@ export const docsModel: DocsModel = {
                         "name": "decided_by_uid",
                         "required": true,
                         "nullable": true,
-                        "doc": "The claiming site's own user id of the decider. null while open.",
+                        "doc": "Central account id of the decider. null while open.",
                         "type": "string"
                       },
                       {
@@ -282010,6 +282330,20 @@ export const docsModel: DocsModel = {
                         "doc": "Type discriminant. Always proposal.",
                         "enum": [
                           "proposal"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "name": "origin_site",
+                        "required": true,
+                        "nullable": true,
+                        "doc": "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.",
+                        "enum": [
+                          "kungal",
+                          "moyu",
+                          "letmoe",
+                          "nextmoe",
+                          "editor"
                         ],
                         "type": "string"
                       },
@@ -282062,7 +282396,7 @@ export const docsModel: DocsModel = {
                       {
                         "name": "proposer_uid",
                         "required": true,
-                        "doc": "The claiming site's own user id of the proposer. Not a catalog id.",
+                        "doc": "Central account id of the proposer, the same id on every first-party site. Not a catalog id.",
                         "type": "string"
                       },
                       {

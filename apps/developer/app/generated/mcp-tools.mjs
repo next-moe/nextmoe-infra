@@ -670,6 +670,7 @@ export const mcpTools = [
       "entity_id",
       "site",
       "proposer_uid",
+      "origin_site",
       "state"
     ]
   },
@@ -733,7 +734,8 @@ export const mcpTools = [
       "object",
       "entity_id",
       "site",
-      "actor_uid"
+      "actor_uid",
+      "origin_site"
     ]
   },
   {

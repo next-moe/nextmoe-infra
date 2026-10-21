@@ -23,6 +23,7 @@ import (
 	srcv "api/internal/platform/catalog/srcvndb"
 	"api/internal/platform/devapi"
 	"api/internal/platform/editing"
+	"api/internal/platform/editorigin"
 	newsmigrate "api/internal/platform/news/migrate"
 	newsmodel "api/internal/platform/news/model"
 	"api/internal/platform/news/newstest"
@@ -328,13 +329,13 @@ func liveCatalog(t *testing.T) *liveEnv {
 			LookupSite: func(_ context.Context, clientID string) (SiteBinding, error) {
 				switch clientID {
 				case liveClient:
-					return SiteBinding{Site: liveSite}, nil
+					return SiteBinding{Site: liveSite, Origin: editorigin.Kungal}, nil
 				case liveOtherClient:
-					return SiteBinding{Site: liveOtherSite}, nil
+					return SiteBinding{Site: liveOtherSite, Origin: editorigin.Moyu}, nil
 				case liveThirdPartyClient:
 					return SiteBinding{Site: liveSite, ThirdParty: true}, nil
 				case liveCentralClient:
-					return SiteBinding{Site: centralEditorSite}, nil
+					return SiteBinding{Site: centralEditorSite, Origin: editorigin.Editor}, nil
 				}
 				return SiteBinding{}, nil
 			},
