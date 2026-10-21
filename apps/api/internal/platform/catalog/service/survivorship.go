@@ -14,14 +14,11 @@ import (
 type fieldResolution map[string]string
 
 func parseResolution(raw datatypes.JSON) (fieldResolution, error) {
-	res := fieldResolution{}
-	if len(raw) == 0 {
-		return res, nil
+	doc, err := parseMergeDoc(raw)
+	if err != nil {
+		return nil, err
 	}
-	if err := json.Unmarshal(raw, &res); err != nil {
-		return nil, fmt.Errorf("parse field_resolution: %w", err)
-	}
-	return res, nil
+	return fieldResolution(doc.Fields), nil
 }
 
 func firstProvSource(prov datatypes.JSON, field string) string {

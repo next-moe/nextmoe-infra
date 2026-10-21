@@ -13,6 +13,7 @@ type CatalogRedirect struct {
 	MergedAt   *time.Time `json:"merged_at"`
 	MergedBy   *int64     `json:"merged_by"`
 	Reason     string     `gorm:"not null;default:''" json:"reason"`
+	RevokedAt  *time.Time `json:"revoked_at"`
 }
 
 func (CatalogRedirect) TableName() string { return "catalog_redirect" }

@@ -27,7 +27,10 @@ type MergeRequestFilter struct {
 	Limit      int
 }
 
-func (s *MergeService) RequestMerge(ctx context.Context, entityType int16, sourceID, targetID, proposedBy int64, reason string) (*model.CatalogMergeProposal, error) {
+func (s *MergeService) RequestMerge(ctx context.Context, entityType int16, sourceID, targetID, proposedBy int64, reason string, choices MergeChoices) (*model.CatalogMergeProposal, error) {
+	if err := validateChoices(s.db.WithContext(ctx), entityType, sourceID, choices); err != nil {
+		return nil, err
+	}
 	if entityType == model.EntityTypeWork {
 		var mediums []int16
 		if err := s.db.WithContext(ctx).Raw(`SELECT DISTINCT medium_id FROM catalog_work WHERE id IN (?, ?)`,
@@ -38,7 +41,38 @@ func (s *MergeService) RequestMerge(ctx context.Context, entityType int16, sourc
 			return nil, ErrCrossMedium
 		}
 	}
-	return s.propose(ctx, entityType, sourceID, targetID, proposedBy, reason, false, OriginEditor)
+	return s.proposeWith(ctx, entityType, sourceID, targetID, proposedBy, reason, OriginEditor, choicesDoc("", choices))
+}
+
+// AmendMergeRequest replaces the requester's choices with a reviewer's while
+// the request has not run; the note records who changed them.
+func (s *MergeService) AmendMergeRequest(ctx context.Context, proposalID, amendedBy int64, choices MergeChoices) error {
+	return s.transitionOneOf(ctx, proposalID, []int16{model.ProposalStatusOpen, model.ProposalStatusApproved}, func(tx *gorm.DB, p *model.CatalogMergeProposal) error {
+		if err := validateChoices(tx, p.EntityType, p.SourceEntityID, choices); err != nil {
+			return err
+		}
+		prior, err := parseMergeDoc(p.FieldResolution)
+		if err != nil {
+			return err
+		}
+		raw, err := choicesDoc(prior.mode, choices).encode()
+		if err != nil {
+			return err
+		}
+		now := time.Now()
+		return tx.Model(p).Updates(map[string]any{
+			"field_resolution": raw,
+			"amended_by":       amendedBy,
+			"amended_at":       now,
+			"note":             appendNote(p.Note, fmt.Sprintf("choices amended by user %d", amendedBy)),
+		}).Error
+	})
+}
+
+// MergeChoicesOf reads the choices stored on a request.
+func MergeChoicesOf(p *model.CatalogMergeProposal) (MergeChoices, error) {
+	doc, err := parseMergeDoc(p.FieldResolution)
+	return doc.MergeChoices, err
 }
 
 // ListMergeRequests pages newest first by id; BeforeID is the keyset cursor.

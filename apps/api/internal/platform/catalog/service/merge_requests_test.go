@@ -16,12 +16,12 @@ func TestMergeRequestLifecycle(t *testing.T) {
 	src := createWorkX(t, galgameMediumID, model.ContentRatingAllAges, model.WorkStatusLive, "requested loser").ID
 	dst := createWorkX(t, galgameMediumID, model.ContentRatingAllAges, model.WorkStatusLive, "requested survivor").ID
 
-	p, err := testMerge.RequestMerge(ctx, model.EntityTypeWork, src, dst, 42, "same game, two entries")
+	p, err := testMerge.RequestMerge(ctx, model.EntityTypeWork, src, dst, 42, "same game, two entries", MergeChoices{})
 	require.NoError(t, err)
 	assert.Equal(t, OriginEditor, p.Origin)
 	assert.Equal(t, model.ProposalStatusOpen, p.Status)
 
-	_, err = testMerge.RequestMerge(ctx, model.EntityTypeWork, src, dst, 43, "again")
+	_, err = testMerge.RequestMerge(ctx, model.EntityTypeWork, src, dst, 43, "again", MergeChoices{})
 	require.ErrorIs(t, err, ErrDuplicateOpenProposal)
 
 	n, err := testMerge.CountMergeRequestsSince(ctx, 42, time.Now().Add(-time.Hour))
@@ -71,7 +71,7 @@ func TestMergeRequestRefusesTwoMediums(t *testing.T) {
 	require.NoError(t, testDB.Raw(`SELECT id FROM catalog_medium WHERE key = 'novel'`).Scan(&novelMedium).Error)
 	novel := createWorkX(t, novelMedium, model.ContentRatingAllAges, model.WorkStatusLive, "its novel").ID
 
-	_, err := testMerge.RequestMerge(t.Context(), model.EntityTypeWork, novel, game, 42, "adaptation")
+	_, err := testMerge.RequestMerge(t.Context(), model.EntityTypeWork, novel, game, 42, "adaptation", MergeChoices{})
 	require.ErrorIs(t, err, ErrCrossMedium)
 }
 
@@ -80,7 +80,7 @@ func TestMergeRequestRejected(t *testing.T) {
 	ctx := t.Context()
 	a := createWorkX(t, galgameMediumID, model.ContentRatingAllAges, model.WorkStatusLive, "reject a").ID
 	b := createWorkX(t, galgameMediumID, model.ContentRatingAllAges, model.WorkStatusLive, "reject b").ID
-	p, err := testMerge.RequestMerge(ctx, model.EntityTypeWork, a, b, 42, "maybe")
+	p, err := testMerge.RequestMerge(ctx, model.EntityTypeWork, a, b, 42, "maybe", MergeChoices{})
 	require.NoError(t, err)
 	require.NoError(t, testMerge.RejectMerge(ctx, p.ID, 7, "different editions"))
 	got, err := testMerge.GetMergeRequest(ctx, p.ID)

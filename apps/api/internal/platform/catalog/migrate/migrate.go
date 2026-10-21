@@ -171,6 +171,21 @@ func Run(db *gorm.DB) error {
 		// restored only the work row and its titles. New and empty; nothing is
 		// backfilled, since rows dropped by earlier merges are gone.
 		&model.CatalogMergeArchive{},
+		// 2026-10-21: undoing a merge under the source's original id. The
+		// archive above only holds rows a merge dropped; rows it moved by
+		// UPDATE left no trace, so an unmerge could not take them back and had
+		// to mint a new id, which downstream sites (same ids as the catalog)
+		// cannot follow. catalog_merge_movement records, per executed merge,
+		// every row that referenced the source before it ran, every row the
+		// merge inserted on the survivor, and both entity rows as they were.
+		// catalog_merge_proposal gains amended_by/amended_at (a reviewer
+		// changed the requester's field and release choices) and
+		// undone_by/undone_at (status 5, undone); catalog_redirect gains
+		// revoked_at, set when an undo hands the old id back. All additive and
+		// empty: merges executed before this have no movement rows, and the
+		// editor offers undo only where they exist. A movement row belongs to its
+		// proposal and is deleted with it.
+		&model.CatalogMergeMovement{},
 		&model.CatalogSurvivorshipRule{},
 
 		// Credit edges (step 05).

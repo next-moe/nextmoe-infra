@@ -295,6 +295,14 @@ var CatalogMergeCoolingOffHours = settings.Int(settings.Meta{
 	Max:    settings.F(720),
 }, 48)
 
+var CatalogMergeUndoWindowDays = settings.Int(settings.Meta{
+	Name:   "catalog.merge_undo_window_days",
+	DescEN: "Days after a merge executes during which a reviewer may undo it under the original id; 0 turns undo off.",
+	DescZH: "合并执行后审核者可以撤销(恢复原 id)的天数;0 表示关闭撤销。",
+	Min:    settings.F(0),
+	Max:    settings.F(365),
+}, 30)
+
 var CatalogWriteQuotaWindowHours = settings.Int(settings.Meta{
 	Name:   "catalog.write_quota_window_hours",
 	DescEN: "Sliding window over which a contributor's claim writes and proposals are counted.",
@@ -481,6 +489,7 @@ var catalogDomain = settings.Domain{
 	Keys: []settings.Entry{
 		CatalogTotalsCacheTTLSeconds,
 		CatalogMergeCoolingOffHours,
+		CatalogMergeUndoWindowDays,
 		CatalogWriteQuotaWindowHours,
 		CatalogClaimWritesPerDay,
 		CatalogClaimWritesPerDayTrusted,
