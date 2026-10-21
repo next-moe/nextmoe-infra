@@ -79,9 +79,7 @@ func captureMovements(tx *gorm.DB, p mergePlan) error {
 			mergeStmt{insert + " AND " + collides, append([]any{p.proposalID, movementFolded + r.column, p.src, p.entityType}, args...), false},
 		)
 	}
-	if p.entityType == model.EntityTypeWork {
-		stmts = append(stmts, captureSurvivorUserRows(p)...)
-	}
+	stmts = append(stmts, captureSurvivorUserRows(p)...)
 	_, err := execAll(tx, stmts)
 	return err
 }

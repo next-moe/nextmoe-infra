@@ -159,3 +159,128 @@ func TestRestoreResurfacesUserRowsForMirrorsPastThem(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, st, 1, "a play-state mirror past the row gets it back")
 }
+
+func undoSetup(t *testing.T) (editionPair, func() int64) {
+	t.Helper()
+	cleanTables(t)
+	e := seedEditionPair(t)
+	return e, func() int64 {
+		p, err := testMerge.RequestMerge(t.Context(), model.EntityTypeWork, e.src, e.dst, 42, "edition duplicate", MergeChoices{})
+		require.NoError(t, err)
+		approveAndForceExecutable(t, p.ID)
+		require.NoError(t, testMerge.ExecuteMerge(t.Context(), p.ID, nil))
+		return p.ID
+	}
+}
+
+func countRows(t *testing.T, sql string, args ...any) int64 {
+	t.Helper()
+	var n int64
+	require.NoError(t, testDB.Raw(sql, args...).Scan(&n).Error)
+	return n
+}
+
+func TestUndoMergeKeepsWhatTheUserRemovedAfterTheMerge(t *testing.T) {
+	e, merge := undoSetup(t)
+	ctx := t.Context()
+	ratings := NewUserRatingService(testDB)
+	folders := NewUserFolderService(testDB)
+	states := NewUserWorkStateService(testDB)
+	const uid = int64(701)
+	old, err := ratings.Set(ctx, uid, e.src, "c", "kungal", RatingInput{Overall: 4, Recommend: model.RecommendNo})
+	require.NoError(t, err)
+	_, err = ratings.Set(ctx, uid, e.dst, "c", "kungal", RatingInput{Overall: 9, Recommend: model.RecommendYes})
+	require.NoError(t, err)
+	require.NoError(t, testDB.Exec(`UPDATE catalog_user_work_rating SET updated_at = now() - interval '2 days' WHERE id = ?`, old.ID).Error)
+	f, err := folders.Create(ctx, FolderCreate{OwnerUID: uid, Name: "kept"})
+	require.NoError(t, err)
+	gone, err := folders.Create(ctx, FolderCreate{OwnerUID: uid, Name: "deleted later"})
+	require.NoError(t, err)
+	for _, folder := range []int64{f.ID, gone.ID} {
+		for _, w := range []int64{e.src, e.dst} {
+			_, err = folders.PutItem(ctx, uid, folder, w)
+			require.NoError(t, err)
+		}
+	}
+	_, err = states.Set(ctx, uid, e.src, model.WorkStateDone, nil)
+	require.NoError(t, err)
+	_, err = states.Set(ctx, uid, e.dst, model.WorkStateDoing, nil)
+	require.NoError(t, err)
+
+	id := merge()
+	require.NoError(t, ratings.DeleteMine(ctx, uid, e.dst))
+	require.NoError(t, folders.DeleteItem(ctx, uid, f.ID, e.dst))
+	require.NoError(t, folders.Delete(ctx, uid, gone.ID))
+	require.NoError(t, states.DeleteMine(ctx, uid, e.dst))
+	tombstones := countRows(t, `SELECT count(*) FROM catalog_user_work_rating_tombstone`)
+
+	_, err = testMerge.UndoMerge(ctx, id, 9, "undo")
+	require.NoError(t, err)
+
+	assert.Zero(t, countRows(t, `SELECT count(*) FROM catalog_user_work_rating WHERE actor_uid = ?`, uid), "the user deleted the rating the merge kept")
+	assert.Equal(t, tombstones, countRows(t, `SELECT count(*) FROM catalog_user_work_rating_tombstone`), "the user's own deletion keeps its tombstone")
+	assert.Zero(t, countRows(t, `SELECT count(*) FROM catalog_user_folder_item WHERE folder_id = ?`, f.ID), "the user removed the item the merge kept")
+	assert.Zero(t, countRows(t, `SELECT count(*) FROM catalog_user_folder_item WHERE folder_id = ?`, gone.ID), "nothing comes back into a deleted folder")
+	assert.Zero(t, countRows(t, `SELECT count(*) FROM catalog_user_work_state WHERE actor_uid = ?`, uid), "the user cleared the play state the merge kept")
+}
+
+func TestUndoMergeResurrectsNothingForAnErasedAccount(t *testing.T) {
+	e, merge := undoSetup(t)
+	ctx := t.Context()
+	ratings := NewUserRatingService(testDB)
+	playtime := NewUserPlaytimeService(testDB)
+	const uid = int64(702)
+	for _, w := range []int64{e.src, e.dst} {
+		_, err := ratings.Set(ctx, uid, w, "c", "kungal", RatingInput{Overall: 7, Recommend: model.RecommendYes})
+		require.NoError(t, err)
+		_, err = playtime.Report(ctx, PlaytimeReport{ActorUID: uid, WorkID: w, ClientID: "c", Minutes: 10})
+		require.NoError(t, err)
+	}
+	id := merge()
+	_, err := PurgeAccount(ctx, testDB, uid)
+	require.NoError(t, err)
+
+	_, err = testMerge.UndoMerge(ctx, id, 9, "undo")
+	require.NoError(t, err)
+	assert.Zero(t, countRows(t, `SELECT count(*) FROM catalog_user_work_rating WHERE actor_uid = ?`, uid))
+	assert.Zero(t, countRows(t, `SELECT count(*) FROM catalog_user_playtime WHERE actor_uid = ?`, uid))
+}
+
+func TestUndoMergeSurvivesAVoteWhoseCoverWasDeleted(t *testing.T) {
+	e, merge := undoSetup(t)
+	ctx := t.Context()
+	createCover(t, e.src, "srccoverhash")
+	createCover(t, e.dst, "dstcoverhash")
+	var srcCover, dstCover int64
+	require.NoError(t, testDB.Raw(`SELECT id FROM catalog_work_cover WHERE work_id = ?`, e.src).Scan(&srcCover).Error)
+	require.NoError(t, testDB.Raw(`SELECT id FROM catalog_work_cover WHERE work_id = ?`, e.dst).Scan(&dstCover).Error)
+	require.NoError(t, testDB.Create(&model.CatalogCoverVote{WorkID: e.src, CoverID: srcCover, ActorUID: 703, Site: "kungal"}).Error)
+	require.NoError(t, testDB.Create(&model.CatalogCoverVote{WorkID: e.dst, CoverID: dstCover, ActorUID: 703, Site: "kungal"}).Error)
+
+	id := merge()
+	require.NoError(t, testDB.Exec(`DELETE FROM catalog_work_cover WHERE id = ?`, srcCover).Error)
+
+	_, err := testMerge.UndoMerge(ctx, id, 9, "undo")
+	require.NoError(t, err, "a vote on a cover deleted after the merge must not abort the undo")
+}
+
+func TestUndoLabelMergeRestoresTheSecondFollow(t *testing.T) {
+	cleanTables(t)
+	ctx := t.Context()
+	survivor := createLabel(t, "Brand", model.LabelKindGameBrand)
+	loser := createLabel(t, "Brand Inc.", model.LabelKindGameBrand)
+	for _, l := range []int64{survivor, loser} {
+		require.NoError(t, testDB.Create(&model.CatalogUserEntityFollow{ActorUID: 704, EntityType: model.EntityTypeLabel, EntityID: l, ClientID: "c", Site: "kungal"}).Error)
+	}
+	p, err := testMerge.ProposeMerge(ctx, model.EntityTypeLabel, loser, survivor, 7, "dup")
+	require.NoError(t, err)
+	approveAndForceExecutable(t, p.ID)
+	require.NoError(t, testMerge.ExecuteMerge(ctx, p.ID, nil))
+	require.EqualValues(t, 1, countRows(t, `SELECT count(*) FROM catalog_user_entity_follow WHERE actor_uid = 704`))
+
+	_, err = testMerge.UndoMerge(ctx, p.ID, 9, "undo")
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, countRows(t, `SELECT count(*) FROM catalog_user_entity_follow WHERE actor_uid = 704 AND entity_id = ?`, loser),
+		"the follow the merge folded away comes back")
+	assert.EqualValues(t, 1, countRows(t, `SELECT count(*) FROM catalog_user_entity_follow WHERE actor_uid = 704 AND entity_id = ?`, survivor))
+}

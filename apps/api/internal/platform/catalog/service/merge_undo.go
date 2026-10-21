@@ -185,20 +185,14 @@ func (s *MergeService) UndoMerge(ctx context.Context, proposalID, actorID int64,
 		if err := restoreIdentityKeys(tx, byKind[movementIdentity]); err != nil {
 			return fmt.Errorf("restore suppression keys: %w", err)
 		}
-		if et == model.EntityTypeWork {
-			executedAt := time.Now()
-			if p.ExecutedAt != nil {
-				executedAt = *p.ExecutedAt
-			}
-			if _, err := restoreUserCollisions(tx, p.ID, src, dst, executedAt); err != nil {
-				return fmt.Errorf("restore folded user rows: %w", err)
-			}
+		executedAt := time.Now()
+		if p.ExecutedAt != nil {
+			executedAt = *p.ExecutedAt
+		}
+		if err := restoreUserCollisions(tx, et, p.ID, src, dst, executedAt); err != nil {
+			return fmt.Errorf("restore folded user rows: %w", err)
 		}
 		if editType, ok := editTypeOfFamily[et]; ok {
-			executedAt := time.Now()
-			if p.ExecutedAt != nil {
-				executedAt = *p.ExecutedAt
-			}
 			if _, err := editing.ReopenDeclinedProposals(tx, editType, src, mergeDeclineNote(dst), executedAt); err != nil {
 				return fmt.Errorf("reopen proposals: %w", err)
 			}
