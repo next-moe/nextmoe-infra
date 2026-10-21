@@ -69,6 +69,20 @@ TRUNCATE community_notification, community_thread_user, community_anchor_user,
          community_flag, community_review_item, community_purge_archive,
          account_purge_cursor, community_write_request, community_event;
 
+-- 2026-10-21: the comment-rehoming log keeps read state, notification ids and
+-- subscriptions of the threads it moved.
+DO $$
+DECLARE
+    present text;
+BEGIN
+    SELECT string_agg(format('public.%I', t), ', ') INTO present
+    FROM unnest(ARRAY['community_rehome_log']) AS t
+    WHERE to_regclass('public.' || t) IS NOT NULL;
+    IF present IS NOT NULL THEN
+        EXECUTE 'TRUNCATE TABLE ' || present;
+    END IF;
+END $$;
+
 -- Children of posts first (soft refs, but keep the discipline), then posts,
 -- then threads.
 DELETE FROM community_reaction WHERE post_id NOT IN (SELECT id FROM keep_post);
