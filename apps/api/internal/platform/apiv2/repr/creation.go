@@ -21,21 +21,21 @@ type CreateParam struct {
 }
 
 type MergeRequestRecord struct {
-	_             struct{} `json:"-" additionalProperties:"true"`
-	Object        string   `json:"object" enum:"merge_request" doc:"Type discriminant. Always merge_request."`
-	ID            string   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Merge request id."`
-	State         string   `json:"state" enum:"open,approved,executed,rejected,withdrawn,undone" doc:"open awaits a reviewer; approved waits out the cooling-off, after which the merge runs; executed is done; undone means a reviewer took an executed merge back and source_id is live again."`
-	TargetObject  string   `json:"target_object" enum:"work,company,character,person,credit_name" doc:"Family of the two entries."`
-	SourceID      string   `json:"source_id" pattern:"^[0-9]+$" maxLength:"20" doc:"The entry that is folded away. Its id redirects to target_id once executed."`
-	TargetID      string   `json:"target_id" pattern:"^[0-9]+$" maxLength:"20" doc:"The entry that survives."`
-	Note          string   `json:"note" maxLength:"4000" doc:"The requester's reason followed by decision notes. Must not be used as a discriminant."`
-	ProposedByUID string   `json:"proposed_by_uid" pattern:"^[0-9]+$" maxLength:"20" doc:"Central account id of the requester."`
-	ProposedBy    *UserRef `json:"proposed_by" doc:"Account behind proposed_by_uid. null only when the account directory could not be read."`
-	Origin        string   `json:"origin" maxLength:"32" doc:"Lane that filed it: editor for these faces; batch tools file their own. Open vocabulary; must not be used as a discriminant."`
-	OriginSite    *string  `json:"origin_site" enum:"kungal,moyu,letmoe,nextmoe,editor" doc:"Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template."`
-	ProposedAt    string   `json:"proposed_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
-	ExecuteAfter  *string  `json:"execute_after" format:"date-time" maxLength:"32" doc:"End of the cooling-off once approved. null before approval."`
-	ExecutedAt    *string  `json:"executed_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC. null until executed."`
+	_               struct{}          `json:"-" additionalProperties:"true"`
+	Object          string            `json:"object" enum:"merge_request" doc:"Type discriminant. Always merge_request."`
+	ID              string            `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Merge request id."`
+	State           string            `json:"state" enum:"open,approved,executed,rejected,withdrawn,undone" doc:"open awaits a reviewer; approved waits out the cooling-off, after which the merge runs; executed is done; undone means a reviewer took an executed merge back and source_id is live again."`
+	TargetObject    string            `json:"target_object" enum:"work,company,character,person,credit_name" doc:"Family of the two entries."`
+	SourceID        string            `json:"source_id" pattern:"^[0-9]+$" maxLength:"20" doc:"The entry that is folded away. Its id redirects to target_id once executed."`
+	TargetID        string            `json:"target_id" pattern:"^[0-9]+$" maxLength:"20" doc:"The entry that survives."`
+	Note            string            `json:"note" maxLength:"4000" doc:"The requester's reason followed by decision notes. Must not be used as a discriminant."`
+	ProposedByUID   string            `json:"proposed_by_uid" pattern:"^[0-9]+$" maxLength:"20" doc:"Central account id of the requester."`
+	ProposedBy      *UserRef          `json:"proposed_by" doc:"Account behind proposed_by_uid. null only when the account directory could not be read."`
+	Origin          string            `json:"origin" maxLength:"32" doc:"Lane that filed it: editor for these faces; batch tools file their own. Open vocabulary; must not be used as a discriminant."`
+	OriginSite      *string           `json:"origin_site" enum:"kungal,moyu,letmoe,nextmoe,editor" doc:"Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template."`
+	ProposedAt      string            `json:"proposed_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
+	ExecuteAfter    *string           `json:"execute_after" format:"date-time" maxLength:"32" doc:"End of the cooling-off once approved. null before approval."`
+	ExecutedAt      *string           `json:"executed_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC. null until executed."`
 	FieldResolution map[string]string `json:"field_resolution" doc:"Fields resolved to the source's value, as field → source. A field not listed keeps the target's value (the source fills it only where the target is empty), and a value a person entered on the target is never replaced by a machine value from the source. Empty object when nothing was chosen."`
 	HideReleaseIDs  []string          `json:"hide_release_ids" doc:"Source releases hidden once they land on the target, usually duplicates of a target release. Empty array, never null."`
 	AmendedByUID    *string           `json:"amended_by_uid" pattern:"^[0-9]+$" maxLength:"20" doc:"Central account id of the reviewer who last changed the choices. null when unchanged."`

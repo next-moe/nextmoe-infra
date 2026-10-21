@@ -1564,6 +1564,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/me/merge-candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Suggest merge partners
+         * @description Up to ten entries that may duplicate id: undecided pairs from the reconciliation queue first, then live entries with exactly the same name. A single page; there is no cursor. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+         */
+        get: operations["listMyMergeCandidates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/me/merge-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview a merge
+         * @description Computes what merging source_id into target_id would do, without writing: both sides' values for the resolvable fields, the fate of every external id, the releases of both works with source duplicates marked, title and intro outcomes, row counts, the site claim, and blockers and warnings. An entry already merged away or deleted comes back with a not_live blocker rather than an error. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+         */
+        get: operations["previewMyMerge"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/me/merge-requests": {
         parameters: {
             query?: never;
@@ -1595,7 +1635,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Get one merge request
+         * @description Any editor-filed merge request by id, for the requester and everyone following it. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+         */
+        get: operations["getMyMergeRequest"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2105,7 +2149,11 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Change a merge request's choices
+         * @description Replaces field_resolution and hide_release_ids on an open or approved request; amended_by and amended_at record who. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+         */
+        patch: operations["amendModerationMergeRequest"];
         trace?: never;
     };
     "/v2/moderation/merge-requests/{id}/decisions": {
@@ -2119,7 +2167,7 @@ export interface paths {
         put?: never;
         /**
          * Decide a merge request
-         * @description decision=approve|reject|execute. Unmerge stays with the catalog admin console. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+         * @description decision=approve|reject|execute|undo. undo revives the source under its own id, moves back what the merge moved, restores what it archived and revokes the redirect (the redirects feed then lists it with revoked=true); the response carries undo_report. A merge executed before undo was recorded, or past catalog.merge_undo_window_days, is refused 409. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
          */
         post: operations["decideModerationMergeRequest"];
         delete?: never;
@@ -3672,11 +3720,11 @@ export interface components {
              */
             readonly $schema?: string;
             /**
-             * @description approve starts the cooling-off (catalog.merge_cooling_off_hours) after which the catalog-merge-requests job executes it; reject closes it; execute runs an approved request whose cooling-off has ended without waiting for the job.
+             * @description approve starts the cooling-off (catalog.merge_cooling_off_hours) after which the catalog-merge-requests job executes it; reject closes it; execute runs an approved request whose cooling-off has ended without waiting for the job; undo takes an executed merge back under the source's original id while undo_until has not passed.
              * @enum {string}
              */
-            decision: "approve" | "reject" | "execute";
-            /** @description Required to reject. Must not be used as a discriminant. */
+            decision: "approve" | "reject" | "execute" | "undo";
+            /** @description Required to reject and to undo. Must not be used as a discriminant. */
             reason?: string;
         } & {
             [key: string]: unknown;
@@ -4749,6 +4797,41 @@ export interface components {
             };
             /** @description Members of this page. Empty array, never null. */
             items: components["schemas"]["Intro"][];
+            /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
+            missing?: string[];
+            /** @description Opaque keyset cursor. Omitted on the last page. */
+            next_cursor?: string;
+            /**
+             * @description Type discriminant. Always list.
+             * @enum {string}
+             */
+            object: "list";
+            /**
+             * Format: int64
+             * @description Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+             */
+            total?: number;
+            /**
+             * @description Present in page mode only. eq: total is exact. gte: total is a lower bound.
+             * @enum {string}
+             */
+            total_relation?: "eq" | "gte";
+        } & {
+            [key: string]: unknown;
+        };
+        ListMergeCandidate: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/ListMergeCandidate.json
+             */
+            readonly $schema?: string;
+            /** @description Named facet buckets. Present only when facets= is requested. */
+            facets?: {
+                [key: string]: components["schemas"]["FacetValue"][] | null;
+            };
+            /** @description Members of this page. Empty array, never null. */
+            items: components["schemas"]["MergeCandidate"][];
             /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
             missing?: string[];
             /** @description Opaque keyset cursor. Omitted on the last page. */
@@ -6182,6 +6265,279 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        MergeCandidate: {
+            /** @description Catalog id of the suggested entry. */
+            id: string;
+            /** @description Display name. Must not be used as a discriminant. */
+            name: string;
+            /**
+             * @description Type discriminant. Always merge_candidate.
+             * @enum {string}
+             */
+            object: "merge_candidate";
+            /**
+             * @description queue: an undecided pair in the reconciliation queue; same_name: a live entry with exactly the same name.
+             * @enum {string}
+             */
+            reason: "queue" | "same_name";
+        } & {
+            [key: string]: unknown;
+        };
+        MergeChoicesBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/MergeChoicesBody.json
+             */
+            readonly $schema?: string;
+            /** @description Optional. Field → source|target for the fields GET /v2/me/merge-preview lists under fields. A field not named keeps that preview's default. 422 for a field the family cannot resolve. */
+            field_resolution?: {
+                [key: string]: string;
+            };
+            /** @description Optional, works only. Source releases to hide once they land on the target — normally the ones the preview marks duplicate_of. 422 for a release that is not the source's own. */
+            hide_release_ids?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        MergePreview: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/MergePreview.json
+             */
+            readonly $schema?: string;
+            /** @description Every external id on either side and where it ends up. */
+            anchors: components["schemas"]["MergePreviewAnchor"][];
+            /** @description Reasons the merge cannot be filed or run as it stands. Empty array when nothing blocks it. */
+            blockers: components["schemas"]["MergePreviewIssue"][];
+            /** @description Site claims on the two works and which one survives (works only). null for other families. */
+            claim: components["schemas"]["MergePreviewClaim"] | null;
+            /** @description Rows on each side by kind, and how many of the source's already exist on the target. */
+            counts: components["schemas"]["MergePreviewCount"][];
+            /** @description Plain sentences stating evidence found in the data (shared releases, VNDB coverage, identical titles), offered as a starting point for the reason. Must not be used as a discriminant. */
+            facts: string[];
+            /** @description Fields whose surviving value can be chosen, with both sides' values. */
+            fields: components["schemas"]["MergePreviewField"][];
+            /** @description Per language, which intro survives (works only). Empty array for other families. */
+            intros: components["schemas"]["MergePreviewIntro"][];
+            /**
+             * @description Type discriminant. Always merge_preview.
+             * @enum {string}
+             */
+            object: "merge_preview";
+            /** @description An open request for this same pair, when there is one; filing another is refused 409. */
+            open_request_id: string | null;
+            /** @description Live releases of both works (works only), with source releases that repeat a target release marked. Empty array for other families. */
+            releases: components["schemas"]["MergePreviewRelease"][];
+            /** @description The entry that would be folded away. */
+            source: components["schemas"]["MergePreviewSide"];
+            /** @description The entry that would survive. */
+            target: components["schemas"]["MergePreviewSide"];
+            /**
+             * @description Family of the two entries.
+             * @enum {string}
+             */
+            target_object: "work" | "company" | "character" | "person" | "credit_name";
+            /** @description Titles of both works and the fate of each source title (works only). Empty array for other families. */
+            titles: components["schemas"]["MergePreviewTitle"][];
+            /** @description Consequences a reviewer should read before deciding, such as a source anchor being demoted. Empty array, never null. */
+            warnings: components["schemas"]["MergePreviewIssue"][];
+        } & {
+            [key: string]: unknown;
+        };
+        MergePreviewAnchor: {
+            /** @description Verbatim upstream id. Must not be used as a discriminant beyond exact match. */
+            external_id: string;
+            /**
+             * @description stays: a target id, unchanged. moves: carried to the target as it is. demoted_*: carried over at a weaker kind because the target already holds a different id from that source. duplicate: the target holds the same id; the source copy is dropped.
+             * @enum {string}
+             */
+            fate: "moves" | "stays" | "demoted_related" | "demoted_probable" | "duplicate";
+            /**
+             * @description Link kind after the merge.
+             * @enum {string}
+             */
+            kind_after: "identity" | "probable" | "related";
+            /**
+             * @description Link kind now.
+             * @enum {string}
+             */
+            kind_before: "identity" | "probable" | "related";
+            /** @description Why, for a demotion or duplicate. Empty otherwise. Must not be used as a discriminant. */
+            reason: string;
+            /**
+             * @description Which entry holds the id now.
+             * @enum {string}
+             */
+            side: "source" | "target";
+            /** @description Registry key (vndb, bangumi, erogamescape, …). Must not be used as a discriminant. */
+            source_key: string;
+        } & {
+            [key: string]: unknown;
+        };
+        MergePreviewClaim: {
+            /**
+             * @description moves: the target is unclaimed and takes the source's claim; dropped: both are claimed and the target's stays; none: the source is unclaimed.
+             * @enum {string}
+             */
+            fate: "none" | "moves" | "dropped";
+            /** @description Site claiming the source; null when unclaimed. */
+            source_site: string | null;
+            /** @description Site claiming the target; null when unclaimed. */
+            target_site: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        MergePreviewCount: {
+            /**
+             * Format: int64
+             * @description Of the source's rows, how many the target already has; they fold into one.
+             */
+            already_on_target: number;
+            /** @description What is counted: tags, credits, characters, companies, relations, series, covers, screenshots, platforms, user_ratings, user_folders, user_states, user_playtime for works; table.column for other families. Open vocabulary. */
+            key: string;
+            /**
+             * Format: int64
+             * @description Rows on the source.
+             */
+            on_source: number;
+            /**
+             * Format: int64
+             * @description Rows on the target.
+             */
+            on_target: number;
+        } & {
+            [key: string]: unknown;
+        };
+        MergePreviewField: {
+            /**
+             * @description What survives with no choice made: the target's value, or the source's when the target has none.
+             * @enum {string}
+             */
+            default: "source" | "target";
+            /** @description true when a person entered the target's value and the source's is a machine value: choosing source has no effect. */
+            human_protected: boolean;
+            /** @description Field name as field_resolution takes it. */
+            key: string;
+            /** @description The source's value; null when empty. */
+            source_value: unknown;
+            /** @description The target's value; null when empty. */
+            target_value: unknown;
+        } & {
+            [key: string]: unknown;
+        };
+        MergePreviewIntro: {
+            /**
+             * @description moves: the target has none; kept_out: the target's own text stays and the source's is archived; replaces_machine: the source's source text replaces the target's machine translation.
+             * @enum {string}
+             */
+            fate: "stays" | "moves" | "kept_out" | "replaces_machine";
+            /**
+             * Format: bcp47
+             * @description BCP-47.
+             */
+            lang: string;
+            /** @description The source has an intro in this language. */
+            source_has: boolean;
+            /** @description Start of the source's intro. Must not be used as a discriminant. */
+            source_text: string;
+            /** @description The target has an intro in this language. */
+            target_has: boolean;
+            /** @description Start of the target's intro. Must not be used as a discriminant. */
+            target_text: string;
+        } & {
+            [key: string]: unknown;
+        };
+        MergePreviewIssue: {
+            /** @description Machine-readable kind: same_entity, not_live, cross_medium, hidden_survivor, conflicting_anchor, claim_dropped. Open vocabulary. */
+            code: string;
+            /** @description Explanation for people, in Chinese. Must not be used as a discriminant. */
+            message: string;
+        } & {
+            [key: string]: unknown;
+        };
+        MergePreviewRelease: {
+            /**
+             * @description How duplicate_of was matched: vndb (same VNDB release) or platform_date (same platform and full date, compatible release class). null when not a duplicate.
+             * @enum {string|null}
+             */
+            duplicate_by: "vndb" | "platform_date" | null;
+            /** @description For a source release, the target release it repeats; null when none. */
+            duplicate_of: string | null;
+            /** @description Release id. */
+            id: string;
+            /**
+             * Format: bcp47
+             * @description BCP-47. Empty if unrecorded.
+             */
+            lang: string;
+            /** @description Empty when unrecorded. Must not be used as a discriminant. */
+            platform: string;
+            /**
+             * Format: date
+             * @description Calendar date. null if undated.
+             */
+            release_date: string | null;
+            /**
+             * @description null when release_date is null. month dates sit on the 1st; year dates sit on January 1.
+             * @enum {string|null}
+             */
+            release_date_precision: "day" | "month" | "year" | null;
+            /**
+             * @description Release class.
+             * @enum {string}
+             */
+            release_kind: "default" | "digital" | "physical" | "trial" | "patch";
+            /**
+             * @description Which work the release belongs to now.
+             * @enum {string}
+             */
+            side: "source" | "target";
+            /** @description Release title; empty when unrecorded. Must not be used as a discriminant. */
+            title: string;
+            /** @description VNDB release id. null when none. */
+            vndb_rid: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        MergePreviewSide: {
+            /** @description Catalog id. */
+            id: string;
+            /** @description false when the entry is already merged away or deleted. */
+            live: boolean;
+            /** @description Display name. Must not be used as a discriminant. */
+            name: string;
+            /** @description Site that claims the work, null when unclaimed or for other families. */
+            site: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        MergePreviewTitle: {
+            /**
+             * @description For a source title: moves as it is; becomes_alias when the target already shows a title in that language; duplicate when the target has it; dropped for a machine translation in a taken language.
+             * @enum {string}
+             */
+            fate: "stays" | "moves" | "becomes_alias" | "duplicate" | "dropped";
+            /**
+             * Format: bcp47
+             * @description BCP-47. Empty for a language-less alias.
+             */
+            lang: string;
+            /**
+             * @description Which work holds the title now.
+             * @enum {string}
+             */
+            side: "source" | "target";
+            /** @description The title. Must not be used as a discriminant. */
+            title: string;
+            /**
+             * @description search_hint is internal and never appears on this type.
+             * @enum {string}
+             */
+            title_kind: "official" | "alias" | "abbreviation";
+        } & {
+            [key: string]: unknown;
+        };
         MergeRequestRecord: {
             /**
              * Format: uri
@@ -6189,6 +6545,15 @@ export interface components {
              * @example https://example.com/MergeRequestRecord.json
              */
             readonly $schema?: string;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC. null when unchanged.
+             */
+            amended_at: string | null;
+            /** @description Account behind amended_by_uid. null when unchanged or when the account directory could not be read. */
+            amended_by: components["schemas"]["UserRef"] | null;
+            /** @description Central account id of the reviewer who last changed the choices. null when unchanged. */
+            amended_by_uid: string | null;
             /**
              * Format: date-time
              * @description End of the cooling-off once approved. null before approval.
@@ -6199,8 +6564,18 @@ export interface components {
              * @description RFC 3339 UTC. null until executed.
              */
             executed_at: string | null;
+            /** @description Fields resolved to the source's value, as field → source. A field not listed keeps the target's value (the source fills it only where the target is empty), and a value a person entered on the target is never replaced by a machine value from the source. Empty object when nothing was chosen. */
+            field_resolution: {
+                [key: string]: string;
+            };
+            /** @description Source releases hidden once they land on the target, usually duplicates of a target release. Empty array, never null. */
+            hide_release_ids: string[];
             /** @description Merge request id. */
             id: string;
+            /** @description For an executed or undone merge, how many rows of each table pointed at the source when it ran, keyed by table name. Empty object otherwise. */
+            moved: {
+                [key: string]: number;
+            };
             /** @description The requester's reason followed by decision notes. Must not be used as a discriminant. */
             note: string;
             /**
@@ -6227,10 +6602,10 @@ export interface components {
             /** @description The entry that is folded away. Its id redirects to target_id once executed. */
             source_id: string;
             /**
-             * @description open awaits a reviewer; approved waits out the cooling-off, after which the merge runs; executed is done.
+             * @description open awaits a reviewer; approved waits out the cooling-off, after which the merge runs; executed is done; undone means a reviewer took an executed merge back and source_id is live again.
              * @enum {string}
              */
-            state: "open" | "approved" | "executed" | "rejected" | "withdrawn";
+            state: "open" | "approved" | "executed" | "rejected" | "withdrawn" | "undone";
             /** @description The entry that survives. */
             target_id: string;
             /**
@@ -6238,6 +6613,48 @@ export interface components {
              * @enum {string}
              */
             target_object: "work" | "company" | "character" | "person" | "credit_name";
+            /** @description Present only on the response to decision=undo. */
+            undo_report?: components["schemas"]["MergeUndoReport"];
+            /**
+             * Format: date-time
+             * @description Last moment a reviewer may undo this executed merge under the original id (catalog.merge_undo_window_days). null when it cannot be undone: not executed, undo switched off, or executed before undo was recorded.
+             */
+            undo_until: string | null;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC. null unless state is undone.
+             */
+            undone_at: string | null;
+            /** @description Account behind undone_by_uid. null unless state is undone or when the account directory could not be read. */
+            undone_by: components["schemas"]["UserRef"] | null;
+            /** @description Central account id of the reviewer who undid the merge. null unless state is undone. */
+            undone_by_uid: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        MergeUndoReport: {
+            /** @description Target columns the merge overwrote but someone has edited since; left as they are. */
+            kept_fields: string[];
+            /** @description Recorded rows that could not come back, keyed by table: data both sides held and the merge folded into one row, or rows deleted since. Empty object when everything came back. */
+            not_restored: {
+                [key: string]: number;
+            };
+            /**
+             * Format: int64
+             * @description Title and alias copies the merge had added to the target, removed.
+             */
+            removed_inserted: number;
+            /** @description Rows back on the source, keyed by table. */
+            restored: {
+                [key: string]: number;
+            };
+            /** @description Target columns put back to their pre-merge value. */
+            reverted_fields: string[];
+            /**
+             * Format: int64
+             * @description Releases the merge had hidden as duplicates, shown again.
+             */
+            unhidden_releases: number;
         } & {
             [key: string]: unknown;
         };
@@ -7311,11 +7728,11 @@ export interface components {
             [key: string]: unknown;
         };
         Redirect: {
-            /** @description Canonical catalog id. */
+            /** @description Canonical catalog id. Equals old_id on a revoked redirect. */
             current_id: string;
             /**
              * Format: date-time
-             * @description RFC 3339 UTC.
+             * @description RFC 3339 UTC. The moment this redirect last changed — it was created, re-pointed when its target was merged on, or revoked — and the value the cursor resumes from, so a change re-surfaces the row at the tail of the feed.
              */
             merged_at: string;
             /**
@@ -7325,6 +7742,8 @@ export interface components {
             object: "redirect";
             /** @description Retired catalog id. */
             old_id: string;
+            /** @description Present and true when the merge behind this redirect was undone: old_id is live again under its own id. Drop the mirrored redirect. Absent means the redirect stands — never sent as false. */
+            revoked?: boolean;
             /**
              * @description Family that was merged.
              * @enum {string}
@@ -18519,11 +18938,239 @@ export interface operations {
             };
         };
     };
+    listMyMergeCandidates: {
+        parameters: {
+            query: {
+                /** @description Family of the entry. */
+                object: "work" | "company" | "character" | "person" | "credit_name";
+                /** @description The entry to find duplicates of. */
+                id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListMergeCandidate"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    previewMyMerge: {
+        parameters: {
+            query: {
+                /** @description Family of the two entries. */
+                object: "work" | "company" | "character" | "person" | "credit_name";
+                /** @description The entry to fold away. */
+                source_id: string;
+                /** @description The entry that survives. */
+                target_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MergePreview"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listMyMergeRequests: {
         parameters: {
             query?: {
                 /** @description Narrow to one state. */
-                state?: "open" | "approved" | "executed" | "rejected" | "withdrawn";
+                state?: "open" | "approved" | "executed" | "rejected" | "withdrawn" | "undone";
                 /** @description Narrow to one family. */
                 object?: "work" | "company" | "character" | "person" | "credit_name";
                 /** @description Narrow to requests filed from one first-party property. */
@@ -18662,6 +19309,117 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MergeRequestRecord"];
                 };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getMyMergeRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Merge request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MergeRequestRecord"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Bad Request */
             400: {
@@ -22741,7 +23499,7 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Narrow to one state. */
-                state?: "open" | "approved" | "executed" | "rejected" | "withdrawn";
+                state?: "open" | "approved" | "executed" | "rejected" | "withdrawn" | "undone";
                 /** @description Narrow to one family. */
                 object?: "work" | "company" | "character" | "person" | "credit_name";
                 /** @description Narrow to requests filed from one first-party property. */
@@ -22883,6 +23641,114 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    amendModerationMergeRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Merge request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MergeChoicesBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MergeRequestRecord"];
+                };
             };
             /** @description Bad Request */
             400: {

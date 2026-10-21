@@ -395,3 +395,48 @@ func ReleasedText(y, m, d *int16) string {
 	}
 	return fmt.Sprintf("%04d-%02d-%02d", *y, *m, *d)
 }
+
+type MergeCandidate struct {
+	ID     int64
+	Name   string
+	Reason string
+	Score  float64
+}
+
+// MergeCandidates suggests entries that may duplicate id: undecided pairs from
+// the reconciliation queue first, then live entries of the same family that
+// carry exactly the same name.
+func (s *MergeService) MergeCandidates(ctx context.Context, entityType int16, id int64, limit int) ([]MergeCandidate, error) {
+	table, ok := entityTableName(entityType)
+	if !ok {
+		return nil, fmt.Errorf("catalog merge: unsupported entity type %d", entityType)
+	}
+	nameCol, live := "display_name", "o.deleted_at IS NULL"
+	if entityType == model.EntityTypeCreditName {
+		nameCol, live = "name", "true"
+	}
+	db := s.db.WithContext(ctx)
+	var out []MergeCandidate
+	if err := db.Raw(fmt.Sprintf(`SELECT o.id, o.%[2]s AS name, 'queue' AS reason, COALESCE(c.score, 0)::float8 AS score
+		FROM catalog_match_candidate c
+		JOIN %[1]s o ON o.id = CASE WHEN c.a_id = ? THEN c.b_id ELSE c.a_id END
+		WHERE c.entity_type = ? AND (c.a_id = ? OR c.b_id = ?) AND c.status IN ? AND %[3]s
+		ORDER BY c.score DESC NULLS LAST, o.id LIMIT ?`, table, nameCol, live),
+		id, entityType, id, id,
+		[]int16{model.CandidateStatusPending, model.CandidateStatusDeferred, model.CandidateStatusNeedsManual},
+		limit).Scan(&out).Error; err != nil {
+		return nil, err
+	}
+	var same []MergeCandidate
+	if err := db.Raw(fmt.Sprintf(`SELECT o.id, o.%[2]s AS name, 'same_name' AS reason, 0::float8 AS score
+		FROM %[1]s o JOIN %[1]s me ON me.id = ? AND me.%[2]s = o.%[2]s
+		WHERE o.id <> me.id AND %[3]s ORDER BY o.id LIMIT ?`, table, nameCol, live), id, limit).Scan(&same).Error; err != nil {
+		return nil, err
+	}
+	for _, c := range same {
+		if !slices.ContainsFunc(out, func(x MergeCandidate) bool { return x.ID == c.ID }) && len(out) < limit {
+			out = append(out, c)
+		}
+	}
+	return out, nil
+}

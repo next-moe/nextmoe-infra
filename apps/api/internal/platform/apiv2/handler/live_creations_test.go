@@ -140,6 +140,9 @@ func TestLiveMergeRequestQuotaAndModeration(t *testing.T) {
 	status, _, raw = liveDo(t, env, http.MethodGet, "/v2/me/merge-requests/"+rec.ID, livePlainToken, "")
 	require.Equal(t, http.StatusOK, status, "anyone following a request can read it: %s", raw)
 
+	status, _, raw = liveDo(t, env, http.MethodGet, fmt.Sprintf("/v2/me/merge-candidates?object=company&id=%d", a.ID), livePlainToken, "")
+	require.Equal(t, http.StatusOK, status, string(raw))
+
 	preview := fmt.Sprintf("/v2/me/merge-preview?object=company&source_id=%d&target_id=%d", a.ID, b.ID)
 	status, _, raw = liveDo(t, env, http.MethodGet, preview, livePlainToken, "")
 	require.Equal(t, http.StatusOK, status, string(raw))

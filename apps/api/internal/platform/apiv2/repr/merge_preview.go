@@ -1,22 +1,30 @@
 package repr
 
 type MergePreview struct {
-	_              struct{}              `json:"-" additionalProperties:"true"`
-	Object         string                `json:"object" enum:"merge_preview" doc:"Type discriminant. Always merge_preview."`
-	TargetObject   string                `json:"target_object" enum:"work,company,character,person,credit_name" doc:"Family of the two entries."`
-	Source         MergePreviewSide      `json:"source" doc:"The entry that would be folded away."`
-	Target         MergePreviewSide      `json:"target" doc:"The entry that would survive."`
-	Blockers       []MergePreviewIssue   `json:"blockers" doc:"Reasons the merge cannot be filed or run as it stands. Empty array when nothing blocks it."`
-	Warnings       []MergePreviewIssue   `json:"warnings" doc:"Consequences a reviewer should read before deciding, such as a source anchor being demoted. Empty array, never null."`
-	Facts          []string              `json:"facts" doc:"Plain sentences stating evidence found in the data (shared releases, VNDB coverage, identical titles), offered as a starting point for the reason. Must not be used as a discriminant."`
-	Fields         []MergePreviewField   `json:"fields" doc:"Fields whose surviving value can be chosen, with both sides' values."`
-	Anchors        []MergePreviewAnchor  `json:"anchors" doc:"Every external id on either side and where it ends up."`
-	Releases       []MergePreviewRelease `json:"releases" doc:"Live releases of both works (works only), with source releases that repeat a target release marked. Empty array for other families."`
-	Titles         []MergePreviewTitle   `json:"titles" doc:"Titles of both works and the fate of each source title (works only). Empty array for other families."`
-	Intros         []MergePreviewIntro   `json:"intros" doc:"Per language, which intro survives (works only). Empty array for other families."`
-	Counts         []MergePreviewCount   `json:"counts" doc:"Rows on each side by kind, and how many of the source's already exist on the target."`
-	Claim          *MergePreviewClaim    `json:"claim" doc:"Site claims on the two works and which one survives (works only). null for other families."`
-	OpenRequestID  *string               `json:"open_request_id" pattern:"^[0-9]+$" maxLength:"20" doc:"An open request for this same pair, when there is one; filing another is refused 409."`
+	_             struct{}              `json:"-" additionalProperties:"true"`
+	Object        string                `json:"object" enum:"merge_preview" doc:"Type discriminant. Always merge_preview."`
+	TargetObject  string                `json:"target_object" enum:"work,company,character,person,credit_name" doc:"Family of the two entries."`
+	Source        MergePreviewSide      `json:"source" doc:"The entry that would be folded away."`
+	Target        MergePreviewSide      `json:"target" doc:"The entry that would survive."`
+	Blockers      []MergePreviewIssue   `json:"blockers" doc:"Reasons the merge cannot be filed or run as it stands. Empty array when nothing blocks it."`
+	Warnings      []MergePreviewIssue   `json:"warnings" doc:"Consequences a reviewer should read before deciding, such as a source anchor being demoted. Empty array, never null."`
+	Facts         []string              `json:"facts" doc:"Plain sentences stating evidence found in the data (shared releases, VNDB coverage, identical titles), offered as a starting point for the reason. Must not be used as a discriminant."`
+	Fields        []MergePreviewField   `json:"fields" doc:"Fields whose surviving value can be chosen, with both sides' values."`
+	Anchors       []MergePreviewAnchor  `json:"anchors" doc:"Every external id on either side and where it ends up."`
+	Releases      []MergePreviewRelease `json:"releases" doc:"Live releases of both works (works only), with source releases that repeat a target release marked. Empty array for other families."`
+	Titles        []MergePreviewTitle   `json:"titles" doc:"Titles of both works and the fate of each source title (works only). Empty array for other families."`
+	Intros        []MergePreviewIntro   `json:"intros" doc:"Per language, which intro survives (works only). Empty array for other families."`
+	Counts        []MergePreviewCount   `json:"counts" doc:"Rows on each side by kind, and how many of the source's already exist on the target."`
+	Claim         *MergePreviewClaim    `json:"claim" doc:"Site claims on the two works and which one survives (works only). null for other families."`
+	OpenRequestID *string               `json:"open_request_id" pattern:"^[0-9]+$" maxLength:"20" doc:"An open request for this same pair, when there is one; filing another is refused 409."`
+}
+
+type MergeCandidate struct {
+	_      struct{} `json:"-" additionalProperties:"true"`
+	Object string   `json:"object" enum:"merge_candidate" doc:"Type discriminant. Always merge_candidate."`
+	ID     string   `json:"id" pattern:"^[0-9]+$" maxLength:"20" doc:"Catalog id of the suggested entry."`
+	Name   string   `json:"name" maxLength:"512" doc:"Display name. Must not be used as a discriminant."`
+	Reason string   `json:"reason" enum:"queue,same_name" doc:"queue: an undecided pair in the reconciliation queue; same_name: a live entry with exactly the same name."`
 }
 
 type MergePreviewSide struct {
@@ -54,27 +62,27 @@ type MergePreviewAnchor struct {
 }
 
 type MergePreviewRelease struct {
-	_           struct{} `json:"-" additionalProperties:"true"`
-	Side        string   `json:"side" enum:"source,target" doc:"Which work the release belongs to now."`
-	ID          string   `json:"id" pattern:"^[0-9]+$" maxLength:"20" doc:"Release id."`
-	Title       string   `json:"title" maxLength:"512" doc:"Release title; empty when unrecorded. Must not be used as a discriminant."`
-	ReleaseKind          string  `json:"release_kind" enum:"default,digital,physical,trial,patch" doc:"Release class."`
-	Platform             string  `json:"platform" maxLength:"64" doc:"Empty when unrecorded. Must not be used as a discriminant."`
-	Lang                 string  `json:"lang" maxLength:"32" format:"bcp47" doc:"BCP-47. Empty if unrecorded."`
-	ReleaseDate          *string `json:"release_date" format:"date" maxLength:"10" doc:"Calendar date. null if undated."`
-	ReleaseDatePrecision *string `json:"release_date_precision" enum:"day,month,year" doc:"null when release_date is null. month dates sit on the 1st; year dates sit on January 1."`
-	VNDBRid              *string `json:"vndb_rid" pattern:"^r[0-9]+$" maxLength:"16" doc:"VNDB release id. null when none."`
-	DuplicateOf          *string `json:"duplicate_of" pattern:"^[0-9]+$" maxLength:"20" doc:"For a source release, the target release it repeats; null when none."`
-	DuplicateBy          *string `json:"duplicate_by" enum:"vndb,platform_date" doc:"How duplicate_of was matched: vndb (same VNDB release) or platform_date (same platform and full date, compatible release class). null when not a duplicate."`
+	_                    struct{} `json:"-" additionalProperties:"true"`
+	Side                 string   `json:"side" enum:"source,target" doc:"Which work the release belongs to now."`
+	ID                   string   `json:"id" pattern:"^[0-9]+$" maxLength:"20" doc:"Release id."`
+	Title                string   `json:"title" maxLength:"512" doc:"Release title; empty when unrecorded. Must not be used as a discriminant."`
+	ReleaseKind          string   `json:"release_kind" enum:"default,digital,physical,trial,patch" doc:"Release class."`
+	Platform             string   `json:"platform" maxLength:"64" doc:"Empty when unrecorded. Must not be used as a discriminant."`
+	Lang                 string   `json:"lang" maxLength:"32" format:"bcp47" doc:"BCP-47. Empty if unrecorded."`
+	ReleaseDate          *string  `json:"release_date" format:"date" maxLength:"10" doc:"Calendar date. null if undated."`
+	ReleaseDatePrecision *string  `json:"release_date_precision" enum:"day,month,year" doc:"null when release_date is null. month dates sit on the 1st; year dates sit on January 1."`
+	VNDBRid              *string  `json:"vndb_rid" pattern:"^r[0-9]+$" maxLength:"16" doc:"VNDB release id. null when none."`
+	DuplicateOf          *string  `json:"duplicate_of" pattern:"^[0-9]+$" maxLength:"20" doc:"For a source release, the target release it repeats; null when none."`
+	DuplicateBy          *string  `json:"duplicate_by" enum:"vndb,platform_date" doc:"How duplicate_of was matched: vndb (same VNDB release) or platform_date (same platform and full date, compatible release class). null when not a duplicate."`
 }
 
 type MergePreviewTitle struct {
-	_     struct{} `json:"-" additionalProperties:"true"`
-	Side  string   `json:"side" enum:"source,target" doc:"Which work holds the title now."`
-	Title string   `json:"title" maxLength:"1024" doc:"The title. Must not be used as a discriminant."`
+	_         struct{} `json:"-" additionalProperties:"true"`
+	Side      string   `json:"side" enum:"source,target" doc:"Which work holds the title now."`
+	Title     string   `json:"title" maxLength:"1024" doc:"The title. Must not be used as a discriminant."`
 	Lang      string   `json:"lang" maxLength:"32" format:"bcp47" doc:"BCP-47. Empty for a language-less alias."`
 	TitleKind string   `json:"title_kind" enum:"official,alias,abbreviation" doc:"search_hint is internal and never appears on this type."`
-	Fate  string   `json:"fate" enum:"stays,moves,becomes_alias,duplicate,dropped" doc:"For a source title: moves as it is; becomes_alias when the target already shows a title in that language; duplicate when the target has it; dropped for a machine translation in a taken language."`
+	Fate      string   `json:"fate" enum:"stays,moves,becomes_alias,duplicate,dropped" doc:"For a source title: moves as it is; becomes_alias when the target already shows a title in that language; duplicate when the target has it; dropped for a machine translation in a taken language."`
 }
 
 type MergePreviewIntro struct {
@@ -88,7 +96,7 @@ type MergePreviewIntro struct {
 }
 
 type MergePreviewCount struct {
-	_         struct{} `json:"-" additionalProperties:"true"`
+	_               struct{} `json:"-" additionalProperties:"true"`
 	Key             string   `json:"key" maxLength:"128" pattern:"^[a-z_.]+$" doc:"What is counted: tags, credits, characters, companies, relations, series, covers, screenshots, platforms, user_ratings, user_folders, user_states, user_playtime for works; table.column for other families. Open vocabulary."`
 	OnSource        int64    `json:"on_source" minimum:"0" doc:"Rows on the source."`
 	OnTarget        int64    `json:"on_target" minimum:"0" doc:"Rows on the target."`

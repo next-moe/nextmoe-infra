@@ -22,6 +22,15 @@ type mergePreviewOutput struct {
 	Body repr.MergePreview
 }
 
+type mergeCandidatesInput struct {
+	Object string `query:"object" required:"true" enum:"work,company,character,person,credit_name" doc:"Family of the entry."`
+	ID     string `query:"id" required:"true" pattern:"^[0-9]+$" maxLength:"20" doc:"The entry to find duplicates of."`
+}
+
+type mergeCandidatesOutput struct {
+	Body repr.List[repr.MergeCandidate]
+}
+
 type amendMergeRequestInput struct {
 	ID   string `path:"id" pattern:"^[0-9]+$" maxLength:"20" doc:"Merge request id."`
 	Body mergeChoicesBody
@@ -37,6 +46,12 @@ func registerMergeWorkbench(api huma.API, cat *Catalog, errs []int) {
 			"Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.",
 		Tags: me, Errors: errs, SkipValidateParams: true,
 	}, previewMyMerge(cat))
+	huma.Register(api, huma.Operation{
+		OperationID: "listMyMergeCandidates", Method: http.MethodGet, Path: "/v2/me/merge-candidates",
+		Summary:     "Suggest merge partners",
+		Description: "Up to ten entries that may duplicate id: undecided pairs from the reconciliation queue first, then live entries with exactly the same name. A single page; there is no cursor. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.",
+		Tags:        me, Errors: errs, SkipValidateParams: true,
+	}, listMyMergeCandidates(cat))
 	huma.Register(api, huma.Operation{
 		OperationID: "getMyMergeRequest", Method: http.MethodGet, Path: "/v2/me/merge-requests/{id}",
 		Summary:     "Get one merge request",
@@ -73,6 +88,34 @@ func previewMyMerge(cat *Catalog) func(context.Context, *mergePreviewInput) (*me
 			return nil, catalogErr(ctx, mergeRequestErr(err))
 		}
 		return &mergePreviewOutput{Body: previewFrom(in.Object, p)}, nil
+	}
+}
+
+func listMyMergeCandidates(cat *Catalog) func(context.Context, *mergeCandidatesInput) (*mergeCandidatesOutput, error) {
+	return func(ctx context.Context, in *mergeCandidatesInput) (*mergeCandidatesOutput, error) {
+		if err := cat.mergesBound(); err != nil {
+			return nil, catalogErr(ctx, err)
+		}
+		if _, err := requireFirstPartyUser(ctx); err != nil {
+			return nil, catalogErr(ctx, err)
+		}
+		et, ok := mergeEntityTypeOf(in.Object)
+		if !ok {
+			return nil, catalogErr(ctx, problem.New(problem.CodeNotFound, "", "", "entries of family "+in.Object+" cannot be merged."))
+		}
+		id, ok := repr.ParseID(in.ID)
+		if !ok {
+			return nil, catalogErr(ctx, problem.New(problem.CodeValidationFailed, "", "", "id must be a catalog id."))
+		}
+		rows, err := cat.Merges.MergeCandidates(ctx, et, id, 10)
+		if err != nil {
+			return nil, catalogErr(ctx, err)
+		}
+		out := repr.List[repr.MergeCandidate]{Object: "list", Items: make([]repr.MergeCandidate, 0, len(rows))}
+		for _, r := range rows {
+			out.Items = append(out.Items, repr.MergeCandidate{Object: "merge_candidate", ID: repr.ID(r.ID), Name: r.Name, Reason: r.Reason})
+		}
+		return &mergeCandidatesOutput{Body: out}, nil
 	}
 }
 

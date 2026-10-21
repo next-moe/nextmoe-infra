@@ -151,6 +151,7 @@ var liveReadsNotSwept = map[string]string{
 	"/v2/moderation/merge-requests/{id}":     "no merge request survives seedLiveFixtures; TestMergeRequestLifecycle files the only one",
 	"/v2/me/merge-requests/{id}":             "same; TestLiveMergeRequestQuotaAndModeration reads the one it files",
 	"/v2/me/merge-preview":                   "needs two live entities in its query; TestLiveMergeRequestQuotaAndModeration previews the pair it files",
+	"/v2/me/merge-candidates":                "needs a live entity in its query; TestLiveMergeRequestQuotaAndModeration reads it for the pair it files",
 	"/v2/me/playtimes/{work_id}":             "404 until a playtime is written, which is TestLiveWrites200's job",
 	"/v2/me/work-states/{work_id}":           "404 until a state is written, which is TestLiveWorkStateLifecycle's job",
 	"/v2/me/followed-companies/{company_id}": "404 until a follow is written, which is TestLiveCompanyFollowLifecycle's job",
