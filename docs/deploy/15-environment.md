@@ -269,11 +269,11 @@
 |---|---|---|---|---|
 | infra | `go.Dockerfile` | `GO_VERSION` / `CMD` | `1.25` / `oauth` | Go 版本 / 选哪个 `cmd/`(catalog、migrate、artifact…) |
 | infra | `cgo.Dockerfile` | `GO_VERSION` / `CMD` | `1.25` / `image` | cgo(libwebp);`CMD=oauth` 或 `image` |
-| infra | `nuxt.Dockerfile` | `NODE_VERSION` / `APP` / `PUBLIC_*`×6 | `24` / `web` / 空 | Node 版本 / `web`\|`wiki` / 前端 public(见 [§15.5](#155-前端-public-配置infra-烤镜像-vs-下游运行期)) |
+| infra | `nuxt.Dockerfile` | `NODE_VERSION` / `APP` / `PUBLIC_*`×6 | `24.22.1` / `web` / 空 | Node 版本 / `web`\|`wiki` / 前端 public(见 [§15.5](#155-前端-public-配置infra-烤镜像-vs-下游运行期)) |
 | kungal | `go.Dockerfile` | `GO_VERSION` / `CMD` | `1.26` / `server` | `server` 或 `migrate` |
-| kungal | `nuxt.Dockerfile` | `NODE_VERSION` / `API_BASE_URL` / `OAUTH_*` / `GALGAME_WIKI_URL` / `KUN_GALGAME_URL` | `24` / 空 | **注意 kungal 不用 `PUBLIC_` 前缀**;且 CI 不传(空)→ 全靠运行期 web.env 覆盖 |
+| kungal | `nuxt.Dockerfile` | `NODE_VERSION` / `API_BASE_URL` / `OAUTH_*` / `GALGAME_WIKI_URL` / `KUN_GALGAME_URL` | `24.22.1` / 空 | **注意 kungal 不用 `PUBLIC_` 前缀**;且 CI 不传(空)→ 全靠运行期 web.env 覆盖 |
 | moyu | `go.Dockerfile` | `GO_VERSION` / `CMD` | `1.26` / `server` | `server` 或 `migrate` |
-| moyu | `nuxt.Dockerfile` | `NODE_VERSION` / `APP` / `PUBLIC_*`×6 | `24` / `web` / 空 | `PUBLIC_UMAMI_ID` 等;CI 仅传 `APP=web` → public 靠运行期 web.env |
+| moyu | `nuxt.Dockerfile` | `NODE_VERSION` / `APP` / `PUBLIC_*`×6 | `24.22.1` / `web` / 空 | `PUBLIC_UMAMI_ID` 等;CI 仅传 `APP=web` → public 靠运行期 web.env |
 
 镜像运行期 `ENV`(已在 Dockerfile 定死,无需设):Nuxt 前端 `NODE_ENV=production HOST=0.0.0.0`、
 `NITRO_PORT`(infra/moyu `3000`、kungal `7777`);Go distroless 无 shell,无额外 ENV。

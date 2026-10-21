@@ -41,7 +41,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 24.22.1
       # The `nuxt prepare` postinstall is what writes each app's .nuxt/ types,
       # so this install must NOT pass --ignore-scripts: without it vue-tsc
       # resolves nothing and every app fails on its auto-imports.

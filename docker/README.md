@@ -14,7 +14,7 @@ galgame-wiki retirement.
 |---|---|---|---|
 | `docker/go.Dockerfile` | catalog / artifact / community / chat / trust / ai / mcp / telemetry + `migrate` (pure Go) | `distroless/static` (~25–45 MB) | `CGO_ENABLED=0` static binary |
 | `docker/cgo.Dockerfile` | **oauth + image** | `debian:trixie-slim` (~180 MB) | both transitively import `kolesa-team/go-webp` → cgo → **libwebp** at build + runtime |
-| `docker/nuxt.Dockerfile` | account + admin (Nitro `node-server`) | `node:24-trixie-slim` (~390 MB) | self-contained `.output`; sharp comes via `@kungal/ui-nuxt`'s `@nuxt/image` |
+| `docker/nuxt.Dockerfile` | account + admin (Nitro `node-server`) | `node:24.22.1-trixie-slim` (~390 MB) | self-contained `.output`; sharp comes via `@kungal/ui-nuxt`'s `@nuxt/image` |
 | `docker/tools.Dockerfile` | every `cmd/*` binary in ONE image (`infra-tools`) | `debian:trixie-slim` | one-off migration / maintenance jobs |
 | `docker/initdb.d/` | — | — | `CREATE DATABASE` bootstrap for a fresh Postgres |
 

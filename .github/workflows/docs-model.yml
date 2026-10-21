@@ -107,7 +107,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 24.22.1
       # The script needs `yaml` plus the Markdown toolchain the guide compiler
       # uses (markdown-it, shiki, gray-matter) out of the developer workspace,
       # so install that project only. --ignore-scripts skips the `nuxt prepare`

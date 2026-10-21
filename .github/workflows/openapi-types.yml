@@ -46,7 +46,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 24.22.1
       # The script uses `pnpm dlx openapi-typescript@<pinned>`, so no install /
       # lockfile entry is needed — it fetches the pinned generator on the fly.
       - name: Regenerate TS types from the committed specs

@@ -15,7 +15,7 @@
 # only, and that script reads docs/catalog/v2-openapi.yaml from the REPO ROOT.
 # It runs in `dev` and in the docs-model CI gate, which is what keeps
 # app/generated (docs model + compiled guides) from going stale.
-ARG NODE_VERSION=24
+ARG NODE_VERSION=24.22.1
 
 FROM node:${NODE_VERSION}-trixie-slim AS base
 RUN corepack enable

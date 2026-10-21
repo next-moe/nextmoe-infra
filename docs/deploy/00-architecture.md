@@ -73,6 +73,6 @@
 |---|---|---|---|
 | infra galgame / 迁移工具 / kungal api / moyu api | `distroless/static-debian13` | 24–45MB | 纯 Go,`CGO_ENABLED=0` 静态二进制 |
 | **infra oauth / infra image** | `debian:trixie-slim` | ~180MB | **cgo + libwebp**(`kolesa-team/go-webp`);oauth 因内嵌图床 admin 也被拉入 cgo |
-| 所有 web(infra web/wiki、moyu web、kungal web) | `node:24-trixie-slim` | ~390MB | Nitro `node-server` + 自包含 `.output`(含 sharp,linux-x64) |
+| 所有 web(infra web/wiki、moyu web、kungal web) | `node:24.22.1-trixie-slim` | ~390MB | Nitro `node-server` + 自包含 `.output`(含 sharp,linux-x64) |
 
 详见 [02-build.md](./02-build.md)。

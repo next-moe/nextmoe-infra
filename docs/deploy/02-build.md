@@ -51,7 +51,7 @@ docker compose build           # 与 moyu 一致;build 不依赖网络,infra 未
 | Go 构建器 | `golang:1.25-trixie`(infra)/ `golang:1.26-trixie`(moyu/kungal) | 跟随各仓 go.mod;Debian 13 |
 | 纯 Go runtime | `gcr.io/distroless/static-debian13:nonroot` | Debian 13 基线 |
 | cgo runtime(oauth/image) | `debian:trixie-slim` + `libwebp7 libsharpyuv0` | Debian 13 的 libwebp 1.5 把 sharpyuv 拆成独立包,故需补 `libsharpyuv0`(bookworm 时是打进 libwebp7 的) |
-| 前端 runtime/构建 | `node:24-trixie-slim` | Node 24 = 当前 Active LTS |
+| 前端 runtime/构建 | `node:24.22.1-trixie-slim` | Node 24.22.1，当前 Active LTS 的 2026-10-21 安全版本 |
 | Postgres | `postgres:18-alpine` | **已升级 16→18**(2026-06,dump/restore;pg18 的 VOLUME 从 `/var/lib/postgresql/data` 改到 `/var/lib/postgresql`,挂载点已同步,见 [06-operations.md](./06-operations.md)) |
 | Redis | `redis:8-alpine` | 已是最新大版本(`8-alpine` 自动取 8.8.x);向前兼容旧数据(本就是缓存/会话) |
 | MinIO | `minio/minio:RELEASE.2025-09-07T16-13-09Z` | 已锁版本(原先是 `latest`)。注:MinIO 官方社区镜像已停更/归档(~2026-04),生产图床走 Cloudflare R2,影响小 |
