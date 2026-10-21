@@ -61,6 +61,8 @@ type Revision struct {
 	LegacyAction *string        `gorm:"->;column:legacy_action;type:text" json:"legacy_action,omitempty"`
 	LegacyMeta   datatypes.JSON `gorm:"->;column:legacy_meta;type:jsonb" json:"legacy_meta,omitempty"`
 	LegacyID     *int64         `gorm:"->;column:legacy_id" json:"legacy_id,omitempty"`
+
+	mirrored []*Revision
 }
 
 func (Revision) TableName() string { return "edit_revision" }
