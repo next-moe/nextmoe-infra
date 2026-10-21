@@ -54,6 +54,7 @@ var liveReadPaths = []string{
 	"/v2/me/edit-capabilities/{object}",
 	"/v2/me/edit-quota",
 	"/v2/me/merge-requests",
+	"/v2/me/discussion-notices",
 	"/v2/me/edit-context/{object}/{id}",
 	"/v2/me/edit-bundle/{object}/{id}",
 	"/v2/catalog/names",
@@ -146,6 +147,7 @@ var liveReadPaths = []string{
 var liveReadsNotSwept = map[string]string{
 	"/v2/catalog/proposals/{id}":             "no proposal survives seedLiveFixtures; TestLiveWrites200 creates the only one",
 	"/v2/catalog/revisions/{id}":             "no revision survives seedLiveFixtures",
+	"/v2/catalog/discussions/{object}/{id}":  "no proposal survives seedLiveFixtures; TestLiveDiscussionOnAProposal reads the thread it writes",
 	"/v2/me/proposals/{id}":                  "same: no proposal id to address",
 	"/v2/moderation/proposals/{id}":          "same: no proposal id to address",
 	"/v2/moderation/merge-requests/{id}":     "no merge request survives seedLiveFixtures; TestMergeRequestLifecycle files the only one",

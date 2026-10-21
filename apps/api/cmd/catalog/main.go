@@ -1,6 +1,7 @@
 package main
 
 import (
+	"api/internal/platform/catalog/discussion"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -419,6 +420,9 @@ func setupPublicCatalog(
 			Store:          storeSvc,
 			Prices:         priceSvc,
 			RatingTrust:    ratingTrust,
+			Discussions: discussion.New(catalogDB.DB(),
+				discussion.ProposalKind(), discussion.MergeRequestKind()),
+			DiscussionTrust: ratingTrust,
 
 			SiteOfAppClient: siteOfClient,
 		},

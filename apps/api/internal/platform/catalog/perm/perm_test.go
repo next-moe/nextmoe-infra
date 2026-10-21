@@ -26,6 +26,7 @@ var goldenGrants = map[authz.Permission][]string{
 	perm.FolderModerate:      {"moderator", "admin", "ren"},
 	perm.EditPolicyManage:    {"admin", "ren"},
 	perm.MergeReview:         {"moderator", "admin", "ren"},
+	perm.DiscussionModerate:  {"moderator", "admin", "ren"},
 }
 
 var allRoles = []string{"user", "creator", "editor", "moderator", "admin", "ren"}

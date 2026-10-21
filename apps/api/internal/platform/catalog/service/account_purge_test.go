@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"api/internal/platform/catalog/discussion"
 	"api/internal/platform/catalog/model"
 
 	"github.com/stretchr/testify/require"
@@ -12,7 +13,7 @@ import (
 func TestPurgeAccountTakesEveryPersonalRowAndNothingElse(t *testing.T) {
 	folders := newFolderSvc(t)
 	require.NoError(t, testDB.Exec(
-		"TRUNCATE catalog_user_playtime, catalog_user_work_state, catalog_user_folder_import, catalog_user_entity_follow, catalog_user_tag_block, catalog_user_work_rating, catalog_user_work_rating_tombstone, catalog_user_privacy RESTART IDENTITY").Error)
+		"TRUNCATE catalog_user_playtime, catalog_user_work_state, catalog_user_folder_import, catalog_user_entity_follow, catalog_user_tag_block, catalog_user_work_rating, catalog_user_work_rating_tombstone, catalog_user_privacy, edit_discussion_post, edit_discussion_watcher RESTART IDENTITY").Error)
 	workID, coverID := seedVoteWork(t)
 	playtime := NewUserPlaytimeService(testDB)
 	states := NewUserWorkStateService(testDB)
@@ -49,11 +50,22 @@ func TestPurgeAccountTakesEveryPersonalRowAndNothingElse(t *testing.T) {
 		require.NoError(t, err)
 		_, err = NewUserWorkRecordService(testDB).SetPrivacy(ctx, uid, true)
 		require.NoError(t, err)
+		_, err = discussion.New(testDB, discussion.Kind{Name: "probe"}).Create(ctx, discussion.CreateInput{
+			Kind: "probe", AnchorID: 1, AuthorUID: uid, Body: "我的留言",
+		})
+		require.NoError(t, err)
 	}
 
 	got, err := PurgeAccount(ctx, testDB, gone)
 	require.NoError(t, err)
-	require.Equal(t, AccountPurged{Folders: 1, FolderItems: 1, Playtimes: 2, WorkStates: 1, Ratings: 1, CoverVotes: 1, EntityFollows: 1, TagBlocks: 1, Privacy: 1}, got)
+	require.Equal(t, AccountPurged{Folders: 1, FolderItems: 1, Playtimes: 2, WorkStates: 1, Ratings: 1, CoverVotes: 1, EntityFollows: 1, TagBlocks: 1, Privacy: 1,
+		DiscussionPosts: 1, DiscussionWatches: 1}, got)
+	var left []discussion.Post
+	require.NoError(t, testDB.Where("anchor_kind = 'probe'").Order("author_uid").Find(&left).Error)
+	require.Len(t, left, 2, "the erased account's post stays as a deleted placeholder")
+	require.Equal(t, discussion.StatusDeleted, left[0].Status)
+	require.Empty(t, left[0].Body)
+	require.Equal(t, "我的留言", left[1].Body, "the bystander's post is untouched")
 
 	count := func(table, col string, uid int64) int64 {
 		var n int64
@@ -71,6 +83,7 @@ func TestPurgeAccountTakesEveryPersonalRowAndNothingElse(t *testing.T) {
 		{"catalog_user_tag_block", "actor_uid"},
 		{"catalog_user_work_rating", "actor_uid"},
 		{"catalog_user_privacy", "actor_uid"},
+		{"edit_discussion_watcher", "user_id"},
 	} {
 		require.Zerof(t, count(tc.table, tc.col, gone), "%s still names the deleted account", tc.table)
 		require.NotZerof(t, count(tc.table, tc.col, bystander), "%s lost the bystander's rows", tc.table)
