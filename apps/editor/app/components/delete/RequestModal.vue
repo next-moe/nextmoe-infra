@@ -125,7 +125,7 @@ const submit = async () => {
         description="合并会把两边的资料、评分和收藏归到保留的那一个，旧编号继续跳转过去。"
       >
         <KunButton
-          :href="`/merge/new?source=${props.workId}`"
+          :href="`/merge/new?object=work&source=${props.workId}`"
           target="_blank"
           color="primary"
           size="sm"

@@ -2033,15 +2033,16 @@ components:
           readOnly: true
           type: string
         decision:
-          description: approve starts the cooling-off (catalog.merge_cooling_off_hours) after which the catalog-merge-requests job executes it; reject closes it; execute runs an approved request whose cooling-off has ended without waiting for the job.
+          description: approve starts the cooling-off (catalog.merge_cooling_off_hours) after which the catalog-merge-requests job executes it; reject closes it; execute runs an approved request whose cooling-off has ended without waiting for the job; undo takes an executed merge back under the source's original id while undo_until has not passed.
           enum:
             - approve
             - reject
             - execute
+            - undo
           type: string
           x-vocabulary-closed: true
         reason:
-          description: Required to reject. Must not be used as a discriminant.
+          description: Required to reject and to undo. Must not be used as a discriminant.
           maxLength: 2000
           type: string
       required:
@@ -4550,6 +4551,62 @@ components:
         - object
         - items
       type: object
+    ListMergeCandidate:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/ListMergeCandidate.json
+          format: uri
+          readOnly: true
+          type: string
+        facets:
+          additionalProperties:
+            items:
+              $ref: "#/components/schemas/FacetValue"
+            type:
+              - array
+              - "null"
+          description: Named facet buckets. Present only when facets= is requested.
+          type: object
+        items:
+          description: Members of this page. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/MergeCandidate"
+          type: array
+        missing:
+          description: ids requested but not visible. Present only on the ids=/refs= batch lane.
+          items:
+            type: string
+          type: array
+        next_cursor:
+          description: Opaque keyset cursor. Omitted on the last page.
+          maxLength: 512
+          pattern: ^cur_[A-Za-z0-9._~-]+$
+          type: string
+        object:
+          description: Type discriminant. Always list.
+          enum:
+            - list
+          type: string
+          x-vocabulary-closed: true
+        total:
+          description: Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+          format: int64
+          minimum: 0
+          type: integer
+        total_relation:
+          description: "Present in page mode only. eq: total is exact. gte: total is a lower bound."
+          enum:
+            - eq
+            - gte
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - items
+      type: object
     ListMergeRequestRecord:
       additionalProperties: true
       properties:
@@ -6809,6 +6866,582 @@ components:
         - hip_cm
         - cup
       type: object
+    MergeCandidate:
+      additionalProperties: true
+      properties:
+        id:
+          description: Catalog id of the suggested entry.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+        name:
+          description: Display name. Must not be used as a discriminant.
+          maxLength: 512
+          type: string
+        object:
+          description: Type discriminant. Always merge_candidate.
+          enum:
+            - merge_candidate
+          type: string
+          x-vocabulary-closed: true
+        reason:
+          description: "queue: an undecided pair in the reconciliation queue; same_name: a live entry with exactly the same name."
+          enum:
+            - queue
+            - same_name
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - object
+        - id
+        - name
+        - reason
+      type: object
+    MergeChoicesBody:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/MergeChoicesBody.json
+          format: uri
+          readOnly: true
+          type: string
+        field_resolution:
+          additionalProperties:
+            type: string
+          description: Optional. Field → source|target for the fields GET /v2/me/merge-preview lists under fields. A field not named keeps that preview's default. 422 for a field the family cannot resolve.
+          type: object
+        hide_release_ids:
+          description: Optional, works only. Source releases to hide once they land on the target — normally the ones the preview marks duplicate_of. 422 for a release that is not the source's own.
+          items:
+            type: string
+          maxItems: 500
+          type: array
+      type: object
+    MergeMovedCount:
+      additionalProperties: true
+      properties:
+        count:
+          description: Rows of that kind.
+          format: int64
+          minimum: 0
+          type: integer
+        key:
+          description: Kind of row. Closed vocabulary; several catalog tables can share a kind.
+          enum:
+            - releases
+            - titles
+            - intros
+            - tags
+            - credits
+            - characters
+            - character_instances
+            - companies
+            - release_companies
+            - relations
+            - entity_relations
+            - company_relations
+            - series
+            - covers
+            - screenshots
+            - platforms
+            - engines
+            - anchors
+            - site_usage
+            - source_ratings
+            - popularity
+            - source_playtime
+            - user_ratings
+            - user_folders
+            - user_states
+            - user_playtime
+            - cover_votes
+            - follows
+            - hidden_rows
+            - aliases
+            - intro_checks
+            - traits
+            - credit_names
+            - persons
+            - redirects
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - key
+        - count
+      type: object
+    MergePreview:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/MergePreview.json
+          format: uri
+          readOnly: true
+          type: string
+        anchors:
+          description: Every external id on either side and where it ends up.
+          items:
+            $ref: "#/components/schemas/MergePreviewAnchor"
+          type: array
+        blockers:
+          description: Reasons the merge cannot be filed or run as it stands. Empty array when nothing blocks it.
+          items:
+            $ref: "#/components/schemas/MergePreviewIssue"
+          type: array
+        claim:
+          anyOf:
+            - $ref: "#/components/schemas/MergePreviewClaim"
+            - type: "null"
+          description: Site claims on the two works and which one survives (works only). null for other families.
+        counts:
+          description: Rows on each side by kind, and how many of the source's already exist on the target.
+          items:
+            $ref: "#/components/schemas/MergePreviewCount"
+          type: array
+        facts:
+          description: Plain sentences stating evidence found in the data (shared releases, VNDB coverage, identical titles), offered as a starting point for the reason. Must not be used as a discriminant.
+          items:
+            type: string
+          type: array
+        fields:
+          description: Fields whose surviving value can be chosen, with both sides' values.
+          items:
+            $ref: "#/components/schemas/MergePreviewField"
+          type: array
+        intros:
+          description: Per language, which intro survives (works only). Empty array for other families.
+          items:
+            $ref: "#/components/schemas/MergePreviewIntro"
+          type: array
+        object:
+          description: Type discriminant. Always merge_preview.
+          enum:
+            - merge_preview
+          type: string
+          x-vocabulary-closed: true
+        open_request_id:
+          description: An open request for this same pair, when there is one; filing another is refused 409.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type:
+            - string
+            - "null"
+        releases:
+          description: Live releases of both works (works only), with source releases that repeat a target release marked. Empty array for other families.
+          items:
+            $ref: "#/components/schemas/MergePreviewRelease"
+          type: array
+        source:
+          $ref: "#/components/schemas/MergePreviewSide"
+          description: The entry that would be folded away.
+        target:
+          $ref: "#/components/schemas/MergePreviewSide"
+          description: The entry that would survive.
+        target_object:
+          description: Family of the two entries.
+          enum:
+            - work
+            - company
+            - character
+            - person
+            - credit_name
+          type: string
+          x-vocabulary-closed: true
+        titles:
+          description: Titles of both works and the fate of each source title (works only). Empty array for other families.
+          items:
+            $ref: "#/components/schemas/MergePreviewTitle"
+          type: array
+        warnings:
+          description: Consequences a reviewer should read before deciding, such as a source anchor being demoted. Empty array, never null.
+          items:
+            $ref: "#/components/schemas/MergePreviewIssue"
+          type: array
+      required:
+        - object
+        - target_object
+        - source
+        - target
+        - blockers
+        - warnings
+        - facts
+        - fields
+        - anchors
+        - releases
+        - titles
+        - intros
+        - counts
+        - claim
+        - open_request_id
+      type: object
+    MergePreviewAnchor:
+      additionalProperties: true
+      properties:
+        external_id:
+          description: Verbatim upstream id. Must not be used as a discriminant beyond exact match.
+          maxLength: 256
+          type: string
+        fate:
+          description: "stays: a target id, unchanged. moves: carried to the target as it is. demoted_*: carried over at a weaker kind because the target already holds a different id from that source. duplicate: the target holds the same id; the source copy is dropped."
+          enum:
+            - moves
+            - stays
+            - demoted_related
+            - demoted_probable
+            - duplicate
+          type: string
+          x-vocabulary-closed: true
+        kind_after:
+          description: Link kind after the merge.
+          enum:
+            - identity
+            - probable
+            - related
+          type: string
+          x-vocabulary-closed: true
+        kind_before:
+          description: Link kind now.
+          enum:
+            - identity
+            - probable
+            - related
+          type: string
+          x-vocabulary-closed: true
+        reason:
+          description: Why, for a demotion or duplicate. Empty otherwise. Must not be used as a discriminant.
+          maxLength: 500
+          type: string
+        side:
+          description: Which entry holds the id now.
+          enum:
+            - source
+            - target
+          type: string
+          x-vocabulary-closed: true
+        source_key:
+          description: Registry key (vndb, bangumi, erogamescape, …). Must not be used as a discriminant.
+          maxLength: 64
+          type: string
+      required:
+        - side
+        - source_key
+        - external_id
+        - kind_before
+        - kind_after
+        - fate
+        - reason
+      type: object
+    MergePreviewClaim:
+      additionalProperties: true
+      properties:
+        fate:
+          description: "moves: the target is unclaimed and takes the source's claim; dropped: both are claimed and the target's stays; none: the source is unclaimed."
+          enum:
+            - none
+            - moves
+            - dropped
+          type: string
+          x-vocabulary-closed: true
+        source_site:
+          description: Site claiming the source; null when unclaimed.
+          maxLength: 64
+          pattern: ^[a-z][a-z0-9_-]*$
+          type:
+            - string
+            - "null"
+        target_site:
+          description: Site claiming the target; null when unclaimed.
+          maxLength: 64
+          pattern: ^[a-z][a-z0-9_-]*$
+          type:
+            - string
+            - "null"
+      required:
+        - source_site
+        - target_site
+        - fate
+      type: object
+    MergePreviewCount:
+      additionalProperties: true
+      properties:
+        already_on_target:
+          description: Of the source's rows, how many the target already has; they fold into one.
+          format: int64
+          minimum: 0
+          type: integer
+        key:
+          description: "What is counted: tags, credits, characters, companies, relations, series, covers, screenshots, platforms, user_ratings, user_folders, user_states, user_playtime for works; table.column for other families. Open vocabulary."
+          maxLength: 128
+          pattern: ^[a-z_.]+$
+          type: string
+        on_source:
+          description: Rows on the source.
+          format: int64
+          minimum: 0
+          type: integer
+        on_target:
+          description: Rows on the target.
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - key
+        - on_source
+        - on_target
+        - already_on_target
+      type: object
+    MergePreviewField:
+      additionalProperties: true
+      properties:
+        default:
+          description: "What survives with no choice made: the target's value, or the source's when the target has none."
+          enum:
+            - source
+            - target
+          type: string
+          x-vocabulary-closed: true
+        human_protected:
+          description: "true when a person entered the target's value and the source's is a machine value: choosing source has no effect."
+          type: boolean
+        key:
+          description: Field name as field_resolution takes it.
+          maxLength: 64
+          pattern: ^[a-z_]+$
+          type: string
+        source_value:
+          description: The source's value; null when empty.
+        target_value:
+          description: The target's value; null when empty.
+      required:
+        - key
+        - source_value
+        - target_value
+        - default
+        - human_protected
+      type: object
+    MergePreviewIntro:
+      additionalProperties: true
+      properties:
+        fate:
+          description: "moves: the target has none; kept_out: the target's own text stays and the source's is archived; replaces_machine: the source's source text replaces the target's machine translation."
+          enum:
+            - stays
+            - moves
+            - kept_out
+            - replaces_machine
+          type: string
+          x-vocabulary-closed: true
+        lang:
+          description: BCP-47.
+          format: bcp47
+          maxLength: 32
+          type: string
+        source_has:
+          description: The source has an intro in this language.
+          type: boolean
+        source_text:
+          description: Start of the source's intro. Must not be used as a discriminant.
+          maxLength: 800
+          type: string
+        target_has:
+          description: The target has an intro in this language.
+          type: boolean
+        target_text:
+          description: Start of the target's intro. Must not be used as a discriminant.
+          maxLength: 800
+          type: string
+      required:
+        - lang
+        - source_has
+        - target_has
+        - source_text
+        - target_text
+        - fate
+      type: object
+    MergePreviewIssue:
+      additionalProperties: true
+      properties:
+        code:
+          description: "Machine-readable kind: same_entity, not_live, cross_medium, hidden_survivor, conflicting_anchor, claim_dropped. Open vocabulary."
+          maxLength: 64
+          pattern: ^[a-z_]+$
+          type: string
+        message:
+          description: Explanation for people, in Chinese. Must not be used as a discriminant.
+          maxLength: 1000
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    MergePreviewRelease:
+      additionalProperties: true
+      properties:
+        duplicate_by:
+          description: "How duplicate_of was matched: vndb (same VNDB release) or platform_date (same platform and full date, compatible release class). null when not a duplicate."
+          enum:
+            - vndb
+            - platform_date
+            - null
+          type:
+            - string
+            - "null"
+          x-vocabulary-closed: true
+        duplicate_of:
+          description: For a source release, the target release it repeats; null when none.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type:
+            - string
+            - "null"
+        id:
+          description: Release id.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+        lang:
+          description: BCP-47. Empty if unrecorded.
+          format: bcp47
+          maxLength: 32
+          type: string
+        platform:
+          description: Empty when unrecorded. Must not be used as a discriminant.
+          maxLength: 64
+          type: string
+        release_date:
+          description: Calendar date. null if undated.
+          format: date
+          maxLength: 10
+          type:
+            - string
+            - "null"
+        release_date_precision:
+          description: null when release_date is null. month dates sit on the 1st; year dates sit on January 1.
+          enum:
+            - day
+            - month
+            - year
+            - null
+          type:
+            - string
+            - "null"
+          x-vocabulary-closed: true
+        release_kind:
+          description: Release class.
+          enum:
+            - default
+            - digital
+            - physical
+            - trial
+            - patch
+          type: string
+          x-vocabulary-closed: true
+        side:
+          description: Which work the release belongs to now.
+          enum:
+            - source
+            - target
+          type: string
+          x-vocabulary-closed: true
+        title:
+          description: Release title; empty when unrecorded. Must not be used as a discriminant.
+          maxLength: 512
+          type: string
+        vndb_rid:
+          description: VNDB release id. null when none.
+          maxLength: 16
+          pattern: ^r[0-9]+$
+          type:
+            - string
+            - "null"
+      required:
+        - side
+        - id
+        - title
+        - release_kind
+        - platform
+        - lang
+        - release_date
+        - release_date_precision
+        - vndb_rid
+        - duplicate_of
+        - duplicate_by
+      type: object
+    MergePreviewSide:
+      additionalProperties: true
+      properties:
+        id:
+          description: Catalog id.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+        live:
+          description: false when the entry is already merged away or deleted.
+          type: boolean
+        name:
+          description: Display name. Must not be used as a discriminant.
+          maxLength: 512
+          type: string
+        site:
+          description: Site that claims the work, null when unclaimed or for other families.
+          maxLength: 64
+          pattern: ^[a-z][a-z0-9_-]*$
+          type:
+            - string
+            - "null"
+      required:
+        - id
+        - name
+        - live
+        - site
+      type: object
+    MergePreviewTitle:
+      additionalProperties: true
+      properties:
+        fate:
+          description: "For a source title: moves as it is; becomes_alias when the target already shows a title in that language; duplicate when the target has it; dropped for a machine translation in a taken language."
+          enum:
+            - stays
+            - moves
+            - becomes_alias
+            - duplicate
+            - dropped
+          type: string
+          x-vocabulary-closed: true
+        lang:
+          description: BCP-47. Empty for a language-less alias.
+          format: bcp47
+          maxLength: 32
+          type: string
+        side:
+          description: Which work holds the title now.
+          enum:
+            - source
+            - target
+          type: string
+          x-vocabulary-closed: true
+        title:
+          description: The title. Must not be used as a discriminant.
+          maxLength: 1024
+          type: string
+        title_kind:
+          description: search_hint is internal and never appears on this type.
+          enum:
+            - official
+            - alias
+            - abbreviation
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - side
+        - title
+        - lang
+        - title_kind
+        - fate
+      type: object
     MergeRequestRecord:
       additionalProperties: true
       properties:
@@ -6819,6 +7452,25 @@ components:
           format: uri
           readOnly: true
           type: string
+        amended_at:
+          description: RFC 3339 UTC. null when unchanged.
+          format: date-time
+          maxLength: 32
+          type:
+            - string
+            - "null"
+        amended_by:
+          anyOf:
+            - $ref: "#/components/schemas/UserRef"
+            - type: "null"
+          description: Account behind amended_by_uid. null when unchanged or when the account directory could not be read.
+        amended_by_uid:
+          description: Central account id of the reviewer who last changed the choices. null when unchanged.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type:
+            - string
+            - "null"
         execute_after:
           description: End of the cooling-off once approved. null before approval.
           format: date-time
@@ -6833,12 +7485,27 @@ components:
           type:
             - string
             - "null"
+        field_resolution:
+          additionalProperties:
+            type: string
+          description: Fields resolved to the source's value, as field → source. A field not listed keeps the target's value (the source fills it only where the target is empty), and a value a person entered on the target is never replaced by a machine value from the source. Empty object when nothing was chosen.
+          type: object
+        hide_release_ids:
+          description: Source releases hidden once they land on the target, usually duplicates of a target release. Empty array, never null.
+          items:
+            type: string
+          type: array
         id:
           description: Merge request id.
           maxLength: 20
           minLength: 1
           pattern: ^[0-9]+$
           type: string
+        moved:
+          description: For an executed or undone merge, how many rows of each kind pointed at the source when it ran. Empty array otherwise.
+          items:
+            $ref: "#/components/schemas/MergeMovedCount"
+          type: array
         note:
           description: The requester's reason followed by decision notes. Must not be used as a discriminant.
           maxLength: 4000
@@ -6886,20 +7553,29 @@ components:
           maxLength: 20
           pattern: ^[0-9]+$
           type: string
+        source_name:
+          description: source_id's display name now; for an entry merged away, its name when it was retired. Empty when unreadable. Must not be used as a discriminant.
+          maxLength: 512
+          type: string
         state:
-          description: open awaits a reviewer; approved waits out the cooling-off, after which the merge runs; executed is done.
+          description: open awaits a reviewer; approved waits out the cooling-off, after which the merge runs; executed is done; undone means a reviewer took an executed merge back and source_id is live again.
           enum:
             - open
             - approved
             - executed
             - rejected
             - withdrawn
+            - undone
           type: string
           x-vocabulary-closed: true
         target_id:
           description: The entry that survives.
           maxLength: 20
           pattern: ^[0-9]+$
+          type: string
+        target_name:
+          description: target_id's display name now. Empty when unreadable. Must not be used as a discriminant.
+          maxLength: 512
           type: string
         target_object:
           description: Family of the two entries.
@@ -6911,6 +7587,35 @@ components:
             - credit_name
           type: string
           x-vocabulary-closed: true
+        undo_report:
+          $ref: "#/components/schemas/MergeUndoReport"
+          description: Present only on the response to decision=undo.
+        undo_until:
+          description: "Last moment a reviewer may undo this executed merge under the original id (catalog.merge_undo_window_days). null when it cannot be undone: not executed, undo switched off, or executed before undo was recorded."
+          format: date-time
+          maxLength: 32
+          type:
+            - string
+            - "null"
+        undone_at:
+          description: RFC 3339 UTC. null unless state is undone.
+          format: date-time
+          maxLength: 32
+          type:
+            - string
+            - "null"
+        undone_by:
+          anyOf:
+            - $ref: "#/components/schemas/UserRef"
+            - type: "null"
+          description: Account behind undone_by_uid. null unless state is undone or when the account directory could not be read.
+        undone_by_uid:
+          description: Central account id of the reviewer who undid the merge. null unless state is undone.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type:
+            - string
+            - "null"
       required:
         - object
         - id
@@ -6926,6 +7631,59 @@ components:
         - proposed_at
         - execute_after
         - executed_at
+        - field_resolution
+        - hide_release_ids
+        - amended_by_uid
+        - amended_by
+        - amended_at
+        - undone_at
+        - undone_by_uid
+        - undone_by
+        - undo_until
+        - moved
+        - source_name
+        - target_name
+      type: object
+    MergeUndoReport:
+      additionalProperties: true
+      properties:
+        kept_fields:
+          description: Target columns the merge overwrote but someone has edited since; left as they are.
+          items:
+            type: string
+          type: array
+        not_restored:
+          description: "Recorded rows that could not come back, by kind: data both sides held and the merge folded into one row, or rows deleted since. Empty array when everything came back."
+          items:
+            $ref: "#/components/schemas/MergeMovedCount"
+          type: array
+        removed_inserted:
+          description: Title and alias copies the merge had added to the target, removed.
+          format: int64
+          minimum: 0
+          type: integer
+        restored:
+          description: Rows back on the source, by kind.
+          items:
+            $ref: "#/components/schemas/MergeMovedCount"
+          type: array
+        reverted_fields:
+          description: Target columns put back to their pre-merge value.
+          items:
+            type: string
+          type: array
+        unhidden_releases:
+          description: Releases the merge had hidden as duplicates, shown again.
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - restored
+        - not_restored
+        - reverted_fields
+        - kept_fields
+        - removed_inserted
+        - unhidden_releases
       type: object
     ModerateDiscussionInputBody:
       additionalProperties: true
@@ -8793,13 +9551,13 @@ components:
       additionalProperties: true
       properties:
         current_id:
-          description: Canonical catalog id.
+          description: Canonical catalog id. Equals old_id on a revoked redirect.
           maxLength: 20
           minLength: 1
           pattern: ^[0-9]+$
           type: string
         merged_at:
-          description: RFC 3339 UTC.
+          description: RFC 3339 UTC. The moment this redirect last changed — it was created, re-pointed when its target was merged on, or revoked — and the value the cursor resumes from, so a change re-surfaces the row at the tail of the feed.
           format: date-time
           maxLength: 32
           type: string
@@ -8815,6 +9573,9 @@ components:
           minLength: 1
           pattern: ^[0-9]+$
           type: string
+        revoked:
+          description: "Present and true when the merge behind this redirect was undone: old_id is live again under its own id. Drop the mirrored redirect. Absent means the redirect stands — never sent as false."
+          type: boolean
         target_object:
           description: Family that was merged.
           enum:
@@ -22878,6 +23639,212 @@ paths:
       summary: Follow a company
       tags:
         - me
+  /v2/me/merge-candidates:
+    get:
+      description: "Up to ten entries that may duplicate id: undecided pairs from the reconciliation queue first, then live entries with exactly the same name. A single page; there is no cursor. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope."
+      operationId: listMyMergeCandidates
+      parameters:
+        - description: Family of the entry.
+          explode: false
+          in: query
+          name: object
+          required: true
+          schema:
+            description: Family of the entry.
+            enum:
+              - work
+              - company
+              - character
+              - person
+              - credit_name
+            type: string
+            x-vocabulary-closed: true
+        - description: The entry to find duplicates of.
+          explode: false
+          in: query
+          name: id
+          required: true
+          schema:
+            description: The entry to find duplicates of.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListMergeCandidate"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Suggest merge partners
+      tags:
+        - me
+  /v2/me/merge-preview:
+    get:
+      description: "Computes what merging source_id into target_id would do, without writing: both sides' values for the resolvable fields, the fate of every external id, the releases of both works with source duplicates marked, title and intro outcomes, row counts, the site claim, and blockers and warnings. An entry already merged away or deleted comes back with a not_live blocker rather than an error. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope."
+      operationId: previewMyMerge
+      parameters:
+        - description: Family of the two entries.
+          explode: false
+          in: query
+          name: object
+          required: true
+          schema:
+            description: Family of the two entries.
+            enum:
+              - work
+              - company
+              - character
+              - person
+              - credit_name
+            type: string
+            x-vocabulary-closed: true
+        - description: The entry to fold away.
+          explode: false
+          in: query
+          name: source_id
+          required: true
+          schema:
+            description: The entry to fold away.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+        - description: The entry that survives.
+          explode: false
+          in: query
+          name: target_id
+          required: true
+          schema:
+            description: The entry that survives.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MergePreview"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Preview a merge
+      tags:
+        - me
   /v2/me/merge-requests:
     get:
       description: The bearer's own merge requests, newest first; follow next_cursor for more. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
@@ -22895,6 +23862,7 @@ paths:
               - executed
               - rejected
               - withdrawn
+              - undone
             type: string
             x-vocabulary-closed: true
         - description: Narrow to one family.
@@ -23097,6 +24065,87 @@ paths:
       tags:
         - me
   /v2/me/merge-requests/{id}:
+    get:
+      description: Any editor-filed merge request by id, for the requester and everyone following it. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+      operationId: getMyMergeRequest
+      parameters:
+        - description: Merge request id.
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Merge request id.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MergeRequestRecord"
+          description: OK
+        "304":
+          description: Not Modified. The representation is unchanged.
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Get one merge request
+      tags:
+        - me
     patch:
       description: Withdraws an open request the bearer filed. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
       operationId: patchMyMergeRequest
@@ -27268,6 +28317,7 @@ paths:
               - executed
               - rejected
               - withdrawn
+              - undone
             type: string
             x-vocabulary-closed: true
         - description: Narrow to one family.
@@ -27467,9 +28517,94 @@ paths:
       summary: Get one merge request
       tags:
         - moderation
+    patch:
+      description: Replaces field_resolution and hide_release_ids on an open or approved request; amended_by and amended_at record who. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+      operationId: amendModerationMergeRequest
+      parameters:
+        - description: Merge request id.
+          in: path
+          name: id
+          required: true
+          schema:
+            description: Merge request id.
+            maxLength: 20
+            pattern: ^[0-9]+$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MergeChoicesBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MergeRequestRecord"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      security:
+        - userToken: []
+      summary: Change a merge request's choices
+      tags:
+        - moderation
   /v2/moderation/merge-requests/{id}/decisions:
     post:
-      description: decision=approve|reject|execute. Unmerge stays with the catalog admin console. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+      description: decision=approve|reject|execute|undo. undo revives the source under its own id, moves back what the merge moved, restores what it archived and revokes the redirect (the redirects feed then lists it with revoked=true); the response carries undo_report. A merge executed before undo was recorded, or past catalog.merge_undo_window_days, is refused 409. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
       operationId: decideModerationMergeRequest
       parameters:
         - description: Merge request id.

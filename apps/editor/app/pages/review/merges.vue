@@ -1,7 +1,7 @@
 <script setup lang="ts">
-definePageMeta({ title: '合并请求审核' })
+definePageMeta({ redirect: '/review/requests' })
 </script>
 
 <template>
-  <ReviewMergesContainer />
+  <div />
 </template>

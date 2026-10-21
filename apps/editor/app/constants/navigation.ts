@@ -93,19 +93,12 @@ export const EDITOR_NAV: EditorNavGroup[] = [
         reviewerOnly: true
       },
       {
-        label: '合并审核',
+        label: '请求审核',
         icon: 'lucide:git-merge',
-        to: '/review/merges',
+        to: '/review/requests',
         ready: true,
         reviewerOnly: true
       },
-      {
-        label: '删除审核',
-        icon: 'lucide:trash-2',
-        to: '/review/deletions',
-        ready: true,
-        reviewerOnly: true
-      }
     ]
   },
   {

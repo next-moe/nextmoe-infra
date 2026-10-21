@@ -17,10 +17,11 @@ type AnchorRoute = (id: string, viewerIsOwner: boolean) => string
 
 export const DISCUSSION_ANCHOR_ROUTES: Record<string, AnchorRoute> = {
   proposal: (id, owner) => (owner ? `/me/proposals/${id}` : `/review/${id}`),
-  merge_request: (_, owner) =>
-    owner ? '/me/merge-requests' : '/review/merges',
+  merge_request: (id) => `/merge/${id}`,
   deletion_request: (id, owner) =>
-    owner ? `/me/deletion-requests?id=${id}` : `/review/deletions?id=${id}`
+    owner
+      ? `/me/deletion-requests?id=${id}`
+      : `/review/requests?tab=delete&id=${id}`
 }
 
 export const discussionAnchorRoute = (

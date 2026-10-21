@@ -33,17 +33,17 @@ func workTitleStmts(p mergePlan) []mergeStmt {
 	return []mergeStmt{
 		archiveDelete(p, "catalog_work_title",
 			electable+fmt.Sprintf(" AND t.provenance = %d", model.WorkTitleProvenanceMachine), p.src),
-		{`INSERT INTO catalog_work_title (work_id, lang, title, latin, kind, provenance)
+		recordInserted(p, "catalog_work_title", `INSERT INTO catalog_work_title (work_id, lang, title, latin, kind, provenance)
 		  SELECT DISTINCT ON (t.title, a.kind) ?, '', t.title, t.latin, a.kind, ?
 		    FROM catalog_work_title t
 		    CROSS JOIN LATERAL (SELECT CASE WHEN t.kind = ? THEN ? ELSE t.kind END AS kind) a
-		   WHERE ` + electable + ` AND ` + editspec.NotSuppressedWorkTitleSQL("t") + `
+		   WHERE `+electable+` AND `+editspec.NotSuppressedWorkTitleSQL("t")+`
 		     AND NOT EXISTS (SELECT 1 FROM catalog_work_title x WHERE x.work_id = ? AND x.title = t.title)
 		     AND NOT EXISTS (SELECT 1 FROM catalog_work w WHERE w.id = ? AND w.display_name = t.title)
 		   ORDER BY t.title, a.kind, t.id
 		  ON CONFLICT DO NOTHING`,
 			[]any{p.dst, model.WorkTitleProvenanceSource, model.WorkTitleKindOfficial, model.WorkTitleKindAlias,
-				p.src, p.dst, p.dst}, false},
+				p.src, p.dst, p.dst}),
 		archiveDelete(p, "catalog_work_title", electable, p.src),
 		{`UPDATE catalog_work_title t SET work_id = ? WHERE t.work_id = ?
 		    AND NOT EXISTS (SELECT 1 FROM catalog_work_title u
@@ -82,7 +82,7 @@ func aliasDemoteStmts(p mergePlan, a mergeAliasTable) []mergeStmt {
 		a.owner, model.AliasKindSearchHint, a.table, p.dst, liveU)
 	return []mergeStmt{
 		archiveDelete(p, a.table, demoted+fmt.Sprintf(" AND t.provenance = %d", model.AliasProvenanceMachine), p.src),
-		{fmt.Sprintf(`INSERT INTO %[1]s (%[2]s, name, latin, lang, kind, is_primary_for_locale, source_id, provenance, mt_model)
+		recordInserted(p, a.table, fmt.Sprintf(`INSERT INTO %[1]s (%[2]s, name, latin, lang, kind, is_primary_for_locale, source_id, provenance, mt_model)
 		  SELECT DISTINCT ON (t.name) ?, t.name, t.latin, '', t.kind, false, t.source_id, t.provenance, t.mt_model
 		    FROM %[1]s t
 		   WHERE %[3]s AND %[4]s
@@ -90,7 +90,7 @@ func aliasDemoteStmts(p mergePlan, a mergeAliasTable) []mergeStmt {
 		     AND NOT EXISTS (SELECT 1 FROM %[5]s o WHERE o.id = ? AND o.%[6]s = t.name)
 		   ORDER BY t.name, t.kind, t.id
 		  ON CONFLICT DO NOTHING`, a.table, a.owner, demoted, liveT, a.ownerTable, a.ownerName),
-			[]any{p.dst, p.src, p.dst, p.dst}, false},
+			[]any{p.dst, p.src, p.dst, p.dst}),
 		archiveDelete(p, a.table, demoted, p.src),
 	}
 }

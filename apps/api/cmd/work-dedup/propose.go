@@ -146,7 +146,7 @@ func loadWorkRedirects(ctx context.Context, db *gorm.DB) (map[int64]int64, error
 		CurrentID int64 `gorm:"column:current_id"`
 	}
 	if err := db.WithContext(ctx).Raw(
-		`SELECT old_id, current_id FROM catalog_redirect WHERE entity_type = ?`,
+		`SELECT old_id, current_id FROM catalog_redirect WHERE entity_type = ? AND revoked_at IS NULL`,
 		model.EntityTypeWork).Scan(&rows).Error; err != nil {
 		return nil, err
 	}

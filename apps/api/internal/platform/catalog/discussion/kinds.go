@@ -93,7 +93,10 @@ func MergeRequestKind() Kind {
 			return ownerOf(ctx, db, `SELECT proposed_by FROM catalog_merge_proposal WHERE id = ?`, id)
 		},
 		Participants: func(ctx context.Context, db *gorm.DB, id int64) ([]int64, error) {
-			return uidsOf(ctx, db, `SELECT proposed_by FROM catalog_merge_proposal WHERE id = ?`, id)
+			return uidsOf(ctx, db, `
+				SELECT uid FROM catalog_merge_proposal,
+					unnest(ARRAY[proposed_by, amended_by, undone_by]) AS uid
+				WHERE id = ? AND uid IS NOT NULL`, id)
 		},
 		Reviewer: canReview,
 	}

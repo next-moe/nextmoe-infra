@@ -365,4 +365,5 @@ const (
 	ProposalStatusExecuted  int16 = 2
 	ProposalStatusRejected  int16 = 3
 	ProposalStatusWithdrawn int16 = 4
+	ProposalStatusUndone    int16 = 5
 )

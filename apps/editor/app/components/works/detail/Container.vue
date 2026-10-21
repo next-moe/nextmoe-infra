@@ -46,7 +46,6 @@ const {
   { watch: [id] }
 )
 
-const mergeOpen = ref(false)
 const deleteOpen = ref(false)
 const deleted = computed(() => deletedProblem(error.value))
 
@@ -91,10 +90,11 @@ useHead(() => ({
           新建发行
         </KunButton>
         <KunButton
+          :href="`/merge/new?object=work&source=${id}`"
+          target="_blank"
           variant="light"
           size="sm"
           :disabled="!work"
-          @click="mergeOpen = true"
         >
           <KunIcon name="lucide:git-merge" class="size-4" />
           合并
@@ -133,13 +133,6 @@ useHead(() => ({
       v-model="deleteOpen"
       :work-id="String(id)"
       :work-name="work.display_name"
-    />
-    <MergeRequestModal
-      v-if="work"
-      v-model="mergeOpen"
-      family="work"
-      :entity-id="String(id)"
-      :entity-name="work.display_name"
     />
 
     <DeleteDeletedState

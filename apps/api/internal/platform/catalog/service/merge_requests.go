@@ -28,7 +28,10 @@ type MergeRequestFilter struct {
 	Limit      int
 }
 
-func (s *MergeService) RequestMerge(ctx context.Context, entityType int16, sourceID, targetID, proposedBy int64, reason string) (*model.CatalogMergeProposal, error) {
+func (s *MergeService) RequestMerge(ctx context.Context, entityType int16, sourceID, targetID, proposedBy int64, reason string, choices MergeChoices) (*model.CatalogMergeProposal, error) {
+	if err := validateChoices(s.db.WithContext(ctx), entityType, sourceID, choices); err != nil {
+		return nil, err
+	}
 	if entityType == model.EntityTypeWork {
 		var mediums []int16
 		if err := s.db.WithContext(ctx).Raw(`SELECT DISTINCT medium_id FROM catalog_work WHERE id IN (?, ?)`,
@@ -39,7 +42,64 @@ func (s *MergeService) RequestMerge(ctx context.Context, entityType int16, sourc
 			return nil, ErrCrossMedium
 		}
 	}
-	return s.propose(ctx, entityType, sourceID, targetID, proposedBy, reason, false, OriginEditor)
+	return s.proposeWith(ctx, entityType, sourceID, targetID, proposedBy, reason, OriginEditor, choicesDoc("", choices))
+}
+
+// AmendMergeRequest replaces the requester's choices with a reviewer's while
+// the request has not run; the note records who changed them.
+func (s *MergeService) AmendMergeRequest(ctx context.Context, proposalID, amendedBy int64, choices MergeChoices) error {
+	return s.transitionOneOf(ctx, proposalID, []int16{model.ProposalStatusOpen, model.ProposalStatusApproved}, func(tx *gorm.DB, p *model.CatalogMergeProposal) error {
+		if err := validateChoices(tx, p.EntityType, p.SourceEntityID, choices); err != nil {
+			return err
+		}
+		prior, err := parseMergeDoc(p.FieldResolution)
+		if err != nil {
+			return err
+		}
+		raw, err := choicesDoc(prior.mode, choices).encode()
+		if err != nil {
+			return err
+		}
+		now := time.Now()
+		return tx.Model(p).Updates(map[string]any{
+			"field_resolution": raw,
+			"amended_by":       amendedBy,
+			"amended_at":       now,
+			"note":             appendNote(p.Note, fmt.Sprintf("choices amended by user %d", amendedBy)),
+		}).Error
+	})
+}
+
+// EntityNames reads display names for ids of one family, retired rows
+// included, so a merge request keeps naming the entry it folded away.
+func (s *MergeService) EntityNames(ctx context.Context, entityType int16, ids []int64) (map[int64]string, error) {
+	table, ok := entityTableName(entityType)
+	if !ok || len(ids) == 0 {
+		return map[int64]string{}, nil
+	}
+	nameCol := "display_name"
+	if entityType == model.EntityTypeCreditName {
+		nameCol = "name"
+	}
+	var rows []struct {
+		ID   int64
+		Name string
+	}
+	if err := s.db.WithContext(ctx).Raw(fmt.Sprintf(`SELECT id, %s AS name FROM %s WHERE id IN ?`, nameCol, table), ids).
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	out := make(map[int64]string, len(rows))
+	for _, r := range rows {
+		out[r.ID] = r.Name
+	}
+	return out, nil
+}
+
+// MergeChoicesOf reads the choices stored on a request.
+func MergeChoicesOf(p *model.CatalogMergeProposal) (MergeChoices, error) {
+	doc, err := parseMergeDoc(p.FieldResolution)
+	return doc.MergeChoices, err
 }
 
 // ListMergeRequests pages newest first by id; BeforeID is the keyset cursor.

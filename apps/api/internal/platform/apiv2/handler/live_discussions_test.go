@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"api/internal/platform/catalog/model"
+	catsvc "api/internal/platform/catalog/service"
 
 	"github.com/stretchr/testify/require"
 )
@@ -200,7 +201,7 @@ func TestLiveDiscussionOnAMergeRequestFollowsItsReaders(t *testing.T) {
 	env := liveCatalog(t)
 	a := liveClaimedBy(t, env, "Discussion Merge A", 39711, livePlainUID)
 	b := liveClaimedBy(t, env, "Discussion Merge B", 39712, livePlainUID)
-	req, err := env.cat.Merges.RequestMerge(context.Background(), model.EntityTypeWork, a, b, livePlainUID, "同一部作品")
+	req, err := env.cat.Merges.RequestMerge(context.Background(), model.EntityTypeWork, a, b, livePlainUID, "同一部作品", catsvc.MergeChoices{})
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		env.db.Exec(`DELETE FROM edit_discussion_post WHERE anchor_kind = 'merge_request' AND anchor_id = ?`, req.ID)

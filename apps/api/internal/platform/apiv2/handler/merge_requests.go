@@ -24,6 +24,7 @@ var mergeRequestStates = map[string]int16{
 	"executed":  model.ProposalStatusExecuted,
 	"rejected":  model.ProposalStatusRejected,
 	"withdrawn": model.ProposalStatusWithdrawn,
+	"undone":    model.ProposalStatusUndone,
 }
 
 func mergeRequestState(status int16) string {
@@ -73,11 +74,29 @@ type createMergeRequestInput struct {
 		SourceID string `json:"source_id" pattern:"^[0-9]+$" maxLength:"20" doc:"The entry to fold away."`
 		TargetID string `json:"target_id" pattern:"^[0-9]+$" maxLength:"20" doc:"The entry that survives."`
 		Reason   string `json:"reason" minLength:"4" maxLength:"2000" doc:"Why these are the same entry. Reviewers read it. Must not be used as a discriminant."`
+		mergeChoicesBody
 	}
 }
 
+type mergeChoicesBody struct {
+	FieldResolution map[string]string `json:"field_resolution,omitempty" doc:"Optional. Field → source|target for the fields GET /v2/me/merge-preview lists under fields. A field not named keeps that preview's default. 422 for a field the family cannot resolve."`
+	HideReleaseIDs  []string          `json:"hide_release_ids,omitempty" maxItems:"500" doc:"Optional, works only. Source releases to hide once they land on the target — normally the ones the preview marks duplicate_of. 422 for a release that is not the source's own."`
+}
+
+func (b mergeChoicesBody) choices() (catsvc.MergeChoices, error) {
+	c := catsvc.MergeChoices{Fields: b.FieldResolution}
+	for _, raw := range b.HideReleaseIDs {
+		id, ok := repr.ParseID(raw)
+		if !ok {
+			return c, problem.New(problem.CodeValidationFailed, "", "", "hide_release_ids must be release ids.")
+		}
+		c.HideReleases = append(c.HideReleases, id)
+	}
+	return c, nil
+}
+
 type listMergeRequestsInput struct {
-	State      string `query:"state" enum:"open,approved,executed,rejected,withdrawn" doc:"Narrow to one state."`
+	State      string `query:"state" enum:"open,approved,executed,rejected,withdrawn,undone" doc:"Narrow to one state."`
 	Object     string `query:"object" enum:"work,company,character,person,credit_name" doc:"Narrow to one family."`
 	OriginSite string `query:"origin_site" enum:"kungal,moyu,letmoe,nextmoe,editor" doc:"Narrow to requests filed from one first-party property."`
 	Cursor     string `query:"cursor" pattern:"^cur_[0-9]+$" maxLength:"32" doc:"Opaque keyset cursor from next_cursor."`
@@ -98,8 +117,8 @@ type patchMergeRequestInput struct {
 type decideMergeRequestInput struct {
 	ID   string `path:"id" pattern:"^[0-9]+$" maxLength:"20" doc:"Merge request id."`
 	Body struct {
-		Decision string `json:"decision" enum:"approve,reject,execute" doc:"approve starts the cooling-off (catalog.merge_cooling_off_hours) after which the catalog-merge-requests job executes it; reject closes it; execute runs an approved request whose cooling-off has ended without waiting for the job."`
-		Reason   string `json:"reason,omitempty" maxLength:"2000" doc:"Required to reject. Must not be used as a discriminant."`
+		Decision string `json:"decision" enum:"approve,reject,execute,undo" doc:"approve starts the cooling-off (catalog.merge_cooling_off_hours) after which the catalog-merge-requests job executes it; reject closes it; execute runs an approved request whose cooling-off has ended without waiting for the job; undo takes an executed merge back under the source's original id while undo_until has not passed."`
+		Reason   string `json:"reason,omitempty" maxLength:"2000" doc:"Required to reject and to undo. Must not be used as a discriminant."`
 	}
 }
 
@@ -151,9 +170,10 @@ func registerMergeRequests(api huma.API, cat *Catalog) {
 	huma.Register(api, huma.Operation{
 		OperationID: "decideModerationMergeRequest", Method: http.MethodPost, Path: "/v2/moderation/merge-requests/{id}/decisions",
 		Summary:     "Decide a merge request",
-		Description: "decision=approve|reject|execute. Unmerge stays with the catalog admin console. Requires the catalog.merge.review permission.",
+		Description: "decision=approve|reject|execute|undo. undo revives the source under its own id, moves back what the merge moved, restores what it archived and revokes the redirect (the redirects feed then lists it with revoked=true); the response carries undo_report. A merge executed before undo was recorded, or past catalog.merge_undo_window_days, is refused 409. Requires the catalog.merge.review permission.",
 		Tags:        mod, Errors: errs, DefaultStatus: http.StatusCreated, SkipValidateParams: true,
 	}, decideModerationMergeRequest(cat))
+	registerMergeWorkbench(api, cat, errs)
 }
 
 func (c *Catalog) mergesBound() error {
@@ -205,6 +225,10 @@ func createMyMergeRequest(cat *Catalog) func(context.Context, *createMergeReques
 		if !ok1 || !ok2 {
 			return nil, catalogErr(ctx, problem.New(problem.CodeValidationFailed, "", "", "source_id and target_id must be catalog ids."))
 		}
+		choices, err := in.Body.choices()
+		if err != nil {
+			return nil, catalogErr(ctx, err)
+		}
 		window := quotaWindow()
 		used, err := cat.Merges.CountMergeRequestsSince(ctx, uid, time.Now().Add(-window))
 		if err != nil {
@@ -213,7 +237,7 @@ func createMyMergeRequest(cat *Catalog) func(context.Context, *createMergeReques
 		if limit := mergeRequestQuota(ctx); used >= limit {
 			return nil, catalogErr(ctx, quotaExceeded("the merge request limit for this account is exhausted", used, limit, window))
 		}
-		p, err := cat.Merges.RequestMerge(ctx, et, src, dst, uid, in.Body.Reason)
+		p, err := cat.Merges.RequestMerge(ctx, et, src, dst, uid, in.Body.Reason, choices)
 		if err != nil {
 			return nil, catalogErr(ctx, mergeRequestErr(err))
 		}
@@ -330,8 +354,24 @@ func decideModerationMergeRequest(cat *Catalog) func(context.Context, *decideMer
 			err = cat.Merges.RejectMerge(ctx, id, uid, in.Body.Reason)
 		case "execute":
 			err = cat.Merges.ExecuteMerge(ctx, id, &uid)
+		case "undo":
+			if len(in.Body.Reason) == 0 {
+				pr := problem.New(problem.CodeValidationFailed, "", "", "an undo needs a reason.")
+				pr.Errors = []problem.FieldError{{Pointer: "/reason", Reason: problem.ReasonRequired, Detail: "required to undo"}}
+				return nil, catalogErr(ctx, pr)
+			}
+			rep, uerr := cat.Merges.UndoMerge(ctx, id, uid, in.Body.Reason)
+			if uerr != nil {
+				return nil, catalogErr(ctx, mergeRequestErr(uerr))
+			}
+			out, oerr := cat.mergeRequestAfterWrite(ctx, id)
+			if oerr != nil {
+				return nil, oerr
+			}
+			out.Body.UndoReport = undoReportFrom(rep)
+			return out, nil
 		default:
-			return nil, catalogErr(ctx, problem.New(problem.CodeValidationFailed, "", "", "decision must be approve, reject or execute."))
+			return nil, catalogErr(ctx, problem.New(problem.CodeValidationFailed, "", "", "decision must be approve, reject, execute or undo."))
 		}
 		if err != nil {
 			return nil, catalogErr(ctx, mergeRequestErr(err))
@@ -392,11 +432,21 @@ func (c *Catalog) listMergeRequests(ctx context.Context, f catsvc.MergeRequestFi
 		next := "cur_" + strconv.FormatInt(rows[len(rows)-1].ID, 10)
 		out.NextCursor = &next
 	}
+	deadlines, err := c.Merges.UndoDeadlines(ctx, rows)
+	if err != nil {
+		return repr.List[repr.MergeRequestRecord]{}, err
+	}
 	out.Items = make([]repr.MergeRequestRecord, 0, len(rows))
 	for i := range rows {
-		out.Items = append(out.Items, mergeRequestFrom(&rows[i]))
+		rec := mergeRequestFrom(&rows[i])
+		if at, ok := deadlines[rows[i].ID]; ok {
+			s := rfc3339(at)
+			rec.UndoUntil = &s
+		}
+		out.Items = append(out.Items, rec)
 	}
 	c.attachMergeRequestPeople(ctx, out.Items)
+	c.attachMergeRequestNames(ctx, out.Items)
 	return out, nil
 }
 
@@ -410,7 +460,19 @@ func (c *Catalog) mergeRequestAfterWrite(ctx context.Context, id int64) (*mergeR
 
 func (c *Catalog) mergeRequestRecord(ctx context.Context, p *model.CatalogMergeProposal) repr.MergeRequestRecord {
 	items := []repr.MergeRequestRecord{mergeRequestFrom(p)}
+	if deadlines, err := c.Merges.UndoDeadlines(ctx, []model.CatalogMergeProposal{*p}); err == nil {
+		if at, ok := deadlines[p.ID]; ok {
+			s := rfc3339(at)
+			items[0].UndoUntil = &s
+		}
+	}
+	if p.Status == model.ProposalStatusExecuted || p.Status == model.ProposalStatusUndone {
+		if moved, err := c.Merges.MovedCounts(ctx, p.ID); err == nil {
+			items[0].Moved = movedCounts(moved)
+		}
+	}
 	c.attachMergeRequestPeople(ctx, items)
+	c.attachMergeRequestNames(ctx, items)
 	return items[0]
 }
 
@@ -430,7 +492,64 @@ func mergeRequestFrom(p *model.CatalogMergeProposal) repr.MergeRequestRecord {
 		at := rfc3339(*p.ExecutedAt)
 		rec.ExecutedAt = &at
 	}
+	rec.FieldResolution, rec.HideReleaseIDs, rec.Moved = map[string]string{}, []string{}, []repr.MergeMovedCount{}
+	if choices, err := catsvc.MergeChoicesOf(p); err == nil {
+		for k, v := range choices.Fields {
+			rec.FieldResolution[k] = v
+		}
+		for _, id := range choices.HideReleases {
+			rec.HideReleaseIDs = append(rec.HideReleaseIDs, repr.ID(id))
+		}
+	}
+	if p.AmendedBy != nil {
+		uid := repr.ID(*p.AmendedBy)
+		rec.AmendedByUID = &uid
+	}
+	if p.AmendedAt != nil {
+		at := rfc3339(*p.AmendedAt)
+		rec.AmendedAt = &at
+	}
+	if p.UndoneBy != nil {
+		uid := repr.ID(*p.UndoneBy)
+		rec.UndoneByUID = &uid
+	}
+	if p.UndoneAt != nil {
+		at := rfc3339(*p.UndoneAt)
+		rec.UndoneAt = &at
+	}
 	return rec
+}
+
+func (c *Catalog) attachMergeRequestNames(ctx context.Context, items []repr.MergeRequestRecord) {
+	byFamily := map[int16][]int64{}
+	for _, it := range items {
+		et, ok := mergeEntityTypeOf(it.TargetObject)
+		if !ok {
+			continue
+		}
+		for _, raw := range []string{it.SourceID, it.TargetID} {
+			if id, ok := repr.ParseID(raw); ok {
+				byFamily[et] = append(byFamily[et], id)
+			}
+		}
+	}
+	names := map[int16]map[int64]string{}
+	for et, ids := range byFamily {
+		got, err := c.Merges.EntityNames(ctx, et, ids)
+		if err != nil {
+			return
+		}
+		names[et] = got
+	}
+	for i := range items {
+		et, _ := mergeEntityTypeOf(items[i].TargetObject)
+		if id, ok := repr.ParseID(items[i].SourceID); ok {
+			items[i].SourceName = names[et][id]
+		}
+		if id, ok := repr.ParseID(items[i].TargetID); ok {
+			items[i].TargetName = names[et][id]
+		}
+	}
 }
 
 func (c *Catalog) attachMergeRequestPeople(ctx context.Context, items []repr.MergeRequestRecord) {
@@ -439,12 +558,21 @@ func (c *Catalog) attachMergeRequestPeople(ctx context.Context, items []repr.Mer
 	}
 	seen := map[int64]struct{}{}
 	var ids []int64
-	for _, it := range items {
-		if id, ok := repr.ParseID(it.ProposedByUID); ok && id > 0 {
+	add := func(raw string) {
+		if id, ok := repr.ParseID(raw); ok && id > 0 {
 			if _, dup := seen[id]; !dup {
 				seen[id] = struct{}{}
 				ids = append(ids, id)
 			}
+		}
+	}
+	for _, it := range items {
+		add(it.ProposedByUID)
+		if it.AmendedByUID != nil {
+			add(*it.AmendedByUID)
+		}
+		if it.UndoneByUID != nil {
+			add(*it.UndoneByUID)
 		}
 	}
 	if len(ids) == 0 {
@@ -454,13 +582,21 @@ func (c *Catalog) attachMergeRequestPeople(ctx context.Context, items []repr.Mer
 	if err != nil {
 		return
 	}
-	for i := range items {
-		if id, ok := repr.ParseID(items[i].ProposedByUID); ok {
+	lookup := func(raw *string) *repr.UserRef {
+		if raw == nil {
+			return nil
+		}
+		if id, ok := repr.ParseID(*raw); ok {
 			if u, ok := users[id]; ok {
-				u := u
-				items[i].ProposedBy = &u
+				return &u
 			}
 		}
+		return nil
+	}
+	for i := range items {
+		items[i].ProposedBy = lookup(&items[i].ProposedByUID)
+		items[i].AmendedBy = lookup(items[i].AmendedByUID)
+		items[i].UndoneBy = lookup(items[i].UndoneByUID)
 	}
 }
 
@@ -475,8 +611,11 @@ func mergeRequestErr(err error) error {
 	case errors.Is(err, catsvc.ErrCoolingOff):
 		return problem.New(problem.CodeInvalidStateTransition, "", "", "the cooling-off has not ended yet.")
 	case errors.Is(err, catsvc.ErrSameEntity), errors.Is(err, catsvc.ErrCrossMedium),
-		errors.Is(err, catsvc.ErrEntityNotLive), errors.Is(err, catsvc.ErrHiddenSurvivor):
+		errors.Is(err, catsvc.ErrEntityNotLive), errors.Is(err, catsvc.ErrHiddenSurvivor),
+		errors.Is(err, catsvc.ErrMergeChoice):
 		return problem.New(problem.CodeValidationFailed, "", "", err.Error())
+	case errors.Is(err, catsvc.ErrUndoUnavailable), errors.Is(err, catsvc.ErrUndoExpired), errors.Is(err, catsvc.ErrUndoBlocked):
+		return problem.New(problem.CodeInvalidStateTransition, "", "", err.Error())
 	}
 	return err
 }

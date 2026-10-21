@@ -1,7 +1,12 @@
 <script setup lang="ts">
-definePageMeta({ title: '删除请求审核' })
+definePageMeta({
+  redirect: (to) => ({
+    path: '/review/requests',
+    query: { ...to.query, tab: 'delete' }
+  })
+})
 </script>
 
 <template>
-  <ReviewDeletionsContainer />
+  <div />
 </template>
