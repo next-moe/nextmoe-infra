@@ -64,6 +64,7 @@ NextMoe 资料库的唯一编辑入口。所有第一方站点的用户在这里
 | `catalog.discussion_posts_per_hour` | 30 | 每人每小时可发的讨论留言 |
 | `catalog.deletion_requests_per_day` / `_editor` / `_reviewer` | 5 / 20 / 200 | 删除请求 |
 | `catalog.deletion_cooling_off_hours` | 48 | 删除批准后的冷静期 |
+| `catalog.split_requests_per_day` / `_editor` / `_reviewer` | 5 / 20 / 200 | 拆分请求（冷静期与撤销期沿用 `catalog.merge_cooling_off_hours`、`catalog.merge_undo_window_days`） |
 | `catalog.edit_merge_reward` | 1 | 提案被他人合并后给提案人发放的萌萌点（0 = 停发） |
 | `catalog.edit_merge_reward_window_days` | 7 | 编辑奖励任务每次回看的天数 |
 | `auth.sso_session_idle_days` | 30 | 账号中心会话闲置续期 |
@@ -74,6 +75,8 @@ NextMoe 资料库的唯一编辑入口。所有第一方站点的用户在这里
 定时任务 `catalog-merge-requests`（每小时）执行冷静期已过、由编辑台发起并已批准的合并请求；配置在 `jobs.catalog_merge_requests.*`。
 
 定时任务 `catalog-deletion-requests`（每小时，`jobs.catalog_deletion_requests.*`）执行冷静期已过、已批准的删除请求；作品在此期间已被合并或删除的，请求自动关闭。
+
+定时任务 `catalog-split-requests`（每小时，`jobs.catalog_split_requests.*`）执行冷静期已过、已批准的拆分请求：新建作品、移走所选发行（连同发行级锚、厂商与只限这些发行的署名），在原作品留下带 `extra.vndb_id` 的已删墓碑行防止 VNDB 导入重建，把所选 Bangumi/批评空间条目升为新作品的身份锚并写拒配记录，把这对作品记为已决定的候选对。审核者在 `catalog.merge_undo_window_days` 天内可撤销：发行与锚原样归位，新作品并回原作品（新 id 重定向到原 id）。下游通过 `GET /v2/catalog/splits` 读取拆分事件。
 
 定时任务 `catalog-edit-rewards`（每 15 分钟，`jobs.catalog_edit_rewards.*`）给编辑奖励：回看 `catalog.edit_merge_reward_window_days` 天内合并、且合并人不是提案人的提案（不分来源站点与条目类型；自己合并、免审直编、回滚都不发），按 `catalog.edit_merge_reward` 给提案人记一笔 `content_approved`，来源 `nextmoe-editor`，幂等键 `catalog_edit_merged:<提案 id>`。论坛此前已用 `galgame_edit_merged:<提案 id>` 发过的跳过，不会重复发放。
 

@@ -652,6 +652,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/catalog/splits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Work split feed
+         * @description Executed and undone splits, oldest change first. Keyset-paginated. A split moves releases from original_id to a new work: the new id also appears on /v2/catalog/changes, and the moved releases keep their ids. A mirror that hangs its own data off releases or editions should follow them to new_work_id. An undo re-surfaces the split with state=undone: the releases are back on original_id and new_work_id redirects there (/v2/catalog/redirects). Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+         */
+        get: operations["listCatalogSplits"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/catalog/stats": {
         parameters: {
             query?: never;
@@ -2080,6 +2100,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/me/split-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview a split
+         * @description Every live release of the work, the registry entries that could become the new work's identity, what moves and what stays, titles suggested from the chosen releases, and the blockers, warnings and registry facts for the choice in release_ids= and promote=. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+         */
+        get: operations["getMySplitPreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/me/split-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List my split requests
+         * @description The bearer's own split requests, newest first; follow next_cursor for more. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+         */
+        get: operations["listMySplitRequests"];
+        put?: never;
+        /**
+         * Request a split
+         * @description Asks reviewers to move some releases of a work into a work of their own, for an edition that deserves its own entry although VNDB lists it under the same VN. Nothing changes on filing: a reviewer approves (and may amend the selection), the cooling-off runs, then the new work is created. One open or approved request per work; another is 409. Quotas are tiered: catalog.split_requests_per_day, _editor, _reviewer inside catalog.write_quota_window_hours; past it 429 QUOTA_EXCEEDED. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+         */
+        post: operations["createMySplitRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/me/split-requests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get one split request
+         * @description Any split request, for its page in the editor. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+         */
+        get: operations["getMySplitRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Withdraw a split request
+         * @description Withdraws an open request the bearer filed. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+         */
+        patch: operations["patchMySplitRequest"];
+        trace?: never;
+    };
     "/v2/me/work-records": {
         parameters: {
             query?: never;
@@ -2538,6 +2626,70 @@ export interface paths {
         get: operations["getModerationSnapshot"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/moderation/split-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Split request queue
+         * @description Split requests, newest first; follow next_cursor for more. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+         */
+        get: operations["listModerationSplitRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/moderation/split-requests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get one split request for review
+         * @description Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+         */
+        get: operations["getModerationSplitRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Amend a split request
+         * @description Replaces the chosen releases, the new work's name, language and titles, and the entries to promote, while the request is open or approved. Validated like a filing; records who amended. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+         */
+        patch: operations["amendModerationSplitRequest"];
+        trace?: never;
+    };
+    "/v2/moderation/split-requests/{id}/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decide a split request
+         * @description decision=approve|reject|execute|undo. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+         */
+        post: operations["decideModerationSplitRequest"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3890,6 +4042,25 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        CreateSplitRequestInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/CreateSplitRequestInputBody.json
+             */
+            readonly $schema?: string;
+            /** @description Why these releases are a work of their own. Must not be used as a discriminant. */
+            note: string;
+            /**
+             * @description Family of the entry. Only works can be split today.
+             * @enum {string}
+             */
+            object: "work";
+            /** @description The work to split. */
+            target_id: string;
+        } & {
+            [key: string]: unknown;
+        };
         CreditEntry: {
             /** @description null if this credit is not a voice on a character. */
             character_id: string | null;
@@ -4052,6 +4223,23 @@ export interface components {
             decision: "merge" | "decline";
             /** @description Must not be used as a discriminant. */
             note?: string;
+        } & {
+            [key: string]: unknown;
+        };
+        DecideSplitRequestInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/DecideSplitRequestInputBody.json
+             */
+            readonly $schema?: string;
+            /**
+             * @description approve starts the cooling-off (catalog.merge_cooling_off_hours) after which the catalog-split-requests job executes it; reject closes it; execute runs an approved request whose cooling-off has ended without waiting for the job; undo puts an executed split back while undo_until has not passed: the releases return and the new work is merged into the original.
+             * @enum {string}
+             */
+            decision: "approve" | "reject" | "execute" | "undo";
+            /** @description Required to reject and to undo. Must not be used as a discriminant. */
+            reason?: string;
         } & {
             [key: string]: unknown;
         };
@@ -6260,6 +6448,76 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        ListSplitEvent: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/ListSplitEvent.json
+             */
+            readonly $schema?: string;
+            /** @description Named facet buckets. Present only when facets= is requested. */
+            facets?: {
+                [key: string]: components["schemas"]["FacetValue"][] | null;
+            };
+            /** @description Members of this page. Empty array, never null. */
+            items: components["schemas"]["SplitEvent"][];
+            /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
+            missing?: string[];
+            /** @description Opaque keyset cursor. Omitted on the last page. */
+            next_cursor?: string;
+            /**
+             * @description Type discriminant. Always list.
+             * @enum {string}
+             */
+            object: "list";
+            /**
+             * Format: int64
+             * @description Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+             */
+            total?: number;
+            /**
+             * @description Present in page mode only. eq: total is exact. gte: total is a lower bound.
+             * @enum {string}
+             */
+            total_relation?: "eq" | "gte";
+        } & {
+            [key: string]: unknown;
+        };
+        ListSplitRequestRecord: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/ListSplitRequestRecord.json
+             */
+            readonly $schema?: string;
+            /** @description Named facet buckets. Present only when facets= is requested. */
+            facets?: {
+                [key: string]: components["schemas"]["FacetValue"][] | null;
+            };
+            /** @description Members of this page. Empty array, never null. */
+            items: components["schemas"]["SplitRequestRecord"][];
+            /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
+            missing?: string[];
+            /** @description Opaque keyset cursor. Omitted on the last page. */
+            next_cursor?: string;
+            /**
+             * @description Type discriminant. Always list.
+             * @enum {string}
+             */
+            object: "list";
+            /**
+             * Format: int64
+             * @description Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+             */
+            total?: number;
+            /**
+             * @description Present in page mode only. eq: total is exact. gte: total is a lower bound.
+             * @enum {string}
+             */
+            total_relation?: "eq" | "gte";
+        } & {
+            [key: string]: unknown;
+        };
         ListTag: {
             /**
              * Format: uri
@@ -7766,6 +8024,21 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        PatchSplitRequestInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/PatchSplitRequestInputBody.json
+             */
+            readonly $schema?: string;
+            /**
+             * @description Set withdrawn to withdraw an open request you filed.
+             * @enum {string}
+             */
+            state: "withdrawn";
+        } & {
+            [key: string]: unknown;
+        };
         Person: {
             /**
              * Format: uri
@@ -8916,6 +9189,349 @@ export interface components {
              * @enum {string}
              */
             object: "snapshot";
+        } & {
+            [key: string]: unknown;
+        };
+        SplitDraftBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/SplitDraftBody.json
+             */
+            readonly $schema?: string;
+            /** @description The new work's display name. Must not be used as a discriminant. */
+            display_name: string;
+            /**
+             * Format: bcp47
+             * @description The new work's original language, BCP-47.
+             */
+            olang: string;
+            /** @description Bangumi or ErogameScape entries linked to the work as related or probable that become the new work's identity. */
+            promote_refs?: components["schemas"]["SplitRef"][];
+            /** @description Releases of the work that move to the new work. At least one release has to stay. */
+            release_ids: string[];
+            /** @description Titles the new work starts with. */
+            titles?: components["schemas"]["SplitTitle"][];
+        } & {
+            [key: string]: unknown;
+        };
+        SplitEvent: {
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC. When the split was executed or undone, whichever is later; the cursor resumes from it, so an undo re-surfaces the split at the tail.
+             */
+            changed_at: string;
+            /** @description Split request id. */
+            id: string;
+            /** @description The work the split created. */
+            new_work_id: string;
+            /**
+             * @description Type discriminant. Always split.
+             * @enum {string}
+             */
+            object: "split";
+            /** @description The work the releases left. */
+            original_id: string;
+            /** @description Releases that moved. */
+            release_ids: string[];
+            /**
+             * @description executed: new_work_id now holds release_ids. undone: they are back on original_id and new_work_id redirects to it (see /v2/catalog/redirects).
+             * @enum {string}
+             */
+            state: "executed" | "undone";
+        } & {
+            [key: string]: unknown;
+        };
+        SplitMovedCount: {
+            /**
+             * Format: int64
+             * @description Rows.
+             */
+            count: number;
+            /**
+             * @description releases: releases moved to the new work; tombstones: retired rows left on the original so the VNDB import does not mint the moved releases there again; titles: titles created on the new work; credits: credits limited to a moved release, moved with it; refs: source entries promoted to the new work's identity; rejections: records that keep those entries from being matched back to the original.
+             * @enum {string}
+             */
+            key: "releases" | "tombstones" | "titles" | "credits" | "refs" | "rejections";
+        } & {
+            [key: string]: unknown;
+        };
+        SplitPreview: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/SplitPreview.json
+             */
+            readonly $schema?: string;
+            /** @description Reasons the split cannot be filed as chosen. */
+            blockers: components["schemas"]["MergePreviewIssue"][];
+            /** @description Separate registry entries linked to the work that could become the new work's identity. */
+            candidates: components["schemas"]["SplitPreviewRef"][];
+            /** @description What the registries say about the chosen releases, for the reviewer to weigh. */
+            facts: components["schemas"]["MergePreviewIssue"][];
+            /** @description What goes to the new work. */
+            moves: components["schemas"]["SplitPreviewCount"][];
+            /**
+             * @description Type discriminant. Always split_preview.
+             * @enum {string}
+             */
+            object: "split_preview";
+            /**
+             * Format: bcp47
+             * @description Its original language.
+             */
+            olang: string;
+            /** @description An open or approved split request on the work. null when none. */
+            pending_request_id: string | null;
+            /** @description Every live release of the work, oldest first. */
+            releases: components["schemas"]["SplitPreviewRelease"][];
+            /** @description What stays with the original. */
+            stays: components["schemas"]["SplitPreviewCount"][];
+            /**
+             * Format: bcp47
+             * @description The original language to start from.
+             */
+            suggested_lang: string;
+            /** @description A display name derived from the chosen releases' titles. Empty when nothing is chosen. Must not be used as a discriminant. */
+            suggested_name: string;
+            /** @description The work. */
+            target_id: string;
+            /** @description Its display name. Must not be used as a discriminant. */
+            target_name: string;
+            /**
+             * @description Family of the entry.
+             * @enum {string}
+             */
+            target_object: "work";
+            /** @description Titles derived from the chosen releases. */
+            titles: components["schemas"]["SplitTitle"][];
+            /** @description The VNDB VN the work is anchored to. null when none. */
+            vndb_anchor: string | null;
+            /** @description Consequences to read before filing. */
+            warnings: components["schemas"]["MergePreviewIssue"][];
+        } & {
+            [key: string]: unknown;
+        };
+        SplitPreviewCount: {
+            /**
+             * Format: int64
+             * @description Rows.
+             */
+            count: number;
+            /**
+             * @description What is counted.
+             * @enum {string}
+             */
+            key: "releases" | "release_labels" | "release_refs" | "credits" | "tombstones" | "characters" | "tags" | "titles";
+        } & {
+            [key: string]: unknown;
+        };
+        SplitPreviewRef: {
+            /**
+             * @description How it is linked to the original today.
+             * @enum {string}
+             */
+            anchor_kind: "probable" | "related";
+            /** @description Entry id. Must not be used as a discriminant beyond exact match. */
+            external_id: string;
+            /** @description A work that already holds it as its identity; it cannot be promoted then. null when free. */
+            held_by_id: string | null;
+            /** @description Whether promote= chose it. */
+            selected: boolean;
+            /**
+             * @description Registry.
+             * @enum {string}
+             */
+            source: "bangumi" | "erogamescape";
+        } & {
+            [key: string]: unknown;
+        };
+        SplitPreviewRelease: {
+            /**
+             * Format: int64
+             * @description Credits limited to this release; they move with it.
+             */
+            credit_count: number;
+            /** @description Release id. */
+            id: string;
+            /**
+             * Format: int64
+             * @description Companies credited on the release; they move with it.
+             */
+            label_count: number;
+            /**
+             * Format: bcp47
+             * @description BCP-47. Empty if unrecorded.
+             */
+            lang: string;
+            /** @description Empty when unrecorded. Must not be used as a discriminant. */
+            platform: string;
+            /**
+             * Format: date
+             * @description Calendar date. null if undated.
+             */
+            release_date: string | null;
+            /**
+             * @description null when release_date is null.
+             * @enum {string|null}
+             */
+            release_date_precision: "day" | "month" | "year" | null;
+            /**
+             * @description Release class.
+             * @enum {string}
+             */
+            release_kind: "default" | "digital" | "physical" | "trial" | "patch";
+            /** @description Whether release_ids= chose it. */
+            selected: boolean;
+            /** @description Registries that hold this release, e.g. vndb, dlsite, getchu. Open vocabulary. */
+            sources: string[];
+            /** @description Release title; empty when unrecorded. Must not be used as a discriminant. */
+            title: string;
+            /** @description Whether moving it leaves a retired row on the original for the VNDB import. */
+            tombstone: boolean;
+            /** @description VNDB release id. null when none. */
+            vndb_rid: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        SplitRef: {
+            /** @description The entry's id in that registry. Must not be used as a discriminant beyond exact match. */
+            external_id: string;
+            /**
+             * @description A registry that lists editions as separate entries.
+             * @enum {string}
+             */
+            source: "bangumi" | "erogamescape";
+        } & {
+            [key: string]: unknown;
+        };
+        SplitRequestRecord: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/SplitRequestRecord.json
+             */
+            readonly $schema?: string;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC. null when never amended.
+             */
+            amended_at: string | null;
+            /** @description Account behind amended_by_uid. */
+            amended_by: components["schemas"]["UserRef"] | null;
+            /** @description Central account id of the reviewer who last changed the selection. null when never amended. */
+            amended_by_uid: string | null;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC. null before a decision.
+             */
+            decided_at: string | null;
+            /** @description Account behind decided_by_uid. */
+            decided_by: components["schemas"]["UserRef"] | null;
+            /** @description Central account id of the reviewer who approved or rejected. */
+            decided_by_uid: string | null;
+            /** @description The reviewer's reason for a rejection, or why the request closed by itself. Must not be used as a discriminant. */
+            decision_note: string;
+            /** @description The new work's display name. Must not be used as a discriminant. */
+            display_name: string;
+            /**
+             * Format: date-time
+             * @description End of the cooling-off once approved. null before approval.
+             */
+            execute_after: string | null;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC. null until executed.
+             */
+            executed_at: string | null;
+            /** @description Split request id. */
+            id: string;
+            /** @description What the execution created or moved. Empty before execution. */
+            moved: components["schemas"]["SplitMovedCount"][];
+            /** @description The work the split created. null until executed; after an undo it redirects to target_id. */
+            new_work_id: string | null;
+            /** @description The created work's display name, empty until executed. Must not be used as a discriminant. */
+            new_work_name: string;
+            /** @description The requester's reason. Must not be used as a discriminant. */
+            note: string;
+            /**
+             * @description Type discriminant. Always split_request.
+             * @enum {string}
+             */
+            object: "split_request";
+            /**
+             * Format: bcp47
+             * @description The new work's original language, BCP-47.
+             */
+            olang: string;
+            /**
+             * @description Property the edit was made from: kungal (the KUN Visual Novel forum), moyu, letmoe, nextmoe or editor (the NextMoe editor itself). null on rows recorded before attribution existed.
+             * @enum {string|null}
+             */
+            origin_site: "kungal" | "moyu" | "letmoe" | "nextmoe" | "editor" | null;
+            /** @description Source entries that become the new work's identity. */
+            promote_refs: components["schemas"]["SplitRef"][];
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC.
+             */
+            proposed_at: string;
+            /** @description Account behind proposed_by_uid. null only when the account directory could not be read. */
+            proposed_by: components["schemas"]["UserRef"] | null;
+            /** @description Central account id of the requester. */
+            proposed_by_uid: string;
+            /** @description Releases that move to the new work. */
+            release_ids: string[];
+            /**
+             * @description open awaits a reviewer; approved waits out the cooling-off; executed created the new work; rejected and withdrawn are closed; undone was executed and then put back.
+             * @enum {string}
+             */
+            state: "open" | "approved" | "executed" | "rejected" | "withdrawn" | "undone";
+            /** @description The work the releases are split off. */
+            target_id: string;
+            /** @description Its display name. Must not be used as a discriminant. */
+            target_name: string;
+            /**
+             * @description Family of the entry. Only works can be split today.
+             * @enum {string}
+             */
+            target_object: "work";
+            /** @description Titles the new work starts with. */
+            titles: components["schemas"]["SplitTitle"][];
+            /** @description The merge that folded the new work back into target_id on undo. null unless undone. */
+            undo_merge_id: string | null;
+            /** @description The reviewer's note when undoing. Must not be used as a discriminant. */
+            undo_note: string;
+            /**
+             * Format: date-time
+             * @description Last moment a reviewer can undo the split. null unless executed.
+             */
+            undo_until: string | null;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC. null unless undone.
+             */
+            undone_at: string | null;
+            /** @description Account behind undone_by_uid. */
+            undone_by: components["schemas"]["UserRef"] | null;
+            /** @description Central account id of the reviewer who undid the split. */
+            undone_by_uid: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        SplitTitle: {
+            /**
+             * Format: bcp47
+             * @description BCP-47, or empty for a title with no language.
+             */
+            lang: string;
+            /** @description Must not be used as a discriminant. */
+            title: string;
+            /**
+             * @description How the new work holds the title.
+             * @enum {string}
+             */
+            title_kind: "official" | "alias" | "abbreviation";
         } & {
             [key: string]: unknown;
         };
@@ -13572,6 +14188,119 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listCatalogSplits: {
+        parameters: {
+            query?: {
+                /** @description Opaque keyset cursor from next_cursor. Omit to start from the first split. */
+                cursor?: string;
+                /** @description Page size, 1-100. Default 50. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListSplitEvent"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -23808,6 +24537,571 @@ export interface operations {
             };
         };
     };
+    getMySplitPreview: {
+        parameters: {
+            query?: {
+                /** @description Family of the entry. */
+                object?: "work";
+                /** @description The work. */
+                target_id?: string;
+                /** @description Comma-separated release ids chosen to move. */
+                release_ids?: string;
+                /** @description Comma-separated source:external_id entries chosen to promote. */
+                promote?: string;
+                /** @description The split request being reviewed, left out of the one-pending-request check so its own page does not report it. */
+                request_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitPreview"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listMySplitRequests: {
+        parameters: {
+            query?: {
+                /** @description Narrow to one state. */
+                state?: "open" | "approved" | "executed" | "rejected" | "withdrawn" | "undone";
+                /** @description Narrow to requests about one work. */
+                target_id?: string;
+                /** @description Narrow to requests filed from one first-party property. */
+                origin_site?: "kungal" | "moyu" | "letmoe" | "nextmoe" | "editor";
+                /** @description Opaque keyset cursor from next_cursor. */
+                cursor?: string;
+                /** @description Page size, 1-100. Default 20. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListSplitRequestRecord"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createMySplitRequest: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSplitRequestInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitRequestRecord"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getMySplitRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Split request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitRequestRecord"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    patchMySplitRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Split request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchSplitRequestInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitRequestRecord"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listMyWorkRecords: {
         parameters: {
             query?: {
@@ -26892,6 +28186,455 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listModerationSplitRequests: {
+        parameters: {
+            query?: {
+                /** @description Narrow to one state. */
+                state?: "open" | "approved" | "executed" | "rejected" | "withdrawn" | "undone";
+                /** @description Narrow to requests about one work. */
+                target_id?: string;
+                /** @description Narrow to requests filed from one first-party property. */
+                origin_site?: "kungal" | "moyu" | "letmoe" | "nextmoe" | "editor";
+                /** @description Opaque keyset cursor from next_cursor. */
+                cursor?: string;
+                /** @description Page size, 1-100. Default 20. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListSplitRequestRecord"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getModerationSplitRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Split request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitRequestRecord"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    amendModerationSplitRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Split request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SplitDraftBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitRequestRecord"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    decideModerationSplitRequest: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                /** @description Split request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecideSplitRequestInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SplitRequestRecord"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -41,6 +41,7 @@ type Catalog struct {
 	EditContext     *catsvc.EditContextService
 	Merges          *catsvc.MergeService
 	Deletions       *catsvc.DeletionService
+	Splits          *catsvc.SplitService
 	UsersOf         UsersOf
 	Uploads         EditImageUpload
 	NewsImages      NewsImageStore
