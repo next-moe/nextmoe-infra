@@ -284,3 +284,22 @@ func TestUndoLabelMergeRestoresTheSecondFollow(t *testing.T) {
 		"the follow the merge folded away comes back")
 	assert.EqualValues(t, 1, countRows(t, `SELECT count(*) FROM catalog_user_entity_follow WHERE actor_uid = 704 AND entity_id = ?`, survivor))
 }
+
+func TestAPurgedAccountGetsNothingBackFromAMergeArchive(t *testing.T) {
+	f := newAbsorbFixture(t)
+	seedAbsorbLoser(t, &f)
+	const voter = int64(705)
+	own := &model.CatalogWorkCover{WorkID: f.loser, ImageHash: "loseronlycoverhash", SourceID: model.SourceBangumi}
+	require.NoError(t, testDB.Create(own).Error)
+	vote := &model.CatalogCoverVote{WorkID: f.loser, CoverID: own.ID, ActorUID: voter, Site: "kungal"}
+	require.NoError(t, testDB.Create(vote).Error)
+	pid := absorbNow(t, f.loser, f.survivor)
+	require.EqualValues(t, 1, countRows(t, `SELECT count(*) FROM catalog_merge_archive WHERE proposal_id = ? AND table_name = 'catalog_cover_vote' AND (row->>'actor_uid')::bigint = ?`, pid, voter),
+		"absorb archives the vote with its imported cover")
+
+	_, err := PurgeAccount(t.Context(), testDB, voter)
+	require.NoError(t, err)
+	_, err = testMerge.UndoMerge(t.Context(), pid, 9, "undo")
+	require.NoError(t, err)
+	assert.Zero(t, countRows(t, `SELECT count(*) FROM catalog_cover_vote WHERE actor_uid = ?`, voter), "an erased account's archived vote stays erased")
+}
