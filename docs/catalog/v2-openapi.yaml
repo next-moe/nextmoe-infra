@@ -6127,6 +6127,58 @@ components:
           maxItems: 500
           type: array
       type: object
+    MergeMovedCount:
+      additionalProperties: true
+      properties:
+        count:
+          description: Rows of that kind.
+          format: int64
+          minimum: 0
+          type: integer
+        key:
+          description: Kind of row. Closed vocabulary; several catalog tables can share a kind.
+          enum:
+            - releases
+            - titles
+            - intros
+            - tags
+            - credits
+            - characters
+            - character_instances
+            - companies
+            - release_companies
+            - relations
+            - entity_relations
+            - company_relations
+            - series
+            - covers
+            - screenshots
+            - platforms
+            - engines
+            - anchors
+            - site_usage
+            - source_ratings
+            - popularity
+            - source_playtime
+            - user_ratings
+            - user_folders
+            - user_states
+            - user_playtime
+            - cover_votes
+            - follows
+            - hidden_rows
+            - aliases
+            - intro_checks
+            - traits
+            - credit_names
+            - persons
+            - redirects
+          type: string
+          x-vocabulary-closed: true
+      required:
+        - key
+        - count
+      type: object
     MergePreview:
       additionalProperties: true
       properties:
@@ -6658,11 +6710,10 @@ components:
           pattern: ^[0-9]+$
           type: string
         moved:
-          additionalProperties:
-            format: int64
-            type: integer
-          description: For an executed or undone merge, how many rows of each table pointed at the source when it ran, keyed by table name. Empty object otherwise.
-          type: object
+          description: For an executed or undone merge, how many rows of each kind pointed at the source when it ran. Empty array otherwise.
+          items:
+            $ref: "#/components/schemas/MergeMovedCount"
+          type: array
         note:
           description: The requester's reason followed by decision notes. Must not be used as a discriminant.
           maxLength: 4000
@@ -6710,6 +6761,10 @@ components:
           maxLength: 20
           pattern: ^[0-9]+$
           type: string
+        source_name:
+          description: source_id's display name now; for an entry merged away, its name when it was retired. Empty when unreadable. Must not be used as a discriminant.
+          maxLength: 512
+          type: string
         state:
           description: open awaits a reviewer; approved waits out the cooling-off, after which the merge runs; executed is done; undone means a reviewer took an executed merge back and source_id is live again.
           enum:
@@ -6725,6 +6780,10 @@ components:
           description: The entry that survives.
           maxLength: 20
           pattern: ^[0-9]+$
+          type: string
+        target_name:
+          description: target_id's display name now. Empty when unreadable. Must not be used as a discriminant.
+          maxLength: 512
           type: string
         target_object:
           description: Family of the two entries.
@@ -6790,6 +6849,8 @@ components:
         - undone_by
         - undo_until
         - moved
+        - source_name
+        - target_name
       type: object
     MergeUndoReport:
       additionalProperties: true
@@ -6800,22 +6861,20 @@ components:
             type: string
           type: array
         not_restored:
-          additionalProperties:
-            format: int64
-            type: integer
-          description: "Recorded rows that could not come back, keyed by table: data both sides held and the merge folded into one row, or rows deleted since. Empty object when everything came back."
-          type: object
+          description: "Recorded rows that could not come back, by kind: data both sides held and the merge folded into one row, or rows deleted since. Empty array when everything came back."
+          items:
+            $ref: "#/components/schemas/MergeMovedCount"
+          type: array
         removed_inserted:
           description: Title and alias copies the merge had added to the target, removed.
           format: int64
           minimum: 0
           type: integer
         restored:
-          additionalProperties:
-            format: int64
-            type: integer
-          description: Rows back on the source, keyed by table.
-          type: object
+          description: Rows back on the source, by kind.
+          items:
+            $ref: "#/components/schemas/MergeMovedCount"
+          type: array
         reverted_fields:
           description: Target columns put back to their pre-merge value.
           items:

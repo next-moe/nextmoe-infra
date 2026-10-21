@@ -6299,6 +6299,20 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        MergeMovedCount: {
+            /**
+             * Format: int64
+             * @description Rows of that kind.
+             */
+            count: number;
+            /**
+             * @description Kind of row. Closed vocabulary; several catalog tables can share a kind.
+             * @enum {string}
+             */
+            key: "releases" | "titles" | "intros" | "tags" | "credits" | "characters" | "character_instances" | "companies" | "release_companies" | "relations" | "entity_relations" | "company_relations" | "series" | "covers" | "screenshots" | "platforms" | "engines" | "anchors" | "site_usage" | "source_ratings" | "popularity" | "source_playtime" | "user_ratings" | "user_folders" | "user_states" | "user_playtime" | "cover_votes" | "follows" | "hidden_rows" | "aliases" | "intro_checks" | "traits" | "credit_names" | "persons" | "redirects";
+        } & {
+            [key: string]: unknown;
+        };
         MergePreview: {
             /**
              * Format: uri
@@ -6572,10 +6586,8 @@ export interface components {
             hide_release_ids: string[];
             /** @description Merge request id. */
             id: string;
-            /** @description For an executed or undone merge, how many rows of each table pointed at the source when it ran, keyed by table name. Empty object otherwise. */
-            moved: {
-                [key: string]: number;
-            };
+            /** @description For an executed or undone merge, how many rows of each kind pointed at the source when it ran. Empty array otherwise. */
+            moved: components["schemas"]["MergeMovedCount"][];
             /** @description The requester's reason followed by decision notes. Must not be used as a discriminant. */
             note: string;
             /**
@@ -6601,6 +6613,8 @@ export interface components {
             proposed_by_uid: string;
             /** @description The entry that is folded away. Its id redirects to target_id once executed. */
             source_id: string;
+            /** @description source_id's display name now; for an entry merged away, its name when it was retired. Empty when unreadable. Must not be used as a discriminant. */
+            source_name: string;
             /**
              * @description open awaits a reviewer; approved waits out the cooling-off, after which the merge runs; executed is done; undone means a reviewer took an executed merge back and source_id is live again.
              * @enum {string}
@@ -6608,6 +6622,8 @@ export interface components {
             state: "open" | "approved" | "executed" | "rejected" | "withdrawn" | "undone";
             /** @description The entry that survives. */
             target_id: string;
+            /** @description target_id's display name now. Empty when unreadable. Must not be used as a discriminant. */
+            target_name: string;
             /**
              * @description Family of the two entries.
              * @enum {string}
@@ -6635,19 +6651,15 @@ export interface components {
         MergeUndoReport: {
             /** @description Target columns the merge overwrote but someone has edited since; left as they are. */
             kept_fields: string[];
-            /** @description Recorded rows that could not come back, keyed by table: data both sides held and the merge folded into one row, or rows deleted since. Empty object when everything came back. */
-            not_restored: {
-                [key: string]: number;
-            };
+            /** @description Recorded rows that could not come back, by kind: data both sides held and the merge folded into one row, or rows deleted since. Empty array when everything came back. */
+            not_restored: components["schemas"]["MergeMovedCount"][];
             /**
              * Format: int64
              * @description Title and alias copies the merge had added to the target, removed.
              */
             removed_inserted: number;
-            /** @description Rows back on the source, keyed by table. */
-            restored: {
-                [key: string]: number;
-            };
+            /** @description Rows back on the source, by kind. */
+            restored: components["schemas"]["MergeMovedCount"][];
             /** @description Target columns put back to their pre-merge value. */
             reverted_fields: string[];
             /**

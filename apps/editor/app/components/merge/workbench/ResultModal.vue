@@ -117,7 +117,7 @@ const asText = (value: unknown) =>
             />
             <span class="tabular-nums">{{ releaseDateText(release) }}</span>
             <span class="min-w-0 truncate">{{
-              release.title || release.platform
+              release.title || release.platform.toUpperCase()
             }}</span>
             <span
               v-if="choices.hide.includes(release.id)"

@@ -1,17 +1,11 @@
 <script setup lang="ts">
 import type { CatalogMergePreviewCount } from '#shared/types/catalog'
-import { MERGE_COUNT_LABELS, MERGE_TABLE_LABELS } from '~/constants/merge'
+import { MERGE_COUNT_LABELS, movedLabel } from '~/constants/merge'
 import { countAfter } from '~/utils/merge/plan'
 
 const props = defineProps<{ counts: CatalogMergePreviewCount[] }>()
 
-const label = (key: string) => {
-  if (MERGE_COUNT_LABELS[key]) {
-    return MERGE_COUNT_LABELS[key]
-  }
-  const [table, column] = key.split('.')
-  return `${MERGE_TABLE_LABELS[table!] ?? table}（${column}）`
-}
+const label = (key: string) => MERGE_COUNT_LABELS[key] ?? movedLabel(key)
 </script>
 
 <template>

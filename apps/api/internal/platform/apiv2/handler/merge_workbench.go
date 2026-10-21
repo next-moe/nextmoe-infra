@@ -2,7 +2,9 @@ package handler
 
 import (
 	"context"
+	"maps"
 	"net/http"
+	"slices"
 
 	"api/internal/platform/apiv2/problem"
 	"api/internal/platform/apiv2/repr"
@@ -166,16 +168,20 @@ func amendModerationMergeRequest(cat *Catalog) func(context.Context, *amendMerge
 	}
 }
 
-func undoReportFrom(r catsvc.UndoReport) *repr.MergeUndoReport {
-	widen := func(m map[string]int) map[string]int64 {
-		out := make(map[string]int64, len(m))
-		for k, v := range m {
-			out[k] = int64(v)
+func movedCounts[N int | int64](m map[string]N) []repr.MergeMovedCount {
+	out := make([]repr.MergeMovedCount, 0, len(m))
+	for _, key := range slices.Sorted(maps.Keys(m)) {
+		if m[key] > 0 {
+			out = append(out, repr.MergeMovedCount{Key: key, Count: int64(m[key])})
 		}
-		return out
 	}
+	slices.SortStableFunc(out, func(a, b repr.MergeMovedCount) int { return int(b.Count - a.Count) })
+	return out
+}
+
+func undoReportFrom(r catsvc.UndoReport) *repr.MergeUndoReport {
 	return &repr.MergeUndoReport{
-		Restored: widen(r.Restored), NotRestored: widen(r.Missing),
+		Restored: movedCounts(r.Restored), NotRestored: movedCounts(r.Missing),
 		RevertedFields: nonNil(r.RevertedFields), KeptFields: nonNil(r.KeptFields),
 		RemovedInserted: int64(r.RemovedInserted), UnhiddenRelease: int64(r.UnhiddenRelease),
 	}

@@ -12,7 +12,7 @@ const props = defineProps<{
 const emit = defineEmits<{ pick: [id: string | null] }>()
 
 const workbench = useMergeWorkbench()
-const { preview, candidates, family } = workbench
+const { preview, candidates, family, request } = workbench
 const refs = useRefNames()
 
 const meta = computed(() => ENTITY_META[family.value])
@@ -20,8 +20,16 @@ const other = computed(() =>
   props.side === 'source' ? workbench.targetId.value : workbench.sourceId.value
 )
 const info = computed(() => (preview.value ? preview.value[props.side] : null))
+const recordName = computed(() =>
+  request.value
+    ? props.side === 'source'
+      ? request.value.source_name
+      : request.value.target_name
+    : ''
+)
 const name = computed(
   () =>
+    recordName.value ||
     info.value?.name ||
     (props.entityId
       ? refs.nameOf(family.value as EditRefFamily, props.entityId)
@@ -113,6 +121,13 @@ const REASONS: Record<string, string> = {
           <span v-if="info?.site" class="inline-flex items-center gap-1">
             <KunIcon name="lucide:radio-tower" class="size-3.5" />
             {{ SITE_LABELS[info.site] ?? info.site }} 已认领
+          </span>
+          <span
+            v-if="props.side === 'source' && request?.state === 'executed'"
+            class="text-warning-700 inline-flex items-center gap-1"
+          >
+            <KunIcon name="lucide:corner-up-right" class="size-3.5" />
+            已并入 #{{ request.target_id }}，编号会跳转
           </span>
           <span
             v-if="info && !info.live"

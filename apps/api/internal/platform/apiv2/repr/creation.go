@@ -45,18 +45,24 @@ type MergeRequestRecord struct {
 	UndoneByUID     *string           `json:"undone_by_uid" pattern:"^[0-9]+$" maxLength:"20" doc:"Central account id of the reviewer who undid the merge. null unless state is undone."`
 	UndoneBy        *UserRef          `json:"undone_by" doc:"Account behind undone_by_uid. null unless state is undone or when the account directory could not be read."`
 	UndoUntil       *string           `json:"undo_until" format:"date-time" maxLength:"32" doc:"Last moment a reviewer may undo this executed merge under the original id (catalog.merge_undo_window_days). null when it cannot be undone: not executed, undo switched off, or executed before undo was recorded."`
-	Moved           map[string]int64  `json:"moved" doc:"For an executed or undone merge, how many rows of each table pointed at the source when it ran, keyed by table name. Empty object otherwise."`
+	Moved           []MergeMovedCount `json:"moved" doc:"For an executed or undone merge, how many rows of each kind pointed at the source when it ran. Empty array otherwise."`
 	SourceName      string            `json:"source_name" maxLength:"512" doc:"source_id's display name now; for an entry merged away, its name when it was retired. Empty when unreadable. Must not be used as a discriminant."`
 	TargetName      string            `json:"target_name" maxLength:"512" doc:"target_id's display name now. Empty when unreadable. Must not be used as a discriminant."`
 	UndoReport      *MergeUndoReport  `json:"undo_report,omitempty" doc:"Present only on the response to decision=undo."`
 }
 
+type MergeMovedCount struct {
+	_     struct{} `json:"-" additionalProperties:"true"`
+	Key   string   `json:"key" enum:"releases,titles,intros,tags,credits,characters,character_instances,companies,release_companies,relations,entity_relations,company_relations,series,covers,screenshots,platforms,engines,anchors,site_usage,source_ratings,popularity,source_playtime,user_ratings,user_folders,user_states,user_playtime,cover_votes,follows,hidden_rows,aliases,intro_checks,traits,credit_names,persons,redirects" doc:"Kind of row. Closed vocabulary; several catalog tables can share a kind."`
+	Count int64    `json:"count" minimum:"0" doc:"Rows of that kind."`
+}
+
 type MergeUndoReport struct {
-	_               struct{}         `json:"-" additionalProperties:"true"`
-	Restored        map[string]int64 `json:"restored" doc:"Rows back on the source, keyed by table."`
-	NotRestored     map[string]int64 `json:"not_restored" doc:"Recorded rows that could not come back, keyed by table: data both sides held and the merge folded into one row, or rows deleted since. Empty object when everything came back."`
-	RevertedFields  []string         `json:"reverted_fields" doc:"Target columns put back to their pre-merge value."`
-	KeptFields      []string         `json:"kept_fields" doc:"Target columns the merge overwrote but someone has edited since; left as they are."`
-	RemovedInserted int64            `json:"removed_inserted" minimum:"0" doc:"Title and alias copies the merge had added to the target, removed."`
-	UnhiddenRelease int64            `json:"unhidden_releases" minimum:"0" doc:"Releases the merge had hidden as duplicates, shown again."`
+	_               struct{}          `json:"-" additionalProperties:"true"`
+	Restored        []MergeMovedCount `json:"restored" doc:"Rows back on the source, by kind."`
+	NotRestored     []MergeMovedCount `json:"not_restored" doc:"Recorded rows that could not come back, by kind: data both sides held and the merge folded into one row, or rows deleted since. Empty array when everything came back."`
+	RevertedFields  []string          `json:"reverted_fields" doc:"Target columns put back to their pre-merge value."`
+	KeptFields      []string          `json:"kept_fields" doc:"Target columns the merge overwrote but someone has edited since; left as they are."`
+	RemovedInserted int64             `json:"removed_inserted" minimum:"0" doc:"Title and alias copies the merge had added to the target, removed."`
+	UnhiddenRelease int64             `json:"unhidden_releases" minimum:"0" doc:"Releases the merge had hidden as duplicates, shown again."`
 }

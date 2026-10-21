@@ -172,9 +172,12 @@ func TestLiveMergeRequestQuotaAndModeration(t *testing.T) {
 	status, _, raw = liveDo(t, env, http.MethodPost, "/v2/moderation/merge-requests/"+rec.ID+"/decisions", liveUserToken, `{"decision":"execute"}`)
 	require.Equal(t, http.StatusCreated, status, string(raw))
 	var executed struct {
-		State     string           `json:"state"`
-		UndoUntil *string          `json:"undo_until"`
-		Moved     map[string]int64 `json:"moved"`
+		State     string  `json:"state"`
+		UndoUntil *string `json:"undo_until"`
+		Moved     []struct {
+			Key   string `json:"key"`
+			Count int64  `json:"count"`
+		} `json:"moved"`
 	}
 	require.NoError(t, json.Unmarshal(raw, &executed))
 	require.Equal(t, "executed", executed.State)

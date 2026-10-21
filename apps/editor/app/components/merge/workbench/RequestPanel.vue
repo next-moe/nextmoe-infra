@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MERGE_FIELD_LABELS, MERGE_TABLE_LABELS } from '~/constants/merge'
+import { MERGE_FIELD_LABELS, movedLabel } from '~/constants/merge'
 import { mergeTimeline, noteEntries } from '~/utils/merge/timeline'
 
 const workbench = useMergeWorkbench()
@@ -34,10 +34,21 @@ const DECISION_TEXT: Record<string, string> = {
   system: ''
 }
 
-const tableLabel = (table: string) => MERGE_TABLE_LABELS[table] ?? table
-const moved = computed(() =>
-  Object.entries(request.value?.moved ?? {}).sort((a, b) => b[1] - a[1])
-)
+const moved = computed(() => request.value?.moved ?? [])
+const countsText = (items: { key: string; count: number }[]) =>
+  items.map((item) => `${movedLabel(item.key)} ${item.count}`).join('、')
+const reviewerName = (uid: string | null) => {
+  const r = request.value
+  if (!r || !uid) {
+    return ''
+  }
+  const known = [
+    [r.amended_by_uid, r.amended_by],
+    [r.undone_by_uid, r.undone_by],
+    [r.proposed_by_uid, r.proposed_by]
+  ].find(([id, user]) => String(id) === uid && user)
+  return (known?.[1] as { name?: string } | undefined)?.name ?? `#${uid}`
+}
 const chosen = computed(() =>
   Object.keys(request.value?.field_resolution ?? {}).map(
     (key) => MERGE_FIELD_LABELS[key] ?? key
@@ -87,7 +98,8 @@ const live = computed(
             />
             <span>
               <template v-if="entry.uid">
-                审核者 #{{ entry.uid }} {{ DECISION_TEXT[entry.kind] }}
+                审核者 {{ reviewerName(entry.uid) }}
+                {{ DECISION_TEXT[entry.kind] }}
               </template>
               <span v-if="entry.text" class="text-default-500">
                 {{ entry.uid ? '：' : '' }}{{ entry.text }}
@@ -130,11 +142,11 @@ const live = computed(
       <p class="text-sm font-medium">执行时移到保留方的数据</p>
       <div class="flex flex-wrap gap-2">
         <span
-          v-for="[table, count] in moved"
-          :key="table"
+          v-for="item in moved"
+          :key="item.key"
           class="bg-default-100 text-default-700 rounded-full px-3 py-1 text-sm"
         >
-          {{ tableLabel(table) }} {{ count }}
+          {{ movedLabel(item.key) }} {{ item.count }}
         </span>
       </div>
     </div>
@@ -145,20 +157,11 @@ const live = computed(
     >
       <p class="text-success-800 font-medium">撤销完成</p>
       <p class="text-success-800">
-        移回被并入方：{{
-          Object.entries(undoReport.restored)
-            .map(([table, count]) => `${tableLabel(table)} ${count}`)
-            .join('、') || '无'
-        }}
+        移回被并入方：{{ countsText(undoReport.restored) || '无' }}
       </p>
-      <p
-        v-if="Object.keys(undoReport.not_restored).length"
-        class="text-warning-800"
-      >
+      <p v-if="undoReport.not_restored.length" class="text-warning-800">
         未能移回（合并时与保留方合为一条，或之后已被删除）：{{
-          Object.entries(undoReport.not_restored)
-            .map(([table, count]) => `${tableLabel(table)} ${count}`)
-            .join('、')
+          countsText(undoReport.not_restored)
         }}
       </p>
       <p v-if="undoReport.kept_fields.length" class="text-warning-800">

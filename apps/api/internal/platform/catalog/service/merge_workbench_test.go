@@ -30,6 +30,7 @@ func seedEditionPair(t *testing.T) editionPair {
 	addExternalRef(t, model.EntityTypeWork, dst, model.SourceVNDB, "v4302", model.LinkKindExact)
 	addExternalRef(t, model.EntityTypeWork, dst, model.SourceBangumi, "114894", model.LinkKindExact)
 	addExternalRef(t, model.EntityTypeWork, dst, model.SourceErogameScape, "4871", model.LinkKindExact)
+	addExternalRef(t, model.EntityTypeWork, dst, model.SourceErogameScape, "226", model.LinkKindRelated)
 	addWorkTitle(t, src, "ja", "脅迫～終わらない明日～", model.WorkTitleKindOfficial)
 	addWorkTitle(t, src, "zh-Hans", "胁迫～没有终结的明日～", model.WorkTitleKindOfficial)
 	addWorkTitle(t, dst, "ja", "脅迫", model.WorkTitleKindOfficial)
@@ -54,7 +55,7 @@ func TestMergePreviewEditionPair(t *testing.T) {
 		fates[a.Side+":"+a.SourceKey+":"+a.ExternalID] = a.Fate
 	}
 	assert.Equal(t, FateDemotedRelated, fates["source:bangumi:350885"], "a second Bangumi subject becomes a related link")
-	assert.Equal(t, FateDemotedRelated, fates["source:erogamescape:226"])
+	assert.Equal(t, FateDuplicate, fates["source:erogamescape:226"], "the target already links EGS 226")
 	assert.Equal(t, FateStays, fates["target:vndb:v4302"])
 
 	var dup *PreviewRelease
@@ -77,7 +78,7 @@ func TestMergePreviewEditionPair(t *testing.T) {
 	assert.Equal(t, FateMoves, titleFate[e.srcTitle], "the target has no zh-Hans title")
 
 	assert.Contains(t, p.Facts, "VNDB 只收录了「脅迫」（v4302），「脅迫～終わらない明日～」在 VNDB 没有独立条目。")
-	require.Len(t, p.Warnings, 2, "each demoted anchor is explained")
+	require.Len(t, p.Warnings, 1, "the demoted Bangumi anchor is explained")
 }
 
 func TestMergePreviewBlockers(t *testing.T) {
@@ -157,8 +158,18 @@ func TestUndoMergeKeepsTheOriginalID(t *testing.T) {
 	require.NoError(t, testDB.Raw(`SELECT merged_at FROM catalog_redirect WHERE old_id = ?`, older).Scan(&flattenedAt).Error)
 	assert.WithinDuration(t, time.Now(), flattenedAt, time.Minute, "a flattened redirect re-surfaces on the feed")
 
+	moved, err := testMerge.MovedCounts(ctx, p.ID)
+	require.NoError(t, err)
+
 	rep, err := testMerge.UndoMerge(ctx, p.ID, 9, "different editions after all")
 	require.NoError(t, err)
+	for key, n := range moved {
+		if key == "redirects" {
+			continue
+		}
+		assert.EqualValues(t, n, rep.Restored[key]+rep.Missing[key], "every %s row the merge moved is accounted for once", key)
+	}
+	assert.Empty(t, rep.Missing, "nothing in this fixture folds into the survivor")
 
 	var alive bool
 	require.NoError(t, testDB.Raw(`SELECT deleted_at IS NULL AND status = ? FROM catalog_work WHERE id = ?`,
@@ -177,7 +188,11 @@ func TestUndoMergeKeepsTheOriginalID(t *testing.T) {
 	var kinds []int16
 	require.NoError(t, testDB.Raw(`SELECT link_kind FROM catalog_external_ref WHERE entity_type = ? AND entity_id = ? ORDER BY external_id`,
 		model.EntityTypeWork, e.src).Scan(&kinds).Error)
-	assert.Equal(t, []int16{model.LinkKindExact, model.LinkKindExact}, kinds, "the demoted anchors are identities again")
+	assert.Equal(t, []int16{model.LinkKindExact, model.LinkKindExact}, kinds, "the demoted and folded anchors are identities again")
+	var targetLink int16
+	require.NoError(t, testDB.Raw(`SELECT link_kind FROM catalog_external_ref WHERE entity_type = ? AND entity_id = ? AND source_id = ? AND external_id = '226'`,
+		model.EntityTypeWork, e.dst, model.SourceErogameScape).Scan(&targetLink).Error)
+	assert.Equal(t, model.LinkKindRelated, targetLink, "the target's own related link to EGS 226 stays with the target")
 
 	var titles []string
 	require.NoError(t, testDB.Raw(`SELECT title FROM catalog_work_title WHERE work_id = ? ORDER BY title`, e.src).Scan(&titles).Error)

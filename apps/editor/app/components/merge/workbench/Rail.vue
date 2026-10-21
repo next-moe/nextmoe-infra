@@ -15,7 +15,15 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ jump: [key: MergeSectionKey] }>()
 
-const { preview, previewLoading, request } = useMergeWorkbench()
+const { preview, previewLoading, request, isReviewer } = useMergeWorkbench()
+
+const back = computed(() =>
+  !request.value
+    ? { to: '/', label: '返回工作台' }
+    : isReviewer.value
+      ? { to: '/review/requests', label: '返回请求列表' }
+      : { to: '/me/merge-requests', label: '返回我的合并请求' }
+)
 
 interface Badge {
   count?: number | null
@@ -62,11 +70,11 @@ const badges = computed((): Record<string, Badge> => {
   <nav class="flex h-full min-h-0 flex-col" aria-label="合并分区">
     <div class="shrink-0 px-2 pt-2">
       <NuxtLink
-        :to="request ? '/review/requests' : '/'"
+        :to="back.to"
         class="text-default-600 hover:bg-default-100 hover:text-foreground flex h-9 items-center gap-2 rounded-lg px-2.5 text-sm transition-colors"
       >
         <KunIcon name="lucide:arrow-left" class="size-4 shrink-0" />
-        {{ request ? '返回请求列表' : '返回工作台' }}
+        {{ back.label }}
       </NuxtLink>
     </div>
 

@@ -335,7 +335,7 @@ func previewCounts(db *gorm.DB, et int16, src, dst int64) ([]PreviewCount, error
 		if r.table == "catalog_external_ref" || r.table == "catalog_entity_usage" || r.table == "edit_suppressed_row" {
 			continue
 		}
-		c := PreviewCount{Key: r.table + "." + r.column}
+		c := PreviewCount{Key: MovementKey(r.table)}
 		q := fmt.Sprintf(`SELECT count(*) FROM %[1]s t WHERE t.%[2]q = ? AND (%[3]s) = ?`, r.table, r.column, r.typeSQL)
 		if err := db.Raw(q, src, et).Scan(&c.Source).Error; err != nil {
 			return nil, err
@@ -343,9 +343,15 @@ func previewCounts(db *gorm.DB, et int16, src, dst int64) ([]PreviewCount, error
 		if err := db.Raw(q, dst, et).Scan(&c.Target).Error; err != nil {
 			return nil, err
 		}
-		if c.Source > 0 || c.Target > 0 {
-			out = append(out, c)
+		if c.Source == 0 && c.Target == 0 {
+			continue
 		}
+		if i := slices.IndexFunc(out, func(x PreviewCount) bool { return x.Key == c.Key }); i >= 0 {
+			out[i].Source += c.Source
+			out[i].Target += c.Target
+			continue
+		}
+		out = append(out, c)
 	}
 	return out, nil
 }

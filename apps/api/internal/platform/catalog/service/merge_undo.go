@@ -139,10 +139,11 @@ func (s *MergeService) UndoMerge(ctx context.Context, proposalID, actorID int64,
 		}
 		rep.RemovedInserted = n
 
-		var touched []int64
-		for _, key := range slices.SortedFunc(maps.Keys(groups), func(a, b [2]string) int {
+		ordered := slices.SortedFunc(maps.Keys(groups), func(a, b [2]string) int {
 			return strings.Compare(a[0]+"."+a[1], b[0]+"."+b[1])
-		}) {
+		})
+		var touched []int64
+		for _, key := range ordered {
 			table, column := key[0], key[1]
 			if table == "catalog_redirect" {
 				if err := restoreFlattenedRedirects(tx, et, src, dst, groups[key]); err != nil {
@@ -150,11 +151,14 @@ func (s *MergeService) UndoMerge(ctx context.Context, proposalID, actorID int64,
 				}
 				continue
 			}
-			if err := moveBack(tx, table, column, src, dst, groups[key]); err != nil {
-				return fmt.Errorf("move back %s.%s: %w", table, column, err)
-			}
 			for _, row := range groups[key] {
 				touched = append(touched, rowWorkIDs(row, et, src, src)...)
+			}
+			if strings.HasPrefix(column, movementFolded) {
+				continue
+			}
+			if err := moveBack(tx, table, column, src, dst, groups[key]); err != nil {
+				return fmt.Errorf("move back %s.%s: %w", table, column, err)
 			}
 		}
 
@@ -164,6 +168,16 @@ func (s *MergeService) UndoMerge(ctx context.Context, proposalID, actorID int64,
 		}
 		rep.Archive = archive
 		touched = append(touched, archTouched...)
+
+		for _, key := range ordered {
+			table, column := key[0], strings.TrimPrefix(key[1], movementFolded)
+			if table == "catalog_redirect" || (!undoRestoresWholeRow[table] && column == key[1]) {
+				continue
+			}
+			if err := restoreRecordedState(tx, table, column, src, groups[key]); err != nil {
+				return fmt.Errorf("restore %s.%s: %w", table, column, err)
+			}
+		}
 
 		if err := restoreIdentityKeys(tx, byKind[movementIdentity]); err != nil {
 			return fmt.Errorf("restore suppression keys: %w", err)
@@ -187,13 +201,13 @@ func (s *MergeService) UndoMerge(ctx context.Context, proposalID, actorID int64,
 			if key[0] == "catalog_redirect" {
 				continue
 			}
-			back, err := countOnSource(tx, key[0], key[1], src, rows)
+			back, err := countOnSource(tx, key[0], strings.TrimPrefix(key[1], movementFolded), src, rows)
 			if err != nil {
 				return err
 			}
-			rep.Restored[key[0]] += back
+			rep.Restored[MovementKey(key[0])] += back
 			if gone := len(rows) - back; gone > 0 {
-				rep.Missing[key[0]] += gone
+				rep.Missing[MovementKey(key[0])] += gone
 			}
 		}
 
@@ -420,6 +434,38 @@ func moveBack(tx *gorm.DB, table, column string, src, dst int64, rows []string) 
 	return nil
 }
 
+// restoreRecordedState puts rows that are back on the source into the state
+// they had before the merge: the archive holds a row as the merge left it
+// (a demoted ref, a re-sorted image), not as it was.
+func restoreRecordedState(tx *gorm.DB, table, column string, src int64, rows []string) error {
+	pk, err := primaryKey(tx, table)
+	if err != nil {
+		return err
+	}
+	cols, err := tableColumns(tx, table)
+	if err != nil {
+		return err
+	}
+	var set []string
+	for _, c := range cols {
+		switch {
+		case slices.Contains(pk, c) || c == column:
+		case c == "updated_at" || c == "changed_at":
+			set = append(set, fmt.Sprintf(`%q = now()`, c))
+		default:
+			set = append(set, fmt.Sprintf(`%[1]q = r.%[1]q`, c))
+		}
+	}
+	if len(set) == 0 {
+		return nil
+	}
+	match, args := keyMatch(pk, column, src)
+	return tx.Exec(fmt.Sprintf(`UPDATE %[1]s t SET %[2]s
+		FROM jsonb_populate_recordset(NULL::%[1]s, ?::jsonb) r
+		WHERE %[3]s AND t.%[4]q = ?`, table, strings.Join(set, ", "), match, column),
+		append(append([]any{"[" + strings.Join(rows, ",") + "]"}, args...), src)...).Error
+}
+
 func keyMatch(pk []string, column string, moved int64) (string, []any) {
 	parts := make([]string, 0, len(pk))
 	var args []any
@@ -538,7 +584,7 @@ func (s *MergeService) MovedCounts(ctx context.Context, proposalID int64) (map[s
 	}
 	out := make(map[string]int64, len(rows))
 	for _, r := range rows {
-		out[r.Table] = r.N
+		out[MovementKey(r.Table)] += r.N
 	}
 	return out, nil
 }

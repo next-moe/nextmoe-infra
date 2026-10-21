@@ -1,3 +1,4 @@
+import type { components } from '#shared/types/generated/catalog-v2-api'
 import type { KunUIColor } from '@kungal/ui-core'
 
 export type MergeSectionKey =
@@ -160,28 +161,49 @@ export const MERGE_USER_COUNT_KEYS = [
   'user_playtime'
 ]
 
-export const MERGE_TABLE_LABELS: Record<string, string> = {
-  catalog_release: '发行',
-  catalog_work_title: '标题',
-  catalog_work_intro: '简介',
-  catalog_work_tag: '标签',
-  catalog_credit: '制作人员',
-  catalog_work_character: '角色',
-  catalog_work_label: '厂商',
-  catalog_work_relation: '关联作品',
-  catalog_series_member: '系列',
-  catalog_work_cover: '封面',
-  catalog_work_screenshot: '截图',
-  catalog_work_platform: '平台',
-  catalog_work_engine: '引擎',
-  catalog_external_ref: '资料源对应',
-  catalog_user_work_rating: '评分',
-  catalog_user_folder_item: '收藏夹条目',
-  catalog_user_work_state: '游玩状态',
-  catalog_user_playtime: '游玩时长',
-  catalog_redirect: '旧重定向',
-  edit_suppressed_row: '隐藏记录'
-}
+type Schemas = components['schemas']
+export type MergeMovedKey = Schemas['MergeMovedCount']['key']
+
+export const MERGE_MOVED_LABELS = {
+  releases: '发行',
+  titles: '标题',
+  intros: '简介',
+  tags: '标签',
+  credits: '制作人员',
+  characters: '角色',
+  character_instances: '角色实例',
+  companies: '厂商',
+  release_companies: '发行厂商',
+  relations: '关联作品',
+  entity_relations: '条目关系',
+  company_relations: '厂商关系',
+  series: '系列',
+  covers: '封面',
+  screenshots: '截图',
+  platforms: '平台',
+  engines: '引擎',
+  anchors: '资料源对应',
+  site_usage: '站点引用',
+  source_ratings: '资料源评分',
+  popularity: '热度',
+  source_playtime: '资料源游玩时长',
+  user_ratings: '用户评分',
+  user_folders: '收藏夹条目',
+  user_states: '游玩状态',
+  user_playtime: '游玩时长',
+  cover_votes: '封面投票',
+  follows: '关注',
+  hidden_rows: '隐藏记录',
+  aliases: '别名',
+  intro_checks: '简介核对记录',
+  traits: '特质',
+  credit_names: '署名名',
+  persons: '人物',
+  redirects: '旧重定向'
+} as const satisfies Record<MergeMovedKey, string>
+
+export const movedLabel = (key: string) =>
+  (MERGE_MOVED_LABELS as Record<string, string>)[key] ?? key
 
 export const MERGE_FIELD_LABELS: Record<string, string> = {
   display_name: '显示名',

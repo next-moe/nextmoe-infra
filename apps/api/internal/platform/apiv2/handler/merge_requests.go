@@ -468,7 +468,7 @@ func (c *Catalog) mergeRequestRecord(ctx context.Context, p *model.CatalogMergeP
 	}
 	if p.Status == model.ProposalStatusExecuted || p.Status == model.ProposalStatusUndone {
 		if moved, err := c.Merges.MovedCounts(ctx, p.ID); err == nil {
-			items[0].Moved = moved
+			items[0].Moved = movedCounts(moved)
 		}
 	}
 	c.attachMergeRequestPeople(ctx, items)
@@ -492,7 +492,7 @@ func mergeRequestFrom(p *model.CatalogMergeProposal) repr.MergeRequestRecord {
 		at := rfc3339(*p.ExecutedAt)
 		rec.ExecutedAt = &at
 	}
-	rec.FieldResolution, rec.HideReleaseIDs, rec.Moved = map[string]string{}, []string{}, map[string]int64{}
+	rec.FieldResolution, rec.HideReleaseIDs, rec.Moved = map[string]string{}, []string{}, []repr.MergeMovedCount{}
 	if choices, err := catsvc.MergeChoicesOf(p); err == nil {
 		for k, v := range choices.Fields {
 			rec.FieldResolution[k] = v

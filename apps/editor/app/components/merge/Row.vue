@@ -16,7 +16,10 @@ const family = computed(() =>
 )
 const meta = computed(() => (family.value ? ENTITY_META[family.value] : null))
 const nameOf = (id: string) =>
-  (family.value && refs.nameOf(family.value as EditRefFamily, id)) || `#${id}`
+  (id === props.request.source_id && props.request.source_name) ||
+  (id === props.request.target_id && props.request.target_name) ||
+  (family.value && refs.nameOf(family.value as EditRefFamily, id)) ||
+  `#${id}`
 
 const STATE_COLORS: Record<string, KunUIColor> = {
   open: 'warning',
