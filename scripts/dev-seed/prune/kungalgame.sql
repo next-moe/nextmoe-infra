@@ -167,6 +167,20 @@ TRUNCATE user_purge_archive, galgame_merge_discarded, _user_merge_109310_to_1922
          trust_disposition_applied;
 TRUNCATE toolset_upload, dlsite_store_link;
 
+-- 2026-10-21 (forum 213): the merge-fold ledger snapshots resources, comments
+-- and user rows as JSON.
+DO $$
+DECLARE
+    present text;
+BEGIN
+    SELECT string_agg(format('public.%I', t), ', ') INTO present
+    FROM unnest(ARRAY['galgame_merge_fold_row', 'galgame_merge_fold']) AS t
+    WHERE to_regclass('public.' || t) IS NOT NULL;
+    IF present IS NOT NULL THEN
+        EXECUTE 'TRUNCATE TABLE ' || present;
+    END IF;
+END $$;
+
 -- ----------------------------------------------------------------------------
 -- Section 4: topic-side prune
 -- ----------------------------------------------------------------------------
