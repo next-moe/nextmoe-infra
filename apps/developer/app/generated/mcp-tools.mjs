@@ -792,6 +792,17 @@ export const mcpTools = [
     ]
   },
   {
+    "name": "listCatalogSplits",
+    "method": "GET",
+    "path": "/v2/catalog/splits",
+    "summary": "Work split feed",
+    "needs_key": false,
+    "params": [
+      "cursor",
+      "limit"
+    ]
+  },
+  {
     "name": "listCatalogTags",
     "method": "GET",
     "path": "/v2/catalog/tags",

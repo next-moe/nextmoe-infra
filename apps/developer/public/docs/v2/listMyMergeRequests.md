@@ -21,7 +21,7 @@ The bearer's own merge requests, newest first; follow next_cursor for more. Requ
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
-| `state` | query | 否 | string | Narrow to one state. 取值：open \| approved \| executed \| rejected \| withdrawn |
+| `state` | query | 否 | string | Narrow to one state. 取值：open \| approved \| executed \| rejected \| withdrawn \| undone |
 | `object` | query | 否 | string | Narrow to one family. 取值：work \| company \| character \| person \| credit_name |
 | `origin_site` | query | 否 | string | Narrow to requests filed from one first-party property. 取值：kungal \| moyu \| letmoe \| nextmoe \| editor |
 | `cursor` | query | 否 | string | Opaque keyset cursor from next_cursor. |

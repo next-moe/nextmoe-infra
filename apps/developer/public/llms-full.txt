@@ -9,7 +9,7 @@
 
 **署名**：目前阶段使用 NextMoe·未萌 API，可以将 API 的名字标记为『鲲 Galgame 论坛』（如果你使用 Galgame 数据）或『LetMoe·一启萌』（如果你使用同人游戏数据）。
 
-本文件内联全部 174 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
+本文件内联全部 195 个端点。紧凑索引见 https://developer.nextmoe.dev/llms.txt。
 
 ## 给 AI 助手的指引
 
@@ -3455,7 +3455,7 @@ Closed · 12 tokens
 
 - 路径前缀：`/v2`
 - 凭据：Authorization: Bearer nmk_live_…（v2 应用密钥,门户自助铸造,无需申请）
-- 端点数：160
+- 端点数：181
 
 > 正式公开：形状按 additive-only 演进，删除与改名由 CI 的 oasdiff 门拦下。第三方在门户自助铸 nmk_ 密钥即可调用，不需要申请。
 
@@ -3918,6 +3918,27 @@ Works this name is credited on. Offset cursor. Anonymous calls are allowed and l
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/credit-names/1/credits"
+```
+
+### GET /v2/catalog/discussions/{object}/{id}
+
+Discussion under a proposal or request
+
+Posts oldest first; follow next_cursor for newer ones. A proposal's thread is public like the proposal; a merge request's is readable by its requester and by catalog.merge.review holders. With a user token the page carries viewer: whether the caller may post or moderate here, and whether the thread reaches their notices. Anonymous calls are allowed and limited per IP address; they read public threads only.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：可匿名调用
+- scope：catalog:read（仅在带凭据时）
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `object` | path | 是 | string | Object discriminant of the anchor: proposal, merge_request, or one a later request type registers. |
+| `id` | path | 是 | string | Id of the proposal or request. |
+| `cursor` | query | 否 | string | Opaque cursor from next_cursor. |
+| `limit` | query | 否 | integer (int64) | Page size, 1-100. Default 50. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/catalog/discussions/example/1"
 ```
 
 ### GET /v2/catalog/engines
@@ -4394,6 +4415,25 @@ Series detail. has_nsfw reports whether any member work sits behind the r18 disp
 
 ```bash
 curl "https://api.nextmoe.dev/v2/catalog/series/1"
+```
+
+### GET /v2/catalog/splits
+
+Work split feed
+
+Executed and undone splits, oldest change first. Keyset-paginated. A split moves releases from original_id to a new work: the new id also appears on /v2/catalog/changes, and the moved releases keep their ids. A mirror that hangs its own data off releases or editions should follow them to new_work_id. An undo re-surfaces the split with state=undone: the releases are back on original_id and new_work_id redirects there (/v2/catalog/redirects). Anonymous calls are allowed and limited per IP address; an application key or a user access token with catalog:read gets its own, higher limit.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：可匿名调用
+- scope：catalog:read（仅在带凭据时）
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `cursor` | query | 否 | string | Opaque keyset cursor from next_cursor. Omit to start from the first split. |
+| `limit` | query | 否 | integer (int64) | Page size, 1-100. Default 50. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/catalog/splits"
 ```
 
 ### GET /v2/catalog/stats
@@ -5611,6 +5651,131 @@ curl -X PATCH "https://api.nextmoe.dev/v2/me/deletion-requests/1" \
   -d '{"state":"withdrawn"}'
 ```
 
+### GET /v2/me/discussion-notices
+
+New posts for me
+
+Posts by others, newer than since, in threads the caller watches or that mention them; a muted thread reaches the caller only through mentions. Requires a user access token from a first-party site with the catalog:edit scope. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `since` | query | 否 | string (date-time) | RFC 3339. Only posts newer than this. Default: 14 days ago. |
+| `limit` | query | 否 | integer (int64) | At most this many, newest first. Default 50. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/me/discussion-notices" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### PUT /v2/me/discussion-watches
+
+Watch or mute a discussion
+
+Requires a user access token from a first-party site with the catalog:edit scope. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+无参数。
+
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `anchor_id` | 是 | string | Anchor id. |
+| `anchor_kind` | 是 | string | Anchor kind. |
+| `muted` | 是 | boolean | true mutes the thread (mentions still arrive); false watches it. |
+
+```bash
+curl -X PUT "https://api.nextmoe.dev/v2/me/discussion-watches" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"anchor_id":"1","anchor_kind":"string","muted":true}'
+```
+
+### POST /v2/me/discussions
+
+Post in a discussion
+
+Adds a post under a proposal or request the caller can read. The author, everyone mentioned, and the anchor's participants (proposer or requester, decider, amenders) start watching the thread; their notices pick up later posts. Limited per account by catalog.discussion_posts_per_hour; past it 429 QUOTA_EXCEEDED. Text refused by the content check is 422. Requires a user access token from a first-party site with the catalog:edit scope. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
+
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `anchor_id` | 是 | string | Id of the proposal or request. |
+| `anchor_kind` | 是 | string | proposal, merge_request, or a kind a later request type registers. |
+| `body` | 是 | string | Plain text, at most 2000 characters after trimming. Must not be used as a discriminant. |
+| `mention_uids` | 否 | string[] | Central account ids to notify; the author is dropped. More than 10 people is 422. |
+| `mention_uids[]` | 否 | string |  |
+| `reply_to_id` | 否 | string | A post in the same thread this one quotes. |
+
+```bash
+curl -X POST "https://api.nextmoe.dev/v2/me/discussions" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"anchor_id":"1","anchor_kind":"string","body":"string"}'
+```
+
+### PATCH /v2/me/discussions/{id}
+
+Edit my post
+
+Replaces the text of a visible post the caller wrote and stamps edited_at. Requires a user access token from a first-party site with the catalog:edit scope. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `id` | path | 是 | string | Post id. |
+
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `body` | 是 | string | The new text. Must not be used as a discriminant. |
+
+```bash
+curl -X PATCH "https://api.nextmoe.dev/v2/me/discussions/1" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"body":"string"}'
+```
+
+### DELETE /v2/me/discussions/{id}
+
+Delete my post
+
+The post stays in the thread as deleted, with its text removed. Requires a user access token from a first-party site with the catalog:edit scope. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `id` | path | 是 | string | Post id. |
+
+```bash
+curl -X DELETE "https://api.nextmoe.dev/v2/me/discussions/1" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
 ### GET /v2/me/edit-bundle/{object}/{id}
 
 Everything an editor needs to open one entity
@@ -6040,6 +6205,47 @@ curl -X DELETE "https://api.nextmoe.dev/v2/me/followed-companies/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
+### GET /v2/me/merge-candidates
+
+Suggest merge partners
+
+Up to ten entries that may duplicate id: undecided pairs from the reconciliation queue first, then live entries with exactly the same name. A single page; there is no cursor. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `object` | query | 是 | string | Family of the entry. 取值：work \| company \| character \| person \| credit_name |
+| `id` | query | 是 | string | The entry to find duplicates of. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/me/merge-candidates" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### GET /v2/me/merge-preview
+
+Preview a merge
+
+Computes what merging source_id into target_id would do, without writing: both sides' values for the resolvable fields, the fate of every external id, the releases of both works with source duplicates marked, title and intro outcomes, row counts, the site claim, and blockers and warnings. An entry already merged away or deleted comes back with a not_live blocker rather than an error. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `object` | query | 是 | string | Family of the two entries. 取值：work \| company \| character \| person \| credit_name |
+| `source_id` | query | 是 | string | The entry to fold away. |
+| `target_id` | query | 是 | string | The entry that survives. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/me/merge-preview" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
 ### GET /v2/me/merge-requests
 
 List my merge requests
@@ -6052,7 +6258,7 @@ The bearer's own merge requests, newest first; follow next_cursor for more. Requ
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
-| `state` | query | 否 | string | Narrow to one state. 取值：open \| approved \| executed \| rejected \| withdrawn |
+| `state` | query | 否 | string | Narrow to one state. 取值：open \| approved \| executed \| rejected \| withdrawn \| undone |
 | `object` | query | 否 | string | Narrow to one family. 取值：work \| company \| character \| person \| credit_name |
 | `origin_site` | query | 否 | string | Narrow to requests filed from one first-party property. 取值：kungal \| moyu \| letmoe \| nextmoe \| editor |
 | `cursor` | query | 否 | string | Opaque keyset cursor from next_cursor. |
@@ -6091,6 +6297,25 @@ curl -X POST "https://api.nextmoe.dev/v2/me/merge-requests" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{"object":"work","reason":"string","source_id":"1","target_id":"1"}'
+```
+
+### GET /v2/me/merge-requests/{id}
+
+Get one merge request
+
+Any editor-filed merge request by id, for the requester and everyone following it. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `id` | path | 是 | string | Merge request id. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/me/merge-requests/1" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
 ### PATCH /v2/me/merge-requests/{id}
@@ -6684,6 +6909,127 @@ curl -X DELETE "https://api.nextmoe.dev/v2/me/ratings/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
+### GET /v2/me/split-preview
+
+Preview a split
+
+Every live release of the work, the registry entries that could become the new work's identity, what moves and what stays, titles suggested from the chosen releases, and the blockers, warnings and registry facts for the choice in release_ids= and promote=. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `object` | query | 否 | string | Family of the entry. 取值：work |
+| `target_id` | query | 否 | string | The work. |
+| `release_ids` | query | 否 | string | Comma-separated release ids chosen to move. |
+| `promote` | query | 否 | string | Comma-separated source:external_id entries chosen to promote. |
+| `request_id` | query | 否 | string | The split request being reviewed, left out of the one-pending-request check so its own page does not report it. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/me/split-preview" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### GET /v2/me/split-requests
+
+List my split requests
+
+The bearer's own split requests, newest first; follow next_cursor for more. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `state` | query | 否 | string | Narrow to one state. 取值：open \| approved \| executed \| rejected \| withdrawn \| undone |
+| `target_id` | query | 否 | string | Narrow to requests about one work. |
+| `origin_site` | query | 否 | string | Narrow to requests filed from one first-party property. 取值：kungal \| moyu \| letmoe \| nextmoe \| editor |
+| `cursor` | query | 否 | string | Opaque keyset cursor from next_cursor. |
+| `limit` | query | 否 | integer (int64) | Page size, 1-100. Default 20. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/me/split-requests" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### POST /v2/me/split-requests
+
+Request a split
+
+Asks reviewers to move some releases of a work into a work of their own, for an edition that deserves its own entry although VNDB lists it under the same VN. Nothing changes on filing: a reviewer approves (and may amend the selection), the cooling-off runs, then the new work is created. One open or approved request per work; another is 409. Quotas are tiered: catalog.split_requests_per_day, _editor, _reviewer inside catalog.write_quota_window_hours; past it 429 QUOTA_EXCEEDED. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
+
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `note` | 是 | string | Why these releases are a work of their own. Must not be used as a discriminant. |
+| `object` | 是 | string | Family of the entry. Only works can be split today. 取值：work |
+| `target_id` | 是 | string | The work to split. |
+
+```bash
+curl -X POST "https://api.nextmoe.dev/v2/me/split-requests" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"note":"string","object":"work","target_id":"1"}'
+```
+
+### GET /v2/me/split-requests/{id}
+
+Get one split request
+
+Any split request, for its page in the editor. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `id` | path | 是 | string | Split request id. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/me/split-requests/1" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### PATCH /v2/me/split-requests/{id}
+
+Withdraw a split request
+
+Withdraws an open request the bearer filed. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `id` | path | 是 | string | Split request id. |
+
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `state` | 是 | string | Set withdrawn to withdraw an open request you filed. 取值：withdrawn |
+
+```bash
+curl -X PATCH "https://api.nextmoe.dev/v2/me/split-requests/1" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"state":"withdrawn"}'
+```
+
 ### GET /v2/me/work-records
 
 List my play records
@@ -7087,6 +7433,35 @@ curl -X POST "https://api.nextmoe.dev/v2/moderation/deletion-requests/1/decision
   -d '{"decision":"approve"}'
 ```
 
+### POST /v2/moderation/discussions/{id}/visibility
+
+Hide or restore a post
+
+Requires the catalog.discussion.moderate permission. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `id` | path | 是 | string | Post id. |
+| `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
+
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `hidden` | 是 | boolean | true hides the post from everyone but discussion moderators; false restores it. |
+| `note` | 否 | string | Why. Shown to discussion moderators only. Must not be used as a discriminant. |
+
+```bash
+curl -X POST "https://api.nextmoe.dev/v2/moderation/discussions/1/visibility" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"hidden":true}'
+```
+
 ### PATCH /v2/moderation/folders/{id}
 
 Moderate a folder's text
@@ -7147,7 +7522,7 @@ Merge requests filed through the editor, newest first; follow next_cursor for mo
 
 | 参数 | 位置 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- | --- |
-| `state` | query | 否 | string | Narrow to one state. 取值：open \| approved \| executed \| rejected \| withdrawn |
+| `state` | query | 否 | string | Narrow to one state. 取值：open \| approved \| executed \| rejected \| withdrawn \| undone |
 | `object` | query | 否 | string | Narrow to one family. 取值：work \| company \| character \| person \| credit_name |
 | `origin_site` | query | 否 | string | Narrow to requests filed from one first-party property. 取值：kungal \| moyu \| letmoe \| nextmoe \| editor |
 | `cursor` | query | 否 | string | Opaque keyset cursor from next_cursor. |
@@ -7177,11 +7552,41 @@ curl "https://api.nextmoe.dev/v2/moderation/merge-requests/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
+### PATCH /v2/moderation/merge-requests/{id}
+
+Change a merge request's choices
+
+Replaces field_resolution and hide_release_ids on an open or approved request; amended_by and amended_at record who. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `id` | path | 是 | string | Merge request id. |
+
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `field_resolution` | 否 | map<string, string> | Optional. Field → source\|target for the fields GET /v2/me/merge-preview lists under fields. A field not named keeps that preview's default. 422 for a field the family cannot resolve. |
+| `field_resolution.«key»` | 否 | string |  |
+| `hide_release_ids` | 否 | string[] | Optional, works only. Source releases to hide once they land on the target — normally the ones the preview marks duplicate_of. 422 for a release that is not the source's own. |
+| `hide_release_ids[]` | 否 | string |  |
+
+```bash
+curl -X PATCH "https://api.nextmoe.dev/v2/moderation/merge-requests/1" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"field_resolution":{"key":"string"},"hide_release_ids":["string"]}'
+```
+
 ### POST /v2/moderation/merge-requests/{id}/decisions
 
 Decide a merge request
 
-decision=approve|reject|execute. Unmerge stays with the catalog admin console. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+decision=approve|reject|execute|undo. undo revives the source under its own id, moves back what the merge moved, restores what it archived and revokes the redirect (the redirects feed then lists it with revoked=true); the response carries undo_report. A merge executed before undo was recorded, or past catalog.merge_undo_window_days, is refused 409. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
 
 - 所属 API：Public API v2（/v2）
 - 鉴权：Authorization: Bearer <用户访问令牌>
@@ -7196,8 +7601,8 @@ decision=approve|reject|execute. Unmerge stays with the catalog admin console. R
 
 | 字段 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- |
-| `decision` | 是 | string | approve starts the cooling-off (catalog.merge_cooling_off_hours) after which the catalog-merge-requests job executes it; reject closes it; execute runs an approved request whose cooling-off has ended without waiting for the job. 取值：approve \| reject \| execute |
-| `reason` | 否 | string | Required to reject. Must not be used as a discriminant. |
+| `decision` | 是 | string | approve starts the cooling-off (catalog.merge_cooling_off_hours) after which the catalog-merge-requests job executes it; reject closes it; execute runs an approved request whose cooling-off has ended without waiting for the job; undo takes an executed merge back under the source's original id while undo_until has not passed. 取值：approve \| reject \| execute \| undo |
+| `reason` | 否 | string | Required to reject and to undo. Must not be used as a discriminant. |
 
 ```bash
 curl -X POST "https://api.nextmoe.dev/v2/moderation/merge-requests/1/decisions" \
@@ -7362,6 +7767,114 @@ Registered field values. Requires a user access token. The token must carry the 
 ```bash
 curl "https://api.nextmoe.dev/v2/moderation/snapshots/example/1" \
   -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### GET /v2/moderation/split-requests
+
+Split request queue
+
+Split requests, newest first; follow next_cursor for more. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `state` | query | 否 | string | Narrow to one state. 取值：open \| approved \| executed \| rejected \| withdrawn \| undone |
+| `target_id` | query | 否 | string | Narrow to requests about one work. |
+| `origin_site` | query | 否 | string | Narrow to requests filed from one first-party property. 取值：kungal \| moyu \| letmoe \| nextmoe \| editor |
+| `cursor` | query | 否 | string | Opaque keyset cursor from next_cursor. |
+| `limit` | query | 否 | integer (int64) | Page size, 1-100. Default 20. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/moderation/split-requests" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### GET /v2/moderation/split-requests/{id}
+
+Get one split request for review
+
+Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `id` | path | 是 | string | Split request id. |
+
+```bash
+curl "https://api.nextmoe.dev/v2/moderation/split-requests/1" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### PATCH /v2/moderation/split-requests/{id}
+
+Amend a split request
+
+Replaces the chosen releases, the new work's name, language and titles, and the entries to promote, while the request is open or approved. Validated like a filing; records who amended. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `id` | path | 是 | string | Split request id. |
+
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `display_name` | 是 | string | The new work's display name. Must not be used as a discriminant. |
+| `olang` | 是 | string (bcp47) | The new work's original language, BCP-47. |
+| `promote_refs` | 否 | object[] | Bangumi or ErogameScape entries linked to the work as related or probable that become the new work's identity. |
+| `promote_refs[].external_id` | 是 | string | The entry's id in that registry. Must not be used as a discriminant beyond exact match. |
+| `promote_refs[].source` | 是 | string | A registry that lists editions as separate entries. 取值：bangumi \| erogamescape |
+| `release_ids` | 是 | string[] | Releases of the work that move to the new work. At least one release has to stay. |
+| `release_ids[]` | 否 | string |  |
+| `titles` | 否 | object[] | Titles the new work starts with. |
+| `titles[].lang` | 是 | string (bcp47) | BCP-47, or empty for a title with no language. |
+| `titles[].title` | 是 | string | Must not be used as a discriminant. |
+| `titles[].title_kind` | 是 | string | How the new work holds the title. 取值：official \| alias \| abbreviation |
+
+```bash
+curl -X PATCH "https://api.nextmoe.dev/v2/moderation/split-requests/1" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"display_name":"string","olang":"string","release_ids":["string"]}'
+```
+
+### POST /v2/moderation/split-requests/{id}/decisions
+
+Decide a split request
+
+decision=approve|reject|execute|undo. Requires the catalog.merge.review permission. The token must carry the catalog:edit scope.
+
+- 所属 API：Public API v2（/v2）
+- 鉴权：Authorization: Bearer <用户访问令牌>
+- scope：无需凭据
+
+| 参数 | 位置 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- | --- |
+| `id` | path | 是 | string | Split request id. |
+| `Idempotency-Key` | header | 否 | string | Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. |
+
+请求体
+
+| 字段 | 必填 | 类型 | 说明 |
+| --- | --- | --- | --- |
+| `decision` | 是 | string | approve starts the cooling-off (catalog.merge_cooling_off_hours) after which the catalog-split-requests job executes it; reject closes it; execute runs an approved request whose cooling-off has ended without waiting for the job; undo puts an executed split back while undo_until has not passed: the releases return and the new work is merged into the original. 取值：approve \| reject \| execute \| undo |
+| `reason` | 否 | string | Required to reject and to undo. Must not be used as a discriminant. |
+
+```bash
+curl -X POST "https://api.nextmoe.dev/v2/moderation/split-requests/1/decisions" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"decision":"approve"}'
 ```
 
 ### GET /v2/moderation/users/{uid}/folders
@@ -7876,7 +8389,7 @@ curl "https://api.nextmoe.dev/v2/sticker/tags" \
 
 NextMoe 开放 API 同时以 MCP（Model Context Protocol）server 暴露：端点 https://mcp.nextmoe.dev/mcp，Streamable HTTP、stateless，带上同一把 API 密钥即可；不带密钥也能用，额度按你自己的 IP 计（默认每分钟 30 次、每天 1,000 次）。它是一层纯透传适配——每次工具调用就是一次对公开 /v2 GET 的请求，鉴权、限流、配额与用量与直连毫无区别。工具名就是 OpenAPI operationId，清单由 cmd/gen-v2-portal 从同一份 v2 spec 生成。
 
-## 工具（61 个）
+## 工具（63 个）
 
 - `getCatalogCharacter` `GET /v2/catalog/characters/{id}`（无需密钥）：按 id 取角色；view=full 追加性别、生日、三围、血型与 instance_of_id。nsfw 同时控 r18 作品与 sexual 系 traits 的可见性。
 - `getCatalogCharacterAppearances` `GET /v2/catalog/characters/{id}/appearances`（无需密钥）：一个角色出演的全部作品，各带 roster_role、剧透等级与配音署名，offset 游标分页。
@@ -7920,6 +8433,7 @@ NextMoe 开放 API 同时以 MCP（Model Context Protocol）server 暴露：端�
 - `listCatalogClaimEvents` `GET /v2/catalog/claim-events`：认领生命周期事件流，默认最新在前；sort=recorded_asc 是镜像 / 发奖 cron 按 id 水位续读的那条泳道。事件带驳回理由与操作者 uid，所以除 catalog:read 外还要运营发放的 claim_events:read。
 - `listCatalogCompanies` `GET /v2/catalog/companies`（无需密钥）：浏览公司 / 厂牌词表本身（v1 的 labels）——用来发现 company id 再喂给 listCatalogWorks 的 company_id=。
 - `listCatalogCreditNames` `GET /v2/catalog/credit-names`（无需密钥）：keyset 分页浏览署名注册表，q= 按名字过滤。ids=/refs= 是批量水合泳道，不分页。
+- `listCatalogDiscussion` `GET /v2/catalog/discussions/{object}/{id}`（无需密钥）：一条提案（或合并请求）下的讨论串，按时间正序：留言人、是否审核者、回复的上一条与正文。提案的讨论公开可读；合并请求的讨论只对请求人与合并审核者可见。
 - `listCatalogEngines` `GET /v2/catalog/engines`（无需密钥）：浏览引擎词表本身——用来发现 engine id 再喂给 listCatalogWorks 的 engine_id=。
 - `listCatalogNames` `GET /v2/catalog/names`（无需密钥）：一次解析多个族的显示名：keys=family:id,…（最多 500 个，如 tag:12,company:3），各族按自己的 ids= 批量通道取名，可见性与 nsfw 门完全一致；有中文名时另给 name_zh。只需要名字时用它代替逐族的 ids= 调用。
 - `listCatalogPersons` `GET /v2/catalog/persons`（无需密钥）：keyset 分页浏览人物身份注册表。ids=/refs= 是批量水合泳道，不分页。
@@ -7929,6 +8443,7 @@ NextMoe 开放 API 同时以 MCP（Model Context Protocol）server 暴露：端�
 - `listCatalogRevisions` `GET /v2/catalog/revisions`（无需密钥）：已合入的编辑修订流，缺省最新优先；sort=recorded_asc 按 id 从旧到新走同一个集合，这是镜像与贡献统计该用的姿态（配一条水位线）。object= + entity_id= 收敛到单个实体的历史。
 - `listCatalogRoles` `GET /v2/catalog/roles`（无需密钥）：浏览署名职务注册表本身（全表约 231 行）——key 与署名组的 role_key 相接。refs= 对它不解析：职务没有外部锚类型。
 - `listCatalogSeries` `GET /v2/catalog/series`（无需密钥）：浏览系列词表本身。系列不进搜索索引，这是发现 series id 的唯一入口；refs= 对它不解析：系列没有外部锚类型。
+- `listCatalogSplits` `GET /v2/catalog/splits`（无需密钥）：拆分流:哪部作品把哪些发行拆成了哪部新作品,按变化时间升序。存下游标增量消费,就能把挂在这些发行上的本地数据跟到 new_work_id;撤销的拆分以 state=undone 重新出现在尾部,新作品经 redirects 指回原作品。
 - `listCatalogTags` `GET /v2/catalog/tags`（无需密钥）：浏览正典标签词表本身——用来发现 tag id 再喂给 listCatalogWorks 的 tag_id=。
 - `listCatalogTraits` `GET /v2/catalog/traits`（无需密钥）：浏览角色特征词表本身——用来发现 trait id。refs= 对它不解析：特征没有外部锚类型。
 - `listCatalogWorks` `GET /v2/catalog/works`（无需密钥）：浏览 / 过滤作品注册表（评级 / 公司 / 标签 / 系列 / 引擎 / 平台 / 发售窗，keyset 分页，ids=/refs= 批量水合）。带 q= 时整条转为检索并按相关度排序——「查询 + 过滤」与「纯过滤」在 v2 是同一条路径。
