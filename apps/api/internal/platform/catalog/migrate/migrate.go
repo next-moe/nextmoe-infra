@@ -209,6 +209,9 @@ func Run(db *gorm.DB) error {
 	if err := dropRetiredOrg(db); err != nil {
 		return err
 	}
+	if err := migrateDeletionRequests(db); err != nil {
+		return err
+	}
 	return rawSQL(db)
 }
 

@@ -82,7 +82,7 @@ func (s *UserPlaytimeService) ListMine(ctx context.Context, uid int64, since tim
 	if uid <= 0 {
 		return nil, ErrPlaytimeActorRequired
 	}
-	q := s.db.WithContext(ctx).Model(&model.CatalogUserPlaytime{}).Where("actor_uid = ?", uid)
+	q := s.db.WithContext(ctx).Model(&model.CatalogUserPlaytime{}).Where("actor_uid = ?", uid).Where(liveWorkCond("catalog_user_playtime.work_id"))
 	if !since.IsZero() {
 		// sinceWorkID <= 0 keeps the strictly-after semantics: the v1 face's
 		// updated_since is a client-remembered resync watermark, and adding the
@@ -113,7 +113,7 @@ func (s *UserPlaytimeService) CountMine(ctx context.Context, uid int64) (int64, 
 	}
 	var n int64
 	err := s.db.WithContext(ctx).Model(&model.CatalogUserPlaytime{}).
-		Where("actor_uid = ?", uid).Count(&n).Error
+		Where("actor_uid = ?", uid).Where(liveWorkCond("catalog_user_playtime.work_id")).Count(&n).Error
 	return n, err
 }
 
@@ -158,7 +158,7 @@ func (s *UserPlaytimeService) ListMineFor(ctx context.Context, uid int64, workID
 	}
 	var rows []model.CatalogUserPlaytime
 	if err := s.db.WithContext(ctx).
-		Where("actor_uid = ? AND work_id IN ?", uid, workIDs).
+		Where("actor_uid = ? AND work_id IN ?", uid, workIDs).Where(liveWorkCond("catalog_user_playtime.work_id")).
 		Order("work_id ASC, id ASC").Find(&rows).Error; err != nil {
 		return nil, err
 	}

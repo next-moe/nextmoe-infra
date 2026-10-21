@@ -69,6 +69,12 @@ export const EDITOR_NAV: EditorNavGroup[] = [
         ready: true
       },
       {
+        label: '删除请求',
+        icon: 'lucide:trash',
+        to: '/me/deletion-requests',
+        ready: true
+      },
+      {
         label: '贡献',
         icon: 'lucide:award',
         to: '/me/contributions',
@@ -90,6 +96,13 @@ export const EDITOR_NAV: EditorNavGroup[] = [
         label: '合并审核',
         icon: 'lucide:git-merge',
         to: '/review/merges',
+        ready: true,
+        reviewerOnly: true
+      },
+      {
+        label: '删除审核',
+        icon: 'lucide:trash-2',
+        to: '/review/deletions',
         ready: true,
         reviewerOnly: true
       }

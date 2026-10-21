@@ -135,6 +135,7 @@ const (
 	RevisionActionRedirect     int16 = 6
 	RevisionActionReverted     int16 = 7
 	RevisionActionDeleted      int16 = 8
+	RevisionActionRestored     int16 = 9
 )
 
 const (
@@ -191,6 +192,7 @@ const (
 	WorkStatusStub       int16 = 1
 	WorkStatusMerged     int16 = 2
 	WorkStatusQuarantine int16 = 3
+	WorkStatusDeleted    int16 = 4
 )
 
 const (

@@ -1316,6 +1316,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/me/deletion-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview what a deletion affects
+         * @description What deleting the entry would touch: its links to source entries, releases, user records that would be hidden, open edit proposals that would be declined, the claiming site, and any pending request. Also answers for an entry that is already deleted. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+         */
+        get: operations["getMyDeletionPreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/me/deletion-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List my deletion requests
+         * @description The bearer's own deletion requests, newest first; follow next_cursor for more. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+         */
+        get: operations["listMyDeletionRequests"];
+        put?: never;
+        /**
+         * Request a deletion
+         * @description Asks reviewers to delete a catalog entry; only works can be deleted today. Nothing is deleted on filing: a reviewer approves, the cooling-off runs, then the entry is soft-deleted. Its links to source entries stay as a tombstone so the importers do not create it again, and user records on it are kept but hidden until a reviewer restores it under the same id. A duplicate is refused 422: merge it with /v2/me/merge-requests instead. One open or approved request per entry; another is 409. Quotas are tiered: catalog.deletion_requests_per_day, _editor, _reviewer inside catalog.write_quota_window_hours; past it 429 QUOTA_EXCEEDED. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+         */
+        post: operations["createMyDeletionRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/me/deletion-requests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Withdraw a deletion request
+         * @description Withdraws an open request the bearer filed. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope.
+         */
+        patch: operations["patchMyDeletionRequest"];
+        trace?: never;
+    };
     "/v2/me/discussion-notices": {
         parameters: {
             query?: never;
@@ -2142,6 +2206,66 @@ export interface paths {
          * @description decision=approve|decline|ban|unban. unban restores the state the claim was hidden from. If-Match required, and the ETag comes from GET /v2/moderation/claims/{id}. Requires the catalog.claim.review permission. The token must carry the catalog:edit scope.
          */
         post: operations["decideModerationClaim"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/moderation/deletion-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Deletion request queue
+         * @description Deletion requests, newest first; follow next_cursor for more. Requires the catalog.delete.review permission. The token must carry the catalog:edit scope.
+         */
+        get: operations["listModerationDeletionRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/moderation/deletion-requests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get one deletion request
+         * @description Requires the catalog.delete.review permission. The token must carry the catalog:edit scope.
+         */
+        get: operations["getModerationDeletionRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/moderation/deletion-requests/{id}/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decide a deletion request
+         * @description decision=approve|reject|execute|restore. Requires the catalog.delete.review permission. The token must carry the catalog:edit scope.
+         */
+        post: operations["decideModerationDeletionRequest"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3558,6 +3682,30 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        CreateDeletionRequestInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/CreateDeletionRequestInputBody.json
+             */
+            readonly $schema?: string;
+            /** @description Evidence reviewers can check. Must not be used as a discriminant. */
+            note: string;
+            /**
+             * @description Family of the entry. Only works can be deleted today.
+             * @enum {string}
+             */
+            object: "work";
+            /**
+             * @description Why it should go. duplicate is refused 422: a duplicate is merged into the entry it duplicates through /v2/me/merge-requests.
+             * @enum {string}
+             */
+            reason: "not_a_work" | "out_of_scope" | "spam_or_test" | "other" | "duplicate";
+            /** @description The entry to delete. */
+            target_id: string;
+        } & {
+            [key: string]: unknown;
+        };
         CreateDiscussionInputBody: {
             /**
              * Format: uri
@@ -3808,6 +3956,23 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        DecideDeletionRequestInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/DecideDeletionRequestInputBody.json
+             */
+            readonly $schema?: string;
+            /**
+             * @description approve starts the cooling-off (catalog.deletion_cooling_off_hours) after which the catalog-deletion-requests job deletes the entry; reject closes it; execute runs an approved request whose cooling-off has ended without waiting for the job; restore brings an executed deletion back under the same id.
+             * @enum {string}
+             */
+            decision: "approve" | "reject" | "execute" | "restore";
+            /** @description Required to reject; an optional note to restore. Must not be used as a discriminant. */
+            reason?: string;
+        } & {
+            [key: string]: unknown;
+        };
         DecideMergeRequestInputBody: {
             /**
              * Format: uri
@@ -3839,6 +4004,173 @@ export interface components {
             decision: "merge" | "decline";
             /** @description Must not be used as a discriminant. */
             note?: string;
+        } & {
+            [key: string]: unknown;
+        };
+        DeletionAnchor: {
+            /**
+             * @description identity and probable links keep the importers from creating the work again while it is deleted; related links are ordinary links.
+             * @enum {string}
+             */
+            anchor_kind: "identity" | "probable" | "related";
+            /** @description Verbatim upstream id. Must not be used as a discriminant beyond exact match. It is an identity anchor at this entity's own granularity, not necessarily an addressable page: a credit-name vndb ref is a staff-alias id with no page of its own. Browseable URLs come from links. */
+            external_id: string;
+            /** @description Open vocabulary sources. Must not be used as a discriminant. */
+            source: string;
+        } & {
+            [key: string]: unknown;
+        };
+        DeletionPreview: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/DeletionPreview.json
+             */
+            readonly $schema?: string;
+            /** @description Links to source entries the work holds. */
+            anchors: components["schemas"]["DeletionAnchor"][];
+            /** @description Site that claimed the work. null when unclaimed. */
+            claim_site: string | null;
+            /** @description true when the entry is already deleted. */
+            deleted: boolean;
+            /** @description The entry's display name. Must not be used as a discriminant. */
+            display_name: string;
+            /** @description Set when the entry was merged into another; it cannot be deleted then. */
+            merged_into_id: string | null;
+            /**
+             * @description Type discriminant. Always deletion_preview.
+             * @enum {string}
+             */
+            object: "deletion_preview";
+            /**
+             * Format: int64
+             * @description Open edit proposals on the work. A deletion declines them.
+             */
+            open_proposal_count: number;
+            /** @description An open or approved deletion request on the entry. null when none. */
+            pending_request_id: string | null;
+            /**
+             * Format: int64
+             * @description Releases of the work.
+             */
+            release_count: number;
+            /** @description The entry. */
+            target_id: string;
+            /**
+             * @description Family of the entry.
+             * @enum {string}
+             */
+            target_object: "work";
+            /** @description User records keyed to the work. */
+            user_data: components["schemas"]["DeletionUserData"];
+        } & {
+            [key: string]: unknown;
+        };
+        DeletionRequestRecord: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/DeletionRequestRecord.json
+             */
+            readonly $schema?: string;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC. null before a decision.
+             */
+            decided_at: string | null;
+            /** @description Account behind decided_by_uid. */
+            decided_by: components["schemas"]["UserRef"] | null;
+            /** @description Central account id of the reviewer who approved or rejected it. null before a decision and when the request closed by itself. */
+            decided_by_uid: string | null;
+            /** @description The reviewer's reason for a rejection, or why the request closed by itself. Empty otherwise. Must not be used as a discriminant. */
+            decision_note: string;
+            /**
+             * Format: date-time
+             * @description End of the cooling-off once approved. null before approval.
+             */
+            execute_after: string | null;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC. null until executed.
+             */
+            executed_at: string | null;
+            /** @description Deletion request id. */
+            id: string;
+            /** @description The requester's explanation. Must not be used as a discriminant. */
+            note: string;
+            /**
+             * @description Type discriminant. Always deletion_request.
+             * @enum {string}
+             */
+            object: "deletion_request";
+            /**
+             * @description Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.
+             * @enum {string|null}
+             */
+            origin_site: "kungal" | "moyu" | "letmoe" | "nextmoe" | "editor" | null;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC.
+             */
+            proposed_at: string;
+            /** @description Account behind proposed_by_uid. null only when the account directory could not be read. */
+            proposed_by: components["schemas"]["UserRef"] | null;
+            /** @description Central account id of the requester. */
+            proposed_by_uid: string;
+            /**
+             * @description not_a_work: no such work exists; out_of_scope: it exists but the catalog does not collect it; spam_or_test: vandalism or a test entry; other: see note. A duplicate is merged, not deleted.
+             * @enum {string}
+             */
+            reason: "not_a_work" | "out_of_scope" | "spam_or_test" | "other";
+            /** @description The reviewer's note when restoring. Empty otherwise. Must not be used as a discriminant. */
+            restore_note: string;
+            /**
+             * Format: date-time
+             * @description RFC 3339 UTC. null unless restored.
+             */
+            restored_at: string | null;
+            /** @description Account behind restored_by_uid. */
+            restored_by: components["schemas"]["UserRef"] | null;
+            /** @description Central account id of the reviewer who restored the entry. null unless restored. */
+            restored_by_uid: string | null;
+            /**
+             * @description open awaits a reviewer; approved waits out the cooling-off (catalog.deletion_cooling_off_hours), after which the deletion runs; executed means the entry is deleted; restored means a reviewer brought it back under the same id.
+             * @enum {string}
+             */
+            state: "open" | "approved" | "executed" | "rejected" | "withdrawn" | "restored";
+            /** @description The entry to delete. */
+            target_id: string;
+            /** @description The entry's display name, also once it is deleted. Must not be used as a discriminant. */
+            target_name: string;
+            /**
+             * @description Family of the entry. Only works can be deleted today.
+             * @enum {string}
+             */
+            target_object: "work";
+        } & {
+            [key: string]: unknown;
+        };
+        DeletionUserData: {
+            /**
+             * Format: int64
+             * @description Folder memberships of the work. Kept but hidden while it is deleted.
+             */
+            folder_item_count: number;
+            /**
+             * Format: int64
+             * @description Playtime reports on the work. Kept but hidden while it is deleted.
+             */
+            playtime_count: number;
+            /**
+             * Format: int64
+             * @description Ratings on the work. Kept but hidden while it is deleted.
+             */
+            rating_count: number;
+            /**
+             * Format: int64
+             * @description Play states on the work. Kept but hidden while it is deleted.
+             */
+            work_state_count: number;
         } & {
             [key: string]: unknown;
         };
@@ -4861,6 +5193,41 @@ export interface components {
             };
             /** @description Members of this page. Empty array, never null. */
             items: components["schemas"]["CreditName"][];
+            /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
+            missing?: string[];
+            /** @description Opaque keyset cursor. Omitted on the last page. */
+            next_cursor?: string;
+            /**
+             * @description Type discriminant. Always list.
+             * @enum {string}
+             */
+            object: "list";
+            /**
+             * Format: int64
+             * @description Present when include_total=true, and always in page mode (page=). Same visibility gate as items.
+             */
+            total?: number;
+            /**
+             * @description Present in page mode only. eq: total is exact. gte: total is a lower bound.
+             * @enum {string}
+             */
+            total_relation?: "eq" | "gte";
+        } & {
+            [key: string]: unknown;
+        };
+        ListDeletionRequestRecord: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/ListDeletionRequestRecord.json
+             */
+            readonly $schema?: string;
+            /** @description Named facet buckets. Present only when facets= is requested. */
+            facets?: {
+                [key: string]: components["schemas"]["FacetValue"][] | null;
+            };
+            /** @description Members of this page. Empty array, never null. */
+            items: components["schemas"]["DeletionRequestRecord"][];
             /** @description ids requested but not visible. Present only on the ids=/refs= batch lane. */
             missing?: string[];
             /** @description Opaque keyset cursor. Omitted on the last page. */
@@ -6825,6 +7192,21 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        PatchDeletionRequestInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/PatchDeletionRequestInputBody.json
+             */
+            readonly $schema?: string;
+            /**
+             * @description Set withdrawn to withdraw an open request you filed.
+             * @enum {string}
+             */
+            state: "withdrawn";
+        } & {
+            [key: string]: unknown;
+        };
         PatchFolderInputBody: {
             /**
              * Format: uri
@@ -7097,13 +7479,23 @@ export interface components {
             code: string;
             /** @description Canonical id when code is ENTITY_MERGED. */
             current_id?: string;
+            /**
+             * Format: date-time
+             * @description When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED.
+             */
+            deleted_at?: string;
+            /**
+             * @description Why the entity was deleted, when code is ENTITY_DELETED.
+             * @enum {string}
+             */
+            deleted_reason?: "not_a_work" | "out_of_scope" | "spam_or_test" | "other";
             /** @description English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add. */
             detail: string;
             /** @description Field-level failures. Empty array when this is not a field-level error. */
             errors: components["schemas"]["FieldError"][];
             /** @description Request path and query string that failed. Empty only if the path is unknown. */
             instance: string;
-            /** @description Entity family when code is ENTITY_MERGED. */
+            /** @description Entity family when code is ENTITY_MERGED or ENTITY_DELETED. */
             object?: string;
             /** @description Same value as X-Request-ID. Prefix req_ plus a 26-character ULID. */
             request_id: string;
@@ -16987,6 +17379,454 @@ export interface operations {
             };
         };
     };
+    getMyDeletionPreview: {
+        parameters: {
+            query?: {
+                /** @description Family of the entry. */
+                object?: "work";
+                /** @description The entry. */
+                target_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionPreview"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listMyDeletionRequests: {
+        parameters: {
+            query?: {
+                /** @description Narrow to one state. */
+                state?: "open" | "approved" | "executed" | "rejected" | "withdrawn" | "restored";
+                /** @description Narrow to requests about one work. */
+                target_id?: string;
+                /** @description Narrow to requests filed from one first-party property. */
+                origin_site?: "kungal" | "moyu" | "letmoe" | "nextmoe" | "editor";
+                /** @description Opaque keyset cursor from next_cursor. */
+                cursor?: string;
+                /** @description Page size, 1-100. Default 20. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListDeletionRequestRecord"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createMyDeletionRequest: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDeletionRequestInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionRequestRecord"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    patchMyDeletionRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Deletion request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchDeletionRequestInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionRequestRecord"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listMyDiscussionNotices: {
         parameters: {
             query?: {
@@ -23497,6 +24337,347 @@ export interface operations {
             };
             /** @description Precondition Required */
             428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listModerationDeletionRequests: {
+        parameters: {
+            query?: {
+                /** @description Narrow to one state. */
+                state?: "open" | "approved" | "executed" | "rejected" | "withdrawn" | "restored";
+                /** @description Narrow to requests about one work. */
+                target_id?: string;
+                /** @description Narrow to requests filed from one first-party property. */
+                origin_site?: "kungal" | "moyu" | "letmoe" | "nextmoe" | "editor";
+                /** @description Opaque keyset cursor from next_cursor. */
+                cursor?: string;
+                /** @description Page size, 1-100. Default 20. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListDeletionRequestRecord"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getModerationDeletionRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Deletion request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionRequestRecord"];
+                };
+            };
+            /** @description Not Modified. The representation is unchanged. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    decideModerationDeletionRequest: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Makes the request safe to retry. The same key with the same body within 24 hours replays the first response with Idempotency-Replayed: true; the same key with a different body is 409 IDEMPOTENCY_KEY_REUSED; a retry while the first request is still running is 409 IDEMPOTENCY_REQUEST_IN_PROGRESS. Scoped to the caller and the path. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                /** @description Deletion request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecideDeletionRequestInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionRequestRecord"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

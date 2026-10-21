@@ -406,6 +406,38 @@ var CatalogMergeRequestsPerDayReviewer = settings.Int(settings.Meta{
 	Max:    settings.F(100000),
 }, 500)
 
+var CatalogDeletionCoolingOffHours = settings.Int(settings.Meta{
+	Name:   "catalog.deletion_cooling_off_hours",
+	DescEN: "Hours an approved deletion request waits before it may execute; 0 means it executes as soon as a reviewer or the job runs it.",
+	DescZH: "已批准的删除请求在可执行前等待的小时数;0 表示审核者或定时任务可立即执行。",
+	Min:    settings.F(0),
+	Max:    settings.F(720),
+}, 48)
+
+var CatalogDeletionRequestsPerDay = settings.Int(settings.Meta{
+	Name:   "catalog.deletion_requests_per_day",
+	DescEN: "How many deletion requests one user-tier account may file through the editor inside catalog.write_quota_window_hours. Nothing is deleted until a reviewer approves and the cooling-off ends.",
+	DescZH: "普通档账号在 catalog.write_quota_window_hours 窗口内通过编辑台提交删除请求的上限。须审核通过并度过冷静期才会删除。",
+	Min:    settings.F(0),
+	Max:    settings.F(100000),
+}, 5)
+
+var CatalogDeletionRequestsPerDayEditor = settings.Int(settings.Meta{
+	Name:   "catalog.deletion_requests_per_day_editor",
+	DescEN: "The same limit for the editor tier.",
+	DescZH: "编辑者档的同一限额。",
+	Min:    settings.F(0),
+	Max:    settings.F(100000),
+}, 20)
+
+var CatalogDeletionRequestsPerDayReviewer = settings.Int(settings.Meta{
+	Name:   "catalog.deletion_requests_per_day_reviewer",
+	DescEN: "The same limit for the reviewer tier.",
+	DescZH: "审核者档的同一限额。",
+	Min:    settings.F(0),
+	Max:    settings.F(100000),
+}, 200)
+
 var CatalogEditMergeReward = settings.Int(settings.Meta{
 	Name:   "catalog.edit_merge_reward",
 	DescEN: "Moemoepoints the catalog-edit-rewards job grants the proposer of an edit proposal that someone else merged, whichever site filed it and whatever entity it edits. Self-merges, automerges and reverts earn nothing. 0 stops new awards.",
@@ -495,6 +527,10 @@ var catalogDomain = settings.Domain{
 		CatalogMergeRequestsPerDayEditor,
 		CatalogMergeRequestsPerDayReviewer,
 		CatalogDiscussionPostsPerHour,
+		CatalogDeletionCoolingOffHours,
+		CatalogDeletionRequestsPerDay,
+		CatalogDeletionRequestsPerDayEditor,
+		CatalogDeletionRequestsPerDayReviewer,
 		CatalogNewsSubmissionsPerDay,
 		CatalogNewsImageUploadsPerDay,
 		CatalogEditMergeReward,

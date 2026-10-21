@@ -47,6 +47,7 @@ const EditPolicyManage authz.Permission = "edit.policy.manage"
 const MergeReview authz.Permission = "catalog.merge.review"
 
 const DiscussionModerate authz.Permission = "catalog.discussion.moderate"
+const DeleteReview authz.Permission = "catalog.delete.review"
 
 var editProposePerms = []authz.Permission{EditWork, EditTaxonomy, EditCharacter, EditRelease, EditPerson}
 
@@ -55,7 +56,7 @@ var editReviewPerms = []authz.Permission{EditWorkReview, EditTaxonomyReview, Edi
 var editorPerms = append(append([]authz.Permission{}, editProposePerms...), EditTrusted)
 
 var moderatorPerms = concat(
-	[]authz.Permission{ClaimReview, RatingModerate, FolderModerate, EditTrusted, ClaimTrusted, MergeReview, DiscussionModerate},
+	[]authz.Permission{ClaimReview, RatingModerate, FolderModerate, EditTrusted, ClaimTrusted, MergeReview, DiscussionModerate, DeleteReview},
 	editProposePerms, editReviewPerms)
 
 var adminPerms = append(append([]authz.Permission{}, moderatorPerms...), EditPolicyManage)
@@ -85,7 +86,7 @@ func ReviewsEdits(roles []string) bool {
 // is the union below. It is a hand-maintained list over a growing permission
 // set: a new review permission that is not added here is silently not
 // moderation authority.
-var moderationPerms = concat([]authz.Permission{ClaimReview, Review, MergeReview}, editReviewPerms)
+var moderationPerms = concat([]authz.Permission{ClaimReview, Review, MergeReview, DeleteReview}, editReviewPerms)
 
 func Moderates(roles []string) bool {
 	for _, p := range moderationPerms {

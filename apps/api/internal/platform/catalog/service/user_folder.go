@@ -202,7 +202,7 @@ func (s *UserFolderService) ListItems(ctx context.Context, uid, folderID int64, 
 	if err := ownedFolder(s.db.WithContext(ctx), uid, folderID, &model.CatalogUserFolder{}); err != nil {
 		return nil, err
 	}
-	q := s.db.WithContext(ctx).Where("folder_id = ?", folderID)
+	q := s.db.WithContext(ctx).Where("folder_id = ?", folderID).Where(liveWorkCond("catalog_user_folder_item.work_id"))
 	if !since.IsZero() {
 		if sinceWorkID > 0 {
 			q = q.Where("updated_at > ? OR (updated_at = ? AND work_id > ?)", since, since, sinceWorkID)
@@ -218,7 +218,7 @@ func (s *UserFolderService) ListItems(ctx context.Context, uid, folderID int64, 
 func (s *UserFolderService) CountItems(ctx context.Context, uid, folderID int64) (int64, error) {
 	var n int64
 	err := s.db.WithContext(ctx).Model(&model.CatalogUserFolderItem{}).
-		Where("folder_id = ?", folderID).Count(&n).Error
+		Where("folder_id = ?", folderID).Where(liveWorkCond("catalog_user_folder_item.work_id")).Count(&n).Error
 	return n, err
 }
 

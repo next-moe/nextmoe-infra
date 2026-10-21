@@ -37,18 +37,20 @@ type FieldError struct {
 func Ptr[T any](v T) *T { return &v }
 
 type Problem struct {
-	_         struct{}     `json:"-" additionalProperties:"true"`
-	Type      string       `json:"type" format:"uri" maxLength:"256" doc:"Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}."`
-	Title     string       `json:"title" maxLength:"128" pattern:"^[ -~]+$" doc:"Stable English phrase for this type. Does not vary per request."`
-	Status    int          `json:"status" minimum:"400" maximum:"599" doc:"HTTP status. Matches the response status line."`
-	Detail    string       `json:"detail" maxLength:"2048" doc:"English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add."`
-	Instance  string       `json:"instance" maxLength:"2048" pattern:"^(/.*)?$" doc:"Request path and query string that failed. Empty only if the path is unknown."`
-	Code      string       `json:"code" pattern:"^[A-Z][A-Z0-9_]*[A-Z0-9]$" maxLength:"63" doc:"Top-level error code from the closed registry. UPPER_SNAKE."`
-	RequestID string       `json:"request_id" pattern:"^req_[0-9A-HJKMNP-TV-Z]{26}$" minLength:"30" maxLength:"30" doc:"Same value as X-Request-ID. Prefix req_ plus a 26-character ULID."`
-	Errors    []FieldError `json:"errors" doc:"Field-level failures. Empty array when this is not a field-level error."`
-	Object    string       `json:"object,omitempty" maxLength:"32" pattern:"^[a-z][a-z0-9_]*$" doc:"Entity family when code is ENTITY_MERGED."`
-	CurrentID string       `json:"current_id,omitempty" pattern:"^[0-9]+$" maxLength:"20" doc:"Canonical id when code is ENTITY_MERGED."`
-	Suspects  []Suspect    `json:"suspects,omitempty" doc:"Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation."`
+	_             struct{}     `json:"-" additionalProperties:"true"`
+	Type          string       `json:"type" format:"uri" maxLength:"256" doc:"Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}."`
+	Title         string       `json:"title" maxLength:"128" pattern:"^[ -~]+$" doc:"Stable English phrase for this type. Does not vary per request."`
+	Status        int          `json:"status" minimum:"400" maximum:"599" doc:"HTTP status. Matches the response status line."`
+	Detail        string       `json:"detail" maxLength:"2048" doc:"English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add."`
+	Instance      string       `json:"instance" maxLength:"2048" pattern:"^(/.*)?$" doc:"Request path and query string that failed. Empty only if the path is unknown."`
+	Code          string       `json:"code" pattern:"^[A-Z][A-Z0-9_]*[A-Z0-9]$" maxLength:"63" doc:"Top-level error code from the closed registry. UPPER_SNAKE."`
+	RequestID     string       `json:"request_id" pattern:"^req_[0-9A-HJKMNP-TV-Z]{26}$" minLength:"30" maxLength:"30" doc:"Same value as X-Request-ID. Prefix req_ plus a 26-character ULID."`
+	Errors        []FieldError `json:"errors" doc:"Field-level failures. Empty array when this is not a field-level error."`
+	Object        string       `json:"object,omitempty" maxLength:"32" pattern:"^[a-z][a-z0-9_]*$" doc:"Entity family when code is ENTITY_MERGED or ENTITY_DELETED."`
+	CurrentID     string       `json:"current_id,omitempty" pattern:"^[0-9]+$" maxLength:"20" doc:"Canonical id when code is ENTITY_MERGED."`
+	DeletedReason string       `json:"deleted_reason,omitempty" enum:"not_a_work,out_of_scope,spam_or_test,other" doc:"Why the entity was deleted, when code is ENTITY_DELETED."`
+	DeletedAt     string       `json:"deleted_at,omitempty" format:"date-time" maxLength:"32" doc:"When the entity was deleted, RFC 3339 UTC, when code is ENTITY_DELETED."`
+	Suspects      []Suspect    `json:"suspects,omitempty" doc:"Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation."`
 }
 
 type Suspect struct {
@@ -97,6 +99,14 @@ func Merged(object, currentID, requestID, instance, detail string) *Problem {
 	p := New(CodeEntityMerged, requestID, instance, detail)
 	p.Object = object
 	p.CurrentID = currentID
+	return p
+}
+
+func Deleted(object, reason, deletedAt, requestID, instance, detail string) *Problem {
+	p := New(CodeEntityDeleted, requestID, instance, detail)
+	p.Object = object
+	p.DeletedReason = reason
+	p.DeletedAt = deletedAt
 	return p
 }
 

@@ -1,0 +1,58 @@
+package repr
+
+type DeletionRequestRecord struct {
+	_             struct{} `json:"-" additionalProperties:"true"`
+	Object        string   `json:"object" enum:"deletion_request" doc:"Type discriminant. Always deletion_request."`
+	ID            string   `json:"id" pattern:"^[0-9]+$" minLength:"1" maxLength:"20" doc:"Deletion request id."`
+	State         string   `json:"state" enum:"open,approved,executed,rejected,withdrawn,restored" doc:"open awaits a reviewer; approved waits out the cooling-off (catalog.deletion_cooling_off_hours), after which the deletion runs; executed means the entry is deleted; restored means a reviewer brought it back under the same id."`
+	TargetObject  string   `json:"target_object" enum:"work" doc:"Family of the entry. Only works can be deleted today."`
+	TargetID      string   `json:"target_id" pattern:"^[0-9]+$" maxLength:"20" doc:"The entry to delete."`
+	TargetName    string   `json:"target_name" maxLength:"512" doc:"The entry's display name, also once it is deleted. Must not be used as a discriminant."`
+	Reason        string   `json:"reason" enum:"not_a_work,out_of_scope,spam_or_test,other" doc:"not_a_work: no such work exists; out_of_scope: it exists but the catalog does not collect it; spam_or_test: vandalism or a test entry; other: see note. A duplicate is merged, not deleted."`
+	Note          string   `json:"note" maxLength:"2000" doc:"The requester's explanation. Must not be used as a discriminant."`
+	DecisionNote  string   `json:"decision_note" maxLength:"2000" doc:"The reviewer's reason for a rejection, or why the request closed by itself. Empty otherwise. Must not be used as a discriminant."`
+	RestoreNote   string   `json:"restore_note" maxLength:"2000" doc:"The reviewer's note when restoring. Empty otherwise. Must not be used as a discriminant."`
+	ProposedByUID string   `json:"proposed_by_uid" pattern:"^[0-9]+$" maxLength:"20" doc:"Central account id of the requester."`
+	ProposedBy    *UserRef `json:"proposed_by" doc:"Account behind proposed_by_uid. null only when the account directory could not be read."`
+	DecidedByUID  *string  `json:"decided_by_uid" pattern:"^[0-9]+$" maxLength:"20" doc:"Central account id of the reviewer who approved or rejected it. null before a decision and when the request closed by itself."`
+	DecidedBy     *UserRef `json:"decided_by" doc:"Account behind decided_by_uid."`
+	RestoredByUID *string  `json:"restored_by_uid" pattern:"^[0-9]+$" maxLength:"20" doc:"Central account id of the reviewer who restored the entry. null unless restored."`
+	RestoredBy    *UserRef `json:"restored_by" doc:"Account behind restored_by_uid."`
+	OriginSite    *string  `json:"origin_site" enum:"kungal,moyu,letmoe,nextmoe,editor" doc:"Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template."`
+	ProposedAt    string   `json:"proposed_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
+	DecidedAt     *string  `json:"decided_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC. null before a decision."`
+	ExecuteAfter  *string  `json:"execute_after" format:"date-time" maxLength:"32" doc:"End of the cooling-off once approved. null before approval."`
+	ExecutedAt    *string  `json:"executed_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC. null until executed."`
+	RestoredAt    *string  `json:"restored_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC. null unless restored."`
+}
+
+type DeletionAnchor struct {
+	_          struct{} `json:"-" additionalProperties:"true"`
+	Source     string   `json:"source" maxLength:"64" doc:"Open vocabulary sources. Must not be used as a discriminant."`
+	ExternalID string   `json:"external_id" maxLength:"256" doc:"Verbatim upstream id. Must not be used as a discriminant beyond exact match. It is an identity anchor at this entity's own granularity, not necessarily an addressable page: a credit-name vndb ref is a staff-alias id with no page of its own. Browseable URLs come from links."`
+	AnchorKind string   `json:"anchor_kind" enum:"identity,probable,related" doc:"identity and probable links keep the importers from creating the work again while it is deleted; related links are ordinary links."`
+}
+
+type DeletionUserData struct {
+	_               struct{} `json:"-" additionalProperties:"true"`
+	RatingCount     int64    `json:"rating_count" minimum:"0" doc:"Ratings on the work. Kept but hidden while it is deleted."`
+	FolderItemCount int64    `json:"folder_item_count" minimum:"0" doc:"Folder memberships of the work. Kept but hidden while it is deleted."`
+	PlaytimeCount   int64    `json:"playtime_count" minimum:"0" doc:"Playtime reports on the work. Kept but hidden while it is deleted."`
+	WorkStateCount  int64    `json:"work_state_count" minimum:"0" doc:"Play states on the work. Kept but hidden while it is deleted."`
+}
+
+type DeletionPreview struct {
+	_                 struct{}         `json:"-" additionalProperties:"true"`
+	Object            string           `json:"object" enum:"deletion_preview" doc:"Type discriminant. Always deletion_preview."`
+	TargetObject      string           `json:"target_object" enum:"work" doc:"Family of the entry."`
+	TargetID          string           `json:"target_id" pattern:"^[0-9]+$" maxLength:"20" doc:"The entry."`
+	DisplayName       string           `json:"display_name" maxLength:"512" doc:"The entry's display name. Must not be used as a discriminant."`
+	Deleted           bool             `json:"deleted" doc:"true when the entry is already deleted."`
+	MergedIntoID      *string          `json:"merged_into_id" pattern:"^[0-9]+$" maxLength:"20" doc:"Set when the entry was merged into another; it cannot be deleted then."`
+	Anchors           []DeletionAnchor `json:"anchors" doc:"Links to source entries the work holds."`
+	ReleaseCount      int64            `json:"release_count" minimum:"0" doc:"Releases of the work."`
+	UserData          DeletionUserData `json:"user_data" doc:"User records keyed to the work."`
+	OpenProposalCount int64            `json:"open_proposal_count" minimum:"0" doc:"Open edit proposals on the work. A deletion declines them."`
+	ClaimSite         *string          `json:"claim_site" maxLength:"32" pattern:"^[a-z][a-z0-9_]*$" doc:"Site that claimed the work. null when unclaimed."`
+	PendingRequestID  *string          `json:"pending_request_id" pattern:"^[0-9]+$" maxLength:"20" doc:"An open or approved deletion request on the entry. null when none."`
+}
