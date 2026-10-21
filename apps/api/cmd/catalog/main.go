@@ -4,6 +4,7 @@ import (
 	"api/internal/platform/catalog/discussion"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -31,6 +32,7 @@ import (
 	newsService "api/internal/platform/news/service"
 	"api/internal/platform/permissions"
 	"api/internal/platform/settings"
+	"api/internal/platform/settings/appface"
 	"api/internal/platform/settings/keys"
 	siteRepo "api/internal/platform/site/repository"
 	"api/internal/platform/store/price"
@@ -44,6 +46,7 @@ import (
 	"api/pkg/trustclient"
 
 	"github.com/gofiber/fiber/v3"
+	"gorm.io/gorm"
 )
 
 func main() {
@@ -438,6 +441,27 @@ func setupPublicCatalog(
 		c.Set("Content-Type", "application/json")
 		c.Set("Cache-Control", "public, max-age=3600")
 		return c.Send(v2spec)
+	})
+
+	appSettingsAPI := appface.Setup(application.Fiber, func(ctx context.Context, clientID string) (appface.Client, bool, error) {
+		cl, err := clientRepo.FindByClientID(ctx, clientID)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return appface.Client{}, false, nil
+		}
+		if err != nil {
+			return appface.Client{}, false, err
+		}
+		return appface.Client{SiteID: cl.SiteID, Public: cl.IsPublic}, true, nil
+	})
+	appSettingsSpec, err := json.Marshal(appSettingsAPI.OpenAPI())
+	if err != nil {
+		slog.Error("marshal app settings spec", "error", err)
+		os.Exit(1)
+	}
+	application.Fiber.Get(appface.SpecPath, func(c fiber.Ctx) error {
+		c.Set("Content-Type", "application/json")
+		c.Set("Cache-Control", "public, max-age=3600")
+		return c.Send(appSettingsSpec)
 	})
 
 	flushDone := make(chan struct{})

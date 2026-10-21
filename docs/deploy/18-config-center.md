@@ -27,7 +27,7 @@ ERROR 日志。数据库里的一行若类型不符、越界或枚举外,会被�
 **边界**:配置中心只收运行期可调项(开关、阈值、TTL、配额)。密钥、host/port/dsn/bucket、S3
 path style、PG 连接池、OIDC 签名算法、aff URL 模板等启动期接线永远留在环境变量里。
 
-## 18.1 现有键(97 个)
+## 18.1 现有键(127 个,2026-10-21)
 
 | 域 | 键数 | 来源 |
 |---|---|---|
@@ -40,6 +40,7 @@ path style、PG 连接池、OIDC 签名算法、aff URL 模板等启动期接线
 | `store` | 7 | W1 1 + W3-b 6(价格面) |
 | `apiv2` / `catalog` / `community` / `developer` | 4 / 7 / 7 / 2 | W3-a 新域 |
 | `jobs` | 32 | W2,16 任务 × 2 |
+| `app` | 3 | 2026-10-21,一方原生 App 的产品参数(只下发给该 App,见 18.8) |
 
 全目录以控制台 `/settings` 为准——**注册表即界面**,每个键的类型、范围与中英文说明都在
 `internal/platform/settings/keys` 的声明里(`keys.go` = platform + W1,`policy.go` = W3-a,
@@ -192,7 +193,8 @@ env 行已拔。此后删掉某行 DB 值,回落的是**代码默认**(不再有
 
 ## 18.5 怎么新增一个键
 
-1. 在 `internal/platform/settings/keys` 里对应域的文件声明(`settings.Bool/Int/Float/String/Enum/StringList`),
+1. 在 `internal/platform/settings/keys` 里对应域的文件声明(App 的键在 `keys/app.go`,另需把 client_id
+   映射到该 App 的键列表,见 18.8)(`settings.Bool/Int/Float/String/Enum/StringList`),
    给默认值、范围/枚举、中英说明;要保留环境变量地板就填 `EnvVar`;要随读面下发给站点就标 `Public`,
    允许站点单独覆盖就标 `SiteScoped`(两者都是契约,加了就不能撤)。新的定时任务不在这里声明,
    而是在 `keys/jobs.go` 的表里加一行(见 18.6)。
@@ -226,3 +228,10 @@ env 行已拔。此后删掉某行 DB 值,回落的是**代码默认**(不再有
 读面报告的是 oauth 进程看到的值(数据库行,否则代码默认),看不见其它服务的环境变量地板——这也是
 18.4「先建行再拔 env」的另一个理由。
 
+## 18.8 下发给原生 App 的读面
+
+一方原生 App 是公开客户端,没有 secret,读 `GET https://api.nextmoe.dev/v2/apps/{client_id}/settings`
+(catalog 上,免凭证、走匿名 `/v2` 限额、带 ETag 与 304)。它返回该 client 所属站点的全部公开键(按站点覆盖,
+与 18.7 的读面同值)加上为这个 App 声明的 `app.<app>.*` 键。App 的产品参数放进配置中心是所有者
+2026-10-20 的决定;站点网页自己的产品开关仍留在站点。`app` 域的键不标 `Public`,所以不会出现在
+18.7 给站点的读面里。契约与客户端行为见 [docs/app-settings/README.md](../app-settings/README.md)。

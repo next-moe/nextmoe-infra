@@ -1,0 +1,323 @@
+components:
+  schemas:
+    AppSettings:
+      additionalProperties: true
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://api.nextmoe.dev/AppSettings.json
+          format: uri
+          readOnly: true
+          type: string
+        client_id:
+          description: The client_id from the path.
+          type: string
+        settings:
+          additionalProperties: true
+          description: "Setting key to its effective value. Every property is optional: an app falls back to its built-in default for a key that is missing, and ignores a key it does not know."
+          properties:
+            app.kungal.home_rating_count:
+              default: 6
+              description: How many player ratings the kungal app shows on its home page; 0 hides the section.
+              format: int64
+              maximum: 20
+              minimum: 0
+              type: integer
+            app.kungal.home_topic_count:
+              default: 20
+              description: How many topics the kungal app lists on its home page.
+              format: int64
+              maximum: 100
+              minimum: 5
+              type: integer
+            app.kungal.home_work_rows:
+              default: 2
+              description: How many rows the work grid on the kungal app's home page has.
+              format: int64
+              maximum: 4
+              minimum: 1
+              type: integer
+            artifact.upload_enabled:
+              default: false
+              description: Master switch for accepting new artifact uploads; off rejects every upload.
+              type: boolean
+            auth.name_change_cost:
+              default: 17
+              description: Moemoepoints charged when a user changes their username; 0 makes renaming free.
+              format: int64
+              maximum: 10000
+              minimum: 0
+              type: integer
+            image.upload_enabled:
+              default: false
+              description: Master switch for accepting new image uploads; off rejects every upload.
+              type: boolean
+            platform.notice:
+              default: ""
+              description: A one-line notice every site should show at the top of its pages; empty shows nothing.
+              pattern: ^[^\n]{0,500}$
+              type: string
+            platform.read_only:
+              default: false
+              description: Tells every site to refuse writes (posting, editing, uploads) and show a maintenance notice; used during platform-wide maintenance such as a database move.
+              type: boolean
+            shop.min_price:
+              default: 100
+              description: Lowest moemoepoint price an offer in the moemoepoint shop may carry.
+              format: int64
+              maximum: 1000000
+              minimum: 1
+              type: integer
+          type: object
+        site_id:
+          description: The site the client is bound to, whose site overrides are applied; null when it has no site binding and every value is the platform one.
+          format: int64
+          minimum: 0
+          type:
+            - integer
+            - "null"
+      required:
+        - client_id
+        - site_id
+        - settings
+      type: object
+    FieldError:
+      additionalProperties: true
+      properties:
+        detail:
+          description: English, request-specific. Must not be used as a discriminant.
+          maxLength: 2048
+          type: string
+        header:
+          description: Request header name. Exactly one of pointer, parameter, or header is set.
+          maxLength: 64
+          pattern: ^[A-Za-z0-9-]+$
+          type: string
+        parameter:
+          description: Query or path parameter name. Exactly one of pointer, parameter, or header is set.
+          maxLength: 64
+          pattern: ^[A-Za-z_][A-Za-z0-9_]*$
+          type: string
+        params:
+          $ref: "#/components/schemas/FieldParams"
+          description: Constraint values for this reason. Omitted when the reason carries none.
+        pointer:
+          description: JSON Pointer (RFC 6901) into the request body. Exactly one of pointer, parameter, or header is set.
+          maxLength: 256
+          pattern: ^/
+          type: string
+        reason:
+          description: Field-level reason from the closed reason registry.
+          maxLength: 63
+          pattern: ^[A-Z][A-Z0-9_]*[A-Z0-9]$
+          type: string
+      required:
+        - reason
+        - detail
+      type: object
+    FieldParams:
+      additionalProperties: false
+      properties:
+        allowed:
+          description: Closed vocabulary members that were expected.
+          items:
+            maxLength: 128
+            pattern: ^[\x20-\x7E]+$
+            type: string
+          maxItems: 256
+          type: array
+        max_items:
+          description: Maximum array length the value exceeded.
+          format: int64
+          minimum: 0
+          type: integer
+        max_length:
+          description: Maximum string length the value exceeded.
+          format: int64
+          minimum: 0
+          type: integer
+        maximum:
+          description: Inclusive numeric upper bound the value missed.
+          format: double
+          maximum: 9007199254740991
+          minimum: -9007199254740991
+          type: number
+        min_items:
+          description: Minimum array length the value failed.
+          format: int64
+          minimum: 0
+          type: integer
+        min_length:
+          description: Minimum string length the value failed.
+          format: int64
+          minimum: 0
+          type: integer
+        minimum:
+          description: Inclusive numeric lower bound the value missed.
+          format: double
+          maximum: 9007199254740991
+          minimum: -9007199254740991
+          type: number
+      type: object
+    Problem:
+      additionalProperties: true
+      properties:
+        code:
+          description: Top-level error code from the closed registry. UPPER_SNAKE.
+          maxLength: 63
+          pattern: ^[A-Z][A-Z0-9_]*[A-Z0-9]$
+          type: string
+        current_id:
+          description: Canonical id when code is ENTITY_MERGED.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+        detail:
+          description: English, request-specific. Must not be used as a discriminant. Empty when there is nothing to add.
+          maxLength: 2048
+          type: string
+        errors:
+          description: Field-level failures. Empty array when this is not a field-level error.
+          items:
+            $ref: "#/components/schemas/FieldError"
+          type: array
+        instance:
+          description: Request path and query string that failed. Empty only if the path is unknown.
+          maxLength: 2048
+          pattern: ^(/.*)?$
+          type: string
+        object:
+          description: Entity family when code is ENTITY_MERGED.
+          maxLength: 32
+          pattern: ^[a-z][a-z0-9_]*$
+          type: string
+        request_id:
+          description: Same value as X-Request-ID. Prefix req_ plus a 26-character ULID.
+          maxLength: 30
+          minLength: 30
+          pattern: ^req_[0-9A-HJKMNP-TV-Z]{26}$
+          type: string
+        status:
+          description: HTTP status. Matches the response status line.
+          format: int64
+          maximum: 599
+          minimum: 400
+          type: integer
+        suspects:
+          description: "Live entries sharing a submitted name when code is DUPLICATE_SUSPECTS: works for a claim mint, the requested family for a creation."
+          items:
+            $ref: "#/components/schemas/Suspect"
+          type: array
+        title:
+          description: Stable English phrase for this type. Does not vary per request.
+          maxLength: 128
+          pattern: ^[ -~]+$
+          type: string
+        type:
+          description: Stable problem type URI of the form https://developer.nextmoe.dev/problems/{domain}/{kebab-code}.
+          format: uri
+          maxLength: 256
+          type: string
+      required:
+        - type
+        - title
+        - status
+        - detail
+        - instance
+        - code
+        - request_id
+        - errors
+      type: object
+    Suspect:
+      additionalProperties: true
+      properties:
+        display_name:
+          description: The matching entry's display name. Must not be used as a discriminant.
+          maxLength: 512
+          type: string
+        id:
+          description: Catalog id of the matching entry.
+          maxLength: 20
+          pattern: ^[0-9]+$
+          type: string
+      required:
+        - id
+        - display_name
+      type: object
+info:
+  description: "Runtime settings for first-party native apps, read from the NextMoe config center. No credential: an app holds no secret, so it names itself by its public OAuth client_id. Calls without a credential share the anonymous /v2 rate limit and daily quota of their IPv4 address or IPv6 /64; a signed-in app may send its user access token as Authorization: Bearer, which changes only the bucket it is counted in."
+  title: NextMoe App Settings API
+  version: 1.0.1
+openapi: 3.1.0
+paths:
+  /v2/apps/{client_id}/settings:
+    get:
+      description: "Every public key of the config center, resolved for the site the client is bound to (the same values a site reads from GET /api/v1/settings), plus the keys declared for this app. A key the app does not know is to be ignored; new keys are only ever added. Send the last ETag as If-None-Match: an unchanged body answers 304 with no body."
+      operationId: getAppSettings
+      parameters:
+        - description: The app's public OAuth client_id, e.g. kungal-app.
+          in: path
+          name: client_id
+          required: true
+          schema:
+            description: The app's public OAuth client_id, e.g. kungal-app.
+            maxLength: 50
+            pattern: ^[A-Za-z0-9._-]+$
+            type: string
+        - description: The ETag of the last 200 this app stored, sent back exactly as received. Compared weakly, so the strong and the W/ form both match; a match answers 304.
+          in: header
+          name: If-None-Match
+          schema:
+            description: The ETag of the last 200 this app stored, sent back exactly as received. Compared weakly, so the strong and the W/ form both match; a match answers 304.
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppSettings"
+          description: OK
+          headers:
+            ETag:
+              schema:
+                description: Validator of this body. The origin sends it strong; a response the CDN compressed carries it as W/"...". Send it back unchanged as If-None-Match.
+                type: string
+        "304":
+          description: Not Modified. The settings are unchanged since the ETag sent as If-None-Match.
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Unprocessable Entity
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Too Many Requests
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Internal Server Error
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: Service Unavailable
+      summary: The settings one native app must follow
+      tags:
+        - Settings
+servers:
+  - description: Production. Paths already include /v2/apps.
+    url: https://api.nextmoe.dev

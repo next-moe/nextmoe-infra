@@ -37,6 +37,7 @@ on:
       - "docs/catalog/v2-openapi.yaml"
       - "docs/community/openapi.yaml"
       - "docs/chat/openapi.yaml"
+      - "docs/app-settings/openapi.yaml"
       - "docs/trust/openapi.yaml"
       - "docs/trust/admin-openapi.yaml"
       - "docs/ai/openapi.yaml"
@@ -97,6 +98,7 @@ jobs:
             docs/catalog/v2-openapi.yaml
             docs/community/openapi.yaml
             docs/chat/openapi.yaml
+            docs/app-settings/openapi.yaml
             docs/trust/openapi.yaml
             docs/trust/admin-openapi.yaml
             docs/ai/openapi.yaml
