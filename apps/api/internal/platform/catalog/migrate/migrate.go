@@ -173,7 +173,13 @@ func Run(db *gorm.DB) error {
 		&model.CatalogMergeArchive{},
 		&model.CatalogSurvivorshipRule{},
 
-		// Credit edges (step 05).
+		// Credit edges (step 05). 2026-10-21 adds field_provenance jsonb NOT NULL
+		// DEFAULT '{}' for catalog.work.credits_upstream, the in-place correction
+		// of an imported credit's note / spoiler / release / company. Until now
+		// the only way was hide-and-re-add, which uq_catalog_credit refused. The
+		// constant default means PG 11+ adds the column as metadata without
+		// rewriting the ~1.02M existing rows, all of which take '{}' ("nobody has
+		// claimed any column on this row").
 		&model.CatalogCredit{},
 
 		// 2026-09-25: how far this service has read the deleted-accounts list

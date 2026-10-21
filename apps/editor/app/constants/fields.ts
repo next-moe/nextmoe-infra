@@ -13,6 +13,7 @@ export const FIELD_LABELS: Record<string, string> = {
   covers: '封面',
   screenshots: '截图',
   credits: '制作人员',
+  credits_upstream: '资料源署名',
   roster: '登场角色',
   aliases: '别名',
   description: '描述',

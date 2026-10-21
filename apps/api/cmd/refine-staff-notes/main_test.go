@@ -172,3 +172,14 @@ func TestRefineStaffNotesRekeysInSameTxn(t *testing.T) {
 		Scan(&visible).Error)
 	assert.Equal(t, []int64{f.curatedID}, visible)
 }
+
+func TestRefineStaffNotesSkipsACorrectedNote(t *testing.T) {
+	f := seedStaffNotes(t, "programming")
+	require.NoError(t, testDB.Exec(`UPDATE catalog_credit SET field_provenance =
+		'{"note":[{"source":"curated","at":"2026-10-21T00:00:00Z"}]}'::jsonb WHERE id = ?`, f.upstreamID).Error)
+
+	require.NoError(t, run(context.Background(), testDB, true, &bytes.Buffer{}))
+
+	assert.EqualValues(t, otherStaffRoleID, roleOf(t, f.upstreamID),
+		"a note a person wrote is not the importer's text to reclassify by")
+}

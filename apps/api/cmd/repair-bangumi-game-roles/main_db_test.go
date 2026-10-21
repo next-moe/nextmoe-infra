@@ -234,3 +234,30 @@ func TestRepairCarriesSuppressionsWithTheCredits(t *testing.T) {
 		editspec.NotSuppressedCreditSQL("c"), game).Scan(&hidden).Error)
 	assert.EqualValues(t, 1, hidden, "the read path still drops exactly the credit that was hidden")
 }
+
+func TestRepairCarriesACorrectionToTheTwin(t *testing.T) {
+	setup(t)
+	generated, err := seed.GenerateBangumiRoles()
+	require.NoError(t, err)
+	scenario, juben := roleID(t, "scenario"), roleID(t, "剧本")
+	game := mkWork(t, "galgame")
+	name := mkName(t, "えんぎよし")
+	twin := mkCredit(t, game, name, scenario, 2)
+	corrected := mkCredit(t, game, name, juben, 3)
+	require.NoError(t, testDB.Exec(`UPDATE catalog_credit SET note = '共同', field_provenance =
+		'{"note":[{"source":"curated","at":"2026-10-21T00:00:00Z"}]}'::jsonb WHERE id = ?`, corrected).Error)
+
+	_, err = run(context.Background(), testDB, generated.GameRoleToShared, true, &bytes.Buffer{})
+	require.NoError(t, err)
+
+	_, kept := roleOf(t, corrected)
+	assert.False(t, kept, "the Bangumi twin is deleted")
+	var got struct {
+		Note  string
+		Stamp string
+	}
+	require.NoError(t, testDB.Raw(`SELECT note, COALESCE(field_provenance -> 'note' -> 0 ->> 'source', '') AS stamp
+		FROM catalog_credit WHERE id = ?`, twin).Scan(&got).Error)
+	assert.Equal(t, "共同", got.Note, "the person's note moves to the surviving row")
+	assert.Equal(t, "curated", got.Stamp)
+}
