@@ -276,6 +276,11 @@ export const CHARACTER_EDIT_CONFIG: EditEntityConfig = {
       members: aliasMembers
     },
     'catalog.character.intros': introsField(),
+    'catalog.character.description': {
+      label: '描述',
+      group: 'intros',
+      control: 'textarea'
+    },
     'catalog.character.traits': {
       label: '特质',
       group: 'traits',
