@@ -51,6 +51,7 @@ type Entry interface {
 	Meta() Meta
 	Default() any
 	Current() any
+	CurrentForSite(siteID uint) any
 	Source() Source
 	Decode(raw json.RawMessage) (any, error)
 	ParseEnv(s string) (any, error)
@@ -94,6 +95,10 @@ func (k *Key[T]) Default() any { return k.def }
 
 func (k *Key[T]) Current() any {
 	return k.current.Load().value
+}
+
+func (k *Key[T]) CurrentForSite(siteID uint) any {
+	return k.ForSite(siteID)
 }
 
 func (k *Key[T]) Source() Source {
