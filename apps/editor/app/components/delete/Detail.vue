@@ -120,6 +120,19 @@ const askNote = (kind: 'reject' | 'restore') => {
   noteText.value = ''
   noteOpen.value = kind
 }
+
+const discussionParticipants = computed(() => {
+  const r = props.request
+  return [
+    { uid: r.proposed_by_uid, user: r.proposed_by, role: '发起人' },
+    ...(r.decided_by_uid
+      ? [{ uid: r.decided_by_uid, user: r.decided_by, role: '审核人' }]
+      : []),
+    ...(r.restored_by_uid
+      ? [{ uid: r.restored_by_uid, user: r.restored_by, role: '恢复人' }]
+      : [])
+  ]
+})
 </script>
 
 <template>
@@ -252,6 +265,12 @@ const askNote = (kind: 'reject' | 'restore') => {
         撤回请求
       </KunButton>
     </footer>
+
+    <DiscussionThread
+      anchor-kind="deletion_request"
+      :anchor-id="props.request.id"
+      :participants="discussionParticipants"
+    />
 
     <KunModal
       :model-value="noteOpen !== null"

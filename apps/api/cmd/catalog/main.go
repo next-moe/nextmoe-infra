@@ -422,7 +422,7 @@ func setupPublicCatalog(
 			Prices:         priceSvc,
 			RatingTrust:    ratingTrust,
 			Discussions: discussion.New(catalogDB.DB(),
-				discussion.ProposalKind(), discussion.MergeRequestKind()),
+				discussion.ProposalKind(), discussion.MergeRequestKind(), discussion.DeletionRequestKind()),
 			DiscussionTrust: ratingTrust,
 
 			SiteOfAppClient: siteOfClient,

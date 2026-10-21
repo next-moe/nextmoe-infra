@@ -228,3 +228,30 @@ func TestLiveDiscussionOnAMergeRequestFollowsItsReaders(t *testing.T) {
 	status, _, body = livePost(t, env, liveSecondBothToken, fmt.Sprintf(`{"anchor_kind":"merge_request","anchor_id":"%d","body":"我也说一句"}`, req.ID))
 	require.Equal(t, http.StatusNotFound, status, "posting needs read access first: %s", body)
 }
+
+func TestLiveDiscussionOnADeletionRequestFollowsItsReaders(t *testing.T) {
+	env := liveCatalog(t)
+	w := liveClaimedBy(t, env, "Discussion Deletion", 39713, livePlainUID)
+	req, err := env.cat.Deletions.Request(context.Background(), model.EntityTypeWork, w, livePlainUID, "spam_or_test", "测试条目")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		env.db.Exec(`DELETE FROM edit_discussion_post WHERE anchor_kind = 'deletion_request' AND anchor_id = ?`, req.ID)
+		env.db.Exec(`DELETE FROM edit_discussion_watcher WHERE anchor_kind = 'deletion_request' AND anchor_id = ?`, req.ID)
+		env.db.Exec(`DELETE FROM catalog_deletion_request WHERE id = ?`, req.ID)
+	})
+
+	status, _, body := liveDiscussionThread(t, env, "deletion_request", req.ID, "")
+	require.Equal(t, http.StatusNotFound, status, "a deletion request's thread is not public: %s", body)
+	status, _, body = liveDiscussionThread(t, env, "deletion_request", req.ID, liveSecondBothToken)
+	require.Equal(t, http.StatusNotFound, status, "another plain user cannot read it: %s", body)
+	status, _, body = liveDiscussionThread(t, env, "deletion_request", req.ID, livePlainBothToken)
+	require.Equal(t, http.StatusOK, status, "the requester reads it: %s", body)
+
+	since := time.Now().Add(-time.Minute)
+	status, post, body := livePost(t, env, liveCentralBothToken, fmt.Sprintf(`{"anchor_kind":"deletion_request","anchor_id":"%d","body":"官网还在吗?"}`, req.ID))
+	require.Equal(t, http.StatusCreated, status, string(body))
+	require.True(t, post.AuthorReviewer)
+	notices := liveNotices(t, env, livePlainBothToken, since)
+	require.Len(t, notices, 1, "the requester watches their request")
+	require.True(t, notices[0].ViewerIsOwner)
+}

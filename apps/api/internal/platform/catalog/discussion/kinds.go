@@ -24,8 +24,9 @@ type Kind struct {
 }
 
 const (
-	KindProposal     = "proposal"
-	KindMergeRequest = "merge_request"
+	KindProposal        = "proposal"
+	KindMergeRequest    = "merge_request"
+	KindDeletionRequest = "deletion_request"
 )
 
 func uidsOf(ctx context.Context, db *gorm.DB, sql string, args ...any) ([]int64, error) {
@@ -93,6 +94,35 @@ func MergeRequestKind() Kind {
 		},
 		Participants: func(ctx context.Context, db *gorm.DB, id int64) ([]int64, error) {
 			return uidsOf(ctx, db, `SELECT proposed_by FROM catalog_merge_proposal WHERE id = ?`, id)
+		},
+		Reviewer: canReview,
+	}
+}
+
+func DeletionRequestKind() Kind {
+	canReview := func(roles []string) bool { return catalogPerm.Resolver.Can(roles, catalogPerm.DeleteReview) }
+	return Kind{
+		Name: KindDeletionRequest,
+		Exists: func(ctx context.Context, db *gorm.DB, id int64) (bool, error) {
+			return exists(ctx, db, `SELECT EXISTS (SELECT 1 FROM catalog_deletion_request WHERE id = ?)`, id)
+		},
+		CanSee: func(ctx context.Context, db *gorm.DB, v Viewer, id int64) (bool, error) {
+			if canReview(v.Roles) {
+				return true, nil
+			}
+			if v.UID <= 0 {
+				return false, nil
+			}
+			return exists(ctx, db, `SELECT EXISTS (SELECT 1 FROM catalog_deletion_request WHERE id = ? AND proposed_by = ?)`, id, v.UID)
+		},
+		Owner: func(ctx context.Context, db *gorm.DB, id int64) (int64, error) {
+			return ownerOf(ctx, db, `SELECT proposed_by FROM catalog_deletion_request WHERE id = ?`, id)
+		},
+		Participants: func(ctx context.Context, db *gorm.DB, id int64) ([]int64, error) {
+			return uidsOf(ctx, db, `
+				SELECT uid FROM catalog_deletion_request,
+					unnest(ARRAY[proposed_by, decided_by, executed_by, restored_by]) AS uid
+				WHERE id = ? AND uid IS NOT NULL`, id)
 		},
 		Reviewer: canReview,
 	}
