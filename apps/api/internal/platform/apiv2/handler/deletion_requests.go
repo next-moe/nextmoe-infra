@@ -46,10 +46,11 @@ type createDeletionRequestInput struct {
 }
 
 type listDeletionRequestsInput struct {
-	State    string `query:"state" enum:"open,approved,executed,rejected,withdrawn,restored" doc:"Narrow to one state."`
-	TargetID string `query:"target_id" pattern:"^[0-9]+$" maxLength:"20" doc:"Narrow to requests about one work."`
-	Cursor   string `query:"cursor" pattern:"^cur_[0-9]+$" maxLength:"32" doc:"Opaque keyset cursor from next_cursor."`
-	Limit    int    `query:"limit" minimum:"1" maximum:"100" doc:"Page size, 1-100. Default 20."`
+	State      string `query:"state" enum:"open,approved,executed,rejected,withdrawn,restored" doc:"Narrow to one state."`
+	TargetID   string `query:"target_id" pattern:"^[0-9]+$" maxLength:"20" doc:"Narrow to requests about one work."`
+	OriginSite string `query:"origin_site" enum:"kungal,moyu,letmoe,nextmoe,editor" doc:"Narrow to requests filed from one first-party property."`
+	Cursor     string `query:"cursor" pattern:"^cur_[0-9]+$" maxLength:"32" doc:"Opaque keyset cursor from next_cursor."`
+	Limit      int    `query:"limit" minimum:"1" maximum:"100" doc:"Page size, 1-100. Default 20."`
 }
 
 type deletionRequestIDInput struct {
@@ -329,6 +330,9 @@ func decideModerationDeletionRequest(cat *Catalog) func(context.Context, *decide
 }
 
 func checkDeletionListQuery(in *listDeletionRequestsInput) error {
+	if _, err := originSiteParam(in.OriginSite); err != nil {
+		return err
+	}
 	if in.Limit > 100 {
 		return problem.New(problem.CodeLimitTooLarge, "", "", "limit is at most 100.")
 	}
@@ -355,6 +359,7 @@ func deletionRequestFilter(in *listDeletionRequestsInput) catsvc.DeletionRequest
 		f.EntityType = &et
 		f.EntityID = &id
 	}
+	f.OriginSite = in.OriginSite
 	return f
 }
 

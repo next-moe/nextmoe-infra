@@ -2206,11 +2206,18 @@ components:
           type: string
           x-vocabulary-closed: true
         origin_site:
-          description: Site the requester came from. null when not recorded. Must not be used as a discriminant.
-          maxLength: 32
+          description: "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template."
+          enum:
+            - kungal
+            - moyu
+            - letmoe
+            - nextmoe
+            - editor
+            - null
           type:
             - string
             - "null"
+          x-vocabulary-closed: true
         proposed_at:
           description: RFC 3339 UTC.
           format: date-time
@@ -19863,6 +19870,20 @@ paths:
             maxLength: 20
             pattern: ^[0-9]+$
             type: string
+        - description: Narrow to requests filed from one first-party property.
+          explode: false
+          in: query
+          name: origin_site
+          schema:
+            description: Narrow to requests filed from one first-party property.
+            enum:
+              - kungal
+              - moyu
+              - letmoe
+              - nextmoe
+              - editor
+            type: string
+            x-vocabulary-closed: true
         - description: Opaque keyset cursor from next_cursor.
           explode: false
           in: query
@@ -25787,6 +25808,20 @@ paths:
             maxLength: 20
             pattern: ^[0-9]+$
             type: string
+        - description: Narrow to requests filed from one first-party property.
+          explode: false
+          in: query
+          name: origin_site
+          schema:
+            description: Narrow to requests filed from one first-party property.
+            enum:
+              - kungal
+              - moyu
+              - letmoe
+              - nextmoe
+              - editor
+            type: string
+            x-vocabulary-closed: true
         - description: Opaque keyset cursor from next_cursor.
           explode: false
           in: query

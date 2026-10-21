@@ -151794,6 +151794,20 @@ export const docsModel: DocsModel = {
                   "doc": "Narrow to requests about one work."
                 },
                 {
+                  "name": "origin_site",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Narrow to requests filed from one first-party property.",
+                  "enum": [
+                    "kungal",
+                    "moyu",
+                    "letmoe",
+                    "nextmoe",
+                    "editor"
+                  ]
+                },
+                {
                   "name": "cursor",
                   "in": "query",
                   "required": false,
@@ -151957,7 +151971,14 @@ export const docsModel: DocsModel = {
                               "name": "origin_site",
                               "required": true,
                               "nullable": true,
-                              "doc": "Site the requester came from. null when not recorded. Must not be used as a discriminant.",
+                              "doc": "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.",
+                              "enum": [
+                                "kungal",
+                                "moyu",
+                                "letmoe",
+                                "nextmoe",
+                                "editor"
+                              ],
                               "type": "string"
                             },
                             {
@@ -154039,7 +154060,14 @@ export const docsModel: DocsModel = {
                         "name": "origin_site",
                         "required": true,
                         "nullable": true,
-                        "doc": "Site the requester came from. null when not recorded. Must not be used as a discriminant.",
+                        "doc": "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.",
+                        "enum": [
+                          "kungal",
+                          "moyu",
+                          "letmoe",
+                          "nextmoe",
+                          "editor"
+                        ],
                         "type": "string"
                       },
                       {
@@ -156052,7 +156080,14 @@ export const docsModel: DocsModel = {
                         "name": "origin_site",
                         "required": true,
                         "nullable": true,
-                        "doc": "Site the requester came from. null when not recorded. Must not be used as a discriminant.",
+                        "doc": "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.",
+                        "enum": [
+                          "kungal",
+                          "moyu",
+                          "letmoe",
+                          "nextmoe",
+                          "editor"
+                        ],
                         "type": "string"
                       },
                       {
@@ -259116,6 +259151,20 @@ export const docsModel: DocsModel = {
                   "doc": "Narrow to requests about one work."
                 },
                 {
+                  "name": "origin_site",
+                  "in": "query",
+                  "required": false,
+                  "type": "string",
+                  "doc": "Narrow to requests filed from one first-party property.",
+                  "enum": [
+                    "kungal",
+                    "moyu",
+                    "letmoe",
+                    "nextmoe",
+                    "editor"
+                  ]
+                },
+                {
                   "name": "cursor",
                   "in": "query",
                   "required": false,
@@ -259279,7 +259328,14 @@ export const docsModel: DocsModel = {
                               "name": "origin_site",
                               "required": true,
                               "nullable": true,
-                              "doc": "Site the requester came from. null when not recorded. Must not be used as a discriminant.",
+                              "doc": "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.",
+                              "enum": [
+                                "kungal",
+                                "moyu",
+                                "letmoe",
+                                "nextmoe",
+                                "editor"
+                              ],
                               "type": "string"
                             },
                             {
@@ -261322,7 +261378,14 @@ export const docsModel: DocsModel = {
                         "name": "origin_site",
                         "required": true,
                         "nullable": true,
-                        "doc": "Site the requester came from. null when not recorded. Must not be used as a discriminant.",
+                        "doc": "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.",
+                        "enum": [
+                          "kungal",
+                          "moyu",
+                          "letmoe",
+                          "nextmoe",
+                          "editor"
+                        ],
                         "type": "string"
                       },
                       {
@@ -263354,7 +263417,14 @@ export const docsModel: DocsModel = {
                         "name": "origin_site",
                         "required": true,
                         "nullable": true,
-                        "doc": "Site the requester came from. null when not recorded. Must not be used as a discriminant.",
+                        "doc": "Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.",
+                        "enum": [
+                          "kungal",
+                          "moyu",
+                          "letmoe",
+                          "nextmoe",
+                          "editor"
+                        ],
                         "type": "string"
                       },
                       {

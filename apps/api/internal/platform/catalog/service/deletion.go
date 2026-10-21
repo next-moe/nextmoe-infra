@@ -11,6 +11,7 @@ import (
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/catalog/repository"
 	"api/internal/platform/editing"
+	"api/internal/platform/editorigin"
 	"api/internal/platform/settings/keys"
 
 	"gorm.io/gorm"
@@ -40,6 +41,7 @@ type DeletionRequestFilter struct {
 	Status     *int16
 	EntityType *int16
 	EntityID   *int64
+	OriginSite string
 	BeforeID   int64
 	Limit      int
 }
@@ -73,6 +75,7 @@ func (s *DeletionService) Request(ctx context.Context, entityType int16, entityI
 		Note:       note,
 		Status:     model.ProposalStatusOpen,
 		ProposedBy: proposedBy,
+		OriginSite: editorigin.Ptr(ctx),
 	}
 	if err := s.db.WithContext(ctx).Create(r).Error; err != nil {
 		if isUniqueViolation(err, "uq_catalog_deletion_request_pending") {
@@ -96,6 +99,9 @@ func (s *DeletionService) List(ctx context.Context, f DeletionRequestFilter) ([]
 	}
 	if f.EntityID != nil {
 		q = q.Where("entity_id = ?", *f.EntityID)
+	}
+	if f.OriginSite != "" {
+		q = q.Where("origin_site = ?", f.OriginSite)
 	}
 	if f.BeforeID > 0 {
 		q = q.Where("id < ?", f.BeforeID)

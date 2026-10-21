@@ -23,6 +23,7 @@ Deletion requests, newest first; follow next_cursor for more. Requires the catal
 | --- | --- | --- | --- | --- |
 | `state` | query | 否 | string | Narrow to one state. 取值：open \| approved \| executed \| rejected \| withdrawn \| restored |
 | `target_id` | query | 否 | string | Narrow to requests about one work. |
+| `origin_site` | query | 否 | string | Narrow to requests filed from one first-party property. 取值：kungal \| moyu \| letmoe \| nextmoe \| editor |
 | `cursor` | query | 否 | string | Opaque keyset cursor from next_cursor. |
 | `limit` | query | 否 | integer (int64) | Page size, 1-100. Default 20. |
 

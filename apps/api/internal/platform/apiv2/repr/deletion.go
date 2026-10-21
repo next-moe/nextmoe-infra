@@ -17,7 +17,7 @@ type DeletionRequestRecord struct {
 	DecidedBy     *UserRef `json:"decided_by" doc:"Account behind decided_by_uid."`
 	RestoredByUID *string  `json:"restored_by_uid" pattern:"^[0-9]+$" maxLength:"20" doc:"Central account id of the reviewer who restored the entry. null unless restored."`
 	RestoredBy    *UserRef `json:"restored_by" doc:"Account behind restored_by_uid."`
-	OriginSite    *string  `json:"origin_site" maxLength:"32" doc:"Site the requester came from. null when not recorded. Must not be used as a discriminant."`
+	OriginSite    *string  `json:"origin_site" enum:"kungal,moyu,letmoe,nextmoe,editor" doc:"Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template."`
 	ProposedAt    string   `json:"proposed_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC."`
 	DecidedAt     *string  `json:"decided_at" format:"date-time" maxLength:"32" doc:"RFC 3339 UTC. null before a decision."`
 	ExecuteAfter  *string  `json:"execute_after" format:"date-time" maxLength:"32" doc:"End of the cooling-off once approved. null before approval."`

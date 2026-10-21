@@ -1489,7 +1489,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "列出我的删除请求",
     "s": "端点 · 我的",
     "d": "GET /v2/me/deletion-requests",
-    "b": "listMyDeletionRequests /v2/me/deletion-requests get List my deletion requests The bearer's own deletion requests, newest first; follow next_cursor for more. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope. 令牌持有者自己提交的删除请求，最新的在前；跟随 next_cursor 取更多。需要绑定第一方 catalog 站点的用户访问令牌，令牌须带 catalog:edit scope。 state target_id cursor limit"
+    "b": "listMyDeletionRequests /v2/me/deletion-requests get List my deletion requests The bearer's own deletion requests, newest first; follow next_cursor for more. Requires a user access token bound to a first-party catalog site. The token must carry the catalog:edit scope. 令牌持有者自己提交的删除请求，最新的在前；跟随 next_cursor 取更多。需要绑定第一方 catalog 站点的用户访问令牌，令牌须带 catalog:edit scope。 state target_id origin_site cursor limit"
   },
   {
     "r": "/docs/v2/createMyDeletionRequest",
@@ -1895,7 +1895,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "删除请求队列",
     "s": "端点 · 审核",
     "d": "GET /v2/moderation/deletion-requests",
-    "b": "listModerationDeletionRequests /v2/moderation/deletion-requests get Deletion request queue Deletion requests, newest first; follow next_cursor for more. Requires the catalog.delete.review permission. The token must carry the catalog:edit scope. 删除请求，最新的在前；跟随 next_cursor 取更多。需要 catalog.delete.review 权限。令牌须带 catalog:edit scope。 state target_id cursor limit"
+    "b": "listModerationDeletionRequests /v2/moderation/deletion-requests get Deletion request queue Deletion requests, newest first; follow next_cursor for more. Requires the catalog.delete.review permission. The token must carry the catalog:edit scope. 删除请求，最新的在前；跟随 next_cursor 取更多。需要 catalog.delete.review 权限。令牌须带 catalog:edit scope。 state target_id origin_site cursor limit"
   },
   {
     "r": "/docs/v2/getModerationDeletionRequest",

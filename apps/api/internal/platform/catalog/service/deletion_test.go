@@ -7,6 +7,7 @@ import (
 	"api/internal/platform/catalog/editspec"
 	"api/internal/platform/catalog/model"
 	"api/internal/platform/editing"
+	"api/internal/platform/editorigin"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -226,4 +227,23 @@ func TestDeletionOfAWorkMergedMeanwhileClosesTheRequest(t *testing.T) {
 	rep, err := svc.ExecuteDue(ctx)
 	require.NoError(t, err)
 	assert.Zero(t, rep.Due)
+}
+
+func TestDeletionRequestRecordsItsOriginSite(t *testing.T) {
+	cleanDeletionTables(t)
+	svc := NewDeletionService(testDB, testResolve)
+	w := createWork(t, "filed from moyu")
+	ctx := editorigin.With(t.Context(), editorigin.Moyu)
+
+	r, err := svc.Request(ctx, model.EntityTypeWork, w.ID, 3, model.DeletionReasonSpamOrTest, "test entry")
+	require.NoError(t, err)
+	require.NotNil(t, r.OriginSite)
+	assert.Equal(t, editorigin.Moyu, *r.OriginSite)
+
+	got, err := svc.List(t.Context(), DeletionRequestFilter{OriginSite: editorigin.Moyu})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	got, err = svc.List(t.Context(), DeletionRequestFilter{OriginSite: editorigin.Kungal})
+	require.NoError(t, err)
+	assert.Empty(t, got)
 }

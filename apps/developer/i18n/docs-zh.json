@@ -1289,7 +1289,6 @@
   "Deletion request id.": "删除请求 id。",
   "The requester's explanation. Must not be used as a discriminant.": "提交者的说明。不得用作判别依据。",
   "Type discriminant. Always deletion_request.": "类型判别字段，恒为 deletion_request。",
-  "Site the requester came from. null when not recorded. Must not be used as a discriminant.": "提交者来自的站点。未记录时为 null。不得用作判别依据。",
   "not_a_work: no such work exists; out_of_scope: it exists but the catalog does not collect it; spam_or_test: vandalism or a test entry; other: see note. A duplicate is merged, not deleted.": "not_a_work：不存在这部作品；out_of_scope：存在但不属于收录范围；spam_or_test：恶意或测试条目；other：见说明。重复条目要合并，不删除。",
   "The reviewer's note when restoring. Empty otherwise. Must not be used as a discriminant.": "审核者恢复时的备注。其他情况为空。不得用作判别依据。",
   "RFC 3339 UTC. null unless restored.": "RFC 3339 UTC。未恢复时为 null。",

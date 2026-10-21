@@ -3959,8 +3959,11 @@ export interface components {
              * @enum {string}
              */
             object: "deletion_request";
-            /** @description Site the requester came from. null when not recorded. Must not be used as a discriminant. */
-            origin_site: string | null;
+            /**
+             * @description Property the edit was made from: kungal (the KUN forum), moyu, letmoe, nextmoe, or editor when the editor was opened directly. Attribution only, never a permission input. null for records older than origin tracking (2026-10-21) and for batch tools. GET /v2/vocabularies/origin_site gives display names and each property's user profile URL template.
+             * @enum {string|null}
+             */
+            origin_site: "kungal" | "moyu" | "letmoe" | "nextmoe" | "editor" | null;
             /**
              * Format: date-time
              * @description RFC 3339 UTC.
@@ -17033,6 +17036,8 @@ export interface operations {
                 state?: "open" | "approved" | "executed" | "rejected" | "withdrawn" | "restored";
                 /** @description Narrow to requests about one work. */
                 target_id?: string;
+                /** @description Narrow to requests filed from one first-party property. */
+                origin_site?: "kungal" | "moyu" | "letmoe" | "nextmoe" | "editor";
                 /** @description Opaque keyset cursor from next_cursor. */
                 cursor?: string;
                 /** @description Page size, 1-100. Default 20. */
@@ -23385,6 +23390,8 @@ export interface operations {
                 state?: "open" | "approved" | "executed" | "rejected" | "withdrawn" | "restored";
                 /** @description Narrow to requests about one work. */
                 target_id?: string;
+                /** @description Narrow to requests filed from one first-party property. */
+                origin_site?: "kungal" | "moyu" | "letmoe" | "nextmoe" | "editor";
                 /** @description Opaque keyset cursor from next_cursor. */
                 cursor?: string;
                 /** @description Page size, 1-100. Default 20. */
