@@ -157,6 +157,11 @@ func TestAnUnchangedBodyAnswers304AndAChangeDoesNot(t *testing.T) {
 		t.Fatalf("unchanged: status %d body %q, want 304 and no body", same.status, same.body)
 	}
 
+	weak := h.get(t, "/v2/apps/kungal-app/settings", "W/"+first.etag)
+	if weak.status != http.StatusNotModified {
+		t.Fatalf("the CDN's weak form of the ETag: status %d, want 304", weak.status)
+	}
+
 	settings.Override(t, keys.AppKungalHomeWorkRows, 3)
 	changed := h.get(t, "/v2/apps/kungal-app/settings", first.etag)
 	if changed.status != http.StatusOK {

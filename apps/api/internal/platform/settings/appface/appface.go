@@ -53,7 +53,7 @@ func Setup(app *fiber.App, lookup Lookup) huma.API {
 		}
 	})
 
-	cfg := huma.DefaultConfig("NextMoe App Settings API", "1.0.0")
+	cfg := huma.DefaultConfig("NextMoe App Settings API", "1.0.1")
 	cfg.OpenAPIPath = ""
 	cfg.DocsPath = ""
 	cfg.SchemasPath = ""
@@ -92,11 +92,11 @@ func Setup(app *fiber.App, lookup Lookup) huma.API {
 
 type settingsInput struct {
 	ClientID    string `path:"client_id" maxLength:"50" pattern:"^[A-Za-z0-9._-]+$" doc:"The app's public OAuth client_id, e.g. kungal-app."`
-	IfNoneMatch string `header:"If-None-Match" doc:"The ETag of the last 200 this app stored. A match answers 304."`
+	IfNoneMatch string `header:"If-None-Match" doc:"The ETag of the last 200 this app stored, sent back exactly as received. Compared weakly, so the strong and the W/ form both match; a match answers 304."`
 }
 
 type settingsOutput struct {
-	ETag string `header:"ETag" doc:"Strong validator of this body. Send it back as If-None-Match."`
+	ETag string `header:"ETag" doc:"Validator of this body. The origin sends it strong; a response the CDN compressed carries it as W/\"...\". Send it back unchanged as If-None-Match."`
 	Body AppSettings
 }
 
