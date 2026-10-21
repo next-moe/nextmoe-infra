@@ -49,7 +49,9 @@ export const useRowLabel = () => {
 
   const scalarText = (field: CatalogSchemaField, value: unknown) => {
     if (value === null || value === undefined || value === '') {
-      return '（空）'
+      return resolveEditControl(field, config.fields[field.key]) === 'switch'
+        ? '未知'
+        : '（空）'
     }
     if (typeof value === 'boolean') {
       return value ? '是' : '否'

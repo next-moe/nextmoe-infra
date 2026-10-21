@@ -56,13 +56,14 @@ const shown = computed(() =>
   props.decision.verdict === 'amend' ? props.decision.value : props.proposed
 )
 
+const TONES: Partial<Record<FieldVerdict, string>> = {
+  accept: 'border-default-200',
+  amend: 'border-warning-300',
+  reject: 'border-danger-300 opacity-70'
+}
+
 const tone = computed(
-  () =>
-    ({
-      accept: 'border-default-200',
-      amend: 'border-warning-300',
-      reject: 'border-danger-300 opacity-70'
-    })[props.decision.verdict]
+  () => TONES[props.decision.verdict] ?? 'border-default-200'
 )
 </script>
 

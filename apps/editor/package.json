@@ -5,6 +5,7 @@
   "scripts": {
     "build": "nuxt build",
     "icons": "node scripts/generate-icons.mjs",
+    "guidelines": "node scripts/build-guidelines.mjs",
     "dev": "nuxt dev",
     "gen:types:catalog-v2": "pnpm dlx openapi-typescript@7.13.0 ../../docs/catalog/v2-openapi.yaml -o shared/types/generated/catalog-v2-api.ts",
     "preview": "nuxt preview",
@@ -33,6 +34,9 @@
     "@iconify-json/lucide": "^1.2.133",
     "@nuxtjs/color-mode": "^4.0.1",
     "eslint": "^10.10.0",
+    "gray-matter": "^4.0.3",
+    "markdown-it": "^15.0.2",
+    "markdown-it-cjk-friendly": "^3.0.0",
     "prettier": "^3.9.7",
     "prettier-plugin-tailwindcss": "^0.8.1",
     "vite": "^8.3.0",

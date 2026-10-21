@@ -7,3 +7,4 @@ node_modules
 .screenshots
 shared/types/generated
 app/assets/kun-icons.ts
+app/generated

@@ -92,7 +92,7 @@ const submit = async () => {
   <KunModal
     v-model="open"
     :title="`合并重复的${meta.label}`"
-    description="合并会把重复条目的资料、关联与外链并入保留的那一个，被并入的条目改为重定向。审核通过后还有一段冷却期，期间可以撤回。"
+    description="合并会把重复条目的资料、关联与外链并入保留的那一个，被并入的条目改为重定向。审核前可以撤回；审核通过后进入冷静期，到期后执行。"
     size="lg"
   >
     <div class="space-y-4">

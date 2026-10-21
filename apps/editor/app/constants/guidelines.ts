@@ -1,118 +1,130 @@
-export interface GuidelineSection {
-  id: string
-  title: string
+import type { GuidelineCategory } from '#shared/types/guidelines'
+
+export interface GuidelineCategoryMeta {
+  key: GuidelineCategory
+  label: string
+  description: string
   icon: string
-  points: string[]
 }
 
-export const GUIDELINE_SECTIONS: GuidelineSection[] = [
+export const GUIDELINE_CATEGORIES: GuidelineCategoryMeta[] = [
   {
-    id: 'scope',
-    title: '可以编辑什么',
-    icon: 'lucide:pencil-ruler',
-    points: [
-      '作品：显示名、原语言、内容分级、各语言标题、简介、标签、厂商、引擎、系列、外链、封面与截图、职员表、出场角色。',
-      '发行、角色、人物与署名名、厂商、系列、引擎，以及标签和角色特质这两套词表，会随编辑台陆续开放。',
-      '条目编号、时间戳、来源记录、评分热度等统计数据由系统维护，不能手工修改。'
-    ]
+    key: 'start',
+    label: '入门',
+    description: '第一次编辑先读这里：编辑台怎么用、资料从哪里来。',
+    icon: 'lucide:rocket'
   },
   {
-    id: 'sources',
-    title: '资料来源',
-    icon: 'lucide:book-marked',
-    points: [
-      '以官方信息为准：官网、包装与说明书、游戏内制作人员表、官方商店页。',
-      '其次是可信的资料站（VNDB、Bangumi、批评空间等）。引用时核对原始出处，不要照搬来源不明的信息。',
-      '不要凭记忆或传闻修改。修改说明里写清出处（链接或资料名），审核会快很多。'
-    ]
+    key: 'rules',
+    label: '规则与流程',
+    description: '谁能改什么、每天能改多少、提案怎样被审核和回滚。',
+    icon: 'lucide:scale'
   },
   {
-    id: 'titles',
-    title: '标题与罗马字',
-    icon: 'lucide:languages',
-    points: [
-      '正式名：官方发布过的名称，包括原语言名和官方中文名。每条标题都要标注语言。',
-      '别名：常见的非官方叫法、旧名或汉化组译名；简称：圈内通用的缩写。',
-      '罗马字优先使用官方写法；没有官方写法时按平文式（Hepburn）转写。',
-      '机器翻译的名字不是官方中文名，不要标成正式名。'
-    ]
+    key: 'work',
+    label: '作品',
+    description: '作品条目里每一个分区的填写方法。',
+    icon: 'lucide:gamepad-2'
   },
   {
-    id: 'intros',
-    title: '简介',
-    icon: 'lucide:align-left',
-    points: [
-      '每种语言保留一条简介。人工撰写的简介会优先于资料源导入和机器翻译的版本显示。',
-      '优先用自己的话概括；转载官方文案时在修改说明里注明出处。',
-      '简介里不要写结局、真相等关键剧情。'
-    ]
+    key: 'people',
+    label: '人物与角色',
+    description: '署名名、人物、制作人员、配音与角色。',
+    icon: 'lucide:users'
   },
   {
-    id: 'spoilers',
-    title: '剧透',
-    icon: 'lucide:eye-off',
-    points: [
-      '标签、出场角色、角色特质都有剧透等级：无、轻微、严重。',
-      '拿不准时按更高的等级标注，避免没打算看剧透的读者被提前揭底。'
-    ]
+    key: 'vocab',
+    label: '厂商与词表',
+    description: '厂商条目，以及标签、特质这两套词表。',
+    icon: 'lucide:tags'
   },
   {
-    id: 'rating',
-    title: '内容分级与图片评级',
-    icon: 'lucide:shield-alert',
-    points: [
-      '内容分级（全年龄 / 敏感 / R18）按作品实际内容和官方年龄限制填写。',
-      '每张封面、截图都要如实标注色情与暴力程度。有疑问时宁高勿低，避免露骨图片出现在全年龄的页面上。'
-    ]
+    key: 'appendix',
+    label: '附录',
+    description: '术语表与常见问题。',
+    icon: 'lucide:book-marked'
+  }
+]
+
+export interface GuidelinePrinciple {
+  title: string
+  body: string
+  icon: string
+}
+
+export const GUIDELINE_PRINCIPLES: GuidelinePrinciple[] = [
+  {
+    title: '有出处才改',
+    body: '以官方资料为准，其次是可信的资料站。修改说明里写清出处，审核会快很多。',
+    icon: 'lucide:book-check'
   },
   {
-    id: 'images',
-    title: '图片',
-    icon: 'lucide:image',
-    points: [
-      '封面优先使用官方高清图，不要加水印、拉伸或随意裁剪。',
-      '截图使用游戏内的实际画面，不要用同人图或与条目无关的图片。',
-      '只上传官方宣传素材或你有权使用的图片。'
-    ]
+    title: '照原样记录',
+    body: '名字、标题按官方写法原样填写，不翻译、不美化；译名单独作为别名。',
+    icon: 'lucide:quote'
   },
   {
-    id: 'upstream',
-    title: '隐藏上游资料',
-    icon: 'lucide:layers',
-    points: [
-      '资料库会持续从 VNDB、Bangumi、批评空间等来源导入数据。人工修改过的内容不会被之后的导入覆盖。',
-      '如果某条导入的资料是错的，请使用「隐藏」而不是另外再加一条。隐藏后，即使资料源再次导入也不会重新显示。',
-      '隐藏可以随时恢复；被隐藏的行仍会列在编辑页里，方便核对。'
-    ]
+    title: '拿不准就往严重处标',
+    body: '剧透等级、图片分级、内容分级，犹豫时选更高的一档。',
+    icon: 'lucide:shield-alert'
   },
   {
-    id: 'review',
-    title: '审核流程',
-    icon: 'lucide:git-pull-request',
-    points: [
-      '普通用户的修改会先进入待审队列，由版主或管理员审核。',
-      '审核者可以逐个字段采纳、修正或拒绝。修正后合并的提案会同时记下你和审核者的署名；被驳回时会附上原因。',
-      '编辑者和审核者对作品、发行的修改在额度内直接生效。角色、人物、标签等被多部作品共用的条目，修改默认仍需审核。',
-      '在「我的提案」里可以查看进度、撤回尚未处理的提案后修改再提交。'
-    ]
+    title: '隐藏而不是删除',
+    body: '资料源导入的内容只能隐藏，导入任务不会把你的修改改回去。',
+    icon: 'lucide:eye-off'
   },
   {
-    id: 'history',
-    title: '修订历史',
-    icon: 'lucide:history',
-    points: [
-      '每次生效的修改都会留下修订记录，可以对比任意两个版本。',
-      '出现错误时，审核者可以把条目回滚到之前的某个版本；回滚本身也会记成一次修订，可以再撤销。'
-    ]
+    title: '一次只做一件事',
+    body: '一份提案只改一类问题，审核者才能逐项判断；无关的修改分开提交。',
+    icon: 'lucide:list-checks'
+  }
+]
+
+export interface GuidelinePitfall {
+  title: string
+  body: string
+  to: string
+}
+
+export const GUIDELINE_PITFALLS: GuidelinePitfall[] = [
+  {
+    title: '把署名名当成人物',
+    body: '署名名是职员表上印的名字，人物是背后的那个人。一个人的不同笔名挂在同一个人物下；同名的不同人不要合并。',
+    to: '/guidelines/credit-names-and-persons'
   },
   {
-    id: 'etiquette',
-    title: '协作礼仪',
-    icon: 'lucide:handshake',
-    points: [
-      '一次提案只做一类相关修改，方便审核者逐项判断。',
-      '不要反复改回别人的修改。有分歧时在修改说明里讲清理由，或先到原站讨论。',
-      '发现明显的破坏或垃圾内容，提交修正并在说明里写明即可，审核者会处理。'
-    ]
+    title: '以为“删除”能去掉资料源的内容',
+    body: '资料源导入的行只能隐藏。隐藏后导入任务不会再把它加回来，随时可以恢复。',
+    to: '/guidelines/upstream-data'
+  },
+  {
+    title: '直接改显示名',
+    body: '显示名会按原语言的正式标题自动重算。想改名，通常应该改标题。',
+    to: '/guidelines/titles'
+  },
+  {
+    title: '把机翻或汉化组译名标成正式名',
+    body: '只有官方发布过的名字才是正式名；其他译名作为别名。',
+    to: '/guidelines/titles'
+  },
+  {
+    title: '剧透和图片分级标得太低',
+    body: '剧透等级、性暗示与暴力分级拿不准时往高处标，避免未准备的读者被揭底或看到露骨内容。',
+    to: '/guidelines/media'
+  },
+  {
+    title: '想隐藏身份链接',
+    body: '身份链接决定条目对应哪个外部条目，不能隐藏。认错了条目要发起合并请求或联系审核者。',
+    to: '/guidelines/links'
+  },
+  {
+    title: '新建了一个重复条目',
+    body: '新建前先搜索。已经重复的条目不要各自修改，发起合并请求。',
+    to: '/guidelines/create-and-merge'
+  },
+  {
+    title: '提交后看不到修改',
+    body: '需要审核的提案在通过前不会显示。可以在「我的提案」里查看状态。',
+    to: '/guidelines/proposals-and-review'
   }
 ]

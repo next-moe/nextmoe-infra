@@ -25,6 +25,7 @@ export interface WorkspaceSectionDef {
   fields: string[]
   view?: string
   always?: boolean
+  guide?: string
 }
 
 const work = (key: string) => `catalog.work.${key}`
@@ -32,6 +33,7 @@ const work = (key: string) => `catalog.work.${key}`
 export const WORK_SECTIONS: WorkspaceSectionDef[] = [
   {
     key: 'basic',
+    guide: 'work-basics',
     label: '基础',
     icon: 'lucide:settings-2',
     group: 'profile',
@@ -42,6 +44,7 @@ export const WORK_SECTIONS: WorkspaceSectionDef[] = [
   },
   {
     key: 'titles',
+    guide: 'titles',
     label: '标题',
     icon: 'lucide:heading',
     group: 'profile',
@@ -50,6 +53,7 @@ export const WORK_SECTIONS: WorkspaceSectionDef[] = [
   },
   {
     key: 'intros',
+    guide: 'intros',
     label: '简介',
     icon: 'lucide:align-left',
     group: 'profile',
@@ -58,6 +62,7 @@ export const WORK_SECTIONS: WorkspaceSectionDef[] = [
   },
   {
     key: 'tags',
+    guide: 'tags-and-spoilers',
     label: '标签',
     icon: 'lucide:tags',
     group: 'profile',
@@ -66,6 +71,7 @@ export const WORK_SECTIONS: WorkspaceSectionDef[] = [
   },
   {
     key: 'links',
+    guide: 'links',
     label: '外链',
     icon: 'lucide:link',
     group: 'profile',
@@ -74,6 +80,7 @@ export const WORK_SECTIONS: WorkspaceSectionDef[] = [
   },
   {
     key: 'covers',
+    guide: 'media',
     label: '封面',
     icon: 'lucide:book-image',
     group: 'media',
@@ -82,6 +89,7 @@ export const WORK_SECTIONS: WorkspaceSectionDef[] = [
   },
   {
     key: 'screenshots',
+    guide: 'media',
     label: '截图',
     icon: 'lucide:images',
     group: 'media',
@@ -94,6 +102,7 @@ export const WORK_SECTIONS: WorkspaceSectionDef[] = [
   },
   {
     key: 'roster',
+    guide: 'characters',
     label: '角色',
     icon: 'lucide:users',
     group: 'related',
@@ -102,6 +111,7 @@ export const WORK_SECTIONS: WorkspaceSectionDef[] = [
   },
   {
     key: 'credits',
+    guide: 'staff-credits',
     label: '制作人员',
     icon: 'lucide:clapperboard',
     group: 'related',
@@ -110,6 +120,7 @@ export const WORK_SECTIONS: WorkspaceSectionDef[] = [
   },
   {
     key: 'companies',
+    guide: 'companies-engines-platforms',
     label: '厂商',
     icon: 'lucide:building-2',
     group: 'related',
@@ -118,6 +129,7 @@ export const WORK_SECTIONS: WorkspaceSectionDef[] = [
   },
   {
     key: 'engines',
+    guide: 'companies-engines-platforms',
     label: '引擎与平台',
     icon: 'lucide:cpu',
     group: 'related',
@@ -126,6 +138,7 @@ export const WORK_SECTIONS: WorkspaceSectionDef[] = [
   },
   {
     key: 'series',
+    guide: 'relations-and-series',
     label: '系列',
     icon: 'lucide:library',
     group: 'related',
@@ -134,6 +147,7 @@ export const WORK_SECTIONS: WorkspaceSectionDef[] = [
   },
   {
     key: 'relations',
+    guide: 'relations-and-series',
     label: '关联作品',
     icon: 'lucide:git-fork',
     group: 'related',
@@ -142,6 +156,7 @@ export const WORK_SECTIONS: WorkspaceSectionDef[] = [
   },
   {
     key: 'releases',
+    guide: 'releases',
     label: '发行',
     icon: 'lucide:package',
     group: 'related',
@@ -160,7 +175,21 @@ const GROUP_OF_EDIT_GROUP: Record<string, WorkspaceSectionGroup> = {
   other: 'other'
 }
 
+export const FAMILY_GUIDES: Record<EditFamily, string> = {
+  work: 'work-basics',
+  release: 'releases',
+  character: 'characters',
+  person: 'credit-names-and-persons',
+  credit_name: 'credit-names-and-persons',
+  company: 'companies',
+  tag: 'tags-and-traits',
+  trait: 'tags-and-traits',
+  series: 'relations-and-series',
+  engine: 'companies-engines-platforms'
+}
+
 export const sectionsFromGroups = (
+  family: EditFamily,
   groups: EditGroup[],
   fieldsByGroup: Record<string, string[]>
 ): WorkspaceSectionDef[] =>
@@ -169,7 +198,8 @@ export const sectionsFromGroups = (
     label: group.label,
     icon: group.icon,
     group: GROUP_OF_EDIT_GROUP[group.value] ?? 'profile',
-    fields: fieldsByGroup[group.value] ?? []
+    fields: fieldsByGroup[group.value] ?? [],
+    guide: FAMILY_GUIDES[family]
   }))
 
 export const FAMILY_SECTIONS: Partial<
