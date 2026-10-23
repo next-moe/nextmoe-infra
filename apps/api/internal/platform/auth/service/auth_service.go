@@ -494,6 +494,7 @@ func (s *AuthService) Logout(ctx context.Context, sessionToken string) error {
 }
 
 func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*dto.TokenPair, error) {
+	started := time.Now()
 	session, err := s.sessionRepo.FindByRefreshTokenOrPrev(ctx, refreshToken)
 	if err != nil {
 		return nil, errors.NewWithCode(errors.ErrAuthInvalidToken)
@@ -528,7 +529,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*d
 	cookieMaxAge := ssoCookieMaxAge(authAt, now)
 
 	if refreshToken != session.RefreshToken {
-		if session.PrevTokenWithinGrace() {
+		if session.PrevTokenReplayable() {
 			return &dto.TokenPair{
 				AccessToken:  tokens.AccessToken,
 				RefreshToken: session.RefreshToken,
@@ -547,6 +548,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*d
 		return nil, err
 	}
 	if won {
+		markIfRotatedLate(ctx, s.sessionRepo, session.ID, tokens.RefreshToken, started)
 		tokens.CookieMaxAge = cookieMaxAge
 		return tokens, nil
 	}
