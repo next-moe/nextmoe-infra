@@ -223,7 +223,7 @@ func (c *Catalog) PutWorkRecord(ctx context.Context, workID int64, in catsvc.Wor
 	if err != nil {
 		return repr.WorkRecord{}, err
 	}
-	scan := false
+	var scan summaryScan
 	if in.Rating != nil {
 		if err := in.Validate(); err != nil {
 			return repr.WorkRecord{}, workRecordErr(err)
@@ -236,8 +236,8 @@ func (c *Catalog) PutWorkRecord(ctx context.Context, workID int64, in catsvc.Wor
 	if gerr != nil {
 		return repr.WorkRecord{}, workRecordErr(gerr)
 	}
-	if scan && rec.Rating != nil {
-		c.scanRatingSummary(rec.Rating.ID, uid, rec.Rating.ShortSummary)
+	if scan.needed && rec.Rating != nil {
+		c.scanRatingSummary(rec.Rating.ID, uid, rec.Rating.ShortSummary, scan.checkSkipped)
 	}
 	return workRecordRepr(*rec), nil
 }

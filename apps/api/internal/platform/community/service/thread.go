@@ -177,7 +177,7 @@ func (s *ThreadService) openWithFirstPost(ctx context.Context, p openThread) (*m
 		checkText = p.title + "\n\n" + p.bodyRaw
 	}
 	suspectHold := false
-	decision, matchedTerms := s.check.Decision(ctx, p.site, checkText, &p.authorID)
+	decision, matchedTerms, checkSkipped := s.check.Decision(ctx, p.site, checkText, &p.authorID)
 	switch decision {
 	case checkDeny:
 		return nil, nil, ErrContentBlocked
@@ -258,7 +258,7 @@ func (s *ThreadService) openWithFirstPost(ctx context.Context, p openThread) (*m
 	if err != nil {
 		return nil, nil, err
 	}
-	s.sink.Emit(Event{Kind: EventPostCreated, ThreadID: thread.ID, PostID: post.ID, ActorID: p.authorID})
+	s.sink.Emit(Event{Kind: EventPostCreated, ThreadID: thread.ID, PostID: post.ID, ActorID: p.authorID, CheckSkipped: checkSkipped})
 	if enqueuedItemID != 0 {
 		s.sink.Emit(Event{Kind: EventReviewEnqueued, ThreadID: thread.ID, PostID: post.ID, ReviewItemID: enqueuedItemID})
 	}

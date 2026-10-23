@@ -25,16 +25,18 @@ type RatingTrust interface {
 
 // First-party sites check and scan their own writes before they reach the
 // catalog; a third-party app's short review has no site in front of it.
-func (c *Catalog) checkRatingSummary(ctx context.Context, uid, workID int64, summary, pointer string) (bool, error) {
+type summaryScan struct{ needed, checkSkipped bool }
+
+func (c *Catalog) checkRatingSummary(ctx context.Context, uid, workID int64, summary, pointer string) (summaryScan, error) {
 	if c.RatingTrust == nil || !thirdPartyFrom(ctx) || summary == "" {
-		return false, nil
+		return summaryScan{}, nil
 	}
 	prev, err := c.Ratings.GetMine(ctx, uid, workID)
 	if err != nil {
-		return false, err
+		return summaryScan{}, err
 	}
 	if prev != nil && prev.ShortSummary == summary {
-		return false, nil
+		return summaryScan{}, nil
 	}
 	cctx, cancel := context.WithTimeout(ctx, ratingCheckTimeout)
 	defer cancel()
@@ -42,24 +44,26 @@ func (c *Catalog) checkRatingSummary(ctx context.Context, uid, workID int64, sum
 	switch {
 	case err != nil:
 		slog.Warn("rating trust-check fail-open", "uid", uid, "work_id", workID, "err", err)
+		return summaryScan{needed: true, checkSkipped: true}, nil
 	case decision == "deny":
 		p := problem.New(problem.CodeValidationFailed, "", "", "short_summary contains content that cannot be published.")
 		p.Errors = []problem.FieldError{{Pointer: pointer, Reason: problem.ReasonNotAllowedValue,
 			Detail: "short_summary was refused by the content check; nothing was written."}}
-		return false, p
+		return summaryScan{}, p
 	case decision == "hold":
 		slog.Info("rating short review held by trust", "uid", uid, "work_id", workID, "matched", matched)
 	}
-	return true, nil
+	return summaryScan{needed: true}, nil
 }
 
-func (c *Catalog) scanRatingSummary(ratingID, uid int64, summary string) {
+func (c *Catalog) scanRatingSummary(ratingID, uid int64, summary string, checkSkipped bool) {
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), ratingScanTimeout)
 		defer cancel()
 		if _, _, err := c.RatingTrust.Scan(ctx, trustclient.ScanRequest{
 			Site: RatingTrustSite, SubjectKind: RatingTrustSubjectKind,
 			SubjectID: strconv.FormatInt(ratingID, 10), Text: summary, AuthorID: &uid,
+			CheckSkipped: checkSkipped,
 		}); err != nil {
 			slog.Warn("rating trust-scan", "rating_id", ratingID, "err", err)
 		}

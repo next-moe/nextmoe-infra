@@ -30,6 +30,7 @@ type ScanRequest struct {
 	Text         string `json:"text" doc:"the UGC text to scan (capped at ~8000 runes; excess is truncated and recorded)"`
 	AuthorID     *int64 `json:"author_id,omitempty" doc:"optional content author's global id (attribution/repeat-offender signal); not the tenant"`
 	SubjectReach *int64 `json:"subject_reach,omitempty" doc:"optional audience the content has reached so far (views or the product's nearest equivalent); ranks the review queue — omitted or 0 contributes no boost"`
+	CheckSkipped bool   `json:"check_skipped,omitempty" doc:"true = the caller's synchronous /check for this content failed and it was published fail-open; trust re-applies the Tier0 decision and, on deny/hold, opens a review item and hides the subject"`
 }
 
 type ScanResponse struct {
@@ -82,7 +83,7 @@ type ReviewItemView struct {
 	SubjectKind     string     `json:"subject_kind"`
 	SubjectID       string     `json:"subject_id"`
 	SubjectAuthorID *int64     `json:"subject_author_id,omitempty" doc:"global id of the user who wrote the subject, from the first report, scan or forward that named one; absent = no signal has named an author yet"`
-	Source          int16      `json:"source" doc:"0=reports 1=ai_text 2=ai_image 3=community_forward 4=mislabel 5=manual 6=ai_sample (a clean verdict drawn at random for calibration — never enforced)"`
+	Source          int16      `json:"source" doc:"0=reports 1=ai_text 2=ai_image 3=community_forward 4=mislabel 5=manual 6=ai_sample (a clean verdict drawn at random for calibration — never enforced) 7=skipped_check (published while the synchronous check was unavailable; the Tier0 list matched it afterwards)"`
 	Severity        *int16     `json:"severity,omitempty"`
 	ClassifierScore *float32   `json:"classifier_score,omitempty"`
 	ReportWeightSum *float32   `json:"report_weight_sum,omitempty"`

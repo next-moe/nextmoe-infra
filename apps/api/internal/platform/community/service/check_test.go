@@ -362,3 +362,51 @@ func TestCheckHold_RecordsMatchedTermsOnTheReviewItem(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckFailOpenMarksTheScanCheckSkipped(t *testing.T) {
+	cleanTables(t)
+	ctx := context.Background()
+	failing := &fakeChecker{fail: true}
+	sink := &recordingSink{}
+	ts, ps := checkWiring(t, failing, sink)
+
+	seedTrust(t, 100, model.TrustLevelBasic, 0)
+	_, opening, err := ts.OpenTopic(ctx, OpenTopicParams{
+		Site: "letmoe", AuthorID: 100, BoardID: testBoard(t, "letmoe", "b1"),
+		Title: "t", ContentRating: model.ContentRatingAll, BodyRaw: "opening",
+	})
+	if err != nil {
+		t.Fatalf("open topic: %v", err)
+	}
+	seedTrust(t, 200, model.TrustLevelBasic, 0)
+	reply, err := ps.Reply(ctx, ReplyParams{ThreadID: opening.ThreadID, AuthorID: 200, BodyRaw: "reply body"})
+	if err != nil {
+		t.Fatalf("reply: %v", err)
+	}
+	if _, err := ps.Edit(ctx, EditParams{PostID: reply.ID, AuthorID: 200, BodyRaw: "edited body"}); err != nil {
+		t.Fatalf("edit: %v", err)
+	}
+
+	failing.mu.Lock()
+	failing.fail = false
+	failing.mu.Unlock()
+	checked, err := ps.Reply(ctx, ReplyParams{ThreadID: opening.ThreadID, AuthorID: 200, BodyRaw: "checked reply"})
+	if err != nil {
+		t.Fatalf("checked reply: %v", err)
+	}
+
+	skipped := map[int64]bool{}
+	sink.mu.Lock()
+	for _, e := range sink.events {
+		if e.Kind == EventPostCreated || e.Kind == EventPostEdited {
+			skipped[e.PostID] = skipped[e.PostID] || e.CheckSkipped
+		}
+	}
+	sink.mu.Unlock()
+	if !skipped[opening.ID] || !skipped[reply.ID] {
+		t.Fatalf("fail-open writes must carry CheckSkipped: %v", skipped)
+	}
+	if skipped[checked.ID] {
+		t.Fatalf("a write the check answered must not carry CheckSkipped")
+	}
+}
