@@ -332,25 +332,26 @@ func listCatalogDiscussion(cat *Catalog) func(context.Context, *discussionAnchor
 	}
 }
 
-func (c *Catalog) checkDiscussionText(ctx context.Context, uid int64, text string) error {
+func (c *Catalog) checkDiscussionText(ctx context.Context, uid int64, text string) (checkSkipped bool, err error) {
 	if c.DiscussionTrust == nil {
-		return nil
+		return false, nil
 	}
 	cctx, cancel := context.WithTimeout(ctx, ratingCheckTimeout)
 	defer cancel()
-	decision, matched, err := c.DiscussionTrust.Check(cctx, trustclient.CheckRequest{Site: RatingTrustSite, Text: text, AuthorID: &uid})
+	decision, matched, cerr := c.DiscussionTrust.Check(cctx, trustclient.CheckRequest{Site: RatingTrustSite, Text: text, AuthorID: &uid})
 	switch {
-	case err != nil:
-		slog.Warn("discussion trust-check fail-open", "uid", uid, "err", err)
+	case cerr != nil:
+		slog.Warn("discussion trust-check fail-open", "uid", uid, "err", cerr)
+		return true, nil
 	case decision == "deny":
-		return fieldProblem("/body", problem.ReasonNotAllowedValue, "the text was refused by the content check; nothing was written.")
+		return false, fieldProblem("/body", problem.ReasonNotAllowedValue, "the text was refused by the content check; nothing was written.")
 	case decision == "hold":
 		slog.Info("discussion post held by trust", "uid", uid, "matched", matched)
 	}
-	return nil
+	return false, nil
 }
 
-func (c *Catalog) scanDiscussionPost(postID, uid int64, text string) {
+func (c *Catalog) scanDiscussionPost(postID, uid int64, text string, checkSkipped bool) {
 	if c.DiscussionTrust == nil {
 		return
 	}
@@ -360,6 +361,7 @@ func (c *Catalog) scanDiscussionPost(postID, uid int64, text string) {
 		if _, _, err := c.DiscussionTrust.Scan(ctx, trustclient.ScanRequest{
 			Site: RatingTrustSite, SubjectKind: DiscussionTrustSubjectKind,
 			SubjectID: strconv.FormatInt(postID, 10), Text: text, AuthorID: &uid,
+			CheckSkipped: checkSkipped,
 		}); err != nil {
 			slog.Warn("discussion trust-scan", "post_id", postID, "err", err)
 		}
@@ -411,7 +413,8 @@ func createMyDiscussionPost(cat *Catalog) func(context.Context, *createDiscussio
 			}
 			mentions = append(mentions, id)
 		}
-		if err := cat.checkDiscussionText(ctx, uid, body); err != nil {
+		checkSkipped, err := cat.checkDiscussionText(ctx, uid, body)
+		if err != nil {
 			return nil, catalogErr(ctx, err)
 		}
 		post, err := svc.Create(ctx, discussion.CreateInput{
@@ -421,7 +424,7 @@ func createMyDiscussionPost(cat *Catalog) func(context.Context, *createDiscussio
 		if err != nil {
 			return nil, catalogErr(ctx, discussionErr(err))
 		}
-		cat.scanDiscussionPost(post.ID, uid, post.Body)
+		cat.scanDiscussionPost(post.ID, uid, post.Body, checkSkipped)
 		out := discussionPostFrom(post, canModerateDiscussions(ctx))
 		cat.attachDiscussionAuthors(ctx, []*repr.DiscussionPost{&out})
 		return &discussionPostOutput{Body: out}, nil
@@ -442,14 +445,15 @@ func editMyDiscussionPost(cat *Catalog) func(context.Context, *editDiscussionInp
 		if err != nil {
 			return nil, catalogErr(ctx, discussionErr(err))
 		}
-		if err := cat.checkDiscussionText(ctx, uid, body); err != nil {
+		checkSkipped, err := cat.checkDiscussionText(ctx, uid, body)
+		if err != nil {
 			return nil, catalogErr(ctx, err)
 		}
 		post, err := cat.Discussions.Edit(ctx, id, uid, body)
 		if err != nil {
 			return nil, catalogErr(ctx, discussionErr(err))
 		}
-		cat.scanDiscussionPost(post.ID, uid, post.Body)
+		cat.scanDiscussionPost(post.ID, uid, post.Body, checkSkipped)
 		out := discussionPostFrom(post, canModerateDiscussions(ctx))
 		cat.attachDiscussionAuthors(ctx, []*repr.DiscussionPost{&out})
 		return &discussionPostOutput{Body: out}, nil

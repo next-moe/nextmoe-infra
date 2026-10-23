@@ -490,6 +490,9 @@ components:
           description: optional content author's global id (attribution/repeat-offender signal); not the tenant
           format: int64
           type: integer
+        check_skipped:
+          description: true = the caller's synchronous /check for this content failed and it was published fail-open; trust re-applies the Tier0 decision and, on deny/hold, opens a review item and hides the subject
+          type: boolean
         site:
           description: optional tenant site (allowlist-gated relay path); omitted = derived from the client binding
           type: string

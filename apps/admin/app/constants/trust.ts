@@ -68,7 +68,8 @@ export const REVIEW_SOURCE = {
   communityForward: 3,
   mislabel: 4,
   manual: 5,
-  aiSample: 6
+  aiSample: 6,
+  skippedCheck: 7
 } as const
 
 export const REVIEW_SOURCE_LABELS: Record<number, string> = {
@@ -78,7 +79,8 @@ export const REVIEW_SOURCE_LABELS: Record<number, string> = {
   3: '社区转交',
   4: '错误标注',
   5: '人工',
-  6: '抽检'
+  6: '抽检',
+  7: '漏检补审'
 }
 
 export const ACTION_LABELS: Record<number, string> = {

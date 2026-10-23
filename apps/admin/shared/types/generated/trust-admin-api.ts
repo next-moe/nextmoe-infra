@@ -756,7 +756,7 @@ export interface components {
             site: string;
             /**
              * Format: int32
-             * @description 0=reports 1=ai_text 2=ai_image 3=community_forward 4=mislabel 5=manual 6=ai_sample (a clean verdict drawn at random for calibration — never enforced)
+             * @description 0=reports 1=ai_text 2=ai_image 3=community_forward 4=mislabel 5=manual 6=ai_sample (a clean verdict drawn at random for calibration — never enforced) 7=skipped_check (published while the synchronous check was unavailable; the Tier0 list matched it afterwards)
              */
             source: number;
             /**
@@ -1062,7 +1062,7 @@ export interface operations {
                 site?: string;
                 /** @description 0=pending 1=claimed 2=actioned 3=dismissed; -1 = all */
                 status?: number;
-                /** @description 0=reports 1=ai_text 2=ai_image 3=community_forward 4=mislabel 5=manual 6=ai_sample; -1 = all */
+                /** @description 0=reports 1=ai_text 2=ai_image 3=community_forward 4=mislabel 5=manual 6=ai_sample 7=skipped_check; -1 = all */
                 source?: number;
                 /** @description only items on content written by this user (global id); 0 = any author. With status=2 or status=3 and limit=1, total is that author's actioned or dismissed count within the caller's site scope */
                 subject_author_id?: number;

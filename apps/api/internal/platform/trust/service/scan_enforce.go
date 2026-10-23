@@ -67,6 +67,77 @@ func (w *ScanWorker) enforceFlagged(tx *gorm.DB, r *model.TrustScanResult, v Gat
 	})
 }
 
+const skippedCheckReasonCode = "tier0_check_skipped"
+
+// enforceSkippedCheck does for fail-open content what the synchronous check
+// would have done at publish time: deny and hold both kept it out of public
+// view, so it is hidden pending review whatever the site's AI scan mode.
+func (w *ScanWorker) enforceSkippedCheck(tx *gorm.DB, r *model.TrustScanResult, decision string, matched []string) error {
+	if err := tx.Model(&model.TrustScanResult{}).Where("id = ?", r.ID).Update("check_skipped", false).Error; err != nil {
+		return err
+	}
+	r.CheckSkipped = false
+
+	openStates := []int16{model.ReviewStatusPending, model.ReviewStatusClaimed}
+	var open int64
+	if err := tx.Model(&model.TrustReviewItem{}).
+		Where("site = ? AND subject_kind = ? AND subject_id = ? AND status IN ?",
+			r.Site, r.SubjectKind, r.SubjectID, openStates).
+		Count(&open).Error; err != nil {
+		return err
+	}
+	if open > 0 {
+		return nil
+	}
+
+	base := float32(3)
+	if decision == DecisionDeny {
+		base = 5
+	}
+	note := fmt.Sprintf("[check skipped] tier0 %s on %s: %s",
+		decision, strings.Join(matched, ", "), excerptRunes(r.ContentText, scanNoteExcerptRunes))
+	item := model.TrustReviewItem{
+		Site: r.Site, SubjectKind: r.SubjectKind, SubjectID: r.SubjectID,
+		SubjectAuthorID: r.AuthorID, Source: model.ReviewSourceSkippedCheck,
+		ContextNote: &note, SubjectReach: r.SubjectReach,
+		Priority: rankPriority(base, r.SubjectReach), Status: model.ReviewStatusPending,
+	}
+	res := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&item)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return nil
+	}
+
+	var kind model.TrustSubjectKind
+	kerr := tx.Where("site = ? AND key = ?", r.Site, r.SubjectKind).Take(&kind).Error
+	if kerr != nil && !errors.Is(kerr, gorm.ErrRecordNotFound) {
+		return kerr
+	}
+	now := w.now()
+	disp := model.TrustDisposition{
+		ReviewItemID: item.ID, Action: model.ActionHide, ActedBy: scanActorSystem,
+		ReasonCode: skippedCheckReasonCode,
+	}
+	if kind.CallbackURL != nil && *kind.CallbackURL != "" {
+		pending := model.CallbackStatusPending
+		disp.CallbackStatus = &pending
+		disp.NextAttemptAt = &now
+	}
+	if err := tx.Create(&disp).Error; err != nil {
+		return err
+	}
+	slog.Info("trust skipped check caught on scan",
+		"scan_id", r.ID, "site", r.Site, "subject_kind", r.SubjectKind, "subject_id", r.SubjectID,
+		"decision", decision, "callback", disp.CallbackStatus != nil)
+	return AppendAudit(tx, AuditEntry{
+		Action: "scan_skipped_check_hidden",
+		Site:   strptr(r.Site), SubjectKind: strptr(r.SubjectKind), SubjectID: strptr(r.SubjectID),
+		ReasonCode: strptr(skippedCheckReasonCode),
+	})
+}
+
 func (w *ScanWorker) openScanReviewItem(tx *gorm.DB, r *model.TrustScanResult, v GatewayVerdict) (int64, bool, error) {
 	note := scanContextNote(r, v)
 	openStates := []int16{model.ReviewStatusPending, model.ReviewStatusClaimed}
