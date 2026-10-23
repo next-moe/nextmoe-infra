@@ -2,7 +2,6 @@ export interface EditorNavItem {
   label: string
   icon: string
   to: string
-  ready?: boolean
   reviewerOnly?: boolean
 }
 
@@ -13,38 +12,33 @@ export interface EditorNavGroup {
 
 export const EDITOR_NAV: EditorNavGroup[] = [
   {
-    items: [
-      { label: '工作台', icon: 'lucide:layout-dashboard', to: '/', ready: true }
-    ]
+    items: [{ label: '工作台', icon: 'lucide:layout-dashboard', to: '/' }]
   },
   {
     label: '条目',
     items: [
-      { label: '作品', icon: 'lucide:gamepad-2', to: '/works', ready: true },
-      { label: '发行', icon: 'lucide:package', to: '/releases', ready: true },
+      { label: '作品', icon: 'lucide:gamepad-2', to: '/works' },
+      { label: '发行', icon: 'lucide:package', to: '/releases' },
       {
         label: '角色',
         icon: 'lucide:user-round',
-        to: '/characters',
-        ready: true
+        to: '/characters'
       },
-      { label: '人物', icon: 'lucide:contact', to: '/persons', ready: true },
+      { label: '人物', icon: 'lucide:contact', to: '/persons' },
       {
         label: '署名名',
         icon: 'lucide:signature',
-        to: '/credit-names',
-        ready: true
+        to: '/credit-names'
       },
       {
         label: '厂商',
         icon: 'lucide:building-2',
-        to: '/companies',
-        ready: true
+        to: '/companies'
       },
-      { label: '标签', icon: 'lucide:tags', to: '/tags', ready: true },
-      { label: '特质', icon: 'lucide:sparkles', to: '/traits', ready: true },
-      { label: '系列', icon: 'lucide:library', to: '/series', ready: true },
-      { label: '引擎', icon: 'lucide:cpu', to: '/engines', ready: true }
+      { label: '标签', icon: 'lucide:tags', to: '/tags' },
+      { label: '特质', icon: 'lucide:sparkles', to: '/traits' },
+      { label: '系列', icon: 'lucide:library', to: '/series' },
+      { label: '引擎', icon: 'lucide:cpu', to: '/engines' }
     ]
   },
   {
@@ -53,38 +47,32 @@ export const EDITOR_NAV: EditorNavGroup[] = [
       {
         label: '提案',
         icon: 'lucide:git-pull-request',
-        to: '/me/proposals',
-        ready: true
+        to: '/me/proposals'
       },
       {
         label: '草稿',
         icon: 'lucide:file-pen-line',
-        to: '/me/drafts',
-        ready: true
+        to: '/me/drafts'
       },
       {
         label: '合并请求',
         icon: 'lucide:merge',
-        to: '/me/merge-requests',
-        ready: true
+        to: '/me/merge-requests'
       },
       {
         label: '拆分请求',
         icon: 'lucide:split',
-        to: '/me/split-requests',
-        ready: true
+        to: '/me/split-requests'
       },
       {
         label: '删除请求',
         icon: 'lucide:trash',
-        to: '/me/deletion-requests',
-        ready: true
+        to: '/me/deletion-requests'
       },
       {
         label: '贡献',
         icon: 'lucide:award',
-        to: '/me/contributions',
-        ready: true
+        to: '/me/contributions'
       }
     ]
   },
@@ -95,14 +83,12 @@ export const EDITOR_NAV: EditorNavGroup[] = [
         label: '待审队列',
         icon: 'lucide:inbox',
         to: '/review',
-        ready: true,
         reviewerOnly: true
       },
       {
         label: '请求审核',
         icon: 'lucide:git-merge',
         to: '/review/requests',
-        ready: true,
         reviewerOnly: true
       }
     ]
@@ -112,24 +98,16 @@ export const EDITOR_NAV: EditorNavGroup[] = [
       {
         label: '最近修订',
         icon: 'lucide:history',
-        to: '/changes',
-        ready: true
+        to: '/changes'
       },
       {
         label: '编辑规范',
         icon: 'lucide:book-open',
-        to: '/guidelines',
-        ready: true
+        to: '/guidelines'
       }
     ]
   }
 ]
-
-export const findNavItem = (path: string) =>
-  EDITOR_NAV.flatMap((group) => group.items).find(
-    (item) =>
-      item.to !== '/' && (path === item.to || path.startsWith(`${item.to}/`))
-  )
 
 export const currentNavPath = (path: string, items: EditorNavItem[]) =>
   items
