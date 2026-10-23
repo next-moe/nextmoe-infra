@@ -100,6 +100,7 @@ func (f *ForwardAuth) Handle(c fiber.Ctx) error {
 	c.Set("X-NextMoe-Tier", cred.Tier)
 	c.Set("X-NextMoe-Scopes", strings.Join(cred.Scopes, " "))
 	f.usage.Record(cred, name, pathLabel, fiber.StatusNoContent)
+	// ast-grep-ignore: no-goroutine-in-fiber-handler
 	go f.usage.TouchLastUsed(context.Background(), cred)
 	return c.SendStatus(fiber.StatusNoContent)
 }

@@ -96,6 +96,14 @@ func fiberConfig(name string, streamRequestBody bool) fiber.Config {
 		// 404s the admin console's site and OAuth-client pages. The /v2 gate
 		// trims trailing slashes itself instead.
 		CaseSensitive: true,
+		// Without Immutable, c.Query/c.Params/c.Get/c.Cookies/c.IP alias
+		// fasthttp's request buffer, which the next request reuses. forward-auth
+		// kept c.Query("face") as a usage map key, so developer_api_usage
+		// recorded faces like "stic" and "moyuker" until 2026-10-23; moyu's
+		// copy of the same mistake wrote one reader's session over another's.
+		// c.Bind() Query/Form/Header/Cookie binders ignore this flag: clone
+		// those fields before they outlive the handler.
+		Immutable: true,
 		// Real client IP behind Cloudflare → Traefik (dokploy). Without this,
 		// c.IP() returns the immediate peer (Traefik, ~10.0.1.x) for EVERY user,
 		// which silently makes the rate limiters global-per-proxy (the strict

@@ -347,6 +347,7 @@ func setupPublicCatalog(
 		err := c.Next()
 		if cred := devapi.CredentialFrom(c); cred != nil {
 			usageRec.Record(cred, "v2", c.Route().Path, c.Response().StatusCode())
+			// ast-grep-ignore: no-goroutine-in-fiber-handler
 			go usageRec.TouchLastUsed(context.Background(), cred)
 		}
 		return err

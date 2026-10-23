@@ -1,0 +1,14 @@
+id: fiber-new-through-config
+language: go
+severity: error
+message: Build fiber apps with app.FiberConfig/StreamingFiberConfig so Immutable and the proxy settings always apply.
+rule:
+  kind: call_expression
+  has:
+    field: function
+    regex: ^fiber\.New$
+ignores:
+  - internal/app/app.go
+  - "**/*_test.go"
+  - cmd/gen-openapi/**
+  - cmd/gen-v2-portal/**

@@ -137,7 +137,7 @@ func (h *AdminHandler) Decide(c fiber.Ctx) error {
 		return response.NotFound(c, errors.ErrNotFound)
 	}
 	var body dto.AdminDecisionRequest
-	if err := c.Bind().Body(&body); err != nil {
+	if err := c.Bind().JSON(&body); err != nil {
 		return response.BadRequestMsg(c, errors.ErrInvalidParam, msgBadAction)
 	}
 	// An unattributable decision is not a decision: the whole point of the audit
