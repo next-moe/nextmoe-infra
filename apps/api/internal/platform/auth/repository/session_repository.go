@@ -74,11 +74,18 @@ func (r *SessionRepository) RotateRefreshToken(ctx context.Context, id uint, old
 			"refresh_token":      newRefresh,
 			"rotated_at":         rotatedAt,
 			"expires_at":         expiresAt,
+			"rotation_late":      false,
 		})
 	if res.Error != nil {
 		return false, res.Error
 	}
 	return res.RowsAffected == 1, nil
+}
+
+func (r *SessionRepository) MarkRotationLate(ctx context.Context, id uint, currentRefresh string) error {
+	return r.db.WithContext(ctx).Model(&model.Session{}).
+		Where("id = ? AND refresh_token = ?", id, currentRefresh).
+		Update("rotation_late", true).Error
 }
 
 func (r *SessionRepository) FindByUserID(ctx context.Context, userID uint) ([]model.Session, error) {

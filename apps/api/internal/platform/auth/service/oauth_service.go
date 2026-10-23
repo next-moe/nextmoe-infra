@@ -494,6 +494,7 @@ func (s *OAuthService) GetUserIDByUUID(ctx context.Context, uuid string) (uint, 
 }
 
 func (s *OAuthService) RefreshWithClient(ctx context.Context, refreshToken, clientID, clientSecret string) (*dto.TokenResponse, error) {
+	started := time.Now()
 	client, err := s.clientRepo.FindByClientIDWithSite(ctx, clientID)
 	if err != nil {
 		slog.Warn("oauth refresh reject", "stage", "client_lookup", "client_id", clientID, "err", err)
@@ -584,14 +585,14 @@ func (s *OAuthService) RefreshWithClient(ctx context.Context, refreshToken, clie
 	}
 
 	if refreshToken != session.RefreshToken {
-		if session.PrevTokenWithinGrace() {
+		if session.PrevTokenReplayable() {
 			accessToken, gerr := freshAccess()
 			if gerr != nil {
 				return nil, gerr
 			}
 			slog.Info("oauth refresh grace-replay",
 				"client_id", clientID, "session_id", session.ID, "user_id", session.UserID,
-				"presented_fp", tokenFingerprint(refreshToken))
+				"presented_fp", tokenFingerprint(refreshToken), "late_rotation", session.RotationLate)
 			return &dto.TokenResponse{
 				AccessToken:  accessToken,
 				TokenType:    "Bearer",
@@ -650,6 +651,8 @@ func (s *OAuthService) RefreshWithClient(ctx context.Context, refreshToken, clie
 		}, nil
 	}
 
+	markIfRotatedLate(ctx, s.sessionRepo, session.ID, newRefreshToken, started)
+
 	slog.Debug("oauth refresh ok",
 		"client_id", clientID, "session_id", session.ID, "user_id", session.UserID,
 		"old_rt_fp", tokenFingerprint(refreshToken),
@@ -664,6 +667,18 @@ func (s *OAuthService) RefreshWithClient(ctx context.Context, refreshToken, clie
 		Scope:        session.Scope,
 		IDToken:      freshIDToken(),
 	}, nil
+}
+
+func markIfRotatedLate(ctx context.Context, repo *authrepo.SessionRepository, sessionID uint, current string, started time.Time) {
+	elapsed := time.Since(started)
+	if elapsed < model.LateRotationAfter {
+		return
+	}
+	if err := repo.MarkRotationLate(context.WithoutCancel(ctx), sessionID, current); err != nil {
+		slog.Warn("oauth refresh rotated late but could not be marked", "session_id", sessionID, "elapsed", elapsed, "err", err)
+		return
+	}
+	slog.Warn("oauth refresh rotated late; the previous token stays replayable", "session_id", sessionID, "elapsed", elapsed)
 }
 
 func tokenFingerprint(tok string) string {
