@@ -151,6 +151,14 @@ services:
     #                            DIAGNOSED. At the default 3 the incident above
     #                            locked out psql itself, including on the local
     #                            socket. (restart-only)
+    # Applied with ALTER SYSTEM only (postgresql.auto.conf in the volume, so they
+    # survive restarts), not as flags: a flag change recreates this container.
+    #   log_min_duration_statement 1000 / log_lock_waits on — the 2026-10-22
+    #                            disk stall left no server-side trace of which
+    #                            statements and lock waits stalled.
+    #   idle_in_transaction_session_timeout 30min — a forgotten transaction
+    #                            holds its row locks indefinitely; 30min clears
+    #                            the nightly jobs that call LLMs mid-transaction.
     command:
       - postgres
       - -c
@@ -193,7 +201,10 @@ services:
     image: redis:8-alpine
     # volatile-lru, not allkeys: sessions carry no TTL and must never be
     # evicted; only TTL'd cache entries (forum nmcache, quotas) are fair game.
-    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "1gb", "--maxmemory-policy", "volatile-lru"]
+    # --save "": the AOF is the persistence. The default RDB rules on top of it
+    # re-wrote a ~175MB snapshot every ~90s, about half the host's disk writes,
+    # and stalled AOF fsyncs during the 2026-10-22 disk slowdown.
+    command: ["redis-server", "--appendonly", "yes", "--save", "", "--maxmemory", "1gb", "--maxmemory-policy", "volatile-lru"]
     volumes: ["redis:/data"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -261,6 +272,10 @@ services:
       <<: *infra-env
       KUN_FIBER_SERVER_HOST: 0.0.0.0
       KUN_FIBER_SERVER_PORT: "9277"
+      # Every site's sign-in, refresh and user lookup shares this pool. At the
+      # default 10, slow commits on 2026-10-22 held all of them and reads queued
+      # for 10s+ (12.7s app-side for a query Postgres ran in 24ms).
+      KUN_PG_MAX_OPEN_CONNS: "30"
       # Google/GitHub/Hikarinagi federation (docs/auth/05). PR #180 shipped the Go
       # readers but never listed these here, and panel vars that compose doesn't
       # list never reach the container — empty creds silently register no
