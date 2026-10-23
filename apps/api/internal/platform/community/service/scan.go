@@ -29,13 +29,13 @@ func NewScanService(db *gorm.DB, sc Scanner) *ScanService {
 
 func (s *ScanService) Enabled() bool { return s.sc != nil && keys.TrustScanEnabled.Get() }
 
-func (s *ScanService) ScanPostBg(postID int64) {
-	if err := s.scanPost(context.Background(), postID); err != nil {
+func (s *ScanService) ScanPostBg(postID int64, checkSkipped bool) {
+	if err := s.scanPost(context.Background(), postID, checkSkipped); err != nil {
 		slog.Warn("community trust-scan", "post_id", postID, "err", err)
 	}
 }
 
-func (s *ScanService) scanPost(ctx context.Context, postID int64) error {
+func (s *ScanService) scanPost(ctx context.Context, postID int64, checkSkipped bool) error {
 	if s.sc == nil {
 		return nil
 	}
@@ -53,7 +53,7 @@ func (s *ScanService) scanPost(ctx context.Context, postID int64) error {
 	author := tgt.AuthorID
 	_, _, err = s.sc.Scan(ctx, trustclient.ScanRequest{
 		Site: tgt.Site, SubjectKind: scanSubjectKind, SubjectID: strconv.FormatInt(tgt.PostID, 10),
-		Text: text, AuthorID: &author,
+		Text: text, AuthorID: &author, CheckSkipped: checkSkipped,
 	})
 	return err
 }
@@ -76,6 +76,6 @@ func (s ScanningSink) Emit(e Event) {
 	}
 	switch e.Kind {
 	case EventPostCreated, EventPostEdited:
-		go s.scan.ScanPostBg(e.PostID)
+		go s.scan.ScanPostBg(e.PostID, e.CheckSkipped)
 	}
 }

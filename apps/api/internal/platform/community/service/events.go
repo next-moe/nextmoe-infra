@@ -19,6 +19,7 @@ type Event struct {
 	ActorID      int64
 	TargetID     int64
 	ReviewItemID int64
+	CheckSkipped bool
 }
 
 type EventSink interface{ Emit(Event) }

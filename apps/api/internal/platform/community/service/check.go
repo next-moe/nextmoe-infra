@@ -31,21 +31,21 @@ func NewCheckService(ck Checker) *CheckService {
 
 func (s *CheckService) Enabled() bool { return s != nil && s.ck != nil && keys.TrustCheckEnabled.Get() }
 
-func (s *CheckService) Decision(ctx context.Context, site, text string, authorID *int64) (decision string, matched []string) {
+func (s *CheckService) Decision(ctx context.Context, site, text string, authorID *int64) (decision string, matched []string, skipped bool) {
 	if !s.Enabled() {
-		return checkAllow, nil
+		return checkAllow, nil, false
 	}
 	cctx, cancel := context.WithTimeout(ctx, checkTimeout)
 	defer cancel()
 	decision, matched, err := s.ck.Check(cctx, trustclient.CheckRequest{Site: site, Text: text, AuthorID: authorID})
 	if err != nil {
 		slog.Warn("community trust-check fail-open", "site", site, "err", err)
-		return checkAllow, nil
+		return checkAllow, nil, true
 	}
 	switch decision {
 	case checkDeny, checkHold:
-		return decision, matched
+		return decision, matched, false
 	default:
-		return checkAllow, nil
+		return checkAllow, nil, false
 	}
 }

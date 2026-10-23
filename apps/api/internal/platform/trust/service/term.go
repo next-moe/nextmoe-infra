@@ -126,13 +126,13 @@ func (s *TermService) Check(ctx context.Context, p CheckParams) (CheckResult, er
 	return CheckResult{Decision: decision, Matched: matched}, nil
 }
 
-func (s *TermService) Tier0Matches(ctx context.Context, site, text string) ([]string, error) {
+func (s *TermService) Tier0Matches(ctx context.Context, site, text string) (string, []string, error) {
 	snap, err := s.snapshot(ctx)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
-	_, matched := snap.match(site, norm.Normalize(text))
-	return matched, nil
+	decision, matched := snap.match(site, norm.Normalize(text))
+	return decision, matched, nil
 }
 
 func (snap *termSnapshot) match(site, normText string) (string, []string) {

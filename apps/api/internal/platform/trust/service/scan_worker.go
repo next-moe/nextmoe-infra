@@ -28,7 +28,7 @@ type ScanWorker struct {
 }
 
 type Tier0Matcher interface {
-	Tier0Matches(ctx context.Context, site, text string) ([]string, error)
+	Tier0Matches(ctx context.Context, site, text string) (decision string, matched []string, err error)
 }
 
 func NewScanWorker(db *gorm.DB, gateway ScanGateway, tier0 Tier0Matcher, opts ...ScanWorkerOption) *ScanWorker {
@@ -134,8 +134,14 @@ func (w *ScanWorker) ScorePending(ctx context.Context) (int, error) {
 }
 
 func (w *ScanWorker) scoreOne(ctx context.Context, tx *gorm.DB, r *model.TrustScanResult) error {
-	tier0 := w.tier0Matched(ctx, r)
+	tier0, decision, matched := w.tier0Matched(ctx, r)
 	pol := w.policyFor(r.Site)
+
+	if r.CheckSkipped && (decision == DecisionDeny || decision == DecisionHold) {
+		if err := w.enforceSkippedCheck(tx, r, decision, matched); err != nil {
+			return err
+		}
+	}
 
 	if !w.gateway.Configured() {
 		return w.markDegraded(tx, r, tier0, pol, model.ScanDegradedGatewayUnconfigured)
@@ -161,21 +167,21 @@ func (w *ScanWorker) scoreOne(ctx context.Context, tx *gorm.DB, r *model.TrustSc
 	return w.markScored(tx, r, verdict, tier0, pol)
 }
 
-func (w *ScanWorker) tier0Matched(ctx context.Context, r *model.TrustScanResult) datatypes.JSON {
+func (w *ScanWorker) tier0Matched(ctx context.Context, r *model.TrustScanResult) (datatypes.JSON, string, []string) {
 	if w.tier0 == nil {
-		return nil
+		return nil, "", nil
 	}
-	matched, err := w.tier0.Tier0Matches(ctx, r.Site, r.ContentText)
+	decision, matched, err := w.tier0.Tier0Matches(ctx, r.Site, r.ContentText)
 	if err != nil {
 		slog.Warn("trust tier0 match failed; recording no tier0", "scan_id", r.ID, "err", err)
-		return nil
+		return nil, "", nil
 	}
 	b, err := json.Marshal(matched)
 	if err != nil {
 		slog.Warn("trust tier0 marshal failed; recording no tier0", "scan_id", r.ID, "err", err)
-		return nil
+		return nil, decision, matched
 	}
-	return datatypes.JSON(b)
+	return datatypes.JSON(b), decision, matched
 }
 
 func (w *ScanWorker) markScored(tx *gorm.DB, r *model.TrustScanResult, v GatewayVerdict, tier0 datatypes.JSON, pol ResolvedPolicy) error {

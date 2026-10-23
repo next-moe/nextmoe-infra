@@ -72,11 +72,12 @@ func (c *Client) Forward(ctx context.Context, req ForwardRequest) (trustItemID i
 }
 
 type ScanRequest struct {
-	Site        string `json:"site,omitempty"`
-	SubjectKind string `json:"subject_kind"`
-	SubjectID   string `json:"subject_id"`
-	Text        string `json:"text"`
-	AuthorID    *int64 `json:"author_id,omitempty"`
+	Site         string `json:"site,omitempty"`
+	SubjectKind  string `json:"subject_kind"`
+	SubjectID    string `json:"subject_id"`
+	Text         string `json:"text"`
+	AuthorID     *int64 `json:"author_id,omitempty"`
+	CheckSkipped bool   `json:"check_skipped,omitempty"`
 }
 
 type scanData struct {

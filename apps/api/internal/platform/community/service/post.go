@@ -130,6 +130,7 @@ type postDraft struct {
 	mentionUserIDs []int64
 	suspectHold    bool
 	matchedTerms   []string
+	checkSkipped   bool
 	now            time.Time
 }
 
@@ -137,6 +138,7 @@ type writtenPost struct {
 	post           model.CommunityPost
 	enqueuedItemID int64
 	targetUserID   *int64
+	checkSkipped   bool
 }
 
 func (s *PostService) draftPost(ctx context.Context, site string, authorID int64, bodyRaw string) (postDraft, error) {
@@ -158,7 +160,9 @@ func (s *PostService) draftPost(ctx context.Context, site string, authorID int64
 		}
 	}
 	draft := postDraft{authorID: authorID, site: site, bodyRaw: bodyRaw, cooked: cooked, now: time.Now()}
-	switch decision, matched := s.check.Decision(ctx, site, bodyRaw, &authorID); decision {
+	decision, matched, skipped := s.check.Decision(ctx, site, bodyRaw, &authorID)
+	draft.checkSkipped = skipped
+	switch decision {
 	case checkDeny:
 		return postDraft{}, ErrContentBlocked
 	case checkHold:
@@ -220,6 +224,7 @@ func appendPostTx(tx *gorm.DB, thread *model.CommunityThread, d postDraft) (writ
 		}
 	}
 	out.targetUserID = targetUserID
+	out.checkSkipped = d.checkSkipped
 	out.post = model.CommunityPost{
 		ThreadID: thread.ID, PostNumber: number,
 		RootPostID: rootPostID, ReplyToPostID: d.replyToPostID, TargetUserID: targetUserID,
@@ -267,7 +272,7 @@ func appendPostTx(tx *gorm.DB, thread *model.CommunityThread, d postDraft) (writ
 }
 
 func (s *PostService) emitWrite(threadID, authorID int64, w writtenPost) {
-	s.sink.Emit(Event{Kind: EventPostCreated, ThreadID: threadID, PostID: w.post.ID, ActorID: authorID})
+	s.sink.Emit(Event{Kind: EventPostCreated, ThreadID: threadID, PostID: w.post.ID, ActorID: authorID, CheckSkipped: w.checkSkipped})
 	if w.enqueuedItemID != 0 {
 		s.sink.Emit(Event{Kind: EventReviewEnqueued, ThreadID: threadID, PostID: w.post.ID, ReviewItemID: w.enqueuedItemID})
 	}
@@ -298,7 +303,7 @@ func (s *PostService) Edit(ctx context.Context, p EditParams) (*model.CommunityP
 	}
 
 	suspectHold := false
-	decision, matchedTerms := s.check.Decision(ctx, callerSite(ctx), p.BodyRaw, &p.AuthorID)
+	decision, matchedTerms, checkSkipped := s.check.Decision(ctx, callerSite(ctx), p.BodyRaw, &p.AuthorID)
 	switch decision {
 	case checkDeny:
 		return nil, ErrContentBlocked
@@ -361,7 +366,7 @@ func (s *PostService) Edit(ctx context.Context, p EditParams) (*model.CommunityP
 		slog.Info("community mod edit", "post_id", post.ID, "thread_id", post.ThreadID,
 			"post_author_id", post.AuthorID, "moderator_id", p.AuthorID)
 	}
-	s.sink.Emit(Event{Kind: EventPostEdited, ThreadID: post.ThreadID, PostID: post.ID, ActorID: p.AuthorID})
+	s.sink.Emit(Event{Kind: EventPostEdited, ThreadID: post.ThreadID, PostID: post.ID, ActorID: p.AuthorID, CheckSkipped: checkSkipped})
 	if enqueuedItemID != 0 {
 		s.sink.Emit(Event{Kind: EventReviewEnqueued, ThreadID: post.ThreadID, PostID: post.ID, ReviewItemID: enqueuedItemID})
 	}

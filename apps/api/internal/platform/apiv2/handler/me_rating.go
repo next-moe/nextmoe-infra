@@ -242,8 +242,8 @@ func (c *Catalog) PutMyRating(ctx context.Context, workID int64, body ratingBody
 	if gerr != nil {
 		return repr.UserRating{}, ratingErr(gerr, "")
 	}
-	if scan {
-		c.scanRatingSummary(rec.ID, uid, rec.ShortSummary)
+	if scan.needed {
+		c.scanRatingSummary(rec.ID, uid, rec.ShortSummary, scan.checkSkipped)
 	}
 	return userRatingRepr(*rec), nil
 }

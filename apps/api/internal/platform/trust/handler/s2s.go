@@ -169,7 +169,7 @@ func (s *Server) submitScan(ctx context.Context, in *submitScanInput) (*submitSc
 		Site:           boundSite, WireSite: in.Body.Site,
 		SubjectKind: in.Body.SubjectKind, SubjectID: in.Body.SubjectID,
 		Text: in.Body.Text, AuthorID: in.Body.AuthorID,
-		SubjectReach: in.Body.SubjectReach,
+		SubjectReach: in.Body.SubjectReach, CheckSkipped: in.Body.CheckSkipped,
 	})
 	if err != nil {
 		return nil, mapForwardErr("submit scan", err)

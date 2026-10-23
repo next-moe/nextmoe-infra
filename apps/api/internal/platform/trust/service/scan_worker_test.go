@@ -29,8 +29,17 @@ func (g *fakeGateway) Moderate(_ context.Context, site, _, kind string, _ *int64
 
 type stubTier0 struct{}
 
-func (stubTier0) Tier0Matches(_ context.Context, _, _ string) ([]string, error) {
-	return []string{}, nil
+func (stubTier0) Tier0Matches(_ context.Context, _, _ string) (string, []string, error) {
+	return DecisionAllow, []string{}, nil
+}
+
+type fixedTier0 struct {
+	decision string
+	matched  []string
+}
+
+func (f fixedTier0) Tier0Matches(_ context.Context, _, _ string) (string, []string, error) {
+	return f.decision, f.matched, nil
 }
 
 func seedPending(t *testing.T, subject, text string) int64 {
@@ -358,5 +367,86 @@ func TestScanWorkerTier0RecordedOnEnvEmptyDegraded(t *testing.T) {
 	_, matched := tier0Of(t, id)
 	if len(matched) != 1 || matched[0] != "坏词" {
 		t.Fatalf("env-empty degraded row tier0_matched = %v, want [坏词]", matched)
+	}
+}
+
+func seedSkippedCheck(t *testing.T, subject, text string) int64 {
+	t.Helper()
+	r := model.TrustScanResult{
+		Site: tSite, SubjectKind: tKind, SubjectID: subject, ContentText: text,
+		Status: model.ScanStatusPending, Mode: model.ScanModeShadow, CheckSkipped: true,
+	}
+	if err := testDB.Create(&r).Error; err != nil {
+		t.Fatalf("seed skipped-check scan %s: %v", subject, err)
+	}
+	return r.ID
+}
+
+func TestScanWorkerSkippedCheckHidesTier0Hit(t *testing.T) {
+	cleanTables(t)
+	url, sec := "https://site.example/cb", "s3cret"
+	registerKind(t, tSite, tKind, &url, &sec)
+	svc := NewTermService(testDB, nil)
+	seedTerm(t, svc, nil, "坏词", model.TermKindBanned)
+
+	id := seedSkippedCheck(t, "s-skip-deny", "这是一段含有坏词的文本")
+	g := &fakeGateway{configured: true, verdict: GatewayVerdict{Degraded: true}}
+	w := NewScanWorker(testDB, g, svc)
+	for range 2 {
+		if _, err := w.ScorePending(context.Background()); err != nil {
+			t.Fatalf("score: %v", err)
+		}
+	}
+
+	var items []model.TrustReviewItem
+	testDB.Where("subject_id = ?", "s-skip-deny").Find(&items)
+	if len(items) != 1 || items[0].Source != model.ReviewSourceSkippedCheck {
+		t.Fatalf("items = %+v, want one skipped_check item", items)
+	}
+	var disps []model.TrustDisposition
+	testDB.Where("review_item_id = ?", items[0].ID).Find(&disps)
+	if len(disps) != 1 || disps[0].Action != model.ActionHide || disps[0].CallbackStatus == nil ||
+		*disps[0].CallbackStatus != model.CallbackStatusPending {
+		t.Fatalf("dispositions = %+v, want one hide with a pending callback", disps)
+	}
+	if getScan(t, id).CheckSkipped {
+		t.Fatalf("check_skipped still set after enforcement")
+	}
+}
+
+func TestScanWorkerSkippedCheckHoldWithoutCallback(t *testing.T) {
+	cleanTables(t)
+	registerKind(t, tSite, tKind, nil, nil)
+	g := &fakeGateway{configured: true, verdict: GatewayVerdict{Flagged: false, Channel: "qwen3guard"}}
+	w := NewScanWorker(testDB, g, fixedTier0{decision: DecisionHold, matched: []string{"可疑"}})
+	seedSkippedCheck(t, "s-skip-hold", "可疑的文本")
+	if _, err := w.ScorePending(context.Background()); err != nil {
+		t.Fatalf("score: %v", err)
+	}
+
+	var item model.TrustReviewItem
+	if err := testDB.Where("subject_id = ?", "s-skip-hold").Take(&item).Error; err != nil {
+		t.Fatalf("no review item: %v", err)
+	}
+	var disp model.TrustDisposition
+	if err := testDB.Where("review_item_id = ?", item.ID).Take(&disp).Error; err != nil {
+		t.Fatalf("no disposition: %v", err)
+	}
+	if disp.Action != model.ActionHide || disp.CallbackStatus != nil {
+		t.Fatalf("disposition = %+v, want a hide with no callback", disp)
+	}
+}
+
+func TestScanWorkerCheckedContentIsNotQueuedAgain(t *testing.T) {
+	cleanTables(t)
+	registerKind(t, tSite, tKind, nil, nil)
+	g := &fakeGateway{configured: true, verdict: GatewayVerdict{Flagged: false, Channel: "qwen3guard"}}
+	w := NewScanWorker(testDB, g, fixedTier0{decision: DecisionDeny, matched: []string{"坏词"}})
+	seedPending(t, "s-checked", "坏词")
+	if _, err := w.ScorePending(context.Background()); err != nil {
+		t.Fatalf("score: %v", err)
+	}
+	if n := countOpenItems(t, tSite, tKind, "s-checked"); n != 0 {
+		t.Fatalf("open items = %d; content the synchronous check already saw must not be queued again", n)
 	}
 }

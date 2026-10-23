@@ -30,6 +30,7 @@ type ScanParams struct {
 	Text           string
 	AuthorID       *int64
 	SubjectReach   *int64
+	CheckSkipped   bool
 }
 
 type ScanResult struct {
@@ -60,7 +61,7 @@ func (s *ScanService) Ingest(ctx context.Context, p ScanParams) (ScanResult, err
 
 	row := model.TrustScanResult{
 		Site: site, SubjectKind: p.SubjectKind, SubjectID: p.SubjectID,
-		AuthorID: p.AuthorID, ContentText: text, SubjectReach: p.SubjectReach,
+		AuthorID: p.AuthorID, ContentText: text, SubjectReach: p.SubjectReach, CheckSkipped: p.CheckSkipped,
 		Status: model.ScanStatusPending, Mode: model.ScanModeShadow,
 	}
 	if err := s.db.WithContext(ctx).Create(&row).Error; err != nil {

@@ -14,6 +14,7 @@ const (
 	ReviewSourceMislabel         int16 = 4
 	ReviewSourceManual           int16 = 5
 	ReviewSourceAISample         int16 = 6
+	ReviewSourceSkippedCheck     int16 = 7
 )
 
 const (

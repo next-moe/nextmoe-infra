@@ -61,14 +61,14 @@ Response: { "decision": "allow" | "deny" | "hold", "matched": ["<命中的归一
 
 - 语义:`deny` = banned 词命中 → **你应拒绝这次写入**(建议 422 + 明确文案);`hold` = 仅 suspect 命中 → **正常发布**,同时把它送进你站的审核队列(community 原语的做法:发布 + 建 review item,即"入队不拦");`allow` = 干净。
 - 无状态、不落库、p99 <10ms(内存 AC 自动机)。**不查注册表**(check 只针对文本,不针对 subject),所以接 check 不需要预注册 kind。
-- **调用方纪律(硬性)**:①在你的 DB 事务**之前**调用,HTTP 永不进事务;②客户端超时 ≤500ms;③任何错误/超时按 `allow` 处理 + warn 日志。参考实现:infra 仓 `internal/platform/community/service/check.go`(逐行照抄即可)。
+- **调用方纪律(硬性)**:①在你的 DB 事务**之前**调用,HTTP 永不进事务;②客户端超时 ≤500ms;③任何错误/超时按 `allow` 处理 + warn 日志,**并在这条内容随后的 scan 上带 `check_skipped: true`**(见 §3.2)。参考实现:infra 仓 `internal/platform/community/service/check.go`(逐行照抄即可)。
 - 检查文本构成惯例:回帖/编辑 = raw 原文;带标题的首发内容 = `title + "\n\n" + raw`。
 - 词表现实:全局词(site=NULL)对所有站生效,per-site 词只对该站。**banned 现为空**,所以接上 check 当下零拦截风险——它的价值随影子数据逐周长出来。
 
 ### 3.2 `POST /api/v1/trust/scan` — 异步影子扫描(发布/编辑后,推荐全量接)
 
 ```
-Request:  { "subject_kind": "forum_topic", "subject_id": "8841", "text": "<raw>", "author_id": 123 }
+Request:  { "subject_kind": "forum_topic", "subject_id": "8841", "text": "<raw>", "author_id": 123, "check_skipped": false }
 Response: { "scan_id": 456, "truncated": false }
 ```
 
@@ -77,6 +77,7 @@ Response: { "scan_id": 456, "truncated": false }
 - **刻意不去重**:每次编辑就是一次新 scan(重复受理是特性,worker 幂等)。
 - **调用方纪律**:发布事务提交**之后**、off-request(goroutine / 队列)发送;纯 best-effort,失败打 warn 即可不必重试(漏一条无害,下次编辑自愈)。参考实现:`internal/platform/community/service/scan.go` + `ScanningSink`。
 - 你会得到什么:影子期内什么都不会"发生"(零回调零入队),但管理端能看到你站内容的打分分布、词表命中(`tier0_matched`)——这是四周后给你站定策略的数据地基。
+- **`check_skipped: true`(可选)**:这条内容发布时 check 失败、按 fail-open 放行了。worker 会补跑词表:命中 deny/hold 就开一张 `source=7 skipped_check` 的审核单并隐藏该内容(有回调走回调),等于补上发布时没拦住的那一步——与影子期无关。check 正常答复过的内容不要带它,否则同一条会被重复入队。
 
 ### 3.3 `POST /api/v1/trust/reports` — 用户举报(有举报 UI 就接)
 
