@@ -49,7 +49,6 @@ const current = computed(() =>
               :href="item.to"
               :variant="current === item.to ? 'flat' : 'light'"
               :color="current === item.to ? 'primary' : 'default'"
-              :disabled="!item.ready"
               :aria-label="item.label"
               :aria-current="current === item.to ? 'page' : undefined"
               is-icon-only
@@ -63,7 +62,6 @@ const current = computed(() =>
             :icon="item.icon"
             :href="item.to"
             :current="current === item.to"
-            :disabled="!item.ready"
             :class-name="
               cn('h-9 text-sm', current !== item.to && 'text-default-600')
             "
