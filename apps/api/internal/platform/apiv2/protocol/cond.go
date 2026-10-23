@@ -18,6 +18,10 @@ func IfNoneMatch(header, etag string) bool {
 	return false
 }
 
+// Cloudflare rewrites every validator it compresses to W/"…", so a browser can
+// only ever send back the weak form; strong comparison refused every editor
+// review decision. These validators are version tokens, not byte digests, so
+// the W/ prefix carries no information here.
 func IfMatch(header, etag string) bool {
 	if header == "" {
 		return false
@@ -27,10 +31,7 @@ func IfMatch(header, etag string) bool {
 		if candidate == "*" {
 			return etag != ""
 		}
-		if strings.HasPrefix(candidate, "W/") {
-			continue
-		}
-		if candidate == etag {
+		if stripWeak(candidate) == stripWeak(etag) {
 			return true
 		}
 	}

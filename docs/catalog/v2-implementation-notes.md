@@ -2550,3 +2550,9 @@ Owner rule: every side effect of a merge and its relatives must be handled compl
 - **Unchanged, documented:** claims follow the entity through merge and undo (same ids, no claim events); news items keep the work ids they were linked to and resolve through redirects; search catches up at the nightly reindex; the legacy `unmerge-work` CLI still rebuilds under a new id and only serves merges executed before same-id undo existed.
 
 **Migrations**: `cmd/migrate catalog` — none (the survivor rows ride the existing `catalog_merge_movement` table). `cmd/migrate community` (prod `migrate-community` job) creates the empty table `community_rehome_log`. Both additive.
+
+## If-Match ignores the W/ prefix Cloudflare adds (2026-10-23)
+
+Cloudflare rewrites the `ETag` of every response it compresses to the weak form `W/"…"`, and every browser sends `Accept-Encoding`, so the editor only ever held the weak form of a proposal's validator. `protocol.IfMatch` used the strong comparison of RFC 9110 and skipped any `W/` candidate, so every `POST /v2/moderation/proposals/{id}/decisions` and `POST /v2/me/proposals/{id}/amendments` from editor.nextmoe.com answered 412 `PRECONDITION_FAILED` (7 of 7 decisions on 2026-10-23, e.g. proposal 1704), which the editor shows as 「提案刚被其他人修改过，已重新加载，请再确认一遍」.
+
+`IfMatch` now compares with the `W/` prefix stripped on both sides, as `IfNoneMatch` already did. This is safe because no `If-Match` lane validates a byte digest: claim, proposal and news validators are version tokens (deviations 15, 27, 57), and compression does not change the version a token names. `*` keeps its meaning. No spec, schema or migration change.
