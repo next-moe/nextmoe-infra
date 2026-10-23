@@ -253,6 +253,11 @@ func runPlatform(cfg *config.Config, args []string) {
 		os.Exit(1)
 	}
 
+	if err := ensureUsersTrigramIndexes(gormDB); err != nil {
+		slog.Error("failed to create the users trigram indexes", "error", err)
+		os.Exit(1)
+	}
+
 	// Fill the moemoepoint ledger from moemoepoint_log and users.moemoepoint:
 	// every legacy row becomes a transfer against its client's issuer (or, for
 	// name_change, the oauth sink), and a user whose balance the log does not
