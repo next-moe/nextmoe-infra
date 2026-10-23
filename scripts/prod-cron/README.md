@@ -56,11 +56,12 @@ had to be rebuilt by hand.
 | pg-backup | daily 02:30 | daily 18:30 (prev. day) | 48h |
 | pg-offsite | daily 04:30 | daily 20:30 (prev. day) | 48h |
 | disk-watch | every 10 min | every 10 min | 2h |
+| log-archive | every 5 min | every 5 min | 2h |
 | umami-retention | daily 04:40 | daily 20:40 (prev. day) | 48h |
 
 `source-import/test.sh`, `char-xsrc-nightly/test.sh`,
 `llm-adjudicate-nightly/test.sh`, `image-mirror/test.sh`,
-`reconcile-watch/test.sh`, `pg-backup/test.sh`, `pg-offsite/test.sh` and `disk-watch/test.sh` are the offline tests in this directory: each
+`reconcile-watch/test.sh`, `pg-backup/test.sh`, `pg-offsite/test.sh`, `disk-watch/test.sh` and `log-archive/test.sh` are the offline tests in this directory: each
 runs the `run.sh` beside it against fake `docker` / `flock` / alert stand-ins
 and asserts the call order, the ceilings and the lock/stamp rules. Run the
 matching one before redeploying any of those scripts. `umami-retention/test.sh` is the one that
@@ -100,6 +101,13 @@ every pair that wave already settled.
 empty `HostConfig.LogConfig.Config`, so `daemon.json`'s 100m x 3 default never
 applies to them — traefik's access log had grown to 25 GB by 2026-09-07, five
 days from filling the disk. The file's own header carries the detail.
+
+`log-archive` copies every running container's log to
+`/root/log-archive/archive/<container>/<UTC date>.log.gz` every 5 minutes and
+keeps 30 days. Read an incident window with
+`zcat /root/log-archive/archive/kun-visual-novel-infra-vqvqbc-oauth-1/2026-10-22.log.gz | grep ...`;
+each line carries docker's own timestamp. It exists because a deploy recreates
+the containers and Docker deletes their logs with them.
 
 `metrics-sampler/` is the other non-job entry: a host-level resource sampler
 (docker stats + loadavg + MemAvailable/SwapFree to daily CSVs under
