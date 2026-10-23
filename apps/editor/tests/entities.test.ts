@@ -169,9 +169,7 @@ describe('entity edit configs', () => {
 
   it('agree with the entity metadata, the history families and the sidebar', () => {
     const navTargets = new Set(
-      EDITOR_NAV.flatMap((group) => group.items)
-        .filter((item) => item.ready)
-        .map((item) => item.to)
+      EDITOR_NAV.flatMap((group) => group.items).map((item) => item.to)
     )
     for (const [family, meta] of Object.entries(ENTITY_META)) {
       expect(isEditFamily(family)).toBe(true)

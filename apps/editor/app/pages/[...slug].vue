@@ -1,7 +1,7 @@
 <script setup lang="ts">
-definePageMeta({ title: '即将推出' })
+definePageMeta({ title: '页面不存在' })
 </script>
 
 <template>
-  <ComingSoonContainer />
+  <NotFoundContainer />
 </template>
