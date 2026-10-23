@@ -17,13 +17,16 @@ func TestIfNoneMatchWeakComparison(t *testing.T) {
 	}
 }
 
-func TestIfMatchStrongComparison(t *testing.T) {
+func TestIfMatchIgnoresWeakPrefix(t *testing.T) {
 	tag := `"abc"`
 	if !IfMatch(tag, tag) {
 		t.Fatal("exact If-Match must match")
 	}
-	if IfMatch(`W/"abc"`, tag) {
-		t.Fatal("weak If-Match must not match a strong tag")
+	if !IfMatch(`W/"abc"`, tag) {
+		t.Fatal("the W/ form a CDN hands out must match its strong tag")
+	}
+	if IfMatch(`W/"nope"`, tag) {
+		t.Fatal("a stale weak tag matched")
 	}
 	if !IfMatch("*", tag) {
 		t.Fatal("* must match an existing representation")
