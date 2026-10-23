@@ -18,7 +18,7 @@ func (s *OAuthService) LiveBrowserSession(ctx context.Context, refreshToken stri
 	if err != nil || session.ClientID != "" || session.IsExpired() {
 		return nil, nil, false
 	}
-	if refreshToken != session.RefreshToken && !session.PrevTokenWithinGrace() {
+	if refreshToken != session.RefreshToken && !session.PrevTokenReplayable() {
 		return nil, nil, false
 	}
 	user, err := s.userRepo.FindByID(ctx, session.UserID)
