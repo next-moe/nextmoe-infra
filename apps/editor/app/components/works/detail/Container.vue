@@ -63,9 +63,11 @@ const onMore = (item: KunDropdownItem) => {
   }
 }
 
+const preferences = useEditorPreferences()
+
 useHead(() => ({
   title: work.value
-    ? `${work.value.display_name} · 未萌编辑台`
+    ? `${preferences.nameOf(work.value)} · 未萌编辑台`
     : '作品 · 未萌编辑台'
 }))
 </script>

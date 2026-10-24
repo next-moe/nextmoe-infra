@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { cn } from '@kungal/ui-core'
 import type {
   CatalogEntityList,
   CatalogEntitySummary
 } from '#shared/types/catalog'
 import { CREATABLE_FAMILIES } from '~/constants/creation'
 import { ENTITY_META, type EditFamily } from '~/constants/editEntities'
+import { LIST_PICTURE_INCLUDE } from '~/constants/entityPictures'
 
 const PAGE_SIZE = 30
 
@@ -12,6 +14,9 @@ const props = defineProps<{ family: EditFamily }>()
 
 const meta = ENTITY_META[props.family]
 const api = useEditorApi()
+const preferences = useEditorPreferences()
+const pictures = useEntityPictures(props.family)
+const listInclude = LIST_PICTURE_INCLUDE[props.family]?.include
 const route = useRoute()
 const router = useRouter()
 
@@ -35,7 +40,12 @@ const request = (cursor: string | null): Promise<CatalogEntityList> => {
     })
   }
   return api<CatalogEntityList>(`/v2/catalog/${meta.collection}`, {
-    query: { ...paging, include_total: true, ...(q ? { q } : {}) }
+    query: {
+      ...paging,
+      include_total: true,
+      ...(listInclude ? { include: listInclude } : {}),
+      ...(q ? { q } : {})
+    }
   })
 }
 
@@ -47,6 +57,7 @@ const fetchPage = async (cursor: string | null) => {
     items.value = cursor ? [...items.value, ...list.items] : list.items
     nextCursor.value = list.next_cursor ?? null
     total.value = list.total ?? null
+    pictures.load(list.items)
   } catch {
     failed.value = true
   } finally {
@@ -64,11 +75,10 @@ watch(keyword, (value) => {
 })
 
 const nameOf = (item: CatalogEntitySummary) =>
-  item.display_name || item.title || `#${item.id}`
-const pictureOf = (item: CatalogEntitySummary) =>
-  item.image ?? item.photo ?? item.logo ?? null
+  preferences.nameOf(item) || item.title || `#${item.id}`
+const pictureOf = pictures.pictureOf
 const secondaryOf = (item: CatalogEntitySummary) =>
-  [item.latin, item.platform, item.date]
+  [preferences.otherNameOf(item) || item.latin, item.platform, item.date]
     .filter((part) => typeof part === 'string' && part)
     .join(' · ')
 
@@ -131,7 +141,7 @@ useHead({ title: `${meta.label} · 未萌编辑台` })
         :key="index"
         class="border-default-200 bg-content1 flex items-center gap-3 rounded-xl border p-3"
       >
-        <KunSkeleton width="3rem" height="3rem" rounded="lg" />
+        <KunSkeleton width="3.5rem" height="3.5rem" rounded="lg" />
         <div class="min-w-0 flex-1">
           <KunSkeleton
             variant="text"
@@ -155,7 +165,12 @@ useHead({ title: `${meta.label} · 未萌编辑台` })
           class="border-default-200 bg-content1 hover:border-primary-300 flex items-center gap-3 rounded-xl border p-3 transition-colors"
         >
           <div
-            class="bg-default-100 flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg"
+            :class="
+              cn(
+                'bg-default-100 flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg',
+                props.family === 'company' && pictureOf(item) && 'p-1.5'
+              )
+            "
           >
             <KunImage
               v-if="pictureOf(item)?.url"
@@ -163,7 +178,8 @@ useHead({ title: `${meta.label} · 未萌编辑台` })
               :thumbhash="pictureOf(item)!.thumbhash ?? undefined"
               :alt="nameOf(item)"
               aspect-ratio="1 / 1"
-              object-fit="cover"
+              :object-fit="props.family === 'company' ? 'contain' : 'cover'"
+              class-name="size-full"
             />
             <KunIcon v-else :name="meta.icon" class="text-default-300 size-5" />
           </div>

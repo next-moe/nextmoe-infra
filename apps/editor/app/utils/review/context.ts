@@ -8,7 +8,7 @@ import {
   TITLE_KIND_LABELS
 } from '~/constants/catalog'
 import { useEditorApi } from '~/composables/useEditorApi'
-import { preferredRefLabel, useRefNameBatcher } from '~/utils/refNameBatcher'
+import { useRefNameBatcher, type RefNameItem } from '~/utils/refNameBatcher'
 import {
   refCollectionOf,
   type RefCollection,
@@ -107,8 +107,9 @@ const FAMILY_OF_COLLECTION: Record<RefCollection, string> = {
 export const useDiffContext = () => {
   const api = useEditorApi()
   const batcher = useRefNameBatcher()
+  const preferences = useEditorPreferences()
   const vocabularies = ref<Record<string, VocabularyInfo>>({})
-  const names = ref<Record<string, string>>({})
+  const names = ref<Record<string, RefNameItem>>({})
 
   const loadVocabularies = async (fields: readonly CatalogSchemaField[]) => {
     const missing = [...vocabularyNames(fields)].filter(
@@ -149,11 +150,11 @@ export const useDiffContext = () => {
       return
     }
     const found = await batcher.request(keys)
-    const labels: Record<string, string> = {}
+    const labels: Record<string, RefNameItem> = {}
     for (const [key, item] of found) {
       const nameKey = nameKeyOf.get(key)
       if (item && nameKey) {
-        labels[nameKey] = preferredRefLabel(item)
+        labels[nameKey] = item
       }
     }
     names.value = { ...names.value, ...labels }
@@ -177,7 +178,7 @@ export const useDiffContext = () => {
   const context: DiffContext = {
     vocabulary: (name) => vocabularies.value[name],
     refName: (collection, id) =>
-      names.value[`${collection}:${id}`] || `#${String(id)}`
+      preferences.nameOf(names.value[`${collection}:${id}`]) || `#${String(id)}`
   }
 
   return { prepare, context }

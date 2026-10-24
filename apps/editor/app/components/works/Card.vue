@@ -4,7 +4,12 @@ import { CONTENT_RATING, MEDIUM_LABELS } from '~/constants/catalog'
 
 const props = defineProps<{ work: CatalogWork }>()
 
+const preferences = useEditorPreferences()
+
 const rating = computed(() => CONTENT_RATING[props.work.content_rating])
+const name = computed(
+  () => preferences.nameOf(props.work) || `#${props.work.id}`
+)
 </script>
 
 <template>
@@ -42,7 +47,7 @@ const rating = computed(() => CONTENT_RATING[props.work.content_rating])
       <p
         class="group-hover:text-primary line-clamp-2 text-sm font-medium transition-colors"
       >
-        {{ props.work.display_name }}
+        {{ name }}
       </p>
       <p class="text-default-400 text-xs">
         {{ labelOf(MEDIUM_LABELS, props.work.medium) }}

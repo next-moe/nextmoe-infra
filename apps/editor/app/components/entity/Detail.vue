@@ -60,8 +60,10 @@ const publicFacts = computed(() =>
 
 workspace.load()
 
+const preferences = useEditorPreferences()
+
 useHead(() => ({
-  title: `${summary.value?.display_name || summary.value?.title || `${meta.label} #${entityId.value}`} · 未萌编辑台`
+  title: `${preferences.nameOf(summary.value) || summary.value?.title || `${meta.label} #${entityId.value}`} · 未萌编辑台`
 }))
 </script>
 

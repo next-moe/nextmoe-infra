@@ -3,6 +3,8 @@ import type { CatalogWork } from '#shared/types/catalog'
 
 const props = defineProps<{ work: CatalogWork }>()
 
+const preferences = useEditorPreferences()
+
 const relations = computed(() => props.work.relations ?? [])
 </script>
 
@@ -34,7 +36,7 @@ const relations = computed(() => props.work.relations ?? [])
           <div class="min-w-0">
             <p class="text-primary text-xs">{{ relation.phrase }}</p>
             <p class="truncate text-sm font-medium">
-              {{ relation.work.display_name }}
+              {{ preferences.nameOf(relation.work) }}
             </p>
           </div>
         </NuxtLink>

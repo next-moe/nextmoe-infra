@@ -37,19 +37,12 @@ const emit = defineEmits<{ add: [] }>()
       </h2>
       <slot name="actions" />
       <WorkspaceGuideLink icon-only />
-      <KunButton
+      <WorkspaceAddToggle
         v-if="props.canAdd"
-        size="sm"
-        :variant="props.adding ? 'flat' : 'light'"
-        :color="props.adding ? 'default' : 'primary'"
-        @click="emit('add')"
-      >
-        <KunIcon
-          :name="props.adding ? 'lucide:x' : 'lucide:plus'"
-          class="size-4"
-        />
-        {{ props.adding ? '取消' : props.addLabel }}
-      </KunButton>
+        :model-value="props.adding"
+        :label="props.addLabel"
+        @update:model-value="emit('add')"
+      />
     </div>
     <KunInput
       v-if="props.filterable"

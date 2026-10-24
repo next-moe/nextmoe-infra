@@ -68,9 +68,23 @@ const TONE = {
 }
 const tone = computed(() => TONE[props.side])
 
+watch(
+  candidates,
+  (list) => {
+    if (list.length) {
+      refs.resolve(
+        family.value as EditRefFamily,
+        list.map((candidate) => candidate.id)
+      )
+    }
+  },
+  { immediate: true }
+)
+
 const REASONS: Record<string, string> = {
   queue: '查重候选',
-  same_name: '同名'
+  same_name: '同名',
+  similar_name: '名称相近'
 }
 </script>
 
@@ -158,7 +172,10 @@ const REASONS: Record<string, string> = {
               @click="emit('pick', candidate.id)"
             >
               <KunIcon name="lucide:copy" class="text-default-400 size-4" />
-              <span class="min-w-0 flex-1 truncate">{{ candidate.name }}</span>
+              <span class="min-w-0 flex-1 truncate">{{
+                refs.nameOf(family as EditRefFamily, candidate.id) ||
+                candidate.name
+              }}</span>
               <span class="text-default-400 text-xs">
                 #{{ candidate.id }} · {{ REASONS[candidate.reason] }}
               </span>

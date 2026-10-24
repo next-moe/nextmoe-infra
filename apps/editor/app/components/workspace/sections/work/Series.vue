@@ -47,8 +47,8 @@ const rows = computed(() =>
     return {
       ...row,
       state: row.state ?? (moved ? ('changed' as const) : null),
-      known: info?.name || refs.nameOf('series', row.id),
-      name: info?.name || refs.nameOf('series', row.id) || `系列 #${row.id}`,
+      known: refs.nameOf('series', row.id) || info?.name,
+      name: refs.nameOf('series', row.id) || info?.name || `系列 #${row.id}`,
       curated: info ? info.source === 'curated' : null,
       memberCount: info?.memberCount ?? null,
       memberIndex: index,

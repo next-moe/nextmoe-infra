@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"log/slog"
 	"maps"
 	"net/http"
 	"slices"
@@ -9,6 +10,7 @@ import (
 	"api/internal/platform/apiv2/problem"
 	"api/internal/platform/apiv2/repr"
 	"api/internal/platform/catalog/model"
+	"api/internal/platform/catalog/search/spec"
 	catsvc "api/internal/platform/catalog/service"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -51,7 +53,7 @@ func registerMergeWorkbench(api huma.API, cat *Catalog, errs []int) {
 	huma.Register(api, huma.Operation{
 		OperationID: "listMyMergeCandidates", Method: http.MethodGet, Path: "/v2/me/merge-candidates",
 		Summary:     "Suggest merge partners",
-		Description: "Up to ten entries that may duplicate id: undecided pairs from the reconciliation queue first, then live entries with exactly the same name. A single page; there is no cursor. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.",
+		Description: "Up to ten entries that may duplicate id: undecided pairs from the reconciliation queue first, then live entries with exactly the same name, then search hits for its name. A single page; there is no cursor. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.",
 		Tags:        me, Errors: errs, SkipValidateParams: true,
 	}, listMyMergeCandidates(cat))
 	huma.Register(api, huma.Operation{
@@ -109,9 +111,14 @@ func listMyMergeCandidates(cat *Catalog) func(context.Context, *mergeCandidatesI
 		if !ok {
 			return nil, catalogErr(ctx, problem.New(problem.CodeValidationFailed, "", "", "id must be a catalog id."))
 		}
-		rows, err := cat.Merges.MergeCandidates(ctx, et, id, 10)
+		rows, err := cat.Merges.MergeCandidates(ctx, et, id, mergeCandidateLimit)
 		if err != nil {
 			return nil, catalogErr(ctx, err)
+		}
+		if len(rows) < mergeCandidateLimit {
+			if rows, err = cat.similarNameCandidates(ctx, in.Object, et, id, rows); err != nil {
+				return nil, catalogErr(ctx, err)
+			}
 		}
 		out := repr.List[repr.MergeCandidate]{Object: "list", Items: make([]repr.MergeCandidate, 0, len(rows))}
 		for _, r := range rows {
@@ -119,6 +126,38 @@ func listMyMergeCandidates(cat *Catalog) func(context.Context, *mergeCandidatesI
 		}
 		return &mergeCandidatesOutput{Body: out}, nil
 	}
+}
+
+const mergeCandidateLimit = 10
+
+// similarNameCandidates tops the list up with search hits for the entry's own
+// name: an exact-name match misses 脅迫 against 脅迫～終わらない明日～, which
+// editors judged to be the same work.
+func (c *Catalog) similarNameCandidates(ctx context.Context, object string, et int16, id int64, have []catsvc.MergeCandidate) ([]catsvc.MergeCandidate, error) {
+	if c.Searcher == nil || !slices.Contains(searchObjects, object) {
+		return have, nil
+	}
+	name, err := c.Merges.MergeCandidateName(ctx, et, id)
+	if err != nil || name == "" {
+		return have, err
+	}
+	uid, _ := searchIndex(object)
+	res, err := searchEntities(c, ctx, uid, spec.EntityQuery{Q: name, Page: 1, Limit: mergeCandidateLimit * 2})
+	if err != nil {
+		slog.WarnContext(ctx, "v2: merge candidates search failed; listing the database tiers only", "object", object, "id", id, "err", err)
+		return have, nil
+	}
+	for _, d := range res.Hits {
+		if len(have) >= mergeCandidateLimit {
+			break
+		}
+		hit, ok := stripSearchID(d.ID)
+		if !ok || hit == id || slices.ContainsFunc(have, func(x catsvc.MergeCandidate) bool { return x.ID == hit }) {
+			continue
+		}
+		have = append(have, catsvc.MergeCandidate{ID: hit, Name: d.Name(), Reason: "similar_name"})
+	}
+	return have, nil
 }
 
 func getMyMergeRequest(cat *Catalog) func(context.Context, *mergeRequestIDInput) (*mergeRequestOutput, error) {
