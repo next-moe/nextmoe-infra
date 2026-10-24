@@ -593,9 +593,11 @@ nsfw  若 cover_art_all_explicit(有可选封面且全部被判 explicit),不论
       否则:content_rating == r18
 ```
 
-**2026-10 起多一个输入:标题判定**。`cmd/text-safety` 用 LLM 判每部作品**页面上显示的全部名字**(`display_name` + official/alias 标题;search hint 不显示、不判),`safe` 且置信度 ≥ 0.8 记 `title_nsfw = false`,其余(`suggestive`/`explicit`/把握不足)记 `true`;从未判过的作品是 `NULL`,沿用年龄轴回落,所以这一条**只会在判过之后**移动作品。已认领作品读的仍是 `display_nsfw`:同一个任务把判定写进**没有人工来源**的 `display_nsfw`(provenance 记 `derived`),编辑面人工写过的值(`user`/`curated`)一律不动。两种写入都 bump `updated_at`,照常在本 feed 现身。
+**2026-10 起多一个输入:标题判定**。`cmd/text-safety` 用 LLM 判每部作品**页面上显示的全部名字**(`display_name` + official/alias 标题 + 发行版标题;search hint 不显示、不判),`safe` 且置信度 ≥ 0.8 记 `title_nsfw = false`,其余(`suggestive`/`explicit`/把握不足)记 `true`;从未判过的作品是 `NULL`,沿用年龄轴回落,所以这一条**只会在判过之后**移动作品。已认领作品读的仍是 `display_nsfw`:同一个任务把判定写进**没有人工来源**的 `display_nsfw`(provenance 记 `derived`),编辑面人工写过的值(`user`/`curated`)一律不动。两种写入都 bump `updated_at`,照常在本 feed 现身。
 
 **简介随展示轴分两面**。`content_limit = sfw` 的作品,`intros[]`(详情、`include=intros`、`/works/{id}/intros` 三处同一选举)**只出判定放行过的文本**:原文判 `safe` 就出原文,否则出删句版或改写版(改写版 `machine: true`),都不行就整条不出;**未判定的文本一律不出**,该语言回落到下一个来源。只有 `nsfw=true` **且**作品本身在 `nsfw` 架上才出原文——与封面选举同一条规则。下游渲染 SFW 页时**不需要改任何代码**:拿到的 `intros[]` 已经是能上公开页的版本。
+
+**角色简介同理**(角色详情与 `/v2/catalog/characters?include=intros`):角色只要出现在**任何一部** `content_limit = sfw` 的作品里,它的页面就是 SFW 页,`intros[]` 只出判定放行过的文本(规则同上,判定存 `catalog_character_intro_safety`);只有 `nsfw=true` **且**它出现的全部作品都在 `nsfw` 架上时才出原文。
 
 **下游不要重算**。2.26.0 之前这里写的配方只有后两条,论坛照抄了它:未认领作品按分级判 sfw,于是 18 部封面全 explicit、分级却不是 r18 的未认领作品(2026-09-24)被展示给没选成人内容的读者。第一条是 09-14 加进 `NSFW` 的,配方没有跟着改。`cover_art_all_explicit` 由触发器维护,翻转时 bump `updated_at`,所以同样在本 feed 现身。
 

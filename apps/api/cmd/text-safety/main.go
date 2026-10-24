@@ -17,7 +17,7 @@ import (
 )
 
 func main() {
-	mode := flag.String("mode", "", "titles | intros | apply | report")
+	mode := flag.String("mode", "", "titles | intros | char-intros | apply | report")
 	dsn := flag.String("dsn", os.Getenv("KUN_TEXT_SAFETY_DSN"), "catalog DSN (required; refuses to guess)")
 	llmBase := flag.String("llm-base", os.Getenv("KUN_TEXT_SAFETY_LLM_BASE"), "OpenAI-compatible base URL (…/v1)")
 	llmToken := flag.String("llm-token", os.Getenv("KUN_TEXT_SAFETY_LLM_TOKEN"), "bearer token for -llm-base")
@@ -79,21 +79,25 @@ func main() {
 		if st.Failed > 0 && st.Judged == 0 {
 			fail(fmt.Errorf("every title judgement failed (%d); the model upstream is down", st.Failed))
 		}
-	case "intros":
+	case "intros", "char-intros":
 		llm := newLLM()
+		kind, loadSample, loadPending := textsafety.WorkIntros, textsafety.LoadIntroSample, textsafety.LoadPendingIntros
+		if *mode == "char-intros" {
+			kind, loadSample, loadPending = textsafety.CharacterIntros, textsafety.LoadCharacterIntroSample, textsafety.LoadPendingCharacterIntros
+		}
 		var pending []textsafety.IntroInput
 		if *sample > 0 {
-			pending, err = textsafety.LoadIntroSample(ctx, db, *sample)
+			pending, err = loadSample(ctx, db, *sample)
 		} else {
-			pending, err = textsafety.LoadPendingIntros(ctx, db, *limit)
+			pending, err = loadPending(ctx, db, *limit)
 		}
 		if err != nil {
 			fail(fmt.Errorf("load intros: %w", err))
 		}
-		st, err := textsafety.JudgeIntros(ctx, db, llm, opts, pending)
+		st, err := textsafety.JudgeIntros(ctx, db, llm, opts, pending, kind)
 		printUsage(llm)
 		if st != nil {
-			fmt.Printf("intros done pending=%d failed=%d modes=%v\n", st.Pending, st.Failed, st.ByMode)
+			fmt.Printf("%s done pending=%d failed=%d modes=%v\n", *mode, st.Pending, st.Failed, st.ByMode)
 		}
 		if err != nil {
 			fail(err)

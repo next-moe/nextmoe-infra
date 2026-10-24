@@ -3343,7 +3343,7 @@ export interface components {
             image?: components["schemas"]["Image"];
             /** @description Another character this row is an instance of. Present on view=full. null if none. */
             instance_of_id?: string;
-            /** @description Character descriptions, one per language. Present when include=intros. Empty array if none. */
+            /** @description Character descriptions, one per language. Present when include=intros. A character that appears in any work whose content_limit is sfw gets only text a safety review cleared (the original, a redacted version, or a rewritten one with is_machine true; unreviewed text is never served); the originals go only to nsfw=true callers on a character whose every work is nsfw. Empty array if none. */
             intros?: components["schemas"]["Intro"][];
             /**
              * Format: bcp47

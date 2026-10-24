@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"api/internal/platform/catalog/model"
+	"api/internal/platform/catalog/service"
 
 	"gorm.io/gorm"
 )
@@ -31,8 +32,8 @@ func md5Hex(s string) string {
 func titleSetHash(names []string) string { return md5Hex(strings.Join(names, "\n")) }
 
 // loadWorkTitles returns every live galgame work with the names its page shows:
-// the display name plus its official and alias titles. Search hints are never
-// rendered and stay out.
+// the display name, its official and alias titles, and its release titles.
+// Search hints are never rendered and stay out.
 func loadWorkTitles(ctx context.Context, db *gorm.DB) ([]workTitles, error) {
 	var rows []struct {
 		ID          int64  `gorm:"column:id"`
@@ -40,12 +41,12 @@ func loadWorkTitles(ctx context.Context, db *gorm.DB) ([]workTitles, error) {
 		Titles      string `gorm:"column:titles"`
 	}
 	if err := db.WithContext(ctx).Raw(`
-		SELECT w.id, w.display_name,
-		       coalesce(string_agg(t.title, E'\x1f') FILTER (WHERE t.kind IN (?, ?)), '') AS titles
+		SELECT w.id, w.display_name, concat_ws(E'\x1f',
+		       (SELECT string_agg(t.title, E'\x1f') FROM catalog_work_title t WHERE t.work_id = w.id AND t.kind IN (?, ?)),
+		       (SELECT string_agg(r.title, E'\x1f') FROM catalog_release r WHERE r.work_id = w.id AND r.deleted_at IS NULL)) AS titles
 		FROM catalog_work w
-		LEFT JOIN catalog_work_title t ON t.work_id = w.id
 		WHERE `+galgameLiveSQL+`
-		GROUP BY w.id ORDER BY w.id`,
+		ORDER BY w.id`,
 		model.WorkTitleKindOfficial, model.WorkTitleKindAlias, model.WorkStatusLive).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
@@ -76,17 +77,23 @@ type IntroInput struct {
 	Title string
 }
 
-// loadPendingIntros returns the distinct intro texts of live galgame works that
-// have no verdict yet.
+// sfwShelfSQL selects the live galgame works an sfw page shows: only their
+// intros, and only the intros of characters appearing in them, are ever served
+// from the judged face. A work that moves onto the sfw shelf later is picked up
+// by the next run. Takes the r18 rating as its one argument.
+var sfwShelfSQL = `NOT ` + service.DisplayLimitNSFWSQL
+
+// loadPendingIntros returns the distinct intro texts that have no verdict yet
+// and hang on at least one work on the sfw shelf.
 func loadPendingIntros(ctx context.Context, db *gorm.DB, limit int) ([]IntroInput, error) {
 	var rows []IntroInput
 	q := `SELECT DISTINCT ON (md5(i.intro)) md5(i.intro) AS hash, i.lang, i.intro, w.display_name AS title
 		FROM catalog_work_intro i
 		JOIN catalog_work w ON w.id = i.work_id
-		WHERE ` + galgameLiveSQL + ` AND btrim(i.intro) <> ''
+		WHERE ` + galgameLiveSQL + ` AND ` + sfwShelfSQL + ` AND btrim(i.intro) <> ''
 		  AND NOT EXISTS (SELECT 1 FROM catalog_work_intro_safety s WHERE s.intro_hash = md5(i.intro))
 		ORDER BY md5(i.intro), w.id`
-	args := []any{model.WorkStatusLive}
+	args := []any{model.WorkStatusLive, model.ContentRatingR18}
 	if limit > 0 {
 		q += ` LIMIT ?`
 		args = append(args, limit)
@@ -104,6 +111,44 @@ func LoadIntroSample(ctx context.Context, db *gorm.DB, n int) ([]IntroInput, err
 		JOIN catalog_work w ON w.id = i.work_id
 		WHERE `+galgameLiveSQL+` AND btrim(i.intro) <> ''
 		ORDER BY md5(i.intro), w.id) x
+		ORDER BY md5(x.hash || 'sample') LIMIT ?`, model.WorkStatusLive, n).Scan(&rows).Error
+}
+
+// loadPendingCharacterIntros is loadPendingIntros for characters: an intro is
+// needed when its character appears in at least one work on the sfw shelf.
+func loadPendingCharacterIntros(ctx context.Context, db *gorm.DB, limit int) ([]IntroInput, error) {
+	var rows []IntroInput
+	q := `SELECT DISTINCT ON (md5(ci.intro)) md5(ci.intro) AS hash, ci.lang, ci.intro, c.display_name AS title
+		FROM catalog_character_intro ci
+		JOIN catalog_character c ON c.id = ci.character_id AND c.deleted_at IS NULL
+		WHERE btrim(ci.intro) <> ''
+		  AND EXISTS (SELECT 1 FROM catalog_work_character wc JOIN catalog_work w ON w.id = wc.work_id
+		              WHERE wc.character_id = ci.character_id AND ` + galgameLiveSQL + ` AND ` + sfwShelfSQL + `)
+		  AND NOT EXISTS (SELECT 1 FROM catalog_character_intro_safety s WHERE s.intro_hash = md5(ci.intro))
+		ORDER BY md5(ci.intro), ci.character_id`
+	args := []any{model.WorkStatusLive, model.ContentRatingR18}
+	if limit > 0 {
+		q += ` LIMIT ?`
+		args = append(args, limit)
+	}
+	return rows, db.WithContext(ctx).Raw(q, args...).Scan(&rows).Error
+}
+
+func LoadPendingCharacterIntros(ctx context.Context, db *gorm.DB, limit int) ([]IntroInput, error) {
+	return loadPendingCharacterIntros(ctx, db, limit)
+}
+
+// LoadCharacterIntroSample is LoadIntroSample for character intros.
+func LoadCharacterIntroSample(ctx context.Context, db *gorm.DB, n int) ([]IntroInput, error) {
+	var rows []IntroInput
+	return rows, db.WithContext(ctx).Raw(`SELECT * FROM (
+		SELECT DISTINCT ON (md5(ci.intro)) md5(ci.intro) AS hash, ci.lang, ci.intro, c.display_name AS title
+		FROM catalog_character_intro ci
+		JOIN catalog_character c ON c.id = ci.character_id AND c.deleted_at IS NULL
+		WHERE btrim(ci.intro) <> ''
+		  AND EXISTS (SELECT 1 FROM catalog_work_character wc JOIN catalog_work w ON w.id = wc.work_id
+		              WHERE wc.character_id = ci.character_id AND `+galgameLiveSQL+`)
+		ORDER BY md5(ci.intro), ci.character_id) x
 		ORDER BY md5(x.hash || 'sample') LIMIT ?`, model.WorkStatusLive, n).Scan(&rows).Error
 }
 

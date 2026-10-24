@@ -248,5 +248,10 @@ func prune(ctx context.Context, db *gorm.DB) (int64, int64, error) {
 	if ir.Error != nil {
 		return 0, 0, fmt.Errorf("prune intro verdicts: %w", ir.Error)
 	}
-	return tr.RowsAffected, ir.RowsAffected, nil
+	cr := db.WithContext(ctx).Exec(`DELETE FROM catalog_character_intro_safety s
+		WHERE NOT EXISTS (SELECT 1 FROM catalog_character_intro i WHERE md5(i.intro) = s.intro_hash)`)
+	if cr.Error != nil {
+		return 0, 0, fmt.Errorf("prune character intro verdicts: %w", cr.Error)
+	}
+	return tr.RowsAffected, ir.RowsAffected + cr.RowsAffected, nil
 }

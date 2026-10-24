@@ -430,7 +430,7 @@ components:
           pattern: ^[0-9]+$
           type: string
         intros:
-          description: Character descriptions, one per language. Present when include=intros. Empty array if none.
+          description: Character descriptions, one per language. Present when include=intros. A character that appears in any work whose content_limit is sfw gets only text a safety review cleared (the original, a redacted version, or a rewritten one with is_machine true; unreviewed text is never served); the originals go only to nsfw=true callers on a character whose every work is nsfw. Empty array if none.
           items:
             $ref: "#/components/schemas/Intro"
           type: array

@@ -1,6 +1,6 @@
 #!/bin/sh
-# Nightly text-safety lane: judge the work titles and intros that changed since
-# the last run, then fold the title verdicts into the display axis
+# Nightly text-safety lane: judge the work titles, work intros and character
+# intros that changed since the last run, then fold the title verdicts into the display axis
 # (catalog_work.title_nsfw, and display_nsfw on claimed works no human set).
 #
 # The model is Cursor-hosted and reached through the infra-cursor-llm sidecar,
@@ -93,9 +93,12 @@ step() {
 }
 
 MARK=$(wc -c < "$LOG")
-step titles -mode titles -concurrency 8
-step intros -mode intros -concurrency 8
+# apply before the intros: the intro lanes judge only what the sfw shelf shows,
+# so a work the title verdicts moved onto it is judged tonight, not tomorrow.
+step titles -mode titles -model grok-4.7:low:fast -concurrency 8
 step apply -mode apply -run -prune
+step intros -mode intros -model grok-4.6:low:fast -concurrency 8
+step char-intros -mode char-intros -model grok-4.6:low:fast -concurrency 8
 docker logs --tail 5 "$SIDECAR" || true
 
 # A title verdict that moved a work's shelf changes the content_limit the search

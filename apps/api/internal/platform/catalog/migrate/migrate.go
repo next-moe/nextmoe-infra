@@ -70,6 +70,9 @@ func Run(db *gorm.DB) error {
 		// three are additive and start empty / NULL; cmd/text-safety fills them.
 		&model.CatalogWorkTitleSafety{},
 		&model.CatalogWorkIntroSafety{},
+		// 2026-10-24: the same verdicts for character intros, keyed by
+		// md5(catalog_character_intro.intro). New, empty table.
+		&model.CatalogCharacterIntroSafety{},
 		// Bodyless cover and screenshot images (steps 53/54). 2026-10-12 adds
 		// merged_in boolean NOT NULL DEFAULT false to both: a work merge sets it
 		// on the loser's rows it moves, and every cover election, and the

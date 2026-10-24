@@ -151,7 +151,7 @@ func displayLimitFixture(t *testing.T) (byLimit map[string][]int64, all []int64)
 // all 270 rows, and the cross-check above would pass while testing two thirds
 // of nothing.
 // TestDisplayLimitWhereMatchesProjection is the anti-drift gate: the axis has
-// exactly two implementations — model.WorkShelf.NSFW and displayLimitNSFWSQL —
+// exactly two implementations — model.WorkShelf.NSFW and DisplayLimitNSFWSQL —
 // and this walks the whole input space through both, so a change to one that
 // is not made to the other cannot reach main.
 func TestDisplayLimitWhereMatchesProjection(t *testing.T) {

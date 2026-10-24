@@ -701,7 +701,7 @@ func (s *PublicService) Character(ctx context.Context, id int64, withWorks, nsfw
 	if ch.Links, err = s.entityLinks(ctx, model.EntityTypeCharacter, id); err != nil {
 		return dto.PublicCharacter{}, false, err
 	}
-	if ch.Intros, err = s.characterIntros(ctx, id); err != nil {
+	if ch.Intros, err = s.characterIntros(ctx, id, nsfw); err != nil {
 		return dto.PublicCharacter{}, false, err
 	}
 	var art struct {
@@ -1316,30 +1316,15 @@ func traitLocalized(nameZh string, provenance int16) map[string]dto.PublicLocali
 // extraction outranks translated rows; source rows still win via provenance.
 const sourceDerived = 18
 
-func (s *PublicService) characterIntros(ctx context.Context, characterID int64) ([]dto.PublicIntro, error) {
-	var rows []struct {
-		Lang       string
-		Intro      string
-		SourceID   int16 `gorm:"column:source_id"`
-		Provenance int16 `gorm:"column:provenance"`
-	}
-	if err := s.db.WithContext(ctx).Raw(`SELECT lang, intro, source_id, provenance
-		FROM catalog_character_intro WHERE character_id = ? AND `+editspec.NotSuppressedCharacterIntroSQL("catalog_character_intro")+`
-		ORDER BY lang, provenance, `+editspec.HumanLaneFirstSQL("source_id", "provenance")+
-		`, (provenance = 1 AND source_id = ?) DESC, source_id`,
-		characterID, sourceDerived).Scan(&rows).Error; err != nil {
+func (s *PublicService) characterIntros(ctx context.Context, characterID int64, nsfw bool) ([]dto.PublicIntro, error) {
+	byID, err := s.characterIntrosBatch(ctx, []int64{characterID}, nsfw)
+	if err != nil {
 		return nil, err
 	}
-	out := make([]dto.PublicIntro, 0, len(rows))
-	seen := map[string]bool{}
-	for _, r := range rows {
-		if seen[r.Lang] {
-			continue
-		}
-		seen[r.Lang] = true
-		out = append(out, dto.PublicIntro{Lang: r.Lang, Intro: r.Intro, Source: s.sourceKey(r.SourceID), Machine: r.Provenance == 1})
+	if out := byID[characterID]; out != nil {
+		return out, nil
 	}
-	return out, nil
+	return []dto.PublicIntro{}, nil
 }
 
 func (s *PublicService) nameAliases(ctx context.Context, nameID int64) ([]dto.PublicAlias, map[string]dto.PublicLocalizedName, error) {

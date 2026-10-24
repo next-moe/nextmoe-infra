@@ -100,7 +100,7 @@ type Character struct {
 	Traits          *[]CharacterTrait        `json:"traits,omitempty" doc:"Present when include=traits. Empty array if none."`
 	Links           *[]WorkLink              `json:"links,omitempty" doc:"This character's own pages on vndb, bangumi and erogamescape. Present when include=links. Empty array if none."`
 	Aliases         *[]EntityName            `json:"aliases,omitempty" doc:"Alternate spellings of THIS character name. Present when include=aliases. Empty array if none."`
-	Intros          *[]Intro                 `json:"intros,omitempty" doc:"Character descriptions, one per language. Present when include=intros. Empty array if none."`
+	Intros          *[]Intro                 `json:"intros,omitempty" doc:"Character descriptions, one per language. Present when include=intros. A character that appears in any work whose content_limit is sfw gets only text a safety review cleared (the original, a redacted version, or a rewritten one with is_machine true; unreviewed text is never served); the originals go only to nsfw=true callers on a character whose every work is nsfw. Empty array if none."`
 	Refs            *[]Ref                   `json:"refs,omitempty" doc:"Exact upstream anchors of this character. Present when include=refs. Empty array if none."`
 	MatchedTraitIDs *[]string                `json:"matched_trait_ids,omitempty" doc:"Present only when trait_id= is given: this character's own traits that satisfied it, which may be descendants of the requested ones."`
 	WorkCount       *int                     `json:"work_count,omitempty" minimum:"0" doc:"Present when include=work_count. Distinct works this character appears in: the number of items GET /v2/catalog/characters/{id}/appearances lists under the same nsfw."`

@@ -46,3 +46,7 @@ type CatalogWorkIntroSafety struct {
 }
 
 func (CatalogWorkIntroSafety) TableName() string { return "catalog_work_intro_safety" }
+
+type CatalogCharacterIntroSafety CatalogWorkIntroSafety
+
+func (CatalogCharacterIntroSafety) TableName() string { return "catalog_character_intro_safety" }

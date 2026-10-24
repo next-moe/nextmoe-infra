@@ -134,3 +134,92 @@ func TestUnjudgedTitleKeepsTheAgeRule(t *testing.T) {
 		t.Fatalf("content_limit = %q, want nsfw: a NULL title_nsfw must fall back to the age rating", rec.ContentLimit)
 	}
 }
+
+func markCharacterIntroSafety(t *testing.T, intro string, mode int16, sfwIntro string) {
+	t.Helper()
+	if err := testDB.Exec(`INSERT INTO catalog_character_intro_safety
+		(intro_hash, verdict, confidence, sfw_mode, sfw_intro, model, prompt_version, updated_at)
+		VALUES (md5(?), 3, 0.99, ?, ?, 'test', 'test', now())`, intro, mode, sfwIntro).Error; err != nil {
+		t.Fatalf("mark character intro safety: %v", err)
+	}
+}
+
+func addCharacterIntro(t *testing.T, characterID int64, lang, intro string) {
+	t.Helper()
+	if err := testDB.Create(&model.CatalogCharacterIntro{
+		CharacterID: characterID, Lang: lang, Intro: intro, SourceID: srcVNDB, Provenance: model.IntroProvenanceSource,
+	}).Error; err != nil {
+		t.Fatalf("create character intro: %v", err)
+	}
+}
+
+// A character shown in any sfw work has an sfw page; only a character whose
+// every live work is nsfw gets its original profile, and only with nsfw=true.
+func TestCharacterIntrosFollowTheirWorksShelves(t *testing.T) {
+	cleanTables(t)
+	svc := newPublicSvcCDN()
+	no, yes := false, true
+	sfwWork := createWorkX(t, galgameMediumID, model.ContentRatingR18, model.WorkStatusLive, "sfw work")
+	setTitleNSFW(t, sfwWork.ID, &no)
+	nsfwWork := createWorkX(t, galgameMediumID, model.ContentRatingAllAges, model.WorkStatusLive, "nsfw work")
+	setTitleNSFW(t, nsfwWork.ID, &yes)
+
+	shared := createCharacter(t, "both shelves")
+	createWorkCharacter(t, sfwWork.ID, shared.ID, 0, 0)
+	createWorkCharacter(t, nsfwWork.ID, shared.ID, 0, 0)
+	adultOnly := createCharacter(t, "nsfw only")
+	createWorkCharacter(t, nsfwWork.ID, adultOnly.ID, 0, 0)
+
+	for _, c := range []*model.CatalogCharacter{shared, adultOnly} {
+		addCharacterIntro(t, c.ID, "ja", c.DisplayName+"の露骨なプロフィール")
+		markCharacterIntroSafety(t, c.DisplayName+"の露骨なプロフィール", model.IntroSFWRedacted, c.DisplayName+"の安全なプロフィール")
+		addCharacterIntro(t, c.ID, "en", c.DisplayName+" not judged yet")
+	}
+
+	for _, tc := range []struct {
+		c     *model.CatalogCharacter
+		nsfw  bool
+		wants []dto.PublicIntro
+	}{
+		{shared, true, []dto.PublicIntro{{Lang: "ja", Intro: "both shelvesの安全なプロフィール", Source: "vndb"}}},
+		{shared, false, []dto.PublicIntro{{Lang: "ja", Intro: "both shelvesの安全なプロフィール", Source: "vndb"}}},
+		{adultOnly, false, []dto.PublicIntro{{Lang: "ja", Intro: "nsfw onlyの安全なプロフィール", Source: "vndb"}}},
+		{adultOnly, true, []dto.PublicIntro{
+			{Lang: "ja", Intro: "nsfw onlyの露骨なプロフィール", Source: "vndb"},
+			{Lang: "en", Intro: "nsfw only not judged yet", Source: "vndb"},
+		}},
+	} {
+		got, err := svc.characterIntros(t.Context(), tc.c.ID, tc.nsfw)
+		if err != nil {
+			t.Fatalf("characterIntros(%s, nsfw=%v): %v", tc.c.DisplayName, tc.nsfw, err)
+		}
+		if !introSetEqual(got, tc.wants) {
+			t.Fatalf("characterIntros(%s, nsfw=%v) = %+v, want %+v", tc.c.DisplayName, tc.nsfw, got, tc.wants)
+		}
+		pub, found, err := svc.Character(t.Context(), tc.c.ID, false, tc.nsfw, model.SpoilerSevere, 10, 0)
+		if err != nil || !found {
+			t.Fatalf("Character(%s): found=%v err=%v", tc.c.DisplayName, found, err)
+		}
+		if !introSetEqual(pub.Intros, tc.wants) {
+			t.Fatalf("Character(%s, nsfw=%v).Intros = %+v, want %+v", tc.c.DisplayName, tc.nsfw, pub.Intros, tc.wants)
+		}
+	}
+}
+
+func introSetEqual(a, b []dto.PublicIntro) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for _, x := range b {
+		found := false
+		for _, y := range a {
+			if reflect.DeepEqual(x, y) {
+				found = true
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}

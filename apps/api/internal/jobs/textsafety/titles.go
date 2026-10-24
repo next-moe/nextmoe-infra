@@ -67,7 +67,7 @@ func JudgeTitles(ctx context.Context, db *gorm.DB, llm *LLM, opts JudgeOpts) (*T
 	}
 	st := &TitleStats{Pending: len(todo), ByClass: map[string]int{}}
 	var mu sync.Mutex
-	batches := pack(todo, func(w workTitles) int { return runeLen(strings.Join(w.Names, " ")) }, 6000, 100)
+	batches := pack(todo, func(w workTitles) int { return runeLen(strings.Join(w.Names, " ")) }, 2500, 40)
 	parallel(ctx, batches, opts.Concurrency, func(ctx context.Context, batch []workTitles) {
 		rows, err := bisect(ctx, batch, func(ctx context.Context, b []workTitles) ([]model.CatalogWorkTitleSafety, error) {
 			return judgeTitleBatch(ctx, llm, b)

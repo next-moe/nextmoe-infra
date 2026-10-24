@@ -18,12 +18,12 @@ func IsDisplayLimit(tok string) bool {
 	return false
 }
 
-// displayLimitNSFWSQL is the SQL twin of model.WorkShelf.NSFW and the only SQL
+// DisplayLimitNSFWSQL is the SQL twin of model.WorkShelf.NSFW and the only SQL
 // copy of the axis: the sfw branch below is written as its negation rather than
 // as a second expression, because two hand-maintained complementary branches
 // are exactly where a partition quietly stops partitioning. It takes one
 // argument, the r18 content rating.
-const displayLimitNSFWSQL = `(w.cover_art_all_explicit
+const DisplayLimitNSFWSQL = `(w.cover_art_all_explicit
 	OR (` + claimedSQL + ` AND w.display_nsfw)
 	OR (NOT ` + claimedSQL + ` AND coalesce(w.title_nsfw, w.content_rating = ?)))`
 
@@ -36,10 +36,10 @@ func displayLimitWhere(limits []string) (string, []any) {
 	for _, lim := range limits {
 		switch lim {
 		case model.DisplayLimitKeyNSFW:
-			ors = append(ors, displayLimitNSFWSQL)
+			ors = append(ors, DisplayLimitNSFWSQL)
 			args = append(args, model.ContentRatingR18)
 		case model.DisplayLimitKeySFW:
-			ors = append(ors, "NOT "+displayLimitNSFWSQL)
+			ors = append(ors, "NOT "+DisplayLimitNSFWSQL)
 			args = append(args, model.ContentRatingR18)
 		default:
 			ors = append(ors, "false")
