@@ -1692,7 +1692,7 @@ export const searchIndex: SearchEntry[] = [
     "t": "推荐合并对象",
     "s": "端点 · 我的",
     "d": "GET /v2/me/merge-candidates",
-    "b": "listMyMergeCandidates /v2/me/merge-candidates get Suggest merge partners Up to ten entries that may duplicate id: undecided pairs from the reconciliation queue first, then live entries with exactly the same name. A single page; there is no cursor. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 最多十个可能与 id 重复的条目：先列出对账队列中尚未裁定的配对，再列出名字完全相同的在用条目。只有一页；没有 cursor。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 object id"
+    "b": "listMyMergeCandidates /v2/me/merge-candidates get Suggest merge partners Up to ten entries that may duplicate id: undecided pairs from the reconciliation queue first, then live entries with exactly the same name, then search hits for its name. A single page; there is no cursor. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope. 最多十个可能与 id 重复的条目：先列出对账队列中尚未裁定的配对，再列出名字完全相同的在用条目，最后是用它的名字搜索得到的结果。只有一页；没有 cursor。需要绑定到 catalog 站点的用户访问令牌。令牌须带 catalog:edit scope。 object id"
   },
   {
     "r": "/docs/v2/previewMyMerge",

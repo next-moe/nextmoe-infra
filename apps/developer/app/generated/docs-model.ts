@@ -37442,6 +37442,35 @@ export const docsModel: DocsModel = {
                               "type": "string"
                             },
                             {
+                              "name": "lang",
+                              "doc": "BCP-47 language of display_name: a work's olang, or the lang of a company, character or credit name. Absent if unrecorded or the family carries none. Must not be used as a discriminant.",
+                              "format": "bcp47",
+                              "type": "string"
+                            },
+                            {
+                              "name": "localized",
+                              "required": true,
+                              "doc": "The localized names that family's ids= batch lane answers (works with include=titles), BCP-47 keys. Empty object if none or the family carries none. Must not be used as a discriminant.",
+                              "type": "map",
+                              "itemsOf": {
+                                "type": "object",
+                                "children": [
+                                  {
+                                    "name": "is_machine",
+                                    "required": true,
+                                    "doc": "Whether this value is machine-translated.",
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "name": "value",
+                                    "required": true,
+                                    "doc": "Must not be used as a discriminant.",
+                                    "type": "string"
+                                  }
+                                ]
+                              }
+                            },
+                            {
                               "name": "name_zh",
                               "doc": "A Chinese name when one is recorded: a trait's name_zh, otherwise the zh-Hans, zh-Hant or zh entry of localized. Absent if none. Must not be used as a discriminant.",
                               "type": "string"
@@ -203557,7 +203586,7 @@ export const docsModel: DocsModel = {
               "method": "get",
               "path": "/v2/me/merge-candidates",
               "summary": "Suggest merge partners",
-              "description": "Up to ten entries that may duplicate id: undecided pairs from the reconciliation queue first, then live entries with exactly the same name. A single page; there is no cursor. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.",
+              "description": "Up to ten entries that may duplicate id: undecided pairs from the reconciliation queue first, then live entries with exactly the same name, then search hits for its name. A single page; there is no cursor. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope.",
               "scope": "",
               "auth": {
                 "kind": "user_token",
@@ -203660,10 +203689,11 @@ export const docsModel: DocsModel = {
                             {
                               "name": "reason",
                               "required": true,
-                              "doc": "queue: an undecided pair in the reconciliation queue; same_name: a live entry with exactly the same name.",
+                              "doc": "queue: an undecided pair in the reconciliation queue; same_name: a live entry with exactly the same name; similar_name: a catalog search hit for the entry's name.",
                               "enum": [
                                 "queue",
-                                "same_name"
+                                "same_name",
+                                "similar_name"
                               ],
                               "type": "string"
                             }

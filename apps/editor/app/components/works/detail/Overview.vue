@@ -8,6 +8,8 @@ import {
 
 const props = defineProps<{ work: CatalogWork }>()
 
+const preferences = useEditorPreferences()
+
 const titles = computed(() => props.work.titles ?? [])
 const companies = computed(() => props.work.companies ?? [])
 const platforms = computed(() => [
@@ -76,7 +78,7 @@ const platforms = computed(() => [
               :to="`/companies/${company.id}`"
               class="hover:text-primary min-w-0 truncate"
             >
-              {{ company.display_name }}
+              {{ preferences.nameOf(company) }}
             </NuxtLink>
             <span class="text-default-400 shrink-0 text-xs">
               {{ labelOf(ATTRIBUTION_ROLE_LABELS, company.attribution_role) }}

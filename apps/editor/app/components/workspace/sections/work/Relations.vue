@@ -38,8 +38,8 @@ const entries = computed(() =>
     return {
       row,
       workId,
-      known: card?.name || refs.nameOf('work', workId),
-      name: card?.name || refs.nameOf('work', workId) || `作品 #${workId}`,
+      known: refs.nameOf('work', workId) || card?.name,
+      name: refs.nameOf('work', workId) || card?.name || `作品 #${workId}`,
       cover: card?.cover ?? null,
       medium: card?.medium ?? '',
       releaseDate: card?.releaseDate ?? null,

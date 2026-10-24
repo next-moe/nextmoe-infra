@@ -1,3 +1,5 @@
+import type { RefNameItem } from '~/utils/refNameBatcher'
+
 const COLLECTION_OF: Record<string, string> = {
   work: 'works',
   company: 'companies',
@@ -21,7 +23,8 @@ export const entityKey = (ref: EntityRef) =>
 
 export const useEntityNames = () => {
   const batcher = useRefNameBatcher()
-  const names = ref<Record<string, string>>({})
+  const preferences = useEditorPreferences()
+  const names = ref<Record<string, RefNameItem>>({})
 
   const resolve = async (refs: EntityRef[]) => {
     const keys = [
@@ -39,15 +42,13 @@ export const useEntityNames = () => {
     names.value = {
       ...names.value,
       ...Object.fromEntries(
-        [...found]
-          .filter(([, item]) => item)
-          .map(([key, item]) => [key, preferredRefLabel(item!)])
+        [...found].filter(([, item]) => item).map(([key, item]) => [key, item!])
       )
     }
   }
 
   const nameOf = (ref: EntityRef) =>
-    names.value[entityKey(ref)] || `#${ref.entity_id}`
+    preferences.nameOf(names.value[entityKey(ref)]) || `#${ref.entity_id}`
 
   return { resolve, nameOf }
 }

@@ -10,7 +10,15 @@ import {
 
 const props = defineProps<{ work: CatalogWork }>()
 
+const preferences = useEditorPreferences()
+
 const rating = computed(() => CONTENT_RATING[props.work.content_rating])
+const name = computed(
+  () => preferences.nameOf(props.work) || `#${props.work.id}`
+)
+const subtitle = computed(
+  () => preferences.otherNameOf(props.work) || props.work.latin || ''
+)
 const identityLinks = computed(() =>
   (props.work.links ?? []).filter((link) => link.is_identity)
 )
@@ -33,7 +41,7 @@ const release = computed(() =>
         v-if="props.work.cover?.url"
         :src="props.work.cover.url"
         :thumbhash="props.work.cover.thumbhash ?? undefined"
-        :alt="props.work.display_name"
+        :alt="name"
         aspect-ratio="3 / 4"
         object-fit="cover"
         loading="eager"
@@ -49,10 +57,10 @@ const release = computed(() =>
     <div class="min-w-0 flex-1 space-y-3">
       <div>
         <h1 class="text-2xl font-bold break-words">
-          {{ props.work.display_name }}
+          {{ name }}
         </h1>
-        <p v-if="props.work.latin" class="text-default-500 mt-0.5">
-          {{ props.work.latin }}
+        <p v-if="subtitle" class="text-default-500 mt-0.5">
+          {{ subtitle }}
         </p>
       </div>
 

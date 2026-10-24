@@ -5,6 +5,8 @@ import type { MergedRow } from '~/utils/mergedRows'
 
 const props = defineProps<{ tagsKey: string; spoilersKey: string }>()
 
+const adding = defineModel<boolean>('adding', { default: false })
+
 const list = useMergedRows(() => props.tagsKey)
 const { context, disabled, rows } = list
 const editor = context.editor
@@ -374,6 +376,24 @@ watch(
 
 <template>
   <div class="@container space-y-3">
+    <div
+      v-if="!disabled && adding"
+      class="border-default-200 space-y-2 rounded-lg border border-dashed p-3"
+    >
+      <EditRefPicker
+        :key="pickerKey"
+        family="tag"
+        :exclude="existingIds"
+        placeholder="搜索标签名称或输入 ID"
+        aria-label="添加标签"
+        class="w-full max-w-md"
+        @update:model-value="addTag"
+      />
+      <p class="text-default-400 text-xs">
+        资料源的标签无法删除，只能隐藏；隐藏后资料源再次同步也不会加回。
+      </p>
+    </div>
+
     <div class="flex flex-wrap items-center gap-2">
       <div class="flex flex-wrap gap-1">
         <button
@@ -511,19 +531,5 @@ watch(
         剧透等级：{{ message }}
       </li>
     </ul>
-
-    <div v-if="!disabled" class="flex flex-wrap items-center gap-2 pt-1">
-      <EditRefPicker
-        :key="pickerKey"
-        family="tag"
-        :exclude="existingIds"
-        placeholder="添加标签：搜索名称或输入 ID"
-        class="w-full max-w-md"
-        @update:model-value="addTag"
-      />
-      <span class="text-default-400 text-xs">
-        资料源的标签无法删除，只能隐藏；隐藏后资料源再次同步也不会加回。
-      </span>
-    </div>
   </div>
 </template>

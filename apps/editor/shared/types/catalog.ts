@@ -1,3 +1,4 @@
+import type { NameSource } from './preferences'
 import type { components } from './generated/catalog-v2-api'
 
 type Schemas = components['schemas']
@@ -59,7 +60,7 @@ export interface CatalogEntityPicture {
   thumbhash?: string | null
 }
 
-export interface CatalogEntitySummary {
+export interface CatalogEntitySummary extends NameSource {
   id: string
   display_name?: string
   title?: string
@@ -67,6 +68,7 @@ export interface CatalogEntitySummary {
   image?: CatalogEntityPicture | null
   photo?: CatalogEntityPicture | null
   logo?: CatalogEntityPicture | null
+  cover?: CatalogEntityPicture | null
   [key: string]: unknown
 }
 

@@ -83,12 +83,12 @@ const engineRows = computed(() =>
   }).map((row) => ({
     ...row,
     name:
-      related.display.value.engines[row.id]?.name ||
       refs.nameOf('engine', row.id) ||
+      related.display.value.engines[row.id]?.name ||
       `引擎 #${row.id}`,
     known:
-      related.display.value.engines[row.id]?.name ||
-      refs.nameOf('engine', row.id)
+      refs.nameOf('engine', row.id) ||
+      related.display.value.engines[row.id]?.name
   }))
 )
 type EngineRow = (typeof engineRows.value)[number]

@@ -7054,10 +7054,11 @@ components:
           type: string
           x-vocabulary-closed: true
         reason:
-          description: "queue: an undecided pair in the reconciliation queue; same_name: a live entry with exactly the same name."
+          description: "queue: an undecided pair in the reconciliation queue; same_name: a live entry with exactly the same name; similar_name: a catalog search hit for the entry's name."
           enum:
             - queue
             - same_name
+            - similar_name
           type: string
           x-vocabulary-closed: true
       required:
@@ -9835,6 +9836,16 @@ components:
           maxLength: 64
           pattern: ^[a-z_]+:[0-9]+$
           type: string
+        lang:
+          description: "BCP-47 language of display_name: a work's olang, or the lang of a company, character or credit name. Absent if unrecorded or the family carries none. Must not be used as a discriminant."
+          format: bcp47
+          maxLength: 32
+          type: string
+        localized:
+          additionalProperties:
+            $ref: "#/components/schemas/LocalizedText"
+          description: The localized names that family's ids= batch lane answers (works with include=titles), BCP-47 keys. Empty object if none or the family carries none. Must not be used as a discriminant.
+          type: object
         name_zh:
           description: "A Chinese name when one is recorded: a trait's name_zh, otherwise the zh-Hans, zh-Hant or zh entry of localized. Absent if none. Must not be used as a discriminant."
           maxLength: 512
@@ -9851,6 +9862,7 @@ components:
         - family
         - id
         - display_name
+        - localized
       type: object
     Relation:
       additionalProperties: true
@@ -13298,7 +13310,7 @@ components:
 info:
   description: "NextMoe public API v2. Public since 2026-08-25: any application mints its own nmk_ key in the developer portal, no approval required. The /v2/catalog read surface also answers with no credential at all; such calls share one rate limit and daily quota per IPv4 address or IPv6 /64, well below a key's. The shape evolves additively; a breaking change to this document fails CI."
   title: NextMoe Public API v2
-  version: 2.62.0
+  version: 2.63.0
   x-stability: stable
 openapi: 3.1.0
 paths:
@@ -24610,7 +24622,7 @@ paths:
         - me
   /v2/me/merge-candidates:
     get:
-      description: "Up to ten entries that may duplicate id: undecided pairs from the reconciliation queue first, then live entries with exactly the same name. A single page; there is no cursor. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope."
+      description: "Up to ten entries that may duplicate id: undecided pairs from the reconciliation queue first, then live entries with exactly the same name, then search hits for its name. A single page; there is no cursor. Requires a user access token bound to a catalog site. The token must carry the catalog:edit scope."
       operationId: listMyMergeCandidates
       parameters:
         - description: Family of the entry.

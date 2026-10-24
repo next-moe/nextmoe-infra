@@ -1,5 +1,6 @@
 import type { CatalogSearchList } from '#shared/types/catalog'
 import type { EditRefFamily } from '#shared/types/edit'
+import type { NameSource } from '#shared/types/preferences'
 import { roleOptionsOf, type RoleListItem } from '~/utils/roleOptions'
 
 export const REF_COLLECTION: Record<EditRefFamily, string> = {
@@ -61,8 +62,12 @@ let rolesRequest: Promise<RoleList['items']> | null = null
 export const useRefNames = () => {
   const api = useEditorApi()
   const batcher = useRefNameBatcher()
+  const preferences = useEditorPreferences()
   const names = useState<Record<string, string>>('edit-ref-names', () => ({}))
-  const hints = useState<Record<string, string>>('edit-ref-hints', () => ({}))
+  const sources = useState<Record<string, NameSource>>(
+    'edit-ref-sources',
+    () => ({})
+  )
   const roles = useState<RefOption[] | null>('edit-ref-roles', () => null)
   const roleIdByKey = useState<Record<string, string>>(
     'edit-ref-role-keys',
@@ -72,8 +77,14 @@ export const useRefNames = () => {
   const keyOf = (family: EditRefFamily, id: string | number) =>
     `${family}:${id}`
 
-  const remember = (family: EditRefFamily, id: string, label: string) => {
-    if (label) {
+  const remember = (
+    family: EditRefFamily,
+    id: string,
+    label: string | NameSource
+  ) => {
+    if (typeof label !== 'string') {
+      sources.value = { ...sources.value, [keyOf(family, id)]: label }
+    } else if (label) {
       names.value = { ...names.value, [keyOf(family, id)]: label }
     }
   }
@@ -136,7 +147,12 @@ export const useRefNames = () => {
       ...new Set(
         ids
           .map(String)
-          .filter((id) => /^\d+$/.test(id) && !names.value[keyOf(family, id)])
+          .filter(
+            (id) =>
+              /^\d+$/.test(id) &&
+              !sources.value[keyOf(family, id)] &&
+              !names.value[keyOf(family, id)]
+          )
           .map((id) => keyOf(family, id))
       )
     ]
@@ -144,34 +160,31 @@ export const useRefNames = () => {
       return
     }
     const found = await batcher.request(keys)
-    const labels: Record<string, string> = {}
-    const extra: Record<string, string> = {}
-    for (const [key, item] of found) {
-      if (!item) {
-        continue
-      }
-      labels[key] = preferredRefLabel(item)
-      const secondary = secondaryRefLabel(item)
-      if (secondary) {
-        extra[key] = secondary
-      }
-    }
-    names.value = { ...names.value, ...labels }
-    if (Object.keys(extra).length) {
-      hints.value = { ...hints.value, ...extra }
+    sources.value = {
+      ...sources.value,
+      ...Object.fromEntries(
+        [...found].filter(([, item]) => item).map(([key, item]) => [key, item!])
+      )
     }
   }
 
-  const hintOf = (family: EditRefFamily | undefined, id: unknown) =>
+  const sourceOf = (family: EditRefFamily | undefined, id: unknown) =>
     family && id !== null && id !== undefined && id !== ''
-      ? (hints.value[keyOf(family, String(id))] ?? '')
-      : ''
+      ? sources.value[keyOf(family, String(id))]
+      : undefined
+
+  const hintOf = (family: EditRefFamily | undefined, id: unknown) =>
+    preferences.otherNameOf(sourceOf(family, id))
 
   const nameOf = (family: EditRefFamily | undefined, id: unknown) => {
-    if (id === null || id === undefined || id === '') {
+    if (!family || id === null || id === undefined || id === '') {
       return ''
     }
-    return family ? (names.value[keyOf(family, String(id))] ?? '') : ''
+    return (
+      preferences.nameOf(sourceOf(family, id)) ||
+      names.value[keyOf(family, String(id))] ||
+      ''
+    )
   }
 
   const searchListFace = async (
@@ -225,15 +238,15 @@ export const useRefNames = () => {
       query: { q, object: family, limit: 12, nsfw: true }
     }).catch(() => null)
     return (list?.items ?? []).map((hit) => {
-      const zh = ZH_FIRST_FAMILIES.has(family)
-        ? zhFromLocalized(hit.localized)
-        : ''
-      const label = zh || hit.display_name
-      remember(family, hit.id, label)
+      const source = {
+        display_name: hit.display_name,
+        localized: hit.localized
+      }
+      remember(family, hit.id, source)
       return {
         value: hit.id,
-        label,
-        hint: [zh ? hit.display_name : hit.latin, `#${hit.id}`]
+        label: preferences.nameOf(source) || hit.display_name,
+        hint: [preferences.otherNameOf(source) || hit.latin, `#${hit.id}`]
           .filter(Boolean)
           .join(' · ')
       }

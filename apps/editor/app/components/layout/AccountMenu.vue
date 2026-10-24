@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { cn } from '@kungal/ui-core'
+import { COLOR_MODE_OPTIONS } from '~/constants/preferences'
 import { ROLE_LABELS } from '~/constants/roles'
 
 const { session, settled, logout } = useEditorSession()
@@ -24,11 +25,7 @@ const roleChips = computed(() => {
     .map((name) => ROLE_LABELS[name])
 })
 
-const colorModeOptions = [
-  { value: 'light', label: '浅色', icon: 'lucide:sun' },
-  { value: 'dark', label: '深色', icon: 'lucide:moon' },
-  { value: 'system', label: '跟随系统', icon: 'lucide:monitor' }
-] as const
+const colorModeOptions = COLOR_MODE_OPTIONS
 
 const handleLogout = async () => {
   loggingOut.value = true
@@ -83,6 +80,13 @@ const handleLogout = async () => {
         <KunIcon name="lucide:user-cog" class="size-4" />
         账号中心
       </a>
+      <NuxtLink
+        to="/settings"
+        class="text-default-600 hover:bg-default-100 hover:text-foreground flex items-center gap-3 rounded-lg px-2 py-2 text-sm transition-colors"
+      >
+        <KunIcon name="lucide:settings" class="size-4" />
+        设置
+      </NuxtLink>
 
       <div class="px-2 pt-2 pb-1">
         <p class="text-default-400 mb-1 text-xs">外观</p>
