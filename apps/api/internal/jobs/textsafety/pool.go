@@ -5,7 +5,9 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -243,4 +245,23 @@ func bisect[T, R any](ctx context.Context, batch []T, run func(context.Context, 
 		return nil, err
 	}
 	return append(left, right...), nil
+}
+
+// Shard keeps the inputs whose hash falls in shard k of n ("k/n").
+func Shard(in []IntroInput, spec string) ([]IntroInput, error) {
+	var k, n int
+	if _, err := fmt.Sscanf(spec, "%d/%d", &k, &n); err != nil || n < 1 || k < 0 || k >= n {
+		return nil, fmt.Errorf("bad -shard %q, want k/n with 0 <= k < n", spec)
+	}
+	out := in[:0:0]
+	for _, x := range in {
+		v, err := strconv.ParseUint(x.Hash[:8], 16, 32)
+		if err != nil {
+			return nil, fmt.Errorf("hash %q: %w", x.Hash, err)
+		}
+		if int(v%uint64(n)) == k {
+			out = append(out, x)
+		}
+	}
+	return out, nil
 }

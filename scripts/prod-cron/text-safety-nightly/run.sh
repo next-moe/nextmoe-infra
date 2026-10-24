@@ -3,11 +3,12 @@
 # intros that changed since the last run, then fold the title verdicts into the display axis
 # (catalog_work.title_nsfw, and display_nsfw on claimed works no human set).
 #
-# The model is Cursor-hosted and reached through the infra-cursor-llm sidecar,
-# an OpenAI-compatible shim over the Cursor SDK that this script starts on
-# dokploy-network for the length of the run and removes on exit. Its key lives
+# Title lanes use Cursor-hosted models through the infra-cursor-llm sidecar, an
+# OpenAI-compatible shim over the Cursor SDK that this script starts on
+# dokploy-network for the length of the run and removes on exit; its key lives
 # in $BASE/cursor.env (CURSOR_API_KEY=..., mode 600), written by the owner on
-# the box.
+# the box. Intro lanes use the Workers AI gateway in /root/env-llm-key.env, the
+# same file llm-adjudicate-nightly reads (never shredded here).
 #
 # crontab (root): 30 16 * * * /root/text-safety-nightly/run.sh
 # 16:30 CST = 08:30 UTC, after intromt-nightly (13:00 CST) has written the
@@ -22,6 +23,7 @@ BASE=${TS_BASE:-/root/text-safety-nightly}
 ALERT_SH=${TS_ALERT:-/root/lib/alert.sh}
 REINDEX_SH=${TS_REINDEX:-/root/reindex-catalog/run.sh}
 CURSOR_ENV=${TS_CURSOR_ENV:-$BASE/cursor.env}
+LLM_ENV=${TS_LLM_ENV:-/root/env-llm-key.env}
 SIDECAR=text-safety-llm
 cd "$BASE"
 mkdir -p logs state
@@ -83,24 +85,28 @@ done
 # The password rides PGPASSWORD, never the DSN (lib/dsn-test.sh).
 DSNSH='export PGPASSWORD="$KUN_PG_PASSWORD"; DSN="host=$KUN_PG_HOST port=$KUN_PG_PORT user=$KUN_PG_USER dbname=$KUN_CATALOG_PG_DATABASE sslmode=disable"'
 
+# step <name> <llm env file> <text-safety args...>: llm.tmp points the tool at
+# the Cursor sidecar; $LLM_ENV (KUN_AI_UPSTREAM_*) at the Workers AI gateway.
 step() {
   _name=$1
-  shift
+  _llm=$2
+  shift 2
   echo "--- $_name ---"
   docker run --rm --name "text-safety-$_name" --network dokploy-network \
-    --env-file "$BASE/env.tmp" --env-file "$BASE/llm.tmp" "$IMG" \
+    --env-file "$BASE/env.tmp" --env-file "$_llm" "$IMG" \
     sh -c "$DSNSH"'; exec text-safety -dsn "$DSN" '"$*"
 }
 
 MARK=$(wc -c < "$LOG")
 # apply before the intros: the intro lanes judge only what the sfw shelf shows,
 # so a work the title verdicts moved onto it is judged tonight, not tomorrow.
-step titles -mode titles -model grok-4.7:low:fast -concurrency 8
-step release-titles -mode release-titles -model grok-4.7:low:fast -concurrency 8
-step title-review -mode title-review -model claude-opus-5-5:medium -concurrency 4
-step apply -mode apply -run -prune
-step intros -mode intros -model grok-4.6:low:fast -concurrency 8
-step char-intros -mode char-intros -model grok-4.6:low:fast -concurrency 8
+CF_MODEL=@cf/deepseek-ai/deepseek-v4.1-flash-1017
+step titles "$BASE/llm.tmp" -mode titles -model grok-4.7:low:fast -concurrency 8
+step release-titles "$BASE/llm.tmp" -mode release-titles -model grok-4.7:low:fast -concurrency 8
+step title-review "$BASE/llm.tmp" -mode title-review -model claude-sonnet-5-5:medium -concurrency 4
+step apply "$BASE/llm.tmp" -mode apply -run -prune
+step intros "$LLM_ENV" -mode intros -model "$CF_MODEL" -concurrency 8
+step char-intros "$LLM_ENV" -mode char-intros -model "$CF_MODEL" -concurrency 8
 docker logs --tail 5 "$SIDECAR" || true
 
 # A title verdict that moved a work's shelf changes the content_limit the search
