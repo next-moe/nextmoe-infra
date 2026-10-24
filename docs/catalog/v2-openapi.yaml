@@ -10026,7 +10026,7 @@ components:
           type: string
           x-vocabulary-closed: true
         title:
-          description: Must not be used as a discriminant.
+          description: Must not be used as a discriminant. null when unrecorded, and on a work whose content_limit is sfw also when the title has not cleared a safety review.
           maxLength: 512
           type:
             - string

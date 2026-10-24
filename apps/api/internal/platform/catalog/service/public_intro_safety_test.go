@@ -223,3 +223,72 @@ func introSetEqual(a, b []dto.PublicIntro) bool {
 	}
 	return true
 }
+
+func markTitleSafety(t *testing.T, name string, verdict int16, confidence float64) {
+	t.Helper()
+	if err := testDB.Exec(`INSERT INTO catalog_work_title_safety (title_hash, verdict, confidence, model, prompt_version, updated_at)
+		VALUES (md5(?), ?, ?, 'test', 'test', now())`, name, verdict, confidence).Error; err != nil {
+		t.Fatalf("mark title safety: %v", err)
+	}
+}
+
+func releaseTitles(rels []dto.PublicRelease) map[int64]string {
+	out := map[int64]string{}
+	for _, r := range rels {
+		out[r.ID] = r.Title
+	}
+	return out
+}
+
+// Release titles are judged one by one and hidden on their own: one explicit
+// trial-edition title blanks that release on an sfw page instead of moving the
+// whole work to the nsfw shelf.
+func TestReleaseTitlesHideOnTheirOwn(t *testing.T) {
+	cleanTables(t)
+	svc := newPublicSvcCDN()
+	no, yes := false, true
+	for _, tc := range []struct {
+		name    string
+		titleNS *bool
+		nsfw    bool
+		hidden  bool
+	}{
+		{"sfw work, nsfw caller", &no, true, true},
+		{"sfw work, sfw caller", &no, false, true},
+		{"nsfw work, nsfw caller", &yes, true, false},
+	} {
+		cleanTables(t)
+		w := createWorkX(t, galgameMediumID, model.ContentRatingAllAges, model.WorkStatusLive, "release titles")
+		setTitleNSFW(t, w.ID, tc.titleNS)
+		mk := func(title string) int64 {
+			r := createRelease(t, w.ID, 2024, 1, 1)
+			if err := testDB.Exec(`UPDATE catalog_release SET title = ? WHERE id = ?`, title, r.ID).Error; err != nil {
+				t.Fatal(err)
+			}
+			return r.ID
+		}
+		safe, explicit, doubtful, unjudged := mk("通常版"), mk("Hシーン限定体験版"), mk("微妙な版"), mk("未判定版")
+		markTitleSafety(t, "通常版", model.TitleSafetySafe, 0.95)
+		markTitleSafety(t, "Hシーン限定体験版", model.TitleSafetyExplicit, 0.95)
+		markTitleSafety(t, "微妙な版", model.TitleSafetySafe, model.SafeTitleConfidence-0.1)
+
+		want := map[int64]string{safe: "通常版", explicit: "Hシーン限定体験版", doubtful: "微妙な版", unjudged: "未判定版"}
+		if tc.hidden {
+			want = map[int64]string{safe: "通常版", explicit: "", doubtful: "", unjudged: ""}
+		}
+		rec, found, err := svc.WorkDetail(t.Context(), w.ID, PublicInclude{}, tc.nsfw, 0, PublicFields{})
+		if err != nil || !found {
+			t.Fatalf("%s: WorkDetail found=%v err=%v", tc.name, found, err)
+		}
+		if got := releaseTitles(rec.Releases); !reflect.DeepEqual(got, want) {
+			t.Fatalf("%s: detail release titles = %v, want %v", tc.name, got, want)
+		}
+		sub, _, err := svc.WorkReleases(t.Context(), w.ID, tc.nsfw, 50, 0)
+		if err != nil {
+			t.Fatalf("%s: WorkReleases: %v", tc.name, err)
+		}
+		if got := releaseTitles(sub.Items); !reflect.DeepEqual(got, want) {
+			t.Fatalf("%s: sub-resource release titles = %v, want %v", tc.name, got, want)
+		}
+	}
+}

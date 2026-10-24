@@ -593,7 +593,7 @@ nsfw  若 cover_art_all_explicit(有可选封面且全部被判 explicit),不论
       否则:content_rating == r18
 ```
 
-**2026-10 起多一个输入:标题判定**。`cmd/text-safety` 用 LLM 判每部作品**页面上显示的全部名字**(`display_name` + official/alias 标题 + 发行版标题;search hint 不显示、不判),`safe` 且置信度 ≥ 0.8 记 `title_nsfw = false`,其余(`suggestive`/`explicit`/把握不足)记 `true`;从未判过的作品是 `NULL`,沿用年龄轴回落,所以这一条**只会在判过之后**移动作品。已认领作品读的仍是 `display_nsfw`:同一个任务把判定写进**没有人工来源**的 `display_nsfw`(provenance 记 `derived`),编辑面人工写过的值(`user`/`curated`)一律不动。两种写入都 bump `updated_at`,照常在本 feed 现身。
+**2026-10 起多一个输入:标题判定**。`cmd/text-safety` 用 LLM 判每部作品**页面上显示的全部名字**(`display_name` + official/alias 标题;search hint 不显示、不判。发行版标题**逐条单独判**,不参与作品的分级:SFW 页上判定不是「safe 且置信度 ≥ 0.8」或尚未判定的发行版,`releases[].title` 留空),`safe` 且置信度 ≥ 0.8 记 `title_nsfw = false`,其余(`suggestive`/`explicit`/把握不足)记 `true`;从未判过的作品是 `NULL`,沿用年龄轴回落,所以这一条**只会在判过之后**移动作品。已认领作品读的仍是 `display_nsfw`:同一个任务把判定写进**没有人工来源**的 `display_nsfw`(provenance 记 `derived`),编辑面人工写过的值(`user`/`curated`)一律不动。两种写入都 bump `updated_at`,照常在本 feed 现身。
 
 **简介随展示轴分两面**。`content_limit = sfw` 的作品,`intros[]`(详情、`include=intros`、`/works/{id}/intros` 三处同一选举)**只出判定放行过的文本**:原文判 `safe` 就出原文,否则出删句版或改写版(改写版 `machine: true`),都不行就整条不出;**未判定的文本一律不出**,该语言回落到下一个来源。只有 `nsfw=true` **且**作品本身在 `nsfw` 架上才出原文——与封面选举同一条规则。下游渲染 SFW 页时**不需要改任何代码**:拿到的 `intros[]` 已经是能上公开页的版本。
 

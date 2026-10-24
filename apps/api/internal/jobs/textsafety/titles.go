@@ -62,6 +62,20 @@ func JudgeTitles(ctx context.Context, db *gorm.DB, llm *LLM, opts JudgeOpts) (*T
 	if opts.Sink != nil {
 		rand.New(rand.NewPCG(1, 2)).Shuffle(len(todo), func(i, j int) { todo[i], todo[j] = todo[j], todo[i] })
 	}
+	return judgeTitleSets(ctx, db, llm, opts, todo)
+}
+
+// JudgeReleaseTitles judges every release title that has no verdict yet, one
+// name per set.
+func JudgeReleaseTitles(ctx context.Context, db *gorm.DB, llm *LLM, opts JudgeOpts) (*TitleStats, error) {
+	todo, err := loadPendingReleaseTitles(ctx, db)
+	if err != nil {
+		return nil, fmt.Errorf("load release titles: %w", err)
+	}
+	return judgeTitleSets(ctx, db, llm, opts, todo)
+}
+
+func judgeTitleSets(ctx context.Context, db *gorm.DB, llm *LLM, opts JudgeOpts, todo []workTitles) (*TitleStats, error) {
 	if opts.Limit > 0 && len(todo) > opts.Limit {
 		todo = todo[:opts.Limit]
 	}

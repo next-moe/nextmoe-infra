@@ -17,7 +17,7 @@ import (
 )
 
 func main() {
-	mode := flag.String("mode", "", "titles | intros | char-intros | apply | report")
+	mode := flag.String("mode", "", "titles | release-titles | intros | char-intros | apply | report")
 	dsn := flag.String("dsn", os.Getenv("KUN_TEXT_SAFETY_DSN"), "catalog DSN (required; refuses to guess)")
 	llmBase := flag.String("llm-base", os.Getenv("KUN_TEXT_SAFETY_LLM_BASE"), "OpenAI-compatible base URL (…/v1)")
 	llmToken := flag.String("llm-token", os.Getenv("KUN_TEXT_SAFETY_LLM_TOKEN"), "bearer token for -llm-base")
@@ -66,12 +66,16 @@ func main() {
 	}
 
 	switch *mode {
-	case "titles":
+	case "titles", "release-titles":
 		llm := newLLM()
-		st, err := textsafety.JudgeTitles(ctx, db, llm, opts)
+		judge := textsafety.JudgeTitles
+		if *mode == "release-titles" {
+			judge = textsafety.JudgeReleaseTitles
+		}
+		st, err := judge(ctx, db, llm, opts)
 		printUsage(llm)
 		if st != nil {
-			fmt.Printf("titles done pending=%d judged=%d failed=%d classes=%v\n", st.Pending, st.Judged, st.Failed, st.ByClass)
+			fmt.Printf("%s done pending=%d judged=%d failed=%d classes=%v\n", *mode, st.Pending, st.Judged, st.Failed, st.ByClass)
 		}
 		if err != nil {
 			fail(err)

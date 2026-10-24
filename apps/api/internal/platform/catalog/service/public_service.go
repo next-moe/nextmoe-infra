@@ -388,6 +388,11 @@ func (s *PublicService) publicRelations(rels []WorkRelationRow, nsfw bool, limit
 
 func (s *PublicService) attachWorkFacets(ctx context.Context, rec *dto.PublicCatalogWork, detail *WorkDetail, nsfw, displayNSFW bool, spoilers int16, sel PublicFields) error {
 	rec.Releases = s.publicWorkReleases(detail.Releases)
+	if !(nsfw && displayNSFW) {
+		if err := s.hideUnsafeReleaseTitles(ctx, rec.Releases); err != nil {
+			return err
+		}
+	}
 	rec.Popularity = make([]dto.PublicPopularity, 0, len(detail.Popularity))
 	for _, p := range detail.Popularity {
 		rec.Popularity = append(rec.Popularity, dto.PublicPopularity{

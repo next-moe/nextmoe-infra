@@ -8937,7 +8937,7 @@ export interface components {
              * @enum {string}
              */
             release_kind: "default" | "digital" | "physical" | "trial" | "patch";
-            /** @description Must not be used as a discriminant. */
+            /** @description Must not be used as a discriminant. null when unrecorded, and on a work whose content_limit is sfw also when the title has not cleared a safety review. */
             title: string | null;
             /** @description Parent catalog work id. null on a work sub-resource, where the work is the URL. */
             work_id: string | null;

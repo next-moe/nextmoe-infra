@@ -31,9 +31,11 @@ func md5Hex(s string) string {
 
 func titleSetHash(names []string) string { return md5Hex(strings.Join(names, "\n")) }
 
-// loadWorkTitles returns every live galgame work with the names its page shows:
-// the display name, its official and alias titles, and its release titles.
-// Search hints are never rendered and stay out.
+// loadWorkTitles returns every live galgame work with the names that decide its
+// shelf: the display name and its official and alias titles. Release titles are
+// judged one by one (loadPendingReleaseTitles) and hidden on their own, because
+// folding them in let one bundle or trial-edition title move ~3,800 works to the
+// nsfw shelf. Search hints are never rendered and stay out.
 func loadWorkTitles(ctx context.Context, db *gorm.DB) ([]workTitles, error) {
 	var rows []struct {
 		ID          int64  `gorm:"column:id"`
@@ -41,9 +43,8 @@ func loadWorkTitles(ctx context.Context, db *gorm.DB) ([]workTitles, error) {
 		Titles      string `gorm:"column:titles"`
 	}
 	if err := db.WithContext(ctx).Raw(`
-		SELECT w.id, w.display_name, concat_ws(E'\x1f',
-		       (SELECT string_agg(t.title, E'\x1f') FROM catalog_work_title t WHERE t.work_id = w.id AND t.kind IN (?, ?)),
-		       (SELECT string_agg(r.title, E'\x1f') FROM catalog_release r WHERE r.work_id = w.id AND r.deleted_at IS NULL)) AS titles
+		SELECT w.id, w.display_name,
+		       coalesce((SELECT string_agg(t.title, E'\x1f') FROM catalog_work_title t WHERE t.work_id = w.id AND t.kind IN (?, ?)), '') AS titles
 		FROM catalog_work w
 		WHERE `+galgameLiveSQL+`
 		ORDER BY w.id`,
@@ -66,6 +67,25 @@ func loadWorkTitles(ctx context.Context, db *gorm.DB) ([]workTitles, error) {
 		}
 		sort.Strings(names)
 		out = append(out, workTitles{ID: r.ID, Hash: titleSetHash(names), Names: names})
+	}
+	return out, nil
+}
+
+// loadPendingReleaseTitles returns each distinct release title of a live galgame
+// work that has no verdict, as a one-name set: its hash is md5 of the trimmed
+// title, the expression the read face looks it up by.
+func loadPendingReleaseTitles(ctx context.Context, db *gorm.DB) ([]workTitles, error) {
+	var titles []string
+	if err := db.WithContext(ctx).Raw(`SELECT DISTINCT btrim(r.title) FROM catalog_release r
+		JOIN catalog_work w ON w.id = r.work_id
+		WHERE `+galgameLiveSQL+` AND r.deleted_at IS NULL AND btrim(coalesce(r.title, '')) <> ''
+		  AND NOT EXISTS (SELECT 1 FROM catalog_work_title_safety s WHERE s.title_hash = md5(btrim(r.title)))`,
+		model.WorkStatusLive).Scan(&titles).Error; err != nil {
+		return nil, err
+	}
+	out := make([]workTitles, len(titles))
+	for i, t := range titles {
+		out[i] = workTitles{Hash: titleSetHash([]string{t}), Names: []string{t}}
 	}
 	return out, nil
 }

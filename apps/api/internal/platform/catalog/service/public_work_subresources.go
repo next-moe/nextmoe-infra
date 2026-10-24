@@ -190,6 +190,17 @@ func (s *PublicService) WorkReleases(ctx context.Context, id int64, nsfw bool, l
 		return dto.PublicWorkReleasesData{}, false, err
 	}
 	page, next := pageOf(s.publicWorkReleases(rels), limit, offset)
+	display := false
+	if nsfw {
+		if display, err = s.workDisplayNSFW(ctx, id); err != nil {
+			return dto.PublicWorkReleasesData{}, false, err
+		}
+	}
+	if !display {
+		if err = s.hideUnsafeReleaseTitles(ctx, page); err != nil {
+			return dto.PublicWorkReleasesData{}, false, err
+		}
+	}
 	if err = s.attachReleaseLabels(ctx, page); err != nil {
 		return dto.PublicWorkReleasesData{}, false, err
 	}

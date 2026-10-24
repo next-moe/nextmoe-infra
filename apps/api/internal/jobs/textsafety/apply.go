@@ -12,10 +12,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const (
-	safeTitleConfidence = 0.8
-	applyBatch          = 1000
-)
+const applyBatch = 1000
 
 type ApplyOpts struct {
 	Run   bool
@@ -109,7 +106,7 @@ func planApply(ctx context.Context, db *gorm.DB) (*applyPlan, error) {
 			continue
 		}
 		p.stats.Judged++
-		want := !(v.Verdict == model.TitleSafetySafe && v.Confidence >= safeTitleConfidence)
+		want := !(v.Verdict == model.TitleSafetySafe && v.Confidence >= model.SafeTitleConfidence)
 		after := before
 		after.TitleNSFW = &want
 		c := workChange{before: before, titles: t, verdict: v}
@@ -239,7 +236,9 @@ func prune(ctx context.Context, db *gorm.DB) (int64, int64, error) {
 	for _, t := range titles {
 		live = append(live, t.Hash)
 	}
-	tr := db.WithContext(ctx).Exec(`DELETE FROM catalog_work_title_safety WHERE title_hash <> ALL(?::text[])`, "{"+strings.Join(live, ",")+"}")
+	tr := db.WithContext(ctx).Exec(`DELETE FROM catalog_work_title_safety s WHERE s.title_hash <> ALL(?::text[])
+		AND NOT EXISTS (SELECT 1 FROM catalog_release r WHERE r.deleted_at IS NULL AND md5(btrim(r.title)) = s.title_hash)`,
+		"{"+strings.Join(live, ",")+"}")
 	if tr.Error != nil {
 		return 0, 0, fmt.Errorf("prune title verdicts: %w", tr.Error)
 	}

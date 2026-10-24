@@ -2,6 +2,9 @@ package service
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
+	"strings"
 
 	"api/internal/platform/catalog/dto"
 	"api/internal/platform/catalog/model"
@@ -11,6 +14,42 @@ import (
 // are shared by works/{id} and by the works/{id}/<block> sub-resources: a
 // second copy would drift, and the sub-resources exist precisely to serve the
 // same bytes as the block they page.
+
+// hideUnsafeReleaseTitles blanks every release title an sfw page may not show:
+// one whose verdict (keyed by md5 of the trimmed title) is not safe at
+// model.SafeTitleConfidence, or that has no verdict yet.
+func (s *PublicService) hideUnsafeReleaseTitles(ctx context.Context, rels []dto.PublicRelease) error {
+	hashOf := map[string]string{}
+	for _, r := range rels {
+		if t := strings.TrimSpace(r.Title); t != "" {
+			sum := md5.Sum([]byte(t))
+			hashOf[t] = hex.EncodeToString(sum[:])
+		}
+	}
+	if len(hashOf) == 0 {
+		return nil
+	}
+	hashes := make([]string, 0, len(hashOf))
+	for _, h := range hashOf {
+		hashes = append(hashes, h)
+	}
+	var safe []string
+	if err := s.db.WithContext(ctx).Raw(`SELECT title_hash FROM catalog_work_title_safety
+		WHERE title_hash IN ? AND verdict = ? AND confidence >= ?`,
+		hashes, model.TitleSafetySafe, model.SafeTitleConfidence).Scan(&safe).Error; err != nil {
+		return err
+	}
+	ok := make(map[string]bool, len(safe))
+	for _, h := range safe {
+		ok[h] = true
+	}
+	for i := range rels {
+		if t := strings.TrimSpace(rels[i].Title); t != "" && !ok[hashOf[t]] {
+			rels[i].Title = ""
+		}
+	}
+	return nil
+}
 
 func (s *PublicService) publicWorkReleases(rows []ReleaseDetail) []dto.PublicRelease {
 	out := make([]dto.PublicRelease, 0, len(rows))
