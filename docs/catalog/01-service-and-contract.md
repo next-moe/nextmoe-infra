@@ -16,7 +16,7 @@ catalog **不存**产品展示体:简介、封面/截图字节、评分、点赞
 
 来源注册表(节选):`source` `2=vndb 3=bangumi 4=dlsite 5=erogamescape 19=nextmoe 20=howlongtobeat 1=user`;`medium` `1=galgame 5=asmr`;`content_rating` `0=all_ages 1=sensitive 2=r18`。完整注册表由 `cmd/migrate catalog` 的 seed 落库。
 
-⚠️ **`content_rating` 是年龄轴,不是展示轴**(A2-R5,doc 106 §38 事故)。这一列答的是「**游戏本体**是什么分级」;「我要**渲染的素材**(封面/截图/简介)能不能摆上公开页」是**另一个问题**,由**编辑展示轴**回答——公开面 `claimed_by.content_limit`(词表 `sfw|nsfw`),认领作品读 **`catalog_work.display_nsfw`**(人工编辑判定;**W1-pre 本体化**前是读时桥接 wiki 正文的 `galgame.content_limit`,refs/proj/140 §5b 把该判定物化成 registry 自己的列,wiki 表族退役后由 catalog 编辑面持有),未认领行按年龄轴回落(该列对未认领行恒 false 且从不被读)。**2026-09-14 起展示轴多一个派生输入**:`catalog_work.cover_art_all_explicit`(触发器按 `catalog_work_cover` 维护,Go 只读)为真时一律 `nsfw` —— 作品声称有安全展示素材却一张都不拥有是不可满足的,封面选举只能落到打码替身,两个模式都看不到真封面(work 208100)。这一条**不会**把有安全封面的 r18 游戏赶下 SFW 架(上产当天 47,336 部),那正是两轴分开的理由。生产实测两轴在 5,568 部作品上不一致(r18 游戏 × 编辑判定 sfw),**互不是对方的放宽或收紧**;把年龄轴当展示门正是那次 SEO 塌缩的根因。语义源 = `model.DisplayLimitKey`,契约与闸参见 [developer-platform/02 §3.2.8](../developer-platform/02-public-api.md#328-编辑展示轴-content_limit闸a2-r5)。**把这条判定缓存到本地列的消费站,同步信道见本篇 §8(`/v2/catalog/changes` 是镜像信道)。**
+⚠️ **`content_rating` 是年龄轴,不是展示轴**(A2-R5,doc 106 §38 事故)。这一列答的是「**游戏本体**是什么分级」;「我要**渲染的素材**(封面/截图/简介)能不能摆上公开页」是**另一个问题**,由**编辑展示轴**回答——公开面 `claimed_by.content_limit`(词表 `sfw|nsfw`),认领作品读 **`catalog_work.display_nsfw`**(人工编辑判定;**W1-pre 本体化**前是读时桥接 wiki 正文的 `galgame.content_limit`,refs/proj/140 §5b 把该判定物化成 registry 自己的列,wiki 表族退役后由 catalog 编辑面持有),未认领行按年龄轴回落(该列对未认领行恒 false 且从不被读;**2026-10 起**未认领行先读标题判定 `title_nsfw`,判过的作品不再按年龄轴回落,见 §8)。**2026-09-14 起展示轴多一个派生输入**:`catalog_work.cover_art_all_explicit`(触发器按 `catalog_work_cover` 维护,Go 只读)为真时一律 `nsfw` —— 作品声称有安全展示素材却一张都不拥有是不可满足的,封面选举只能落到打码替身,两个模式都看不到真封面(work 208100)。这一条**不会**把有安全封面的 r18 游戏赶下 SFW 架(上产当天 47,336 部),那正是两轴分开的理由。生产实测两轴在 5,568 部作品上不一致(r18 游戏 × 编辑判定 sfw),**互不是对方的放宽或收紧**;把年龄轴当展示门正是那次 SEO 塌缩的根因。语义源 = `model.DisplayLimitKey`,契约与闸参见 [developer-platform/02 §3.2.8](../developer-platform/02-public-api.md#328-编辑展示轴-content_limit闸a2-r5)。**把这条判定缓存到本地列的消费站,同步信道见本篇 §8(`/v2/catalog/changes` 是镜像信道)。**
 
 **release 粒度自 wave 174 起有了公开读面**:`GET /v1/catalog/releases`(发售动态时间线)把**每一行带日期的 release** 当作一个条目按其**自身日期**排序,认领与未认领同规;人口 = LIVE galgame 作品的 release 且日期**至少精确到月**(只到年与无日期者不入本面,它们仍归日历的 pending / tba 两桶)。它是**日历的下一粒度**:日历按作品的**最早**发行日安放作品、一部作品只出现一次,故移植版/复刻版/本地化版在那里**构造上不可见**;本面的 `is_first`(该行是否为该作品最早的带日期 release)正是把二者分开的那一位。`kind` 缺省**排除 trial / patch**(发售动态问的是「东西出了」),`lang` 按 `COALESCE(release.lang, work.olang)` 匹配(dlsite/getchu 泳道的店铺 SKU 不记语言,构造上即作品原语),`official` 视**缺键为 official**(只有 VNDB 泳道写这个旗,写 `false` 即民间汉化/非官方版)。契约见 [developer-platform/02 §3.2](../developer-platform/02-public-api.md)。
 
@@ -589,8 +589,13 @@ wave 176-179 把人类的**写**搬完了;本波搬的是搬完写之后还留�
 ```
 nsfw  若 cover_art_all_explicit(有可选封面且全部被判 explicit),不论认领与分级
       否则若已认领:display_nsfw
+      否则若 title_nsfw 已判定:title_nsfw
       否则:content_rating == r18
 ```
+
+**2026-10 起多一个输入:标题判定**。`cmd/text-safety` 用 LLM 判每部作品**页面上显示的全部名字**(`display_name` + official/alias 标题;search hint 不显示、不判),`safe` 且置信度 ≥ 0.8 记 `title_nsfw = false`,其余(`suggestive`/`explicit`/把握不足)记 `true`;从未判过的作品是 `NULL`,沿用年龄轴回落,所以这一条**只会在判过之后**移动作品。已认领作品读的仍是 `display_nsfw`:同一个任务把判定写进**没有人工来源**的 `display_nsfw`(provenance 记 `derived`),编辑面人工写过的值(`user`/`curated`)一律不动。两种写入都 bump `updated_at`,照常在本 feed 现身。
+
+**简介随展示轴分两面**。`content_limit = sfw` 的作品,`intros[]`(详情、`include=intros`、`/works/{id}/intros` 三处同一选举)**只出判定放行过的文本**:原文判 `safe` 就出原文,否则出删句版或改写版(改写版 `machine: true`),都不行就整条不出;**未判定的文本一律不出**,该语言回落到下一个来源。只有 `nsfw=true` **且**作品本身在 `nsfw` 架上才出原文——与封面选举同一条规则。下游渲染 SFW 页时**不需要改任何代码**:拿到的 `intros[]` 已经是能上公开页的版本。
 
 **下游不要重算**。2.26.0 之前这里写的配方只有后两条,论坛照抄了它:未认领作品按分级判 sfw,于是 18 部封面全 explicit、分级却不是 r18 的未认领作品(2026-09-24)被展示给没选成人内容的读者。第一条是 09-14 加进 `NSFW` 的,配方没有跟着改。`cover_art_all_explicit` 由触发器维护,翻转时 bump `updated_at`,所以同样在本 feed 现身。
 

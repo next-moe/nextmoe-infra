@@ -10527,7 +10527,7 @@ export interface components {
             /** @description Present when include=companies. Empty array if none. */
             companies?: components["schemas"]["WorkCompany"][];
             /**
-             * @description Display axis: whether this work may be shown to a reader who has not opted into adult content. Set on every work, claimed or not, and the value the content_limit filter selects on. It is not content_rating: an r18 game whose cover art is safe is sfw, and a work whose every cover is graded explicit is nsfw whatever its rating. A claimed work carries the same value in claim.content_limit.
+             * @description Display axis: whether this work may be shown to a reader who has not opted into adult content. Set on every work, claimed or not, and the value the content_limit filter selects on. It is not content_rating: an r18 game whose cover art is safe is sfw, and a work whose every cover is graded explicit is nsfw whatever its rating. A work whose displayed names were judged sexual or suggestive is nsfw; an unclaimed work whose names were never judged falls back to its rating. A claimed work carries the same value in claim.content_limit.
              * @enum {string}
              */
             content_limit: "sfw" | "nsfw";
@@ -10553,7 +10553,7 @@ export interface components {
             engines?: components["schemas"]["WorkEngineRef"][];
             /** @description Catalog work id. JSON string of a decimal integer. */
             id: string;
-            /** @description Present when include=intros. Empty array if none. */
+            /** @description Present when include=intros. On a work whose content_limit is sfw, only text a safety review cleared: the original, a redacted version, or a rewritten one (is_machine true); a language with none of those falls back to its next source or is left out, and text not reviewed yet is never served. The originals are served only to nsfw=true callers on an nsfw work. Empty array if none. */
             intros?: components["schemas"]["Intro"][];
             /** @description Romanization. null if unrecorded. Must not be used as a discriminant. */
             latin: string | null;

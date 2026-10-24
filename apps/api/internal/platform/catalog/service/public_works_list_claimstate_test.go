@@ -58,7 +58,7 @@ func listIDs(t *testing.T, f WorksListFilter) []int64 {
 	svc := newPublicSvc()
 	var out []int64
 	cursor := ""
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 500; i++ {
 		page, err := svc.WorksList(t.Context(), f, cursor, 2)
 		if err != nil {
 			t.Fatalf("WorksList(%v): %v", f.ClaimStates, err)
@@ -71,7 +71,7 @@ func listIDs(t *testing.T, f WorksListFilter) []int64 {
 		}
 		cursor = *page.NextCursor
 	}
-	t.Fatalf("works list did not terminate within 50 pages")
+	t.Fatalf("works list did not terminate within 500 pages")
 	return nil
 }
 

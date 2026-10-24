@@ -2580,3 +2580,13 @@ A new catalog family, `walkthrough`, carries the choice graph of a visual-novel 
 - **Merges.** `catalog_walkthrough.work_id` and `catalog_walkthrough_character.character_id` are rehung by work and character merges (`mergeRefs`), an absorbed edition's walkthroughs move to the base work (`absorbKept`), and the editor's merge movement list counts them as `walkthroughs`.
 
 **Migration**: `cmd/migrate catalog` (prod `migrate-catalog` job) creates the empty tables `catalog_walkthrough` and `catalog_walkthrough_character` with their checks and foreign keys, and seeds sources 22 `seiya` and 23 `sagaoz_foolmaker`. Additive; no existing row changes until `import-walkthroughs --stage apply --apply`. **Spec 2.64.0**, additive.
+
+## Text safety on the display axis and the sfw intro face (spec 2.64.0, 2026-10-24)
+
+The verdicts of the previous section now move works between shelves and decide which intro an sfw page gets.
+
+- **The axis.** `model.WorkShelf.NSFW` and `displayLimitNSFWSQL` read `catalog_work.title_nsfw` for an unclaimed work before the age rating; NULL (never judged) keeps the age rating, so nothing moves until a verdict exists. A claimed work still reads `display_nsfw`, which `text-safety -mode apply` keeps equal to the title verdict wherever no person set it. The cross-check fixture now walks all 270 combinations, the title verdict included, and the apply job's own shelf arithmetic calls `model.WorkShelf` instead of a third copy of the rule.
+- **The sfw intro face.** The read service loads both elections in one query. The original face is served only to an `nsfw=true` caller on an nsfw-shelf work, the condition the cover election already uses; everyone else gets the judged face, where an unjudged or dropped text is skipped and the language falls back to its next source. Downstreams hydrate with `nsfw=true` and gate on `content_limit` themselves, so the request cannot tell an indexable page from an adult one, which is why an sfw work's intros do not depend on `nsfw`. The detail, `include=intros` and `/works/{id}/intros` faces share the election.
+- **Search.** The OpenSearch documents still carry every intro for `search_intro=1` matching; nothing from them is rendered.
+
+**Migration**: none beyond the previous section's. Run `text-safety -mode titles`, `-mode intros` and `-mode apply -run` after the deploy (the `text-safety-nightly` cron does all three), then `reindex-catalog` so the search index serves the moved `content_limit`.

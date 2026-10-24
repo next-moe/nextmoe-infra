@@ -51,19 +51,11 @@ type shelfRow struct {
 
 func (r shelfRow) claimed() bool { return r.Site != nil && *r.Site != "" && r.ProductWorkID != nil }
 
-// nsfw is the display axis once title_nsfw is read: the age rating decides only
-// an unclaimed work whose titles were never judged.
 func (r shelfRow) nsfw() bool {
-	switch {
-	case r.CoverArtAllExplicit:
-		return true
-	case r.claimed():
-		return r.DisplayNSFW
-	case r.TitleNSFW != nil:
-		return *r.TitleNSFW
-	default:
-		return r.ContentRating == model.ContentRatingR18
-	}
+	return model.WorkShelf{
+		Site: r.Site, ProductWorkID: r.ProductWorkID, DisplayNSFW: r.DisplayNSFW, ContentRating: r.ContentRating,
+		CoverArtAllExplicit: r.CoverArtAllExplicit, TitleNSFW: r.TitleNSFW,
+	}.NSFW()
 }
 
 type workChange struct {

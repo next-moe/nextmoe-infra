@@ -215,7 +215,17 @@ func (s *PublicService) WorkIntros(ctx context.Context, id int64, nsfw bool, lim
 	if err != nil {
 		return dto.PublicWorkIntrosData{}, false, err
 	}
-	page, next := pageOf(s.workIntros(byWork[id]), limit, offset)
+	face := byWork[id].sfw
+	if nsfw {
+		display, err := s.workDisplayNSFW(ctx, id)
+		if err != nil {
+			return dto.PublicWorkIntrosData{}, false, err
+		}
+		if display {
+			face = byWork[id].all
+		}
+	}
+	page, next := pageOf(s.workIntros(face), limit, offset)
 	return dto.PublicWorkIntrosData{Items: page, NextOffset: next}, true, nil
 }
 

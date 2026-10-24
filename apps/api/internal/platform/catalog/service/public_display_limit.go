@@ -25,7 +25,7 @@ func IsDisplayLimit(tok string) bool {
 // argument, the r18 content rating.
 const displayLimitNSFWSQL = `(w.cover_art_all_explicit
 	OR (` + claimedSQL + ` AND w.display_nsfw)
-	OR (NOT ` + claimedSQL + ` AND w.content_rating = ?))`
+	OR (NOT ` + claimedSQL + ` AND coalesce(w.title_nsfw, w.content_rating = ?)))`
 
 func displayLimitWhere(limits []string) (string, []any) {
 	if len(limits) == 0 {
@@ -54,6 +54,7 @@ func displayLimitWhere(limits []string) (string, []any) {
 type shelfFacts struct {
 	DisplayNSFW         bool
 	CoverArtAllExplicit bool
+	TitleNSFW           *bool
 }
 
 // The cover gates must classify a work exactly as claimed_by.content_limit
@@ -62,14 +63,14 @@ type shelfFacts struct {
 func effectiveDisplayNSFW(site *string, productWorkID *int64, f shelfFacts, contentRating int16) bool {
 	return model.WorkShelf{
 		Site: site, ProductWorkID: productWorkID, DisplayNSFW: f.DisplayNSFW,
-		ContentRating: contentRating, CoverArtAllExplicit: f.CoverArtAllExplicit,
+		ContentRating: contentRating, CoverArtAllExplicit: f.CoverArtAllExplicit, TitleNSFW: f.TitleNSFW,
 	}.NSFW()
 }
 
 func shelfLimitKey(site *string, productWorkID *int64, f shelfFacts, contentRating int16) string {
 	return model.DisplayLimitKey(model.WorkShelf{
 		Site: site, ProductWorkID: productWorkID, DisplayNSFW: f.DisplayNSFW,
-		ContentRating: contentRating, CoverArtAllExplicit: f.CoverArtAllExplicit,
+		ContentRating: contentRating, CoverArtAllExplicit: f.CoverArtAllExplicit, TitleNSFW: f.TitleNSFW,
 	})
 }
 
@@ -86,14 +87,33 @@ func (s *ReadService) loadShelfFacts(ctx context.Context, subjects []claimSubjec
 		ID                  int64 `gorm:"column:id"`
 		DisplayNSFW         bool  `gorm:"column:display_nsfw"`
 		CoverArtAllExplicit bool  `gorm:"column:cover_art_all_explicit"`
+		TitleNSFW           *bool `gorm:"column:title_nsfw"`
 	}
 	if err := s.db.WithContext(ctx).Raw(
-		`SELECT id, display_nsfw, cover_art_all_explicit FROM catalog_work WHERE id IN ?`,
+		`SELECT id, display_nsfw, cover_art_all_explicit, title_nsfw FROM catalog_work WHERE id IN ?`,
 		workIDs).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	for _, r := range rows {
-		out[r.ID] = shelfFacts{DisplayNSFW: r.DisplayNSFW, CoverArtAllExplicit: r.CoverArtAllExplicit}
+		out[r.ID] = shelfFacts{DisplayNSFW: r.DisplayNSFW, CoverArtAllExplicit: r.CoverArtAllExplicit, TitleNSFW: r.TitleNSFW}
 	}
 	return out, nil
+}
+
+func (s *PublicService) workDisplayNSFW(ctx context.Context, id int64) (bool, error) {
+	var w struct {
+		Site                *string `gorm:"column:site"`
+		ProductWorkID       *int64  `gorm:"column:product_work_id"`
+		ContentRating       int16   `gorm:"column:content_rating"`
+		DisplayNSFW         bool    `gorm:"column:display_nsfw"`
+		CoverArtAllExplicit bool    `gorm:"column:cover_art_all_explicit"`
+		TitleNSFW           *bool   `gorm:"column:title_nsfw"`
+	}
+	if err := s.db.WithContext(ctx).Raw(`SELECT site, product_work_id, content_rating, display_nsfw,
+		cover_art_all_explicit, title_nsfw FROM catalog_work WHERE id = ?`, id).Scan(&w).Error; err != nil {
+		return false, err
+	}
+	return effectiveDisplayNSFW(w.Site, w.ProductWorkID, shelfFacts{
+		DisplayNSFW: w.DisplayNSFW, CoverArtAllExplicit: w.CoverArtAllExplicit, TitleNSFW: w.TitleNSFW,
+	}, w.ContentRating), nil
 }
