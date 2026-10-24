@@ -64,6 +64,12 @@ func Run(db *gorm.DB) error {
 		&model.CatalogWork{},
 		&model.CatalogWorkTitle{},
 		&model.CatalogWorkIntro{}, // bodyless multilingual intro (step 52 media-aggregation pilot)
+		// Text safety (2026-10): LLM verdicts on titles and intros, keyed by a
+		// content hash, plus catalog_work.title_nsfw (nullable; NULL = not judged
+		// yet, and the display axis keeps reading the age rating for it). All
+		// three are additive and start empty / NULL; cmd/text-safety fills them.
+		&model.CatalogWorkTitleSafety{},
+		&model.CatalogWorkIntroSafety{},
 		// Bodyless cover and screenshot images (steps 53/54). 2026-10-12 adds
 		// merged_in boolean NOT NULL DEFAULT false to both: a work merge sets it
 		// on the loser's rows it moves, and every cover election, and the

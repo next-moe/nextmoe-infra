@@ -24,6 +24,7 @@ type CatalogWork struct {
 	// carrying a stale struct would silently overwrite the database's own
 	// answer and put the work back on the sfw shelf with no safe cover to show.
 	CoverArtAllExplicit bool           `gorm:"->;-:migration;column:cover_art_all_explicit" json:"cover_art_all_explicit"`
+	TitleNSFW           *bool          `gorm:"->;column:title_nsfw" json:"title_nsfw"`
 	Extra               datatypes.JSON `gorm:"type:jsonb;not null;default:'{}'" json:"extra"`
 	FieldProvenance     datatypes.JSON `gorm:"type:jsonb;not null;default:'{}'" json:"field_provenance"`
 	CreatedAt           time.Time      `json:"created_at"`

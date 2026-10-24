@@ -41,6 +41,7 @@ had to be rebuilt by hand.
 | intromt-nightly | daily 13:00 | daily 05:00 | 48h |
 | image-grade-nightly | daily 15:00 | daily 07:00 | 48h |
 | image-grade-tag (off-host: `scripts/image-grade-local`, stamped by `image-grade-nightly/io.sh`) | daily 16:00 | daily 08:00 | 48h |
+| text-safety-nightly | daily 16:30 | daily 08:30 | 48h |
 | playtime-aggregate | daily 05:20 | daily 21:20 (prev. day) | 48h |
 | refresh-tag-counts | hourly :40 | hourly :40 | 6h |
 | tag-vocab-backlog | 1st 12:30 | 1st 04:30 | 768h |
@@ -124,7 +125,8 @@ no in-script trap can see. Registry: `lib/watchdog.conf`.
 
 Each job owns `/root/<job>/` with `run.sh`, `logs/`, `state/` (last-success
 stamp + job-specific state), and job-local env files where needed
-(intromt-nightly keeps `app.env` + `llm.env`; image-grade-nightly reads
+(intromt-nightly keeps `app.env` + `llm.env`; text-safety-nightly keeps the
+Cursor key in `cursor.env`; image-grade-nightly reads
 `/root/imgsafety/env.img`, left in place by the full-corpus grading run). Secrets never live in these
 scripts: DB env is snapshotted from the live catalog container per run and
 shredded on exit; DSNs are assembled inside the tool container, never on a

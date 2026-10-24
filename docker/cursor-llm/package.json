@@ -1,0 +1,9 @@
+{
+  "name": "cursor-llm",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.13" },
+  "dependencies": {
+    "@cursor/sdk": "1.0.40"
+  }
+}

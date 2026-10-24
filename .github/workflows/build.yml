@@ -9,6 +9,7 @@
 #   - account / admin / editor                     ← apps/account/** / apps/admin/** / apps/editor/** + root manifests + nuxt.Dockerfile
 #   - tools (infra-tools)                          ← apps/api/** + docker/tools.Dockerfile
 #   - wdtagger (infra-wdtagger)                    ← docker/wdtagger.Dockerfile + docker/wdtagger/**
+#   - cursorllm (infra-cursor-llm)                 ← docker/cursor-llm.Dockerfile + docker/cursor-llm/**
 # A docs-only push therefore builds nothing and costs ~1 min (the `changes` job).
 #
 # `infra-migrate` and `infra-tools` build in LOCKSTEP with the go services (same
@@ -18,8 +19,8 @@
 # run it and pass the target as an argument (`command: ["catalog"]`), so there is
 # no per-domain image to keep in sync. `infra-tools` packs every `cmd/*` binary,
 # so a push that changes a job must rebuild it or prod keeps running the old one.
-# `tools` and `wdtagger` are the groups Dokploy does not deploy (the image-grade
-# cron starts the tagger itself), so a build of only those does not trigger a
+# `tools`, `wdtagger` and `cursorllm` are the groups Dokploy does not deploy (the
+# image-grade and text-safety crons start their sidecars themselves), so a build of only those does not trigger a
 # redeploy; Actions → Run workflow → scope=tools rebuilds infra-tools alone.
 #
 # Three Dokploy projects deploy from this repo, and each is redeployed only when
@@ -130,6 +131,10 @@ jobs:
               - 'docker/wdtagger.Dockerfile'
               - 'docker/wdtagger/**'
               - '.github/workflows/build.yml'
+            cursorllm:
+              - 'docker/cursor-llm.Dockerfile'
+              - 'docker/cursor-llm/**'
+              - '.github/workflows/build.yml'
       - id: set
         env:
           EVENT: ${{ github.event_name }}
@@ -141,6 +146,7 @@ jobs:
           DEV: ${{ steps.filter.outputs.developer }}
           TOOLS: ${{ steps.filter.outputs.tools }}
           WDTAGGER: ${{ steps.filter.outputs.wdtagger }}
+          CURSORLLM: ${{ steps.filter.outputs.cursorllm }}
         run: |
           set -euo pipefail
           # Auto-built on push (path-filtered). account/admin args are baked at build.
@@ -162,7 +168,8 @@ jobs:
             {"name":"infra-editor","file":"docker/nuxt.Dockerfile","args":"APP=editor","group":"editor"},
             {"name":"infra-developer","file":"apps/developer/Dockerfile","args":"","group":"developer"},
             {"name":"infra-tools","file":"docker/tools.Dockerfile","args":"","group":"tools"},
-            {"name":"infra-wdtagger","file":"docker/wdtagger.Dockerfile","args":"","group":"wdtagger"}
+            {"name":"infra-wdtagger","file":"docker/wdtagger.Dockerfile","args":"","group":"wdtagger"},
+            {"name":"infra-cursor-llm","file":"docker/cursor-llm.Dockerfile","args":"","group":"cursorllm"}
           ]'
           if [ "$EVENT" = "workflow_dispatch" ]; then
             if [ "$SCOPE" = "tools" ]; then
@@ -171,8 +178,8 @@ jobs:
               sel=$(jq -cn --argjson c "$push_catalog" '$c')
             fi
           else
-            sel=$(jq -cn --argjson c "$push_catalog" --arg go "$GO" --arg account "$ACCOUNT" --arg admin "$ADMIN" --arg editor "$EDITOR" --arg dev "$DEV" --arg tools "$TOOLS" --arg wdtagger "$WDTAGGER" \
-              '([{g:"go",v:$go},{g:"account",v:$account},{g:"admin",v:$admin},{g:"editor",v:$editor},{g:"developer",v:$dev},{g:"tools",v:$tools},{g:"wdtagger",v:$wdtagger}] | map(select(.v=="true") | .g)) as $grp
+            sel=$(jq -cn --argjson c "$push_catalog" --arg go "$GO" --arg account "$ACCOUNT" --arg admin "$ADMIN" --arg editor "$EDITOR" --arg dev "$DEV" --arg tools "$TOOLS" --arg wdtagger "$WDTAGGER" --arg cursorllm "$CURSORLLM" \
+              '([{g:"go",v:$go},{g:"account",v:$account},{g:"admin",v:$admin},{g:"editor",v:$editor},{g:"developer",v:$dev},{g:"tools",v:$tools},{g:"wdtagger",v:$wdtagger},{g:"cursorllm",v:$cursorllm}] | map(select(.v=="true") | .g)) as $grp
                | $c | map(select(.group as $x | $grp | index($x)))')
           fi
           n=$(jq -n --argjson s "$sel" '$s | length')
