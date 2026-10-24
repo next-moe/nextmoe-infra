@@ -83,11 +83,18 @@ func (c *LLM) Ask(ctx context.Context, prompt string, out any) error {
 		return err
 	}
 	var lastErr error
+	prose := 0
 	for attempt := 0; ; attempt++ {
 		content, retryable, err := c.post(ctx, raw)
 		if err == nil {
 			if err = decodeJSONObject(content, out); err == nil {
 				return nil
+			}
+			// A model that refuses in prose ("这类内容涉及未成年人的性剥削…") does so
+			// on every retry; the 2026-10-24 backfill retried 29 such intros for
+			// ~10 min each. Two prose replies count as a refusal.
+			if prose++; prose >= 2 {
+				return fmt.Errorf("%w: %v", ErrBlocked, err)
 			}
 			retryable = true
 		}
