@@ -13,7 +13,12 @@ import {
   type LinkKind
 } from '~/utils/externalLinks'
 
-const props = defineProps<{ fieldKey: string }>()
+const props = withDefaults(
+  defineProps<{ fieldKey: string; adding?: boolean | null }>(),
+  { adding: null }
+)
+
+const addInHeader = computed(() => props.adding !== null)
 
 const list = useMergedRows(() => props.fieldKey)
 const { context, config, field, disabled, rows, summary } = list
@@ -163,7 +168,7 @@ const copy = async (text: string) => {
 </script>
 
 <template>
-  <div class="@container space-y-4">
+  <div class="@container flex flex-col gap-4">
     <section v-for="group in groups" :key="group.key" class="space-y-1">
       <header class="flex items-baseline gap-2 px-2">
         <h4 class="text-sm font-medium">{{ group.label }}</h4>
@@ -266,21 +271,31 @@ const copy = async (text: string) => {
       v-if="!groups.length"
       icon="lucide:link"
       title="还没有外链"
-      description="在下方粘贴网址即可添加，已知站点会自动识别。"
+      :description="
+        addInHeader
+          ? '点右上角的「添加外链」粘贴网址即可添加，已知站点会自动识别。'
+          : '在下方粘贴网址即可添加，已知站点会自动识别。'
+      "
       class-name="py-6"
     />
 
     <EditListHiddenToggle v-model="showHidden" :count="hiddenCount" />
 
     <form
-      v-if="!disabled"
-      class="border-default-200 space-y-2 rounded-lg border border-dashed p-3"
+      v-if="!disabled && (!addInHeader || props.adding)"
+      :class="
+        cn(
+          'border-default-200 space-y-2 rounded-lg border border-dashed p-3',
+          addInHeader && 'order-first'
+        )
+      "
       @submit.prevent="add"
     >
       <div class="flex items-center gap-2">
         <KunInput
           v-model="draft"
           placeholder="粘贴网址，例如 https://vndb.org/v1234"
+          :autofocus="addInHeader"
           :aria-label="`添加${config?.label ?? '外链'}`"
           class="min-w-0 flex-1"
           size="sm"

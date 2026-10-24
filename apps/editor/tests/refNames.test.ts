@@ -2,14 +2,12 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   REF_NAMES_PER_REQUEST,
   createRefNameBatcher,
-  preferredRefLabel,
-  secondaryRefLabel,
   type RefNameItem
 } from '../app/utils/refNameBatcher'
 
-const item = (key: string, display: string, zh?: string): RefNameItem => {
+const item = (key: string, display: string): RefNameItem => {
   const [family = '', id = ''] = key.split(':')
-  return { key, family, id, display_name: display, name_zh: zh }
+  return { key, family, id, display_name: display }
 }
 
 const answering = () =>
@@ -70,23 +68,5 @@ describe('ref name batcher', () => {
     }, 0)
     const out = await batcher.request(['tag:1', 'work:2'])
     expect([...out.values()]).toEqual([null, null])
-  })
-})
-
-describe('preferred ref labels', () => {
-  it('prefers a Chinese name for vocabulary-like families and keeps the original as a hint', () => {
-    const trait = item('trait:1', 'Hair', '毛发')
-    expect(preferredRefLabel(trait)).toBe('毛发')
-    expect(secondaryRefLabel(trait)).toBe('Hair')
-  })
-
-  it('keeps the display name of proper nouns even when a Chinese one exists', () => {
-    const character = item('character:7', '鳴瀬しろは', '鸣濑白羽')
-    expect(preferredRefLabel(character)).toBe('鳴瀬しろは')
-    expect(secondaryRefLabel(character)).toBe('')
-  })
-
-  it('falls back to the Chinese name when the display name is empty', () => {
-    expect(preferredRefLabel(item('release:3', '', '中文版'))).toBe('中文版')
   })
 })

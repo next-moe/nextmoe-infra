@@ -81,7 +81,8 @@ const describe = (row: RelatedRow) => {
     name: nameOf('credit_name', value.credit_name_id, '署名'),
     characterId,
     characterName: characterId
-      ? related.display.value.characters[characterId]?.name ||
+      ? refs.nameOf('character', characterId) ||
+        related.display.value.characters[characterId]?.name ||
         nameOf('character', characterId, '角色')
       : '',
     note: String(value.note ?? ''),

@@ -26,7 +26,8 @@ type listNamesOutput struct {
 }
 
 type refLabel struct {
-	name, zh string
+	name, zh, lang string
+	localized      map[string]repr.LocalizedText
 }
 
 type nameLookup func(ctx context.Context, ids, nsfw string) (map[string]refLabel, error)
@@ -93,9 +94,16 @@ func listCatalogNames(lookups map[string]nameLookup) func(context.Context, *list
 			}
 			item := repr.RefName{
 				Object: "ref_name", Key: k.key, Family: k.family, ID: k.id, DisplayName: label.name,
+				Localized: map[string]repr.LocalizedText{},
 			}
 			if label.zh != "" {
 				item.NameZh = &label.zh
+			}
+			if label.lang != "" {
+				item.Lang = &label.lang
+			}
+			if label.localized != nil {
+				item.Localized = label.localized
 			}
 			items = append(items, item)
 		}
@@ -175,12 +183,12 @@ func nameLookups(works WorksFunc, cat *Catalog) map[string]nameLookup {
 	batch := func(ids, nsfw string) CollectionInput { return CollectionInput{IDs: ids, NSFW: nsfw} }
 	return map[string]nameLookup{
 		"work": func(ctx context.Context, ids, nsfw string) (map[string]refLabel, error) {
-			out, err := listWorks(works, cat)(ctx, &listWorksInput{IDs: ids, NSFW: nsfw})
+			out, err := listWorks(works, cat)(ctx, &listWorksInput{IDs: ids, NSFW: nsfw, Include: "titles"})
 			if err != nil {
 				return nil, err
 			}
 			return namesOf(out.Body.Items, func(w repr.Work) (string, refLabel) {
-				return w.ID, refLabel{name: w.DisplayName, zh: zhOf(w.Localized)}
+				return w.ID, refLabel{name: w.DisplayName, zh: zhOf(w.Localized), lang: w.OLang, localized: w.Localized}
 			}), nil
 		},
 		"tag": func(ctx context.Context, ids, nsfw string) (map[string]refLabel, error) {
@@ -198,7 +206,7 @@ func nameLookups(works WorksFunc, cat *Catalog) map[string]nameLookup {
 				return nil, err
 			}
 			return namesOf(out.Body.Items, func(v repr.Company) (string, refLabel) {
-				return v.ID, refLabel{name: v.DisplayName, zh: zhOf(v.Localized)}
+				return v.ID, refLabel{name: v.DisplayName, zh: zhOf(v.Localized), lang: derefString(v.Lang), localized: v.Localized}
 			}), nil
 		},
 		"engine": func(ctx context.Context, ids, nsfw string) (map[string]refLabel, error) {
@@ -227,7 +235,7 @@ func nameLookups(works WorksFunc, cat *Catalog) map[string]nameLookup {
 				return nil, err
 			}
 			return namesOf(out.Body.Items, func(v repr.Character) (string, refLabel) {
-				return v.ID, refLabel{name: v.DisplayName, zh: zhOf(v.Localized)}
+				return v.ID, refLabel{name: v.DisplayName, zh: zhOf(v.Localized), lang: derefString(v.Lang), localized: v.Localized}
 			}), nil
 		},
 		"credit_name": func(ctx context.Context, ids, nsfw string) (map[string]refLabel, error) {
@@ -236,7 +244,7 @@ func nameLookups(works WorksFunc, cat *Catalog) map[string]nameLookup {
 				return nil, err
 			}
 			return namesOf(out.Body.Items, func(v repr.CreditName) (string, refLabel) {
-				return v.ID, refLabel{name: v.DisplayName, zh: zhOf(v.Localized)}
+				return v.ID, refLabel{name: v.DisplayName, zh: zhOf(v.Localized), lang: derefString(v.Lang), localized: v.Localized}
 			}), nil
 		},
 		"person": func(ctx context.Context, ids, nsfw string) (map[string]refLabel, error) {
@@ -268,7 +276,7 @@ func nameLookups(works WorksFunc, cat *Catalog) map[string]nameLookup {
 				if zh == "" {
 					zh = zhOf(v.Localized)
 				}
-				return v.ID, refLabel{name: v.DisplayName, zh: zh}
+				return v.ID, refLabel{name: v.DisplayName, zh: zh, localized: v.Localized}
 			}), nil
 		},
 		"release": func(ctx context.Context, ids, nsfw string) (map[string]refLabel, error) {
@@ -284,4 +292,11 @@ func nameLookups(works WorksFunc, cat *Catalog) map[string]nameLookup {
 			}), nil
 		},
 	}
+}
+
+func derefString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }

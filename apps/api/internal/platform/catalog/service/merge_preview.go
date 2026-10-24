@@ -420,13 +420,9 @@ type MergeCandidate struct {
 // the reconciliation queue first, then live entries of the same family that
 // carry exactly the same name.
 func (s *MergeService) MergeCandidates(ctx context.Context, entityType int16, id int64, limit int) ([]MergeCandidate, error) {
-	table, ok := entityTableName(entityType)
-	if !ok {
-		return nil, fmt.Errorf("catalog merge: unsupported entity type %d", entityType)
-	}
-	nameCol, live := "display_name", "o.deleted_at IS NULL"
-	if entityType == model.EntityTypeCreditName {
-		nameCol, live = "name", "true"
+	table, nameCol, live, err := candidateColumns(entityType)
+	if err != nil {
+		return nil, err
 	}
 	db := s.db.WithContext(ctx)
 	var out []MergeCandidate
@@ -452,4 +448,28 @@ func (s *MergeService) MergeCandidates(ctx context.Context, entityType int16, id
 		}
 	}
 	return out, nil
+}
+
+func (s *MergeService) MergeCandidateName(ctx context.Context, entityType int16, id int64) (string, error) {
+	table, nameCol, _, err := candidateColumns(entityType)
+	if err != nil {
+		return "", err
+	}
+	var names []string
+	err = s.db.WithContext(ctx).Raw(fmt.Sprintf(`SELECT %s FROM %s WHERE id = ?`, nameCol, table), id).Scan(&names).Error
+	if err != nil || len(names) == 0 {
+		return "", err
+	}
+	return names[0], nil
+}
+
+func candidateColumns(entityType int16) (table, nameCol, live string, err error) {
+	table, ok := entityTableName(entityType)
+	if !ok {
+		return "", "", "", fmt.Errorf("catalog merge: unsupported entity type %d", entityType)
+	}
+	if entityType == model.EntityTypeCreditName {
+		return table, "name", "true", nil
+	}
+	return table, "display_name", "o.deleted_at IS NULL", nil
 }

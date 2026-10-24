@@ -9,6 +9,8 @@ const { editor } = useEditorContext()
 const tagsKey = 'catalog.work.tag_ids'
 const spoilersKey = 'catalog.work.tag_spoilers'
 const hasTags = computed(() => editor.fieldByKey.value.has(tagsKey))
+const { disabled } = useEditorField(tagsKey)
+const adding = ref(false)
 </script>
 
 <template>
@@ -22,13 +24,22 @@ const hasTags = computed(() => editor.fieldByKey.value.has(tagsKey))
         :fields="props.section.fields"
         :count="nav.changesBySection.value[props.section.key] ?? 0"
       />
+      <WorkspaceAddToggle
+        v-if="hasTags && !disabled"
+        v-model="adding"
+        label="添加标签"
+      />
     </template>
     <div
       v-if="hasTags"
       class="border-default-200 bg-content1 rounded-xl border px-4 py-1 md:px-5"
     >
       <EditFieldShell :field-key="tagsKey" hide-header>
-        <EditTagsTable :tags-key="tagsKey" :spoilers-key="spoilersKey" />
+        <EditTagsTable
+          v-model:adding="adding"
+          :tags-key="tagsKey"
+          :spoilers-key="spoilersKey"
+        />
       </EditFieldShell>
     </div>
     <WorkspaceFormSection v-else :fields="props.section.fields" />

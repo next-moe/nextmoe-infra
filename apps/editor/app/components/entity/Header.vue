@@ -12,10 +12,11 @@ const props = defineProps<{
   loading?: boolean
 }>()
 
+const preferences = useEditorPreferences()
 const meta = computed(() => ENTITY_META[props.family])
 const name = computed(
   () =>
-    props.summary?.display_name ||
+    preferences.nameOf(props.summary) ||
     props.summary?.title ||
     `${meta.value.label} #${props.entityId}`
 )

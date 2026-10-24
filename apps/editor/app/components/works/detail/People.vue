@@ -4,6 +4,8 @@ import { ROSTER_ROLE_LABELS } from '~/constants/catalog'
 
 const props = defineProps<{ work: CatalogWork }>()
 
+const preferences = useEditorPreferences()
+
 const credits = computed(() => props.work.credits ?? [])
 const characters = computed(() => props.work.characters ?? [])
 </script>
@@ -24,7 +26,7 @@ const characters = computed(() => props.work.characters ?? [])
               :to="`/credit-names/${entry.id}`"
             >
               <KunChip size="sm" variant="flat">{{
-                entry.display_name
+                preferences.nameOf(entry)
               }}</KunChip>
             </NuxtLink>
           </dd>
@@ -56,13 +58,15 @@ const characters = computed(() => props.work.characters ?? [])
               :to="`/characters/${character.id}`"
               class="hover:text-primary block truncate font-medium"
             >
-              {{ character.display_name }}
+              {{ preferences.nameOf(character) }}
             </NuxtLink>
             <p class="text-default-400 truncate text-xs">
               {{ labelOf(ROSTER_ROLE_LABELS, character.roster_role) }}
               <template v-if="character.voices?.length">
                 · CV
-                {{ character.voices.map((v) => v.display_name).join('、') }}
+                {{
+                  character.voices.map((v) => preferences.nameOf(v)).join('、')
+                }}
               </template>
             </p>
           </div>

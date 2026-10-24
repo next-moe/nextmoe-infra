@@ -26,6 +26,7 @@ const fetchPage = async (cursor: string | null) => {
         limit: PAGE_SIZE,
         nsfw: true,
         include_total: true,
+        include: 'titles',
         ...(q ? { q } : {}),
         ...(cursor ? { cursor } : {})
       }

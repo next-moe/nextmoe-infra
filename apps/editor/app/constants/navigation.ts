@@ -104,6 +104,11 @@ export const EDITOR_NAV: EditorNavGroup[] = [
         label: '编辑规范',
         icon: 'lucide:book-open',
         to: '/guidelines'
+      },
+      {
+        label: '设置',
+        icon: 'lucide:settings',
+        to: '/settings'
       }
     ]
   }

@@ -1,5 +1,6 @@
 import type { CatalogEditContextRow, CatalogWork } from '#shared/types/catalog'
 import type { CatalogSchemaMember } from '#shared/types/edit'
+import type { NameSource } from '#shared/types/preferences'
 import type { EntityWorkspace } from './useEntityWorkspace'
 import { vocabLabel } from '~/constants/vocabLabels'
 
@@ -188,7 +189,7 @@ export const useWorkRelated = (workId: MaybeRefOrGetter<string>) => {
     ) => {
       for (const item of (items as Loose[] | undefined) ?? []) {
         if (item?.id != null && item.display_name) {
-          refs.remember(family, str(item.id), str(item.display_name))
+          refs.remember(family, str(item.id), item as NameSource)
         }
       }
     }
@@ -326,7 +327,7 @@ export const useWorkRelated = (workId: MaybeRefOrGetter<string>) => {
         query: { ids: chunk.join(','), nsfw: true, limit: chunk.length }
       }).catch(() => null)
       for (const item of list?.items ?? []) {
-        refs.remember('credit_name', str(item.id), str(item.display_name))
+        refs.remember('credit_name', str(item.id), item as NameSource)
       }
       mergeInto(
         'creditPersons',

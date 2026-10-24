@@ -66,8 +66,8 @@ const rows = computed(() =>
       origin: upstream ? ('upstream' as const) : ('human' as const),
       source: upstream ? sourceLabel(context!.source) : '',
       state,
-      known: character?.name || refs.nameOf('character', id),
-      name: character?.name || refs.nameOf('character', id) || `角色 #${id}`,
+      known: refs.nameOf('character', id) || character?.name,
+      name: refs.nameOf('character', id) || character?.name || `角色 #${id}`,
       role: roster.tokenOf('kind', value.kind) ?? 'unknown',
       spoiler: roster.tokenOf('spoiler', value.spoiler) ?? 'none',
       picture: character?.image ?? null
@@ -269,7 +269,10 @@ onMounted(() => related.load())
             <span class="truncate">
               {{
                 related.display.value.characters[row.id]?.voices
-                  .map((voice) => voice.name)
+                  .map(
+                    (voice) =>
+                      refs.nameOf('credit_name', voice.id) || voice.name
+                  )
                   .join('、') || `#${row.id}`
               }}
             </span>

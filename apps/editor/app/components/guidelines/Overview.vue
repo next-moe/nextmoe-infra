@@ -37,7 +37,7 @@ useHead({ title: '编辑规范 · 未萌编辑台' })
 
     <section class="space-y-4" aria-labelledby="guide-principles">
       <h2 id="guide-principles" class="text-lg font-semibold">基本原则</h2>
-      <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <ul class="grid gap-3 sm:grid-cols-2">
         <li
           v-for="principle in GUIDELINE_PRINCIPLES"
           :key="principle.title"

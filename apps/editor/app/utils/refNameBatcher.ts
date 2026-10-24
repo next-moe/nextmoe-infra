@@ -1,34 +1,13 @@
-export interface RefNameItem {
+import type { NameSource } from '#shared/types/preferences'
+
+export interface RefNameItem extends NameSource {
   key: string
   family: string
   id: string
   display_name: string
-  name_zh?: string | null
 }
 
 export const REF_NAMES_PER_REQUEST = 500
-
-export const ZH_FIRST_FAMILIES = new Set(['trait', 'tag', 'role'])
-
-export const zhFromLocalized = (
-  localized: Record<string, { value?: string } | undefined> | null | undefined
-) =>
-  ['zh-Hans', 'zh-Hant', 'zh']
-    .map((lang) => localized?.[lang]?.value ?? '')
-    .find(Boolean) ?? ''
-
-export const preferredRefLabel = (item: RefNameItem) =>
-  (ZH_FIRST_FAMILIES.has(item.family) && item.name_zh) ||
-  item.display_name ||
-  item.name_zh ||
-  ''
-
-export const secondaryRefLabel = (item: RefNameItem) => {
-  const label = preferredRefLabel(item)
-  return item.display_name && item.display_name !== label
-    ? item.display_name
-    : ''
-}
 
 type Waiter = (item: RefNameItem | null) => void
 

@@ -52,8 +52,8 @@ const companies = computed(() => {
       id,
       rows,
       state,
-      known: company?.name || refs.nameOf('company', id),
-      name: company?.name || refs.nameOf('company', id) || `厂商 #${id}`,
+      known: refs.nameOf('company', id) || company?.name,
+      name: refs.nameOf('company', id) || company?.name || `厂商 #${id}`,
       logo: company?.logo ?? null,
       roles: live.map((row) => roleText(row.value.kind)),
       sources: [

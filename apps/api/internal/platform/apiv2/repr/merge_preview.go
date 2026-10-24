@@ -24,7 +24,7 @@ type MergeCandidate struct {
 	Object string   `json:"object" enum:"merge_candidate" doc:"Type discriminant. Always merge_candidate."`
 	ID     string   `json:"id" pattern:"^[0-9]+$" maxLength:"20" doc:"Catalog id of the suggested entry."`
 	Name   string   `json:"name" maxLength:"512" doc:"Display name. Must not be used as a discriminant."`
-	Reason string   `json:"reason" enum:"queue,same_name" doc:"queue: an undecided pair in the reconciliation queue; same_name: a live entry with exactly the same name."`
+	Reason string   `json:"reason" enum:"queue,same_name,similar_name" doc:"queue: an undecided pair in the reconciliation queue; same_name: a live entry with exactly the same name; similar_name: a catalog search hit for the entry's name."`
 }
 
 type MergePreviewSide struct {

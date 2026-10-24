@@ -45,9 +45,10 @@ const { data: summary } = useLazyAsyncData(
     ).catch(() => null)
 )
 
+const preferences = useEditorPreferences()
 const name = computed(
   () =>
-    summary.value?.display_name ||
+    preferences.nameOf(summary.value) ||
     summary.value?.title ||
     session.nameOf(session.root)
 )

@@ -72,11 +72,6 @@ export const GUIDELINE_PRINCIPLES: GuidelinePrinciple[] = [
     title: '隐藏而不是删除',
     body: '资料源导入的内容只能隐藏，导入任务不会把你的修改改回去。',
     icon: 'lucide:eye-off'
-  },
-  {
-    title: '一次只做一件事',
-    body: '一份提案只改一类问题，审核者才能逐项判断；无关的修改分开提交。',
-    icon: 'lucide:list-checks'
   }
 ]
 

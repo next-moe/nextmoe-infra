@@ -4,6 +4,7 @@ import type { CatalogSearchList } from '#shared/types/catalog'
 import { SEARCH_FAMILIES } from '~/constants/search'
 
 const api = useEditorApi()
+const preferences = useEditorPreferences()
 
 const query = ref('')
 const loading = ref(false)
@@ -35,8 +36,8 @@ const runSearch = async (q: string) => {
       }).catch(() => null)
       const items: KunCommandItem[] = (list?.items ?? []).map((hit) => ({
         value: `${family.path}/${hit.id}`,
-        label: hit.display_name,
-        description: hit.latin ?? undefined,
+        label: preferences.nameOf(hit) || hit.display_name,
+        description: preferences.otherNameOf(hit) || hit.latin || undefined,
         icon: family.icon
       }))
       return { label: family.label, items }
