@@ -77,4 +77,13 @@ func TestShardSplitsWithoutOverlap(t *testing.T) {
 	}
 	_, err = Shard(in, "2/2")
 	assert.Error(t, err)
+
+	big, err := Shard(in, "0-3/5")
+	require.NoError(t, err)
+	small, err := Shard(in, "4/5")
+	require.NoError(t, err)
+	assert.Equal(t, len(in), len(big)+len(small))
+	assert.Greater(t, len(big), 2*len(small))
+	_, err = Shard(in, "3-1/5")
+	assert.Error(t, err)
 }

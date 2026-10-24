@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -63,7 +64,13 @@ type chatResponse struct {
 // retry of the same text, so callers split the batch to isolate the text.
 var ErrBlocked = errors.New("llm refused the prompt under the provider's usage guidelines")
 
-var retrySchedule = []time.Duration{5 * time.Second, 15 * time.Second, 45 * time.Second, 90 * time.Second}
+// Both upstreams answer 429 by the minute under load (Workers AI: "inference
+// request per min rate reached"); four retries over ~2.5 min dropped whole intro
+// batches whose earlier calls had already succeeded, so retries wait longer.
+var retrySchedule = []time.Duration{
+	5 * time.Second, 15 * time.Second, 30 * time.Second, 60 * time.Second,
+	90 * time.Second, 120 * time.Second, 120 * time.Second, 120 * time.Second,
+}
 
 // Ask sends one user message and decodes the JSON object in the reply into out.
 func (c *LLM) Ask(ctx context.Context, prompt string, out any) error {
@@ -91,7 +98,7 @@ func (c *LLM) Ask(ctx context.Context, prompt string, out any) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(retrySchedule[attempt]):
+		case <-time.After(retrySchedule[attempt] + time.Duration(rand.Int64N(int64(retrySchedule[attempt]/2)+1))):
 		}
 	}
 }

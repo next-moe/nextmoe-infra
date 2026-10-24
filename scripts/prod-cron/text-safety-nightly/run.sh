@@ -105,8 +105,10 @@ step titles "$BASE/llm.tmp" -mode titles -model grok-4.7:low:fast -concurrency 8
 step release-titles "$BASE/llm.tmp" -mode release-titles -model grok-4.7:low:fast -concurrency 8
 step title-review "$BASE/llm.tmp" -mode title-review -model claude-sonnet-5-5:medium -concurrency 4
 step apply "$BASE/llm.tmp" -mode apply -run -prune
-step intros "$LLM_ENV" -mode intros -model "$CF_MODEL" -concurrency 8
-step char-intros "$LLM_ENV" -mode char-intros -model "$CF_MODEL" -concurrency 8
+# Workers AI rate-limits per minute; 24 calls in flight answered 429 on most
+# requests during the backfill, and llm-adjudicate saw it at 4.
+step intros "$LLM_ENV" -mode intros -model "$CF_MODEL" -concurrency 3
+step char-intros "$LLM_ENV" -mode char-intros -model "$CF_MODEL" -concurrency 3
 docker logs --tail 5 "$SIDECAR" || true
 
 # A title verdict that moved a work's shelf changes the content_limit the search

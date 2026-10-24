@@ -247,11 +247,19 @@ func bisect[T, R any](ctx context.Context, batch []T, run func(context.Context, 
 	return append(left, right...), nil
 }
 
-// Shard keeps the inputs whose hash falls in shard k of n ("k/n").
+// Shard keeps the inputs whose hash falls in shard k of n ("k/n"), or in
+// shards a through b ("a-b/n"), so lanes on upstreams of unequal speed can take
+// unequal shares.
 func Shard(in []IntroInput, spec string) ([]IntroInput, error) {
-	var k, n int
-	if _, err := fmt.Sscanf(spec, "%d/%d", &k, &n); err != nil || n < 1 || k < 0 || k >= n {
-		return nil, fmt.Errorf("bad -shard %q, want k/n with 0 <= k < n", spec)
+	var lo, hi, n int
+	if _, err := fmt.Sscanf(spec, "%d-%d/%d", &lo, &hi, &n); err != nil {
+		if _, err := fmt.Sscanf(spec, "%d/%d", &lo, &n); err != nil {
+			return nil, fmt.Errorf("bad -shard %q, want k/n or a-b/n", spec)
+		}
+		hi = lo
+	}
+	if n < 1 || lo < 0 || hi < lo || hi >= n {
+		return nil, fmt.Errorf("bad -shard %q, want 0 <= a <= b < n", spec)
 	}
 	out := in[:0:0]
 	for _, x := range in {
@@ -259,7 +267,7 @@ func Shard(in []IntroInput, spec string) ([]IntroInput, error) {
 		if err != nil {
 			return nil, fmt.Errorf("hash %q: %w", x.Hash, err)
 		}
-		if int(v%uint64(n)) == k {
+		if k := int(v % uint64(n)); k >= lo && k <= hi {
 			out = append(out, x)
 		}
 	}

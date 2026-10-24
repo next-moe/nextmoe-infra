@@ -21,7 +21,7 @@ func main() {
 	dsn := flag.String("dsn", os.Getenv("KUN_TEXT_SAFETY_DSN"), "catalog DSN (required; refuses to guess)")
 	llmBase := flag.String("llm-base", envOr("KUN_TEXT_SAFETY_LLM_BASE", os.Getenv("KUN_AI_UPSTREAM_BASE_URL")), "OpenAI-compatible base URL (…/v1)")
 	llmToken := flag.String("llm-token", envOr("KUN_TEXT_SAFETY_LLM_TOKEN", os.Getenv("KUN_AI_UPSTREAM_TOKEN")), "bearer token for -llm-base")
-	shard := flag.String("shard", "", "intros/char-intros: judge only the k-th of n hash shards, as k/n, so two upstreams can split one lane")
+	shard := flag.String("shard", "", "intros/char-intros: judge only hash shard k of n (k/n) or shards a..b (a-b/n), so upstreams of unequal speed can split one lane")
 	model := flag.String("model", envOr("KUN_TEXT_SAFETY_MODEL", "grok-4.7:low:fast"), "model id served by -llm-base")
 	conc := flag.Int("concurrency", 16, "LLM calls in flight")
 	limit := flag.Int("limit", 0, "titles/intros: cap items judged this run (0 = all)")
