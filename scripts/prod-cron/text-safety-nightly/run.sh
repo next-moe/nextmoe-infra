@@ -97,6 +97,7 @@ MARK=$(wc -c < "$LOG")
 # so a work the title verdicts moved onto it is judged tonight, not tomorrow.
 step titles -mode titles -model grok-4.7:low:fast -concurrency 8
 step release-titles -mode release-titles -model grok-4.7:low:fast -concurrency 8
+step title-review -mode title-review -model claude-opus-5-5:medium -concurrency 4
 step apply -mode apply -run -prune
 step intros -mode intros -model grok-4.6:low:fast -concurrency 8
 step char-intros -mode char-intros -model grok-4.6:low:fast -concurrency 8

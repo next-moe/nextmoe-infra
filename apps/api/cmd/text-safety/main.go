@@ -17,7 +17,7 @@ import (
 )
 
 func main() {
-	mode := flag.String("mode", "", "titles | release-titles | intros | char-intros | apply | report")
+	mode := flag.String("mode", "", "titles | release-titles | title-review | intros | char-intros | apply | report")
 	dsn := flag.String("dsn", os.Getenv("KUN_TEXT_SAFETY_DSN"), "catalog DSN (required; refuses to guess)")
 	llmBase := flag.String("llm-base", os.Getenv("KUN_TEXT_SAFETY_LLM_BASE"), "OpenAI-compatible base URL (…/v1)")
 	llmToken := flag.String("llm-token", os.Getenv("KUN_TEXT_SAFETY_LLM_TOKEN"), "bearer token for -llm-base")
@@ -66,11 +66,14 @@ func main() {
 	}
 
 	switch *mode {
-	case "titles", "release-titles":
+	case "titles", "release-titles", "title-review":
 		llm := newLLM()
 		judge := textsafety.JudgeTitles
-		if *mode == "release-titles" {
+		switch *mode {
+		case "release-titles":
 			judge = textsafety.JudgeReleaseTitles
+		case "title-review":
+			judge = textsafety.ReviewTitles
 		}
 		st, err := judge(ctx, db, llm, opts)
 		printUsage(llm)

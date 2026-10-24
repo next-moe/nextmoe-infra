@@ -7,6 +7,7 @@ import (
 
 const (
 	TitlePromptVersion     = "title-v1"
+	TitleReviewVersion     = "title-v1-review"
 	IntroPromptVersion     = "intro-v1"
 	CharIntroPromptVersion = "char-intro-v1"
 )

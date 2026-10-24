@@ -34,8 +34,9 @@ func titleSetHash(names []string) string { return md5Hex(strings.Join(names, "\n
 // loadWorkTitles returns every live galgame work with the names that decide its
 // shelf: the display name and its official and alias titles. Release titles are
 // judged one by one (loadPendingReleaseTitles) and hidden on their own, because
-// folding them in let one bundle or trial-edition title move ~3,800 works to the
-// nsfw shelf. Search hints are never rendered and stay out.
+// folding them in let a bundle or crash-fix release carry other games' names
+// onto a work and move it to the nsfw shelf. Search hints are never rendered and
+// stay out.
 func loadWorkTitles(ctx context.Context, db *gorm.DB) ([]workTitles, error) {
 	var rows []struct {
 		ID          int64  `gorm:"column:id"`
@@ -75,11 +76,18 @@ func loadWorkTitles(ctx context.Context, db *gorm.DB) ([]workTitles, error) {
 // work that has no verdict, as a one-name set: its hash is md5 of the trimmed
 // title, the expression the read face looks it up by.
 func loadPendingReleaseTitles(ctx context.Context, db *gorm.DB) ([]workTitles, error) {
+	return releaseTitleSets(ctx, db, `AND NOT EXISTS (SELECT 1 FROM catalog_work_title_safety s WHERE s.title_hash = md5(btrim(r.title)))`)
+}
+
+func loadReleaseTitleSets(ctx context.Context, db *gorm.DB) ([]workTitles, error) {
+	return releaseTitleSets(ctx, db, "")
+}
+
+func releaseTitleSets(ctx context.Context, db *gorm.DB, extra string) ([]workTitles, error) {
 	var titles []string
 	if err := db.WithContext(ctx).Raw(`SELECT DISTINCT btrim(r.title) FROM catalog_release r
 		JOIN catalog_work w ON w.id = r.work_id
-		WHERE `+galgameLiveSQL+` AND r.deleted_at IS NULL AND btrim(coalesce(r.title, '')) <> ''
-		  AND NOT EXISTS (SELECT 1 FROM catalog_work_title_safety s WHERE s.title_hash = md5(btrim(r.title)))`,
+		WHERE `+galgameLiveSQL+` AND r.deleted_at IS NULL AND btrim(coalesce(r.title, '')) <> '' `+extra,
 		model.WorkStatusLive).Scan(&titles).Error; err != nil {
 		return nil, err
 	}
