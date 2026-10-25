@@ -2,6 +2,10 @@ package model
 
 import "time"
 
+// SafeTitleConfidence is the bar a "safe" title verdict must clear before a name
+// counts as safe; below it the name is treated as unsafe.
+const SafeTitleConfidence = 0.8
+
 const (
 	TitleSafetySafe       int16 = 1
 	TitleSafetySuggestive int16 = 2
@@ -46,3 +50,7 @@ type CatalogWorkIntroSafety struct {
 }
 
 func (CatalogWorkIntroSafety) TableName() string { return "catalog_work_intro_safety" }
+
+type CatalogCharacterIntroSafety CatalogWorkIntroSafety
+
+func (CatalogCharacterIntroSafety) TableName() string { return "catalog_character_intro_safety" }

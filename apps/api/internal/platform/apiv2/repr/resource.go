@@ -49,7 +49,7 @@ type Work struct {
 	Localized            map[string]LocalizedText `json:"localized" doc:"BCP-47 keys, sparse. Empty object if none. Must not be used as a discriminant."`
 	OLang                string                   `json:"olang" maxLength:"32" format:"bcp47" doc:"Original language, BCP-47. Open vocabulary languages."`
 	ContentRating        string                   `json:"content_rating" enum:"all_ages,sensitive,r18" doc:"Age axis of the work."`
-	ContentLimit         string                   `json:"content_limit" enum:"sfw,nsfw" doc:"Display axis: whether this work may be shown to a reader who has not opted into adult content. Set on every work, claimed or not, and the value the content_limit filter selects on. It is not content_rating: an r18 game whose cover art is safe is sfw, and a work whose every cover is graded explicit is nsfw whatever its rating. A claimed work carries the same value in claim.content_limit."`
+	ContentLimit         string                   `json:"content_limit" enum:"sfw,nsfw" doc:"Display axis: whether this work may be shown to a reader who has not opted into adult content. Set on every work, claimed or not, and the value the content_limit filter selects on. It is not content_rating: an r18 game whose cover art is safe is sfw, and a work whose every cover is graded explicit is nsfw whatever its rating. A work whose displayed names were judged sexual or suggestive is nsfw; an unclaimed work whose names were never judged falls back to its rating. A claimed work carries the same value in claim.content_limit."`
 	ReleaseDate          *string                  `json:"release_date" format:"date" maxLength:"10" doc:"Calendar date. null when release_status is announced, cancelled, or unknown."`
 	ReleaseDatePrecision *string                  `json:"release_date_precision" enum:"day,month,year" doc:"null when release_date is null. month dates sit on the 1st; year dates sit on January 1."`
 	ReleaseStatus        string                   `json:"release_status" enum:"released,dated,announced,cancelled,unknown" doc:"World state of the release, distinct from our knowledge gap."`
@@ -69,7 +69,7 @@ type Work struct {
 	Playtimes            *[]Playtime              `json:"playtimes,omitempty" doc:"Present when include=playtimes. Empty array if none."`
 	Series               *[]WorkSeriesRef         `json:"series,omitempty" doc:"Present when include=series. Empty array if none."`
 	Platforms            *[]WorkPlatform          `json:"platforms,omitempty" doc:"Present when include=platforms. Empty array if none."`
-	Intros               *[]Intro                 `json:"intros,omitempty" doc:"Present when include=intros. Empty array if none."`
+	Intros               *[]Intro                 `json:"intros,omitempty" doc:"Present when include=intros. On a work whose content_limit is sfw, only text a safety review cleared: the original, a redacted version, or a rewritten one (is_machine true); a language with none of those falls back to its next source or is left out, and text not reviewed yet is never served. The originals are served only to nsfw=true callers on an nsfw work. Empty array if none."`
 	Covers               *[]Cover                 `json:"covers,omitempty" doc:"Present when include=covers. Empty array if none."`
 	Screenshots          *[]Screenshot            `json:"screenshots,omitempty" doc:"Present when include=screenshots. Empty array if none."`
 	Characters           *[]WorkCharacter         `json:"characters,omitempty" doc:"Present when include=characters. Empty array if none."`

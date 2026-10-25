@@ -77,6 +77,7 @@ func TestConstantGroupsHaveUniqueValues(t *testing.T) {
 func TestDisplayLimitKeyIsATwoValuePartition(t *testing.T) {
 	wiki, empty := "galgame_wiki", ""
 	pwid := int64(42)
+	safe, unsafe := false, true
 
 	for _, tc := range []struct {
 		name string
@@ -102,6 +103,14 @@ func TestDisplayLimitKeyIsATwoValuePartition(t *testing.T) {
 			ContentRating: ContentRatingR18, CoverArtAllExplicit: true}, DisplayLimitKeyNSFW},
 		{"bodyless all_ages whose only cover art is explicit", WorkShelf{ContentRating: ContentRatingAllAges,
 			CoverArtAllExplicit: true}, DisplayLimitKeyNSFW},
+		{"bodyless r18 whose titles were judged safe", WorkShelf{ContentRating: ContentRatingR18,
+			TitleNSFW: &safe}, DisplayLimitKeySFW},
+		{"bodyless all_ages whose titles were judged nsfw", WorkShelf{ContentRating: ContentRatingAllAges,
+			TitleNSFW: &unsafe}, DisplayLimitKeyNSFW},
+		{"bodyless r18, titles safe, but every cover is explicit", WorkShelf{ContentRating: ContentRatingR18,
+			TitleNSFW: &safe, CoverArtAllExplicit: true}, DisplayLimitKeyNSFW},
+		{"claimed: the title verdict reaches it through display_nsfw, not here", WorkShelf{Site: &wiki,
+			ProductWorkID: &pwid, ContentRating: ContentRatingAllAges, TitleNSFW: &unsafe}, DisplayLimitKeySFW},
 	} {
 		got := DisplayLimitKey(tc.in)
 		assert.Equal(t, tc.want, got, "%s", tc.name)

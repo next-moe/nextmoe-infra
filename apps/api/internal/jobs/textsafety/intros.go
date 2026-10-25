@@ -61,24 +61,24 @@ type rewriteReply struct {
 	} `json:"items"`
 }
 
-func JudgeIntros(ctx context.Context, db *gorm.DB, llm *LLM, opts JudgeOpts, pending []IntroInput) (*IntroStats, error) {
+func JudgeIntros(ctx context.Context, db *gorm.DB, llm *LLM, opts JudgeOpts, pending []IntroInput, kind IntroKind) (*IntroStats, error) {
 	if opts.Limit > 0 && len(pending) > opts.Limit {
 		pending = pending[:opts.Limit]
 	}
 	st := &IntroStats{Pending: len(pending), ByMode: map[string]int{}}
 	var mu sync.Mutex
-	batches := pack(pending, func(in IntroInput) int { return runeLen(in.Intro) }, 9000, 40)
+	batches := pack(pending, func(in IntroInput) int { return runeLen(in.Intro) }, 5000, 20)
 	parallel(ctx, batches, opts.Concurrency, func(ctx context.Context, batch []IntroInput) {
 		rows, err := bisect(ctx, batch, func(ctx context.Context, b []IntroInput) ([]model.CatalogWorkIntroSafety, error) {
-			return judgeIntroBatch(ctx, llm, b)
+			return judgeIntroBatch(ctx, llm, b, kind)
 		}, func(in IntroInput) model.CatalogWorkIntroSafety {
 			return model.CatalogWorkIntroSafety{
 				IntroHash: in.Hash, Verdict: model.IntroSafetyExplicit, Confidence: 1,
-				SFWMode: model.IntroSFWDropped, Model: llm.Model(), PromptVersion: IntroPromptVersion,
+				SFWMode: model.IntroSFWDropped, Model: llm.Model(), PromptVersion: kind.promptVersion,
 			}
 		})
 		if err == nil && opts.Sink == nil && len(rows) > 0 {
-			err = db.WithContext(ctx).Clauses(clause.OnConflict{UpdateAll: true}).Create(&rows).Error
+			err = db.WithContext(ctx).Table(kind.table).Clauses(clause.OnConflict{UpdateAll: true}).Create(&rows).Error
 		}
 		mu.Lock()
 		defer mu.Unlock()
@@ -109,8 +109,8 @@ func JudgeIntros(ctx context.Context, db *gorm.DB, llm *LLM, opts JudgeOpts, pen
 // judgeIntroBatch runs one batch through classify → redact → verify, then
 // rewrite → verify for what redaction could not save. An intro whose call
 // failed is left out and stays pending for the next run.
-func judgeIntroBatch(ctx context.Context, llm *LLM, batch []IntroInput) ([]model.CatalogWorkIntroSafety, error) {
-	verdicts, err := classifyIntros(ctx, llm, introTexts(batch))
+func judgeIntroBatch(ctx context.Context, llm *LLM, batch []IntroInput, kind IntroKind) ([]model.CatalogWorkIntroSafety, error) {
+	verdicts, err := classifyIntros(ctx, llm, kind, introTexts(batch))
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +125,7 @@ func judgeIntroBatch(ctx context.Context, llm *LLM, batch []IntroInput) ([]model
 		}
 		row := &model.CatalogWorkIntroSafety{
 			IntroHash: in.Hash, Verdict: v.Class, Confidence: float32(v.Confidence),
-			Model: llm.Model(), PromptVersion: IntroPromptVersion,
+			Model: llm.Model(), PromptVersion: kind.promptVersion,
 		}
 		out[i] = row
 		if v.safe() {
@@ -142,7 +142,7 @@ func judgeIntroBatch(ctx context.Context, llm *LLM, batch []IntroInput) ([]model
 	}
 
 	if len(redacted) > 0 {
-		checks, err := classifyIntros(ctx, llm, redacted)
+		checks, err := classifyIntros(ctx, llm, kind, redacted)
 		if err != nil {
 			return nil, err
 		}
@@ -156,7 +156,7 @@ func judgeIntroBatch(ctx context.Context, llm *LLM, batch []IntroInput) ([]model
 	}
 
 	if len(rewriteIdx) > 0 {
-		rewrites, err := rewriteIntros(ctx, llm, batch, rewriteIdx)
+		rewrites, err := rewriteIntros(ctx, llm, kind, batch, rewriteIdx)
 		if err != nil {
 			return nil, err
 		}
@@ -171,7 +171,7 @@ func judgeIntroBatch(ctx context.Context, llm *LLM, batch []IntroInput) ([]model
 			}
 		}
 		if len(texts) > 0 {
-			checks, err := classifyIntros(ctx, llm, texts)
+			checks, err := classifyIntros(ctx, llm, kind, texts)
 			if err != nil {
 				return nil, err
 			}
@@ -204,7 +204,7 @@ func introTexts(batch []IntroInput) []string {
 
 // classifyIntros returns verdicts keyed by the index into texts; a text the
 // reply skipped or garbled is absent.
-func classifyIntros(ctx context.Context, llm *LLM, texts []string) (map[int]introVerdict, error) {
+func classifyIntros(ctx context.Context, llm *LLM, kind IntroKind, texts []string) (map[int]introVerdict, error) {
 	segs := make([][]string, len(texts))
 	var b strings.Builder
 	for i, t := range texts {
@@ -212,7 +212,7 @@ func classifyIntros(ctx context.Context, llm *LLM, texts []string) (map[int]intr
 		fmt.Fprintf(&b, "=== id %d ===\n%s\n", i+1, numberedText(segs[i]))
 	}
 	var reply introReply
-	if err := llm.Ask(ctx, introPrompt+b.String(), &reply); err != nil {
+	if err := llm.Ask(ctx, kind.classify+b.String(), &reply); err != nil {
 		return nil, err
 	}
 	out := make(map[int]introVerdict, len(texts))
@@ -236,13 +236,13 @@ func classifyIntros(ctx context.Context, llm *LLM, texts []string) (map[int]intr
 	return out, nil
 }
 
-func rewriteIntros(ctx context.Context, llm *LLM, batch []IntroInput, idx []int) ([]string, error) {
+func rewriteIntros(ctx context.Context, llm *LLM, kind IntroKind, batch []IntroInput, idx []int) ([]string, error) {
 	items := make([]any, len(idx))
 	for j, i := range idx {
 		items[j] = map[string]any{"id": j + 1, "title": batch[i].Title, "lang": batch[i].Lang, "description": batch[i].Intro}
 	}
 	var reply rewriteReply
-	if err := llm.Ask(ctx, rewritePrompt+jsonLines(items), &reply); err != nil {
+	if err := llm.Ask(ctx, kind.rewrite+jsonLines(items), &reply); err != nil {
 		return nil, err
 	}
 	out := make([]string, len(idx))

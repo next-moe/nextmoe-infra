@@ -5,11 +5,14 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
 	"api/internal/platform/catalog/model"
+	"api/internal/platform/catalog/service"
 
 	"gorm.io/gorm"
 )
@@ -30,9 +33,12 @@ func md5Hex(s string) string {
 
 func titleSetHash(names []string) string { return md5Hex(strings.Join(names, "\n")) }
 
-// loadWorkTitles returns every live galgame work with the names its page shows:
-// the display name plus its official and alias titles. Search hints are never
-// rendered and stay out.
+// loadWorkTitles returns every live galgame work with the names that decide its
+// shelf: the display name and its official and alias titles. Release titles are
+// judged one by one (loadPendingReleaseTitles) and hidden on their own, because
+// folding them in let a bundle or crash-fix release carry other games' names
+// onto a work and move it to the nsfw shelf. Search hints are never rendered and
+// stay out.
 func loadWorkTitles(ctx context.Context, db *gorm.DB) ([]workTitles, error) {
 	var rows []struct {
 		ID          int64  `gorm:"column:id"`
@@ -41,11 +47,10 @@ func loadWorkTitles(ctx context.Context, db *gorm.DB) ([]workTitles, error) {
 	}
 	if err := db.WithContext(ctx).Raw(`
 		SELECT w.id, w.display_name,
-		       coalesce(string_agg(t.title, E'\x1f') FILTER (WHERE t.kind IN (?, ?)), '') AS titles
+		       coalesce((SELECT string_agg(t.title, E'\x1f') FROM catalog_work_title t WHERE t.work_id = w.id AND t.kind IN (?, ?)), '') AS titles
 		FROM catalog_work w
-		LEFT JOIN catalog_work_title t ON t.work_id = w.id
 		WHERE `+galgameLiveSQL+`
-		GROUP BY w.id ORDER BY w.id`,
+		ORDER BY w.id`,
 		model.WorkTitleKindOfficial, model.WorkTitleKindAlias, model.WorkStatusLive).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
@@ -69,6 +74,32 @@ func loadWorkTitles(ctx context.Context, db *gorm.DB) ([]workTitles, error) {
 	return out, nil
 }
 
+// loadPendingReleaseTitles returns each distinct release title of a live galgame
+// work that has no verdict, as a one-name set: its hash is md5 of the trimmed
+// title, the expression the read face looks it up by.
+func loadPendingReleaseTitles(ctx context.Context, db *gorm.DB) ([]workTitles, error) {
+	return releaseTitleSets(ctx, db, `AND NOT EXISTS (SELECT 1 FROM catalog_work_title_safety s WHERE s.title_hash = md5(btrim(r.title)))`)
+}
+
+func loadReleaseTitleSets(ctx context.Context, db *gorm.DB) ([]workTitles, error) {
+	return releaseTitleSets(ctx, db, "")
+}
+
+func releaseTitleSets(ctx context.Context, db *gorm.DB, extra string) ([]workTitles, error) {
+	var titles []string
+	if err := db.WithContext(ctx).Raw(`SELECT DISTINCT btrim(r.title) FROM catalog_release r
+		JOIN catalog_work w ON w.id = r.work_id
+		WHERE `+galgameLiveSQL+` AND r.deleted_at IS NULL AND btrim(coalesce(r.title, '')) <> '' `+extra,
+		model.WorkStatusLive).Scan(&titles).Error; err != nil {
+		return nil, err
+	}
+	out := make([]workTitles, len(titles))
+	for i, t := range titles {
+		out[i] = workTitles{Hash: titleSetHash([]string{t}), Names: []string{t}}
+	}
+	return out, nil
+}
+
 type IntroInput struct {
 	Hash  string
 	Lang  string
@@ -76,17 +107,23 @@ type IntroInput struct {
 	Title string
 }
 
-// loadPendingIntros returns the distinct intro texts of live galgame works that
-// have no verdict yet.
+// sfwShelfSQL selects the live galgame works an sfw page shows: only their
+// intros, and only the intros of characters appearing in them, are ever served
+// from the judged face. A work that moves onto the sfw shelf later is picked up
+// by the next run. Takes the r18 rating as its one argument.
+var sfwShelfSQL = `NOT ` + service.DisplayLimitNSFWSQL
+
+// loadPendingIntros returns the distinct intro texts that have no verdict yet
+// and hang on at least one work on the sfw shelf.
 func loadPendingIntros(ctx context.Context, db *gorm.DB, limit int) ([]IntroInput, error) {
 	var rows []IntroInput
 	q := `SELECT DISTINCT ON (md5(i.intro)) md5(i.intro) AS hash, i.lang, i.intro, w.display_name AS title
 		FROM catalog_work_intro i
 		JOIN catalog_work w ON w.id = i.work_id
-		WHERE ` + galgameLiveSQL + ` AND btrim(i.intro) <> ''
+		WHERE ` + galgameLiveSQL + ` AND ` + sfwShelfSQL + ` AND btrim(i.intro) <> ''
 		  AND NOT EXISTS (SELECT 1 FROM catalog_work_intro_safety s WHERE s.intro_hash = md5(i.intro))
 		ORDER BY md5(i.intro), w.id`
-	args := []any{model.WorkStatusLive}
+	args := []any{model.WorkStatusLive, model.ContentRatingR18}
 	if limit > 0 {
 		q += ` LIMIT ?`
 		args = append(args, limit)
@@ -104,6 +141,44 @@ func LoadIntroSample(ctx context.Context, db *gorm.DB, n int) ([]IntroInput, err
 		JOIN catalog_work w ON w.id = i.work_id
 		WHERE `+galgameLiveSQL+` AND btrim(i.intro) <> ''
 		ORDER BY md5(i.intro), w.id) x
+		ORDER BY md5(x.hash || 'sample') LIMIT ?`, model.WorkStatusLive, n).Scan(&rows).Error
+}
+
+// loadPendingCharacterIntros is loadPendingIntros for characters: an intro is
+// needed when its character appears in at least one work on the sfw shelf.
+func loadPendingCharacterIntros(ctx context.Context, db *gorm.DB, limit int) ([]IntroInput, error) {
+	var rows []IntroInput
+	q := `SELECT DISTINCT ON (md5(ci.intro)) md5(ci.intro) AS hash, ci.lang, ci.intro, c.display_name AS title
+		FROM catalog_character_intro ci
+		JOIN catalog_character c ON c.id = ci.character_id AND c.deleted_at IS NULL
+		WHERE btrim(ci.intro) <> ''
+		  AND EXISTS (SELECT 1 FROM catalog_work_character wc JOIN catalog_work w ON w.id = wc.work_id
+		              WHERE wc.character_id = ci.character_id AND ` + galgameLiveSQL + ` AND ` + sfwShelfSQL + `)
+		  AND NOT EXISTS (SELECT 1 FROM catalog_character_intro_safety s WHERE s.intro_hash = md5(ci.intro))
+		ORDER BY md5(ci.intro), ci.character_id`
+	args := []any{model.WorkStatusLive, model.ContentRatingR18}
+	if limit > 0 {
+		q += ` LIMIT ?`
+		args = append(args, limit)
+	}
+	return rows, db.WithContext(ctx).Raw(q, args...).Scan(&rows).Error
+}
+
+func LoadPendingCharacterIntros(ctx context.Context, db *gorm.DB, limit int) ([]IntroInput, error) {
+	return loadPendingCharacterIntros(ctx, db, limit)
+}
+
+// LoadCharacterIntroSample is LoadIntroSample for character intros.
+func LoadCharacterIntroSample(ctx context.Context, db *gorm.DB, n int) ([]IntroInput, error) {
+	var rows []IntroInput
+	return rows, db.WithContext(ctx).Raw(`SELECT * FROM (
+		SELECT DISTINCT ON (md5(ci.intro)) md5(ci.intro) AS hash, ci.lang, ci.intro, c.display_name AS title
+		FROM catalog_character_intro ci
+		JOIN catalog_character c ON c.id = ci.character_id AND c.deleted_at IS NULL
+		WHERE btrim(ci.intro) <> ''
+		  AND EXISTS (SELECT 1 FROM catalog_work_character wc JOIN catalog_work w ON w.id = wc.work_id
+		              WHERE wc.character_id = ci.character_id AND `+galgameLiveSQL+`)
+		ORDER BY md5(ci.intro), ci.character_id) x
 		ORDER BY md5(x.hash || 'sample') LIMIT ?`, model.WorkStatusLive, n).Scan(&rows).Error
 }
 
@@ -170,4 +245,31 @@ func bisect[T, R any](ctx context.Context, batch []T, run func(context.Context, 
 		return nil, err
 	}
 	return append(left, right...), nil
+}
+
+// Shard keeps the inputs whose hash falls in shard k of n ("k/n"), or in
+// shards a through b ("a-b/n"), so lanes on upstreams of unequal speed can take
+// unequal shares.
+func Shard(in []IntroInput, spec string) ([]IntroInput, error) {
+	var lo, hi, n int
+	if _, err := fmt.Sscanf(spec, "%d-%d/%d", &lo, &hi, &n); err != nil {
+		if _, err := fmt.Sscanf(spec, "%d/%d", &lo, &n); err != nil {
+			return nil, fmt.Errorf("bad -shard %q, want k/n or a-b/n", spec)
+		}
+		hi = lo
+	}
+	if n < 1 || lo < 0 || hi < lo || hi >= n {
+		return nil, fmt.Errorf("bad -shard %q, want 0 <= a <= b < n", spec)
+	}
+	out := in[:0:0]
+	for _, x := range in {
+		v, err := strconv.ParseUint(x.Hash[:8], 16, 32)
+		if err != nil {
+			return nil, fmt.Errorf("hash %q: %w", x.Hash, err)
+		}
+		if k := int(v % uint64(n)); k >= lo && k <= hi {
+			out = append(out, x)
+		}
+	}
+	return out, nil
 }

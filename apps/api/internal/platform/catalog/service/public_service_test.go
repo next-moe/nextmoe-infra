@@ -40,7 +40,7 @@ func TestCharacterIntroElectionDerivedException(t *testing.T) {
 	mk(sourceDerived, 1, "提取机器行")
 
 	svc := newPublicSvc()
-	intros, err := svc.characterIntros(t.Context(), ch.ID)
+	intros, err := svc.characterIntros(t.Context(), ch.ID, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +49,7 @@ func TestCharacterIntroElectionDerivedException(t *testing.T) {
 	}
 
 	mk(srcErogamescape, 0, "源文行")
-	intros, err = svc.characterIntros(t.Context(), ch.ID)
+	intros, err = svc.characterIntros(t.Context(), ch.ID, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -846,6 +846,7 @@ func TestPublicCharacterIntrosImage(t *testing.T) {
 		if err := testDB.Create(&row).Error; err != nil {
 			t.Fatalf("intro fixture: %v", err)
 		}
+		markCharacterIntroSafety(t, row.Intro, model.IntroSFWOriginal, "")
 	}
 
 	rec, found, err := svc.Character(ctx, c.ID, false, false, 0, 50, 0)

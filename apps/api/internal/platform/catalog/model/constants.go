@@ -268,6 +268,7 @@ type WorkShelf struct {
 	// electable cover art and every row of it is graded explicit. Read-only in
 	// Go — a database trigger owns it, see the catalog migrate package.
 	CoverArtAllExplicit bool
+	TitleNSFW           *bool
 }
 
 func (w WorkShelf) claimed() bool {
@@ -291,6 +292,9 @@ func (w WorkShelf) NSFW() bool {
 	}
 	if w.claimed() {
 		return w.DisplayNSFW
+	}
+	if w.TitleNSFW != nil {
+		return *w.TitleNSFW
 	}
 	return w.ContentRating == ContentRatingR18
 }

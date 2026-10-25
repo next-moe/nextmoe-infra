@@ -66,7 +66,7 @@ type Release struct {
 	WorkID      *string    `json:"work_id" pattern:"^[0-9]+$" maxLength:"20" doc:"Parent catalog work id. null on a work sub-resource, where the work is the URL."`
 	ReleaseKind string     `json:"release_kind" enum:"default,digital,physical,trial,patch" doc:"Release class."`
 	Date        *string    `json:"date" format:"date" maxLength:"10" doc:"Calendar date. null if undated."`
-	Title       *string    `json:"title" maxLength:"512" doc:"Must not be used as a discriminant."`
+	Title       *string    `json:"title" maxLength:"512" doc:"Must not be used as a discriminant. null when unrecorded, and on a work whose content_limit is sfw also when the title has not cleared a safety review."`
 	Lang        string     `json:"lang" maxLength:"32" format:"bcp47" doc:"BCP-47. Empty if unrecorded."`
 	Platform    string     `json:"platform" maxLength:"64" doc:"Must not be used as a discriminant."`
 	Platforms   []string   `json:"platforms" doc:"Every platform on this release. Empty array, never null."`

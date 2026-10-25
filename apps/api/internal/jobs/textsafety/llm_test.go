@@ -69,3 +69,16 @@ func TestAskDecodesTheJSONObjectInsideProse(t *testing.T) {
 	calls, in, outTok := llm.Usage()
 	assert.Equal(t, []int64{1, 10, 2}, []int64{calls, in, outTok})
 }
+
+func TestAskTreatsRepeatedProseAsARefusal(t *testing.T) {
+	hits := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hits++
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"I can't help with that."},"finish_reason":"stop"}]}`))
+	}))
+	defer srv.Close()
+	var out map[string]any
+	err := NewLLM(srv.URL, "t", "m").Ask(t.Context(), "x", &out)
+	assert.ErrorIs(t, err, ErrBlocked)
+	assert.Equal(t, 2, hits)
+}

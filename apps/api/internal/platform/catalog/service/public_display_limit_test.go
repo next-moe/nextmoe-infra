@@ -33,6 +33,20 @@ func setDisplayNSFW(t *testing.T, workID int64, nsfw bool) {
 	}
 }
 
+func setTitleNSFW(t *testing.T, workID int64, nsfw *bool) {
+	t.Helper()
+	if err := testDB.Exec(`UPDATE catalog_work SET title_nsfw = ? WHERE id = ?`, nsfw, workID).Error; err != nil {
+		t.Fatalf("set title_nsfw on work %d: %v", workID, err)
+	}
+}
+
+func fmtBoolPtr(b *bool) string {
+	if b == nil {
+		return "null"
+	}
+	return fmt.Sprint(*b)
+}
+
 func declareDisplayLimit(t *testing.T, productWorkID int64, contentLimit string) {
 	t.Helper()
 	res := testDB.Exec(
@@ -79,7 +93,7 @@ func (c coverArt) String() string {
 // displayLimitFixture builds EVERY combination of the axis's inputs, because
 // the Go projection and its SQL twin are two hand-written copies of one rule
 // and a table of interesting cases only cross-checks the cases someone thought
-// of. 90 rows is the whole input space.
+// of. 270 rows is the whole input space.
 func displayLimitFixture(t *testing.T) (byLimit map[string][]int64, all []int64) {
 	t.Helper()
 	wiki, empty, letmoe := "galgame_wiki", "", "letmoe"
@@ -98,6 +112,8 @@ func displayLimitFixture(t *testing.T) (byLimit map[string][]int64, all []int64)
 	}
 	ratings := []int16{model.ContentRatingAllAges, model.ContentRatingSensitive, model.ContentRatingR18}
 	arts := []coverArt{noCoverArt, someSafeCoverArt, allExplicitCoverArt}
+	no, yes := false, true
+	titles := []*bool{nil, &no, &yes}
 
 	byLimit = map[string][]int64{}
 	var n int64
@@ -105,20 +121,23 @@ func displayLimitFixture(t *testing.T) (byLimit map[string][]int64, all []int64)
 		for _, rating := range ratings {
 			for _, display := range []bool{false, true} {
 				for _, art := range arts {
-					n++
-					name := fmt.Sprintf("%s / rating %d / display_nsfw %v / %s", cl.name, rating, display, art)
-					w := createWorkX(t, galgameMediumID, rating, model.WorkStatusLive, name)
-					setClaimColumns(t, w.ID, cl.site, cl.pwid(9400+n), nil)
-					if display {
-						setDisplayNSFW(t, w.ID, true)
+					for _, title := range titles {
+						n++
+						name := fmt.Sprintf("%s / rating %d / display_nsfw %v / %s / title_nsfw %v", cl.name, rating, display, art, fmtBoolPtr(title))
+						w := createWorkX(t, galgameMediumID, rating, model.WorkStatusLive, name)
+						setClaimColumns(t, w.ID, cl.site, cl.pwid(9400+n), nil)
+						if display {
+							setDisplayNSFW(t, w.ID, true)
+						}
+						setTitleNSFW(t, w.ID, title)
+						art.apply(t, w.ID, fmt.Sprintf("%04x", n))
+						key := model.DisplayLimitKey(model.WorkShelf{
+							Site: cl.site, ProductWorkID: cl.pwid(9400 + n), DisplayNSFW: display,
+							ContentRating: rating, CoverArtAllExplicit: art.allExplicit(), TitleNSFW: title,
+						})
+						byLimit[key] = append(byLimit[key], w.ID)
+						all = append(all, w.ID)
 					}
-					art.apply(t, w.ID, fmt.Sprintf("%04x", n))
-					key := model.DisplayLimitKey(model.WorkShelf{
-						Site: cl.site, ProductWorkID: cl.pwid(9400 + n), DisplayNSFW: display,
-						ContentRating: rating, CoverArtAllExplicit: art.allExplicit(),
-					})
-					byLimit[key] = append(byLimit[key], w.ID)
-					all = append(all, w.ID)
 				}
 			}
 		}
@@ -129,10 +148,10 @@ func displayLimitFixture(t *testing.T) (byLimit map[string][]int64, all []int64)
 // TestCoverArtAllExplicitReachesTheProjection is the fixture's own positive
 // control: without it a trigger that never fired would leave every work with
 // cover_art_all_explicit false, the Go side would agree with the SQL side on
-// all 72 rows, and the cross-check above would pass while testing two thirds
+// all 270 rows, and the cross-check above would pass while testing two thirds
 // of nothing.
 // TestDisplayLimitWhereMatchesProjection is the anti-drift gate: the axis has
-// exactly two implementations — model.WorkShelf.NSFW and displayLimitNSFWSQL —
+// exactly two implementations — model.WorkShelf.NSFW and DisplayLimitNSFWSQL —
 // and this walks the whole input space through both, so a change to one that
 // is not made to the other cannot reach main.
 func TestDisplayLimitWhereMatchesProjection(t *testing.T) {

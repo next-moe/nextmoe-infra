@@ -6,8 +6,10 @@ import (
 )
 
 const (
-	TitlePromptVersion = "title-v1"
-	IntroPromptVersion = "intro-v1"
+	TitlePromptVersion     = "title-v1"
+	TitleReviewVersion     = "title-v1-review"
+	IntroPromptVersion     = "intro-v1"
+	CharIntroPromptVersion = "char-intro-v1"
 )
 
 const titlePrompt = `You review the names of visual novels before they appear on a public, search-indexed catalog page that must be safe for work. Every name listed for a work is shown on its page, so judge the WORST name of each work.
@@ -51,6 +53,44 @@ Reply with ONLY one JSON object, no prose and no code fences, with exactly one e
 
 Games:
 `
+
+const charIntroPrompt = `You review visual novel character profiles before they appear on a public, search-indexed web page that must be safe for work. Each profile is split into numbered sentences "[n] ...".
+
+For each profile return:
+- "class": "safe" (no sexual content at all), "mild" (mostly fine, but some sentences are sexual), or "explicit" (sexual content is the core of the text).
+- "confidence": your certainty from 0 to 1.
+- "drop": the numbers of every sentence that must be removed to make the profile safe for work. Remove a sentence that mentions sexual acts or sexual experience, genitals, nudity, fetishes or kinks, sexual violence, or describes the character's body in a sexualised way. Keep personality, role in the story, relationships, background, hobbies and voice actor. Height, weight, birthday and body measurements given as plain data are fine, and so are romance and crushes. A safe profile has "drop": [].
+
+Reply with ONLY one JSON object, no prose and no code fences, with exactly one entry per input id:
+{"items":[{"id":1,"class":"mild","confidence":0.9,"drop":[4,5]}]}
+
+Profiles:
+`
+
+const charRewritePrompt = `Write a short safe-for-work profile for each visual novel character below, for a public, search-indexed catalog page. You get the character's name ("title"), the language to write in ("lang"), and the original profile ("description"), which contains adult content.
+
+Rules:
+- 1 to 3 sentences in the requested language, using only facts from the original that are not sexual: role in the story, personality, relationships, background, hobbies.
+- No sexual content, no innuendo, no fetish words.
+- Do not invent anything that the original does not say.
+- If nothing non-sexual is left to say, return "".
+
+Reply with ONLY one JSON object, no prose and no code fences, with exactly one entry per input id:
+{"items":[{"id":1,"intro":"..."}]}
+
+Characters:
+`
+
+// IntroKind is one family of intros the pipeline judges: its prompts and the
+// verdict table the read face joins.
+type IntroKind struct {
+	classify, rewrite, promptVersion, table string
+}
+
+var (
+	WorkIntros      = IntroKind{introPrompt, rewritePrompt, IntroPromptVersion, "catalog_work_intro_safety"}
+	CharacterIntros = IntroKind{charIntroPrompt, charRewritePrompt, CharIntroPromptVersion, "catalog_character_intro_safety"}
+)
 
 func jsonLines(items []any) string {
 	var b strings.Builder

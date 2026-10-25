@@ -729,6 +729,12 @@ func seedLiveFixtures(db *gorm.DB, claims *catsvc.ClaimLifecycleService) (liveFi
 	}).Error; err != nil {
 		return fx, err
 	}
+	if err := db.Exec(`INSERT INTO catalog_character_intro_safety
+		(intro_hash, verdict, confidence, sfw_mode, sfw_intro, model, prompt_version, updated_at)
+		VALUES (md5('角色简介'), ?, 1, ?, '', 'test', 'test', now()) ON CONFLICT DO NOTHING`,
+		model.IntroSafetySafe, model.IntroSFWOriginal).Error; err != nil {
+		return fx, err
+	}
 	if err := db.Create(&model.CatalogExternalRef{
 		EntityType: model.EntityTypeCharacter, EntityID: ch.ID, SourceID: 2,
 		ExternalID: "c-live-1", LinkKind: model.LinkKindExact, MatchedBy: "test",
